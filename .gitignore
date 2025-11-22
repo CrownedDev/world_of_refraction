@@ -1,0 +1,16 @@
+﻿# Visual Studio
+.vs/
+*.sln
+*.vcxproj
+*.suo
+*.user
+
+# Unreal Engine
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+!Build/BatchFiles/
+!Build/Scripts/
