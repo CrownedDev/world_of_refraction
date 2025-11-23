@@ -1,0 +1,308 @@
+// Fill out your copyright notice in the Description page of Project Settings.
+
+#include "SpellDataDebug.h"
+#include "Engine/Engine.h"
+
+void USpellDataDebug::PrintSpellStats(USpellData *Spell, UCharacterData *Character, float Duration)
+{
+    if (!Spell || !Character)
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, Duration, FColor::Red, TEXT("ERROR: Spell or Character is NULL"));
+        }
+        return;
+    }
+
+    FString StatsString = GetSpellStatsString(Spell, Character);
+
+    if (GEngine)
+    {
+        TArray<FString> Lines;
+        StatsString.ParseIntoArray(Lines, TEXT("\n"));
+
+        for (int32 i = Lines.Num() - 1; i >= 0; --i)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, Duration, FColor::Magenta, Lines[i]);
+        }
+    }
+}
+
+void USpellDataDebug::LogSpellStats(USpellData *Spell, UCharacterData *Character)
+{
+    if (!Spell || !Character)
+    {
+        UE_LOG(LogTemp, Error, TEXT("ERROR: Spell or Character is NULL"));
+        return;
+    }
+
+    FString StatsString = GetSpellStatsString(Spell, Character);
+    UE_LOG(LogTemp, Display, TEXT("\n%s"), *StatsString);
+}
+
+FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *Character)
+{
+    if (!Spell || !Character)
+    {
+        return TEXT("ERROR: Invalid Spell or Character Data");
+    }
+
+    FString Output = TEXT("");
+    Output += TEXT("===================================\n");
+    Output += FString::Printf(TEXT("SPELL: %s\n"), *Spell->GetDisplayName(Character));
+    Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->CharacterName);
+    Output += TEXT("===================================\n\n");
+
+    // Element & School
+    FString ElementName;
+    if (Spell->bIsUniversalSpell)
+    {
+        // Show caster's element for universal spells
+        ElementName = UEnum::GetValueAsString(Character->InnateElement);
+        ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+    }
+    else
+    {
+        // Show spell's element for element-specific spells
+        ElementName = UEnum::GetValueAsString(Spell->Element);
+        ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+    }
+
+    FString SchoolName = UEnum::GetValueAsString(Spell->School);
+    SchoolName.RemoveFromStart(TEXT("ESpellSchool::"));
+
+    Output += TEXT("SPELL TYPE:\n");
+    Output += FString::Printf(TEXT("  Element: %s\n"), *ElementName);
+    Output += FString::Printf(TEXT("  School:  %s\n"), *SchoolName);
+
+    // Check if character can cast
+    bool bCanCast = Spell->CanCharacterCast(Character);
+    if (!bCanCast)
+    {
+        FString CharElementName = UEnum::GetValueAsString(Character->InnateElement);
+        CharElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+
+        if (Character->InnateElement == ERefractionElement::Generic)
+        {
+            Output += TEXT("❌ CANNOT CAST: Generic element characters cannot cast spells\n");
+        }
+        else
+        {
+            Output += FString::Printf(TEXT("❌ CANNOT CAST: Character is %s, spell requires %s\n"),
+                                      *CharElementName, *ElementName);
+        }
+        Output += TEXT("===================================\n");
+        return Output;
+    }
+
+    // Show if universal
+    if (Spell->bIsUniversalSpell)
+    {
+        Output += TEXT("  🌟 UNIVERSAL SPELL (All elements can cast)\n\n");
+    }
+
+    // Requirements
+    Output += TEXT("REQUIREMENTS:\n");
+    if (Spell->RequiredMind > 0 || Spell->RequiredBody > 0 || Spell->RequiredSpirit > 0)
+    {
+        if (Spell->RequiredMind > 0)
+            Output += FString::Printf(TEXT("  Mind:   %d (Has: %d) %s\n"),
+                                      Spell->RequiredMind, Character->GetBaseMind(),
+                                      Character->GetBaseMind() >= Spell->RequiredMind ? TEXT("✓") : TEXT("✗"));
+        if (Spell->RequiredBody > 0)
+            Output += FString::Printf(TEXT("  Body:   %d (Has: %d) %s\n"),
+                                      Spell->RequiredBody, Character->GetBaseBody(),
+                                      Character->GetBaseBody() >= Spell->RequiredBody ? TEXT("✓") : TEXT("✗"));
+        if (Spell->RequiredSpirit > 0)
+            Output += FString::Printf(TEXT("  Spirit: %d (Has: %d) %s\n"),
+                                      Spell->RequiredSpirit, Character->GetBaseSpirit(),
+                                      Character->GetBaseSpirit() >= Spell->RequiredSpirit ? TEXT("✓") : TEXT("✗"));
+
+        int32 Deficit = Spell->GetTotalDeficit(Character);
+        float Penalty = Spell->CalculateRequirementPenalty(Character);
+        Output += FString::Printf(TEXT("  Total Deficit: %d\n"), Deficit);
+        Output += FString::Printf(TEXT("  Penalty: %.1f%%\n\n"), Penalty * 100.0f);
+    }
+    else
+    {
+        Output += TEXT("  None\n\n");
+    }
+
+    // Mode Toggle Display
+    if (Spell->bHasModeToggle)
+    {
+        Output += TEXT("MODE TOGGLE: Available\n\n");
+
+        // Elemental Mode
+        Output += TEXT("ELEMENTAL MODE:\n");
+        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateElementalModeDamage(Character));
+        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateElementalModeEnergyCost(Character));
+        Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Spell->CalculateStatusBuildup(Character));
+        Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
+                                  Spell->CalculateStatusBuildup(Character) >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
+
+        // Raw Mode
+        Output += TEXT("RAW/CONSTRUCT MODE:\n");
+        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateRawModeDamage(Character));
+        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateRawModeEnergyCost(Character));
+        Output += TEXT("  Status Buildup: None\n\n");
+    }
+    else
+    {
+        Output += TEXT("MODE TOGGLE: Not Available\n\n");
+        Output += TEXT("SINGLE MODE:\n");
+        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character, false));
+        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character, false));
+
+        int32 Buildup = Spell->CalculateStatusBuildup(Character);
+        if (Buildup > 0)
+        {
+            Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Buildup);
+            Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
+                                      Buildup >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
+        }
+        else
+        {
+            Output += TEXT("  Status Buildup: None\n\n");
+        }
+    }
+
+    // Effects
+    if (Spell->PrimaryEffect != EAbilityEffectType::None)
+    {
+        FString EffectTypeName = UEnum::GetValueAsString(Spell->PrimaryEffect);
+        EffectTypeName.RemoveFromStart(TEXT("EAbilityEffectType::"));
+
+        Output += TEXT("PRIMARY EFFECT:\n");
+        Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
+
+        if (Spell->PrimaryEffectMagnitude > 0.0f)
+        {
+            Output += FString::Printf(TEXT("  Magnitude: %.0f%%\n"), Spell->PrimaryEffectMagnitude * 100.0f);
+        }
+
+        if (Spell->PrimaryEffectValue != 0)
+        {
+            Output += FString::Printf(TEXT("  Value: %d\n"), Spell->PrimaryEffectValue);
+        }
+
+        if (Spell->PrimaryEffectDuration > 0)
+        {
+            Output += FString::Printf(TEXT("  Duration: %d turn%s\n"),
+                                      Spell->PrimaryEffectDuration,
+                                      Spell->PrimaryEffectDuration == 1 ? TEXT("") : TEXT("s"));
+        }
+        Output += TEXT("\n");
+    }
+
+    if (Spell->SecondaryEffect != EAbilityEffectType::None)
+    {
+        FString EffectTypeName = UEnum::GetValueAsString(Spell->SecondaryEffect);
+        EffectTypeName.RemoveFromStart(TEXT("EAbilityEffectType::"));
+
+        Output += TEXT("SECONDARY EFFECT (Cross-School!):\n");
+        Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
+
+        if (Spell->SecondaryEffectMagnitude > 0.0f)
+        {
+            Output += FString::Printf(TEXT("  Magnitude: %.0f%%\n"), Spell->SecondaryEffectMagnitude * 100.0f);
+        }
+
+        if (Spell->SecondaryEffectValue != 0)
+        {
+            Output += FString::Printf(TEXT("  Value: %d\n"), Spell->SecondaryEffectValue);
+        }
+
+        if (Spell->SecondaryEffectDuration > 0)
+        {
+            Output += FString::Printf(TEXT("  Duration: %d turn%s\n"),
+                                      Spell->SecondaryEffectDuration,
+                                      Spell->SecondaryEffectDuration == 1 ? TEXT("") : TEXT("s"));
+        }
+        Output += TEXT("\n");
+    }
+
+    Output += TEXT("===================================\n");
+
+    return Output;
+}
+
+void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterData *Character1, UCharacterData *Character2)
+{
+    if (!Spell || !Character1 || !Character2)
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 10.0f, FColor::Red, TEXT("ERROR: Missing data for comparison"));
+        }
+        return;
+    }
+
+    FString Output = TEXT("");
+    Output += TEXT("===================================\n");
+    Output += FString::Printf(TEXT("SPELL COMPARISON: %s\n"), *Spell->SpellName);
+    Output += TEXT("===================================\n\n");
+
+    // Character 1
+    Output += FString::Printf(TEXT("%s:\n"), *Character1->CharacterName);
+    if (Spell->CanCharacterCast(Character1))
+    {
+        if (Spell->bHasModeToggle)
+        {
+            Output += FString::Printf(TEXT("  Elemental: %d dmg, %d energy\n"),
+                                      Spell->CalculateElementalModeDamage(Character1),
+                                      Spell->CalculateElementalModeEnergyCost(Character1));
+            Output += FString::Printf(TEXT("  Raw: %d dmg, %d energy\n"),
+                                      Spell->CalculateRawModeDamage(Character1),
+                                      Spell->CalculateRawModeEnergyCost(Character1));
+        }
+        else
+        {
+            Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character1, false));
+            Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character1, false));
+        }
+    }
+    else
+    {
+        Output += TEXT("  Cannot cast (wrong element)\n");
+    }
+    Output += TEXT("\n");
+
+    // Character 2
+    Output += FString::Printf(TEXT("%s:\n"), *Character2->CharacterName);
+    if (Spell->CanCharacterCast(Character2))
+    {
+        if (Spell->bHasModeToggle)
+        {
+            Output += FString::Printf(TEXT("  Elemental: %d dmg, %d energy\n"),
+                                      Spell->CalculateElementalModeDamage(Character2),
+                                      Spell->CalculateElementalModeEnergyCost(Character2));
+            Output += FString::Printf(TEXT("  Raw: %d dmg, %d energy\n"),
+                                      Spell->CalculateRawModeDamage(Character2),
+                                      Spell->CalculateRawModeEnergyCost(Character2));
+        }
+        else
+        {
+            Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character2, false));
+            Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character2, false));
+        }
+    }
+    else
+    {
+        Output += TEXT("  Cannot cast (wrong element)\n");
+    }
+
+    Output += TEXT("===================================\n");
+
+    UE_LOG(LogTemp, Display, TEXT("\n%s"), *Output);
+
+    if (GEngine)
+    {
+        TArray<FString> Lines;
+        Output.ParseIntoArray(Lines, TEXT("\n"));
+        for (int32 i = Lines.Num() - 1; i >= 0; --i)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Magenta, Lines[i]);
+        }
+    }
+}
