@@ -11,16 +11,11 @@
 #include "Misc/DataValidation.h"
 #endif
 
-//// Forward declarations
-//class USpellData;
-
 #include "CharacterData.generated.h"
-
-
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
- * Supports both base stat distribution and world stat bonuses with sub-stat customization
+ * Stats split between Initial (DNA) and World (progression) for clear tracking
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UCharacterData : public UPrimaryDataAsset
@@ -40,23 +35,17 @@ public:
 	FString Description = TEXT("Character description...");
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	UTexture2D* Portrait = nullptr;
+	UTexture2D *Portrait = nullptr;
 
 	// ==================== STAT BUDGET ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", meta = (ClampMin = "20", ClampMax = "40"))
-	int32 DistributablePoints = CombatConstants::STAT_BUDGET_STANDARD;
+	int32 InitialStatBudget = CombatConstants::STAT_BUDGET_STANDARD;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Distribution", meta = (ClampMin = "0"))
-	int32 DistributedMind = 10;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+	int32 PointsPerWorldStatLevel = CombatConstants::POINTS_PER_WORLD_STAT_LEVEL;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Distribution", meta = (ClampMin = "0"))
-	int32 DistributedBody = 10;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|Distribution", meta = (ClampMin = "0"))
-	int32 DistributedSpirit = 10;
-
-	// ==================== WORLD STAT BONUSES ====================
+	// ==================== WORLD STAT LEVELS ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses", meta = (ClampMin = "0", ClampMax = "7"))
 	int32 WorldMindLevel = 0;
@@ -67,57 +56,83 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses", meta = (ClampMin = "0", ClampMax = "7"))
 	int32 WorldSpiritLevel = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|World Bonuses")
-	int32 PointsPerWorldStatLevel = CombatConstants::POINTS_PER_WORLD_STAT_LEVEL;
+	// ==================== INITIAL SUB-STATS (CHARACTER DNA) ====================
 
-	// ==================== SUB-STAT DISTRIBUTION (MIND) ====================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|Initial", meta = (ClampMin = "0"))
+	int32 InitialCostReductionPoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 CostReductionPoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|Initial", meta = (ClampMin = "0"))
+	int32 InitialTurnSpeedPoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 TurnSpeedPoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|Initial", meta = (ClampMin = "0"))
+	int32 InitialCritChancePoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 CritChancePoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body|Initial", meta = (ClampMin = "0"))
+	int32 InitialDefensePoints = 0;
 
-	// ==================== SUB-STAT DISTRIBUTION (BODY) ====================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body|Initial", meta = (ClampMin = "0"))
+	int32 InitialAttackSpeedPoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
-	int32 DefensePoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body|Initial", meta = (ClampMin = "0"))
+	int32 InitialRawDamagePoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
-	int32 AttackSpeedPoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|Initial", meta = (ClampMin = "0"))
+	int32 InitialEffectDamagePoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
-	int32 RawDamagePoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|Initial", meta = (ClampMin = "0"))
+	int32 InitialResistancePoints = 0;
 
-	// ==================== SUB-STAT DISTRIBUTION (SPIRIT) ====================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|Initial", meta = (ClampMin = "0"))
+	int32 InitialAbilitySizePoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
-	int32 EffectDamagePoints = 0;
+	// ==================== WORLD SUB-STATS (PROGRESSION) ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
-	int32 ResistancePoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
+	int32 WorldCostReductionPoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
-	int32 AbilitySizePoints = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
+	int32 WorldTurnSpeedPoints = 0;
 
-	// ==================== SPELL POOLS ====================
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
+	int32 WorldCritChancePoints = 0;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	//TArray<USpellData*> GenericSpellPool;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body|World", meta = (ClampMin = "0"))
+	int32 WorldDefensePoints = 0;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	//TArray<USpellData*> UniqueSpells;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body|World", meta = (ClampMin = "0"))
+	int32 WorldAttackSpeedPoints = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (ClampMin = "3", ClampMax = "6"))
-	int32 MaxGenericSpellSlots = 4;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body|World", meta = (ClampMin = "0"))
+	int32 WorldRawDamagePoints = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|World", meta = (ClampMin = "0"))
+	int32 WorldEffectDamagePoints = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|World", meta = (ClampMin = "0"))
+	int32 WorldResistancePoints = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|World", meta = (ClampMin = "0"))
+	int32 WorldAbilitySizePoints = 0;
+
+	// ==================== ITEMS ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Items")
+	int32 MaxItemSlots = 4;
+
+	// ==================== ABILITIES ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
+	int32 MaxAbilitySlots = 3;
+
+	// ==================== SPELL SCHOOLS ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
+	int32 MaxSpellsPerSchool = 3;
 
 	// ==================== VISUAL DATA ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	USkeletalMesh* CharacterMesh = nullptr;
+	USkeletalMesh *CharacterMesh = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
 	TSubclassOf<UAnimInstance> AnimationBlueprint = nullptr;
@@ -136,92 +151,108 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (EditCondition = "bHasBrokenAbilities", MultiLine = true))
 	FString BalanceNotes = TEXT("");
 
-	// ==================== EFFECTIVE STATS ====================
+	// ==================== TOTAL SUB-STATS (GETTERS) ====================
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
+	int32 GetTotalCostReduction() const { return InitialCostReductionPoints + WorldCostReductionPoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
+	int32 GetTotalTurnSpeed() const { return InitialTurnSpeedPoints + WorldTurnSpeedPoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
+	int32 GetTotalCritChance() const { return InitialCritChancePoints + WorldCritChancePoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalDefense() const { return InitialDefensePoints + WorldDefensePoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalAttackSpeed() const { return InitialAttackSpeedPoints + WorldAttackSpeedPoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalRawDamage() const { return InitialRawDamagePoints + WorldRawDamagePoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
+	int32 GetTotalEffectDamage() const { return InitialEffectDamagePoints + WorldEffectDamagePoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
+	int32 GetTotalResistance() const { return InitialResistancePoints + WorldResistancePoints; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
+	int32 GetTotalAbilitySize() const { return InitialAbilitySizePoints + WorldAbilitySizePoints; }
+
+	// ==================== BASE STATS (DERIVED FROM TOTALS) ====================
+
+	UFUNCTION(BlueprintPure, Category = "Stats|Base")
+	int32 GetBaseMind() const
+	{
+		return GetTotalCostReduction() + GetTotalTurnSpeed() + GetTotalCritChance();
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Stats|Base")
+	int32 GetBaseBody() const
+	{
+		return GetTotalDefense() + GetTotalAttackSpeed() + GetTotalRawDamage();
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Stats|Base")
+	int32 GetBaseSpirit() const
+	{
+		return GetTotalEffectDamage() + GetTotalResistance() + GetTotalAbilitySize();
+	}
+
+	// ==================== EFFECTIVE STATS (WITH SCALING) ====================
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveMind() const
 	{
-		return DistributedMind * (1.0f + WorldMindLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
+		int32 BaseMind = GetBaseMind();
+		return BaseMind * (1.0f + WorldMindLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveBody() const
 	{
-		return DistributedBody * (1.0f + WorldBodyLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
+		int32 BaseBody = GetBaseBody();
+		return BaseBody * (1.0f + WorldBodyLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveSpirit() const
 	{
-		return DistributedSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
+		int32 BaseSpirit = GetBaseSpirit();
+		return BaseSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
 	}
 
 	// ==================== VALIDATION ====================
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetTotalDistributedPoints() const
+	int32 GetInitialSubStatSum() const
 	{
-		return DistributedMind + DistributedBody + DistributedSpirit;
+		return (InitialCostReductionPoints + InitialTurnSpeedPoints + InitialCritChancePoints) + (InitialDefensePoints + InitialAttackSpeedPoints + InitialRawDamagePoints) + (InitialEffectDamagePoints + InitialResistancePoints + InitialAbilitySizePoints);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	bool IsValidDistribution() const
+	int32 GetWorldSubStatSum() const
 	{
-		return GetTotalDistributedPoints() == DistributablePoints;
+		return (WorldCostReductionPoints + WorldTurnSpeedPoints + WorldCritChancePoints) + (WorldDefensePoints + WorldAttackSpeedPoints + WorldRawDamagePoints) + (WorldEffectDamagePoints + WorldResistancePoints + WorldAbilitySizePoints);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetAvailableMindPoints() const
+	int32 GetExpectedWorldPoints() const
 	{
-		return WorldMindLevel * PointsPerWorldStatLevel;
+		return (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * PointsPerWorldStatLevel;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetUsedMindPoints() const
+	bool IsValidInitialDistribution() const
 	{
-		return CostReductionPoints + TurnSpeedPoints + CritChancePoints;
+		return GetInitialSubStatSum() == InitialStatBudget;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	bool IsValidMindDistribution() const
+	bool IsValidWorldDistribution() const
 	{
-		return GetUsedMindPoints() == GetAvailableMindPoints();
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetAvailableBodyPoints() const
-	{
-		return WorldBodyLevel * PointsPerWorldStatLevel;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetUsedBodyPoints() const
-	{
-		return DefensePoints + AttackSpeedPoints + RawDamagePoints;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	bool IsValidBodyDistribution() const
-	{
-		return GetUsedBodyPoints() == GetAvailableBodyPoints();
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetAvailableSpiritPoints() const
-	{
-		return WorldSpiritLevel * PointsPerWorldStatLevel;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetUsedSpiritPoints() const
-	{
-		return EffectDamagePoints + ResistancePoints + AbilitySizePoints;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	bool IsValidSpiritDistribution() const
-	{
-		return GetUsedSpiritPoints() == GetAvailableSpiritPoints();
+		return GetWorldSubStatSum() == GetExpectedWorldPoints();
 	}
 
 	// ==================== MIND CALCULATIONS ====================
@@ -230,29 +261,30 @@ public:
 	float CalculateSpellCostReduction() const
 	{
 		float EffectiveMind = GetEffectiveMind();
+		int32 TotalPoints = GetTotalCostReduction();
 		return FMath::Clamp(
-			EffectiveMind * CostReductionPoints * CombatConstants::COST_REDUCTION_PER_POINT,
+			EffectiveMind * TotalPoints * CombatConstants::COST_REDUCTION_PER_POINT,
 			0.0f,
-			CombatConstants::COST_REDUCTION_MAX
-		);
+			CombatConstants::COST_REDUCTION_MAX);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateTurnSpeed() const
 	{
 		float EffectiveMind = GetEffectiveMind();
-		return CombatConstants::TURN_SPEED_BASE + (EffectiveMind * TurnSpeedPoints * CombatConstants::TURN_SPEED_PER_POINT);
+		int32 TotalPoints = GetTotalTurnSpeed();
+		return CombatConstants::TURN_SPEED_BASE + (EffectiveMind * TotalPoints * CombatConstants::TURN_SPEED_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateCriticalChance() const
 	{
 		float EffectiveMind = GetEffectiveMind();
+		int32 TotalPoints = GetTotalCritChance();
 		return FMath::Clamp(
-			CombatConstants::CRIT_CHANCE_BASE + (EffectiveMind * CritChancePoints * CombatConstants::CRIT_CHANCE_PER_POINT),
+			CombatConstants::CRIT_CHANCE_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
 			CombatConstants::CRIT_CHANCE_BASE,
-			CombatConstants::CRIT_CHANCE_MAX
-		);
+			CombatConstants::CRIT_CHANCE_MAX);
 	}
 
 	// ==================== BODY CALCULATIONS ====================
@@ -261,21 +293,24 @@ public:
 	int32 CalculateFlatDefense() const
 	{
 		float EffectiveBody = GetEffectiveBody();
-		return FMath::RoundToInt(EffectiveBody * DefensePoints * CombatConstants::DEFENSE_PER_POINT);
+		int32 TotalPoints = GetTotalDefense();
+		return FMath::RoundToInt(EffectiveBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateAttackSpeed() const
 	{
 		float EffectiveBody = GetEffectiveBody();
-		return CombatConstants::ATTACK_SPEED_BASE + (EffectiveBody * AttackSpeedPoints * CombatConstants::ATTACK_SPEED_PER_POINT);
+		int32 TotalPoints = GetTotalAttackSpeed();
+		return CombatConstants::ATTACK_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ATTACK_SPEED_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateRawDamageMultiplier() const
 	{
 		float EffectiveBody = GetEffectiveBody();
-		return 1.0f + (EffectiveBody * RawDamagePoints * CombatConstants::RAW_DAMAGE_PER_POINT);
+		int32 TotalPoints = GetTotalRawDamage();
+		return 1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
 	}
 
 	// ==================== SPIRIT CALCULATIONS ====================
@@ -284,25 +319,27 @@ public:
 	float CalculateEffectDamageMultiplier() const
 	{
 		float EffectiveSpirit = GetEffectiveSpirit();
-		return 1.0f + (EffectiveSpirit * EffectDamagePoints * CombatConstants::EFFECT_DAMAGE_PER_POINT);
+		int32 TotalPoints = GetTotalEffectDamage();
+		return 1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::EFFECT_DAMAGE_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateElementalResistance() const
 	{
 		float EffectiveSpirit = GetEffectiveSpirit();
+		int32 TotalPoints = GetTotalResistance();
 		return FMath::Clamp(
-			EffectiveSpirit * ResistancePoints * CombatConstants::RESISTANCE_PER_POINT,
+			EffectiveSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
 			0.0f,
-			CombatConstants::RESISTANCE_MAX
-		);
+			CombatConstants::RESISTANCE_MAX);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateAbilitySizeMultiplier() const
 	{
 		float EffectiveSpirit = GetEffectiveSpirit();
-		return 1.0f + (EffectiveSpirit * AbilitySizePoints * CombatConstants::ABILITY_SIZE_PER_POINT);
+		int32 TotalPoints = GetTotalAbilitySize();
+		return 1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::ABILITY_SIZE_PER_POINT);
 	}
 
 	// ==================== HELPER FUNCTIONS ====================
@@ -352,47 +389,25 @@ public:
 	// ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override
+	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override
 	{
 		EDataValidationResult Result = Super::IsDataValid(Context);
 
-		// Check base stat distribution
-		if (!IsValidDistribution())
+		// Check initial stat distribution
+		if (!IsValidInitialDistribution())
 		{
 			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("Base stat distribution (%d) doesn't match budget (%d)"),
-					GetTotalDistributedPoints(), DistributablePoints)
-			));
+				FString::Printf(TEXT("Initial sub-stats (%d) don't match budget (%d)"),
+								GetInitialSubStatSum(), InitialStatBudget)));
 			Result = EDataValidationResult::Invalid;
 		}
 
-		// Check Mind sub-stat distribution
-		if (WorldMindLevel > 0 && !IsValidMindDistribution())
+		// Check world stat distribution
+		if (!IsValidWorldDistribution())
 		{
 			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("Mind sub-stats (%d) don't match available (%d)"),
-					GetUsedMindPoints(), GetAvailableMindPoints())
-			));
-			Result = EDataValidationResult::Invalid;
-		}
-
-		// Check Body sub-stat distribution
-		if (WorldBodyLevel > 0 && !IsValidBodyDistribution())
-		{
-			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("Body sub-stats (%d) don't match available (%d)"),
-					GetUsedBodyPoints(), GetAvailableBodyPoints())
-			));
-			Result = EDataValidationResult::Invalid;
-		}
-
-		// Check Spirit sub-stat distribution
-		if (WorldSpiritLevel > 0 && !IsValidSpiritDistribution())
-		{
-			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("Spirit sub-stats (%d) don't match available (%d)"),
-					GetUsedSpiritPoints(), GetAvailableSpiritPoints())
-			));
+				FString::Printf(TEXT("World sub-stats (%d) don't match expected (%d)"),
+								GetWorldSubStatSum(), GetExpectedWorldPoints())));
 			Result = EDataValidationResult::Invalid;
 		}
 

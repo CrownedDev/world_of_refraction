@@ -3,7 +3,7 @@
 #include "CharacterDataDebug.h"
 #include "Engine/Engine.h"
 
-void UCharacterDataDebug::PrintCharacterStats(UCharacterData* Character, float Duration, FLinearColor TextColor)
+void UCharacterDataDebug::PrintCharacterStats(UCharacterData *Character, float Duration, FLinearColor TextColor)
 {
 	if (!Character)
 	{
@@ -22,14 +22,14 @@ void UCharacterDataDebug::PrintCharacterStats(UCharacterData* Character, float D
 		TArray<FString> Lines;
 		StatsString.ParseIntoArray(Lines, TEXT("\n"));
 
-		for (int32 i = Lines.Num() - 1; i >= 0; --i)  // Reverse order so it reads top to bottom
+		for (int32 i = Lines.Num() - 1; i >= 0; --i) // Reverse order so it reads top to bottom
 		{
 			GEngine->AddOnScreenDebugMessage(-1, Duration, TextColor.ToFColor(true), Lines[i]);
 		}
 	}
 }
 
-void UCharacterDataDebug::LogCharacterStats(UCharacterData* Character)
+void UCharacterDataDebug::LogCharacterStats(UCharacterData *Character)
 {
 	if (!Character)
 	{
@@ -40,8 +40,7 @@ void UCharacterDataDebug::LogCharacterStats(UCharacterData* Character)
 	FString StatsString = GetCharacterStatsString(Character);
 	UE_LOG(LogTemp, Display, TEXT("\n%s"), *StatsString);
 }
-
-FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
+FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 {
 	if (!Character)
 	{
@@ -62,95 +61,111 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	Output += FString::Printf(TEXT("  Element: %s\n"), *ElementName);
 	Output += FString::Printf(TEXT("  Description: %s\n\n"), *Character->Description);
 
+	// Initial Budget Validation
+	Output += TEXT("INITIAL DISTRIBUTION:\n");
+	Output += FString::Printf(TEXT("  Budget: %d\n"), Character->InitialStatBudget);
+	Output += FString::Printf(TEXT("  Used:   %d %s\n\n"),
+							  Character->GetInitialSubStatSum(),
+							  Character->IsValidInitialDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
+
+	// World Progression Validation
+	Output += TEXT("WORLD PROGRESSION:\n");
+	Output += FString::Printf(TEXT("  Expected: %d points\n"), Character->GetExpectedWorldPoints());
+	Output += FString::Printf(TEXT("  Used:     %d %s\n\n"),
+							  Character->GetWorldSubStatSum(),
+							  Character->IsValidWorldDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
+
 	// Base Stats
-	Output += TEXT("BASE STATS (Distributed):\n");
-	Output += FString::Printf(TEXT("  Mind:   %d\n"), Character->DistributedMind);
-	Output += FString::Printf(TEXT("  Body:   %d\n"), Character->DistributedBody);
-	Output += FString::Printf(TEXT("  Spirit: %d\n"), Character->DistributedSpirit);
-	Output += FString::Printf(TEXT("  Total:  %d / %d %s\n\n"),
-		Character->GetTotalDistributedPoints(),
-		Character->DistributablePoints,
-		Character->IsValidDistribution() ? TEXT("?") : TEXT("? INVALID"));
+	Output += TEXT("BASE STATS (Sum of Sub-Stats):\n");
+	Output += FString::Printf(TEXT("  Mind:   %d\n"), Character->GetBaseMind());
+	Output += FString::Printf(TEXT("  Body:   %d\n"), Character->GetBaseBody());
+	Output += FString::Printf(TEXT("  Spirit: %d\n\n"), Character->GetBaseSpirit());
 
 	// World Bonuses
-	Output += TEXT("WORLD STAT BONUSES:\n");
-	Output += FString::Printf(TEXT("  Mind Level:   %d (+%.0f%%)\n"),
-		Character->WorldMindLevel,
-		Character->WorldMindLevel * 5.0f);
-	Output += FString::Printf(TEXT("  Body Level:   %d (+%.0f%%)\n"),
-		Character->WorldBodyLevel,
-		Character->WorldBodyLevel * 5.0f);
-	Output += FString::Printf(TEXT("  Spirit Level: %d (+%.0f%%)\n\n"),
-		Character->WorldSpiritLevel,
-		Character->WorldSpiritLevel * 5.0f);
+	Output += TEXT("WORLD STAT LEVELS:\n");
+	Output += FString::Printf(TEXT("  Mind:   Level %d (+%d pts, +%.0f%% scaling)\n"),
+							  Character->WorldMindLevel,
+							  Character->WorldMindLevel * 3,
+							  Character->WorldMindLevel * 3.0f);
+	Output += FString::Printf(TEXT("  Body:   Level %d (+%d pts, +%.0f%% scaling)\n"),
+							  Character->WorldBodyLevel,
+							  Character->WorldBodyLevel * 3,
+							  Character->WorldBodyLevel * 3.0f);
+	Output += FString::Printf(TEXT("  Spirit: Level %d (+%d pts, +%.0f%% scaling)\n\n"),
+							  Character->WorldSpiritLevel,
+							  Character->WorldSpiritLevel * 3,
+							  Character->WorldSpiritLevel * 3.0f);
 
 	// Effective Stats
-	Output += TEXT("EFFECTIVE STATS:\n");
+	Output += TEXT("EFFECTIVE STATS (With Scaling):\n");
 	Output += FString::Printf(TEXT("  Mind:   %.2f\n"), Character->GetEffectiveMind());
 	Output += FString::Printf(TEXT("  Body:   %.2f\n"), Character->GetEffectiveBody());
 	Output += FString::Printf(TEXT("  Spirit: %.2f\n\n"), Character->GetEffectiveSpirit());
 
-	// Mind Calculations
-	Output += TEXT("MIND CALCULATIONS:\n");
+	// Sub-Stat Breakdown with Split
+	Output += TEXT("SUB-STAT BREAKDOWN:\n");
+	Output += TEXT("  Mind:\n");
+	Output += FString::Printf(TEXT("    Cost Reduction: %d (%d + %d)\n"),
+							  Character->GetTotalCostReduction(),
+							  Character->InitialCostReductionPoints,
+							  Character->WorldCostReductionPoints);
+	Output += FString::Printf(TEXT("    Turn Speed:     %d (%d + %d)\n"),
+							  Character->GetTotalTurnSpeed(),
+							  Character->InitialTurnSpeedPoints,
+							  Character->WorldTurnSpeedPoints);
+	Output += FString::Printf(TEXT("    Crit Chance:    %d (%d + %d)\n"),
+							  Character->GetTotalCritChance(),
+							  Character->InitialCritChancePoints,
+							  Character->WorldCritChancePoints);
+
+	Output += TEXT("  Body:\n");
+	Output += FString::Printf(TEXT("    Defense:        %d (%d + %d)\n"),
+							  Character->GetTotalDefense(),
+							  Character->InitialDefensePoints,
+							  Character->WorldDefensePoints);
+	Output += FString::Printf(TEXT("    Attack Speed:   %d (%d + %d)\n"),
+							  Character->GetTotalAttackSpeed(),
+							  Character->InitialAttackSpeedPoints,
+							  Character->WorldAttackSpeedPoints);
+	Output += FString::Printf(TEXT("    Raw Damage:     %d (%d + %d)\n"),
+							  Character->GetTotalRawDamage(),
+							  Character->InitialRawDamagePoints,
+							  Character->WorldRawDamagePoints);
+
+	Output += TEXT("  Spirit:\n");
+	Output += FString::Printf(TEXT("    Effect Damage:  %d (%d + %d)\n"),
+							  Character->GetTotalEffectDamage(),
+							  Character->InitialEffectDamagePoints,
+							  Character->WorldEffectDamagePoints);
+	Output += FString::Printf(TEXT("    Resistance:     %d (%d + %d)\n"),
+							  Character->GetTotalResistance(),
+							  Character->InitialResistancePoints,
+							  Character->WorldResistancePoints);
+	Output += FString::Printf(TEXT("    Ability Size:   %d (%d + %d)\n\n"),
+							  Character->GetTotalAbilitySize(),
+							  Character->InitialAbilitySizePoints,
+							  Character->WorldAbilitySizePoints);
+
+	// Combat Calculations
+	Output += TEXT("COMBAT STATS:\n");
 	Output += FString::Printf(TEXT("  Cost Reduction: %.1f%%\n"),
-		Character->CalculateSpellCostReduction() * 100.0f);
+							  Character->CalculateSpellCostReduction() * 100.0f);
 	Output += FString::Printf(TEXT("  Turn Speed:     %.2f\n"),
-		Character->CalculateTurnSpeed());
-	Output += FString::Printf(TEXT("  Crit Chance:    %.1f%%\n\n"),
-		Character->CalculateCriticalChance() * 100.0f);
-
-	// Body Calculations
-	Output += TEXT("BODY CALCULATIONS:\n");
+							  Character->CalculateTurnSpeed());
+	Output += FString::Printf(TEXT("  Crit Chance:    %.1f%%\n"),
+							  Character->CalculateCriticalChance() * 100.0f);
 	Output += FString::Printf(TEXT("  Flat Defense:   %d\n"),
-		Character->CalculateFlatDefense());
+							  Character->CalculateFlatDefense());
 	Output += FString::Printf(TEXT("  Attack Speed:   %.2fx\n"),
-		Character->CalculateAttackSpeed());
-	Output += FString::Printf(TEXT("  Raw Damage:     %.2fx\n\n"),
-		Character->CalculateRawDamageMultiplier());
-
-	// Spirit Calculations
-	Output += TEXT("SPIRIT CALCULATIONS:\n");
+							  Character->CalculateAttackSpeed());
+	Output += FString::Printf(TEXT("  Raw Damage:     %.2fx\n"),
+							  Character->CalculateRawDamageMultiplier());
 	Output += FString::Printf(TEXT("  Effect Damage:  %.2fx\n"),
-		Character->CalculateEffectDamageMultiplier());
+							  Character->CalculateEffectDamageMultiplier());
 	Output += FString::Printf(TEXT("  Resistance:     %.1f%%\n"),
-		Character->CalculateElementalResistance() * 100.0f);
+							  Character->CalculateElementalResistance() * 100.0f);
 	Output += FString::Printf(TEXT("  Ability Size:   %.2fx\n\n"),
-		Character->CalculateAbilitySizeMultiplier());
-
-	// Sub-Stat Distribution
-	Output += TEXT("SUB-STAT DISTRIBUTION:\n");
-	Output += FString::Printf(TEXT("  Mind:   %d / %d %s (Cost:%d, Speed:%d, Crit:%d)\n"),
-		Character->GetUsedMindPoints(),
-		Character->GetAvailableMindPoints(),
-		Character->IsValidMindDistribution() ? TEXT("?") : TEXT("?"),
-		Character->CostReductionPoints,
-		Character->TurnSpeedPoints,
-		Character->CritChancePoints);
-	Output += FString::Printf(TEXT("  Body:   %d / %d %s (Def:%d, AtkSpd:%d, RawDmg:%d)\n"),
-		Character->GetUsedBodyPoints(),
-		Character->GetAvailableBodyPoints(),
-		Character->IsValidBodyDistribution() ? TEXT("?") : TEXT("?"),
-		Character->DefensePoints,
-		Character->AttackSpeedPoints,
-		Character->RawDamagePoints);
-	Output += FString::Printf(TEXT("  Spirit: %d / %d %s (EffDmg:%d, Res:%d, Size:%d)\n\n"),
-		Character->GetUsedSpiritPoints(),
-		Character->GetAvailableSpiritPoints(),
-		Character->IsValidSpiritDistribution() ? TEXT("?") : TEXT("?"),
-		Character->EffectDamagePoints,
-		Character->ResistancePoints,
-		Character->AbilitySizePoints);
-
-	// Validation Summary
-	Output += TEXT("VALIDATION:\n");
-	Output += FString::Printf(TEXT("  Base Stats: %s\n"),
-		Character->IsValidDistribution() ? TEXT("[OK] VALID") : TEXT("[X] INVALID"));
-	Output += FString::Printf(TEXT("  Mind:       %s\n"),
-		Character->IsValidMindDistribution() ? TEXT("[OK] VALID") : TEXT("[X] INVALID"));
-	Output += FString::Printf(TEXT("  Body:       %s\n"),
-		Character->IsValidBodyDistribution() ? TEXT("[OK] VALID") : TEXT("[X] INVALID"));
-	Output += FString::Printf(TEXT("  Spirit:     %s\n"),
-		Character->IsValidSpiritDistribution() ? TEXT("[OK] VALID") : TEXT("[X] INVALID"));
+							  Character->CalculateAbilitySizeMultiplier());
 
 	Output += TEXT("===================================\n");
 
