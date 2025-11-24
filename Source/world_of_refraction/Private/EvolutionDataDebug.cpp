@@ -74,8 +74,8 @@ FString UEvolutionDataDebug::GetEvolutionStatsString(UEvolutionData *Evolution, 
         bool bCanUse = Evolution->CanCharacterUse(Character);
 
         Output += FString::Printf(TEXT("  %s: %s\n"),
-            *Character->CharacterName,
-            bCanUse ? TEXT("CAN EVOLVE") : TEXT("CANNOT EVOLVE"));
+                                  *Character->CharacterName,
+                                  bCanUse ? TEXT("CAN EVOLVE") : TEXT("CANNOT EVOLVE"));
 
         if (!bCanUse)
         {
@@ -149,21 +149,11 @@ FString UEvolutionDataDebug::GetEvolutionStatsString(UEvolutionData *Evolution, 
     if (Evolution->GetPassiveCount() > 0)
     {
         Output += FString::Printf(TEXT("PASSIVE EFFECTS (%d):\n"), Evolution->GetPassiveCount());
-
         for (int32 i = 0; i < Evolution->PassiveEffects.Num(); ++i)
         {
-            const FPassiveEffect &Passive = Evolution->PassiveEffects[i];
+            const FPassiveEffect& Passive = Evolution->PassiveEffects[i];
             Output += FString::Printf(TEXT("  %d. %s\n"), i + 1, *Passive.PassiveName);
-            Output += FString::Printf(TEXT("     Trigger: %s\n"), *Passive.GetTriggerDescription());
-
-            FString EffectName = UEnum::GetValueAsString(Passive.EffectType);
-            EffectName.RemoveFromStart(TEXT("EPassiveEffectType::"));
-            Output += FString::Printf(TEXT("     Effect: %s (%.1f)\n"), *EffectName, Passive.EffectValue);
-
-            if (Passive.Duration > 0)
-            {
-                Output += FString::Printf(TEXT("     Duration: %d turns\n"), Passive.Duration);
-            }
+            Output += FString::Printf(TEXT("     %s\n"), *Passive.GetDescription());
         }
         Output += TEXT("\n");
     }

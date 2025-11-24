@@ -116,7 +116,7 @@ bool UEvolutionData::MeetsElementRequirement(const UCharacterData *Character) co
     return Character->InnateElement == Element;
 }
 
-bool UEvolutionData::CanCharacterUse(const UCharacterData* Character) const
+bool UEvolutionData::CanCharacterUse(const UCharacterData *Character) const
 {
     if (!Character)
     {
@@ -231,7 +231,7 @@ TArray<FPassiveEffect> UEvolutionData::GetTriggeredPassives() const
 // ==================== VALIDATION ====================
 
 #if WITH_EDITOR
-EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationErrors)
+EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationErrors)
 {
     EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
 
@@ -256,13 +256,20 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
         Result = EDataValidationResult::Invalid;
     }
 
-    // Check for null spells
+    // Check exclusive spells element matching
     for (int32 i = 0; i < ExclusiveSpells.Num(); ++i)
     {
-        if (ExclusiveSpells[i] == nullptr)
+        if (ExclusiveSpells[i])
         {
-            ValidationErrors.Add(FText::FromString(FString::Printf(TEXT("Exclusive spell slot %d is empty"), i + 1)));
-            Result = EDataValidationResult::Invalid;
+            ERefractionElement SpellElement = ExclusiveSpells[i]->Element;
+            if (SpellElement != Element && SpellElement != ERefractionElement::Generic)
+            {
+                ValidationErrors.Add(FText::FromString(FString::Printf(
+                    TEXT("Exclusive spell '%s' has wrong element (%s)"),
+                    *ExclusiveSpells[i]->SpellName,
+                    *ExclusiveSpells[i]->GetElementName())));
+                Result = EDataValidationResult::Invalid;
+            }
         }
     }
 
@@ -273,10 +280,24 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
         Result = EDataValidationResult::Invalid;
     }
 
+    // Check ultimate element matching
+    if (bOverridesUltimate && EvolutionUltimate)
+    {
+        ERefractionElement UltElement = EvolutionUltimate->Element;
+        if (UltElement != Element && UltElement != ERefractionElement::Generic)
+        {
+            ValidationErrors.Add(FText::FromString(FString::Printf(
+                TEXT("Evolution ultimate '%s' has wrong element (%s)"),
+                *EvolutionUltimate->UltimateName,
+                *EvolutionUltimate->GetElementName())));
+            Result = EDataValidationResult::Invalid;
+        }
+    }
+
     // Passive validation
     for (int32 i = 0; i < PassiveEffects.Num(); ++i)
     {
-        const FPassiveEffect &Passive = PassiveEffects[i];
+        const FPassiveEffect& Passive = PassiveEffects[i];
 
         if (Passive.PassiveName.IsEmpty() || Passive.PassiveName == TEXT("Unnamed Passive"))
         {
@@ -317,5 +338,15 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
     }
 
     return Result;
+}
+
+void UEvolutionData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    for (FPassiveEffect& Passive : PassiveEffects)
+    {
+        Passive.RefreshDescription();
+    }
 }
 #endif
