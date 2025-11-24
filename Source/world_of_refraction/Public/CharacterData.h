@@ -13,6 +13,7 @@
 
 #include "CharacterData.generated.h"
 class UBaseAttackData;
+class UStanceData;
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
@@ -42,6 +43,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack")
 	UBaseAttackData* BaseAttack = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
+	UStanceData* UnarmedStance = nullptr;
 
 	// ==================== STAT BUDGET ====================
 
