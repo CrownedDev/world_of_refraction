@@ -24,6 +24,6 @@ enum class ERefractionElement : uint8
     Lightning      UMETA(DisplayName = "Lightning"),
     Void           UMETA(DisplayName = "Void"),
     Reality        UMETA(DisplayName = "Reality"),
-    Generic        UMETA(DisplayName = "Generic (Non-Elemental)"),
+    Generic        UMETA(DisplayName = "Generic"),
     BrokenDarkness UMETA(DisplayName = "Broken Darkness")
 };
