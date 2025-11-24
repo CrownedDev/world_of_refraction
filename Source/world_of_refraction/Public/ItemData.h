@@ -62,6 +62,9 @@ public:
     int32 DisplayBuffDuration;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
+    float DisplaySilencePercentage;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
     int32 DisplaySilenceDuration;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
@@ -107,16 +110,16 @@ public:
     // ==================== VISUAL/AUDIO ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D *Icon;
+    UTexture2D* Icon;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FLinearColor TierColor;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UParticleSystem *UseEffect;
+    UParticleSystem* UseEffect;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    USoundBase *UseSound;
+    USoundBase* UseSound;
 
     // ==================== UTILITY FUNCTIONS ====================
 
@@ -174,7 +177,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetBuffDuration() const;
 
-    // Silence duration
+    // Silence values
+    UFUNCTION(BlueprintPure, Category = "Item|Effects")
+    float GetSilencePercentage() const;
+
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetSilenceDuration() const;
 
@@ -211,12 +217,12 @@ public:
 
 #if WITH_EDITOR
     // Editor-only: Auto-configure properties when changed
-    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
     // Generate description based on crystal type and tier
     FString GenerateDescription() const;
 
     // Validate item configuration
-    virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
+    virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
 #endif
 };

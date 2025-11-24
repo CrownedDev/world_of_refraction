@@ -410,7 +410,34 @@ int32 UItemData::GetBuffDuration() const
     }
 }
 
-// ==================== SILENCE ====================
+// ==================== SILENCE (Onyx) ====================
+
+float UItemData::GetSilencePercentage() const
+{
+    if (CrystalType == ECrystalType::Onyx)
+    {
+        switch (Tier)
+        {
+        case EItemTier::F_Tier:
+            return 15.0f;
+        case EItemTier::E_Tier:
+            return 30.0f;
+        case EItemTier::D_Tier:
+            return 30.0f;
+        case EItemTier::C_Tier:
+            return 50.0f;
+        case EItemTier::B_Tier:
+            return 70.0f;
+        case EItemTier::A_Tier:
+            return 70.0f;
+        case EItemTier::S_Tier:
+            return 100.0f;
+        default:
+            return 0.0f;
+        }
+    }
+    return 0.0f;
+}
 
 int32 UItemData::GetSilenceDuration() const
 {
@@ -421,17 +448,17 @@ int32 UItemData::GetSilenceDuration() const
         case EItemTier::F_Tier:
             return 1;
         case EItemTier::E_Tier:
-            return 2;
+            return 1;
         case EItemTier::D_Tier:
             return 2;
         case EItemTier::C_Tier:
-            return 3;
+            return 2;
         case EItemTier::B_Tier:
-            return 3;
+            return 2;
         case EItemTier::A_Tier:
-            return 4;
+            return 3;
         case EItemTier::S_Tier:
-            return 5;
+            return 1;
         default:
             return 0;
         }
@@ -450,17 +477,17 @@ int32 UItemData::GetDebuffsToRemove() const
         case EItemTier::F_Tier:
             return 1;
         case EItemTier::E_Tier:
-            return 2;
+            return 1;
         case EItemTier::D_Tier:
-            return 3;
+            return 2;
         case EItemTier::C_Tier:
-            return 4;
+            return 2;
         case EItemTier::B_Tier:
-            return 0; // All debuffs
+            return 3;
         case EItemTier::A_Tier:
-            return 0; // All debuffs
+            return 3;
         case EItemTier::S_Tier:
-            return 0; // All debuffs
+            return 0;
         default:
             return 0;
         }
@@ -472,7 +499,8 @@ bool UItemData::GetGrantsImmunity() const
 {
     if (CrystalType == ECrystalType::Iolite)
     {
-        return Tier >= EItemTier::B_Tier; // B, A, S grant immunity
+        // F through A grant immunity, S doesn't need it (removes ALL)
+        return Tier >= EItemTier::F_Tier && Tier <= EItemTier::A_Tier;
     }
     return false;
 }
@@ -483,12 +511,20 @@ int32 UItemData::GetImmunityDuration() const
     {
         switch (Tier)
         {
+        case EItemTier::F_Tier:
+            return 1; // NEW
+        case EItemTier::E_Tier:
+            return 2; // NEW
+        case EItemTier::D_Tier:
+            return 1; // NEW
+        case EItemTier::C_Tier:
+            return 2; // NEW
         case EItemTier::B_Tier:
-            return 1;
+            return 2; // CHANGED: was 1
         case EItemTier::A_Tier:
-            return 2;
+            return 3; // CHANGED: was 2
         case EItemTier::S_Tier:
-            return 3;
+            return 0; // CHANGED: was 3 (no immunity needed - all gone!)
         default:
             return 0;
         }
@@ -645,7 +681,15 @@ FString UItemData::GenerateDescription() const
         break;
 
     case ECrystalType::Onyx:
-        Effect = FString::Printf(TEXT("Prevents enemy energy gain for %d turns"), GetSilenceDuration());
+        if (GetSilencePercentage() >= 100.0f)
+        {
+            Effect = FString::Printf(TEXT("Completely silences target for %d turns"), GetSilenceDuration());
+        }
+        else
+        {
+            Effect = FString::Printf(TEXT("Locks %.0f%% of target's energy for %d turns"),
+                                     GetSilencePercentage(), GetSilenceDuration());
+        }
         break;
 
     case ECrystalType::Amethyst:
@@ -698,6 +742,7 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     DisplaySelfDamage = GetSelfDamage();
     DisplayBuffPercentage = GetBuffPercentage();
     DisplayBuffDuration = GetBuffDuration();
+    DisplaySilencePercentage = GetSilencePercentage();
     DisplaySilenceDuration = GetSilenceDuration();
     DisplayDebuffsToRemove = GetDebuffsToRemove();
     DisplayGrantsImmunity = GetGrantsImmunity();
