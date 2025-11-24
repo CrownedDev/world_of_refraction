@@ -12,6 +12,7 @@
 #endif
 
 #include "CharacterData.generated.h"
+class UBaseAttackData;
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
@@ -36,6 +37,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	UTexture2D *Portrait = nullptr;
+
+	// ==================== COMBAT LOADOUT ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack")
+	UBaseAttackData* BaseAttack = nullptr;
 
 	// ==================== STAT BUDGET ====================
 
