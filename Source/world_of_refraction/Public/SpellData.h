@@ -188,6 +188,19 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell|Display")
     FString GetDisplayName(UCharacterData *Caster) const;
 
+    UFUNCTION(BlueprintPure, Category = "Spell")
+    FString GetElementName() const
+    {
+        const UEnum* EnumPtr = StaticEnum<ERefractionElement>();
+        if (EnumPtr)
+        {
+            FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
+            Name.RemoveFromStart(TEXT("ERefractionElement::"));
+            return Name;
+        }
+        return TEXT("Unknown");
+    }
+
     // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR
