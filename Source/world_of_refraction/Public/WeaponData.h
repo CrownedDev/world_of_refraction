@@ -15,7 +15,7 @@
 #include "WeaponData.generated.h"
 
 // Forward declarations
-class UBaseAttackData;
+class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
 class UWeaponInfusionDisplayData;
@@ -45,7 +45,7 @@ public:
 
     // Attack used when this weapon is equipped (replaces base attack)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-    UBaseAttackData *WeaponAttack = nullptr;
+    UWeaponAttackData *WeaponAttack = nullptr;
 
     // Default abilities for this weapon (can be customized unless locked)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "AbilityName"))
@@ -55,7 +55,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
     bool bAbilitiesLocked = false;
 
-    // ==================== ANIMATION ====================
+    // ==================== INFUSION (GENERIC ONLY) ====================
+
+// Can Generic characters infuse this weapon with abilities?
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
+    bool bCanBeInfused = true;
+
+    // Status buildup multiplier when abilities are infused (higher = faster status)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",
+        meta = (EditCondition = "bCanBeInfused", ClampMin = "0.0", ClampMax = "2.0"))
+    float InfusionStatusMultiplier = 1.0f;
+        // ==================== ANIMATION ====================
 
     // Idle stance when this weapon is equipped
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")

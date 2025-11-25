@@ -43,11 +43,16 @@ public:
 	UTexture2D *Portrait = nullptr;
 
 	// ==================== COMBAT LOADOUT ====================
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack")
+	// Base attack for unarmed state (Elemental only - Generic uses weapon attacks)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack",
+			  meta = (EditCondition = "InnateElement != ERefractionElement::Generic", EditConditionHides))
 	UBaseAttackData *BaseAttack = nullptr;
-	// Does this character start combat with weapon drawn?
+
+	// Use primary weapon/state at combat start?
+	// Elemental: true = Armed (Primary), false = Unarmed
+	// Generic: true = Primary weapon, false = Secondary weapon
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
-	bool bStartsArmed = false;
+	bool bUsePrimary = true;
 
 	// Primary weapon (all characters)// Validate weapon loadout
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")

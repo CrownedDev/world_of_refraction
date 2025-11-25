@@ -2,11 +2,11 @@
 // Weapon data implementation
 
 #include "WeaponData.h"
-#include "BaseAttackData.h"
 #include "AbilityData.h"
 #include "StanceData.h"
 #include "LoadoutConstants.h"
 #include "WeaponInfusionDisplayData.h"
+#include "WeaponAttackData.h"
 
 FString UWeaponData::GetWeaponTypeName() const
 {

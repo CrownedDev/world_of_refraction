@@ -2,6 +2,10 @@
 
 #include "CharacterDataDebug.h"
 #include "Engine/Engine.h"
+#include "WeaponData.h"
+#include "WeaponAttackData.h"
+
+#include "LoadoutConstants.h"
 
 void UCharacterDataDebug::PrintCharacterStats(UCharacterData *Character, float Duration, FLinearColor TextColor)
 {
@@ -74,6 +78,77 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("  Used:     %d %s\n\n"),
 							  Character->GetWorldSubStatSum(),
 							  Character->IsValidWorldDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
+
+	// Weapon Loadout
+	Output += TEXT("WEAPON LOADOUT:\n");
+	if (Character->InnateElement == ERefractionElement::Generic)
+	{
+		Output += FString::Printf(TEXT("  Starts With: %s\n"), Character->bUsePrimary ? TEXT("Primary") : TEXT("Secondary"));
+	}
+	else
+	{
+		Output += FString::Printf(TEXT("  Starts: %s\n"), Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
+	}
+
+	if (Character->PrimaryWeapon)
+	{
+		Output += FString::Printf(TEXT("  Primary: %s (%s)\n"),
+			*Character->PrimaryWeapon->WeaponName,
+			*Character->PrimaryWeapon->GetWeaponTypeName());
+
+		if (Character->PrimaryWeapon->WeaponAttack)
+		{
+			Output += FString::Printf(TEXT("    Attack: %s [%s] (Buildup: %d)\n"),
+				*Character->PrimaryWeapon->WeaponAttack->AttackName,
+				*Character->PrimaryWeapon->WeaponAttack->GetDamageTypeName(),
+				Character->PrimaryWeapon->WeaponAttack->StatusBuildup);
+		}
+
+		Output += FString::Printf(TEXT("    Abilities: %d/%d %s\n"),
+			Character->PrimaryWeapon->GetAbilityCount(),
+			LoadoutConstants::MAX_WEAPON_ABILITIES,
+			Character->PrimaryWeapon->bAbilitiesLocked ? TEXT("[LOCKED]") : TEXT(""));
+
+		if (Character->PrimaryWeapon->bCanBeInfused)
+		{
+			Output += FString::Printf(TEXT("    Infusion: %.1fx multiplier\n"),
+				Character->PrimaryWeapon->InfusionStatusMultiplier);
+		}
+	}
+	else
+	{
+		Output += TEXT("  Primary: None\n");
+	}
+
+	if (Character->InnateElement == ERefractionElement::Generic)
+	{
+		if (Character->SecondaryWeapon)
+		{
+			Output += FString::Printf(TEXT("  Secondary: %s (%s)\n"),
+				*Character->SecondaryWeapon->WeaponName,
+				*Character->SecondaryWeapon->GetWeaponTypeName());
+
+			if (Character->SecondaryWeapon->WeaponAttack)
+			{
+				Output += FString::Printf(TEXT("    Attack: %s [%s] (Buildup: %d)\n"),
+					*Character->SecondaryWeapon->WeaponAttack->AttackName,
+					*Character->SecondaryWeapon->WeaponAttack->GetDamageTypeName(),
+					Character->SecondaryWeapon->WeaponAttack->StatusBuildup);
+			}
+
+			Output += FString::Printf(TEXT("    Abilities: %d/%d %s\n"),
+				Character->SecondaryWeapon->GetAbilityCount(),
+				LoadoutConstants::MAX_WEAPON_ABILITIES,
+				Character->SecondaryWeapon->bAbilitiesLocked ? TEXT("[LOCKED]") : TEXT(""));
+		}
+		else
+		{
+			Output += TEXT("  Secondary: None\n");
+		}
+	}
+
+	Output += TEXT("\n");
+
 
 	// Base Stats
 	Output += TEXT("BASE STATS (Sum of Sub-Stats):\n");
