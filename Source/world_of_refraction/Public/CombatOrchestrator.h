@@ -8,6 +8,7 @@
 
 class UTurnManager;
 class UCharacterDataComponent;
+class UStatusEffectManager;
 
 /**
  * Combat state enum
@@ -61,12 +62,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionRequested, AActor*, Actor);
  * Responsibilities:
  * - Initialize/end combat via TurnManager
  * - Listen to turn events and coordinate responses
- * - Process status effects at turn boundaries (stub)
+ * - Process status effects at turn boundaries (via StatusEffectManager)
  * - Request actions from actors (stub - auto-advance for now)
  * - Check win conditions
  *
- * Future integrations:
+ * Integrated Systems:
+ * - TurnManager (turn order, speed changes)
  * - StatusEffectManager (start/end of turn processing)
+ *
+ * Future integrations:
  * - ActionExecutor (validate and execute actions)
  * - BattleUIManager (show action menu for players)
  * - AIDecisionManager (make decisions for AI)
@@ -182,6 +186,9 @@ private:
 	UPROPERTY()
 	UTurnManager* TurnManagerRef;
 
+	UPROPERTY()
+	UStatusEffectManager* StatusEffectManagerRef;
+
 	FTimerHandle AutoAdvanceTimerHandle;
 
 	// ========================================
@@ -205,7 +212,7 @@ private:
 	void BindTurnManagerEvents();
 	void UnbindTurnManagerEvents();
 
-	// Status effect stubs (future: delegate to StatusEffectManager)
+	// Status effect processing (delegates to StatusEffectManager)
 	void ProcessStartOfTurnEffects(AActor* Actor);
 	void ProcessEndOfTurnEffects(AActor* Actor);
 

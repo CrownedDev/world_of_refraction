@@ -19,6 +19,11 @@ ACombatOrchestratorTestActor::ACombatOrchestratorTestActor()
 void ACombatOrchestratorTestActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (bAutoRunTests)
+	{
+		RunAllTests();
+	}
 }
 
 // ========================================

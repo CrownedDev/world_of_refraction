@@ -2,6 +2,7 @@
 
 #include "CombatOrchestrator.h"
 #include "TurnManager.h"
+#include "StatusEffectManager.h"
 #include "CharacterDataComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -19,16 +20,22 @@ void ACombatOrchestrator::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Cache TurnManager reference
+	// Cache subsystem references
 	UGameInstance* GI = GetGameInstance();
 	if (GI)
 	{
 		TurnManagerRef = GI->GetSubsystem<UTurnManager>();
+		StatusEffectManagerRef = GI->GetSubsystem<UStatusEffectManager>();
 	}
 
 	if (!TurnManagerRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get TurnManager subsystem!"));
+	}
+
+	if (!StatusEffectManagerRef)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get StatusEffectManager subsystem!"));
 	}
 }
 
@@ -96,6 +103,12 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 	UnbindTurnManagerEvents();
 
+	// Clear all status effects from combat
+	if (StatusEffectManagerRef)
+	{
+		StatusEffectManagerRef->ClearAllEffects();
+	}
+
 	if (TurnManagerRef && TurnManagerRef->IsCombatActive())
 	{
 		TurnManagerRef->EndCombat();
@@ -136,6 +149,13 @@ void ACombatOrchestrator::OnActionCompleted()
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Win condition met: %d"), (int32)WinState);
 
 		UnbindTurnManagerEvents();
+
+		// Clear all status effects from combat
+		if (StatusEffectManagerRef)
+		{
+			StatusEffectManagerRef->ClearAllEffects();
+		}
+
 		TurnManagerRef->EndCombat();
 
 		SetCombatState(WinState);
@@ -202,6 +222,12 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 
 	if (CombatState == ECombatState::InProgress)
 	{
+		// Clear all status effects from combat
+		if (StatusEffectManagerRef)
+		{
+			StatusEffectManagerRef->ClearAllEffects();
+		}
+
 		// Determine winner if we haven't already
 		ECombatState WinState = CheckWinCondition();
 		if (WinState == ECombatState::InProgress)
@@ -261,27 +287,32 @@ void ACombatOrchestrator::UnbindTurnManagerEvents()
 
 void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor* Actor)
 {
-	// STUB: Future integration with StatusEffectManager
-	// StatusEffectManager->ProcessStartOfTurnEffects(Actor);
+	if (!StatusEffectManagerRef)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StatusEffectManager not available for start-of-turn processing"));
+		return;
+	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] STUB: ProcessStartOfTurnEffects for %s"),
+	// Delegate to StatusEffectManager - processes buffs, regen, etc.
+	StatusEffectManagerRef->ProcessStartOfTurnEffects(Actor);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
 		*Actor->GetName());
-
-	// TODO: Process buffs (attack up, defense up, haste, etc.)
-	// These apply their effects at the START of the owner's turn
 }
 
 void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor* Actor)
 {
-	// STUB: Future integration with StatusEffectManager
-	// StatusEffectManager->ProcessEndOfTurnEffects(Actor);
+	if (!StatusEffectManagerRef)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StatusEffectManager not available for end-of-turn processing"));
+		return;
+	}
 
-	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] STUB: ProcessEndOfTurnEffects for %s"),
+	// Delegate to StatusEffectManager - processes DOTs, ticks durations, expires effects
+	StatusEffectManagerRef->ProcessEndOfTurnEffects(Actor);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed end-of-turn effects for %s"),
 		*Actor->GetName());
-
-	// TODO: Process DOTs (poison, burn, bleed, etc.)
-	// These deal damage at the END of the owner's turn
-	// Also tick down status effect durations
 }
 
 void ACombatOrchestrator::RequestActionFromActor(AActor* Actor)

@@ -59,6 +59,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Combat Tests")
 	int32 FlowTestTurnCount = 6;
 
+	/** Auto-run tests on BeginPlay (must be in PIE) */
+	UPROPERTY(EditAnywhere, Category = "Combat Tests")
+	bool bAutoRunTests = false;
+
 protected:
 	virtual void BeginPlay() override;
 
