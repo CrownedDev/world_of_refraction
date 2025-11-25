@@ -103,29 +103,13 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
 
     // Requirements
     Output += TEXT("REQUIREMENTS:\n");
-    if (Spell->RequiredMind > 0 || Spell->RequiredBody > 0 || Spell->RequiredSpirit > 0)
+    if (Spell ->Requirements.HasRequirements())
     {
-        if (Spell->RequiredMind > 0)
-            Output += FString::Printf(TEXT("  Mind:   %d (Has: %d) %s\n"),
-                                      Spell->RequiredMind, Character->GetBaseMind(),
-                                      Character->GetBaseMind() >= Spell->RequiredMind ? TEXT("✓") : TEXT("✗"));
-        if (Spell->RequiredBody > 0)
-            Output += FString::Printf(TEXT("  Body:   %d (Has: %d) %s\n"),
-                                      Spell->RequiredBody, Character->GetBaseBody(),
-                                      Character->GetBaseBody() >= Spell->RequiredBody ? TEXT("✓") : TEXT("✗"));
-        if (Spell->RequiredSpirit > 0)
-            Output += FString::Printf(TEXT("  Spirit: %d (Has: %d) %s\n"),
-                                      Spell->RequiredSpirit, Character->GetBaseSpirit(),
-                                      Character->GetBaseSpirit() >= Spell->RequiredSpirit ? TEXT("✓") : TEXT("✗"));
-
-        int32 Deficit = Spell->GetTotalDeficit(Character);
-        float Penalty = Spell->CalculateRequirementPenalty(Character);
-        Output += FString::Printf(TEXT("  Total Deficit: %d\n"), Deficit);
-        Output += FString::Printf(TEXT("  Penalty: %.1f%%\n\n"), Penalty * 100.0f);
+        Output += Spell ->Requirements.GetRequirementsSummary(Character);
     }
     else
     {
-        Output += TEXT("  None\n\n");
+        Output += TEXT("  None\n");
     }
 
     // Mode Toggle Display

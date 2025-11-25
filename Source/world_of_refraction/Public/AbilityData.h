@@ -7,6 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "TargetType.h"
 #include "AbilityEffectType.h"
+#include "WorldStatRequirements.h"
 #include <world_of_refraction/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -52,14 +53,8 @@ public:
 
     // ==================== REQUIREMENTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0"))
-    int32 RequiredMind = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0"))
-    int32 RequiredBody = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0"))
-    int32 RequiredSpirit = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    FWorldStatRequirements Requirements;
 
     // ==================== INFUSION ====================
 
@@ -130,9 +125,6 @@ public:
     int32 CalculateStatusBuildup(UCharacterData *Character) const;
 
     // ==================== HELPER FUNCTIONS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Ability|Helpers")
-    FString GetRequirementSummary(UCharacterData *Character) const;
 
     // ==================== EDITOR VALIDATION ====================
 

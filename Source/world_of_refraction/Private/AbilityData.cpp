@@ -9,7 +9,7 @@ bool UAbilityData::MeetsRequirements(UCharacterData *Character) const
 {
     if (!Character)
         return false;
-    return GetTotalDeficit(Character) == 0;
+    return Requirements.MeetsRequirements(Character);
 }
 
 int32 UAbilityData::GetTotalDeficit(UCharacterData *Character) const
@@ -17,22 +17,15 @@ int32 UAbilityData::GetTotalDeficit(UCharacterData *Character) const
     if (!Character)
         return 0;
 
-    int32 MindDeficit = FMath::Max(0, RequiredMind - Character->GetBaseMind());
-    int32 BodyDeficit = FMath::Max(0, RequiredBody - Character->GetBaseBody());
-    int32 SpiritDeficit = FMath::Max(0, RequiredSpirit - Character->GetBaseSpirit());
-
-    return MindDeficit + BodyDeficit + SpiritDeficit;
+    return Requirements.GetTotalDeficit(Character);
 }
 
 float UAbilityData::CalculateRequirementPenalty(UCharacterData *Character) const
 {
-    int32 Deficit = GetTotalDeficit(Character);
-    if (Deficit == 0)
+    if (!Character)
         return 0.0f;
 
-    // Square root scaling: sqrt(deficit) × scale factor
-    float Penalty = FMath::Sqrt(static_cast<float>(Deficit)) * CombatConstants::REQUIREMENT_PENALTY_SCALE;
-    return FMath::Clamp(Penalty, 0.0f, CombatConstants::REQUIREMENT_PENALTY_MAX);
+    return Requirements.CalculatePenalty(Character);
 }
 
 // ==================== DAMAGE CALCULATIONS ====================
@@ -143,43 +136,6 @@ int32 UAbilityData::CalculateStatusBuildup(UCharacterData *Character) const
 
 // ==================== HELPER FUNCTIONS ====================
 
-FString UAbilityData::GetRequirementSummary(UCharacterData *Character) const
-{
-    if (!Character)
-        return TEXT("Invalid Character");
-
-    FString Summary = TEXT("");
-
-    // Check each requirement
-    if (RequiredMind > 0)
-    {
-        int32 CharMind = Character->GetBaseMind();
-        FString Status = (CharMind >= RequiredMind) ? TEXT("✓") : FString::Printf(TEXT("✗ -%d"), RequiredMind - CharMind);
-        Summary += FString::Printf(TEXT("Mind: %d/%d %s\n"), CharMind, RequiredMind, *Status);
-    }
-
-    if (RequiredBody > 0)
-    {
-        int32 CharBody = Character->GetBaseBody();
-        FString Status = (CharBody >= RequiredBody) ? TEXT("✓") : FString::Printf(TEXT("✗ -%d"), RequiredBody - CharBody);
-        Summary += FString::Printf(TEXT("Body: %d/%d %s\n"), CharBody, RequiredBody, *Status);
-    }
-
-    if (RequiredSpirit > 0)
-    {
-        int32 CharSpirit = Character->GetBaseSpirit();
-        FString Status = (CharSpirit >= RequiredSpirit) ? TEXT("✓") : FString::Printf(TEXT("✗ -%d"), RequiredSpirit - CharSpirit);
-        Summary += FString::Printf(TEXT("Spirit: %d/%d %s\n"), CharSpirit, RequiredSpirit, *Status);
-    }
-
-    if (Summary.IsEmpty())
-    {
-        Summary = TEXT("No requirements");
-    }
-
-    return Summary;
-}
-
 // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR
@@ -210,13 +166,6 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
     if (BaseDamage > 0 && HitCount < 1)
     {
         Context.AddError(FText::FromString(TEXT("Damage abilities must have at least 1 hit")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate requirements
-    if (RequiredMind < 0 || RequiredBody < 0 || RequiredSpirit < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Requirements cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 

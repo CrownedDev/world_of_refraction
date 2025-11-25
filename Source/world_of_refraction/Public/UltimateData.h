@@ -52,15 +52,15 @@ public:
     // ==================== REQUIREMENTS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
-              meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
+              meta = (ClampMin = "0", ClampMax = "7"))
     int32 RequiredWorldMind = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
-              meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
+              meta = (ClampMin = "0", ClampMax = "7"))
     int32 RequiredWorldBody = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
-              meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
+              meta = (ClampMin = "0", ClampMax = "7"))
     int32 RequiredWorldSpirit = 0;
 
     // ==================== COOLDOWN ====================

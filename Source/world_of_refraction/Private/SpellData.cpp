@@ -5,13 +5,6 @@
 
 // ==================== REQUIREMENT CHECKS ====================
 
-bool USpellData::MeetsRequirements(UCharacterData *Character) const
-{
-    if (!Character)
-        return false;
-    return GetTotalDeficit(Character) == 0;
-}
-
 int32 USpellData::GetTotalDeficit(const UCharacterData *Character) const
 {
     if (!Character)
@@ -184,43 +177,6 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
 
 // ==================== HELPER FUNCTIONS ====================
 
-FString USpellData::GetRequirementSummary(UCharacterData *Character) const
-{
-    if (!Character)
-        return TEXT("Invalid Character");
-
-    FString Summary = TEXT("");
-
-    // Check each requirement
-    if (RequiredMind > 0)
-    {
-        int32 CharMind = Character->GetBaseMind();
-        FString Status = (CharMind >= RequiredMind) ? TEXT("✓") : FString::Printf(TEXT("✗ -%d"), RequiredMind - CharMind);
-        Summary += FString::Printf(TEXT("Mind: %d/%d %s\n"), CharMind, RequiredMind, *Status);
-    }
-
-    if (RequiredBody > 0)
-    {
-        int32 CharBody = Character->GetBaseBody();
-        FString Status = (CharBody >= RequiredBody) ? TEXT("✓") : FString::Printf(TEXT("✗ -%d"), RequiredBody - CharBody);
-        Summary += FString::Printf(TEXT("Body: %d/%d %s\n"), CharBody, RequiredBody, *Status);
-    }
-
-    if (RequiredSpirit > 0)
-    {
-        int32 CharSpirit = Character->GetBaseSpirit();
-        FString Status = (CharSpirit >= RequiredSpirit) ? TEXT("✓") : FString::Printf(TEXT("✗ -%d"), RequiredSpirit - CharSpirit);
-        Summary += FString::Printf(TEXT("Spirit: %d/%d %s\n"), CharSpirit, RequiredSpirit, *Status);
-    }
-
-    if (Summary.IsEmpty())
-    {
-        Summary = TEXT("No requirements");
-    }
-
-    return Summary;
-}
-
 bool USpellData::CanCharacterCast(UCharacterData *Character) const
 {
     if (!Character)
@@ -299,13 +255,6 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
     if (HitCount < 0)
     {
         Context.AddError(FText::FromString(TEXT("Hit Count cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate requirements
-    if (RequiredMind < 0 || RequiredBody < 0 || RequiredSpirit < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Requirements cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 

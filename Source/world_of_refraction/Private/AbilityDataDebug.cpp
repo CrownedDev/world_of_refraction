@@ -61,29 +61,13 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
 
     // Requirements
     Output += TEXT("REQUIREMENTS:\n");
-    if (Ability->RequiredMind > 0 || Ability->RequiredBody > 0 || Ability->RequiredSpirit > 0)
+    if (Ability->Requirements.HasRequirements())
     {
-        if (Ability->RequiredMind > 0)
-            Output += FString::Printf(TEXT("  Mind:   %d (Has: %d) %s\n"),
-                                      Ability->RequiredMind, Character->GetBaseMind(),
-                                      Character->GetBaseMind() >= Ability->RequiredMind ? TEXT("✓") : TEXT("✗"));
-        if (Ability->RequiredBody > 0)
-            Output += FString::Printf(TEXT("  Body:   %d (Has: %d) %s\n"),
-                                      Ability->RequiredBody, Character->GetBaseBody(),
-                                      Character->GetBaseBody() >= Ability->RequiredBody ? TEXT("✓") : TEXT("✗"));
-        if (Ability->RequiredSpirit > 0)
-            Output += FString::Printf(TEXT("  Spirit: %d (Has: %d) %s\n"),
-                                      Ability->RequiredSpirit, Character->GetBaseSpirit(),
-                                      Character->GetBaseSpirit() >= Ability->RequiredSpirit ? TEXT("✓") : TEXT("✗"));
-
-        int32 Deficit = Ability->GetTotalDeficit(Character);
-        float Penalty = Ability->CalculateRequirementPenalty(Character);
-        Output += FString::Printf(TEXT("  Total Deficit: %d\n"), Deficit);
-        Output += FString::Printf(TEXT("  Penalty: %.1f%%\n\n"), Penalty * 100.0f);
+        Output += Ability->Requirements.GetRequirementsSummary(Character);
     }
     else
     {
-        Output += TEXT("  None\n\n");
+        Output += TEXT("  None\n");
     }
 
     // Normal Use
@@ -93,22 +77,23 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
 
     // Infused Use
     if (Ability->bCanBeInfused)
-    {
-        FString ElementName = UEnum::GetValueAsString(Character->InnateElement);
-        ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+        
+        {
+            FString ElementName = UEnum::GetValueAsString(Character->InnateElement);
+            ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
 
-        Output += FString::Printf(TEXT("INFUSED USE (%s):\n"), *ElementName);
-        Output += FString::Printf(TEXT("  Damage: %d (%.0f%% penalty)\n"),
-                                  Ability->CalculateInfusedDamage(Character),
-                                  CombatConstants::INFUSION_DAMAGE_PENALTY * 100.0f);
-        Output += FString::Printf(TEXT("  Energy: %d (%.0f%% more)\n"),
-                                  Ability->CalculateInfusedEnergyCost(Character),
-                                  (CombatConstants::INFUSION_ENERGY_MULTIPLIER - 1.0f) * 100.0f);
-        Output += FString::Printf(TEXT("  Status Buildup: %d\n"),
-                                  Ability->CalculateStatusBuildup(Character));
-        Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
-                                  Ability->CalculateStatusBuildup(Character) >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
-    }
+            Output += FString::Printf(TEXT("INFUSED USE (%s):\n"), *ElementName);
+            Output += FString::Printf(TEXT("  Damage: %d (%.0f%% penalty)\n"),
+                                      Ability->CalculateInfusedDamage(Character),
+                                      CombatConstants::INFUSION_DAMAGE_PENALTY * 100.0f);
+            Output += FString::Printf(TEXT("  Energy: %d (%.0f%% more)\n"),
+                                      Ability->CalculateInfusedEnergyCost(Character),
+                                      (CombatConstants::INFUSION_ENERGY_MULTIPLIER - 1.0f) * 100.0f);
+            Output += FString::Printf(TEXT("  Status Buildup: %d\n"),
+                                      Ability->CalculateStatusBuildup(Character));
+            Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
+                                      Ability->CalculateStatusBuildup(Character) >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
+        }
     else
     {
         Output += TEXT("INFUSION: Not Available\n\n");
