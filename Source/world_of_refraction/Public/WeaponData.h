@@ -1,0 +1,106 @@
+// WeaponData.h
+// Weapon data asset - combines attack, abilities, stance, and infusion display
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "Engine/Texture2D.h"
+#include "EWeaponType.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
+#include "WeaponData.generated.h"
+
+// Forward declarations
+class UBaseAttackData;
+class UAbilityData;
+class UStanceData;
+class UWeaponInfusionDisplayData;
+
+/**
+ * Weapon Data Asset
+ * Defines weapon properties, attack, abilities, stance, and infusion visuals
+ */
+UCLASS(BlueprintType)
+class WORLD_OF_REFRACTION_API UWeaponData : public UPrimaryDataAsset
+{
+    GENERATED_BODY()
+
+public:
+    // ==================== IDENTITY ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    FString WeaponName = TEXT("Unnamed Weapon");
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EWeaponType WeaponType = EWeaponType::Sword;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
+    FString Description = TEXT("");
+
+    // ==================== COMBAT ====================
+
+    // Attack used when this weapon is equipped (replaces base attack)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+    UBaseAttackData *WeaponAttack = nullptr;
+
+    // Default abilities for this weapon (can be customized unless locked)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "AbilityName"))
+    TArray<UAbilityData *> PresetAbilities;
+
+    // If true, abilities cannot be customized (used for conjured weapons)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+    bool bAbilitiesLocked = false;
+
+    // ==================== ANIMATION ====================
+
+    // Idle stance when this weapon is equipped
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    UStanceData *WeaponStance = nullptr;
+
+    // ==================== DISPLAY ====================
+
+    // Infusion visual effect for this weapon
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
+    UWeaponInfusionDisplayData *InfusionDisplay = nullptr;
+
+    // ==================== MESH ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    USkeletalMesh *WeaponMesh = nullptr;
+
+    // ==================== PRESENTATION ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+    UTexture2D *Icon = nullptr;
+
+    // ==================== UTILITY ====================
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    FString GetDisplayName() const { return WeaponName; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    FString GetWeaponTypeName() const;
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    int32 GetAbilityCount() const { return PresetAbilities.Num(); }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsConjuredWeapon() const { return bAbilitiesLocked; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasAttack() const { return WeaponAttack != nullptr; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasStance() const { return WeaponStance != nullptr; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasInfusionDisplay() const { return InfusionDisplay != nullptr; }
+
+#if WITH_EDITOR
+    virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
+#endif
+};

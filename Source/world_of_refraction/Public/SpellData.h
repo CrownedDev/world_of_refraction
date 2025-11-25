@@ -7,7 +7,9 @@
 #include "RefractionElement.h"
 #include "SpellSchool.h"
 #include "TargetType.h"
+#include "AbilityData.h"
 #include "AbilityEffectType.h"
+#include "WeaponData.h"
 #include <world_of_refraction/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -191,7 +193,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell")
     FString GetElementName() const
     {
-        const UEnum* EnumPtr = StaticEnum<ERefractionElement>();
+        const UEnum *EnumPtr = StaticEnum<ERefractionElement>();
         if (EnumPtr)
         {
             FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
@@ -201,6 +203,16 @@ public:
         return TEXT("Unknown");
     }
 
+    // ==================== CONSTRUCT ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Construct")
+    bool bIsConstruct = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Construct", meta = (EditCondition = "bIsConstruct"))
+    UWeaponData *ConstructedWeapon = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Construct", meta = (EditCondition = "bIsConstruct"))
+    bool bSealsSpells = true;
     // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR

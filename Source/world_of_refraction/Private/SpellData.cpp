@@ -305,6 +305,16 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
         Result = EDataValidationResult::Invalid;
     }
 
+    // Validate construct
+    if (bIsConstruct)
+    {
+        if (ConstructedWeapon == nullptr)
+        {
+            Context.AddError(FText::FromString(TEXT("Construct spell must have a weapon assigned")));
+            Result = EDataValidationResult::Invalid;
+        }
+    }
+
     return Result;
 }
 #endif
