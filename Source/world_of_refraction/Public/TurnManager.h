@@ -12,41 +12,41 @@
 USTRUCT(BlueprintType)
 struct FCombatantTurnDebt
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY()
-    AActor* Actor = nullptr;
+	UPROPERTY()
+	AActor* Actor = nullptr;
 
-    UPROPERTY()
-    int32 Speed = 0;
+	UPROPERTY()
+	int32 TeamIndex = 0;
 
-    UPROPERTY()
-    float TurnsOwed = 0.0f;
+	UPROPERTY()
+	int32 PositionInTeam = 0;
 
-    UPROPERTY()
-    int32 TurnsTaken = 0;
+	UPROPERTY()
+	float TurnsOwed = 0.0f;
 
-    // Tie-breaking stats
-    UPROPERTY()
-    int32 AttackSpeed = 0;
+	UPROPERTY()
+	int32 TurnsTaken = 0;
 
-    UPROPERTY()
-    int32 TotalStats = 0;
+	UPROPERTY()
+	float SpeedRatio = 1.0f;
 
-    UPROPERTY()
-    int32 WorldBody = 0;
+	// Cached stats for tie-breaking
+	UPROPERTY()
+	int32 CachedSpeed = 0;
 
-    UPROPERTY()
-    int32 WorldMind = 0;
+	UPROPERTY()
+	int32 CachedAttackSpeed = 0;
 
-    UPROPERTY()
-    int32 WorldSpirit = 0;
+	UPROPERTY()
+	int32 CachedMind = 0;
 
-    UPROPERTY()
-    int32 TeamIndex = 0;
+	UPROPERTY()
+	int32 CachedBody = 0;
 
-    UPROPERTY()
-    int32 PositionInTeam = 0;
+	UPROPERTY()
+	int32 CachedSpirit = 0;
 };
 
 /**
@@ -54,8 +54,8 @@ struct FCombatantTurnDebt
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor*, Actor, int32, TurnNumber);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor*, Actor, int32, TurnNumber);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCombatEnded);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSpeedChanged, AActor*, Actor, int32, NewSpeed);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatEnded, int32, FinalTurnCount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor*, Actor);
 
 /**
  * TurnManager - GameInstanceSubsystem
@@ -64,112 +64,108 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnSpeedChanged, AActor*, Actor, in
 UCLASS()
 class WORLD_OF_REFRACTION_API UTurnManager : public UGameInstanceSubsystem
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    UTurnManager();
+	UTurnManager();
 
-    // ========================================
-    // COMBAT CONTROL
-    // ========================================
+	// ========================================
+	// COMBAT CONTROL
+	// ========================================
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    void InitializeCombat(const TArray<AActor*>& Team1, const TArray<AActor*>& Team2);
+	/** Initialize combat with two teams */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void InitializeCombat(const TArray<AActor*>& Team1, const TArray<AActor*>& Team2);
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    void EndCombat();
+	/** End combat */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void EndCombat();
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    void AdvanceToNextTurn();
+	/** Advance to next turn */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void AdvanceToNextTurn();
 
-    // ========================================
-    // STATE QUERIES
-    // ========================================
+	// ========================================
+	// QUERY
+	// ========================================
 
-    UFUNCTION(BlueprintPure, Category = "Turn Manager")
-    AActor* GetCurrentActor() const;
+	/** Get current actor */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	AActor* GetCurrentActor() const;
 
-    UFUNCTION(BlueprintPure, Category = "Turn Manager")
-    TArray<AActor*> GetAllCombatants() const;
+	/** Preview next N turns */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	TArray<AActor*> PreviewTurnOrder(int32 NumTurns) const;
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    TArray<AActor*> GetTurnOrderPreview(int32 NumTurns = 5);
+	/** Is combat active */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	bool IsCombatActive() const { return bCombatActive; }
 
-    UFUNCTION(BlueprintPure, Category = "Turn Manager")
-    bool IsCombatActive() const { return bCombatActive; }
+	// ========================================
+	// SPEED CHANGES
+	// ========================================
 
-    UFUNCTION(BlueprintPure, Category = "Turn Manager")
-    int32 GetGlobalTurnCount() const { return GlobalTurnCount; }
+	/** Notify that actor's speed changed (recalculates ratios) */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void OnActorSpeedChanged(AActor* Actor);
 
-    // ========================================
-    // DYNAMIC UPDATES
-    // ========================================
+	/** Notify that actor died */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void OnActorDied(AActor* Actor);
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    void OnActorSpeedChanged(AActor* AffectedActor);
+	/** Notify that actor was resurrected */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void OnActorResurrected(AActor* Actor);
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    void OnActorDied(AActor* DeadActor);
+	// ========================================
+	// EVENTS
+	// ========================================
 
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-    void OnActorResurrected(AActor* ResurrectedActor);
+	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
+	FOnTurnStarted OnTurnStarted;
 
-    // ========================================
-    // EVENTS
-    // ========================================
+	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
+	FOnTurnEnded OnTurnEnded;
 
-    UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
-    FOnTurnStarted OnTurnStarted;
+	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
+	FOnCombatEnded OnCombatEnded;
 
-    UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
-    FOnTurnEnded OnTurnEnded;
+	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
+	FOnSpeedChanged OnSpeedChanged;
 
-    UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
-    FOnCombatEnded OnCombatEnded;
+	// ========================================
+	// DEBUG TOOLS
+	// ========================================
 
-    UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
-    FOnSpeedChanged OnSpeedChanged;
-
-    // ========================================
-    // DEBUG TOOLS
-    // ========================================
-
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
-    void DebugPrintTurnOrder();
-
-    UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
-    void DebugPrintDebtDetails();
-
-    UFUNCTION(Exec, Category = "Turn Manager|Debug")
-    void Debug_ShowState();
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
+	void DebugPrintTurnOrder();
 
 private:
-    // ========================================
-    // INTERNAL STATE
-    // ========================================
+	// ========================================
+	// INTERNAL STATE
+	// ========================================
 
-    UPROPERTY()
-    TArray<FCombatantTurnDebt> Combatants;
+	UPROPERTY()
+	TArray<FCombatantTurnDebt> Combatants;
 
-    UPROPERTY()
-    AActor* CurrentActor;
+	UPROPERTY()
+	AActor* CurrentActor;
 
-    UPROPERTY()
-    AActor* PreviousActor;
+	UPROPERTY()
+	AActor* PreviousActor;
 
-    UPROPERTY()
-    int32 GlobalTurnCount;
+	UPROPERTY()
+	int32 GlobalTurnCount;
 
-    UPROPERTY()
-    bool bCombatActive;
+	UPROPERTY()
+	bool bCombatActive;
 
-    // ========================================
-    // INTERNAL METHODS
-    // ========================================
+	// ========================================
+	// INTERNAL METHODS
+	// ========================================
 
-    void CalculateTurnDebts();
-    FCombatantTurnDebt* FindNextCombatant();
-    FCombatantTurnDebt* ResolveTie(TArray<FCombatantTurnDebt*>& TiedCombatants);
-    void CacheActorStats(FCombatantTurnDebt& Combatant);
-    FCombatantTurnDebt* FindCombatantByActor(AActor* Actor);
+	void CalculateTurnDebts();
+	FCombatantTurnDebt* GetNextCombatant();
+	bool ShouldBreakTieInFavor(const FCombatantTurnDebt& A, const FCombatantTurnDebt& B) const;
+	void CacheActorStats(FCombatantTurnDebt& Combatant);
 };
