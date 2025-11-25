@@ -322,10 +322,12 @@ void UItemExecutor::ExecuteSilenceEffect(AActor* User, AActor* Target, UItemData
 
 	int32 Duration = Item->GetSilenceDuration();
 
-	FStatusEffect Silence = FStatusEffect::CreateDebuff(
+	// NOTE: Silence effect type not yet in enum - using EnergyDrain as placeholder
+	// This prevents energy gain which effectively limits spell casting
+	FStatusEffect Silence = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EAbilityEffectType::Silence,
+		EAbilityEffectType::EnergyDrain, // TODO: Add proper Silence type
 		1.0f, // Binary effect
 		Duration);
 	Silence.Element = Item->GetAssociatedElement();
@@ -383,9 +385,9 @@ void UItemExecutor::ExecuteGambleEffect(AActor* User, AActor* Target, UItemData*
 	float Magnitude = BaseMagnitude * FMath::FRandRange(0.5f, 1.5f);
 	int32 Duration = FMath::RandRange(2, 5);
 
-	FStatusEffect GambleEffect = bIsPositive
-		? FStatusEffect::CreateBuff(TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration)
-		: FStatusEffect::CreateDebuff(TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration);
+	// CreateBuff works for both - EffectType determines if it's buff or debuff
+	FStatusEffect GambleEffect = FStatusEffect::CreateBuff(
+		TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration);
 	GambleEffect.Element = ERefractionElement::Void;
 
 	// Apply to user (gamble affects self)
@@ -432,9 +434,9 @@ void UItemExecutor::ExecuteCleanseEffect(AActor* User, AActor* Target, UItemData
 		{
 			if (Removed >= DebuffsToRemove) break;
 
-			if (!Effect.bIsBuff)
+			if (!Effect.IsBuff())
 			{
-				StatusManager->RemoveEffectByID(Target, Effect.InstanceID);
+				StatusManager->RemoveEffectByID(Target, Effect.EffectID);
 				Removed++;
 			}
 		}
@@ -444,13 +446,14 @@ void UItemExecutor::ExecuteCleanseEffect(AActor* User, AActor* Target, UItemData
 	OutResult.DebuffsRemoved = DebuffsBefore - DebuffsAfter;
 
 	// Apply immunity if granted (B-tier and above)
+	// NOTE: Using high ResistanceBuff as pseudo-immunity since DebuffImmunity doesn't exist
 	if (bGrantsImmunity && ImmunityDuration > 0)
 	{
 		FStatusEffect Immunity = FStatusEffect::CreateBuff(
 			TEXT("Cleanse Immunity"),
 			Item->GetUniqueID(),
-			EAbilityEffectType::DebuffImmunity,
-			1.0f,
+			EAbilityEffectType::ResistanceBuff, // 100% = immunity
+			100.0f,
 			ImmunityDuration);
 		Immunity.Element = ERefractionElement::Reality;
 
@@ -504,16 +507,16 @@ void UItemExecutor::ApplyGenericBonus(AActor* User, UItemData* Item, FItemUseRes
 	if (Resistance <= 0 || Element == ERefractionElement::None)
 		return;
 
-	// Apply resistance buff
-	FStatusEffect ResistanceBuff = FStatusEffect::CreateBuff(
+	// Apply resistance buff (element-specific via Element field)
+	FStatusEffect ResistBuff = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Resistance"), *UEnum::GetValueAsString(Element)),
 		Item->GetUniqueID() + 1000, // Offset to avoid ID collision
-		EAbilityEffectType::ElementalResistance,
+		EAbilityEffectType::ResistanceBuff,
 		Resistance,
 		Duration);
-	ResistanceBuff.Element = Element;
+	ResistBuff.Element = Element;
 
-	StatusManager->ApplyEffect(User, ResistanceBuff, User, TEXT("Generic Bonus"), -1);
+	StatusManager->ApplyEffect(User, ResistBuff, User, TEXT("Generic Bonus"), -1);
 	OutResult.GenericResistanceApplied = FMath::RoundToInt(Resistance);
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Generic bonus: +%.0f%% %s resistance for %d turns"),
@@ -558,12 +561,13 @@ void UItemExecutor::ApplySecondaryEffect(AActor* Target, UItemData* Item, AActor
 	if (DamagePerTurn <= 0 || Duration <= 0)
 		return;
 
+	ERefractionElement ItemElement = Item->GetAssociatedElement();
 	FStatusEffect DOT = FStatusEffect::CreateDOT(
 		FString::Printf(TEXT("%s Burn"), *Item->GetFullItemName()),
 		Item->GetUniqueID() + 2000,
-		DamagePerTurn,
-		Duration);
-	DOT.Element = Item->GetAssociatedElement();
+		static_cast<float>(DamagePerTurn),
+		Duration,
+		ItemElement);
 
 	StatusManager->ApplyEffect(Target, DOT, Source, Item->GetFullItemName(), -1);
 	OutResult.bAppliedSecondaryEffect = true;

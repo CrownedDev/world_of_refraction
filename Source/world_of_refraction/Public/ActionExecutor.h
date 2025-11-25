@@ -46,16 +46,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor*
 
 /**
  * UActionExecutor
- * 
+ *
  * GameInstanceSubsystem that handles all combat action execution.
  * Validates actions, calculates damage/effects, applies results.
- * 
+ *
  * Usage:
  *   UActionExecutor* Executor = GetGameInstance()->GetSubsystem<UActionExecutor>();
  *   FActionValidationResult Validation = Executor->ValidateAction(Actor, Action);
  *   if (Validation.bIsValid)
  *       FActionResult Result = Executor->ExecuteAction(Actor, Action);
- * 
+ *
  * Integrations:
  *   - StatusEffectManager: Apply status effects, check stun/silence
  *   - CharacterDataComponent: HP/EP changes
@@ -195,8 +195,18 @@ public:
 		AActor* Target,
 		int32 BaseDamage,
 		bool bIsElemental,
-		ERefractionElement Element = ERefractionElement::None,
-		bool bCanCrit = true);
+		ERefractionElement Element,
+		bool bCanCrit);
+
+	/** Apply damage with defaults (non-elemental, can crit) */
+	FCombatHitResult ApplyDamage(
+		AActor* Attacker,
+		AActor* Target,
+		int32 BaseDamage,
+		bool bIsElemental)
+	{
+		return ApplyDamage(Attacker, Target, BaseDamage, bIsElemental, ERefractionElement::None, true);
+	}
 
 	/**
 	 * Apply healing to target
@@ -242,7 +252,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnTargetKilled OnTargetKilled;
 
-	/** 
+	/**
 	 * Broadcast when a defense window should open
 	 * DefenseSystem should bind to this to handle Block/Parry/Dodge
 	 */

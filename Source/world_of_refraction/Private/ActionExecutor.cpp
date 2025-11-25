@@ -11,7 +11,6 @@
 #include "BaseAttackData.h"
 #include "UltimateData.h"
 #include "CombatConstants.h"
-#include "SubStatType.h"
 #include "ItemExecutor.h"
 #include "WeaponManager.h"
 #include "Engine/World.h"

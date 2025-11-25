@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EActionType.h"
+#include "RefractionElement.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -93,15 +94,15 @@ struct WORLD_OF_REFRACTION_API FAction
 		switch (ActionType)
 		{
 		case EActionType::Spell:
-			return SpellData ? SpellData->GetName() : TEXT("Unknown Spell");
+			return SpellData ? TEXT("Spell") : TEXT("Unknown Spell");
 		case EActionType::Ability:
-			return AbilityData ? AbilityData->GetName() : TEXT("Unknown Ability");
+			return AbilityData ? TEXT("Ability") : TEXT("Unknown Ability");
 		case EActionType::Item:
-			return ItemData ? ItemData->GetName() : TEXT("Unknown Item");
+			return ItemData ? TEXT("Item") : TEXT("Unknown Item");
 		case EActionType::Attack:
-			return AttackData ? AttackData->GetName() : TEXT("Basic Attack");
+			return AttackData ? TEXT("Attack") : TEXT("Basic Attack");
 		case EActionType::Ultimate:
-			return UltimateData ? UltimateData->GetName() : TEXT("Unknown Ultimate");
+			return UltimateData ? TEXT("Ultimate") : TEXT("Unknown Ultimate");
 		case EActionType::Defend:
 			return TEXT("Defend");
 		case EActionType::SwitchWeapon:

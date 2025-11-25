@@ -670,18 +670,18 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 	switch (DamageType)
 	{
 	case EPhysicalDamageType::Slash:
-		// Bleed - DOT
+		// Bleed - DOT (use None element for physical)
 		Effect = FStatusEffect::CreateDOT(
 			TEXT("Bleed"),
 			FMath::Rand(), // Unique ID
-			15, // Damage per turn
-			3); // Duration
-		Effect.Element = ERefractionElement::None;
+			15.0f, // Damage per turn
+			3, // Duration
+			ERefractionElement::None); // Physical, no element
 		break;
 
 	case EPhysicalDamageType::Pierce:
-		// Armor Break - Defense debuff
-		Effect = FStatusEffect::CreateDebuff(
+		// Armor Break - Defense debuff (CreateBuff works for debuffs too)
+		Effect = FStatusEffect::CreateBuff(
 			TEXT("Armor Break"),
 			FMath::Rand(),
 			EAbilityEffectType::DefenseDebuff,
@@ -691,12 +691,13 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 		break;
 
 	case EPhysicalDamageType::Blunt:
-		// Stun - Skip turn
-		Effect = FStatusEffect::CreateDebuff(
+		// Stun - Skip turn (using AttackSpeedDebuff as placeholder)
+		// TODO: Add proper Stun type to EAbilityEffectType
+		Effect = FStatusEffect::CreateBuff(
 			TEXT("Stun"),
 			FMath::Rand(),
-			EAbilityEffectType::Stun,
-			1.0f, // Binary
+			EAbilityEffectType::AttackSpeedDebuff, // Placeholder for stun
+			100.0f, // 100% speed reduction = skip turn
 			1); // 1 turn
 		Effect.Element = ERefractionElement::None;
 		break;
@@ -734,7 +735,10 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor* Attacker, AActor* Target, int32 
 	UStatusEffectManager* StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
-		DefensePercent += StatusManager->GetTotalStatModifier(Target, EStatModifierType::Defense);
+		// Use EAbilityEffectType for stat modifiers
+		float DefenseMod = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseBuff);
+		DefenseMod -= StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseDebuff);
+		DefensePercent += DefenseMod;
 	}
 
 	// Cap defense reduction
@@ -750,7 +754,8 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor* Attacker, AActor* Target, int32 
 		float CritChance = AttackerData->CalculateCritChance();
 		if (StatusManager)
 		{
-			CritChance += StatusManager->GetTotalStatModifier(Attacker, EStatModifierType::CritChance);
+			CritChance += StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
+			CritChance -= StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceDebuff);
 		}
 		CritChance = FMath::Clamp(CritChance, 0.0f, 100.0f);
 
