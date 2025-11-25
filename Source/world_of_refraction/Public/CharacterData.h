@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "RefractionElement.h"
+
 #include <world_of_refraction/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -15,6 +16,7 @@
 class UBaseAttackData;
 class UStanceData;
 class UCharacterInfusionDisplayData;
+class UWeaponData;
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
@@ -41,15 +43,28 @@ public:
 	UTexture2D *Portrait = nullptr;
 
 	// ==================== COMBAT LOADOUT ====================
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack")
-	UBaseAttackData* BaseAttack = nullptr;
+	UBaseAttackData *BaseAttack = nullptr;
+	// Does this character start combat with weapon drawn?
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
+	bool bStartsArmed = false;
+
+	// Primary weapon (all characters)// Validate weapon loadout
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
+	UWeaponData *PrimaryWeapon = nullptr;
+
+	// Secondary weapon (Generic characters only)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons",
+			  meta = (EditCondition = "InnateElement == ERefractionElement::Generic", EditConditionHides))
+	UWeaponData *SecondaryWeapon = nullptr;
+
+	// ==================== STANCE/INFUSION ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
-	UStanceData* UnarmedStance = nullptr;
+	UStanceData *UnarmedStance = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Infusion")
-	UCharacterInfusionDisplayData* InfusionDisplay = nullptr;
+	UCharacterInfusionDisplayData *InfusionDisplay = nullptr;
 
 	// ==================== STAT BUDGET ====================
 
@@ -407,15 +422,6 @@ public:
 	{
 		EDataValidationResult Result = Super::IsDataValid(Context);
 
-		// Check initial stat distribution
-		if (!IsValidInitialDistribution())
-		{
-			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("Initial sub-stats (%d) don't match budget (%d)"),
-								GetInitialSubStatSum(), InitialStatBudget)));
-			Result = EDataValidationResult::Invalid;
-		}
-
 		// Check world stat distribution
 		if (!IsValidWorldDistribution())
 		{
@@ -423,6 +429,23 @@ public:
 				FString::Printf(TEXT("World sub-stats (%d) don't match expected (%d)"),
 								GetWorldSubStatSum(), GetExpectedWorldPoints())));
 			Result = EDataValidationResult::Invalid;
+		}
+
+		// Validate weapon loadout
+		if (InnateElement == ERefractionElement::Generic)
+		{
+			if (PrimaryWeapon == nullptr && SecondaryWeapon == nullptr)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Generic character has no weapons assigned")));
+			}
+		}
+		else
+		{
+			if (SecondaryWeapon != nullptr)
+			{
+				Context.AddError(FText::FromString(TEXT("Elemental characters cannot have a secondary weapon")));
+				Result = EDataValidationResult::Invalid;
+			}
 		}
 
 		return Result;

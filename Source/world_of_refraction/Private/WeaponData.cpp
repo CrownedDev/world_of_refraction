@@ -56,7 +56,7 @@ EDataValidationResult UWeaponData::IsDataValid(TArray<FText> &ValidationErrors)
     }
 
     // Abilities validation (max 6)
-    if (WeaponAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
+    if (PresetAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
     {
         ValidationErrors.Add(FText::FromString(FString::Printf(
             TEXT("Weapon cannot have more than %d abilities"),
