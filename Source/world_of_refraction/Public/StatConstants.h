@@ -51,10 +51,13 @@ namespace StatConstants
 
     // These are informational - not enforced by code
     // Used for UI displays and rank badges
+	// should make them total based i.e 3 for E-Rank (1/1/1)
     constexpr int32 E_RANK_THRESHOLD = 1; // 1/1/1
     constexpr int32 D_RANK_THRESHOLD = 2; // 2/2/2
     constexpr int32 C_RANK_THRESHOLD = 3; // 3/3/3
     constexpr int32 B_RANK_THRESHOLD = 5; // 5/5/5
     constexpr int32 A_RANK_THRESHOLD = 6; // 6/6/6
     constexpr int32 S_RANK_THRESHOLD = 7; // 7/7/7 (MAX)
+
+
 }
