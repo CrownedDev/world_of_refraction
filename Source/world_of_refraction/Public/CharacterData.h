@@ -7,7 +7,7 @@
 #include "RefractionElement.h"
 #include "StatConstants.h"
 
-#include <world_of_refraction/CombatConstants.h>
+#include <CombatConstants.h>
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"

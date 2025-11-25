@@ -8,7 +8,7 @@
 #include "TargetType.h"
 #include "AbilityEffectType.h"
 #include "WorldStatRequirements.h"
-#include <world_of_refraction/CombatConstants.h>
+#include <CombatConstants.h>
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"

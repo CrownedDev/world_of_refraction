@@ -9,16 +9,18 @@
 #include "CharacterDataComponent.generated.h"
 
 /**
- * CharacterDataComponent - Runtime Character State
- *
- * Wraps a CharacterData asset (template) and maintains runtime state:
- * - Current HP/EP
- * - Status effects
- * - Temporary stat modifiers
- * - Replication for multiplayer
- *
- * Design: Separates static data (CharacterData asset) from runtime state (this component)
- * One CharacterData asset can be shared by many actors, each with unique runtime state.
+ * Delegate signatures for HP/EP changes
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, int32, CurrentHP, int32, MaxHP);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEPChanged, int32, CurrentEP, int32, MaxEP);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDied, AActor*, DeadActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResurrected, AActor*, ResurrectedActor);
+
+/**
+ * CharacterDataComponent
+ * Runtime character state (HP, EP, alive/dead)
+ * Wraps CharacterData asset for combat use
+ * Replicated for multiplayer
  */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UCharacterDataComponent : public UActorComponent
@@ -28,52 +30,41 @@ class WORLD_OF_REFRACTION_API UCharacterDataComponent : public UActorComponent
 public:
     UCharacterDataComponent();
 
-protected:
     virtual void BeginPlay() override;
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-public:
     // ========================================
-    // CHARACTER DATA (TEMPLATE)
+    // CHARACTER TEMPLATE
     // ========================================
 
-    /** Static character data template (stats, abilities, etc.) */
+    /** Reference to character template (set in editor/BP) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
-    UCharacterData *CharacterData;
+    UCharacterData* CharacterData;
 
     // ========================================
     // RUNTIME STATE (REPLICATED)
     // ========================================
 
-    /** Current hit points */
-    UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, BlueprintReadOnly, Category = "Stats|Runtime")
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentHP, BlueprintReadOnly, Category = "Combat")
     int32 CurrentHP;
 
-    /** Current energy/stamina points */
-    UPROPERTY(ReplicatedUsing = OnRep_CurrentEP, BlueprintReadOnly, Category = "Stats|Runtime")
+    UPROPERTY(ReplicatedUsing = OnRep_CurrentEP, BlueprintReadOnly, Category = "Combat")
     int32 CurrentEP;
 
-    /** Is character alive? */
-    UPROPERTY(Replicated, BlueprintReadOnly, Category = "Stats|Runtime")
-    bool bIsAlive = true;
-
-    // ========================================
-    // MAX VALUES (CALCULATED FROM TEMPLATE)
-    // ========================================
-
-    /** Maximum HP (calculated from CharacterData) */
-    UPROPERTY(BlueprintReadOnly, Category = "Stats|Max")
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
     int32 MaxHP;
 
-    /** Maximum EP (calculated from CharacterData) */
-    UPROPERTY(BlueprintReadOnly, Category = "Stats|Max")
+    UPROPERTY(BlueprintReadOnly, Category = "Combat")
     int32 MaxEP;
+
+    UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
+    bool bIsAlive;
 
     // ========================================
     // INITIALIZATION
     // ========================================
 
-    /** Initialize from CharacterData template */
+    /** Initialize HP/EP from CharacterData template */
     UFUNCTION(BlueprintCallable, Category = "Character")
     void InitializeFromTemplate();
 
@@ -82,57 +73,55 @@ public:
     void ResetToMax();
 
     // ========================================
-    // HP MANAGEMENT (SERVER AUTHORITATIVE)
+    // HP MANAGEMENT (SERVER ONLY)
     // ========================================
 
-    /** Server: Take damage */
-    UFUNCTION(BlueprintCallable, Category = "Character|HP")
+    UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerTakeDamage(int32 Damage);
 
-    /** Server: Heal */
-    UFUNCTION(BlueprintCallable, Category = "Character|HP")
+    UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerHeal(int32 Amount);
 
-    /** Server: Set HP directly */
-    UFUNCTION(BlueprintCallable, Category = "Character|HP")
+    UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerSetHP(int32 NewHP);
 
     // ========================================
-    // EP MANAGEMENT (SERVER AUTHORITATIVE)
+    // EP MANAGEMENT (SERVER ONLY)
     // ========================================
 
-    /** Server: Spend energy */
-    UFUNCTION(BlueprintCallable, Category = "Character|EP")
+    UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerSpendEnergy(int32 Amount);
 
-    /** Server: Gain energy */
-    UFUNCTION(BlueprintCallable, Category = "Character|EP")
+    UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerGainEnergy(int32 Amount);
 
-    /** Server: Set EP directly */
-    UFUNCTION(BlueprintCallable, Category = "Character|EP")
+    UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerSetEP(int32 NewEP);
 
     // ========================================
-    // QUERIES
+    // DEATH/RESURRECTION (SERVER ONLY)
     // ========================================
 
-    /** Get HP percentage (0-1) */
-    UFUNCTION(BlueprintPure, Category = "Character|HP")
-    float GetHPPercent() const;
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void ServerResurrect(int32 HPToRestore);
 
-    /** Get EP percentage (0-1) */
-    UFUNCTION(BlueprintPure, Category = "Character|EP")
-    float GetEPPercent() const;
+    // ========================================
+    // EVENTS
+    // ========================================
 
-    /** Is character at full HP? */
-    UFUNCTION(BlueprintPure, Category = "Character|HP")
-    bool IsFullHP() const { return CurrentHP >= MaxHP; }
+    UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+    FOnHPChanged OnHPChanged;
 
-    /** Is character at full EP? */
-    UFUNCTION(BlueprintPure, Category = "Character|EP")
-    bool IsFullEP() const { return CurrentEP >= MaxEP; }
+    UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+    FOnEPChanged OnEPChanged;
 
+    UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+    FOnDied OnDied;
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+    FOnResurrected OnResurrected;
+
+private:
     // ========================================
     // REPLICATION CALLBACKS
     // ========================================
@@ -143,34 +132,14 @@ public:
     UFUNCTION()
     void OnRep_CurrentEP();
 
+    UFUNCTION()
+    void OnRep_bIsAlive();
+
     // ========================================
-    // EVENTS (BLUEPRINT ASSIGNABLE)
+    // INTERNAL HELPERS
     // ========================================
 
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, int32, NewHP, int32, MaxHP);
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEPChanged, int32, NewEP, int32, MaxEP);
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDied);
-    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnResurrected);
-
-    UPROPERTY(BlueprintAssignable, Category = "Character|Events")
-    FOnHPChanged OnHPChanged;
-
-    UPROPERTY(BlueprintAssignable, Category = "Character|Events")
-    FOnEPChanged OnEPChanged;
-
-    UPROPERTY(BlueprintAssignable, Category = "Character|Events")
-    FOnDied OnDied;
-
-    UPROPERTY(BlueprintAssignable, Category = "Character|Events")
-    FOnResurrected OnResurrected;
-
-private:
-    /** Calculate max HP from template */
-    int32 CalculateMaxHP() const;
-
-    /** Calculate max EP from template */
-    int32 CalculateMaxEP() const;
-
-    /** Check if HP reached zero */
     void CheckDeath();
+    int32 CalculateMaxHP() const;
+    int32 CalculateMaxEP() const;
 };
