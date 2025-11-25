@@ -1,0 +1,699 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "EStatusEffectTiming.h"
+#include "EPassiveTrigger.h"
+#include "AbilityEffectType.h"
+#include "RefractionElement.h"
+#include "StatusEffect.generated.h"
+
+/**
+ * FStatusEffect
+ * Runtime status effect instance applied to actors during combat
+ *
+ * Supports:
+ * - Multiple timing modes (immediate, start/end of turn, conditional, persistent)
+ * - Stacking with configurable limits
+ * - Source tracking for effect ownership
+ * - Conditional triggers via EPassiveTrigger
+ * - Duration tracking per affected actor's turn (not global)
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FStatusEffect
+{
+	GENERATED_BODY()
+
+	// ========================================
+	// IDENTITY
+	// ========================================
+
+	/** Display name for UI and logs */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FString EffectName = TEXT("Unnamed Effect");
+
+	/** Unique identifier for stacking/removal purposes */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	int32 EffectID = 0;
+
+	/** Optional description for UI tooltips */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	FString Description = TEXT("");
+
+	// ========================================
+	// TIMING
+	// ========================================
+
+	/** When this effect processes */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
+	EStatusEffectTiming ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+
+	/** If ProcessTiming = OnTrigger, what condition activates it */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
+			  meta = (EditCondition = "ProcessTiming == EStatusEffectTiming::OnTrigger"))
+	EPassiveTrigger TriggerCondition = EPassiveTrigger::None;
+
+	/** Threshold for HP/Energy percentage triggers */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
+			  meta = (ClampMin = "0", ClampMax = "100",
+					  EditCondition = "ProcessTiming == EStatusEffectTiming::OnTrigger"))
+	float TriggerThreshold = 30.0f;
+
+	/** Whether this trigger condition is currently active (for conditional effects) */
+	UPROPERTY(BlueprintReadOnly, Category = "Timing")
+	bool bTriggerActive = false;
+
+	// ========================================
+	// DURATION
+	// ========================================
+
+	/** Turns remaining (ticks on affected actor's turn, not global) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration")
+	int32 RemainingTurns = 3;
+
+	/** Initial duration (for UI display of "X/Y turns remaining") */
+	UPROPERTY(BlueprintReadOnly, Category = "Duration")
+	int32 InitialDuration = 3;
+
+	/** Effect never expires (equipment bonuses, auras, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Duration")
+	bool bPermanent = false;
+
+	// ========================================
+	// EFFECT DATA
+	// ========================================
+
+	/** Type of effect (buff, debuff, DOT, etc.) - uses existing enum */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	EAbilityEffectType EffectType = EAbilityEffectType::None;
+
+	/** Effect magnitude (damage amount, buff percentage, etc.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	float EffectValue = 0.0f;
+
+	/** Element for elemental DOTs and resistance calculations */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	ERefractionElement Element = ERefractionElement::Generic;
+
+	// ========================================
+	// STACKING
+	// ========================================
+
+	/** Can multiple instances of this effect stack on same target? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+	bool bCanStack = false;
+
+	/** Current stack count */
+	UPROPERTY(BlueprintReadOnly, Category = "Stacking")
+	int32 CurrentStacks = 1;
+
+	/** Maximum stacks allowed */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking",
+			  meta = (EditCondition = "bCanStack", ClampMin = "1", ClampMax = "99"))
+	int32 MaxStacks = 3;
+
+	/** If true, reapplying refreshes duration instead of adding stacks */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+	bool bRefreshDurationOnReapply = true;
+
+	// ========================================
+	// SOURCE TRACKING
+	// ========================================
+
+	/** Actor who applied this effect (for damage attribution, cleanse targeting) */
+	UPROPERTY(BlueprintReadOnly, Category = "Source")
+	TWeakObjectPtr<AActor> SourceActor;
+
+	/** Name of spell/ability that applied this effect */
+	UPROPERTY(BlueprintReadOnly, Category = "Source")
+	FString SourceAbilityName = TEXT("");
+
+	/** Team index of source (for friendly fire checks, cleanse logic) */
+	UPROPERTY(BlueprintReadOnly, Category = "Source")
+	int32 SourceTeamIndex = -1;
+
+	// ========================================
+	// RUNTIME FLAGS
+	// ========================================
+
+	/** Has this effect been processed this turn? (prevents double-processing) */
+	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	bool bProcessedThisTurn = false;
+
+	/** Is this effect marked for removal at end of processing? */
+	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
+	bool bPendingRemoval = false;
+
+	// ========================================
+	// CONSTRUCTORS
+	// ========================================
+
+	FStatusEffect()
+	{
+		InitialDuration = RemainingTurns;
+	}
+
+	// ========================================
+	// FACTORY METHODS - FROM SPELL/ABILITY DATA
+	// ========================================
+
+	/**
+	 * Create effects from SpellData (handles Primary + Secondary)
+	 * Call this when a spell hits a target
+	 *
+	 * @param SpellName Display name for the effect
+	 * @param EffectIDBase Base ID (primary gets +0, secondary gets +1)
+	 * @param EffectType The EAbilityEffectType from SpellData
+	 * @param Magnitude Percentage modifier (0.0-1.0 range from SpellData)
+	 * @param Value Flat value from SpellData
+	 * @param Duration Turns from SpellData
+	 * @param InElement Element for DOT effects
+	 * @param Timing When to process (usually StartOfOwnTurn for buffs, EndOfOwnTurn for DOTs)
+	 */
+	static FStatusEffect CreateFromSpellEffect(
+		const FString &SpellName,
+		int32 EffectIDBase,
+		EAbilityEffectType EffectType,
+		float Magnitude,
+		int32 Value,
+		int32 Duration,
+		ERefractionElement InElement,
+		EStatusEffectTiming Timing = EStatusEffectTiming::StartOfOwnTurn)
+	{
+		FStatusEffect Effect;
+		Effect.EffectName = SpellName;
+		Effect.EffectID = EffectIDBase;
+		Effect.EffectType = EffectType;
+		Effect.EffectValue = (Value != 0) ? static_cast<float>(Value) : (Magnitude * 100.0f);
+		Effect.RemainingTurns = (Duration > 0) ? Duration : 1;
+		Effect.InitialDuration = Effect.RemainingTurns;
+		Effect.Element = InElement;
+		Effect.ProcessTiming = Timing;
+
+		// Auto-detect timing based on effect type
+		if (Effect.IsDOT())
+		{
+			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		}
+		else if (Effect.EffectType == EAbilityEffectType::HealthRestore ||
+				 Effect.EffectType == EAbilityEffectType::EnergyRestore)
+		{
+			Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		}
+
+		return Effect;
+	}
+
+	/**
+	 * Create array of effects from a spell with Primary + Secondary effects
+	 * Use this in ActionExecutor when executing spells
+	 *
+	 * @param SpellName Name for display
+	 * @param SpellID Unique spell ID (effects get SpellID*10+0, SpellID*10+1)
+	 * @param PrimaryType Primary effect type
+	 * @param PrimaryMagnitude Primary magnitude
+	 * @param PrimaryValue Primary flat value
+	 * @param PrimaryDuration Primary duration
+	 * @param SecondaryType Secondary effect type (None to skip)
+	 * @param SecondaryMagnitude Secondary magnitude
+	 * @param SecondaryValue Secondary flat value
+	 * @param SecondaryDuration Secondary duration
+	 * @param InElement Spell element
+	 */
+	static TArray<FStatusEffect> CreateFromSpellData(
+		const FString &SpellName,
+		int32 SpellID,
+		EAbilityEffectType PrimaryType,
+		float PrimaryMagnitude,
+		int32 PrimaryValue,
+		int32 PrimaryDuration,
+		EAbilityEffectType SecondaryType,
+		float SecondaryMagnitude,
+		int32 SecondaryValue,
+		int32 SecondaryDuration,
+		ERefractionElement InElement)
+	{
+		TArray<FStatusEffect> Effects;
+
+		// Primary effect
+		if (PrimaryType != EAbilityEffectType::None)
+		{
+			FStatusEffect Primary = CreateFromSpellEffect(
+				SpellName + TEXT(" (Primary)"),
+				SpellID * 10,
+				PrimaryType,
+				PrimaryMagnitude,
+				PrimaryValue,
+				PrimaryDuration,
+				InElement);
+			Effects.Add(Primary);
+		}
+
+		// Secondary effect (cross-school)
+		if (SecondaryType != EAbilityEffectType::None)
+		{
+			FStatusEffect Secondary = CreateFromSpellEffect(
+				SpellName + TEXT(" (Secondary)"),
+				SpellID * 10 + 1,
+				SecondaryType,
+				SecondaryMagnitude,
+				SecondaryValue,
+				SecondaryDuration,
+				InElement);
+			Effects.Add(Secondary);
+		}
+
+		return Effects;
+	}
+
+	/**
+	 * Create effects from Evolution passive (TArray<FPassiveEffect>)
+	 * For permanent stat modifiers from evolutions
+	 *
+	 * @param EvolutionName Name of the evolution
+	 * @param EvolutionID Unique evolution ID
+	 * @param PassiveType The effect type from FPassiveEffect
+	 * @param Value The effect value
+	 * @param PassiveIndex Index in the PassiveEffects array (for unique IDs)
+	 */
+	static FStatusEffect CreateFromEvolutionPassive(
+		const FString &EvolutionName,
+		int32 EvolutionID,
+		EAbilityEffectType PassiveType,
+		float Value,
+		int32 PassiveIndex)
+	{
+		FStatusEffect Effect;
+		Effect.EffectName = EvolutionName + TEXT(" Passive");
+		Effect.EffectID = EvolutionID * 100 + PassiveIndex;
+		Effect.EffectType = PassiveType;
+		Effect.EffectValue = Value;
+		Effect.bPermanent = true;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		return Effect;
+	}
+
+	/**
+	 * Create DOT effect from ability infusion
+	 * When ability is infused, it gains elemental DOT
+	 */
+	static FStatusEffect CreateFromInfusion(
+		const FString &AbilityName,
+		int32 AbilityID,
+		ERefractionElement InfusedElement,
+		float DOTDamage,
+		int32 Duration)
+	{
+		FStatusEffect Effect = CreateDOT(
+			AbilityName + TEXT(" Infusion"),
+			AbilityID * 10 + 5, // +5 offset for infusion effects
+			DOTDamage,
+			Duration,
+			InfusedElement);
+		return Effect;
+	}
+
+	// ========================================
+	// FACTORY METHODS - WEAPON SYSTEM
+	// ========================================
+
+	/**
+	 * Create permanent stat bonuses from equipped weapon
+	 * Call when weapon is equipped, remove when unequipped
+	 *
+	 * @param WeaponName Name of weapon for display
+	 * @param WeaponID Unique weapon identifier
+	 * @param BonusAttack Attack bonus from weapon
+	 * @param BonusDefense Defense bonus from weapon
+	 * @param BonusMagicPower Magic power bonus
+	 * @param BonusSpeed Speed bonus
+	 * @param BonusCritChance Crit chance bonus (percentage)
+	 * @param BonusCritDamage Crit damage bonus (percentage)
+	 */
+	static TArray<FStatusEffect> CreateFromWeaponBonuses(
+		const FString &WeaponName,
+		int32 WeaponID,
+		int32 BonusAttack,
+		int32 BonusDefense,
+		int32 BonusMagicPower,
+		int32 BonusSpeed,
+		float BonusCritChance,
+		float BonusCritDamage)
+	{
+		TArray<FStatusEffect> Effects;
+		int32 BaseID = WeaponID * 100; // Offset for weapon bonuses
+
+		if (BonusAttack != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				WeaponName + TEXT(" (Attack)"),
+				BaseID + 1,
+				BonusAttack > 0 ? EAbilityEffectType::RawDamageBuff : EAbilityEffectType::RawDamageDebuff,
+				static_cast<float>(FMath::Abs(BonusAttack)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusDefense != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				WeaponName + TEXT(" (Defense)"),
+				BaseID + 2,
+				BonusDefense > 0 ? EAbilityEffectType::DefenseBuff : EAbilityEffectType::DefenseDebuff,
+				static_cast<float>(FMath::Abs(BonusDefense)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusMagicPower != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				WeaponName + TEXT(" (Magic)"),
+				BaseID + 3,
+				BonusMagicPower > 0 ? EAbilityEffectType::EffectDamageBuff : EAbilityEffectType::EffectDamageDebuff,
+				static_cast<float>(FMath::Abs(BonusMagicPower)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusSpeed != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				WeaponName + TEXT(" (Speed)"),
+				BaseID + 4,
+				BonusSpeed > 0 ? EAbilityEffectType::SpeedBuff : EAbilityEffectType::SpeedDebuff,
+				static_cast<float>(FMath::Abs(BonusSpeed)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusCritChance != 0.0f)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				WeaponName + TEXT(" (Crit Chance)"),
+				BaseID + 5,
+				BonusCritChance > 0 ? EAbilityEffectType::CritChanceBuff : EAbilityEffectType::CritChanceDebuff,
+				FMath::Abs(BonusCritChance));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusCritDamage != 0.0f)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				WeaponName + TEXT(" (Crit Damage)"),
+				BaseID + 6,
+				EAbilityEffectType::CritChanceBuff, // TODO: Add CritDamageBuff type
+				FMath::Abs(BonusCritDamage));
+			Effects.Add(Bonus);
+		}
+
+		return Effects;
+	}
+
+	/**
+	 * Create status effect from physical damage type (Generic character weapon attacks)
+	 * Slash → Bleed DOT, Pierce → Armor Break, Blunt → Stun
+	 *
+	 * @param WeaponName Name of weapon
+	 * @param WeaponID Unique weapon identifier
+	 * @param PhysicalType The physical damage type (0=Slash, 1=Pierce, 2=Blunt)
+	 * @param StatusBuildup Base buildup value from WeaponAttackData
+	 * @param InfusionMultiplier Weapon's InfusionStatusMultiplier (1.0 = normal)
+	 * @param HitCount Number of hits (multiplies buildup)
+	 */
+	static FStatusEffect CreateFromPhysicalDamageType(
+		const FString &WeaponName,
+		int32 WeaponID,
+		uint8 PhysicalType,
+		int32 StatusBuildup,
+		float InfusionMultiplier,
+		int32 HitCount)
+	{
+		FStatusEffect Effect;
+		Effect.EffectID = WeaponID * 10 + 7; // +7 offset for physical status
+
+		// Calculate actual buildup: base × multiplier × hits
+		float TotalBuildup = static_cast<float>(StatusBuildup) * InfusionMultiplier * static_cast<float>(HitCount);
+
+		// Physical damage types: 0=Slash, 1=Pierce, 2=Blunt
+		switch (PhysicalType)
+		{
+		case 0: // Slash → Bleed DOT
+			Effect.EffectName = WeaponName + TEXT(" Bleed");
+			Effect.EffectType = EAbilityEffectType::BleedDOT;
+			Effect.EffectValue = TotalBuildup * 0.5f; // DOT damage = half of buildup
+			Effect.RemainingTurns = 3;
+			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+			Effect.bCanStack = true;
+			Effect.MaxStacks = 5;
+			break;
+
+		case 1: // Pierce → Armor Break (defense debuff)
+			Effect.EffectName = WeaponName + TEXT(" Armor Break");
+			Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+			Effect.EffectValue = TotalBuildup * 0.3f; // Defense reduction
+			Effect.RemainingTurns = 2;
+			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+			Effect.bCanStack = true;
+			Effect.MaxStacks = 3;
+			break;
+
+		case 2: // Blunt → Stun (skip turn - uses special handling)
+			Effect.EffectName = WeaponName + TEXT(" Stun");
+			Effect.EffectType = EAbilityEffectType::None; // TODO: Add Stun effect type
+			Effect.EffectValue = 1.0f;					  // Stun duration multiplier
+			Effect.RemainingTurns = 1;
+			Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+			Effect.bCanStack = false; // Stun doesn't stack, refreshes
+			Effect.bRefreshDurationOnReapply = true;
+			break;
+
+		default:
+			Effect.EffectName = TEXT("Unknown Physical Effect");
+			Effect.EffectType = EAbilityEffectType::None;
+			break;
+		}
+
+		Effect.InitialDuration = Effect.RemainingTurns;
+		return Effect;
+	}
+
+	/**
+	 * Create weapon infusion DOT with weapon's multiplier applied
+	 * For Generic characters using infused abilities through weapons
+	 */
+	static FStatusEffect CreateFromWeaponInfusion(
+		const FString &AbilityName,
+		const FString &WeaponName,
+		int32 AbilityID,
+		ERefractionElement InfusedElement,
+		float BaseDOTDamage,
+		int32 Duration,
+		float WeaponInfusionMultiplier)
+	{
+		float AdjustedDamage = BaseDOTDamage * WeaponInfusionMultiplier;
+		FStatusEffect Effect = CreateDOT(
+			AbilityName + TEXT(" (") + WeaponName + TEXT(" Infusion)"),
+			AbilityID * 10 + 8, // +8 offset for weapon-infused abilities
+			AdjustedDamage,
+			Duration,
+			InfusedElement);
+		return Effect;
+	}
+
+	/** Quick constructor for common buff/debuff creation */
+	static FStatusEffect CreateBuff(const FString &Name, int32 ID, EAbilityEffectType Type, float Value, int32 Duration)
+	{
+		FStatusEffect Effect;
+		Effect.EffectName = Name;
+		Effect.EffectID = ID;
+		Effect.EffectType = Type;
+		Effect.EffectValue = Value;
+		Effect.RemainingTurns = Duration;
+		Effect.InitialDuration = Duration;
+		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		return Effect;
+	}
+
+	/** Quick constructor for DOT effects */
+	static FStatusEffect CreateDOT(const FString &Name, int32 ID, float DamagePerTurn, int32 Duration, ERefractionElement InElement)
+	{
+		FStatusEffect Effect;
+		Effect.EffectName = Name;
+		Effect.EffectID = ID;
+		Effect.EffectType = EAbilityEffectType::BurnDOT; // Will be overridden based on element
+		Effect.EffectValue = DamagePerTurn;
+		Effect.RemainingTurns = Duration;
+		Effect.InitialDuration = Duration;
+		Effect.Element = InElement;
+		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+
+		// Set appropriate DOT type based on element
+		switch (InElement)
+		{
+		case ERefractionElement::Fire:
+			Effect.EffectType = EAbilityEffectType::BurnDOT;
+			break;
+		case ERefractionElement::Water:
+			Effect.EffectType = EAbilityEffectType::ChillDOT;
+			break;
+		case ERefractionElement::Earth:
+			Effect.EffectType = EAbilityEffectType::PoisonDOT;
+			break;
+		case ERefractionElement::Lightning:
+			Effect.EffectType = EAbilityEffectType::ElectrifiedDOT;
+			break;
+		case ERefractionElement::Darkness:
+			Effect.EffectType = EAbilityEffectType::BleedDOT;
+			break;
+		case ERefractionElement::Void:
+			Effect.EffectType = EAbilityEffectType::CorruptDOT;
+			break;
+		default:
+			Effect.EffectType = EAbilityEffectType::BurnDOT;
+			break;
+		}
+
+		return Effect;
+	}
+
+	/** Quick constructor for persistent stat modifiers */
+	static FStatusEffect CreatePersistent(const FString &Name, int32 ID, EAbilityEffectType Type, float Value)
+	{
+		FStatusEffect Effect;
+		Effect.EffectName = Name;
+		Effect.EffectID = ID;
+		Effect.EffectType = Type;
+		Effect.EffectValue = Value;
+		Effect.bPermanent = true;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		return Effect;
+	}
+
+	// ========================================
+	// HELPER FUNCTIONS
+	// ========================================
+
+	/** Check if this is a buff (positive effect) */
+	bool IsBuff() const
+	{
+		switch (EffectType)
+		{
+		case EAbilityEffectType::MindBuff:
+		case EAbilityEffectType::BodyBuff:
+		case EAbilityEffectType::SpiritBuff:
+		case EAbilityEffectType::SpellCostBuff:
+		case EAbilityEffectType::EffectDamageBuff:
+		case EAbilityEffectType::CritChanceBuff:
+		case EAbilityEffectType::DefenseBuff:
+		case EAbilityEffectType::AttackSpeedBuff:
+		case EAbilityEffectType::RawDamageBuff:
+		case EAbilityEffectType::MaxEnergyBuff:
+		case EAbilityEffectType::ResistanceBuff:
+		case EAbilityEffectType::AbilitySizeBuff:
+		case EAbilityEffectType::DamageBuff:
+		case EAbilityEffectType::SpeedBuff:
+		case EAbilityEffectType::HealthRestore:
+		case EAbilityEffectType::EnergyRestore:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** Check if this is a debuff (negative effect) */
+	bool IsDebuff() const
+	{
+		switch (EffectType)
+		{
+		case EAbilityEffectType::MindDebuff:
+		case EAbilityEffectType::BodyDebuff:
+		case EAbilityEffectType::SpiritDebuff:
+		case EAbilityEffectType::SpellCostDebuff:
+		case EAbilityEffectType::EffectDamageDebuff:
+		case EAbilityEffectType::CritChanceDebuff:
+		case EAbilityEffectType::DefenseDebuff:
+		case EAbilityEffectType::AttackSpeedDebuff:
+		case EAbilityEffectType::RawDamageDebuff:
+		case EAbilityEffectType::MaxEnergyDebuff:
+		case EAbilityEffectType::ResistanceDebuff:
+		case EAbilityEffectType::AbilitySizeDebuff:
+		case EAbilityEffectType::DamageDebuff:
+		case EAbilityEffectType::SpeedDebuff:
+		case EAbilityEffectType::EnergyDrain:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** Check if this is a DOT effect */
+	bool IsDOT() const
+	{
+		switch (EffectType)
+		{
+		case EAbilityEffectType::BurnDOT:
+		case EAbilityEffectType::ChillDOT:
+		case EAbilityEffectType::PoisonDOT:
+		case EAbilityEffectType::ElectrifiedDOT:
+		case EAbilityEffectType::BleedDOT:
+		case EAbilityEffectType::CorruptDOT:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** Check if effect deals damage (DOT or direct) */
+	bool DealsDamage() const
+	{
+		return IsDOT() || EffectType == EAbilityEffectType::RetaliationDamage || EffectType == EAbilityEffectType::SelfDamage;
+	}
+
+	/** Get effective value considering stacks */
+	float GetStackedValue() const
+	{
+		return EffectValue * static_cast<float>(CurrentStacks);
+	}
+
+	/** Check if can add another stack */
+	bool CanAddStack() const
+	{
+		return bCanStack && CurrentStacks < MaxStacks;
+	}
+
+	/** Get duration display string (e.g., "2/3 turns") */
+	FString GetDurationString() const
+	{
+		if (bPermanent)
+		{
+			return TEXT("Permanent");
+		}
+		return FString::Printf(TEXT("%d/%d turns"), RemainingTurns, InitialDuration);
+	}
+
+	/** Get stack display string (e.g., "x3") */
+	FString GetStackString() const
+	{
+		if (!bCanStack || CurrentStacks <= 1)
+		{
+			return TEXT("");
+		}
+		return FString::Printf(TEXT("x%d"), CurrentStacks);
+	}
+
+	/** Equality check by EffectID (for finding existing effects) */
+	bool operator==(const FStatusEffect &Other) const
+	{
+		return EffectID == Other.EffectID;
+	}
+
+	/** Reset turn-based processing flags */
+	void ResetTurnFlags()
+	{
+		bProcessedThisTurn = false;
+	}
+};
+
+/** Hash function for TMap usage */
+FORCEINLINE uint32 GetTypeHash(const FStatusEffect &Effect)
+{
+	return GetTypeHash(Effect.EffectID);
+}
