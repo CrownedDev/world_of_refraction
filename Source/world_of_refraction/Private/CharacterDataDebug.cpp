@@ -212,7 +212,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("    Cost Reduction: %d (%d + %d)\n"),
 							  Character->GetTotalCostReduction(),
 							  Character->InitialCostReductionPoints,
-							  Character->WorldCostReductionPoints);
+							  Character->WorldCostEfficencyPoints);
 	Output += FString::Printf(TEXT("    Turn Speed:     %d (%d + %d)\n"),
 							  Character->GetTotalTurnSpeed(),
 							  Character->InitialTurnSpeedPoints,

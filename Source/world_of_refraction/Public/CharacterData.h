@@ -126,7 +126,7 @@ public:
 	// ==================== WORLD SUB-STATS (PROGRESSION) ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
-	int32 WorldCostReductionPoints = 0;
+	int32 WorldCostEfficencyPoints = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
 	int32 WorldTurnSpeedPoints = 0;
@@ -192,7 +192,7 @@ public:
 	// ==================== TOTAL SUB-STATS (GETTERS) ====================
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
-	int32 GetTotalCostReduction() const { return InitialCostReductionPoints + WorldCostReductionPoints; }
+	int32 GetTotalCostReduction() const { return InitialCostReductionPoints + WorldCostEfficencyPoints; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalTurnSpeed() const { return InitialTurnSpeedPoints + WorldTurnSpeedPoints; }
@@ -272,7 +272,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
 	int32 GetWorldSubStatSum() const
 	{
-		return (WorldCostReductionPoints + WorldTurnSpeedPoints + WorldCritChancePoints) + (WorldDefensePoints + WorldAttackSpeedPoints + WorldRawDamagePoints) + (WorldEffectDamagePoints + WorldResistancePoints + WorldAbilitySizePoints);
+		return (WorldCostEfficencyPoints + WorldTurnSpeedPoints + WorldCritChancePoints) + (WorldDefensePoints + WorldAttackSpeedPoints + WorldRawDamagePoints) + (WorldEffectDamagePoints + WorldResistancePoints + WorldAbilitySizePoints);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
