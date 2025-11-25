@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "RefractionElement.h"
+#include "StatConstants.h"
 
 #include <world_of_refraction/CombatConstants.h>
 
@@ -81,13 +82,16 @@ public:
 
 	// ==================== WORLD STAT LEVELS ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses", meta = (ClampMin = "0", ClampMax = "7"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses",
+			  meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
 	int32 WorldMindLevel = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses", meta = (ClampMin = "0", ClampMax = "7"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses",
+			  meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
 	int32 WorldBodyLevel = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses", meta = (ClampMin = "0", ClampMax = "7"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses",
+			  meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
 	int32 WorldSpiritLevel = 0;
 
 	// ==================== INITIAL SUB-STATS (CHARACTER DNA) ====================

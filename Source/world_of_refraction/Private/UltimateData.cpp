@@ -8,7 +8,7 @@
 
 FString UUltimateData::GetElementName() const
 {
-    const UEnum* EnumPtr = StaticEnum<ERefractionElement>();
+    const UEnum *EnumPtr = StaticEnum<ERefractionElement>();
     if (EnumPtr)
     {
         FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
@@ -72,7 +72,7 @@ FString UUltimateData::GetScalingTypeName() const
 
 // ==================== REQUIREMENT FUNCTIONS ====================
 
-bool UUltimateData::MeetsElementRequirement(const UCharacterData* Character) const
+bool UUltimateData::MeetsElementRequirement(const UCharacterData *Character) const
 {
     if (!Character)
     {
@@ -89,14 +89,14 @@ bool UUltimateData::MeetsElementRequirement(const UCharacterData* Character) con
     if (Character->InnateElement == ERefractionElement::BrokenDarkness)
     {
         return (Element == ERefractionElement::BrokenDarkness ||
-            Element == ERefractionElement::Darkness);
+                Element == ERefractionElement::Darkness);
     }
 
     // All other characters require exact element match
     return Character->InnateElement == Element;
 }
 
-bool UUltimateData::MeetsWorldStatRequirements(const UCharacterData* Character) const
+bool UUltimateData::MeetsWorldStatRequirements(const UCharacterData *Character) const
 {
     if (!Character)
     {
@@ -104,11 +104,11 @@ bool UUltimateData::MeetsWorldStatRequirements(const UCharacterData* Character) 
     }
 
     return Character->WorldMindLevel >= RequiredWorldMind &&
-        Character->WorldBodyLevel >= RequiredWorldBody &&
-        Character->WorldSpiritLevel >= RequiredWorldSpirit;
+           Character->WorldBodyLevel >= RequiredWorldBody &&
+           Character->WorldSpiritLevel >= RequiredWorldSpirit;
 }
 
-bool UUltimateData::CanCharacterUse(const UCharacterData* Character) const
+bool UUltimateData::CanCharacterUse(const UCharacterData *Character) const
 {
     if (!Character)
     {
@@ -165,7 +165,7 @@ FString UUltimateData::GetRequirementsString() const
 
 // ==================== CALCULATION FUNCTIONS ====================
 
-float UUltimateData::CalculateDamage(const UCharacterData* Character) const
+float UUltimateData::CalculateDamage(const UCharacterData *Character) const
 {
     if (!Character || BaseDamage <= 0)
     {
@@ -195,7 +195,7 @@ float UUltimateData::CalculateDamage(const UCharacterData* Character) const
     return BaseDamage * Multiplier;
 }
 
-float UUltimateData::CalculateHealing(const UCharacterData* Character) const
+float UUltimateData::CalculateHealing(const UCharacterData *Character) const
 {
     if (!Character || BaseHealing <= 0)
     {
@@ -212,7 +212,7 @@ float UUltimateData::CalculateHealing(const UCharacterData* Character) const
     return static_cast<float>(BaseHealing);
 }
 
-float UUltimateData::CalculateBonusCritChance(const UCharacterData* Character) const
+float UUltimateData::CalculateBonusCritChance(const UCharacterData *Character) const
 {
     if (!Character || ScalingType != EStatScalingType::Mind)
     {
@@ -224,7 +224,7 @@ float UUltimateData::CalculateBonusCritChance(const UCharacterData* Character) c
     return BaseCrit * 0.5f;
 }
 
-float UUltimateData::CalculateCritMultiplier(const UCharacterData* Character) const
+float UUltimateData::CalculateCritMultiplier(const UCharacterData *Character) const
 {
     // Base crit multiplier
     const float BaseCritMultiplier = 1.5f;
@@ -242,7 +242,7 @@ float UUltimateData::CalculateCritMultiplier(const UCharacterData* Character) co
 // ==================== VALIDATION ====================
 
 #if WITH_EDITOR
-EDataValidationResult UUltimateData::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UUltimateData::IsDataValid(TArray<FText> &ValidationErrors)
 {
     EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
 
@@ -310,10 +310,14 @@ EDataValidationResult UUltimateData::IsDataValid(TArray<FText>& ValidationErrors
         Result = EDataValidationResult::Invalid;
     }
 
-    // World stat requirements validation (0-7 range)
-    if (RequiredWorldMind > 7 || RequiredWorldBody > 7 || RequiredWorldSpirit > 7)
+    // World stat requirements validation
+    if (RequiredWorldMind > StatConstants::MAX_WORLD_STAT_LEVEL ||
+        RequiredWorldBody > StatConstants::MAX_WORLD_STAT_LEVEL ||
+        RequiredWorldSpirit > StatConstants::MAX_WORLD_STAT_LEVEL)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("World stat requirements cannot exceed 7")));
+        ValidationErrors.Add(FText::FromString(FString::Printf(
+            TEXT("World stat requirements cannot exceed %d"),
+            StatConstants::MAX_WORLD_STAT_LEVEL)));
         Result = EDataValidationResult::Invalid;
     }
 

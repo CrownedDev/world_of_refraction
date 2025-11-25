@@ -12,27 +12,31 @@ bool USpellData::MeetsRequirements(UCharacterData *Character) const
     return GetTotalDeficit(Character) == 0;
 }
 
-int32 USpellData::GetTotalDeficit(UCharacterData *Character) const
+int32 USpellData::GetTotalDeficit(const UCharacterData *Character) const
 {
     if (!Character)
         return 0;
 
-    int32 MindDeficit = FMath::Max(0, RequiredMind - Character->GetBaseMind());
-    int32 BodyDeficit = FMath::Max(0, RequiredBody - Character->GetBaseBody());
-    int32 SpiritDeficit = FMath::Max(0, RequiredSpirit - Character->GetBaseSpirit());
+    // Calculate world stat deficits
+    int32 MindDeficit = FMath::Max(0, Requirements.RequiredWorldMind - Character->WorldMindLevel);
+    int32 BodyDeficit = FMath::Max(0, Requirements.RequiredWorldBody - Character->WorldBodyLevel);
+    int32 SpiritDeficit = FMath::Max(0, Requirements.RequiredWorldSpirit - Character->WorldSpiritLevel);
 
     return MindDeficit + BodyDeficit + SpiritDeficit;
 }
 
-float USpellData::CalculateRequirementPenalty(UCharacterData *Character) const
+float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) const
 {
-    int32 Deficit = GetTotalDeficit(Character);
-    if (Deficit == 0)
+    if (!Character)
         return 0.0f;
 
-    // Square root scaling: sqrt(deficit) × scale factor
-    float Penalty = FMath::Sqrt(static_cast<float>(Deficit)) * CombatConstants::REQUIREMENT_PENALTY_SCALE;
-    return FMath::Clamp(Penalty, 0.0f, CombatConstants::REQUIREMENT_PENALTY_MAX);
+    int32 TotalDeficit = GetTotalDeficit(Character);
+    if (TotalDeficit == 0)
+        return 0.0f;
+
+    // Same penalty formula, applied to world stat deficit
+    float Penalty = FMath::Sqrt(static_cast<float>(TotalDeficit)) * 0.10f;
+    return FMath::Min(Penalty, 0.60f); // Cap at 60%
 }
 
 // ==================== DAMAGE CALCULATIONS ====================

@@ -93,26 +93,56 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	if (Character->PrimaryWeapon)
 	{
 		Output += FString::Printf(TEXT("  Primary: %s (%s)\n"),
-			*Character->PrimaryWeapon->WeaponName,
-			*Character->PrimaryWeapon->GetWeaponTypeName());
+								  *Character->PrimaryWeapon->WeaponName,
+								  *Character->PrimaryWeapon->GetWeaponTypeName());
 
 		if (Character->PrimaryWeapon->WeaponAttack)
 		{
 			Output += FString::Printf(TEXT("    Attack: %s [%s] (Buildup: %d)\n"),
-				*Character->PrimaryWeapon->WeaponAttack->AttackName,
-				*Character->PrimaryWeapon->WeaponAttack->GetDamageTypeName(),
-				Character->PrimaryWeapon->WeaponAttack->StatusBuildup);
+									  *Character->PrimaryWeapon->WeaponAttack->AttackName,
+									  *Character->PrimaryWeapon->WeaponAttack->GetDamageTypeName(),
+									  Character->PrimaryWeapon->WeaponAttack->StatusBuildup);
+		}
+
+		// Requirements
+		if (Character->PrimaryWeapon->Requirements.HasRequirements())
+		{
+			Output += TEXT("    Requirements: ") + Character->PrimaryWeapon->Requirements.GetSimpleString() + TEXT("\n");
+		}
+
+		// Stat Bonuses
+		TArray<FString> Bonuses;
+		if (Character->PrimaryWeapon->BonusAttack != 0)
+			Bonuses.Add(FString::Printf(TEXT("Atk %+d"), Character->PrimaryWeapon->BonusAttack));
+		if (Character->PrimaryWeapon->BonusDefense != 0)
+			Bonuses.Add(FString::Printf(TEXT("Def %+d"), Character->PrimaryWeapon->BonusDefense));
+		if (Character->PrimaryWeapon->BonusMagicPower != 0)
+			Bonuses.Add(FString::Printf(TEXT("Mag %+d"), Character->PrimaryWeapon->BonusMagicPower));
+		if (Character->PrimaryWeapon->BonusSpeed != 0)
+			Bonuses.Add(FString::Printf(TEXT("Spd %+d"), Character->PrimaryWeapon->BonusSpeed));
+		if (Character->PrimaryWeapon->BonusCritChance != 0.0f)
+			Bonuses.Add(FString::Printf(TEXT("Crit %+.1f%%"), Character->PrimaryWeapon->BonusCritChance));
+		if (Character->PrimaryWeapon->BonusCritDamage != 0.0f)
+			Bonuses.Add(FString::Printf(TEXT("CritDmg %+.1f%%"), Character->PrimaryWeapon->BonusCritDamage));
+		if (Character->PrimaryWeapon->BonusMaxHP != 0)
+			Bonuses.Add(FString::Printf(TEXT("HP %+d"), Character->PrimaryWeapon->BonusMaxHP));
+		if (Character->PrimaryWeapon->BonusMaxMP != 0)
+			Bonuses.Add(FString::Printf(TEXT("MP %+d"), Character->PrimaryWeapon->BonusMaxMP));
+
+		if (Bonuses.Num() > 0)
+		{
+			Output += TEXT("    Bonuses: ") + FString::Join(Bonuses, TEXT(", ")) + TEXT("\n");
 		}
 
 		Output += FString::Printf(TEXT("    Abilities: %d/%d %s\n"),
-			Character->PrimaryWeapon->GetAbilityCount(),
-			LoadoutConstants::MAX_WEAPON_ABILITIES,
-			Character->PrimaryWeapon->bAbilitiesLocked ? TEXT("[LOCKED]") : TEXT(""));
+								  Character->PrimaryWeapon->GetAbilityCount(),
+								  LoadoutConstants::MAX_WEAPON_ABILITIES,
+								  Character->PrimaryWeapon->bAbilitiesLocked ? TEXT("[LOCKED]") : TEXT(""));
 
 		if (Character->PrimaryWeapon->bCanBeInfused)
 		{
 			Output += FString::Printf(TEXT("    Infusion: %.1fx multiplier\n"),
-				Character->PrimaryWeapon->InfusionStatusMultiplier);
+									  Character->PrimaryWeapon->InfusionStatusMultiplier);
 		}
 	}
 	else
@@ -125,21 +155,21 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 		if (Character->SecondaryWeapon)
 		{
 			Output += FString::Printf(TEXT("  Secondary: %s (%s)\n"),
-				*Character->SecondaryWeapon->WeaponName,
-				*Character->SecondaryWeapon->GetWeaponTypeName());
+									  *Character->SecondaryWeapon->WeaponName,
+									  *Character->SecondaryWeapon->GetWeaponTypeName());
 
 			if (Character->SecondaryWeapon->WeaponAttack)
 			{
 				Output += FString::Printf(TEXT("    Attack: %s [%s] (Buildup: %d)\n"),
-					*Character->SecondaryWeapon->WeaponAttack->AttackName,
-					*Character->SecondaryWeapon->WeaponAttack->GetDamageTypeName(),
-					Character->SecondaryWeapon->WeaponAttack->StatusBuildup);
+										  *Character->SecondaryWeapon->WeaponAttack->AttackName,
+										  *Character->SecondaryWeapon->WeaponAttack->GetDamageTypeName(),
+										  Character->SecondaryWeapon->WeaponAttack->StatusBuildup);
 			}
 
 			Output += FString::Printf(TEXT("    Abilities: %d/%d %s\n"),
-				Character->SecondaryWeapon->GetAbilityCount(),
-				LoadoutConstants::MAX_WEAPON_ABILITIES,
-				Character->SecondaryWeapon->bAbilitiesLocked ? TEXT("[LOCKED]") : TEXT(""));
+									  Character->SecondaryWeapon->GetAbilityCount(),
+									  LoadoutConstants::MAX_WEAPON_ABILITIES,
+									  Character->SecondaryWeapon->bAbilitiesLocked ? TEXT("[LOCKED]") : TEXT(""));
 		}
 		else
 		{
@@ -148,7 +178,6 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	}
 
 	Output += TEXT("\n");
-
 
 	// Base Stats
 	Output += TEXT("BASE STATS (Sum of Sub-Stats):\n");

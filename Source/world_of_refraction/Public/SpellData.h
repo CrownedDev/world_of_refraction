@@ -10,6 +10,7 @@
 #include "AbilityData.h"
 #include "AbilityEffectType.h"
 #include "WeaponData.h"
+#include "WorldStatRequirements.h"
 #include <world_of_refraction/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -93,14 +94,8 @@ public:
 
     // ==================== REQUIREMENTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0"))
-    int32 RequiredMind = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0"))
-    int32 RequiredBody = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0"))
-    int32 RequiredSpirit = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    FWorldStatRequirements Requirements;
 
     // ==================== PRIMARY EFFECTS ====================
 
@@ -143,14 +138,17 @@ public:
 
     // ==================== REQUIREMENT CHECKS ====================
 
-    UFUNCTION(BlueprintPure, Category = "Spell|Requirements")
-    bool MeetsRequirements(UCharacterData *Character) const;
+    UFUNCTION(BlueprintPure, Category = "Spell")
+    bool MeetsRequirements(const UCharacterData *Character) const
+    {
+        return Requirements.MeetsRequirements(Character);
+    }
 
-    UFUNCTION(BlueprintPure, Category = "Spell|Requirements")
-    int32 GetTotalDeficit(UCharacterData *Character) const;
+    UFUNCTION(BlueprintPure, Category = "Spell")
+    int32 GetTotalDeficit(const UCharacterData *Character) const;
 
-    UFUNCTION(BlueprintPure, Category = "Spell|Requirements")
-    float CalculateRequirementPenalty(UCharacterData *Character) const;
+    UFUNCTION(BlueprintPure, Category = "Spell")
+    float CalculateRequirementPenalty(const UCharacterData *Character) const;
 
     // ==================== DAMAGE CALCULATIONS ====================
 
@@ -180,9 +178,6 @@ public:
     int32 CalculateStatusBuildup(UCharacterData *Character) const;
 
     // ==================== HELPER FUNCTIONS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Spell|Helpers")
-    FString GetRequirementSummary(UCharacterData *Character) const;
 
     UFUNCTION(BlueprintPure, Category = "Spell|Helpers")
     bool CanCharacterCast(UCharacterData *Character) const;

@@ -7,6 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/Texture2D.h"
 #include "EWeaponType.h"
+#include "WorldStatRequirements.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -57,15 +58,47 @@ public:
 
     // ==================== INFUSION (GENERIC ONLY) ====================
 
-// Can Generic characters infuse this weapon with abilities?
+    // Can Generic characters infuse this weapon with abilities?
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
     bool bCanBeInfused = true;
 
     // Status buildup multiplier when abilities are infused (higher = faster status)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",
-        meta = (EditCondition = "bCanBeInfused", ClampMin = "0.0", ClampMax = "2.0"))
+              meta = (EditCondition = "bCanBeInfused", ClampMin = "0.0", ClampMax = "2.0"))
     float InfusionStatusMultiplier = 1.0f;
-        // ==================== ANIMATION ====================
+
+    // ==================== WORLD STAT REQUIREMENTS ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    FWorldStatRequirements Requirements;
+
+    // ==================== STAT BONUSES (APPLIED WHILE EQUIPPED) ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    int32 BonusAttack = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    int32 BonusDefense = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    int32 BonusMagicPower = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    int32 BonusSpeed = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    float BonusCritChance = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0.0"))
+    float BonusCritDamage = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    int32 BonusMaxHP = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    int32 BonusMaxMP = 0;
+
+    // ==================== ANIMATION ====================
 
     // Idle stance when this weapon is equipped
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
@@ -88,6 +121,18 @@ public:
     UTexture2D *Icon = nullptr;
 
     // ==================== UTILITY ====================
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool MeetsRequirements(const UCharacterData *Character) const
+    {
+        return Requirements.MeetsRequirements(Character);
+    }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    FString GetRequirementsSummary(const UCharacterData *Character) const
+    {
+        return Requirements.GetRequirementsSummary(Character);
+    }
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     FString GetDisplayName() const { return WeaponName; }

@@ -7,6 +7,7 @@
 #include "LoadoutConstants.h"
 #include "WeaponInfusionDisplayData.h"
 #include "WeaponAttackData.h"
+#include "CharacterData.h"
 
 FString UWeaponData::GetWeaponTypeName() const
 {
@@ -72,4 +73,5 @@ EDataValidationResult UWeaponData::IsDataValid(TArray<FText> &ValidationErrors)
 
     return Result;
 }
+
 #endif

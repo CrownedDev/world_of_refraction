@@ -11,6 +11,7 @@
 #include "EUltimateType.h"
 #include "EUltimateCooldownType.h"
 #include "EStatScalingType.h"
+#include "StatConstants.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -50,13 +51,16 @@ public:
 
     // ==================== REQUIREMENTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0", ClampMax = "7"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
+              meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
     int32 RequiredWorldMind = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0", ClampMax = "7"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
+              meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
     int32 RequiredWorldBody = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements", meta = (ClampMin = "0", ClampMax = "7"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
+              meta = (ClampMin = "StatConstants::MIN_WORLD_STAT_LEVEL", ClampMax = "StatConstants::MAX_WORLD_STAT_LEVEL"))
     int32 RequiredWorldSpirit = 0;
 
     // ==================== COOLDOWN ====================
@@ -141,20 +145,20 @@ public:
     // ==================== PRESENTATION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D* Icon = nullptr;
+    UTexture2D *Icon = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FLinearColor UltimateColor = FLinearColor::White;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    USoundBase* ActivationSound = nullptr;
+    USoundBase *ActivationSound = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UParticleSystem* UltimateVFX = nullptr;
+    UParticleSystem *UltimateVFX = nullptr;
 
     // Animation montage for cinematic
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UAnimMontage* UltimateAnimation = nullptr;
+    UAnimMontage *UltimateAnimation = nullptr;
 
     // ==================== UTILITY FUNCTIONS ====================
 
@@ -180,15 +184,15 @@ public:
 
     // Check if character meets element requirements
     UFUNCTION(BlueprintPure, Category = "Ultimate|Requirements")
-    bool MeetsElementRequirement(const UCharacterData* Character) const;
+    bool MeetsElementRequirement(const UCharacterData *Character) const;
 
     // Check if character meets world stat requirements
     UFUNCTION(BlueprintPure, Category = "Ultimate|Requirements")
-    bool MeetsWorldStatRequirements(const UCharacterData* Character) const;
+    bool MeetsWorldStatRequirements(const UCharacterData *Character) const;
 
     // Check if character can use this ultimate (element + world stats)
     UFUNCTION(BlueprintPure, Category = "Ultimate|Requirements")
-    bool CanCharacterUse(const UCharacterData* Character) const;
+    bool CanCharacterUse(const UCharacterData *Character) const;
 
     // Get requirements as display string
     UFUNCTION(BlueprintPure, Category = "Ultimate|Requirements")
@@ -198,21 +202,21 @@ public:
 
     // Calculate damage with character stats
     UFUNCTION(BlueprintPure, Category = "Ultimate|Calculation")
-    float CalculateDamage(const UCharacterData* Character) const;
+    float CalculateDamage(const UCharacterData *Character) const;
 
     // Calculate healing with character stats
     UFUNCTION(BlueprintPure, Category = "Ultimate|Calculation")
-    float CalculateHealing(const UCharacterData* Character) const;
+    float CalculateHealing(const UCharacterData *Character) const;
 
     // Calculate bonus crit chance (Mind scaling)
     UFUNCTION(BlueprintPure, Category = "Ultimate|Calculation")
-    float CalculateBonusCritChance(const UCharacterData* Character) const;
+    float CalculateBonusCritChance(const UCharacterData *Character) const;
 
     // Calculate crit damage multiplier (Mind scaling)
     UFUNCTION(BlueprintPure, Category = "Ultimate|Calculation")
-    float CalculateCritMultiplier(const UCharacterData* Character) const;
+    float CalculateCritMultiplier(const UCharacterData *Character) const;
 
 #if WITH_EDITOR
-    virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+    virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
 #endif
 };
