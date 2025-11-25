@@ -1,0 +1,62 @@
+feat: Implement TurnManager and CharacterDataComponent systems
+
+Adds core turn-based combat foundation with turn debt system and
+multiplayer-ready character state management.
+
+## New Systems
+
+### TurnManager (GameInstanceSubsystem)
+- Turn debt calculation with speed-based ratios (3:1, 2:1, etc.)
+- 7-level tie-breaker cascade (Speed → AttackSpeed → Underdog → Stats → Team)
+- Dynamic speed change handling (recalculates ratios on buffs/debuffs)
+- Death/resurrection support (dead characters skip turns)
+- Turn order preview (simulates next N turns without state mutation)
+- Event system (OnTurnStarted, OnTurnEnded, OnSpeedChanged, OnCombatEnded)
+- Comprehensive debug tools (print order, debt details, context menu)
+
+### CharacterDataComponent
+- Runtime character state wrapper for CharacterData assets
+- Server-authoritative HP/EP management
+- Full network replication (DOREPLIFETIME)
+- Event broadcasting (OnHPChanged, OnEPChanged, OnDied, OnResurrected)
+- Automatic initialization from CharacterData template
+- Separates static data (asset) from runtime state (component)
+
+### TurnManagerTestActor
+- Automated test suite with 5 comprehensive tests
+- Verifies speed ratios, tie-breaking, speed changes, death/resurrection
+- Context menu execution for easy testing
+- Expected output: "5 passed, 0 failed"
+
+## Files Added
+
+- Source/world_of_refraction/Public/Combat/TurnManager.h
+- Source/world_of_refraction/Private/Combat/TurnManager.cpp
+- Source/world_of_refraction/Public/Combat/CharacterDataComponent.h
+- Source/world_of_refraction/Private/Combat/CharacterDataComponent.cpp
+- Source/world_of_refraction/Public/Testing/TurnManagerTestActor.h
+- Source/world_of_refraction/Private/Testing/TurnManagerTestActor.cpp
+
+## Integration Notes
+
+- Integrates with existing CharacterData.h (uses GetTotalTurnSpeed(), GetTotalAttackSpeed())
+- Speed formula: WorldBodyLevel + TurnSpeed substat
+- Server-authoritative design (multiplayer-ready)
+- Event-driven architecture (loose coupling)
+- Single responsibility per system
+
+## TODO Before Production
+
+- [ ] Update CharacterDataComponent HP/EP formulas to match design doc
+- [ ] Test in actual multiplayer session
+- [ ] Connect to CombatOrchestrator (next system)
+- [ ] Add BrokenDarkness overflow tracking to CharacterDataComponent
+
+## Testing
+
+Run TurnManagerTestActor in editor:
+1. Drag TurnManagerTestActor into level
+2. Click "Run Test" in Details panel
+3. Check Output Log for "5 passed, 0 failed"
+
+Lines: ~1,200 lines C++

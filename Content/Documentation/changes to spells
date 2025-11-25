@@ -1,0 +1,96 @@
+// Special combat effects
+RetaliationDamage,
+SelfDamage,
+
+// ADD THESE:
+RemoveDebuffs        UMETA(DisplayName = "Remove All Debuffs"),
+RemoveSpeedDebuff    UMETA(DisplayName = "Remove Speed Debuff"),
+RemoveDamageDebuff   UMETA(DisplayName = "Remove Damage Debuff"),
+RemoveDefenseDebuff  UMETA(DisplayName = "Remove Defense Debuff"),
+
+// DOT effects
+BurnDOT,
+```
+
+**Then Cleanse becomes:**
+```
+Primary Effect: Health Restore, 50 value
+Secondary Effect: Remove Debuffs (removes ALL debuffs!)
+```
+
+---
+
+## 3. Body Requirements for Restoration Spells
+
+**BRILLIANT insight! The three-stat meaning for healing:**
+
+**Mind** = Understanding/precision of healing technique
+**Body** = Intensity/potency of healing effect
+**Spirit** = Energy required to sustain healing
+
+---
+
+## Revised Restoration Requirements:
+
+### **Refresh** (Basic)
+```
+Requirements: Mind 15, Body 12, Spirit 22 ← ADD Body 12
+(Small heal needs some physical intensity)
+```
+
+### **Hydration Wave** (Basic)
+```
+Requirements: Mind 22, Body 15, Spirit 28 ← ADD Body 15
+(Sustained healing needs more intensity)
+```
+
+### **Cleanse** (Advanced)
+```
+Requirements: Mind 25, Body 18, Spirit 30 ← ADD Body 18
+(Purification requires physical strength)
+```
+
+### **Healing Spring** (Advanced)
+```
+Requirements: Mind 25, Body 20, Spirit 35 ← ADD Body 20
+(AOE healing needs significant potency)
+```
+
+### **Tidal Restoration** (Advanced)
+```
+Requirements: Mind 28, Body 22, Spirit 32 ← ADD Body 22
+(Massive restoration requires physical power)
+```
+
+### **Aquatic Rebirth** (Master)
+```
+Requirements: Mind 32, Body 30, Spirit 42 ← ADD Body 30
+(Full reconstruction demands immense physicality!)
+```
+
+---
+
+**Same for Fire Restoration:**
+
+### **Cauterize**
+```
+Requirements: Mind 15, Body 10, Spirit 20 ← ADD Body 10
+```
+
+### **Warmth**
+```
+Requirements: Mind 20, Body 12, Spirit 25 ← ADD Body 12
+```
+
+### **Dehydration** (already has Body 10) ✓
+
+### **Fire's Resilience** (already has Body 20) ✓
+
+### **Life Spark**
+```
+Requirements: Mind 22, Body 18, Spirit 30 ← ADD Body 18
+```
+
+### **Phoenix Rebirth**
+```
+Requirements: Mind 30, Body 25, Spirit 40 ← ADD Body 25
