@@ -62,7 +62,7 @@ void UCharacterDataComponent::InitializeFromTemplate()
 
 void UCharacterDataComponent::ResetToMax()
 {
-    if (GetOwner()->HasAuthority())
+    if (HasServerAuthority())
     {
         CurrentHP = MaxHP;
         CurrentEP = MaxEP;
@@ -74,7 +74,7 @@ void UCharacterDataComponent::ResetToMax()
 
 void UCharacterDataComponent::ServerTakeDamage(int32 Damage)
 {
-    if (!GetOwner()->HasAuthority() || Damage <= 0 || !bIsAlive)
+    if (!HasServerAuthority() || Damage <= 0 || !bIsAlive)
         return;
 
     CurrentHP = FMath::Max(0, CurrentHP - Damage);
@@ -84,7 +84,7 @@ void UCharacterDataComponent::ServerTakeDamage(int32 Damage)
 
 void UCharacterDataComponent::ServerHeal(int32 Amount)
 {
-    if (!GetOwner()->HasAuthority() || Amount <= 0 || !bIsAlive)
+    if (!HasServerAuthority() || Amount <= 0 || !bIsAlive)
         return;
 
     CurrentHP = FMath::Min(MaxHP, CurrentHP + Amount);
@@ -93,7 +93,7 @@ void UCharacterDataComponent::ServerHeal(int32 Amount)
 
 void UCharacterDataComponent::ServerSetHP(int32 NewHP)
 {
-    if (!GetOwner()->HasAuthority())
+    if (!HasServerAuthority())
         return;
 
     CurrentHP = FMath::Clamp(NewHP, 0, MaxHP);
@@ -103,7 +103,7 @@ void UCharacterDataComponent::ServerSetHP(int32 NewHP)
 
 void UCharacterDataComponent::ServerSpendEnergy(int32 Amount)
 {
-    if (!GetOwner()->HasAuthority() || Amount <= 0)
+    if (!HasServerAuthority() || Amount <= 0)
         return;
 
     CurrentEP = FMath::Max(0, CurrentEP - Amount);
@@ -112,7 +112,7 @@ void UCharacterDataComponent::ServerSpendEnergy(int32 Amount)
 
 void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
 {
-    if (!GetOwner()->HasAuthority() || Amount <= 0)
+    if (!HasServerAuthority() || Amount <= 0)
         return;
 
     CurrentEP = FMath::Min(MaxEP, CurrentEP + Amount);
@@ -121,7 +121,7 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
 
 void UCharacterDataComponent::ServerSetEP(int32 NewEP)
 {
-    if (!GetOwner()->HasAuthority())
+    if (!HasServerAuthority())
         return;
 
     CurrentEP = FMath::Clamp(NewEP, 0, MaxEP);
@@ -137,9 +137,20 @@ void UCharacterDataComponent::CheckDeath()
     }
 }
 
+bool UCharacterDataComponent::HasServerAuthority() const
+{
+    // In standalone mode (PIE, no networking), always have authority
+    if (GetWorld() && GetWorld()->GetNetMode() == NM_Standalone)
+    {
+        return true;
+    }
+
+    return GetOwner() && GetOwner()->HasAuthority();
+}
+
 void UCharacterDataComponent::ServerResurrect(int32 HPToRestore)
 {
-    if (!GetOwner()->HasAuthority() || bIsAlive)
+    if (!HasServerAuthority() || bIsAlive)
         return;
 
     bIsAlive = true;

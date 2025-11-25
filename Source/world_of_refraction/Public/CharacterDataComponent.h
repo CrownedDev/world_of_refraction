@@ -140,6 +140,7 @@ private:
     // ========================================
 
     void CheckDeath();
+    bool HasServerAuthority() const;
     int32 CalculateMaxHP() const;
     int32 CalculateMaxEP() const;
 };

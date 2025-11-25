@@ -359,11 +359,14 @@ void AStatusEffectManagerTestActor::Test_StartOfTurnProcessing()
 	UStatusEffectManager* Manager = GetStatusEffectManager();
 	if (!Manager) return;
 
-	AActor* TestActor = CreateTestActor(TEXT("StartTurnTest"), 50, 50);
+	AActor* TestActor = CreateTestActor(TEXT("StartTurnTest"), 100, 50);  // MaxHP=100
 	if (!TestActor) return;
 
 	UCharacterDataComponent* CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
 	if (!CharComp) return;
+
+	// Damage first so we have room to heal
+	CharComp->CurrentHP = 50;
 
 	// Apply a heal-over-time at start of turn
 	FStatusEffect HoT;
@@ -372,6 +375,7 @@ void AStatusEffectManagerTestActor::Test_StartOfTurnProcessing()
 	HoT.EffectType = EAbilityEffectType::HealthRestore;
 	HoT.EffectValue = 10.0f;
 	HoT.RemainingTurns = 3;
+	HoT.InitialDuration = 3;
 	HoT.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, HoT);
@@ -976,6 +980,7 @@ AActor* AStatusEffectManagerTestActor::CreateTestActor(const FString& Name, int3
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = FName(*FString::Printf(TEXT("%s_%d"), *Name, TestActorCounter++));
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnParams.Owner = this;  // Give spawned actors authority via ownership
 
 	AActor* TestActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 
