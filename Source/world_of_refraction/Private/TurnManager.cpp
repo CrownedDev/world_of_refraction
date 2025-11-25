@@ -1,4 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// CORRECTED VERSION - Turn debt accumulates per ROUND, not per TURN
 
 #include "TurnManager.h"
 #include "CharacterDataComponent.h"
@@ -64,7 +65,9 @@ void UTurnManager::InitializeCombat(const TArray<AActor*>& Team1, const TArray<A
 	}
 
 	bCombatActive = true;
-	CalculateTurnDebts();
+
+	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in GetNextCombatant)
+	CalculateSpeedRatios();
 
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Combat initialized with %d combatants"), Combatants.Num());
 
@@ -120,41 +123,79 @@ void UTurnManager::AdvanceToNextTurn()
 	OnTurnStarted.Broadcast(CurrentActor, GlobalTurnCount);
 }
 
-void UTurnManager::CalculateTurnDebts()
+// ========================================
+// CORRECTED: Only calculates ratios, doesn't add to TurnsOwed
+// ========================================
+void UTurnManager::CalculateSpeedRatios()
 {
 	if (Combatants.Num() == 0)
 		return;
 
-	// Find slowest speed
+	// Find slowest speed among living combatants
 	int32 SlowestSpeed = INT_MAX;
 	for (const FCombatantTurnDebt& Combatant : Combatants)
 	{
-		SlowestSpeed = FMath::Min(SlowestSpeed, Combatant.CachedSpeed);
+		UCharacterDataComponent* CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+		if (CharComp && CharComp->bIsAlive)
+		{
+			SlowestSpeed = FMath::Min(SlowestSpeed, Combatant.CachedSpeed);
+		}
 	}
 
 	if (SlowestSpeed <= 0)
 		SlowestSpeed = 1;
 
-	// Calculate ratios
+	// Calculate speed ratios (slowest = 1.0, others = proportionally higher)
 	for (FCombatantTurnDebt& Combatant : Combatants)
 	{
 		if (Combatant.CachedSpeed <= 0)
 			Combatant.SpeedRatio = 1.0f;
 		else
 			Combatant.SpeedRatio = (float)Combatant.CachedSpeed / (float)SlowestSpeed;
+	}
+}
 
+// ========================================
+// NEW: Adds one round of debt to all combatants
+// ========================================
+void UTurnManager::AccumulateDebtRound()
+{
+	for (FCombatantTurnDebt& Combatant : Combatants)
+	{
 		Combatant.TurnsOwed += Combatant.SpeedRatio;
 	}
 }
 
+// ========================================
+// CORRECTED: Only adds debt when a new round starts
+// ========================================
 FCombatantTurnDebt* UTurnManager::GetNextCombatant()
 {
+	// Check if we need a new round (no living combatant has positive net debt)
+	float MaxNetDebt = -FLT_MAX;
+	for (const FCombatantTurnDebt& Combatant : Combatants)
+	{
+		UCharacterDataComponent* CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+		if (CharComp && CharComp->bIsAlive)
+		{
+			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+			MaxNetDebt = FMath::Max(MaxNetDebt, NetDebt);
+		}
+	}
+
+	// If no one has positive debt, start a new round
+	if (MaxNetDebt <= KINDA_SMALL_NUMBER)
+	{
+		AccumulateDebtRound();
+	}
+
+	// Find combatant with highest net debt
 	FCombatantTurnDebt* BestCombatant = nullptr;
 	float HighestDebt = -FLT_MAX;
 
 	for (FCombatantTurnDebt& Combatant : Combatants)
 	{
-		// Skip dead
+		// Skip dead combatants
 		UCharacterDataComponent* CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (!CharComp || !CharComp->bIsAlive)
 			continue;
@@ -176,44 +217,40 @@ FCombatantTurnDebt* UTurnManager::GetNextCombatant()
 		}
 	}
 
-	// Recalculate debts for next cycle
-	if (BestCombatant)
-	{
-		CalculateTurnDebts();
-	}
+	// NOTE: No longer calling CalculateTurnDebts() here - that was the bug!
 
 	return BestCombatant;
 }
 
 bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt& A, const FCombatantTurnDebt& B) const
 {
-	// Level 1: Speed
+	// Level 1: Speed (higher wins)
 	if (A.CachedSpeed != B.CachedSpeed)
 		return A.CachedSpeed > B.CachedSpeed;
 
-	// Level 2: AttackSpeed
+	// Level 2: AttackSpeed (higher wins)
 	if (A.CachedAttackSpeed != B.CachedAttackSpeed)
 		return A.CachedAttackSpeed > B.CachedAttackSpeed;
 
-	// Level 3: Underdog (LOWEST total stats wins)
+	// Level 3: Underdog (LOWER total stats wins - rewards glass cannon builds)
 	int32 TotalA = A.CachedMind + A.CachedBody + A.CachedSpirit;
 	int32 TotalB = B.CachedMind + B.CachedBody + B.CachedSpirit;
 	if (TotalA != TotalB)
 		return TotalA < TotalB;
 
-	// Level 4: Body
+	// Level 4: Body (higher wins)
 	if (A.CachedBody != B.CachedBody)
 		return A.CachedBody > B.CachedBody;
 
-	// Level 5: Mind
+	// Level 5: Mind (higher wins)
 	if (A.CachedMind != B.CachedMind)
 		return A.CachedMind > B.CachedMind;
 
-	// Level 6: Spirit
+	// Level 6: Spirit (higher wins)
 	if (A.CachedSpirit != B.CachedSpirit)
 		return A.CachedSpirit > B.CachedSpirit;
 
-	// Level 7: Team + Position (deterministic)
+	// Level 7: Team + Position (deterministic fallback)
 	if (A.TeamIndex != B.TeamIndex)
 		return A.TeamIndex < B.TeamIndex;
 
@@ -228,6 +265,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt& Combatant)
 	{
 		UCharacterData* CharData = CharComp->CharacterData;
 
+		// Speed = Body + TurnSpeed substat
 		Combatant.CachedSpeed = CharData->WorldBodyLevel + CharData->WorldTurnSpeedPoints;
 		Combatant.CachedAttackSpeed = CharData->WorldBodyLevel + CharData->WorldAttackSpeedPoints;
 		Combatant.CachedMind = CharData->WorldMindLevel;
@@ -236,6 +274,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt& Combatant)
 	}
 	else
 	{
+		// Fallback defaults for testing
 		Combatant.CachedSpeed = 5;
 		Combatant.CachedAttackSpeed = 5;
 		Combatant.CachedMind = 3;
@@ -251,7 +290,8 @@ void UTurnManager::OnActorSpeedChanged(AActor* Actor)
 		if (Combatant.Actor == Actor)
 		{
 			CacheActorStats(Combatant);
-			CalculateTurnDebts();
+			// Recalculate all ratios since relative speeds changed
+			CalculateSpeedRatios();
 			OnSpeedChanged.Broadcast(Actor);
 			return;
 		}
@@ -261,11 +301,15 @@ void UTurnManager::OnActorSpeedChanged(AActor* Actor)
 void UTurnManager::OnActorDied(AActor* Actor)
 {
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] %s died"), *Actor->GetName());
+	// Recalculate ratios since the slowest combatant might have changed
+	CalculateSpeedRatios();
 }
 
 void UTurnManager::OnActorResurrected(AActor* Actor)
 {
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] %s resurrected"), *Actor->GetName());
+	// Recalculate ratios since the slowest combatant might have changed
+	CalculateSpeedRatios();
 }
 
 AActor* UTurnManager::GetCurrentActor() const
@@ -277,15 +321,36 @@ TArray<AActor*> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 {
 	TArray<AActor*> Preview;
 
-	// Create temp copy
+	// Create temp copy of state
 	TArray<FCombatantTurnDebt> TempCombatants = Combatants;
 
 	for (int32 i = 0; i < NumTurns; i++)
 	{
+		// Check if we need a new round
+		float MaxNetDebt = -FLT_MAX;
+		for (const FCombatantTurnDebt& Combatant : TempCombatants)
+		{
+			UCharacterDataComponent* CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+			if (CharComp && CharComp->bIsAlive)
+			{
+				float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+				MaxNetDebt = FMath::Max(MaxNetDebt, NetDebt);
+			}
+		}
+
+		// If no one has positive debt, add a round
+		if (MaxNetDebt <= KINDA_SMALL_NUMBER)
+		{
+			for (FCombatantTurnDebt& Combatant : TempCombatants)
+			{
+				Combatant.TurnsOwed += Combatant.SpeedRatio;
+			}
+		}
+
+		// Find highest debt
 		FCombatantTurnDebt* NextCombatant = nullptr;
 		float HighestDebt = -FLT_MAX;
 
-		// Find highest debt
 		for (FCombatantTurnDebt& Combatant : TempCombatants)
 		{
 			UCharacterDataComponent* CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
@@ -312,21 +377,6 @@ TArray<AActor*> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 		{
 			Preview.Add(NextCombatant->Actor);
 			NextCombatant->TurnsTaken++;
-
-			// Recalculate debts
-			int32 SlowestSpeed = INT_MAX;
-			for (const FCombatantTurnDebt& Combatant : TempCombatants)
-			{
-				SlowestSpeed = FMath::Min(SlowestSpeed, Combatant.CachedSpeed);
-			}
-			if (SlowestSpeed <= 0)
-				SlowestSpeed = 1;
-
-			for (FCombatantTurnDebt& Combatant : TempCombatants)
-			{
-				float SpeedRatio = (float)Combatant.CachedSpeed / (float)SlowestSpeed;
-				Combatant.TurnsOwed += SpeedRatio;
-			}
 		}
 		else
 		{
@@ -345,6 +395,19 @@ void UTurnManager::DebugPrintTurnOrder()
 	if (CurrentActor)
 	{
 		UE_LOG(LogTemp, Display, TEXT("Current Actor: %s"), *CurrentActor->GetName());
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("\nCombatant Debt Status:"));
+	for (const FCombatantTurnDebt& Combatant : Combatants)
+	{
+		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+		UE_LOG(LogTemp, Display, TEXT("  %s: Speed=%d, Ratio=%.2f, Owed=%.2f, Taken=%d, Net=%.2f"),
+			*Combatant.Actor->GetName(),
+			Combatant.CachedSpeed,
+			Combatant.SpeedRatio,
+			Combatant.TurnsOwed,
+			Combatant.TurnsTaken,
+			NetDebt);
 	}
 
 	TArray<AActor*> Preview = PreviewTurnOrder(10);

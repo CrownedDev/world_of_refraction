@@ -60,6 +60,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor*, Actor);
 /**
  * TurnManager - GameInstanceSubsystem
  * Manages turn order using debt-based system with speed ratios
+ *
+ * Algorithm: Debt accumulates per ROUND, not per turn.
+ * - SpeedRatio = ActorSpeed / SlowestSpeed (slowest = 1.0)
+ * - Each round adds SpeedRatio to TurnsOwed for all combatants
+ * - Actor with highest (TurnsOwed - TurnsTaken) goes next
+ * - New round starts when no combatant has positive net debt
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UTurnManager : public UGameInstanceSubsystem
@@ -164,8 +170,18 @@ private:
 	// INTERNAL METHODS
 	// ========================================
 
-	void CalculateTurnDebts();
+	/** Calculate speed ratios relative to slowest combatant (does NOT add debt) */
+	void CalculateSpeedRatios();
+
+	/** Add one round of debt to all combatants based on their SpeedRatio */
+	void AccumulateDebtRound();
+
+	/** Find combatant with highest net debt (TurnsOwed - TurnsTaken) */
 	FCombatantTurnDebt* GetNextCombatant();
+
+	/** Determine tie-breaker winner between two combatants */
 	bool ShouldBreakTieInFavor(const FCombatantTurnDebt& A, const FCombatantTurnDebt& B) const;
+
+	/** Cache actor stats from CharacterDataComponent */
 	void CacheActorStats(FCombatantTurnDebt& Combatant);
 };
