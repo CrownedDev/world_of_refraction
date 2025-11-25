@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ActionStructs.h"
-#include "PhysicalDamageType.h"
+#include "EPhysicalDamageType.h"
 #include "RefractionElement.h"
 #include "WeaponManager.generated.h"
 
@@ -129,7 +129,7 @@ struct WORLD_OF_REFRACTION_API FWeaponAttackResult
 
 	/** Element used if infused */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
-	ERefractionElement InfusedElement = ERefractionElement::None;
+	ERefractionElement InfusedElement = ERefractionElement::Generic;
 
 	/** Per-target damage breakdown */
 	TMap<AActor*, int32> DamagePerTarget;

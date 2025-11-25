@@ -476,7 +476,7 @@ void UItemExecutor::ExecuteTransformEffect(AActor* User, UItemData* Item, FItemU
 	}
 
 	ERefractionElement NewElement = TransformQuartz(User);
-	if (NewElement != ERefractionElement::None)
+	if (NewElement != ERefractionElement::Generic)
 	{
 		OutResult.bQuartzTransformed = true;
 		OutResult.QuartzNewElement = NewElement;
@@ -504,7 +504,7 @@ void UItemExecutor::ApplyGenericBonus(AActor* User, UItemData* Item, FItemUseRes
 	int32 Duration = Item->GetGenericResistanceDuration();
 	ERefractionElement Element = Item->GetAssociatedElement();
 
-	if (Resistance <= 0 || Element == ERefractionElement::None)
+	if (Resistance <= 0 || Element == ERefractionElement::Generic)
 		return;
 
 	// Apply resistance buff (element-specific via Element field)
@@ -632,7 +632,9 @@ ERefractionElement UItemExecutor::TransformQuartz(AActor* Owner)
 {
 	FQuartzAbsorptionState* State = QuartzStates.Find(Owner);
 	if (!State || !State->CanTransform())
-		return ERefractionElement::None;
+	{
+		return ERefractionElement::Generic;
+	}
 
 	ERefractionElement NewElement = State->GetDominantElement();
 	State->bHasTransformed = true;

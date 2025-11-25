@@ -211,7 +211,7 @@ struct WORLD_OF_REFRACTION_API FActionResult
 
 	/** Element of the attack (for resistance calculations) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
-	ERefractionElement AttackElement = ERefractionElement::None;
+	ERefractionElement AttackElement = ERefractionElement::Generic;
 
 	/** Is this attack elemental? (affects defense type effectiveness) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")

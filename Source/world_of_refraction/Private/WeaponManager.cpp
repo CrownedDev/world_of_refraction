@@ -127,13 +127,9 @@ TArray<UAbilityData*> UWeaponManager::GetActiveAbilities(AActor* Actor) const
 		return Weapon->PresetAbilities;
 	}
 
-	// Unarmed - base abilities from CharacterData
-	UCharacterData* CharData = GetCharacterData(Actor);
-	if (CharData)
-	{
-		return CharData->BaseAbilities;
-	}
-
+	// Unarmed - no base abilities on CharacterData
+	// TODO: Implement base ability lookup - CharacterData doesn't store abilities directly
+	// For now, return empty array - abilities come from weapon loadout
 	return TArray<UAbilityData*>();
 }
 
@@ -227,8 +223,8 @@ TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor* Actor) const
 		// Elemental: Unarmed always available
 		Slots.Add(EWeaponSlot::Unarmed);
 
-		// Armed if has equipped weapon
-		if (CharData->EquippedWeapon)
+		// Armed if has primary weapon
+		if (CharData->PrimaryWeapon)
 		{
 			Slots.Add(EWeaponSlot::Primary);
 		}
@@ -436,8 +432,10 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 		Result.InfusedElement = AttackerData->InnateElement;
 	}
 
-	// Calculate base damage
-	int32 BaseDamage = Attack->CalculateDamage(AttackerData);
+	// Calculate base damage - attacks use character's RawDamageMultiplier
+	// Base damage is 100, scaled by character stats
+	float DamageMultiplier = AttackerData->CalculateRawDamageMultiplier();
+	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
 
 	// Infusion penalty
 	if (bUseInfusion)
@@ -466,7 +464,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 		{
 			int32 HitDamage = ApplyWeaponDamage(
 				Attacker, Target, DamagePerHit,
-				bUseInfusion, bUseInfusion ? AttackerData->InnateElement : ERefractionElement::None,
+				bUseInfusion, bUseInfusion ? AttackerData->InnateElement : ERefractionElement::Generic,
 				true, Result);
 
 			TotalDamageToTarget += HitDamage;
@@ -609,8 +607,7 @@ bool UWeaponManager::IsElementalCharacter(AActor* Actor) const
 	if (!Data) return false;
 
 	return Data->InnateElement != ERefractionElement::Generic &&
-		   Data->InnateElement != ERefractionElement::BrokenDarkness &&
-		   Data->InnateElement != ERefractionElement::None;
+		   Data->InnateElement != ERefractionElement::BrokenDarkness;
 }
 
 UWeaponData* UWeaponManager::GetWeaponInSlot(AActor* Actor, EWeaponSlot Slot) const
@@ -626,14 +623,8 @@ UWeaponData* UWeaponManager::GetWeaponInSlot(AActor* Actor, EWeaponSlot Slot) co
 		return nullptr;
 
 	case EWeaponSlot::Primary:
-		if (IsGenericCharacter(Actor))
-		{
-			return CharData->PrimaryWeapon;
-		}
-		else
-		{
-			return CharData->EquippedWeapon;
-		}
+		// Both Generic and Elemental characters use PrimaryWeapon
+		return CharData->PrimaryWeapon;
 
 	case EWeaponSlot::Secondary:
 		if (IsGenericCharacter(Actor))
@@ -670,13 +661,13 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 	switch (DamageType)
 	{
 	case EPhysicalDamageType::Slash:
-		// Bleed - DOT (use None element for physical)
+		// Bleed - DOT (use Generic element for physical)
 		Effect = FStatusEffect::CreateDOT(
 			TEXT("Bleed"),
 			FMath::Rand(), // Unique ID
 			15.0f, // Damage per turn
 			3, // Duration
-			ERefractionElement::None); // Physical, no element
+			ERefractionElement::Generic); // Physical, no element
 		break;
 
 	case EPhysicalDamageType::Pierce:
@@ -687,7 +678,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 			EAbilityEffectType::DefenseDebuff,
 			30.0f, // 30% defense reduction
 			3);
-		Effect.Element = ERefractionElement::None;
+		Effect.Element = ERefractionElement::Generic;
 		break;
 
 	case EPhysicalDamageType::Blunt:
@@ -699,7 +690,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 			EAbilityEffectType::AttackSpeedDebuff, // Placeholder for stun
 			100.0f, // 100% speed reduction = skip turn
 			1); // 1 turn
-		Effect.Element = ERefractionElement::None;
+		Effect.Element = ERefractionElement::Generic;
 		break;
 
 	default:
@@ -722,36 +713,40 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor* Attacker, AActor* Target, int32 
 	UCharacterData* TargetData = GetCharacterData(Target);
 	UCharacterData* AttackerData = GetCharacterData(Attacker);
 
-	// Calculate defense
-	float DefensePercent = 0.0f;
+	// Calculate defense - different mechanics for physical vs elemental
+	int32 FinalDamage = BaseDamage;
+	
 	if (TargetData)
 	{
-		DefensePercent = bIsElemental
-			? TargetData->CalculateResistance()
-			: TargetData->CalculateDefense();
+		// Step 1: Apply flat defense (subtraction) - always applied
+		int32 FlatDefense = TargetData->CalculateFlatDefense();
+		
+		// Apply status effect modifiers to flat defense
+		UStatusEffectManager* StatusManager = GetStatusEffectManager();
+		if (StatusManager)
+		{
+			float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseBuff);
+			float DefenseDebuffPercent = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseDebuff);
+			float DefenseModifier = 1.0f + (DefenseBuffPercent - DefenseDebuffPercent) / 100.0f;
+			FlatDefense = FMath::RoundToInt(FlatDefense * FMath::Max(0.0f, DefenseModifier));
+		}
+		
+		FinalDamage = FMath::Max(0, FinalDamage - FlatDefense);
+		
+		// Step 2: Apply resistance (percentage) - elemental damage only
+		if (bIsElemental && FinalDamage > 0)
+		{
+			float Resistance = TargetData->CalculateElementalResistance(); // Returns 0.0-1.0
+			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f); // Cap at 80%
+			FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
+		}
 	}
-
-	// Apply status effect modifiers
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
-	if (StatusManager)
-	{
-		// Use EAbilityEffectType for stat modifiers
-		float DefenseMod = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseBuff);
-		DefenseMod -= StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseDebuff);
-		DefensePercent += DefenseMod;
-	}
-
-	// Cap defense reduction
-	DefensePercent = FMath::Clamp(DefensePercent, 0.0f, 80.0f);
-
-	// Apply defense
-	float DamageMultiplier = 1.0f - (DefensePercent / 100.0f);
-	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Critical hit check
+	UStatusEffectManager* StatusManager = GetStatusEffectManager();
 	if (bCanCrit && AttackerData)
 	{
-		float CritChance = AttackerData->CalculateCritChance();
+		float CritChance = AttackerData->CalculateCriticalChance() * 100.0f; // Convert to percentage
 		if (StatusManager)
 		{
 			CritChance += StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
@@ -761,7 +756,8 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor* Attacker, AActor* Target, int32 
 
 		if (FMath::FRand() * 100.0f < CritChance)
 		{
-			float CritMultiplier = AttackerData->CalculateCritDamageMultiplier();
+			// Crit damage is fixed at 1.5x (no method exists on CharacterData)
+			constexpr float CritMultiplier = 1.5f;
 			FinalDamage = FMath::RoundToInt(FinalDamage * CritMultiplier);
 			OutResult.bWasCritical = true;
 		}

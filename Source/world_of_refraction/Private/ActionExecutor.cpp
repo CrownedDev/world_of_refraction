@@ -270,7 +270,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor* Actor, const FAction& Actio
 	switch (Action.ActionType)
 	{
 	case EActionType::Spell:
-		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets, 
+		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets,
 			Action.bUseElementalMode, Action.SpellInfusionLevel);
 		break;
 
@@ -445,7 +445,7 @@ FActionResult UActionExecutor::ExecuteSpell(
 
 	// Calculate spell SIZE with infusion (NOT damage)
 	// Size affects dodge viability in defense system
-	float BaseAbilitySize = CasterData->GetSubStat(ESubStatType::AbilitySize);
+	float BaseAbilitySize = CasterData->CalculateAbilitySizeMultiplier();
 	float SizeMultiplier = GetSpellInfusionSizeMultiplier(InfusionLevel);
 	float FinalSpellSize = BaseAbilitySize * SizeMultiplier;
 
@@ -464,7 +464,7 @@ FActionResult UActionExecutor::ExecuteSpell(
 
 	// Process each target
 	TArray<AActor*> ValidTargets = FilterValidTargets(Targets);
-	
+
 	for (AActor* Target : ValidTargets)
 	{
 		// Broadcast defense window request
@@ -578,7 +578,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 	BaseDamage = FMath::RoundToInt(BaseDamage * PowerDamageMultiplier);
 
 	// Determine element
-	ERefractionElement Element = ERefractionElement::None;
+	ERefractionElement Element = ERefractionElement::Generic;
 	if (bIsElementInfused && Ability->bCanBeInfused)
 	{
 		Element = UserData->InnateElement;
@@ -689,13 +689,13 @@ FActionResult UActionExecutor::ExecuteItem(
 	if (Targets.Num() > 1)
 	{
 		FItemUseResult ItemResult = ItemExec->UseItemMultiTarget(User, Item, Targets);
-		
+
 		Result.bSuccess = ItemResult.bSuccess;
 		Result.ErrorMessage = ItemResult.ErrorMessage;
 		Result.TotalDamageDealt = ItemResult.DamageDealt;
 		Result.TotalHealingDone = ItemResult.HealingDone;
 		Result.StatusEffectsApplied = ItemResult.BuffsApplied + ItemResult.DebuffsRemoved;
-		
+
 		for (AActor* T : Targets)
 		{
 			Result.AffectedTargets.Add(T);
@@ -704,7 +704,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	else
 	{
 		FItemUseResult ItemResult = ItemExec->UseItem(User, Item, Target);
-		
+
 		Result.bSuccess = ItemResult.bSuccess;
 		Result.ErrorMessage = ItemResult.ErrorMessage;
 		Result.TotalDamageDealt = ItemResult.DamageDealt;
@@ -742,7 +742,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 		if (WeaponMgr)
 		{
 			FWeaponAttackResult WeaponResult = WeaponMgr->ExecuteAttackWithInfusion(Attacker, Targets, bIsInfused);
-			
+
 			Result.bSuccess = WeaponResult.bSuccess;
 			Result.ErrorMessage = WeaponResult.ErrorMessage;
 			Result.TotalDamageDealt = WeaponResult.TotalDamageDealt;
@@ -797,8 +797,10 @@ FActionResult UActionExecutor::ExecuteAttack(
 		Result.EnergySpent = EnergyCost;
 	}
 
-	// Calculate damage
-	int32 BaseDamage = Attack->CalculateDamage(AttackerData);
+	// Calculate damage - attacks use character's RawDamageMultiplier
+	// Base damage is 100, scaled by the attack's damage distribution and character stats
+	float DamageMultiplier = AttackerData->CalculateRawDamageMultiplier();
+	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
 	if (bIsInfused)
 	{
 		// Infusion damage penalty (30%)
@@ -806,7 +808,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 	}
 
 	// Determine element
-	ERefractionElement Element = ERefractionElement::None;
+	ERefractionElement Element = ERefractionElement::Generic;
 	if (bIsInfused)
 	{
 		Element = AttackerData->InnateElement;
@@ -890,7 +892,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 	int32 BaseDamage = Ultimate->BaseDamage;
 
 	// Apply stat scaling
-	switch (Ultimate->StatScaling)
+	switch (Ultimate->ScalingType)
 	{
 	case EStatScalingType::Body:
 		BaseDamage = FMath::RoundToInt(BaseDamage * CasterData->CalculateRawDamageMultiplier());
@@ -915,7 +917,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 		for (AActor* Target : ValidTargets)
 		{
 			FCombatHitResult HitResult = ApplyDamage(
-				Caster, Target, BaseDamage, true, Ultimate->Element);
+				Caster, Target, BaseDamage, true, Ultimate->Element, Ultimate->bCanCrit);
 			Result.TotalDamageDealt += HitResult.DamageDealt;
 			Result.DamagePerTarget.Add(Target, HitResult.DamageDealt);
 			Result.AffectedTargets.Add(Target);
@@ -942,14 +944,14 @@ FActionResult UActionExecutor::ExecuteUltimate(
 	case EUltimateType::Debuff:
 	case EUltimateType::CrowdControl:
 		// Apply status effect
-		if (Ultimate->EffectType != EAbilityEffectType::None)
+		if (Ultimate->PrimaryEffectType != EAbilityEffectType::None)
 		{
 			for (AActor* Target : ValidTargets)
 			{
 				ApplyStatusEffects(
 					Caster, Target,
-					Ultimate->EffectType,
-					Ultimate->EffectValue,
+					Ultimate->PrimaryEffectType,
+					Ultimate->EffectPercentage,
 					Ultimate->EffectDuration,
 					EAbilityEffectType::None, 0.0f, 0,
 					Ultimate->Element);
@@ -1135,7 +1137,7 @@ UStatusEffectManager* UActionExecutor::GetStatusEffectManager() const
 	{
 		if (UGameInstance* GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UActionExecutor*>(this)->StatusEffectManagerRef = 
+			const_cast<UActionExecutor*>(this)->StatusEffectManagerRef =
 				GI->GetSubsystem<UStatusEffectManager>();
 		}
 	}
@@ -1184,7 +1186,7 @@ bool UActionExecutor::RollCriticalHit(AActor* Attacker) const
 	UCharacterData* Data = GetCharacterData(Attacker);
 	if (!Data) return false;
 
-	float CritChance = Data->CalculateCritChance();
+	float CritChance = Data->CalculateCriticalChance() * 100.0f; // Returns 0-1, need 0-100
 
 	// Add crit chance buffs from status effects
 	UStatusEffectManager* StatusManager = GetStatusEffectManager();
@@ -1201,8 +1203,8 @@ bool UActionExecutor::RollCriticalHit(AActor* Attacker) const
 
 int32 UActionExecutor::ApplyCriticalMultiplier(int32 Damage, AActor* Attacker) const
 {
-	UCharacterData* Data = GetCharacterData(Attacker);
-	float CritMultiplier = Data ? Data->CalculateCritDamageMultiplier() : 1.5f;
+	// Crit damage is fixed at 1.5x (CharacterData doesn't have this method)
+	constexpr float CritMultiplier = 1.5f;
 
 	return FMath::RoundToInt(Damage * CritMultiplier);
 }
@@ -1212,32 +1214,33 @@ int32 UActionExecutor::ApplyDefense(int32 Damage, AActor* Defender, bool bIsElem
 	UCharacterData* Data = GetCharacterData(Defender);
 	if (!Data) return Damage;
 
-	float DefenseReduction = 0.0f;
+	int32 FinalDamage = Damage;
 
-	if (bIsElemental)
-	{
-		// Use resistance for elemental damage
-		DefenseReduction = Data->CalculateResistance() / 100.0f;
-	}
-	else
-	{
-		// Use defense for physical damage
-		DefenseReduction = Data->CalculateDefense() / 100.0f;
-	}
+	// Step 1: Apply flat defense (subtraction) - affects all damage types
+	int32 FlatDefense = Data->CalculateFlatDefense();
 
-	// Add defense buffs/debuffs from status effects
+	// Add defense buffs/debuffs from status effects (percentage modifier to defense)
 	UStatusEffectManager* StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
-		float DefenseMod = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseBuff);
-		DefenseMod -= StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseDebuff);
-		DefenseReduction += DefenseMod / 100.0f;
+		float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseBuff);
+		float DefenseDebuffPercent = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseDebuff);
+		float DefenseModifier = 1.0f + (DefenseBuffPercent - DefenseDebuffPercent) / 100.0f;
+		FlatDefense = FMath::RoundToInt(FlatDefense * FMath::Max(0.0f, DefenseModifier));
 	}
 
-	// Cap defense at 80%
-	DefenseReduction = FMath::Clamp(DefenseReduction, 0.0f, 0.8f);
+	FinalDamage = FMath::Max(0, FinalDamage - FlatDefense);
 
-	return FMath::RoundToInt(Damage * (1.0f - DefenseReduction));
+	// Step 2: Apply resistance (percentage reduction) - elemental damage only
+	if (bIsElemental && FinalDamage > 0)
+	{
+		float Resistance = Data->CalculateElementalResistance(); // Returns 0.0-1.0
+		// Cap resistance at 80%
+		Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);
+		FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
+	}
+
+	return FinalDamage;
 }
 
 void UActionExecutor::ApplyStatusEffects(
@@ -1392,12 +1395,12 @@ void UActionExecutor::DebugPrintActionResult(const FActionResult& Result) const
 	UE_LOG(LogTemp, Display, TEXT("Caused Death: %s"), Result.bCausedDeath ? TEXT("YES") : TEXT("NO"));
 	UE_LOG(LogTemp, Display, TEXT("Status Effects: %d"), Result.StatusEffectsApplied);
 	UE_LOG(LogTemp, Display, TEXT("Targets: %d"), Result.AffectedTargets.Num());
-	
+
 	if (!Result.ErrorMessage.IsEmpty())
 	{
 		UE_LOG(LogTemp, Display, TEXT("Error: %s"), *Result.ErrorMessage);
 	}
-	
+
 	UE_LOG(LogTemp, Display, TEXT("====================="));
 }
 

@@ -45,11 +45,12 @@ struct FQuartzAbsorptionState
 
 	/** Resulting element after transformation */
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	ERefractionElement TransformedElement = ERefractionElement::None;
+	ERefractionElement TransformedElement = ERefractionElement::Generic;
 
 	void AbsorbDamage(ERefractionElement Element, float Amount)
 	{
-		if (Element == ERefractionElement::None || Element == ERefractionElement::Generic)
+		// Don't absorb Generic or BrokenDarkness
+		if (Element == ERefractionElement::Generic || Element == ERefractionElement::BrokenDarkness)
 			return;
 
 		float& Current = AbsorbedDamage.FindOrAdd(Element);
@@ -59,7 +60,7 @@ struct FQuartzAbsorptionState
 
 	ERefractionElement GetDominantElement() const
 	{
-		ERefractionElement Dominant = ERefractionElement::None;
+		ERefractionElement Dominant = ERefractionElement::Generic;
 		float MaxDamage = 0.0f;
 
 		for (const auto& Pair : AbsorbedDamage)
@@ -139,7 +140,7 @@ struct WORLD_OF_REFRACTION_API FItemUseResult
 	bool bQuartzTransformed = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Quartz")
-	ERefractionElement QuartzNewElement = ERefractionElement::None;
+	ERefractionElement QuartzNewElement = ERefractionElement::Generic;
 };
 
 // ========================================

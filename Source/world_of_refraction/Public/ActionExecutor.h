@@ -6,6 +6,8 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ActionStructs.h"
 #include "EActionType.h"
+#include "AbilityEffectType.h"
+#include "RefractionElement.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -46,16 +48,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor*
 
 /**
  * UActionExecutor
- *
+ * 
  * GameInstanceSubsystem that handles all combat action execution.
  * Validates actions, calculates damage/effects, applies results.
- *
+ * 
  * Usage:
  *   UActionExecutor* Executor = GetGameInstance()->GetSubsystem<UActionExecutor>();
  *   FActionValidationResult Validation = Executor->ValidateAction(Actor, Action);
  *   if (Validation.bIsValid)
  *       FActionResult Result = Executor->ExecuteAction(Actor, Action);
- *
+ * 
  * Integrations:
  *   - StatusEffectManager: Apply status effects, check stun/silence
  *   - CharacterDataComponent: HP/EP changes
@@ -205,7 +207,7 @@ public:
 		int32 BaseDamage,
 		bool bIsElemental)
 	{
-		return ApplyDamage(Attacker, Target, BaseDamage, bIsElemental, ERefractionElement::None, true);
+		return ApplyDamage(Attacker, Target, BaseDamage, bIsElemental, ERefractionElement::Generic, true);
 	}
 
 	/**
@@ -252,7 +254,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnTargetKilled OnTargetKilled;
 
-	/**
+	/** 
 	 * Broadcast when a defense window should open
 	 * DefenseSystem should bind to this to handle Block/Parry/Dodge
 	 */
@@ -312,7 +314,7 @@ private:
 		EAbilityEffectType SecondaryEffect = EAbilityEffectType::None,
 		float SecondaryValue = 0.0f,
 		int32 SecondaryDuration = 0,
-		ERefractionElement Element = ERefractionElement::None);
+		ERefractionElement Element = ERefractionElement::Generic);
 
 	/** Handle multi-hit abilities */
 	int32 ProcessMultiHit(
