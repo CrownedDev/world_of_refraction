@@ -8,19 +8,18 @@
 
 /**
  * Types of infusion that can be applied to actions
- * 
+ *
  * Per-action choice: Player decides infusion type for each action
- * 
+ *
  * Availability by class:
- * - Generic:   Physical Infusion, Evolution Infusion*
- * - Caster:    Element Infusion, Evolution Infusion*
- * - Resonator: Ring Element Infusion, Evolution Infusion*
- * 
- * *Evolution Infusion only available with evolved weapon equipped
- * 
+ * - Generic:   Physical Infusion, Crystal Infusion*
+ * - Caster:    Element Infusion, Crystal Infusion*
+ * - Resonator: Ring Element Infusion, Crystal Infusion*
+ *
+ * *Crystal Infusion only available with refined crystal slotted in weapon/ring
+ *
  * Break Risk:
  * - Any infusion increases break chance for Resonator rings
- * - Evolution Infusion has special interactions with evolved equipment
  */
 UENUM(BlueprintType)
 enum class EInfusionType : uint8
@@ -36,9 +35,9 @@ enum class EInfusionType : uint8
 	 *  Adds elemental damage, triggers elemental effects */
 	Element UMETA(DisplayName = "Element Infusion"),
 
-	/** Evolution crystal enhancement (all classes with evolved weapon)
-	 *  Uses evolution crystal's element and abilities */
-	Evolution UMETA(DisplayName = "Evolution Infusion")
+	/** Crystal enhancement (all classes with slotted crystal)
+	 *  Uses slotted crystal's element */
+	Crystal UMETA(DisplayName = "Crystal Infusion")
 };
 
 /**
@@ -55,13 +54,12 @@ namespace InfusionTypeHelpers
 	/** Does this infusion add elemental properties? */
 	inline bool IsElemental(EInfusionType Type)
 	{
-		return Type == EInfusionType::Element || Type == EInfusionType::Evolution;
+		return Type == EInfusionType::Element || Type == EInfusionType::Crystal;
 	}
 
 	/** Does this infusion increase break risk for Resonators? */
 	inline bool IncreasesBreakRisk(EInfusionType Type)
 	{
-		// All infusion types increase break risk
 		return Type != EInfusionType::None;
 	}
 
@@ -70,10 +68,10 @@ namespace InfusionTypeHelpers
 	{
 		switch (Type)
 		{
-		case EInfusionType::None:      return TEXT("None");
-		case EInfusionType::Physical:  return TEXT("Physical");
-		case EInfusionType::Element:   return TEXT("Elemental");
-		case EInfusionType::Evolution: return TEXT("Evolution");
+		case EInfusionType::None:     return TEXT("None");
+		case EInfusionType::Physical: return TEXT("Physical");
+		case EInfusionType::Element:  return TEXT("Elemental");
+		case EInfusionType::Crystal:  return TEXT("Crystal");
 		default: return TEXT("Unknown");
 		}
 	}
@@ -89,8 +87,8 @@ namespace InfusionTypeHelpers
 			return TEXT("Raw power boost. Increases physical damage output.");
 		case EInfusionType::Element:
 			return TEXT("Elemental enhancement. Adds element damage and effects.");
-		case EInfusionType::Evolution:
-			return TEXT("Evolution crystal power. Uses evolved weapon's element.");
+		case EInfusionType::Crystal:
+			return TEXT("Crystal power. Uses slotted crystal's element.");
 		default:
 			return TEXT("");
 		}

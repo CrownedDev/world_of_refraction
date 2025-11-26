@@ -238,5 +238,5 @@ public:
 		}
 
 		return Result;
-	}
+	};
 #endif

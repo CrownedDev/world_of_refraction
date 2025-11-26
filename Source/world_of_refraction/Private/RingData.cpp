@@ -19,7 +19,7 @@ bool URingData::IsEvolved() const
     return SlottedCrystal && SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
 }
 
-float URingData::CalculateBreakChance(USpellData* Spell, bool bIsInfused) const
+float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
 {
     using namespace RingBreakConstants;
 
@@ -66,4 +66,4 @@ float URingData::CalculateBreakChance(USpellData* Spell, bool bIsInfused) const
     }
 
     return FMath::Clamp(BreakChance, 0.0f, 1.0f);
-}
+};
