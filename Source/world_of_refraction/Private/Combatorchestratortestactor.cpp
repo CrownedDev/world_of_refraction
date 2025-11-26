@@ -68,7 +68,7 @@ void ACombatOrchestratorTestActor::Test_BasicCombatFlow()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Basic Combat Flow"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Basic Combat Flow", false);
@@ -80,11 +80,11 @@ void ACombatOrchestratorTestActor::Test_BasicCombatFlow()
 	Orchestrator->AutoAdvanceDelay = 0.1f;
 
 	// Create teams
-	TArray<AActor*> Team0;
+	TArray<AActor *> Team0;
 	Team0.Add(CreateTestCharacter("Player1", 5, 5, 5, 0, 0));
 	Team0.Add(CreateTestCharacter("Player2", 5, 5, 5, 0, 0));
 
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("Enemy1", 5, 5, 5, 0, 1));
 	Team1.Add(CreateTestCharacter("Enemy2", 5, 5, 5, 0, 1));
 
@@ -103,12 +103,12 @@ void ACombatOrchestratorTestActor::Test_BasicCombatFlow()
 		UE_LOG(LogTemp, Display, TEXT("    Combat started successfully"));
 		UE_LOG(LogTemp, Display, TEXT("    Current actor: %s"), *Orchestrator->GetCurrentActor()->GetName());
 		UE_LOG(LogTemp, Display, TEXT("    Teams: %d vs %d"),
-			Orchestrator->GetTeam0().Num(), Orchestrator->GetTeam1().Num());
+			   Orchestrator->GetTeam0().Num(), Orchestrator->GetTeam1().Num());
 	}
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("    Failed: State=%d, HasActor=%d, TeamsStored=%d"),
-			(int32)Orchestrator->GetCombatState(), bHasCurrentActor, bTeamsStored);
+			   (int32)Orchestrator->GetCombatState(), bHasCurrentActor, bTeamsStored);
 	}
 
 	PrintTestResult("Basic Combat Flow", bPassed);
@@ -123,7 +123,7 @@ void ACombatOrchestratorTestActor::Test_StateTransitions()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] State Transitions"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("State Transitions", false);
@@ -138,10 +138,10 @@ void ACombatOrchestratorTestActor::Test_StateTransitions()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor*> Team0;
+	TArray<AActor *> Team0;
 	Team0.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
 
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 1));
 
 	// Should be Idle initially
@@ -182,7 +182,7 @@ void ACombatOrchestratorTestActor::Test_VictoryCondition()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Victory Condition"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Victory Condition", false);
@@ -192,11 +192,11 @@ void ACombatOrchestratorTestActor::Test_VictoryCondition()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor*> Team0;
+	TArray<AActor *> Team0;
 	Team0.Add(CreateTestCharacter("Player", 5, 5, 5, 0, 0));
 
-	TArray<AActor*> Team1;
-	AActor* Enemy = CreateTestCharacter("Enemy", 5, 5, 5, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Enemy = CreateTestCharacter("Enemy", 5, 5, 5, 0, 1);
 	Team1.Add(Enemy);
 
 	// Track result
@@ -217,9 +217,9 @@ void ACombatOrchestratorTestActor::Test_VictoryCondition()
 	bool bCorrectSurvivors = (LastCombatResult.Team0Survivors == 1 && LastCombatResult.Team1Survivors == 0);
 
 	UE_LOG(LogTemp, Display, TEXT("    Result: State=%d, Team0=%d alive, Team1=%d alive"),
-		(int32)LastCombatResult.FinalState,
-		LastCombatResult.Team0Survivors,
-		LastCombatResult.Team1Survivors);
+		   (int32)LastCombatResult.FinalState,
+		   LastCombatResult.Team0Survivors,
+		   LastCombatResult.Team1Survivors);
 
 	bool bPassed = bVictory && bCorrectSurvivors;
 	PrintTestResult("Victory Condition", bPassed);
@@ -234,7 +234,7 @@ void ACombatOrchestratorTestActor::Test_DefeatCondition()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Defeat Condition"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Defeat Condition", false);
@@ -244,11 +244,11 @@ void ACombatOrchestratorTestActor::Test_DefeatCondition()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor*> Team0;
-	AActor* Player = CreateTestCharacter("Player", 5, 5, 5, 0, 0);
+	TArray<AActor *> Team0;
+	AActor *Player = CreateTestCharacter("Player", 5, 5, 5, 0, 0);
 	Team0.Add(Player);
 
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("Enemy", 5, 5, 5, 0, 1));
 
 	// Track result
@@ -269,9 +269,9 @@ void ACombatOrchestratorTestActor::Test_DefeatCondition()
 	bool bCorrectSurvivors = (LastCombatResult.Team0Survivors == 0 && LastCombatResult.Team1Survivors == 1);
 
 	UE_LOG(LogTemp, Display, TEXT("    Result: State=%d, Team0=%d alive, Team1=%d alive"),
-		(int32)LastCombatResult.FinalState,
-		LastCombatResult.Team0Survivors,
-		LastCombatResult.Team1Survivors);
+		   (int32)LastCombatResult.FinalState,
+		   LastCombatResult.Team0Survivors,
+		   LastCombatResult.Team1Survivors);
 
 	bool bPassed = bDefeat && bCorrectSurvivors;
 	PrintTestResult("Defeat Condition", bPassed);
@@ -286,7 +286,7 @@ void ACombatOrchestratorTestActor::Test_ForceEndCombat()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Force End Combat"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Force End Combat", false);
@@ -296,10 +296,10 @@ void ACombatOrchestratorTestActor::Test_ForceEndCombat()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create teams
-	TArray<AActor*> Team0;
+	TArray<AActor *> Team0;
 	Team0.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
 
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 1));
 
 	// Track result
@@ -315,7 +315,7 @@ void ACombatOrchestratorTestActor::Test_ForceEndCombat()
 
 	bool bIsIdle = (Orchestrator->GetCombatState() == ECombatState::Idle);
 	bool bResultBroadcast = (LastCombatResult.FinalState != ECombatState::Idle ||
-		LastCombatResult.TotalTurns > 0);
+							 LastCombatResult.TotalTurns > 0);
 
 	UE_LOG(LogTemp, Display, TEXT("    Was in progress: %s"), bWasInProgress ? TEXT("Yes") : TEXT("No"));
 	UE_LOG(LogTemp, Display, TEXT("    Is now idle: %s"), bIsIdle ? TEXT("Yes") : TEXT("No"));
@@ -333,7 +333,7 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] ActionExecutor Integration"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("ActionExecutor Integration", false);
@@ -349,12 +349,12 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create teams
-	TArray<AActor*> Team0;
-	AActor* Player = CreateTestCharacter("ActionTestPlayer", 5, 5, 5, 0, 0);
+	TArray<AActor *> Team0;
+	AActor *Player = CreateTestCharacter("ActionTestPlayer", 5, 5, 5, 0, 0);
 	Team0.Add(Player);
 
-	TArray<AActor*> Team1;
-	AActor* Enemy = CreateTestCharacter("ActionTestEnemy", 5, 5, 5, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Enemy = CreateTestCharacter("ActionTestEnemy", 5, 5, 5, 0, 1);
 	Team1.Add(Enemy);
 
 	// Start combat
@@ -383,34 +383,34 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 	bool bValidationPassed = Validation.bIsValid;
 
 	UE_LOG(LogTemp, Display, TEXT("    Defend action validation: %s"),
-		bValidationPassed ? TEXT("VALID") : *Validation.ErrorMessage);
+		   bValidationPassed ? TEXT("VALID") : *Validation.ErrorMessage);
 
 	// Test 2: Submit action
 	bool bSubmitSuccess = Orchestrator->SubmitAction(DefendAction);
 
 	UE_LOG(LogTemp, Display, TEXT("    Submit action result: %s"),
-		bSubmitSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+		   bSubmitSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
 
 	// Test 3: Check that OnActionExecuted was broadcast
 	UE_LOG(LogTemp, Display, TEXT("    OnActionExecuted fired: %s"),
-		bActionExecuted ? TEXT("YES") : TEXT("NO"));
+		   bActionExecuted ? TEXT("YES") : TEXT("NO"));
 
 	// Test 4: Check action result
 	bool bResultValid = LastActionResult.bSuccess && LastActionResult.ActionType == EActionType::Defend;
 	UE_LOG(LogTemp, Display, TEXT("    Action result valid: %s (Type=%d, Success=%d)"),
-		bResultValid ? TEXT("YES") : TEXT("NO"),
-		(int32)LastActionResult.ActionType,
-		LastActionResult.bSuccess);
+		   bResultValid ? TEXT("YES") : TEXT("NO"),
+		   (int32)LastActionResult.ActionType,
+		   LastActionResult.bSuccess);
 
 	// Test 5: Check that turn advanced (or combat ended if someone died)
 	// After SubmitAction, OnActionCompleted is called which advances the turn
 	bool bTurnAdvanced = (Orchestrator->GetCurrentTurnNumber() > 1) ||
-		(Orchestrator->GetCombatState() != ECombatState::InProgress);
+						 (Orchestrator->GetCombatState() != ECombatState::InProgress);
 
 	UE_LOG(LogTemp, Display, TEXT("    Turn advanced: %s (Turn=%d, State=%d)"),
-		bTurnAdvanced ? TEXT("YES") : TEXT("NO"),
-		Orchestrator->GetCurrentTurnNumber(),
-		(int32)Orchestrator->GetCombatState());
+		   bTurnAdvanced ? TEXT("YES") : TEXT("NO"),
+		   Orchestrator->GetCurrentTurnNumber(),
+		   (int32)Orchestrator->GetCombatState());
 
 	bool bPassed = bValidationPassed && bSubmitSuccess && bActionExecuted && bResultValid;
 	PrintTestResult("ActionExecutor Integration", bPassed);
@@ -427,8 +427,8 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Bolt)"));
 
 	// Load the attack data asset
-	UBaseAttackData* BoltAttack = LoadObject<UBaseAttackData>(nullptr,
-		TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+	UBaseAttackData *BoltAttack = LoadObject<UBaseAttackData>(nullptr,
+															  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
 
 	if (!BoltAttack)
 	{
@@ -439,7 +439,7 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *BoltAttack->AttackName, BoltAttack->HitCount);
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Real Attack Execution", false);
@@ -455,17 +455,17 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create attacker with good Body stat for damage
-	TArray<AActor*> Team0;
-	AActor* Attacker = CreateTestCharacter("BoltAttacker", 3, 6, 3, 0, 0);
+	TArray<AActor *> Team0;
+	AActor *Attacker = CreateTestCharacter("BoltAttacker", 3, 6, 3, 0, 0);
 	Team0.Add(Attacker);
 
 	// Create target with moderate defense
-	TArray<AActor*> Team1;
-	AActor* Target = CreateTestCharacter("BoltTarget", 3, 4, 3, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Target = CreateTestCharacter("BoltTarget", 3, 4, 3, 0, 1);
 	Team1.Add(Target);
 
 	// Get target's initial HP
-	UCharacterDataComponent* TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	int32 InitialHP = TargetComp ? TargetComp->CurrentHP : 0;
 
 	UE_LOG(LogTemp, Display, TEXT("    Target initial HP: %d"), InitialHP);
@@ -494,7 +494,7 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	// Validate action
 	FActionValidationResult Validation = Orchestrator->ValidateAction(AttackAction);
 	UE_LOG(LogTemp, Display, TEXT("    Attack validation: %s"),
-		Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
+		   Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
 
 	// Submit attack
 	bool bSubmitSuccess = Orchestrator->SubmitAction(AttackAction);
@@ -532,10 +532,10 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 // TEST HELPERS
 // ========================================
 
-ACombatOrchestrator* ACombatOrchestratorTestActor::GetOrCreateOrchestrator()
+ACombatOrchestrator *ACombatOrchestratorTestActor::GetOrCreateOrchestrator()
 {
 	// Check if we have GameInstance (need to be in PIE)
-	UGameInstance* GI = GetGameInstance();
+	UGameInstance *GI = GetGameInstance();
 	if (!GI)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatTest] Not in PIE! Press ALT+P to start Play-In-Editor, then run tests."));
@@ -562,7 +562,7 @@ ACombatOrchestrator* ACombatOrchestratorTestActor::GetOrCreateOrchestrator()
 	return TestOrchestrator;
 }
 
-AActor* ACombatOrchestratorTestActor::CreateTestCharacter(const FString& Name, int32 Mind, int32 Body, int32 Spirit, int32 TurnSpeed, int32 TeamIndex)
+AActor *ACombatOrchestratorTestActor::CreateTestCharacter(const FString &Name, int32 Mind, int32 Body, int32 Spirit, int32 TurnSpeed, int32 TeamIndex)
 {
 	// Generate unique name to prevent collision with actors from previous tests
 	FString UniqueName = FString::Printf(TEXT("%s_%d"), *Name, TestActorCounter++);
@@ -570,7 +570,7 @@ AActor* ACombatOrchestratorTestActor::CreateTestCharacter(const FString& Name, i
 	// Spawn empty actor
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = FName(*UniqueName);
-	AActor* TestActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	AActor *TestActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 
 	if (!TestActor)
 	{
@@ -579,8 +579,8 @@ AActor* ACombatOrchestratorTestActor::CreateTestCharacter(const FString& Name, i
 	}
 
 	// Create CharacterData asset - use display name for logs
-	UCharacterData* CharData = NewObject<UCharacterData>(TestActor);
-	CharData->CharacterName = Name;  // Display name stays readable
+	UCharacterData *CharData = NewObject<UCharacterData>(TestActor);
+	CharData->CharacterName = Name; // Display name stays readable
 	CharData->WorldMindLevel = Mind;
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;
@@ -588,7 +588,7 @@ AActor* ACombatOrchestratorTestActor::CreateTestCharacter(const FString& Name, i
 	CharData->WorldAttackSpeedPoints = 0;
 
 	// Create and setup component (CRITICAL: assign data BEFORE register)
-	UCharacterDataComponent* CharComp = NewObject<UCharacterDataComponent>(TestActor);
+	UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(TestActor);
 	CharComp->CharacterData = CharData;
 	CharComp->RegisterComponent();
 	TestActor->AddOwnedComponent(CharComp);
@@ -596,9 +596,9 @@ AActor* ACombatOrchestratorTestActor::CreateTestCharacter(const FString& Name, i
 	return TestActor;
 }
 
-void ACombatOrchestratorTestActor::CleanupTestActors(TArray<AActor*>& Actors)
+void ACombatOrchestratorTestActor::CleanupTestActors(TArray<AActor *> &Actors)
 {
-	for (AActor* Actor : Actors)
+	for (AActor *Actor : Actors)
 	{
 		if (Actor && IsValid(Actor))
 		{
@@ -608,7 +608,7 @@ void ACombatOrchestratorTestActor::CleanupTestActors(TArray<AActor*>& Actors)
 	Actors.Empty();
 }
 
-void ACombatOrchestratorTestActor::PrintTestResult(const FString& TestName, bool bPassed)
+void ACombatOrchestratorTestActor::PrintTestResult(const FString &TestName, bool bPassed)
 {
 	if (bPassed)
 	{
@@ -631,20 +631,20 @@ void ACombatOrchestratorTestActor::OnTestCombatStateChanged(ECombatState NewStat
 	RecordedStateTransitions.Add(NewState);
 }
 
-void ACombatOrchestratorTestActor::OnTestCombatResultReady(const FCombatResult& Result)
+void ACombatOrchestratorTestActor::OnTestCombatResultReady(const FCombatResult &Result)
 {
 	LastCombatResult = Result;
 	bWaitingForResult = false;
 }
 
-void ACombatOrchestratorTestActor::OnTestActionExecuted(AActor* Actor, const FActionResult& Result)
+void ACombatOrchestratorTestActor::OnTestActionExecuted(AActor *Actor, const FActionResult &Result)
 {
 	LastActionResult = Result;
 	bActionExecuted = true;
 	UE_LOG(LogTemp, Log, TEXT("[CombatTest] OnActionExecuted: Actor=%s, Success=%d, Type=%d"),
-		Actor ? *Actor->GetName() : TEXT("null"),
-		Result.bSuccess,
-		(int32)Result.ActionType);
+		   Actor ? *Actor->GetName() : TEXT("null"),
+		   Result.bSuccess,
+		   (int32)Result.ActionType);
 }
 
 // ========================================
@@ -656,14 +656,14 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Spell Execution (DA_Spells_Inferno)"));
 
 	// Load a Fire spell - Inferno is a Destruction spell
-	USpellData* InfernoSpell = LoadObject<USpellData>(nullptr,
-		TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
+	USpellData *InfernoSpell = LoadObject<USpellData>(nullptr,
+													  TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
 
 	if (!InfernoSpell)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("    DA_Spells_Inferno not found, trying DA_Spells_Fireball"));
 		InfernoSpell = LoadObject<USpellData>(nullptr,
-			TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fireball.DA_Spells_Fireball"));
+											  TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fireball.DA_Spells_Fireball"));
 	}
 
 	if (!InfernoSpell)
@@ -674,9 +674,9 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Element: %d)"),
-		*InfernoSpell->SpellName, (int32)InfernoSpell->Element);
+		   *InfernoSpell->SpellName, (int32)InfernoSpell->Element);
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Spell Execution", false);
@@ -691,24 +691,24 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create Fire caster (must match spell element) with HIGH SPEED to go first
-	TArray<AActor*> Team0;
-	AActor* Caster = CreateTestCharacter("FireCaster", 5, 3, 5, 100, 0); // Speed=100 to go first
+	TArray<AActor *> Team0;
+	AActor *Caster = CreateTestCharacter("FireCaster", 5, 3, 5, 100, 0); // Speed=100 to go first
 	Team0.Add(Caster);
 
 	// Set caster's element to Fire
-	UCharacterDataComponent* CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
 	if (CasterComp && CasterComp->CharacterData)
 	{
 		CasterComp->CharacterData->InnateElement = ERefractionElement::Fire;
 	}
 
 	// Create target with low speed
-	TArray<AActor*> Team1;
-	AActor* Target = CreateTestCharacter("SpellTarget", 3, 4, 3, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Target = CreateTestCharacter("SpellTarget", 3, 4, 3, 0, 1);
 	Team1.Add(Target);
 
 	// Get target's initial HP
-	UCharacterDataComponent* TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	int32 InitialHP = TargetComp ? TargetComp->CurrentHP : 0;
 
 	UE_LOG(LogTemp, Display, TEXT("    Target initial HP: %d"), InitialHP);
@@ -737,7 +737,7 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	// Validate action
 	FActionValidationResult Validation = Orchestrator->ValidateAction(SpellAction);
 	UE_LOG(LogTemp, Display, TEXT("    Spell validation: %s"),
-		Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
+		   Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
 
 	// Submit spell
 	bool bSubmitSuccess = Orchestrator->SubmitAction(SpellAction);
@@ -780,14 +780,14 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Ability Execution (DA_Abilities_HeavyStrike)"));
 
 	// Load HeavyStrike ability - located in Fist subfolder
-	UAbilityData* Ability = LoadObject<UAbilityData>(nullptr,
-		TEXT("/Game/Data/Abilities/Fist/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+	UAbilityData *Ability = LoadObject<UAbilityData>(nullptr,
+													 TEXT("/Game/Data/Abilities/Fist/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
 
 	if (!Ability)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("    DA_Abilities_HeavyStrike not found, trying DA_Abilities_Focus"));
 		Ability = LoadObject<UAbilityData>(nullptr,
-			TEXT("/Game/Data/Abilities/Fist/DA_Abilities_Focus.DA_Abilities_Focus"));
+										   TEXT("/Game/Data/Abilities/Fist/DA_Abilities_Focus.DA_Abilities_Focus"));
 	}
 
 	if (!Ability)
@@ -798,9 +798,9 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Damage: %d)"),
-		*Ability->AbilityName, Ability->BaseDamage);
+		   *Ability->AbilityName, Ability->BaseDamage);
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Ability Execution", false);
@@ -815,18 +815,18 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create attacker with good Body stat and HIGH SPEED to go first
-	TArray<AActor*> Team0;
-	AActor* Attacker = CreateTestCharacter("AbilityUser", 3, 6, 3, 100, 0); // Speed=100 to go first
+	TArray<AActor *> Team0;
+	AActor *Attacker = CreateTestCharacter("AbilityUser", 3, 6, 3, 100, 0); // Speed=100 to go first
 	Team0.Add(Attacker);
 
 	// Create target with low speed
-	TArray<AActor*> Team1;
-	AActor* Target = CreateTestCharacter("AbilityTarget", 3, 4, 3, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Target = CreateTestCharacter("AbilityTarget", 3, 4, 3, 0, 1);
 	Team1.Add(Target);
 
 	// Get initial states
-	UCharacterDataComponent* TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
-	UCharacterDataComponent* AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
 	int32 InitialHP = TargetComp ? TargetComp->CurrentHP : 0;
 	int32 InitialEP = AttackerComp ? AttackerComp->CurrentEP : 0;
 
@@ -856,7 +856,7 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	// Validate action
 	FActionValidationResult Validation = Orchestrator->ValidateAction(AbilityAction);
 	UE_LOG(LogTemp, Display, TEXT("    Ability validation: %s"),
-		Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
+		   Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
 
 	// Submit ability
 	bool bSubmitSuccess = Orchestrator->SubmitAction(AbilityAction);
@@ -898,7 +898,7 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Status Effect From Action (Defend)"));
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Status Effect From Action", false);
@@ -908,12 +908,12 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 	Orchestrator->bAutoAdvanceTurns = false;
 
 	// Create combatants - give defender high speed to go first
-	TArray<AActor*> Team0;
-	AActor* Defender = CreateTestCharacter("StatusDefender", 3, 4, 3, 100, 0); // Speed=100 to go first
+	TArray<AActor *> Team0;
+	AActor *Defender = CreateTestCharacter("StatusDefender", 3, 4, 3, 100, 0); // Speed=100 to go first
 	Team0.Add(Defender);
 
-	TArray<AActor*> Team1;
-	AActor* Enemy = CreateTestCharacter("StatusEnemy", 3, 4, 3, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Enemy = CreateTestCharacter("StatusEnemy", 3, 4, 3, 0, 1);
 	Team1.Add(Enemy);
 
 	// Start combat
@@ -930,9 +930,8 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 	}
 
 	// Get StatusEffectManager
-	UGameInstance* GameInstance = GetWorld()->GetGameInstance();
-	UStatusEffectManager* StatusManager = GameInstance ?
-		GameInstance->GetSubsystem<UStatusEffectManager>() : nullptr;
+	UGameInstance *GameInstance = GetWorld()->GetGameInstance();
+	UStatusEffectManager *StatusManager = GameInstance ? GameInstance->GetSubsystem<UStatusEffectManager>() : nullptr;
 
 	if (!StatusManager)
 	{
@@ -996,8 +995,8 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Multi-Target Action (Attack 3 targets)"));
 
 	// Load attack data
-	UBaseAttackData* Attack = LoadObject<UBaseAttackData>(nullptr,
-		TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+	UBaseAttackData *Attack = LoadObject<UBaseAttackData>(nullptr,
+														  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
 
 	if (!Attack)
 	{
@@ -1006,7 +1005,7 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 		return;
 	}
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Multi-Target Action", false);
@@ -1021,23 +1020,23 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create attacker
-	TArray<AActor*> Team0;
-	AActor* Attacker = CreateTestCharacter("MultiAttacker", 3, 6, 3, 0, 0);
+	TArray<AActor *> Team0;
+	AActor *Attacker = CreateTestCharacter("MultiAttacker", 3, 6, 3, 0, 0);
 	Team0.Add(Attacker);
 
 	// Create 3 targets
-	TArray<AActor*> Team1;
-	AActor* Target1 = CreateTestCharacter("Target1", 3, 4, 3, 0, 1);
-	AActor* Target2 = CreateTestCharacter("Target2", 3, 4, 3, 0, 1);
-	AActor* Target3 = CreateTestCharacter("Target3", 3, 4, 3, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Target1 = CreateTestCharacter("Target1", 3, 4, 3, 0, 1);
+	AActor *Target2 = CreateTestCharacter("Target2", 3, 4, 3, 0, 1);
+	AActor *Target3 = CreateTestCharacter("Target3", 3, 4, 3, 0, 1);
 	Team1.Add(Target1);
 	Team1.Add(Target2);
 	Team1.Add(Target3);
 
 	// Get initial HPs
-	UCharacterDataComponent* Comp1 = Target1->FindComponentByClass<UCharacterDataComponent>();
-	UCharacterDataComponent* Comp2 = Target2->FindComponentByClass<UCharacterDataComponent>();
-	UCharacterDataComponent* Comp3 = Target3->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *Comp1 = Target1->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *Comp2 = Target2->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *Comp3 = Target3->FindComponentByClass<UCharacterDataComponent>();
 	int32 InitHP1 = Comp1 ? Comp1->CurrentHP : 0;
 	int32 InitHP2 = Comp2 ? Comp2->CurrentHP : 0;
 	int32 InitHP3 = Comp3 ? Comp3->CurrentHP : 0;
@@ -1110,13 +1109,13 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Energy Cost Deduction"));
 
 	// Load a spell with known energy cost
-	USpellData* Spell = LoadObject<USpellData>(nullptr,
-		TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
+	USpellData *Spell = LoadObject<USpellData>(nullptr,
+											   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
 
 	if (!Spell)
 	{
 		Spell = LoadObject<USpellData>(nullptr,
-			TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fireball.DA_Spells_Fireball"));
+									   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fireball.DA_Spells_Fireball"));
 	}
 
 	if (!Spell)
@@ -1126,7 +1125,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 		return;
 	}
 
-	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
 	{
 		PrintTestResult("Energy Cost Deduction", false);
@@ -1141,11 +1140,11 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
 
 	// Create Fire caster with high energy AND HIGH SPEED to go first
-	TArray<AActor*> Team0;
-	AActor* Caster = CreateTestCharacter("EnergyCaster", 5, 3, 5, 100, 0); // Speed=100 to go first
+	TArray<AActor *> Team0;
+	AActor *Caster = CreateTestCharacter("EnergyCaster", 5, 3, 5, 100, 0); // Speed=100 to go first
 	Team0.Add(Caster);
 
-	UCharacterDataComponent* CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
 	if (CasterComp)
 	{
 		CasterComp->CurrentEP = 100; // Ensure enough energy
@@ -1156,8 +1155,8 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	}
 
 	// Create target with low speed
-	TArray<AActor*> Team1;
-	AActor* Target = CreateTestCharacter("EnergyTarget", 3, 4, 3, 0, 1);
+	TArray<AActor *> Team1;
+	AActor *Target = CreateTestCharacter("EnergyTarget", 3, 4, 3, 0, 1);
 	Team1.Add(Target);
 
 	int32 InitialEP = CasterComp ? CasterComp->CurrentEP : 0;
@@ -1185,7 +1184,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	SpellAction.bUseElementalMode = true;
 
 	// Get expected cost (for reference)
-	UCharacterData* CharData = CasterComp ? CasterComp->CharacterData : nullptr;
+	UCharacterData *CharData = CasterComp ? CasterComp->CharacterData : nullptr;
 	int32 ExpectedCost = Spell->CalculateEnergyCost(CharData, true);
 	UE_LOG(LogTemp, Display, TEXT("    Expected energy cost: %d"), ExpectedCost);
 
@@ -1198,7 +1197,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	// (Turn order can vary based on speed calculations)
 	UE_LOG(LogTemp, Display, TEXT("    ActionResult.EnergySpent: %d"), LastActionResult.EnergySpent);
 	UE_LOG(LogTemp, Display, TEXT("    Action executed by: %s"),
-		LastActionResult.Executor ? *LastActionResult.Executor->GetName() : TEXT("null"));
+		   LastActionResult.Executor ? *LastActionResult.Executor->GetName() : TEXT("null"));
 
 	// Verify energy was tracked in the result
 	bool bEnergyTracked = (LastActionResult.EnergySpent > 0);
@@ -1207,7 +1206,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 
 	UE_LOG(LogTemp, Display, TEXT("    Energy tracked in result: %s"), bEnergyTracked ? TEXT("YES") : TEXT("NO"));
 	UE_LOG(LogTemp, Display, TEXT("    Correct cost: %s (%d == %d)"),
-		bCorrectCost ? TEXT("YES") : TEXT("NO"), LastActionResult.EnergySpent, ExpectedCost);
+		   bCorrectCost ? TEXT("YES") : TEXT("NO"), LastActionResult.EnergySpent, ExpectedCost);
 	UE_LOG(LogTemp, Display, TEXT("    Action succeeded: %s"), bActionSucceeded ? TEXT("YES") : TEXT("NO"));
 
 	bool bPassed = bSubmitSuccess && bEnergyTracked && bActionSucceeded;
