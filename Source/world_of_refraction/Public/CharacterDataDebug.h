@@ -7,6 +7,8 @@
 #include "CharacterData.h"
 #include "CharacterDataDebug.generated.h"
 
+class UWeaponData;
+
 /**
  * Debug utilities for CharacterData
  */
@@ -27,4 +29,8 @@ public:
 	// Get formatted stats as string (for UI display)
 	UFUNCTION(BlueprintPure, Category = "Character Debug")
 	static FString GetCharacterStatsString(UCharacterData* Character);
+
+private:
+	// Helper to print weapon details
+	static void PrintWeaponDetails(FString& Output, UWeaponData* Weapon);
 };

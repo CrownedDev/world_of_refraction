@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "RefractionElement.h"
+#include "ECharacterClass.h"
 #include "StatConstants.h"
 
 #include <CombatConstants.h>
@@ -14,10 +15,13 @@
 #endif
 
 #include "CharacterData.generated.h"
+
 class UBaseAttackData;
 class UStanceData;
 class UCharacterInfusionDisplayData;
 class UWeaponData;
+class URingData;
+class USpellData;
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
@@ -34,7 +38,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FString CharacterName = TEXT("Unnamed Character");
 
+	/** Character class - determines combat style and equipment options */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+	ECharacterClass CharacterClass = ECharacterClass::Caster;
+
+	/** Innate element - only for Casters (locked at creation) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
 	ERefractionElement InnateElement = ERefractionElement::Fire;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
@@ -44,25 +54,40 @@ public:
 	UTexture2D *Portrait = nullptr;
 
 	// ==================== COMBAT LOADOUT ====================
-	// Base attack for unarmed state (Elemental only - Generic uses weapon attacks)
+
+	// Base attack for unarmed state (Caster/Resonator only - Generic uses weapon attacks)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack",
-			  meta = (EditCondition = "InnateElement != ERefractionElement::Generic", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass != ECharacterClass::Generic", EditConditionHides))
 	UBaseAttackData *BaseAttack = nullptr;
 
 	// Use primary weapon/state at combat start?
-	// Elemental: true = Armed (Primary), false = Unarmed
+	// Caster/Resonator: true = Armed (Primary), false = Unarmed
 	// Generic: true = Primary weapon, false = Secondary weapon
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
 	bool bUsePrimary = true;
 
-	// Primary weapon (all characters)// Validate weapon loadout
+	// Primary weapon (all characters)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
 	UWeaponData *PrimaryWeapon = nullptr;
 
-	// Secondary weapon (Generic characters only)
+	// Secondary weapon (Generic characters only - they can dual wield)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons",
-			  meta = (EditCondition = "InnateElement == ERefractionElement::Generic", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic", EditConditionHides))
 	UWeaponData *SecondaryWeapon = nullptr;
+
+	// ==================== CASTER SPELLS ====================
+
+	/** Innate spells (Caster only - tied to innate element) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Spells",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
+	TArray<USpellData *> InnateSpells;
+
+	// ==================== RESONATOR RINGS ====================
+
+	/** Equipped rings (Resonator only - up to 6 slots) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Rings",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
+	TArray<URingData *> EquippedRings;
 
 	// ==================== STANCE/INFUSION ====================
 
@@ -123,10 +148,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|Initial", meta = (ClampMin = "0"))
 	int32 InitialAbilitySizePoints = 0;
 
-	// ==================== WORLD SUB-STATS (PROGRESSION) ====================
+	// ==================== WORLD SUB-STATS (PROGRESSION BONUSES) ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
-	int32 WorldCostEfficencyPoints = 0;
+	int32 WorldCostReductionPoints = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
 	int32 WorldTurnSpeedPoints = 0;
@@ -152,47 +177,79 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|World", meta = (ClampMin = "0"))
 	int32 WorldAbilitySizePoints = 0;
 
-	// ==================== ITEMS ====================
+	// ==================== CLASS HELPERS ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Items")
-	int32 MaxItemSlots = 4;
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool IsGeneric() const { return CharacterClass == ECharacterClass::Generic; }
 
-	// ==================== ABILITIES ====================
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool IsCaster() const { return CharacterClass == ECharacterClass::Caster; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
-	int32 MaxAbilitySlots = 3;
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool IsResonator() const { return CharacterClass == ECharacterClass::Resonator; }
 
-	// ==================== SPELL SCHOOLS ====================
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool CanUseSpells() const { return CharacterClass != ECharacterClass::Generic; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	int32 MaxSpellsPerSchool = 3;
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool CanUseAbilities() const { return CharacterClass == ECharacterClass::Generic; }
 
-	// ==================== VISUAL DATA ====================
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool HasInnateElement() const { return CharacterClass == ECharacterClass::Caster; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	USkeletalMesh *CharacterMesh = nullptr;
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool UsesRings() const { return CharacterClass == ECharacterClass::Resonator; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	TSubclassOf<UAnimInstance> AnimationBlueprint = nullptr;
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	bool CanDualWield() const { return CharacterClass == ECharacterClass::Generic; }
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	FLinearColor PrimaryColor = FLinearColor::White;
+	/** Get element - Caster returns InnateElement, others return Generic */
+	UFUNCTION(BlueprintPure, Category = "Character|Class")
+	ERefractionElement GetElement() const
+	{
+		return HasInnateElement() ? InnateElement : ERefractionElement::Generic;
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-	FLinearColor SecondaryColor = FLinearColor::Black;
+	// ==================== STAT BUDGET VALIDATION ====================
 
-	// ==================== BALANCE FLAGS ====================
+	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
+	int32 GetInitialSubStatSum() const
+	{
+		return InitialCostReductionPoints + InitialTurnSpeedPoints + InitialCritChancePoints +
+			   InitialDefensePoints + InitialAttackSpeedPoints + InitialRawDamagePoints +
+			   InitialEffectDamagePoints + InitialResistancePoints + InitialAbilitySizePoints;
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Balance")
-	bool bHasBrokenAbilities = false;
+	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
+	bool IsValidInitialDistribution() const
+	{
+		return GetInitialSubStatSum() == InitialStatBudget;
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Balance", meta = (EditCondition = "bHasBrokenAbilities", MultiLine = true))
-	FString BalanceNotes = TEXT("");
+	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
+	int32 GetExpectedWorldPoints() const
+	{
+		return (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * PointsPerWorldStatLevel;
+	}
 
-	// ==================== TOTAL SUB-STATS (GETTERS) ====================
+	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
+	int32 GetWorldSubStatSum() const
+	{
+		return WorldCostReductionPoints + WorldTurnSpeedPoints + WorldCritChancePoints +
+			   WorldDefensePoints + WorldAttackSpeedPoints + WorldRawDamagePoints +
+			   WorldEffectDamagePoints + WorldResistancePoints + WorldAbilitySizePoints;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
+	bool IsValidWorldDistribution() const
+	{
+		return GetWorldSubStatSum() == GetExpectedWorldPoints();
+	}
+
+	// ==================== TOTAL SUB-STATS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
-	int32 GetTotalCostReduction() const { return InitialCostReductionPoints + WorldCostEfficencyPoints; }
+	int32 GetTotalCostReduction() const { return InitialCostReductionPoints + WorldCostReductionPoints; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalTurnSpeed() const { return InitialTurnSpeedPoints + WorldTurnSpeedPoints; }
@@ -261,49 +318,17 @@ public:
 		return BaseSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
 	}
 
-	// ==================== VALIDATION ====================
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetInitialSubStatSum() const
-	{
-		return (InitialCostReductionPoints + InitialTurnSpeedPoints + InitialCritChancePoints) + (InitialDefensePoints + InitialAttackSpeedPoints + InitialRawDamagePoints) + (InitialEffectDamagePoints + InitialResistancePoints + InitialAbilitySizePoints);
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetWorldSubStatSum() const
-	{
-		return (WorldCostEfficencyPoints + WorldTurnSpeedPoints + WorldCritChancePoints) + (WorldDefensePoints + WorldAttackSpeedPoints + WorldRawDamagePoints) + (WorldEffectDamagePoints + WorldResistancePoints + WorldAbilitySizePoints);
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	int32 GetExpectedWorldPoints() const
-	{
-		return (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * PointsPerWorldStatLevel;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	bool IsValidInitialDistribution() const
-	{
-		return GetInitialSubStatSum() == InitialStatBudget;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
-	bool IsValidWorldDistribution() const
-	{
-		return GetWorldSubStatSum() == GetExpectedWorldPoints();
-	}
-
 	// ==================== MIND CALCULATIONS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
-	float CalculateSpellCostReduction() const
+	float CalculateCostReductionMultiplier() const
 	{
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalCostReduction();
 		return FMath::Clamp(
-			EffectiveMind * TotalPoints * CombatConstants::COST_REDUCTION_PER_POINT,
-			0.0f,
-			CombatConstants::COST_REDUCTION_MAX);
+			1.0f - (EffectiveMind * TotalPoints * CombatConstants::COST_REDUCTION_PER_POINT),
+			CombatConstants::COST_REDUCTION_MIN,
+			1.0f);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -315,7 +340,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
-	float CalculateCriticalChance() const
+	float CalculateCritChance() const
 	{
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalCritChance();
@@ -383,45 +408,15 @@ public:
 	// ==================== HELPER FUNCTIONS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateTurnRatio(float EnemySpeed) const
+	int32 CalculateMaxHP() const
 	{
-		float MySpeed = CalculateTurnSpeed();
-		float Difference = MySpeed - EnemySpeed;
-
-		if (Difference >= CombatConstants::TURN_SPEED_THRESHOLD_DOUBLE)
-			return CombatConstants::MAX_TURN_RATIO;
-		else
-			return 1;
+		return CombatConstants::BASE_HP + (GetBaseBody() * CombatConstants::HP_PER_BODY);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateSpellCost(int32 BaseCost) const
+	int32 CalculateMaxEP() const
 	{
-		float Reduction = CalculateSpellCostReduction();
-		return FMath::RoundToInt(BaseCost * (1.0f - Reduction));
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateSpellDamage(int32 BaseDamage) const
-	{
-		float Multiplier = CalculateEffectDamageMultiplier();
-		return FMath::RoundToInt(BaseDamage * Multiplier);
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateReducedDamage(int32 IncomingDamage, bool bIsElemental) const
-	{
-		// Apply defense
-		int32 AfterDefense = FMath::Max(0, IncomingDamage - CalculateFlatDefense());
-
-		// Apply resistance if elemental
-		if (bIsElemental)
-		{
-			float Resistance = CalculateElementalResistance();
-			return FMath::RoundToInt(AfterDefense * (1.0f - Resistance));
-		}
-
-		return AfterDefense;
+		return CombatConstants::BASE_EP + (GetBaseSpirit() * CombatConstants::EP_PER_SPIRIT);
 	}
 
 	// ==================== EDITOR VALIDATION ====================
@@ -431,30 +426,91 @@ public:
 	{
 		EDataValidationResult Result = Super::IsDataValid(Context);
 
-		// Check world stat distribution
-		if (!IsValidWorldDistribution())
+		// Validate stat budget
+		if (!IsValidInitialDistribution())
 		{
-			Context.AddError(FText::FromString(
-				FString::Printf(TEXT("World sub-stats (%d) don't match expected (%d)"),
-								GetWorldSubStatSum(), GetExpectedWorldPoints())));
+			Context.AddError(FText::FromString(FString::Printf(
+				TEXT("Initial sub-stat distribution (%d) doesn't match budget (%d)"),
+				GetInitialSubStatSum(), InitialStatBudget)));
 			Result = EDataValidationResult::Invalid;
 		}
 
-		// Validate weapon loadout
-		if (InnateElement == ERefractionElement::Generic)
+		if (!IsValidWorldDistribution())
 		{
-			if (PrimaryWeapon == nullptr && SecondaryWeapon == nullptr)
+			Context.AddError(FText::FromString(FString::Printf(
+				TEXT("World sub-stat distribution (%d) doesn't match expected (%d)"),
+				GetWorldSubStatSum(), GetExpectedWorldPoints())));
+			Result = EDataValidationResult::Invalid;
+		}
+
+		// Validate class-specific requirements
+		switch (CharacterClass)
+		{
+		case ECharacterClass::Generic:
+			// Generic needs at least one weapon
+			if (!PrimaryWeapon && !SecondaryWeapon)
 			{
 				Context.AddWarning(FText::FromString(TEXT("Generic character has no weapons assigned")));
 			}
-		}
-		else
-		{
-			if (SecondaryWeapon != nullptr)
+			// Generic shouldn't have innate spells
+			if (InnateSpells.Num() > 0)
 			{
-				Context.AddError(FText::FromString(TEXT("Elemental characters cannot have a secondary weapon")));
+				Context.AddError(FText::FromString(TEXT("Generic characters cannot have innate spells")));
 				Result = EDataValidationResult::Invalid;
 			}
+			// Generic shouldn't have rings
+			if (EquippedRings.Num() > 0)
+			{
+				Context.AddError(FText::FromString(TEXT("Generic characters cannot equip rings")));
+				Result = EDataValidationResult::Invalid;
+			}
+			break;
+
+		case ECharacterClass::Caster:
+			// Caster should have innate spells
+			if (InnateSpells.Num() == 0)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Caster has no innate spells")));
+			}
+			// Caster shouldn't have rings
+			if (EquippedRings.Num() > 0)
+			{
+				Context.AddError(FText::FromString(TEXT("Casters cannot equip rings")));
+				Result = EDataValidationResult::Invalid;
+			}
+			// Caster shouldn't have secondary weapon
+			if (SecondaryWeapon)
+			{
+				Context.AddError(FText::FromString(TEXT("Casters cannot have a secondary weapon")));
+				Result = EDataValidationResult::Invalid;
+			}
+			break;
+
+		case ECharacterClass::Resonator:
+			// Resonator needs rings
+			if (EquippedRings.Num() == 0)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Resonator has no rings equipped")));
+			}
+			// Validate ring count (max 6)
+			if (EquippedRings.Num() > 6)
+			{
+				Context.AddError(FText::FromString(TEXT("Resonator can only equip 6 rings")));
+				Result = EDataValidationResult::Invalid;
+			}
+			// Resonator shouldn't have innate spells
+			if (InnateSpells.Num() > 0)
+			{
+				Context.AddError(FText::FromString(TEXT("Resonators get spells from rings, not innate")));
+				Result = EDataValidationResult::Invalid;
+			}
+			// Resonator shouldn't have secondary weapon
+			if (SecondaryWeapon)
+			{
+				Context.AddError(FText::FromString(TEXT("Resonators cannot have a secondary weapon")));
+				Result = EDataValidationResult::Invalid;
+			}
+			break;
 		}
 
 		return Result;
