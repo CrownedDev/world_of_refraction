@@ -75,6 +75,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
 	UItemData *SlottedCrystal = nullptr;
 
+
+
 	// ==================== DURABILITY ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability", meta = (ClampMin = "1"))
@@ -169,6 +171,17 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Ring")
 	FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
+
+	// ==================== CRYSTAL HELPERS ====================
+
+	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
+	bool HasCrystal() const { return SlottedCrystal != nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
+	ESpellElement GetRingElement() const;
+
+	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
+	bool IsEvolved() const;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override

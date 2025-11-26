@@ -160,6 +160,15 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
     case ECrystalType::Amethyst:
         // Gamble - no specific values to check
         break;
+
+    case ECrystalType::EvolutionCrystal:
+        // Evolution crystals must have valid Evolution reference
+        if (!Item->Evolution)
+        {
+            Errors.Add(TEXT("EvolutionCrystal missing Evolution data reference"));
+            bValid = false;
+        }
+        break;
     }
 
     // Log errors if any
@@ -562,6 +571,9 @@ float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
 
     case ECrystalType::Quartz:
         return static_cast<float>(Item->GetTransformThreshold());
+    case ECrystalType::EvolutionCrystal:
+        // Evolution crystals don't have standard progression values
+        return 0.0f;
 
     default:
         return 0.0f;
