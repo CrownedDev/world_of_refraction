@@ -4,7 +4,7 @@
 #include "UltimateDataDebug.h"
 #include "Engine/Engine.h"
 
-void UUltimateDataDebug::PrintUltimateStats(UUltimateData* Ultimate, UCharacterData* Character, float Duration)
+void UUltimateDataDebug::PrintUltimateStats(UUltimateData *Ultimate, UCharacterData *Character, float Duration)
 {
     if (!Ultimate)
     {
@@ -29,7 +29,7 @@ void UUltimateDataDebug::PrintUltimateStats(UUltimateData* Ultimate, UCharacterD
     }
 }
 
-void UUltimateDataDebug::LogUltimateStats(UUltimateData* Ultimate, UCharacterData* Character)
+void UUltimateDataDebug::LogUltimateStats(UUltimateData *Ultimate, UCharacterData *Character)
 {
     if (!Ultimate)
     {
@@ -41,7 +41,7 @@ void UUltimateDataDebug::LogUltimateStats(UUltimateData* Ultimate, UCharacterDat
     UE_LOG(LogTemp, Display, TEXT("\n%s"), *StatsString);
 }
 
-FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCharacterData* Character)
+FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData *Ultimate, UCharacterData *Character)
 {
     if (!Ultimate)
     {
@@ -95,8 +95,8 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCha
         bool bMeetsWorld = Ultimate->MeetsWorldStatRequirements(Character);
 
         Output += FString::Printf(TEXT("  %s: %s\n"),
-            *Character->CharacterName,
-            bCanUse ? TEXT("CAN USE") : TEXT("CANNOT USE"));
+                                  *Character->CharacterName,
+                                  bCanUse ? TEXT("CAN USE") : TEXT("CANNOT USE"));
 
         if (!bCanUse)
         {
@@ -125,7 +125,7 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCha
         {
             float CalcDamage = Ultimate->CalculateDamage(Character);
             Output += FString::Printf(TEXT("  Damage: %d (base) -> %.0f (with %s)\n"),
-                Ultimate->BaseDamage, CalcDamage, *Character->CharacterName);
+                                      Ultimate->BaseDamage, CalcDamage, *Character->CharacterName);
         }
         else
         {
@@ -138,7 +138,7 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCha
         {
             float CalcHealing = Ultimate->CalculateHealing(Character);
             Output += FString::Printf(TEXT("  Healing: %d (base) -> %.0f (with %s)\n"),
-                Ultimate->BaseHealing, CalcHealing, *Character->CharacterName);
+                                      Ultimate->BaseHealing, CalcHealing, *Character->CharacterName);
         }
         else
         {
@@ -148,7 +148,7 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCha
     if (Ultimate->EffectPercentage > 0.0f)
     {
         Output += FString::Printf(TEXT("  Effect: %.0f%% for %d turns\n"),
-            Ultimate->EffectPercentage, Ultimate->EffectDuration);
+                                  Ultimate->EffectPercentage, Ultimate->EffectDuration);
     }
     Output += TEXT("\n");
 
@@ -160,7 +160,7 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCha
         EffectTypeName.RemoveFromStart(TEXT("EAbilityEffectType::"));
         Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
         Output += FString::Printf(TEXT("  Value: %d for %d turns\n"),
-            Ultimate->SecondaryValue, Ultimate->SecondaryDuration);
+                                  Ultimate->SecondaryValue, Ultimate->SecondaryDuration);
         Output += TEXT("\n");
     }
 
@@ -180,7 +180,7 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData* Ultimate, UCha
     {
         float BonusCrit = Ultimate->CalculateBonusCritChance(Character);
         float CritMult = Ultimate->CalculateCritMultiplier(Character);
-        float BaseCrit = Character->CalculateCriticalChance();
+        float BaseCrit = Character->CalculateCritChance();
 
         Output += FString::Printf(TEXT("  Base Crit: %.1f%%\n"), BaseCrit);
         Output += FString::Printf(TEXT("  Bonus Crit: +%.1f%%\n"), BonusCrit);
@@ -211,7 +211,7 @@ void UUltimateDataDebug::LogAllUltimatesByElement(ERefractionElement Element)
     UE_LOG(LogTemp, Display, TEXT("=========================================="));
 }
 
-void UUltimateDataDebug::CompareUltimates(UUltimateData* Ultimate1, UUltimateData* Ultimate2, UCharacterData* Character)
+void UUltimateDataDebug::CompareUltimates(UUltimateData *Ultimate1, UUltimateData *Ultimate2, UCharacterData *Character)
 {
     if (!Ultimate1 || !Ultimate2)
     {

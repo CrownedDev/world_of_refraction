@@ -10,7 +10,7 @@
 #include "StatusEffectManager.h"
 #include "StatusEffect.h"
 
-void UWeaponManager::Initialize(FSubsystemCollectionBase& Collection)
+void UWeaponManager::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Initialized"));
@@ -27,15 +27,16 @@ void UWeaponManager::Deinitialize()
 // STATE MANAGEMENT
 // ========================================
 
-void UWeaponManager::InitializeWeaponState(AActor* Actor)
+void UWeaponManager::InitializeWeaponState(AActor *Actor)
 {
-	if (!Actor) return;
+	if (!Actor)
+		return;
 
-	UCharacterData* CharData = GetCharacterData(Actor);
+	UCharacterData *CharData = GetCharacterData(Actor);
 	if (!CharData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Cannot initialize - no CharacterData for %s"),
-			*Actor->GetName());
+			   *Actor->GetName());
 		return;
 	}
 
@@ -59,34 +60,36 @@ void UWeaponManager::InitializeWeaponState(AActor* Actor)
 	WeaponStates.Add(Actor, State);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Initialized weapon state for %s: Slot=%d"),
-		*Actor->GetName(), static_cast<int32>(State.ActiveSlot));
+		   *Actor->GetName(), static_cast<int32>(State.ActiveSlot));
 }
 
-void UWeaponManager::ClearWeaponState(AActor* Actor)
+void UWeaponManager::ClearWeaponState(AActor *Actor)
 {
 	WeaponStates.Remove(Actor);
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Cleared weapon state for %s"),
-		Actor ? *Actor->GetName() : TEXT("Unknown"));
+		   Actor ? *Actor->GetName() : TEXT("Unknown"));
 }
 
-FWeaponState UWeaponManager::GetWeaponState(AActor* Actor) const
+FWeaponState UWeaponManager::GetWeaponState(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
 	return State ? *State : FWeaponState();
 }
 
-UWeaponData* UWeaponManager::GetActiveWeapon(AActor* Actor) const
+UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
-	if (!State) return nullptr;
+	const FWeaponState *State = WeaponStates.Find(Actor);
+	if (!State)
+		return nullptr;
 
 	return GetWeaponInSlot(Actor, State->ActiveSlot);
 }
 
-UBaseAttackData* UWeaponManager::GetActiveAttack(AActor* Actor) const
+UBaseAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
-	if (!State) return nullptr;
+	const FWeaponState *State = WeaponStates.Find(Actor);
+	if (!State)
+		return nullptr;
 
 	// If conjured, use conjured weapon attack
 	if (State->ActiveSlot == EWeaponSlot::Conjured && State->ConjuredWeapon)
@@ -95,23 +98,23 @@ UBaseAttackData* UWeaponManager::GetActiveAttack(AActor* Actor) const
 	}
 
 	// If armed, use weapon attack
-	UWeaponData* Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
+	UWeaponData *Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
 	if (Weapon && Weapon->WeaponAttack)
 	{
 		return Weapon->WeaponAttack;
 	}
 
 	// Unarmed - use base attack
-	UCharacterData* CharData = GetCharacterData(Actor);
+	UCharacterData *CharData = GetCharacterData(Actor);
 	return CharData ? CharData->BaseAttack : nullptr;
 }
 
-TArray<UAbilityData*> UWeaponManager::GetActiveAbilities(AActor* Actor) const
+TArray<UAbilityData *> UWeaponManager::GetActiveAbilities(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State)
 	{
-		return TArray<UAbilityData*>();
+		return TArray<UAbilityData *>();
 	}
 
 	// Conjured weapon abilities (includes Dispel in slot)
@@ -121,7 +124,7 @@ TArray<UAbilityData*> UWeaponManager::GetActiveAbilities(AActor* Actor) const
 	}
 
 	// Armed - weapon abilities
-	UWeaponData* Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
+	UWeaponData *Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
 	if (Weapon)
 	{
 		return Weapon->PresetAbilities;
@@ -130,25 +133,25 @@ TArray<UAbilityData*> UWeaponManager::GetActiveAbilities(AActor* Actor) const
 	// Unarmed - no base abilities on CharacterData
 	// TODO: Implement base ability lookup - CharacterData doesn't store abilities directly
 	// For now, return empty array - abilities come from weapon loadout
-	return TArray<UAbilityData*>();
+	return TArray<UAbilityData *>();
 }
 
 // ========================================
 // WEAPON SWITCHING
 // ========================================
 
-bool UWeaponManager::SwitchWeapon(AActor* Actor, EWeaponSlot TargetSlot)
+bool UWeaponManager::SwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot)
 {
 	if (!CanSwitchWeapon(Actor, TargetSlot))
 	{
 		return false;
 	}
 
-	FWeaponState* State = WeaponStates.Find(Actor);
+	FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] No weapon state for %s"),
-			*Actor->GetName());
+			   *Actor->GetName());
 		return false;
 	}
 
@@ -165,15 +168,16 @@ bool UWeaponManager::SwitchWeapon(AActor* Actor, EWeaponSlot TargetSlot)
 	OnWeaponSwitched.Broadcast(Actor, OldSlot, TargetSlot);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s switched from %d to %d"),
-		*Actor->GetName(), static_cast<int32>(OldSlot), static_cast<int32>(TargetSlot));
+		   *Actor->GetName(), static_cast<int32>(OldSlot), static_cast<int32>(TargetSlot));
 
 	return true;
 }
 
-bool UWeaponManager::CanSwitchWeapon(AActor* Actor, EWeaponSlot TargetSlot) const
+bool UWeaponManager::CanSwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
-	if (!State) return false;
+	const FWeaponState *State = WeaponStates.Find(Actor);
+	if (!State)
+		return false;
 
 	// Can't switch while conjured (must dispel first)
 	if (State->ActiveSlot == EWeaponSlot::Conjured)
@@ -197,12 +201,13 @@ bool UWeaponManager::CanSwitchWeapon(AActor* Actor, EWeaponSlot TargetSlot) cons
 	return Available.Contains(TargetSlot);
 }
 
-TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor* Actor) const
+TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor *Actor) const
 {
 	TArray<EWeaponSlot> Slots;
 
-	UCharacterData* CharData = GetCharacterData(Actor);
-	if (!CharData) return Slots;
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (!CharData)
+		return Slots;
 
 	if (IsGenericCharacter(Actor))
 	{
@@ -237,9 +242,9 @@ TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor* Actor) const
 // INFUSION (GENERIC ONLY)
 // ========================================
 
-bool UWeaponManager::ToggleInfusion(AActor* Actor)
+bool UWeaponManager::ToggleInfusion(AActor *Actor)
 {
-	FWeaponState* State = WeaponStates.Find(Actor);
+	FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State || !CanUseInfusion(Actor))
 	{
 		return false;
@@ -249,14 +254,14 @@ bool UWeaponManager::ToggleInfusion(AActor* Actor)
 	OnInfusionToggled.Broadcast(Actor, State->bInfusionActive);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s infusion: %s"),
-		*Actor->GetName(), State->bInfusionActive ? TEXT("ON") : TEXT("OFF"));
+		   *Actor->GetName(), State->bInfusionActive ? TEXT("ON") : TEXT("OFF"));
 
 	return true;
 }
 
-bool UWeaponManager::SetInfusion(AActor* Actor, bool bEnabled)
+bool UWeaponManager::SetInfusion(AActor *Actor, bool bEnabled)
 {
-	FWeaponState* State = WeaponStates.Find(Actor);
+	FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State || !CanUseInfusion(Actor))
 	{
 		return false;
@@ -271,13 +276,13 @@ bool UWeaponManager::SetInfusion(AActor* Actor, bool bEnabled)
 	return true;
 }
 
-bool UWeaponManager::IsInfusionActive(AActor* Actor) const
+bool UWeaponManager::IsInfusionActive(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
 	return State && State->bInfusionActive;
 }
 
-bool UWeaponManager::CanUseInfusion(AActor* Actor) const
+bool UWeaponManager::CanUseInfusion(AActor *Actor) const
 {
 	// Only Generic characters can use infusion
 	if (!IsGenericCharacter(Actor))
@@ -286,7 +291,7 @@ bool UWeaponManager::CanUseInfusion(AActor* Actor) const
 	}
 
 	// Must have a weapon equipped
-	UWeaponData* Weapon = GetActiveWeapon(Actor);
+	UWeaponData *Weapon = GetActiveWeapon(Actor);
 	if (!Weapon)
 	{
 		return false;
@@ -300,7 +305,7 @@ bool UWeaponManager::CanUseInfusion(AActor* Actor) const
 // CONJURATION (ELEMENTAL ONLY)
 // ========================================
 
-bool UWeaponManager::ConjureWeapon(AActor* Actor, UWeaponData* WeaponToConjure)
+bool UWeaponManager::ConjureWeapon(AActor *Actor, UWeaponData *WeaponToConjure)
 {
 	if (!Actor || !WeaponToConjure)
 	{
@@ -314,7 +319,7 @@ bool UWeaponManager::ConjureWeapon(AActor* Actor, UWeaponData* WeaponToConjure)
 		return false;
 	}
 
-	FWeaponState* State = WeaponStates.Find(Actor);
+	FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State)
 	{
 		return false;
@@ -336,14 +341,14 @@ bool UWeaponManager::ConjureWeapon(AActor* Actor, UWeaponData* WeaponToConjure)
 	OnConjurationStarted.Broadcast(Actor, WeaponToConjure);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s conjured %s - spells SEALED"),
-		*Actor->GetName(), *WeaponToConjure->WeaponName);
+		   *Actor->GetName(), *WeaponToConjure->WeaponName);
 
 	return true;
 }
 
-bool UWeaponManager::DispelConjuredWeapon(AActor* Actor)
+bool UWeaponManager::DispelConjuredWeapon(AActor *Actor)
 {
-	FWeaponState* State = WeaponStates.Find(Actor);
+	FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State || State->ActiveSlot != EWeaponSlot::Conjured)
 	{
 		return false;
@@ -357,20 +362,20 @@ bool UWeaponManager::DispelConjuredWeapon(AActor* Actor)
 	OnConjurationEnded.Broadcast(Actor);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s dispelled conjured weapon - spells UNSEALED"),
-		*Actor->GetName());
+		   *Actor->GetName());
 
 	return true;
 }
 
-bool UWeaponManager::HasConjuredWeapon(AActor* Actor) const
+bool UWeaponManager::HasConjuredWeapon(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
 	return State && State->ActiveSlot == EWeaponSlot::Conjured && State->ConjuredWeapon != nullptr;
 }
 
-bool UWeaponManager::AreSpellsSealed(AActor* Actor) const
+bool UWeaponManager::AreSpellsSealed(AActor *Actor) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
 	return State && State->bSpellsSealed;
 }
 
@@ -378,13 +383,13 @@ bool UWeaponManager::AreSpellsSealed(AActor* Actor) const
 // ATTACK EXECUTION
 // ========================================
 
-FWeaponAttackResult UWeaponManager::ExecuteAttack(AActor* Attacker, const TArray<AActor*>& Targets)
+FWeaponAttackResult UWeaponManager::ExecuteAttack(AActor *Attacker, const TArray<AActor *> &Targets)
 {
 	bool bUseInfusion = IsInfusionActive(Attacker);
 	return ExecuteAttackWithInfusion(Attacker, Targets, bUseInfusion);
 }
 
-FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, const TArray<AActor*>& Targets, bool bUseInfusion)
+FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, const TArray<AActor *> &Targets, bool bUseInfusion)
 {
 	FWeaponAttackResult Result;
 
@@ -395,7 +400,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 		return Result;
 	}
 
-	UBaseAttackData* Attack = GetActiveAttack(Attacker);
+	UBaseAttackData *Attack = GetActiveAttack(Attacker);
 	if (!Attack)
 	{
 		Result.bSuccess = false;
@@ -403,8 +408,8 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 		return Result;
 	}
 
-	UCharacterData* AttackerData = GetCharacterData(Attacker);
-	UCharacterDataComponent* AttackerComp = GetCharacterDataComponent(Attacker);
+	UCharacterData *AttackerData = GetCharacterData(Attacker);
+	UCharacterDataComponent *AttackerComp = GetCharacterDataComponent(Attacker);
 	if (!AttackerData || !AttackerComp)
 	{
 		Result.bSuccess = false;
@@ -413,8 +418,8 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 	}
 
 	// Get weapon for infusion/status calculations
-	UWeaponData* Weapon = GetActiveWeapon(Attacker);
-	UWeaponAttackData* WeaponAttack = Cast<UWeaponAttackData>(Attack);
+	UWeaponData *Weapon = GetActiveWeapon(Attacker);
+	UWeaponAttackData *WeaponAttack = Cast<UWeaponAttackData>(Attack);
 
 	// Infusion costs energy
 	if (bUseInfusion)
@@ -453,9 +458,10 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 	int32 HitCount = Attack->HitCount > 0 ? Attack->HitCount : 1;
 	int32 DamagePerHit = BaseDamage / HitCount;
 
-	for (AActor* Target : Targets)
+	for (AActor *Target : Targets)
 	{
-		if (!Target) continue;
+		if (!Target)
+			continue;
 
 		int32 TotalDamageToTarget = 0;
 
@@ -470,7 +476,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 			TotalDamageToTarget += HitDamage;
 
 			// Check if target died
-			UCharacterDataComponent* TargetComp = GetCharacterDataComponent(Target);
+			UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 			if (TargetComp && !TargetComp->bIsAlive)
 			{
 				Result.bCausedDeath = true;
@@ -487,7 +493,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 			float Buildup = CalculateStatusBuildup(Weapon, WeaponAttack, HitCount);
 			Result.StatusBuildupApplied += Buildup;
 
-			FWeaponState* State = WeaponStates.Find(Attacker);
+			FWeaponState *State = WeaponStates.Find(Attacker);
 			if (State)
 			{
 				State->AddBuildup(Target, Buildup);
@@ -510,10 +516,10 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 	OnWeaponAttackExecuted.Broadcast(Attacker, Result, Weapon);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s attacked with %s%s - %d total damage"),
-		*Attacker->GetName(),
-		*Attack->AttackName,
-		bUseInfusion ? TEXT(" (Infused)") : TEXT(""),
-		Result.TotalDamageDealt);
+		   *Attacker->GetName(),
+		   *Attack->AttackName,
+		   bUseInfusion ? TEXT(" (Infused)") : TEXT(""),
+		   Result.TotalDamageDealt);
 
 	return Result;
 }
@@ -522,9 +528,9 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor* Attacker, 
 // PHYSICAL STATUS
 // ========================================
 
-float UWeaponManager::GetStatusBuildup(AActor* Attacker, AActor* Target) const
+float UWeaponManager::GetStatusBuildup(AActor *Attacker, AActor *Target) const
 {
-	const FWeaponState* State = WeaponStates.Find(Attacker);
+	const FWeaponState *State = WeaponStates.Find(Attacker);
 	return State ? State->GetBuildup(Target) : 0.0f;
 }
 
@@ -543,13 +549,15 @@ float UWeaponManager::GetStatusThreshold(EPhysicalDamageType DamageType) const
 	}
 }
 
-bool UWeaponManager::WouldTriggerStatus(AActor* Attacker, AActor* Target, float AdditionalBuildup) const
+bool UWeaponManager::WouldTriggerStatus(AActor *Attacker, AActor *Target, float AdditionalBuildup) const
 {
-	const FWeaponState* State = WeaponStates.Find(Attacker);
-	if (!State) return false;
+	const FWeaponState *State = WeaponStates.Find(Attacker);
+	if (!State)
+		return false;
 
-	UWeaponAttackData* WeaponAttack = Cast<UWeaponAttackData>(GetActiveAttack(Attacker));
-	if (!WeaponAttack) return false;
+	UWeaponAttackData *WeaponAttack = Cast<UWeaponAttackData>(GetActiveAttack(Attacker));
+	if (!WeaponAttack)
+		return false;
 
 	float CurrentBuildup = State->GetBuildup(Target);
 	float Threshold = GetStatusThreshold(WeaponAttack->PhysicalDamageType);
@@ -557,9 +565,9 @@ bool UWeaponManager::WouldTriggerStatus(AActor* Attacker, AActor* Target, float 
 	return (CurrentBuildup + AdditionalBuildup) >= Threshold;
 }
 
-void UWeaponManager::ResetStatusBuildup(AActor* Attacker, AActor* Target)
+void UWeaponManager::ResetStatusBuildup(AActor *Attacker, AActor *Target)
 {
-	FWeaponState* State = WeaponStates.Find(Attacker);
+	FWeaponState *State = WeaponStates.Find(Attacker);
 	if (State)
 	{
 		State->ResetBuildup(Target);
@@ -570,52 +578,55 @@ void UWeaponManager::ResetStatusBuildup(AActor* Attacker, AActor* Target)
 // HELPERS
 // ========================================
 
-UCharacterDataComponent* UWeaponManager::GetCharacterDataComponent(AActor* Actor) const
+UCharacterDataComponent *UWeaponManager::GetCharacterDataComponent(AActor *Actor) const
 {
-	if (!Actor) return nullptr;
+	if (!Actor)
+		return nullptr;
 	return Actor->FindComponentByClass<UCharacterDataComponent>();
 }
 
-UCharacterData* UWeaponManager::GetCharacterData(AActor* Actor) const
+UCharacterData *UWeaponManager::GetCharacterData(AActor *Actor) const
 {
-	UCharacterDataComponent* Comp = GetCharacterDataComponent(Actor);
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-UStatusEffectManager* UWeaponManager::GetStatusEffectManager() const
+UStatusEffectManager *UWeaponManager::GetStatusEffectManager() const
 {
 	if (!StatusEffectManagerRef)
 	{
-		if (UGameInstance* GI = Cast<UGameInstance>(GetGameInstance()))
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UWeaponManager*>(this)->StatusEffectManagerRef =
+			const_cast<UWeaponManager *>(this)->StatusEffectManagerRef =
 				GI->GetSubsystem<UStatusEffectManager>();
 		}
 	}
 	return StatusEffectManagerRef;
 }
 
-bool UWeaponManager::IsGenericCharacter(AActor* Actor) const
+bool UWeaponManager::IsGenericCharacter(AActor *Actor) const
 {
-	UCharacterData* Data = GetCharacterData(Actor);
+	UCharacterData *Data = GetCharacterData(Actor);
 	return Data && Data->InnateElement == ERefractionElement::Generic;
 }
 
-bool UWeaponManager::IsElementalCharacter(AActor* Actor) const
+bool UWeaponManager::IsElementalCharacter(AActor *Actor) const
 {
-	UCharacterData* Data = GetCharacterData(Actor);
-	if (!Data) return false;
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+		return false;
 
 	return Data->InnateElement != ERefractionElement::Generic &&
 		   Data->InnateElement != ERefractionElement::BrokenDarkness;
 }
 
-UWeaponData* UWeaponManager::GetWeaponInSlot(AActor* Actor, EWeaponSlot Slot) const
+UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const
 {
-	const FWeaponState* State = WeaponStates.Find(Actor);
-	UCharacterData* CharData = GetCharacterData(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
+	UCharacterData *CharData = GetCharacterData(Actor);
 
-	if (!CharData) return nullptr;
+	if (!CharData)
+		return nullptr;
 
 	switch (Slot)
 	{
@@ -641,9 +652,10 @@ UWeaponData* UWeaponManager::GetWeaponInSlot(AActor* Actor, EWeaponSlot Slot) co
 	}
 }
 
-float UWeaponManager::CalculateStatusBuildup(UWeaponData* Weapon, UWeaponAttackData* Attack, int32 HitCount) const
+float UWeaponManager::CalculateStatusBuildup(UWeaponData *Weapon, UWeaponAttackData *Attack, int32 HitCount) const
 {
-	if (!Attack) return 0.0f;
+	if (!Attack)
+		return 0.0f;
 
 	float BaseBuildup = Attack->StatusBuildup;
 	float Multiplier = Weapon ? Weapon->InfusionStatusMultiplier : 1.0f;
@@ -651,10 +663,11 @@ float UWeaponManager::CalculateStatusBuildup(UWeaponData* Weapon, UWeaponAttackD
 	return BaseBuildup * Multiplier * HitCount;
 }
 
-void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPhysicalDamageType DamageType)
+void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPhysicalDamageType DamageType)
 {
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
-	if (!StatusManager) return;
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	if (!StatusManager)
+		return;
 
 	FStatusEffect Effect;
 
@@ -664,9 +677,9 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 		// Bleed - DOT (use Generic element for physical)
 		Effect = FStatusEffect::CreateDOT(
 			TEXT("Bleed"),
-			FMath::Rand(), // Unique ID
-			15.0f, // Damage per turn
-			3, // Duration
+			FMath::Rand(),				  // Unique ID
+			15.0f,						  // Damage per turn
+			3,							  // Duration
 			ERefractionElement::Generic); // Physical, no element
 		break;
 
@@ -688,8 +701,8 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 			TEXT("Stun"),
 			FMath::Rand(),
 			EAbilityEffectType::AttackSpeedDebuff, // Placeholder for stun
-			100.0f, // 100% speed reduction = skip turn
-			1); // 1 turn
+			100.0f,								   // 100% speed reduction = skip turn
+			1);									   // 1 turn
 		Effect.Element = ERefractionElement::Generic;
 		break;
 
@@ -701,28 +714,29 @@ void UWeaponManager::TriggerPhysicalStatus(AActor* Attacker, AActor* Target, EPh
 	OnPhysicalStatusTriggered.Broadcast(Target, DamageType, Attacker);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Physical status triggered: %s on %s"),
-		*Effect.EffectName, *Target->GetName());
+		   *Effect.EffectName, *Target->GetName());
 }
 
-int32 UWeaponManager::ApplyWeaponDamage(AActor* Attacker, AActor* Target, int32 BaseDamage,
-	bool bIsElemental, ERefractionElement Element, bool bCanCrit, FWeaponAttackResult& OutResult)
+int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 BaseDamage,
+										bool bIsElemental, ERefractionElement Element, bool bCanCrit, FWeaponAttackResult &OutResult)
 {
-	UCharacterDataComponent* TargetComp = GetCharacterDataComponent(Target);
-	if (!TargetComp) return 0;
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!TargetComp)
+		return 0;
 
-	UCharacterData* TargetData = GetCharacterData(Target);
-	UCharacterData* AttackerData = GetCharacterData(Attacker);
+	UCharacterData *TargetData = GetCharacterData(Target);
+	UCharacterData *AttackerData = GetCharacterData(Attacker);
 
 	// Calculate defense - different mechanics for physical vs elemental
 	int32 FinalDamage = BaseDamage;
-	
+
 	if (TargetData)
 	{
 		// Step 1: Apply flat defense (subtraction) - always applied
 		int32 FlatDefense = TargetData->CalculateFlatDefense();
-		
+
 		// Apply status effect modifiers to flat defense
-		UStatusEffectManager* StatusManager = GetStatusEffectManager();
+		UStatusEffectManager *StatusManager = GetStatusEffectManager();
 		if (StatusManager)
 		{
 			float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseBuff);
@@ -730,23 +744,23 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor* Attacker, AActor* Target, int32 
 			float DefenseModifier = 1.0f + (DefenseBuffPercent - DefenseDebuffPercent) / 100.0f;
 			FlatDefense = FMath::RoundToInt(FlatDefense * FMath::Max(0.0f, DefenseModifier));
 		}
-		
+
 		FinalDamage = FMath::Max(0, FinalDamage - FlatDefense);
-		
+
 		// Step 2: Apply resistance (percentage) - elemental damage only
 		if (bIsElemental && FinalDamage > 0)
 		{
 			float Resistance = TargetData->CalculateElementalResistance(); // Returns 0.0-1.0
-			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f); // Cap at 80%
+			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);			   // Cap at 80%
 			FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
 		}
 	}
 
 	// Critical hit check
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (bCanCrit && AttackerData)
 	{
-		float CritChance = AttackerData->CalculateCriticalChance() * 100.0f; // Convert to percentage
+		float CritChance = AttackerData->CalculateCritChance() * 100.0f; // Convert to percentage
 		if (StatusManager)
 		{
 			CritChance += StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
@@ -780,29 +794,29 @@ void UWeaponManager::DebugPrintWeaponStates() const
 {
 	UE_LOG(LogTemp, Display, TEXT("=== WEAPON STATES ==="));
 
-	for (const auto& Pair : WeaponStates)
+	for (const auto &Pair : WeaponStates)
 	{
-		AActor* Actor = Pair.Key.Get();
-		const FWeaponState& State = Pair.Value;
+		AActor *Actor = Pair.Key.Get();
+		const FWeaponState &State = Pair.Value;
 
 		UE_LOG(LogTemp, Display, TEXT("Actor: %s"),
-			Actor ? *Actor->GetName() : TEXT("Invalid"));
+			   Actor ? *Actor->GetName() : TEXT("Invalid"));
 		UE_LOG(LogTemp, Display, TEXT("  Slot: %d, Infusion: %s, Spells Sealed: %s"),
-			static_cast<int32>(State.ActiveSlot),
-			State.bInfusionActive ? TEXT("ON") : TEXT("OFF"),
-			State.bSpellsSealed ? TEXT("Yes") : TEXT("No"));
+			   static_cast<int32>(State.ActiveSlot),
+			   State.bInfusionActive ? TEXT("ON") : TEXT("OFF"),
+			   State.bSpellsSealed ? TEXT("Yes") : TEXT("No"));
 
 		if (State.ConjuredWeapon)
 		{
 			UE_LOG(LogTemp, Display, TEXT("  Conjured: %s"),
-				*State.ConjuredWeapon->WeaponName);
+				   *State.ConjuredWeapon->WeaponName);
 		}
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("====================="));
 }
 
-void UWeaponManager::DebugPrintActorWeaponState(AActor* Actor) const
+void UWeaponManager::DebugPrintActorWeaponState(AActor *Actor) const
 {
 	if (!Actor)
 	{
@@ -810,7 +824,7 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor* Actor) const
 		return;
 	}
 
-	const FWeaponState* State = WeaponStates.Find(Actor);
+	const FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State)
 	{
 		UE_LOG(LogTemp, Display, TEXT("No weapon state for %s"), *Actor->GetName());
@@ -822,7 +836,7 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor* Actor) const
 	UE_LOG(LogTemp, Display, TEXT("Infusion Active: %s"), State->bInfusionActive ? TEXT("Yes") : TEXT("No"));
 	UE_LOG(LogTemp, Display, TEXT("Spells Sealed: %s"), State->bSpellsSealed ? TEXT("Yes") : TEXT("No"));
 
-	UWeaponData* ActiveWeapon = GetActiveWeapon(Actor);
+	UWeaponData *ActiveWeapon = GetActiveWeapon(Actor);
 	if (ActiveWeapon)
 	{
 		UE_LOG(LogTemp, Display, TEXT("Active Weapon: %s"), *ActiveWeapon->WeaponName);
@@ -832,15 +846,15 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor* Actor) const
 		UE_LOG(LogTemp, Display, TEXT("Active Weapon: Unarmed"));
 	}
 
-	UBaseAttackData* Attack = GetActiveAttack(Actor);
+	UBaseAttackData *Attack = GetActiveAttack(Actor);
 	if (Attack)
 	{
 		UE_LOG(LogTemp, Display, TEXT("Active Attack: %s"), *Attack->AttackName);
 	}
 
-	TArray<UAbilityData*> Abilities = GetActiveAbilities(Actor);
+	TArray<UAbilityData *> Abilities = GetActiveAbilities(Actor);
 	UE_LOG(LogTemp, Display, TEXT("Active Abilities: %d"), Abilities.Num());
-	for (UAbilityData* Ability : Abilities)
+	for (UAbilityData *Ability : Abilities)
 	{
 		if (Ability)
 		{

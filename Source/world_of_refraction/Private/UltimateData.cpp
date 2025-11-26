@@ -220,7 +220,7 @@ float UUltimateData::CalculateBonusCritChance(const UCharacterData *Character) c
     }
 
     // Mind scaling grants +50% of base crit chance as bonus
-    float BaseCrit = Character->CalculateCriticalChance();
+    float BaseCrit = Character->CalculateCritChance();
     return BaseCrit * 0.5f;
 }
 

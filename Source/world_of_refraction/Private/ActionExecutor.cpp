@@ -16,7 +16,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
-void UActionExecutor::Initialize(FSubsystemCollectionBase& Collection)
+void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 
@@ -37,9 +37,12 @@ float UActionExecutor::GetSpellInfusionSizeMultiplier(int32 InfusionLevel)
 {
 	switch (InfusionLevel)
 	{
-	case 1: return 1.5f;  // Level 1: 50% size increase
-	case 2: return 2.0f;  // Level 2: 100% size increase
-	default: return 1.0f; // No infusion
+	case 1:
+		return 1.5f; // Level 1: 50% size increase
+	case 2:
+		return 2.0f; // Level 2: 100% size increase
+	default:
+		return 1.0f; // No infusion
 	}
 }
 
@@ -47,9 +50,12 @@ float UActionExecutor::GetSpellInfusionCostMultiplier(int32 InfusionLevel)
 {
 	switch (InfusionLevel)
 	{
-	case 1: return 1.3f;  // Level 1: 30% cost increase
-	case 2: return 1.6f;  // Level 2: 60% cost increase
-	default: return 1.0f; // No infusion
+	case 1:
+		return 1.3f; // Level 1: 30% cost increase
+	case 2:
+		return 1.6f; // Level 2: 60% cost increase
+	default:
+		return 1.0f; // No infusion
 	}
 }
 
@@ -57,9 +63,12 @@ float UActionExecutor::GetAbilityPowerInfusionDamageMultiplier(int32 InfusionLev
 {
 	switch (InfusionLevel)
 	{
-	case 1: return 1.3f;  // Level 1: 30% damage increase
-	case 2: return 1.6f;  // Level 2: 60% damage increase
-	default: return 1.0f; // No infusion
+	case 1:
+		return 1.3f; // Level 1: 30% damage increase
+	case 2:
+		return 1.6f; // Level 2: 60% damage increase
+	default:
+		return 1.0f; // No infusion
 	}
 }
 
@@ -67,9 +76,12 @@ float UActionExecutor::GetAbilityPowerInfusionCostMultiplier(int32 InfusionLevel
 {
 	switch (InfusionLevel)
 	{
-	case 1: return 1.3f;  // Level 1: 30% cost increase
-	case 2: return 1.6f;  // Level 2: 60% cost increase
-	default: return 1.0f; // No infusion
+	case 1:
+		return 1.3f; // Level 1: 30% cost increase
+	case 2:
+		return 1.6f; // Level 2: 60% cost increase
+	default:
+		return 1.0f; // No infusion
 	}
 }
 
@@ -77,7 +89,7 @@ float UActionExecutor::GetAbilityPowerInfusionCostMultiplier(int32 InfusionLevel
 // VALIDATION
 // ========================================
 
-FActionValidationResult UActionExecutor::ValidateAction(AActor* Actor, const FAction& Action) const
+FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAction &Action) const
 {
 	if (!Actor)
 	{
@@ -108,7 +120,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor* Actor, const FAc
 	}
 
 	// Validate targets are alive
-	for (AActor* Target : Action.Targets)
+	for (AActor *Target : Action.Targets)
 	{
 		if (!IsTargetAlive(Target))
 		{
@@ -120,14 +132,14 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor* Actor, const FAc
 	int32 EnergyCost = CalculateActionEnergyCost(Actor, Action);
 
 	// Check energy
-	UCharacterDataComponent* CharComp = GetCharacterDataComponent(Actor);
+	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
 	if (CharComp && CharComp->CurrentEP < EnergyCost)
 	{
 		return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
 	}
 
 	// Check requirements (world stat requirements)
-	UCharacterData* CharData = GetCharacterData(Actor);
+	UCharacterData *CharData = GetCharacterData(Actor);
 	if (CharData)
 	{
 		switch (Action.ActionType)
@@ -168,9 +180,9 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor* Actor, const FAc
 	return FActionValidationResult(true, TEXT(""), EnergyCost);
 }
 
-bool UActionExecutor::CanActorAct(AActor* Actor) const
+bool UActionExecutor::CanActorAct(AActor *Actor) const
 {
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager && StatusManager->IsStunned(Actor))
 	{
 		return false;
@@ -178,9 +190,9 @@ bool UActionExecutor::CanActorAct(AActor* Actor) const
 	return true;
 }
 
-bool UActionExecutor::CanActorCastSpells(AActor* Actor) const
+bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 {
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager && StatusManager->IsSilenced(Actor))
 	{
 		return false;
@@ -188,9 +200,9 @@ bool UActionExecutor::CanActorCastSpells(AActor* Actor) const
 	return true;
 }
 
-int32 UActionExecutor::CalculateActionEnergyCost(AActor* Actor, const FAction& Action) const
+int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const
 {
-	UCharacterData* CharData = GetCharacterData(Actor);
+	UCharacterData *CharData = GetCharacterData(Actor);
 
 	switch (Action.ActionType)
 	{
@@ -244,7 +256,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor* Actor, const FAction& A
 // EXECUTION - MAIN ENTRY POINT
 // ========================================
 
-FActionResult UActionExecutor::ExecuteAction(AActor* Actor, const FAction& Action)
+FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Action)
 {
 	FActionResult Result;
 	Result.Executor = Actor;
@@ -264,19 +276,19 @@ FActionResult UActionExecutor::ExecuteAction(AActor* Actor, const FAction& Actio
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s executing %s (Cost: %d EP)"),
-		*Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
+		   *Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
 
 	// Route to appropriate executor
 	switch (Action.ActionType)
 	{
 	case EActionType::Spell:
 		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets,
-			Action.bUseElementalMode, Action.SpellInfusionLevel);
+							  Action.bUseElementalMode, Action.SpellInfusionLevel);
 		break;
 
 	case EActionType::Ability:
 		Result = ExecuteAbility(Actor, Action.AbilityData, Action.Targets,
-			Action.bIsElementInfused, Action.AbilityInfusionLevel);
+								Action.bIsElementInfused, Action.AbilityInfusionLevel);
 		break;
 
 	case EActionType::Item:
@@ -311,16 +323,16 @@ FActionResult UActionExecutor::ExecuteAction(AActor* Actor, const FAction& Actio
 // EXECUTION - ASYNC
 // ========================================
 
-void UActionExecutor::ExecuteActionAsync(AActor* Actor, const FAction& Action, FOnActionComplete OnComplete)
+void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
 {
 	// Store callback
 	PendingActionCallback = OnComplete;
 	PendingDefenseCount = 0;
 
 	// Clear any pending timers
-	for (FTimerHandle& Handle : PendingHitTimers)
+	for (FTimerHandle &Handle : PendingHitTimers)
 	{
-		if (UWorld* World = GetWorld())
+		if (UWorld *World = GetWorld())
 		{
 			World->GetTimerManager().ClearTimer(Handle);
 		}
@@ -351,7 +363,7 @@ void UActionExecutor::ExecuteActionAsync(AActor* Actor, const FAction& Action, F
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s executing %s async (Cost: %d EP)"),
-		*Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
+		   *Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
 
 	// Execute synchronously for now - defense windows will be handled via events
 	// DefenseSystem should bind to OnDefenseWindowRequested to intercept damage
@@ -378,7 +390,7 @@ void UActionExecutor::CompleteAsyncAction()
 	PendingActionResult = FActionResult();
 }
 
-void UActionExecutor::OnDefenseResolved(AActor* Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried)
+void UActionExecutor::OnDefenseResolved(AActor *Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried)
 {
 	// Update pending result with actual damage after defense
 	if (PendingActionResult.DamagePerTarget.Contains(Target))
@@ -403,9 +415,9 @@ void UActionExecutor::OnDefenseResolved(AActor* Target, int32 FinalDamage, bool 
 // ========================================
 
 FActionResult UActionExecutor::ExecuteSpell(
-	AActor* Caster,
-	USpellData* Spell,
-	const TArray<AActor*>& Targets,
+	AActor *Caster,
+	USpellData *Spell,
+	const TArray<AActor *> &Targets,
 	bool bUseElementalMode,
 	int32 InfusionLevel)
 {
@@ -420,8 +432,8 @@ FActionResult UActionExecutor::ExecuteSpell(
 		return Result;
 	}
 
-	UCharacterData* CasterData = GetCharacterData(Caster);
-	UCharacterDataComponent* CasterComp = GetCharacterDataComponent(Caster);
+	UCharacterData *CasterData = GetCharacterData(Caster);
+	UCharacterDataComponent *CasterComp = GetCharacterDataComponent(Caster);
 
 	if (!CasterData || !CasterComp)
 	{
@@ -463,9 +475,9 @@ FActionResult UActionExecutor::ExecuteSpell(
 	SpawnSpellVFX(Caster, Spell, FinalSpellSize);
 
 	// Process each target
-	TArray<AActor*> ValidTargets = FilterValidTargets(Targets);
+	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
 
-	for (AActor* Target : ValidTargets)
+	for (AActor *Target : ValidTargets)
 	{
 		// Broadcast defense window request
 		// DefenseSystem should bind to this and handle Block/Parry/Dodge
@@ -496,10 +508,10 @@ FActionResult UActionExecutor::ExecuteSpell(
 	}
 
 	// Apply status effects from spell
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager && Spell->PrimaryEffect != EAbilityEffectType::None)
 	{
-		for (AActor* Target : ValidTargets)
+		for (AActor *Target : ValidTargets)
 		{
 			ApplyStatusEffects(
 				Caster, Target,
@@ -516,8 +528,8 @@ FActionResult UActionExecutor::ExecuteSpell(
 
 	Result.bSuccess = true;
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s cast %s (Size: %.1f, Infusion: %d) - %d damage to %d targets"),
-		*Caster->GetName(), *Spell->GetName(), FinalSpellSize, InfusionLevel,
-		Result.TotalDamageDealt, ValidTargets.Num());
+		   *Caster->GetName(), *Spell->GetName(), FinalSpellSize, InfusionLevel,
+		   Result.TotalDamageDealt, ValidTargets.Num());
 
 	return Result;
 }
@@ -527,9 +539,9 @@ FActionResult UActionExecutor::ExecuteSpell(
 // ========================================
 
 FActionResult UActionExecutor::ExecuteAbility(
-	AActor* User,
-	UAbilityData* Ability,
-	const TArray<AActor*>& Targets,
+	AActor *User,
+	UAbilityData *Ability,
+	const TArray<AActor *> &Targets,
 	bool bIsElementInfused,
 	int32 PowerInfusionLevel)
 {
@@ -544,8 +556,8 @@ FActionResult UActionExecutor::ExecuteAbility(
 		return Result;
 	}
 
-	UCharacterData* UserData = GetCharacterData(User);
-	UCharacterDataComponent* UserComp = GetCharacterDataComponent(User);
+	UCharacterData *UserData = GetCharacterData(User);
+	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
 
 	if (!UserData || !UserComp)
 	{
@@ -593,8 +605,8 @@ FActionResult UActionExecutor::ExecuteAbility(
 	PlayAbilityAnimation(User, Ability);
 
 	// Process each target
-	TArray<AActor*> ValidTargets = FilterValidTargets(Targets);
-	for (AActor* Target : ValidTargets)
+	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
+	for (AActor *Target : ValidTargets)
 	{
 		// Multi-hit processing
 		int32 TotalDamage = ProcessMultiHit(
@@ -620,7 +632,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 	// Apply status effects from ability
 	if (Ability->EffectType != EAbilityEffectType::None)
 	{
-		for (AActor* Target : ValidTargets)
+		for (AActor *Target : ValidTargets)
 		{
 			ApplyStatusEffects(
 				User, Target,
@@ -642,10 +654,10 @@ FActionResult UActionExecutor::ExecuteAbility(
 
 	Result.bSuccess = true;
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used %s%s%s - %d damage to %d targets"),
-		*User->GetName(), *Ability->GetName(),
-		bIsElementInfused ? TEXT(" (Element)") : TEXT(""),
-		PowerInfusionLevel > 0 ? *FString::Printf(TEXT(" (Power %d)"), PowerInfusionLevel) : TEXT(""),
-		Result.TotalDamageDealt, ValidTargets.Num());
+		   *User->GetName(), *Ability->GetName(),
+		   bIsElementInfused ? TEXT(" (Element)") : TEXT(""),
+		   PowerInfusionLevel > 0 ? *FString::Printf(TEXT(" (Power %d)"), PowerInfusionLevel) : TEXT(""),
+		   Result.TotalDamageDealt, ValidTargets.Num());
 
 	return Result;
 }
@@ -655,9 +667,9 @@ FActionResult UActionExecutor::ExecuteAbility(
 // ========================================
 
 FActionResult UActionExecutor::ExecuteItem(
-	AActor* User,
-	UItemData* Item,
-	const TArray<AActor*>& Targets)
+	AActor *User,
+	UItemData *Item,
+	const TArray<AActor *> &Targets)
 {
 	FActionResult Result;
 	Result.Executor = User;
@@ -671,7 +683,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	}
 
 	// Delegate to ItemExecutor for full item handling
-	UItemExecutor* ItemExec = GetItemExecutor();
+	UItemExecutor *ItemExec = GetItemExecutor();
 	if (!ItemExec)
 	{
 		Result.bSuccess = false;
@@ -683,7 +695,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	Result.EnergySpent = 0;
 
 	// Determine target (self if not specified)
-	AActor* Target = Targets.Num() > 0 ? Targets[0] : User;
+	AActor *Target = Targets.Num() > 0 ? Targets[0] : User;
 
 	// Execute through ItemExecutor
 	if (Targets.Num() > 1)
@@ -696,7 +708,7 @@ FActionResult UActionExecutor::ExecuteItem(
 		Result.TotalHealingDone = ItemResult.HealingDone;
 		Result.StatusEffectsApplied = ItemResult.BuffsApplied + ItemResult.DebuffsRemoved;
 
-		for (AActor* T : Targets)
+		for (AActor *T : Targets)
 		{
 			Result.AffectedTargets.Add(T);
 		}
@@ -716,7 +728,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	// TODO: Consume item from inventory
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
-		*User->GetName(), *Item->GetFullItemName());
+		   *User->GetName(), *Item->GetFullItemName());
 
 	return Result;
 }
@@ -726,9 +738,9 @@ FActionResult UActionExecutor::ExecuteItem(
 // ========================================
 
 FActionResult UActionExecutor::ExecuteAttack(
-	AActor* Attacker,
-	UBaseAttackData* Attack,
-	const TArray<AActor*>& Targets,
+	AActor *Attacker,
+	UBaseAttackData *Attack,
+	const TArray<AActor *> &Targets,
 	bool bIsInfused)
 {
 	FActionResult Result;
@@ -738,7 +750,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 	// If no explicit attack provided, delegate to WeaponManager for equipped weapon
 	if (!Attack)
 	{
-		UWeaponManager* WeaponMgr = GetWeaponManager();
+		UWeaponManager *WeaponMgr = GetWeaponManager();
 		if (WeaponMgr)
 		{
 			FWeaponAttackResult WeaponResult = WeaponMgr->ExecuteAttackWithInfusion(Attacker, Targets, bIsInfused);
@@ -752,7 +764,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 			Result.bIsElementalAttack = WeaponResult.bWasInfused;
 			Result.AttackElement = WeaponResult.InfusedElement;
 
-			for (const auto& Pair : WeaponResult.DamagePerTarget)
+			for (const auto &Pair : WeaponResult.DamagePerTarget)
 			{
 				Result.AffectedTargets.Add(Pair.Key);
 				Result.DamagePerTarget.Add(Pair.Key, Pair.Value);
@@ -776,7 +788,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 		return Result;
 	}
 
-	UCharacterData* AttackerData = GetCharacterData(Attacker);
+	UCharacterData *AttackerData = GetCharacterData(Attacker);
 	if (!AttackerData)
 	{
 		Result.bSuccess = false;
@@ -823,8 +835,8 @@ FActionResult UActionExecutor::ExecuteAttack(
 	PlayAttackAnimation(Attacker, Attack);
 
 	// Process each target
-	TArray<AActor*> ValidTargets = FilterValidTargets(Targets);
-	for (AActor* Target : ValidTargets)
+	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
+	for (AActor *Target : ValidTargets)
 	{
 		int32 TotalDamage = ProcessMultiHit(
 			Attacker, Target,
@@ -848,9 +860,9 @@ FActionResult UActionExecutor::ExecuteAttack(
 
 	Result.bSuccess = true;
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s attacked%s - %d damage"),
-		*Attacker->GetName(),
-		bIsInfused ? TEXT(" (Infused)") : TEXT(""),
-		Result.TotalDamageDealt);
+		   *Attacker->GetName(),
+		   bIsInfused ? TEXT(" (Infused)") : TEXT(""),
+		   Result.TotalDamageDealt);
 
 	return Result;
 }
@@ -860,9 +872,9 @@ FActionResult UActionExecutor::ExecuteAttack(
 // ========================================
 
 FActionResult UActionExecutor::ExecuteUltimate(
-	AActor* Caster,
-	UUltimateData* Ultimate,
-	const TArray<AActor*>& Targets)
+	AActor *Caster,
+	UUltimateData *Ultimate,
+	const TArray<AActor *> &Targets)
 {
 	FActionResult Result;
 	Result.Executor = Caster;
@@ -875,7 +887,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 		return Result;
 	}
 
-	UCharacterData* CasterData = GetCharacterData(Caster);
+	UCharacterData *CasterData = GetCharacterData(Caster);
 	if (!CasterData)
 	{
 		Result.bSuccess = false;
@@ -908,13 +920,13 @@ FActionResult UActionExecutor::ExecuteUltimate(
 	}
 
 	// Process based on ultimate type
-	TArray<AActor*> ValidTargets = FilterValidTargets(Targets);
+	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
 
 	switch (Ultimate->UltimateType)
 	{
 	case EUltimateType::Damage:
 	case EUltimateType::DamageAOE:
-		for (AActor* Target : ValidTargets)
+		for (AActor *Target : ValidTargets)
 		{
 			FCombatHitResult HitResult = ApplyDamage(
 				Caster, Target, BaseDamage, true, Ultimate->Element, Ultimate->bCanCrit);
@@ -932,7 +944,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 		break;
 
 	case EUltimateType::Heal:
-		for (AActor* Target : ValidTargets)
+		for (AActor *Target : ValidTargets)
 		{
 			FCombatHitResult HitResult = ApplyHealing(Caster, Target, BaseDamage);
 			Result.TotalHealingDone += HitResult.HealingDone;
@@ -946,7 +958,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 		// Apply status effect
 		if (Ultimate->PrimaryEffectType != EAbilityEffectType::None)
 		{
-			for (AActor* Target : ValidTargets)
+			for (AActor *Target : ValidTargets)
 			{
 				ApplyStatusEffects(
 					Caster, Target,
@@ -967,7 +979,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 
 	Result.bSuccess = true;
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used ultimate %s - %d damage, %d healing"),
-		*Caster->GetName(), *Ultimate->GetName(), Result.TotalDamageDealt, Result.TotalHealingDone);
+		   *Caster->GetName(), *Ultimate->GetName(), Result.TotalDamageDealt, Result.TotalHealingDone);
 
 	return Result;
 }
@@ -976,7 +988,7 @@ FActionResult UActionExecutor::ExecuteUltimate(
 // EXECUTION - DEFEND
 // ========================================
 
-FActionResult UActionExecutor::ExecuteDefend(AActor* Defender)
+FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 {
 	FActionResult Result;
 	Result.Executor = Defender;
@@ -991,7 +1003,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor* Defender)
 	}
 
 	// Apply defense buff
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		FStatusEffect DefendBuff = FStatusEffect::CreateBuff(
@@ -999,7 +1011,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor* Defender)
 			9999, // Special ID for defend
 			EAbilityEffectType::DefenseBuff,
 			50.0f, // 50% defense boost
-			1); // Lasts until next turn
+			1);	   // Lasts until next turn
 
 		StatusManager->ApplyEffect(Defender, DefendBuff, Defender, TEXT("Defend"), -1);
 		Result.StatusEffectsApplied = 1;
@@ -1018,8 +1030,8 @@ FActionResult UActionExecutor::ExecuteDefend(AActor* Defender)
 // ========================================
 
 FCombatHitResult UActionExecutor::ApplyDamage(
-	AActor* Attacker,
-	AActor* Target,
+	AActor *Attacker,
+	AActor *Target,
 	int32 BaseDamage,
 	bool bIsElemental,
 	ERefractionElement Element,
@@ -1033,7 +1045,7 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 		return Result;
 	}
 
-	UCharacterDataComponent* TargetComp = GetCharacterDataComponent(Target);
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
 		return Result;
@@ -1052,7 +1064,7 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	}
 
 	// Apply damage modifiers from status effects
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		// Attacker damage buff/debuff
@@ -1079,17 +1091,17 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	OnDamageDealt.Broadcast(Attacker, Target, Result.DamageDealt, Result.bWasCritical);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s dealt %d damage to %s%s"),
-		Attacker ? *Attacker->GetName() : TEXT("Unknown"),
-		Result.DamageDealt,
-		*Target->GetName(),
-		Result.bWasCritical ? TEXT(" (CRIT)") : TEXT(""));
+		   Attacker ? *Attacker->GetName() : TEXT("Unknown"),
+		   Result.DamageDealt,
+		   *Target->GetName(),
+		   Result.bWasCritical ? TEXT(" (CRIT)") : TEXT(""));
 
 	return Result;
 }
 
 FCombatHitResult UActionExecutor::ApplyHealing(
-	AActor* Healer,
-	AActor* Target,
+	AActor *Healer,
+	AActor *Target,
 	int32 BaseHealing)
 {
 	FCombatHitResult Result;
@@ -1100,7 +1112,7 @@ FCombatHitResult UActionExecutor::ApplyHealing(
 		return Result;
 	}
 
-	UCharacterDataComponent* TargetComp = GetCharacterDataComponent(Target);
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
 		return Result;
@@ -1120,9 +1132,9 @@ FCombatHitResult UActionExecutor::ApplyHealing(
 	OnHealingDone.Broadcast(Healer, Target, Result.HealingDone);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s healed %s for %d"),
-		Healer ? *Healer->GetName() : TEXT("Unknown"),
-		*Target->GetName(),
-		Result.HealingDone);
+		   Healer ? *Healer->GetName() : TEXT("Unknown"),
+		   *Target->GetName(),
+		   Result.HealingDone);
 
 	return Result;
 }
@@ -1131,31 +1143,32 @@ FCombatHitResult UActionExecutor::ApplyHealing(
 // UTILITY
 // ========================================
 
-UStatusEffectManager* UActionExecutor::GetStatusEffectManager() const
+UStatusEffectManager *UActionExecutor::GetStatusEffectManager() const
 {
 	if (!StatusEffectManagerRef)
 	{
-		if (UGameInstance* GI = Cast<UGameInstance>(GetGameInstance()))
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UActionExecutor*>(this)->StatusEffectManagerRef =
+			const_cast<UActionExecutor *>(this)->StatusEffectManagerRef =
 				GI->GetSubsystem<UStatusEffectManager>();
 		}
 	}
 	return StatusEffectManagerRef;
 }
 
-bool UActionExecutor::IsTargetAlive(AActor* Target) const
+bool UActionExecutor::IsTargetAlive(AActor *Target) const
 {
-	if (!Target) return false;
+	if (!Target)
+		return false;
 
-	UCharacterDataComponent* Comp = GetCharacterDataComponent(Target);
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Target);
 	return Comp && Comp->bIsAlive;
 }
 
-TArray<AActor*> UActionExecutor::FilterValidTargets(const TArray<AActor*>& Targets) const
+TArray<AActor *> UActionExecutor::FilterValidTargets(const TArray<AActor *> &Targets) const
 {
-	TArray<AActor*> ValidTargets;
-	for (AActor* Target : Targets)
+	TArray<AActor *> ValidTargets;
+	for (AActor *Target : Targets)
 	{
 		if (IsTargetAlive(Target))
 		{
@@ -1169,27 +1182,29 @@ TArray<AActor*> UActionExecutor::FilterValidTargets(const TArray<AActor*>& Targe
 // INTERNAL HELPERS
 // ========================================
 
-UCharacterDataComponent* UActionExecutor::GetCharacterDataComponent(AActor* Actor) const
+UCharacterDataComponent *UActionExecutor::GetCharacterDataComponent(AActor *Actor) const
 {
-	if (!Actor) return nullptr;
+	if (!Actor)
+		return nullptr;
 	return Actor->FindComponentByClass<UCharacterDataComponent>();
 }
 
-UCharacterData* UActionExecutor::GetCharacterData(AActor* Actor) const
+UCharacterData *UActionExecutor::GetCharacterData(AActor *Actor) const
 {
-	UCharacterDataComponent* Comp = GetCharacterDataComponent(Actor);
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-bool UActionExecutor::RollCriticalHit(AActor* Attacker) const
+bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 {
-	UCharacterData* Data = GetCharacterData(Attacker);
-	if (!Data) return false;
+	UCharacterData *Data = GetCharacterData(Attacker);
+	if (!Data)
+		return false;
 
-	float CritChance = Data->CalculateCriticalChance() * 100.0f; // Returns 0-1, need 0-100
+	float CritChance = Data->CalculateCritChance() * 100.0f; // Returns 0-1, need 0-100
 
 	// Add crit chance buffs from status effects
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		CritChance += StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
@@ -1201,7 +1216,7 @@ bool UActionExecutor::RollCriticalHit(AActor* Attacker) const
 	return FMath::FRand() * 100.0f < CritChance;
 }
 
-int32 UActionExecutor::ApplyCriticalMultiplier(int32 Damage, AActor* Attacker) const
+int32 UActionExecutor::ApplyCriticalMultiplier(int32 Damage, AActor *Attacker) const
 {
 	// Crit damage is fixed at 1.5x (CharacterData doesn't have this method)
 	constexpr float CritMultiplier = 1.5f;
@@ -1209,10 +1224,11 @@ int32 UActionExecutor::ApplyCriticalMultiplier(int32 Damage, AActor* Attacker) c
 	return FMath::RoundToInt(Damage * CritMultiplier);
 }
 
-int32 UActionExecutor::ApplyDefense(int32 Damage, AActor* Defender, bool bIsElemental) const
+int32 UActionExecutor::ApplyDefense(int32 Damage, AActor *Defender, bool bIsElemental) const
 {
-	UCharacterData* Data = GetCharacterData(Defender);
-	if (!Data) return Damage;
+	UCharacterData *Data = GetCharacterData(Defender);
+	if (!Data)
+		return Damage;
 
 	int32 FinalDamage = Damage;
 
@@ -1220,7 +1236,7 @@ int32 UActionExecutor::ApplyDefense(int32 Damage, AActor* Defender, bool bIsElem
 	int32 FlatDefense = Data->CalculateFlatDefense();
 
 	// Add defense buffs/debuffs from status effects (percentage modifier to defense)
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseBuff);
@@ -1244,8 +1260,8 @@ int32 UActionExecutor::ApplyDefense(int32 Damage, AActor* Defender, bool bIsElem
 }
 
 void UActionExecutor::ApplyStatusEffects(
-	AActor* Source,
-	AActor* Target,
+	AActor *Source,
+	AActor *Target,
 	EAbilityEffectType PrimaryEffect,
 	float PrimaryValue,
 	int32 PrimaryDuration,
@@ -1254,8 +1270,9 @@ void UActionExecutor::ApplyStatusEffects(
 	int32 SecondaryDuration,
 	ERefractionElement Element)
 {
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
-	if (!StatusManager) return;
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	if (!StatusManager)
+		return;
 
 	// Apply primary effect
 	if (PrimaryEffect != EAbilityEffectType::None && PrimaryDuration > 0)
@@ -1287,14 +1304,14 @@ void UActionExecutor::ApplyStatusEffects(
 }
 
 int32 UActionExecutor::ProcessMultiHit(
-	AActor* Attacker,
-	AActor* Target,
+	AActor *Attacker,
+	AActor *Target,
 	int32 DamagePerHit,
 	int32 HitCount,
 	bool bIsElemental,
 	ERefractionElement Element,
 	bool bCanCrit,
-	FActionResult& OutResult)
+	FActionResult &OutResult)
 {
 	int32 TotalDamage = 0;
 
@@ -1321,14 +1338,17 @@ int32 UActionExecutor::ProcessMultiHit(
 	return TotalDamage;
 }
 
-bool UActionExecutor::SpendEnergy(AActor* Actor, int32 Amount)
+bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 {
-	if (Amount <= 0) return true;
+	if (Amount <= 0)
+		return true;
 
-	UCharacterDataComponent* Comp = GetCharacterDataComponent(Actor);
-	if (!Comp) return false;
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+	if (!Comp)
+		return false;
 
-	if (Comp->CurrentEP < Amount) return false;
+	if (Comp->CurrentEP < Amount)
+		return false;
 
 	Comp->ServerSpendEnergy(Amount);
 	return true;
@@ -1338,7 +1358,7 @@ bool UActionExecutor::SpendEnergy(AActor* Actor, int32 Amount)
 // ANIMATION/VFX STUBS
 // ========================================
 
-void UActionExecutor::PlaySpellAnimation(AActor* Caster, USpellData* Spell, float SpellSize)
+void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize)
 {
 	// Stub - override in subclass or bind to OnActionStarted for custom animation handling
 	// In full implementation:
@@ -1346,12 +1366,12 @@ void UActionExecutor::PlaySpellAnimation(AActor* Caster, USpellData* Spell, floa
 	// 2. Play Spell->CastAnimation montage
 	// 3. Scale VFX based on SpellSize
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlaySpellAnimation stub - %s casting %s (Size: %.1f)"),
-		Caster ? *Caster->GetName() : TEXT("None"),
-		Spell ? *Spell->GetName() : TEXT("None"),
-		SpellSize);
+		   Caster ? *Caster->GetName() : TEXT("None"),
+		   Spell ? *Spell->GetName() : TEXT("None"),
+		   SpellSize);
 }
 
-void UActionExecutor::SpawnSpellVFX(AActor* Caster, USpellData* Spell, float SpellSize)
+void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize)
 {
 	// Stub - override in subclass for Niagara/particle spawning
 	// In full implementation:
@@ -1359,31 +1379,31 @@ void UActionExecutor::SpawnSpellVFX(AActor* Caster, USpellData* Spell, float Spe
 	// 2. Spawn at target location(s)
 	// 3. Scale system by SpellSize
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpawnSpellVFX stub - %s VFX (Size: %.1f)"),
-		Spell ? *Spell->GetName() : TEXT("None"),
-		SpellSize);
+		   Spell ? *Spell->GetName() : TEXT("None"),
+		   SpellSize);
 }
 
-void UActionExecutor::PlayAbilityAnimation(AActor* User, UAbilityData* Ability)
+void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
 {
 	// Stub - override in subclass for ability animations
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlayAbilityAnimation stub - %s using %s"),
-		User ? *User->GetName() : TEXT("None"),
-		Ability ? *Ability->GetName() : TEXT("None"));
+		   User ? *User->GetName() : TEXT("None"),
+		   Ability ? *Ability->GetName() : TEXT("None"));
 }
 
-void UActionExecutor::PlayAttackAnimation(AActor* Attacker, UBaseAttackData* Attack)
+void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UBaseAttackData *Attack)
 {
 	// Stub - override in subclass for attack animations
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlayAttackAnimation stub - %s attacking with %s"),
-		Attacker ? *Attacker->GetName() : TEXT("None"),
-		Attack ? *Attack->GetName() : TEXT("None"));
+		   Attacker ? *Attacker->GetName() : TEXT("None"),
+		   Attack ? *Attack->GetName() : TEXT("None"));
 }
 
 // ========================================
 // DEBUG
 // ========================================
 
-void UActionExecutor::DebugPrintActionResult(const FActionResult& Result) const
+void UActionExecutor::DebugPrintActionResult(const FActionResult &Result) const
 {
 	UE_LOG(LogTemp, Display, TEXT("=== ACTION RESULT ==="));
 	UE_LOG(LogTemp, Display, TEXT("Success: %s"), Result.bSuccess ? TEXT("YES") : TEXT("NO"));
@@ -1408,26 +1428,26 @@ void UActionExecutor::DebugPrintActionResult(const FActionResult& Result) const
 // SUBSYSTEM GETTERS
 // ========================================
 
-UItemExecutor* UActionExecutor::GetItemExecutor() const
+UItemExecutor *UActionExecutor::GetItemExecutor() const
 {
 	if (!ItemExecutorRef)
 	{
-		if (UGameInstance* GI = Cast<UGameInstance>(GetGameInstance()))
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UActionExecutor*>(this)->ItemExecutorRef =
+			const_cast<UActionExecutor *>(this)->ItemExecutorRef =
 				GI->GetSubsystem<UItemExecutor>();
 		}
 	}
 	return ItemExecutorRef;
 }
 
-UWeaponManager* UActionExecutor::GetWeaponManager() const
+UWeaponManager *UActionExecutor::GetWeaponManager() const
 {
 	if (!WeaponManagerRef)
 	{
-		if (UGameInstance* GI = Cast<UGameInstance>(GetGameInstance()))
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UActionExecutor*>(this)->WeaponManagerRef =
+			const_cast<UActionExecutor *>(this)->WeaponManagerRef =
 				GI->GetSubsystem<UWeaponManager>();
 		}
 	}
