@@ -103,7 +103,6 @@ float UBreakCalculator::GetRingSpellBreakChance(URingData *Ring, USpellData *Spe
 		return 0.0f;
 	}
 
-	// TODO: When SpellData has Tier property, use Spell->Tier
 	EItemTier SpellTier = Spell->Tier;
 
 	bool bIsCustom = Ring->IsCustomSpell(Spell);
@@ -126,7 +125,6 @@ float UBreakCalculator::GetRingUltimateBreakChance(URingData *Ring, UUltimateDat
 		return 0.0f;
 	}
 
-	// TODO: When UltimateData has Tier property, use Ultimate->Tier
 	EItemTier UltimateTier = Ultimate->Tier;
 
 	float Durability = Ring->GetDurabilityPercent();

@@ -17,7 +17,6 @@ float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
 	// Get spell tier (assuming SpellData will have Tier field)
 	// For now, use E_Tier as default if not implemented
 	EItemTier SpellTier = Spell->Tier;
-	// TODO: SpellTier = Spell->Tier; // Uncomment when SpellData has Tier
 
 	// Calculate tier gap
 	int32 TierGap = TierHelpers::GetTierGap(Tier, SpellTier);
