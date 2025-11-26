@@ -184,9 +184,16 @@ public:
 	bool IsEvolved() const;
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override
 	{
 		EDataValidationResult Result = Super::IsDataValid(Context);
+
+		// Name validation
+		if (RingName.IsEmpty() || RingName == TEXT("Unnamed Ring"))
+		{
+			Context.AddError(FText::FromString(TEXT("Ring must have a unique name")));
+			Result = EDataValidationResult::Invalid;
+		}
 
 		// Element validation
 		if (Element == ESpellElement::Generic)
@@ -214,7 +221,22 @@ public:
 			Context.AddWarning(FText::FromString(TEXT("Ring has no default spells")));
 		}
 
+		// Crystal validation
+		if (SlottedCrystal)
+		{
+			if (!SlottedCrystal->bIsRefined)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Slotted crystal is not refined")));
+			}
+
+			ESpellElement CrystalElement = SlottedCrystal->GetAssociatedElement();
+			if (CrystalElement != Element && CrystalElement != ESpellElement::Generic)
+			{
+				Context.AddWarning(FText::FromString(
+					TEXT("Crystal element differs from ring element - GetRingElement() will use crystal")));
+			}
+		}
+
 		return Result;
 	}
 #endif
-};
