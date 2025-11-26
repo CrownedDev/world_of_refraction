@@ -47,6 +47,14 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_ForceEndCombat();
 
+	/** Test ActionExecutor integration (SubmitAction) */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_ActionExecutorIntegration();
+
+	/** Test real attack execution with DA_Attack_Bolt */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_RealAttackExecution();
+
 	// ========================================
 	// CONFIGURATION
 	// ========================================
@@ -88,8 +96,13 @@ private:
 	UFUNCTION()
 	void OnTestCombatResultReady(const FCombatResult& Result);
 
+	UFUNCTION()
+	void OnTestActionExecuted(AActor* Actor, const FActionResult& Result);
+
 	// Async test state
 	TArray<ECombatState> RecordedStateTransitions;
 	FCombatResult LastCombatResult;
+	FActionResult LastActionResult;
 	bool bWaitingForResult;
+	bool bActionExecuted;
 };

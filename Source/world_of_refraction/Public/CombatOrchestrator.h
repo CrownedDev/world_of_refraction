@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "ActionStructs.h"
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
 class UCharacterDataComponent;
 class UStatusEffectManager;
+class UActionExecutor;
 
 /**
  * Combat state enum
@@ -55,6 +57,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatStateChanged, ECombatState,
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatResultReady, const FCombatResult&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActorTurnStarted, AActor*, Actor, int32, TurnNumber);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionRequested, AActor*, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, AActor*, Actor, const FActionResult&, Result);
 
 /**
  * CombatOrchestrator - Coordinates all combat subsystems
@@ -63,15 +66,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionRequested, AActor*, Actor);
  * - Initialize/end combat via TurnManager
  * - Listen to turn events and coordinate responses
  * - Process status effects at turn boundaries (via StatusEffectManager)
- * - Request actions from actors (stub - auto-advance for now)
+ * - Accept and execute actions from UI/AI (via ActionExecutor)
  * - Check win conditions
  *
  * Integrated Systems:
  * - TurnManager (turn order, speed changes)
  * - StatusEffectManager (start/end of turn processing)
+ * - ActionExecutor (validate and execute actions)
  *
  * Future integrations:
- * - ActionExecutor (validate and execute actions)
  * - BattleUIManager (show action menu for players)
  * - AIDecisionManager (make decisions for AI)
  */
@@ -95,7 +98,35 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ForceEndCombat(ECombatState ForcedState = ECombatState::Idle);
 
-	/** Called when current actor's action completes (stub: call manually or auto-fires) */
+	// ========================================
+	// ACTION SUBMISSION
+	// ========================================
+
+	/**
+	 * Submit an action for the current actor (synchronous)
+	 * Validates, executes via ActionExecutor, then ends turn
+	 * @param Action The action to execute
+	 * @return True if action was valid and executed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
+	bool SubmitAction(const FAction& Action);
+
+	/**
+	 * Submit action asynchronously (for defense windows, animations)
+	 * Turn ends when async execution completes
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
+	void SubmitActionAsync(const FAction& Action);
+
+	/**
+	 * Validate an action without executing
+	 * @param Action The action to validate
+	 * @return Validation result with error message if invalid
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
+	FActionValidationResult ValidateAction(const FAction& Action) const;
+
+	/** Called when current actor's action completes (internal - advances turn) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void OnActionCompleted();
 
@@ -118,6 +149,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	const TArray<AActor*>& GetTeam1() const { return Team1Combatants; }
 
+	/** Check if it's currently this actor's turn */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsActorsTurn(AActor* Actor) const { return CurrentActor == Actor && CombatState == ECombatState::InProgress; }
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -131,8 +166,13 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnActorTurnStarted OnActorTurnStarted;
 
+	/** Broadcast when waiting for action input (UI should show action menu) */
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnActionRequested OnActionRequested;
+
+	/** Broadcast when action execution completes (for UI feedback) */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnActionExecuted OnActionExecuted;
 
 	// ========================================
 	// CONFIGURATION
@@ -158,6 +198,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugHealAllTeam(int32 TeamIndex);
+
+	/** Execute a test action (basic attack on random enemy) */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	void DebugExecuteTestAction();
 
 protected:
 	virtual void BeginPlay() override;
@@ -189,7 +233,13 @@ private:
 	UPROPERTY()
 	UStatusEffectManager* StatusEffectManagerRef;
 
+	UPROPERTY()
+	UActionExecutor* ActionExecutorRef;
+
 	FTimerHandle AutoAdvanceTimerHandle;
+
+	/** Track if we're waiting for async action to complete */
+	bool bWaitingForAsyncAction = false;
 
 	// ========================================
 	// TURN MANAGER EVENT HANDLERS
@@ -216,13 +266,20 @@ private:
 	void ProcessStartOfTurnEffects(AActor* Actor);
 	void ProcessEndOfTurnEffects(AActor* Actor);
 
-	// Action request stub (future: delegate to UI/AI managers)
+	// Action request (broadcasts to UI/AI)
 	void RequestActionFromActor(AActor* Actor);
+
+	// Async action callback
+	void HandleAsyncActionCompleted(const FActionResult& Result);
 
 	// Win condition
 	ECombatState CheckWinCondition();
 	int32 CountLivingMembers(const TArray<AActor*>& Team);
 	bool IsActorAlive(AActor* Actor);
+
+	// Team helpers
+	int32 GetActorTeamIndex(AActor* Actor) const;
+	TArray<AActor*> GetEnemyTeam(AActor* Actor) const;
 
 	// Result building
 	FCombatResult BuildCombatResult();

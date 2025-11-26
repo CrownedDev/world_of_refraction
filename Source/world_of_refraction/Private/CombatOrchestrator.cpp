@@ -3,6 +3,7 @@
 #include "CombatOrchestrator.h"
 #include "TurnManager.h"
 #include "StatusEffectManager.h"
+#include "ActionExecutor.h"
 #include "CharacterDataComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -14,6 +15,9 @@ ACombatOrchestrator::ACombatOrchestrator()
 	CurrentActor = nullptr;
 	CurrentTurnNumber = 0;
 	TurnManagerRef = nullptr;
+	StatusEffectManagerRef = nullptr;
+	ActionExecutorRef = nullptr;
+	bWaitingForAsyncAction = false;
 }
 
 void ACombatOrchestrator::BeginPlay()
@@ -26,6 +30,7 @@ void ACombatOrchestrator::BeginPlay()
 	{
 		TurnManagerRef = GI->GetSubsystem<UTurnManager>();
 		StatusEffectManagerRef = GI->GetSubsystem<UStatusEffectManager>();
+		ActionExecutorRef = GI->GetSubsystem<UActionExecutor>();
 	}
 
 	if (!TurnManagerRef)
@@ -36,6 +41,11 @@ void ACombatOrchestrator::BeginPlay()
 	if (!StatusEffectManagerRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get StatusEffectManager subsystem!"));
+	}
+
+	if (!ActionExecutorRef)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get ActionExecutor subsystem!"));
 	}
 }
 
@@ -78,6 +88,7 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor*>& Team0, const TArray
 	Team1Combatants = Team1;
 	CurrentTurnNumber = 0;
 	CurrentActor = nullptr;
+	bWaitingForAsyncAction = false;
 
 	SetCombatState(ECombatState::Initializing);
 
@@ -98,9 +109,11 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	if (CombatState == ECombatState::Idle)
 		return;
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state: %d"), (int32)ForcedState);
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state %d"), (int32)ForcedState);
 
+	// Clear auto-advance timer
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+
 	UnbindTurnManagerEvents();
 
 	// Clear all status effects from combat
@@ -109,7 +122,7 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 		StatusEffectManagerRef->ClearAllEffects();
 	}
 
-	if (TurnManagerRef && TurnManagerRef->IsCombatActive())
+	if (TurnManagerRef)
 	{
 		TurnManagerRef->EndCombat();
 	}
@@ -119,13 +132,155 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	FCombatResult Result = BuildCombatResult();
 	OnCombatResultReady.Broadcast(Result);
 
-	// Reset state
+	// Reset for next combat
 	Team0Combatants.Empty();
 	Team1Combatants.Empty();
 	CurrentActor = nullptr;
 	CurrentTurnNumber = 0;
+	bWaitingForAsyncAction = false;
 
 	SetCombatState(ECombatState::Idle);
+}
+
+// ========================================
+// ACTION SUBMISSION
+// ========================================
+
+bool ACombatOrchestrator::SubmitAction(const FAction& Action)
+{
+	if (CombatState != ECombatState::InProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitAction called but combat not in progress"));
+		return false;
+	}
+
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitAction called with no current actor"));
+		return false;
+	}
+
+	if (!ActionExecutorRef)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] ActionExecutor not available!"));
+		return false;
+	}
+
+	if (bWaitingForAsyncAction)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Already waiting for async action to complete"));
+		return false;
+	}
+
+	// Clear auto-advance timer since we're submitting a real action
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+
+	// Validate action
+	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
+	if (!Validation.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action validation failed: %s"), *Validation.ErrorMessage);
+		return false;
+	}
+
+	// Execute action synchronously
+	FActionResult Result = ActionExecutorRef->ExecuteAction(CurrentActor, Action);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executed %s: %s (Damage: %d, Healing: %d)"),
+		*CurrentActor->GetName(),
+		*Action.GetActionName(),
+		Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+		Result.TotalDamageDealt,
+		Result.TotalHealingDone);
+
+	// Broadcast result for UI
+	OnActionExecuted.Broadcast(CurrentActor, Result);
+
+	// End turn
+	OnActionCompleted();
+
+	return Result.bSuccess;
+}
+
+void ACombatOrchestrator::SubmitActionAsync(const FAction& Action)
+{
+	if (CombatState != ECombatState::InProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitActionAsync called but combat not in progress"));
+		return;
+	}
+
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitActionAsync called with no current actor"));
+		return;
+	}
+
+	if (!ActionExecutorRef)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] ActionExecutor not available!"));
+		return;
+	}
+
+	if (bWaitingForAsyncAction)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Already waiting for async action to complete"));
+		return;
+	}
+
+	// Clear auto-advance timer
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+
+	// Validate action
+	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
+	if (!Validation.bIsValid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Async action validation failed: %s"), *Validation.ErrorMessage);
+		return;
+	}
+
+	bWaitingForAsyncAction = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
+		*CurrentActor->GetName(), *Action.GetActionName());
+
+	// Execute action asynchronously with callback
+	ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
+		FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+}
+
+FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction& Action) const
+{
+	if (!ActionExecutorRef)
+	{
+		return FActionValidationResult(false, TEXT("ActionExecutor not available"));
+	}
+
+	if (!CurrentActor)
+	{
+		return FActionValidationResult(false, TEXT("No current actor"));
+	}
+
+	return ActionExecutorRef->ValidateAction(CurrentActor, Action);
+}
+
+void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult& Result)
+{
+	bWaitingForAsyncAction = false;
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Async action completed: %s (Damage: %d, Healing: %d)"),
+		Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+		Result.TotalDamageDealt,
+		Result.TotalHealingDone);
+
+	// Broadcast result for UI
+	if (CurrentActor)
+	{
+		OnActionExecuted.Broadcast(CurrentActor, Result);
+	}
+
+	// End turn
+	OnActionCompleted();
 }
 
 void ACombatOrchestrator::OnActionCompleted()
@@ -320,16 +475,9 @@ void ACombatOrchestrator::RequestActionFromActor(AActor* Actor)
 	// Broadcast that we're waiting for action
 	OnActionRequested.Broadcast(Actor);
 
-	// STUB: Future integration with UI/AI managers
-	// if (IsPlayerControlled(Actor))
-	//     BattleUIManager->ShowActionMenu(Actor);
-	// else
-	//     AIDecisionManager->MakeDecisionAsync(Actor, callback);
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Requesting action from %s"), *Actor->GetName());
 
-	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] STUB: RequestActionFromActor for %s"),
-		*Actor->GetName());
-
-	// For testing: auto-advance after delay
+	// For testing: auto-advance after delay if no UI/AI integration
 	if (bAutoAdvanceTurns)
 	{
 		GetWorld()->GetTimerManager().SetTimer(
@@ -390,6 +538,25 @@ bool ACombatOrchestrator::IsActorAlive(AActor* Actor)
 	return CharComp->bIsAlive;
 }
 
+int32 ACombatOrchestrator::GetActorTeamIndex(AActor* Actor) const
+{
+	if (Team0Combatants.Contains(Actor))
+		return 0;
+	if (Team1Combatants.Contains(Actor))
+		return 1;
+	return -1;
+}
+
+TArray<AActor*> ACombatOrchestrator::GetEnemyTeam(AActor* Actor) const
+{
+	int32 TeamIndex = GetActorTeamIndex(Actor);
+	if (TeamIndex == 0)
+		return Team1Combatants;
+	if (TeamIndex == 1)
+		return Team0Combatants;
+	return TArray<AActor*>();
+}
+
 FCombatResult ACombatOrchestrator::BuildCombatResult()
 {
 	FCombatResult Result;
@@ -437,6 +604,7 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Current Actor: %s"), CurrentActor ? *CurrentActor->GetName() : TEXT("None"));
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
 		bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
+	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
 
 	UE_LOG(LogTemp, Display, TEXT("\nTeam 0 (%d members):"), Team0Combatants.Num());
 	for (AActor* Actor : Team0Combatants)
@@ -444,9 +612,10 @@ void ACombatOrchestrator::DebugPrintCombatState()
 		UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, Alive: %s"),
+			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s"),
 				*Actor->GetName(),
 				Comp->CurrentHP, Comp->MaxHP,
+				Comp->CurrentEP, Comp->MaxEP,
 				Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
 		}
 		else
@@ -461,9 +630,10 @@ void ACombatOrchestrator::DebugPrintCombatState()
 		UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, Alive: %s"),
+			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s"),
 				*Actor->GetName(),
 				Comp->CurrentHP, Comp->MaxHP,
+				Comp->CurrentEP, Comp->MaxEP,
 				Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
 		}
 		else
@@ -514,4 +684,41 @@ void ACombatOrchestrator::DebugHealAllTeam(int32 TeamIndex)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Healed all Team %d members"), TeamIndex);
+}
+
+void ACombatOrchestrator::DebugExecuteTestAction()
+{
+	if (CombatState != ECombatState::InProgress || !CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteTestAction: No active turn"));
+		return;
+	}
+
+	// Find a living enemy target
+	TArray<AActor*> Enemies = GetEnemyTeam(CurrentActor);
+	AActor* Target = nullptr;
+	for (AActor* Enemy : Enemies)
+	{
+		if (IsActorAlive(Enemy))
+		{
+			Target = Enemy;
+			break;
+		}
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteTestAction: No living enemy targets"));
+		OnActionCompleted();
+		return;
+	}
+
+	// Create a Defend action (simplest - no data asset needed)
+	FAction TestAction;
+	TestAction.ActionType = EActionType::Defend;
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: %s executing Defend action"),
+		*CurrentActor->GetName());
+
+	SubmitAction(TestAction);
 }

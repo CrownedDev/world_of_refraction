@@ -4,6 +4,8 @@
 #include "TurnManager.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
+#include "ActionStructs.h"
+#include "BaseAttackData.h"
 #include "Kismet/GameplayStatics.h"
 
 ACombatOrchestratorTestActor::ACombatOrchestratorTestActor()
@@ -14,6 +16,7 @@ ACombatOrchestratorTestActor::ACombatOrchestratorTestActor()
 	TestsFailed = 0;
 	TestActorCounter = 0;
 	bWaitingForResult = false;
+	bActionExecuted = false;
 }
 
 void ACombatOrchestratorTestActor::BeginPlay()
@@ -44,6 +47,8 @@ void ACombatOrchestratorTestActor::RunAllTests()
 	Test_VictoryCondition();
 	Test_DefeatCondition();
 	Test_ForceEndCombat();
+	Test_ActionExecutorIntegration();
+	Test_RealAttackExecution();
 
 	UE_LOG(LogTemp, Display, TEXT("========================================"));
 	UE_LOG(LogTemp, Display, TEXT("RESULTS: %d passed, %d failed"), TestsPassed, TestsFailed);
@@ -315,6 +320,205 @@ void ACombatOrchestratorTestActor::Test_ForceEndCombat()
 	CleanupTestActors(Team1);
 }
 
+void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
+{
+	UE_LOG(LogTemp, Display, TEXT("\n[TEST] ActionExecutor Integration"));
+
+	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	if (!Orchestrator)
+	{
+		PrintTestResult("ActionExecutor Integration", false);
+		return;
+	}
+
+	// Disable auto-advance - we'll submit actions manually
+	Orchestrator->bAutoAdvanceTurns = false;
+
+	// Track action execution
+	bActionExecuted = false;
+	LastActionResult = FActionResult();
+	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
+
+	// Create teams
+	TArray<AActor*> Team0;
+	AActor* Player = CreateTestCharacter("ActionTestPlayer", 5, 5, 5, 0, 0);
+	Team0.Add(Player);
+
+	TArray<AActor*> Team1;
+	AActor* Enemy = CreateTestCharacter("ActionTestEnemy", 5, 5, 5, 0, 1);
+	Team1.Add(Enemy);
+
+	// Start combat
+	Orchestrator->StartCombat(Team0, Team1);
+
+	// Verify we're in progress and have a current actor
+	bool bInProgress = (Orchestrator->GetCombatState() == ECombatState::InProgress);
+	bool bHasActor = (Orchestrator->GetCurrentActor() != nullptr);
+
+	if (!bInProgress || !bHasActor)
+	{
+		UE_LOG(LogTemp, Error, TEXT("    Failed to start combat for action test"));
+		PrintTestResult("ActionExecutor Integration", false);
+		Orchestrator->ForceEndCombat();
+		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
+		CleanupTestActors(Team0);
+		CleanupTestActors(Team1);
+		return;
+	}
+
+	// Test 1: Validate action (should pass for Defend)
+	FAction DefendAction;
+	DefendAction.ActionType = EActionType::Defend;
+
+	FActionValidationResult Validation = Orchestrator->ValidateAction(DefendAction);
+	bool bValidationPassed = Validation.bIsValid;
+
+	UE_LOG(LogTemp, Display, TEXT("    Defend action validation: %s"),
+		bValidationPassed ? TEXT("VALID") : *Validation.ErrorMessage);
+
+	// Test 2: Submit action
+	bool bSubmitSuccess = Orchestrator->SubmitAction(DefendAction);
+
+	UE_LOG(LogTemp, Display, TEXT("    Submit action result: %s"),
+		bSubmitSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+
+	// Test 3: Check that OnActionExecuted was broadcast
+	UE_LOG(LogTemp, Display, TEXT("    OnActionExecuted fired: %s"),
+		bActionExecuted ? TEXT("YES") : TEXT("NO"));
+
+	// Test 4: Check action result
+	bool bResultValid = LastActionResult.bSuccess && LastActionResult.ActionType == EActionType::Defend;
+	UE_LOG(LogTemp, Display, TEXT("    Action result valid: %s (Type=%d, Success=%d)"),
+		bResultValid ? TEXT("YES") : TEXT("NO"),
+		(int32)LastActionResult.ActionType,
+		LastActionResult.bSuccess);
+
+	// Test 5: Check that turn advanced (or combat ended if someone died)
+	// After SubmitAction, OnActionCompleted is called which advances the turn
+	bool bTurnAdvanced = (Orchestrator->GetCurrentTurnNumber() > 1) ||
+		(Orchestrator->GetCombatState() != ECombatState::InProgress);
+
+	UE_LOG(LogTemp, Display, TEXT("    Turn advanced: %s (Turn=%d, State=%d)"),
+		bTurnAdvanced ? TEXT("YES") : TEXT("NO"),
+		Orchestrator->GetCurrentTurnNumber(),
+		(int32)Orchestrator->GetCombatState());
+
+	bool bPassed = bValidationPassed && bSubmitSuccess && bActionExecuted && bResultValid;
+	PrintTestResult("ActionExecutor Integration", bPassed);
+
+	// Cleanup
+	Orchestrator->ForceEndCombat();
+	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
+	CleanupTestActors(Team0);
+	CleanupTestActors(Team1);
+}
+
+void ACombatOrchestratorTestActor::Test_RealAttackExecution()
+{
+	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Bolt)"));
+
+	// Load the attack data asset
+	UBaseAttackData* BoltAttack = LoadObject<UBaseAttackData>(nullptr,
+		TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+
+	if (!BoltAttack)
+	{
+		UE_LOG(LogTemp, Error, TEXT("    Failed to load DA_Attack_Bolt - check asset path"));
+		PrintTestResult("Real Attack Execution", false);
+		return;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *BoltAttack->AttackName, BoltAttack->HitCount);
+
+	ACombatOrchestrator* Orchestrator = GetOrCreateOrchestrator();
+	if (!Orchestrator)
+	{
+		PrintTestResult("Real Attack Execution", false);
+		return;
+	}
+
+	// Disable auto-advance
+	Orchestrator->bAutoAdvanceTurns = false;
+
+	// Track action execution
+	bActionExecuted = false;
+	LastActionResult = FActionResult();
+	Orchestrator->OnActionExecuted.AddDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
+
+	// Create attacker with good Body stat for damage
+	TArray<AActor*> Team0;
+	AActor* Attacker = CreateTestCharacter("BoltAttacker", 3, 6, 3, 0, 0);
+	Team0.Add(Attacker);
+
+	// Create target with moderate defense
+	TArray<AActor*> Team1;
+	AActor* Target = CreateTestCharacter("BoltTarget", 3, 4, 3, 0, 1);
+	Team1.Add(Target);
+
+	// Get target's initial HP
+	UCharacterDataComponent* TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	int32 InitialHP = TargetComp ? TargetComp->CurrentHP : 0;
+
+	UE_LOG(LogTemp, Display, TEXT("    Target initial HP: %d"), InitialHP);
+
+	// Start combat
+	Orchestrator->StartCombat(Team0, Team1);
+
+	// Verify combat started
+	if (Orchestrator->GetCombatState() != ECombatState::InProgress)
+	{
+		UE_LOG(LogTemp, Error, TEXT("    Combat failed to start"));
+		PrintTestResult("Real Attack Execution", false);
+		Orchestrator->ForceEndCombat();
+		Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
+		CleanupTestActors(Team0);
+		CleanupTestActors(Team1);
+		return;
+	}
+
+	// Create attack action
+	FAction AttackAction;
+	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.AttackData = BoltAttack;
+	AttackAction.Targets.Add(Target);
+
+	// Validate action
+	FActionValidationResult Validation = Orchestrator->ValidateAction(AttackAction);
+	UE_LOG(LogTemp, Display, TEXT("    Attack validation: %s"),
+		Validation.bIsValid ? TEXT("VALID") : *Validation.ErrorMessage);
+
+	// Submit attack
+	bool bSubmitSuccess = Orchestrator->SubmitAction(AttackAction);
+	UE_LOG(LogTemp, Display, TEXT("    Submit result: %s"), bSubmitSuccess ? TEXT("SUCCESS") : TEXT("FAILED"));
+
+	// Check damage was dealt
+	int32 FinalHP = TargetComp ? TargetComp->CurrentHP : 0;
+	int32 DamageDealt = InitialHP - FinalHP;
+
+	UE_LOG(LogTemp, Display, TEXT("    Target final HP: %d (took %d damage)"), FinalHP, DamageDealt);
+	UE_LOG(LogTemp, Display, TEXT("    ActionResult.TotalDamageDealt: %d"), LastActionResult.TotalDamageDealt);
+	UE_LOG(LogTemp, Display, TEXT("    ActionResult.bWasCritical: %s"), LastActionResult.bWasCritical ? TEXT("YES") : TEXT("NO"));
+
+	// Verify results
+	bool bDamageDealt = (DamageDealt > 0);
+	bool bResultMatchesHP = (LastActionResult.TotalDamageDealt == DamageDealt);
+	bool bActionFired = bActionExecuted;
+	bool bTargetInAffected = LastActionResult.AffectedTargets.Contains(Target);
+
+	UE_LOG(LogTemp, Display, TEXT("    Damage dealt: %s"), bDamageDealt ? TEXT("YES") : TEXT("NO"));
+	UE_LOG(LogTemp, Display, TEXT("    Result matches HP change: %s"), bResultMatchesHP ? TEXT("YES") : TEXT("NO"));
+	UE_LOG(LogTemp, Display, TEXT("    Target in affected list: %s"), bTargetInAffected ? TEXT("YES") : TEXT("NO"));
+
+	bool bPassed = bSubmitSuccess && bDamageDealt && bResultMatchesHP && bActionFired && bTargetInAffected;
+	PrintTestResult("Real Attack Execution", bPassed);
+
+	// Cleanup
+	Orchestrator->ForceEndCombat();
+	Orchestrator->OnActionExecuted.RemoveDynamic(this, &ACombatOrchestratorTestActor::OnTestActionExecuted);
+	CleanupTestActors(Team0);
+	CleanupTestActors(Team1);
+}
+
 // ========================================
 // TEST HELPERS
 // ========================================
@@ -422,4 +626,14 @@ void ACombatOrchestratorTestActor::OnTestCombatResultReady(const FCombatResult& 
 {
 	LastCombatResult = Result;
 	bWaitingForResult = false;
+}
+
+void ACombatOrchestratorTestActor::OnTestActionExecuted(AActor* Actor, const FActionResult& Result)
+{
+	LastActionResult = Result;
+	bActionExecuted = true;
+	UE_LOG(LogTemp, Log, TEXT("[CombatTest] OnActionExecuted: Actor=%s, Success=%d, Type=%d"),
+		Actor ? *Actor->GetName() : TEXT("null"),
+		Result.bSuccess,
+		(int32)Result.ActionType);
 }
