@@ -8,6 +8,8 @@
 #include "WeaponInfusionDisplayData.h"
 #include "WeaponAttackData.h"
 #include "CharacterData.h"
+#include "ItemData.h"
+#include "CrystalType.h"
 
 FString UWeaponData::GetWeaponTypeName() const
 {
@@ -36,6 +38,10 @@ FString UWeaponData::GetWeaponTypeName() const
     default:
         return TEXT("Unknown");
     }
+}
+bool UWeaponData::IsEvolved() const
+{
+    return CrystalSlot && CrystalSlot->CrystalType == ECrystalSlotType::Evolution;
 }
 
 #if WITH_EDITOR
@@ -72,6 +78,25 @@ EDataValidationResult UWeaponData::IsDataValid(TArray<FText> &ValidationErrors)
     }
 
     return Result;
+}
+
+FString UWeaponData::GetTierString() const
+{
+    return TierHelpers::GetTierDisplayString(Tier);
+}
+
+bool UWeaponData::IsEvolved() const
+{
+    return SlottedCrystal && SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
+}
+
+ESpellElement UWeaponData::GetWeaponElement() const
+{
+    if (!SlottedCrystal)
+    {
+        return ESpellElement::Generic;
+    }
+    return SlottedCrystal->GetAssociatedElement();
 }
 
 #endif

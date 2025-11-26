@@ -37,6 +37,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description;
 
+    /** Whether crystal is refined (for slotting into weapons/rings) or raw (consumable) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    bool bIsRefined = false;
+
+    // ==================== EVOLUTION (EvolutionCrystal only) ====================
+
+    /** Evolution data - only visible for EvolutionCrystal type */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
+              meta = (EditCondition = "CrystalType == ECrystalType::EvolutionCrystal", EditConditionHides))
+    UEvolutionData *Evolution = nullptr;
+
     // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
     // These are computed and displayed for reference - not editable
 

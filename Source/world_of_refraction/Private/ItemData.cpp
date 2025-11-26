@@ -3,6 +3,7 @@
 
 #include "ItemData.h"
 #include "ItemConstants.h"
+#include "EvolutionData.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -59,6 +60,8 @@ FString UItemData::GetCrystalName() const
 {
     switch (CrystalType)
     {
+    case ECrystalType::EvolutionCrystal:
+        return TEXT("Evolution Crystal");
     case ECrystalType::Garnet:
         return TEXT("Garnet");
     case ECrystalType::Sapphire:
@@ -113,9 +116,11 @@ ESpellElement UItemData::GetAssociatedElement() const
         return ESpellElement::Reality;
     case ECrystalType::Quartz:
         return ESpellElement::Generic;
+    case ECrystalType::EvolutionCrystal:
+        return Evolution ? Evolution->Element : ESpellElement::Generic;
     default:
         return ESpellElement::Generic;
-    }
+        }
 }
 
 float UItemData::GetGenericResistanceBonus() const

@@ -1,5 +1,5 @@
 // CrystalType.h
-// Defines the 10 crystal types for the Items System
+// Defines the 11 crystal types for the Items System
 
 #pragma once
 
@@ -7,8 +7,10 @@
 #include "CrystalType.generated.h"
 
 /**
- * Enum representing the 10 crystal types in World of Refraction
+ * Enum representing the 11 crystal types in World of Refraction
  * Each crystal has a unique effect and color theme
+ * Raw crystals = consumable items
+ * Refined crystals = slot into weapons/rings
  */
 UENUM(BlueprintType)
 enum class ECrystalType : uint8
@@ -22,5 +24,6 @@ enum class ECrystalType : uint8
     Onyx UMETA(DisplayName = "Onyx (Darkness - Silence)"),
     Amethyst UMETA(DisplayName = "Amethyst (Void - Gambling)"),
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
-    Quartz UMETA(DisplayName = "Quartz (None - Transform)")
+    Quartz UMETA(DisplayName = "Quartz (None - Transform)"),
+    EvolutionCrystal UMETA(DisplayName = "Evolution Crystal")
 };

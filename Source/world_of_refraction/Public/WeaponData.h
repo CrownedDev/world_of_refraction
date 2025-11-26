@@ -7,6 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/Texture2D.h"
 #include "EWeaponType.h"
+#include "ItemTier.h"
 #include "WorldStatRequirements.h"
 
 #if WITH_EDITOR
@@ -20,6 +21,7 @@ class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
 class UWeaponInfusionDisplayData;
+class UItemData;
 
 /**
  * Weapon Data Asset
@@ -41,6 +43,30 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
+
+    // ==================== TIER & CRYSTAL ====================
+
+    /** Weapon tier - affects break chance calculations */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Tier")
+    EItemTier Tier = EItemTier::E_Tier;
+
+    /** Refined crystal slotted into weapon - determines element */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
+    UItemData *SlottedCrystal = nullptr;
+
+    // ==================== TIER & CRYSTAL HELPERS ====================
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    FString GetTierString() const;
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasCrystal() const { return SlottedCrystal != nullptr; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsEvolved() const;
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    ESpellElement GetWeaponElement() const;
 
     // ==================== COMBAT ====================
 
@@ -154,6 +180,17 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasInfusionDisplay() const { return InfusionDisplay != nullptr; }
+
+    // ==================== TIER & CRYSTAL HELPERS ====================
+
+    UFUNCTION(BlueprintPure, Category = "Weapon|Tier")
+    FString GetTierString() const { return TierHelpers::GetTierName(Tier); }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon|Tier")
+    bool HasCrystal() const { return CrystalSlot != nullptr; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon|Tier")
+    bool IsEvolved() const;
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;

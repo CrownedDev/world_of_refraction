@@ -15,7 +15,7 @@
 #include "RingData.generated.h"
 
 class USpellData;
-class UCrystalData;
+class UItemData;
 
 // Break calculation constants
 namespace RingBreakConstants
@@ -71,8 +71,9 @@ public:
 
 	// ==================== CRYSTAL SLOT ====================
 
+	/** Refined crystal that defines ring's element */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-	UCrystalData *CrystalSlot = nullptr;
+	UItemData *SlottedCrystal = nullptr;
 
 	// ==================== DURABILITY ====================
 
