@@ -58,8 +58,10 @@ void UBrokenDarknessManager::ProcessSpellCast(USpellData *Spell)
 	float CorruptionChance = BASE_CORRUPTION_CHANCE;
 
 	// Higher tier spells have higher corruption chance
-	// TODO: When SpellData has Tier, use it here
-	// if (Spell->Tier >= ETier::A) CorruptionChance += HIGH_POWER_CORRUPTION_BONUS;
+	if (Spell->Tier >= EItemTier::A_Tier)
+	{
+		CorruptionChance += HIGH_POWER_CORRUPTION_BONUS;
+	};
 
 	// Roll for corruption
 	if (FMath::FRand() < CorruptionChance)
