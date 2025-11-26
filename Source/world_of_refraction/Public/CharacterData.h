@@ -6,7 +6,6 @@
 #include "Engine/DataAsset.h"
 #include "SpellElement.h"
 #include "ECharacterClass.h"
-#include "ECharacterClass.h"
 #include "StatConstants.h"
 
 #include <CombatConstants.h>
