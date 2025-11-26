@@ -497,6 +497,8 @@ FString UItemDataDebug::GetCrystalTypeName(ECrystalType CrystalType)
         return TEXT("Iolite");
     case ECrystalType::Quartz:
         return TEXT("Quartz");
+    case ECrystalType::EvolutionCrystal:
+        return TEXT("Evolution");
     default:
         return TEXT("Unknown");
     }
