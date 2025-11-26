@@ -41,7 +41,7 @@ FString UWeaponData::GetWeaponTypeName() const
 }
 bool UWeaponData::IsEvolved() const
 {
-    return CrystalSlot && CrystalSlot->CrystalType == ECrystalSlotType::Evolution;
+    return SlottedCrystal && SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
 }
 
 #if WITH_EDITOR
