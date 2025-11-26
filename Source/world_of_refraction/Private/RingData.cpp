@@ -3,7 +3,7 @@
 #include "RingData.h"
 #include "SpellData.h"
 
-float URingData::CalculateBreakChance(USpellData* Spell, bool bIsInfused) const
+float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
 {
 	using namespace RingBreakConstants;
 
@@ -16,7 +16,7 @@ float URingData::CalculateBreakChance(USpellData* Spell, bool bIsInfused) const
 
 	// Get spell tier (assuming SpellData will have Tier field)
 	// For now, use E_Tier as default if not implemented
-	EItemTier SpellTier = EItemTier::E_Tier;
+	EItemTier SpellTier = Spell->Tier;
 	// TODO: SpellTier = Spell->Tier; // Uncomment when SpellData has Tier
 
 	// Calculate tier gap
