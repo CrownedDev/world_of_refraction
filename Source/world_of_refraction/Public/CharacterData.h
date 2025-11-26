@@ -57,7 +57,7 @@ public:
 
 	// Base attack for unarmed state (Caster/Resonator only - Generic uses weapon attacks)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Attack",
-			  meta = (EditCondition = "CharacterClass != ECharacterClass::Generic", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
 	UBaseAttackData *BaseAttack = nullptr;
 
 	// Use primary weapon/state at combat start?

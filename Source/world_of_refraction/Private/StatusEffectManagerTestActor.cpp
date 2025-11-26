@@ -650,7 +650,7 @@ void AStatusEffectManagerTestActor::Test_SourceTracking()
 	if (!Manager)
 		return;
 
-	AActor *Caster = CreateTestActor(TEXT("Caster"));
+	AActor *Caster = CreateTestActor(TEXT("Elementalist"));
 	AActor *Target = CreateTestActor(TEXT("Target"));
 	if (!Caster || !Target)
 		return;

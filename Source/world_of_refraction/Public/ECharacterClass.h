@@ -8,19 +8,19 @@
 
 /**
  * Character classes determining combat style and equipment options
- * 
+ *
  * Generic:
  * - 2 physical weapons, no innate spells
  * - Abilities come from weapons
  * - Physical Infusion or Evolution Infusion (if evolved)
  * - Most durable, least flexible
- * 
+ *
  * Caster:
  * - 1 weapon, innate element (locked at creation)
  * - 6 innate spells tied to element
  * - Element Infusion or Evolution Infusion (if evolved)
  * - Energy-based, balanced flexibility
- * 
+ *
  * Resonator:
  * - Uses rings (6 slots, up to 3 same element)
  * - No innate element - element comes from equipped ring
@@ -31,8 +31,8 @@
 UENUM(BlueprintType)
 enum class ECharacterClass : uint8
 {
-	Generic   UMETA(DisplayName = "Generic"),
-	Caster    UMETA(DisplayName = "Caster"),
+	Generic UMETA(DisplayName = "Generic"),
+	Caster UMETA(DisplayName = "Elementalist"),
 	Resonator UMETA(DisplayName = "Resonator")
 };
 
@@ -76,10 +76,14 @@ namespace CharacterClassHelpers
 	{
 		switch (Class)
 		{
-		case ECharacterClass::Generic:   return TEXT("Generic");
-		case ECharacterClass::Caster:    return TEXT("Caster");
-		case ECharacterClass::Resonator: return TEXT("Resonator");
-		default: return TEXT("Unknown");
+		case ECharacterClass::Generic:
+			return TEXT("Generic");
+		case ECharacterClass::Caster:
+			return TEXT("Elementalist");
+		case ECharacterClass::Resonator:
+			return TEXT("Resonator");
+		default:
+			return TEXT("Unknown");
 		}
 	}
 
