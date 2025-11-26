@@ -55,6 +55,26 @@ public:
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_RealAttackExecution();
 
+	/** Test spell execution through full pipeline */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_SpellExecution();
+
+	/** Test ability execution through full pipeline */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_AbilityExecution();
+
+	/** Test that actions properly apply status effects */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_StatusEffectFromAction();
+
+	/** Test AOE attacks hitting multiple targets */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_MultiTargetAction();
+
+	/** Test energy is properly deducted from actions */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_EnergyCost();
+
 	// ========================================
 	// CONFIGURATION
 	// ========================================
