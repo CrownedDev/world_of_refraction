@@ -6,6 +6,7 @@
 #include "Engine/DataAsset.h"
 #include "SpellElement.h"
 #include "ECharacterClass.h"
+#include "ECharacterClass.h"
 #include "StatConstants.h"
 
 #include <CombatConstants.h>
@@ -205,9 +206,9 @@ public:
 
 	/** Get element - Caster returns InnateElement, others return Generic */
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
-	ESpellElement GetElement() const
+	ERefractionElement GetElement() const
 	{
-		return HasInnateElement() ? InnateElement : ESpellElement::Generic;
+		return IsCaster() ? InnateElement : ERefractionElement::Generic;
 	}
 
 	// ==================== STAT BUDGET VALIDATION ====================
