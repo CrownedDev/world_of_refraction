@@ -180,18 +180,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasInfusionDisplay() const { return InfusionDisplay != nullptr; }
-
-    // ==================== TIER & CRYSTAL HELPERS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Weapon|Tier")
-    FString GetTierString() const { return TierHelpers::GetTierName(Tier); }
-
-    UFUNCTION(BlueprintPure, Category = "Weapon|Tier")
-    bool HasCrystal() const { return CrystalSlot != nullptr; }
-
-    UFUNCTION(BlueprintPure, Category = "Weapon|Tier")
-    bool IsEvolved() const;
-
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
 #endif

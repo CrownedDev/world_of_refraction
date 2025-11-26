@@ -11,7 +11,7 @@
 #include "ItemEffectType.h"
 #include "SpellElement.h"
 #include "ItemData.generated.h"
-
+class UEvolutionData;
 /**
  * Primary data asset for items (crystals)
  * Each item is defined by crystal type + tier combination
