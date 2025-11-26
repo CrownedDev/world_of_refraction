@@ -206,9 +206,9 @@ public:
 
 	/** Get element - Caster returns InnateElement, others return Generic */
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
-	ERefractionElement GetElement() const
+	ESpellElement GetElement() const
 	{
-		return IsCaster() ? InnateElement : ERefractionElement::Generic;
+		return IsCaster() ? InnateElement : ESpellElement::Generic;
 	}
 
 	// ==================== STAT BUDGET VALIDATION ====================
