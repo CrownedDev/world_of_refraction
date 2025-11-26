@@ -1,13 +1,12 @@
 // CrystalData.h
 // Crystal data asset for weapon and ring crystal slots
-// NOTE: Different from ItemData crystals (Garnet, Sapphire, etc.) - these are equipment modifications
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "ECrystalSlotType.h"
-#include "ETier.h"
+#include "ItemTier.h"
 #include "RefractionElement.h"
 
 #if WITH_EDITOR
@@ -16,7 +15,6 @@
 
 #include "CrystalData.generated.h"
 
-// Forward declarations
 class USpellData;
 class UAbilityData;
 
@@ -37,7 +35,6 @@ struct WORLD_OF_REFRACTION_API FCrystalStatModifiers
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats")
 	int32 BonusSpirit = 0;
 
-	/** Check if any stats are modified */
 	bool HasModifiers() const
 	{
 		return BonusMind != 0 || BonusBody != 0 || BonusSpirit != 0;
@@ -46,11 +43,6 @@ struct WORLD_OF_REFRACTION_API FCrystalStatModifiers
 
 /**
  * Crystal Data Asset - Equipment modification crystals for weapons and rings
- * 
- * Three types:
- * - Ilodite: Enhances existing effects, replaceable
- * - Quartz: Absorbs element via parry/block, permanent
- * - Evolution: Grants spells + stats, permanent, enables Evolution Infusion
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UCrystalData : public UPrimaryDataAsset
@@ -67,136 +59,134 @@ public:
 	ECrystalSlotType CrystalType = ECrystalSlotType::Ilodite;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	ETier Tier = ETier::E;
+	EItemTier Tier = EItemTier::E_Tier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Crystal description...");
 
 	// ==================== ELEMENT ====================
-	// Only relevant for Evolution crystals (Ilodite enhances existing, Quartz absorbs)
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Element",
 		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
 	ERefractionElement Element = ERefractionElement::Fire;
 
-	// ==================== ILODITE - ENHANCEMENT ====================
+	// ==================== ILODITE ====================
 
-	/** Multiplier for existing weapon/ring effects (1.0 = no change, 1.2 = 20% boost) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ilodite",
 		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides,
 			ClampMin = "1.0", ClampMax = "2.0"))
 	float EnhancementMultiplier = 1.0f;
 
-	/** Bonus damage added to attacks */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ilodite",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides,
-			ClampMin = "0"))
+		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides, ClampMin = "0"))
 	int32 BonusDamage = 0;
 
-	/** Bonus status buildup added */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ilodite",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides,
-			ClampMin = "0"))
+		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides, ClampMin = "0"))
 	int32 BonusStatusBuildup = 0;
 
-	// ==================== QUARTZ - ABSORPTION ====================
+	// ==================== QUARTZ ====================
 
-	/** Damage threshold to reach before transformation */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quartz",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Quartz", EditConditionHides,
-			ClampMin = "100"))
-	int32 AbsorptionThreshold = 500;
+		meta = (EditCondition = "CrystalType == ECrystalSlotType::Quartz", EditConditionHides, ClampMin = "100"))
+	float AbsorptionThreshold = 500.0f;
 
-	/** Current absorbed damage (runtime, not serialized in asset) */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Quartz|Runtime")
-	int32 CurrentAbsorption = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "Quartz|Runtime")
+	float CurrentAbsorption = 0.0f;
 
-	/** Element absorbed from parried/blocked attacks (runtime) */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Quartz|Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "Quartz|Runtime")
 	ERefractionElement AbsorbedElement = ERefractionElement::Generic;
 
-	/** Has this quartz been transformed? (runtime) */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Quartz|Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "Quartz|Runtime")
 	bool bHasTransformed = false;
 
-	// ==================== EVOLUTION - SPELLS & ABILITIES ====================
+	// ==================== EVOLUTION ====================
 
-	/** Spells granted by this evolution crystal */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
 		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
 	TArray<USpellData*> EvolutionSpells;
 
-	/** Abilities granted (Generic class only uses these) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
 		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
 	TArray<UAbilityData*> EvolutionAbilities;
 
-	/** Stat bonuses from evolution */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
 		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
 	FCrystalStatModifiers StatBonuses;
 
-	// ==================== PRESENTATION ====================
+	// ==================== HELPERS ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-	UTexture2D* Icon = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-	FLinearColor CrystalColor = FLinearColor::White;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-	UStaticMesh* CrystalMesh = nullptr;
-
-	// ==================== UTILITY FUNCTIONS ====================
-
-	/** Get display name */
-	UFUNCTION(BlueprintPure, Category = "Crystal")
-	FString GetDisplayName() const { return CrystalName; }
-
-	/** Get tier display string */
 	UFUNCTION(BlueprintPure, Category = "Crystal")
 	FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
-	/** Is this crystal removable? */
-	UFUNCTION(BlueprintPure, Category = "Crystal")
-	bool IsRemovable() const { return CrystalSlotHelpers::IsRemovable(CrystalType); }
-
-	/** Is this crystal permanent once slotted? */
-	UFUNCTION(BlueprintPure, Category = "Crystal")
-	bool IsPermanent() const { return CrystalSlotHelpers::IsPermanent(CrystalType); }
-
-	/** Does this crystal enable Evolution Infusion? */
-	UFUNCTION(BlueprintPure, Category = "Crystal")
-	bool EnablesEvolutionInfusion() const 
-	{ 
-		return CrystalSlotHelpers::EnablesEvolutionInfusion(CrystalType); 
+	UFUNCTION(BlueprintCallable, Category = "Crystal|Quartz")
+	void AddAbsorption(float DamageAbsorbed, ERefractionElement DamageElement)
+	{
+		if (CrystalType != ECrystalSlotType::Quartz || bHasTransformed) return;
+		CurrentAbsorption += DamageAbsorbed;
+		AbsorbedElement = DamageElement;
 	}
 
-	// ==================== QUARTZ RUNTIME ====================
-
-	/** Add absorption from blocked/parried damage */
-	UFUNCTION(BlueprintCallable, Category = "Crystal|Quartz")
-	void AddAbsorption(int32 DamageBlocked, ERefractionElement DamageElement);
-
-	/** Check if quartz has reached transformation threshold */
 	UFUNCTION(BlueprintPure, Category = "Crystal|Quartz")
-	bool HasReachedThreshold() const { return CurrentAbsorption >= AbsorptionThreshold; }
+	bool HasReachedThreshold() const
+	{
+		return CrystalType == ECrystalSlotType::Quartz && 
+			   CurrentAbsorption >= AbsorptionThreshold && !bHasTransformed;
+	}
 
-	/** Get absorption progress (0.0 to 1.0) */
 	UFUNCTION(BlueprintPure, Category = "Crystal|Quartz")
-	float GetAbsorptionProgress() const;
+	float GetAbsorptionProgress() const
+	{
+		if (CrystalType != ECrystalSlotType::Quartz || AbsorptionThreshold <= 0.0f) return 0.0f;
+		return FMath::Clamp(CurrentAbsorption / AbsorptionThreshold, 0.0f, 1.0f);
+	}
 
-	/** Trigger quartz transformation */
 	UFUNCTION(BlueprintCallable, Category = "Crystal|Quartz")
-	void TriggerTransformation();
+	void TriggerTransformation()
+	{
+		if (CrystalType != ECrystalSlotType::Quartz) return;
+		bHasTransformed = true;
+		Element = AbsorbedElement;
+	}
 
-	/** Reset quartz state (for new instances) */
 	UFUNCTION(BlueprintCallable, Category = "Crystal|Quartz")
-	void ResetQuartzState();
-
-	// ==================== EDITOR VALIDATION ====================
+	void ResetQuartzState()
+	{
+		CurrentAbsorption = 0.0f;
+	}
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override
+	{
+		EDataValidationResult Result = Super::IsDataValid(Context);
+
+		switch (CrystalType)
+		{
+		case ECrystalSlotType::Ilodite:
+			if (EnhancementMultiplier <= 1.0f && BonusDamage == 0 && BonusStatusBuildup == 0)
+				Context.AddWarning(FText::FromString(TEXT("Ilodite crystal has no enhancement effect")));
+			break;
+
+		case ECrystalSlotType::Quartz:
+			if (AbsorptionThreshold < 100.0f)
+			{
+				Context.AddError(FText::FromString(TEXT("Quartz absorption threshold too low (min 100)")));
+				Result = EDataValidationResult::Invalid;
+			}
+			break;
+
+		case ECrystalSlotType::Evolution:
+			if (EvolutionSpells.Num() == 0 && EvolutionAbilities.Num() == 0 && !StatBonuses.HasModifiers())
+				Context.AddWarning(FText::FromString(TEXT("Evolution crystal provides no spells, abilities, or stats")));
+			if (Element == ERefractionElement::Generic)
+				Context.AddWarning(FText::FromString(TEXT("Evolution crystal should have a specific element")));
+			break;
+
+		default:
+			break;
+		}
+
+		return Result;
+	}
 #endif
 };

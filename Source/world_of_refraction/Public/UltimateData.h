@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "RefractionElement.h"
+#include "ItemTier.h"
 #include "TargetType.h"
 #include "AbilityEffectType.h"
 #include "EUltimateType.h"
@@ -47,7 +48,10 @@ public:
     FString Description = TEXT("Ultimate ability description...");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString Theme = TEXT(""); // Flavor text for cinematics
+    EItemTier Tier = EItemTier::A_Tier; // Ultimates default to A-Tier
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    FString Theme = TEXT("");
 
     // ==================== REQUIREMENTS ====================
 
@@ -176,6 +180,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Ultimate")
     FString GetScalingTypeName() const;
+
+    UFUNCTION(BlueprintPure, Category = "Ultimate")
+    FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
     UFUNCTION(BlueprintPure, Category = "Ultimate")
     bool IsOncePerBattle() const { return CooldownType == EUltimateCooldownType::OncePerBattle; }

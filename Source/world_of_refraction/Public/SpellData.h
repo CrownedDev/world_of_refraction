@@ -7,6 +7,7 @@
 #include "RefractionElement.h"
 #include "SpellSchool.h"
 #include "TargetType.h"
+#include "ItemTier.h"
 #include "AbilityData.h"
 #include "AbilityEffectType.h"
 #include "WeaponData.h"
@@ -48,6 +49,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     bool bIsUniversalSpell = false; // Can be cast by any element (except Generic)
+
+    //  Tier for break calculations
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EItemTier Tier = EItemTier::E_Tier;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (EditCondition = "bIsUniversalSpell"))
     bool bPrependElementName = false; // "Elemental" becomes "Fire Elemental"
@@ -197,6 +202,9 @@ public:
         }
         return TEXT("Unknown");
     }
+
+    UFUNCTION(BlueprintPure, Category = "Spell")
+    FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
     // ==================== CONSTRUCT ====================
 

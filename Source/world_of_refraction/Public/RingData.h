@@ -1,12 +1,11 @@
 // RingData.h
-// Ring data asset for Resonator class
-// Rings provide element, spells, and can break
+// Ring data asset for Resonator class spell casting
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "ETier.h"
+#include "ItemTier.h"
 #include "RefractionElement.h"
 
 #if WITH_EDITOR
@@ -15,24 +14,24 @@
 
 #include "RingData.generated.h"
 
-// Forward declarations
 class USpellData;
 class UCrystalData;
 
+// Break calculation constants
+namespace RingBreakConstants
+{
+	constexpr float BASE_BREAK_CHANCE_PER_TIER = 0.15f;
+	constexpr float INFUSION_BREAK_BONUS = 0.10f;
+	constexpr float S_TIER_INFUSION_BREAK = 0.05f;
+	constexpr float CUSTOM_SPELL_BREAK_BONUS = 0.05f;
+	constexpr float LOW_DURABILITY_THRESHOLD = 0.25f;
+	constexpr float MED_DURABILITY_THRESHOLD = 0.50f;
+	constexpr float LOW_DURABILITY_BREAK_BONUS = 0.10f;
+	constexpr float MED_DURABILITY_BREAK_BONUS = 0.05f;
+}
+
 /**
- * Ring Data Asset - Resonator's element source and spell container
- * 
- * Key Features:
- * - Each ring has an element (locked at creation)
- * - 6 spell slots (variable spells per ring - enables unique builds)
- * - 1 crystal slot (Ilodite/Quartz/Evolution)
- * - Can break from tier mismatch or infusion
- * 
- * Loadout Rules:
- * - Resonator has 6 ring slots
- * - Up to 3 rings of same element allowed (backups)
- * - Ring switching is free action (your turn only)
- * - Ultimate is set per element at loadout (separate from ring)
+ * Ring Data Asset - Resonator's primary spell source
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API URingData : public UPrimaryDataAsset
@@ -45,26 +44,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FString RingName = TEXT("Unnamed Ring");
 
+	/** Ring's element - determines spell element and cannot be Generic or BrokenDarkness */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	ERefractionElement Element = ERefractionElement::Fire;
 
+	/** Ring tier - affects break chance when casting higher-tier spells */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	ETier Tier = ETier::E;
+	EItemTier Tier = EItemTier::E_Tier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Ring description...");
 
 	// ==================== SPELLS ====================
 
-	/** Default spells that come with the ring (safe to cast) */
+	/** Default spells - always safe to cast (no break risk from tier mismatch) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
 	TArray<USpellData*> DefaultSpells;
 
-	/** Player-customized spells (may cause break risk if tier mismatch) */
+	/** Custom/upgraded spells - may exceed ring tier (break risk) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
 	TArray<USpellData*> CustomSpells;
 
-	/** Maximum spell slots (default 6, some rings may have more/less) */
+	/** Maximum spell slots (default + custom combined) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (ClampMin = "1", ClampMax = "12"))
 	int32 MaxSpellSlots = 6;
 
@@ -75,94 +76,129 @@ public:
 
 	// ==================== DURABILITY ====================
 
-	/** Maximum durability (how much abuse before break) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability", meta = (ClampMin = "1"))
-	float MaxDurability = 100.0f;
+	int32 MaxDurability = 100;
 
-	/** Current durability (runtime) */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Durability|Runtime")
-	float CurrentDurability = 100.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "Durability|Runtime")
+	int32 CurrentDurability = 100;
 
-	/** Is this ring broken? (runtime) */
-	UPROPERTY(Transient, BlueprintReadOnly, Category = "Durability|Runtime")
+	UPROPERTY(BlueprintReadOnly, Category = "Durability|Runtime")
 	bool bIsBroken = false;
 
-	// ==================== PRESENTATION ====================
+	// ==================== SPELL ACCESS ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-	UTexture2D* Icon = nullptr;
+	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
+	TArray<USpellData*> GetAvailableSpells() const
+	{
+		TArray<USpellData*> AllSpells;
+		AllSpells.Append(DefaultSpells);
+		AllSpells.Append(CustomSpells);
+		return AllSpells;
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-	UStaticMesh* RingMesh = nullptr;
+	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
+	bool CanCastSpell(USpellData* Spell) const
+	{
+		if (!Spell || bIsBroken) return false;
+		return DefaultSpells.Contains(Spell) || CustomSpells.Contains(Spell);
+	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-	FLinearColor RingColor = FLinearColor::White;
+	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
+	bool IsCustomSpell(USpellData* Spell) const
+	{
+		return CustomSpells.Contains(Spell);
+	}
 
-	// ==================== UTILITY FUNCTIONS ====================
+	// ==================== DURABILITY ====================
 
-	/** Get display name */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	FString GetDisplayName() const { return RingName; }
-
-	/** Get tier display string */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
-
-	/** Get element name */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	FString GetElementName() const;
-
-	/** Get all available spells (default + custom, excluding nulls) */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	TArray<USpellData*> GetAvailableSpells() const;
-
-	/** Get total spell count */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	int32 GetSpellCount() const;
-
-	/** Can this ring cast the given spell? (checks element match) */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	bool CanCastSpell(USpellData* Spell) const;
-
-	/** Is this a custom spell (higher break risk)? */
-	UFUNCTION(BlueprintPure, Category = "Ring")
-	bool IsCustomSpell(USpellData* Spell) const;
-
-	// ==================== DURABILITY FUNCTIONS ====================
-
-	/** Get durability as percentage (0.0 to 1.0) */
 	UFUNCTION(BlueprintPure, Category = "Ring|Durability")
-	float GetDurabilityPercent() const;
+	float GetDurabilityPercent() const
+	{
+		return MaxDurability > 0 ? static_cast<float>(CurrentDurability) / MaxDurability : 0.0f;
+	}
 
-	/** Apply durability damage from spell cast */
 	UFUNCTION(BlueprintCallable, Category = "Ring|Durability")
-	void ApplyDurabilityDamage(float Damage);
+	void ApplyDurabilityDamage(int32 Damage)
+	{
+		CurrentDurability = FMath::Max(0, CurrentDurability - Damage);
+		if (CurrentDurability <= 0)
+		{
+			bIsBroken = true;
+		}
+	}
 
-	/** Check and handle ring break */
-	UFUNCTION(BlueprintCallable, Category = "Ring|Durability")
-	bool CheckBreak();
+	// ==================== BREAK SYSTEM ====================
 
-	/** Force break this ring */
-	UFUNCTION(BlueprintCallable, Category = "Ring|Durability")
-	void ForceBreak();
-
-	/** Reset ring state (for new instances) */
-	UFUNCTION(BlueprintCallable, Category = "Ring|Durability")
-	void ResetRingState();
-
-	// ==================== BREAK CHANCE CALCULATION ====================
-
-	/** Calculate break chance for casting a spell */
 	UFUNCTION(BlueprintPure, Category = "Ring|Break")
 	float CalculateBreakChance(USpellData* Spell, bool bIsInfused) const;
 
-	/** Roll for break and apply if triggered */
 	UFUNCTION(BlueprintCallable, Category = "Ring|Break")
-	bool RollForBreak(float BreakChance);
+	bool RollForBreak(float BreakChance)
+	{
+		if (BreakChance <= 0.0f) return false;
+		if (BreakChance >= 1.0f)
+		{
+			bIsBroken = true;
+			return true;
+		}
+		
+		bool bBroke = FMath::FRand() < BreakChance;
+		if (bBroke)
+		{
+			bIsBroken = true;
+		}
+		return bBroke;
+	}
 
-	// ==================== EDITOR VALIDATION ====================
+	UFUNCTION(BlueprintCallable, Category = "Ring|Break")
+	void ForceBreak()
+	{
+		bIsBroken = true;
+		CurrentDurability = 0;
+	}
+
+	UFUNCTION(BlueprintCallable, Category = "Ring|State")
+	void ResetRingState()
+	{
+		CurrentDurability = MaxDurability;
+		bIsBroken = false;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Ring")
+	FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override
+	{
+		EDataValidationResult Result = Super::IsDataValid(Context);
+
+		// Element validation
+		if (Element == ERefractionElement::Generic)
+		{
+			Context.AddError(FText::FromString(TEXT("Ring cannot have Generic element")));
+			Result = EDataValidationResult::Invalid;
+		}
+		if (Element == ERefractionElement::BrokenDarkness)
+		{
+			Context.AddError(FText::FromString(TEXT("Ring cannot have BrokenDarkness element")));
+			Result = EDataValidationResult::Invalid;
+		}
+
+		// Spell count validation
+		int32 TotalSpells = DefaultSpells.Num() + CustomSpells.Num();
+		if (TotalSpells > MaxSpellSlots)
+		{
+			Context.AddError(FText::FromString(FString::Printf(
+				TEXT("Too many spells (%d) for spell slots (%d)"), TotalSpells, MaxSpellSlots)));
+			Result = EDataValidationResult::Invalid;
+		}
+
+		if (DefaultSpells.Num() == 0)
+		{
+			Context.AddWarning(FText::FromString(TEXT("Ring has no default spells")));
+		}
+
+		return Result;
+	}
 #endif
 };
