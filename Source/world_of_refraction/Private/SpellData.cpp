@@ -183,7 +183,7 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
         return false;
 
     // Generic element cannot cast any spells
-    if (Character->InnateElement == ERefractionElement::Generic)
+    if (Character->InnateElement == ESpellElement::Generic)
     {
         return false;
     }
@@ -208,7 +208,7 @@ FString USpellData::GetDisplayName(UCharacterData *Caster) const
     if (bIsUniversalSpell && bPrependElementName && Caster)
     {
         FString ElementName = UEnum::GetValueAsString(Caster->InnateElement);
-        ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
         return FString::Printf(TEXT("%s %s"), *ElementName, *SpellName);
     }
     return SpellName;

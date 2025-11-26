@@ -9,7 +9,7 @@
 
 #include "LoadoutConstants.h"
 
-void UCharacterDataDebug::PrintCharacterStats(UCharacterData* Character, float Duration, FLinearColor TextColor)
+void UCharacterDataDebug::PrintCharacterStats(UCharacterData *Character, float Duration, FLinearColor TextColor)
 {
 	if (!Character)
 	{
@@ -35,7 +35,7 @@ void UCharacterDataDebug::PrintCharacterStats(UCharacterData* Character, float D
 	}
 }
 
-void UCharacterDataDebug::LogCharacterStats(UCharacterData* Character)
+void UCharacterDataDebug::LogCharacterStats(UCharacterData *Character)
 {
 	if (!Character)
 	{
@@ -47,7 +47,7 @@ void UCharacterDataDebug::LogCharacterStats(UCharacterData* Character)
 	UE_LOG(LogTemp, Display, TEXT("\n%s"), *StatsString);
 }
 
-FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
+FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 {
 	if (!Character)
 	{
@@ -63,7 +63,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	if (Character->HasInnateElement())
 	{
 		ElementName = UEnum::GetValueAsString(Character->InnateElement);
-		ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+		ElementName.RemoveFromStart(TEXT("ESpellElement::"));
 	}
 
 	FString Output = TEXT("");
@@ -84,44 +84,44 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	Output += TEXT("INITIAL DISTRIBUTION:\n");
 	Output += FString::Printf(TEXT("  Budget: %d\n"), Character->InitialStatBudget);
 	Output += FString::Printf(TEXT("  Used:   %d %s\n\n"),
-		Character->GetInitialSubStatSum(),
-		Character->IsValidInitialDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
+							  Character->GetInitialSubStatSum(),
+							  Character->IsValidInitialDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
 
 	// World Progression Validation
 	Output += TEXT("WORLD PROGRESSION:\n");
 	Output += FString::Printf(TEXT("  Expected: %d points\n"), Character->GetExpectedWorldPoints());
 	Output += FString::Printf(TEXT("  Used:     %d %s\n\n"),
-		Character->GetWorldSubStatSum(),
-		Character->IsValidWorldDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
+							  Character->GetWorldSubStatSum(),
+							  Character->IsValidWorldDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));
 
 	// Class-specific loadout
 	Output += TEXT("LOADOUT:\n");
-	
+
 	switch (Character->CharacterClass)
 	{
 	case ECharacterClass::Generic:
-		Output += FString::Printf(TEXT("  Starts With: %s\n"), 
-			Character->bUsePrimary ? TEXT("Primary Weapon") : TEXT("Secondary Weapon"));
-		
+		Output += FString::Printf(TEXT("  Starts With: %s\n"),
+								  Character->bUsePrimary ? TEXT("Primary Weapon") : TEXT("Secondary Weapon"));
+
 		// Primary weapon
 		if (Character->PrimaryWeapon)
 		{
 			Output += FString::Printf(TEXT("  Primary: %s (%s)\n"),
-				*Character->PrimaryWeapon->WeaponName,
-				*Character->PrimaryWeapon->GetWeaponTypeName());
+									  *Character->PrimaryWeapon->WeaponName,
+									  *Character->PrimaryWeapon->GetWeaponTypeName());
 			PrintWeaponDetails(Output, Character->PrimaryWeapon);
 		}
 		else
 		{
 			Output += TEXT("  Primary: None\n");
 		}
-		
+
 		// Secondary weapon
 		if (Character->SecondaryWeapon)
 		{
 			Output += FString::Printf(TEXT("  Secondary: %s (%s)\n"),
-				*Character->SecondaryWeapon->WeaponName,
-				*Character->SecondaryWeapon->GetWeaponTypeName());
+									  *Character->SecondaryWeapon->WeaponName,
+									  *Character->SecondaryWeapon->GetWeaponTypeName());
 			PrintWeaponDetails(Output, Character->SecondaryWeapon);
 		}
 		else
@@ -131,27 +131,27 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 		break;
 
 	case ECharacterClass::Caster:
-		Output += FString::Printf(TEXT("  Starts: %s\n"), 
-			Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
+		Output += FString::Printf(TEXT("  Starts: %s\n"),
+								  Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
 		Output += FString::Printf(TEXT("  Innate Element: %s\n"), *ElementName);
 		Output += FString::Printf(TEXT("  Innate Spells: %d\n"), Character->InnateSpells.Num());
-		
+
 		// List spells
 		for (int32 i = 0; i < Character->InnateSpells.Num(); ++i)
 		{
-			USpellData* Spell = Character->InnateSpells[i];
+			USpellData *Spell = Character->InnateSpells[i];
 			if (Spell)
 			{
 				Output += FString::Printf(TEXT("    [%d] %s\n"), i + 1, *Spell->SpellName);
 			}
 		}
-		
+
 		// Weapon
 		if (Character->PrimaryWeapon)
 		{
 			Output += FString::Printf(TEXT("  Weapon: %s (%s)\n"),
-				*Character->PrimaryWeapon->WeaponName,
-				*Character->PrimaryWeapon->GetWeaponTypeName());
+									  *Character->PrimaryWeapon->WeaponName,
+									  *Character->PrimaryWeapon->GetWeaponTypeName());
 			PrintWeaponDetails(Output, Character->PrimaryWeapon);
 		}
 		else
@@ -161,37 +161,37 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 		break;
 
 	case ECharacterClass::Resonator:
-		Output += FString::Printf(TEXT("  Starts: %s\n"), 
-			Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
+		Output += FString::Printf(TEXT("  Starts: %s\n"),
+								  Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
 		Output += FString::Printf(TEXT("  Equipped Rings: %d/6\n"), Character->EquippedRings.Num());
-		
+
 		// List rings
 		for (int32 i = 0; i < Character->EquippedRings.Num(); ++i)
 		{
-			URingData* Ring = Character->EquippedRings[i];
+			URingData *Ring = Character->EquippedRings[i];
 			if (Ring)
 			{
 				FString RingElement = UEnum::GetValueAsString(Ring->Element);
-				RingElement.RemoveFromStart(TEXT("ERefractionElement::"));
-				
-				Output += FString::Printf(TEXT("    [%d] %s (%s) - %d spells\n"), 
-					i + 1, 
-					*Ring->RingName,
-					*RingElement,
-					Ring->GetAvailableSpells().Num());
+				RingElement.RemoveFromStart(TEXT("ESpellElement::"));
+
+				Output += FString::Printf(TEXT("    [%d] %s (%s) - %d spells\n"),
+										  i + 1,
+										  *Ring->RingName,
+										  *RingElement,
+										  Ring->GetAvailableSpells().Num());
 			}
 			else
 			{
 				Output += FString::Printf(TEXT("    [%d] Empty Slot\n"), i + 1);
 			}
 		}
-		
+
 		// Weapon (optional for Resonator)
 		if (Character->PrimaryWeapon)
 		{
 			Output += FString::Printf(TEXT("  Weapon: %s (%s)\n"),
-				*Character->PrimaryWeapon->WeaponName,
-				*Character->PrimaryWeapon->GetWeaponTypeName());
+									  *Character->PrimaryWeapon->WeaponName,
+									  *Character->PrimaryWeapon->GetWeaponTypeName());
 		}
 		else
 		{
@@ -205,7 +205,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	// Mind Stats
 	Output += TEXT("MIND STATS:\n");
 	Output += FString::Printf(TEXT("  Base Mind: %d (World Level: %d)\n"),
-		Character->GetBaseMind(), Character->WorldMindLevel);
+							  Character->GetBaseMind(), Character->WorldMindLevel);
 	Output += FString::Printf(TEXT("  Effective Mind: %.1f\n"), Character->GetEffectiveMind());
 	Output += FString::Printf(TEXT("  Cost Reduction: x%.2f\n"), Character->CalculateCostReductionMultiplier());
 	Output += FString::Printf(TEXT("  Turn Speed: %.1f\n"), Character->CalculateTurnSpeed());
@@ -214,7 +214,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	// Body Stats
 	Output += TEXT("BODY STATS:\n");
 	Output += FString::Printf(TEXT("  Base Body: %d (World Level: %d)\n"),
-		Character->GetBaseBody(), Character->WorldBodyLevel);
+							  Character->GetBaseBody(), Character->WorldBodyLevel);
 	Output += FString::Printf(TEXT("  Effective Body: %.1f\n"), Character->GetEffectiveBody());
 	Output += FString::Printf(TEXT("  Max HP: %d\n"), Character->CalculateMaxHP());
 	Output += FString::Printf(TEXT("  Defense: %d\n"), Character->CalculateFlatDefense());
@@ -224,7 +224,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	// Spirit Stats
 	Output += TEXT("SPIRIT STATS:\n");
 	Output += FString::Printf(TEXT("  Base Spirit: %d (World Level: %d)\n"),
-		Character->GetBaseSpirit(), Character->WorldSpiritLevel);
+							  Character->GetBaseSpirit(), Character->WorldSpiritLevel);
 	Output += FString::Printf(TEXT("  Effective Spirit: %.1f\n"), Character->GetEffectiveSpirit());
 	Output += FString::Printf(TEXT("  Max EP: %d\n"), Character->CalculateMaxEP());
 	Output += FString::Printf(TEXT("  Effect Damage: x%.2f\n"), Character->CalculateEffectDamageMultiplier());
@@ -234,16 +234,17 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData* Character)
 	return Output;
 }
 
-void UCharacterDataDebug::PrintWeaponDetails(FString& Output, UWeaponData* Weapon)
+void UCharacterDataDebug::PrintWeaponDetails(FString &Output, UWeaponData *Weapon)
 {
-	if (!Weapon) return;
+	if (!Weapon)
+		return;
 
 	if (Weapon->WeaponAttack)
 	{
 		Output += FString::Printf(TEXT("    Attack: %s [%s] (Buildup: %d)\n"),
-			*Weapon->WeaponAttack->AttackName,
-			*Weapon->WeaponAttack->GetDamageTypeName(),
-			Weapon->WeaponAttack->StatusBuildup);
+								  *Weapon->WeaponAttack->AttackName,
+								  *Weapon->WeaponAttack->GetDamageTypeName(),
+								  Weapon->WeaponAttack->StatusBuildup);
 	}
 
 	// Requirements
@@ -277,7 +278,7 @@ void UCharacterDataDebug::PrintWeaponDetails(FString& Output, UWeaponData* Weapo
 	}
 
 	Output += FString::Printf(TEXT("    Abilities: %d/%d %s\n"),
-		Weapon->GetAbilityCount(),
-		LoadoutConstants::MAX_WEAPON_ABILITIES,
-		Weapon->bAbilitiesLocked ? TEXT("[Locked]") : TEXT("[Unlocked]"));
+							  Weapon->GetAbilityCount(),
+							  LoadoutConstants::MAX_WEAPON_ABILITIES,
+							  Weapon->bAbilitiesLocked ? TEXT("[Locked]") : TEXT("[Unlocked]"));
 }

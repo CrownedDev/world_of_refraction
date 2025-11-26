@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 
 namespace ElementColors
 {
@@ -22,31 +22,31 @@ namespace ElementColors
     inline const FLinearColor BrokenDarkness = FLinearColor(0.1f, 0.1f, 0.1f); // Black (base)
 
     // Get color for element
-    inline FLinearColor GetColorForElement(ERefractionElement Element)
+    inline FLinearColor GetColorForElement(ESpellElement Element)
     {
         switch (Element)
         {
-        case ERefractionElement::Fire:
+        case ESpellElement::Fire:
             return Fire;
-        case ERefractionElement::Lightning:
+        case ESpellElement::Lightning:
             return Lightning;
-        case ERefractionElement::Earth:
+        case ESpellElement::Earth:
             return Earth;
-        case ERefractionElement::Wind:
+        case ESpellElement::Wind:
             return Wind;
-        case ERefractionElement::Water:
+        case ESpellElement::Water:
             return Water;
-        case ERefractionElement::Reality:
+        case ESpellElement::Reality:
             return Reality;
-        case ERefractionElement::Void:
+        case ESpellElement::Void:
             return Void;
-        case ERefractionElement::Light:
+        case ESpellElement::Light:
             return Light;
-        case ERefractionElement::Darkness:
+        case ESpellElement::Darkness:
             return Darkness;
-        case ERefractionElement::Generic:
+        case ESpellElement::Generic:
             return Generic;
-        case ERefractionElement::BrokenDarkness:
+        case ESpellElement::BrokenDarkness:
             return BrokenDarkness;
         default:
             return Generic;
@@ -54,10 +54,10 @@ namespace ElementColors
     }
 
     // For BrokenDarkness: blend black with absorbed element
-    inline FLinearColor GetBrokenDarknessColor(ERefractionElement AbsorbedElement)
+    inline FLinearColor GetBrokenDarknessColor(ESpellElement AbsorbedElement)
     {
         // No absorption = pure black
-        if (AbsorbedElement == ERefractionElement::BrokenDarkness)
+        if (AbsorbedElement == ESpellElement::BrokenDarkness)
         {
             return BrokenDarkness;
         }

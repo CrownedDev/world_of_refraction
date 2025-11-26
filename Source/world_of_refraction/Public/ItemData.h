@@ -9,7 +9,7 @@
 #include "CrystalType.h"
 #include "ItemTier.h"
 #include "ItemEffectType.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "ItemData.generated.h"
 
 /**
@@ -41,7 +41,7 @@ public:
     // These are computed and displayed for reference - not editable
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Identity")
-    ERefractionElement DisplayElement;
+    ESpellElement DisplayElement;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
     EItemEffectType DisplayEffectType;
@@ -110,16 +110,16 @@ public:
     // ==================== VISUAL/AUDIO ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D* Icon;
+    UTexture2D *Icon;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FLinearColor TierColor;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UParticleSystem* UseEffect;
+    UParticleSystem *UseEffect;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    USoundBase* UseSound;
+    USoundBase *UseSound;
 
     // ==================== UTILITY FUNCTIONS ====================
 
@@ -140,7 +140,7 @@ public:
 
     // Get associated element based on crystal type
     UFUNCTION(BlueprintPure, Category = "Item")
-    ERefractionElement GetAssociatedElement() const;
+    ESpellElement GetAssociatedElement() const;
 
     // Get Generic character resistance bonus (constant)
     UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
@@ -217,12 +217,12 @@ public:
 
 #if WITH_EDITOR
     // Editor-only: Auto-configure properties when changed
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 
     // Generate description based on crystal type and tier
     FString GenerateDescription() const;
 
     // Validate item configuration
-    virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+    virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
 #endif
 };

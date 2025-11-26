@@ -590,7 +590,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 	BaseDamage = FMath::RoundToInt(BaseDamage * PowerDamageMultiplier);
 
 	// Determine element
-	ERefractionElement Element = ERefractionElement::Generic;
+	ESpellElement Element = ESpellElement::Generic;
 	if (bIsElementInfused && Ability->bCanBeInfused)
 	{
 		Element = UserData->InnateElement;
@@ -820,7 +820,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 	}
 
 	// Determine element
-	ERefractionElement Element = ERefractionElement::Generic;
+	ESpellElement Element = ESpellElement::Generic;
 	if (bIsInfused)
 	{
 		Element = AttackerData->InnateElement;
@@ -1034,7 +1034,7 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	AActor *Target,
 	int32 BaseDamage,
 	bool bIsElemental,
-	ERefractionElement Element,
+	ESpellElement Element,
 	bool bCanCrit)
 {
 	FCombatHitResult Result;
@@ -1268,7 +1268,7 @@ void UActionExecutor::ApplyStatusEffects(
 	EAbilityEffectType SecondaryEffect,
 	float SecondaryValue,
 	int32 SecondaryDuration,
-	ERefractionElement Element)
+	ESpellElement Element)
 {
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
@@ -1309,7 +1309,7 @@ int32 UActionExecutor::ProcessMultiHit(
 	int32 DamagePerHit,
 	int32 HitCount,
 	bool bIsElemental,
-	ERefractionElement Element,
+	ESpellElement Element,
 	bool bCanCrit,
 	FActionResult &OutResult)
 {

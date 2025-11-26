@@ -470,7 +470,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, 
 		{
 			int32 HitDamage = ApplyWeaponDamage(
 				Attacker, Target, DamagePerHit,
-				bUseInfusion, bUseInfusion ? AttackerData->InnateElement : ERefractionElement::Generic,
+				bUseInfusion, bUseInfusion ? AttackerData->InnateElement : ESpellElement::Generic,
 				true, Result);
 
 			TotalDamageToTarget += HitDamage;
@@ -607,7 +607,7 @@ UStatusEffectManager *UWeaponManager::GetStatusEffectManager() const
 bool UWeaponManager::IsGenericCharacter(AActor *Actor) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->InnateElement == ERefractionElement::Generic;
+	return Data && Data->InnateElement == ESpellElement::Generic;
 }
 
 bool UWeaponManager::IsElementalCharacter(AActor *Actor) const
@@ -616,8 +616,8 @@ bool UWeaponManager::IsElementalCharacter(AActor *Actor) const
 	if (!Data)
 		return false;
 
-	return Data->InnateElement != ERefractionElement::Generic &&
-		   Data->InnateElement != ERefractionElement::BrokenDarkness;
+	return Data->InnateElement != ESpellElement::Generic &&
+		   Data->InnateElement != ESpellElement::BrokenDarkness;
 }
 
 UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const
@@ -677,10 +677,10 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 		// Bleed - DOT (use Generic element for physical)
 		Effect = FStatusEffect::CreateDOT(
 			TEXT("Bleed"),
-			FMath::Rand(),				  // Unique ID
-			15.0f,						  // Damage per turn
-			3,							  // Duration
-			ERefractionElement::Generic); // Physical, no element
+			FMath::Rand(),			 // Unique ID
+			15.0f,					 // Damage per turn
+			3,						 // Duration
+			ESpellElement::Generic); // Physical, no element
 		break;
 
 	case EPhysicalDamageType::Pierce:
@@ -691,7 +691,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 			EAbilityEffectType::DefenseDebuff,
 			30.0f, // 30% defense reduction
 			3);
-		Effect.Element = ERefractionElement::Generic;
+		Effect.Element = ESpellElement::Generic;
 		break;
 
 	case EPhysicalDamageType::Blunt:
@@ -703,7 +703,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 			EAbilityEffectType::AttackSpeedDebuff, // Placeholder for stun
 			100.0f,								   // 100% speed reduction = skip turn
 			1);									   // 1 turn
-		Effect.Element = ERefractionElement::Generic;
+		Effect.Element = ESpellElement::Generic;
 		break;
 
 	default:
@@ -718,7 +718,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 }
 
 int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 BaseDamage,
-										bool bIsElemental, ERefractionElement Element, bool bCanCrit, FWeaponAttackResult &OutResult)
+										bool bIsElemental, ESpellElement Element, bool bCanCrit, FWeaponAttackResult &OutResult)
 {
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)

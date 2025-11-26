@@ -79,7 +79,7 @@ FString UEvolutionDataDebug::GetEvolutionStatsString(UEvolutionData *Evolution, 
 
         if (!bCanUse)
         {
-            if (Character->InnateElement == ERefractionElement::Generic)
+            if (Character->InnateElement == ESpellElement::Generic)
             {
                 Output += TEXT("    - Generic characters cannot evolve\n");
             }
@@ -151,7 +151,7 @@ FString UEvolutionDataDebug::GetEvolutionStatsString(UEvolutionData *Evolution, 
         Output += FString::Printf(TEXT("PASSIVE EFFECTS (%d):\n"), Evolution->GetPassiveCount());
         for (int32 i = 0; i < Evolution->PassiveEffects.Num(); ++i)
         {
-            const FPassiveEffect& Passive = Evolution->PassiveEffects[i];
+            const FPassiveEffect &Passive = Evolution->PassiveEffects[i];
             Output += FString::Printf(TEXT("  %d. %s\n"), i + 1, *Passive.PassiveName);
             Output += FString::Printf(TEXT("     %s\n"), *Passive.GetDescription());
         }

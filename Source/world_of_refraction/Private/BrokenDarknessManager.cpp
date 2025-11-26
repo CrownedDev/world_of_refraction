@@ -9,7 +9,7 @@
 namespace BrokenDarknessConstants
 {
 	constexpr float CORRUPTION_THRESHOLD = 100.0f;
-	constexpr float BASE_CORRUPTION_CHANCE = 0.05f; // 5% per corrupting spell
+	constexpr float BASE_CORRUPTION_CHANCE = 0.05f;		 // 5% per corrupting spell
 	constexpr float HIGH_POWER_CORRUPTION_BONUS = 0.10f; // +10% for powerful spells
 }
 
@@ -30,12 +30,14 @@ void UBrokenDarknessManager::BeginPlay()
 
 // ==================== TRANSFORMATION ====================
 
-bool UBrokenDarknessManager::CanSpellCorrupt(USpellData* Spell) const
+bool UBrokenDarknessManager::CanSpellCorrupt(USpellData *Spell) const
 {
-	if (!Spell) return false;
+	if (!Spell)
+		return false;
 
 	// Only Darkness spells can corrupt
-	if (Spell->Element != ERefractionElement::Darkness) return false;
+	if (Spell->Element != ESpellElement::Darkness)
+		return false;
 
 	// Could add: specific corruption flag on SpellData
 	// For now, all Darkness spells have small corruption chance
@@ -43,10 +45,12 @@ bool UBrokenDarknessManager::CanSpellCorrupt(USpellData* Spell) const
 	return true;
 }
 
-void UBrokenDarknessManager::ProcessSpellCast(USpellData* Spell)
+void UBrokenDarknessManager::ProcessSpellCast(USpellData *Spell)
 {
-	if (bIsTransformed) return; // Already transformed
-	if (!CanSpellCorrupt(Spell)) return;
+	if (bIsTransformed)
+		return; // Already transformed
+	if (!CanSpellCorrupt(Spell))
+		return;
 
 	using namespace BrokenDarknessConstants;
 
@@ -65,16 +69,17 @@ void UBrokenDarknessManager::ProcessSpellCast(USpellData* Spell)
 		AddCorruption(CorruptionAmount);
 
 		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Corruption +%.1f (Total: %.1f)"),
-			CorruptionAmount, CorruptionBuildup);
+			   CorruptionAmount, CorruptionBuildup);
 	}
 }
 
 void UBrokenDarknessManager::AddCorruption(float Amount)
 {
-	if (bIsTransformed) return;
+	if (bIsTransformed)
+		return;
 
 	CorruptionBuildup = FMath::Min(CorruptionBuildup + Amount,
-		BrokenDarknessConstants::CORRUPTION_THRESHOLD);
+								   BrokenDarknessConstants::CORRUPTION_THRESHOLD);
 
 	if (CorruptionBuildup >= BrokenDarknessConstants::CORRUPTION_THRESHOLD)
 	{
@@ -84,7 +89,8 @@ void UBrokenDarknessManager::AddCorruption(float Amount)
 
 void UBrokenDarknessManager::TriggerTransformation()
 {
-	if (bIsTransformed) return;
+	if (bIsTransformed)
+		return;
 
 	bIsTransformed = true;
 
@@ -92,9 +98,9 @@ void UBrokenDarknessManager::TriggerTransformation()
 	AbsorptionEnergy = 0.0f;
 
 	// Log transformation
-	AActor* Owner = GetOwner();
+	AActor *Owner = GetOwner();
 	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has TRANSFORMED!"),
-		Owner ? *Owner->GetName() : TEXT("Unknown"));
+		   Owner ? *Owner->GetName() : TEXT("Unknown"));
 
 	// Broadcast event
 	OnTransformed.Broadcast(Owner);
@@ -104,12 +110,13 @@ void UBrokenDarknessManager::TriggerTransformation()
 
 // ==================== ABSORPTION ====================
 
-void UBrokenDarknessManager::OnSuccessfulParry(float DamageBlocked, ERefractionElement DamageElement)
+void UBrokenDarknessManager::OnSuccessfulParry(float DamageBlocked, ESpellElement DamageElement)
 {
-	if (!bIsTransformed) return;
+	if (!bIsTransformed)
+		return;
 
 	// Physical attacks give nothing to absorb
-	if (DamageElement == ERefractionElement::Generic)
+	if (DamageElement == ESpellElement::Generic)
 	{
 		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb physical damage"));
 		return;
@@ -122,16 +129,17 @@ void UBrokenDarknessManager::OnSuccessfulParry(float DamageBlocked, ERefractionE
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, DamageElement);
 
 	UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Parry absorbed %.1f energy from %s"),
-		EnergyGained,
-		*UEnum::GetValueAsString(DamageElement));
+		   EnergyGained,
+		   *UEnum::GetValueAsString(DamageElement));
 }
 
-void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ERefractionElement DamageElement)
+void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ESpellElement DamageElement)
 {
-	if (!bIsTransformed) return;
+	if (!bIsTransformed)
+		return;
 
 	// Physical attacks give nothing to absorb
-	if (DamageElement == ERefractionElement::Generic)
+	if (DamageElement == ESpellElement::Generic)
 	{
 		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb physical damage"));
 		return;
@@ -144,14 +152,16 @@ void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ERefractionE
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, DamageElement);
 
 	UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Block absorbed %.1f energy from %s"),
-		EnergyGained,
-		*UEnum::GetValueAsString(DamageElement));
+		   EnergyGained,
+		   *UEnum::GetValueAsString(DamageElement));
 }
 
 bool UBrokenDarknessManager::SpendAbsorptionEnergy(float Amount)
 {
-	if (!bIsTransformed) return false;
-	if (AbsorptionEnergy < Amount) return false;
+	if (!bIsTransformed)
+		return false;
+	if (AbsorptionEnergy < Amount)
+		return false;
 
 	AbsorptionEnergy -= Amount;
 	return true;
@@ -162,10 +172,10 @@ void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)
 	AbsorptionEnergy = FMath::Min(AbsorptionEnergy + Amount, MaxAbsorptionEnergy);
 }
 
-void UBrokenDarknessManager::RecordAbsorbedElement(ERefractionElement Element)
+void UBrokenDarknessManager::RecordAbsorbedElement(ESpellElement Element)
 {
-	if (Element == ERefractionElement::Generic ||
-		Element == ERefractionElement::BrokenDarkness)
+	if (Element == ESpellElement::Generic ||
+		Element == ESpellElement::BrokenDarkness)
 	{
 		return;
 	}
@@ -180,14 +190,15 @@ void UBrokenDarknessManager::RecordAbsorbedElement(ERefractionElement Element)
 
 // ==================== HYBRID SPELLS ====================
 
-bool UBrokenDarknessManager::HasAbsorbedElement(ERefractionElement Element) const
+bool UBrokenDarknessManager::HasAbsorbedElement(ESpellElement Element) const
 {
 	return AbsorbedElements.Contains(Element);
 }
 
-bool UBrokenDarknessManager::CanCastHybridSpell(ERefractionElement SecondaryElement) const
+bool UBrokenDarknessManager::CanCastHybridSpell(ESpellElement SecondaryElement) const
 {
-	if (!bIsTransformed) return false;
+	if (!bIsTransformed)
+		return false;
 
 	// Must have absorbed this element
 	return HasAbsorbedElement(SecondaryElement);

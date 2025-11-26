@@ -77,23 +77,23 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
 
     // Infused Use
     if (Ability->bCanBeInfused)
-        
-        {
-            FString ElementName = UEnum::GetValueAsString(Character->InnateElement);
-            ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
 
-            Output += FString::Printf(TEXT("INFUSED USE (%s):\n"), *ElementName);
-            Output += FString::Printf(TEXT("  Damage: %d (%.0f%% penalty)\n"),
-                                      Ability->CalculateInfusedDamage(Character),
-                                      CombatConstants::INFUSION_DAMAGE_PENALTY * 100.0f);
-            Output += FString::Printf(TEXT("  Energy: %d (%.0f%% more)\n"),
-                                      Ability->CalculateInfusedEnergyCost(Character),
-                                      (CombatConstants::INFUSION_ENERGY_MULTIPLIER - 1.0f) * 100.0f);
-            Output += FString::Printf(TEXT("  Status Buildup: %d\n"),
-                                      Ability->CalculateStatusBuildup(Character));
-            Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
-                                      Ability->CalculateStatusBuildup(Character) >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
-        }
+    {
+        FString ElementName = UEnum::GetValueAsString(Character->InnateElement);
+        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
+
+        Output += FString::Printf(TEXT("INFUSED USE (%s):\n"), *ElementName);
+        Output += FString::Printf(TEXT("  Damage: %d (%.0f%% penalty)\n"),
+                                  Ability->CalculateInfusedDamage(Character),
+                                  CombatConstants::INFUSION_DAMAGE_PENALTY * 100.0f);
+        Output += FString::Printf(TEXT("  Energy: %d (%.0f%% more)\n"),
+                                  Ability->CalculateInfusedEnergyCost(Character),
+                                  (CombatConstants::INFUSION_ENERGY_MULTIPLIER - 1.0f) * 100.0f);
+        Output += FString::Printf(TEXT("  Status Buildup: %d\n"),
+                                  Ability->CalculateStatusBuildup(Character));
+        Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
+                                  Ability->CalculateStatusBuildup(Character) >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
+    }
     else
     {
         Output += TEXT("INFUSION: Not Available\n\n");

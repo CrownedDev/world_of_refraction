@@ -5,7 +5,7 @@
 #include "RingData.h"
 #include "SpellData.h"
 
-void URingManager::Initialize(FSubsystemCollectionBase& Collection)
+void URingManager::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 }
@@ -19,15 +19,16 @@ void URingManager::Deinitialize()
 
 // ==================== RING STATE ====================
 
-void URingManager::SetEquippedRings(AActor* Actor, const TArray<URingData*>& Rings)
+void URingManager::SetEquippedRings(AActor *Actor, const TArray<URingData *> &Rings)
 {
-	if (!Actor) return;
+	if (!Actor)
+		return;
 
 	EquippedRings.Add(Actor, Rings);
 	ActiveRingIndex.Add(Actor, 0);
 
 	// Reset all rings
-	for (URingData* Ring : Rings)
+	for (URingData *Ring : Rings)
 	{
 		if (Ring)
 		{
@@ -46,83 +47,92 @@ void URingManager::SetEquippedRings(AActor* Actor, const TArray<URingData*>& Rin
 	}
 }
 
-void URingManager::ClearRingState(AActor* Actor)
+void URingManager::ClearRingState(AActor *Actor)
 {
-	if (!Actor) return;
+	if (!Actor)
+		return;
 	ActiveRingIndex.Remove(Actor);
 	EquippedRings.Remove(Actor);
 }
 
-URingData* URingManager::GetActiveRing(AActor* Actor) const
+URingData *URingManager::GetActiveRing(AActor *Actor) const
 {
-	if (!Actor) return nullptr;
+	if (!Actor)
+		return nullptr;
 
-	const int32* Index = ActiveRingIndex.Find(Actor);
-	const TArray<URingData*>* Rings = EquippedRings.Find(Actor);
+	const int32 *Index = ActiveRingIndex.Find(Actor);
+	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
 
-	if (!Index || !Rings) return nullptr;
-	if (!Rings->IsValidIndex(*Index)) return nullptr;
+	if (!Index || !Rings)
+		return nullptr;
+	if (!Rings->IsValidIndex(*Index))
+		return nullptr;
 
 	return (*Rings)[*Index];
 }
 
-ERefractionElement URingManager::GetActiveElement(AActor* Actor) const
+ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 {
-	URingData* Ring = GetActiveRing(Actor);
-	return Ring ? Ring->Element : ERefractionElement::Generic;
+	URingData *Ring = GetActiveRing(Actor);
+	return Ring ? Ring->Element : ESpellElement::Generic;
 }
 
-TArray<URingData*> URingManager::GetEquippedRings(AActor* Actor) const
+TArray<URingData *> URingManager::GetEquippedRings(AActor *Actor) const
 {
-	const TArray<URingData*>* Rings = EquippedRings.Find(Actor);
-	return Rings ? *Rings : TArray<URingData*>();
+	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
+	return Rings ? *Rings : TArray<URingData *>();
 }
 
 // ==================== SPELL ACCESS ====================
 
-TArray<USpellData*> URingManager::GetAvailableSpells(AActor* Actor) const
+TArray<USpellData *> URingManager::GetAvailableSpells(AActor *Actor) const
 {
-	URingData* Ring = GetActiveRing(Actor);
-	return Ring ? Ring->GetAvailableSpells() : TArray<USpellData*>();
+	URingData *Ring = GetActiveRing(Actor);
+	return Ring ? Ring->GetAvailableSpells() : TArray<USpellData *>();
 }
 
-bool URingManager::CanCastSpell(AActor* Actor, USpellData* Spell) const
+bool URingManager::CanCastSpell(AActor *Actor, USpellData *Spell) const
 {
-	URingData* Ring = GetActiveRing(Actor);
+	URingData *Ring = GetActiveRing(Actor);
 	return Ring ? Ring->CanCastSpell(Spell) : false;
 }
 
 // ==================== RING SWITCHING ====================
 
-bool URingManager::SwitchToRing(AActor* Actor, int32 RingIndex)
+bool URingManager::SwitchToRing(AActor *Actor, int32 RingIndex)
 {
-	if (!Actor) return false;
+	if (!Actor)
+		return false;
 
-	TArray<URingData*>* Rings = EquippedRings.Find(Actor);
-	if (!Rings || !Rings->IsValidIndex(RingIndex)) return false;
+	TArray<URingData *> *Rings = EquippedRings.Find(Actor);
+	if (!Rings || !Rings->IsValidIndex(RingIndex))
+		return false;
 
-	URingData* TargetRing = (*Rings)[RingIndex];
-	if (!TargetRing || TargetRing->bIsBroken) return false;
+	URingData *TargetRing = (*Rings)[RingIndex];
+	if (!TargetRing || TargetRing->bIsBroken)
+		return false;
 
 	ActiveRingIndex[Actor] = RingIndex;
 	return true;
 }
 
-bool URingManager::SwitchToNextRing(AActor* Actor)
+bool URingManager::SwitchToNextRing(AActor *Actor)
 {
-	if (!Actor) return false;
+	if (!Actor)
+		return false;
 
-	const int32* CurrentIndex = ActiveRingIndex.Find(Actor);
-	TArray<URingData*>* Rings = EquippedRings.Find(Actor);
+	const int32 *CurrentIndex = ActiveRingIndex.Find(Actor);
+	TArray<URingData *> *Rings = EquippedRings.Find(Actor);
 
-	if (!CurrentIndex || !Rings) return false;
+	if (!CurrentIndex || !Rings)
+		return false;
 
 	// Find next valid ring
 	int32 StartIndex = *CurrentIndex;
 	for (int32 i = 1; i <= Rings->Num(); ++i)
 	{
 		int32 CheckIndex = (StartIndex + i) % Rings->Num();
-		URingData* Ring = (*Rings)[CheckIndex];
+		URingData *Ring = (*Rings)[CheckIndex];
 
 		if (Ring && !Ring->bIsBroken)
 		{
@@ -134,13 +144,14 @@ bool URingManager::SwitchToNextRing(AActor* Actor)
 	return false;
 }
 
-int32 URingManager::GetWorkingRingCount(AActor* Actor) const
+int32 URingManager::GetWorkingRingCount(AActor *Actor) const
 {
-	const TArray<URingData*>* Rings = EquippedRings.Find(Actor);
-	if (!Rings) return 0;
+	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
+	if (!Rings)
+		return 0;
 
 	int32 Count = 0;
-	for (URingData* Ring : *Rings)
+	for (URingData *Ring : *Rings)
 	{
 		if (Ring && !Ring->bIsBroken)
 		{
@@ -152,10 +163,11 @@ int32 URingManager::GetWorkingRingCount(AActor* Actor) const
 
 // ==================== BREAK SYSTEM ====================
 
-bool URingManager::ProcessPostCastBreakCheck(AActor* Actor, USpellData* SpellCast, bool bWasInfused)
+bool URingManager::ProcessPostCastBreakCheck(AActor *Actor, USpellData *SpellCast, bool bWasInfused)
 {
-	URingData* Ring = GetActiveRing(Actor);
-	if (!Ring || Ring->bIsBroken) return false;
+	URingData *Ring = GetActiveRing(Actor);
+	if (!Ring || Ring->bIsBroken)
+		return false;
 
 	float BreakChance = Ring->CalculateBreakChance(SpellCast, bWasInfused);
 	bool bBroke = Ring->RollForBreak(BreakChance);

@@ -7,7 +7,7 @@
 #include "StatusEffectManager.h"
 #include "StatusEffect.h"
 
-void UItemExecutor::Initialize(FSubsystemCollectionBase& Collection)
+void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Initialized"));
@@ -25,7 +25,7 @@ void UItemExecutor::Deinitialize()
 // MAIN EXECUTION
 // ========================================
 
-FItemUseResult UItemExecutor::UseItem(AActor* User, UItemData* Item, AActor* Target)
+FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Target)
 {
 	FItemUseResult Result;
 
@@ -43,7 +43,7 @@ FItemUseResult UItemExecutor::UseItem(AActor* User, UItemData* Item, AActor* Tar
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] %s using %s on %s"),
-		*User->GetName(), *Item->GetFullItemName(), *Target->GetName());
+		   *User->GetName(), *Item->GetFullItemName(), *Target->GetName());
 
 	// Execute based on effect type
 	EItemEffectType EffectType = Item->GetPrimaryEffectType();
@@ -108,14 +108,15 @@ FItemUseResult UItemExecutor::UseItem(AActor* User, UItemData* Item, AActor* Tar
 	return Result;
 }
 
-FItemUseResult UItemExecutor::UseItemMultiTarget(AActor* User, UItemData* Item, const TArray<AActor*>& Targets)
+FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UItemData *Item, const TArray<AActor *> &Targets)
 {
 	FItemUseResult CombinedResult;
 	CombinedResult.bSuccess = true;
 
-	for (AActor* Target : Targets)
+	for (AActor *Target : Targets)
 	{
-		if (!Target) continue;
+		if (!Target)
+			continue;
 
 		FItemUseResult SingleResult = UseItem(User, Item, Target);
 
@@ -139,10 +140,10 @@ FItemUseResult UItemExecutor::UseItemMultiTarget(AActor* User, UItemData* Item, 
 // EFFECT HANDLERS
 // ========================================
 
-void UItemExecutor::ExecuteDamageEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Garnet - Fire damage
-	UCharacterDataComponent* TargetComp = GetCharacterDataComponent(Target);
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
 		OutResult.ErrorMessage = TEXT("Target has no character data");
@@ -163,13 +164,13 @@ void UItemExecutor::ExecuteDamageEffect(AActor* User, AActor* Target, UItemData*
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Garnet dealt %d damage to %s"),
-		OutResult.DamageDealt, *Target->GetName());
+		   OutResult.DamageDealt, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteHealingEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Sapphire - Water healing
-	UCharacterDataComponent* TargetComp = GetCharacterDataComponent(Target);
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
 		OutResult.ErrorMessage = TEXT("Target has no character data");
@@ -184,13 +185,13 @@ void UItemExecutor::ExecuteHealingEffect(AActor* User, AActor* Target, UItemData
 	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire healed %s for %d"),
-		*Target->GetName(), OutResult.HealingDone);
+		   *Target->GetName(), OutResult.HealingDone);
 }
 
-void UItemExecutor::ExecuteEnergyRestoreEffect(AActor* User, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Citrine - Lightning energy with self-damage cost
-	UCharacterDataComponent* UserComp = GetCharacterDataComponent(User);
+	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
 	if (!UserComp)
 	{
 		OutResult.ErrorMessage = TEXT("User has no character data");
@@ -214,13 +215,13 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor* User, UItemData* Item, FI
 	OutResult.EnergyRestored = UserComp->CurrentEP - EPBefore;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Citrine: %s gained %d energy, took %d self-damage"),
-		*User->GetName(), OutResult.EnergyRestored, OutResult.SelfDamageTaken);
+		   *User->GetName(), OutResult.EnergyRestored, OutResult.SelfDamageTaken);
 }
 
-void UItemExecutor::ExecuteSpeedBuffEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Emerald - Wind speed buff
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
@@ -242,13 +243,13 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor* User, AActor* Target, UItemDa
 	OutResult.BuffsApplied++;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: Applied %.0f%% speed buff for %d turns"),
-		BuffPercent, Duration);
+		   BuffPercent, Duration);
 }
 
-void UItemExecutor::ExecuteDefenseBuffEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Amber - Earth defense buff
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
@@ -270,13 +271,13 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor* User, AActor* Target, UItem
 	OutResult.BuffsApplied++;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amber: Applied %.0f%% defense buff for %d turns"),
-		BuffPercent, Duration);
+		   BuffPercent, Duration);
 }
 
-void UItemExecutor::ExecuteCritBuffEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Opal - Light crit buff (+ S-tier reveals enemy stats)
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
@@ -302,18 +303,18 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor* User, AActor* Target, UItemDat
 	{
 		// TODO: Broadcast reveal event for UI to show enemy HP/stats
 		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal S-tier: Revealing enemy info (HP: %s, Stats: %s)"),
-			Item->GetRevealsHP() ? TEXT("Yes") : TEXT("No"),
-			Item->GetRevealsStats() ? TEXT("Yes") : TEXT("No"));
+			   Item->GetRevealsHP() ? TEXT("Yes") : TEXT("No"),
+			   Item->GetRevealsStats() ? TEXT("Yes") : TEXT("No"));
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Applied %.0f%% crit buff for %d turns"),
-		BuffPercent, Duration);
+		   BuffPercent, Duration);
 }
 
-void UItemExecutor::ExecuteSilenceEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Onyx - Darkness silence (prevents spell casting)
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
@@ -328,7 +329,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor* User, AActor* Target, UItemData
 		FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
 		EAbilityEffectType::EnergyDrain, // TODO: Add proper Silence type
-		1.0f, // Binary effect
+		1.0f,							 // Binary effect
 		Duration);
 	Silence.Element = Item->GetAssociatedElement();
 
@@ -336,13 +337,13 @@ void UItemExecutor::ExecuteSilenceEffect(AActor* User, AActor* Target, UItemData
 	OutResult.BuffsApplied++; // Counts as applied effect
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx: Applied silence for %d turns to %s"),
-		Duration, *Target->GetName());
+		   Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteGambleEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Amethyst - Void gamble (random buff or debuff)
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
@@ -360,15 +361,13 @@ void UItemExecutor::ExecuteGambleEffect(AActor* User, AActor* Target, UItemData*
 		EAbilityEffectType::DamageBuff,
 		EAbilityEffectType::DefenseBuff,
 		EAbilityEffectType::SpeedBuff,
-		EAbilityEffectType::CritChanceBuff
-	};
+		EAbilityEffectType::CritChanceBuff};
 
 	TArray<EAbilityEffectType> DebuffTypes = {
 		EAbilityEffectType::DamageDebuff,
 		EAbilityEffectType::DefenseDebuff,
 		EAbilityEffectType::SpeedDebuff,
-		EAbilityEffectType::CritChanceDebuff
-	};
+		EAbilityEffectType::CritChanceDebuff};
 
 	EAbilityEffectType ChosenType;
 	if (bIsPositive)
@@ -388,14 +387,14 @@ void UItemExecutor::ExecuteGambleEffect(AActor* User, AActor* Target, UItemData*
 	// CreateBuff works for both - EffectType determines if it's buff or debuff
 	FStatusEffect GambleEffect = FStatusEffect::CreateBuff(
 		TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration);
-	GambleEffect.Element = ERefractionElement::Void;
+	GambleEffect.Element = ESpellElement::Void;
 
 	// Apply to user (gamble affects self)
 	StatusManager->ApplyEffect(User, GambleEffect, User, Item->GetFullItemName(), -1);
 
 	OutResult.GambleOutcome = FString::Printf(TEXT("%s %.0f%% for %d turns"),
-		bIsPositive ? TEXT("Won") : TEXT("Lost"),
-		Magnitude, Duration);
+											  bIsPositive ? TEXT("Won") : TEXT("Lost"),
+											  Magnitude, Duration);
 
 	// Broadcast gamble result
 	OnGambleResult.Broadcast(User, bIsPositive, OutResult.GambleOutcome);
@@ -403,10 +402,10 @@ void UItemExecutor::ExecuteGambleEffect(AActor* User, AActor* Target, UItemData*
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amethyst gamble: %s"), *OutResult.GambleOutcome);
 }
 
-void UItemExecutor::ExecuteCleanseEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Iolite - Reality cleanse (tiered removal + immunity)
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
@@ -430,9 +429,10 @@ void UItemExecutor::ExecuteCleanseEffect(AActor* User, AActor* Target, UItemData
 		TArray<FStatusEffect> Debuffs = StatusManager->GetActiveEffects(Target);
 		int32 Removed = 0;
 
-		for (const FStatusEffect& Effect : Debuffs)
+		for (const FStatusEffect &Effect : Debuffs)
 		{
-			if (Removed >= DebuffsToRemove) break;
+			if (Removed >= DebuffsToRemove)
+				break;
 
 			if (!Effect.IsBuff())
 			{
@@ -455,17 +455,17 @@ void UItemExecutor::ExecuteCleanseEffect(AActor* User, AActor* Target, UItemData
 			EAbilityEffectType::ResistanceBuff, // 100% = immunity
 			100.0f,
 			ImmunityDuration);
-		Immunity.Element = ERefractionElement::Reality;
+		Immunity.Element = ESpellElement::Reality;
 
 		StatusManager->ApplyEffect(Target, Immunity, User, Item->GetFullItemName(), -1);
 		OutResult.BuffsApplied++;
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Iolite: Removed %d debuffs, immunity: %s"),
-		OutResult.DebuffsRemoved, bGrantsImmunity ? TEXT("Yes") : TEXT("No"));
+		   OutResult.DebuffsRemoved, bGrantsImmunity ? TEXT("Yes") : TEXT("No"));
 }
 
-void UItemExecutor::ExecuteTransformEffect(AActor* User, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ExecuteTransformEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Quartz - Transform (activates if threshold met)
 	if (!CanQuartzTransform(User))
@@ -475,14 +475,14 @@ void UItemExecutor::ExecuteTransformEffect(AActor* User, UItemData* Item, FItemU
 		return;
 	}
 
-	ERefractionElement NewElement = TransformQuartz(User);
-	if (NewElement != ERefractionElement::Generic)
+	ESpellElement NewElement = TransformQuartz(User);
+	if (NewElement != ESpellElement::Generic)
 	{
 		OutResult.bQuartzTransformed = true;
 		OutResult.QuartzNewElement = NewElement;
 
 		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Quartz transformed into %s element!"),
-			*UEnum::GetValueAsString(NewElement));
+			   *UEnum::GetValueAsString(NewElement));
 	}
 }
 
@@ -490,21 +490,21 @@ void UItemExecutor::ExecuteTransformEffect(AActor* User, UItemData* Item, FItemU
 // BONUS HANDLERS
 // ========================================
 
-void UItemExecutor::ApplyGenericBonus(AActor* User, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Generic characters gain elemental resistance from items
 	if (!IsGenericCharacter(User))
 		return;
 
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 		return;
 
 	float Resistance = Item->GetGenericResistanceBonus();
 	int32 Duration = Item->GetGenericResistanceDuration();
-	ERefractionElement Element = Item->GetAssociatedElement();
+	ESpellElement Element = Item->GetAssociatedElement();
 
-	if (Resistance <= 0 || Element == ERefractionElement::Generic)
+	if (Resistance <= 0 || Element == ESpellElement::Generic)
 		return;
 
 	// Apply resistance buff (element-specific via Element field)
@@ -520,16 +520,16 @@ void UItemExecutor::ApplyGenericBonus(AActor* User, UItemData* Item, FItemUseRes
 	OutResult.GenericResistanceApplied = FMath::RoundToInt(Resistance);
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Generic bonus: +%.0f%% %s resistance for %d turns"),
-		Resistance, *UEnum::GetValueAsString(Element), Duration);
+		   Resistance, *UEnum::GetValueAsString(Element), Duration);
 }
 
-void UItemExecutor::ApplyBrokenDarknessBonus(AActor* User, UItemData* Item, FItemUseResult& OutResult)
+void UItemExecutor::ApplyBrokenDarknessBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Broken Darkness characters gain bonus energy from ALL items
 	if (!IsBrokenDarknessCharacter(User))
 		return;
 
-	UCharacterDataComponent* UserComp = GetCharacterDataComponent(User);
+	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
 	if (!UserComp)
 		return;
 
@@ -542,16 +542,16 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor* User, UItemData* Item, FIte
 	OutResult.BrokenDarknessEnergyGained = UserComp->CurrentEP - EPBefore;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Broken Darkness bonus: +%d energy"),
-		OutResult.BrokenDarknessEnergyGained);
+		   OutResult.BrokenDarknessEnergyGained);
 }
 
-void UItemExecutor::ApplySecondaryEffect(AActor* Target, UItemData* Item, AActor* Source, FItemUseResult& OutResult)
+void UItemExecutor::ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult)
 {
 	// S-tier secondary effects (burn DOT for Garnet)
 	if (!Item->HasSecondaryEffect())
 		return;
 
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 		return;
 
@@ -561,7 +561,7 @@ void UItemExecutor::ApplySecondaryEffect(AActor* Target, UItemData* Item, AActor
 	if (DamagePerTurn <= 0 || Duration <= 0)
 		return;
 
-	ERefractionElement ItemElement = Item->GetAssociatedElement();
+	ESpellElement ItemElement = Item->GetAssociatedElement();
 	FStatusEffect DOT = FStatusEffect::CreateDOT(
 		FString::Printf(TEXT("%s Burn"), *Item->GetFullItemName()),
 		Item->GetUniqueID() + 2000,
@@ -573,14 +573,14 @@ void UItemExecutor::ApplySecondaryEffect(AActor* Target, UItemData* Item, AActor
 	OutResult.bAppliedSecondaryEffect = true;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Secondary effect: %d damage/turn for %d turns"),
-		DamagePerTurn, Duration);
+		   DamagePerTurn, Duration);
 }
 
 // ========================================
 // QUARTZ SYSTEM
 // ========================================
 
-void UItemExecutor::RegisterQuartz(AActor* Owner, UItemData* QuartzItem)
+void UItemExecutor::RegisterQuartz(AActor *Owner, UItemData *QuartzItem)
 {
 	if (!Owner || !QuartzItem)
 		return;
@@ -598,64 +598,64 @@ void UItemExecutor::RegisterQuartz(AActor* Owner, UItemData* QuartzItem)
 	QuartzItems.Add(Owner, QuartzItem);
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Registered Quartz for %s (Threshold: %.0f)"),
-		*Owner->GetName(), State.TransformThreshold);
+		   *Owner->GetName(), State.TransformThreshold);
 }
 
-void UItemExecutor::UnregisterQuartz(AActor* Owner)
+void UItemExecutor::UnregisterQuartz(AActor *Owner)
 {
 	QuartzStates.Remove(Owner);
 	QuartzItems.Remove(Owner);
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Unregistered Quartz for %s"),
-		Owner ? *Owner->GetName() : TEXT("Unknown"));
+		   Owner ? *Owner->GetName() : TEXT("Unknown"));
 }
 
-void UItemExecutor::NotifyQuartzDamage(AActor* Owner, ERefractionElement Element, float Damage)
+void UItemExecutor::NotifyQuartzDamage(AActor *Owner, ESpellElement Element, float Damage)
 {
-	FQuartzAbsorptionState* State = QuartzStates.Find(Owner);
+	FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
 	if (!State || State->bHasTransformed)
 		return;
 
 	State->AbsorbDamage(Element, Damage);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[ItemExecutor] Quartz absorbed %.0f %s damage (Total: %.0f/%.0f)"),
-		Damage, *UEnum::GetValueAsString(Element), State->TotalAbsorbed, State->TransformThreshold);
+		   Damage, *UEnum::GetValueAsString(Element), State->TotalAbsorbed, State->TransformThreshold);
 }
 
-bool UItemExecutor::CanQuartzTransform(AActor* Owner) const
+bool UItemExecutor::CanQuartzTransform(AActor *Owner) const
 {
-	const FQuartzAbsorptionState* State = QuartzStates.Find(Owner);
+	const FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
 	return State && State->CanTransform();
 }
 
-ERefractionElement UItemExecutor::TransformQuartz(AActor* Owner)
+ESpellElement UItemExecutor::TransformQuartz(AActor *Owner)
 {
-	FQuartzAbsorptionState* State = QuartzStates.Find(Owner);
+	FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
 	if (!State || !State->CanTransform())
 	{
-		return ERefractionElement::Generic;
+		return ESpellElement::Generic;
 	}
 
-	ERefractionElement NewElement = State->GetDominantElement();
+	ESpellElement NewElement = State->GetDominantElement();
 	State->bHasTransformed = true;
 	State->TransformedElement = NewElement;
 
 	// Get the Quartz item
-	TWeakObjectPtr<UItemData>* ItemPtr = QuartzItems.Find(Owner);
-	UItemData* Item = ItemPtr ? ItemPtr->Get() : nullptr;
+	TWeakObjectPtr<UItemData> *ItemPtr = QuartzItems.Find(Owner);
+	UItemData *Item = ItemPtr ? ItemPtr->Get() : nullptr;
 
 	// Broadcast transformation
 	OnQuartzTransformed.Broadcast(Owner, NewElement, Item);
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Quartz transformed! Dominant element: %s"),
-		*UEnum::GetValueAsString(NewElement));
+		   *UEnum::GetValueAsString(NewElement));
 
 	return NewElement;
 }
 
-FQuartzAbsorptionState UItemExecutor::GetQuartzState(AActor* Owner) const
+FQuartzAbsorptionState UItemExecutor::GetQuartzState(AActor *Owner) const
 {
-	const FQuartzAbsorptionState* State = QuartzStates.Find(Owner);
+	const FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
 	return State ? *State : FQuartzAbsorptionState();
 }
 
@@ -663,41 +663,42 @@ FQuartzAbsorptionState UItemExecutor::GetQuartzState(AActor* Owner) const
 // HELPERS
 // ========================================
 
-UCharacterDataComponent* UItemExecutor::GetCharacterDataComponent(AActor* Actor) const
+UCharacterDataComponent *UItemExecutor::GetCharacterDataComponent(AActor *Actor) const
 {
-	if (!Actor) return nullptr;
+	if (!Actor)
+		return nullptr;
 	return Actor->FindComponentByClass<UCharacterDataComponent>();
 }
 
-UCharacterData* UItemExecutor::GetCharacterData(AActor* Actor) const
+UCharacterData *UItemExecutor::GetCharacterData(AActor *Actor) const
 {
-	UCharacterDataComponent* Comp = GetCharacterDataComponent(Actor);
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-UStatusEffectManager* UItemExecutor::GetStatusEffectManager() const
+UStatusEffectManager *UItemExecutor::GetStatusEffectManager() const
 {
 	if (!StatusEffectManagerRef)
 	{
-		if (UGameInstance* GI = Cast<UGameInstance>(GetGameInstance()))
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UItemExecutor*>(this)->StatusEffectManagerRef =
+			const_cast<UItemExecutor *>(this)->StatusEffectManagerRef =
 				GI->GetSubsystem<UStatusEffectManager>();
 		}
 	}
 	return StatusEffectManagerRef;
 }
 
-bool UItemExecutor::IsGenericCharacter(AActor* Actor) const
+bool UItemExecutor::IsGenericCharacter(AActor *Actor) const
 {
-	UCharacterData* Data = GetCharacterData(Actor);
-	return Data && Data->InnateElement == ERefractionElement::Generic;
+	UCharacterData *Data = GetCharacterData(Actor);
+	return Data && Data->InnateElement == ESpellElement::Generic;
 }
 
-bool UItemExecutor::IsBrokenDarknessCharacter(AActor* Actor) const
+bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const
 {
-	UCharacterData* Data = GetCharacterData(Actor);
-	return Data && Data->InnateElement == ERefractionElement::BrokenDarkness;
+	UCharacterData *Data = GetCharacterData(Actor);
+	return Data && Data->InnateElement == ESpellElement::BrokenDarkness;
 }
 
 // ========================================
@@ -708,31 +709,31 @@ void UItemExecutor::DebugPrintQuartzStates() const
 {
 	UE_LOG(LogTemp, Display, TEXT("=== QUARTZ ABSORPTION STATES ==="));
 
-	for (const auto& Pair : QuartzStates)
+	for (const auto &Pair : QuartzStates)
 	{
-		AActor* Owner = Pair.Key.Get();
-		const FQuartzAbsorptionState& State = Pair.Value;
+		AActor *Owner = Pair.Key.Get();
+		const FQuartzAbsorptionState &State = Pair.Value;
 
 		UE_LOG(LogTemp, Display, TEXT("Owner: %s"), Owner ? *Owner->GetName() : TEXT("Invalid"));
 		UE_LOG(LogTemp, Display, TEXT("  Total Absorbed: %.0f / %.0f"),
-			State.TotalAbsorbed, State.TransformThreshold);
+			   State.TotalAbsorbed, State.TransformThreshold);
 		UE_LOG(LogTemp, Display, TEXT("  Transformed: %s"), State.bHasTransformed ? TEXT("Yes") : TEXT("No"));
 
 		if (State.bHasTransformed)
 		{
 			UE_LOG(LogTemp, Display, TEXT("  Result Element: %s"),
-				*UEnum::GetValueAsString(State.TransformedElement));
+				   *UEnum::GetValueAsString(State.TransformedElement));
 		}
 		else
 		{
 			UE_LOG(LogTemp, Display, TEXT("  Dominant Element: %s"),
-				*UEnum::GetValueAsString(State.GetDominantElement()));
+				   *UEnum::GetValueAsString(State.GetDominantElement()));
 		}
 
-		for (const auto& ElementPair : State.AbsorbedDamage)
+		for (const auto &ElementPair : State.AbsorbedDamage)
 		{
 			UE_LOG(LogTemp, Display, TEXT("    %s: %.0f"),
-				*UEnum::GetValueAsString(ElementPair.Key), ElementPair.Value);
+				   *UEnum::GetValueAsString(ElementPair.Key), ElementPair.Value);
 		}
 	}
 

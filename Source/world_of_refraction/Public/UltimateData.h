@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "ItemTier.h"
 #include "TargetType.h"
 #include "AbilityEffectType.h"
@@ -39,7 +39,7 @@ public:
     FString UltimateName = TEXT("Unnamed Ultimate");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    ERefractionElement Element = ERefractionElement::Fire;
+    ESpellElement Element = ESpellElement::Fire;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EUltimateType UltimateType = EUltimateType::Damage;

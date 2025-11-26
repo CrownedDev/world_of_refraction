@@ -75,7 +75,7 @@ void AStatusEffectManagerTestActor::RunAllTests()
 	// Final cleanup
 	CleanupTestActors();
 
-	if (UStatusEffectManager* Manager = GetStatusEffectManager())
+	if (UStatusEffectManager *Manager = GetStatusEffectManager())
 	{
 		Manager->ClearAllEffects();
 	}
@@ -89,11 +89,13 @@ void AStatusEffectManagerTestActor::Test_ApplyEffect()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Apply Effect"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!AssertTrue(Manager != nullptr, TEXT("Manager exists"))) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!AssertTrue(Manager != nullptr, TEXT("Manager exists")))
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("ApplyTest"));
-	if (!AssertTrue(TestActor != nullptr, TEXT("Test actor created"))) return;
+	AActor *TestActor = CreateTestActor(TEXT("ApplyTest"));
+	if (!AssertTrue(TestActor != nullptr, TEXT("Test actor created")))
+		return;
 
 	// Create and apply a simple buff
 	FStatusEffect Buff = FStatusEffect::CreateBuff(TEXT("Test Buff"), 1001, EAbilityEffectType::DamageBuff, 10.0f, 3);
@@ -114,11 +116,13 @@ void AStatusEffectManagerTestActor::Test_StackingBehavior()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Stacking Behavior"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("StackTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("StackTest"));
+	if (!TestActor)
+		return;
 
 	// Create stackable effect
 	FStatusEffect StackableBuff;
@@ -160,11 +164,13 @@ void AStatusEffectManagerTestActor::Test_DurationRefresh()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Duration Refresh"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("RefreshTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("RefreshTest"));
+	if (!TestActor)
+		return;
 
 	// Create non-stackable effect with refresh
 	FStatusEffect Buff;
@@ -206,11 +212,13 @@ void AStatusEffectManagerTestActor::Test_RemoveByID()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove By ID"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("RemoveIDTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("RemoveIDTest"));
+	if (!TestActor)
+		return;
 
 	// Apply two different effects
 	FStatusEffect Buff1 = FStatusEffect::CreateBuff(TEXT("Buff 1"), 4001, EAbilityEffectType::DamageBuff, 10.0f, 3);
@@ -239,11 +247,13 @@ void AStatusEffectManagerTestActor::Test_RemoveByType()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove By Type"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("RemoveTypeTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("RemoveTypeTest"));
+	if (!TestActor)
+		return;
 
 	// Apply mixed effects
 	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 1"), 5001, EAbilityEffectType::DamageBuff, 10.0f, 3));
@@ -269,11 +279,13 @@ void AStatusEffectManagerTestActor::Test_RemoveAllBuffs()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove All Buffs"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("RemoveBuffsTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("RemoveBuffsTest"));
+	if (!TestActor)
+		return;
 
 	// Apply buffs and debuffs
 	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 6001, EAbilityEffectType::DamageBuff, 10.0f, 3));
@@ -310,11 +322,13 @@ void AStatusEffectManagerTestActor::Test_RemoveAllDebuffs()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove All Debuffs"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("RemoveDebuffsTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("RemoveDebuffsTest"));
+	if (!TestActor)
+		return;
 
 	// Apply buffs and debuffs
 	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 7001, EAbilityEffectType::DamageBuff, 10.0f, 3));
@@ -356,14 +370,17 @@ void AStatusEffectManagerTestActor::Test_StartOfTurnProcessing()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Start Of Turn Processing"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("StartTurnTest"), 100, 50);  // MaxHP=100
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("StartTurnTest"), 100, 50); // MaxHP=100
+	if (!TestActor)
+		return;
 
-	UCharacterDataComponent* CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
-	if (!CharComp) return;
+	UCharacterDataComponent *CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp)
+		return;
 
 	// Damage first so we have room to heal
 	CharComp->CurrentHP = 50;
@@ -400,11 +417,13 @@ void AStatusEffectManagerTestActor::Test_EndOfTurnProcessing()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] End Of Turn Processing"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("EndTurnTest"), 100, 50);
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("EndTurnTest"), 100, 50);
+	if (!TestActor)
+		return;
 
 	// Apply end-of-turn effect
 	FStatusEffect EnergyDrain;
@@ -417,7 +436,7 @@ void AStatusEffectManagerTestActor::Test_EndOfTurnProcessing()
 
 	Manager->ApplyEffect(TestActor, EnergyDrain);
 
-	UCharacterDataComponent* CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
 	int32 EPBefore = CharComp->CurrentEP;
 
 	// Process end of turn
@@ -443,16 +462,18 @@ void AStatusEffectManagerTestActor::Test_DOTDamage()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] DOT Damage"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("DOTTest"), 100, 50);
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("DOTTest"), 100, 50);
+	if (!TestActor)
+		return;
 
-	UCharacterDataComponent* CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
 
 	// Apply poison DOT
-	FStatusEffect Poison = FStatusEffect::CreateDOT(TEXT("Poison"), 10001, 15.0f, 3, ERefractionElement::Earth);
+	FStatusEffect Poison = FStatusEffect::CreateDOT(TEXT("Poison"), 10001, 15.0f, 3, ESpellElement::Earth);
 
 	Manager->ApplyEffect(TestActor, Poison);
 
@@ -477,11 +498,13 @@ void AStatusEffectManagerTestActor::Test_DurationExpiration()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Duration Expiration"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("ExpirationTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("ExpirationTest"));
+	if (!TestActor)
+		return;
 
 	// Apply 2-turn buff
 	FStatusEffect ShortBuff = FStatusEffect::CreateBuff(TEXT("Short Buff"), 11001, EAbilityEffectType::DamageBuff, 10.0f, 2);
@@ -510,13 +533,15 @@ void AStatusEffectManagerTestActor::Test_ConditionalTrigger()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Conditional Trigger"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("TriggerTest"), 100, 50);
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("TriggerTest"), 100, 50);
+	if (!TestActor)
+		return;
 
-	UCharacterDataComponent* CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
 
 	// Apply HP threshold effect (activates below 30%)
 	FStatusEffect AdrenalineRush;
@@ -557,11 +582,13 @@ void AStatusEffectManagerTestActor::Test_PermanentEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Permanent Effects"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("PermanentTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("PermanentTest"));
+	if (!TestActor)
+		return;
 
 	// Apply permanent effect
 	FStatusEffect Permanent = FStatusEffect::CreatePersistent(TEXT("Equipment Bonus"), 13001, EAbilityEffectType::DamageBuff, 15.0f);
@@ -588,11 +615,13 @@ void AStatusEffectManagerTestActor::Test_StatModifierQuery()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Stat Modifier Query"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("StatQueryTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("StatQueryTest"));
+	if (!TestActor)
+		return;
 
 	// Apply multiple damage buffs
 	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 1"), 14001, EAbilityEffectType::DamageBuff, 10.0f, 3));
@@ -617,12 +646,14 @@ void AStatusEffectManagerTestActor::Test_SourceTracking()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Source Tracking"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* Caster = CreateTestActor(TEXT("Caster"));
-	AActor* Target = CreateTestActor(TEXT("Target"));
-	if (!Caster || !Target) return;
+	AActor *Caster = CreateTestActor(TEXT("Caster"));
+	AActor *Target = CreateTestActor(TEXT("Target"));
+	if (!Caster || !Target)
+		return;
 
 	// Apply effect with source tracking
 	FStatusEffect Curse = FStatusEffect::CreateBuff(TEXT("Curse"), 15001, EAbilityEffectType::DamageDebuff, -20.0f, 3);
@@ -656,15 +687,18 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Multiple Spell Effects (Primary + Secondary)"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* Caster = CreateTestActor(TEXT("SpellCaster"));
-	AActor* Target = CreateTestActor(TEXT("SpellTarget"), 100, 100);
-	if (!Caster || !Target) return;
+	AActor *Caster = CreateTestActor(TEXT("SpellCaster"));
+	AActor *Target = CreateTestActor(TEXT("SpellTarget"), 100, 100);
+	if (!Caster || !Target)
+		return;
 
-	UCharacterDataComponent* CharComp = Target->FindComponentByClass<UCharacterDataComponent>();
-	if (!CharComp) return;
+	UCharacterDataComponent *CharComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp)
+		return;
 
 	// Simulate a spell like "Dehydration" that has:
 	// Primary: EnergyRestore (self - but we'll apply to target for testing)
@@ -673,19 +707,19 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 
 	Manager->ApplySpellEffects(
 		Target,
-		TEXT("Dehydration"),          // SpellName
-		5001,                          // SpellID
-		EAbilityEffectType::EnergyDrain,   // PrimaryType (drain enemy)
-		0.0f,                          // PrimaryMagnitude
-		15,                            // PrimaryValue (15 energy drain)
-		2,                             // PrimaryDuration
-		EAbilityEffectType::SpeedDebuff,   // SecondaryType (slow)
-		0.20f,                         // SecondaryMagnitude (20% slow)
-		0,                             // SecondaryValue
-		3,                             // SecondaryDuration
-		ERefractionElement::Water,     // Element
-		Caster,                        // Source
-		0);                            // SourceTeam
+		TEXT("Dehydration"),			 // SpellName
+		5001,							 // SpellID
+		EAbilityEffectType::EnergyDrain, // PrimaryType (drain enemy)
+		0.0f,							 // PrimaryMagnitude
+		15,								 // PrimaryValue (15 energy drain)
+		2,								 // PrimaryDuration
+		EAbilityEffectType::SpeedDebuff, // SecondaryType (slow)
+		0.20f,							 // SecondaryMagnitude (20% slow)
+		0,								 // SecondaryValue
+		3,								 // SecondaryDuration
+		ESpellElement::Water,			 // Element
+		Caster,							 // Source
+		0);								 // SourceTeam
 
 	bool bPassed = true;
 
@@ -709,7 +743,7 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 
 	// Verify source tracking on both effects
 	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(Target);
-	for (const FStatusEffect& Effect : Effects)
+	for (const FStatusEffect &Effect : Effects)
 	{
 		bPassed &= AssertTrue(Effect.SourceActor == Caster, TEXT("Effect has correct source actor"));
 	}
@@ -723,24 +757,26 @@ void AStatusEffectManagerTestActor::Test_WeaponBonuses()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Weapon Bonuses"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* TestActor = CreateTestActor(TEXT("WeaponBonusTest"));
-	if (!TestActor) return;
+	AActor *TestActor = CreateTestActor(TEXT("WeaponBonusTest"));
+	if (!TestActor)
+		return;
 
 	// Simulate equipping "Iron Sword" with bonuses:
 	// +5 Attack, +2 Speed, +3% Crit Chance
 	Manager->ApplyWeaponBonuses(
 		TestActor,
 		TEXT("Iron Sword"),
-		1001,           // WeaponID
-		5,              // BonusAttack
-		0,              // BonusDefense
-		0,              // BonusMagicPower
-		2,              // BonusSpeed
-		3.0f,           // BonusCritChance
-		0.0f);          // BonusCritDamage
+		1001,  // WeaponID
+		5,	   // BonusAttack
+		0,	   // BonusDefense
+		0,	   // BonusMagicPower
+		2,	   // BonusSpeed
+		3.0f,  // BonusCritChance
+		0.0f); // BonusCritDamage
 
 	bool bPassed = true;
 
@@ -776,15 +812,18 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Physical Damage Effects (Slash/Pierce/Blunt)"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
-	AActor* Attacker = CreateTestActor(TEXT("GenericWarrior"));
-	AActor* Target = CreateTestActor(TEXT("PhysicalTarget"), 100, 50);
-	if (!Attacker || !Target) return;
+	AActor *Attacker = CreateTestActor(TEXT("GenericWarrior"));
+	AActor *Target = CreateTestActor(TEXT("PhysicalTarget"), 100, 50);
+	if (!Attacker || !Target)
+		return;
 
-	UCharacterDataComponent* CharComp = Target->FindComponentByClass<UCharacterDataComponent>();
-	if (!CharComp) return;
+	UCharacterDataComponent *CharComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp)
+		return;
 
 	bool bPassed = true;
 
@@ -792,11 +831,11 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 	Manager->ApplyPhysicalDamageEffect(
 		Target,
 		TEXT("Iron Sword"),
-		2001,           // WeaponID
-		0,              // PhysicalType: 0 = Slash
-		10,             // StatusBuildup
-		1.0f,           // InfusionMultiplier
-		2,              // HitCount (2 hits)
+		2001, // WeaponID
+		0,	  // PhysicalType: 0 = Slash
+		10,	  // StatusBuildup
+		1.0f, // InfusionMultiplier
+		2,	  // HitCount (2 hits)
 		Attacker,
 		0);
 
@@ -808,16 +847,16 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 	bPassed &= AssertTrue(HPAfter < HPBefore, TEXT("Bleed DOT dealt damage"));
 
 	Manager->RemoveAllEffects(Target);
-	CharComp->CurrentHP = 100;  // Reset HP
+	CharComp->CurrentHP = 100; // Reset HP
 
 	// Test 2: Pierce → Armor Break (Defense Debuff)
 	Manager->ApplyPhysicalDamageEffect(
 		Target,
 		TEXT("Rapier"),
 		2002,
-		1,              // PhysicalType: 1 = Pierce
+		1, // PhysicalType: 1 = Pierce
 		15,
-		1.2f,           // Higher multiplier weapon
+		1.2f, // Higher multiplier weapon
 		1,
 		Attacker,
 		0);
@@ -833,7 +872,7 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 		Target,
 		TEXT("Warhammer"),
 		2003,
-		2,              // PhysicalType: 2 = Blunt
+		2, // PhysicalType: 2 = Blunt
 		20,
 		1.0f,
 		1,
@@ -847,7 +886,7 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 	if (Effects.Num() > 0)
 	{
 		bPassed &= AssertTrue(Effects[0].ProcessTiming == EStatusEffectTiming::StartOfOwnTurn,
-			TEXT("Stun processes at start of turn"));
+							  TEXT("Stun processes at start of turn"));
 	}
 
 	LogTestResult(TEXT("Physical Damage Effects (Slash/Pierce/Blunt)"), bPassed);
@@ -859,12 +898,13 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Speed Buff → TurnManager Notification"));
 
-	UStatusEffectManager* Manager = GetStatusEffectManager();
-	if (!Manager) return;
+	UStatusEffectManager *Manager = GetStatusEffectManager();
+	if (!Manager)
+		return;
 
 	// Get TurnManager to verify it exists
-	UTurnManager* TurnManager = nullptr;
-	if (UGameInstance* GI = GetGameInstance())
+	UTurnManager *TurnManager = nullptr;
+	if (UGameInstance *GI = GetGameInstance())
 	{
 		TurnManager = GI->GetSubsystem<UTurnManager>();
 	}
@@ -872,14 +912,15 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	if (!TurnManager)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("    TurnManager not available - skipping integration test"));
-		LogTestResult(TEXT("Speed Buff TurnManager Notification"), true);  // Pass if TurnManager not available
+		LogTestResult(TEXT("Speed Buff TurnManager Notification"), true); // Pass if TurnManager not available
 		return;
 	}
 
 	// Create test actors for combat
-	AActor* FastChar = CreateTestActor(TEXT("FastChar"), 100, 50);
-	AActor* SlowChar = CreateTestActor(TEXT("SlowChar"), 100, 50);
-	if (!FastChar || !SlowChar) return;
+	AActor *FastChar = CreateTestActor(TEXT("FastChar"), 100, 50);
+	AActor *SlowChar = CreateTestActor(TEXT("SlowChar"), 100, 50);
+	if (!FastChar || !SlowChar)
+		return;
 
 	bool bPassed = true;
 
@@ -897,7 +938,7 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 
 	// Verify effect was applied
 	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EAbilityEffectType::SpeedBuff),
-		TEXT("Speed buff applied"));
+						  TEXT("Speed buff applied"));
 
 	// Query the speed modifier
 	float SpeedMod = Manager->GetTotalStatModifier(FastChar, EAbilityEffectType::SpeedBuff);
@@ -943,13 +984,13 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 
 	Manager->ApplyEffect(FastChar, ShortHaste, nullptr, TEXT("Quick Haste"), -1);
 	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EAbilityEffectType::SpeedBuff),
-		TEXT("Short haste applied"));
+						  TEXT("Short haste applied"));
 
 	// Process end of turn - should expire and notify
 	Manager->ProcessEndOfTurnEffects(FastChar);
 
 	bPassed &= AssertTrue(!Manager->HasEffectOfType(FastChar, EAbilityEffectType::SpeedBuff),
-		TEXT("Short haste expired after 1 turn"));
+						  TEXT("Short haste expired after 1 turn"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff expired - TurnManager should have been notified"));
 
@@ -963,9 +1004,9 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 // TEST INFRASTRUCTURE
 // ========================================
 
-UStatusEffectManager* AStatusEffectManagerTestActor::GetStatusEffectManager()
+UStatusEffectManager *AStatusEffectManagerTestActor::GetStatusEffectManager()
 {
-	UGameInstance* GI = GetGameInstance();
+	UGameInstance *GI = GetGameInstance();
 	if (!GI)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[StatusEffectTest] No GameInstance"));
@@ -975,18 +1016,18 @@ UStatusEffectManager* AStatusEffectManagerTestActor::GetStatusEffectManager()
 	return GI->GetSubsystem<UStatusEffectManager>();
 }
 
-AActor* AStatusEffectManagerTestActor::CreateTestActor(const FString& Name, int32 HP, int32 EP)
+AActor *AStatusEffectManagerTestActor::CreateTestActor(const FString &Name, int32 HP, int32 EP)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = FName(*FString::Printf(TEXT("%s_%d"), *Name, TestActorCounter++));
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	SpawnParams.Owner = this;  // Give spawned actors authority via ownership
+	SpawnParams.Owner = this; // Give spawned actors authority via ownership
 
-	AActor* TestActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
+	AActor *TestActor = GetWorld()->SpawnActor<AActor>(AActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, SpawnParams);
 
 	if (TestActor)
 	{
-		UCharacterDataComponent* CharComp = NewObject<UCharacterDataComponent>(TestActor);
+		UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(TestActor);
 		// Note: CharacterName comes from CharacterData template, not needed for tests
 		CharComp->MaxHP = HP;
 		CharComp->CurrentHP = HP;
@@ -1004,7 +1045,7 @@ AActor* AStatusEffectManagerTestActor::CreateTestActor(const FString& Name, int3
 
 void AStatusEffectManagerTestActor::CleanupTestActors()
 {
-	for (AActor* Actor : SpawnedTestActors)
+	for (AActor *Actor : SpawnedTestActors)
 	{
 		if (Actor && IsValid(Actor))
 		{
@@ -1014,7 +1055,7 @@ void AStatusEffectManagerTestActor::CleanupTestActors()
 	SpawnedTestActors.Empty();
 }
 
-void AStatusEffectManagerTestActor::LogTestResult(const FString& TestName, bool bPassed, const FString& Details)
+void AStatusEffectManagerTestActor::LogTestResult(const FString &TestName, bool bPassed, const FString &Details)
 {
 	if (bPassed)
 	{
@@ -1035,7 +1076,7 @@ void AStatusEffectManagerTestActor::LogTestResult(const FString& TestName, bool 
 	}
 }
 
-bool AStatusEffectManagerTestActor::AssertTrue(bool Condition, const FString& Message)
+bool AStatusEffectManagerTestActor::AssertTrue(bool Condition, const FString &Message)
 {
 	if (!Condition)
 	{
@@ -1044,7 +1085,7 @@ bool AStatusEffectManagerTestActor::AssertTrue(bool Condition, const FString& Me
 	return Condition;
 }
 
-bool AStatusEffectManagerTestActor::AssertEqual(int32 Expected, int32 Actual, const FString& Message)
+bool AStatusEffectManagerTestActor::AssertEqual(int32 Expected, int32 Actual, const FString &Message)
 {
 	if (Expected != Actual)
 	{
@@ -1054,7 +1095,7 @@ bool AStatusEffectManagerTestActor::AssertEqual(int32 Expected, int32 Actual, co
 	return true;
 }
 
-bool AStatusEffectManagerTestActor::AssertEqualFloat(float Expected, float Actual, const FString& Message, float Tolerance)
+bool AStatusEffectManagerTestActor::AssertEqualFloat(float Expected, float Actual, const FString &Message, float Tolerance)
 {
 	if (FMath::Abs(Expected - Actual) > Tolerance)
 	{

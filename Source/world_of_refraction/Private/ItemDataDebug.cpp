@@ -71,8 +71,8 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
     }
 
     // Check element is valid
-    ERefractionElement Element = Item->GetAssociatedElement();
-    if (Element == ERefractionElement::Generic && Item->CrystalType != ECrystalType::Quartz)
+    ESpellElement Element = Item->GetAssociatedElement();
+    if (Element == ESpellElement::Generic && Item->CrystalType != ECrystalType::Quartz)
     {
         Errors.Add(TEXT("Unexpected Generic element"));
         bValid = false;

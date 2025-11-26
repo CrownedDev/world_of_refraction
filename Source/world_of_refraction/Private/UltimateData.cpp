@@ -8,11 +8,11 @@
 
 FString UUltimateData::GetElementName() const
 {
-    const UEnum *EnumPtr = StaticEnum<ERefractionElement>();
+    const UEnum *EnumPtr = StaticEnum<ESpellElement>();
     if (EnumPtr)
     {
         FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
-        Name.RemoveFromStart(TEXT("ERefractionElement::"));
+        Name.RemoveFromStart(TEXT("ESpellElement::"));
         return Name;
     }
     return TEXT("Unknown");
@@ -80,16 +80,16 @@ bool UUltimateData::MeetsElementRequirement(const UCharacterData *Character) con
     }
 
     // Generic ultimates can be used by anyone
-    if (Element == ERefractionElement::Generic)
+    if (Element == ESpellElement::Generic)
     {
         return true;
     }
 
     // BrokenDarkness characters can use BrokenDarkness, Darkness, and Generic ultimates
-    if (Character->InnateElement == ERefractionElement::BrokenDarkness)
+    if (Character->InnateElement == ESpellElement::BrokenDarkness)
     {
-        return (Element == ERefractionElement::BrokenDarkness ||
-                Element == ERefractionElement::Darkness);
+        return (Element == ESpellElement::BrokenDarkness ||
+                Element == ESpellElement::Darkness);
     }
 
     // All other characters require exact element match

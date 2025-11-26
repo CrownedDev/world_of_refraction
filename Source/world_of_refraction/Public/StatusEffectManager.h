@@ -14,19 +14,19 @@ class UCharacterDataComponent;
 // ========================================
 
 /** Broadcast when an effect is applied to an actor */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectApplied, AActor*, Target, const FStatusEffect&, Effect);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectApplied, AActor *, Target, const FStatusEffect &, Effect);
 
 /** Broadcast when an effect is removed from an actor */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectRemoved, AActor*, Target, const FStatusEffect&, Effect);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectRemoved, AActor *, Target, const FStatusEffect &, Effect);
 
 /** Broadcast when an effect triggers/processes */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectTriggered, AActor*, Target, const FStatusEffect&, Effect);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectTriggered, AActor *, Target, const FStatusEffect &, Effect);
 
 /** Broadcast when effect stacks change */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectStacksChanged, AActor*, Target, const FStatusEffect&, Effect, int32, NewStacks);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectStacksChanged, AActor *, Target, const FStatusEffect &, Effect, int32, NewStacks);
 
 /** Broadcast when an effect's duration changes */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectDurationChanged, AActor*, Target, const FStatusEffect&, Effect, int32, RemainingTurns);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectDurationChanged, AActor *, Target, const FStatusEffect &, Effect, int32, RemainingTurns);
 
 // ========================================
 // ENUMS
@@ -69,7 +69,7 @@ public:
 	// SUBSYSTEM LIFECYCLE
 	// ========================================
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
 	// ========================================
@@ -88,15 +88,15 @@ public:
 	 * @return Result indicating how the effect was handled
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	EEffectApplicationResult ApplyEffect(AActor* Target, FStatusEffect Effect,
-		AActor* Source = nullptr, const FString& SourceAbility = TEXT(""), int32 SourceTeam = -1);
+	EEffectApplicationResult ApplyEffect(AActor *Target, FStatusEffect Effect,
+										 AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
 	/**
 	 * Apply multiple effects at once (for abilities with multiple effects)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	void ApplyEffects(AActor* Target, const TArray<FStatusEffect>& Effects,
-		AActor* Source = nullptr, const FString& SourceAbility = TEXT(""), int32 SourceTeam = -1);
+	void ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
+					  AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
 	/**
 	 * Apply effects from a spell (Primary + Secondary)
@@ -119,8 +119,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
 	void ApplySpellEffects(
-		AActor* Target,
-		const FString& SpellName,
+		AActor *Target,
+		const FString &SpellName,
 		int32 SpellID,
 		EAbilityEffectType PrimaryType,
 		float PrimaryMagnitude,
@@ -130,8 +130,8 @@ public:
 		float SecondaryMagnitude,
 		int32 SecondaryValue,
 		int32 SecondaryDuration,
-		ERefractionElement Element,
-		AActor* Source = nullptr,
+		ESpellElement Element,
+		AActor *Source = nullptr,
 		int32 SourceTeam = -1);
 
 	/**
@@ -140,13 +140,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
 	void ApplyInfusionDOT(
-		AActor* Target,
-		const FString& AbilityName,
+		AActor *Target,
+		const FString &AbilityName,
 		int32 AbilityID,
-		ERefractionElement InfusedElement,
+		ESpellElement InfusedElement,
 		float DOTDamage,
 		int32 Duration,
-		AActor* Source = nullptr,
+		AActor *Source = nullptr,
 		int32 SourceTeam = -1);
 
 	/**
@@ -155,11 +155,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
 	void ApplyEvolutionPassives(
-		AActor* Target,
-		const FString& EvolutionName,
+		AActor *Target,
+		const FString &EvolutionName,
 		int32 EvolutionID,
-		const TArray<EAbilityEffectType>& PassiveTypes,
-		const TArray<float>& PassiveValues);
+		const TArray<EAbilityEffectType> &PassiveTypes,
+		const TArray<float> &PassiveValues);
 
 	// ========================================
 	// WEAPON EFFECT APPLICATION
@@ -171,8 +171,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
 	void ApplyWeaponBonuses(
-		AActor* Target,
-		const FString& WeaponName,
+		AActor *Target,
+		const FString &WeaponName,
 		int32 WeaponID,
 		int32 BonusAttack,
 		int32 BonusDefense,
@@ -185,7 +185,7 @@ public:
 	 * Remove weapon bonuses when weapon is unequipped
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
-	void RemoveWeaponBonuses(AActor* Target, int32 WeaponID);
+	void RemoveWeaponBonuses(AActor *Target, int32 WeaponID);
 
 	/**
 	 * Apply physical damage type status effect (Generic character weapon attacks)
@@ -193,14 +193,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
 	void ApplyPhysicalDamageEffect(
-		AActor* Target,
-		const FString& WeaponName,
+		AActor *Target,
+		const FString &WeaponName,
 		int32 WeaponID,
 		uint8 PhysicalType,
 		int32 StatusBuildup,
 		float InfusionMultiplier,
 		int32 HitCount,
-		AActor* Source = nullptr,
+		AActor *Source = nullptr,
 		int32 SourceTeam = -1);
 
 	/**
@@ -208,15 +208,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
 	void ApplyWeaponInfusionDOT(
-		AActor* Target,
-		const FString& AbilityName,
-		const FString& WeaponName,
+		AActor *Target,
+		const FString &AbilityName,
+		const FString &WeaponName,
 		int32 AbilityID,
-		ERefractionElement InfusedElement,
+		ESpellElement InfusedElement,
 		float BaseDOTDamage,
 		int32 Duration,
 		float WeaponInfusionMultiplier,
-		AActor* Source = nullptr,
+		AActor *Source = nullptr,
 		int32 SourceTeam = -1);
 
 	// ========================================
@@ -225,31 +225,31 @@ public:
 
 	/** Remove a specific effect by ID */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	bool RemoveEffectByID(AActor* Target, int32 EffectID);
+	bool RemoveEffectByID(AActor *Target, int32 EffectID);
 
 	/** Remove all effects with a specific name */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveEffectsByName(AActor* Target, const FString& EffectName);
+	int32 RemoveEffectsByName(AActor *Target, const FString &EffectName);
 
 	/** Remove all effects of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveEffectsByType(AActor* Target, EAbilityEffectType EffectType);
+	int32 RemoveEffectsByType(AActor *Target, EAbilityEffectType EffectType);
 
 	/** Remove all buffs from target */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveAllBuffs(AActor* Target);
+	int32 RemoveAllBuffs(AActor *Target);
 
 	/** Remove all debuffs from target */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveAllDebuffs(AActor* Target);
+	int32 RemoveAllDebuffs(AActor *Target);
 
 	/** Remove all DOTs from target */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveAllDOTs(AActor* Target);
+	int32 RemoveAllDOTs(AActor *Target);
 
 	/** Remove ALL effects from target (cleanse, death, combat end) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	void RemoveAllEffects(AActor* Target);
+	void RemoveAllEffects(AActor *Target);
 
 	/** Remove all effects from ALL actors (combat end cleanup) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
@@ -257,7 +257,7 @@ public:
 
 	/** Remove effects applied by a specific source (when source dies, etc.) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveEffectsBySource(AActor* Source);
+	int32 RemoveEffectsBySource(AActor *Source);
 
 	// ========================================
 	// TURN PROCESSING (Called by CombatOrchestrator)
@@ -270,7 +270,7 @@ public:
 	 * @param Actor The actor whose turn is starting
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Turn Processing")
-	void ProcessStartOfTurnEffects(AActor* Actor);
+	void ProcessStartOfTurnEffects(AActor *Actor);
 
 	/**
 	 * Process all end-of-turn effects for an actor
@@ -279,7 +279,7 @@ public:
 	 * @param Actor The actor whose turn is ending
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Turn Processing")
-	void ProcessEndOfTurnEffects(AActor* Actor);
+	void ProcessEndOfTurnEffects(AActor *Actor);
 
 	/**
 	 * Process conditional trigger effects
@@ -290,7 +290,7 @@ public:
 	 * @param TriggerValue Optional value for threshold checks (HP%, etc.)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Turn Processing")
-	void ProcessTriggerEffects(AActor* Actor, EPassiveTrigger Trigger, float TriggerValue = 0.0f);
+	void ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue = 0.0f);
 
 	// ========================================
 	// QUERIES
@@ -298,35 +298,35 @@ public:
 
 	/** Get all active effects on an actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	TArray<FStatusEffect> GetActiveEffects(AActor* Actor) const;
+	TArray<FStatusEffect> GetActiveEffects(AActor *Actor) const;
 
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	TArray<FStatusEffect> GetEffectsByType(AActor* Actor, EAbilityEffectType EffectType) const;
+	TArray<FStatusEffect> GetEffectsByType(AActor *Actor, EAbilityEffectType EffectType) const;
 
 	/** Check if actor has a specific effect by ID */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	bool HasEffectByID(AActor* Actor, int32 EffectID) const;
+	bool HasEffectByID(AActor *Actor, int32 EffectID) const;
 
 	/** Check if actor has any effect of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	bool HasEffectOfType(AActor* Actor, EAbilityEffectType EffectType) const;
+	bool HasEffectOfType(AActor *Actor, EAbilityEffectType EffectType) const;
 
 	/** Get total stat modifier from all effects of a category */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	float GetTotalStatModifier(AActor* Actor, EAbilityEffectType ModifierType) const;
+	float GetTotalStatModifier(AActor *Actor, EAbilityEffectType ModifierType) const;
 
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	int32 GetEffectCount(AActor* Actor) const;
+	int32 GetEffectCount(AActor *Actor) const;
 
 	/** Count buffs on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	int32 GetBuffCount(AActor* Actor) const;
+	int32 GetBuffCount(AActor *Actor) const;
 
 	/** Count debuffs on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	int32 GetDebuffCount(AActor* Actor) const;
+	int32 GetDebuffCount(AActor *Actor) const;
 
 	// ========================================
 	// STATUS CHECKS (Common Gameplay Queries)
@@ -334,23 +334,23 @@ public:
 
 	/** Check if actor is stunned (cannot act) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool IsStunned(AActor* Actor) const;
+	bool IsStunned(AActor *Actor) const;
 
 	/** Check if actor is silenced (cannot cast spells) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool IsSilenced(AActor* Actor) const;
+	bool IsSilenced(AActor *Actor) const;
 
 	/** Check if actor is rooted (cannot move/dodge) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool IsRooted(AActor* Actor) const;
+	bool IsRooted(AActor *Actor) const;
 
 	/** Check if actor has any DOT effects */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool HasActiveDOT(AActor* Actor) const;
+	bool HasActiveDOT(AActor *Actor) const;
 
 	/** Check if actor is immune to a specific effect type */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool IsImmuneToEffectType(AActor* Actor, EAbilityEffectType EffectType) const;
+	bool IsImmuneToEffectType(AActor *Actor, EAbilityEffectType EffectType) const;
 
 	// ========================================
 	// EVENTS
@@ -382,7 +382,7 @@ public:
 
 	/** Print all active effects for an actor to log */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug", CallInEditor)
-	void DebugPrintEffects(AActor* Actor) const;
+	void DebugPrintEffects(AActor *Actor) const;
 
 	/** Print all effects for all tracked actors */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug", CallInEditor)
@@ -390,7 +390,7 @@ public:
 
 	/** Get formatted string of all effects on actor (for UI) */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug")
-	FString GetEffectsSummary(AActor* Actor) const;
+	FString GetEffectsSummary(AActor *Actor) const;
 
 private:
 	// ========================================
@@ -411,32 +411,32 @@ private:
 	// ========================================
 
 	/** Process effects with a specific timing */
-	void ProcessEffectsWithTiming(AActor* Actor, EStatusEffectTiming Timing);
+	void ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing);
 
 	/** Tick durations for actor's effects (called at end of turn) */
-	void TickDurations(AActor* Actor);
+	void TickDurations(AActor *Actor);
 
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
-	void ApplyEffectLogic(AActor* Actor, FStatusEffect& Effect);
+	void ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect);
 
 	/** Check if a trigger condition is met */
-	bool IsTriggerConditionMet(AActor* Actor, const FStatusEffect& Effect, float TriggerValue = 0.0f) const;
+	bool IsTriggerConditionMet(AActor *Actor, const FStatusEffect &Effect, float TriggerValue = 0.0f) const;
 
 	/** Find existing effect by ID on actor */
-	FStatusEffect* FindEffectByID(AActor* Actor, int32 EffectID);
+	FStatusEffect *FindEffectByID(AActor *Actor, int32 EffectID);
 
 	/** Get CharacterDataComponent from actor */
-	UCharacterDataComponent* GetCharacterDataComponent(AActor* Actor) const;
+	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
 
 	/** Clean up null actor references */
 	void CleanupInvalidActors();
 
 	/** Reset turn flags for all effects on actor */
-	void ResetTurnFlags(AActor* Actor);
+	void ResetTurnFlags(AActor *Actor);
 
 	/** Check if effect type affects speed (requires TurnManager notification) */
 	bool IsSpeedEffect(EAbilityEffectType EffectType) const;
 
 	/** Notify TurnManager that an actor's speed has changed */
-	void NotifySpeedChanged(AActor* Actor);
+	void NotifySpeedChanged(AActor *Actor);
 };

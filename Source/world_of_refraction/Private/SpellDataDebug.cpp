@@ -59,13 +59,13 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     {
         // Show caster's element for universal spells
         ElementName = UEnum::GetValueAsString(Character->InnateElement);
-        ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
     }
     else
     {
         // Show spell's element for element-specific spells
         ElementName = UEnum::GetValueAsString(Spell->Element);
-        ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
     }
 
     FString SchoolName = UEnum::GetValueAsString(Spell->School);
@@ -80,9 +80,9 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     if (!bCanCast)
     {
         FString CharElementName = UEnum::GetValueAsString(Character->InnateElement);
-        CharElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+        CharElementName.RemoveFromStart(TEXT("ESpellElement::"));
 
-        if (Character->InnateElement == ERefractionElement::Generic)
+        if (Character->InnateElement == ESpellElement::Generic)
         {
             Output += TEXT("❌ CANNOT CAST: Generic element characters cannot cast spells\n");
         }
@@ -103,9 +103,9 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
 
     // Requirements
     Output += TEXT("REQUIREMENTS:\n");
-    if (Spell ->Requirements.HasRequirements())
+    if (Spell->Requirements.HasRequirements())
     {
-        Output += Spell ->Requirements.GetRequirementsSummary(Character);
+        Output += Spell->Requirements.GetRequirementsSummary(Character);
     }
     else
     {

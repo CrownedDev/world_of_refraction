@@ -6,7 +6,7 @@
 #include "EStatModifierMode.h"
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "EEvolutionType.h"
 #include "PassiveEffect.h"
 
@@ -37,7 +37,7 @@ public:
     FString EvolutionName = TEXT("Unnamed Evolution");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    ERefractionElement Element = ERefractionElement::Fire;
+    ESpellElement Element = ESpellElement::Fire;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EEvolutionType EvolutionType = EEvolutionType::Balanced;
@@ -237,7 +237,7 @@ public:
     UUltimateData *GetEvolutionUltimate() const { return bOverridesUltimate ? EvolutionUltimate : nullptr; }
 
 #if WITH_EDITOR
-    virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+    virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 #endif
 };

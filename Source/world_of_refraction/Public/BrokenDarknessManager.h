@@ -5,19 +5,19 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "BrokenDarknessManager.generated.h"
 
 class USpellData;
 class UCharacterData;
 
 // Delegates
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBrokenDarknessTransformed, AActor*, Actor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEnergyAbsorbed, AActor*, Actor, float, AmountAbsorbed, ERefractionElement, AbsorbedElement);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBrokenDarknessTransformed, AActor *, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEnergyAbsorbed, AActor *, Actor, float, AmountAbsorbed, ESpellElement, AbsorbedElement);
 
 /**
  * BrokenDarkness Manager Component
- * 
+ *
  * Handles the special Caster variant that:
  * - Transforms permanently when casting certain Darkness spells
  * - Uses absorption energy (from parry/block) instead of normal regen
@@ -66,21 +66,21 @@ public:
 
 	/** Elements absorbed this combat (for hybrid spells) */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Elements")
-	TArray<ERefractionElement> AbsorbedElements;
+	TArray<ESpellElement> AbsorbedElements;
 
 	/** Last element absorbed (used for hybrid spell element) */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Elements")
-	ERefractionElement LastAbsorbedElement = ERefractionElement::Generic;
+	ESpellElement LastAbsorbedElement = ESpellElement::Generic;
 
 	// ==================== TRANSFORMATION ====================
 
 	/** Check if a spell can trigger corruption */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness")
-	bool CanSpellCorrupt(USpellData* Spell) const;
+	bool CanSpellCorrupt(USpellData *Spell) const;
 
 	/** Process spell cast for corruption chance */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
-	void ProcessSpellCast(USpellData* Spell);
+	void ProcessSpellCast(USpellData *Spell);
 
 	/** Add corruption buildup */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
@@ -98,11 +98,11 @@ public:
 
 	/** Called when successfully parrying an elemental attack */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
-	void OnSuccessfulParry(float DamageBlocked, ERefractionElement DamageElement);
+	void OnSuccessfulParry(float DamageBlocked, ESpellElement DamageElement);
 
 	/** Called when successfully blocking an elemental attack */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
-	void OnSuccessfulBlock(float DamageBlocked, ERefractionElement DamageElement);
+	void OnSuccessfulBlock(float DamageBlocked, ESpellElement DamageElement);
 
 	/** Get current absorption energy */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Absorption")
@@ -120,15 +120,15 @@ public:
 
 	/** Has absorbed this element? */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
-	bool HasAbsorbedElement(ERefractionElement Element) const;
+	bool HasAbsorbedElement(ESpellElement Element) const;
 
 	/** Can cast hybrid spell with this element? */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
-	bool CanCastHybridSpell(ERefractionElement SecondaryElement) const;
+	bool CanCastHybridSpell(ESpellElement SecondaryElement) const;
 
 	/** Get hybrid element (Darkness + last absorbed) */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
-	ERefractionElement GetHybridElement() const { return LastAbsorbedElement; }
+	ESpellElement GetHybridElement() const { return LastAbsorbedElement; }
 
 	// ==================== DELEGATES ====================
 
@@ -143,5 +143,5 @@ private:
 	void AddAbsorptionEnergy(float Amount);
 
 	/** Record absorbed element */
-	void RecordAbsorbedElement(ERefractionElement Element);
+	void RecordAbsorbedElement(ESpellElement Element);
 };

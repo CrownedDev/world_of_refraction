@@ -7,7 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "ECrystalSlotType.h"
 #include "ItemTier.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -67,35 +67,35 @@ public:
 	// ==================== ELEMENT ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Element",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
-	ERefractionElement Element = ERefractionElement::Fire;
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
+	ESpellElement Element = ESpellElement::Fire;
 
 	// ==================== ILODITE ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ilodite",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides,
-			ClampMin = "1.0", ClampMax = "2.0"))
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides,
+					  ClampMin = "1.0", ClampMax = "2.0"))
 	float EnhancementMultiplier = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ilodite",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides, ClampMin = "0"))
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides, ClampMin = "0"))
 	int32 BonusDamage = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ilodite",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides, ClampMin = "0"))
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Ilodite", EditConditionHides, ClampMin = "0"))
 	int32 BonusStatusBuildup = 0;
 
 	// ==================== QUARTZ ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Quartz",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Quartz", EditConditionHides, ClampMin = "100"))
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Quartz", EditConditionHides, ClampMin = "100"))
 	float AbsorptionThreshold = 500.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz|Runtime")
 	float CurrentAbsorption = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz|Runtime")
-	ERefractionElement AbsorbedElement = ERefractionElement::Generic;
+	ESpellElement AbsorbedElement = ESpellElement::Generic;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz|Runtime")
 	bool bHasTransformed = false;
@@ -103,15 +103,15 @@ public:
 	// ==================== EVOLUTION ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
-	TArray<USpellData*> EvolutionSpells;
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
+	TArray<USpellData *> EvolutionSpells;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
-	TArray<UAbilityData*> EvolutionAbilities;
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
+	TArray<UAbilityData *> EvolutionAbilities;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
-		meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
+			  meta = (EditCondition = "CrystalType == ECrystalSlotType::Evolution", EditConditionHides))
 	FCrystalStatModifiers StatBonuses;
 
 	// ==================== HELPERS ====================
@@ -120,9 +120,10 @@ public:
 	FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
 	UFUNCTION(BlueprintCallable, Category = "Crystal|Quartz")
-	void AddAbsorption(float DamageAbsorbed, ERefractionElement DamageElement)
+	void AddAbsorption(float DamageAbsorbed, ESpellElement DamageElement)
 	{
-		if (CrystalType != ECrystalSlotType::Quartz || bHasTransformed) return;
+		if (CrystalType != ECrystalSlotType::Quartz || bHasTransformed)
+			return;
 		CurrentAbsorption += DamageAbsorbed;
 		AbsorbedElement = DamageElement;
 	}
@@ -130,21 +131,23 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Crystal|Quartz")
 	bool HasReachedThreshold() const
 	{
-		return CrystalType == ECrystalSlotType::Quartz && 
+		return CrystalType == ECrystalSlotType::Quartz &&
 			   CurrentAbsorption >= AbsorptionThreshold && !bHasTransformed;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Crystal|Quartz")
 	float GetAbsorptionProgress() const
 	{
-		if (CrystalType != ECrystalSlotType::Quartz || AbsorptionThreshold <= 0.0f) return 0.0f;
+		if (CrystalType != ECrystalSlotType::Quartz || AbsorptionThreshold <= 0.0f)
+			return 0.0f;
 		return FMath::Clamp(CurrentAbsorption / AbsorptionThreshold, 0.0f, 1.0f);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Crystal|Quartz")
 	void TriggerTransformation()
 	{
-		if (CrystalType != ECrystalSlotType::Quartz) return;
+		if (CrystalType != ECrystalSlotType::Quartz)
+			return;
 		bHasTransformed = true;
 		Element = AbsorbedElement;
 	}
@@ -156,7 +159,7 @@ public:
 	}
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override
+	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override
 	{
 		EDataValidationResult Result = Super::IsDataValid(Context);
 
@@ -178,7 +181,7 @@ public:
 		case ECrystalSlotType::Evolution:
 			if (EvolutionSpells.Num() == 0 && EvolutionAbilities.Num() == 0 && !StatBonuses.HasModifiers())
 				Context.AddWarning(FText::FromString(TEXT("Evolution crystal provides no spells, abilities, or stats")));
-			if (Element == ERefractionElement::Generic)
+			if (Element == ESpellElement::Generic)
 				Context.AddWarning(FText::FromString(TEXT("Evolution crystal should have a specific element")));
 			break;
 

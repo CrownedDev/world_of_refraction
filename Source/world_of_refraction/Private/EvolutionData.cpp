@@ -10,11 +10,11 @@
 
 FString UEvolutionData::GetElementName() const
 {
-    const UEnum *EnumPtr = StaticEnum<ERefractionElement>();
+    const UEnum *EnumPtr = StaticEnum<ESpellElement>();
     if (EnumPtr)
     {
         FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
-        Name.RemoveFromStart(TEXT("ERefractionElement::"));
+        Name.RemoveFromStart(TEXT("ESpellElement::"));
         return Name;
     }
     return TEXT("Unknown");
@@ -100,16 +100,16 @@ bool UEvolutionData::MeetsElementRequirement(const UCharacterData *Character) co
     }
 
     // Generic characters CANNOT evolve
-    if (Character->InnateElement == ERefractionElement::Generic)
+    if (Character->InnateElement == ESpellElement::Generic)
     {
         return false;
     }
 
     // BrokenDarkness can use BrokenDarkness or Darkness evolutions
-    if (Character->InnateElement == ERefractionElement::BrokenDarkness)
+    if (Character->InnateElement == ESpellElement::BrokenDarkness)
     {
-        return (Element == ERefractionElement::BrokenDarkness ||
-                Element == ERefractionElement::Darkness);
+        return (Element == ESpellElement::BrokenDarkness ||
+                Element == ESpellElement::Darkness);
     }
 
     // All other characters require exact element match
@@ -231,7 +231,7 @@ TArray<FPassiveEffect> UEvolutionData::GetTriggeredPassives() const
 // ==================== VALIDATION ====================
 
 #if WITH_EDITOR
-EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationErrors)
 {
     EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
 
@@ -243,7 +243,7 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationError
     }
 
     // Generic element check
-    if (Element == ERefractionElement::Generic)
+    if (Element == ESpellElement::Generic)
     {
         ValidationErrors.Add(FText::FromString(TEXT("Evolutions cannot be Generic element")));
         Result = EDataValidationResult::Invalid;
@@ -261,8 +261,8 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationError
     {
         if (ExclusiveSpells[i])
         {
-            ERefractionElement SpellElement = ExclusiveSpells[i]->Element;
-            if (SpellElement != Element && SpellElement != ERefractionElement::Generic)
+            ESpellElement SpellElement = ExclusiveSpells[i]->Element;
+            if (SpellElement != Element && SpellElement != ESpellElement::Generic)
             {
                 ValidationErrors.Add(FText::FromString(FString::Printf(
                     TEXT("Exclusive spell '%s' has wrong element (%s)"),
@@ -283,8 +283,8 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationError
     // Check ultimate element matching
     if (bOverridesUltimate && EvolutionUltimate)
     {
-        ERefractionElement UltElement = EvolutionUltimate->Element;
-        if (UltElement != Element && UltElement != ERefractionElement::Generic)
+        ESpellElement UltElement = EvolutionUltimate->Element;
+        if (UltElement != Element && UltElement != ESpellElement::Generic)
         {
             ValidationErrors.Add(FText::FromString(FString::Printf(
                 TEXT("Evolution ultimate '%s' has wrong element (%s)"),
@@ -297,7 +297,7 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationError
     // Passive validation
     for (int32 i = 0; i < PassiveEffects.Num(); ++i)
     {
-        const FPassiveEffect& Passive = PassiveEffects[i];
+        const FPassiveEffect &Passive = PassiveEffects[i];
 
         if (Passive.PassiveName.IsEmpty() || Passive.PassiveName == TEXT("Unnamed Passive"))
         {
@@ -340,11 +340,11 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText>& ValidationError
     return Result;
 }
 
-void UEvolutionData::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UEvolutionData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
 
-    for (FPassiveEffect& Passive : PassiveEffects)
+    for (FPassiveEffect &Passive : PassiveEffects)
     {
         Passive.RefreshDescription();
     }

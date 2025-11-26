@@ -89,32 +89,32 @@ int32 UItemData::GetTierValue() const
     return static_cast<int32>(Tier);
 }
 
-ERefractionElement UItemData::GetAssociatedElement() const
+ESpellElement UItemData::GetAssociatedElement() const
 {
     switch (CrystalType)
     {
     case ECrystalType::Garnet:
-        return ERefractionElement::Fire;
+        return ESpellElement::Fire;
     case ECrystalType::Sapphire:
-        return ERefractionElement::Water;
+        return ESpellElement::Water;
     case ECrystalType::Citrine:
-        return ERefractionElement::Lightning;
+        return ESpellElement::Lightning;
     case ECrystalType::Emerald:
-        return ERefractionElement::Wind;
+        return ESpellElement::Wind;
     case ECrystalType::Amber:
-        return ERefractionElement::Earth;
+        return ESpellElement::Earth;
     case ECrystalType::Opal:
-        return ERefractionElement::Light;
+        return ESpellElement::Light;
     case ECrystalType::Onyx:
-        return ERefractionElement::Darkness;
+        return ESpellElement::Darkness;
     case ECrystalType::Amethyst:
-        return ERefractionElement::Void;
+        return ESpellElement::Void;
     case ECrystalType::Iolite:
-        return ERefractionElement::Reality;
+        return ESpellElement::Reality;
     case ECrystalType::Quartz:
-        return ERefractionElement::Generic;
+        return ESpellElement::Generic;
     default:
-        return ERefractionElement::Generic;
+        return ESpellElement::Generic;
     }
 }
 

@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "ItemTier.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -46,7 +46,7 @@ public:
 
 	/** Ring's element - determines spell element and cannot be Generic or BrokenDarkness */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	ERefractionElement Element = ERefractionElement::Fire;
+	ESpellElement Element = ESpellElement::Fire;
 
 	/** Ring tier - affects break chance when casting higher-tier spells */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
@@ -59,11 +59,11 @@ public:
 
 	/** Default spells - always safe to cast (no break risk from tier mismatch) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	TArray<USpellData*> DefaultSpells;
+	TArray<USpellData *> DefaultSpells;
 
 	/** Custom/upgraded spells - may exceed ring tier (break risk) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	TArray<USpellData*> CustomSpells;
+	TArray<USpellData *> CustomSpells;
 
 	/** Maximum spell slots (default + custom combined) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (ClampMin = "1", ClampMax = "12"))
@@ -72,7 +72,7 @@ public:
 	// ==================== CRYSTAL SLOT ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-	UCrystalData* CrystalSlot = nullptr;
+	UCrystalData *CrystalSlot = nullptr;
 
 	// ==================== DURABILITY ====================
 
@@ -88,23 +88,24 @@ public:
 	// ==================== SPELL ACCESS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	TArray<USpellData*> GetAvailableSpells() const
+	TArray<USpellData *> GetAvailableSpells() const
 	{
-		TArray<USpellData*> AllSpells;
+		TArray<USpellData *> AllSpells;
 		AllSpells.Append(DefaultSpells);
 		AllSpells.Append(CustomSpells);
 		return AllSpells;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	bool CanCastSpell(USpellData* Spell) const
+	bool CanCastSpell(USpellData *Spell) const
 	{
-		if (!Spell || bIsBroken) return false;
+		if (!Spell || bIsBroken)
+			return false;
 		return DefaultSpells.Contains(Spell) || CustomSpells.Contains(Spell);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	bool IsCustomSpell(USpellData* Spell) const
+	bool IsCustomSpell(USpellData *Spell) const
 	{
 		return CustomSpells.Contains(Spell);
 	}
@@ -130,18 +131,19 @@ public:
 	// ==================== BREAK SYSTEM ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Break")
-	float CalculateBreakChance(USpellData* Spell, bool bIsInfused) const;
+	float CalculateBreakChance(USpellData *Spell, bool bIsInfused) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Ring|Break")
 	bool RollForBreak(float BreakChance)
 	{
-		if (BreakChance <= 0.0f) return false;
+		if (BreakChance <= 0.0f)
+			return false;
 		if (BreakChance >= 1.0f)
 		{
 			bIsBroken = true;
 			return true;
 		}
-		
+
 		bool bBroke = FMath::FRand() < BreakChance;
 		if (bBroke)
 		{
@@ -168,17 +170,17 @@ public:
 	FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
 #if WITH_EDITOR
-	virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override
+	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override
 	{
 		EDataValidationResult Result = Super::IsDataValid(Context);
 
 		// Element validation
-		if (Element == ERefractionElement::Generic)
+		if (Element == ESpellElement::Generic)
 		{
 			Context.AddError(FText::FromString(TEXT("Ring cannot have Generic element")));
 			Result = EDataValidationResult::Invalid;
 		}
-		if (Element == ERefractionElement::BrokenDarkness)
+		if (Element == ESpellElement::BrokenDarkness)
 		{
 			Context.AddError(FText::FromString(TEXT("Ring cannot have BrokenDarkness element")));
 			Result = EDataValidationResult::Invalid;

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "SpellSchool.h"
 #include "TargetType.h"
 #include "ItemTier.h"
@@ -39,7 +39,7 @@ public:
     FString SpellName = TEXT("Unnamed Spell");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    ERefractionElement Element = ERefractionElement::Fire;
+    ESpellElement Element = ESpellElement::Fire;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellSchool School = ESpellSchool::Destruction;
@@ -193,11 +193,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell")
     FString GetElementName() const
     {
-        const UEnum *EnumPtr = StaticEnum<ERefractionElement>();
+        const UEnum *EnumPtr = StaticEnum<ESpellElement>();
         if (EnumPtr)
         {
             FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
-            Name.RemoveFromStart(TEXT("ERefractionElement::"));
+            Name.RemoveFromStart(TEXT("ESpellElement::"));
             return Name;
         }
         return TEXT("Unknown");

@@ -7,7 +7,7 @@
 #include "ActionStructs.h"
 #include "EActionType.h"
 #include "AbilityEffectType.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -26,38 +26,38 @@ class UWeaponManager;
 // ========================================
 
 /** Broadcast when action execution starts (for animations/VFX) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionStarted, AActor*, Executor, const FAction&, Action, int32, EnergyCost);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionStarted, AActor *, Executor, const FAction &, Action, int32, EnergyCost);
 
 /** Broadcast when action execution completes */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionCompleted, AActor*, Executor, const FActionResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionCompleted, AActor *, Executor, const FActionResult &, Result);
 
 /** Broadcast when damage is dealt (for floating numbers, hit effects) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageDealt, AActor*, Attacker, AActor*, Target, int32, Damage, bool, bCritical);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDamageDealt, AActor *, Attacker, AActor *, Target, int32, Damage, bool, bCritical);
 
 /** Broadcast when healing is done */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHealingDone, AActor*, Healer, AActor*, Target, int32, Amount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHealingDone, AActor *, Healer, AActor *, Target, int32, Amount);
 
 /** Broadcast when a target dies from action */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetKilled, AActor*, Killer, AActor*, Victim);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetKilled, AActor *, Killer, AActor *, Victim);
 
 /** Callback for async action completion */
-DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult&);
+DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
 /** Broadcast when defense window should open (for DefenseSystem integration) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor*, Attacker, AActor*, Defender, float, AttackSize, int32, BaseDamage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor *, Attacker, AActor *, Defender, float, AttackSize, int32, BaseDamage);
 
 /**
  * UActionExecutor
- * 
+ *
  * GameInstanceSubsystem that handles all combat action execution.
  * Validates actions, calculates damage/effects, applies results.
- * 
+ *
  * Usage:
  *   UActionExecutor* Executor = GetGameInstance()->GetSubsystem<UActionExecutor>();
  *   FActionValidationResult Validation = Executor->ValidateAction(Actor, Action);
  *   if (Validation.bIsValid)
  *       FActionResult Result = Executor->ExecuteAction(Actor, Action);
- * 
+ *
  * Integrations:
  *   - StatusEffectManager: Apply status effects, check stun/silence
  *   - CharacterDataComponent: HP/EP changes
@@ -69,7 +69,7 @@ class WORLD_OF_REFRACTION_API UActionExecutor : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
 	// ========================================
@@ -81,19 +81,19 @@ public:
 	 * Checks: energy, cooldowns, requirements, status effects (stun/silence)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	FActionValidationResult ValidateAction(AActor* Actor, const FAction& Action) const;
+	FActionValidationResult ValidateAction(AActor *Actor, const FAction &Action) const;
 
 	/** Check if actor can perform any action (not stunned) */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	bool CanActorAct(AActor* Actor) const;
+	bool CanActorAct(AActor *Actor) const;
 
 	/** Check if actor can cast spells (not silenced) */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	bool CanActorCastSpells(AActor* Actor) const;
+	bool CanActorCastSpells(AActor *Actor) const;
 
 	/** Calculate energy cost for an action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	int32 CalculateActionEnergyCost(AActor* Actor, const FAction& Action) const;
+	int32 CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const;
 
 	// ========================================
 	// EXECUTION - MAIN ENTRY POINT
@@ -104,7 +104,7 @@ public:
 	 * Automatically routes to appropriate Execute* function
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor")
-	FActionResult ExecuteAction(AActor* Actor, const FAction& Action);
+	FActionResult ExecuteAction(AActor *Actor, const FAction &Action);
 
 	/**
 	 * Execute an action asynchronously (recommended for gameplay)
@@ -113,7 +113,7 @@ public:
 	 * @param Action The action to execute
 	 * @param OnComplete Callback when action fully completes (after defense resolution)
 	 */
-	void ExecuteActionAsync(AActor* Actor, const FAction& Action, FOnActionComplete OnComplete);
+	void ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete);
 
 	// ========================================
 	// INFUSION DATA
@@ -142,46 +142,46 @@ public:
 	/** Execute a spell */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteSpell(
-		AActor* Caster,
-		USpellData* Spell,
-		const TArray<AActor*>& Targets,
+		AActor *Caster,
+		USpellData *Spell,
+		const TArray<AActor *> &Targets,
 		bool bUseElementalMode = true,
 		int32 InfusionLevel = 0);
 
 	/** Execute an ability */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteAbility(
-		AActor* User,
-		UAbilityData* Ability,
-		const TArray<AActor*>& Targets,
+		AActor *User,
+		UAbilityData *Ability,
+		const TArray<AActor *> &Targets,
 		bool bIsElementInfused = false,
 		int32 PowerInfusionLevel = 0);
 
 	/** Execute an item */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteItem(
-		AActor* User,
-		UItemData* Item,
-		const TArray<AActor*>& Targets);
+		AActor *User,
+		UItemData *Item,
+		const TArray<AActor *> &Targets);
 
 	/** Execute a basic attack */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteAttack(
-		AActor* Attacker,
-		UBaseAttackData* Attack,
-		const TArray<AActor*>& Targets,
+		AActor *Attacker,
+		UBaseAttackData *Attack,
+		const TArray<AActor *> &Targets,
 		bool bIsInfused = false);
 
 	/** Execute an ultimate */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteUltimate(
-		AActor* Caster,
-		UUltimateData* Ultimate,
-		const TArray<AActor*>& Targets);
+		AActor *Caster,
+		UUltimateData *Ultimate,
+		const TArray<AActor *> &Targets);
 
 	/** Execute defend action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteDefend(AActor* Defender);
+	FActionResult ExecuteDefend(AActor *Defender);
 
 	// ========================================
 	// DAMAGE APPLICATION
@@ -193,21 +193,21 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Damage")
 	FCombatHitResult ApplyDamage(
-		AActor* Attacker,
-		AActor* Target,
+		AActor *Attacker,
+		AActor *Target,
 		int32 BaseDamage,
 		bool bIsElemental,
-		ERefractionElement Element,
+		ESpellElement Element,
 		bool bCanCrit);
 
 	/** Apply damage with defaults (non-elemental, can crit) */
 	FCombatHitResult ApplyDamage(
-		AActor* Attacker,
-		AActor* Target,
+		AActor *Attacker,
+		AActor *Target,
 		int32 BaseDamage,
 		bool bIsElemental)
 	{
-		return ApplyDamage(Attacker, Target, BaseDamage, bIsElemental, ERefractionElement::Generic, true);
+		return ApplyDamage(Attacker, Target, BaseDamage, bIsElemental, ESpellElement::Generic, true);
 	}
 
 	/**
@@ -215,8 +215,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Damage")
 	FCombatHitResult ApplyHealing(
-		AActor* Healer,
-		AActor* Target,
+		AActor *Healer,
+		AActor *Target,
 		int32 BaseHealing);
 
 	// ========================================
@@ -225,15 +225,15 @@ public:
 
 	/** Get the StatusEffectManager */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
-	UStatusEffectManager* GetStatusEffectManager() const;
+	UStatusEffectManager *GetStatusEffectManager() const;
 
 	/** Check if target is alive */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
-	bool IsTargetAlive(AActor* Target) const;
+	bool IsTargetAlive(AActor *Target) const;
 
 	/** Get all valid targets for an action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
-	TArray<AActor*> FilterValidTargets(const TArray<AActor*>& Targets) const;
+	TArray<AActor *> FilterValidTargets(const TArray<AActor *> &Targets) const;
 
 	// ========================================
 	// EVENTS
@@ -254,7 +254,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnTargetKilled OnTargetKilled;
 
-	/** 
+	/**
 	 * Broadcast when a defense window should open
 	 * DefenseSystem should bind to this to handle Block/Parry/Dodge
 	 */
@@ -266,23 +266,23 @@ public:
 	// ========================================
 
 	/** Called when spell animation should play. Override or bind OnActionStarted for custom handling. */
-	virtual void PlaySpellAnimation(AActor* Caster, USpellData* Spell, float SpellSize);
+	virtual void PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize);
 
 	/** Called when spell VFX should spawn. Override or bind OnActionStarted for custom handling. */
-	virtual void SpawnSpellVFX(AActor* Caster, USpellData* Spell, float SpellSize);
+	virtual void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize);
 
 	/** Called when ability animation should play */
-	virtual void PlayAbilityAnimation(AActor* User, UAbilityData* Ability);
+	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability);
 
 	/** Called when attack animation should play */
-	virtual void PlayAttackAnimation(AActor* Attacker, UBaseAttackData* Attack);
+	virtual void PlayAttackAnimation(AActor *Attacker, UBaseAttackData *Attack);
 
 	// ========================================
 	// DEBUG
 	// ========================================
 
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
-	void DebugPrintActionResult(const FActionResult& Result) const;
+	void DebugPrintActionResult(const FActionResult &Result) const;
 
 private:
 	// ========================================
@@ -290,63 +290,63 @@ private:
 	// ========================================
 
 	/** Get CharacterDataComponent from actor */
-	UCharacterDataComponent* GetCharacterDataComponent(AActor* Actor) const;
+	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
 
 	/** Get CharacterData template from actor */
-	UCharacterData* GetCharacterData(AActor* Actor) const;
+	UCharacterData *GetCharacterData(AActor *Actor) const;
 
 	/** Calculate critical hit */
-	bool RollCriticalHit(AActor* Attacker) const;
+	bool RollCriticalHit(AActor *Attacker) const;
 
 	/** Apply critical damage multiplier */
-	int32 ApplyCriticalMultiplier(int32 Damage, AActor* Attacker) const;
+	int32 ApplyCriticalMultiplier(int32 Damage, AActor *Attacker) const;
 
 	/** Apply defense reduction */
-	int32 ApplyDefense(int32 Damage, AActor* Defender, bool bIsElemental) const;
+	int32 ApplyDefense(int32 Damage, AActor *Defender, bool bIsElemental) const;
 
 	/** Apply status effects from spell/ability */
 	void ApplyStatusEffects(
-		AActor* Source,
-		AActor* Target,
+		AActor *Source,
+		AActor *Target,
 		EAbilityEffectType PrimaryEffect,
 		float PrimaryValue,
 		int32 PrimaryDuration,
 		EAbilityEffectType SecondaryEffect = EAbilityEffectType::None,
 		float SecondaryValue = 0.0f,
 		int32 SecondaryDuration = 0,
-		ERefractionElement Element = ERefractionElement::Generic);
+		ESpellElement Element = ESpellElement::Generic);
 
 	/** Handle multi-hit abilities */
 	int32 ProcessMultiHit(
-		AActor* Attacker,
-		AActor* Target,
+		AActor *Attacker,
+		AActor *Target,
 		int32 DamagePerHit,
 		int32 HitCount,
 		bool bIsElemental,
-		ERefractionElement Element,
+		ESpellElement Element,
 		bool bCanCrit,
-		FActionResult& OutResult);
+		FActionResult &OutResult);
 
 	/** Spend energy from actor */
-	bool SpendEnergy(AActor* Actor, int32 Amount);
+	bool SpendEnergy(AActor *Actor, int32 Amount);
 
 	/** Cached reference to StatusEffectManager */
 	UPROPERTY()
-	UStatusEffectManager* StatusEffectManagerRef = nullptr;
+	UStatusEffectManager *StatusEffectManagerRef = nullptr;
 
 	/** Cached reference to ItemExecutor */
 	UPROPERTY()
-	UItemExecutor* ItemExecutorRef = nullptr;
+	UItemExecutor *ItemExecutorRef = nullptr;
 
 	/** Cached reference to WeaponManager */
 	UPROPERTY()
-	UWeaponManager* WeaponManagerRef = nullptr;
+	UWeaponManager *WeaponManagerRef = nullptr;
 
 	/** Get ItemExecutor subsystem */
-	UItemExecutor* GetItemExecutor() const;
+	UItemExecutor *GetItemExecutor() const;
 
 	/** Get WeaponManager subsystem */
-	UWeaponManager* GetWeaponManager() const;
+	UWeaponManager *GetWeaponManager() const;
 
 	// ========================================
 	// ASYNC EXECUTION STATE
@@ -368,5 +368,5 @@ private:
 	void CompleteAsyncAction();
 
 	/** Handle defense resolution for a single target (called by DefenseSystem) */
-	void OnDefenseResolved(AActor* Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried);
+	void OnDefenseResolved(AActor *Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried);
 };

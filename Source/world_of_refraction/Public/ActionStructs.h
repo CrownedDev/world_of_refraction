@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EActionType.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -29,27 +29,27 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	/** Target(s) of the action */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action")
-	TArray<AActor*> Targets;
+	TArray<AActor *> Targets;
 
 	/** Spell data (if ActionType == Spell) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	USpellData* SpellData = nullptr;
+	USpellData *SpellData = nullptr;
 
 	/** Ability data (if ActionType == Ability) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UAbilityData* AbilityData = nullptr;
+	UAbilityData *AbilityData = nullptr;
 
 	/** Item data (if ActionType == Item) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UItemData* ItemData = nullptr;
+	UItemData *ItemData = nullptr;
 
 	/** Attack data (if ActionType == Attack) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UBaseAttackData* AttackData = nullptr;
+	UBaseAttackData *AttackData = nullptr;
 
 	/** Ultimate data (if ActionType == Ultimate) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UUltimateData* UltimateData = nullptr;
+	UUltimateData *UltimateData = nullptr;
 
 	// ==================== INFUSION OPTIONS ====================
 
@@ -73,18 +73,24 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	bool IsValid() const
 	{
-		if (ActionType == EActionType::None) return false;
-		if (ActionType == EActionType::Spell && !SpellData) return false;
-		if (ActionType == EActionType::Ability && !AbilityData) return false;
-		if (ActionType == EActionType::Item && !ItemData) return false;
-		if (ActionType == EActionType::Attack && !AttackData) return false;
-		if (ActionType == EActionType::Ultimate && !UltimateData) return false;
+		if (ActionType == EActionType::None)
+			return false;
+		if (ActionType == EActionType::Spell && !SpellData)
+			return false;
+		if (ActionType == EActionType::Ability && !AbilityData)
+			return false;
+		if (ActionType == EActionType::Item && !ItemData)
+			return false;
+		if (ActionType == EActionType::Attack && !AttackData)
+			return false;
+		if (ActionType == EActionType::Ultimate && !UltimateData)
+			return false;
 		return true;
 	}
 
 	bool RequiresTarget() const
 	{
-		return ActionType != EActionType::Defend && 
+		return ActionType != EActionType::Defend &&
 			   ActionType != EActionType::Flee &&
 			   ActionType != EActionType::SwitchWeapon;
 	}
@@ -138,7 +144,7 @@ struct WORLD_OF_REFRACTION_API FActionValidationResult
 
 	// Constructors
 	FActionValidationResult() = default;
-	FActionValidationResult(bool bValid, const FString& Error = TEXT(""), int32 Cost = 0)
+	FActionValidationResult(bool bValid, const FString &Error = TEXT(""), int32 Cost = 0)
 		: bIsValid(bValid), ErrorMessage(Error), EnergyCost(Cost) {}
 };
 
@@ -161,11 +167,11 @@ struct WORLD_OF_REFRACTION_API FActionResult
 
 	/** Who executed the action */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result")
-	AActor* Executor = nullptr;
+	AActor *Executor = nullptr;
 
 	/** Who was affected */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result")
-	TArray<AActor*> AffectedTargets;
+	TArray<AActor *> AffectedTargets;
 
 	/** Energy spent */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result")
@@ -197,7 +203,7 @@ struct WORLD_OF_REFRACTION_API FActionResult
 
 	// ==================== DEFENSE SYSTEM DATA ====================
 
-	/** 
+	/**
 	 * Final spell/attack size for defense calculations
 	 * Used by DefenseSystem to determine if dodge is viable
 	 * Size > DodgeThreshold means dodge fails, must Block/Parry
@@ -211,14 +217,14 @@ struct WORLD_OF_REFRACTION_API FActionResult
 
 	/** Element of the attack (for resistance calculations) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
-	ERefractionElement AttackElement = ERefractionElement::Generic;
+	ESpellElement AttackElement = ESpellElement::Generic;
 
 	/** Is this attack elemental? (affects defense type effectiveness) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
 	bool bIsElementalAttack = false;
 
 	// Per-target damage breakdown (for UI/logging)
-	TMap<AActor*, int32> DamagePerTarget;
+	TMap<AActor *, int32> DamagePerTarget;
 };
 
 /**
@@ -231,7 +237,7 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
-	AActor* Target = nullptr;
+	AActor *Target = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
 	int32 DamageDealt = 0;

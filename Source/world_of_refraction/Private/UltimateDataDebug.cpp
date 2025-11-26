@@ -200,10 +200,10 @@ FString UUltimateDataDebug::GetUltimateStatsString(UUltimateData *Ultimate, UCha
     return Output;
 }
 
-void UUltimateDataDebug::LogAllUltimatesByElement(ERefractionElement Element)
+void UUltimateDataDebug::LogAllUltimatesByElement(ESpellElement Element)
 {
     FString ElementName = UEnum::GetValueAsString(Element);
-    ElementName.RemoveFromStart(TEXT("ERefractionElement::"));
+    ElementName.RemoveFromStart(TEXT("ESpellElement::"));
 
     UE_LOG(LogTemp, Display, TEXT("=========================================="));
     UE_LOG(LogTemp, Display, TEXT("Logging all %s ultimates..."), *ElementName);

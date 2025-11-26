@@ -6,7 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ActionStructs.h"
 #include "ItemEffectType.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "ItemExecutor.generated.h"
 
 class UItemData;
@@ -29,7 +29,7 @@ struct FQuartzAbsorptionState
 
 	/** Damage absorbed per element */
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	TMap<ERefractionElement, float> AbsorbedDamage;
+	TMap<ESpellElement, float> AbsorbedDamage;
 
 	/** Total damage absorbed */
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
@@ -45,25 +45,25 @@ struct FQuartzAbsorptionState
 
 	/** Resulting element after transformation */
 	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	ERefractionElement TransformedElement = ERefractionElement::Generic;
+	ESpellElement TransformedElement = ESpellElement::Generic;
 
-	void AbsorbDamage(ERefractionElement Element, float Amount)
+	void AbsorbDamage(ESpellElement Element, float Amount)
 	{
 		// Don't absorb Generic or BrokenDarkness
-		if (Element == ERefractionElement::Generic || Element == ERefractionElement::BrokenDarkness)
+		if (Element == ESpellElement::Generic || Element == ESpellElement::BrokenDarkness)
 			return;
 
-		float& Current = AbsorbedDamage.FindOrAdd(Element);
+		float &Current = AbsorbedDamage.FindOrAdd(Element);
 		Current += Amount;
 		TotalAbsorbed += Amount;
 	}
 
-	ERefractionElement GetDominantElement() const
+	ESpellElement GetDominantElement() const
 	{
-		ERefractionElement Dominant = ERefractionElement::Generic;
+		ESpellElement Dominant = ESpellElement::Generic;
 		float MaxDamage = 0.0f;
 
-		for (const auto& Pair : AbsorbedDamage)
+		for (const auto &Pair : AbsorbedDamage)
 		{
 			if (Pair.Value > MaxDamage)
 			{
@@ -140,20 +140,20 @@ struct WORLD_OF_REFRACTION_API FItemUseResult
 	bool bQuartzTransformed = false;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Quartz")
-	ERefractionElement QuartzNewElement = ERefractionElement::Generic;
+	ESpellElement QuartzNewElement = ESpellElement::Generic;
 };
 
 // ========================================
 // DELEGATES
 // ========================================
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemUsed, AActor*, User, UItemData*, Item, const FItemUseResult&, Result);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnQuartzTransformed, AActor*, Owner, ERefractionElement, NewElement, UItemData*, Item);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGambleResult, AActor*, User, bool, bWon, const FString&, Outcome);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemUsed, AActor *, User, UItemData *, Item, const FItemUseResult &, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnQuartzTransformed, AActor *, Owner, ESpellElement, NewElement, UItemData *, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGambleResult, AActor *, User, bool, bWon, const FString &, Outcome);
 
 /**
  * UItemExecutor
- * 
+ *
  * Handles all item execution logic including:
  * - All 10 crystal types with tier scaling
  * - Generic character resistance bonuses
@@ -163,7 +163,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGambleResult, AActor*, User, b
  * - Amethyst gambling
  * - Quartz transformation tracking
  * - Iolite tiered cleansing
- * 
+ *
  * Usage:
  *   UItemExecutor* ItemExec = GetGameInstance()->GetSubsystem<UItemExecutor>();
  *   FItemUseResult Result = ItemExec->UseItem(User, Item, Target);
@@ -174,7 +174,7 @@ class WORLD_OF_REFRACTION_API UItemExecutor : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
 	// ========================================
@@ -186,13 +186,13 @@ public:
 	 * Handles all crystal types, bonuses, and special mechanics
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor")
-	FItemUseResult UseItem(AActor* User, UItemData* Item, AActor* Target);
+	FItemUseResult UseItem(AActor *User, UItemData *Item, AActor *Target);
 
 	/**
 	 * Use an item on multiple targets (AOE items)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor")
-	FItemUseResult UseItemMultiTarget(AActor* User, UItemData* Item, const TArray<AActor*>& Targets);
+	FItemUseResult UseItemMultiTarget(AActor *User, UItemData *Item, const TArray<AActor *> &Targets);
 
 	// ========================================
 	// QUARTZ SYSTEM
@@ -203,39 +203,39 @@ public:
 	 * Call when Quartz is equipped
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	void RegisterQuartz(AActor* Owner, UItemData* QuartzItem);
+	void RegisterQuartz(AActor *Owner, UItemData *QuartzItem);
 
 	/**
 	 * Unregister Quartz (unequipped or transformed)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	void UnregisterQuartz(AActor* Owner);
+	void UnregisterQuartz(AActor *Owner);
 
 	/**
 	 * Notify Quartz of incoming elemental damage
 	 * Called by damage system when owner takes elemental damage
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	void NotifyQuartzDamage(AActor* Owner, ERefractionElement Element, float Damage);
+	void NotifyQuartzDamage(AActor *Owner, ESpellElement Element, float Damage);
 
 	/**
 	 * Check if actor has Quartz that can transform
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	bool CanQuartzTransform(AActor* Owner) const;
+	bool CanQuartzTransform(AActor *Owner) const;
 
 	/**
 	 * Force Quartz transformation (if threshold met)
 	 * Returns the new element, or None if cannot transform
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	ERefractionElement TransformQuartz(AActor* Owner);
+	ESpellElement TransformQuartz(AActor *Owner);
 
 	/**
 	 * Get current Quartz absorption state
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	FQuartzAbsorptionState GetQuartzState(AActor* Owner) const;
+	FQuartzAbsorptionState GetQuartzState(AActor *Owner) const;
 
 	// ========================================
 	// EVENTS
@@ -263,57 +263,57 @@ private:
 	// ========================================
 
 	/** Garnet - Direct damage */
-	void ExecuteDamageEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteDamageEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Sapphire - Healing */
-	void ExecuteHealingEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Citrine - Energy restore with self-damage */
-	void ExecuteEnergyRestoreEffect(AActor* User, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteEnergyRestoreEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Emerald - Speed buff */
-	void ExecuteSpeedBuffEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Amber - Defense buff */
-	void ExecuteDefenseBuffEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Opal - Crit buff (+ S-tier reveals) */
-	void ExecuteCritBuffEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Onyx - Silence */
-	void ExecuteSilenceEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Amethyst - Gamble (random effect) */
-	void ExecuteGambleEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Iolite - Cleanse (tiered removal + immunity) */
-	void ExecuteCleanseEffect(AActor* User, AActor* Target, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Quartz - Transform (passive, this just activates it) */
-	void ExecuteTransformEffect(AActor* User, UItemData* Item, FItemUseResult& OutResult);
+	void ExecuteTransformEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult);
 
 	// ========================================
 	// BONUS HANDLERS
 	// ========================================
 
 	/** Apply Generic character resistance bonus */
-	void ApplyGenericBonus(AActor* User, UItemData* Item, FItemUseResult& OutResult);
+	void ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Apply Broken Darkness energy bonus */
-	void ApplyBrokenDarknessBonus(AActor* User, UItemData* Item, FItemUseResult& OutResult);
+	void ApplyBrokenDarknessBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Apply S-tier secondary effects (burn DOT) */
-	void ApplySecondaryEffect(AActor* Target, UItemData* Item, AActor* Source, FItemUseResult& OutResult);
+	void ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult);
 
 	// ========================================
 	// HELPERS
 	// ========================================
 
-	UCharacterDataComponent* GetCharacterDataComponent(AActor* Actor) const;
-	UCharacterData* GetCharacterData(AActor* Actor) const;
-	UStatusEffectManager* GetStatusEffectManager() const;
-	bool IsGenericCharacter(AActor* Actor) const;
-	bool IsBrokenDarknessCharacter(AActor* Actor) const;
+	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
+	UCharacterData *GetCharacterData(AActor *Actor) const;
+	UStatusEffectManager *GetStatusEffectManager() const;
+	bool IsGenericCharacter(AActor *Actor) const;
+	bool IsBrokenDarknessCharacter(AActor *Actor) const;
 
 	// ========================================
 	// STATE
@@ -327,5 +327,5 @@ private:
 
 	/** Cached StatusEffectManager */
 	UPROPERTY()
-	UStatusEffectManager* StatusEffectManagerRef = nullptr;
+	UStatusEffectManager *StatusEffectManagerRef = nullptr;
 };

@@ -152,7 +152,7 @@ void UStatusEffectManager::ApplySpellEffects(
 	float SecondaryMagnitude,
 	int32 SecondaryValue,
 	int32 SecondaryDuration,
-	ERefractionElement Element,
+	ESpellElement Element,
 	AActor *Source,
 	int32 SourceTeam)
 {
@@ -176,7 +176,7 @@ void UStatusEffectManager::ApplyInfusionDOT(
 	AActor *Target,
 	const FString &AbilityName,
 	int32 AbilityID,
-	ERefractionElement InfusedElement,
+	ESpellElement InfusedElement,
 	float DOTDamage,
 	int32 Duration,
 	AActor *Source,
@@ -334,7 +334,7 @@ void UStatusEffectManager::ApplyWeaponInfusionDOT(
 	const FString &AbilityName,
 	const FString &WeaponName,
 	int32 AbilityID,
-	ERefractionElement InfusedElement,
+	ESpellElement InfusedElement,
 	float BaseDOTDamage,
 	int32 Duration,
 	float WeaponInfusionMultiplier,

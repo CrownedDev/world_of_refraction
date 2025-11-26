@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "RefractionElement.h"
+#include "SpellElement.h"
 #include "ECharacterClass.h"
 #include "StatConstants.h"
 
@@ -45,7 +45,7 @@ public:
 	/** Innate element - only for Casters (locked at creation) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
-	ERefractionElement InnateElement = ERefractionElement::Fire;
+	ESpellElement InnateElement = ESpellElement::Fire;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Character description...");
@@ -205,9 +205,9 @@ public:
 
 	/** Get element - Caster returns InnateElement, others return Generic */
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
-	ERefractionElement GetElement() const
+	ESpellElement GetElement() const
 	{
-		return HasInnateElement() ? InnateElement : ERefractionElement::Generic;
+		return HasInnateElement() ? InnateElement : ESpellElement::Generic;
 	}
 
 	// ==================== STAT BUDGET VALIDATION ====================

@@ -699,7 +699,7 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	UCharacterDataComponent *CasterComp = Caster->FindComponentByClass<UCharacterDataComponent>();
 	if (CasterComp && CasterComp->CharacterData)
 	{
-		CasterComp->CharacterData->InnateElement = ERefractionElement::Fire;
+		CasterComp->CharacterData->InnateElement = ESpellElement::Fire;
 	}
 
 	// Create target with low speed
@@ -1150,7 +1150,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 		CasterComp->CurrentEP = 100; // Ensure enough energy
 		if (CasterComp->CharacterData)
 		{
-			CasterComp->CharacterData->InnateElement = ERefractionElement::Fire;
+			CasterComp->CharacterData->InnateElement = ESpellElement::Fire;
 		}
 	}
 
