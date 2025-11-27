@@ -16,7 +16,8 @@ class UAbilityData;
 class UCharacterDataComponent;
 class UCharacterData;
 class UStatusEffectManager;
-
+URingData *GetPrimaryRing(AActor *Actor) const;
+URingData *GetSecondaryRing(AActor *Actor) const;
 // ========================================
 // WEAPON STATE
 // ========================================
@@ -383,8 +384,14 @@ private:
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 	UStatusEffectManager *GetStatusEffectManager() const;
 
+	/** Check if actor is Generic class (dual-wield, secondary slot) */
 	bool IsGenericCharacter(AActor *Actor) const;
-	bool IsElementalCharacter(AActor *Actor) const;
+
+	/** Check if actor is Caster class (innate element, primary slot type) */
+	bool IsCasterCharacter(AActor *Actor) const;
+
+	/** Check if actor is Resonator class (ring loadout) */
+	bool IsResonatorCharacter(AActor *Actor) const;
 
 	/** Get weapon from specific slot */
 	UWeaponData *GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const;

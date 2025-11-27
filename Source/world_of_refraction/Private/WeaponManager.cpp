@@ -203,35 +203,32 @@ bool UWeaponManager::CanSwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot) cons
 TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor *Actor) const
 {
 	TArray<EWeaponSlot> Slots;
-
 	UCharacterData *CharData = GetCharacterData(Actor);
 	if (!CharData)
 		return Slots;
 
-	if (IsGenericCharacter(Actor))
-	{
-		// Generic: Primary and Secondary always available
-		if (CharData->PrimaryWeapon)
-		{
-			Slots.Add(EWeaponSlot::Primary);
-		}
-		if (CharData->SecondaryWeapon)
-		{
-			Slots.Add(EWeaponSlot::Secondary);
-		}
-		// Generic can also go unarmed
-		Slots.Add(EWeaponSlot::Unarmed);
-	}
-	else
-	{
-		// Elemental: Unarmed always available
-		Slots.Add(EWeaponSlot::Unarmed);
+	Slots.Add(EWeaponSlot::Unarmed);
 
-		// Armed if has primary weapon
+	// Primary weapon available?
+	if (CharData->IsGeneric() || CharData->IsResonator())
+	{
+		// Generic/Resonator always have weapon primary
 		if (CharData->PrimaryWeapon)
-		{
 			Slots.Add(EWeaponSlot::Primary);
-		}
+	}
+	else if (CharData->IsCaster())
+	{
+		// Caster only if PrimarySlotType == Weapon
+		if (CharData->PrimarySlotType == EPrimarySlotType::Weapon && CharData->PrimaryWeapon)
+			Slots.Add(EWeaponSlot::Primary);
+	}
+
+	// Secondary weapon (Generic only, if slot type is Weapon)
+	if (CharData->IsGeneric() &&
+		CharData->SecondarySlotType == ESecondarySlotType::Weapon &&
+		CharData->SecondaryWeapon)
+	{
+		Slots.Add(EWeaponSlot::Secondary);
 	}
 
 	return Slots;
@@ -606,17 +603,19 @@ UStatusEffectManager *UWeaponManager::GetStatusEffectManager() const
 bool UWeaponManager::IsGenericCharacter(AActor *Actor) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->InnateElement == ESpellElement::Generic;
+	return Data && Data->IsGeneric();
 }
 
 bool UWeaponManager::IsElementalCharacter(AActor *Actor) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
-	if (!Data)
-		return false;
+	return Data && Data->IsCaster();
+}
 
-	return Data->InnateElement != ESpellElement::Generic &&
-		   Data->InnateElement != ESpellElement::BrokenDarkness;
+bool UWeaponManager::IsResonatorCharacter(AActor *Actor) const
+{
+	UCharacterData *Data = GetCharacterData(Actor);
+	return Data && Data->IsResonator();
 }
 
 UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const
@@ -633,11 +632,17 @@ UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) co
 		return nullptr;
 
 	case EWeaponSlot::Primary:
-		// Both Generic and Elemental characters use PrimaryWeapon
+		// Both Generic Resonators and Elemental characters use PrimaryWeapon
+		if (CharData->IsCaster() &&
+			CharData->PrimarySlotType == EPrimarySlotType::Ring)
+		{
+			return nullptr;
+		}
 		return CharData->PrimaryWeapon;
 
 	case EWeaponSlot::Secondary:
-		if (IsGenericCharacter(Actor))
+		if (IsGenericCharacter(Actor) &&
+			CharData->SecondarySlotType == ESecondarySlotType::Weapon)
 		{
 			return CharData->SecondaryWeapon;
 		}
@@ -783,6 +788,34 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 	TargetComp->ServerTakeDamage(FinalDamage);
 
 	return FinalDamage;
+}
+
+URingData *UWeaponManager::GetPrimaryRing(AActor *Actor) const
+{
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (!CharData)
+		return nullptr;
+
+	// Caster with ring primary
+	if (CharData->IsCaster() && CharData->PrimarySlotType == EPrimarySlotType::Ring)
+	{
+		return CharData->PrimaryRing;
+	}
+	return nullptr;
+}
+
+URingData *UWeaponManager::GetSecondaryRing(AActor *Actor) const
+{
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (!CharData)
+		return nullptr;
+
+	// Generic with ring secondary
+	if (CharData->IsGeneric() && CharData->SecondarySlotType == ESecondarySlotType::Ring)
+	{
+		return CharData->SecondaryRing;
+	}
+	return nullptr;
 }
 
 // ========================================
