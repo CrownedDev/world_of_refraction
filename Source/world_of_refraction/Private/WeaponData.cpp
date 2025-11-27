@@ -62,31 +62,36 @@ bool UWeaponData::IsEvolved() const
 #if WITH_EDITOR
 EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) const
 {
-    EDataValidationResult Result = EDataValidationResult::Valid;
+    EDataValidationResult Result = Super::IsDataValid(Context);
+
     // Name validation
     if (WeaponName.IsEmpty() || WeaponName == TEXT("Unnamed Weapon"))
     {
         Context.AddError(FText::FromString(TEXT("Weapon must have a unique name")));
         Result = EDataValidationResult::Invalid;
     }
+
     // Attack validation
     if (WeaponAttack == nullptr)
     {
         Context.AddWarning(FText::FromString(TEXT("No weapon attack assigned")));
     }
+
     // Abilities validation (max 6)
     if (PresetAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
     {
-        ValidationErrors.Add(FText::FromString(FString::Printf(
+        Context.AddError(FText::FromString(FString::Printf(
             TEXT("Weapon cannot have more than %d abilities"),
             LoadoutConstants::MAX_WEAPON_ABILITIES)));
         Result = EDataValidationResult::Invalid;
     }
+
     // Stance validation
     if (WeaponStance == nullptr)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Warning: No weapon stance assigned")));
+        Context.AddWarning(FText::FromString(TEXT("No weapon stance assigned")));
     }
+
     return Result;
 }
 #endif

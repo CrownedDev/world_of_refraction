@@ -53,7 +53,7 @@ public:
     // ==================== ANIMATION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-    UAnimMontage* AttackMontage = nullptr;
+    UAnimMontage *AttackMontage = nullptr;
 
     // Animation playback speed (1.0 = normal, affected by Attack Speed stat)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.5", ClampMax = "2.0"))
@@ -62,7 +62,7 @@ public:
     // ==================== PRESENTATION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D* Icon = nullptr;
+    UTexture2D *Icon = nullptr;
 
     // ==================== UTILITY FUNCTIONS ====================
 
@@ -89,6 +89,6 @@ public:
     FString GetAttackSummary() const;
 
 #if WITH_EDITOR
-    virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

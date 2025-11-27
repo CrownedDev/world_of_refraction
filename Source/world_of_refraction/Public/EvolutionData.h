@@ -237,7 +237,6 @@ public:
     UUltimateData *GetEvolutionUltimate() const { return bOverridesUltimate ? EvolutionUltimate : nullptr; }
 
 #if WITH_EDITOR
-    virtual EDataValidationResult IsDataValid(TArray<FText> &ValidationErrors) override;
-    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

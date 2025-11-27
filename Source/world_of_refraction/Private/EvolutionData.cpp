@@ -231,28 +231,28 @@ TArray<FPassiveEffect> UEvolutionData::GetTriggeredPassives() const
 // ==================== VALIDATION ====================
 
 #if WITH_EDITOR
-EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationErrors)
+EDataValidationResult UEvolutionData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
     if (EvolutionName.IsEmpty() || EvolutionName == TEXT("Unnamed Evolution"))
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Evolution must have a unique name")));
+        Context.AddError(FText::FromString(TEXT("Evolution must have a unique name")));
         Result = EDataValidationResult::Invalid;
     }
 
     // Generic element check
     if (Element == ESpellElement::Generic)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Evolutions cannot be Generic element")));
+        Context.AddError(FText::FromString(TEXT("Evolutions cannot be Generic element")));
         Result = EDataValidationResult::Invalid;
     }
 
     // Exclusive spells limit
     if (ExclusiveSpells.Num() > 6)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Evolution cannot have more than 6 exclusive spells")));
+        Context.AddError(FText::FromString(TEXT("Evolution cannot have more than 6 exclusive spells")));
         Result = EDataValidationResult::Invalid;
     }
 
@@ -264,7 +264,7 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
             ESpellElement SpellElement = ExclusiveSpells[i]->Element;
             if (SpellElement != Element && SpellElement != ESpellElement::Generic)
             {
-                ValidationErrors.Add(FText::FromString(FString::Printf(
+                Context.AddError(FText::FromString(FString::Printf(
                     TEXT("Exclusive spell '%s' has wrong element (%s)"),
                     *ExclusiveSpells[i]->SpellName,
                     *ExclusiveSpells[i]->GetElementName())));
@@ -276,7 +276,7 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
     // Ultimate override validation
     if (bOverridesUltimate && EvolutionUltimate == nullptr)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Ultimate override enabled but no ultimate assigned")));
+        Context.AddError(FText::FromString(TEXT("Ultimate override enabled but no ultimate assigned")));
         Result = EDataValidationResult::Invalid;
     }
 
@@ -286,7 +286,7 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
         ESpellElement UltElement = EvolutionUltimate->Element;
         if (UltElement != Element && UltElement != ESpellElement::Generic)
         {
-            ValidationErrors.Add(FText::FromString(FString::Printf(
+            Context.AddError(FText::FromString(FString::Printf(
                 TEXT("Evolution ultimate '%s' has wrong element (%s)"),
                 *EvolutionUltimate->UltimateName,
                 *EvolutionUltimate->GetElementName())));
@@ -301,52 +301,11 @@ EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationError
 
         if (Passive.PassiveName.IsEmpty() || Passive.PassiveName == TEXT("Unnamed Passive"))
         {
-            ValidationErrors.Add(FText::FromString(FString::Printf(TEXT("Passive %d must have a name"), i + 1)));
-            Result = EDataValidationResult::Invalid;
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("Passive #%d has no name"), i + 1)));
         }
-
-        if (Passive.PrimaryTrigger == EPassiveTrigger::None)
-        {
-            ValidationErrors.Add(FText::FromString(FString::Printf(TEXT("Passive %d has no trigger set"), i + 1)));
-            Result = EDataValidationResult::Invalid;
-        }
-
-        if (Passive.EffectType == EPassiveEffectType::None)
-        {
-            ValidationErrors.Add(FText::FromString(FString::Printf(TEXT("Passive %d has no effect type set"), i + 1)));
-            Result = EDataValidationResult::Invalid;
-        }
-    }
-
-    // Evolution type stat pattern validation (warnings, not errors)
-    switch (EvolutionType)
-    {
-    case EEvolutionType::Positive:
-        if (MindModifierPercent < 0 || BodyModifierPercent < 0 || SpiritModifierPercent < 0)
-        {
-            ValidationErrors.Add(FText::FromString(TEXT("Warning: Positive evolution has negative stat modifiers")));
-        }
-        break;
-    case EEvolutionType::Cursed:
-        if (MindModifierPercent >= 0 && BodyModifierPercent >= 0 && SpiritModifierPercent >= 0)
-        {
-            ValidationErrors.Add(FText::FromString(TEXT("Warning: Cursed evolution has no negative stat modifiers")));
-        }
-        break;
-    default:
-        break;
     }
 
     return Result;
-}
-
-void UEvolutionData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeProperty(PropertyChangedEvent);
-
-    for (FPassiveEffect &Passive : PassiveEffects)
-    {
-        Passive.RefreshDescription();
-    }
 }
 #endif

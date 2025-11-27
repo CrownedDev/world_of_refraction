@@ -120,7 +120,7 @@ ESpellElement UItemData::GetAssociatedElement() const
         return Evolution ? Evolution->Element : ESpellElement::Generic;
     default:
         return ESpellElement::Generic;
-        }
+    }
 }
 
 float UItemData::GetGenericResistanceBonus() const
@@ -763,14 +763,14 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 }
 
-EDataValidationResult UItemData::IsDataValid(TArray<FText> &ValidationErrors)
+EDataValidationResult UItemData::IsDataValid(FDataValidationContext &Context) const
 {
-    EDataValidationResult Result = CombineDataValidationResults(Super::IsDataValid(ValidationErrors), EDataValidationResult::Valid);
+    EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Basic validation - values are computed, so just check they make sense
     if (GetDamageValue() < 0.0f)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Computed damage value is negative")));
+        Context.AddError(FText::FromString(TEXT("Computed damage value is negative")));
         Result = EDataValidationResult::Invalid;
     }
 

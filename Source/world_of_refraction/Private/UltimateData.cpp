@@ -242,83 +242,45 @@ float UUltimateData::CalculateCritMultiplier(const UCharacterData *Character) co
 // ==================== VALIDATION ====================
 
 #if WITH_EDITOR
-EDataValidationResult UUltimateData::IsDataValid(TArray<FText> &ValidationErrors)
+EDataValidationResult UUltimateData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
     if (UltimateName.IsEmpty() || UltimateName == TEXT("Unnamed Ultimate"))
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Ultimate must have a unique name")));
+        Context.AddError(FText::FromString(TEXT("Ultimate must have a unique name")));
         Result = EDataValidationResult::Invalid;
     }
 
     // Energy cost validation
     if (EnergyCost <= 0)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Ultimate should have an energy cost > 0")));
+        Context.AddError(FText::FromString(TEXT("Ultimate should have an energy cost > 0")));
         Result = EDataValidationResult::Invalid;
     }
 
     // Damage ultimates need damage
     if ((UltimateType == EUltimateType::Damage || UltimateType == EUltimateType::DamageAOE) && BaseDamage <= 0)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Damage ultimate must have BaseDamage > 0")));
+        Context.AddError(FText::FromString(TEXT("Damage ultimate must have BaseDamage > 0")));
         Result = EDataValidationResult::Invalid;
     }
 
     // Heal ultimates need healing
     if (UltimateType == EUltimateType::Heal && BaseHealing <= 0)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Heal ultimate must have BaseHealing > 0")));
+        Context.AddError(FText::FromString(TEXT("Heal ultimate must have BaseHealing > 0")));
         Result = EDataValidationResult::Invalid;
     }
 
-    // Buff/Debuff need duration and percentage
+    // Buff/Debuff need duration and magnitude
     if ((UltimateType == EUltimateType::Buff || UltimateType == EUltimateType::Debuff))
     {
-        if (EffectPercentage <= 0.0f)
-        {
-            ValidationErrors.Add(FText::FromString(TEXT("Buff/Debuff ultimate must have EffectPercentage > 0")));
-            Result = EDataValidationResult::Invalid;
-        }
         if (EffectDuration <= 0)
         {
-            ValidationErrors.Add(FText::FromString(TEXT("Buff/Debuff ultimate must have EffectDuration > 0")));
-            Result = EDataValidationResult::Invalid;
+            Context.AddWarning(FText::FromString(TEXT("Buff/Debuff ultimate has no duration")));
         }
-    }
-
-    // CC needs duration
-    if (UltimateType == EUltimateType::CrowdControl && EffectDuration <= 0)
-    {
-        ValidationErrors.Add(FText::FromString(TEXT("Crowd Control ultimate must have EffectDuration > 0")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Turn cooldown validation
-    if (CooldownType == EUltimateCooldownType::TurnBased && TurnCooldown <= 0)
-    {
-        ValidationErrors.Add(FText::FromString(TEXT("Turn-based cooldown must be > 0")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Secondary effect validation
-    if (bHasSecondaryEffect && SecondaryEffectType == EAbilityEffectType::None)
-    {
-        ValidationErrors.Add(FText::FromString(TEXT("Secondary effect enabled but no type selected")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // World stat requirements validation
-    if (RequiredWorldMind > StatConstants::MAX_WORLD_STAT_LEVEL ||
-        RequiredWorldBody > StatConstants::MAX_WORLD_STAT_LEVEL ||
-        RequiredWorldSpirit > StatConstants::MAX_WORLD_STAT_LEVEL)
-    {
-        ValidationErrors.Add(FText::FromString(FString::Printf(
-            TEXT("World stat requirements cannot exceed %d"),
-            StatConstants::MAX_WORLD_STAT_LEVEL)));
-        Result = EDataValidationResult::Invalid;
     }
 
     return Result;
