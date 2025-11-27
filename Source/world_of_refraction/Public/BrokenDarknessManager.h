@@ -85,6 +85,39 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
 	void ForceTransformation();
 
+	// ==================== FORBIDDEN ELEMENTS ====================
+
+	/**
+	 * Check if element is forbidden (Light/Void)
+	 * Casting these as hybrids deals self-damage
+	 */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Forbidden")
+	static bool IsForbiddenElement(ESpellElement Element);
+
+	/**
+	 * Check if element can be absorbed (excludes Reality and Generic)
+	 */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Forbidden")
+	static bool CanAbsorbElement(ESpellElement Element);
+
+	/**
+	 * Calculate self-damage for casting forbidden element spell
+	 * @param SpellBaseDamage The base damage of the spell being cast
+	 * @return Self-damage amount to apply
+	 */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Forbidden")
+	float CalculateForbiddenCastDamage(float SpellBaseDamage) const;
+
+	/**
+	 * Process forbidden element cast - apply self-damage
+	 * Call this when BD casts a Dark Light or Dark Void hybrid
+	 * @param SpellElement The element of the spell being cast
+	 * @param SpellBaseDamage The base damage of the spell
+	 * @return True if self-damage was applied
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Forbidden")
+	bool ProcessForbiddenCast(ESpellElement SpellElement, float SpellBaseDamage);
+
 	// ==================== ABSORPTION ====================
 
 	/** Called when successfully parrying an elemental attack */
@@ -304,4 +337,10 @@ protected:
 	/** Consecutive absorptions of current element */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Stacks")
 	int32 ConsecutiveAbsorptions = 0;
+
+	// ==================== FORBIDDEN ELEMENTS ====================
+
+	/** Self-damage percentage when casting forbidden elements (Light/Void) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Forbidden")
+	float ForbiddenCastSelfDamagePercent = 0.25f;  // 25% of spell damage to self
 };
