@@ -44,15 +44,11 @@ struct WORLD_OF_REFRACTION_API FHybridSpellColorData
 
 	FHybridSpellColorData() = default;
 
-	FHybridSpellColorData(ESpellElement InElement, FLinearColor InPrimary, FLinearColor InSecondary, 
-		FLinearColor InBlended, float InBlend, bool InForbidden)
-		: PrimaryColor(InPrimary)
-		, SecondaryColor(InSecondary)
-		, BlendedColor(InBlended)
-		, DarknessBlend(InBlend)
-		, bIsForbidden(InForbidden)
-		, Element(InElement)
-	{}
+	FHybridSpellColorData(ESpellElement InElement, FLinearColor InPrimary, FLinearColor InSecondary,
+						  FLinearColor InBlended, float InBlend, bool InForbidden)
+		: PrimaryColor(InPrimary), SecondaryColor(InSecondary), BlendedColor(InBlended), DarknessBlend(InBlend), bIsForbidden(InForbidden), Element(InElement)
+	{
+	}
 };
 
 /**
@@ -126,10 +122,10 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Colors|Niagara")
 	static void GetNiagaraColorParams(ESpellElement AbsorbedElement,
-		FLinearColor& OutCoreColor,
-		FLinearColor& OutEdgeColor,
-		FLinearColor& OutTrailColor,
-		float& OutGlowIntensity);
+									  FLinearColor &OutCoreColor,
+									  FLinearColor &OutEdgeColor,
+									  FLinearColor &OutTrailColor,
+									  float &OutGlowIntensity);
 
 	/**
 	 * Get particle spawn color (slightly brighter for visibility)
@@ -151,10 +147,10 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Colors|Material")
 	static void GetMaterialParams(ESpellElement AbsorbedElement,
-		FLinearColor& OutBaseColor,
-		FLinearColor& OutEmissiveColor,
-		float& OutDarknessAmount,
-		float& OutEmissiveIntensity);
+								  FLinearColor &OutBaseColor,
+								  FLinearColor &OutEmissiveColor,
+								  float &OutDarknessAmount,
+								  float &OutEmissiveIntensity);
 
 	// ==================== SPECIAL CASES ====================
 
@@ -201,10 +197,10 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Infusion|Colors|Niagara")
 	static void GetWeaponInfusionNiagaraParams(ESpellElement Element, bool bIsBrokenDarkness,
-		FLinearColor& OutWeaponGlow,
-		FLinearColor& OutTrailColor,
-		FLinearColor& OutParticleColor,
-		float& OutGlowIntensity);
+											   FLinearColor &OutWeaponGlow,
+											   FLinearColor &OutTrailColor,
+											   FLinearColor &OutParticleColor,
+											   float &OutGlowIntensity);
 
 	/** Darkness blend for BD weapon infusion (less than spells for visibility) */
 	static constexpr float WeaponDarknessBlend = 0.3f;
