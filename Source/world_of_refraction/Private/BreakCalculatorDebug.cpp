@@ -67,7 +67,6 @@ void UBreakCalculatorDebug::LogRingSpellBreak(URingData *Ring, USpellData *Spell
     UE_LOG(LogTemp, Display, TEXT("Break Chance: %.1f%%"), Chance * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("========================================"));
 }
-}
 
 void UBreakCalculatorDebug::PrintBreakTable(EItemTier EquipmentTier)
 {
