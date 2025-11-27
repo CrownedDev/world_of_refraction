@@ -478,9 +478,18 @@ public:
 		{
 		case ECharacterClass::Generic:
 			// Generic needs at least one weapon
-			if (!PrimaryWeapon && !SecondaryWeapon)
+			if (!PrimaryWeapon)
 			{
-				Context.AddWarning(FText::FromString(TEXT("Generic character has no weapons assigned")));
+				Context.AddWarning(FText::FromString(TEXT("Generic character has no primary weapon")));
+			}
+			// Validate secondary slot consistency
+			if (SecondarySlotType == ESecondarySlotType::Weapon && !SecondaryWeapon)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Secondary slot set to Weapon but no weapon assigned")));
+			}
+			if (SecondarySlotType == ESecondarySlotType::Ring && !SecondaryRing)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Secondary slot set to Ring but no ring assigned")));
 			}
 			// Generic shouldn't have innate spells
 			if (InnateSpells.Num() > 0)
@@ -488,10 +497,10 @@ public:
 				Context.AddError(FText::FromString(TEXT("Generic characters cannot have innate spells")));
 				Result = EDataValidationResult::Invalid;
 			}
-			// Generic shouldn't have rings
+			// Generic shouldn't have resonator rings
 			if (EquippedRings.Num() > 0)
 			{
-				Context.AddError(FText::FromString(TEXT("Generic characters cannot equip rings")));
+				Context.AddError(FText::FromString(TEXT("Generic characters use SecondaryRing, not EquippedRings")));
 				Result = EDataValidationResult::Invalid;
 			}
 			break;
@@ -502,10 +511,20 @@ public:
 			{
 				Context.AddWarning(FText::FromString(TEXT("Caster has no innate spells")));
 			}
-			// Caster shouldn't have rings
+			// Caster can only use Ring as secondary (not weapon)
+			if (SecondarySlotType == ESecondarySlotType::Weapon)
+			{
+				Context.AddError(FText::FromString(TEXT("Casters can only use Ring as secondary slot, not Weapon")));
+				Result = EDataValidationResult::Invalid;
+			}
+			if (SecondarySlotType == ESecondarySlotType::Ring && !SecondaryRing)
+			{
+				Context.AddWarning(FText::FromString(TEXT("Secondary slot set to Ring but no ring assigned")));
+			}
+			// Caster shouldn't have resonator rings
 			if (EquippedRings.Num() > 0)
 			{
-				Context.AddError(FText::FromString(TEXT("Casters cannot equip rings")));
+				Context.AddError(FText::FromString(TEXT("Casters use SecondaryRing, not EquippedRings")));
 				Result = EDataValidationResult::Invalid;
 			}
 			// Caster shouldn't have secondary weapon
@@ -528,16 +547,32 @@ public:
 				Context.AddError(FText::FromString(TEXT("Resonator can only equip 6 rings")));
 				Result = EDataValidationResult::Invalid;
 			}
+			// Count evolved rings (max 2)
+			{
+				int32 EvolvedRingCount = 0;
+				for (URingData *Ring : EquippedRings)
+				{
+					if (Ring && Ring->IsEvolved())
+					{
+						EvolvedRingCount++;
+					}
+				}
+				if (EvolvedRingCount > 2)
+				{
+					Context.AddError(FText::FromString(TEXT("Resonator can only equip 2 evolved rings")));
+					Result = EDataValidationResult::Invalid;
+				}
+			}
 			// Resonator shouldn't have innate spells
 			if (InnateSpells.Num() > 0)
 			{
 				Context.AddError(FText::FromString(TEXT("Resonators get spells from rings, not innate")));
 				Result = EDataValidationResult::Invalid;
 			}
-			// Resonator shouldn't have secondary weapon
-			if (SecondaryWeapon)
+			// Resonator shouldn't use secondary slot system
+			if (SecondarySlotType != ESecondarySlotType::None)
 			{
-				Context.AddError(FText::FromString(TEXT("Resonators cannot have a secondary weapon")));
+				Context.AddError(FText::FromString(TEXT("Resonators use EquippedRings, not SecondarySlot")));
 				Result = EDataValidationResult::Invalid;
 			}
 			break;
