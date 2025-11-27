@@ -27,6 +27,8 @@ class UItemExecutor;
 class UWeaponManager;
 class URingManager;
 class UDefenseSystem;
+class UBrokenDarknessManager;
+struct FHybridSpellColorData;
 struct FDefenseResult;
 struct FActionExecutionContext;
 struct FPendingDefenseContext;
@@ -597,4 +599,33 @@ private:
 		AActor *Target,
 		const FPendingDefenseContext &Context,
 		const FDefenseResult &DefenseResult);
+
+	// == == == == == == == == == == == == == == == == == == == ==
+	// BROKEN DARKNESS INTEGRATION
+	// ========================================
+
+	/**
+	 * Get BrokenDarknessManager component from actor
+	 */
+	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
+
+	/**
+	 * Check and roll for Broken Darkness transformation
+	 * Called at start of action execution
+	 * Triggers on: underpowered cast, L2 infusion
+	 */
+	void CheckBrokenDarknessBreak(AActor *Actor, const FAction &Action, UCharacterData *CharData);
+
+	/**
+	 * Process forbidden element cast for BD characters
+	 * Applies self-damage if casting Dark Light or Dark Void
+	 */
+	void ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage);
+
+protected:
+	/**
+	 * Play infusion charge animation based on level
+	 * Uses CharacterData->InfusionL1Animation or InfusionL2Animation
+	 */
+	virtual void PlayInfusionAnimation(AActor *Actor, int32 InfusionLevel);
 };

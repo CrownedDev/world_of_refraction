@@ -147,6 +147,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
 	UStanceData *UnarmedStance = nullptr;
 
+	// In CharacterData.h - Infusion Visuals section
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
+	UAnimMontage *InfusionL1Animation;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
+	UAnimMontage *InfusionL2Animation;
+
+	// Optional: different animations per infusion type
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
+	UAnimMontage *PhysicalInfusionAnimation; // Power infusion
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
+	UAnimMontage *ElementalInfusionAnimation; // Element infusion
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Infusion")
 	UCharacterInfusionDisplayData *InfusionDisplay = nullptr;
 

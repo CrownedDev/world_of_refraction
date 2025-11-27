@@ -24,6 +24,8 @@
 #include "ItemData.h"
 #include "DefenseSystem.h"
 #include "EDefenseType.h"
+#include "BrokenDarknessManager.h"
+#include "HybridSpellColors.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -291,7 +293,18 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s executing %s (Cost: %d EP)"),
 		   *Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
 
-	// Route to appropriate executor
+	// Check for Broken Darkness break triggers BEFORE executing
+	UCharacterData *CharData = GetCharacterData(Actor);
+	CheckBrokenDarknessBreak(Actor, Action, CharData);
+
+	// Play infusion animation if applicable
+	int32 MaxInfusionLevel = FMath::Max3(Action.InfusionLevel, Action.SpellInfusionLevel, Action.SpellSizeInfusionLevel);
+	if (MaxInfusionLevel > 0)
+	{
+		PlayInfusionAnimation(Actor, MaxInfusionLevel);
+	}
+
+	// Route to appropriate executor (existing code)
 	switch (Action.ActionType)
 	{
 	case EActionType::Spell:
@@ -397,59 +410,70 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Get character data for calculations
 	UCharacterData *CharData = GetCharacterData(Actor);
 
+	// === BROKEN DARKNESS & INFUSION HOOKS ===
+	// Check for Broken Darkness break triggers
+	CheckBrokenDarknessBreak(Actor, Action, CharData);
+
+	// Play infusion animation if applicable
+	int32 MaxInfusionLevel = FMath::Max3(Action.InfusionLevel, Action.SpellInfusionLevel, Action.SpellSizeInfusionLevel);
+	if (MaxInfusionLevel > 0)
+	{
+		PlayInfusionAnimation(Actor, MaxInfusionLevel);
+	}
+	// === END HOOKS ===
+
 	// Process based on action type
 	switch (Action.ActionType)
-	{
 	case EActionType::Spell:
 		ExecuteSpellAsync(Actor, Action, CharData);
-		break;
+	break;
 
-	case EActionType::Ability:
-		ExecuteAbilityAsync(Actor, Action, CharData);
-		break;
+case EActionType::Ability:
+	ExecuteAbilityAsync(Actor, Action, CharData);
+	break;
 
-	case EActionType::Attack:
-		ExecuteAttackAsync(Actor, Action, CharData);
-		break;
+case EActionType::Attack:
+	ExecuteAttackAsync(Actor, Action, CharData);
+	break;
 
-	case EActionType::Item:
-	case EActionType::Defend:
-	case EActionType::SwitchWeapon:
-	case EActionType::Flee:
-		// These don't have defense windows - execute synchronously
+case EActionType::Item:
+case EActionType::Defend:
+case EActionType::SwitchWeapon:
+case EActionType::Flee:
+	// These don't have defense windows - execute synchronously
+	{
+		FActionResult Result = ExecuteAction(Actor, Action);
+		CurrentExecutionContext.Reset();
+		if (OnComplete.IsBound())
 		{
-			FActionResult Result = ExecuteAction(Actor, Action);
-			CurrentExecutionContext.Reset();
-			if (OnComplete.IsBound())
-			{
-				OnComplete.Execute(Result);
-			}
+			OnComplete.Execute(Result);
 		}
-		return;
-
-	default:
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unknown action type for async execution"));
-		CancelAsyncAction();
-		return;
 	}
+	return;
 
-	// Set timeout timer as failsafe
-	if (UWorld *World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			AsyncTimeoutHandle,
-			this,
-			&UActionExecutor::OnAsyncActionTimeout,
-			CurrentExecutionContext->TimeoutDuration,
-			false);
-	}
+default:
+	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unknown action type for async execution"));
+	CancelAsyncAction();
+	return;
+}
 
-	// Check if any defense windows were opened
-	if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
-	{
-		// No defense windows needed - finalize immediately
-		FinalizeAsyncAction();
-	}
+// Set timeout timer as failsafe
+if (UWorld *World = GetWorld())
+{
+	World->GetTimerManager().SetTimer(
+		AsyncTimeoutHandle,
+		this,
+		&UActionExecutor::OnAsyncActionTimeout,
+		CurrentExecutionContext->TimeoutDuration,
+		false);
+}
+
+// Check if any defense windows were opened
+if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+{
+	// No defense windows needed - finalize immediately
+	FinalizeAsyncAction();
+}
 }
 
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
@@ -513,6 +537,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// Calculate damage per hit
 	int32 DamagePerHit = BaseDamage / FMath::Max(1, Spell->HitCount);
+
+	// Check for forbidden element self-damage (BD casting Dark Light/Void)
+	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
 
 	// Open defense windows for all targets (damage applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -923,7 +950,35 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 		Defender,
 		Context,
 		DefenseResult);
+	// Broken Darkness absorption from defense
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
+	if (BDManager && BDManager->IsTransformed())
+	{
+		// Get attack info from pending context
+		if (CurrentExecutionContext.IsSet())
+		{
+			FPendingDefenseContext *Context = CurrentExecutionContext->PendingDefenses.Find(Defender);
+			if (Context)
+			{
+				// Get spell/ability energy cost for absorption calculation
+				float EnergyCost = 0.0f;
+				if (CurrentExecutionContext->Action.SpellData)
+				{
+					EnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
+				}
+				else if (CurrentExecutionContext->Action.AbilityData)
+				{
+					EnergyCost = CurrentExecutionContext->Action.AbilityData->BaseEnergyCost;
+				}
 
+				BDManager->OnDefenseResolved(
+					DefenseResult.DefenseType,
+					DefenseResult,
+					Context->Element,
+					EnergyCost);
+			}
+		}
+	}
 	// Remove from pending list
 	CurrentExecutionContext->PendingDefenses.Remove(Defender);
 
@@ -1982,6 +2037,20 @@ void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float Spe
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpawnSpellVFX stub - %s VFX (Size: %.1f)"),
 		   Spell ? *Spell->GetName() : TEXT("None"),
 		   SpellSize);
+
+	// Get colors based on whether caster is BD
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
+	bool bIsBD = BDManager && BDManager->IsTransformed();
+
+	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBD);
+
+	// Apply to Niagara system
+	if (NiagaraComponent)
+	{
+		NiagaraComponent->SetColorParameter("CoreColor", Colors.PrimaryColor);
+		NiagaraComponent->SetColorParameter("EdgeColor", Colors.BlendedColor);
+		NiagaraComponent->SetColorParameter("TrailColor", Colors.SecondaryColor);
+	}
 }
 
 void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
@@ -2556,6 +2625,117 @@ void UActionExecutor::ApplySelfStatusBuildup(AActor *Actor, ESpellElement Elemen
 		// TODO: Implement status buildup on self
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s received %d self-status buildup (%s) from Evolution L2"),
 			   *Actor->GetName(), Amount, *UEnum::GetValueAsString(Element));
+	}
+}
+
+// ============================================================
+//  - Get BrokenDarknessManager
+// ============================================================
+
+UBrokenDarknessManager *UActionExecutor::GetBrokenDarknessManager(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	return Actor->FindComponentByClass<UBrokenDarknessManager>();
+}
+
+// ============================================================
+// Check and Roll for Break
+// ============================================================
+void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Action, UCharacterData *CharData)
+{
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager)
+	{
+		return; // Not a potential BD character
+	}
+
+	// Already transformed - no more break checks needed
+	if (BDManager->IsTransformed())
+	{
+		return;
+	}
+
+	// Check 1: Spell below stat requirements
+	if (Action.ActionType == EActionType::Spell && Action.SpellData)
+	{
+		if (UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData))
+		{
+			BDManager->RollForBreak(TEXT("Underpowered spell cast"));
+		}
+	}
+
+	// Check 2: Ability below stat requirements
+	if (Action.ActionType == EActionType::Ability && Action.AbilityData)
+	{
+		if (UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
+		{
+			BDManager->RollForBreak(TEXT("Underpowered ability use"));
+		}
+	}
+
+	// Check 3: L2 Infusion (any action type)
+	if (Action.InfusionLevel >= 2 || Action.SpellInfusionLevel >= 2 || Action.SpellSizeInfusionLevel >= 2)
+	{
+		BDManager->RollForBreak(TEXT("L2 Infusion overcharge"));
+	}
+}
+
+// ============================================================
+// Process Forbidden Element Cast
+// ============================================================
+void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage)
+{
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager || !BDManager->IsTransformed())
+	{
+		return;
+	}
+
+	// ProcessForbiddenCast checks if element is forbidden internally
+	BDManager->ProcessForbiddenCast(Element, BaseDamage);
+}
+
+// ============================================================
+// Play Infusion Animation
+// ============================================================
+void UActionExecutor::PlayInfusionAnimation(AActor *Actor, int32 InfusionLevel)
+{
+	if (InfusionLevel <= 0 || !Actor)
+	{
+		return;
+	}
+
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (!CharData)
+	{
+		return;
+	}
+
+	UAnimMontage *AnimToPlay = nullptr;
+
+	if (InfusionLevel >= 2 && CharData->InfusionL2Animation)
+	{
+		AnimToPlay = CharData->InfusionL2Animation;
+	}
+	else if (InfusionLevel >= 1 && CharData->InfusionL1Animation)
+	{
+		AnimToPlay = CharData->InfusionL1Animation;
+	}
+
+	if (AnimToPlay)
+	{
+		// Get skeletal mesh component and play montage
+		USkeletalMeshComponent *Mesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
+		if (Mesh && Mesh->GetAnimInstance())
+		{
+			Mesh->GetAnimInstance()->Montage_Play(AnimToPlay);
+
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing L%d infusion animation on %s"),
+				   InfusionLevel, *Actor->GetName());
+		}
 	}
 }
 
