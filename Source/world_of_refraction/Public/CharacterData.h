@@ -137,7 +137,7 @@ public:
 
 	// ==================== RESONATOR RINGS ====================
 
-	/** Equipped rings (Resonator only - up to 6 slots) */
+	/** Equipped rings (Resonator only - up to 5 slots, max 2 evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Rings",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
 	TArray<URingData *> EquippedRings;

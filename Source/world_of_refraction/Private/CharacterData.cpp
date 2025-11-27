@@ -97,9 +97,9 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         {
             Context.AddWarning(FText::FromString(TEXT("Resonator has no rings equipped")));
         }
-        if (EquippedRings.Num() > 6)
+        if (EquippedRings.Num() > 5)
         {
-            Context.AddError(FText::FromString(TEXT("Resonator can only equip 6 rings")));
+            Context.AddError(FText::FromString(TEXT("Resonator can only equip 5 rings")));
             Result = EDataValidationResult::Invalid;
         }
         // Count evolved rings (max 2)
