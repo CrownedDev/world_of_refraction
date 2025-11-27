@@ -220,6 +220,19 @@ public:
 	FActionResult ExecuteDefend(AActor *Defender);
 
 	// ========================================
+	// POST-CAST PROCESSING
+	// ========================================
+
+	/**
+	 * Process post-cast logic based on spell source
+	 * - Innate: No action
+	 * - Ring: Break check
+	 * - Evolution: TBD
+	 * - Item: Consume item
+	 */
+	void ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, bool bWasInfused);
+
+	// ========================================
 	// DAMAGE APPLICATION
 	// ========================================
 

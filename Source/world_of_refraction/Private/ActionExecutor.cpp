@@ -9,7 +9,7 @@
 #include "AbilityData.h"
 #include "ItemData.h"
 #include "BaseAttackData.h"
-
+#include "ESpellSource.h"
 #include "CombatConstants.h"
 #include "ItemExecutor.h"
 #include "WeaponManager.h"
@@ -291,6 +291,13 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	case EActionType::Spell:
 		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets,
 							  Action.bUseElementalMode, Action.SpellInfusionLevel);
+
+		// Post-cast processing (ring break checks, item consumption)
+		if (Result.bSuccess)
+		{
+			bool bWasInfused = Action.SpellInfusionLevel > 0 || Action.SpellSizeInfusionLevel > 0;
+			ProcessPostCastBySource(Actor, Action.SpellData, Action.SpellSource, bWasInfused);
+		}
 		break;
 
 	case EActionType::Ability:
@@ -909,6 +916,44 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s is defending"), *Defender->GetName());
 
 	return Result;
+}
+// ========================================
+// POST-CAST PROCESSING
+// ========================================
+
+void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, bool bWasInfused)
+{
+	if (!Caster || !Spell)
+		return;
+
+	switch (Source)
+	{
+	case ESpellSource::Innate:
+		// Caster's natural spells - no risk
+		break;
+
+	case ESpellSource::Ring:
+		// Break check for Resonators
+		if (URingManager *RingMgr = GetRingManager())
+		{
+			bool bBroke = RingMgr->ProcessPostCastBreakCheck(Caster, Spell, bWasInfused);
+			if (bBroke)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Ring broke after casting %s"), *Spell->SpellName);
+			}
+		}
+		break;
+
+	case ESpellSource::Evolution:
+		// TODO: Evolution crystal logic
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Evolution spell cast - no post-cast logic yet"));
+		break;
+
+	case ESpellSource::Item:
+		// TODO: Consume spell item from inventory
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell item used - consumption not yet implemented"));
+		break;
+	}
 }
 
 // ========================================

@@ -309,7 +309,7 @@ bool UWeaponManager::ConjureWeapon(AActor *Actor, UWeaponData *WeaponToConjure)
 	}
 
 	// Only Elemental characters can conjure
-	if (!CasterCharacter(Actor))
+	if (!IsCasterCharacter(Actor))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Only Elemental characters can conjure weapons"));
 		return false;
@@ -606,7 +606,7 @@ bool UWeaponManager::IsGenericCharacter(AActor *Actor) const
 	return Data && Data->IsGeneric();
 }
 
-bool UWeaponManager::CasterCharacter(AActor *Actor) const
+bool UWeaponManager::IsCasterCharacter(AActor *Actor) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
 	return Data && Data->IsCaster();

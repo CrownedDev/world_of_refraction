@@ -7,6 +7,7 @@
 #include "SpellElement.h"
 #include "EInfusionType.h"
 #include "EInfusionSource.h"
+#include "ESpellSource.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -44,9 +45,13 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	UItemData *ItemData = nullptr;
 
-	/** Attack data (if ActionType == Attack) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UBaseAttackData *AttackData = nullptr;
+	/** Source of spell (Innate, Ring, Evolution, Item) - determines post-cast logic */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
+	ESpellSource SpellSource = ESpellSource::Innate
+
+		/** Attack data (if ActionType == Attack) */
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
+			UBaseAttackData *AttackData = nullptr;
 
 	// ==================== INFUSION OPTIONS ====================
 
