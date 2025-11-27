@@ -1813,6 +1813,15 @@ UStatusEffectManager *UActionExecutor::GetStatusEffectManager() const
 	return StatusEffectManagerRef;
 }
 
+UDamageCalculator *UActionExecutor::GetDamageCalculator() const
+{
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		return GI->GetSubsystem<UDamageCalculator>();
+	}
+	return nullptr;
+}
+
 bool UActionExecutor::IsTargetAlive(AActor *Target) const
 {
 	if (!Target)
