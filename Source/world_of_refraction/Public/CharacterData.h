@@ -66,26 +66,19 @@ public:
 			  meta = (EditCondition = "bIsEvolved", EditConditionHides))
 	UEvolutionData *ActiveEvolution = nullptr;
 
-	/** Secondary element from evolution (diff-element Caster only) */
-	UFUNCTION(BlueprintPure, Category = "Evolution")
-	ESpellElement GetSecondaryElement() const
-	{
-		return (bIsEvolved && ActiveEvolution) ? ActiveEvolution->Element : ESpellElement::Generic;
-	}
-
 	// ==================== EVOLUTION HELPERS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
 	bool IsEvolved() const { return bIsEvolved && ActiveEvolution != nullptr; }
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
-	ESpellElement GetSecondaryElement() const; // Move to .cpp
+	ESpellElement GetSecondaryElement() const;
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
-	bool HasSecondaryElement() const; // Move to .cpp
+	bool HasSecondaryElement() const;
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
-	bool IsDualElementCaster() const; // Move to .cpp
+	bool IsDualElementCaster() const;
 
 	// ==================== COMBAT LOADOUT ====================
 

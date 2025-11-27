@@ -8,21 +8,6 @@
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
 
-ESpellElement UCharacterData::GetEvolutionElement() const
-{
-    if (!bIsEvolved || !ActiveEvolution)
-    {
-        return ESpellElement::Generic;
-    }
-    return ActiveEvolution->Element;
-}
-
-bool UCharacterData::IsDualElementCaster() const
-{
-    return IsCaster() && bIsEvolved && ActiveEvolution &&
-           ActiveEvolution->Element != InnateElement;
-}
-
 ESpellElement UCharacterData::GetSecondaryElement() const
 {
     return (bIsEvolved && ActiveEvolution) ? ActiveEvolution->Element : ESpellElement::Generic;
