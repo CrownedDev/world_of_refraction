@@ -241,8 +241,6 @@ struct WORLD_OF_REFRACTION_API FPassiveEffect
             return TEXT("On Applying Status");
         case EPassiveTrigger::OnStatusReceived:
             return TEXT("On Receiving Status");
-        case EPassiveTrigger::OnUltimateUsed:
-            return TEXT("After Using Ultimate");
         case EPassiveTrigger::OnSpellCast:
             return TEXT("After Casting Spell");
         case EPassiveTrigger::OnAbilityUsed:

@@ -2,7 +2,7 @@
 // Implementation of EvolutionData debug utilities
 
 #include "EvolutionDataDebug.h"
-#include "UltimateData.h"
+
 #include "SpellData.h"
 #include "Engine/Engine.h"
 
@@ -112,21 +112,6 @@ FString UEvolutionDataDebug::GetEvolutionStatsString(UEvolutionData *Evolution, 
     }
     Output += TEXT("\n");
 
-    // Ultimate Override
-    if (Evolution->bOverridesUltimate)
-    {
-        Output += TEXT("ULTIMATE OVERRIDE:\n");
-        if (Evolution->EvolutionUltimate)
-        {
-            Output += FString::Printf(TEXT("  Replaces with: %s\n"), *Evolution->EvolutionUltimate->UltimateName);
-        }
-        else
-        {
-            Output += TEXT("  ERROR: No ultimate assigned\n");
-        }
-        Output += TEXT("\n");
-    }
-
     // Exclusive Spells
     if (Evolution->HasExclusiveSpells())
     {
@@ -184,7 +169,6 @@ void UEvolutionDataDebug::CompareEvolutions(UEvolutionData *Evolution1, UEvoluti
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25.0f%% | %-25.0f%%"), TEXT("Spirit Mod"), Evolution1->SpiritModifierPercent, Evolution2->SpiritModifierPercent);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25d | %-25d"), TEXT("Passives"), Evolution1->GetPassiveCount(), Evolution2->GetPassiveCount());
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25d | %-25d"), TEXT("Exclusive Spells"), Evolution1->GetExclusiveSpellCount(), Evolution2->GetExclusiveSpellCount());
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Overrides Ult"), Evolution1->HasUltimateOverride() ? TEXT("Yes") : TEXT("No"), Evolution2->HasUltimateOverride() ? TEXT("Yes") : TEXT("No"));
 
     if (Character)
     {

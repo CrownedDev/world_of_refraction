@@ -24,7 +24,6 @@ enum class EPassiveTrigger : uint8
     OnKill UMETA(DisplayName = "On Kill"),
     OnStatusApplied UMETA(DisplayName = "On Applying Status"),
     OnStatusReceived UMETA(DisplayName = "On Receiving Status"),
-    OnUltimateUsed UMETA(DisplayName = "After Using Ultimate"),
     OnSpellCast UMETA(DisplayName = "After Casting Spell"),
     OnAbilityUsed UMETA(DisplayName = "After Using Ability"),
     OnDodge UMETA(DisplayName = "On Dodge"),

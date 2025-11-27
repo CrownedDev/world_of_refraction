@@ -10,7 +10,6 @@
 
 class URingData;
 class USpellData;
-class UUltimateData;
 
 // Constants for break calculations
 namespace BreakConstants
@@ -86,11 +85,7 @@ public:
 
 	/** Calculate break chance for ring casting a spell */
 	UFUNCTION(BlueprintPure, Category = "Break Calculator|Ring")
-	static float GetRingSpellBreakChance(URingData* Ring, USpellData* Spell, bool bInfused);
-
-	/** Calculate break chance for ring casting an ultimate */
-	UFUNCTION(BlueprintPure, Category = "Break Calculator|Ring")
-	static float GetRingUltimateBreakChance(URingData* Ring, UUltimateData* Ultimate, bool bInfused);
+	static float GetRingSpellBreakChance(URingData *Ring, USpellData *Spell, bool bInfused);
 
 	// ==================== ROLL FUNCTIONS ====================
 

@@ -3,7 +3,6 @@
 #include "BreakCalculatorDebug.h"
 #include "RingData.h"
 #include "SpellData.h"
-#include "UltimateData.h"
 
 void UBreakCalculatorDebug::LogBreakChance(EItemTier EquipmentTier, EItemTier ActionTier, bool bInfused)
 {
@@ -68,25 +67,6 @@ void UBreakCalculatorDebug::LogRingSpellBreak(URingData *Ring, USpellData *Spell
     UE_LOG(LogTemp, Display, TEXT("Break Chance: %.1f%%"), Chance * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("========================================"));
 }
-
-void UBreakCalculatorDebug::LogRingUltimateBreak(URingData *Ring, UUltimateData *Ultimate, bool bInfused)
-{
-    if (!Ring || !Ultimate)
-    {
-        UE_LOG(LogTemp, Error, TEXT("LogRingUltimateBreak: Ring or Ultimate is NULL"));
-        return;
-    }
-
-    float Chance = UBreakCalculator::GetRingUltimateBreakChance(Ring, Ultimate, bInfused);
-
-    UE_LOG(LogTemp, Display, TEXT("========== RING + ULTIMATE BREAK =========="));
-    UE_LOG(LogTemp, Display, TEXT("Ring: %s (%s)"), *Ring->RingName, *TierHelpers::GetTierName(Ring->Tier));
-    UE_LOG(LogTemp, Display, TEXT("Ultimate: %s (%s)"), *Ultimate->UltimateName, *TierHelpers::GetTierName(Ultimate->Tier));
-    UE_LOG(LogTemp, Display, TEXT("Infused: %s"), bInfused ? TEXT("Yes") : TEXT("No"));
-    UE_LOG(LogTemp, Display, TEXT("Durability: %.0f%%"), Ring->GetDurabilityPercent() * 100.0f);
-    UE_LOG(LogTemp, Display, TEXT("-------------------------------------------"));
-    UE_LOG(LogTemp, Display, TEXT("Break Chance: %.1f%%"), Chance * 100.0f);
-    UE_LOG(LogTemp, Display, TEXT("==========================================="));
 }
 
 void UBreakCalculatorDebug::PrintBreakTable(EItemTier EquipmentTier)

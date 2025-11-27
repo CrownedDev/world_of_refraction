@@ -13,7 +13,6 @@ class USpellData;
 class UAbilityData;
 class UItemData;
 class UBaseAttackData;
-class UUltimateData;
 
 /**
  * FAction
@@ -48,10 +47,6 @@ struct WORLD_OF_REFRACTION_API FAction
 	/** Attack data (if ActionType == Attack) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	UBaseAttackData *AttackData = nullptr;
-
-	/** Ultimate data (if ActionType == Ultimate) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UUltimateData *UltimateData = nullptr;
 
 	// ==================== INFUSION OPTIONS ====================
 
@@ -101,8 +96,6 @@ struct WORLD_OF_REFRACTION_API FAction
 			return false;
 		if (ActionType == EActionType::Attack && !AttackData)
 			return false;
-		if (ActionType == EActionType::Ultimate && !UltimateData)
-			return false;
 		return true;
 	}
 
@@ -137,8 +130,6 @@ struct WORLD_OF_REFRACTION_API FAction
 			return ItemData ? TEXT("Item") : TEXT("Unknown Item");
 		case EActionType::Attack:
 			return AttackData ? TEXT("Attack") : TEXT("Basic Attack");
-		case EActionType::Ultimate:
-			return UltimateData ? TEXT("Ultimate") : TEXT("Unknown Ultimate");
 		case EActionType::Defend:
 			return TEXT("Defend");
 		case EActionType::SwitchWeapon:

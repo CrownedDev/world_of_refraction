@@ -3,7 +3,6 @@
 #include "BreakCalculator.h"
 #include "RingData.h"
 #include "SpellData.h"
-#include "UltimateData.h"
 
 float UBreakCalculator::CalculateBreakChance(EItemTier EquipmentTier, EItemTier ActionTier, bool bWasInfused)
 {
@@ -113,27 +112,6 @@ float UBreakCalculator::GetRingSpellBreakChance(URingData *Ring, USpellData *Spe
 		SpellTier,
 		bInfused,
 		bIsCustom,
-		Durability);
-
-	return Result.TotalBreakChance;
-}
-
-float UBreakCalculator::GetRingUltimateBreakChance(URingData *Ring, UUltimateData *Ultimate, bool bInfused)
-{
-	if (!Ring || !Ultimate)
-	{
-		return 0.0f;
-	}
-
-	EItemTier UltimateTier = Ultimate->Tier;
-
-	float Durability = Ring->GetDurabilityPercent();
-
-	FBreakCalculationResult Result = CalculateBreakChanceDetailed(
-		Ring->Tier,
-		UltimateTier,
-		bInfused,
-		false,
 		Durability);
 
 	return Result.TotalBreakChance;

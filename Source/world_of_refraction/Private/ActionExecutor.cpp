@@ -9,7 +9,7 @@
 #include "AbilityData.h"
 #include "ItemData.h"
 #include "BaseAttackData.h"
-#include "UltimateData.h"
+
 #include "CombatConstants.h"
 #include "ItemExecutor.h"
 #include "WeaponManager.h"
@@ -30,7 +30,7 @@ class USpellData;
 class UAbilityData;
 class UItemData;
 class UBaseAttackData;
-class UUltimateData;
+
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;
@@ -183,14 +183,6 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			}
 			break;
 
-		case EActionType::Ultimate:
-			if (Action.UltimateData)
-			{
-				// TODO: Check cooldown
-				// TODO: Check element requirement
-			}
-			break;
-
 		default:
 			break;
 		}
@@ -257,10 +249,6 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		}
 		return 0;
 
-	case EActionType::Ultimate:
-		// Ultimates don't cost energy (cooldown-based)
-		return 0;
-
 	case EActionType::Defend:
 		return 0;
 
@@ -316,10 +304,6 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 	case EActionType::Attack:
 		Result = ExecuteAttack(Actor, Action.AttackData, Action.Targets, Action.bIsElementInfused);
-		break;
-
-	case EActionType::Ultimate:
-		Result = ExecuteUltimate(Actor, Action.UltimateData, Action.Targets);
 		break;
 
 	case EActionType::Defend:
@@ -882,123 +866,6 @@ FActionResult UActionExecutor::ExecuteAttack(
 		   *Attacker->GetName(),
 		   bIsInfused ? TEXT(" (Infused)") : TEXT(""),
 		   Result.TotalDamageDealt);
-
-	return Result;
-}
-
-// ========================================
-// EXECUTION - ULTIMATE
-// ========================================
-
-FActionResult UActionExecutor::ExecuteUltimate(
-	AActor *Caster,
-	UUltimateData *Ultimate,
-	const TArray<AActor *> &Targets)
-{
-	FActionResult Result;
-	Result.Executor = Caster;
-	Result.ActionType = EActionType::Ultimate;
-
-	if (!Caster || !Ultimate)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Invalid caster or ultimate");
-		return Result;
-	}
-
-	UCharacterData *CasterData = GetCharacterData(Caster);
-	if (!CasterData)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Caster missing character data");
-		return Result;
-	}
-
-	// TODO: Check and apply cooldown
-
-	// Ultimates don't cost energy
-	Result.EnergySpent = 0;
-
-	// Calculate damage based on ultimate type and scaling
-	int32 BaseDamage = Ultimate->BaseDamage;
-
-	// Apply stat scaling
-	switch (Ultimate->ScalingType)
-	{
-	case EStatScalingType::Body:
-		BaseDamage = FMath::RoundToInt(BaseDamage * CasterData->CalculateRawDamageMultiplier());
-		break;
-	case EStatScalingType::Spirit:
-		BaseDamage = FMath::RoundToInt(BaseDamage * CasterData->CalculateEffectDamageMultiplier());
-		break;
-	case EStatScalingType::Mind:
-		// Mind scaling could affect duration/utility instead
-		break;
-	default:
-		break;
-	}
-
-	// Process based on ultimate type
-	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
-
-	switch (Ultimate->UltimateType)
-	{
-	case EUltimateType::Damage:
-	case EUltimateType::DamageAOE:
-		for (AActor *Target : ValidTargets)
-		{
-			FCombatHitResult HitResult = ApplyDamage(
-				Caster, Target, BaseDamage, true, Ultimate->Element, Ultimate->bCanCrit);
-			Result.TotalDamageDealt += HitResult.DamageDealt;
-			Result.DamagePerTarget.Add(Target, HitResult.DamageDealt);
-			Result.AffectedTargets.Add(Target);
-			Result.bWasCritical |= HitResult.bWasCritical;
-
-			if (HitResult.bTargetDied)
-			{
-				Result.bCausedDeath = true;
-				OnTargetKilled.Broadcast(Caster, Target);
-			}
-		}
-		break;
-
-	case EUltimateType::Heal:
-		for (AActor *Target : ValidTargets)
-		{
-			FCombatHitResult HitResult = ApplyHealing(Caster, Target, BaseDamage);
-			Result.TotalHealingDone += HitResult.HealingDone;
-			Result.AffectedTargets.Add(Target);
-		}
-		break;
-
-	case EUltimateType::Buff:
-	case EUltimateType::Debuff:
-	case EUltimateType::CrowdControl:
-		// Apply status effect
-		if (Ultimate->PrimaryEffectType != EAbilityEffectType::None)
-		{
-			for (AActor *Target : ValidTargets)
-			{
-				ApplyStatusEffects(
-					Caster, Target,
-					Ultimate->PrimaryEffectType,
-					Ultimate->EffectPercentage,
-					Ultimate->EffectDuration,
-					EAbilityEffectType::None, 0.0f, 0,
-					Ultimate->Element);
-				Result.StatusEffectsApplied++;
-				Result.AffectedTargets.Add(Target);
-			}
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	Result.bSuccess = true;
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used ultimate %s - %d damage, %d healing"),
-		   *Caster->GetName(), *Ultimate->GetName(), Result.TotalDamageDealt, Result.TotalHealingDone);
 
 	return Result;
 }

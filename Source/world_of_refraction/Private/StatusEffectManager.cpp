@@ -1286,7 +1286,6 @@ bool UStatusEffectManager::IsTriggerConditionMet(AActor *Actor, const FStatusEff
 	case EPassiveTrigger::OnTurnEnd:
 	case EPassiveTrigger::OnSpellCast:
 	case EPassiveTrigger::OnAbilityUsed:
-	case EPassiveTrigger::OnUltimateUsed:
 	case EPassiveTrigger::OnBattleStart:
 	case EPassiveTrigger::OnStatusApplied:
 	case EPassiveTrigger::OnStatusReceived:

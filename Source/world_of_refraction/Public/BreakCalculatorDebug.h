@@ -11,7 +11,6 @@
 
 class URingData;
 class USpellData;
-class UUltimateData;
 
 /**
  * Debug utilities for Break Calculator
@@ -33,10 +32,6 @@ public:
     // Log ring + spell break chance
     UFUNCTION(BlueprintCallable, Category = "Debug|Break")
     static void LogRingSpellBreak(URingData *Ring, USpellData *Spell, bool bInfused);
-
-    // Log ring + ultimate break chance
-    UFUNCTION(BlueprintCallable, Category = "Debug|Break")
-    static void LogRingUltimateBreak(URingData *Ring, UUltimateData *Ultimate, bool bInfused);
 
     // Print full break table for a given equipment tier
     UFUNCTION(BlueprintCallable, Category = "Debug|Break")

@@ -18,7 +18,7 @@
 
 // Forward declarations
 class UCharacterData;
-class UUltimateData;
+
 class USpellData;
 
 /**
@@ -43,7 +43,7 @@ struct WORLD_OF_REFRACTION_API FEvolutionCostResult
 };
 /**
  * Evolution Data Asset - Character transformations
- * Provides stat modifications, passive effects, exclusive spells, and ultimate overrides
+ * Provides stat modifications, passive effects, exclusive spells overrides
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UEvolutionData : public UPrimaryDataAsset
@@ -127,13 +127,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|SubStats|Spirit",
               meta = (ClampMin = "-50", ClampMax = "50", EditCondition = "StatModifierMode == EStatModifierMode::SubStats", EditConditionHides))
     float AbilitySizeModifierPercent = 0.0f;
-    // ==================== ULTIMATE OVERRIDE ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ultimate")
-    bool bOverridesUltimate = false;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ultimate", meta = (EditCondition = "bOverridesUltimate"))
-    UUltimateData *EvolutionUltimate = nullptr;
 
     // ==================== EXCLUSIVE SPELLS ====================
 
@@ -247,14 +240,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
     bool HasExclusiveSpells() const { return ExclusiveSpells.Num() > 0; }
-
-    // ==================== ULTIMATE HELPERS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Evolution|Ultimate")
-    bool HasUltimateOverride() const { return bOverridesUltimate && EvolutionUltimate != nullptr; }
-
-    UFUNCTION(BlueprintPure, Category = "Evolution|Ultimate")
-    UUltimateData *GetEvolutionUltimate() const { return bOverridesUltimate ? EvolutionUltimate : nullptr; }
 
     // ==================== COST CALCULATION ====================
 

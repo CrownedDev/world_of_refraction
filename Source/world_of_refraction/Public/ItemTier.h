@@ -1,6 +1,6 @@
 // ItemTier.h
 // Unified tier system for items AND equipment (F through S)
-// Used by: Items, Rings, Spells, Ultimates, Crystals, Weapons
+// Used by: Items, Rings, Spells,Crystals, Weapons
 
 #pragma once
 
@@ -9,10 +9,10 @@
 
 /**
  * Universal tier system from weakest (F) to strongest (S)
- * 
+ *
  * For Items: Determines power level and rarity
  * For Equipment: Used in break chance calculations
- * 
+ *
  * Break Mechanics (Equipment):
  * - Same tier = safe (0% break chance)
  * - 1 tier gap = low break chance (15%)
@@ -56,14 +56,22 @@ namespace TierHelpers
 	{
 		switch (Tier)
 		{
-		case EItemTier::F_Tier: return TEXT("F");
-		case EItemTier::E_Tier: return TEXT("E");
-		case EItemTier::D_Tier: return TEXT("D");
-		case EItemTier::C_Tier: return TEXT("C");
-		case EItemTier::B_Tier: return TEXT("B");
-		case EItemTier::A_Tier: return TEXT("A");
-		case EItemTier::S_Tier: return TEXT("S");
-		default: return TEXT("?");
+		case EItemTier::F_Tier:
+			return TEXT("F");
+		case EItemTier::E_Tier:
+			return TEXT("E");
+		case EItemTier::D_Tier:
+			return TEXT("D");
+		case EItemTier::C_Tier:
+			return TEXT("C");
+		case EItemTier::B_Tier:
+			return TEXT("B");
+		case EItemTier::A_Tier:
+			return TEXT("A");
+		case EItemTier::S_Tier:
+			return TEXT("S");
+		default:
+			return TEXT("?");
 		}
 	}
 

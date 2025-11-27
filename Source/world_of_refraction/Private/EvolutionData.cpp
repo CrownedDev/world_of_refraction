@@ -4,7 +4,7 @@
 #include "EvolutionData.h"
 #include "CharacterData.h"
 #include "ECharacterClass.h"
-#include "UltimateData.h"
+
 #include "SpellData.h"
 #include "WeaponData.h"
 #include "RingData.h"
@@ -380,27 +380,6 @@ EDataValidationResult UEvolutionData::IsDataValid(FDataValidationContext &Contex
                     *ExclusiveSpells[i]->GetElementName())));
                 Result = EDataValidationResult::Invalid;
             }
-        }
-    }
-
-    // Ultimate override validation
-    if (bOverridesUltimate && EvolutionUltimate == nullptr)
-    {
-        Context.AddError(FText::FromString(TEXT("Ultimate override enabled but no ultimate assigned")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Check ultimate element matching
-    if (bOverridesUltimate && EvolutionUltimate)
-    {
-        ESpellElement UltElement = EvolutionUltimate->Element;
-        if (UltElement != Element && UltElement != ESpellElement::Generic)
-        {
-            Context.AddError(FText::FromString(FString::Printf(
-                TEXT("Evolution ultimate '%s' has wrong element (%s)"),
-                *EvolutionUltimate->UltimateName,
-                *EvolutionUltimate->GetElementName())));
-            Result = EDataValidationResult::Invalid;
         }
     }
 

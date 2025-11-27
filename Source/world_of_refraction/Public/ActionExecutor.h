@@ -21,7 +21,7 @@ class USpellData;
 class UAbilityData;
 class UItemData;
 class UBaseAttackData;
-class UUltimateData;
+
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;
@@ -214,13 +214,6 @@ public:
 		UBaseAttackData *Attack,
 		const TArray<AActor *> &Targets,
 		bool bIsInfused = false);
-
-	/** Execute an ultimate */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteUltimate(
-		AActor *Caster,
-		UUltimateData *Ultimate,
-		const TArray<AActor *> &Targets);
 
 	/** Execute defend action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
