@@ -22,6 +22,8 @@
 #include "RingManager.h"
 #include "WeaponData.h"
 #include "ItemData.h"
+#include "DefenseSystem.h"
+#include "EDefenseType.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -38,6 +40,7 @@ class URingManager;
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
+	BindDefenseSystemEvents();
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Initialized"));
 }
@@ -45,6 +48,9 @@ void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 void UActionExecutor::Deinitialize()
 {
 	StatusEffectManagerRef = nullptr;
+	UnbindDefenseSystemEvents();
+	CancelAsyncAction(); // Clean up any pending action
+
 	Super::Deinitialize();
 }
 
@@ -335,33 +341,14 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
 {
-	// Store callback
-	PendingActionCallback = OnComplete;
-	PendingDefenseCount = 0;
-
-	// Clear any pending timers
-	for (FTimerHandle &Handle : PendingHitTimers)
+	// Check for existing async action
+	if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress)
 	{
-		if (UWorld *World = GetWorld())
-		{
-			World->GetTimerManager().ClearTimer(Handle);
-		}
-	}
-	PendingHitTimers.Empty();
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Cannot start async action - another in progress"));
 
-	// Validate first
-	FActionValidationResult Validation = ValidateAction(Actor, Action);
-	if (!Validation.bIsValid)
-	{
 		FActionResult FailResult;
 		FailResult.bSuccess = false;
-		FailResult.ErrorMessage = Validation.ErrorMessage;
-		FailResult.Executor = Actor;
-		FailResult.ActionType = Action.ActionType;
-
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action validation failed: %s"), *Validation.ErrorMessage);
-
-		// Immediate callback for validation failure
+		FailResult.ErrorMessage = TEXT("Another async action in progress");
 		if (OnComplete.IsBound())
 		{
 			OnComplete.Execute(FailResult);
@@ -369,55 +356,403 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		return;
 	}
 
+	// Validate action
+	FActionValidationResult Validation = ValidateAction(Actor, Action);
+	if (!Validation.bIsValid)
+	{
+		FActionResult FailResult;
+		FailResult.bSuccess = false;
+		FailResult.ErrorMessage = Validation.ErrorMessage;
+
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action validation failed: %s"),
+			   *Validation.ErrorMessage);
+
+		if (OnComplete.IsBound())
+		{
+			OnComplete.Execute(FailResult);
+		}
+		return;
+	}
+
+	void UActionExecutor::CompleteAsyncAction()
+	{
+		if (PendingActionCallback.IsBound())
+		{
+			PendingActionCallback.Execute(PendingActionResult);
+			PendingActionCallback.Unbind();
+		}
+
+		// Reset state
+		PendingDefenseCount = 0;
+		PendingActionResult = FActionResult();
+	}
+
+	void UActionExecutor::OnDefenseResolved(AActor * Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried)
+	{
+		// Update pending result with actual damage after defense
+		if (PendingActionResult.DamagePerTarget.Contains(Target))
+		{
+			int32 OriginalDamage = PendingActionResult.DamagePerTarget[Target];
+			int32 DamageDifference = OriginalDamage - FinalDamage;
+
+			PendingActionResult.TotalDamageDealt -= DamageDifference;
+			PendingActionResult.DamagePerTarget[Target] = FinalDamage;
+		}
+
+		PendingDefenseCount--;
+
+		if (PendingDefenseCount <= 0)
+		{
+			CompleteAsyncAction();
+		}
+	}
+
+	// Validate action
+	FActionValidationResult Validation = ValidateAction(Actor, Action);
+	if (!Validation.bIsValid)
+	{
+		FActionResult FailResult;
+		FailResult.bSuccess = false;
+		FailResult.ErrorMessage = Validation.ErrorMessage;
+
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action validation failed: %s"),
+			   *Validation.ErrorMessage);
+
+		if (OnComplete.IsBound())
+		{
+			OnComplete.Execute(FailResult);
+		}
+		return;
+	}
+
+	// Create execution context
+	FActionExecutionContext Context;
+	Context.Action = Action;
+	Context.Executor = Actor;
+	Context.bInProgress = true;
+	Context.StartTime = FPlatformTime::Seconds();
+
+	// Initialize partial result
+	Context.PartialResult.Executor = Actor;
+	Context.PartialResult.ActionType = Action.ActionType;
+	Context.PartialResult.bSuccess = true;
+
+	// Store context and callback
+	CurrentExecutionContext = Context;
+	AsyncActionCallback = OnComplete;
+
 	// Broadcast start
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s executing %s async (Cost: %d EP)"),
-		   *Actor->GetName(), *Action.GetActionName(), Validation.EnergyCost);
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Starting async action: %s by %s"),
+		   *Action.GetActionName(), *Actor->GetName());
 
-	// Execute synchronously for now - defense windows will be handled via events
-	// DefenseSystem should bind to OnDefenseWindowRequested to intercept damage
-	PendingActionResult = ExecuteAction(Actor, Action);
+	// Get character data for calculations
+	UCharacterData *CharData = GetCharacterData(Actor);
 
-	// If no defense windows are pending, complete immediately
-	if (PendingDefenseCount == 0)
+	// Process based on action type
+	switch (Action.ActionType)
 	{
-		CompleteAsyncAction();
+	case EActionType::Spell:
+		ExecuteSpellAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Ability:
+		ExecuteAbilityAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Attack:
+		ExecuteAttackAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Item:
+	case EActionType::Defend:
+	case EActionType::SwitchWeapon:
+	case EActionType::Flee:
+		// These don't have defense windows - execute synchronously
+		{
+			FActionResult Result = ExecuteAction(Actor, Action);
+			CurrentExecutionContext.Reset();
+			if (OnComplete.IsBound())
+			{
+				OnComplete.Execute(Result);
+			}
+		}
+		return;
+
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unknown action type for async execution"));
+		CancelAsyncAction();
+		return;
 	}
-	// Otherwise, defense system will call OnDefenseResolved for each target
+
+	// Set timeout timer as failsafe
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			AsyncTimeoutHandle,
+			this,
+			&UActionExecutor::OnAsyncActionTimeout,
+			CurrentExecutionContext->TimeoutDuration,
+			false);
+	}
+
+	// Check if any defense windows were opened
+	if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+	{
+		// No defense windows needed - finalize immediately
+		FinalizeAsyncAction();
+	}
 }
 
-void UActionExecutor::CompleteAsyncAction()
+void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
 {
-	if (PendingActionCallback.IsBound())
+	USpellData *Spell = Action.SpellData;
+	if (!Spell || !CasterData)
 	{
-		PendingActionCallback.Execute(PendingActionResult);
-		PendingActionCallback.Unbind();
+		CancelAsyncAction();
+		return;
 	}
 
-	// Reset state
-	PendingDefenseCount = 0;
-	PendingActionResult = FActionResult();
+	UCharacterDataComponent *CasterComp = GetCharacterDataComponent(Caster);
+	if (!CasterComp)
+	{
+		CancelAsyncAction();
+		return;
+	}
+
+	// Calculate and spend energy
+	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData, Action.bUseElementalMode);
+	float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
+	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
+
+	if (!SpendEnergy(Caster, FinalEnergyCost))
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
+		FinalizeAsyncAction();
+		return;
+	}
+	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
+
+	// Calculate spell size (affects dodge viability)
+	float BaseAbilitySize = CasterData->CalculateAbilitySizeMultiplier();
+	float SizeMultiplier = GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
+	float FinalSpellSize = BaseAbilitySize * SizeMultiplier;
+
+	// Calculate base damage
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, Action.bUseElementalMode);
+
+	// Store in result for reference
+	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
+	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
+	CurrentExecutionContext->PartialResult.bIsElementalAttack = true;
+
+	// Play animation and VFX
+	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
+	SpawnSpellVFX(Caster, Spell, FinalSpellSize);
+
+	// Get valid targets
+	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
+
+	if (ValidTargets.Num() == 0)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Calculate damage per hit
+	int32 DamagePerHit = BaseDamage / FMath::Max(1, Spell->HitCount);
+
+	// Open defense windows for all targets (damage applied after defense resolves)
+	OpenDefenseWindowsForTargets(
+		Caster,
+		ValidTargets,
+		FinalSpellSize,
+		BaseDamage,
+		DamagePerHit,
+		Spell->HitCount,
+		true, // Spells are elemental
+		Spell->Element,
+		true, // Can crit
+		0.3f  // Default window duration - TODO: get from spell data
+	);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell async - opened %d defense windows (Size: %.1f, Damage: %d)"),
+		   ValidTargets.Num(), FinalSpellSize, BaseDamage);
 }
 
-void UActionExecutor::OnDefenseResolved(AActor *Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried)
+void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
 {
-	// Update pending result with actual damage after defense
-	if (PendingActionResult.DamagePerTarget.Contains(Target))
+	UAbilityData *Ability = Action.AbilityData;
+	if (!Ability || !UserData)
 	{
-		int32 OriginalDamage = PendingActionResult.DamagePerTarget[Target];
-		int32 DamageDifference = OriginalDamage - FinalDamage;
-
-		PendingActionResult.TotalDamageDealt -= DamageDifference;
-		PendingActionResult.DamagePerTarget[Target] = FinalDamage;
+		CancelAsyncAction();
+		return;
 	}
 
-	PendingDefenseCount--;
-
-	if (PendingDefenseCount <= 0)
+	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
+	if (!UserComp)
 	{
-		CompleteAsyncAction();
+		CancelAsyncAction();
+		return;
 	}
+
+	// Calculate and spend energy
+	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, Action.bIsElementInfused);
+	float PowerCostMultiplier = GetAbilityPowerInfusionCostMultiplier(Action.AbilityInfusionLevel);
+	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * PowerCostMultiplier);
+
+	if (!SpendEnergy(User, FinalEnergyCost))
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
+		FinalizeAsyncAction();
+		return;
+	}
+	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
+
+	// Calculate damage with power infusion
+	float DamageMultiplier = UserData->CalculateRawDamageMultiplier();
+	float PowerMultiplier = GetAbilityPowerInfusionDamageMultiplier(Action.AbilityInfusionLevel);
+	int32 BaseDamage = FMath::RoundToInt(Ability->BasePower * DamageMultiplier * PowerMultiplier);
+
+	// Element handling
+	ESpellElement Element = ESpellElement::Generic;
+	bool bIsElemental = Action.bIsElementInfused;
+	if (bIsElemental && UserData->HasInnateElement())
+	{
+		Element = UserData->InnateElement;
+		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty for element
+	}
+
+	// Attack size for abilities
+	float AttackSize = UserData->CalculateAbilitySizeMultiplier();
+
+	// Store in result
+	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
+	CurrentExecutionContext->PartialResult.AttackElement = Element;
+	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsElemental;
+
+	// Play animation
+	PlayAbilityAnimation(User, Ability);
+
+	// Get valid targets
+	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
+
+	if (ValidTargets.Num() == 0)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Calculate damage per hit
+	int32 DamagePerHit = BaseDamage / FMath::Max(1, Ability->HitCount);
+
+	// Open defense windows
+	OpenDefenseWindowsForTargets(
+		User,
+		ValidTargets,
+		AttackSize,
+		BaseDamage,
+		DamagePerHit,
+		Ability->HitCount,
+		bIsElemental,
+		Element,
+		true, // Can crit
+		0.3f);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async - opened %d defense windows"),
+		   ValidTargets.Num());
+}
+
+void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
+{
+	UBaseAttackData *Attack = Action.AttackData;
+
+	// If no attack specified, try to get from weapon
+	if (!Attack)
+	{
+		UWeaponManager *WeaponMgr = GetWeaponManager();
+		if (WeaponMgr)
+		{
+			Attack = WeaponMgr->GetActiveAttack(Attacker);
+		}
+	}
+
+	if (!Attack || !AttackerData)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No attack available");
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Calculate damage
+	float DamageMultiplier = AttackerData->CalculateRawDamageMultiplier();
+	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
+
+	bool bIsInfused = Action.bIsElementInfused;
+	if (bIsInfused)
+	{
+		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty
+
+		// Spend energy for infused attack
+		int32 InfusionCost = 5; // TODO: from constants
+		SpendEnergy(Attacker, InfusionCost);
+		CurrentExecutionContext->PartialResult.EnergySpent = InfusionCost;
+	}
+
+	// Element
+	ESpellElement Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
+
+	// Attack size
+	float AttackSize = 1.5f; // TODO: get from attack data
+
+	// Store in result
+	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
+	CurrentExecutionContext->PartialResult.AttackElement = Element;
+	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsInfused;
+
+	// Play animation
+	PlayAttackAnimation(Attacker, Attack);
+
+	// Get valid targets
+	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
+
+	if (ValidTargets.Num() == 0)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Calculate damage per hit
+	int32 DamagePerHit = BaseDamage / FMath::Max(1, Attack->HitCount);
+
+	// Open defense windows
+	OpenDefenseWindowsForTargets(
+		Attacker,
+		ValidTargets,
+		AttackSize,
+		BaseDamage,
+		DamagePerHit,
+		Attack->HitCount,
+		bIsInfused,
+		Element,
+		true,
+		0.3f);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Attack async - opened %d defense windows"),
+		   ValidTargets.Num());
 }
 
 // ========================================
@@ -542,6 +877,394 @@ FActionResult UActionExecutor::ExecuteSpell(
 		   Result.TotalDamageDealt, ValidTargets.Num());
 
 	return Result;
+}
+
+// ============================================================
+// 6. DEFENSE WINDOW INTEGRATION
+// ============================================================
+
+void UActionExecutor::OpenDefenseWindowsForTargets(
+	AActor *Attacker,
+	const TArray<AActor *> &Targets,
+	float AttackSize,
+	int32 BaseDamage,
+	int32 DamagePerHit,
+	int32 HitCount,
+	bool bIsElemental,
+	ESpellElement Element,
+	bool bCanCrit,
+	float WindowDuration)
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No execution context for defense windows"));
+		return;
+	}
+
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (!DefenseSys)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] DefenseSystem not available - applying damage directly"));
+
+		// Fallback: apply damage without defense
+		for (AActor *Target : Targets)
+		{
+			int32 TotalDamage = ProcessMultiHit(
+				Attacker, Target, DamagePerHit, HitCount, bIsElemental, Element, bCanCrit,
+				CurrentExecutionContext->PartialResult);
+
+			CurrentExecutionContext->PartialResult.TotalDamageDealt += TotalDamage;
+			CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, TotalDamage);
+			CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+		}
+		return;
+	}
+
+	// Create pending defense context for each target
+	for (AActor *Target : Targets)
+	{
+		FPendingDefenseContext DefenseContext;
+		DefenseContext.Attacker = Attacker;
+		DefenseContext.Target = Target;
+		DefenseContext.BaseDamage = BaseDamage;
+		DefenseContext.DamagePerHit = DamagePerHit;
+		DefenseContext.AttackSize = AttackSize;
+		DefenseContext.bIsElemental = bIsElemental;
+		DefenseContext.Element = Element;
+		DefenseContext.HitCount = HitCount;
+		DefenseContext.bCanCrit = bCanCrit;
+		DefenseContext.WindowDuration = WindowDuration;
+
+		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
+
+		// Open defense window in DefenseSystem
+		DefenseSys->OpenDefenseWindow(
+			Attacker,
+			Target,
+			AttackSize,
+			BaseDamage,
+			WindowDuration,
+			bIsElemental);
+
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Opened defense window for %s (Size: %.1f, Damage: %d)"),
+			   *Target->GetName(), AttackSize, BaseDamage);
+	}
+}
+
+void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResult &DefenseResult)
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Defense window closed but no async action in progress"));
+		return;
+	}
+
+	// Find the pending defense context for this defender
+	FPendingDefenseContext *ContextPtr = CurrentExecutionContext->PendingDefenses.Find(Defender);
+	if (!ContextPtr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Defense resolved for unknown target: %s"),
+			   *Defender->GetName());
+		return;
+	}
+
+	FPendingDefenseContext Context = *ContextPtr;
+
+	// Apply damage based on defense result
+	ApplyDamageAfterDefense(
+		Context.Attacker.Get(),
+		Defender,
+		Context,
+		DefenseResult);
+
+	// Remove from pending list
+	CurrentExecutionContext->PendingDefenses.Remove(Defender);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Defense resolved for %s - Type: %d, FinalDamage: %d, Pending: %d"),
+		   *Defender->GetName(),
+		   static_cast<int32>(DefenseResult.DefenseType),
+		   DefenseResult.FinalDamage,
+		   CurrentExecutionContext->GetPendingCount());
+
+	// Check if all defenses resolved
+	CheckAndFinalizeAsyncAction();
+}
+
+void UActionExecutor::ApplyDamageAfterDefense(
+	AActor *Attacker,
+	AActor *Target,
+	const FPendingDefenseContext &Context,
+	const FDefenseResult &DefenseResult)
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return;
+	}
+
+	int32 FinalDamage = 0;
+
+	if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Dodge)
+	{
+		// Dodge successful - no damage
+		FinalDamage = 0;
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s dodged attack - 0 damage"), *Target->GetName());
+	}
+	else
+	{
+		// Apply damage based on defense result
+		// DefenseResult.FinalDamage already has reduction applied
+		int32 DamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
+
+		FinalDamage = ProcessMultiHit(
+			Attacker,
+			Target,
+			DamagePerHit,
+			Context.HitCount,
+			Context.bIsElemental,
+			Context.Element,
+			Context.bCanCrit,
+			CurrentExecutionContext->PartialResult);
+	}
+
+	// Update result
+	CurrentExecutionContext->PartialResult.TotalDamageDealt += FinalDamage;
+	CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, FinalDamage);
+	CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+
+	// Check for kills
+	if (!IsTargetAlive(Target))
+	{
+		CurrentExecutionContext->PartialResult.bCausedDeath = true;
+		OnTargetKilled.Broadcast(Attacker, Target);
+	}
+
+	// Track defense type used
+	if (DefenseResult.bSuccess)
+	{
+		FCombatHitResult HitResult;
+		HitResult.Target = Target;
+		HitResult.DamageDealt = FinalDamage;
+		HitResult.bWasBlocked = (DefenseResult.DefenseType == EDefenseType::Block);
+		HitResult.bWasParried = (DefenseResult.DefenseType == EDefenseType::Parry);
+		HitResult.bWasDodged = (DefenseResult.DefenseType == EDefenseType::Dodge);
+		// Could store these in PartialResult if needed
+	}
+}
+
+// ============================================================
+// 7. ASYNC FINALIZATION
+// ============================================================
+
+void UActionExecutor::CheckAndFinalizeAsyncAction()
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return;
+	}
+
+	if (CurrentExecutionContext->AreAllDefensesResolved())
+	{
+		FinalizeAsyncAction();
+	}
+}
+
+void UActionExecutor::FinalizeAsyncAction()
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return;
+	}
+
+	// Clear timeout timer
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
+	}
+
+	// Get final result
+	FActionResult FinalResult = CurrentExecutionContext->PartialResult;
+	FAction Action = CurrentExecutionContext->Action;
+	AActor *Executor = CurrentExecutionContext->Executor.Get();
+
+	// Apply post-action effects (status effects, etc.)
+	if (FinalResult.bSuccess && Executor)
+	{
+		// Apply status effects from spell/ability
+		UStatusEffectManager *StatusManager = GetStatusEffectManager();
+
+		if (Action.ActionType == EActionType::Spell && Action.SpellData && StatusManager)
+		{
+			if (Action.SpellData->PrimaryEffect != EAbilityEffectType::None)
+			{
+				for (AActor *Target : FinalResult.AffectedTargets)
+				{
+					ApplyStatusEffects(
+						Executor, Target,
+						Action.SpellData->PrimaryEffect,
+						Action.SpellData->PrimaryEffectMagnitude * 100.0f,
+						Action.SpellData->PrimaryEffectDuration,
+						Action.SpellData->SecondaryEffect,
+						Action.SpellData->SecondaryEffectMagnitude * 100.0f,
+						Action.SpellData->SecondaryEffectDuration,
+						Action.SpellData->Element);
+					FinalResult.StatusEffectsApplied++;
+				}
+			}
+		}
+
+		// Process post-cast by source (ring break checks, etc.)
+		if (Action.ActionType == EActionType::Spell && Action.SpellData)
+		{
+			bool bWasInfused = Action.SpellInfusionLevel > 0 || Action.SpellSizeInfusionLevel > 0;
+			ProcessPostCastBySource(Executor, Action.SpellData, Action.SpellSource, bWasInfused);
+		}
+	}
+
+	// Mark complete
+	CurrentExecutionContext->bInProgress = false;
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Async action finalized - Success: %s, Damage: %d, Targets: %d"),
+		   FinalResult.bSuccess ? TEXT("Yes") : TEXT("No"),
+		   FinalResult.TotalDamageDealt,
+		   FinalResult.AffectedTargets.Num());
+
+	// Fire callback
+	if (AsyncActionCallback.IsBound())
+	{
+		AsyncActionCallback.Execute(FinalResult);
+		AsyncActionCallback.Unbind();
+	}
+
+	// Broadcast completion
+	if (Executor)
+	{
+		OnAsyncActionCompleted.Broadcast(Executor, FinalResult);
+		OnActionCompleted.Broadcast(Executor, FinalResult);
+	}
+
+	// Clear context
+	CurrentExecutionContext.Reset();
+}
+
+void UActionExecutor::OnAsyncActionTimeout()
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action timed out with %d pending defenses"),
+		   CurrentExecutionContext->GetPendingCount());
+
+	// Apply full damage to any remaining targets
+	for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+	{
+		FPendingDefenseContext &Context = Pair.Value;
+
+		// Create failed defense result (full damage)
+		FDefenseResult FailedDefense;
+		FailedDefense.bSuccess = false;
+		FailedDefense.FinalDamage = Context.BaseDamage;
+
+		ApplyDamageAfterDefense(
+			Context.Attacker.Get(),
+			Context.Target.Get(),
+			Context,
+			FailedDefense);
+	}
+
+	CurrentExecutionContext->PendingDefenses.Empty();
+	FinalizeAsyncAction();
+}
+
+void UActionExecutor::CancelAsyncAction()
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Cancelling async action"));
+
+	// Clear timer
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
+	}
+
+	// Close any open defense windows
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys)
+	{
+		for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+		{
+			if (Pair.Key.IsValid())
+			{
+				DefenseSys->CloseDefenseWindow(Pair.Key.Get());
+			}
+		}
+	}
+
+	// Mark failed
+	CurrentExecutionContext->PartialResult.bSuccess = false;
+	CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Action cancelled");
+
+	FinalizeAsyncAction();
+}
+
+bool UActionExecutor::IsAsyncActionInProgress() const
+{
+	return CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress;
+}
+
+const FActionExecutionContext *UActionExecutor::GetCurrentExecutionContext() const
+{
+	return CurrentExecutionContext.IsSet() ? &CurrentExecutionContext.GetValue() : nullptr;
+}
+
+// ============================================================
+// 8. DEFENSE SYSTEM BINDING
+// ============================================================
+
+UDefenseSystem *UActionExecutor::GetDefenseSystem() const
+{
+	if (DefenseSystemRef)
+	{
+		return DefenseSystemRef;
+	}
+
+	UGameInstance *GI = GetGameInstance();
+	if (GI)
+	{
+		UDefenseSystem *DefenseSys = GI->GetSubsystem<UDefenseSystem>();
+		const_cast<UActionExecutor *>(this)->DefenseSystemRef = DefenseSys;
+		return DefenseSys;
+	}
+
+	return nullptr;
+}
+
+void UActionExecutor::BindDefenseSystemEvents()
+{
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys)
+	{
+		// Dynamic delegates use AddDynamic macro
+		DefenseSys->OnDefenseWindowClosed.AddDynamic(this, &UActionExecutor::OnDefenseWindowClosed);
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Bound to DefenseSystem events"));
+	}
+}
+
+void UActionExecutor::UnbindDefenseSystemEvents()
+{
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys)
+	{
+		DefenseSys->OnDefenseWindowClosed.RemoveDynamic(this, &UActionExecutor::OnDefenseWindowClosed);
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Unbound from DefenseSystem events"));
+	}
 }
 
 // ========================================

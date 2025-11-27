@@ -12,6 +12,8 @@
 #include "EInfusionSource.h"
 #include "ECharacterClass.h"
 #include "InfusionConstants.h"
+#include "EDefenseType.h"
+#include "DefenseSystem.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -21,10 +23,13 @@ class USpellData;
 class UAbilityData;
 class UItemData;
 class UBaseAttackData;
-
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;
+class UDefenseSystem;
+struct FDefenseResult;
+struct FActionExecutionContext;
+struct FPendingDefenseContext;
 
 // ========================================
 // DELEGATES
@@ -53,6 +58,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor 
 
 /** Broadcast when infusion L2 cost is applied (HP damage, break chance, self-status) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnInfusionCostApplied, AActor *, Actor, EInfusionSource, Source, int32, HPCost, float, BreakChanceIncrease);
+/** Broadcast when async action fully completes (after all defense windows) */
+UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+FOnActionCompleted OnAsyncActionCompleted;
 
 /**
  * UActionExecutor
@@ -455,24 +463,145 @@ private:
 	UItemExecutor *GetItemExecutor() const;
 
 	// ========================================
-	// ASYNC EXECUTION STATE
+	// ASYNC EXECUTION SYSTEM
 	// ========================================
 
-	/** Pending async action completion callback */
-	FOnActionComplete PendingActionCallback;
+	/**
+	 * Execute a combat action asynchronously with full defense window integration.
+	 * Damage is NOT applied until all defense windows resolve.
+	 *
+	 * Flow:
+	 * 1. Validate action, spend energy
+	 * 2. Open defense window for each target
+	 * 3. Wait for DefenseSystem to resolve all windows
+	 * 4. Apply damage based on FDefenseResult (reduced by Block/Parry, 0 if Dodge)
+	 * 5. Fire OnComplete callback with final result
+	 *
+	 * @param Actor The actor performing the action
+	 * @param Action The action to execute
+	 * @param OnComplete Callback fired when ALL defense windows resolve
+	 */
+	void ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete);
 
-	/** Current action being executed asynchronously */
-	FActionResult PendingActionResult;
+	/**
+	 * Check if any async action is currently in progress
+	 */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Async")
+	bool IsAsyncActionInProgress() const;
 
-	/** Number of pending defense windows to resolve */
-	int32 PendingDefenseCount = 0;
+	/**
+	 * Get the current async execution context (if any)
+	 */
+	const FActionExecutionContext *GetCurrentExecutionContext() const;
 
-	/** Timer handles for staggered target hits */
-	TArray<FTimerHandle> PendingHitTimers;
+	/**
+	 * Cancel current async action (applies full damage, fires callback)
+	 * Use for combat end, actor death, etc.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Async")
+	void CancelAsyncAction();
 
-	/** Complete the async action and fire callback */
-	void CompleteAsyncAction();
+private:
+	// ========================================
+	// ASYNC EXECUTION - INTERNAL STATE
+	// ========================================
 
-	/** Handle defense resolution for a single target (called by DefenseSystem) */
-	void OnDefenseResolved(AActor *Target, int32 FinalDamage, bool bWasDodged, bool bWasBlocked, bool bWasParried);
+	/** Current async execution context */
+	TOptional<FActionExecutionContext> CurrentExecutionContext;
+
+	/** Callback for current async action */
+	FOnActionComplete AsyncActionCallback;
+
+	/** Cached DefenseSystem reference */
+	UPROPERTY()
+	UDefenseSystem *DefenseSystemRef = nullptr;
+
+	/** Handle for timeout timer */
+	FTimerHandle AsyncTimeoutHandle;
+
+	// ========================================
+	// ASYNC EXECUTION - INTERNAL METHODS
+	// ========================================
+
+	/** Get or cache DefenseSystem */
+	UDefenseSystem *GetDefenseSystem() const;
+
+	/** Bind to DefenseSystem events */
+	void BindDefenseSystemEvents();
+
+	/** Unbind from DefenseSystem events */
+	void UnbindDefenseSystemEvents();
+
+	/**
+	 * Called by DefenseSystem when a defense window closes
+	 * Applies damage based on defense result, removes from pending list
+	 * NOTE: Must be UFUNCTION for dynamic delegate binding
+	 */
+	UFUNCTION()
+	void OnDefenseWindowClosed(AActor *Defender, const FDefenseResult &DefenseResult);
+
+	/**
+	 * Check if all defenses resolved, finalize action if so
+	 */
+	void CheckAndFinalizeAsyncAction();
+
+	/**
+	 * Finalize async action - apply remaining effects, fire callback
+	 */
+	void FinalizeAsyncAction();
+
+	/**
+	 * Called when async action times out (failsafe)
+	 */
+	void OnAsyncActionTimeout();
+
+	/**
+	 * Execute spell action asynchronously (opens defense windows)
+	 */
+	void ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData);
+
+	/**
+	 * Execute ability action asynchronously (opens defense windows)
+	 */
+	void ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData);
+
+	/**
+	 * Execute attack action asynchronously (opens defense windows)
+	 */
+	void ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData);
+
+	/**
+	 * Open defense windows for all targets (does NOT apply damage yet)
+	 * @param Attacker The attacking actor
+	 * @param Targets List of targets
+	 * @param AttackSize Size of attack (for dodge threshold)
+	 * @param BaseDamage Base damage before defense
+	 * @param DamagePerHit Damage per hit (for multi-hit)
+	 * @param HitCount Number of hits
+	 * @param bIsElemental Is this elemental damage?
+	 * @param Element Element type
+	 * @param bCanCrit Can hits critically strike?
+	 * @param WindowDuration Defense window duration
+	 */
+	void OpenDefenseWindowsForTargets(
+		AActor *Attacker,
+		const TArray<AActor *> &Targets,
+		float AttackSize,
+		int32 BaseDamage,
+		int32 DamagePerHit,
+		int32 HitCount,
+		bool bIsElemental,
+		ESpellElement Element,
+		bool bCanCrit,
+		float WindowDuration = 0.3f);
+
+	/**
+	 * Apply damage to target after defense resolution
+	 * Uses FDefenseResult to determine final damage
+	 */
+	void ApplyDamageAfterDefense(
+		AActor *Attacker,
+		AActor *Target,
+		const FPendingDefenseContext &Context,
+		const FDefenseResult &DefenseResult);
 };

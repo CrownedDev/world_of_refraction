@@ -49,9 +49,9 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
 	ESpellSource SpellSource = ESpellSource::Innate;
 
-		/** Attack data (if ActionType == Attack) */
-		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-			UBaseAttackData *AttackData = nullptr;
+	/** Attack data (if ActionType == Attack) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
+	UBaseAttackData *AttackData = nullptr;
 
 	// ==================== INFUSION OPTIONS ====================
 
@@ -286,7 +286,110 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	// Per-target damage breakdown (for UI/logging)
 	TMap<AActor *, int32> DamagePerTarget;
 };
+// ==================== ASYNC EXECUTION CONTEXT ====================
 
+/**
+ * FPendingDefenseContext
+ * Tracks a single target's pending defense resolution during async action execution
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FPendingDefenseContext
+{
+	GENERATED_BODY()
+
+	/** Target awaiting defense resolution */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	TWeakObjectPtr<AActor> Target;
+
+	/** Attacker who initiated the attack */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	TWeakObjectPtr<AActor> Attacker;
+
+	/** Base damage before defense */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 BaseDamage = 0;
+
+	/** Attack size for dodge calculations */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	float AttackSize = 1.0f;
+
+	/** Is this an elemental attack? */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bIsElemental = false;
+
+	/** Element of the attack */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	ESpellElement Element = ESpellElement::Generic;
+
+	/** Number of hits to apply */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 HitCount = 1;
+
+	/** Can this attack crit? */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bCanCrit = true;
+
+	/** Unique ID for this defense context */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	FGuid ContextId;
+
+	FPendingDefenseContext()
+	{
+		ContextId = FGuid::NewGuid();
+	}
+};
+
+/**
+ * FActionExecutionContext
+ * Tracks an entire async action execution across multiple targets
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FActionExecutionContext
+{
+	GENERATED_BODY()
+
+	/** Unique ID for this action execution */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	FGuid ExecutionId;
+
+	/** The action being executed */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	FAction Action;
+
+	/** Actor executing the action */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	TWeakObjectPtr<AActor> Executor;
+
+	/** Running result (updated as defenses resolve) */
+	FActionResult PartialResult;
+
+	/** Pending defense contexts per target */
+	TMap<TWeakObjectPtr<AActor>, FPendingDefenseContext> PendingDefenses;
+
+	/** Is execution still in progress? */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	bool bInProgress = false;
+
+	/** Time execution started */
+	double StartTime = 0.0;
+
+	FActionExecutionContext()
+	{
+		ExecutionId = FGuid::NewGuid();
+	}
+
+	/** Check if all defenses are resolved */
+	bool AreAllDefensesResolved() const
+	{
+		return PendingDefenses.Num() == 0;
+	}
+
+	/** Get number of pending defenses */
+	int32 GetPendingCount() const
+	{
+		return PendingDefenses.Num();
+	}
+};
 /**
  * FCombatHitResult
  * Result of a single hit on a single target
