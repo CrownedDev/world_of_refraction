@@ -65,6 +65,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
 			  meta = (EditCondition = "bIsEvolved", EditConditionHides))
 	UEvolutionData *ActiveEvolution = nullptr;
+#if WITH_EDITORONLY_DATA
+	/** Display only - shows element from ActiveEvolution */
+	UPROPERTY(VisibleAnywhere, Category = "Evolution",
+			  meta = (EditCondition = "bIsEvolved && ActiveEvolution != nullptr", EditConditionHides))
+	FString EvolutionElementDisplay = TEXT("(Set by ActiveEvolution)");
+#endif
 
 	// ==================== EVOLUTION HELPERS ====================
 
@@ -121,8 +127,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
 	URingData *SecondaryRing = nullptr;
-
-	// ==================== CASTER SPELLS ====================
 
 	// ==================== CASTER SPELLS ====================
 
@@ -470,5 +474,7 @@ public:
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
+
 #endif
 };

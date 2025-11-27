@@ -133,4 +133,19 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
 
     return Result;
 }
+void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    // Update evolution element display
+    if (bIsEvolved && ActiveEvolution)
+    {
+        EvolutionElementDisplay = UEnum::GetValueAsString(ActiveEvolution->Element);
+        EvolutionElementDisplay.RemoveFromStart(TEXT("ESpellElement::"));
+    }
+    else
+    {
+        EvolutionElementDisplay = TEXT("None");
+    }
+}
 #endif
