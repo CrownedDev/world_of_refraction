@@ -14,6 +14,7 @@
 #include "InfusionConstants.h"
 #include "EDefenseType.h"
 #include "DefenseSystem.h"
+#include "DamageCalculator.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -262,11 +263,46 @@ public:
 	/**
 	 * Apply healing to target
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Damage")
-	FCombatHitResult ApplyHealing(
+	FCombatHitResult UActionExecutor::ApplyHealing(
 		AActor *Healer,
 		AActor *Target,
-		int32 BaseHealing);
+		int32 BaseHealing)
+	{
+		FCombatHitResult Result;
+		Result.Target = Target;
+		Result.bWasHealing = true;
+
+		if (!Target)
+		{
+			return Result;
+		}
+
+		UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+		if (!TargetComp)
+		{
+			return Result;
+		}
+
+		// Use centralized DamageCalculator for healing
+		int32 FinalHealing = BaseHealing;
+		UDamageCalculator *DamageCalc = GetDamageCalculator();
+		if (DamageCalc)
+		{
+			FinalHealing = DamageCalc->CalculateHealing(Healer, Target, BaseHealing);
+		}
+
+		// Apply healing
+		int32 HPBefore = TargetComp->CurrentHP;
+		TargetComp->ServerHeal(FinalHealing);
+		Result.HealingDone = TargetComp->CurrentHP - HPBefore;
+
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s healed %s for %d HP"),
+			   Healer ? *Healer->GetName() : TEXT("Unknown"),
+			   *Target->GetName(),
+			   Result.HealingDone);
+
+		return Result;
+	}
 
 	// ========================================
 	// UTILITY
@@ -282,6 +318,16 @@ public:
 
 	/** Get the WeaponManager */
 	UWeaponManager *GetWeaponManager() const;
+
+	/** Get the GetDamageCalculator */
+	UDamageCalculator *UActionExecutor::GetDamageCalculator() const
+	{
+		if (UGameInstance *GI = GetWorld()->GetGameInstance())
+		{
+			return GI->GetSubsystem<UDamageCalculator>();
+		}
+		return nullptr;
+	}
 
 	/** Check if target is alive */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
@@ -365,11 +411,12 @@ private:
 	/** Calculate critical hit */
 	bool RollCriticalHit(AActor *Attacker) const;
 
-	/** Apply critical damage multiplier */
-	int32 ApplyCriticalMultiplier(int32 Damage, AActor *Attacker) const;
+	// DEPRECATED:
+	// /** Apply critical damage multiplier */
+	// int32 ApplyCriticalMultiplier(int32 Damage, AActor *Attacker) const;
 
-	/** Apply defense reduction */
-	int32 ApplyDefense(int32 Damage, AActor *Defender, bool bIsElemental) const;
+	// /** Apply defense reduction */
+	// int32 ApplyDefense(int32 Damage, AActor *Defender, bool bIsElemental) const;
 
 	/** Apply status effects from spell/ability */
 	void ApplyStatusEffects(
@@ -594,12 +641,72 @@ private:
 	 * Apply damage to target after defense resolution
 	 * Uses FDefenseResult to determine final damage
 	 */
-	void ApplyDamageAfterDefense(
+	FCombatHitResult UActionExecutor::ApplyDamage(
 		AActor *Attacker,
 		AActor *Target,
-		const FPendingDefenseContext &Context,
-		const FDefenseResult &DefenseResult);
+		int32 BaseDamage,
+		bool bIsElemental,
+		ESpellElement Element,
+		bool bCanCrit)
+	{
+		FCombatHitResult Result;
+		Result.Target = Target;
 
+		if (!Target)
+		{
+			return Result;
+		}
+
+		UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+		if (!TargetComp)
+		{
+			return Result;
+		}
+
+		// Use centralized DamageCalculator
+		UDamageCalculator *DamageCalc = GetDamageCalculator();
+		if (DamageCalc)
+		{
+			FDamageCalculationInput Input;
+			Input.BaseDamage = BaseDamage;
+			Input.bIsElemental = bIsElemental;
+			Input.Element = Element;
+			Input.bCanCrit = bCanCrit;
+
+			FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Attacker, Target, Input);
+
+			Result.bWasCritical = CalcResult.bWasCritical;
+
+			// Apply the calculated damage
+			int32 HPBefore = TargetComp->CurrentHP;
+			TargetComp->ServerTakeDamage(CalcResult.FinalDamage);
+			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+		}
+		else
+		{
+			// Fallback to simple damage if subsystem unavailable
+			int32 HPBefore = TargetComp->CurrentHP;
+			TargetComp->ServerTakeDamage(FMath::Max(1, BaseDamage));
+			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+		}
+
+		// Check for death
+		if (!TargetComp->bIsAlive)
+		{
+			Result.bTargetDied = true;
+		}
+
+		// Broadcast damage event
+		OnDamageDealt.Broadcast(Attacker, Target, Result.DamageDealt, Result.bWasCritical);
+
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s dealt %d damage to %s%s"),
+			   Attacker ? *Attacker->GetName() : TEXT("Unknown"),
+			   Result.DamageDealt,
+			   *Target->GetName(),
+			   Result.bWasCritical ? TEXT(" (CRIT)") : TEXT(""));
+
+		return Result;
+	}
 	// == == == == == == == == == == == == == == == == == == == ==
 	// BROKEN DARKNESS INTEGRATION
 	// ========================================
@@ -621,6 +728,8 @@ private:
 	 * Applies self-damage if casting Dark Light or Dark Void
 	 */
 	void ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage);
+
+	UDamageCalculator *GetDamageCalculator() const;
 
 protected:
 	/**
