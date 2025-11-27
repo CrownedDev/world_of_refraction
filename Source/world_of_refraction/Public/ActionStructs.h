@@ -329,9 +329,24 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bCanCrit = true;
 
+	/** Damage per hit (for multi-hit attacks) */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 DamagePerHit = 0;
+
+	/** Window duration from attack data */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	float WindowDuration = 0.3f;
+
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	FGuid ContextId;
+	/** Damage per hit (for multi-hit attacks) */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 DamagePerHit = 0;
+
+	/** Window duration from attack data */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	float WindowDuration = 0.3f;
 
 	FPendingDefenseContext()
 	{
@@ -369,6 +384,10 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	/** Is execution still in progress? */
 	UPROPERTY(BlueprintReadOnly, Category = "Execution")
 	bool bInProgress = false;
+
+	/** Maximum time to wait for all defenses (prevents soft-lock) */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	float TimeoutDuration = 10.0f;
 
 	/** Time execution started */
 	double StartTime = 0.0;

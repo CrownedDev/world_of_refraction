@@ -58,9 +58,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor 
 
 /** Broadcast when infusion L2 cost is applied (HP damage, break chance, self-status) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnInfusionCostApplied, AActor *, Actor, EInfusionSource, Source, int32, HPCost, float, BreakChanceIncrease);
-/** Broadcast when async action fully completes (after all defense windows) */
-UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
-FOnActionCompleted OnAsyncActionCompleted;
 
 /**
  * UActionExecutor
@@ -115,14 +112,6 @@ public:
 	/** Execute a combat action synchronously */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteAction(AActor *Actor, const FAction &Action);
-
-	/**
-	 * Execute a combat action asynchronously (for defense window integration)
-	 * @param Actor The actor performing the action
-	 * @param Action The action to execute
-	 * @param OnComplete Callback when action fully completes (after defense resolution)
-	 */
-	void ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete);
 
 	// ========================================
 	// INFUSION SYSTEM
@@ -317,6 +306,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnTargetKilled OnTargetKilled;
+
+	/** Broadcast when async action fully completes (after all defense windows) */
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnActionCompleted OnAsyncActionCompleted;
 
 	/**
 	 * Broadcast when a defense window should open
