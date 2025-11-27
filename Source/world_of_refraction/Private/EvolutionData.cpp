@@ -3,9 +3,119 @@
 
 #include "EvolutionData.h"
 #include "CharacterData.h"
+#include "ECharacterClass.h"
 #include "UltimateData.h"
 #include "SpellData.h"
+#include "WeaponData.h"
+#include "RingData.h"
 
+FEvolutionCostResult UEvolutionData::CalculateCostForCharacter(UCharacterData *Character) const
+{
+    FEvolutionCostResult Result;
+    Result.bCanEvolve = true;
+
+    if (!Character)
+    {
+        Result.bCanEvolve = false;
+        Result.CostDescription = TEXT("Invalid character");
+        return Result;
+    }
+
+    switch (Character->CharacterClass)
+    {
+    case ECharacterClass::Generic:
+        Result.CostDescription = TEXT("Lose secondary weapon slot");
+        Result.GainDescription = TEXT("Gain evolution abilities and spells");
+        if (Character->SecondaryWeapon)
+        {
+            Result.Warnings.Add(FString::Printf(
+                TEXT("Will lose access to %s"), *Character->SecondaryWeapon->WeaponName));
+        }
+        break;
+
+    case ECharacterClass::Caster:
+        if (Element == Character->InnateElement)
+        {
+            Result.CostDescription = TEXT("No cost (same element)");
+            Result.GainDescription = TEXT("Gain evolution abilities");
+        }
+        else
+        {
+            Result.CostDescription = TEXT("Lose weapon slot");
+            Result.GainDescription = FString::Printf(
+                TEXT("Gain %s as second element, can switch between elements"),
+                *GetElementName());
+            if (Character->PrimaryWeapon)
+            {
+                Result.Warnings.Add(FString::Printf(
+                    TEXT("Will lose access to %s"), *Character->PrimaryWeapon->WeaponName));
+            }
+        }
+        break;
+
+    case ECharacterClass::Resonator:
+        Result.CostDescription = FString::Printf(
+            TEXT("Locked to %s element only"), *GetElementName());
+        Result.GainDescription = TEXT("Gain innate spells (no ring required), can equip 2nd weapon OR 2nd ring");
+        Result.Warnings.Add(TEXT("Will lose access to other elements"));
+        Result.Warnings.Add(TEXT("Multi-element builds no longer possible"));
+        break;
+    }
+
+    return Result;
+}
+
+bool UEvolutionData::CanCharacterEvolve(UCharacterData *Character) const
+{
+    if (!Character)
+        return false;
+
+    // Special elements may have restrictions
+    if (Element == ESpellElement::BrokenDarkness || Element == ESpellElement::Reality)
+    {
+        return false;
+    }
+
+    switch (Character->CharacterClass)
+    {
+    case ECharacterClass::Generic:
+        return true;
+
+    case ECharacterClass::Caster:
+        return true;
+
+    case ECharacterClass::Resonator:
+        // Resonator must have at least one ring of the evolution element
+        for (URingData *Ring : Character->EquippedRings)
+        {
+            if (Ring && Ring->Element == Element)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    return false;
+}
+
+FString UEvolutionData::GetCostDescriptionForClass(ECharacterClass Class) const
+{
+    switch (Class)
+    {
+    case ECharacterClass::Generic:
+        return TEXT("Loses secondary weapon, gains abilities + spells");
+
+    case ECharacterClass::Caster:
+        return TEXT("Same element: No cost. Different element: Loses weapon, gains dual-element");
+
+    case ECharacterClass::Resonator:
+        return FString::Printf(TEXT("Locked to %s, gains innate spells"), *GetElementName());
+
+    default:
+        return TEXT("Unknown");
+    }
+}
 // ==================== UTILITY FUNCTIONS ====================
 
 FString UEvolutionData::GetElementName() const

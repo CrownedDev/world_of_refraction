@@ -22,6 +22,7 @@ class UCharacterInfusionDisplayData;
 class UWeaponData;
 class URingData;
 class USpellData;
+class UEvolutionData;
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
@@ -52,6 +53,44 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	UTexture2D *Portrait = nullptr;
+
+	// ==================== EVOLUTION ====================
+
+	/** Is this character evolved? */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution")
+	bool bIsEvolved = false;
+
+	/** Active evolution data (if evolved) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
+			  meta = (EditCondition = "bIsEvolved", EditConditionHides))
+	UEvolutionData *ActiveEvolution = nullptr;
+
+	/** Secondary element from evolution (diff-element Caster only) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Evolution")
+	ESpellElement SecondaryElement = ESpellElement::Generic;
+
+	// ==================== EVOLUTION HELPERS ====================
+
+	UFUNCTION(BlueprintPure, Category = "Character|Evolution")
+	bool IsEvolved() const { return bIsEvolved && ActiveEvolution != nullptr; }
+
+	UFUNCTION(BlueprintPure, Category = "Character|Evolution")
+	bool HasSecondaryElement() const
+	{
+		return bIsEvolved && SecondaryElement != ESpellElement::Generic;
+	}
+
+	/** Get evolution element (or Generic if not evolved) */
+	UFUNCTION(BlueprintPure, Category = "Character|Evolution")
+	ESpellElement GetEvolutionElement() const;
+
+	/** Check if caster evolved with different element */
+	UFUNCTION(BlueprintPure, Category = "Character|Evolution")
+	bool IsDualElementCaster() const
+	{
+		return IsCaster() && bIsEvolved && ActiveEvolution &&
+			   ActiveEvolution->Element != InnateElement;
+	}
 
 	// ==================== COMBAT LOADOUT ====================
 

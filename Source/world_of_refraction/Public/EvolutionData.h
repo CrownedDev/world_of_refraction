@@ -22,6 +22,26 @@ class UUltimateData;
 class USpellData;
 
 /**
+ * Describes what a character loses/gains from evolution
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FEvolutionCostResult
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+    bool bCanEvolve = true;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+    FString CostDescription;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+    FString GainDescription;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+    TArray<FString> Warnings;
+};
+/**
  * Evolution Data Asset - Character transformations
  * Provides stat modifications, passive effects, exclusive spells, and ultimate overrides
  */
@@ -236,6 +256,19 @@ public:
     UFUNCTION(BlueprintPure, Category = "Evolution|Ultimate")
     UUltimateData *GetEvolutionUltimate() const { return bOverridesUltimate ? EvolutionUltimate : nullptr; }
 
+    // ==================== COST CALCULATION ====================
+
+    /** Calculate evolution cost for a specific character */
+    UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
+    FEvolutionCostResult CalculateCostForCharacter(UCharacterData *Character) const;
+
+    /** Can this character evolve with this evolution? */
+    UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
+    bool CanCharacterEvolve(UCharacterData *Character) const;
+
+    /** Get user-friendly cost description for a class */
+    UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
+    FString GetCostDescriptionForClass(ECharacterClass Class) const;
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
