@@ -12,13 +12,12 @@
 UENUM(BlueprintType)
 enum class EActionType : uint8
 {
-	None			UMETA(DisplayName = "None"),
-	Spell			UMETA(DisplayName = "Spell"),
-	Ability			UMETA(DisplayName = "Ability"),
-	Item			UMETA(DisplayName = "Item"),
-	Attack			UMETA(DisplayName = "Basic Attack"),
-	Ultimate		UMETA(DisplayName = "Ultimate"),
-	Defend			UMETA(DisplayName = "Defend"),
-	SwitchWeapon	UMETA(DisplayName = "Switch Weapon"),
-	Flee			UMETA(DisplayName = "Flee")
+	None UMETA(DisplayName = "None"),
+	Spell UMETA(DisplayName = "Refraction"),
+	Ability UMETA(DisplayName = "Ability"),
+	Item UMETA(DisplayName = "Item"),
+	Attack UMETA(DisplayName = "Basic Attack"),
+	Defend UMETA(DisplayName = "Defend"),
+	SwitchWeapon UMETA(DisplayName = "Switch Weapon"),
+	Flee UMETA(DisplayName = "Flee")
 };

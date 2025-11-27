@@ -23,5 +23,6 @@ enum class EItemEffectType : uint8
     Silence UMETA(DisplayName = "Silence (Prevent energy gain)"),
     Cleanse UMETA(DisplayName = "Cleanse (Remove debuffs)"),
     Gamble UMETA(DisplayName = "Gamble (Random effects)"),
-    Transform UMETA(DisplayName = "Transform (Absorb and change)")
+    Transform UMETA(DisplayName = "Transform (Absorb and change)"),
+    Repair UMETA(DisplayName = "Weapon Repair")
 };

@@ -8,7 +8,6 @@
 #include "WeaponAttackData.h"
 #include "CharacterData.h"
 #include "ItemData.h"
-#include "ItemTier.h"
 #include "CrystalType.h"
 
 FString UWeaponData::GetWeaponTypeName() const
@@ -40,14 +39,73 @@ FString UWeaponData::GetWeaponTypeName() const
     }
 }
 
-FString UWeaponData::GetTierString() const
+float UWeaponData::GetDurabilityPercent() const
 {
-    return TierHelpers::GetTierDisplayString(Tier);
+    if (MaxDurability <= 0)
+        return 0.0f;
+    return static_cast<float>(CurrentDurability) / static_cast<float>(MaxDurability);
+}
+
+bool UWeaponData::IsCrystalFunctional() const
+{
+    return SlottedCrystal != nullptr && !bCrystalDisabled;
+}
+
+void UWeaponData::ApplyDurabilityDamage(int32 Damage)
+{
+    CurrentDurability = FMath::Max(0, CurrentDurability - Damage);
+
+    if (CurrentDurability <= 0 && SlottedCrystal != nullptr)
+    {
+        bCrystalDisabled = true;
+    }
+}
+
+void UWeaponData::RepairDurability(float Percent)
+{
+    int32 Repair = FMath::CeilToInt(MaxDurability * Percent);
+    CurrentDurability = FMath::Min(MaxDurability, CurrentDurability + Repair);
+
+    // Re-enable crystal if repaired above 0
+    if (CurrentDurability > 0)
+    {
+        bCrystalDisabled = false;
+    }
+}
+
+void UWeaponData::ResetDurability()
+{
+    CurrentDurability = MaxDurability;
+    bCrystalDisabled = false;
+}
+
+int32 UWeaponData::GetCrystalBreakDamage(EItemTier CrystalTier)
+{
+    switch (CrystalTier)
+    {
+    case EItemTier::F_Tier:
+        return 5;
+    case EItemTier::E_Tier:
+        return 10;
+    case EItemTier::D_Tier:
+        return 15;
+    case EItemTier::C_Tier:
+        return 20;
+    case EItemTier::B_Tier:
+        return 30;
+    case EItemTier::A_Tier:
+        return 40;
+    case EItemTier::S_Tier:
+        return 50;
+    default:
+        return 10;
+    }
 }
 
 ESpellElement UWeaponData::GetWeaponElement() const
 {
-    if (!SlottedCrystal)
+    // Crystal disabled = no element
+    if (!IsCrystalFunctional())
     {
         return ESpellElement::Generic;
     }
@@ -56,7 +114,11 @@ ESpellElement UWeaponData::GetWeaponElement() const
 
 bool UWeaponData::IsEvolved() const
 {
-    return SlottedCrystal && SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
+    // Evolution crystals don't get disabled
+    if (!SlottedCrystal)
+        return false;
+
+    return SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
 }
 
 #if WITH_EDITOR
