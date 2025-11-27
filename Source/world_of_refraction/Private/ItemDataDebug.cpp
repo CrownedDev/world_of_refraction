@@ -168,6 +168,22 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
             Errors.Add(TEXT("EvolutionCrystal missing Evolution data reference"));
             bValid = false;
         }
+        else
+        {
+            // Validate evolution has element
+            if (Item->Evolution->Element == ESpellElement::Generic)
+            {
+                Errors.Add(TEXT("Evolution has Generic element (should be specific)"));
+                bValid = false;
+            }
+
+            // Warn if not refined (can't be slotted)
+            if (!Item->bIsRefined)
+            {
+                Errors.Add(TEXT("EvolutionCrystal should be refined for weapon/ring slotting"));
+                // Not invalid, just a warning scenario
+            }
+        }
         break;
     }
 
@@ -199,6 +215,29 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Element: %d"), static_cast<int32>(Item->GetAssociatedElement()));
     UE_LOG(LogTemp, Display, TEXT("Effect Type: %d"), static_cast<int32>(Item->GetPrimaryEffectType()));
     UE_LOG(LogTemp, Display, TEXT(""));
+
+    // ADD: Crystal state
+    UE_LOG(LogTemp, Display, TEXT(""));
+    UE_LOG(LogTemp, Display, TEXT("--- Crystal State ---"));
+    UE_LOG(LogTemp, Display, TEXT("Refined: %s"), Item->bIsRefined ? TEXT("YES (slottable)") : TEXT("NO (consumable)"));
+
+    // ADD: Evolution details if applicable
+    if (Item->CrystalType == ECrystalType::EvolutionCrystal)
+    {
+        UE_LOG(LogTemp, Display, TEXT(""));
+        UE_LOG(LogTemp, Display, TEXT("--- Evolution Details ---"));
+        if (Item->Evolution)
+        {
+            UE_LOG(LogTemp, Display, TEXT("Evolution Name: %s"), *Item->Evolution->EvolutionName);
+            UE_LOG(LogTemp, Display, TEXT("Evolution Element: %s"), *Item->Evolution->GetElementName());
+            UE_LOG(LogTemp, Display, TEXT("Evolution Type: %s"), *Item->Evolution->GetEvolutionTypeName());
+            UE_LOG(LogTemp, Display, TEXT("Exclusive Spells: %d"), Item->Evolution->ExclusiveSpells.Num());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display, TEXT("Evolution: NOT ASSIGNED (INVALID)"));
+        }
+    }
 
     // Effect values
     UE_LOG(LogTemp, Display, TEXT("--- Effect Values ---"));
@@ -321,6 +360,59 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
     }
 
     UE_LOG(LogTemp, Display, TEXT(""));
+}
+
+void UItemDataDebug::LogCrystalState(const UItemData *Item)
+{
+    if (!Item)
+    {
+        UE_LOG(LogTemp, Error, TEXT("LogCrystalState: Null item!"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display, TEXT(""));
+    UE_LOG(LogTemp, Display, TEXT("===== CRYSTAL STATE: %s ====="), *Item->GetFullItemName());
+    UE_LOG(LogTemp, Display, TEXT("Type: %s"), *GetCrystalTypeName(Item->CrystalType));
+    UE_LOG(LogTemp, Display, TEXT("Tier: %s"), *Item->GetTierName());
+    UE_LOG(LogTemp, Display, TEXT("Refined: %s"), Item->bIsRefined ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Display, TEXT(""));
+
+    if (Item->bIsRefined)
+    {
+        UE_LOG(LogTemp, Display, TEXT("Usage: Can be slotted into Weapons or Rings"));
+        UE_LOG(LogTemp, Display, TEXT("Element Provided: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
+
+        if (Item->CrystalType == ECrystalType::EvolutionCrystal)
+        {
+            UE_LOG(LogTemp, Display, TEXT("Special: EVOLUTION CRYSTAL"));
+            if (Item->Evolution)
+            {
+                UE_LOG(LogTemp, Display, TEXT("  Evolution: %s"), *Item->Evolution->EvolutionName);
+                UE_LOG(LogTemp, Display, TEXT("  Grants: %d exclusive spells"), Item->Evolution->ExclusiveSpells.Num());
+                UE_LOG(LogTemp, Display, TEXT("  Grants: Stat modifiers + passives"));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Display, TEXT("  WARNING: No Evolution assigned!"));
+            }
+        }
+        else if (Item->CrystalType == ECrystalType::Quartz)
+        {
+            UE_LOG(LogTemp, Display, TEXT("Special: QUARTZ (absorbs element from attacks)"));
+            UE_LOG(LogTemp, Display, TEXT("  Transform Threshold: %d damage"), Item->GetTransformThreshold());
+        }
+        else if (Item->CrystalType == ECrystalType::Iolite)
+        {
+            UE_LOG(LogTemp, Display, TEXT("Special: IOLITE (Reality element, physical enhancement)"));
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Display, TEXT("Usage: Consumable in combat"));
+        UE_LOG(LogTemp, Display, TEXT("Effect: %s"), *Item->Description);
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("====================================="));
 }
 
 void UItemDataDebug::LogAllItems()

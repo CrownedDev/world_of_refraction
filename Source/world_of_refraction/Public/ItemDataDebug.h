@@ -66,6 +66,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
     static void LogTierBonuses();
 
+    /**
+     * Logs crystal state info (raw vs refined, slotting status)
+     * @param Item The item to check
+     */
+    UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
+    static void LogCrystalState(const UItemData *Item);
+
     // ==================== TESTING ====================
 
     /**
