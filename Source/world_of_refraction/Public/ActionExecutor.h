@@ -86,11 +86,19 @@ public:
 
 	/** Validate if an action can be executed */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	FActionValidationResult ValidateAction(AActor *Actor, const FAction &Action);
+	FActionValidationResult ValidateAction(AActor *Actor, const FAction &Action) const;
 
 	/** Calculate action's energy cost (including infusion multipliers) */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
-	int32 CalculateActionEnergyCost(AActor *Actor, const FAction &Action);
+	int32 CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const;
+
+	/** Check if actor can perform any action (not stunned/dead) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
+	bool CanActorAct(AActor *Actor) const;
+
+	/** Check if actor can cast spells (not silenced) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
+	bool CanActorCastSpells(AActor *Actor) const;
 
 	// ========================================
 	// EXECUTION - MAIN ENTRY POINTS
@@ -154,7 +162,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	bool CanUseElementInfusion(AActor *Actor) const;
 
-	/** Check if character has Iolite crystal equipped */
+	/** Check if character has Iolite crystal equipped (physical enhancement) */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	bool HasIoliteEquipped(AActor *Actor) const;
 
@@ -389,6 +397,12 @@ private:
 		AActor *Actor,
 		EInfusionType Type,
 		int32 Level);
+
+	/** Apply physical infusion effects (weapon status, damage boost) */
+	void ApplyPhysicalInfusion(FActionResult &Result, AActor *Actor, int32 Level);
+
+	/** Apply element infusion effects (element status, damage boost) */
+	void ApplyElementInfusion(FActionResult &Result, AActor *Actor, int32 Level);
 
 	/** Apply L2 infusion cost based on source (HP, break chance, or self-status) */
 	void ApplyL2InfusionCost(

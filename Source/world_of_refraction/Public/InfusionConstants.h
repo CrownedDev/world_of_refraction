@@ -52,7 +52,7 @@ namespace InfusionConstants
 	// ==================== Iolite SPECIAL ====================
 
 	/** Iolite L2: All stats buff (+5%) */
-	constexpr float Iolite_L2_STAT_BUFF = 0.05f;
+	constexpr float IOLITE_L2_STAT_BUFF = 0.05f;
 
 	// ==================== SPELL SIZE INFUSION ====================
 

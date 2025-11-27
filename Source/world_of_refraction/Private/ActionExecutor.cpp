@@ -1521,6 +1521,9 @@ EInfusionSource UActionExecutor::GetInfusionSource(AActor *Actor) const
 	}
 
 	// 1. Check weapon crystal first (highest priority)
+	UWeaponManager *WM = GetWeaponManager();
+	if (!WM)
+		return EInfusionSource::None;
 	UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
 	if (Weapon && Weapon->SlottedCrystal)
 	{
@@ -1565,11 +1568,7 @@ EInfusionSource UActionExecutor::GetSpellSource(AActor *Actor, USpellData *Spell
 		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
 		if (Weapon && Weapon->IsEvolved())
 		{
-			TArray<USpellData *> EvoSpells = Weapon->GetEvolutionSpells();
-			if (EvoSpells.Contains(Spell))
-			{
-				return EInfusionSource::Evolution;
-			}
+			if (Spell->Element == Weapon->SlottedCrystal->GetAssociatedElement())
 		}
 	}
 
@@ -1630,7 +1629,7 @@ ESpellElement UActionExecutor::GetInfusionElement(AActor *Actor) const
 			UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
 			if (Weapon && Weapon->SlottedCrystal)
 			{
-				return Weapon->SlottedCrystal->Element;
+				return Weapon->SlottedCrystal->GetAssociatedElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -1911,7 +1910,8 @@ void UActionExecutor::ApplySpellSizeL2Cost(
 
 		ESpellElement Element = Spell ? Spell->Element : ESpellElement::Generic;
 		int32 SelfStatusAmount = FMath::RoundToInt(
-			Spell ? Spell->StatusBuildup * InfusionConstants::EVOLUTION_L2_SELF_STATUS_MULT : 0);
+			int32 BaseStatus = Spell ? Spell->CalculateStatusBuildup(Data) : 0;
+			int32 SelfStatusAmount = FMath::RoundToInt(BaseStatus * InfusionConstants::EVOLUTION_L2_SELF_STATUS_MULT);
 		ApplySelfStatusBuildup(Actor, Element, SelfStatusAmount);
 		Result.SelfStatusBuildupApplied = SelfStatusAmount;
 		break;
@@ -1938,7 +1938,7 @@ void UActionExecutor::ApplyIoliteStatBuff(AActor *Actor)
 	// TODO: Create a proper status effect for this or use existing buff system
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Iolite L2 stat buff applied to %s (+%d%% all stats)"),
 		   Actor ? *Actor->GetName() : TEXT("None"),
-		   FMath::RoundToInt(InfusionConstants::Iolite_L2_STAT_BUFF * 100.0f));
+		   FMath::RoundToInt(InfusionConstants::IOLITE_L2_STAT_BUFF * 100.0f));
 }
 
 void UActionExecutor::ApplySelfDamage(AActor *Actor, int32 Amount)
@@ -1951,7 +1951,7 @@ void UActionExecutor::ApplySelfDamage(AActor *Actor, int32 Amount)
 	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 	if (Comp)
 	{
-		Comp->TakeDamage(Amount);
+		Comp->ServerTakeDamage(Amount);
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s took %d self-damage from infusion cost"),
 			   *Actor->GetName(), Amount);
