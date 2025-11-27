@@ -775,7 +775,6 @@ FActionResult UActionExecutor::ExecuteSpell(
 		// Broadcast defense window request
 		// DefenseSystem should bind to this and handle Block/Parry/Dodge
 		OnDefenseWindowRequested.Broadcast(Caster, Target, FinalSpellSize, BaseDamage);
-		PendingDefenseCount++;
 
 		// For now, apply damage directly (defense system will intercept via events when implemented)
 		// Multi-hit processing
