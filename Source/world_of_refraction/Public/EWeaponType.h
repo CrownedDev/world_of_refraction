@@ -18,5 +18,6 @@ enum class EWeaponType : uint8
     Hammer UMETA(DisplayName = "Hammer"),
     Bow UMETA(DisplayName = "Bow"),
     Fists UMETA(DisplayName = "Fists/Gauntlets"),
-    Scythe UMETA(DisplayName = "Scythe")
+    Scythe UMETA(DisplayName = "Scythe"),
+    Gun UMETA(DisplayName = "Gun")
 };

@@ -34,6 +34,8 @@ FString UWeaponData::GetWeaponTypeName() const
         return TEXT("Fists");
     case EWeaponType::Scythe:
         return TEXT("Scythe");
+    case EWeaponType::Gun:
+        return TEXT("Gun");
     default:
         return TEXT("Unknown");
     }
