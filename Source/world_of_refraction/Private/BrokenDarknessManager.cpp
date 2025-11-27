@@ -1,34 +1,28 @@
 // BrokenDarknessManager.cpp
-// Implementation for BrokenDarkness transformation system
+// Implementation for BrokenDarkness transformation and absorption system
 
 #include "BrokenDarknessManager.h"
 #include "SpellData.h"
+#include "AbilityData.h"
 #include "CharacterData.h"
-#include "EDefenseType.h"
-#include "DefenseSystem.h"
 #include "CharacterDataComponent.h"
+#include "DefenseSystem.h"
+#include "WorldStatRequirements.h"
 
-// Corruption constants
 namespace BrokenDarknessConstants
 {
-	constexpr float CORRUPTION_THRESHOLD = 100.0f;
-	constexpr float BASE_CORRUPTION_CHANCE = 0.05f;		 // 5% per corrupting spell
-	constexpr float HIGH_POWER_CORRUPTION_BONUS = 0.10f; // +10% for powerful spells
+	// Break System
+	constexpr float BREAK_CHANCE = 0.03f; // 3% chance to transform
 
-	/ Absorption constexpr float PARRY_ABSORPTION_MULT = 0.30f; // 30% of spell cost on parry
-	constexpr float BLOCK_ABSORPTION_MULT = 0.15f;				// 15% of spell cost on block
+	// Absorption
+	constexpr float PARRY_ABSORPTION_MULT = 0.30f; // 30% of spell cost on parry
+	constexpr float BLOCK_ABSORPTION_MULT = 0.15f; // 15% of spell cost on block
 
 	// Stack Multipliers
 	constexpr float STACK_0_MULT = 1.0f;
 	constexpr float STACK_1_MULT = 1.0f;
 	constexpr float STACK_2_MULT = 2.0f;
 	constexpr float STACK_3_MULT = 4.0f;
-
-	// Overload
-	constexpr float DEFAULT_OVERLOAD_CAPACITY = 30.0f;
-	constexpr float BASE_AURA_DAMAGE = 15.0f;
-	constexpr float BASE_SELF_DAMAGE = 15.0f;
-	constexpr float BASE_ENERGY_DRAIN = 15.0f;
 }
 
 UBrokenDarknessManager::UBrokenDarknessManager()
@@ -40,73 +34,79 @@ void UBrokenDarknessManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Initialize at 0
+	// Initialize state
 	AbsorptionEnergy = 0.0f;
-	CorruptionBuildup = 0.0f;
 	bIsTransformed = false;
-	IsOverloaded = false;
+	bIsOverloaded = false;
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
 }
 
-// ==================== TRANSFORMATION ====================
+// ==================== BREAK SYSTEM ====================
 
-bool UBrokenDarknessManager::CanSpellCorrupt(USpellData *Spell) const
-{
-	if (!Spell)
-		return false;
-
-	// Only Darkness spells can corrupt
-	if (Spell->Element != ESpellElement::Darkness)
-		return false;
-
-	// Could add: specific corruption flag on SpellData
-	// For now, all Darkness spells have small corruption chance
-
-	return true;
-}
-
-void UBrokenDarknessManager::ProcessSpellCast(USpellData *Spell)
+bool UBrokenDarknessManager::RollForBreak(const FString &TriggerReason)
 {
 	if (bIsTransformed)
-		return; // Already transformed
-	if (!CanSpellCorrupt(Spell))
-		return;
-
-	using namespace BrokenDarknessConstants;
-
-	// Calculate corruption chance
-	float CorruptionChance = BASE_CORRUPTION_CHANCE;
-
-	// Higher tier spells have higher corruption chance
-	if (Spell->Tier >= EItemTier::A_Tier)
 	{
-		CorruptionChance += HIGH_POWER_CORRUPTION_BONUS;
-	};
+		return false; // Already transformed
+	}
 
-	// Roll for corruption
-	if (FMath::FRand() < CorruptionChance)
+	float Roll = FMath::FRand();
+	bool bBreaks = Roll < BrokenDarknessConstants::BREAK_CHANCE;
+
+	AActor *Owner = GetOwner();
+
+	if (bBreaks)
 	{
-		// Add corruption buildup
-		float CorruptionAmount = FMath::RandRange(5.0f, 15.0f);
-		AddCorruption(CorruptionAmount);
+		UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s BROKE! (Trigger: %s, Roll: %.3f < %.3f)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   *TriggerReason,
+			   Roll,
+			   BrokenDarknessConstants::BREAK_CHANCE);
 
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Corruption +%.1f (Total: %.1f)"),
-			   CorruptionAmount, CorruptionBuildup);
+		TriggerTransformation();
+		return true;
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: %s survived break check (Trigger: %s, Roll: %.3f >= %.3f)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   *TriggerReason,
+			   Roll,
+			   BrokenDarknessConstants::BREAK_CHANCE);
+
+		return false;
 	}
 }
 
-void UBrokenDarknessManager::AddCorruption(float Amount)
+bool UBrokenDarknessManager::DoesSpellExceedRequirements(USpellData *Spell, UCharacterData *Character)
 {
-	if (bIsTransformed)
-		return;
-
-	CorruptionBuildup = FMath::Min(CorruptionBuildup + Amount,
-								   BrokenDarknessConstants::CORRUPTION_THRESHOLD);
-
-	if (CorruptionBuildup >= BrokenDarknessConstants::CORRUPTION_THRESHOLD)
+	if (!Spell || !Character)
 	{
+		return false;
+	}
+
+	// Uses FWorldStatRequirements - if there's a deficit, character doesn't meet requirements
+	return Spell->Requirements.GetTotalDeficit(Character) > 0;
+}
+
+bool UBrokenDarknessManager::DoesAbilityExceedRequirements(UAbilityData *Ability, UCharacterData *Character)
+{
+	if (!Ability || !Character)
+	{
+		return false;
+	}
+
+	// Uses FWorldStatRequirements - if there's a deficit, character doesn't meet requirements
+	return Ability->Requirements.GetTotalDeficit(Character) > 0;
+}
+
+void UBrokenDarknessManager::ForceTransformation()
+{
+	if (!bIsTransformed)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: Force transformation triggered"));
 		TriggerTransformation();
 	}
 }
@@ -114,22 +114,28 @@ void UBrokenDarknessManager::AddCorruption(float Amount)
 void UBrokenDarknessManager::TriggerTransformation()
 {
 	if (bIsTransformed)
+	{
 		return;
+	}
 
 	bIsTransformed = true;
 
 	// Start with 0 absorption energy - must absorb to cast
 	AbsorptionEnergy = 0.0f;
 
-	// Log transformation
+	// Reset alignment
+	CurrentAlignmentElement = ESpellElement::Generic;
+	CurrentAbsorptionStacks = 0;
+	ConsecutiveAbsorptions = 0;
+
 	AActor *Owner = GetOwner();
-	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has TRANSFORMED!"),
+	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has TRANSFORMED into Broken Darkness!"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"));
 
 	// Broadcast event
 	OnTransformed.Broadcast(Owner);
 
-	// Could trigger: VFX, sound, UI notification, character model change, etc.
+	// VFX/Audio trigger point
 }
 
 // ==================== ABSORPTION ====================
@@ -137,7 +143,9 @@ void UBrokenDarknessManager::TriggerTransformation()
 void UBrokenDarknessManager::OnSuccessfulParry(float DamageBlocked, ESpellElement DamageElement)
 {
 	if (!bIsTransformed)
+	{
 		return;
+	}
 
 	// Physical attacks give nothing to absorb
 	if (DamageElement == ESpellElement::Generic)
@@ -160,7 +168,9 @@ void UBrokenDarknessManager::OnSuccessfulParry(float DamageBlocked, ESpellElemen
 void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ESpellElement DamageElement)
 {
 	if (!bIsTransformed)
+	{
 		return;
+	}
 
 	// Physical attacks give nothing to absorb
 	if (DamageElement == ESpellElement::Generic)
@@ -183,11 +193,19 @@ void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ESpellElemen
 bool UBrokenDarknessManager::SpendAbsorptionEnergy(float Amount)
 {
 	if (!bIsTransformed)
+	{
 		return false;
+	}
 	if (AbsorptionEnergy < Amount)
+	{
 		return false;
+	}
 
 	AbsorptionEnergy -= Amount;
+
+	// Check if exiting overload
+	UpdateOverloadState();
+
 	return true;
 }
 
@@ -202,7 +220,7 @@ void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)
 	// Check for overload state change
 	UpdateOverloadState();
 
-	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Energy %.1f → %.1f (Max: %.1f, Overload: %s)"),
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Energy %.1f -> %.1f (Max: %.1f, Overload: %s)"),
 		   OldEnergy, AbsorptionEnergy, MaxAbsorptionEnergy, bIsOverloaded ? TEXT("Yes") : TEXT("No"));
 }
 
@@ -224,21 +242,7 @@ void UBrokenDarknessManager::RecordAbsorbedElement(ESpellElement Element)
 	ProcessElementAbsorption(Element);
 }
 
-// ==================== HYBRID SPELLS ====================
-
-bool UBrokenDarknessManager::HasAbsorbedElement(ESpellElement Element) const
-{
-	return AbsorbedElements.Contains(Element);
-}
-
-bool UBrokenDarknessManager::CanCastHybridSpell(ESpellElement SecondaryElement) const
-{
-	if (!bIsTransformed)
-		return false;
-
-	// Must have absorbed this element
-	return HasAbsorbedElement(SecondaryElement);
-}
+// ==================== OVERLOAD STATE ====================
 
 float UBrokenDarknessManager::GetOverloadEnergy() const
 {
@@ -331,9 +335,8 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
 
 	// 3. Drain energy (efficiency reduces drain)
-	// Efficiency 0% = full drain, Efficiency 100% = no drain
 	float DrainMultiplier = 1.0f - (EfficiencyPercent * 0.01f);
-	float EnergyDrain = BaseEnergyDrain * FMath::Max(0.1f, DrainMultiplier); // Minimum 10% drain
+	float EnergyDrain = BaseEnergyDrain * FMath::Max(0.1f, DrainMultiplier);
 
 	AbsorptionEnergy = FMath::Max(0.0f, AbsorptionEnergy - EnergyDrain);
 
@@ -380,16 +383,14 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 {
 	AActor *Owner = GetOwner();
 	ESpellElement OldAlignment = CurrentAlignmentElement;
-	int32 OldStacks = CurrentAbsorptionStacks;
 
 	// Check if same element as current alignment
 	if (Element == CurrentAlignmentElement && CurrentAlignmentElement != ESpellElement::Generic)
 	{
-		// Same element - increment stacks
+		// Same element - increment toward next stack
 		ConsecutiveAbsorptions++;
 
-		// Stacks increase after certain absorption counts
-		// Absorption 1 = Stack 0, Absorption 2 = Stack 1, Absorption 3 = Stack 2, Absorption 4+ = Stack 3
+		// Stacks: Absorption 1 = Stack 0, Absorption 2 = Stack 1, etc.
 		int32 NewStacks = FMath::Min(ConsecutiveAbsorptions - 1, MaxAbsorptionStacks);
 
 		if (NewStacks != CurrentAbsorptionStacks)
@@ -415,7 +416,7 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 		OnAlignmentChanged.Broadcast(Owner, OldAlignment, Element);
 		OnStacksChanged.Broadcast(Owner, Element, 0);
 
-		UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Alignment changed %s → %s (stacks reset)"),
+		UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Alignment changed %s -> %s (stacks reset)"),
 			   *UEnum::GetValueAsString(OldAlignment),
 			   *UEnum::GetValueAsString(Element));
 	}
@@ -428,6 +429,24 @@ void UBrokenDarknessManager::ResetStacks()
 {
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
+}
+
+// ==================== HYBRID SPELLS ====================
+
+bool UBrokenDarknessManager::HasAbsorbedElement(ESpellElement Element) const
+{
+	return AbsorbedElements.Contains(Element);
+}
+
+bool UBrokenDarknessManager::CanCastHybridSpell(ESpellElement SecondaryElement) const
+{
+	if (!bIsTransformed)
+	{
+		return false;
+	}
+
+	// Must have absorbed this element
+	return HasAbsorbedElement(SecondaryElement);
 }
 
 // ==================== DEFENSE SYSTEM INTEGRATION ====================
@@ -503,21 +522,4 @@ float UBrokenDarknessManager::CalculateAbsorptionEnergy(EDefenseType DefenseType
 	}
 
 	return AttackEnergyCost * AbsorptionMult;
-}
-
-// ============================================================
-// DEBUG HELPER (optional - add to class)
-// ============================================================
-void UBrokenDarknessManager::DebugPrintState() const
-{
-	AActor *Owner = GetOwner();
-
-	UE_LOG(LogTemp, Warning, TEXT("=== BrokenDarkness State: %s ==="), Owner ? *Owner->GetName() : TEXT("Unknown"));
-	UE_LOG(LogTemp, Warning, TEXT("Transformed: %s"), bIsTransformed ? TEXT("Yes") : TEXT("No"));
-	UE_LOG(LogTemp, Warning, TEXT("Energy: %.1f / %.1f"), AbsorptionEnergy, MaxAbsorptionEnergy);
-	UE_LOG(LogTemp, Warning, TEXT("Overloaded: %s (Overflow: %.1f)"), bIsOverloaded ? TEXT("Yes") : TEXT("No"), GetOverloadEnergy());
-	UE_LOG(LogTemp, Warning, TEXT("Alignment: %s"), *UEnum::GetValueAsString(CurrentAlignmentElement));
-	UE_LOG(LogTemp, Warning, TEXT("Stacks: %d (x%.1f status)"), CurrentAbsorptionStacks, GetStackStatusMultiplier());
-	UE_LOG(LogTemp, Warning, TEXT("Absorbed Elements: %d"), AbsorbedElements.Num());
-	UE_LOG(LogTemp, Warning, TEXT("====================================="));
 }
