@@ -369,12 +369,6 @@ private:
 	/** Calculate critical hit */
 	bool RollCriticalHit(AActor *Attacker) const;
 
-	/** Apply critical damage multiplier */
-	int32 ApplyCriticalMultiplier(int32 Damage, AActor *Attacker) const;
-
-	/** Apply defense reduction */
-	int32 ApplyDefense(int32 Damage, AActor *Defender, bool bIsElemental) const;
-
 	/** Apply damage after defense resolution */
 	void ApplyDamageAfterDefense(
 		AActor *Attacker,

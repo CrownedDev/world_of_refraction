@@ -1685,7 +1685,6 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 // ========================================
 // DAMAGE APPLICATION
 // ========================================
-
 FCombatHitResult UActionExecutor::ApplyDamage(
 	AActor *Attacker,
 	AActor *Target,
@@ -1708,35 +1707,32 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 		return Result;
 	}
 
-	int32 FinalDamage = BaseDamage;
-
-	// Apply defense
-	FinalDamage = ApplyDefense(FinalDamage, Target, bIsElemental);
-
-	// Check for critical hit
-	if (bCanCrit && RollCriticalHit(Attacker))
+	// Use centralized DamageCalculator
+	UDamageCalculator *DamageCalc = GetDamageCalculator();
+	if (DamageCalc)
 	{
-		FinalDamage = ApplyCriticalMultiplier(FinalDamage, Attacker);
-		Result.bWasCritical = true;
-	}
+		FDamageCalculationInput Input;
+		Input.BaseDamage = BaseDamage;
+		Input.bIsElemental = bIsElemental;
+		Input.Element = Element;
+		Input.bCanCrit = bCanCrit;
 
-	// Apply damage modifiers from status effects
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (StatusManager)
+		FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Attacker, Target, Input);
+
+		Result.bWasCritical = CalcResult.bWasCritical;
+
+		// Apply the calculated damage
+		int32 HPBefore = TargetComp->CurrentHP;
+		TargetComp->ServerTakeDamage(CalcResult.FinalDamage);
+		Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+	}
+	else
 	{
-		// Attacker damage buff/debuff
-		float AttackerDamageMod = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::DamageBuff);
-		AttackerDamageMod -= StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::DamageDebuff);
-		FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f + AttackerDamageMod / 100.0f));
+		// Fallback if DamageCalculator unavailable
+		int32 HPBefore = TargetComp->CurrentHP;
+		TargetComp->ServerTakeDamage(FMath::Max(1, BaseDamage));
+		Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
 	}
-
-	// Ensure minimum damage of 1
-	FinalDamage = FMath::Max(1, FinalDamage);
-
-	// Apply damage
-	int32 HPBefore = TargetComp->CurrentHP;
-	TargetComp->ServerTakeDamage(FinalDamage);
-	Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
 
 	// Check for death
 	if (!TargetComp->bIsAlive)
@@ -1775,10 +1771,13 @@ FCombatHitResult UActionExecutor::ApplyHealing(
 		return Result;
 	}
 
+	// Use centralized DamageCalculator for healing
 	int32 FinalHealing = BaseHealing;
-
-	// Apply healing modifiers from status effects
-	// (Could add healing buff/debuff if needed)
+	UDamageCalculator *DamageCalc = GetDamageCalculator();
+	if (DamageCalc)
+	{
+		FinalHealing = DamageCalc->CalculateHealing(Healer, Target, BaseHealing);
+	}
 
 	// Apply healing
 	int32 HPBefore = TargetComp->CurrentHP;
@@ -1880,49 +1879,6 @@ bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 	CritChance = FMath::Clamp(CritChance, 0.0f, 100.0f);
 
 	return FMath::FRand() * 100.0f < CritChance;
-}
-
-int32 UActionExecutor::ApplyCriticalMultiplier(int32 Damage, AActor *Attacker) const
-{
-	// Crit damage is fixed at 1.5x (CharacterData doesn't have this method)
-	constexpr float CritMultiplier = 1.5f;
-
-	return FMath::RoundToInt(Damage * CritMultiplier);
-}
-
-int32 UActionExecutor::ApplyDefense(int32 Damage, AActor *Defender, bool bIsElemental) const
-{
-	UCharacterData *Data = GetCharacterData(Defender);
-	if (!Data)
-		return Damage;
-
-	int32 FinalDamage = Damage;
-
-	// Step 1: Apply flat defense (subtraction) - affects all damage types
-	int32 FlatDefense = Data->CalculateFlatDefense();
-
-	// Add defense buffs/debuffs from status effects (percentage modifier to defense)
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (StatusManager)
-	{
-		float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseBuff);
-		float DefenseDebuffPercent = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseDebuff);
-		float DefenseModifier = 1.0f + (DefenseBuffPercent - DefenseDebuffPercent) / 100.0f;
-		FlatDefense = FMath::RoundToInt(FlatDefense * FMath::Max(0.0f, DefenseModifier));
-	}
-
-	FinalDamage = FMath::Max(0, FinalDamage - FlatDefense);
-
-	// Step 2: Apply resistance (percentage reduction) - elemental damage only
-	if (bIsElemental && FinalDamage > 0)
-	{
-		float Resistance = Data->CalculateElementalResistance(); // Returns 0.0-1.0
-		// Cap resistance at 80%
-		Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);
-		FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
-	}
-
-	return FinalDamage;
 }
 
 void UActionExecutor::ApplyStatusEffects(
