@@ -66,13 +66,13 @@ EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) 
     // Name validation
     if (WeaponName.IsEmpty() || WeaponName == TEXT("Unnamed Weapon"))
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Weapon must have a unique name")));
+        Context.AddError(FText::FromString(TEXT("Weapon must have a unique name")));
         Result = EDataValidationResult::Invalid;
     }
     // Attack validation
     if (WeaponAttack == nullptr)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Warning: No weapon attack assigned")));
+        Context.AddWarning(FText::FromString(TEXT("No weapon attack assigned")));
     }
     // Abilities validation (max 6)
     if (PresetAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)

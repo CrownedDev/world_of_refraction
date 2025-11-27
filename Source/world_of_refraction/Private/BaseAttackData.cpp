@@ -56,14 +56,14 @@ FString UBaseAttackData::GetAttackSummary() const
 }
 
 #if WITH_EDITOR
-EDataValidationResult UBaseAttackData::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UBaseAttackData::IsDataValid(FDataValidationContext &Context) const
 {
-    EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+    EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
     if (AttackName.IsEmpty() || AttackName == TEXT("Unnamed Attack"))
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Attack must have a unique name")));
+        Context.AddError(FText::FromString(TEXT("Attack must have a unique name")));
         Result = EDataValidationResult::Invalid;
     }
 
@@ -73,13 +73,13 @@ EDataValidationResult UBaseAttackData::IsDataValid(TArray<FText>& ValidationErro
         float Total = FirstHitPercent + SecondHitPercent;
         if (Total < 80.0f || Total > 120.0f)
         {
-            ValidationErrors.Add(FText::FromString(FString::Printf(
-                TEXT("Warning: Damage distribution total is %.0f%% (expected ~100%%)"), Total)));
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("Damage distribution total is %.0f%% (expected ~100%%)"), Total)));
         }
 
         if (FirstHitPercent <= 0.0f || SecondHitPercent <= 0.0f)
         {
-            ValidationErrors.Add(FText::FromString(TEXT("Both hits must have positive damage percent")));
+            Context.AddError(FText::FromString(TEXT("Both hits must have positive damage percent")));
             Result = EDataValidationResult::Invalid;
         }
     }
@@ -87,7 +87,7 @@ EDataValidationResult UBaseAttackData::IsDataValid(TArray<FText>& ValidationErro
     // Animation validation
     if (AttackMontage == nullptr)
     {
-        ValidationErrors.Add(FText::FromString(TEXT("Warning: No attack animation assigned")));
+        Context.AddWarning(FText::FromString(TEXT("No attack animation assigned")));
     }
 
     return Result;

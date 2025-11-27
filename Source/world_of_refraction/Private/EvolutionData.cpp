@@ -233,7 +233,7 @@ TArray<FPassiveEffect> UEvolutionData::GetTriggeredPassives() const
 #if WITH_EDITOR
 EDataValidationResult UEvolutionData::IsDataValid(TArray<FText> &ValidationErrors)
 {
-    EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+    EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
     if (EvolutionName.IsEmpty() || EvolutionName == TEXT("Unnamed Evolution"))

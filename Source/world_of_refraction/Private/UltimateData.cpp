@@ -244,7 +244,7 @@ float UUltimateData::CalculateCritMultiplier(const UCharacterData *Character) co
 #if WITH_EDITOR
 EDataValidationResult UUltimateData::IsDataValid(TArray<FText> &ValidationErrors)
 {
-    EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+    EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
     if (UltimateName.IsEmpty() || UltimateName == TEXT("Unnamed Ultimate"))
