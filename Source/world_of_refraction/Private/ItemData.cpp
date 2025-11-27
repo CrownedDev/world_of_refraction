@@ -61,7 +61,7 @@ FString UItemData::GetCrystalName() const
     switch (CrystalType)
     {
     case ECrystalType::EvolutionCrystal:
-        return TEXT("Evolution Crystal");
+        return Evolution ? Evolution->EvolutionName : TEXT("Evolution Crystal");
     case ECrystalType::Garnet:
         return TEXT("Garnet");
     case ECrystalType::Sapphire:
