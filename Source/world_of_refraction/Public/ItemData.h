@@ -227,6 +227,13 @@ public:
     int32 GetSecondaryDuration() const;
 
 #if WITH_EDITOR
+    // Editor-only: Auto-configure properties when changed
+    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
+
+    // Generate description based on crystal type and tier
+    FString GenerateDescription() const;
+
+    // Validate item configuration
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };
