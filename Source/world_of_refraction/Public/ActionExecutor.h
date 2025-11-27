@@ -8,9 +8,11 @@
 #include "EActionType.h"
 #include "AbilityEffectType.h"
 #include "SpellElement.h"
-#include "ActionExecutor.generated.h"
 #include "EInfusionType.h"
+#include "EInfusionSource.h"
 #include "ECharacterClass.h"
+#include "InfusionConstants.h"
+#include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -49,6 +51,9 @@ DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 /** Broadcast when defense window should open (for DefenseSystem integration) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor *, Attacker, AActor *, Defender, float, AttackSize, int32, BaseDamage);
 
+/** Broadcast when infusion L2 cost is applied (HP damage, break chance, self-status) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnInfusionCostApplied, AActor *, Actor, EInfusionSource, Source, int32, HPCost, float, BreakChanceIncrease);
+
 /**
  * UActionExecutor
  *
@@ -64,7 +69,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor 
  * Integrations:
  *   - StatusEffectManager: Apply status effects, check stun/silence
  *   - CharacterDataComponent: HP/EP changes
- *   - Data Assets: SpellData, AbilityData, etc. for calculations
+ *   - Data Assets: SpellData, AbilityData, etc.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UActionExecutor : public UGameInstanceSubsystem
@@ -79,39 +84,24 @@ public:
 	// VALIDATION
 	// ========================================
 
-	/**
-	 * Validate an action before execution
-	 * Checks: energy, cooldowns, requirements, status effects (stun/silence)
-	 */
+	/** Validate if an action can be executed */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	FActionValidationResult ValidateAction(AActor *Actor, const FAction &Action) const;
+	FActionValidationResult ValidateAction(AActor *Actor, const FAction &Action);
 
-	/** Check if actor can perform any action (not stunned) */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	bool CanActorAct(AActor *Actor) const;
-
-	/** Check if actor can cast spells (not silenced) */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	bool CanActorCastSpells(AActor *Actor) const;
-
-	/** Calculate energy cost for an action */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Validation")
-	int32 CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const;
+	/** Calculate action's energy cost (including infusion multipliers) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
+	int32 CalculateActionEnergyCost(AActor *Actor, const FAction &Action);
 
 	// ========================================
-	// EXECUTION - MAIN ENTRY POINT
+	// EXECUTION - MAIN ENTRY POINTS
 	// ========================================
 
-	/**
-	 * Execute an action synchronously (for simple cases/testing)
-	 * Automatically routes to appropriate Execute* function
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor")
+	/** Execute a combat action synchronously */
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteAction(AActor *Actor, const FAction &Action);
 
 	/**
-	 * Execute an action asynchronously (recommended for gameplay)
-	 * Handles animation timing, defense windows, and callbacks
+	 * Execute a combat action asynchronously (for defense window integration)
 	 * @param Actor The actor performing the action
 	 * @param Action The action to execute
 	 * @param OnComplete Callback when action fully completes (after defense resolution)
@@ -119,24 +109,66 @@ public:
 	void ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete);
 
 	// ========================================
-	// INFUSION DATA
+	// INFUSION SYSTEM
 	// ========================================
 
-	/** Get spell infusion size multiplier (1.0, 1.5, 2.0) */
+	/** Get spell infusion size multiplier (1.0, 1.5, 2.0) - LEGACY, use GetSpellSizeMultiplier */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
-	/** Get spell infusion cost multiplier (1.0, 1.3, 1.6) */
+	/** Get spell infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY, use GetSpellSizeEnergyCostMultiplier */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
-	/** Get ability power infusion damage multiplier (1.0, 1.3, 1.6) */
+	/** Get ability power infusion damage multiplier (1.0, 1.3, 1.6) - LEGACY */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetAbilityPowerInfusionDamageMultiplier(int32 InfusionLevel);
 
-	/** Get ability power infusion cost multiplier (1.0, 1.3, 1.6) */
+	/** Get ability power infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetAbilityPowerInfusionCostMultiplier(int32 InfusionLevel);
+
+	// ---- NEW INFUSION TYPE SYSTEM ----
+
+	/** Check if character can use this infusion type */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	bool CanUseInfusionType(AActor *Actor, EInfusionType Type) const;
+
+	/** Get available infusion types for character */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	TArray<EInfusionType> GetAvailableInfusionTypes(AActor *Actor) const;
+
+	/** Get the element source for a character (for determining L2 costs) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	EInfusionSource GetInfusionSource(AActor *Actor) const;
+
+	/** Get the element source for a specific spell (handles evolution weapon spells) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	EInfusionSource GetSpellSource(AActor *Actor, USpellData *Spell) const;
+
+	/** Get element for the character's current infusion source */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	ESpellElement GetInfusionElement(AActor *Actor) const;
+
+	/** Check if character can use element infusion (has an element source) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	bool CanUseElementInfusion(AActor *Actor) const;
+
+	/** Check if character has Ilodite crystal equipped */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	bool HasIloditeEquipped(AActor *Actor) const;
+
+	/** Get energy cost multiplier for infusion level */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	static float GetInfusionEnergyCostMultiplier(int32 InfusionLevel);
+
+	/** Get spell size multiplier for spell size infusion level */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	static float GetSpellSizeMultiplier(int32 SpellSizeInfusionLevel);
+
+	/** Get energy cost multiplier for spell size infusion */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	static float GetSpellSizeEnergyCostMultiplier(int32 SpellSizeInfusionLevel);
 
 	// ========================================
 	// EXECUTION - SPECIFIC ACTIONS
@@ -230,6 +262,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	UStatusEffectManager *GetStatusEffectManager() const;
 
+	/** Get the RingManager */
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
+	URingManager *GetRingManager() const;
+
+	/** Get the WeaponManager */
+	UWeaponManager *GetWeaponManager() const;
+
 	/** Check if target is alive */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	bool IsTargetAlive(AActor *Target) const;
@@ -264,6 +303,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnDefenseWindowRequested OnDefenseWindowRequested;
 
+	/** Broadcast when infusion L2 cost is applied */
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnInfusionCostApplied OnInfusionCostApplied;
+
 	// ========================================
 	// ANIMATION/VFX STUBS (Override in subclass or bind via events)
 	// ========================================
@@ -286,6 +329,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
 	void DebugPrintActionResult(const FActionResult &Result) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
+	void DebugPrintInfusionInfo(AActor *Actor) const;
 
 private:
 	// ========================================
@@ -333,6 +379,42 @@ private:
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);
 
+	// ========================================
+	// INFUSION INTERNAL HELPERS
+	// ========================================
+
+	/** Apply infusion effects to action result (damage/status boost) */
+	void ApplyInfusionEffects(
+		FActionResult &Result,
+		AActor *Actor,
+		EInfusionType Type,
+		int32 Level);
+
+	/** Apply L2 infusion cost based on source (HP, break chance, or self-status) */
+	void ApplyL2InfusionCost(
+		FActionResult &Result,
+		AActor *Actor,
+		EInfusionSource Source);
+
+	/** Apply spell size L2 cost based on source */
+	void ApplySpellSizeL2Cost(
+		FActionResult &Result,
+		AActor *Actor,
+		USpellData *Spell);
+
+	/** Apply Ilodite L2 stat buff */
+	void ApplyIloditeStatBuff(AActor *Actor);
+
+	/** Apply self-damage for HP costs */
+	void ApplySelfDamage(AActor *Actor, int32 Amount);
+
+	/** Apply self-status buildup (Evolution L2) */
+	void ApplySelfStatusBuildup(AActor *Actor, ESpellElement Element, int32 Amount);
+
+	// ========================================
+	// CACHED REFERENCES
+	// ========================================
+
 	/** Cached reference to StatusEffectManager */
 	UPROPERTY()
 	UStatusEffectManager *StatusEffectManagerRef = nullptr;
@@ -344,36 +426,13 @@ private:
 	/** Cached reference to WeaponManager */
 	UPROPERTY()
 	UWeaponManager *WeaponManagerRef = nullptr;
+
 	/** Cached reference to RingManager */
 	UPROPERTY()
 	URingManager *RingManagerRef = nullptr;
 
 	/** Get ItemExecutor subsystem */
 	UItemExecutor *GetItemExecutor() const;
-
-	/** Get WeaponManager subsystem */
-	UWeaponManager *GetWeaponManager() const;
-	/** Get RingManager subsystem */
-	URingManager *GetRingManager() const;
-
-	// ========================================
-	// INFUSION TYPE SYSTEM
-	// ========================================
-
-	/** Check if character can use this infusion type based on class */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	bool CanUseInfusionType(AActor *Actor, EInfusionType Type) const;
-
-	/** Get available infusion types for character based on class and equipment */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	TArray<EInfusionType> GetAvailableInfusionTypes(AActor *Actor) const;
-
-	/** Get element for the given infusion type (based on class/equipment) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	ESpellElement GetInfusionElement(AActor *Actor, EInfusionType Type) const;
-
-	/** Apply infusion effects to action result (damage boost, element, etc.) */
-	void ApplyInfusionEffects(FActionResult &Result, AActor *Actor, EInfusionType Type);
 
 	// ========================================
 	// ASYNC EXECUTION STATE

@@ -1,5 +1,5 @@
 // EInfusionType.h
-// Infusion types for the combat system
+// Infusion types for the combat system - player's choice of infusion path
 
 #pragma once
 
@@ -7,19 +7,13 @@
 #include "EInfusionType.generated.h"
 
 /**
- * Types of infusion that can be applied to actions
+ * Types of infusion that can be applied to abilities/spells
  *
- * Per-action choice: Player decides infusion type for each action
+ * Player chooses between Physical or Element infusion.
+ * Both paths have 2 charge levels (L1, L2) via hold-to-charge mechanic.
  *
- * Availability by class:
- * - Generic:   Physical Infusion, Crystal Infusion*
- * - Caster:    Element Infusion, Crystal Infusion*
- * - Resonator: Ring Element Infusion, Crystal Infusion*
- *
- * *Crystal Infusion only available with refined crystal slotted in weapon/ring
- *
- * Break Risk:
- * - Any infusion increases break chance for Resonator rings
+ * Physical: Always available to everyone
+ * Element:  Available if character has an element source (innate/ring/crystal)
  */
 UENUM(BlueprintType)
 enum class EInfusionType : uint8
@@ -27,17 +21,13 @@ enum class EInfusionType : uint8
 	/** No infusion applied - base action only */
 	None UMETA(DisplayName = "No Infusion"),
 
-	/** Physical enhancement (Generic class only)
-	 *  Increases raw damage, adds physical properties */
+	/** Physical enhancement - weapon status (L1), damage boost (L2)
+	 *  Always available to all classes */
 	Physical UMETA(DisplayName = "Physical Infusion"),
 
-	/** Elemental enhancement (Caster: innate element, Resonator: ring element)
-	 *  Adds elemental damage, triggers elemental effects */
-	Element UMETA(DisplayName = "Element Infusion"),
-
-	/** Crystal enhancement (all classes with slotted crystal)
-	 *  Uses slotted crystal's element */
-	Crystal UMETA(DisplayName = "Crystal Infusion")
+	/** Elemental enhancement - element status (L1), status + damage (L2)
+	 *  Requires element source (innate/ring/crystal) */
+	Element UMETA(DisplayName = "Element Infusion")
 };
 
 /**
@@ -51,16 +41,10 @@ namespace InfusionTypeHelpers
 		return Type != EInfusionType::None;
 	}
 
-	/** Does this infusion add elemental properties? */
-	inline bool IsElemental(EInfusionType Type)
+	/** Does this infusion type require an element source? */
+	inline bool RequiresElementSource(EInfusionType Type)
 	{
-		return Type == EInfusionType::Element || Type == EInfusionType::Crystal;
-	}
-
-	/** Does this infusion increase break risk for Resonators? */
-	inline bool IncreasesBreakRisk(EInfusionType Type)
-	{
-		return Type != EInfusionType::None;
+		return Type == EInfusionType::Element;
 	}
 
 	/** Get display name */
@@ -68,27 +52,36 @@ namespace InfusionTypeHelpers
 	{
 		switch (Type)
 		{
-		case EInfusionType::None:     return TEXT("None");
-		case EInfusionType::Physical: return TEXT("Physical");
-		case EInfusionType::Element:  return TEXT("Elemental");
-		case EInfusionType::Crystal:  return TEXT("Crystal");
-		default: return TEXT("Unknown");
+		case EInfusionType::None:
+			return TEXT("None");
+		case EInfusionType::Physical:
+			return TEXT("Physical");
+		case EInfusionType::Element:
+			return TEXT("Elemental");
+		default:
+			return TEXT("Unknown");
 		}
 	}
 
 	/** Get infusion description */
-	inline FString GetInfusionDescription(EInfusionType Type)
+	inline FString GetInfusionDescription(EInfusionType Type, int32 Level)
 	{
 		switch (Type)
 		{
 		case EInfusionType::None:
 			return TEXT("No enhancement. Safe action with base power.");
 		case EInfusionType::Physical:
-			return TEXT("Raw power boost. Increases physical damage output.");
+			if (Level == 1)
+				return TEXT("Adds weapon status buildup (stagger/impact).");
+			else if (Level == 2)
+				return TEXT("Adds weapon status and +30% damage.");
+			return TEXT("Raw power boost. No element required.");
 		case EInfusionType::Element:
-			return TEXT("Elemental enhancement. Adds element damage and effects.");
-		case EInfusionType::Crystal:
-			return TEXT("Crystal power. Uses slotted crystal's element.");
+			if (Level == 1)
+				return TEXT("Adds element status buildup.");
+			else if (Level == 2)
+				return TEXT("Adds element status and +30% damage. Has additional cost.");
+			return TEXT("Elemental enhancement. Requires element source.");
 		default:
 			return TEXT("");
 		}

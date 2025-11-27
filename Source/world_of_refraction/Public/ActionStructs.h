@@ -6,6 +6,7 @@
 #include "EActionType.h"
 #include "SpellElement.h"
 #include "EInfusionType.h"
+#include "EInfusionSource.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -54,13 +55,19 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	// ==================== INFUSION OPTIONS ====================
 
-	/** Primary infusion type selection (None, Physical, Element, Crystal) */
+	/** Primary infusion type selection (None, Physical, Element) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
 	EInfusionType InfusionType = EInfusionType::None;
 
-	/** Spell size infusion level (0 = none, 1 = 1.5x size, 2 = 2.0x size) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
-	int32 SpellInfusionLevel = 0;
+	/** Infusion charge level (0 = none, 1 = first charge, 2 = full charge)
+	 *  Set by hold-to-charge input system */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
+	int32 InfusionLevel = 0;
+
+	/** Spell size infusion level (0 = none, 1 = 1.5x size, 2 = 2.0x size + damage)
+	 *  Separate from ability/attack infusion - applies to spells only */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
+	int32 SpellSizeInfusionLevel = 0;
 
 	/** Use elemental mode for toggle spells */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
@@ -68,11 +75,15 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	// ==================== DEPRECATED - REMOVE AFTER MIGRATION ====================
 
-	/** @deprecated Use InfusionType instead */
+	/** @deprecated Use InfusionType + InfusionLevel instead */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use InfusionType instead"))
 	bool bIsElementInfused = false;
 
-	/** @deprecated Use InfusionType instead */
+	/** @deprecated Use SpellSizeInfusionLevel instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellSizeInfusionLevel instead"))
+	int32 SpellInfusionLevel = 0;
+
+	/** @deprecated Use InfusionType + InfusionLevel instead */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use InfusionType instead"))
 	int32 AbilityInfusionLevel = 0;
 
@@ -105,7 +116,13 @@ struct WORLD_OF_REFRACTION_API FAction
 	/** Is any infusion active? */
 	bool IsInfused() const
 	{
-		return InfusionType != EInfusionType::None;
+		return InfusionType != EInfusionType::None && InfusionLevel > 0;
+	}
+
+	/** Is spell size infusion active? */
+	bool IsSpellSizeInfused() const
+	{
+		return SpellSizeInfusionLevel > 0;
 	}
 
 	FString GetActionName() const
@@ -206,7 +223,7 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result")
 	bool bCausedDeath = false;
 
-	/** Status effects applied */
+	/** Status effects applied to targets */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result")
 	int32 StatusEffectsApplied = 0;
 
@@ -223,6 +240,30 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	/** Which infusion type was used */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
 	EInfusionType InfusionTypeUsed = EInfusionType::None;
+
+	/** What charge level was used (1 or 2) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	int32 InfusionLevelUsed = 0;
+
+	/** Where did the element come from */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	EInfusionSource InfusionSourceUsed = EInfusionSource::None;
+
+	/** Status buildup applied to targets */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	int32 StatusBuildupApplied = 0;
+
+	/** HP damage taken by caster (L2 cost) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	int32 SelfDamageTaken = 0;
+
+	/** Self-status buildup applied to caster (Evolution L2) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	int32 SelfStatusBuildupApplied = 0;
+
+	/** Break chance increase applied (Ring/Crystal L2) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	float BreakChanceIncrease = 0.0f;
 
 	// ==================== DEFENSE SYSTEM DATA ====================
 

@@ -15,6 +15,26 @@
 #include "WeaponManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "RingManager.h"
+#include "WeaponData.h"
+#include "CrystalData.h"
+#include "ECrystalType.h"
+#include "RingManager.h"
+#include "WeaponData.h"
+#include "CrystalData.h"
+#include "ECrystalType.h"
+
+class UCharacterDataComponent;
+class UCharacterData;
+class UStatusEffectManager;
+class USpellData;
+class UAbilityData;
+class UItemData;
+class UBaseAttackData;
+class UUltimateData;
+class UItemExecutor;
+class UWeaponManager;
+class URingManager;
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -1452,4 +1472,566 @@ UWeaponManager *UActionExecutor::GetWeaponManager() const
 		}
 	}
 	return WeaponManagerRef;
+}
+
+bool UActionExecutor::CanUseInfusionType(AActor *Actor, EInfusionType Type) const
+{
+	if (Type == EInfusionType::None)
+	{
+		return true; // Always can choose no infusion
+	}
+
+	if (Type == EInfusionType::Physical)
+	{
+		return true; // Physical always available
+	}
+
+	if (Type == EInfusionType::Element)
+	{
+		return CanUseElementInfusion(Actor);
+	}
+
+	return false;
+}
+
+TArray<EInfusionType> UActionExecutor::GetAvailableInfusionTypes(AActor *Actor) const
+{
+	TArray<EInfusionType> Available;
+	Available.Add(EInfusionType::None);
+	Available.Add(EInfusionType::Physical); // Always available
+
+	if (CanUseElementInfusion(Actor))
+	{
+		Available.Add(EInfusionType::Element);
+	}
+
+	return Available;
+}
+
+bool UActionExecutor::CanUseElementInfusion(AActor *Actor) const
+{
+	return GetInfusionSource(Actor) != EInfusionSource::None;
+}
+
+EInfusionSource UActionExecutor::GetInfusionSource(AActor *Actor) const
+{
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+	{
+		return EInfusionSource::None;
+	}
+
+	// 1. Check weapon crystal first (highest priority)
+	UWeaponManager *WM = GetWeaponManager();
+	if (WM)
+	{
+		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+		if (Weapon && Weapon->SlottedCrystal)
+		{
+			// Ilodite has no element - skip to physical path
+			if (Weapon->SlottedCrystal->CrystalType != ECrystalType::Ilodite)
+			{
+				return EInfusionSource::Crystal;
+			}
+		}
+	}
+
+	// 2. Caster innate element
+	if (Data->IsCaster() && Data->InnateElement != ESpellElement::Generic)
+	{
+		return EInfusionSource::Innate;
+	}
+
+	// 3. Resonator ring element
+	if (Data->IsResonator())
+	{
+		URingManager *RM = GetRingManager();
+		if (RM && RM->GetActiveRing(Actor))
+		{
+			return EInfusionSource::Ring;
+		}
+	}
+
+	// 4. No element source
+	return EInfusionSource::None;
+}
+
+EInfusionSource UActionExecutor::GetSpellSource(AActor *Actor, USpellData *Spell) const
+{
+	if (!Actor || !Spell)
+	{
+		return EInfusionSource::None;
+	}
+
+	// Check if spell comes from evolution weapon
+	UWeaponManager *WM = GetWeaponManager();
+	if (WM)
+	{
+		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+		if (Weapon && Weapon->IsEvolved())
+		{
+			TArray<USpellData *> EvoSpells = Weapon->GetEvolutionSpells();
+			if (EvoSpells.Contains(Spell))
+			{
+				return EInfusionSource::Evolution;
+			}
+		}
+	}
+
+	// Check if spell comes from ring (Resonator)
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (Data && Data->IsResonator())
+	{
+		URingManager *RM = GetRingManager();
+		if (RM && RM->GetAvailableSpells(Actor).Contains(Spell))
+		{
+			return EInfusionSource::Ring;
+		}
+	}
+
+	// Must be innate (Caster)
+	if (Data && Data->IsCaster())
+	{
+		return EInfusionSource::Innate;
+	}
+
+	return EInfusionSource::None;
+}
+
+ESpellElement UActionExecutor::GetInfusionElement(AActor *Actor) const
+{
+	EInfusionSource Source = GetInfusionSource(Actor);
+	UCharacterData *Data = GetCharacterData(Actor);
+
+	if (!Data)
+	{
+		return ESpellElement::Generic;
+	}
+
+	switch (Source)
+	{
+	case EInfusionSource::None:
+		return ESpellElement::Generic;
+
+	case EInfusionSource::Innate:
+		return Data->InnateElement;
+
+	case EInfusionSource::Ring:
+	{
+		URingManager *RM = GetRingManager();
+		if (RM)
+		{
+			return RM->GetActiveElement(Actor);
+		}
+		return ESpellElement::Generic;
+	}
+
+	case EInfusionSource::Crystal:
+	case EInfusionSource::Evolution:
+	{
+		UWeaponManager *WM = GetWeaponManager();
+		if (WM)
+		{
+			UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+			if (Weapon && Weapon->SlottedCrystal)
+			{
+				return Weapon->SlottedCrystal->Element;
+			}
+		}
+		return ESpellElement::Generic;
+	}
+
+	default:
+		return ESpellElement::Generic;
+	}
+}
+
+bool UActionExecutor::HasIloditeEquipped(AActor *Actor) const
+{
+	UWeaponManager *WM = GetWeaponManager();
+	if (!WM)
+	{
+		return false;
+	}
+
+	UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+	if (!Weapon || !Weapon->SlottedCrystal)
+	{
+		return false;
+	}
+
+	return Weapon->SlottedCrystal->CrystalType == ECrystalType::Ilodite;
+}
+
+// ========================================
+// INFUSION MULTIPLIERS
+// ========================================
+
+float UActionExecutor::GetInfusionEnergyCostMultiplier(int32 InfusionLevel)
+{
+	switch (InfusionLevel)
+	{
+	case 1:
+		return InfusionConstants::L1_ENERGY_MULT;
+	case 2:
+		return InfusionConstants::L2_ENERGY_MULT;
+	default:
+		return 1.0f;
+	}
+}
+
+float UActionExecutor::GetSpellSizeMultiplier(int32 SpellSizeInfusionLevel)
+{
+	switch (SpellSizeInfusionLevel)
+	{
+	case 1:
+		return InfusionConstants::SPELL_L1_SIZE_MULT;
+	case 2:
+		return InfusionConstants::SPELL_L2_SIZE_MULT;
+	default:
+		return 1.0f;
+	}
+}
+
+float UActionExecutor::GetSpellSizeEnergyCostMultiplier(int32 SpellSizeInfusionLevel)
+{
+	switch (SpellSizeInfusionLevel)
+	{
+	case 1:
+		return InfusionConstants::SPELL_L1_ENERGY_MULT;
+	case 2:
+		return InfusionConstants::SPELL_L2_ENERGY_MULT;
+	default:
+		return 1.0f;
+	}
+}
+
+// ========================================
+// INFUSION EFFECT APPLICATION
+// ========================================
+
+void UActionExecutor::ApplyInfusionEffects(
+	FActionResult &Result,
+	AActor *Actor,
+	EInfusionType Type,
+	int32 Level)
+{
+	if (Type == EInfusionType::None || Level == 0)
+	{
+		return;
+	}
+
+	Result.bWasInfused = true;
+	Result.InfusionTypeUsed = Type;
+	Result.InfusionLevelUsed = Level;
+
+	UCharacterData *Data = GetCharacterData(Actor);
+
+	switch (Type)
+	{
+	case EInfusionType::Physical:
+		ApplyPhysicalInfusion(Result, Actor, Level);
+		break;
+
+	case EInfusionType::Element:
+		ApplyElementInfusion(Result, Actor, Level);
+		break;
+	}
+
+	// Apply L2 costs
+	if (Level >= 2)
+	{
+		if (Type == EInfusionType::Physical && HasIloditeEquipped(Actor))
+		{
+			// Ilodite L2: Stat buff + break chance
+			ApplyIloditeStatBuff(Actor);
+			Result.BreakChanceIncrease = InfusionConstants::CRYSTAL_L2_BREAK_INCREASE;
+		}
+		else if (Type == EInfusionType::Element)
+		{
+			EInfusionSource Source = GetInfusionSource(Actor);
+			Result.InfusionSourceUsed = Source;
+			ApplyL2InfusionCost(Result, Actor, Source);
+		}
+	}
+}
+
+void UActionExecutor::ApplyPhysicalInfusion(FActionResult &Result, AActor *Actor, int32 Level)
+{
+	// L1: Add weapon status buildup (handled by WeaponManager)
+	// L2: Add damage boost
+	if (Level >= 2)
+	{
+		Result.TotalDamageDealt = FMath::RoundToInt(
+			Result.TotalDamageDealt * InfusionConstants::PHYSICAL_L2_DAMAGE_MULT);
+	}
+
+	Result.bIsElementalAttack = false;
+}
+
+void UActionExecutor::ApplyElementInfusion(FActionResult &Result, AActor *Actor, int32 Level)
+{
+	ESpellElement Element = GetInfusionElement(Actor);
+	Result.AttackElement = Element;
+	Result.bIsElementalAttack = true;
+
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+	{
+		return;
+	}
+
+	// Calculate status buildup
+	float StatusMultiplier = 1.0f;
+	if (Level == 1)
+	{
+		StatusMultiplier = InfusionConstants::ELEMENT_L1_STATUS_MULT;
+	}
+	else if (Level >= 2)
+	{
+		StatusMultiplier = InfusionConstants::ELEMENT_L2_STATUS_MULT;
+
+		// L2 also adds damage
+		Result.TotalDamageDealt = FMath::RoundToInt(
+			Result.TotalDamageDealt * InfusionConstants::ELEMENT_L2_DAMAGE_MULT);
+	}
+
+	// Apply status buildup (base amount from ability/spell * multiplier * character's EffectDamage)
+	// Note: Base status amount should be set before calling this
+	float EffectDamageMultiplier = Data->CalculateEffectDamageMultiplier();
+	Result.StatusBuildupApplied = FMath::RoundToInt(
+		Result.StatusBuildupApplied * StatusMultiplier * EffectDamageMultiplier);
+}
+
+// ========================================
+// L2 COST APPLICATION
+// ========================================
+
+void UActionExecutor::ApplyL2InfusionCost(
+	FActionResult &Result,
+	AActor *Actor,
+	EInfusionSource Source)
+{
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+	{
+		return;
+	}
+
+	switch (Source)
+	{
+	case EInfusionSource::Innate:
+	{
+		// Caster innate: HP cost
+		int32 HPCost = FMath::RoundToInt(
+			Data->CalculateMaxHP() * InfusionConstants::INNATE_L2_HP_COST_PERCENT);
+		ApplySelfDamage(Actor, HPCost);
+		Result.SelfDamageTaken = HPCost;
+
+		OnInfusionCostApplied.Broadcast(Actor, Source, HPCost, 0.0f);
+		break;
+	}
+
+	case EInfusionSource::Ring:
+	{
+		// Resonator ring: Break chance increase
+		Result.BreakChanceIncrease = InfusionConstants::RING_L2_BREAK_INCREASE;
+
+		OnInfusionCostApplied.Broadcast(Actor, Source, 0, Result.BreakChanceIncrease);
+		break;
+	}
+
+	case EInfusionSource::Crystal:
+	{
+		// Weapon crystal: Break chance increase
+		Result.BreakChanceIncrease = InfusionConstants::CRYSTAL_L2_BREAK_INCREASE;
+
+		OnInfusionCostApplied.Broadcast(Actor, Source, 0, Result.BreakChanceIncrease);
+		break;
+	}
+
+	case EInfusionSource::Evolution:
+	{
+		// Evolution: HP cost + self-status
+		int32 HPCost = FMath::RoundToInt(
+			Data->CalculateMaxHP() * InfusionConstants::EVOLUTION_L2_HP_COST_PERCENT);
+		ApplySelfDamage(Actor, HPCost);
+		Result.SelfDamageTaken = HPCost;
+
+		// Self-status buildup
+		ESpellElement Element = GetInfusionElement(Actor);
+		int32 SelfStatusAmount = FMath::RoundToInt(
+			Result.StatusBuildupApplied * InfusionConstants::EVOLUTION_L2_SELF_STATUS_MULT);
+		ApplySelfStatusBuildup(Actor, Element, SelfStatusAmount);
+		Result.SelfStatusBuildupApplied = SelfStatusAmount;
+
+		OnInfusionCostApplied.Broadcast(Actor, Source, HPCost, 0.0f);
+		break;
+	}
+
+	default:
+		break;
+	}
+}
+
+void UActionExecutor::ApplySpellSizeL2Cost(
+	FActionResult &Result,
+	AActor *Actor,
+	USpellData *Spell)
+{
+	EInfusionSource Source = GetSpellSource(Actor, Spell);
+	UCharacterData *Data = GetCharacterData(Actor);
+
+	if (!Data)
+	{
+		return;
+	}
+
+	switch (Source)
+	{
+	case EInfusionSource::Innate:
+	{
+		// Caster innate spell: HP cost
+		int32 HPCost = FMath::RoundToInt(
+			Data->CalculateMaxHP() * InfusionConstants::INNATE_L2_HP_COST_PERCENT);
+		ApplySelfDamage(Actor, HPCost);
+		Result.SelfDamageTaken = HPCost;
+		break;
+	}
+
+	case EInfusionSource::Ring:
+	{
+		// Resonator ring spell: Higher break chance
+		Result.BreakChanceIncrease = InfusionConstants::RING_L2_SPELL_BREAK_INCREASE;
+		break;
+	}
+
+	case EInfusionSource::Evolution:
+	{
+		// Evolution weapon spell: HP + self-status
+		int32 HPCost = FMath::RoundToInt(
+			Data->CalculateMaxHP() * InfusionConstants::EVOLUTION_L2_HP_COST_PERCENT);
+		ApplySelfDamage(Actor, HPCost);
+		Result.SelfDamageTaken = HPCost;
+
+		ESpellElement Element = Spell ? Spell->Element : ESpellElement::Generic;
+		int32 SelfStatusAmount = FMath::RoundToInt(
+			Spell ? Spell->StatusBuildup * InfusionConstants::EVOLUTION_L2_SELF_STATUS_MULT : 0);
+		ApplySelfStatusBuildup(Actor, Element, SelfStatusAmount);
+		Result.SelfStatusBuildupApplied = SelfStatusAmount;
+		break;
+	}
+
+	default:
+		break;
+	}
+}
+
+// ========================================
+// HELPER IMPLEMENTATIONS
+// ========================================
+
+void UActionExecutor::ApplyIloditeStatBuff(AActor *Actor)
+{
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	if (!StatusManager)
+	{
+		return;
+	}
+
+	// Apply +5% to all stats for 1 turn
+	// TODO: Create a proper status effect for this or use existing buff system
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ilodite L2 stat buff applied to %s (+%d%% all stats)"),
+		   Actor ? *Actor->GetName() : TEXT("None"),
+		   FMath::RoundToInt(InfusionConstants::ILODITE_L2_STAT_BUFF * 100.0f));
+}
+
+void UActionExecutor::ApplySelfDamage(AActor *Actor, int32 Amount)
+{
+	if (!Actor || Amount <= 0)
+	{
+		return;
+	}
+
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+	if (Comp)
+	{
+		Comp->TakeDamage(Amount);
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s took %d self-damage from infusion cost"),
+			   *Actor->GetName(), Amount);
+	}
+}
+
+void UActionExecutor::ApplySelfStatusBuildup(AActor *Actor, ESpellElement Element, int32 Amount)
+{
+	if (!Actor || Amount <= 0)
+	{
+		return;
+	}
+
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	if (StatusManager)
+	{
+		// Apply element status to self
+		// TODO: Implement status buildup on self
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s received %d self-status buildup (%s) from Evolution L2"),
+			   *Actor->GetName(), Amount, *UEnum::GetValueAsString(Element));
+	}
+}
+
+// ========================================
+// RING MANAGER GETTER
+// ========================================
+
+URingManager *UActionExecutor::GetRingManager() const
+{
+	if (!RingManagerRef)
+	{
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
+		{
+			const_cast<UActionExecutor *>(this)->RingManagerRef =
+				GI->GetSubsystem<URingManager>();
+		}
+	}
+	return RingManagerRef;
+}
+
+// ========================================
+// DEBUG
+// ========================================
+
+void UActionExecutor::DebugPrintInfusionInfo(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Display, TEXT("=== INFUSION INFO: No Actor ==="));
+		return;
+	}
+
+	UCharacterData *Data = GetCharacterData(Actor);
+	EInfusionSource Source = GetInfusionSource(Actor);
+	ESpellElement Element = GetInfusionElement(Actor);
+	TArray<EInfusionType> Available = GetAvailableInfusionTypes(Actor);
+
+	UE_LOG(LogTemp, Display, TEXT("=== INFUSION INFO: %s ==="), *Actor->GetName());
+	UE_LOG(LogTemp, Display, TEXT("Class: %s"),
+		   Data ? *UEnum::GetValueAsString(Data->CharacterClass) : TEXT("None"));
+	UE_LOG(LogTemp, Display, TEXT("Element Source: %s"),
+		   *InfusionSourceHelpers::GetSourceName(Source));
+	UE_LOG(LogTemp, Display, TEXT("Element: %s"),
+		   *UEnum::GetValueAsString(Element));
+	UE_LOG(LogTemp, Display, TEXT("Has Ilodite: %s"),
+		   HasIloditeEquipped(Actor) ? TEXT("Yes") : TEXT("No"));
+	UE_LOG(LogTemp, Display, TEXT("Available Types: %d"), Available.Num());
+
+	for (EInfusionType Type : Available)
+	{
+		UE_LOG(LogTemp, Display, TEXT("  - %s"),
+			   *InfusionTypeHelpers::GetInfusionName(Type));
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("L2 Cost: %s"),
+		   *InfusionSourceHelpers::GetL2CostDescription(Source));
+	UE_LOG(LogTemp, Display, TEXT("================================"));
 }
