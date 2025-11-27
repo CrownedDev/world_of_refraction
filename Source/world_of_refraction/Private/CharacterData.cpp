@@ -15,3 +15,9 @@ ESpellElement UCharacterData::GetEvolutionElement() const
     }
     return ActiveEvolution->Element;
 }
+
+bool UCharacterData::IsDualElementCaster() const
+{
+    return IsCaster() && bIsEvolved && ActiveEvolution &&
+           ActiveEvolution->Element != InnateElement;
+}

@@ -86,11 +86,7 @@ public:
 
 	/** Check if caster evolved with different element */
 	UFUNCTION(BlueprintPure, Category = "Character|Evolution")
-	bool IsDualElementCaster() const
-	{
-		return IsCaster() && bIsEvolved && ActiveEvolution &&
-			   ActiveEvolution->Element != InnateElement;
-	}
+	bool IsDualElementCaster() const;
 
 	// ==================== COMBAT LOADOUT ====================
 
