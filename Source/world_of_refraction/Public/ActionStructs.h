@@ -47,7 +47,7 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	/** Source of spell (Innate, Ring, Evolution, Item) - determines post-cast logic */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
-	ESpellSource SpellSource = ESpellSource::Innate
+	ESpellSource SpellSource = ESpellSource::Innate;
 
 		/** Attack data (if ActionType == Attack) */
 		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
