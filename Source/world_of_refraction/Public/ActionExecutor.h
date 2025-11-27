@@ -9,6 +9,8 @@
 #include "AbilityEffectType.h"
 #include "SpellElement.h"
 #include "ActionExecutor.generated.h"
+#include "EInfusionType.h"
+#include "ECharacterClass.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -20,6 +22,7 @@ class UBaseAttackData;
 class UUltimateData;
 class UItemExecutor;
 class UWeaponManager;
+class URingManager;
 
 // ========================================
 // DELEGATES
@@ -341,12 +344,36 @@ private:
 	/** Cached reference to WeaponManager */
 	UPROPERTY()
 	UWeaponManager *WeaponManagerRef = nullptr;
+	/** Cached reference to RingManager */
+	UPROPERTY()
+	URingManager *RingManagerRef = nullptr;
 
 	/** Get ItemExecutor subsystem */
 	UItemExecutor *GetItemExecutor() const;
 
 	/** Get WeaponManager subsystem */
 	UWeaponManager *GetWeaponManager() const;
+	/** Get RingManager subsystem */
+	URingManager *GetRingManager() const;
+
+	// ========================================
+	// INFUSION TYPE SYSTEM
+	// ========================================
+
+	/** Check if character can use this infusion type based on class */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	bool CanUseInfusionType(AActor *Actor, EInfusionType Type) const;
+
+	/** Get available infusion types for character based on class and equipment */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	TArray<EInfusionType> GetAvailableInfusionTypes(AActor *Actor) const;
+
+	/** Get element for the given infusion type (based on class/equipment) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	ESpellElement GetInfusionElement(AActor *Actor, EInfusionType Type) const;
+
+	/** Apply infusion effects to action result (damage boost, element, etc.) */
+	void ApplyInfusionEffects(FActionResult &Result, AActor *Actor, EInfusionType Type);
 
 	// ========================================
 	// ASYNC EXECUTION STATE

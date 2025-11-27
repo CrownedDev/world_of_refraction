@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EActionType.h"
 #include "SpellElement.h"
+#include "EInfusionType.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -53,21 +54,27 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	// ==================== INFUSION OPTIONS ====================
 
-	/** Is ability infused with element? (Casters only) */
+	/** Primary infusion type selection (None, Physical, Element, Crystal) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
-	bool bIsElementInfused = false;
+	EInfusionType InfusionType = EInfusionType::None;
 
-	/** Spell infusion level (0 = none, 1 = level 1, 2 = level 2) */
+	/** Spell size infusion level (0 = none, 1 = 1.5x size, 2 = 2.0x size) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
 	int32 SpellInfusionLevel = 0;
-
-	/** Ability power infusion level (Generic only, 0-2) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
-	int32 AbilityInfusionLevel = 0;
 
 	/** Use elemental mode for toggle spells */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
 	bool bUseElementalMode = true;
+
+	// ==================== DEPRECATED - REMOVE AFTER MIGRATION ====================
+
+	/** @deprecated Use InfusionType instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use InfusionType instead"))
+	bool bIsElementInfused = false;
+
+	/** @deprecated Use InfusionType instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use InfusionType instead"))
+	int32 AbilityInfusionLevel = 0;
 
 	// ==================== HELPERS ====================
 
@@ -93,6 +100,12 @@ struct WORLD_OF_REFRACTION_API FAction
 		return ActionType != EActionType::Defend &&
 			   ActionType != EActionType::Flee &&
 			   ActionType != EActionType::SwitchWeapon;
+	}
+
+	/** Is any infusion active? */
+	bool IsInfused() const
+	{
+		return InfusionType != EInfusionType::None;
 	}
 
 	FString GetActionName() const
@@ -201,6 +214,16 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result")
 	FString ErrorMessage;
 
+	// ==================== INFUSION TRACKING ====================
+
+	/** Was any infusion used? */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	bool bWasInfused = false;
+
+	/** Which infusion type was used */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
+	EInfusionType InfusionTypeUsed = EInfusionType::None;
+
 	// ==================== DEFENSE SYSTEM DATA ====================
 
 	/**
@@ -228,7 +251,7 @@ struct WORLD_OF_REFRACTION_API FActionResult
 };
 
 /**
- * FHitResult
+ * FCombatHitResult
  * Result of a single hit on a single target
  */
 USTRUCT(BlueprintType)
