@@ -104,9 +104,8 @@ UBaseAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 		return Weapon->WeaponAttack;
 	}
 
-	// Unarmed - use base attack
-	UCharacterData *CharData = GetCharacterData(Actor);
-	return CharData ? CharData->BaseAttack : nullptr;
+	// Unarmed - no base attack (attacks come from weapons only)
+	return nullptr;
 }
 
 TArray<UAbilityData *> UWeaponManager::GetActiveAbilities(AActor *Actor) const

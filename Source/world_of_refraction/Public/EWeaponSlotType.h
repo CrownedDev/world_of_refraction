@@ -1,14 +1,14 @@
-// ESlotType.h
+// EWeaponSlotType.h
 // Slot type enums for character loadout configuration
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ESlotType.generated.h"
+#include "EWeaponSlotType.generated.h"
 
 /** Primary slot type (Caster only - Weapon or Ring) */
 UENUM(BlueprintType)
-enum class EPrimaryWeaponSlotType : uint8
+enum class EPrimarySlotType : uint8
 {
     Weapon UMETA(DisplayName = "Weapon"),
     Ring UMETA(DisplayName = "Ring")
@@ -16,7 +16,7 @@ enum class EPrimaryWeaponSlotType : uint8
 
 /** Secondary slot type (Generic only - None, Weapon, or Ring) */
 UENUM(BlueprintType)
-enum class ESecondaryWeaponSlotType : uint8
+enum class ESecondarySlotType : uint8
 {
     None UMETA(DisplayName = "None"),
     Weapon UMETA(DisplayName = "Weapon"),
