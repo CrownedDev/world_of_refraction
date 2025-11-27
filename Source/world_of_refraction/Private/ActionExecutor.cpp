@@ -1569,6 +1569,9 @@ EInfusionSource UActionExecutor::GetSpellSource(AActor *Actor, USpellData *Spell
 		if (Weapon && Weapon->IsEvolved())
 		{
 			if (Spell->Element == Weapon->SlottedCrystal->GetAssociatedElement())
+			{
+				return EInfusionSource::Evolution;
+			}
 		}
 	}
 
@@ -1909,9 +1912,8 @@ void UActionExecutor::ApplySpellSizeL2Cost(
 		Result.SelfDamageTaken = HPCost;
 
 		ESpellElement Element = Spell ? Spell->Element : ESpellElement::Generic;
-		int32 SelfStatusAmount = FMath::RoundToInt(
-			int32 BaseStatus = Spell ? Spell->CalculateStatusBuildup(Data) : 0;
-			int32 SelfStatusAmount = FMath::RoundToInt(BaseStatus * InfusionConstants::EVOLUTION_L2_SELF_STATUS_MULT);
+		int32 BaseStatus = Spell ? Spell->CalculateStatusBuildup(Data) : 0;
+		int32 SelfStatusAmount = FMath::RoundToInt(BaseStatus * InfusionConstants::EVOLUTION_L2_SELF_STATUS_MULT);
 		ApplySelfStatusBuildup(Actor, Element, SelfStatusAmount);
 		Result.SelfStatusBuildupApplied = SelfStatusAmount;
 		break;

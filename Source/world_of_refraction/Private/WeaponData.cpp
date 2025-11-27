@@ -60,7 +60,7 @@ bool UWeaponData::IsEvolved() const
 }
 
 #if WITH_EDITOR
-EDataValidationResult UWeaponData::IsDataValid(TArray<FText>& ValidationErrors)
+EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) const override;
 {
     EDataValidationResult Result = EDataValidationResult::Valid;
     // Name validation

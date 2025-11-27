@@ -181,48 +181,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasInfusionDisplay() const { return InfusionDisplay != nullptr; }
 #if WITH_EDITOR
-    EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext& Context) const
-    {
-        EDataValidationResult Result = Super::IsDataValid(Context);
-
-        // Name validation
-        if (WeaponName.IsEmpty() || WeaponName == TEXT("Unnamed Weapon"))
-        {
-            Context.AddError(FText::FromString(TEXT("Weapon must have a unique name")));
-            Result = EDataValidationResult::Invalid;
-        }
-
-        // Attack validation
-        if (WeaponAttack == nullptr)
-        {
-            Context.AddWarning(FText::FromString(TEXT("No weapon attack assigned")));
-        }
-
-        // Abilities validation
-        if (PresetAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
-        {
-            Context.AddError(FText::FromString(FString::Printf(
-                TEXT("Weapon cannot have more than %d abilities"),
-                LoadoutConstants::MAX_WEAPON_ABILITIES)));
-            Result = EDataValidationResult::Invalid;
-        }
-
-        // Stance validation
-        if (WeaponStance == nullptr)
-        {
-            Context.AddWarning(FText::FromString(TEXT("No weapon stance assigned")));
-        }
-
-        // Crystal validation
-        if (SlottedCrystal)
-        {
-            if (!SlottedCrystal->bIsRefined)
-            {
-                Context.AddWarning(FText::FromString(TEXT("Slotted crystal is not refined")));
-            }
-        }
-
-        return Result;
-    }
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };
