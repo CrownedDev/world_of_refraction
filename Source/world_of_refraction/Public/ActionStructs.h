@@ -340,13 +340,6 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	FGuid ContextId;
-	/** Damage per hit (for multi-hit attacks) */
-	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	int32 DamagePerHit = 0;
-
-	/** Window duration from attack data */
-	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	float WindowDuration = 0.3f;
 
 	FPendingDefenseContext()
 	{

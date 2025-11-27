@@ -109,6 +109,7 @@ public:
 	// EXECUTION - MAIN ENTRY POINTS
 	// ========================================
 
+	void ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete);
 	/** Execute a combat action synchronously */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteAction(AActor *Actor, const FAction &Action);
@@ -474,7 +475,6 @@ private:
 	 * @param Action The action to execute
 	 * @param OnComplete Callback fired when ALL defense windows resolve
 	 */
-	void ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete);
 
 	/**
 	 * Check if any async action is currently in progress

@@ -338,103 +338,118 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 // ========================================
 // EXECUTION - ASYNC
 // ========================================
-
-// Validate action
-FActionValidationResult Validation = ValidateAction(Actor, Action);
-if (!Validation.bIsValid)
+void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
 {
-	FActionResult FailResult;
-	FailResult.bSuccess = false;
-	FailResult.ErrorMessage = Validation.ErrorMessage;
-
-	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action validation failed: %s"),
-		   *Validation.ErrorMessage);
-
-	if (OnComplete.IsBound())
+	// Check for existing async action
+	if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress)
 	{
-		OnComplete.Execute(FailResult);
-	}
-	return;
-}
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Cannot start async action - another in progress"));
 
-// Create execution context
-FActionExecutionContext Context;
-Context.Action = Action;
-Context.Executor = Actor;
-Context.bInProgress = true;
-Context.StartTime = FPlatformTime::Seconds();
-
-// Initialize partial result
-Context.PartialResult.Executor = Actor;
-Context.PartialResult.ActionType = Action.ActionType;
-Context.PartialResult.bSuccess = true;
-
-// Store context and callback
-CurrentExecutionContext = Context;
-AsyncActionCallback = OnComplete;
-
-// Broadcast start
-OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
-
-UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Starting async action: %s by %s"),
-	   *Action.GetActionName(), *Actor->GetName());
-
-// Get character data for calculations
-UCharacterData *CharData = GetCharacterData(Actor);
-
-// Process based on action type
-switch (Action.ActionType)
-{
-case EActionType::Spell:
-	ExecuteSpellAsync(Actor, Action, CharData);
-	break;
-
-case EActionType::Ability:
-	ExecuteAbilityAsync(Actor, Action, CharData);
-	break;
-
-case EActionType::Attack:
-	ExecuteAttackAsync(Actor, Action, CharData);
-	break;
-
-case EActionType::Item:
-case EActionType::Defend:
-case EActionType::SwitchWeapon:
-case EActionType::Flee:
-	// These don't have defense windows - execute synchronously
-	{
-		FActionResult Result = ExecuteAction(Actor, Action);
-		CurrentExecutionContext.Reset();
+		FActionResult FailResult;
+		FailResult.bSuccess = false;
+		FailResult.ErrorMessage = TEXT("Another async action in progress");
 		if (OnComplete.IsBound())
 		{
-			OnComplete.Execute(Result);
+			OnComplete.Execute(FailResult);
 		}
+		return;
 	}
-	return;
+	// Validate action
+	FActionValidationResult Validation = ValidateAction(Actor, Action);
+	if (!Validation.bIsValid)
+	{
+		FActionResult FailResult;
+		FailResult.bSuccess = false;
+		FailResult.ErrorMessage = Validation.ErrorMessage;
 
-default:
-	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unknown action type for async execution"));
-	CancelAsyncAction();
-	return;
-}
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Async action validation failed: %s"),
+			   *Validation.ErrorMessage);
 
-// Set timeout timer as failsafe
-if (UWorld *World = GetWorld())
-{
-	World->GetTimerManager().SetTimer(
-		AsyncTimeoutHandle,
-		this,
-		&UActionExecutor::OnAsyncActionTimeout,
-		CurrentExecutionContext->TimeoutDuration,
-		false);
-}
+		if (OnComplete.IsBound())
+		{
+			OnComplete.Execute(FailResult);
+		}
+		return;
+	}
 
-// Check if any defense windows were opened
-if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
-{
-	// No defense windows needed - finalize immediately
-	FinalizeAsyncAction();
-}
+	// Create execution context
+	FActionExecutionContext Context;
+	Context.Action = Action;
+	Context.Executor = Actor;
+	Context.bInProgress = true;
+	Context.StartTime = FPlatformTime::Seconds();
+
+	// Initialize partial result
+	Context.PartialResult.Executor = Actor;
+	Context.PartialResult.ActionType = Action.ActionType;
+	Context.PartialResult.bSuccess = true;
+
+	// Store context and callback
+	CurrentExecutionContext = Context;
+	AsyncActionCallback = OnComplete;
+
+	// Broadcast start
+	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Starting async action: %s by %s"),
+		   *Action.GetActionName(), *Actor->GetName());
+
+	// Get character data for calculations
+	UCharacterData *CharData = GetCharacterData(Actor);
+
+	// Process based on action type
+	switch (Action.ActionType)
+	{
+	case EActionType::Spell:
+		ExecuteSpellAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Ability:
+		ExecuteAbilityAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Attack:
+		ExecuteAttackAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Item:
+	case EActionType::Defend:
+	case EActionType::SwitchWeapon:
+	case EActionType::Flee:
+		// These don't have defense windows - execute synchronously
+		{
+			FActionResult Result = ExecuteAction(Actor, Action);
+			CurrentExecutionContext.Reset();
+			if (OnComplete.IsBound())
+			{
+				OnComplete.Execute(Result);
+			}
+		}
+		return;
+
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unknown action type for async execution"));
+		CancelAsyncAction();
+		return;
+	}
+
+	// Set timeout timer as failsafe
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			AsyncTimeoutHandle,
+			this,
+			&UActionExecutor::OnAsyncActionTimeout,
+			CurrentExecutionContext->TimeoutDuration,
+			false);
+	}
+
+	// Check if any defense windows were opened
+	if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+	{
+		// No defense windows needed - finalize immediately
+		FinalizeAsyncAction();
+	}
 }
 
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
