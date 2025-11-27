@@ -17,12 +17,11 @@
 #include "TimerManager.h"
 #include "RingManager.h"
 #include "WeaponData.h"
-#include "CrystalData.h"
-#include "ECrystalType.h"
+#include "ItemData.h"
+#include "CrystalType.h"
 #include "RingManager.h"
 #include "WeaponData.h"
-#include "CrystalData.h"
-#include "ECrystalType.h"
+#include "ItemData.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -1522,17 +1521,13 @@ EInfusionSource UActionExecutor::GetInfusionSource(AActor *Actor) const
 	}
 
 	// 1. Check weapon crystal first (highest priority)
-	UWeaponManager *WM = GetWeaponManager();
-	if (WM)
+	UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+	if (Weapon && Weapon->SlottedCrystal)
 	{
-		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
-		if (Weapon && Weapon->SlottedCrystal)
+		// Iolite = physical enhancement, no element - skip to next source
+		if (Weapon->SlottedCrystal->CrystalType != ECrystalType::Iolite)
 		{
-			// Ilodite has no element - skip to physical path
-			if (Weapon->SlottedCrystal->CrystalType != ECrystalType::Ilodite)
-			{
-				return EInfusionSource::Crystal;
-			}
+			return EInfusionSource::Crystal;
 		}
 	}
 
@@ -1646,7 +1641,7 @@ ESpellElement UActionExecutor::GetInfusionElement(AActor *Actor) const
 	}
 }
 
-bool UActionExecutor::HasIloditeEquipped(AActor *Actor) const
+bool UActionExecutor::HasIoliteEquipped(AActor *Actor) const
 {
 	UWeaponManager *WM = GetWeaponManager();
 	if (!WM)
@@ -1660,7 +1655,7 @@ bool UActionExecutor::HasIloditeEquipped(AActor *Actor) const
 		return false;
 	}
 
-	return Weapon->SlottedCrystal->CrystalType == ECrystalType::Ilodite;
+	return Weapon->SlottedCrystal->CrystalType == ECrystalType::Iolite;
 }
 
 // ========================================
@@ -1741,10 +1736,10 @@ void UActionExecutor::ApplyInfusionEffects(
 	// Apply L2 costs
 	if (Level >= 2)
 	{
-		if (Type == EInfusionType::Physical && HasIloditeEquipped(Actor))
+		if (Type == EInfusionType::Physical && HasIoliteEquipped(Actor))
 		{
-			// Ilodite L2: Stat buff + break chance
-			ApplyIloditeStatBuff(Actor);
+			// Iolite L2: Stat buff + break chance
+			ApplyIoliteStatBuff(Actor);
 			Result.BreakChanceIncrease = InfusionConstants::CRYSTAL_L2_BREAK_INCREASE;
 		}
 		else if (Type == EInfusionType::Element)
@@ -1931,7 +1926,7 @@ void UActionExecutor::ApplySpellSizeL2Cost(
 // HELPER IMPLEMENTATIONS
 // ========================================
 
-void UActionExecutor::ApplyIloditeStatBuff(AActor *Actor)
+void UActionExecutor::ApplyIoliteStatBuff(AActor *Actor)
 {
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
@@ -1941,9 +1936,9 @@ void UActionExecutor::ApplyIloditeStatBuff(AActor *Actor)
 
 	// Apply +5% to all stats for 1 turn
 	// TODO: Create a proper status effect for this or use existing buff system
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ilodite L2 stat buff applied to %s (+%d%% all stats)"),
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Iolite L2 stat buff applied to %s (+%d%% all stats)"),
 		   Actor ? *Actor->GetName() : TEXT("None"),
-		   FMath::RoundToInt(InfusionConstants::ILODITE_L2_STAT_BUFF * 100.0f));
+		   FMath::RoundToInt(InfusionConstants::Iolite_L2_STAT_BUFF * 100.0f));
 }
 
 void UActionExecutor::ApplySelfDamage(AActor *Actor, int32 Amount)
@@ -2021,8 +2016,8 @@ void UActionExecutor::DebugPrintInfusionInfo(AActor *Actor) const
 		   *InfusionSourceHelpers::GetSourceName(Source));
 	UE_LOG(LogTemp, Display, TEXT("Element: %s"),
 		   *UEnum::GetValueAsString(Element));
-	UE_LOG(LogTemp, Display, TEXT("Has Ilodite: %s"),
-		   HasIloditeEquipped(Actor) ? TEXT("Yes") : TEXT("No"));
+	UE_LOG(LogTemp, Display, TEXT("Has Iolite: %s"),
+		   HasIoliteEquipped(Actor) ? TEXT("Yes") : TEXT("No"));
 	UE_LOG(LogTemp, Display, TEXT("Available Types: %d"), Available.Num());
 
 	for (EInfusionType Type : Available)

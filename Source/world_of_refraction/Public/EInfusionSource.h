@@ -8,15 +8,15 @@
 
 /**
  * Source of element for infusion
- * 
+ *
  * Determines the L2 cost when using Element Infusion or Spell Size Infusion:
  * - Innate:    HP cost (Caster only)
  * - Ring:      Ring break chance (Resonator)
  * - Crystal:   Crystal break chance (Any class with weapon crystal)
  * - Evolution: HP damage + self-status buildup (Evolution weapon spells)
- * 
+ *
  * Priority when determining source:
- * 1. Weapon crystal (if slotted and not Ilodite)
+ * 1. Weapon crystal (if slotted and not Iolite)
  * 2. Caster innate element
  * 3. Resonator active ring
  */
@@ -34,7 +34,7 @@ enum class EInfusionSource : uint8
 	 *  L2 Cost: +20% Ring Break Chance (spells), +15% (abilities) */
 	Ring UMETA(DisplayName = "Ring Element"),
 
-	/** Weapon's slotted crystal (non-Ilodite)
+	/** Weapon's slotted crystal (non-Iolite)
 	 *  L2 Cost: +15% Crystal Break Chance */
 	Crystal UMETA(DisplayName = "Crystal Element"),
 
@@ -83,12 +83,18 @@ namespace InfusionSourceHelpers
 	{
 		switch (Source)
 		{
-		case EInfusionSource::None:      return TEXT("None");
-		case EInfusionSource::Innate:    return TEXT("Innate");
-		case EInfusionSource::Ring:      return TEXT("Ring");
-		case EInfusionSource::Crystal:   return TEXT("Crystal");
-		case EInfusionSource::Evolution: return TEXT("Evolution");
-		default: return TEXT("Unknown");
+		case EInfusionSource::None:
+			return TEXT("None");
+		case EInfusionSource::Innate:
+			return TEXT("Innate");
+		case EInfusionSource::Ring:
+			return TEXT("Ring");
+		case EInfusionSource::Crystal:
+			return TEXT("Crystal");
+		case EInfusionSource::Evolution:
+			return TEXT("Evolution");
+		default:
+			return TEXT("Unknown");
 		}
 	}
 

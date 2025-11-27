@@ -154,9 +154,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	bool CanUseElementInfusion(AActor *Actor) const;
 
-	/** Check if character has Ilodite crystal equipped */
+	/** Check if character has Iolite crystal equipped */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	bool HasIloditeEquipped(AActor *Actor) const;
+	bool HasIoliteEquipped(AActor *Actor) const;
 
 	/** Get energy cost multiplier for infusion level */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
@@ -402,8 +402,8 @@ private:
 		AActor *Actor,
 		USpellData *Spell);
 
-	/** Apply Ilodite L2 stat buff */
-	void ApplyIloditeStatBuff(AActor *Actor);
+	/** Apply Iolite L2 stat buff */
+	void ApplyIoliteStatBuff(AActor *Actor);
 
 	/** Apply self-damage for HP costs */
 	void ApplySelfDamage(AActor *Actor, int32 Amount);

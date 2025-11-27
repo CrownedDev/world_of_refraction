@@ -59,11 +59,11 @@ public:
 
 	/** Default spells - always safe to cast (no break risk from tier mismatch) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	TArray<USpellData *> DefaultSpells;
+	TArray<USpellData*> DefaultSpells;
 
 	/** Custom/upgraded spells - may exceed ring tier (break risk) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	TArray<USpellData *> CustomSpells;
+	TArray<USpellData*> CustomSpells;
 
 	/** Maximum spell slots (default + custom combined) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (ClampMin = "1", ClampMax = "12"))
@@ -73,7 +73,7 @@ public:
 
 	/** Refined crystal that defines ring's element */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-	UItemData *SlottedCrystal = nullptr;
+	UItemData* SlottedCrystal = nullptr;
 
 
 
@@ -91,16 +91,16 @@ public:
 	// ==================== SPELL ACCESS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	TArray<USpellData *> GetAvailableSpells() const
+	TArray<USpellData*> GetAvailableSpells() const
 	{
-		TArray<USpellData *> AllSpells;
+		TArray<USpellData*> AllSpells;
 		AllSpells.Append(DefaultSpells);
 		AllSpells.Append(CustomSpells);
 		return AllSpells;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	bool CanCastSpell(USpellData *Spell) const
+	bool CanCastSpell(USpellData* Spell) const
 	{
 		if (!Spell || bIsBroken)
 			return false;
@@ -108,7 +108,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	bool IsCustomSpell(USpellData *Spell) const
+	bool IsCustomSpell(USpellData* Spell) const
 	{
 		return CustomSpells.Contains(Spell);
 	}
@@ -134,7 +134,7 @@ public:
 	// ==================== BREAK SYSTEM ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Break")
-	float CalculateBreakChance(USpellData *Spell, bool bIsInfused) const;
+	float CalculateBreakChance(USpellData* Spell, bool bIsInfused) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Ring|Break")
 	bool RollForBreak(float BreakChance)
@@ -240,3 +240,4 @@ public:
 		return Result;
 	};
 #endif
+};
