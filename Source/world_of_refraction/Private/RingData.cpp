@@ -68,7 +68,7 @@ float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
     return FMath::Clamp(BreakChance, 0.0f, 1.0f);
 };
 #if WITH_EDITOR
-virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override
+EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
