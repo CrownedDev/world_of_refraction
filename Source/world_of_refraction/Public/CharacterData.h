@@ -7,6 +7,7 @@
 #include "SpellElement.h"
 #include "ECharacterClass.h"
 #include "StatConstants.h"
+#include "EWeaponSlotType.h"
 
 #include <CombatConstants.h>
 
@@ -96,14 +97,41 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
 	bool bUsePrimary = true;
 
-	// Primary weapon (all characters)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons")
+	// ==================== PRIMARY SLOT ====================
+
+	/** Primary slot type (Caster only - choose Weapon or Ring) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
+	EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
+
+	/** Primary weapon (Generic: always, Caster: if Weapon, Resonator: always) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
+			  meta = (EditCondition = "CharacterClass != ECharacterClass::Caster || PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
 	UWeaponData *PrimaryWeapon = nullptr;
 
-	// Secondary weapon (Generic characters only - they can dual wield)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Weapons",
+	/** Primary ring (Caster only, when PrimarySlotType == Ring) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
+	URingData *PrimaryRing = nullptr;
+
+	// ==================== SECONDARY SLOT (Generic Only) ====================
+
+	/** Secondary slot type (Generic only) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic", EditConditionHides))
+	ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
+
+	/** Secondary weapon (Generic only, when SecondarySlotType == Weapon) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
 	UWeaponData *SecondaryWeapon = nullptr;
+
+	/** Secondary ring (Generic only, when SecondarySlotType == Ring) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
+	URingData *SecondaryRing = nullptr;
+
+	// ==================== CASTER SPELLS ====================
 
 	// ==================== CASTER SPELLS ====================
 
