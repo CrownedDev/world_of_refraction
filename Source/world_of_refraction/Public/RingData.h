@@ -18,12 +18,12 @@ class USpellData;
 class UItemData;
 
 // Break calculation constants
+// Break calculation constants
 namespace RingBreakConstants
 {
 	constexpr float BASE_BREAK_CHANCE_PER_TIER = 0.15f;
 	constexpr float INFUSION_BREAK_BONUS = 0.10f;
 	constexpr float S_TIER_INFUSION_BREAK = 0.05f;
-	constexpr float CUSTOM_SPELL_BREAK_BONUS = 0.05f;
 	constexpr float LOW_DURABILITY_THRESHOLD = 0.25f;
 	constexpr float MED_DURABILITY_THRESHOLD = 0.50f;
 	constexpr float LOW_DURABILITY_BREAK_BONUS = 0.10f;
@@ -57,16 +57,14 @@ public:
 
 	// ==================== SPELLS ====================
 
-	/** Default spells - always safe to cast (no break risk from tier mismatch) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	TArray<USpellData *> DefaultSpells;
+	/** Ring spells - hidden when EvolutionCrystal is slotted (uses evolution spells instead) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
+			  meta = (EditCondition = "!IsEvolved()", EditConditionHides))
+	TArray<USpellData *> Spells;
 
-	/** Custom/upgraded spells - may exceed ring tier (break risk) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
-	TArray<USpellData *> CustomSpells;
-
-	/** Maximum spell slots (default + custom combined) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (ClampMin = "1", ClampMax = "12"))
+	/** Maximum spell slots - hidden when evolved (always 6 for evolution) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
+			  meta = (ClampMin = "1", ClampMax = "12", EditCondition = "!IsEvolved()", EditConditionHides))
 	int32 MaxSpellSlots = 6;
 
 	// ==================== CRYSTAL SLOT ====================
@@ -89,26 +87,14 @@ public:
 	// ==================== SPELL ACCESS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	TArray<USpellData *> GetAvailableSpells() const
-	{
-		TArray<USpellData *> AllSpells;
-		AllSpells.Append(DefaultSpells);
-		AllSpells.Append(CustomSpells);
-		return AllSpells;
-	}
+	TArray<USpellData *> GetAvailableSpells() const;
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
 	bool CanCastSpell(USpellData *Spell) const
 	{
 		if (!Spell || bIsBroken)
 			return false;
-		return DefaultSpells.Contains(Spell) || CustomSpells.Contains(Spell);
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	bool IsCustomSpell(USpellData *Spell) const
-	{
-		return CustomSpells.Contains(Spell);
+		return GetAvailableSpells().Contains(Spell);
 	}
 
 	// ==================== DURABILITY ====================
@@ -180,6 +166,12 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
 	bool IsEvolved() const;
+
+	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
+	static int32 GetEvolutionMaxSpells() { return 6; }
+
+	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
+	int32 GetMaxSpells() const { return IsEvolved() ? GetEvolutionMaxSpells() : MaxSpellSlots; }
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif

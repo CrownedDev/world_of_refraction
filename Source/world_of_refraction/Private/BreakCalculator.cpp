@@ -39,7 +39,6 @@ FBreakCalculationResult UBreakCalculator::CalculateBreakChanceDetailed(
 	EItemTier EquipmentTier,
 	EItemTier ActionTier,
 	bool bWasInfused,
-	bool bIsCustomSpell,
 	float DurabilityPercent)
 {
 	using namespace BreakConstants;
@@ -68,12 +67,6 @@ FBreakCalculationResult UBreakCalculator::CalculateBreakChanceDetailed(
 		}
 	}
 
-	// Custom spell bonus
-	if (bIsCustomSpell)
-	{
-		Result.CustomSpellBonus = CUSTOM_SPELL_BREAK_BONUS;
-	}
-
 	// Durability bonus
 	if (DurabilityPercent < LOW_DURABILITY_THRESHOLD)
 	{
@@ -86,7 +79,7 @@ FBreakCalculationResult UBreakCalculator::CalculateBreakChanceDetailed(
 
 	// Total
 	Result.TotalBreakChance = FMath::Clamp(
-		Result.TierMismatchChance + Result.InfusionBonus + Result.CustomSpellBonus + Result.DurabilityBonus,
+		Result.TierMismatchChance + Result.InfusionBonus + Result.DurabilityBonus,
 		0.0f, 1.0f);
 
 	Result.bGuaranteedBreak = Result.TotalBreakChance >= 1.0f;

@@ -17,7 +17,6 @@ namespace BreakConstants
 	constexpr float BASE_BREAK_CHANCE_PER_TIER = 0.15f;
 	constexpr float INFUSION_BREAK_BONUS = 0.10f;
 	constexpr float S_TIER_INFUSION_BREAK = 0.05f;
-	constexpr float CUSTOM_SPELL_BREAK_BONUS = 0.05f;
 	constexpr float LOW_DURABILITY_THRESHOLD = 0.25f;
 	constexpr float MED_DURABILITY_THRESHOLD = 0.50f;
 	constexpr float LOW_DURABILITY_BREAK_BONUS = 0.10f;
@@ -40,9 +39,6 @@ struct WORLD_OF_REFRACTION_API FBreakCalculationResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Break")
 	float InfusionBonus = 0.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Break")
-	float CustomSpellBonus = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Break")
 	float DurabilityBonus = 0.0f;
@@ -78,7 +74,6 @@ public:
 		EItemTier EquipmentTier,
 		EItemTier ActionTier,
 		bool bWasInfused,
-		bool bIsCustomSpell = false,
 		float DurabilityPercent = 1.0f);
 
 	// ==================== RING-SPECIFIC ====================

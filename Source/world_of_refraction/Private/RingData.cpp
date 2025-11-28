@@ -4,14 +4,18 @@
 #include "SpellData.h"
 #include "ItemData.h"
 #include "CrystalType.h"
+#include "EvolutionData.h"
 
-ESpellElement URingData::GetRingElement() const
+TArray<USpellData *> URingData::GetAvailableSpells() const
 {
-    if (SlottedCrystal)
+    // If evolved, use evolution's equipped spells
+    if (IsEvolved() && SlottedCrystal && SlottedCrystal->Evolution)
     {
-        return SlottedCrystal->GetAssociatedElement();
+        return SlottedCrystal->Evolution->GetEquippedSpells();
     }
-    return Element;
+
+    // Otherwise use ring's spell array
+    return Spells;
 }
 
 bool URingData::IsEvolved() const
@@ -22,6 +26,12 @@ bool URingData::IsEvolved() const
 float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
 {
     using namespace RingBreakConstants;
+
+    // Evolved rings have no break chance
+    if (IsEvolved())
+    {
+        return 0.0f;
+    }
 
     if (!Spell || bIsBroken)
     {
@@ -48,11 +58,6 @@ float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
         {
             BreakChance += INFUSION_BREAK_BONUS;
         }
-    }
-
-    if (IsCustomSpell(Spell))
-    {
-        BreakChance += CUSTOM_SPELL_BREAK_BONUS;
     }
 
     float DurabilityPercent = GetDurabilityPercent();
@@ -91,20 +96,6 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         Result = EDataValidationResult::Invalid;
     }
 
-    // Spell count validation
-    int32 TotalSpells = DefaultSpells.Num() + CustomSpells.Num();
-    if (TotalSpells > MaxSpellSlots)
-    {
-        Context.AddError(FText::FromString(FString::Printf(
-            TEXT("Too many spells (%d) for spell slots (%d)"), TotalSpells, MaxSpellSlots)));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    if (DefaultSpells.Num() == 0)
-    {
-        Context.AddWarning(FText::FromString(TEXT("Ring has no default spells")));
-    }
-
     // Crystal validation
     if (SlottedCrystal)
     {
@@ -118,6 +109,57 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         {
             Context.AddWarning(FText::FromString(
                 TEXT("Crystal element differs from ring element - GetRingElement() will use crystal")));
+        }
+    }
+
+    // Evolved ring validation
+    if (IsEvolved())
+    {
+        if (!SlottedCrystal->Evolution)
+        {
+            Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
+            Result = EDataValidationResult::Invalid;
+        }
+
+        // Spells array should be empty for evolved rings (uses evolution spells)
+        if (Spells.Num() > 0)
+        {
+            Context.AddWarning(FText::FromString(
+                TEXT("Ring has spells but is evolved - ring spells will be ignored, using evolution spells")));
+        }
+    }
+    else
+    {
+        // Non-evolved ring spell validation
+        if (Spells.Num() > MaxSpellSlots)
+        {
+            Context.AddError(FText::FromString(FString::Printf(
+                TEXT("Too many spells (%d) for spell slots (%d)"), Spells.Num(), MaxSpellSlots)));
+            Result = EDataValidationResult::Invalid;
+        }
+
+        if (Spells.Num() == 0)
+        {
+            Context.AddWarning(FText::FromString(TEXT("Ring has no spells")));
+        }
+
+        // Spell element validation - must match ring element
+        ESpellElement RingElement = GetRingElement();
+        for (int32 i = 0; i < Spells.Num(); ++i)
+        {
+            if (Spells[i])
+            {
+                ESpellElement SpellElement = Spells[i]->Element;
+                if (SpellElement != RingElement && SpellElement != ESpellElement::Generic)
+                {
+                    Context.AddError(FText::FromString(FString::Printf(
+                        TEXT("Spell '%s' element (%s) doesn't match ring element (%s)"),
+                        *Spells[i]->SpellName,
+                        *Spells[i]->GetElementName(),
+                        *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(RingElement)))));
+                    Result = EDataValidationResult::Invalid;
+                }
+            }
         }
     }
 

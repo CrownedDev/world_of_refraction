@@ -27,7 +27,7 @@ public:
 
     // Log detailed break calculation
     UFUNCTION(BlueprintCallable, Category = "Debug|Break")
-    static void LogBreakChanceDetailed(EItemTier EquipmentTier, EItemTier ActionTier, bool bInfused, bool bIsCustomSpell = false, float DurabilityPercent = 1.0f);
+    static void LogBreakChanceDetailed(EItemTier EquipmentTier, EItemTier ActionTier, bool bInfused, float DurabilityPercent = 1.0f);
 
     // Log ring + spell break chance
     UFUNCTION(BlueprintCallable, Category = "Debug|Break")

@@ -17,23 +17,21 @@ void UBreakCalculatorDebug::LogBreakChance(EItemTier EquipmentTier, EItemTier Ac
     UE_LOG(LogTemp, Display, TEXT("=================================="));
 }
 
-void UBreakCalculatorDebug::LogBreakChanceDetailed(EItemTier EquipmentTier, EItemTier ActionTier, bool bInfused, bool bIsCustomSpell, float DurabilityPercent)
+void UBreakCalculatorDebug::LogBreakChanceDetailed(EItemTier EquipmentTier, EItemTier ActionTier, bool bInfused, float DurabilityPercent)
 {
     FBreakCalculationResult Result = UBreakCalculator::CalculateBreakChanceDetailed(
-        EquipmentTier, ActionTier, bInfused, bIsCustomSpell, DurabilityPercent);
+        EquipmentTier, ActionTier, bInfused, DurabilityPercent);
 
     UE_LOG(LogTemp, Display, TEXT("========== DETAILED BREAK CALCULATION =========="));
     UE_LOG(LogTemp, Display, TEXT("Equipment Tier: %s"), *TierHelpers::GetTierName(EquipmentTier));
     UE_LOG(LogTemp, Display, TEXT("Action Tier: %s"), *TierHelpers::GetTierName(ActionTier));
-    UE_LOG(LogTemp, Display, TEXT("Infused: %s | Custom: %s | Durability: %.0f%%"),
+    UE_LOG(LogTemp, Display, TEXT("Infused: %s | Durability: %.0f%%"),
            bInfused ? TEXT("Yes") : TEXT("No"),
-           bIsCustomSpell ? TEXT("Yes") : TEXT("No"),
            DurabilityPercent * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("------------------------------------------------"));
     UE_LOG(LogTemp, Display, TEXT("Tier Gap: %d"), Result.TierGap);
     UE_LOG(LogTemp, Display, TEXT("Tier Mismatch: +%.1f%%"), Result.TierMismatchChance * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("Infusion Bonus: +%.1f%%"), Result.InfusionBonus * 100.0f);
-    UE_LOG(LogTemp, Display, TEXT("Custom Spell: +%.1f%%"), Result.CustomSpellBonus * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("Durability: +%.1f%%"), Result.DurabilityBonus * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("------------------------------------------------"));
     UE_LOG(LogTemp, Display, TEXT("TOTAL: %.1f%% [%s]"),
@@ -59,9 +57,9 @@ void UBreakCalculatorDebug::LogRingSpellBreak(URingData *Ring, USpellData *Spell
     UE_LOG(LogTemp, Display, TEXT("========== RING + SPELL BREAK =========="));
     UE_LOG(LogTemp, Display, TEXT("Ring: %s (%s)"), *Ring->RingName, *TierHelpers::GetTierName(Ring->Tier));
     UE_LOG(LogTemp, Display, TEXT("Spell: %s (%s)"), *Spell->SpellName, *TierHelpers::GetTierName(Spell->Tier));
-    UE_LOG(LogTemp, Display, TEXT("Infused: %s | Custom: %s"),
+    UE_LOG(LogTemp, Display, TEXT("Infused: %s | Evolved: %s"),
            bInfused ? TEXT("Yes") : TEXT("No"),
-           Ring->IsCustomSpell(Spell) ? TEXT("Yes") : TEXT("No"));
+           Ring->IsEvolved() ? TEXT("Yes (No Break)") : TEXT("No"));
     UE_LOG(LogTemp, Display, TEXT("Durability: %.0f%%"), Ring->GetDurabilityPercent() * 100.0f);
     UE_LOG(LogTemp, Display, TEXT("----------------------------------------"));
     UE_LOG(LogTemp, Display, TEXT("Break Chance: %.1f%%"), Chance * 100.0f);
@@ -99,10 +97,6 @@ FString UBreakCalculatorDebug::GetBreakResultString(const FBreakCalculationResul
     if (Result.InfusionBonus > 0.0f)
     {
         Output += FString::Printf(TEXT("  Infusion: +%.1f%%\n"), Result.InfusionBonus * 100.0f);
-    }
-    if (Result.CustomSpellBonus > 0.0f)
-    {
-        Output += FString::Printf(TEXT("  Custom: +%.1f%%\n"), Result.CustomSpellBonus * 100.0f);
     }
     if (Result.DurabilityBonus > 0.0f)
     {
