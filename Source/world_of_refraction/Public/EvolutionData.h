@@ -130,12 +130,19 @@ public:
 
     // ==================== EXCLUSIVE SPELLS ====================
 
-    // Spells granted by this evolution (up to 6)
+    // Spells UNLOCKED by this evolution (up to 6) - tied to evolution element
+    // Lost if evolution is removed (except via Remembrance)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
     TArray<USpellData *> ExclusiveSpells;
 
-    // ==================== PASSIVE EFFECTS ====================
+    // ==================== EQUIPPED SPELLS ====================
 
+    // Spells EQUIPPED for combat (max 6)
+    // Selected from: ExclusiveSpells + Character's InnateSpells + other available
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
+    TArray<USpellData *> EquippedSpells;
+
+    // ==================== PASSIVE EFFECTS ====================
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passives")
     TArray<FPassiveEffect> PassiveEffects;
 
@@ -232,7 +239,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Evolution|Passives")
     TArray<FPassiveEffect> GetTriggeredPassives() const;
-
     // ==================== SPELL HELPERS ====================
 
     UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
@@ -240,6 +246,18 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
     bool HasExclusiveSpells() const { return ExclusiveSpells.Num() > 0; }
+
+    UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
+    int32 GetEquippedSpellCount() const { return EquippedSpells.Num(); }
+
+    UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
+    TArray<USpellData *> GetEquippedSpells() const { return EquippedSpells; }
+
+    UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
+    static int32 GetMaxEquippedSpells() { return 6; }
+
+    UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
+    bool HasEquippedSpells() const { return EquippedSpells.Num() > 0; }
 
     // ==================== COST CALCULATION ====================
 

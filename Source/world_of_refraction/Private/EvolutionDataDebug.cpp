@@ -130,6 +130,35 @@ FString UEvolutionDataDebug::GetEvolutionStatsString(UEvolutionData *Evolution, 
         Output += TEXT("\n");
     }
 
+    // Equipped Spells
+    if (Evolution->HasEquippedSpells())
+    {
+        Output += FString::Printf(TEXT("EQUIPPED SPELLS (%d/%d):\n"),
+                                  Evolution->GetEquippedSpellCount(),
+                                  UEvolutionData::GetMaxEquippedSpells());
+        for (int32 i = 0; i < Evolution->EquippedSpells.Num(); ++i)
+        {
+            if (Evolution->EquippedSpells[i])
+            {
+                Output += FString::Printf(TEXT("  %d. %s (%s)\n"),
+                                          i + 1,
+                                          *Evolution->EquippedSpells[i]->SpellName,
+                                          *Evolution->EquippedSpells[i]->GetElementName());
+            }
+            else
+            {
+                Output += FString::Printf(TEXT("  %d. (empty slot)\n"), i + 1);
+            }
+        }
+        Output += TEXT("\n");
+    }
+    else
+    {
+        Output += TEXT("EQUIPPED SPELLS: None\n\n");
+    }
+
+    // Passive Effects
+
     // Passive Effects
     if (Evolution->GetPassiveCount() > 0)
     {

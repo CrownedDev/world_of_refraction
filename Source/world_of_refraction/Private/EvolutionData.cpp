@@ -383,6 +383,31 @@ EDataValidationResult UEvolutionData::IsDataValid(FDataValidationContext &Contex
         }
     }
 
+    // Equipped spells limit
+    if (EquippedSpells.Num() > 6)
+    {
+        Context.AddError(FText::FromString(TEXT("Cannot equip more than 6 spells")));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // Equipped spells element check (warning only - may include InnateSpells from different element)
+    for (int32 i = 0; i < EquippedSpells.Num(); ++i)
+    {
+        if (EquippedSpells[i])
+        {
+            ESpellElement SpellElement = EquippedSpells[i]->Element;
+            if (SpellElement != Element && SpellElement != ESpellElement::Generic)
+            {
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("Equipped spell '%s' element (%s) differs from evolution element - ensure it's from character's available pool"),
+                    *EquippedSpells[i]->SpellName,
+                    *EquippedSpells[i]->GetElementName())));
+            }
+        }
+    }
+
+    // Passive validation
+
     // Passive validation
     for (int32 i = 0; i < PassiveEffects.Num(); ++i)
     {

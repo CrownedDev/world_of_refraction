@@ -22,6 +22,31 @@ bool UCharacterData::IsDualElementCaster() const
 {
     return IsCaster() && bIsEvolved && ActiveEvolution && ActiveEvolution->Element != InnateElement;
 }
+TArray<USpellData *> UCharacterData::GetCombatSpells() const
+{
+    // If evolved, use evolution's equipped spells
+    if (IsEvolved() && ActiveEvolution)
+    {
+        return ActiveEvolution->GetEquippedSpells();
+    }
+
+    // Otherwise use innate spells (Casters)
+    return InnateSpells;
+}
+
+bool UCharacterData::HasWeaponAccess() const
+{
+    // Evolved Casters lose all weapon access
+    if (IsEvolved() && CharacterClass == ECharacterClass::Caster)
+    {
+        return false;
+    }
+
+    // Evolved Generic loses secondary only (still has primary)
+    // Resonators keep rings
+    // Non-evolved characters have normal weapon access
+    return true;
+}
 
 // ==================== EDITOR VALIDATION ====================
 

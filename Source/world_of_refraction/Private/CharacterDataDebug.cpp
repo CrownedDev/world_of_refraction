@@ -100,63 +100,129 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	switch (Character->CharacterClass)
 	{
 	case ECharacterClass::Generic:
-		Output += FString::Printf(TEXT("  Starts With: %s\n"),
-								  Character->bUsePrimary ? TEXT("Primary Weapon") : TEXT("Secondary Weapon"));
-
-		// Primary weapon
-		if (Character->PrimaryWeapon)
+		if (Character->IsEvolved())
 		{
-			Output += FString::Printf(TEXT("  Primary: %s (%s)\n"),
-									  *Character->PrimaryWeapon->WeaponName,
-									  *Character->PrimaryWeapon->GetWeaponTypeName());
-			PrintWeaponDetails(Output, Character->PrimaryWeapon);
+			Output += TEXT("  [EVOLVED - Gained Element]\n");
+			Output += FString::Printf(TEXT("  Evolution Element: %s\n"),
+									  *Character->ActiveEvolution->GetElementName());
+			Output += FString::Printf(TEXT("  Evolution: %s\n"),
+									  *Character->ActiveEvolution->GetDisplayName());
+
+			// Combat spells from evolution
+			TArray<USpellData *> CombatSpells = Character->GetCombatSpells();
+			Output += FString::Printf(TEXT("  Combat Spells: %d/%d\n"),
+									  CombatSpells.Num(), UEvolutionData::GetMaxEquippedSpells());
+			for (int32 i = 0; i < CombatSpells.Num(); ++i)
+			{
+				if (CombatSpells[i])
+				{
+					Output += FString::Printf(TEXT("    [%d] %s (%s)\n"),
+											  i + 1, *CombatSpells[i]->SpellName, *CombatSpells[i]->GetElementName());
+				}
+			}
+
+			// Primary weapon (still accessible)
+			if (Character->PrimaryWeapon)
+			{
+				Output += FString::Printf(TEXT("  Primary: %s (%s)\n"),
+										  *Character->PrimaryWeapon->WeaponName,
+										  *Character->PrimaryWeapon->GetWeaponTypeName());
+				PrintWeaponDetails(Output, Character->PrimaryWeapon);
+			}
+			else
+			{
+				Output += TEXT("  Primary: None\n");
+			}
+
+			Output += TEXT("  Secondary: DISABLED (Evolved)\n");
 		}
 		else
 		{
-			Output += TEXT("  Primary: None\n");
-		}
+			Output += FString::Printf(TEXT("  Starts With: %s\n"),
+									  Character->bUsePrimary ? TEXT("Primary Weapon") : TEXT("Secondary Weapon"));
 
-		// Secondary weapon
-		if (Character->SecondaryWeapon)
-		{
-			Output += FString::Printf(TEXT("  Secondary: %s (%s)\n"),
-									  *Character->SecondaryWeapon->WeaponName,
-									  *Character->SecondaryWeapon->GetWeaponTypeName());
-			PrintWeaponDetails(Output, Character->SecondaryWeapon);
-		}
-		else
-		{
-			Output += TEXT("  Secondary: None\n");
+			// Primary weapon
+			if (Character->PrimaryWeapon)
+			{
+				Output += FString::Printf(TEXT("  Primary: %s (%s)\n"),
+										  *Character->PrimaryWeapon->WeaponName,
+										  *Character->PrimaryWeapon->GetWeaponTypeName());
+				PrintWeaponDetails(Output, Character->PrimaryWeapon);
+			}
+			else
+			{
+				Output += TEXT("  Primary: None\n");
+			}
+
+			// Secondary weapon
+			if (Character->SecondaryWeapon)
+			{
+				Output += FString::Printf(TEXT("  Secondary: %s (%s)\n"),
+										  *Character->SecondaryWeapon->WeaponName,
+										  *Character->SecondaryWeapon->GetWeaponTypeName());
+				PrintWeaponDetails(Output, Character->SecondaryWeapon);
+			}
+			else
+			{
+				Output += TEXT("  Secondary: None\n");
+			}
 		}
 		break;
 
 	case ECharacterClass::Caster:
-		Output += FString::Printf(TEXT("  Starts: %s\n"),
-								  Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
-		Output += FString::Printf(TEXT("  Innate Element: %s\n"), *ElementName);
-		Output += FString::Printf(TEXT("  Innate Spells: %d\n"), Character->InnateSpells.Num());
-
-		// List spells
-		for (int32 i = 0; i < Character->InnateSpells.Num(); ++i)
+		if (Character->IsEvolved())
 		{
-			USpellData *Spell = Character->InnateSpells[i];
-			if (Spell)
+			Output += TEXT("  [EVOLVED - Dual Element Caster]\n");
+			Output += FString::Printf(TEXT("  Primary Element: %s\n"), *ElementName);
+			Output += FString::Printf(TEXT("  Secondary Element: %s\n"),
+									  *Character->ActiveEvolution->GetElementName());
+			Output += FString::Printf(TEXT("  Evolution: %s\n"),
+									  *Character->ActiveEvolution->GetDisplayName());
+
+			// Combat spells from evolution
+			TArray<USpellData *> CombatSpells = Character->GetCombatSpells();
+			Output += FString::Printf(TEXT("  Combat Spells: %d/%d\n"),
+									  CombatSpells.Num(), UEvolutionData::GetMaxEquippedSpells());
+			for (int32 i = 0; i < CombatSpells.Num(); ++i)
 			{
-				Output += FString::Printf(TEXT("    [%d] %s\n"), i + 1, *Spell->SpellName);
+				if (CombatSpells[i])
+				{
+					Output += FString::Printf(TEXT("    [%d] %s (%s)\n"),
+											  i + 1, *CombatSpells[i]->SpellName, *CombatSpells[i]->GetElementName());
+				}
 			}
-		}
 
-		// Weapon
-		if (Character->PrimaryWeapon)
-		{
-			Output += FString::Printf(TEXT("  Weapon: %s (%s)\n"),
-									  *Character->PrimaryWeapon->WeaponName,
-									  *Character->PrimaryWeapon->GetWeaponTypeName());
-			PrintWeaponDetails(Output, Character->PrimaryWeapon);
+			Output += TEXT("  Weapons: DISABLED (Evolved)\n");
 		}
 		else
 		{
-			Output += TEXT("  Weapon: None\n");
+			Output += FString::Printf(TEXT("  Starts: %s\n"),
+									  Character->bUsePrimary ? TEXT("Armed") : TEXT("Unarmed"));
+			Output += FString::Printf(TEXT("  Innate Element: %s\n"), *ElementName);
+			Output += FString::Printf(TEXT("  Innate Spells: %d\n"), Character->InnateSpells.Num());
+
+			// List spells
+			for (int32 i = 0; i < Character->InnateSpells.Num(); ++i)
+			{
+				USpellData *Spell = Character->InnateSpells[i];
+				if (Spell)
+				{
+					Output += FString::Printf(TEXT("    [%d] %s\n"), i + 1, *Spell->SpellName);
+				}
+			}
+
+			// Weapon
+			if (Character->PrimaryWeapon)
+			{
+				Output += FString::Printf(TEXT("  Weapon: %s (%s)\n"),
+										  *Character->PrimaryWeapon->WeaponName,
+										  *Character->PrimaryWeapon->GetWeaponTypeName());
+				PrintWeaponDetails(Output, Character->PrimaryWeapon);
+			}
+			else
+			{
+				Output += TEXT("  Weapon: None\n");
+			}
 		}
 		break;
 

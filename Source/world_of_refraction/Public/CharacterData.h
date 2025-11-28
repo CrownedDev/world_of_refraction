@@ -86,6 +86,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Evolution")
 	bool IsDualElementCaster() const;
 
+	/** Get spells for combat - returns Evolution's EquippedSpells if evolved, else InnateSpells */
+	UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
+	TArray<USpellData *> GetCombatSpells() const;
+
+	/** Check if character has weapon access (evolved Casters lose weapons) */
+	UFUNCTION(BlueprintPure, Category = "Evolution|Loadout")
+	bool HasWeaponAccess() const;
+
 	// ==================== COMBAT LOADOUT ====================
 
 	// Use primary weapon/state at combat start?
@@ -96,36 +104,36 @@ public:
 
 	// ==================== PRIMARY SLOT ====================
 
-	/** Primary slot type (Caster only - choose Weapon or Ring) */
+	/** Primary slot type (Caster only - choose Weapon or Ring, hidden when evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster && !bIsEvolved", EditConditionHides))
 	EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
 
-	/** Primary weapon (Generic: always, Caster: if Weapon, Resonator: always) */
+	/** Primary weapon (Generic: always, Caster: if Weapon and not evolved, Resonator: always) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
-			  meta = (EditCondition = "CharacterClass != ECharacterClass::Caster || PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+			  meta = (EditCondition = "(CharacterClass != ECharacterClass::Caster || (PrimarySlotType == EPrimarySlotType::Weapon && !bIsEvolved))", EditConditionHides))
 	UWeaponData *PrimaryWeapon = nullptr;
 
-	/** Primary ring (Caster only, when PrimarySlotType == Ring) */
+	/** Primary ring (Caster only, when PrimarySlotType == Ring, hidden when evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring && !bIsEvolved", EditConditionHides))
 	URingData *PrimaryRing = nullptr;
 
 	// ==================== SECONDARY SLOT (Generic Only) ====================
 
-	/** Secondary slot type (Generic only) */
+	/** Secondary slot type (Generic only, hidden when evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved", EditConditionHides))
 	ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
 
-	/** Secondary weapon (Generic only, when SecondarySlotType == Weapon) */
+	/** Secondary weapon (Generic only, when SecondarySlotType == Weapon, hidden when evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
 	UWeaponData *SecondaryWeapon = nullptr;
 
-	/** Secondary ring (Generic only, when SecondarySlotType == Ring) */
+	/** Secondary ring (Generic only, when SecondarySlotType == Ring, hidden when evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
 	URingData *SecondaryRing = nullptr;
 
 	// ==================== CASTER SPELLS ====================
