@@ -34,11 +34,14 @@ enum class EPieMenuCategory : uint8
 	// Main menu actions
 	Attack			UMETA(DisplayName = "Attack"),			// Basic attack with current weapon
 	Abilities		UMETA(DisplayName = "Abilities"),		// Opens ability grid (Generic)
-	Refractions		UMETA(DisplayName = "Refractions"),		// Opens schools list (Caster)
+	Refractions		UMETA(DisplayName = "Refractions"),		// Opens schools list (Caster innate spells)
+	Breakthrough	UMETA(DisplayName = "Breakthrough"),	// Opens schools list (Character evolution spells)
+	Resonate		UMETA(DisplayName = "Resonate"),		// Opens schools list (single source - Caster ring/weapon)
+	ResonateWeapon	UMETA(DisplayName = "Resonate Weapon"),	// Opens schools list (Evolved weapon spells - "(W)")
+	ResonateRing	UMETA(DisplayName = "Resonate Ring"),	// Opens schools list (Ring spells - "(R)")
 	ChangeRing		UMETA(DisplayName = "Change Ring"),		// Opens ring grid (Resonator)
-	Resonate		UMETA(DisplayName = "Resonate"),		// Opens schools list (Resonator)
 	Items			UMETA(DisplayName = "Items"),			// Opens item grid (All)
-	SwitchWeapon	UMETA(DisplayName = "Switch Weapon"),	// Toggles bUsePrimary (All)
+	SwitchWeapon	UMETA(DisplayName = "Switch Weapon"),	// Toggles bUsePrimary (Generic dual-wield only)
 	
 	// Sub-menu categories
 	School			UMETA(DisplayName = "School"),			// A spell school button

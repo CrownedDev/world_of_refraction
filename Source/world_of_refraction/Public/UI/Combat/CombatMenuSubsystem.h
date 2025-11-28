@@ -197,6 +197,9 @@ private:
 	FPieMenuButtonData CreateRefractionsButton(UCharacterData* CharacterData);
 	FPieMenuButtonData CreateChangeRingButton(UCharacterData* CharacterData);
 	FPieMenuButtonData CreateResonateButton(UCharacterData* CharacterData);
+	FPieMenuButtonData CreateResonateWeaponButton(UCharacterData* CharacterData);
+	FPieMenuButtonData CreateResonateRingButton(UCharacterData* CharacterData);
+	FPieMenuButtonData CreateBreakthroughButton(UCharacterData* CharacterData);
 	FPieMenuButtonData CreateItemsButton(UCharacterData* CharacterData);
 	FPieMenuButtonData CreateSwitchWeaponButton(UCharacterData* CharacterData);
 
