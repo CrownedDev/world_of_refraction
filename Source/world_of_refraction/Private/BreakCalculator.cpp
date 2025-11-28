@@ -97,14 +97,12 @@ float UBreakCalculator::GetRingSpellBreakChance(URingData *Ring, USpellData *Spe
 
 	EItemTier SpellTier = Spell->Tier;
 
-	bool bIsCustom = Ring->IsCustomSpell(Spell);
 	float Durability = Ring->GetDurabilityPercent();
 
 	FBreakCalculationResult Result = CalculateBreakChanceDetailed(
 		Ring->Tier,
 		SpellTier,
 		bInfused,
-		bIsCustom,
 		Durability);
 
 	return Result.TotalBreakChance;
