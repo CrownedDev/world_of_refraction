@@ -24,14 +24,21 @@ bool UCharacterData::IsDualElementCaster() const
 }
 TArray<USpellData *> UCharacterData::GetCombatSpells() const
 {
-    // If evolved, use evolution's equipped spells
-    if (IsEvolved() && ActiveEvolution)
+    TArray<USpellData *> CombatSpells;
+
+    // Casters always have access to innate spells
+    if (IsCaster())
     {
-        return ActiveEvolution->GetEquippedSpells();
+        CombatSpells.Append(InnateSpells);
     }
 
-    // Otherwise use innate spells (Casters)
-    return InnateSpells;
+    // If evolved, also add evolution spells
+    if (IsEvolved() && ActiveEvolution)
+    {
+        CombatSpells.Append(ActiveEvolution->GetEquippedSpells());
+    }
+
+    return CombatSpells;
 }
 
 bool UCharacterData::HasWeaponAccess() const

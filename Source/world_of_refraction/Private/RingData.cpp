@@ -16,7 +16,7 @@ TArray<USpellData *> URingData::GetAvailableSpells() const
 
     // Otherwise use ring's spell array
     return Spells;
-}
+} // <-- Make sure this closing brace exists!
 
 bool URingData::IsEvolved() const
 {
@@ -71,7 +71,18 @@ float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
     }
 
     return FMath::Clamp(BreakChance, 0.0f, 1.0f);
-};
+}
+
+ESpellElement URingData::GetRingElement() const
+{
+    if (SlottedCrystal)
+    {
+        return SlottedCrystal->GetAssociatedElement();
+    }
+    return Element;
+}
+
+;
 #if WITH_EDITOR
 EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) const
 {

@@ -138,7 +138,7 @@ public:
 
 	// ==================== CASTER SPELLS ====================
 
-	/** Innate spells (Caster only - tied to innate element) */
+	/** Innate spells (Caster only, hidden when evolved - uses Evolution spells instead) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Spells",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
 	TArray<USpellData *> InnateSpells;
