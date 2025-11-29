@@ -279,64 +279,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Construct", meta = (EditCondition = "bIsConstruct"))
     bool bSealsSpells = true;
 
-    // ==================== DEFENSE HELPERS ====================
-
-    /** Can this spell be blocked? */
-    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
-    bool CanBeBlocked() const
-    {
-        return DeliveryType != ESpellDeliveryType::Instant;
-    }
-
-    /** Can this spell be parried? */
-    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
-    bool CanBeParried() const
-    {
-        return DeliveryType == ESpellDeliveryType::Projectile ||
-               DeliveryType == ESpellDeliveryType::Homing;
-    }
-
-    /** Can this spell be dodged by moving? */
-    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
-    bool CanBeDodgedByMoving() const
-    {
-        return DeliveryType == ESpellDeliveryType::Projectile;
-    }
-
-    /** Can this spell be dodged with timing? */
-    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
-    bool CanBeDodgedByTiming() const
-    {
-        return DeliveryType == ESpellDeliveryType::Projectile ||
-               DeliveryType == ESpellDeliveryType::Homing ||
-               DeliveryType == ESpellDeliveryType::Beam;
-    }
-
-    /** Get available defense options for UI */
-    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
-    TArray<EDefenseType> GetAvailableDefenses() const
-    {
-        TArray<EDefenseType> Options;
-
-        if (DeliveryType == ESpellDeliveryType::Instant)
-        {
-            return Options; // Empty - unavoidable
-        }
-
-        Options.Add(EDefenseType::Block);
-
-        if (CanBeParried())
-        {
-            Options.Add(EDefenseType::Parry);
-        }
-
-        if (CanBeDodgedByMoving() || CanBeDodgedByTiming())
-        {
-            Options.Add(EDefenseType::Dodge);
-        }
-
-        return Options;
-    }
     // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR
