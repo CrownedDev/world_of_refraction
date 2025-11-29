@@ -2051,6 +2051,16 @@ void UActionExecutor::SpawnSpellDelivery(
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpawnSpellDelivery - Type=%d, Targets=%d, Radius=%.2f"),
 		   (int32)Spell->DeliveryType, Targets.Num(), FinalImpactRadius);
+	// Check if offensive or supportive spell
+	bool bIsOffensive = (Spell->TargetType == ETargetType::SingleEnemy ||
+						 Spell->TargetType == ETargetType::AllEnemies);
+
+	if (!bIsOffensive)
+	{
+		// Self/Ally spells - spawn VFX, apply healing/buff directly (no defense)
+		SpawnSupportSpellEffect(Caster, Targets, Spell, FinalVisualScale, bIsBrokenDarkness);
+		return;
+	}
 
 	switch (Spell->DeliveryType)
 	{
@@ -2080,6 +2090,41 @@ void UActionExecutor::SpawnSpellDelivery(
 		}
 		break;
 	}
+}
+
+void UActionExecutor::SpawnSupportSpellEffect(
+	AActor *Caster,
+	const TArray<AActor *> &Targets,
+	USpellData *Spell,
+	float FinalVisualScale,
+	bool bIsBrokenDarkness)
+{
+	for (AActor *Target : Targets)
+	{
+		// Spawn VFX at target
+		if (Spell->SpellVFX)
+		{
+			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
+
+			UNiagaraComponent *NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				Spell->SpellVFX,
+				Target->GetActorLocation(),
+				FRotator::ZeroRotator,
+				FVector(FinalVisualScale),
+				true, true);
+
+			if (NiagaraComp)
+			{
+				NiagaraComp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
+			}
+		}
+
+		// Apply healing/buff directly - no defense window
+		// Healing/buffs handled by existing ExecuteSpell logic
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Support spell VFX spawned for %d targets"), Targets.Num());
 }
 
 void UActionExecutor::SpawnProjectileActor(

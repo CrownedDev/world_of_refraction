@@ -674,6 +674,14 @@ protected:
 		int32 FinalDamage,
 		bool bIsBrokenDarkness);
 
+	/** Spawn support spell VFX (Self/Ally - no defense window) */
+	void SpawnSupportSpellEffect(
+		AActor *Caster,
+		const TArray<AActor *> &Targets,
+		USpellData *Spell,
+		float FinalVisualScale,
+		bool bIsBrokenDarkness);
+
 	/** Called when projectile impacts target */
 	UFUNCTION()
 	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage);
