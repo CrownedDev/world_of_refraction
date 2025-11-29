@@ -213,6 +213,54 @@ FString USpellData::GetDisplayName(UCharacterData *Caster) const
     }
     return SpellName;
 }
+// ==================== DEFENSE HELPERS ====================
+
+bool USpellData::CanBeBlocked() const
+{
+    return DeliveryType != ESpellDeliveryType::Instant;
+}
+
+bool USpellData::CanBeParried() const
+{
+    return DeliveryType == ESpellDeliveryType::Projectile ||
+           DeliveryType == ESpellDeliveryType::Homing;
+}
+
+bool USpellData::CanBeDodgedByMoving() const
+{
+    return DeliveryType == ESpellDeliveryType::Projectile;
+}
+
+bool USpellData::CanBeDodgedByTiming() const
+{
+    return DeliveryType == ESpellDeliveryType::Projectile ||
+           DeliveryType == ESpellDeliveryType::Homing ||
+           DeliveryType == ESpellDeliveryType::Beam;
+}
+
+TArray<EDefenseType> USpellData::GetAvailableDefenses() const
+{
+    TArray<EDefenseType> Options;
+
+    if (DeliveryType == ESpellDeliveryType::Instant)
+    {
+        return Options; // Empty - unavoidable
+    }
+
+    Options.Add(EDefenseType::Block);
+
+    if (CanBeParried())
+    {
+        Options.Add(EDefenseType::Parry);
+    }
+
+    if (CanBeDodgedByMoving() || CanBeDodgedByTiming())
+    {
+        Options.Add(EDefenseType::Dodge);
+    }
+
+    return Options;
+}
 
 // ==================== EDITOR VALIDATION ====================
 

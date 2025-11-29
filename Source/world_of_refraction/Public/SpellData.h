@@ -12,8 +12,10 @@
 #include "AbilityEffectType.h"
 #include "WeaponData.h"
 #include "WorldStatRequirements.h"
-#include <CombatConstants.h>
+#include "CombatConstants.h"
 #include "NiagaraSystem.h"
+#include "ESpellDeliveryType.h"
+#include "EDefenseType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -136,11 +138,70 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UAnimMontage *CastAnimation = nullptr;
 
+    /** Main spell VFX (projectile traveling, AOE expanding, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UNiagaraSystem *ElementalModeEffect = nullptr;
+    UNiagaraSystem *SpellVFX = nullptr;
 
+    /** Impact/explosion VFX (optional - plays on hit) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UNiagaraSystem *RawModeEffect = nullptr;
+    UNiagaraSystem *ImpactVFX = nullptr;
+
+    /** Muzzle/cast flash VFX (optional - plays at caster on cast) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    UNiagaraSystem *MuzzleVFX = nullptr;
+
+    // ==================== DELIVERY ====================
+
+    /** How the spell travels from caster to target */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery")
+    ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
+
+    /** Travel speed in units per second (Projectile/Homing only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing",
+                      EditConditionHides, ClampMin = "100.0"))
+    float ProjectileSpeed = 1500.f;
+
+    /** Homing tracking strength: 0 = no tracking, 1 = instant turn (Homing only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
+                      EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
+    float HomingStrength = 0.5f;
+
+    /** Beam duration in seconds (Beam only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
+                      EditConditionHides, ClampMin = "0.1"))
+    float BeamDuration = 1.0f;
+
+    // ==================== SIZE ====================
+
+    /** Base VFX scale - set to match Niagara system's intended size */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size",
+              meta = (ClampMin = "0.1"))
+    float BaseSize = 1.0f;
+
+    /** Hitbox as percentage of visual (0.8 = hitbox is 80% of visual, more forgiving) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size",
+              meta = (ClampMin = "0.5", ClampMax = "1.2"))
+    float HitboxRatio = 0.8f;
+
+    // ==================== DEFENSE HELPERS ====================
+
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeBlocked() const;
+
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeParried() const;
+
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeDodgedByMoving() const;
+
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeDodgedByTiming() const;
+
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    TArray<EDefenseType> GetAvailableDefenses() const;
 
     // ==================== REQUIREMENT CHECKS ====================
 
@@ -217,6 +278,65 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Construct", meta = (EditCondition = "bIsConstruct"))
     bool bSealsSpells = true;
+
+    // ==================== DEFENSE HELPERS ====================
+
+    /** Can this spell be blocked? */
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeBlocked() const
+    {
+        return DeliveryType != ESpellDeliveryType::Instant;
+    }
+
+    /** Can this spell be parried? */
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeParried() const
+    {
+        return DeliveryType == ESpellDeliveryType::Projectile ||
+               DeliveryType == ESpellDeliveryType::Homing;
+    }
+
+    /** Can this spell be dodged by moving? */
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeDodgedByMoving() const
+    {
+        return DeliveryType == ESpellDeliveryType::Projectile;
+    }
+
+    /** Can this spell be dodged with timing? */
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    bool CanBeDodgedByTiming() const
+    {
+        return DeliveryType == ESpellDeliveryType::Projectile ||
+               DeliveryType == ESpellDeliveryType::Homing ||
+               DeliveryType == ESpellDeliveryType::Beam;
+    }
+
+    /** Get available defense options for UI */
+    UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
+    TArray<EDefenseType> GetAvailableDefenses() const
+    {
+        TArray<EDefenseType> Options;
+
+        if (DeliveryType == ESpellDeliveryType::Instant)
+        {
+            return Options; // Empty - unavoidable
+        }
+
+        Options.Add(EDefenseType::Block);
+
+        if (CanBeParried())
+        {
+            Options.Add(EDefenseType::Parry);
+        }
+
+        if (CanBeDodgedByMoving() || CanBeDodgedByTiming())
+        {
+            Options.Add(EDefenseType::Dodge);
+        }
+
+        return Options;
+    }
     // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR
