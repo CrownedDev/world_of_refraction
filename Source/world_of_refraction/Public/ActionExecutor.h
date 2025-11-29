@@ -15,6 +15,9 @@
 #include "EDefenseType.h"
 #include "DefenseSystem.h"
 #include "DamageCalculator.h"
+#include "SpellProjectile.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -182,6 +185,10 @@ public:
 	// ========================================
 	// EXECUTION - SPECIFIC ACTIONS
 	// ========================================
+
+	/** Default projectile class to spawn (set to BP_Projectile1) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spell Delivery")
+	TSubclassOf<ASpellProjectile> DefaultProjectileClass;
 
 	/** Execute a spell */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
@@ -623,4 +630,59 @@ protected:
 	 * Uses CharacterData->InfusionL1Animation or InfusionL2Animation
 	 */
 	virtual void PlayInfusionAnimation(AActor *Actor, int32 InfusionLevel);
+
+	/**
+	 * Spawn spell delivery based on DeliveryType
+	 * - Projectile/Homing/Beam: Spawns ASpellProjectile
+	 * - AOE/Instant: Spawns VFX directly, opens defense window
+	 */
+	virtual void SpawnSpellDelivery(
+		AActor *Caster,
+		const TArray<AActor *> &Targets,
+		USpellData *Spell,
+		float FinalImpactRadius,
+		float FinalVisualScale,
+		int32 FinalDamage,
+		bool bIsBrokenDarkness);
+
+	/** Spawn projectile actor (Projectile/Homing/Beam) */
+	void SpawnProjectileActor(
+		AActor *Caster,
+		AActor *Target,
+		USpellData *Spell,
+		float FinalImpactRadius,
+		float FinalVisualScale,
+		int32 FinalDamage,
+		bool bIsBrokenDarkness);
+
+	/** Spawn AOE effect (no projectile) */
+	void SpawnAOEEffect(
+		AActor *Caster,
+		AActor *Target,
+		USpellData *Spell,
+		float FinalImpactRadius,
+		float FinalVisualScale,
+		int32 FinalDamage,
+		bool bIsBrokenDarkness);
+
+	/** Resolve instant spell (immediate hit) */
+	void ResolveInstantSpell(
+		AActor *Caster,
+		AActor *Target,
+		USpellData *Spell,
+		float FinalImpactRadius,
+		int32 FinalDamage,
+		bool bIsBrokenDarkness);
+
+	/** Called when projectile impacts target */
+	UFUNCTION()
+	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage);
+
+	/** Called when target dodged projectile */
+	UFUNCTION()
+	void OnProjectileDodged(AActor *Target, FVector ImpactLocation);
+
+	/** Called each tick while beam is active */
+	UFUNCTION()
+	void OnBeamTick(AActor *Target, float DeltaTime, bool bTargetInBeam);
 };

@@ -26,6 +26,9 @@
 #include "EDefenseType.h"
 #include "BrokenDarknessManager.h"
 #include "HybridSpellColors.h"
+#include "SpellProjectile.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -1995,28 +1998,356 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 
 void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize)
 {
-	// Stub - override in subclass for Niagara/particle spawning
-	// In full implementation:
-	// 1. Get VFX asset from Spell
-	// 2. Spawn at target location(s)
-	// 3. Scale system by SpellSize
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] SpawnSpellVFX stub - %s VFX (Size: %.1f)"),
-		   Spell ? *Spell->GetName() : TEXT("None"),
-		   SpellSize);
+	// This is now a wrapper that calls SpawnSpellDelivery
+	// Called from ExecuteSpell after damage calculation
 
-	// Get colors based on whether caster is BD
+	if (!Caster || !Spell)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] SpawnSpellVFX - Invalid caster or spell"));
+		return;
+	}
+
+	// Get BD status for coloring
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
 	bool bIsBD = BDManager && BDManager->IsTransformed();
 
-	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBD);
+	// Calculate final values
+	float FinalImpactRadius = Spell->BaseSize * Spell->HitboxRatio * SpellSize;
+	float FinalVisualScale = Spell->BaseSize * SpellSize;
 
-	// // Apply to Niagara system
-	// if (NiagaraComponent)
-	// {
-	// 	NiagaraComponent->SetColorParameter("CoreColor", Colors.PrimaryColor);
-	// 	NiagaraComponent->SetColorParameter("EdgeColor", Colors.BlendedColor);
-	// 	NiagaraComponent->SetColorParameter("TrailColor", Colors.SecondaryColor);
-	// }
+	// Get targets from current execution context
+	TArray<AActor *> Targets;
+	if (CurrentExecutionContext.IsSet())
+	{
+		for (const auto &Pair : CurrentExecutionContext->PendingDefenses)
+		{
+			if (Pair.Value.Target.IsValid())
+			{
+				Targets.Add(Pair.Value.Target.Get());
+			}
+		}
+	}
+
+	// Get damage from context
+	int32 FinalDamage = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0;
+
+	SpawnSpellDelivery(Caster, Targets, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD);
+}
+
+void UActionExecutor::SpawnSpellDelivery(
+	AActor *Caster,
+	const TArray<AActor *> &Targets,
+	USpellData *Spell,
+	float FinalImpactRadius,
+	float FinalVisualScale,
+	int32 FinalDamage,
+	bool bIsBrokenDarkness)
+{
+	if (!Spell)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] SpawnSpellDelivery - No spell data"));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpawnSpellDelivery - Type=%d, Targets=%d, Radius=%.2f"),
+		   (int32)Spell->DeliveryType, Targets.Num(), FinalImpactRadius);
+
+	switch (Spell->DeliveryType)
+	{
+	case ESpellDeliveryType::Projectile:
+	case ESpellDeliveryType::Homing:
+	case ESpellDeliveryType::Beam:
+		// Spawn projectile actor for each target
+		for (AActor *Target : Targets)
+		{
+			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+		}
+		break;
+
+	case ESpellDeliveryType::AOE:
+		// Spawn VFX at each target, open defense window immediately
+		for (AActor *Target : Targets)
+		{
+			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+		}
+		break;
+
+	case ESpellDeliveryType::Instant:
+		// No travel time, immediate resolution
+		for (AActor *Target : Targets)
+		{
+			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
+		}
+		break;
+	}
+}
+
+void UActionExecutor::SpawnProjectileActor(
+	AActor *Caster,
+	AActor *Target,
+	USpellData *Spell,
+	float FinalImpactRadius,
+	float FinalVisualScale,
+	int32 FinalDamage,
+	bool bIsBrokenDarkness)
+{
+	if (!Caster || !Target || !Spell)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] SpawnProjectileActor - Invalid parameters"));
+		return;
+	}
+
+	// Check for projectile class
+	TSubclassOf<ASpellProjectile> ProjectileClass = DefaultProjectileClass;
+	if (!ProjectileClass)
+	{
+		// Fallback to base class if no BP assigned
+		ProjectileClass = ASpellProjectile::StaticClass();
+	}
+
+	// Spawn projectile
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = Caster;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ASpellProjectile *Projectile = GetWorld()->SpawnActor<ASpellProjectile>(
+		ProjectileClass,
+		Caster->GetActorLocation(),
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	if (!Projectile)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] Failed to spawn projectile!"));
+		return;
+	}
+
+	// Initialize with combat data
+	Projectile->InitializeProjectile(
+		Spell,
+		Caster,
+		Target,
+		FinalImpactRadius,
+		FinalVisualScale,
+		FinalDamage);
+
+	// Assign VFX from SpellData
+	Projectile->SetVFXAssets(
+		Spell->MuzzleVFX,
+		Spell->SpellVFX,
+		Spell->ImpactVFX);
+
+	// Bind to events
+	Projectile->OnSpellImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
+	Projectile->OnSpellDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
+
+	if (Spell->DeliveryType == ESpellDeliveryType::Beam)
+	{
+		Projectile->OnBeamTick.AddDynamic(this, &UActionExecutor::OnBeamTick);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
+		   *Target->GetName(), (int32)Spell->DeliveryType, Spell->ProjectileSpeed);
+}
+
+void UActionExecutor::SpawnAOEEffect(
+	AActor *Caster,
+	AActor *Target,
+	USpellData *Spell,
+	float FinalImpactRadius,
+	float FinalVisualScale,
+	int32 FinalDamage,
+	bool bIsBrokenDarkness)
+{
+	if (!Target || !Spell)
+	{
+		return;
+	}
+
+	FVector SpawnLocation = Target->GetActorLocation();
+
+	// Get colors for VFX
+	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
+
+	// Spawn VFX at target location
+	if (Spell->SpellVFX)
+	{
+		UNiagaraComponent *NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			Spell->SpellVFX,
+			SpawnLocation,
+			FRotator::ZeroRotator,
+			FVector(FinalVisualScale),
+			true, // bAutoDestroy
+			true, // bAutoActivate
+			ENCPoolMethod::None,
+			true // bPreCullCheck
+		);
+
+		// Apply element colors
+		if (NiagaraComp)
+		{
+			NiagaraComp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
+			NiagaraComp->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
+			NiagaraComp->SetColorParameter(FName("TrailColor"), Colors.SecondaryColor);
+		}
+	}
+
+	// AOE always hits - open defense window immediately
+	// AOE can only be blocked (no dodge, no parry)
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys)
+	{
+		float WindowDuration = 0.5f; // AOE has longer window
+
+		DefenseSys->OpenDefenseWindow(
+			Caster,
+			Target,
+			FinalImpactRadius,
+			FinalDamage,
+			WindowDuration,
+			true // bIsElemental
+		);
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE opened defense window for %s (Block only)"),
+			   *Target->GetName());
+	}
+	else
+	{
+		// Fallback: Apply damage directly if no defense system
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying AOE damage directly"));
+		ApplyDamage(Caster, Target, FinalDamage, true, Spell->Element, false);
+	}
+}
+
+void UActionExecutor::ResolveInstantSpell(
+	AActor *Caster,
+	AActor *Target,
+	USpellData *Spell,
+	float FinalImpactRadius,
+	int32 FinalDamage,
+	bool bIsBrokenDarkness)
+{
+	if (!Target || !Spell)
+	{
+		return;
+	}
+
+	// Get colors for VFX
+	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
+
+	// Spawn VFX at target immediately
+	if (Spell->SpellVFX)
+	{
+		UNiagaraComponent *NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(),
+			Spell->SpellVFX,
+			Target->GetActorLocation(),
+			FRotator::ZeroRotator,
+			FVector(1.f),
+			true,
+			true);
+
+		if (NiagaraComp)
+		{
+			NiagaraComp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
+			NiagaraComp->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
+		}
+	}
+
+	// Instant spells are unavoidable - apply damage directly
+	// No defense window
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant spell hit %s - unavoidable, applying damage"),
+		   *Target->GetName());
+
+	FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, true, Spell->Element, true);
+
+	// Update execution context
+	if (CurrentExecutionContext.IsSet())
+	{
+		CurrentExecutionContext->PartialResult.TotalDamageDealt += Result.DamageDealt;
+		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, Result.DamageDealt);
+		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+
+		if (Result.bWasCritical)
+		{
+			CurrentExecutionContext->PartialResult.bWasCritical = true;
+		}
+
+		if (Result.bTargetDied)
+		{
+			CurrentExecutionContext->PartialResult.bCausedDeath = true;
+		}
+	}
+}
+
+// ========================================
+// PROJECTILE EVENT HANDLERS
+// ========================================
+
+void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
+{
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f"),
+		   Target ? *Target->GetName() : TEXT("None"), Damage, ImpactRadius);
+
+	if (!Target)
+	{
+		return;
+	}
+
+	// Open defense window for Block/Parry
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys)
+	{
+		float WindowDuration = 0.3f; // Standard window for projectile impact
+
+		DefenseSys->OpenDefenseWindow(
+			nullptr, // Caster not tracked here (could store in projectile if needed)
+			Target,
+			ImpactRadius,
+			Damage,
+			WindowDuration,
+			true // bIsElemental (assume true for spells)
+		);
+	}
+	else
+	{
+		// Fallback: Apply damage directly
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying projectile damage directly"));
+		ApplyDamage(nullptr, Target, Damage, true, ESpellElement::Generic, true);
+	}
+}
+
+void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
+{
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile dodged by %s at %s"),
+		   Target ? *Target->GetName() : TEXT("None"), *ImpactLocation.ToString());
+
+	// No damage applied - target successfully moved out of impact zone
+	// Could broadcast event for UI feedback here
+
+	// Update execution context if tracking
+	if (CurrentExecutionContext.IsSet() && Target)
+	{
+		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, 0); // 0 damage = dodged
+	}
+}
+
+void UActionExecutor::OnBeamTick(AActor *Target, float DeltaTime, bool bTargetInBeam)
+{
+	// Beam applies damage over time while target is in beam
+	if (!bTargetInBeam || !Target)
+	{
+		return;
+	}
+
+	// TODO: Calculate per-tick damage based on beam total damage and duration
+	// For now, apply small damage each tick
+	int32 TickDamage = 5; // Placeholder
+
+	// Apply damage without defense window (beam is continuous)
+	ApplyDamage(nullptr, Target, TickDamage, true, ESpellElement::Generic, false);
 }
 
 void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
