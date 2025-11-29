@@ -6,6 +6,7 @@
 #include "WeaponAttackData.h"
 #include "RingData.h"
 #include "SpellData.h"
+#include "EvolutionData.h"
 
 #include "LoadoutConstants.h"
 
