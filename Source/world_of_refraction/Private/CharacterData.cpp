@@ -4,6 +4,9 @@
 #include "EvolutionData.h"
 #include "RingData.h"
 #include "EvolutionData.h"
+#include "StanceData.h"
+#include "WeaponData.h"
+#include "EvolutionData.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
@@ -55,6 +58,40 @@ bool UCharacterData::HasWeaponAccess() const
     return true;
 }
 
+// ==================== STANCE HELPERS ====================
+
+bool UCharacterData::IsArmed() const
+{
+    if (CharacterClass == ECharacterClass::Generic)
+    {
+        // Generic is always armed (Primary or Secondary)
+        return true;
+    }
+
+    // Caster/Resonator: bUsePrimary = true means armed
+    return bUsePrimary;
+}
+
+UStanceData *UCharacterData::GetCurrentStance() const
+{
+    if (IsArmed())
+    {
+        // Armed - use weapon stance
+        if (PrimaryWeapon && PrimaryWeapon->WeaponStance)
+        {
+            return PrimaryWeapon->WeaponStance;
+        }
+    }
+
+    // Unarmed or no weapon stance - use character stance
+    return UnarmedStance;
+}
+
+UAnimMontage *UCharacterData::GetCurrentIdleMontage() const
+{
+    UStanceData *Stance = GetCurrentStance();
+    return Stance ? Stance->IdleAnimMontage : nullptr;
+}
 // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR

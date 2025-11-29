@@ -494,6 +494,20 @@ public:
 		return CombatConstants::BASE_EP + (GetBaseSpirit() * CombatConstants::EP_PER_SPIRIT);
 	}
 
+	// ==================== STANCE HELPERS ====================
+
+	/** Get current idle montage based on current weapon state */
+	UFUNCTION(BlueprintPure, Category = "Stance")
+	UAnimMontage *GetCurrentIdleMontage() const;
+
+	/** Get current stance based on current weapon state */
+	UFUNCTION(BlueprintPure, Category = "Stance")
+	UStanceData *GetCurrentStance() const;
+
+	/** Is character currently in armed state? */
+	UFUNCTION(BlueprintPure, Category = "Stance")
+	bool IsArmed() const;
+
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
