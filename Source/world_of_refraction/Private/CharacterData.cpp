@@ -6,7 +6,6 @@
 #include "EvolutionData.h"
 #include "StanceData.h"
 #include "WeaponData.h"
-#include "EvolutionData.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
