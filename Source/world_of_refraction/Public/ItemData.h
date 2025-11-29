@@ -10,6 +10,7 @@
 #include "ItemTier.h"
 #include "ItemEffectType.h"
 #include "SpellElement.h"
+#include "NiagaraSystem.h"
 #include "ItemData.generated.h"
 class UEvolutionData;
 /**
@@ -126,8 +127,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FLinearColor TierColor;
 
+    // probably needs to be changed to animation later
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UParticleSystem *UseEffect;
+    UNiagaraSystem *UseEffect;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     USoundBase *UseSound;

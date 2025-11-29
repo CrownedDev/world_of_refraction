@@ -13,6 +13,7 @@
 #include "WeaponData.h"
 #include "WorldStatRequirements.h"
 #include <CombatConstants.h>
+#include "NiagaraSystem.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -136,10 +137,10 @@ public:
     UAnimMontage *CastAnimation = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UParticleSystem *ElementalModeEffect = nullptr;
+    UNiagaraSystem *ElementalModeEffect = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UParticleSystem *RawModeEffect = nullptr;
+    UNiagaraSystem *RawModeEffect = nullptr;
 
     // ==================== REQUIREMENT CHECKS ====================
 

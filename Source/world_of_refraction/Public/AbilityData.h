@@ -8,6 +8,7 @@
 #include "TargetType.h"
 #include "AbilityEffectType.h"
 #include "WorldStatRequirements.h"
+#include "NiagaraSystem.h"
 #include <CombatConstants.h>
 
 #if WITH_EDITOR
@@ -81,10 +82,10 @@ public:
     UAnimMontage *CastAnimation = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UParticleSystem *NormalEffect = nullptr;
+    UNiagaraSystem *NormalEffect = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UParticleSystem *InfusedEffect = nullptr;
+    UNiagaraSystem *InfusedEffect = nullptr;
 
     // ==================== REQUIREMENT CHECKS ====================
 

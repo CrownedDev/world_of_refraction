@@ -99,6 +99,13 @@ void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData* CharacterData, T
 							 CharacterData->SecondarySlotType == ESecondarySlotType::Ring && 
 							 CharacterData->SecondaryRing != nullptr;
 	
+	// DEBUG: Log state detection
+	UE_LOG(LogTemp, Warning, TEXT("[BuildGenericMainMenu] Evolved=%s, SecondarySlotType=%d, SecondaryWeapon=%s, bHasSecondaryWeapon=%s"),
+		bCharacterEvolved ? TEXT("true") : TEXT("false"),
+		static_cast<int32>(CharacterData->SecondarySlotType),
+		CharacterData->SecondaryWeapon ? *CharacterData->SecondaryWeapon->WeaponName : TEXT("null"),
+		bHasSecondaryWeapon ? TEXT("true") : TEXT("false"));
+	
 	// Get active weapon based on current selection
 	UWeaponData* ActiveWeapon = nullptr;
 	if (bHasSecondaryWeapon)
@@ -474,7 +481,6 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateButton(UCharacterData* Ch
 	}
 
 	return Button;
-}
 }
 
 FPieMenuButtonData UCombatMenuSubsystem::CreateItemsButton(UCharacterData* CharacterData)
