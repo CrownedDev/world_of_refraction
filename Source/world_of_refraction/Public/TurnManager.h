@@ -15,7 +15,7 @@ struct FCombatantTurnDebt
 	GENERATED_BODY()
 
 	UPROPERTY()
-	AActor* Actor = nullptr;
+	AActor *Actor = nullptr;
 
 	UPROPERTY()
 	int32 TeamIndex = 0;
@@ -37,7 +37,7 @@ struct FCombatantTurnDebt
 	int32 CachedSpeed = 0;
 
 	UPROPERTY()
-	int32 CachedAttackSpeed = 0;
+	int32 CachedMovementSpeed = 0;
 
 	UPROPERTY()
 	int32 CachedMind = 0;
@@ -52,10 +52,10 @@ struct FCombatantTurnDebt
 /**
  * Delegate signatures
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor*, Actor, int32, TurnNumber);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor*, Actor, int32, TurnNumber);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor *, Actor, int32, TurnNumber);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor *, Actor, int32, TurnNumber);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatEnded, int32, FinalTurnCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor*, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor *, Actor);
 
 /**
  * TurnManager - GameInstanceSubsystem
@@ -81,7 +81,7 @@ public:
 
 	/** Initialize combat with two teams */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void InitializeCombat(const TArray<AActor*>& Team1, const TArray<AActor*>& Team2);
+	void InitializeCombat(const TArray<AActor *> &Team1, const TArray<AActor *> &Team2);
 
 	/** End combat */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
@@ -97,11 +97,11 @@ public:
 
 	/** Get current actor */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
-	AActor* GetCurrentActor() const;
+	AActor *GetCurrentActor() const;
 
 	/** Preview next N turns */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
-	TArray<AActor*> PreviewTurnOrder(int32 NumTurns) const;
+	TArray<AActor *> PreviewTurnOrder(int32 NumTurns) const;
 
 	/** Is combat active */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
@@ -113,15 +113,15 @@ public:
 
 	/** Notify that actor's speed changed (recalculates ratios) */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void OnActorSpeedChanged(AActor* Actor);
+	void OnActorSpeedChanged(AActor *Actor);
 
 	/** Notify that actor died */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void OnActorDied(AActor* Actor);
+	void OnActorDied(AActor *Actor);
 
 	/** Notify that actor was resurrected */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void OnActorResurrected(AActor* Actor);
+	void OnActorResurrected(AActor *Actor);
 
 	// ========================================
 	// EVENTS
@@ -155,10 +155,10 @@ private:
 	TArray<FCombatantTurnDebt> Combatants;
 
 	UPROPERTY()
-	AActor* CurrentActor;
+	AActor *CurrentActor;
 
 	UPROPERTY()
-	AActor* PreviousActor;
+	AActor *PreviousActor;
 
 	UPROPERTY()
 	int32 GlobalTurnCount;
@@ -177,11 +177,11 @@ private:
 	void AccumulateDebtRound();
 
 	/** Find combatant with highest net debt (TurnsOwed - TurnsTaken) */
-	FCombatantTurnDebt* GetNextCombatant();
+	FCombatantTurnDebt *GetNextCombatant();
 
 	/** Determine tie-breaker winner between two combatants */
-	bool ShouldBreakTieInFavor(const FCombatantTurnDebt& A, const FCombatantTurnDebt& B) const;
+	bool ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const;
 
 	/** Cache actor stats from CharacterDataComponent */
-	void CacheActorStats(FCombatantTurnDebt& Combatant);
+	void CacheActorStats(FCombatantTurnDebt &Combatant);
 };

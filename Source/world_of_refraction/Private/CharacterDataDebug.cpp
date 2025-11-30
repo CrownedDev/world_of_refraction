@@ -269,34 +269,37 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 
 	Output += TEXT("\n");
 
-	// Mind Stats
+	// Mind Stats (4): Efficiency, EffectDamage, CritChance, SpellSpeed
 	Output += TEXT("MIND STATS:\n");
 	Output += FString::Printf(TEXT("  Base Mind: %d (World Level: %d)\n"),
 							  Character->GetBaseMind(), Character->WorldMindLevel);
 	Output += FString::Printf(TEXT("  Effective Mind: %.1f\n"), Character->GetEffectiveMind());
-	Output += FString::Printf(TEXT("  Cost Reduction: x%.2f\n"), Character->CalculateCostReductionMultiplier());
-	Output += FString::Printf(TEXT("  Turn Speed: %.1f\n"), Character->CalculateTurnSpeed());
-	Output += FString::Printf(TEXT("  Crit Chance: %.1f%%\n\n"), Character->CalculateCritChance() * 100.0f);
+	Output += FString::Printf(TEXT("  Efficiency: x%.2f (%.0f%% EP reduction)\n"),
+							  Character->CalculateEfficiencyMultiplier(),
+							  (1.0f - Character->CalculateEfficiencyMultiplier()) * 100.0f);
+	Output += FString::Printf(TEXT("  Effect Damage: x%.2f\n"), Character->CalculateEffectDamageMultiplier());
+	Output += FString::Printf(TEXT("  Crit Chance: %.1f%%\n"), Character->CalculateCritChance() * 100.0f);
+	Output += FString::Printf(TEXT("  Spell Speed: x%.2f\n\n"), Character->CalculateSpellSpeed());
 
-	// Body Stats
+	// Body Stats (3): Defense, MovementSpeed, RawDamage
 	Output += TEXT("BODY STATS:\n");
 	Output += FString::Printf(TEXT("  Base Body: %d (World Level: %d)\n"),
 							  Character->GetBaseBody(), Character->WorldBodyLevel);
 	Output += FString::Printf(TEXT("  Effective Body: %.1f\n"), Character->GetEffectiveBody());
-	Output += FString::Printf(TEXT("  Max HP: %d\n"), Character->CalculateMaxHP());
 	Output += FString::Printf(TEXT("  Defense: %d\n"), Character->CalculateFlatDefense());
-	Output += FString::Printf(TEXT("  Attack Speed: %.2f\n"), Character->CalculateAttackSpeed());
+	Output += FString::Printf(TEXT("  Movement Speed: %.1f\n"), Character->CalculateMovementSpeed());
+	Output += FString::Printf(TEXT("  Animation Speed: x%.2f\n"), Character->CalculateAnimationSpeed());
 	Output += FString::Printf(TEXT("  Raw Damage: x%.2f\n\n"), Character->CalculateRawDamageMultiplier());
 
-	// Spirit Stats
+	// Spirit Stats (4): MaxEnergy, MaxHealth, Resistance, TurnSpeed
 	Output += TEXT("SPIRIT STATS:\n");
 	Output += FString::Printf(TEXT("  Base Spirit: %d (World Level: %d)\n"),
 							  Character->GetBaseSpirit(), Character->WorldSpiritLevel);
 	Output += FString::Printf(TEXT("  Effective Spirit: %.1f\n"), Character->GetEffectiveSpirit());
+	Output += FString::Printf(TEXT("  Max HP: %d\n"), Character->CalculateMaxHP());
 	Output += FString::Printf(TEXT("  Max EP: %d\n"), Character->CalculateMaxEP());
-	Output += FString::Printf(TEXT("  Effect Damage: x%.2f\n"), Character->CalculateEffectDamageMultiplier());
-	Output += FString::Printf(TEXT("  Resistance: %.1f%%\n"), Character->CalculateElementalResistance() * 100.0f);
-	Output += FString::Printf(TEXT("  Ability Size: x%.2f\n"), Character->CalculateAbilitySizeMultiplier());
+	Output += FString::Printf(TEXT("  Status Resistance: %.1f%%\n"), Character->CalculateStatusResistance() * 100.0f);
+	Output += FString::Printf(TEXT("  Turn Speed: %.1f\n"), Character->CalculateTurnSpeed());
 
 	return Output;
 }

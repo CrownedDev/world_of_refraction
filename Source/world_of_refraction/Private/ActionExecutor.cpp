@@ -510,10 +510,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	}
 	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
 
-	// Calculate spell size (affects dodge viability)
-	float BaseAbilitySize = CasterData->CalculateAbilitySizeMultiplier();
-	float SizeMultiplier = GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
-	float FinalSpellSize = BaseAbilitySize * SizeMultiplier;
+	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
+	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
 	// Calculate base damage
 	int32 BaseDamage = Spell->CalculateDamage(CasterData, Action.bUseElementalMode);
@@ -608,11 +606,11 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty for element
 	}
 
-	// Attack size for abilities
-	float AttackSize = UserData->CalculateAbilitySizeMultiplier();
+	// Ability size (fixed, no character scaling)
+	float AttackSize = 1.0f;
 
 	// Store in result
-	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
+	CurrentExecutionContext->PartialResult.AttackSize = AttackSize; // remove attack size its pointless for abilities
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsElemental;
@@ -779,11 +777,8 @@ FActionResult UActionExecutor::ExecuteSpell(
 	}
 	Result.EnergySpent = FinalEnergyCost;
 
-	// Calculate spell SIZE with infusion (NOT damage)
-	// Size affects dodge viability in defense system
-	float BaseAbilitySize = CasterData->CalculateAbilitySizeMultiplier();
-	float SizeMultiplier = GetSpellInfusionSizeMultiplier(InfusionLevel);
-	float FinalSpellSize = BaseAbilitySize * SizeMultiplier;
+	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
+	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(InfusionLevel);
 
 	// Store size in result for defense system
 	Result.AttackSize = FinalSpellSize;

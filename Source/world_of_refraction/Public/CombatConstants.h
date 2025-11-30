@@ -9,44 +9,72 @@
 
 namespace CombatConstants
 {
-    // ==================== STAT SCALING ====================
-
-    // HP/EP Calculations
-    constexpr int32 BASE_HP = 100;
-    constexpr int32 HP_PER_BODY = 10;
-    constexpr int32 BASE_EP = 50;
-    constexpr int32 EP_PER_SPIRIT = 5;
-
-    // Mind Scaling
-    constexpr float COST_REDUCTION_PER_POINT = 0.0007f; // 0.07% per point (was 0.6%)
-    constexpr float COST_REDUCTION_MAX = 0.5f;
-    constexpr float COST_REDUCTION_MIN = 0.3f; // 50% max (was 70%)
-
-    constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed
-    constexpr float TURN_SPEED_PER_POINT = 0.08f; // 0.08 per point (was 0.5)
-
-    constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
-    constexpr float CRIT_CHANCE_PER_POINT = 0.0013f; // 0.13% per point (was 0.3%)
-    constexpr float CRIT_CHANCE_MAX = 0.4f;          // 40% max (was 60%)
-    constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage
-
-    // Body Scaling
-    constexpr float DEFENSE_PER_POINT = 0.06f;       // Flat defense per point (was 0.4)
-    constexpr float ATTACK_SPEED_BASE = 1.0f;        // Base animation speed
-    constexpr float ATTACK_SPEED_PER_POINT = 0.005f; // 0.5% per point (was 5%)
-    constexpr float RAW_DAMAGE_PER_POINT = 0.0008f;  // 0.08% per point (was 0.6%)
-
-    // Spirit Scaling
-    constexpr float EFFECT_DAMAGE_PER_POINT = 0.002f; // 0.2% per point (was 0.6%)
-    constexpr float RESISTANCE_PER_POINT = 0.0015f;   // 0.15% per point (was 0.5%)
-    constexpr float RESISTANCE_MAX = 0.4f;            // 40% max (was 50%)
-    constexpr float ABILITY_SIZE_PER_POINT = 0.005f;  // 0.5% per point (was 0.7%)
-
     // ==================== WORLD STAT BONUSES ====================
 
     constexpr int32 WORLD_STAT_MAX_LEVEL = 7;         // Max level per stat
     constexpr float WORLD_STAT_SCALING_BONUS = 0.03f; // 3% per level
     constexpr int32 POINTS_PER_WORLD_STAT_LEVEL = 3;  // Sub-stat points generated
+
+    // ==================== STAT SCALING ====================
+    // 11 Stats: Mind(4), Body(3), Spirit(4)
+    // Formula: Base + (EffectiveStat × TotalPoints × PER_POINT)
+
+    // ==================== MIND STATS (4) ====================
+    // Efficiency, EffectDamage, CritChance, SpellSpeed
+
+    // Efficiency - Reduces EP cost of Spells & Abilities (not Attacks)
+    // Resonators: Also reduces ring break chance
+    constexpr float EFFICIENCY_PER_POINT = 0.002f;            // 0.2% reduction per point
+    constexpr float EFFICIENCY_MAX = 0.50f;                   // 50% max EP reduction
+    constexpr float EFFICIENCY_RING_BREAK_PER_POINT = 0.003f; // 0.3% ring break reduction (Resonator only)
+    constexpr float EFFICIENCY_RING_BREAK_MAX = 0.50f;        // 50% max ring break reduction
+
+    // Effect Damage - Spell damage & status effect potency (NOW MIND, was Spirit)
+    constexpr float EFFECT_DAMAGE_PER_POINT = 0.002f; // 0.2% per point
+
+    // Crit Chance - Critical hit probability (all actions)
+    constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
+    constexpr float CRIT_CHANCE_PER_POINT = 0.0013f; // 0.13% per point
+    constexpr float CRIT_CHANCE_MAX = 0.40f;         // 40% max
+    constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit
+
+    // Spell Speed - Projectile travel speed (affects defender reaction time)
+    constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier
+    constexpr float SPELL_SPEED_PER_POINT = 0.01f; // 1% per point
+
+    // ==================== BODY STATS (3) ====================
+    // Defense, MovementSpeed, RawDamage
+
+    // Defense - Flat damage reduction per hit
+    constexpr float DEFENSE_PER_POINT = 0.06f; // Flat defense per point
+
+    // Movement Speed - Approach speed & animation speed (RENAMED from AttackSpeed)
+    constexpr float MOVEMENT_SPEED_BASE = 400.0f;       // Base units per second (approach)
+    constexpr float MOVEMENT_SPEED_PER_POINT = 0.01f;   // 1% per point
+    constexpr float ANIMATION_SPEED_BASE = 1.0f;        // Base animation multiplier
+    constexpr float ANIMATION_SPEED_PER_POINT = 0.005f; // 0.5% per point
+
+    // Raw Damage - Physical/non-elemental damage multiplier
+    constexpr float RAW_DAMAGE_PER_POINT = 0.0008f; // 0.08% per point
+
+    // ==================== SPIRIT STATS (4) ====================
+    // MaxEnergy, MaxHealth, Resistance, TurnSpeed
+
+    // Max Energy - EP pool size (NEW explicit stat)
+    constexpr float MAX_ENERGY_BASE = 50.0f;     // Base EP
+    constexpr float MAX_ENERGY_PER_POINT = 2.0f; // +2 EP per point
+
+    // Max Health - HP pool size (NEW explicit stat)
+    constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
+    constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
+
+    // Resistance - Reduces status effect damage & buildup (NOT elemental damage)
+    constexpr float RESISTANCE_PER_POINT = 0.0015f; // 0.15% per point
+    constexpr float RESISTANCE_MAX = 0.40f;         // 40% max
+
+    // Turn Speed - Turn order priority (NOW SPIRIT, was Mind, no longer uses WorldBody)
+    constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed
+    constexpr float TURN_SPEED_PER_POINT = 0.08f; // 0.08 per point
 
     // ==================== TURN SYSTEM ====================
 

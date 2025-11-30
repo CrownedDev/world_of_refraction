@@ -20,9 +20,9 @@ void ATurnManagerTestActor::BeginPlay()
 // ========================================
 // HELPER: Get TurnManager with null safety
 // ========================================
-UTurnManager* ATurnManagerTestActor::GetTurnManagerSafe()
+UTurnManager *ATurnManagerTestActor::GetTurnManagerSafe()
 {
-	UGameInstance* GameInst = GetGameInstance();
+	UGameInstance *GameInst = GetGameInstance();
 	if (!GameInst)
 	{
 		UE_LOG(LogTemp, Error, TEXT(""));
@@ -40,7 +40,7 @@ UTurnManager* ATurnManagerTestActor::GetTurnManagerSafe()
 		return nullptr;
 	}
 
-	UTurnManager* TurnManager = GameInst->GetSubsystem<UTurnManager>();
+	UTurnManager *TurnManager = GameInst->GetSubsystem<UTurnManager>();
 	if (!TurnManager)
 	{
 		UE_LOG(LogTemp, Error, TEXT(""));
@@ -93,25 +93,25 @@ void ATurnManagerTestActor::Test_Basic3v3()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Basic 3v3 Combat"));
 
-	UTurnManager* TurnManager = GetTurnManagerSafe();
+	UTurnManager *TurnManager = GetTurnManagerSafe();
 	if (!TurnManager)
 	{
 		PrintTestResult("Basic 3v3", false);
 		return;
 	}
 
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("Player1", 5, 5, 5, 0, 0));
 	Team1.Add(CreateTestCharacter("Player2", 5, 5, 5, 0, 0));
 	Team1.Add(CreateTestCharacter("Player3", 5, 5, 5, 0, 0));
 
-	TArray<AActor*> Team2;
+	TArray<AActor *> Team2;
 	Team2.Add(CreateTestCharacter("Enemy1", 5, 5, 5, 0, 0));
 	Team2.Add(CreateTestCharacter("Enemy2", 5, 5, 5, 0, 0));
 	Team2.Add(CreateTestCharacter("Enemy3", 5, 5, 5, 0, 0));
 
 	TurnManager->InitializeCombat(Team1, Team2);
-	AActor* FirstActor = TurnManager->GetCurrentActor();
+	AActor *FirstActor = TurnManager->GetCurrentActor();
 	bool bSuccess = (FirstActor != nullptr);
 
 	PrintTestResult("Basic 3v3", bSuccess);
@@ -129,7 +129,7 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Speed Ratio"));
 
-	UTurnManager* TurnManager = GetTurnManagerSafe();
+	UTurnManager *TurnManager = GetTurnManagerSafe();
 	if (!TurnManager)
 	{
 		PrintTestResult("Speed Ratio", false);
@@ -139,23 +139,23 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 	// Fast: Body(5) + TurnSpeed(6) = 11
 	// Slow: Body(5) + TurnSpeed(0) = 5
 	// Expected ratio: 11/5 = 2.2:1
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("Fast", 5, 5, 5, 6, 0));
 
-	TArray<AActor*> Team2;
+	TArray<AActor *> Team2;
 	Team2.Add(CreateTestCharacter("Slow", 5, 5, 5, 0, 0));
 
 	// Debug: Verify speeds were set correctly
-	UCharacterDataComponent* FastComp = Team1[0]->FindComponentByClass<UCharacterDataComponent>();
-	UCharacterDataComponent* SlowComp = Team2[0]->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *FastComp = Team1[0]->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *SlowComp = Team2[0]->FindComponentByClass<UCharacterDataComponent>();
 
 	if (FastComp && FastComp->CharacterData)
 	{
 		int32 FastSpeed = FastComp->CharacterData->WorldBodyLevel + FastComp->CharacterData->WorldTurnSpeedPoints;
 		UE_LOG(LogTemp, Display, TEXT("    Fast speed: %d (Body %d + TurnSpeed %d)"),
-			FastSpeed,
-			FastComp->CharacterData->WorldBodyLevel,
-			FastComp->CharacterData->WorldTurnSpeedPoints);
+			   FastSpeed,
+			   FastComp->CharacterData->WorldBodyLevel,
+			   FastComp->CharacterData->WorldTurnSpeedPoints);
 	}
 	else
 	{
@@ -166,9 +166,9 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 	{
 		int32 SlowSpeed = SlowComp->CharacterData->WorldBodyLevel + SlowComp->CharacterData->WorldTurnSpeedPoints;
 		UE_LOG(LogTemp, Display, TEXT("    Slow speed: %d (Body %d + TurnSpeed %d)"),
-			SlowSpeed,
-			SlowComp->CharacterData->WorldBodyLevel,
-			SlowComp->CharacterData->WorldTurnSpeedPoints);
+			   SlowSpeed,
+			   SlowComp->CharacterData->WorldBodyLevel,
+			   SlowComp->CharacterData->WorldTurnSpeedPoints);
 	}
 	else
 	{
@@ -183,7 +183,7 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 	// Simulate 10 turns
 	for (int32 i = 0; i < 10; i++)
 	{
-		AActor* Current = TurnManager->GetCurrentActor();
+		AActor *Current = TurnManager->GetCurrentActor();
 		if (Current)
 		{
 			if (Current->GetName().Contains("Fast"))
@@ -204,7 +204,7 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 
 	PrintTestResult("Speed Ratio", bSuccess);
 	UE_LOG(LogTemp, Display, TEXT("    Fast: %d turns, Slow: %d turns (Ratio: %.2f, Expected: ~2.2)"),
-		FastTurns, SlowTurns, Ratio);
+		   FastTurns, SlowTurns, Ratio);
 
 	TurnManager->EndCombat();
 	CleanupTestActors(Team1);
@@ -215,7 +215,7 @@ void ATurnManagerTestActor::Test_TieBreaking()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Tie-Breaking"));
 
-	UTurnManager* TurnManager = GetTurnManagerSafe();
+	UTurnManager *TurnManager = GetTurnManagerSafe();
 	if (!TurnManager)
 	{
 		PrintTestResult("Tie-Breaking", false);
@@ -223,12 +223,12 @@ void ATurnManagerTestActor::Test_TieBreaking()
 	}
 
 	// All characters have identical stats - tie-breaker cascade must work
-	TArray<AActor*> Team1;
+	TArray<AActor *> Team1;
 	Team1.Add(CreateTestCharacter("P1", 5, 5, 5, 0, 0));
 	Team1.Add(CreateTestCharacter("P2", 5, 5, 5, 0, 0));
 	Team1.Add(CreateTestCharacter("P3", 5, 5, 5, 0, 0));
 
-	TArray<AActor*> Team2;
+	TArray<AActor *> Team2;
 	Team2.Add(CreateTestCharacter("E1", 5, 5, 5, 0, 0));
 	Team2.Add(CreateTestCharacter("E2", 5, 5, 5, 0, 0));
 	Team2.Add(CreateTestCharacter("E3", 5, 5, 5, 0, 0));
@@ -238,7 +238,7 @@ void ATurnManagerTestActor::Test_TieBreaking()
 	bool bSuccess = true;
 	for (int32 i = 0; i < 6; i++)
 	{
-		AActor* Current = TurnManager->GetCurrentActor();
+		AActor *Current = TurnManager->GetCurrentActor();
 		if (!Current)
 		{
 			bSuccess = false;
@@ -259,23 +259,23 @@ void ATurnManagerTestActor::Test_SpeedChanges()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Speed Changes"));
 
-	UTurnManager* TurnManager = GetTurnManagerSafe();
+	UTurnManager *TurnManager = GetTurnManagerSafe();
 	if (!TurnManager)
 	{
 		PrintTestResult("Speed Changes", false);
 		return;
 	}
 
-	TArray<AActor*> Team1;
-	AActor* Char1 = CreateTestCharacter("Char1", 5, 5, 5, 0, 0);
+	TArray<AActor *> Team1;
+	AActor *Char1 = CreateTestCharacter("Char1", 5, 5, 5, 0, 0);
 	Team1.Add(Char1);
 
-	TArray<AActor*> Team2;
+	TArray<AActor *> Team2;
 	Team2.Add(CreateTestCharacter("Char2", 5, 5, 5, 0, 0));
 
 	TurnManager->InitializeCombat(Team1, Team2);
 
-	UCharacterDataComponent* CharComp = Char1->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = Char1->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
 		// Simulate speed buff
@@ -286,7 +286,7 @@ void ATurnManagerTestActor::Test_SpeedChanges()
 		TurnManager->OnActorSpeedChanged(Char1);
 
 		UE_LOG(LogTemp, Display, TEXT("    TurnSpeed changed: %d -> %d"),
-			OldSpeed, CharComp->CharacterData->WorldTurnSpeedPoints);
+			   OldSpeed, CharComp->CharacterData->WorldTurnSpeedPoints);
 		PrintTestResult("Speed Changes", true);
 	}
 	else
@@ -304,23 +304,23 @@ void ATurnManagerTestActor::Test_DeathResurrection()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Death/Resurrection"));
 
-	UTurnManager* TurnManager = GetTurnManagerSafe();
+	UTurnManager *TurnManager = GetTurnManagerSafe();
 	if (!TurnManager)
 	{
 		PrintTestResult("Death/Resurrection", false);
 		return;
 	}
 
-	TArray<AActor*> Team1;
-	AActor* TestChar = CreateTestCharacter("TestChar", 5, 5, 5, 0, 0);
+	TArray<AActor *> Team1;
+	AActor *TestChar = CreateTestCharacter("TestChar", 5, 5, 5, 0, 0);
 	Team1.Add(TestChar);
 
-	TArray<AActor*> Team2;
+	TArray<AActor *> Team2;
 	Team2.Add(CreateTestCharacter("Enemy", 5, 5, 5, 0, 0));
 
 	TurnManager->InitializeCombat(Team1, Team2);
 
-	UCharacterDataComponent* CharComp = TestChar->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = TestChar->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp)
 	{
 		// Kill the character
@@ -329,7 +329,7 @@ void ATurnManagerTestActor::Test_DeathResurrection()
 
 		// Advance turn - dead character should be skipped
 		TurnManager->AdvanceToNextTurn();
-		AActor* Current = TurnManager->GetCurrentActor();
+		AActor *Current = TurnManager->GetCurrentActor();
 		bool bDeadSkipped = (Current != TestChar);
 
 		// Resurrect
@@ -353,17 +353,17 @@ void ATurnManagerTestActor::Test_DeathResurrection()
 // TEST HELPERS
 // ========================================
 
-AActor* ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int32 Body, int32 Spirit,
-	int32 TurnSpeed, int32 AttackSpeed)
+AActor *ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int32 Body, int32 Spirit,
+												   int32 TurnSpeed, int32 AttackSpeed)
 {
-	UWorld* World = GetWorld();
+	UWorld *World = GetWorld();
 	if (!World)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CreateTestCharacter: World is null!"));
 		return nullptr;
 	}
 
-	AActor* Actor = World->SpawnActor<AActor>();
+	AActor *Actor = World->SpawnActor<AActor>();
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CreateTestCharacter: Failed to spawn actor!"));
@@ -378,7 +378,7 @@ AActor* ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	// ============================================================
 
 	// Step 1: Create CharacterData with the Actor as outer
-	UCharacterData* CharData = NewObject<UCharacterData>(Actor);
+	UCharacterData *CharData = NewObject<UCharacterData>(Actor);
 	if (!CharData)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CreateTestCharacter: Failed to create CharacterData!"));
@@ -392,10 +392,10 @@ AActor* ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;
 	CharData->WorldTurnSpeedPoints = TurnSpeed;
-	CharData->WorldAttackSpeedPoints = AttackSpeed;
+	CharData->WorldMovementSpeedPoints = AttackSpeed;
 
 	// Step 3: Create CharacterDataComponent
-	UCharacterDataComponent* CharComp = NewObject<UCharacterDataComponent>(Actor, UCharacterDataComponent::StaticClass());
+	UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(Actor, UCharacterDataComponent::StaticClass());
 	if (!CharComp)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CreateTestCharacter: Failed to create CharacterDataComponent!"));
@@ -414,7 +414,7 @@ AActor* ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	Actor->AddOwnedComponent(CharComp);
 
 	// Verify the data is accessible via FindComponentByClass
-	UCharacterDataComponent* VerifyComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *VerifyComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (!VerifyComp)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CreateTestCharacter: FindComponentByClass failed for %s!"), *Name);
@@ -427,9 +427,9 @@ AActor* ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	return Actor;
 }
 
-void ATurnManagerTestActor::CleanupTestActors(TArray<AActor*>& Actors)
+void ATurnManagerTestActor::CleanupTestActors(TArray<AActor *> &Actors)
 {
-	for (AActor* Actor : Actors)
+	for (AActor *Actor : Actors)
 	{
 		if (Actor && IsValid(Actor))
 		{

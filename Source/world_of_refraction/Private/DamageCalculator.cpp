@@ -11,7 +11,7 @@
 #include "BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
 
-void UDamageCalculator::Initialize(FSubsystemCollectionBase& Collection)
+void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 	UE_LOG(LogTemp, Log, TEXT("[DamageCalculator] Initialized"));
@@ -20,9 +20,9 @@ void UDamageCalculator::Initialize(FSubsystemCollectionBase& Collection)
 // ==================== MAIN CALCULATION ====================
 
 FDamageCalculationResult UDamageCalculator::CalculateDamage(
-	AActor* Attacker,
-	AActor* Defender,
-	const FDamageCalculationInput& Input)
+	AActor *Attacker,
+	AActor *Defender,
+	const FDamageCalculationInput &Input)
 {
 	FDamageCalculationResult Result;
 	Result.EffectiveElement = Input.Element;
@@ -46,7 +46,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	// Step 3: Element interaction (weakness/resistance)
 	if (Input.bIsElemental && Defender)
 	{
-		UCharacterData* DefenderData = GetCharacterData(Defender);
+		UCharacterData *DefenderData = GetCharacterData(Defender);
 		if (DefenderData)
 		{
 			Result.ElementMultiplier = GetElementInteractionMultiplier(Input.Element, DefenderData->InnateElement);
@@ -59,7 +59,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	{
 		float CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
 		Result.bWasCritical = FMath::FRand() < CritChance;
-		
+
 		if (Result.bWasCritical)
 		{
 			Result.CritMultiplier = DamageConstants::CRIT_MULTIPLIER;
@@ -98,9 +98,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 }
 
 FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
-	AActor* Caster,
-	AActor* Target,
-	USpellData* Spell,
+	AActor *Caster,
+	AActor *Target,
+	USpellData *Spell,
 	bool bUseElementalMode,
 	int32 InfusionLevel)
 {
@@ -111,7 +111,7 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 		return Result;
 	}
 
-	UCharacterData* CasterData = GetCharacterData(Caster);
+	UCharacterData *CasterData = GetCharacterData(Caster);
 	if (!CasterData)
 	{
 		return Result;
@@ -147,9 +147,9 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 }
 
 FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
-	AActor* User,
-	AActor* Target,
-	UAbilityData* Ability,
+	AActor *User,
+	AActor *Target,
+	UAbilityData *Ability,
 	bool bIsInfused,
 	int32 PowerInfusionLevel)
 {
@@ -160,7 +160,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 		return Result;
 	}
 
-	UCharacterData* UserData = GetCharacterData(User);
+	UCharacterData *UserData = GetCharacterData(User);
 	if (!UserData)
 	{
 		return Result;
@@ -169,11 +169,11 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	// Build input
 	FDamageCalculationInput Input;
 	Input.BaseDamage = Ability->BaseDamage;
-	
+
 	// Abilities are physical unless infused
 	Input.bIsElemental = bIsInfused;
 	Input.Element = bIsInfused ? UserData->InnateElement : ESpellElement::Generic;
-	
+
 	Input.bCanCrit = true;
 	Input.bWasInfused = bIsInfused || PowerInfusionLevel > 0;
 	Input.InfusionLevel = PowerInfusionLevel;
@@ -199,9 +199,9 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 }
 
 FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
-	AActor* Attacker,
-	AActor* Target,
-	UBaseAttackData* Attack,
+	AActor *Attacker,
+	AActor *Target,
+	UBaseAttackData *Attack,
 	bool bIsInfused)
 {
 	FDamageCalculationResult Result;
@@ -211,7 +211,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 		return Result;
 	}
 
-	UCharacterData* AttackerData = GetCharacterData(Attacker);
+	UCharacterData *AttackerData = GetCharacterData(Attacker);
 	if (!AttackerData)
 	{
 		return Result;
@@ -219,16 +219,16 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 	// Build input
 	FDamageCalculationInput Input;
-	
+
 	// Attacks use base 100 × RawDamageMultiplier (from ActionExecutor pattern)
 	// The RawDamageMultiplier will be applied again in main calculation,
 	// so we just use base 100 here
 	Input.BaseDamage = 100;
-	
+
 	// Attacks are physical unless infused
 	Input.bIsElemental = bIsInfused;
 	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
-	
+
 	Input.bCanCrit = true;
 	Input.bWasInfused = bIsInfused;
 	Input.HitCount = Attack->HitCount;
@@ -247,9 +247,9 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 // ==================== COMPONENT CALCULATIONS ====================
 
-float UDamageCalculator::GetAttackerDamageMultiplier(AActor* Attacker, bool bIsElemental) const
+float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, bool bIsElemental) const
 {
-	UCharacterData* Data = GetCharacterData(Attacker);
+	UCharacterData *Data = GetCharacterData(Attacker);
 	if (!Data)
 	{
 		return 1.0f;
@@ -265,9 +265,9 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor* Attacker, bool bIsE
 	}
 }
 
-int32 UDamageCalculator::GetDefenderFlatDefense(AActor* Defender) const
+int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 {
-	UCharacterData* Data = GetCharacterData(Defender);
+	UCharacterData *Data = GetCharacterData(Defender);
 	if (!Data)
 	{
 		return 0;
@@ -276,12 +276,12 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor* Defender) const
 	int32 BaseDefense = Data->CalculateFlatDefense();
 
 	// Apply status effect modifiers
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseBuff);
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseDebuff);
-		
+
 		// Buffs/debuffs are percentage modifiers
 		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / 100.0f;
 		BaseDefense = FMath::RoundToInt(BaseDefense * FMath::Max(0.0f, Modifier));
@@ -290,32 +290,32 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor* Defender) const
 	return BaseDefense;
 }
 
-float UDamageCalculator::GetDefenderResistance(AActor* Defender) const
+float UDamageCalculator::GetDefenderResistance(AActor *Defender) const
 {
-	UCharacterData* Data = GetCharacterData(Defender);
+	UCharacterData *Data = GetCharacterData(Defender);
 	if (!Data)
 	{
 		return 0.0f;
 	}
 
-	float BaseResistance = Data->CalculateElementalResistance();
+	float BaseResistance = Data->CalculateStatusResistance();
 
 	// Apply status effect modifiers
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		float ResBuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::ResistanceBuff);
 		float ResDebuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::ResistanceDebuff);
-		
+
 		BaseResistance += (ResBuff - ResDebuff) / 100.0f;
 	}
 
 	return FMath::Clamp(BaseResistance, 0.0f, DamageConstants::MAX_RESISTANCE);
 }
 
-float UDamageCalculator::GetCriticalChance(AActor* Attacker) const
+float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 {
-	UCharacterData* Data = GetCharacterData(Attacker);
+	UCharacterData *Data = GetCharacterData(Attacker);
 	if (!Data)
 	{
 		return DamageConstants::BASE_CRIT_CHANCE;
@@ -324,19 +324,19 @@ float UDamageCalculator::GetCriticalChance(AActor* Attacker) const
 	float BaseCrit = Data->CalculateCritChance();
 
 	// Apply status effect modifiers
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
 		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceDebuff);
-		
+
 		BaseCrit += (CritBuff - CritDebuff) / 100.0f;
 	}
 
 	return FMath::Clamp(BaseCrit, 0.0f, DamageConstants::MAX_CRIT_CHANCE);
 }
 
-bool UDamageCalculator::RollCriticalHit(AActor* Attacker, float OverrideChance) const
+bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) const
 {
 	float Chance = OverrideChance >= 0.0f ? OverrideChance : GetCriticalChance(Attacker);
 	return FMath::FRand() < Chance;
@@ -348,7 +348,7 @@ float UDamageCalculator::GetElementInteractionMultiplier(ESpellElement AttackEle
 	{
 		return DamageConstants::WEAKNESS_MULTIPLIER;
 	}
-	
+
 	if (ResistsElement(DefenderElement, AttackElement))
 	{
 		return DamageConstants::RESISTANCE_MULTIPLIER;
@@ -360,8 +360,8 @@ float UDamageCalculator::GetElementInteractionMultiplier(ESpellElement AttackEle
 // ==================== STATUS EFFECT CALCULATIONS ====================
 
 int32 UDamageCalculator::CalculateStatusBuildup(
-	AActor* Attacker,
-	AActor* Target,
+	AActor *Attacker,
+	AActor *Target,
 	int32 BaseBuildup,
 	ESpellElement Element)
 {
@@ -381,9 +381,9 @@ int32 UDamageCalculator::CalculateStatusBuildup(
 	return FMath::RoundToInt(Buildup);
 }
 
-float UDamageCalculator::GetBDStackStatusMultiplier(AActor* Attacker, ESpellElement Element) const
+float UDamageCalculator::GetBDStackStatusMultiplier(AActor *Attacker, ESpellElement Element) const
 {
-	UBrokenDarknessManager* BDManager = GetBrokenDarknessManager(Attacker);
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Attacker);
 	if (!BDManager || !BDManager->IsTransformed())
 	{
 		return 1.0f;
@@ -401,8 +401,8 @@ float UDamageCalculator::GetBDStackStatusMultiplier(AActor* Attacker, ESpellElem
 // ==================== HEALING CALCULATIONS ====================
 
 int32 UDamageCalculator::CalculateHealing(
-	AActor* Healer,
-	AActor* Target,
+	AActor *Healer,
+	AActor *Target,
 	int32 BaseHealing)
 {
 	if (BaseHealing <= 0)
@@ -413,7 +413,7 @@ int32 UDamageCalculator::CalculateHealing(
 	float Healing = static_cast<float>(BaseHealing);
 
 	// Apply healer's Effect Damage multiplier (healing scales with spell power)
-	UCharacterData* HealerData = GetCharacterData(Healer);
+	UCharacterData *HealerData = GetCharacterData(Healer);
 	if (HealerData)
 	{
 		Healing *= HealerData->CalculateEffectDamageMultiplier();
@@ -475,7 +475,7 @@ bool UDamageCalculator::ResistsElement(ESpellElement Defender, ESpellElement Att
 
 // ==================== DEBUG ====================
 
-void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult& Result) const
+void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult &Result) const
 {
 	UE_LOG(LogTemp, Display, TEXT("=== DAMAGE CALCULATION ==="));
 	UE_LOG(LogTemp, Display, TEXT("Damage Before Defense: %d"), Result.DamageBeforeDefense);
@@ -491,23 +491,23 @@ void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult& Re
 
 // ==================== PRIVATE HELPERS ====================
 
-UCharacterData* UDamageCalculator::GetCharacterData(AActor* Actor) const
+UCharacterData *UDamageCalculator::GetCharacterData(AActor *Actor) const
 {
 	if (!Actor)
 	{
 		return nullptr;
 	}
 
-	UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-UStatusEffectManager* UDamageCalculator::GetStatusEffectManager() const
+UStatusEffectManager *UDamageCalculator::GetStatusEffectManager() const
 {
 	if (!CachedStatusManager)
 	{
 		// StatusEffectManager is a GameInstanceSubsystem like DamageCalculator
-		if (UGameInstance* GI = GetGameInstance())
+		if (UGameInstance *GI = GetGameInstance())
 		{
 			CachedStatusManager = GI->GetSubsystem<UStatusEffectManager>();
 		}
@@ -515,7 +515,7 @@ UStatusEffectManager* UDamageCalculator::GetStatusEffectManager() const
 	return CachedStatusManager;
 }
 
-UBrokenDarknessManager* UDamageCalculator::GetBrokenDarknessManager(AActor* Actor) const
+UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Actor) const
 {
 	if (!Actor)
 	{
@@ -524,11 +524,11 @@ UBrokenDarknessManager* UDamageCalculator::GetBrokenDarknessManager(AActor* Acto
 	return Actor->FindComponentByClass<UBrokenDarknessManager>();
 }
 
-float UDamageCalculator::GetStatusEffectDamageModifier(AActor* Attacker, AActor* Defender, bool bIsElemental) const
+float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, bool bIsElemental) const
 {
 	float Modifier = 1.0f;
 
-	UStatusEffectManager* StatusManager = GetStatusEffectManager();
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		return Modifier;

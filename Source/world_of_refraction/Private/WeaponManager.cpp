@@ -754,8 +754,8 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 		// Step 2: Apply resistance (percentage) - elemental damage only
 		if (bIsElemental && FinalDamage > 0)
 		{
-			float Resistance = TargetData->CalculateElementalResistance(); // Returns 0.0-1.0
-			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);			   // Cap at 80%
+			float Resistance = TargetData->CalculateStatusResistance(); // Returns 0.0-1.0
+			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);			// Cap at 80%
 			FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
 		}
 	}
