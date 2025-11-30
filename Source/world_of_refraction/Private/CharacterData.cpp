@@ -6,6 +6,7 @@
 #include "EvolutionData.h"
 #include "StanceData.h"
 #include "WeaponData.h"
+#include "WeaponAttackData.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
@@ -91,6 +92,28 @@ UAnimMontage *UCharacterData::GetCurrentIdleMontage() const
     UStanceData *Stance = GetCurrentStance();
     return Stance ? Stance->IdleAnimMontage : nullptr;
 }
+
+UWeaponAttackData *UCharacterData::GetCurrentAttack() const
+{
+    if (!IsArmed())
+    {
+        return nullptr;
+    }
+
+    if (PrimaryWeapon && PrimaryWeapon->WeaponAttack)
+    {
+        return PrimaryWeapon->WeaponAttack;
+    }
+
+    return nullptr;
+}
+
+UAnimMontage *UCharacterData::GetCurrentAttackMontage() const
+{
+    UBaseAttackData *Attack = GetCurrentAttack();
+    return Attack ? Attack->AttackMontage : nullptr;
+}
+
 // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR

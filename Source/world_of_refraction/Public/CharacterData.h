@@ -580,6 +580,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stance")
 	UStanceData *GetCurrentStance() const;
 
+	/** Get current attack based on weapon state (nullptr if unarmed) */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	UWeaponAttackData *GetCurrentAttack() const;
+
+	/** Get current attack montage based on weapon state */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	UAnimMontage *GetCurrentAttackMontage() const;
+
 	/** Is character currently in armed state? */
 	UFUNCTION(BlueprintPure, Category = "Stance")
 	bool IsArmed() const;
