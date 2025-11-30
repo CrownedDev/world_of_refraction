@@ -13,7 +13,7 @@
 class USpellData;
 class UAbilityData;
 class UItemData;
-class UBaseAttackData;
+class UWeaponAttackData;
 
 /**
  * FAction
@@ -51,7 +51,7 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	/** Attack data (if ActionType == Attack) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UBaseAttackData *AttackData = nullptr;
+	UWeaponAttackData *AttackData = nullptr;
 
 	// ==================== INFUSION OPTIONS ====================
 

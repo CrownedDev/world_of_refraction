@@ -3,7 +3,6 @@
 
 #include "WeaponDataDebug.h"
 #include "WeaponData.h"
-#include "BaseAttackData.h"
 #include "AbilityData.h"
 #include "StanceData.h"
 #include "WeaponAttackData.h"

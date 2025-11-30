@@ -11,7 +11,7 @@
 
 class UWeaponData;
 class UWeaponAttackData;
-class UBaseAttackData;
+class UWeaponAttackData;
 class UAbilityData;
 class UCharacterDataComponent;
 class UCharacterData;
@@ -208,7 +208,7 @@ public:
 	 * Get current attack data (weapon or base attack)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
-	UBaseAttackData *GetActiveAttack(AActor *Actor) const;
+	UWeaponAttackData *GetActiveAttack(AActor *Actor) const;
 
 	/**
 	 * Get abilities available in current weapon state

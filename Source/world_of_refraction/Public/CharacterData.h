@@ -17,7 +17,7 @@
 
 #include "CharacterData.generated.h"
 
-class UBaseAttackData;
+class UWeaponAttackData;
 class UStanceData;
 class UCharacterInfusionDisplayData;
 class UWeaponData;

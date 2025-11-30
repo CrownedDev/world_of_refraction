@@ -6,7 +6,7 @@
 #include "CharacterDataComponent.h"
 #include "SpellData.h"
 #include "AbilityData.h"
-#include "BaseAttackData.h"
+#include "WeaponAttackData.h"
 #include "StatusEffectManager.h"
 #include "BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
@@ -201,7 +201,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	AActor *Attacker,
 	AActor *Target,
-	UBaseAttackData *Attack,
+	UWeaponAttackData *Attack,
 	bool bIsInfused)
 {
 	FDamageCalculationResult Result;

@@ -8,7 +8,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "ItemData.h"
-#include "BaseAttackData.h"
+#include "WeaponAttackData.h"
 #include "ESpellSource.h"
 #include "CombatConstants.h"
 #include "ItemExecutor.h"
@@ -36,7 +36,7 @@ class UStatusEffectManager;
 class USpellData;
 class UAbilityData;
 class UItemData;
-class UBaseAttackData;
+class UWeaponAttackData;
 
 class UItemExecutor;
 class UWeaponManager;
@@ -651,7 +651,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
 {
-	UBaseAttackData *Attack = Action.AttackData;
+	UWeaponAttackData *Attack = Action.AttackData;
 
 	// If no attack specified, try to get from weapon
 	if (!Attack)
@@ -1473,7 +1473,7 @@ FActionResult UActionExecutor::ExecuteItem(
 
 FActionResult UActionExecutor::ExecuteAttack(
 	AActor *Attacker,
-	UBaseAttackData *Attack,
+	UWeaponAttackData *Attack,
 	const TArray<AActor *> &Targets,
 	bool bIsInfused)
 {
@@ -2398,7 +2398,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
 		   Ability ? *Ability->GetName() : TEXT("None"));
 }
 
-void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UBaseAttackData *Attack)
+void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack)
 {
 	// Stub - override in subclass for attack animations
 	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlayAttackAnimation stub - %s attacking with %s"),

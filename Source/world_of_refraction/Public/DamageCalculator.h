@@ -12,7 +12,7 @@
 class UCharacterData;
 class USpellData;
 class UAbilityData;
-class UBaseAttackData;
+class UWeaponAttackData;
 class UStatusEffectManager;
 class UBrokenDarknessManager;
 
@@ -23,20 +23,20 @@ namespace DamageConstants
 {
 	// Critical hits
 	constexpr float CRIT_MULTIPLIER = 1.5f;
-	constexpr float BASE_CRIT_CHANCE = 0.05f;  // 5%
-	constexpr float MAX_CRIT_CHANCE = 0.60f;   // 60%
+	constexpr float BASE_CRIT_CHANCE = 0.05f; // 5%
+	constexpr float MAX_CRIT_CHANCE = 0.60f;  // 60%
 
 	// Defense
-	constexpr float MAX_RESISTANCE = 0.50f;    // 50% cap
-	constexpr int32 MIN_DAMAGE = 1;            // Always deal at least 1 damage
+	constexpr float MAX_RESISTANCE = 0.50f; // 50% cap
+	constexpr int32 MIN_DAMAGE = 1;			// Always deal at least 1 damage
 
 	// Element interactions
-	constexpr float WEAKNESS_MULTIPLIER = 1.5f;   // 50% more damage
+	constexpr float WEAKNESS_MULTIPLIER = 1.5f;	  // 50% more damage
 	constexpr float RESISTANCE_MULTIPLIER = 0.5f; // 50% less damage
 	constexpr float NEUTRAL_MULTIPLIER = 1.0f;
 
 	// Infusion
-	constexpr float ELEMENT_INFUSION_PENALTY = 0.7f;  // 30% damage penalty for casters
+	constexpr float ELEMENT_INFUSION_PENALTY = 0.7f; // 30% damage penalty for casters
 	constexpr float POWER_INFUSION_L1_MULT = 1.3f;
 	constexpr float POWER_INFUSION_L2_MULT = 1.6f;
 }
@@ -158,7 +158,7 @@ class WORLD_OF_REFRACTION_API UDamageCalculator : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 
 	// ==================== MAIN CALCULATION ====================
 
@@ -168,9 +168,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator")
 	FDamageCalculationResult CalculateDamage(
-		AActor* Attacker,
-		AActor* Defender,
-		const FDamageCalculationInput& Input);
+		AActor *Attacker,
+		AActor *Defender,
+		const FDamageCalculationInput &Input);
 
 	/**
 	 * Calculate spell damage
@@ -178,9 +178,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Spell")
 	FDamageCalculationResult CalculateSpellDamage(
-		AActor* Caster,
-		AActor* Target,
-		USpellData* Spell,
+		AActor *Caster,
+		AActor *Target,
+		USpellData *Spell,
 		bool bUseElementalMode = true,
 		int32 InfusionLevel = 0);
 
@@ -190,9 +190,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Ability")
 	FDamageCalculationResult CalculateAbilityDamage(
-		AActor* User,
-		AActor* Target,
-		UAbilityData* Ability,
+		AActor *User,
+		AActor *Target,
+		UAbilityData *Ability,
 		bool bIsInfused = false,
 		int32 PowerInfusionLevel = 0);
 
@@ -202,9 +202,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Attack")
 	FDamageCalculationResult CalculateAttackDamage(
-		AActor* Attacker,
-		AActor* Target,
-		UBaseAttackData* Attack,
+		AActor *Attacker,
+		AActor *Target,
+		UWeaponAttackData *Attack,
 		bool bIsInfused = false);
 
 	// ==================== COMPONENT CALCULATIONS ====================
@@ -214,31 +214,31 @@ public:
 	 * Includes Effect Damage (elemental) or Raw Damage (physical)
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	float GetAttackerDamageMultiplier(AActor* Attacker, bool bIsElemental) const;
+	float GetAttackerDamageMultiplier(AActor *Attacker, bool bIsElemental) const;
 
 	/**
 	 * Get defender's flat defense value
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	int32 GetDefenderFlatDefense(AActor* Defender) const;
+	int32 GetDefenderFlatDefense(AActor *Defender) const;
 
 	/**
 	 * Get defender's elemental resistance
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	float GetDefenderResistance(AActor* Defender) const;
+	float GetDefenderResistance(AActor *Defender) const;
 
 	/**
 	 * Get critical hit chance for attacker
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	float GetCriticalChance(AActor* Attacker) const;
+	float GetCriticalChance(AActor *Attacker) const;
 
 	/**
 	 * Roll for critical hit
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Components")
-	bool RollCriticalHit(AActor* Attacker, float OverrideChance = -1.0f) const;
+	bool RollCriticalHit(AActor *Attacker, float OverrideChance = -1.0f) const;
 
 	/**
 	 * Get element interaction multiplier
@@ -255,8 +255,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Status")
 	int32 CalculateStatusBuildup(
-		AActor* Attacker,
-		AActor* Target,
+		AActor *Attacker,
+		AActor *Target,
 		int32 BaseBuildup,
 		ESpellElement Element);
 
@@ -265,7 +265,7 @@ public:
 	 * Returns 1.0 if not BD or element doesn't match
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Status")
-	float GetBDStackStatusMultiplier(AActor* Attacker, ESpellElement Element) const;
+	float GetBDStackStatusMultiplier(AActor *Attacker, ESpellElement Element) const;
 
 	// ==================== HEALING CALCULATIONS ====================
 
@@ -274,8 +274,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Healing")
 	int32 CalculateHealing(
-		AActor* Healer,
-		AActor* Target,
+		AActor *Healer,
+		AActor *Target,
 		int32 BaseHealing);
 
 	// ==================== UTILITY ====================
@@ -313,22 +313,22 @@ public:
 	// ==================== DEBUG ====================
 
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug", CallInEditor)
-	void DebugPrintCalculation(const FDamageCalculationResult& Result) const;
+	void DebugPrintCalculation(const FDamageCalculationResult &Result) const;
 
 private:
 	/** Get CharacterData from actor */
-	UCharacterData* GetCharacterData(AActor* Actor) const;
+	UCharacterData *GetCharacterData(AActor *Actor) const;
 
 	/** Get StatusEffectManager */
-	UStatusEffectManager* GetStatusEffectManager() const;
+	UStatusEffectManager *GetStatusEffectManager() const;
 
 	/** Get BrokenDarknessManager from actor */
-	UBrokenDarknessManager* GetBrokenDarknessManager(AActor* Actor) const;
+	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
 
 	/** Apply status effect modifiers to damage */
-	float GetStatusEffectDamageModifier(AActor* Attacker, AActor* Defender, bool bIsElemental) const;
+	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, bool bIsElemental) const;
 
 	/** Cached reference */
 	UPROPERTY()
-	mutable UStatusEffectManager* CachedStatusManager = nullptr;
+	mutable UStatusEffectManager *CachedStatusManager = nullptr;
 };

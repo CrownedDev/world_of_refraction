@@ -5,7 +5,7 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "ActionStructs.h"
-#include "BaseAttackData.h"
+#include "WeaponAttackData.h"
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "StatusEffectManager.h"
@@ -427,8 +427,8 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Bolt)"));
 
 	// Load the attack data asset
-	UBaseAttackData *BoltAttack = LoadObject<UBaseAttackData>(nullptr,
-															  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+	UWeaponAttackData *BoltAttack = LoadObject<UWeaponAttackData>(nullptr,
+																  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
 
 	if (!BoltAttack)
 	{
@@ -995,8 +995,8 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Multi-Target Action (Attack 3 targets)"));
 
 	// Load attack data
-	UBaseAttackData *Attack = LoadObject<UBaseAttackData>(nullptr,
-														  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
+															  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
 
 	if (!Attack)
 	{

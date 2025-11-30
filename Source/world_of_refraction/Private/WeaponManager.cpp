@@ -3,7 +3,6 @@
 #include "WeaponManager.h"
 #include "WeaponData.h"
 #include "WeaponAttackData.h"
-#include "BaseAttackData.h"
 #include "AbilityData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
@@ -85,7 +84,7 @@ UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 	return GetWeaponInSlot(Actor, State->ActiveSlot);
 }
 
-UBaseAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
+UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 {
 	const FWeaponState *State = WeaponStates.Find(Actor);
 	if (!State)
@@ -396,7 +395,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, 
 		return Result;
 	}
 
-	UBaseAttackData *Attack = GetActiveAttack(Attacker);
+	UWeaponAttackData *Attack = GetActiveAttack(Attacker);
 	if (!Attack)
 	{
 		Result.bSuccess = false;
@@ -878,7 +877,7 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor *Actor) const
 		UE_LOG(LogTemp, Display, TEXT("Active Weapon: Unarmed"));
 	}
 
-	UBaseAttackData *Attack = GetActiveAttack(Actor);
+	UWeaponAttackData *Attack = GetActiveAttack(Actor);
 	if (Attack)
 	{
 		UE_LOG(LogTemp, Display, TEXT("Active Attack: %s"), *Attack->AttackName);

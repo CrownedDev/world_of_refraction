@@ -110,7 +110,7 @@ UWeaponAttackData *UCharacterData::GetCurrentAttack() const
 
 UAnimMontage *UCharacterData::GetCurrentAttackMontage() const
 {
-    UBaseAttackData *Attack = GetCurrentAttack();
+    UWeaponAttackData *Attack = GetCurrentAttack();
     return Attack ? Attack->AttackMontage : nullptr;
 }
 

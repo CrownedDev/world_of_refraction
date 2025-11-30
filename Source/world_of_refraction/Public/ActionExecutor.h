@@ -26,7 +26,7 @@ class UStatusEffectManager;
 class USpellData;
 class UAbilityData;
 class UItemData;
-class UBaseAttackData;
+class UWeaponAttackData;
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;
@@ -219,7 +219,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteAttack(
 		AActor *Attacker,
-		UBaseAttackData *Attack,
+		UWeaponAttackData *Attack,
 		const TArray<AActor *> &Targets,
 		bool bIsInfused = false);
 
@@ -350,7 +350,7 @@ public:
 	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability);
 
 	/** Called when attack animation should play */
-	virtual void PlayAttackAnimation(AActor *Attacker, UBaseAttackData *Attack);
+	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack);
 
 	// ========================================
 	// DEBUG
