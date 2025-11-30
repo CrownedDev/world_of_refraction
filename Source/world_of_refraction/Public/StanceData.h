@@ -30,6 +30,7 @@ public:
 
     // ==================== ANIMATION ====================
 
+    /** Idle animation montage (legacy - for manual playback) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *IdleAnimMontage = nullptr;
 
