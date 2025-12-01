@@ -115,17 +115,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
     bool bAbilitiesLocked = false;
 
-    // ==================== INFUSION (GENERIC ONLY) ====================
-
-    // Can Generic characters infuse this weapon with abilities?
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
-    bool bCanBeInfused = true;
-
-    // Status buildup multiplier when abilities are infused (higher = faster status)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",
-              meta = (EditCondition = "bCanBeInfused", ClampMin = "0.0", ClampMax = "2.0"))
-    float InfusionStatusMultiplier = 1.0f;
-
     // ==================== WORLD STAT REQUIREMENTS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
@@ -172,6 +161,13 @@ public:
     // Infusion visual effect for this weapon
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
     UWeaponInfusionDisplayData *InfusionDisplay = nullptr;
+
+    // ==================== INFUSION (GENERIC ONLY) ====================
+
+    // Status buildup multiplier when abilities are infused (higher = faster status)
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",
+              meta = (EditCondition = "bCanBeInfused", ClampMin = "0.0", ClampMax = "2.0"))
+    float InfusionStatusMultiplier = 1.0f;
 
     // ==================== MESH ====================
 

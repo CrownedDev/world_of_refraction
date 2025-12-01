@@ -83,6 +83,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Infusion VFX")
     void RefreshVFX();
 
+    /** Cache available sources from character data */
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void CacheAvailableSources();
+
+    /** Cycle to next available source (logs current) */
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void CycleToNextSource();
+
+    /** Activate infusion with current source index */
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void ActivateCurrentSource();
+
+    /** Get display name of current source */
+    UFUNCTION(BlueprintPure, Category = "Debug")
+    FString GetCurrentSourceName() const;
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
@@ -93,6 +109,10 @@ public:
 
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
     void DebugDeactivate();
+
+    /** Toggle infusion on/off */
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void ToggleInfusion();
 
 protected:
     // ==================== CACHED REFERENCES ====================
@@ -119,6 +139,12 @@ protected:
 
     UPROPERTY()
     bool bIsInfusionActive = false;
+
+    UPROPERTY()
+    TArray<EInfusionSourceOption> CachedSources;
+
+    UPROPERTY()
+    int32 CurrentSourceIndex = 0;
 
     // ==================== INTERNAL ====================
 

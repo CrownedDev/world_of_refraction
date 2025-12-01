@@ -13,6 +13,7 @@
 #include "GameFramework/Character.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameInstance.h"
+#include "ActionExecutor.h"
 
 UInfusionVFXComponent::UInfusionVFXComponent()
 {
@@ -373,4 +374,119 @@ void UInfusionVFXComponent::DebugDeactivate()
 {
     DeactivateInfusion();
     UE_LOG(LogTemp, Display, TEXT("[InfusionVFX Debug] Deactivated"));
+}
+
+// ==================== SOURCE CYCLING ====================
+
+void UInfusionVFXComponent::CacheAvailableSources()
+{
+    CachedSources.Empty();
+    CurrentSourceIndex = 0;
+
+    AActor *Owner = GetOwner();
+    if (!Owner)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No owner"));
+        return;
+    }
+
+    UGameInstance *GI = Cast<UGameInstance>(UGameplayStatics::GetGameInstance(this));
+    if (!GI)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No GameInstance"));
+        return;
+    }
+
+    UActionExecutor *Executor = GI->GetSubsystem<UActionExecutor>();
+    if (!Executor)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No ActionExecutor"));
+        return;
+    }
+
+    CachedSources = Executor->GetAvailableInfusionSources(Owner);
+
+    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
+}
+
+void UInfusionVFXComponent::CycleToNextSource()
+{
+    if (CachedSources.Num() == 0)
+    {
+        CacheAvailableSources();
+    }
+
+    if (CachedSources.Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No sources available"));
+        return;
+    }
+
+    CurrentSourceIndex = (CurrentSourceIndex + 1) % CachedSources.Num();
+
+    EInfusionSourceOption Source = CachedSources[CurrentSourceIndex];
+    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cycled to: [%d/%d] %s"),
+           CurrentSourceIndex + 1,
+           CachedSources.Num(),
+           *GetCurrentSourceName());
+}
+
+void UInfusionVFXComponent::ActivateCurrentSource()
+{
+    if (CachedSources.Num() == 0)
+    {
+        CacheAvailableSources();
+    }
+
+    if (!CachedSources.IsValidIndex(CurrentSourceIndex))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] Invalid source index"));
+        return;
+    }
+
+    EInfusionSourceOption Source = CachedSources[CurrentSourceIndex];
+    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Activating: %s"), *GetCurrentSourceName());
+
+    ActivateInfusion(Source);
+}
+
+FString UInfusionVFXComponent::GetCurrentSourceName() const
+{
+    if (!CachedSources.IsValidIndex(CurrentSourceIndex))
+    {
+        return TEXT("None");
+    }
+
+    EInfusionSourceOption Source = CachedSources[CurrentSourceIndex];
+
+    switch (Source)
+    {
+    case EInfusionSourceOption::None:
+        return TEXT("Physical");
+    case EInfusionSourceOption::Innate:
+        return TEXT("Innate");
+    case EInfusionSourceOption::ActiveRing:
+        return TEXT("Active Ring");
+    case EInfusionSourceOption::SecondaryRing:
+        return TEXT("Secondary Ring");
+    case EInfusionSourceOption::WeaponCrystal:
+        return TEXT("Weapon Crystal");
+    case EInfusionSourceOption::Evolution:
+        return TEXT("Evolution");
+    default:
+        return TEXT("Unknown");
+    }
+}
+
+void UInfusionVFXComponent::ToggleInfusion()
+{
+    if (bIsInfusionActive)
+    {
+        DeactivateInfusion();
+        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Toggled OFF"));
+    }
+    else
+    {
+        ActivateCurrentSource();
+    }
 }

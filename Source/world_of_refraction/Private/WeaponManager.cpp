@@ -328,7 +328,7 @@ bool UWeaponManager::CanUseInfusion(AActor *Actor) const
 	}
 
 	// Weapon must support infusion
-	return Weapon->bCanBeInfused;
+	return true;  // All weapons can be infused //return Weapon->bCanBeInfused;
 }
 
 // ========================================
