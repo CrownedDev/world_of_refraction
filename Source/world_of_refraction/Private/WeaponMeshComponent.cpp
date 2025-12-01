@@ -81,7 +81,7 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
 
     ClearWeaponMesh();
 
-    if (ActiveWeapon && ActiveWeapon->WeaponMesh)
+    if (ActiveWeapon && (ActiveWeapon->WeaponStaticMesh || ActiveWeapon->WeaponSkeletalMesh))
     {
         if (ActiveWeapon->WeaponType == EWeaponType::DualBlades)
         {
@@ -118,6 +118,8 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
             FAttachmentTransformRules::SnapToTargetNotIncludingScale,
             RightHandSocket);
 
+        PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+
         UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned skeletal mesh '%s' at socket '%s'"),
                *Weapon->WeaponName, *RightHandSocket.ToString());
     }
@@ -130,6 +132,9 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
             OwnerMesh,
             FAttachmentTransformRules::SnapToTargetNotIncludingScale,
             RightHandSocket);
+
+        // Apply rotation offset
+        PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
 
         UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned static mesh '%s' at socket '%s'"),
                *Weapon->WeaponName, *RightHandSocket.ToString());
@@ -155,6 +160,8 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
             OwnerMesh,
             FAttachmentTransformRules::SnapToTargetNotIncludingScale,
             RightHandSocket);
+
+        PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
 
         // Left hand
         SecondarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());

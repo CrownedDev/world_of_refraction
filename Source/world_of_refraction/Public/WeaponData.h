@@ -210,6 +210,9 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasInfusionDisplay() const { return InfusionDisplay != nullptr; }
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    FRotator MeshRotation = FRotator::ZeroRotator;
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
