@@ -594,6 +594,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stance")
 	bool IsArmed() const;
 
+	/** Check if secondary slot is a ring (Generic only) */
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	bool HasRingInSecondary() const
+	{
+		return IsGeneric() &&
+			   SecondarySlotType == ESecondarySlotType::Ring &&
+			   SecondaryRing != nullptr &&
+			   !IsEvolved();
+	}
+
 private:
 	/** Character's active weapon based on bUsePrimary - external systems use WeaponManager */
 	UWeaponData *GetActiveCharacterWeapon() const;

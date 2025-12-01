@@ -29,6 +29,8 @@
 #include "SpellProjectile.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "EInfusionSourceOption.h"
+#include "RingData.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -2538,8 +2540,148 @@ EInfusionSource UActionExecutor::GetInfusionSource(AActor *Actor) const
 		}
 	}
 
+	// 4. Generic with secondary ring
+	if (Data->IsGeneric() && Data->HasRingInSecondary())
+	{
+		return EInfusionSource::Ring;
+	}
+
 	// 4. No element source
 	return EInfusionSource::None;
+}
+TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActor *Actor) const
+{
+	TArray<EInfusionSourceOption> Sources;
+	Sources.Add(EInfusionSourceOption::None); // Always available
+
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+	{
+		return Sources;
+	}
+
+	// Innate (Caster only)
+	if (Data->IsCaster())
+	{
+		Sources.Add(EInfusionSourceOption::Innate);
+	}
+
+	// Active Ring (Resonator only)
+	if (Data->IsResonator())
+	{
+		URingManager *RM = GetRingManager();
+		if (RM && RM->GetActiveRing(Actor) != nullptr)
+		{
+			Sources.Add(EInfusionSourceOption::ActiveRing);
+		}
+	}
+
+	// Secondary Ring (Generic only)
+	if (Data->IsGeneric() && Data->HasRingInSecondary())
+	{
+		Sources.Add(EInfusionSourceOption::SecondaryRing);
+	}
+
+	// Weapon Crystal (any class, if non-Ilodite)
+	if (!HasIoliteEquipped(Actor) && GetInfusionSource(Actor) == EInfusionSource::Crystal)
+	{
+		Sources.Add(EInfusionSourceOption::WeaponCrystal);
+	}
+
+	// Evolution (any class, if evolved)
+	if (Data->IsEvolved())
+	{
+		Sources.Add(EInfusionSourceOption::Evolution);
+	}
+
+	return Sources;
+}
+
+EInfusionSource UActionExecutor::MapSourceOptionToSource(EInfusionSourceOption Option) const
+{
+	switch (Option)
+	{
+	case EInfusionSourceOption::None:
+		return EInfusionSource::None;
+	case EInfusionSourceOption::Innate:
+		return EInfusionSource::Innate;
+	case EInfusionSourceOption::ActiveRing:
+	case EInfusionSourceOption::SecondaryRing:
+		return EInfusionSource::Ring;
+	case EInfusionSourceOption::WeaponCrystal:
+		return EInfusionSource::Crystal;
+	case EInfusionSourceOption::Evolution:
+		return EInfusionSource::Evolution;
+	default:
+		return EInfusionSource::None;
+	}
+}
+
+EInfusionType UActionExecutor::MapSourceOptionToType(EInfusionSourceOption Option) const
+{
+	if (Option == EInfusionSourceOption::None)
+	{
+		return EInfusionType::Physical;
+	}
+	return EInfusionType::Element;
+}
+
+ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const
+{
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+	{
+		return ESpellElement::Generic;
+	}
+
+	switch (Option)
+	{
+	case EInfusionSourceOption::None:
+		return ESpellElement::Generic;
+
+	case EInfusionSourceOption::Innate:
+		return Data->InnateElement;
+
+	case EInfusionSourceOption::ActiveRing:
+	{
+		URingManager *RM = GetRingManager();
+		return RM ? RM->GetActiveElement(Actor) : ESpellElement::Generic;
+	}
+
+	case EInfusionSourceOption::SecondaryRing:
+	{
+		if (Data->IsGeneric() && Data->SecondaryRing)
+		{
+			return Data->SecondaryRing->Element;
+		}
+		return ESpellElement::Generic;
+	}
+
+	case EInfusionSourceOption::WeaponCrystal:
+	{
+		UWeaponManager *WM = GetWeaponManager();
+		if (WM)
+		{
+			UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+			if (Weapon)
+			{
+				return Weapon->GetWeaponElement();
+			}
+		}
+		return ESpellElement::Generic;
+	}
+
+	case EInfusionSourceOption::Evolution:
+		return Data->GetSecondaryElement();
+
+	default:
+		return ESpellElement::Generic;
+	}
+}
+
+bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
+{
+	return Option == EInfusionSourceOption::None;
 }
 
 EInfusionSource UActionExecutor::GetSpellSource(AActor *Actor, USpellData *Spell) const

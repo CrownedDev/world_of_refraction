@@ -18,6 +18,7 @@
 #include "SpellProjectile.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "EInfusionSourceOption.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -181,6 +182,26 @@ public:
 	/** Get energy cost multiplier for spell size infusion */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	static float GetSpellSizeEnergyCostMultiplier(int32 SpellSizeInfusionLevel);
+
+	/** Get available infusion sources for character based on class and loadout */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	TArray<EInfusionSourceOption> GetAvailableInfusionSources(AActor *Actor) const;
+
+	/** Map source option to infusion source (for L2 cost determination) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	EInfusionSource MapSourceOptionToSource(EInfusionSourceOption Option) const;
+
+	/** Map source option to infusion type (Physical or Element) */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	EInfusionType MapSourceOptionToType(EInfusionSourceOption Option) const;
+
+	/** Get element for selected source option */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	ESpellElement GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const;
+
+	/** Check if weapon stats apply for this source */
+	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
+	bool DoWeaponStatsApply(EInfusionSourceOption Option) const;
 
 	// ========================================
 	// EXECUTION - SPECIFIC ACTIONS

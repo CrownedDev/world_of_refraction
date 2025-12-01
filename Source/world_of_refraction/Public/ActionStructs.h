@@ -8,6 +8,7 @@
 #include "EInfusionType.h"
 #include "EInfusionSource.h"
 #include "ESpellSource.h"
+#include "EInfusionSourceOption.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -63,6 +64,10 @@ struct WORLD_OF_REFRACTION_API FAction
 	 *  Set by hold-to-charge input system */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
 	int32 InfusionLevel = 0;
+
+	/** Selected infusion source - determines element and weapon stat trade-off */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
+	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 
 	/** Spell size infusion level (0 = none, 1 = 1.5x size, 2 = 2.0x size + damage)
 	 *  Separate from ability/attack infusion - applies to spells only */
@@ -236,6 +241,14 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	/** Which infusion type was used */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
 	EInfusionType InfusionTypeUsed = EInfusionType::None;
+
+	/** Which source option was selected */
+	UPROPERTY(BlueprintReadOnly, Category = "Result|Infusion")
+	EInfusionSourceOption SourceOptionUsed = EInfusionSourceOption::None;
+
+	/** Whether weapon stats were applied */
+	UPROPERTY(BlueprintReadOnly, Category = "Result|Infusion")
+	bool bWeaponStatsApplied = false;
 
 	/** What charge level was used (1 or 2) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
