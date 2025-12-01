@@ -198,6 +198,31 @@ int32 UCharacterDataComponent::CalculateMaxEP() const
     return 100;
 }
 
+UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
+{
+    if (!CharacterData)
+    {
+        return nullptr;
+    }
+
+    // Generic uses bUsePrimary to determine active weapon
+    if (CharacterData->IsGeneric())
+    {
+        if (CharacterData->bUsePrimary)
+        {
+            return CharacterData->PrimaryWeapon;
+        }
+        else if (CharacterData->SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return CharacterData->SecondaryWeapon;
+        }
+        return nullptr;
+    }
+
+    // Caster/Resonator: only primary when armed
+    return CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : nullptr;
+}
+
 void UCharacterDataComponent::DebugToggleWeapon()
 {
     if (!CharacterData)

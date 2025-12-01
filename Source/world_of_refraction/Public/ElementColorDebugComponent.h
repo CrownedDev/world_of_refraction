@@ -16,12 +16,12 @@ class UMaterialInstanceDynamic;
 
 /**
  * Debug component that colors a character's mesh based on their element
- * 
+ *
  * Usage:
  * 1. Add to any actor with a mesh and CharacterDataComponent
  * 2. Optionally assign MeshComponent directly, or it auto-finds
  * 3. Call ApplyElementColor() or let BeginPlay handle it
- * 
+ *
  * For BD characters, call UpdateAbsorptionColor() when they absorb
  */
 UCLASS(ClassGroup = (Debug), meta = (BlueprintSpawnableComponent))
@@ -48,7 +48,7 @@ public:
 
     /** Optional: Directly assign mesh (auto-finds if null) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug|Config")
-    UMeshComponent* TargetMesh;
+    UMeshComponent *TargetMesh;
 
     // ==================== FUNCTIONS ====================
 
@@ -74,16 +74,16 @@ protected:
 private:
     /** Cached dynamic material instance */
     UPROPERTY()
-    UMaterialInstanceDynamic* DynamicMaterial;
+    UMaterialInstanceDynamic *DynamicMaterial;
 
     /** Current applied color */
     FLinearColor CurrentColor;
 
     /** Find mesh component on owner */
-    UMeshComponent* FindMeshComponent() const;
+    UMeshComponent *FindMeshComponent() const;
 
     /** Create or get dynamic material instance */
-    UMaterialInstanceDynamic* GetOrCreateDynamicMaterial();
+    UMaterialInstanceDynamic *GetOrCreateDynamicMaterial();
 
     /** Apply color to material */
     void ApplyColorToMaterial(FLinearColor Color);

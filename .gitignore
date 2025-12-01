@@ -11,8 +11,9 @@ Build/
 DerivedDataCache/
 Intermediate/
 Saved/
-Content/Animation
-Content/Big_Pack_Magic_VFX/
+Content/Paragon/
+Content/Imports/
 
 !Build/BatchFiles/
 !Build/Scripts/
+

@@ -121,6 +121,12 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
     FOnResurrected OnResurrected;
 
+    // ==================== EQUIPMENT ACCESS ====================
+
+    /** Get currently active weapon (for visual systems like mesh, VFX) */
+    UFUNCTION(BlueprintPure, Category = "Equipment")
+    UWeaponData *GetActiveWeapon() const;
+
     // ========================================
     // Weapon Debugging Functions
     // ========================================

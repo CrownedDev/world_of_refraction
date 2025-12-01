@@ -166,7 +166,10 @@ public:
     // ==================== MESH ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
-    USkeletalMesh *WeaponMesh = nullptr;
+    UStaticMesh *WeaponStaticMesh = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    USkeletalMesh *WeaponSkeletalMesh = nullptr;
 
     // ==================== PRESENTATION ====================
 
