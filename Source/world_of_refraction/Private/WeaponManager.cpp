@@ -77,11 +77,46 @@ FWeaponState UWeaponManager::GetWeaponState(AActor *Actor) const
 
 UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 {
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
+	UCharacterData *Data = GetCharacterData(Actor);
+	if (!Data)
+	{
 		return nullptr;
+	}
 
-	return GetWeaponInSlot(Actor, State->ActiveSlot);
+	// Evolved Casters lose weapon access
+	if (Data->IsCaster() && Data->IsEvolved())
+	{
+		return nullptr;
+	}
+
+	// Evolved Resonators lose weapon access
+	if (Data->IsResonator() && Data->IsEvolved())
+	{
+		return nullptr;
+	}
+
+	// Casters with ring primary have no weapon
+	if (Data->IsCaster() && Data->PrimarySlotType == EPrimarySlotType::Ring)
+	{
+		return nullptr;
+	}
+
+	// Generic uses bUsePrimary
+	if (Data->IsGeneric() && !Data->IsEvolved())
+	{
+		if (Data->bUsePrimary)
+		{
+			return Data->PrimaryWeapon;
+		}
+		else if (Data->SecondarySlotType == ESecondarySlotType::Weapon)
+		{
+			return Data->SecondaryWeapon;
+		}
+		return nullptr;
+	}
+
+	// Default
+	return Data->bUsePrimary ? Data->PrimaryWeapon : nullptr;
 }
 
 UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const

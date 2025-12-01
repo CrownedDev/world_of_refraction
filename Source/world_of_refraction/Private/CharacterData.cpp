@@ -6,6 +6,7 @@
 #include "EvolutionData.h"
 #include "StanceData.h"
 #include "WeaponData.h"
+#include "EWeaponSlotType.h"
 #include "WeaponAttackData.h"
 
 // Implementation is mostly in header (inline functions)
@@ -76,14 +77,13 @@ UStanceData *UCharacterData::GetCurrentStance() const
 {
     if (IsArmed())
     {
-        // Armed - use weapon stance
-        if (PrimaryWeapon && PrimaryWeapon->WeaponStance)
+        UWeaponData *ActiveWeapon = GetActiveCharacterWeapon();
+        if (ActiveWeapon && ActiveWeapon->WeaponStance)
         {
-            return PrimaryWeapon->WeaponStance;
+            return ActiveWeapon->WeaponStance;
         }
     }
 
-    // Unarmed or no weapon stance - use character stance
     return UnarmedStance;
 }
 
@@ -93,6 +93,43 @@ UAnimMontage *UCharacterData::GetCurrentIdleMontage() const
     return Stance ? Stance->IdleAnimMontage : nullptr;
 }
 
+UWeaponData *UCharacterData::GetActiveWeapon() const
+{
+    // Evolved Casters have no weapon access
+    if (IsCaster() && IsEvolved())
+    {
+        return nullptr;
+    }
+
+    // Evolved Resonators have no weapon access
+    if (IsResonator() && IsEvolved())
+    {
+        return nullptr;
+    }
+
+    // Casters with ring primary have no weapon
+    if (IsCaster() && PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        return nullptr;
+    }
+
+    // Generic uses bUsePrimary to determine active weapon
+    if (IsGeneric() && !IsEvolved())
+    {
+        if (bUsePrimary)
+        {
+            return PrimaryWeapon;
+        }
+        else if (SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return SecondaryWeapon;
+        }
+    }
+
+    // Default to primary weapon
+    return PrimaryWeapon;
+}
+
 UWeaponAttackData *UCharacterData::GetCurrentAttack() const
 {
     if (!IsArmed())
@@ -100,9 +137,10 @@ UWeaponAttackData *UCharacterData::GetCurrentAttack() const
         return nullptr;
     }
 
-    if (PrimaryWeapon && PrimaryWeapon->WeaponAttack)
+    UWeaponData *ActiveWeapon = GetActiveCharacterWeapon();
+    if (ActiveWeapon && ActiveWeapon->WeaponAttack)
     {
-        return PrimaryWeapon->WeaponAttack;
+        return ActiveWeapon->WeaponAttack;
     }
 
     return nullptr;
@@ -112,6 +150,26 @@ UAnimMontage *UCharacterData::GetCurrentAttackMontage() const
 {
     UWeaponAttackData *Attack = GetCurrentAttack();
     return Attack ? Attack->AttackMontage : nullptr;
+}
+
+UWeaponData *UCharacterData::GetActiveCharacterWeapon() const
+{
+    // Generic uses bUsePrimary to determine active weapon
+    if (IsGeneric())
+    {
+        if (bUsePrimary)
+        {
+            return PrimaryWeapon;
+        }
+        else if (SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return SecondaryWeapon;
+        }
+        return nullptr;
+    }
+
+    // Caster/Resonator: only primary when armed
+    return bUsePrimary ? PrimaryWeapon : nullptr;
 }
 
 // ==================== EDITOR VALIDATION ====================

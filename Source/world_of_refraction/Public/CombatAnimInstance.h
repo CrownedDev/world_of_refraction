@@ -42,6 +42,22 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ResumeStanceMontage();
 
+    // ==================== ATTACK MONTAGE ====================
+
+    /** Play an attack montage, auto-resumes stance when done */
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void PlayAttackMontage(UAnimMontage *AttackMontage);
+
+    /** Check if currently playing an attack */
+    UFUNCTION(BlueprintPure, Category = "Combat")
+    bool IsPlayingAttack() const { return bIsPlayingAttack; }
+
+    // ==================== DEBUG ====================
+
+    /** Debug: Play attack from current weapon */
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
+    void DebugPlayCurrentAttack();
+
 protected:
     virtual void NativeInitializeAnimation() override;
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
@@ -58,4 +74,15 @@ private:
     /** Last stance we applied (to detect changes) */
     UPROPERTY()
     UStanceData *LastAppliedStance = nullptr;
+
+    /** Called when attack montage ends */
+    UFUNCTION()
+    void OnAttackMontageEnded(UAnimMontage *Montage, bool bInterrupted);
+
+    /** Currently playing an attack (blocks stance updates) */
+    bool bIsPlayingAttack = false;
+
+    /** The attack montage currently playing */
+    UPROPERTY()
+    UAnimMontage *CurrentAttackMontage = nullptr;
 };

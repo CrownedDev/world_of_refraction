@@ -150,27 +150,23 @@ public:
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
 	TArray<URingData *> EquippedRings;
 
-	// ==================== STANCE/INFUSION ====================
+	// ==================== STANCE ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
 	UStanceData *UnarmedStance = nullptr;
 
-	// In CharacterData.h - Infusion Visuals section
+	// ==================== INFUSION ====================
+
+	// Charge level animations (play when reaching L1/L2)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
 	UAnimMontage *InfusionL1Animation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
 	UAnimMontage *InfusionL2Animation;
 
-	// Optional: different animations per infusion type
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
-	UAnimMontage *PhysicalInfusionAnimation; // Power infusion
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
-	UAnimMontage *ElementalInfusionAnimation; // Element infusion
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Infusion")
-	UCharacterInfusionDisplayData *InfusionDisplay = nullptr;
+	// Character body/aura VFX (tinted by active element at runtime)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Display")
+	UCharacterInfusionDisplayData *InfusionDisplay;
 
 	// ==================== STAT BUDGET ====================
 
@@ -570,6 +566,12 @@ public:
 		return FMath::RoundToInt(CombatConstants::MAX_ENERGY_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_ENERGY_PER_POINT));
 	}
 
+	// ==================== EQUIPMENT HELPERS ====================
+
+	/** Get currently active weapon based on bUsePrimary and class */
+	UFUNCTION(BlueprintPure, Category = "Equipment")
+	UWeaponData *GetActiveWeapon() const;
+
 	// ==================== STANCE HELPERS ====================
 
 	/** Get current idle montage based on current weapon state */
@@ -591,6 +593,10 @@ public:
 	/** Is character currently in armed state? */
 	UFUNCTION(BlueprintPure, Category = "Stance")
 	bool IsArmed() const;
+
+private:
+	/** Character's active weapon based on bUsePrimary - external systems use WeaponManager */
+	UWeaponData *GetActiveCharacterWeapon() const;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
