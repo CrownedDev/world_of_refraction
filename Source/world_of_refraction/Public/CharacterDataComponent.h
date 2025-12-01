@@ -13,8 +13,8 @@
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, int32, CurrentHP, int32, MaxHP);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEPChanged, int32, CurrentEP, int32, MaxEP);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDied, AActor*, DeadActor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResurrected, AActor*, ResurrectedActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDied, AActor *, DeadActor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResurrected, AActor *, ResurrectedActor);
 
 /**
  * CharacterDataComponent
@@ -31,7 +31,7 @@ public:
     UCharacterDataComponent();
 
     virtual void BeginPlay() override;
-    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
 
     // ========================================
     // CHARACTER TEMPLATE
@@ -39,7 +39,7 @@ public:
 
     /** Reference to character template (set in editor/BP) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Character")
-    UCharacterData* CharacterData;
+    UCharacterData *CharacterData;
 
     // ========================================
     // RUNTIME STATE (REPLICATED)
@@ -120,6 +120,18 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
     FOnResurrected OnResurrected;
+
+    // ========================================
+    // Weapon Debugging Functions
+    // ========================================
+
+    /** Debug: Toggle between primary and secondary weapon */
+    UFUNCTION(BlueprintCallable, Category = "Debug", CallInEditor)
+    void DebugToggleWeapon();
+
+    /** Debug: Log current weapon state */
+    UFUNCTION(BlueprintCallable, Category = "Debug", CallInEditor)
+    void DebugLogWeaponState();
 
 private:
     // ========================================

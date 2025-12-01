@@ -2,6 +2,9 @@
 
 #include "CharacterDataComponent.h"
 #include "CombatConstants.h"
+#include "EWeaponSlotType.h"
+#include "WeaponData.h"
+#include "StanceData.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
 {
@@ -25,11 +28,11 @@ void UCharacterDataComponent::BeginPlay()
     else
     {
         UE_LOG(LogTemp, Warning, TEXT("[CharacterDataComponent] %s: No CharacterData assigned!"),
-            *GetOwner()->GetName());
+               *GetOwner()->GetName());
     }
 }
 
-void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
@@ -43,7 +46,7 @@ void UCharacterDataComponent::InitializeFromTemplate()
     if (!CharacterData)
     {
         UE_LOG(LogTemp, Error, TEXT("[CharacterDataComponent] %s: Cannot initialize - no CharacterData!"),
-            *GetOwner()->GetName());
+               *GetOwner()->GetName());
         return;
     }
 
@@ -54,10 +57,10 @@ void UCharacterDataComponent::InitializeFromTemplate()
     bIsAlive = true;
 
     UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s: Initialized (%s) - HP: %d, EP: %d"),
-        *GetOwner()->GetName(),
-        *CharacterData->CharacterName,
-        MaxHP,
-        MaxEP);
+           *GetOwner()->GetName(),
+           *CharacterData->CharacterName,
+           MaxHP,
+           MaxEP);
 }
 
 void UCharacterDataComponent::ResetToMax()
@@ -193,4 +196,80 @@ int32 UCharacterDataComponent::CalculateMaxEP() const
 
     // TODO: Implement actual EP formula
     return 100;
+}
+
+void UCharacterDataComponent::DebugToggleWeapon()
+{
+    if (!CharacterData)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CharacterDataComponent] No CharacterData assigned"));
+        return;
+    }
+
+    // Toggle bUsePrimary
+    CharacterData->bUsePrimary = !CharacterData->bUsePrimary;
+
+    // Log the change
+    FString WeaponName = TEXT("None");
+    UWeaponData *ActiveWeapon = nullptr;
+
+    if (CharacterData->IsGeneric())
+    {
+        if (CharacterData->bUsePrimary)
+        {
+            ActiveWeapon = CharacterData->PrimaryWeapon;
+            WeaponName = ActiveWeapon ? ActiveWeapon->WeaponName : TEXT("No Primary");
+        }
+        else if (CharacterData->SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            ActiveWeapon = CharacterData->SecondaryWeapon;
+            WeaponName = ActiveWeapon ? ActiveWeapon->WeaponName : TEXT("No Secondary");
+        }
+    }
+    else
+    {
+        // Caster/Resonator: bUsePrimary = armed state
+        if (CharacterData->bUsePrimary)
+        {
+            ActiveWeapon = CharacterData->PrimaryWeapon;
+            WeaponName = ActiveWeapon ? ActiveWeapon->WeaponName : TEXT("No Weapon");
+        }
+        else
+        {
+            WeaponName = TEXT("Unarmed");
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] Switched to: %s (bUsePrimary: %s)"),
+           *WeaponName,
+           CharacterData->bUsePrimary ? TEXT("true") : TEXT("false"));
+}
+
+void UCharacterDataComponent::DebugLogWeaponState()
+{
+    if (!CharacterData)
+    {
+        UE_LOG(LogTemp, Display, TEXT("=== WEAPON STATE: No CharacterData ==="));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("=== WEAPON STATE: %s ==="), *CharacterData->CharacterName);
+    UE_LOG(LogTemp, Display, TEXT("Class: %s"), *UEnum::GetValueAsString(CharacterData->CharacterClass));
+    UE_LOG(LogTemp, Display, TEXT("bUsePrimary: %s"), CharacterData->bUsePrimary ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogTemp, Display, TEXT("IsArmed: %s"), CharacterData->IsArmed() ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogTemp, Display, TEXT("Primary Weapon: %s"),
+           CharacterData->PrimaryWeapon ? *CharacterData->PrimaryWeapon->WeaponName : TEXT("None"));
+
+    if (CharacterData->IsGeneric())
+    {
+        UE_LOG(LogTemp, Display, TEXT("Secondary Slot Type: %s"),
+               *UEnum::GetValueAsString(CharacterData->SecondarySlotType));
+        UE_LOG(LogTemp, Display, TEXT("Secondary Weapon: %s"),
+               CharacterData->SecondaryWeapon ? *CharacterData->SecondaryWeapon->WeaponName : TEXT("None"));
+    }
+
+    UStanceData *CurrentStance = CharacterData->GetCurrentStance();
+    UE_LOG(LogTemp, Display, TEXT("Current Stance: %s"),
+           CurrentStance ? *CurrentStance->StanceName : TEXT("None"));
+    UE_LOG(LogTemp, Display, TEXT("================================"));
 }

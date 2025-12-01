@@ -24,6 +24,8 @@ FString UWeaponData::GetWeaponTypeName() const
         return TEXT("Staff");
     case EWeaponType::Dagger:
         return TEXT("Dagger");
+    case EWeaponType::DualBlades:
+        return TEXT("Dual Blades");
     case EWeaponType::Axe:
         return TEXT("Axe");
     case EWeaponType::Hammer:
