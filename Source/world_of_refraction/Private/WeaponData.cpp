@@ -125,6 +125,12 @@ bool UWeaponData::IsEvolved() const
     return SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
 }
 
+/** Check if weapon has Iolite crystal (physical enhancement, no element) */
+bool UWeaponData::HasIloditeEquipped() const
+{
+    return SlottedCrystal && SlottedCrystal->CrystalType == ECrystalType::Iolite;
+}
+
 #if WITH_EDITOR
 EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) const
 {

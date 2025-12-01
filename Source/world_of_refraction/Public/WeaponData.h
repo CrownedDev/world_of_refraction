@@ -9,6 +9,7 @@
 #include "EWeaponType.h"
 #include "WorldStatRequirements.h"
 #include "EInfusionDisplayLocation.h"
+#include "CrystalType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -60,6 +61,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     ESpellElement GetWeaponElement() const;
+
+    /** Check if weapon has Iolite crystal (physical enhancement, no element) */
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasIloditeEquipped() const;
 
     // ==================== DURABILITY ====================
 

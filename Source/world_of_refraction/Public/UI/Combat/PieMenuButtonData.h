@@ -17,10 +17,10 @@ class UObject;
 UENUM(BlueprintType)
 enum class EPieMenuSpellSchool : uint8
 {
-	Destruction		UMETA(DisplayName = "Destruction"),
-	Conjuration		UMETA(DisplayName = "Conjuration"),
-	Enhancement		UMETA(DisplayName = "Enhancement"),
-	Restoration		UMETA(DisplayName = "Restoration")
+	Destruction UMETA(DisplayName = "Destruction"),
+	Conjuration UMETA(DisplayName = "Conjuration"),
+	Enhancement UMETA(DisplayName = "Enhancement"),
+	Restoration UMETA(DisplayName = "Restoration")
 };
 
 /**
@@ -29,29 +29,31 @@ enum class EPieMenuSpellSchool : uint8
 UENUM(BlueprintType)
 enum class EPieMenuCategory : uint8
 {
-	None			UMETA(DisplayName = "None"),
-	
+	None UMETA(DisplayName = "None"),
+
 	// Main menu actions
-	Attack			UMETA(DisplayName = "Attack"),			// Basic attack with current weapon
-	Abilities		UMETA(DisplayName = "Abilities"),		// Opens ability grid (Generic)
-	Refractions		UMETA(DisplayName = "Refractions"),		// Opens schools list (Caster innate spells)
-	Breakthrough	UMETA(DisplayName = "Breakthrough"),	// Opens schools list (Character evolution spells)
-	Resonate		UMETA(DisplayName = "Resonate"),		// Opens schools list (single source - Caster ring/weapon)
-	ResonateWeapon	UMETA(DisplayName = "Resonate Weapon"),	// Opens schools list (Evolved weapon spells - "(W)")
-	ResonateRing	UMETA(DisplayName = "Resonate Ring"),	// Opens schools list (Ring spells - "(R)")
-	ChangeRing		UMETA(DisplayName = "Change Ring"),		// Opens ring grid (Resonator)
-	Items			UMETA(DisplayName = "Items"),			// Opens item grid (All)
-	SwitchWeapon	UMETA(DisplayName = "Switch Weapon"),	// Toggles bUsePrimary (Generic dual-wield only)
-	
+	Attack UMETA(DisplayName = "Attack"),				   // Basic attack with current weapon
+	Abilities UMETA(DisplayName = "Abilities"),			   // Opens ability grid (Generic)
+	Refractions UMETA(DisplayName = "Refractions"),		   // Opens schools list (Caster innate spells)
+	Breakthrough UMETA(DisplayName = "Breakthrough"),	   // Opens schools list (Character evolution spells)
+	Resonate UMETA(DisplayName = "Resonate"),			   // Opens schools list (single source - Caster ring/weapon)
+	ResonateWeapon UMETA(DisplayName = "Resonate Weapon"), // Opens schools list (Evolved weapon spells - "(W)")
+	ResonateRing UMETA(DisplayName = "Resonate Ring"),	   // Opens schools list (Ring spells - "(R)")
+	ChangeRing UMETA(DisplayName = "Change Ring"),		   // Opens ring grid (Resonator)
+	Infuse UMETA(DisplayName = "Infuse"),				   // Opens infusion source grid
+	Items UMETA(DisplayName = "Items"),					   // Opens item grid (All)
+	SwitchWeapon UMETA(DisplayName = "Switch Weapon"),	   // Toggles bUsePrimary (Generic dual-wield only)
+
 	// Sub-menu categories
-	School			UMETA(DisplayName = "School"),			// A spell school button
-	Spell			UMETA(DisplayName = "Spell"),			// A spell in the grid (max 6)
-	Ability			UMETA(DisplayName = "Ability"),			// An ability in the grid
-	Ring			UMETA(DisplayName = "Ring"),			// A ring in the grid (max 5)
-	Item			UMETA(DisplayName = "Item"),			// An item in the grid
-	
+	School UMETA(DisplayName = "School"),				   // A spell school button
+	Spell UMETA(DisplayName = "Spell"),					   // A spell in the grid (max 6)
+	Ability UMETA(DisplayName = "Ability"),				   // An ability in the grid
+	Ring UMETA(DisplayName = "Ring"),					   // A ring in the grid (max 5)
+	InfusionSource UMETA(DisplayName = "Infusion Source"), // An infusion source option
+	Item UMETA(DisplayName = "Item"),					   // An item in the grid
+
 	// Navigation
-	Back			UMETA(DisplayName = "Back")				// Navigate back
+	Back UMETA(DisplayName = "Back") // Navigate back
 };
 
 /**
@@ -60,13 +62,14 @@ enum class EPieMenuCategory : uint8
 UENUM(BlueprintType)
 enum class EPieMenuState : uint8
 {
-	Closed			UMETA(DisplayName = "Closed"),
-	Main			UMETA(DisplayName = "Main Menu"),
-	Schools			UMETA(DisplayName = "Schools List"),
-	SpellGrid		UMETA(DisplayName = "Spell Grid"),		// Max 6 spells
-	AbilityGrid		UMETA(DisplayName = "Ability Grid"),
-	RingGrid		UMETA(DisplayName = "Ring Grid"),		// Max 5 rings
-	ItemGrid		UMETA(DisplayName = "Item Grid")
+	Closed UMETA(DisplayName = "Closed"),
+	Main UMETA(DisplayName = "Main Menu"),
+	Schools UMETA(DisplayName = "Schools List"),
+	SpellGrid UMETA(DisplayName = "Spell Grid"), // Max 6 spells
+	AbilityGrid UMETA(DisplayName = "Ability Grid"),
+	RingGrid UMETA(DisplayName = "Ring Grid"), // Max 5 rings
+	ItemGrid UMETA(DisplayName = "Item Grid"),
+	InfusionGrid UMETA(DisplayName = "Infusion Grid") // Infusion source selection
 };
 
 /**
@@ -92,7 +95,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 
 	/** Icon texture for the button */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
-	UTexture2D* Icon = nullptr;
+	UTexture2D *Icon = nullptr;
 
 	/** Tint color for the button */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
@@ -112,7 +115,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 
 	/** Reference to underlying data asset (spell, ability, item, ring, weapon) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
-	UObject* DataReference = nullptr;
+	UObject *DataReference = nullptr;
 
 	/** Index in the source array */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
@@ -123,21 +126,15 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 	FPieMenuButtonData() = default;
 
 	/** Main menu button constructor */
-	FPieMenuButtonData(const FString& InID, const FText& InName, EPieMenuCategory InCategory)
-		: ButtonID(InID)
-		, DisplayName(InName)
-		, Category(InCategory)
+	FPieMenuButtonData(const FString &InID, const FText &InName, EPieMenuCategory InCategory)
+		: ButtonID(InID), DisplayName(InName), Category(InCategory)
 	{
 	}
 
 	/** Full constructor */
-	FPieMenuButtonData(const FString& InID, const FText& InName, const FText& InDesc, 
-					   EPieMenuCategory InCategory, UTexture2D* InIcon = nullptr)
-		: ButtonID(InID)
-		, DisplayName(InName)
-		, Description(InDesc)
-		, Icon(InIcon)
-		, Category(InCategory)
+	FPieMenuButtonData(const FString &InID, const FText &InName, const FText &InDesc,
+					   EPieMenuCategory InCategory, UTexture2D *InIcon = nullptr)
+		: ButtonID(InID), DisplayName(InName), Description(InDesc), Icon(InIcon), Category(InCategory)
 	{
 	}
 
@@ -150,7 +147,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 		Button.Category = EPieMenuCategory::School;
 		Button.School = InSchool;
 		Button.DataIndex = static_cast<int32>(InSchool);
-		
+
 		switch (InSchool)
 		{
 		case EPieMenuSpellSchool::Destruction:
@@ -178,15 +175,15 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 			Button.ButtonTint = FLinearColor(0.9f, 0.9f, 0.5f, 1.0f); // Yellow
 			break;
 		}
-		
+
 		Button.bEnabled = SpellCount > 0;
 		return Button;
 	}
 
 	/** Create a data-referenced button (spell, ability, item, ring) */
-	static FPieMenuButtonData MakeDataButton(const FString& InID, const FText& InName, 
-											 EPieMenuCategory InCategory, UObject* InData, 
-											 int32 InIndex = -1, UTexture2D* InIcon = nullptr)
+	static FPieMenuButtonData MakeDataButton(const FString &InID, const FText &InName,
+											 EPieMenuCategory InCategory, UObject *InData,
+											 int32 InIndex = -1, UTexture2D *InIcon = nullptr)
 	{
 		FPieMenuButtonData Button;
 		Button.ButtonID = InID;
@@ -199,8 +196,8 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 	}
 
 	/** Create a disabled button with reason */
-	static FPieMenuButtonData MakeDisabledButton(const FString& InID, const FText& InName, 
-												 const FText& InReason, EPieMenuCategory InCategory = EPieMenuCategory::None)
+	static FPieMenuButtonData MakeDisabledButton(const FString &InID, const FText &InName,
+												 const FText &InReason, EPieMenuCategory InCategory = EPieMenuCategory::None)
 	{
 		FPieMenuButtonData Button;
 		Button.ButtonID = InID;
@@ -228,7 +225,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 /**
  * Delegate fired when a pie menu button is selected
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPieMenuButtonSelected, const FPieMenuButtonData&, ButtonData);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPieMenuButtonSelected, const FPieMenuButtonData &, ButtonData);
 
 /**
  * Delegate fired when menu state changes

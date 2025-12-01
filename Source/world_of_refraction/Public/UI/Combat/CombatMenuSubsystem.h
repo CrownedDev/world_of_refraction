@@ -8,6 +8,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "ECharacterClass.h"
+#include "EInfusionSourceOption.h"
 #include "CombatMenuSubsystem.generated.h"
 
 class UCharacterData;
@@ -23,28 +24,28 @@ constexpr int32 MAX_RINGS = 5;
 
 /**
  * UCombatMenuSubsystem
- * 
+ *
  * GameInstanceSubsystem that generates menu buttons based on character class.
- * 
+ *
  * Main Menu by Class:
- * 
+ *
  * Generic:
  *   - Attack (basic attack with current weapon)
  *   - Abilities (opens ability grid from current weapon)
  *   - Items (opens item grid)
  *   - Switch Weapon (toggles bUsePrimary, refreshes menu)
- * 
+ *
  * Caster:
  *   - Refractions (opens schools list -> spell grid)
  *   - Items (opens item grid)
  *   - Switch Weapon (toggles armed/unarmed)
- * 
+ *
  * Resonator:
  *   - ChangeRing (opens ring grid, max 5 rings)
  *   - Resonate (opens schools list -> spell grid from current ring)
  *   - Items (opens item grid)
  *   - Switch Weapon (toggles)
- * 
+ *
  * Sub-menus:
  *   - Schools: Destruction, Conjuration, Enhancement, Restoration
  *   - Spell Grid: Max 6 spells per school
@@ -58,7 +59,7 @@ class WORLD_OF_REFRACTION_API UCombatMenuSubsystem : public UGameInstanceSubsyst
 public:
 	// ==================== SUBSYSTEM LIFECYCLE ====================
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
 	// ==================== MAIN MENU ====================
@@ -68,7 +69,7 @@ public:
 	 * Returns different buttons based on character class
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu")
-	TArray<FPieMenuButtonData> GetMainMenuButtons(UCharacterData* CharacterData);
+	TArray<FPieMenuButtonData> GetMainMenuButtons(UCharacterData *CharacterData);
 
 	// ==================== SUB-MENUS ====================
 
@@ -77,7 +78,14 @@ public:
 	 * Only shows schools that have spells equipped
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Sub-Menus")
-	TArray<FPieMenuButtonData> GetSchoolsButtons(UCharacterData* CharacterData);
+	TArray<FPieMenuButtonData> GetSchoolsButtons(UCharacterData *CharacterData);
+
+	/**
+	 * Get available infusion sources for current character
+	 * Shows sources based on class and loadout
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Sub-Menus")
+	TArray<FPieMenuButtonData> GetInfusionSourceButtons(UCharacterData *CharacterData);
 
 	/**
 	 * Get spells for a specific school (max 6)
@@ -85,25 +93,25 @@ public:
 	 * Resonator: from current active ring
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Sub-Menus")
-	TArray<FPieMenuButtonData> GetSpellsForSchool(UCharacterData* CharacterData, EPieMenuSpellSchool School);
+	TArray<FPieMenuButtonData> GetSpellsForSchool(UCharacterData *CharacterData, EPieMenuSpellSchool School);
 
 	/**
 	 * Get abilities from current weapon (Generic)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Sub-Menus")
-	TArray<FPieMenuButtonData> GetAbilitiesButtons(UCharacterData* CharacterData);
+	TArray<FPieMenuButtonData> GetAbilitiesButtons(UCharacterData *CharacterData);
 
 	/**
 	 * Get equipped rings (Resonator only, max 5)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Sub-Menus")
-	TArray<FPieMenuButtonData> GetRingsButtons(UCharacterData* CharacterData);
+	TArray<FPieMenuButtonData> GetRingsButtons(UCharacterData *CharacterData);
 
 	/**
 	 * Get usable items
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Sub-Menus")
-	TArray<FPieMenuButtonData> GetItemsButtons(UCharacterData* CharacterData);
+	TArray<FPieMenuButtonData> GetItemsButtons(UCharacterData *CharacterData);
 
 	// ==================== ACTIONS ====================
 
@@ -112,14 +120,14 @@ public:
 	 * Returns true if switch was successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Actions")
-	bool ExecuteSwitchWeapon(UCharacterData* CharacterData);
+	bool ExecuteSwitchWeapon(UCharacterData *CharacterData);
 
 	/**
 	 * Execute ring switch - changes active ring for Resonator
 	 * Returns true if switch was successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu|Actions")
-	bool ExecuteRingSwitch(UCharacterData* CharacterData, int32 RingIndex);
+	bool ExecuteRingSwitch(UCharacterData *CharacterData, int32 RingIndex);
 
 	// ==================== SELECTION HANDLING ====================
 
@@ -128,7 +136,7 @@ public:
 	 * Routes to appropriate sub-menu or executes action
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu")
-	void HandleButtonSelection(const FPieMenuButtonData& ButtonData);
+	void HandleButtonSelection(const FPieMenuButtonData &ButtonData);
 
 	// ==================== EVENTS ====================
 
@@ -186,40 +194,40 @@ public:
 private:
 	// ==================== MAIN MENU BUILDERS ====================
 
-	void BuildGenericMainMenu(UCharacterData* CharacterData, TArray<FPieMenuButtonData>& OutButtons);
-	void BuildCasterMainMenu(UCharacterData* CharacterData, TArray<FPieMenuButtonData>& OutButtons);
-	void BuildResonatorMainMenu(UCharacterData* CharacterData, TArray<FPieMenuButtonData>& OutButtons);
+	void BuildGenericMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons);
+	void BuildCasterMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons);
+	void BuildResonatorMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons);
 
 	// ==================== BUTTON CREATORS ====================
 
-	FPieMenuButtonData CreateAttackButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateAbilitiesButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateRefractionsButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateChangeRingButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateResonateButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateResonateWeaponButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateResonateRingButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateBreakthroughButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateItemsButton(UCharacterData* CharacterData);
-	FPieMenuButtonData CreateSwitchWeaponButton(UCharacterData* CharacterData);
+	FPieMenuButtonData CreateAttackButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateAbilitiesButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateRefractionsButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateChangeRingButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateResonateButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateResonateWeaponButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateResonateRingButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateBreakthroughButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateItemsButton(UCharacterData *CharacterData);
+	FPieMenuButtonData CreateSwitchWeaponButton(UCharacterData *CharacterData);
 
 	// ==================== HELPERS ====================
 
 	/** Get spells by school from character (handles Caster vs Resonator) */
-	TArray<USpellData*> GetSpellsBySchool(UCharacterData* CharacterData, EPieMenuSpellSchool School) const;
+	TArray<USpellData *> GetSpellsBySchool(UCharacterData *CharacterData, EPieMenuSpellSchool School) const;
 
 	/** Get all spells from character (for school counting) */
-	TArray<USpellData*> GetAllSpells(UCharacterData* CharacterData) const;
+	TArray<USpellData *> GetAllSpells(UCharacterData *CharacterData) const;
 
 	/** Get abilities from current weapon */
-	TArray<UAbilityData*> GetCurrentWeaponAbilities(UCharacterData* CharacterData) const;
+	TArray<UAbilityData *> GetCurrentWeaponAbilities(UCharacterData *CharacterData) const;
 
 	/** Count spells in a school */
-	int32 CountSpellsInSchool(UCharacterData* CharacterData, EPieMenuSpellSchool School) const;
+	int32 CountSpellsInSchool(UCharacterData *CharacterData, EPieMenuSpellSchool School) const;
 
 	/** Get element color for button tinting */
 	FLinearColor GetElementColor(int32 ElementIndex) const;
 
 	/** Check if character can switch weapons */
-	bool CanSwitchWeapon(UCharacterData* CharacterData) const;
+	bool CanSwitchWeapon(UCharacterData *CharacterData) const;
 };
