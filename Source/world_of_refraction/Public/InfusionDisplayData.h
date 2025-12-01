@@ -7,7 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/Texture2D.h"
 #include "NiagaraSystem.h"
-
+#include "EInfusionDisplayLocation.h"
 #include "InfusionDisplayData.generated.h"
 
 /**
@@ -32,6 +32,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
     UNiagaraSystem *VFXSystem = nullptr;
+
+    /** Where this VFX spawns on the character */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
+    EInfusionDisplayLocation DisplayLocation = EInfusionDisplayLocation::Weapon;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display", meta = (ClampMin = "0.1", ClampMax = "5.0"))
     float EffectIntensity = 1.0f;

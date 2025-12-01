@@ -19,7 +19,7 @@
 
 class UWeaponAttackData;
 class UStanceData;
-class UCharacterInfusionDisplayData;
+
 class UWeaponData;
 class URingData;
 class USpellData;
@@ -163,10 +163,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
 	UAnimMontage *InfusionL2Animation;
-
-	// Character body/aura VFX (tinted by active element at runtime)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Display")
-	UCharacterInfusionDisplayData *InfusionDisplay;
 
 	// ==================== STAT BUDGET ====================
 

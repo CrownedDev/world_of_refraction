@@ -43,6 +43,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon Mesh")
     UWeaponData *GetDisplayedWeapon() const { return CachedWeapon; }
 
+    /** Get the primary static mesh component (for VFX sampling) */
+    UFUNCTION(BlueprintPure, Category = "Weapon Mesh")
+    UStaticMeshComponent *GetPrimaryStaticMeshComp() const { return PrimaryStaticMeshComp; }
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, Category = "Debug", CallInEditor)

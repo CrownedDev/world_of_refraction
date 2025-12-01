@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "SpellElement.h"
+#include "EInfusionSourceOption.h"
 #include "DamageCalculator.generated.h"
 
 class UCharacterData;
@@ -146,6 +147,10 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
 	int32 DefenderFlatDefense = 0;
+
+	/** Selected infusion source - determines if weapon stats apply */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 };
 
 /**

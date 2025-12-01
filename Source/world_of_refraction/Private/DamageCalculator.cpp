@@ -10,6 +10,8 @@
 #include "StatusEffectManager.h"
 #include "BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
+#include "WeaponData.h"
+#include "WeaponManager.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -220,9 +222,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// Build input
 	FDamageCalculationInput Input;
 
-	// Attacks use base 100 × RawDamageMultiplier (from ActionExecutor pattern)
-	// The RawDamageMultiplier will be applied again in main calculation,
-	// so we just use base 100 here
+	// Base damage
 	Input.BaseDamage = 100;
 
 	// Attacks are physical unless infused
@@ -233,14 +233,47 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.bWasInfused = bIsInfused;
 	Input.HitCount = Attack->HitCount;
 
-	// Infusion penalty (30% damage reduction)
-	if (bIsInfused)
+	// Apply weapon stats only if not infused (None = weapon stats apply)
+	if (!bIsInfused)
 	{
+		// Get active weapon
+		UWeaponManager *WM = Cast<UWeaponManager>(GetGameInstance()->GetSubsystem<UWeaponManager>());
+		if (WM)
+		{
+			UWeaponData *Weapon = WM->GetActiveWeapon(Attacker);
+			if (Weapon)
+			{
+				// Apply weapon damage bonus
+				Input.BaseDamage += Weapon->BonusAttack;
+
+				// Store crit bonuses for later application
+				Input.OverrideCritChance = GetCriticalChance(Attacker) + (Weapon->BonusCritChance / 100.0f);
+			}
+		}
+	}
+	else
+	{
+		// Infusion penalty (30% damage reduction)
 		Input.BaseDamage = FMath::RoundToInt(Input.BaseDamage * 0.7f);
 	}
 
 	// Calculate with main function
 	Result = CalculateDamage(Attacker, Target, Input);
+
+	// Apply weapon crit damage bonus if not infused and was critical
+	if (!bIsInfused && Result.bWasCritical)
+	{
+		UWeaponManager *WM = Cast<UWeaponManager>(GetGameInstance()->GetSubsystem<UWeaponManager>());
+		if (WM)
+		{
+			UWeaponData *Weapon = WM->GetActiveWeapon(Attacker);
+			if (Weapon && Weapon->BonusCritDamage != 0.0f)
+			{
+				float BonusCritMult = Weapon->BonusCritDamage / 100.0f;
+				Result.FinalDamage = FMath::RoundToInt(Result.FinalDamage * (1.0f + BonusCritMult));
+			}
+		}
+	}
 
 	return Result;
 }

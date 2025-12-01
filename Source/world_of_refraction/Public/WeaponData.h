@@ -8,6 +8,7 @@
 #include "Engine/Texture2D.h"
 #include "EWeaponType.h"
 #include "WorldStatRequirements.h"
+#include "EInfusionDisplayLocation.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -158,6 +159,10 @@ public:
     UStanceData *WeaponStance = nullptr;
 
     // ==================== DISPLAY ====================
+
+    /** Filter for infusion display assets */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
+    EInfusionDisplayLocation InfusionDisplayFilter = EInfusionDisplayLocation::Weapon;
 
     // Infusion visual effect for this weapon
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
