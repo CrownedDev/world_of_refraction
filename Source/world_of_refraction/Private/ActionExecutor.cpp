@@ -302,13 +302,6 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	UCharacterData *CharData = GetCharacterData(Actor);
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
 
-	// Play infusion animation if applicable
-	int32 MaxInfusionLevel = FMath::Max3(Action.InfusionLevel, Action.SpellInfusionLevel, Action.SpellSizeInfusionLevel);
-	if (MaxInfusionLevel > 0)
-	{
-		PlayInfusionAnimation(Actor, MaxInfusionLevel);
-	}
-
 	// Route to appropriate executor (existing code)
 	switch (Action.ActionType)
 	{
@@ -418,14 +411,6 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// === BROKEN DARKNESS & INFUSION HOOKS ===
 	// Check for Broken Darkness break triggers
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
-
-	// Play infusion animation if applicable
-	int32 MaxInfusionLevel = FMath::Max3(Action.InfusionLevel, Action.SpellInfusionLevel, Action.SpellSizeInfusionLevel);
-	if (MaxInfusionLevel > 0)
-	{
-		PlayInfusionAnimation(Actor, MaxInfusionLevel);
-	}
-	// === END HOOKS ===
 
 	// Process based on action type
 	switch (Action.ActionType)
@@ -3175,47 +3160,6 @@ void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement E
 
 	// ProcessForbiddenCast checks if element is forbidden internally
 	BDManager->ProcessForbiddenCast(Element, BaseDamage);
-}
-
-// ============================================================
-// Play Infusion Animation
-// ============================================================
-void UActionExecutor::PlayInfusionAnimation(AActor *Actor, int32 InfusionLevel)
-{
-	if (InfusionLevel <= 0 || !Actor)
-	{
-		return;
-	}
-
-	UCharacterData *CharData = GetCharacterData(Actor);
-	if (!CharData)
-	{
-		return;
-	}
-
-	UAnimMontage *AnimToPlay = nullptr;
-
-	if (InfusionLevel >= 2 && CharData->InfusionL2Animation)
-	{
-		AnimToPlay = CharData->InfusionL2Animation;
-	}
-	else if (InfusionLevel >= 1 && CharData->InfusionL1Animation)
-	{
-		AnimToPlay = CharData->InfusionL1Animation;
-	}
-
-	if (AnimToPlay)
-	{
-		// Get skeletal mesh component and play montage
-		USkeletalMeshComponent *Mesh = Actor->FindComponentByClass<USkeletalMeshComponent>();
-		if (Mesh && Mesh->GetAnimInstance())
-		{
-			Mesh->GetAnimInstance()->Montage_Play(AnimToPlay);
-
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing L%d infusion animation on %s"),
-				   InfusionLevel, *Actor->GetName());
-		}
-	}
 }
 
 // ========================================

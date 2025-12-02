@@ -61,6 +61,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Infusion VFX|Parameters")
     FName BodyMeshParameterName = FName("BodyMesh");
 
+    // ==================== Spell/Ability Infusion ====================
+    /** Set infusion level - scales VFX size (0 = off, 1 = base, 2 = large) */
+    UFUNCTION(BlueprintCallable, Category = "InfusionVFX")
+    void SetInfusionLevel(int32 Level);
+
+    /** Current infusion level */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "InfusionVFX")
+    int32 CurrentInfusionLevel = 0;
+
     // ==================== PUBLIC API ====================
 
     /** Activate infusion VFX with specified source */
@@ -113,6 +122,10 @@ public:
     /** Toggle infusion on/off */
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void ToggleInfusion();
+
+    /** Cycle through infusion levels: 0 → 1 → 2 → 0 */
+    UFUNCTION(BlueprintCallable, Category = "InfusionVFX")
+    void CycleInfusionLevel();
 
 protected:
     // ==================== CACHED REFERENCES ====================
@@ -168,4 +181,13 @@ protected:
 
     /** Get color for element */
     FLinearColor GetElementColor(ESpellElement Element) const;
+
+    /** Scale multiplier for L1 */
+    float L1ScaleMultiplier = 1.25f;
+
+    /** Scale multiplier for L2 */
+    float L2ScaleMultiplier = 1.5f;
+
+    /** Niagara parameter name for scale */
+    FName ScaleParameterName = TEXT("Scale_All");
 };

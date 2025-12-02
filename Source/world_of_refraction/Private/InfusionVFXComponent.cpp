@@ -65,6 +65,40 @@ void UInfusionVFXComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
+void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
+{
+    CurrentInfusionLevel = FMath::Clamp(Level, 0, 2);
+
+    // Level 0 (Raw) = No VFX
+    if (CurrentInfusionLevel == 0)
+    {
+        DeactivateInfusion();
+        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Level 0 (Raw) - VFX disabled"));
+        return;
+    }
+
+    // Activate if not already active
+    if (!bIsInfusionActive)
+    {
+        ActivateCurrentSource();
+    }
+
+    // Scale based on level
+    float ScaleMultiplier = (CurrentInfusionLevel >= 2) ? L2ScaleMultiplier : L1ScaleMultiplier;
+
+    if (ActiveVFXComponent)
+    {
+        ActiveVFXComponent->SetVariableFloat(ScaleParameterName, ScaleMultiplier);
+        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Level %d - Scale: %.2f"), CurrentInfusionLevel, ScaleMultiplier);
+    }
+}
+
+void UInfusionVFXComponent::CycleInfusionLevel()
+{
+    int32 NextLevel = (CurrentInfusionLevel + 1) % 3;
+    SetInfusionLevel(NextLevel);
+}
+
 // ==================== PUBLIC API ====================
 void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
 {

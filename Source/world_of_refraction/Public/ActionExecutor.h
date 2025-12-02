@@ -647,12 +647,6 @@ private:
 
 protected:
 	/**
-	 * Play infusion charge animation based on level
-	 * Uses CharacterData->InfusionL1Animation or InfusionL2Animation
-	 */
-	virtual void PlayInfusionAnimation(AActor *Actor, int32 InfusionLevel);
-
-	/**
 	 * Spawn spell delivery based on DeliveryType
 	 * - Projectile/Homing/Beam: Spawns ASpellProjectile
 	 * - AOE/Instant: Spawns VFX directly, opens defense window

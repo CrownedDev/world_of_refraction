@@ -160,13 +160,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
 	UInfusionDisplayData *InfusionDisplay = nullptr;
 
-	// Charge level animations (play when reaching L1/L2)
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
-	UAnimMontage *InfusionL1Animation; // needs to be removed we will make it so that the infusion display increases size for each level
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
-	UAnimMontage *InfusionL2Animation; // needs to be removed we will make it so that the infusion display increases size for each level
-
 	// ==================== STAT BUDGET ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", meta = (ClampMin = "20", ClampMax = "40"))
