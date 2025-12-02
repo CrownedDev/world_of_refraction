@@ -100,4 +100,8 @@ namespace CombatConstants
 
     // Status Effect Thresholds
     constexpr int32 STATUS_EFFECT_THRESHOLD = 100; // Buildup needed to trigger status
+
+    // ==================== SPELL DATA ====================
+    /** Raw mode damage bonus (+10%) */
+    constexpr float RAW_MODE_DAMAGE_MULTIPLIER = 1.10f;
 }

@@ -34,112 +34,40 @@ float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) c
 
 // ==================== DAMAGE CALCULATIONS ====================
 
-int32 USpellData::CalculateDamage(UCharacterData *Character, bool bUsingElementalMode) const
-{
-    if (bHasModeToggle)
-    {
-        return bUsingElementalMode ? CalculateElementalModeDamage(Character) : CalculateRawModeDamage(Character);
-    }
-    else
-    {
-        // No toggle - use base damage
-        if (!Character)
-            return 0;
-
-        float Damage = BaseDamage;
-
-        // Apply requirement penalty
-        float RequirementPenalty = CalculateRequirementPenalty(Character);
-        Damage *= (1.0f - RequirementPenalty);
-
-        // Apply character's effect damage multiplier (Spirit-based)
-        float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-        Damage *= EffectMultiplier;
-
-        return FMath::RoundToInt(Damage);
-    }
-}
-
-int32 USpellData::CalculateElementalModeDamage(UCharacterData *Character) const
+int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
 {
     if (!Character)
         return 0;
 
-    float Damage = ElementalModeDamage;
+    // Raw mode: no status buildup
+    if (bIsRawMode)
+        return 0;
 
-    // Apply requirement penalty
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Damage *= (1.0f - RequirementPenalty);
+    // Buffs/heals don't build status
+    if (School == ESpellSchool::Enhancement || School == ESpellSchool::Restoration)
+        return 0;
 
-    // Apply character's effect damage multiplier (Spirit-based)
+    // Base buildup per hit
+    float BuildupPerHit = StatusBuildup;
+
+    // Scale with character's Effect Damage multiplier (Spirit stat)
     float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    Damage *= EffectMultiplier;
+    BuildupPerHit *= EffectMultiplier;
 
-    return FMath::RoundToInt(Damage);
-}
+    // Multiply by hit count
+    float TotalBuildup = BuildupPerHit * HitCount;
 
-int32 USpellData::CalculateRawModeDamage(UCharacterData *Character) const
-{
-    if (!Character)
-        return 0;
-
-    float Damage = RawModeDamage;
-
-    // Apply requirement penalty
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Damage *= (1.0f - RequirementPenalty);
-
-    // Raw mode uses raw damage multiplier (Body-based) instead of effect multiplier
-    float RawDamageMultiplier = Character->CalculateRawDamageMultiplier();
-    Damage *= RawDamageMultiplier;
-
-    return FMath::RoundToInt(Damage);
+    return FMath::RoundToInt(TotalBuildup);
 }
 
 // ==================== ENERGY CALCULATIONS ====================
 
-int32 USpellData::CalculateEnergyCost(UCharacterData *Character, bool bUsingElementalMode) const
-{
-    if (bHasModeToggle)
-    {
-        return bUsingElementalMode ? CalculateElementalModeEnergyCost(Character) : CalculateRawModeEnergyCost(Character);
-    }
-    else
-    {
-        // No toggle - use base cost
-        if (!Character)
-            return BaseEnergyCost;
-
-        float Cost = BaseEnergyCost;
-
-        // Requirement penalty increases cost
-        float RequirementPenalty = CalculateRequirementPenalty(Character);
-        Cost *= (1.0f + RequirementPenalty);
-
-        return FMath::RoundToInt(Cost);
-    }
-}
-
-int32 USpellData::CalculateElementalModeEnergyCost(UCharacterData *Character) const
+int32 USpellData::CalculateEnergyCost(UCharacterData *Character) const
 {
     if (!Character)
-        return ElementalModeEnergyCost;
+        return EnergyCost;
 
-    float Cost = ElementalModeEnergyCost;
-
-    // Requirement penalty increases cost
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Cost *= (1.0f + RequirementPenalty);
-
-    return FMath::RoundToInt(Cost);
-}
-
-int32 USpellData::CalculateRawModeEnergyCost(UCharacterData *Character) const
-{
-    if (!Character)
-        return RawModeEnergyCost;
-
-    float Cost = RawModeEnergyCost;
+    float Cost = EnergyCost;
 
     // Requirement penalty increases cost
     float RequirementPenalty = CalculateRequirementPenalty(Character);
@@ -152,27 +80,14 @@ int32 USpellData::CalculateRawModeEnergyCost(UCharacterData *Character) const
 
 int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
 {
-    if (!Character)
+    // Raw mode: no status
+    if (bHasModeToggle)
         return 0;
 
-    // Only elemental mode applies status (or non-toggle spells with school type)
-    if (!bHasModeToggle && (School == ESpellSchool::Enhancement || School == ESpellSchool::Restoration))
-    {
-        // Buffs/heals don't build status
-        return 0;
-    }
-
-    // Base buildup per hit
-    float BuildupPerHit = bHasModeToggle ? ElementalModeStatusBuildup : CombatConstants::BASE_STATUS_BUILDUP_PER_HIT;
-
-    // Scale with character's Effect Damage multiplier (Spirit stat)
-    float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    BuildupPerHit *= EffectMultiplier;
-
-    // Multiply by hit count
-    float TotalBuildup = BuildupPerHit * HitCount;
-
-    return FMath::RoundToInt(TotalBuildup);
+    // Elemental mode: apply status
+    float Buildup = StatusBuildup * HitCount;
+    Buildup *= Character->CalculateEffectDamageMultiplier();
+    return FMath::RoundToInt(Buildup);
 }
 
 // ==================== HELPER FUNCTIONS ====================

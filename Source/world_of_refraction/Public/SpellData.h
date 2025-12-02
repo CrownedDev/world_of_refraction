@@ -60,34 +60,24 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (EditCondition = "bIsUniversalSpell"))
     bool bPrependElementName = false; // "Elemental" becomes "Fire Elemental"
 
-    // ==================== MODE TOGGLE ====================
+    // ==================== MODE ====================
 
+    /** Raw mode: +10% damage, no status buildup. Elemental mode (default): applies status. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode")
-    bool bHasModeToggle = false;
+    bool bIsRawMode = false;
 
-    // ELEMENTAL MODE (if toggle available)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode|Elemental", meta = (EditCondition = "bHasModeToggle"))
-    int32 ElementalModeDamage = 0;
+    // ==================== STATS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode|Elemental", meta = (EditCondition = "bHasModeToggle"))
-    int32 ElementalModeEnergyCost = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+    int32 Damage = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode|Elemental", meta = (EditCondition = "bHasModeToggle"))
-    int32 ElementalModeStatusBuildup = 15;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
+    int32 EnergyCost = 0;
 
-    // RAW/CONSTRUCT MODE (if toggle available)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode|Raw", meta = (EditCondition = "bHasModeToggle"))
-    int32 RawModeDamage = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode|Raw", meta = (EditCondition = "bHasModeToggle"))
-    int32 RawModeEnergyCost = 0;
-
-    // NO MODE TOGGLE (single configuration)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", meta = (EditCondition = "!bHasModeToggle"))
-    int32 BaseDamage = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", meta = (EditCondition = "!bHasModeToggle"))
-    int32 BaseEnergyCost = 0;
+    /** Status buildup per hit (Elemental mode only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats",
+              meta = (EditCondition = "!bIsRawMode", EditConditionHides))
+    int32 StatusBuildup = 15;
 
     // ==================== COMMON STATS ====================
 
@@ -220,24 +210,12 @@ public:
     // ==================== DAMAGE CALCULATIONS ====================
 
     UFUNCTION(BlueprintPure, Category = "Spell|Damage")
-    int32 CalculateDamage(UCharacterData *Character, bool bUsingElementalMode) const;
-
-    UFUNCTION(BlueprintPure, Category = "Spell|Damage")
-    int32 CalculateElementalModeDamage(UCharacterData *Character) const;
-
-    UFUNCTION(BlueprintPure, Category = "Spell|Damage")
-    int32 CalculateRawModeDamage(UCharacterData *Character) const;
+    int32 CalculateDamage(UCharacterData *Character) const;
 
     // ==================== ENERGY CALCULATIONS ====================
 
     UFUNCTION(BlueprintPure, Category = "Spell|Energy")
-    int32 CalculateEnergyCost(UCharacterData *Character, bool bUsingElementalMode) const;
-
-    UFUNCTION(BlueprintPure, Category = "Spell|Energy")
-    int32 CalculateElementalModeEnergyCost(UCharacterData *Character) const;
-
-    UFUNCTION(BlueprintPure, Category = "Spell|Energy")
-    int32 CalculateRawModeEnergyCost(UCharacterData *Character) const;
+    int32 CalculateEnergyCost(UCharacterData *Character) const;
 
     // ==================== STATUS BUILDUP ====================
 
