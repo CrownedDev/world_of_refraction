@@ -133,14 +133,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
-	/** Get ability power infusion damage multiplier (1.0, 1.3, 1.6) - LEGACY */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
-	static float GetAbilityPowerInfusionDamageMultiplier(int32 InfusionLevel);
-
-	/** Get ability power infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
-	static float GetAbilityPowerInfusionCostMultiplier(int32 InfusionLevel);
-
 	// ---- NEW INFUSION TYPE SYSTEM ----
 
 	/** Check if character can use this infusion type */

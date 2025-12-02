@@ -151,8 +151,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	AActor *User,
 	AActor *Target,
 	UAbilityData *Ability,
-	bool bIsInfused,
-	int32 PowerInfusionLevel) // shoult this be removed
+	bool bIsInfused)
 {
 	FDamageCalculationResult Result;
 
@@ -176,21 +175,14 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	Input.Element = bIsInfused ? UserData->InnateElement : ESpellElement::Generic;
 
 	Input.bCanCrit = true;
-	Input.bWasInfused = bIsInfused || PowerInfusionLevel > 0;
-	Input.InfusionLevel = PowerInfusionLevel;
+	Input.bWasInfused = bIsInfused;
+	Input.InfusionLevel = 0;
 	Input.HitCount = Ability->HitCount;
 
 	// Apply element infusion penalty (casters pay 30% damage for adding element)
 	if (bIsInfused)
 	{
 		Input.BaseDamage = FMath::RoundToInt(Input.BaseDamage * DamageConstants::ELEMENT_INFUSION_PENALTY);
-	}
-
-	// Apply power infusion multiplier (Generic characters)
-	if (PowerInfusionLevel > 0)
-	{
-		float PowerMult = GetInfusionDamageMultiplier(PowerInfusionLevel);
-		Input.BaseDamage = FMath::RoundToInt(Input.BaseDamage * PowerMult);
 	}
 
 	// Calculate with main function

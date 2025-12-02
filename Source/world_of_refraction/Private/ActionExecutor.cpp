@@ -92,32 +92,6 @@ float UActionExecutor::GetSpellInfusionCostMultiplier(int32 InfusionLevel)
 	}
 }
 
-float UActionExecutor::GetAbilityPowerInfusionDamageMultiplier(int32 InfusionLevel)
-{
-	switch (InfusionLevel)
-	{
-	case 1:
-		return 1.3f; // Level 1: 30% damage increase
-	case 2:
-		return 1.6f; // Level 2: 60% damage increase
-	default:
-		return 1.0f; // No infusion
-	}
-}
-
-float UActionExecutor::GetAbilityPowerInfusionCostMultiplier(int32 InfusionLevel)
-{
-	switch (InfusionLevel)
-	{
-	case 1:
-		return 1.3f; // Level 1: 30% cost increase
-	case 2:
-		return 1.6f; // Level 2: 60% cost increase
-	default:
-		return 1.0f; // No infusion
-	}
-}
-
 // ========================================
 // VALIDATION
 // ========================================

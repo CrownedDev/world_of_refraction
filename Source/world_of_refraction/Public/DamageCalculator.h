@@ -197,8 +197,7 @@ public:
 		AActor *User,
 		AActor *Target,
 		UAbilityData *Ability,
-		bool bIsInfused = false,
-		int32 PowerInfusionLevel = 0);
+		bool bIsInfused);
 
 	/**
 	 * Calculate weapon attack damage
