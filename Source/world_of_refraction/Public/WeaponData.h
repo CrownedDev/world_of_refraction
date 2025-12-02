@@ -8,7 +8,6 @@
 #include "Engine/Texture2D.h"
 #include "EWeaponType.h"
 #include "WorldStatRequirements.h"
-#include "EInfusionDisplayLocation.h"
 #include "CrystalType.h"
 
 #if WITH_EDITOR
@@ -21,7 +20,6 @@
 class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
-class UWeaponInfusionDisplayData;
 class UItemData;
 
 /**
@@ -152,16 +150,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UStanceData *WeaponStance = nullptr;
 
-    // ==================== DISPLAY ====================
-
-    /** Filter for infusion display assets */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
-    EInfusionDisplayLocation InfusionDisplayFilter = EInfusionDisplayLocation::Weapon;
-
-    // Infusion visual effect for this weapon
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
-    UWeaponInfusionDisplayData *InfusionDisplay = nullptr;
-
     // ==================== INFUSION (GENERIC ONLY) ====================
 
     // Status buildup multiplier when abilities are infused (higher = faster status)
@@ -213,9 +201,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasStance() const { return WeaponStance != nullptr; }
-
-    UFUNCTION(BlueprintPure, Category = "Weapon")
-    bool HasInfusionDisplay() const { return InfusionDisplay != nullptr; }
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
     FRotator MeshRotation = FRotator::ZeroRotator;

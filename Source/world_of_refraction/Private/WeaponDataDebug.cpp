@@ -85,17 +85,6 @@ FString UWeaponDataDebug::GetWeaponStatsString(UWeaponData *Weapon)
         Output += TEXT("  None assigned\n");
     }
 
-    // Infusion
-    Output += TEXT("\nINFUSION DISPLAY:\n");
-    if (Weapon->InfusionDisplay)
-    {
-        Output += FString::Printf(TEXT("  %s\n"), *Weapon->InfusionDisplay->DisplayName);
-    }
-    else
-    {
-        Output += TEXT("  None assigned\n");
-    }
-
     Output += TEXT("==========================================\n");
 
     return Output;
@@ -122,8 +111,5 @@ void UWeaponDataDebug::CompareWeapons(UWeaponData *Weapon1, UWeaponData *Weapon2
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Stance"),
            Weapon1->WeaponStance ? *Weapon1->WeaponStance->StanceName : TEXT("None"),
            Weapon2->WeaponStance ? *Weapon2->WeaponStance->StanceName : TEXT("None"));
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Infusion"),
-           Weapon1->InfusionDisplay ? *Weapon1->InfusionDisplay->DisplayName : TEXT("None"),
-           Weapon2->InfusionDisplay ? *Weapon2->InfusionDisplay->DisplayName : TEXT("None"));
     UE_LOG(LogTemp, Display, TEXT("=========================================="));
 }

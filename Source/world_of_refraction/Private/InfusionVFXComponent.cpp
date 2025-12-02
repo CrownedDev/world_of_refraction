@@ -66,7 +66,6 @@ void UInfusionVFXComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 }
 
 // ==================== PUBLIC API ====================
-
 void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
 {
     // None = no infusion VFX
@@ -76,18 +75,17 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
         return;
     }
 
-    // Get weapon data for VFX info
-    UWeaponData *Weapon = GetActiveWeaponData();
-    if (!Weapon)
+    // Check for character data
+    if (!CharacterDataComponent || !CharacterDataComponent->CharacterData)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No active weapon data"));
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No CharacterData"));
         return;
     }
 
     // Check for infusion display
-    if (!Weapon->InfusionDisplay || !Weapon->InfusionDisplay->HasVFX())
+    if (!CharacterDataComponent->CharacterData->InfusionDisplay || !CharacterDataComponent->CharacterData->InfusionDisplay->HasVFX())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] Weapon has no InfusionDisplay or VFX"));
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No InfusionDisplay or VFX assigned"));
         return;
     }
 
@@ -101,13 +99,13 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     CurrentElement = GetElementForSource(Source);
 
     // Spawn VFX at location specified by display data
-    SpawnVFX(Weapon->InfusionDisplay->VFXSystem, Weapon->InfusionDisplay->DisplayLocation);
+    SpawnVFX(CharacterDataComponent->CharacterData->InfusionDisplay->VFXSystem, CharacterDataComponent->CharacterData->InfusionDisplay->DisplayLocation);
 
     // Apply element color
     FLinearColor Color;
-    if (Weapon->InfusionDisplay->bOverrideElementColor)
+    if (CharacterDataComponent->CharacterData->InfusionDisplay->bOverrideElementColor)
     {
-        Color = Weapon->InfusionDisplay->ColorOverride;
+        Color = CharacterDataComponent->CharacterData->InfusionDisplay->ColorOverride;
     }
     else
     {
@@ -278,16 +276,6 @@ void UInfusionVFXComponent::SetMeshParameterForLocation(EInfusionDisplayLocation
     }
 }
 
-UWeaponData *UInfusionVFXComponent::GetActiveWeaponData() const
-{
-    if (!CharacterDataComponent)
-    {
-        return nullptr;
-    }
-
-    return CharacterDataComponent->GetActiveWeapon();
-}
-
 ESpellElement UInfusionVFXComponent::GetElementForSource(EInfusionSourceOption Source) const
 {
     if (Source == EInfusionSourceOption::None)
@@ -324,15 +312,13 @@ void UInfusionVFXComponent::DebugLogVFXState()
     UE_LOG(LogTemp, Display, TEXT("Current Element: %d"), (int32)CurrentElement);
     UE_LOG(LogTemp, Display, TEXT("VFX Component: %s"), ActiveVFXComponent ? TEXT("Spawned") : TEXT("None"));
 
-    UWeaponData *Weapon = GetActiveWeaponData();
-    if (Weapon)
+    if (CharacterDataComponent && CharacterDataComponent->CharacterData)
     {
-        UE_LOG(LogTemp, Display, TEXT("Weapon: %s"), *Weapon->WeaponName);
-        if (Weapon->InfusionDisplay)
+        if (CharacterDataComponent->CharacterData->InfusionDisplay)
         {
-            UE_LOG(LogTemp, Display, TEXT("Display: %s"), *Weapon->InfusionDisplay->DisplayName);
-            UE_LOG(LogTemp, Display, TEXT("Location: %d"), (int32)Weapon->InfusionDisplay->DisplayLocation);
-            UE_LOG(LogTemp, Display, TEXT("Has VFX: %s"), Weapon->InfusionDisplay->HasVFX() ? TEXT("YES") : TEXT("NO"));
+            UE_LOG(LogTemp, Display, TEXT("Display: %s"), *CharacterDataComponent->CharacterData->InfusionDisplay->DisplayName);
+            UE_LOG(LogTemp, Display, TEXT("Location: %d"), (int32)CharacterDataComponent->CharacterData->InfusionDisplay->DisplayLocation);
+            UE_LOG(LogTemp, Display, TEXT("Has VFX: %s"), CharacterDataComponent->CharacterData->InfusionDisplay->HasVFX() ? TEXT("YES") : TEXT("NO"));
         }
         else
         {
@@ -341,7 +327,7 @@ void UInfusionVFXComponent::DebugLogVFXState()
     }
     else
     {
-        UE_LOG(LogTemp, Display, TEXT("Weapon: None"));
+        UE_LOG(LogTemp, Display, TEXT("CharacterData: None"));
     }
 
     UE_LOG(LogTemp, Display, TEXT("========================================="));
@@ -349,20 +335,12 @@ void UInfusionVFXComponent::DebugLogVFXState()
 
 void UInfusionVFXComponent::DebugActivateWithElement(ESpellElement TestElement)
 {
-    // Force activate with test element (bypasses source resolution)
-    UWeaponData *Weapon = GetActiveWeaponData();
-    if (!Weapon || !Weapon->InfusionDisplay || !Weapon->InfusionDisplay->HasVFX())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX Debug] No weapon or VFX to test"));
-        return;
-    }
-
     ClearVFX();
 
     CurrentSource = EInfusionSourceOption::Innate; // Fake source for debug
     CurrentElement = TestElement;
 
-    SpawnVFX(Weapon->InfusionDisplay->VFXSystem, Weapon->InfusionDisplay->DisplayLocation);
+    SpawnVFX(CharacterDataComponent->CharacterData->InfusionDisplay->VFXSystem, CharacterDataComponent->CharacterData->InfusionDisplay->DisplayLocation);
     ApplyColorToVFX(GetElementColor(TestElement));
 
     bIsInfusionActive = true;

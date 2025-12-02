@@ -163,17 +163,6 @@ EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) 
     {
         Context.AddWarning(FText::FromString(TEXT("No weapon stance assigned")));
     }
-
-    // InfusionDisplay location validation
-    if (InfusionDisplay && InfusionDisplay->DisplayLocation != InfusionDisplayFilter)
-    {
-        Context.AddWarning(FText::FromString(FString::Printf(
-            TEXT("InfusionDisplay '%s' has DisplayLocation '%s' but filter is set to '%s'"),
-            *InfusionDisplay->GetName(),
-            *UEnum::GetValueAsString(InfusionDisplay->DisplayLocation),
-            *UEnum::GetValueAsString(InfusionDisplayFilter))));
-    }
-
     return Result;
 }
 #endif

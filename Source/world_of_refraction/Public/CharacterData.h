@@ -8,8 +8,8 @@
 #include "ECharacterClass.h"
 #include "StatConstants.h"
 #include "EWeaponSlotType.h"
-
 #include <CombatConstants.h>
+#include "WeaponInfusionDisplayData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -93,6 +93,10 @@ public:
 	/** Check if character has weapon access (evolved Casters lose weapons) */
 	UFUNCTION(BlueprintPure, Category = "Evolution|Loadout")
 	bool HasWeaponAccess() const;
+
+	/** Visual effect when infusion is active */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
+	UWeaponInfusionDisplayData *InfusionDisplay = nullptr;
 
 	// ==================== COMBAT LOADOUT ====================
 

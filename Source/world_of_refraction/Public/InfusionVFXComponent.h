@@ -13,7 +13,7 @@
 class UNiagaraComponent;
 class UNiagaraSystem;
 class UCharacterDataComponent;
-class UWeaponData;
+class UCharacterData;
 class UWeaponMeshComponent;
 
 /**
@@ -161,7 +161,7 @@ protected:
     void SetMeshParameterForLocation(EInfusionDisplayLocation Location);
 
     /** Get current weapon's VFX data */
-    UWeaponData *GetActiveWeaponData() const;
+    UCharacterData *GetActiveCharacterData() const;
 
     /** Get element from ActionExecutor based on source */
     ESpellElement GetElementForSource(EInfusionSourceOption Source) const;
