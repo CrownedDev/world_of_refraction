@@ -732,7 +732,6 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	SpellAction.ActionType = EActionType::Spell;
 	SpellAction.SpellData = InfernoSpell;
 	SpellAction.Targets.Add(Target);
-	SpellAction.bUseElementalMode = true; // Use elemental mode
 
 	// Validate action
 	FActionValidationResult Validation = Orchestrator->ValidateAction(SpellAction);
@@ -1181,11 +1180,10 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	SpellAction.ActionType = EActionType::Spell;
 	SpellAction.SpellData = Spell;
 	SpellAction.Targets.Add(Target);
-	SpellAction.bUseElementalMode = true;
 
 	// Get expected cost (for reference)
 	UCharacterData *CharData = CasterComp ? CasterComp->CharacterData : nullptr;
-	int32 ExpectedCost = Spell->CalculateEnergyCost(CharData, true);
+	int32 ExpectedCost = Spell->CalculateEnergyCost(CharData);
 	UE_LOG(LogTemp, Display, TEXT("    Expected energy cost: %d"), ExpectedCost);
 
 	// Submit spell

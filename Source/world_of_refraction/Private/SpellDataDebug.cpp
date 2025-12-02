@@ -112,43 +112,29 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
         Output += TEXT("  None\n");
     }
 
-    // Mode Toggle Display
-    if (Spell->bHasModeToggle)
+    // Mode Display
+    if (Spell->bIsRawMode)
     {
-        Output += TEXT("MODE TOGGLE: Available\n\n");
-
-        // Elemental Mode
-        Output += TEXT("ELEMENTAL MODE:\n");
-        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateElementalModeDamage(Character));
-        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateElementalModeEnergyCost(Character));
-        Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Spell->CalculateStatusBuildup(Character));
-        Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
-                                  Spell->CalculateStatusBuildup(Character) >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
-
-        // Raw Mode
-        Output += TEXT("RAW/CONSTRUCT MODE:\n");
-        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateRawModeDamage(Character));
-        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateRawModeEnergyCost(Character));
-        Output += TEXT("  Status Buildup: None\n\n");
+        Output += TEXT("MODE: Raw (+10% damage, no status)\n\n");
     }
     else
     {
-        Output += TEXT("MODE TOGGLE: Not Available\n\n");
-        Output += TEXT("SINGLE MODE:\n");
-        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character, false));
-        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character, false));
+        Output += TEXT("MODE: Elemental (applies status)\n\n");
+    }
 
-        int32 Buildup = Spell->CalculateStatusBuildup(Character);
-        if (Buildup > 0)
-        {
-            Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Buildup);
-            Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
-                                      Buildup >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
-        }
-        else
-        {
-            Output += TEXT("  Status Buildup: None\n\n");
-        }
+    Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character));
+    Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character));
+
+    int32 Buildup = Spell->CalculateStatusBuildup(Character);
+    if (Buildup > 0)
+    {
+        Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Buildup);
+        Output += FString::Printf(TEXT("  Triggers Status: %s\n\n"),
+                                  Buildup >= CombatConstants::STATUS_EFFECT_THRESHOLD ? TEXT("YES!") : TEXT("No"));
+    }
+    else
+    {
+        Output += TEXT("  Status Buildup: None\n\n");
     }
 
     // Effects
@@ -225,26 +211,15 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
     FString Output = TEXT("");
     Output += TEXT("===================================\n");
     Output += FString::Printf(TEXT("SPELL COMPARISON: %s\n"), *Spell->SpellName);
+    Output += FString::Printf(TEXT("MODE: %s\n"), Spell->bIsRawMode ? TEXT("Raw") : TEXT("Elemental"));
     Output += TEXT("===================================\n\n");
 
     // Character 1
     Output += FString::Printf(TEXT("%s:\n"), *Character1->CharacterName);
     if (Spell->CanCharacterCast(Character1))
     {
-        if (Spell->bHasModeToggle)
-        {
-            Output += FString::Printf(TEXT("  Elemental: %d dmg, %d energy\n"),
-                                      Spell->CalculateElementalModeDamage(Character1),
-                                      Spell->CalculateElementalModeEnergyCost(Character1));
-            Output += FString::Printf(TEXT("  Raw: %d dmg, %d energy\n"),
-                                      Spell->CalculateRawModeDamage(Character1),
-                                      Spell->CalculateRawModeEnergyCost(Character1));
-        }
-        else
-        {
-            Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character1, false));
-            Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character1, false));
-        }
+        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character1));
+        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character1));
     }
     else
     {
@@ -256,20 +231,8 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
     Output += FString::Printf(TEXT("%s:\n"), *Character2->CharacterName);
     if (Spell->CanCharacterCast(Character2))
     {
-        if (Spell->bHasModeToggle)
-        {
-            Output += FString::Printf(TEXT("  Elemental: %d dmg, %d energy\n"),
-                                      Spell->CalculateElementalModeDamage(Character2),
-                                      Spell->CalculateElementalModeEnergyCost(Character2));
-            Output += FString::Printf(TEXT("  Raw: %d dmg, %d energy\n"),
-                                      Spell->CalculateRawModeDamage(Character2),
-                                      Spell->CalculateRawModeEnergyCost(Character2));
-        }
-        else
-        {
-            Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character2, false));
-            Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character2, false));
-        }
+        Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character2));
+        Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character2));
     }
     else
     {

@@ -74,10 +74,6 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
 	int32 SpellSizeInfusionLevel = 0;
 
-	/** Use elemental mode for toggle spells */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
-	bool bUseElementalMode = true;
-
 	// ==================== DEPRECATED - REMOVE AFTER MIGRATION ====================
 
 	/** @deprecated Use InfusionType + InfusionLevel instead */

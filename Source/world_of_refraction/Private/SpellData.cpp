@@ -34,6 +34,30 @@ float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) c
 
 // ==================== DAMAGE CALCULATIONS ====================
 
+int32 USpellData::CalculateDamage(UCharacterData *Character) const
+{
+    if (!Character)
+        return 0;
+
+    float FinalDamage = Damage;
+
+    // Raw mode: +10% damage bonus
+    if (bIsRawMode)
+    {
+        FinalDamage *= CombatConstants::RAW_MODE_DAMAGE_MULTIPLIER;
+    }
+
+    // Apply requirement penalty
+    float RequirementPenalty = CalculateRequirementPenalty(Character);
+    FinalDamage *= (1.0f - RequirementPenalty);
+
+    // Apply character's effect damage multiplier (Spirit-based)
+    float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
+    FinalDamage *= EffectMultiplier;
+
+    return FMath::RoundToInt(FinalDamage);
+}
+
 int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
 {
     if (!Character)
@@ -74,20 +98,6 @@ int32 USpellData::CalculateEnergyCost(UCharacterData *Character) const
     Cost *= (1.0f + RequirementPenalty);
 
     return FMath::RoundToInt(Cost);
-}
-
-// ==================== STATUS BUILDUP ====================
-
-int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
-{
-    // Raw mode: no status
-    if (bHasModeToggle)
-        return 0;
-
-    // Elemental mode: apply status
-    float Buildup = StatusBuildup * HitCount;
-    Buildup *= Character->CalculateEffectDamageMultiplier();
-    return FMath::RoundToInt(Buildup);
 }
 
 // ==================== HELPER FUNCTIONS ====================

@@ -217,7 +217,6 @@ public:
 		AActor *Caster,
 		USpellData *Spell,
 		const TArray<AActor *> &Targets,
-		bool bUseElementalMode = true,
 		int32 InfusionLevel = 0);
 
 	/** Execute an ability */

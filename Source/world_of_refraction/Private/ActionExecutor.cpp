@@ -234,7 +234,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	case EActionType::Spell:
 		if (Action.SpellData)
 		{
-			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData, Action.bUseElementalMode);
+			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
 			// Spell infusion: 1.0x / 1.3x / 1.6x cost
 			float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
 			return FMath::RoundToInt(BaseCost * CostMultiplier);
@@ -316,7 +316,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	{
 	case EActionType::Spell:
 		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets,
-							  Action.bUseElementalMode, Action.SpellInfusionLevel);
+							  Action.SpellInfusionLevel);
 
 		// Post-cast processing (ring break checks, item consumption)
 		if (Result.bSuccess)
@@ -493,7 +493,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	}
 
 	// Calculate and spend energy
-	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData, Action.bUseElementalMode);
+	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData);
 	float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
 	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
 
@@ -510,7 +510,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
 	// Calculate base damage
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, Action.bUseElementalMode);
+	int32 BaseDamage = Spell->CalculateDamage(CasterData);
 
 	// Store in result for reference
 	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
@@ -733,7 +733,6 @@ FActionResult UActionExecutor::ExecuteSpell(
 	AActor *Caster,
 	USpellData *Spell,
 	const TArray<AActor *> &Targets,
-	bool bUseElementalMode,
 	int32 InfusionLevel)
 {
 	FActionResult Result;
@@ -758,7 +757,7 @@ FActionResult UActionExecutor::ExecuteSpell(
 	}
 
 	// Calculate energy cost with infusion multiplier
-	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData, bUseElementalMode);
+	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData);
 	float CostMultiplier = GetSpellInfusionCostMultiplier(InfusionLevel);
 	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
 
@@ -779,7 +778,7 @@ FActionResult UActionExecutor::ExecuteSpell(
 	Result.bIsElementalAttack = true;
 
 	// Calculate damage (NOT affected by spell infusion - that's Generic's thing)
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, bUseElementalMode);
+	int32 BaseDamage = Spell->CalculateDamage(CasterData);
 	Result.BaseDamageBeforeDefense = BaseDamage;
 
 	// Play animation and VFX (stubs - override or bind events for real implementation)
@@ -956,7 +955,7 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 				float EnergyCost = 0.0f;
 				if (CurrentExecutionContext->Action.SpellData)
 				{
-					EnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
+					EnergyCost = CurrentExecutionContext->Action.SpellData->EnergyCost;
 				}
 				else if (CurrentExecutionContext->Action.AbilityData)
 				{

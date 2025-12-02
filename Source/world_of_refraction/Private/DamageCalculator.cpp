@@ -103,7 +103,6 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 	AActor *Caster,
 	AActor *Target,
 	USpellData *Spell,
-	bool bUseElementalMode,
 	int32 InfusionLevel)
 {
 	FDamageCalculationResult Result;
@@ -121,13 +120,13 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 
 	// Build input
 	FDamageCalculationInput Input;
-	Input.BaseDamage = Spell->BaseDamage;
-	Input.bIsElemental = bUseElementalMode;
+	Input.BaseDamage = Spell->Damage;
+	Input.bIsElemental = !Spell->bIsRawMode;
 	Input.Element = Spell->Element;
 	Input.bCanCrit = true;
 	Input.bWasInfused = InfusionLevel > 0;
 	Input.InfusionLevel = InfusionLevel;
-	Input.bIsRawMode = !bUseElementalMode;
+	Input.bIsRawMode = Spell->bIsRawMode;
 
 	// Apply spell size infusion (not damage, but tracking)
 	// Actual size handled elsewhere
@@ -136,7 +135,7 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 	Result = CalculateDamage(Caster, Target, Input);
 
 	// Calculate status buildup (SpellData has a method, not a property)
-	if (bUseElementalMode && CasterData)
+	if (!Spell->bIsRawMode && CasterData)
 	{
 		int32 BaseBuildup = Spell->CalculateStatusBuildup(CasterData);
 		if (BaseBuildup > 0)
@@ -153,7 +152,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	AActor *Target,
 	UAbilityData *Ability,
 	bool bIsInfused,
-	int32 PowerInfusionLevel)
+	int32 PowerInfusionLevel) // shoult this be removed
 {
 	FDamageCalculationResult Result;
 

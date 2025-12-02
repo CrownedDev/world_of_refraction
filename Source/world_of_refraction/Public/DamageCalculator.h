@@ -186,8 +186,7 @@ public:
 		AActor *Caster,
 		AActor *Target,
 		USpellData *Spell,
-		bool bUseElementalMode = true,
-		int32 InfusionLevel = 0);
+		int32 InfusionLevel);
 
 	/**
 	 * Calculate ability damage
