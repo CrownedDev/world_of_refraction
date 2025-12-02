@@ -47,7 +47,7 @@ public:
 
     /** Offset for aura VFX (relative to actor root) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Infusion VFX|Sockets")
-    FVector AuraOffset = FVector(0.0f, 0.0f, 50.0f);
+    FVector AuraOffset = FVector(0.f, 0.f, -90.f);
 
     /** Niagara parameter name for element color */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Infusion VFX|Parameters")
