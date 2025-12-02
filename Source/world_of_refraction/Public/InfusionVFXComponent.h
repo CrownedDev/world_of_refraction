@@ -8,6 +8,7 @@
 #include "EInfusionSourceOption.h"
 #include "EInfusionDisplayLocation.h"
 #include "SpellElement.h"
+#include "EInfusionType.h"
 #include "InfusionVFXComponent.generated.h"
 
 class UNiagaraComponent;
@@ -107,6 +108,16 @@ public:
     /** Get display name of current source */
     UFUNCTION(BlueprintPure, Category = "Debug")
     FString GetCurrentSourceName() const;
+
+    // ==================== Spell Infusion ====================
+    UFUNCTION()
+    void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel);
+
+    UFUNCTION()
+    void OnChargeComplete(AActor *Actor, EInfusionType Type, int32 FinalLevel);
+
+    UFUNCTION()
+    void OnChargeCancelled(AActor *Actor, int32 LevelAtCancel);
 
     // ==================== DEBUG ====================
 

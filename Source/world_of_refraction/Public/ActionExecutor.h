@@ -226,8 +226,7 @@ public:
 		AActor *User,
 		UAbilityData *Ability,
 		const TArray<AActor *> &Targets,
-		bool bIsElementInfused = false,
-		int32 PowerInfusionLevel = 0);
+		bool bIsElementInfused);
 
 	/** Execute an item */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")

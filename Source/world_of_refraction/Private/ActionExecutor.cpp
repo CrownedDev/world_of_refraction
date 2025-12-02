@@ -31,6 +31,7 @@
 #include "NiagaraComponent.h"
 #include "EInfusionSourceOption.h"
 #include "RingData.h"
+#include "InfusionVFXComponent.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -244,9 +245,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		if (Action.AbilityData)
 		{
 			int32 BaseCost = Action.AbilityData->CalculateEnergyCost(CharData, Action.bIsElementInfused);
-			// Ability power infusion (Generic only): 1.0x / 1.3x / 1.6x cost
-			float CostMultiplier = GetAbilityPowerInfusionCostMultiplier(Action.AbilityInfusionLevel);
-			return FMath::RoundToInt(BaseCost * CostMultiplier);
+			return BaseCost;
 		}
 		break;
 
@@ -302,6 +301,16 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	UCharacterData *CharData = GetCharacterData(Actor);
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
 
+	// Activate infusion VFX if applicable
+	int32 MaxInfusionLevel = FMath::Max3(Action.InfusionLevel, Action.SpellInfusionLevel, Action.SpellSizeInfusionLevel);
+	if (MaxInfusionLevel > 0)
+	{
+		if (UInfusionVFXComponent *InfusionVFX = Actor->FindComponentByClass<UInfusionVFXComponent>())
+		{
+			InfusionVFX->SetInfusionLevel(MaxInfusionLevel);
+		}
+	}
+
 	// Route to appropriate executor (existing code)
 	switch (Action.ActionType)
 	{
@@ -319,7 +328,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 	case EActionType::Ability:
 		Result = ExecuteAbility(Actor, Action.AbilityData, Action.Targets,
-								Action.bIsElementInfused, Action.AbilityInfusionLevel);
+								Action.bIsElementInfused);
 		break;
 
 	case EActionType::Item:
@@ -566,8 +575,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Calculate and spend energy
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, Action.bIsElementInfused);
-	float PowerCostMultiplier = GetAbilityPowerInfusionCostMultiplier(Action.AbilityInfusionLevel);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * PowerCostMultiplier);
+	int32 FinalEnergyCost = BaseEnergyCost;
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
@@ -580,9 +588,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Calculate damage with power infusion
 	float DamageMultiplier = UserData->CalculateRawDamageMultiplier();
-	float PowerMultiplier = GetAbilityPowerInfusionDamageMultiplier(Action.AbilityInfusionLevel);
 	int32 BaseDamage = Ability->CalculateDamage(UserData, Action.bIsElementInfused);
-	BaseDamage = FMath::RoundToInt(BaseDamage * PowerMultiplier);
 
 	// Element handling
 	ESpellElement Element = ESpellElement::Generic;
@@ -1263,8 +1269,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 	AActor *User,
 	UAbilityData *Ability,
 	const TArray<AActor *> &Targets,
-	bool bIsElementInfused,
-	int32 PowerInfusionLevel)
+	bool bIsElementInfused)
 {
 	FActionResult Result;
 	Result.Executor = User;
@@ -1291,8 +1296,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 	// Element infusion (Casters): handled by CalculateEnergyCost with bIsElementInfused
 	// Power infusion (Generic): additional multiplier
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsElementInfused);
-	float PowerCostMultiplier = GetAbilityPowerInfusionCostMultiplier(PowerInfusionLevel);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * PowerCostMultiplier);
+	int32 FinalEnergyCost = BaseEnergyCost;
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
@@ -1305,10 +1309,6 @@ FActionResult UActionExecutor::ExecuteAbility(
 	// Calculate damage
 	// Element infusion (Casters): 30% damage penalty (handled in CalculateDamage)
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsElementInfused);
-
-	// Power infusion (Generic only): damage multiplier 1.3x / 1.6x
-	float PowerDamageMultiplier = GetAbilityPowerInfusionDamageMultiplier(PowerInfusionLevel);
-	BaseDamage = FMath::RoundToInt(BaseDamage * PowerDamageMultiplier);
 
 	// Determine element
 	ESpellElement Element = ESpellElement::Generic;
@@ -1374,12 +1374,10 @@ FActionResult UActionExecutor::ExecuteAbility(
 	}
 
 	Result.bSuccess = true;
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used %s%s%s - %d damage to %d targets"),
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used %s%s - %d damage to %d targets"),
 		   *User->GetName(), *Ability->GetName(),
 		   bIsElementInfused ? TEXT(" (Element)") : TEXT(""),
-		   PowerInfusionLevel > 0 ? *FString::Printf(TEXT(" (Power %d)"), PowerInfusionLevel) : TEXT(""),
 		   Result.TotalDamageDealt, ValidTargets.Num());
-
 	return Result;
 }
 

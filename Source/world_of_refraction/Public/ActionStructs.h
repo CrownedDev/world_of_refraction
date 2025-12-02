@@ -88,10 +88,6 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellSizeInfusionLevel instead"))
 	int32 SpellInfusionLevel = 0;
 
-	/** @deprecated Use InfusionType + InfusionLevel instead */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use InfusionType instead"))
-	int32 AbilityInfusionLevel = 0;
-
 	// ==================== HELPERS ====================
 
 	bool IsValid() const
