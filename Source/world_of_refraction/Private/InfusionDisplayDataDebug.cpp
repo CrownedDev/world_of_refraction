@@ -3,8 +3,6 @@
 
 #include "InfusionDisplayDataDebug.h"
 #include "InfusionDisplayData.h"
-#include "CharacterInfusionDisplayData.h"
-#include "WeaponInfusionDisplayData.h"
 
 void UInfusionDisplayDataDebug::LogInfusionDisplayStats(UInfusionDisplayData *InfusionDisplay)
 {
@@ -36,15 +34,9 @@ FString UInfusionDisplayDataDebug::GetInfusionDisplayStatsString(UInfusionDispla
         Output += FString::Printf(TEXT("Description: %s\n"), *InfusionDisplay->Description);
     }
 
-    // Get type from subclass
-    if (UCharacterInfusionDisplayData *CharDisplay = Cast<UCharacterInfusionDisplayData>(InfusionDisplay))
-    {
-        Output += FString::Printf(TEXT("Type: Character (%s)\n"), *CharDisplay->GetDisplayTypeName());
-    }
-    else if (UWeaponInfusionDisplayData *WeaponDisplay = Cast<UWeaponInfusionDisplayData>(InfusionDisplay))
-    {
-        Output += FString::Printf(TEXT("Type: %s\n"), *WeaponDisplay->GetDisplayTypeName());
-    }
+    // Display location
+    Output += FString::Printf(TEXT("Location: %s\n"),
+                              *UEnum::GetValueAsString(InfusionDisplay->DisplayLocation));
 
     Output += FString::Printf(TEXT("VFX: %s\n"),
                               InfusionDisplay->VFXSystem ? *InfusionDisplay->VFXSystem->GetName() : TEXT("None"));

@@ -6,7 +6,6 @@
 #include "AbilityData.h"
 #include "StanceData.h"
 #include "WeaponAttackData.h"
-#include "WeaponInfusionDisplayData.h"
 
 void UWeaponDataDebug::LogWeaponStats(UWeaponData *Weapon)
 {

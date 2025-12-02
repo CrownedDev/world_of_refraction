@@ -4,7 +4,6 @@
 #include "AbilityData.h"
 #include "StanceData.h"
 #include "LoadoutConstants.h"
-#include "WeaponInfusionDisplayData.h"
 #include "WeaponAttackData.h"
 #include "CharacterData.h"
 #include "ItemData.h"

@@ -5,7 +5,7 @@
 #include "CharacterDataComponent.h"
 #include "WeaponData.h"
 #include "WeaponMeshComponent.h"
-#include "WeaponInfusionDisplayData.h"
+#include "InfusionDisplayData.h"
 #include "ElementColors.h"
 #include "ActionExecutor.h"
 #include "NiagaraComponent.h"

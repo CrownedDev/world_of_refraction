@@ -14,7 +14,7 @@
  * Base Infusion Display Data Asset
  * Shared properties for character and weapon infusion visuals
  */
-UCLASS(Abstract, BlueprintType)
+UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UInfusionDisplayData : public UPrimaryDataAsset
 {
     GENERATED_BODY()

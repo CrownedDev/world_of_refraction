@@ -9,7 +9,7 @@
 #include "StatConstants.h"
 #include "EWeaponSlotType.h"
 #include <CombatConstants.h>
-#include "WeaponInfusionDisplayData.h"
+#include "InfusionDisplayData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -94,10 +94,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Evolution|Loadout")
 	bool HasWeaponAccess() const;
 
-	/** Visual effect when infusion is active */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
-	UWeaponInfusionDisplayData *InfusionDisplay = nullptr;
-
 	// ==================== COMBAT LOADOUT ====================
 
 	// Use primary weapon/state at combat start?
@@ -160,13 +156,16 @@ public:
 	UStanceData *UnarmedStance = nullptr;
 
 	// ==================== INFUSION ====================
+	/** Visual effect when infusion is active */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
+	UInfusionDisplayData *InfusionDisplay = nullptr;
 
 	// Charge level animations (play when reaching L1/L2)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
-	UAnimMontage *InfusionL1Animation;
+	UAnimMontage *InfusionL1Animation; // needs to be removed we will make it so that the infusion display increases size for each level
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion|Animation")
-	UAnimMontage *InfusionL2Animation;
+	UAnimMontage *InfusionL2Animation; // needs to be removed we will make it so that the infusion display increases size for each level
 
 	// ==================== STAT BUDGET ====================
 
