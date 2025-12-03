@@ -276,7 +276,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
 
 	// Activate infusion VFX if applicable
-	int32 MaxInfusionLevel = FMath::Max3(Action.InfusionLevel, Action.SpellInfusionLevel, Action.SpellSizeInfusionLevel);
+	int32 MaxInfusionLevel = FMath::Max(Action.SpellInfusionLevel, Action.AbilityInfusionLevel);
 	if (MaxInfusionLevel > 0)
 	{
 		if (UInfusionVFXComponent *InfusionVFX = Actor->FindComponentByClass<UInfusionVFXComponent>())
@@ -284,7 +284,6 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 			InfusionVFX->SetInfusionLevel(MaxInfusionLevel);
 		}
 	}
-
 	// Route to appropriate executor (existing code)
 	switch (Action.ActionType)
 	{
@@ -302,7 +301,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 	case EActionType::Ability:
 		Result = ExecuteAbility(Actor, Action.AbilityData, Action.Targets,
-								Action.bIsElementInfused);
+								Action.AbilityInfusionLevel, Action.SelectedSource);
 		break;
 
 	case EActionType::Item:
@@ -483,8 +482,22 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
 	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
-	// Calculate base damage
+	// Calculate damage with charge infusion multiplier
+	// L1 = base damage (status boost instead), L2 = +30% damage
 	int32 BaseDamage = Spell->CalculateDamage(CasterData);
+	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
+	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
+
+	// Track status multiplier for later application
+	// L1 = +50% status, L2 = base status
+	float StatusMultiplier = GetSpellChargeStatusMultiplier(Action.SpellInfusionLevel);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
+		   Action.SpellInfusionLevel,
+		   GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel),
+		   FinalDamage,
+		   DamageMultiplier,
+		   StatusMultiplier);
 
 	// Store in result for reference
 	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
@@ -1242,7 +1255,8 @@ FActionResult UActionExecutor::ExecuteAbility(
 	AActor *User,
 	UAbilityData *Ability,
 	const TArray<AActor *> &Targets,
-	bool bIsElementInfused)
+	int32 AbilityInfusionLevel,
+	EInfusionSourceOption SelectedSource)
 {
 	FActionResult Result;
 	Result.Executor = User;
@@ -1265,9 +1279,12 @@ FActionResult UActionExecutor::ExecuteAbility(
 		return Result;
 	}
 
+	// Determine if using elemental source
+	// If charging (L1/L2): use SelectedSource
+	// If not charging (L0): fall back to toggle (passed via SelectedSource::Innate if toggled on)
+	bool bIsElementInfused = (SelectedSource != EInfusionSourceOption::None);
+
 	// Calculate energy cost
-	// Element infusion (Casters): handled by CalculateEnergyCost with bIsElementInfused
-	// Power infusion (Generic): additional multiplier
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsElementInfused);
 	int32 FinalEnergyCost = BaseEnergyCost;
 
@@ -1279,33 +1296,48 @@ FActionResult UActionExecutor::ExecuteAbility(
 	}
 	Result.EnergySpent = FinalEnergyCost;
 
-	// Calculate damage
-	// Element infusion (Casters): 30% damage penalty (handled in CalculateDamage)
+	// Calculate base damage
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsElementInfused);
+
+	// Apply charge infusion damage multiplier
+	// L1 = base damage, L2 = +30% damage
+	float DamageMultiplier = GetAbilityChargeDamageMultiplier(AbilityInfusionLevel);
+	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Determine element
 	ESpellElement Element = ESpellElement::Generic;
 	if (bIsElementInfused && Ability->bCanBeInfused)
 	{
-		Element = UserData->InnateElement;
+		Element = GetElementForSourceOption(User, SelectedSource);
 	}
 
 	// Store defense info
 	Result.AttackElement = Element;
 	Result.bIsElementalAttack = bIsElementInfused;
-	Result.BaseDamageBeforeDefense = BaseDamage;
+	Result.BaseDamageBeforeDefense = FinalDamage;
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability charge L%d - Source: %d, Damage: %d (%.1fx)"),
+		   AbilityInfusionLevel, static_cast<int32>(SelectedSource), FinalDamage, DamageMultiplier);
 
 	// Play animation
 	PlayAbilityAnimation(User, Ability);
 
 	// Process each target
 	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
+
+	// Apply charge infusion status buildup (L1 only)
+	float StatusMultiplier = GetAbilityChargeStatusMultiplier(AbilityInfusionLevel);
+	if (StatusMultiplier > 0.0f && ValidTargets.Num() > 0)
+	{
+		ApplyAbilityInfusionStatus(User, ValidTargets, SelectedSource, Ability->HitCount, StatusMultiplier);
+	}
+
 	for (AActor *Target : ValidTargets)
 	{
 		// Multi-hit processing
 		int32 TotalDamage = ProcessMultiHit(
 			User, Target,
-			BaseDamage / FMath::Max(1, Ability->HitCount),
+			FinalDamage / FMath::Max(1, Ability->HitCount),
 			Ability->HitCount,
 			bIsElementInfused,
 			Element,
@@ -1323,7 +1355,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 		}
 	}
 
-	// Apply status effects from ability
+	// Apply status effects from ability (existing system)
 	if (Ability->EffectType != EAbilityEffectType::None)
 	{
 		for (AActor *Target : ValidTargets)
@@ -1339,17 +1371,10 @@ FActionResult UActionExecutor::ExecuteAbility(
 		}
 	}
 
-	// Apply status buildup if infused
-	if (bIsElementInfused && Ability->bCanBeInfused)
-	{
-		int32 StatusBuildup = Ability->CalculateStatusBuildup(UserData);
-		// TODO: Apply status buildup to trigger elemental status
-	}
-
 	Result.bSuccess = true;
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used %s%s - %d damage to %d targets"),
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used %s (L%d) - %d damage to %d targets"),
 		   *User->GetName(), *Ability->GetName(),
-		   bIsElementInfused ? TEXT(" (Element)") : TEXT(""),
+		   AbilityInfusionLevel,
 		   Result.TotalDamageDealt, ValidTargets.Num());
 	return Result;
 }
@@ -3010,6 +3035,93 @@ void UActionExecutor::ApplySpellSizeL2Cost(
 	}
 }
 
+// ============================================================
+//  - Get BrokenDarknessManager
+// ============================================================
+
+UBrokenDarknessManager *UActionExecutor::GetBrokenDarknessManager(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	return Actor->FindComponentByClass<UBrokenDarknessManager>();
+}
+
+// ============================================================
+// Check and Roll for Break
+// ============================================================
+void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Action, UCharacterData *CharData)
+{
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager)
+	{
+		return; // Not a potential BD character
+	}
+
+	// Already transformed - no more break checks needed
+	if (BDManager->IsTransformed())
+	{
+		return;
+	}
+
+	// Check 1: Spell below stat requirements
+	if (Action.ActionType == EActionType::Spell && Action.SpellData)
+	{
+		if (UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData))
+		{
+			BDManager->RollForBreak(TEXT("Underpowered spell cast"));
+		}
+	}
+
+	// Check 2: Ability below stat requirements
+	if (Action.ActionType == EActionType::Ability && Action.AbilityData)
+	{
+		if (UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
+		{
+			BDManager->RollForBreak(TEXT("Underpowered ability use"));
+		}
+	}
+
+	// Check 3: L2 Infusion (any action type)
+	if (Action.SpellInfusionLevel >= 2 || Action.AbilityInfusionLevel >= 2)
+	{
+		BDManager->RollForBreak(TEXT("L2 Infusion overcharge"));
+	}
+}
+
+// ============================================================
+// Process Forbidden Element Cast
+// ============================================================
+void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage)
+{
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager || !BDManager->IsTransformed())
+	{
+		return;
+	}
+
+	// ProcessForbiddenCast checks if element is forbidden internally
+	BDManager->ProcessForbiddenCast(Element, BaseDamage);
+}
+
+// ========================================
+// RING MANAGER GETTER
+// ========================================
+
+URingManager *UActionExecutor::GetRingManager() const
+{
+	if (!RingManagerRef)
+	{
+		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
+		{
+			const_cast<UActionExecutor *>(this)->RingManagerRef =
+				GI->GetSubsystem<URingManager>();
+		}
+	}
+	return RingManagerRef;
+}
+
 // ========================================
 // HELPER IMPLEMENTATIONS
 // ========================================
@@ -3063,91 +3175,95 @@ void UActionExecutor::ApplySelfStatusBuildup(AActor *Actor, ESpellElement Elemen
 	}
 }
 
-// ============================================================
-//  - Get BrokenDarknessManager
-// ============================================================
+// ========================================
+// CHARGE INFUSION HELPERS
+// ========================================
 
-UBrokenDarknessManager *UActionExecutor::GetBrokenDarknessManager(AActor *Actor) const
+float UActionExecutor::GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) const
 {
-	if (!Actor)
+	switch (SpellInfusionLevel)
 	{
-		return nullptr;
+	case 1:
+		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.5f - status boost
+	case 2:
+		return 1.0f; // L2 gets BASE status, not boosted
+	default:
+		return 1.0f;
 	}
-	return Actor->FindComponentByClass<UBrokenDarknessManager>();
 }
 
-// ============================================================
-// Check and Roll for Break
-// ============================================================
-void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Action, UCharacterData *CharData)
+float UActionExecutor::GetSpellChargeDamageMultiplier(int32 SpellInfusionLevel) const
 {
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
-	if (!BDManager)
+	switch (SpellInfusionLevel)
 	{
-		return; // Not a potential BD character
+	case 1:
+		return 1.0f; // L1 gets status boost, not damage
+	case 2:
+		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
+	default:
+		return 1.0f;
 	}
+}
 
-	// Already transformed - no more break checks needed
-	if (BDManager->IsTransformed())
+float UActionExecutor::GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLevel) const
+{
+	switch (AbilityInfusionLevel)
+	{
+	case 1:
+		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.5f - status boost
+	case 2:
+		return 0.0f; // L2 gets NO status
+	default:
+		return 0.0f; // L0 = no status from charge
+	}
+}
+
+float UActionExecutor::GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const
+{
+	switch (AbilityInfusionLevel)
+	{
+	case 1:
+		return 1.0f; // L1 gets status boost, not damage
+	case 2:
+		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
+	default:
+		return 1.0f;
+	}
+}
+
+void UActionExecutor::ApplyAbilityInfusionStatus(
+	AActor *User,
+	const TArray<AActor *> &Targets,
+	EInfusionSourceOption Source,
+	int32 HitCount,
+	float StatusMultiplier)
+{
+	if (StatusMultiplier <= 0.0f || Targets.Num() == 0)
 	{
 		return;
 	}
 
-	// Check 1: Spell below stat requirements
-	if (Action.ActionType == EActionType::Spell && Action.SpellData)
+	if (Source == EInfusionSourceOption::None)
 	{
-		if (UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData))
+		// Physical source - TODO: Integrate with WeaponManager when API is available
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply physical status to %d targets (x%.1f mult)"),
+			   Targets.Num(), StatusMultiplier);
+	}
+	else
+	{
+		// Elemental source - apply element status buildup
+		ESpellElement Element = GetElementForSourceOption(User, Source);
+
+		if (Element != ESpellElement::Generic)
 		{
-			BDManager->RollForBreak(TEXT("Underpowered spell cast"));
+			int32 BaseBuildup = 10 * HitCount; // TODO: Get from CombatConstants
+			int32 FinalBuildup = FMath::RoundToInt(BaseBuildup * StatusMultiplier);
+
+			// TODO: Integrate with StatusEffectManager when API is available
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply %d %s status buildup to %d targets"),
+				   FinalBuildup, *UEnum::GetValueAsString(Element), Targets.Num());
 		}
 	}
-
-	// Check 2: Ability below stat requirements
-	if (Action.ActionType == EActionType::Ability && Action.AbilityData)
-	{
-		if (UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
-		{
-			BDManager->RollForBreak(TEXT("Underpowered ability use"));
-		}
-	}
-
-	// Check 3: L2 Infusion (any action type)
-	if (Action.InfusionLevel >= 2 || Action.SpellInfusionLevel >= 2 || Action.SpellSizeInfusionLevel >= 2)
-	{
-		BDManager->RollForBreak(TEXT("L2 Infusion overcharge"));
-	}
-}
-
-// ============================================================
-// Process Forbidden Element Cast
-// ============================================================
-void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage)
-{
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
-	if (!BDManager || !BDManager->IsTransformed())
-	{
-		return;
-	}
-
-	// ProcessForbiddenCast checks if element is forbidden internally
-	BDManager->ProcessForbiddenCast(Element, BaseDamage);
-}
-
-// ========================================
-// RING MANAGER GETTER
-// ========================================
-
-URingManager *UActionExecutor::GetRingManager() const
-{
-	if (!RingManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UActionExecutor *>(this)->RingManagerRef =
-				GI->GetSubsystem<URingManager>();
-		}
-	}
-	return RingManagerRef;
 }
 
 // ========================================

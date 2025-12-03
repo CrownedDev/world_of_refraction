@@ -130,7 +130,7 @@ public:
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
 	/** Get spell infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY, use GetSpellSizeEnergyCostMultiplier */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
+	UFUNCTION(BlueprintCallable, Category = "Action Execfutor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
 	// ---- NEW INFUSION TYPE SYSTEM ----
@@ -217,7 +217,8 @@ public:
 		AActor *User,
 		UAbilityData *Ability,
 		const TArray<AActor *> &Targets,
-		bool bIsElementInfused);
+		int32 AbilityInfusionLevel = 0,
+		EInfusionSourceOption SelectedSource = EInfusionSourceOption::None);
 
 	/** Execute an item */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
@@ -457,6 +458,30 @@ private:
 
 	/** Apply self-status buildup (Evolution L2) */
 	void ApplySelfStatusBuildup(AActor *Actor, ESpellElement Element, int32 Amount);
+
+	// ========================================
+	// CHARGE INFUSION HELPERS (NEW)
+	// ========================================
+
+	/** Get spell charge status multiplier (L1 = 1.5, L2 = 1.0) */
+	float GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) const;
+
+	/** Get spell charge damage multiplier (L1 = 1.0, L2 = 1.3) */
+	float GetSpellChargeDamageMultiplier(int32 SpellInfusionLevel) const;
+
+	/** Get ability charge status multiplier (L1 = 1.5, L2 = 0.0) */
+	float GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLevel) const;
+
+	/** Get ability charge damage multiplier (L1 = 1.0, L2 = 1.3) */
+	float GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const;
+
+	/** Apply ability infusion status buildup to targets */
+	void ApplyAbilityInfusionStatus(
+		AActor *User,
+		const TArray<AActor *> &Targets,
+		EInfusionSourceOption Source,
+		int32 HitCount,
+		float StatusMultiplier);
 
 	// ========================================
 	// CACHED REFERENCES
