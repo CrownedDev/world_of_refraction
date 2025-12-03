@@ -9,7 +9,7 @@
 UENUM(BlueprintType)
 enum class EPhysicalDamageType : uint8
 {
-    Slash UMETA(DisplayName = "Slash (Bleed)"),
-    Pierce UMETA(DisplayName = "Pierce (Armor Break)"),
-    Blunt UMETA(DisplayName = "Blunt (Stun)")
+    Slash,  // → Bleed
+    Pierce, // → Armor Break
+    Blunt   // → Stun
 };

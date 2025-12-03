@@ -8,7 +8,7 @@
 #include "EInfusionSourceOption.h"
 #include "EInfusionDisplayLocation.h"
 #include "SpellElement.h"
-#include "EInfusionType.h"
+#include "EChargeInfusionType.h"
 #include "InfusionVFXComponent.generated.h"
 
 class UNiagaraComponent;
@@ -111,13 +111,13 @@ public:
 
     // ==================== Spell Infusion ====================
     UFUNCTION()
-    void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel);
+    void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel, float HPCostDeducted);
 
     UFUNCTION()
-    void OnChargeComplete(AActor *Actor, EInfusionType Type, int32 FinalLevel);
+    void OnChargeComplete(AActor *Actor, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 FinalLevel);
 
     UFUNCTION()
-    void OnChargeCancelled(AActor *Actor, int32 LevelAtCancel);
+    void OnChargeCancelled(AActor *Actor, int32 LevelAtCancel, float TotalHPCostPaid);
 
     // ==================== DEBUG ====================
 

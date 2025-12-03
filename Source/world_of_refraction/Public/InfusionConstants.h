@@ -5,6 +5,27 @@
 
 namespace InfusionConstants
 {
+
+	// ==================== CHARGE HP COSTS (NEW) ====================
+	// HP cost deducted on charge START (committed cost)
+	// Applies to both Spell and Ability charge infusion
+	// Uses CURRENT HP, not max HP
+
+	/** L1 Charge: HP cost as percent of current HP (5%) */
+	constexpr float CHARGE_L1_HP_COST_PERCENT = 0.05f;
+
+	/** L2 Charge: HP cost as percent of current HP (10%) */
+	constexpr float CHARGE_L2_HP_COST_PERCENT = 0.10f;
+
+	// ==================== CHARGE EFFECT MULTIPLIERS (NEW) ====================
+	// Exclusive bonuses - L1 OR L2, not both
+
+	/** L1 Charge: Status buildup multiplier (+50%) - spells and abilities */
+	constexpr float CHARGE_L1_STATUS_MULT = 1.25f;
+
+	/** L2 Charge: Damage multiplier (+30%) - spells and abilities */
+	constexpr float CHARGE_L2_DAMAGE_MULT = 1.30f;
+
 	// ==================== TIMING ====================
 
 	/** Time to hold for Level 1 charge (seconds) */

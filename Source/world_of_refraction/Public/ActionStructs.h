@@ -9,6 +9,7 @@
 #include "EInfusionSource.h"
 #include "ESpellSource.h"
 #include "EInfusionSourceOption.h"
+#include "EChargeInfusionType.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -56,33 +57,42 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	// ==================== INFUSION OPTIONS ====================
 
-	/** Primary infusion type selection (None, Physical, Element) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
-	EInfusionType InfusionType = EInfusionType::None;
-
-	/** Infusion charge level (0 = none, 1 = first charge, 2 = full charge)
-	 *  Set by hold-to-charge input system */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
-	int32 InfusionLevel = 0;
-
-	/** Selected infusion source - determines element and weapon stat trade-off */
+	/** Selected infusion source - determines element and weapon stat trade-off
+	 *  Set by player via Combat Menu BEFORE charging */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
 	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 
-	/** Spell size infusion level (0 = none, 1 = 1.5x size, 2 = 2.0x size + damage)
-	 *  Separate from ability/attack infusion - applies to spells only */
+	/** Spell charge infusion level (0 = none, 1 = status boost, 2 = damage boost)
+	 *  L1: 1.5x size, +50% status buildup, base damage
+	 *  L2: 2.0x size, base status, +30% damage
+	 *  Set by hold-to-charge for SPELLS */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
-	int32 SpellSizeInfusionLevel = 0;
+	int32 SpellInfusionLevel = 0;
+
+	/** Ability charge infusion level (0 = none, 1 = status boost, 2 = damage boost)
+	 *  L1: +status buildup from SelectedSource (physical or element)
+	 *  L2: +30% damage, no status
+	 *  Set by hold-to-charge for ABILITIES */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
+	int32 AbilityInfusionLevel = 0;
 
 	// ==================== DEPRECATED - REMOVE AFTER MIGRATION ====================
 
-	/** @deprecated Use InfusionType + InfusionLevel instead */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use InfusionType instead"))
+	/** @deprecated Use SpellInfusionLevel or AbilityInfusionLevel instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellInfusionLevel or AbilityInfusionLevel"))
+	int32 InfusionLevel = 0;
+
+	/** @deprecated Replaced by AbilityInfusionLevel + SelectedSource */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use AbilityInfusionLevel + SelectedSource"))
 	bool bIsElementInfused = false;
 
-	/** @deprecated Use SpellSizeInfusionLevel instead */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellSizeInfusionLevel instead"))
-	int32 SpellInfusionLevel = 0;
+	/** @deprecated Use SpellInfusionLevel instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellInfusionLevel"))
+	int32 SpellSizeInfusionLevel = 0;
+
+	/** @deprecated Replaced by SelectedSource */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SelectedSource"))
+	EInfusionType InfusionType = EInfusionType::None;
 
 	// ==================== HELPERS ====================
 
@@ -141,6 +151,44 @@ struct WORLD_OF_REFRACTION_API FAction
 		default:
 			return TEXT("Unknown Action");
 		}
+	}
+
+	/** Is spell charge infusion active? */
+	bool IsSpellInfused() const
+	{
+		return SpellInfusionLevel > 0;
+	}
+
+	/** Is ability charge infusion active? */
+	bool IsAbilityInfused() const
+	{
+		return AbilityInfusionLevel > 0;
+	}
+
+	/** Get the active charge level for current action type */
+	int32 GetChargeLevel() const
+	{
+		if (ActionType == EActionType::Spell)
+		{
+			return SpellInfusionLevel;
+		}
+		else if (ActionType == EActionType::Ability)
+		{
+			return AbilityInfusionLevel;
+		}
+		return 0;
+	}
+
+	/** Is using physical source (weapon stats apply)? */
+	bool IsPhysicalSource() const
+	{
+		return SelectedSource == EInfusionSourceOption::None;
+	}
+
+	/** Is using elemental source (weapon stats don't apply)? */
+	bool IsElementalSource() const
+	{
+		return SelectedSource != EInfusionSourceOption::None;
 	}
 };
 

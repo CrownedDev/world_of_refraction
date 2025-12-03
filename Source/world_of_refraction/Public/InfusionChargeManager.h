@@ -7,6 +7,8 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "EInfusionType.h"
+#include "EChargeInfusionType.h"
+#include "EInfusionSourceOption.h"
 #include "InfusionConstants.h"
 #include "ActionStructs.h"
 #include "InfusionChargeManager.generated.h"
@@ -44,9 +46,13 @@ struct FChargeStatus
 	UPROPERTY(BlueprintReadOnly, Category = "Charge")
 	EChargeState State = EChargeState::Idle;
 
-	/** Infusion type being charged */
+	/** Charge type (Spell or Ability) */
 	UPROPERTY(BlueprintReadOnly, Category = "Charge")
-	EInfusionType InfusionType = EInfusionType::None;
+	EChargeInfusionType ChargeType = EChargeInfusionType::None;
+
+	/** Selected source for ability infusion */
+	UPROPERTY(BlueprintReadOnly, Category = "Charge")
+	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 
 	/** Current charge level (0, 1, 2) */
 	UPROPERTY(BlueprintReadOnly, Category = "Charge")
@@ -66,17 +72,20 @@ struct FChargeStatus
 
 	/** Actor currently charging */
 	UPROPERTY(BlueprintReadOnly, Category = "Charge")
-	AActor* ChargingActor = nullptr;
+	AActor *ChargingActor = nullptr;
+
+	/** HP cost paid so far */
+	UPROPERTY(BlueprintReadOnly, Category = "Charge")
+	float HPCostPaid = 0.0f;
 };
 
 /**
  * Delegate signatures
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChargeStarted, AActor*, Actor, EInfusionType, Type, int32, InitialLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChargeLevelChanged, AActor*, Actor, int32, OldLevel, int32, NewLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChargeComplete, AActor*, Actor, EInfusionType, Type, int32, FinalLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChargeCancelled, AActor*, Actor, int32, LevelAtCancel);
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnChargeStarted, AActor *, Actor, EChargeInfusionType, ChargeType, EInfusionSourceOption, Source, int32, InitialLevel);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnChargeLevelChanged, AActor *, Actor, int32, OldLevel, int32, NewLevel, float, HPCostDeducted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnChargeComplete, AActor *, Actor, EChargeInfusionType, ChargeType, EInfusionSourceOption, Source, int32, FinalLevel);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChargeCancelled, AActor *, Actor, int32, LevelAtCancel, float, TotalHPCostPaid);
 /**
  * UInfusionChargeManager
  *
@@ -110,7 +119,7 @@ class WORLD_OF_REFRACTION_API UInfusionChargeManager : public UGameInstanceSubsy
 public:
 	UInfusionChargeManager();
 
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
 	// ========================================
@@ -119,13 +128,14 @@ public:
 
 	/**
 	 * Begin charging an infusion
-	 * Call when player presses and holds action button
+	 * HP cost is deducted immediately on charge start
 	 * @param Actor Actor performing the charge
-	 * @param Type Type of infusion to charge (Physical or Element)
+	 * @param ChargeType Type of charge (Spell or Ability)
+	 * @param SelectedSource Source for ability infusion (ignored for Spell)
 	 * @return true if charging started successfully
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Infusion Charge")
-	bool BeginCharge(AActor* Actor, EInfusionType Type);
+	bool BeginCharge(AActor *Actor, EChargeInfusionType ChargeType, EInfusionSourceOption SelectedSource = EInfusionSourceOption::None);
 
 	/**
 	 * Complete the charge and get final level
@@ -173,16 +183,27 @@ public:
 	int32 GetCurrentChargeLevel() const;
 
 	/**
-	 * Get infusion type being charged
+	 * Get charge type being charged (Spell or Ability)
 	 */
 	UFUNCTION(BlueprintPure, Category = "Infusion Charge")
-	EInfusionType GetChargingInfusionType() const;
+	EChargeInfusionType GetChargingType() const;
 
+	/**
+	 * Get selected source (for ability charging)
+	 */
+	UFUNCTION(BlueprintPure, Category = "Infusion Charge")
+	EInfusionSourceOption GetSelectedSource() const;
+
+	/**
+	 * Get total HP cost paid during this charge
+	 */
+	UFUNCTION(BlueprintPure, Category = "Infusion Charge")
+	float GetHPCostPaid() const;
 	/**
 	 * Get actor currently charging
 	 */
 	UFUNCTION(BlueprintPure, Category = "Infusion Charge")
-	AActor* GetChargingActor() const;
+	AActor *GetChargingActor() const;
 
 	// ========================================
 	// AI / DIRECT SET (bypasses timing)
@@ -190,20 +211,21 @@ public:
 
 	/**
 	 * Directly set charge level (for AI or testing)
-	 * Bypasses hold-time requirement
+	 * Bypasses hold-time requirement, still applies HP cost
 	 * @param Actor Actor to set for
-	 * @param Type Infusion type
+	 * @param ChargeType Type of charge (Spell or Ability)
+	 * @param Source Source for ability infusion
 	 * @param Level Desired level (0, 1, 2)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Infusion Charge|AI")
-	void SetChargeLevel(AActor* Actor, EInfusionType Type, int32 Level);
+	void SetChargeLevel(AActor *Actor, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 Level);
 
 	/**
 	 * Build a charged FAction directly (for AI)
-	 * Returns an action with InfusionType and InfusionLevel set
+	 * Sets SpellInfusionLevel or AbilityInfusionLevel based on ChargeType
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Infusion Charge|AI")
-	void ApplyChargeToAction(UPARAM(ref) FAction& Action, EInfusionType Type, int32 Level);
+	void ApplyChargeToAction(UPARAM(ref) FAction &Action, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 Level);
 
 	// ========================================
 	// EVENTS
@@ -261,14 +283,20 @@ private:
 	UPROPERTY()
 	TWeakObjectPtr<AActor> ChargingActor;
 
-	/** Infusion type being charged */
-	EInfusionType ChargingType = EInfusionType::None;
+	/** Type of charge (Spell or Ability) */
+	EChargeInfusionType ChargingType = EChargeInfusionType::None;
+
+	/** Selected source for ability charging */
+	EInfusionSourceOption ChargingSource = EInfusionSourceOption::None;
 
 	/** Current charge level */
 	int32 CurrentLevel = 0;
 
 	/** Time spent charging */
 	float ChargeTime = 0.0f;
+
+	/** Total HP cost paid during this charge */
+	float HPCostPaid = 0.0f;
 
 	/** Timer handle for auto-update */
 	FTimerHandle UpdateTimerHandle;
@@ -288,4 +316,10 @@ private:
 
 	/** Timer callback for auto-update */
 	void OnUpdateTimer();
+
+	/** Deduct HP cost for reaching a levesl, returns amount deducted */
+	float DeductHPCost(AActor *Actor, int32 TargetLevel);
+
+	/** Get HP cost percent for a target level */
+	float GetHPCostPercent(int32 TargetLevel) const;
 };

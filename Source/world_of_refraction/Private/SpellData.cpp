@@ -194,34 +194,25 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    // Validate mode toggle configuration
-    if (bHasModeToggle)
+    // Validate damage
+    if (Damage < 0)
     {
-        if (ElementalModeDamage < 0 || RawModeDamage < 0)
-        {
-            Context.AddError(FText::FromString(TEXT("Mode damage values cannot be negative")));
-            Result = EDataValidationResult::Invalid;
-        }
-
-        if (ElementalModeEnergyCost < 0 || RawModeEnergyCost < 0)
-        {
-            Context.AddError(FText::FromString(TEXT("Mode energy costs cannot be negative")));
-            Result = EDataValidationResult::Invalid;
-        }
+        Context.AddError(FText::FromString(TEXT("Damage cannot be negative")));
+        Result = EDataValidationResult::Invalid;
     }
-    else
-    {
-        if (BaseDamage < 0)
-        {
-            Context.AddError(FText::FromString(TEXT("Base Damage cannot be negative")));
-            Result = EDataValidationResult::Invalid;
-        }
 
-        if (BaseEnergyCost < 0)
-        {
-            Context.AddError(FText::FromString(TEXT("Base Energy Cost cannot be negative")));
-            Result = EDataValidationResult::Invalid;
-        }
+    // Validate energy cost
+    if (EnergyCost < 0)
+    {
+        Context.AddError(FText::FromString(TEXT("Energy Cost cannot be negative")));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // Validate status buildup (only relevant for elemental mode)
+    if (!bIsRawMode && StatusBuildup < 0)
+    {
+        Context.AddError(FText::FromString(TEXT("Status Buildup cannot be negative")));
+        Result = EDataValidationResult::Invalid;
     }
 
     // Validate hit count
