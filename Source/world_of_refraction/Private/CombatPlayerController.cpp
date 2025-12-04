@@ -178,14 +178,24 @@ void ACombatPlayerController::OnConfirmAction(const FInputActionValue &Value)
 
     // Build action based on TestChargeType
     FAction Action;
-
     if (TestChargeType == EChargeInfusionType::Spell && TestSpell)
     {
         Action.ActionType = EActionType::Spell;
         Action.SpellData = TestSpell;
         Action.SpellInfusionLevel = StoredChargeLevel;
         Action.SelectedSource = CurrentSource;
-        Action.Targets.Add(ControlledActor); // Target self for testing
+
+        // Add target
+        if (TestTarget)
+        {
+            Action.Targets.Add(TestTarget);
+        }
+        else
+        {
+            // Fallback: target self for testing VFX
+            Action.Targets.Add(GetPawn());
+            UE_LOG(LogTemp, Warning, TEXT("[CombatPlayerController] No TestTarget set - targeting self for VFX test"));
+        }
 
         UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Executing SPELL: %s (L%d, Source: %s)"),
                *TestSpell->GetName(), StoredChargeLevel, *UEnum::GetValueAsString(CurrentSource));

@@ -55,6 +55,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Test|Spell")
 	TObjectPtr<USpellData> TestSpell;
 
+	/** Target actor for spell testing */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Test|Combat")
+	AActor *TestTarget = nullptr;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Test|Ability")
 	TObjectPtr<UAbilityData> TestAbility;
 

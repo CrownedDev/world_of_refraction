@@ -32,6 +32,7 @@
 #include "EInfusionSourceOption.h"
 #include "RingData.h"
 #include "InfusionVFXComponent.h"
+#include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
 class UCharacterData;
@@ -1963,15 +1964,34 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 
 void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize)
 {
-	// Stub - override in subclass or bind to OnActionStarted for custom animation handling
-	// In full implementation:
-	// 1. Get AnimInstance from Caster's mesh
-	// 2. Play Spell->CastAnimation montage
-	// 3. Scale VFX based on SpellSize
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlaySpellAnimation stub - %s casting %s (Size: %.1f)"),
-		   Caster ? *Caster->GetName() : TEXT("None"),
-		   Spell ? *Spell->GetName() : TEXT("None"),
-		   SpellSize);
+	if (!Caster || !Spell)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlaySpellAnimation - Invalid caster or spell"));
+		return;
+	}
+
+	if (!Spell->CastAnimation)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlaySpellAnimation - No CastAnimation on %s"),
+			   *Spell->SpellName);
+		return;
+	}
+
+	ACharacter *Character = Cast<ACharacter>(Caster);
+	if (Character)
+	{
+		float Duration = Character->PlayAnimMontage(Spell->CastAnimation, 1.0f);
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell cast montage %s (%.2fs) for %s"),
+			   *Spell->CastAnimation->GetName(),
+			   Duration,
+			   *Spell->SpellName);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlaySpellAnimation - Caster %s is not a Character"),
+			   *Caster->GetName());
+	}
 }
 
 void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize)
