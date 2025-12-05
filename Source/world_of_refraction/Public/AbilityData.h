@@ -9,7 +9,8 @@
 #include "AbilityEffectType.h"
 #include "WorldStatRequirements.h"
 #include "NiagaraSystem.h"
-#include <CombatConstants.h>
+#include "EWeaponType.h"
+#include "CombatConstants.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -37,6 +38,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("Ability description...");
+    // Add in Identity section after Description:
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EWeaponType RequiredWeaponType = EWeaponType::Sword;
 
     // ==================== MECHANICS ====================
 
