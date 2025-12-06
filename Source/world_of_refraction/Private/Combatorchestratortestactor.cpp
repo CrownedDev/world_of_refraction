@@ -653,11 +653,11 @@ void ACombatOrchestratorTestActor::OnTestActionExecuted(AActor *Actor, const FAc
 
 void ACombatOrchestratorTestActor::Test_SpellExecution()
 {
-	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Spell Execution (DA_Spells_Inferno)"));
+	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Spell Execution (DA_Spells_Fire_Inferno )"));
 
 	// Load a Fire spell - Inferno is a Destruction spell
 	USpellData *Spell = LoadObject<USpellData>(nullptr,
-											   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
+											   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_Inferno .DA_Spells_Fire_Inferno "));
 
 	if (!Spell)
 	{
@@ -1109,7 +1109,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 
 	// Load a spell with known energy cost
 	USpellData *Spell = LoadObject<USpellData>(nullptr,
-											   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
+											   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_Inferno .DA_Spells_Fire_Inferno "));
 
 	if (!Spell)
 	{

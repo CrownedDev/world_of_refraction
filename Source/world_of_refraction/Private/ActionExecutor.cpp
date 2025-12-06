@@ -3379,16 +3379,6 @@ bool UActionExecutor::CanUseAbility(AActor *Actor, UAbilityData *Ability) const
 		TArray<UAbilityData *> Available = Loadout->GetAvailableAbilities();
 		return Available.Contains(Ability);
 	}
-
-	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
-	// TODO: Remove this fallback once all combat entry points call PrepareForBattle()
-
-	UCharacterData *CharData = GetCharacterData(Actor);
-	if (CharData && CharData->PrimaryWeapon)
-	{
-		return CharData->PrimaryWeapon->PresetAbilities.Contains(Ability);
-	}
-
 	return false;
 }
 
@@ -3405,14 +3395,6 @@ bool UActionExecutor::CanUseSpell(AActor *Actor, USpellData *Spell) const
 	{
 		TArray<USpellData *> Available = Loadout->GetAvailableSpells();
 		return Available.Contains(Spell);
-	}
-
-	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
-	// TODO: Remove this fallback once all combat entry points call PrepareForBattle()
-	UCharacterData *CharData = GetCharacterData(Actor);
-	if (CharData)
-	{
-		return CharData->InnateSpells.Contains(Spell);
 	}
 
 	return false;

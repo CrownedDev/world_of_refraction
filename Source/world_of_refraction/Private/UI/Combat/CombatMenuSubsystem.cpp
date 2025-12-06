@@ -1143,66 +1143,24 @@ TArray<USpellData *> UCombatMenuSubsystem::GetSpellsBySchool(UCharacterData *Cha
 
 TArray<USpellData *> UCombatMenuSubsystem::GetAllSpells(UCharacterData *CharacterData) const
 {
-	// Try LoadoutComponent first (new system)
 	ULoadoutComponent *Loadout = GetLoadoutComponent();
 	if (Loadout && Loadout->IsReadyForBattle())
 	{
 		return Loadout->GetAvailableSpells();
 	}
 
-	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
-	// TODO: Remove once GetMainMenuButtonsForActor() is used everywhere
-	TArray<USpellData *> Result;
-	if (!CharacterData)
-	{
-		return Result;
-	}
-
-	if (CharacterData->IsCaster())
-	{
-		Result = CharacterData->InnateSpells;
-	}
-	else if (CharacterData->IsResonator())
-	{
-		int32 ActiveRingIndex = 0;
-		if (CharacterData->EquippedRings.IsValidIndex(ActiveRingIndex))
-		{
-			URingData *Ring = CharacterData->EquippedRings[ActiveRingIndex];
-			if (Ring)
-			{
-				Result = Ring->GetAvailableSpells();
-			}
-		}
-	}
-
-	return Result;
+	return TArray<USpellData *>();
 }
 
 TArray<UAbilityData *> UCombatMenuSubsystem::GetCurrentWeaponAbilities(UCharacterData *CharacterData) const
 {
-	// Try LoadoutComponent first (new system)
 	ULoadoutComponent *Loadout = GetLoadoutComponent();
 	if (Loadout && Loadout->IsReadyForBattle())
 	{
 		return Loadout->GetAvailableAbilities();
 	}
 
-	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
-	// TODO: Remove once GetMainMenuButtonsForActor() is used everywhere
-	TArray<UAbilityData *> Result;
-	if (!CharacterData)
-	{
-		return Result;
-	}
-
-	UWeaponData *CurrentWeapon = CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : CharacterData->SecondaryWeapon;
-
-	if (CurrentWeapon)
-	{
-		Result = CurrentWeapon->PresetAbilities;
-	}
-
-	return Result;
+	return TArray<UAbilityData *>();
 }
 
 int32 UCombatMenuSubsystem::CountSpellsInSchool(UCharacterData *CharacterData, EPieMenuSpellSchool School) const
