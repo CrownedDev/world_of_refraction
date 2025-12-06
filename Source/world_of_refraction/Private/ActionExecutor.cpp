@@ -1401,6 +1401,31 @@ FActionResult UActionExecutor::ExecuteItem(
 		return Result;
 	}
 
+	// === Find and use item slot in LoadoutComponent ===
+	ULoadoutComponent *Loadout = GetLoadoutComponent(User);
+	int32 ItemSlotIndex = -1;
+
+	if (Loadout && Loadout->IsReadyForBattle())
+	{
+		// Find which slot contains this item
+		TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
+		for (int32 i = 0; i < UsableItems.Num(); ++i)
+		{
+			if (UsableItems[i].Crystal == Item)
+			{
+				ItemSlotIndex = i;
+				break;
+			}
+		}
+
+		if (ItemSlotIndex < 0)
+		{
+			Result.bSuccess = false;
+			Result.ErrorMessage = TEXT("Item not in loadout or no uses remaining");
+			return Result;
+		}
+	}
+
 	// Delegate to ItemExecutor for full item handling
 	UItemExecutor *ItemExec = GetItemExecutor();
 	if (!ItemExec)
@@ -1444,7 +1469,12 @@ FActionResult UActionExecutor::ExecuteItem(
 		Result.AffectedTargets.Add(Target);
 	}
 
-	// TODO: Consume item from inventory
+	// === Consume item use from loadout ===
+	if (Result.bSuccess && Loadout && ItemSlotIndex >= 0)
+	{
+		Loadout->UseItem(ItemSlotIndex);
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Consumed 1 use from item slot %d"), ItemSlotIndex);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
 		   *User->GetName(), *Item->GetFullItemName());

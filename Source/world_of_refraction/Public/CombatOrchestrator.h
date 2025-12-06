@@ -18,12 +18,12 @@ class UActionExecutor;
 UENUM(BlueprintType)
 enum class ECombatState : uint8
 {
-	Idle,           // No combat active
-	Initializing,   // Setting up combatants
-	InProgress,     // Combat active, processing turns
-	Victory,        // Player team won
-	Defeat,         // Enemy team won
-	Draw            // Both teams eliminated (edge case)
+	Idle,		  // No combat active
+	Initializing, // Setting up combatants
+	InProgress,	  // Combat active, processing turns
+	Victory,	  // Player team won
+	Defeat,		  // Enemy team won
+	Draw		  // Both teams eliminated (edge case)
 };
 
 /**
@@ -47,17 +47,17 @@ struct FCombatResult
 	int32 Team1Survivors = 0;
 
 	UPROPERTY(BlueprintReadOnly)
-	AActor* LastActorStanding = nullptr;
+	AActor *LastActorStanding = nullptr;
 };
 
 /**
  * Delegate signatures
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatStateChanged, ECombatState, NewState);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatResultReady, const FCombatResult&, Result);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActorTurnStarted, AActor*, Actor, int32, TurnNumber);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionRequested, AActor*, Actor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, AActor*, Actor, const FActionResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatResultReady, const FCombatResult &, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActorTurnStarted, AActor *, Actor, int32, TurnNumber);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionRequested, AActor *, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, AActor *, Actor, const FActionResult &, Result);
 
 /**
  * CombatOrchestrator - Coordinates all combat subsystems
@@ -92,7 +92,7 @@ public:
 
 	/** Start combat between two teams. Team 0 = players, Team 1 = enemies (by convention) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void StartCombat(const TArray<AActor*>& Team0, const TArray<AActor*>& Team1);
+	void StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
 
 	/** Force end combat (e.g., flee, cutscene interrupt) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -109,14 +109,14 @@ public:
 	 * @return True if action was valid and executed
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
-	bool SubmitAction(const FAction& Action);
+	bool SubmitAction(const FAction &Action);
 
 	/**
 	 * Submit action asynchronously (for defense windows, animations)
 	 * Turn ends when async execution completes
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
-	void SubmitActionAsync(const FAction& Action);
+	void SubmitActionAsync(const FAction &Action);
 
 	/**
 	 * Validate an action without executing
@@ -124,7 +124,7 @@ public:
 	 * @return Validation result with error message if invalid
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Action")
-	FActionValidationResult ValidateAction(const FAction& Action) const;
+	FActionValidationResult ValidateAction(const FAction &Action) const;
 
 	/** Called when current actor's action completes (internal - advances turn) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -138,20 +138,20 @@ public:
 	ECombatState GetCombatState() const { return CombatState; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	AActor* GetCurrentActor() const { return CurrentActor; }
+	AActor *GetCurrentActor() const { return CurrentActor; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	int32 GetCurrentTurnNumber() const { return CurrentTurnNumber; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	const TArray<AActor*>& GetTeam0() const { return Team0Combatants; }
+	const TArray<AActor *> &GetTeam0() const { return Team0Combatants; }
 
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	const TArray<AActor*>& GetTeam1() const { return Team1Combatants; }
+	const TArray<AActor *> &GetTeam1() const { return Team1Combatants; }
 
 	/** Check if it's currently this actor's turn */
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	bool IsActorsTurn(AActor* Actor) const { return CurrentActor == Actor && CombatState == ECombatState::InProgress; }
+	bool IsActorsTurn(AActor *Actor) const { return CurrentActor == Actor && CombatState == ECombatState::InProgress; }
 
 	// ========================================
 	// EVENTS
@@ -194,7 +194,7 @@ public:
 	void DebugPrintCombatState();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
-	void DebugKillActor(AActor* Actor);
+	void DebugKillActor(AActor *Actor);
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugHealAllTeam(int32 TeamIndex);
@@ -216,25 +216,25 @@ private:
 	ECombatState CombatState;
 
 	UPROPERTY()
-	TArray<AActor*> Team0Combatants;
+	TArray<AActor *> Team0Combatants;
 
 	UPROPERTY()
-	TArray<AActor*> Team1Combatants;
+	TArray<AActor *> Team1Combatants;
 
 	UPROPERTY()
-	AActor* CurrentActor;
+	AActor *CurrentActor;
 
 	UPROPERTY()
 	int32 CurrentTurnNumber;
 
 	UPROPERTY()
-	UTurnManager* TurnManagerRef;
+	UTurnManager *TurnManagerRef;
 
 	UPROPERTY()
-	UStatusEffectManager* StatusEffectManagerRef;
+	UStatusEffectManager *StatusEffectManagerRef;
 
 	UPROPERTY()
-	UActionExecutor* ActionExecutorRef;
+	UActionExecutor *ActionExecutorRef;
 
 	FTimerHandle AutoAdvanceTimerHandle;
 
@@ -246,10 +246,10 @@ private:
 	// ========================================
 
 	UFUNCTION()
-	void HandleTurnStarted(AActor* Actor, int32 TurnNumber);
+	void HandleTurnStarted(AActor *Actor, int32 TurnNumber);
 
 	UFUNCTION()
-	void HandleTurnEnded(AActor* Actor, int32 TurnNumber);
+	void HandleTurnEnded(AActor *Actor, int32 TurnNumber);
 
 	UFUNCTION()
 	void HandleCombatEnded(int32 FinalTurnCount);
@@ -259,27 +259,32 @@ private:
 	// ========================================
 
 	void SetCombatState(ECombatState NewState);
+	/** Prepare all combatants' loadouts for battle */
+	void PrepareAllLoadoutsForBattle();
+
+	/** Consume used items from all combatants' inventories after battle */
+	void ConsumeAllUsedItems();
 	void BindTurnManagerEvents();
 	void UnbindTurnManagerEvents();
 
 	// Status effect processing (delegates to StatusEffectManager)
-	void ProcessStartOfTurnEffects(AActor* Actor);
-	void ProcessEndOfTurnEffects(AActor* Actor);
+	void ProcessStartOfTurnEffects(AActor *Actor);
+	void ProcessEndOfTurnEffects(AActor *Actor);
 
 	// Action request (broadcasts to UI/AI)
-	void RequestActionFromActor(AActor* Actor);
+	void RequestActionFromActor(AActor *Actor);
 
 	// Async action callback
-	void HandleAsyncActionCompleted(const FActionResult& Result);
+	void HandleAsyncActionCompleted(const FActionResult &Result);
 
 	// Win condition
 	ECombatState CheckWinCondition();
-	int32 CountLivingMembers(const TArray<AActor*>& Team);
-	bool IsActorAlive(AActor* Actor);
+	int32 CountLivingMembers(const TArray<AActor *> &Team);
+	bool IsActorAlive(AActor *Actor);
 
 	// Team helpers
-	int32 GetActorTeamIndex(AActor* Actor) const;
-	TArray<AActor*> GetEnemyTeam(AActor* Actor) const;
+	int32 GetActorTeamIndex(AActor *Actor) const;
+	TArray<AActor *> GetEnemyTeam(AActor *Actor) const;
 
 	// Result building
 	FCombatResult BuildCombatResult();

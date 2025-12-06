@@ -6,6 +6,8 @@
 #include "ActionExecutor.h"
 #include "CharacterDataComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "InventoryComponent.h"
+#include "LoadoutComponent.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -25,7 +27,7 @@ void ACombatOrchestrator::BeginPlay()
 	Super::BeginPlay();
 
 	// Cache subsystem references
-	UGameInstance* GI = GetGameInstance();
+	UGameInstance *GI = GetGameInstance();
 	if (GI)
 	{
 		TurnManagerRef = GI->GetSubsystem<UTurnManager>();
@@ -62,7 +64,7 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 // COMBAT CONTROL
 // ========================================
 
-void ACombatOrchestrator::StartCombat(const TArray<AActor*>& Team0, const TArray<AActor*>& Team1)
+void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1)
 {
 	if (CombatState != ECombatState::Idle)
 	{
@@ -92,11 +94,14 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor*>& Team0, const TArray
 
 	SetCombatState(ECombatState::Initializing);
 
+	// Prepare loadouts for battle
+	PrepareAllLoadoutsForBattle();
+
 	// Bind to TurnManager events
 	BindTurnManagerEvents();
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: Team0 (%d) vs Team1 (%d)"),
-		Team0.Num(), Team1.Num());
+		   Team0.Num(), Team1.Num());
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
 	TurnManagerRef->InitializeCombat(Team0, Team1);
@@ -121,6 +126,8 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	{
 		StatusEffectManagerRef->ClearAllEffects();
 	}
+	// === Consume used items and reset loadouts ===
+	ConsumeAllUsedItems();
 
 	if (TurnManagerRef)
 	{
@@ -146,7 +153,7 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 // ACTION SUBMISSION
 // ========================================
 
-bool ACombatOrchestrator::SubmitAction(const FAction& Action)
+bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 {
 	if (CombatState != ECombatState::InProgress)
 	{
@@ -187,11 +194,11 @@ bool ACombatOrchestrator::SubmitAction(const FAction& Action)
 	FActionResult Result = ActionExecutorRef->ExecuteAction(CurrentActor, Action);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executed %s: %s (Damage: %d, Healing: %d)"),
-		*CurrentActor->GetName(),
-		*Action.GetActionName(),
-		Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-		Result.TotalDamageDealt,
-		Result.TotalHealingDone);
+		   *CurrentActor->GetName(),
+		   *Action.GetActionName(),
+		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+		   Result.TotalDamageDealt,
+		   Result.TotalHealingDone);
 
 	// Broadcast result for UI
 	OnActionExecuted.Broadcast(CurrentActor, Result);
@@ -202,7 +209,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction& Action)
 	return Result.bSuccess;
 }
 
-void ACombatOrchestrator::SubmitActionAsync(const FAction& Action)
+void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 {
 	if (CombatState != ECombatState::InProgress)
 	{
@@ -242,14 +249,14 @@ void ACombatOrchestrator::SubmitActionAsync(const FAction& Action)
 	bWaitingForAsyncAction = true;
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
-		*CurrentActor->GetName(), *Action.GetActionName());
+		   *CurrentActor->GetName(), *Action.GetActionName());
 
 	// Execute action asynchronously with callback
 	ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
-		FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+										  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 }
 
-FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction& Action) const
+FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction &Action) const
 {
 	if (!ActionExecutorRef)
 	{
@@ -264,14 +271,14 @@ FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction& Actio
 	return ActionExecutorRef->ValidateAction(CurrentActor, Action);
 }
 
-void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult& Result)
+void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result)
 {
 	bWaitingForAsyncAction = false;
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Async action completed: %s (Damage: %d, Healing: %d)"),
-		Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-		Result.TotalDamageDealt,
-		Result.TotalHealingDone);
+		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+		   Result.TotalDamageDealt,
+		   Result.TotalHealingDone);
 
 	// Broadcast result for UI
 	if (CurrentActor)
@@ -335,13 +342,13 @@ void ACombatOrchestrator::OnActionCompleted()
 // TURN MANAGER EVENT HANDLERS
 // ========================================
 
-void ACombatOrchestrator::HandleTurnStarted(AActor* Actor, int32 TurnNumber)
+void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 {
 	CurrentActor = Actor;
 	CurrentTurnNumber = TurnNumber;
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Turn %d started: %s"),
-		TurnNumber, *Actor->GetName());
+		   TurnNumber, *Actor->GetName());
 
 	// Process start-of-turn status effects
 	ProcessStartOfTurnEffects(Actor);
@@ -350,7 +357,7 @@ void ACombatOrchestrator::HandleTurnStarted(AActor* Actor, int32 TurnNumber)
 	if (!IsActorAlive(Actor))
 	{
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s died from start-of-turn effects, skipping action"),
-			*Actor->GetName());
+			   *Actor->GetName());
 		OnActionCompleted();
 		return;
 	}
@@ -362,12 +369,12 @@ void ACombatOrchestrator::HandleTurnStarted(AActor* Actor, int32 TurnNumber)
 	RequestActionFromActor(Actor);
 }
 
-void ACombatOrchestrator::HandleTurnEnded(AActor* Actor, int32 TurnNumber)
+void ACombatOrchestrator::HandleTurnEnded(AActor *Actor, int32 TurnNumber)
 {
 	// Note: This event from TurnManager fires when EndCurrentTurn() is called
 	// We handle most end-of-turn logic in OnActionCompleted() instead
 	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] TurnManager reports turn %d ended for %s"),
-		TurnNumber, *Actor->GetName());
+		   TurnNumber, *Actor->GetName());
 }
 
 void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
@@ -440,7 +447,7 @@ void ACombatOrchestrator::UnbindTurnManagerEvents()
 	}
 }
 
-void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor* Actor)
+void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 {
 	if (!StatusEffectManagerRef)
 	{
@@ -452,10 +459,10 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor* Actor)
 	StatusEffectManagerRef->ProcessStartOfTurnEffects(Actor);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
-		*Actor->GetName());
+		   *Actor->GetName());
 }
 
-void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor* Actor)
+void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 {
 	if (!StatusEffectManagerRef)
 	{
@@ -467,10 +474,10 @@ void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor* Actor)
 	StatusEffectManagerRef->ProcessEndOfTurnEffects(Actor);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed end-of-turn effects for %s"),
-		*Actor->GetName());
+		   *Actor->GetName());
 }
 
-void ACombatOrchestrator::RequestActionFromActor(AActor* Actor)
+void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 {
 	// Broadcast that we're waiting for action
 	OnActionRequested.Broadcast(Actor);
@@ -485,8 +492,7 @@ void ACombatOrchestrator::RequestActionFromActor(AActor* Actor)
 			this,
 			&ACombatOrchestrator::OnActionCompleted,
 			AutoAdvanceDelay,
-			false
-		);
+			false);
 
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Auto-advancing in %.1fs..."), AutoAdvanceDelay);
 	}
@@ -513,10 +519,10 @@ ECombatState ACombatOrchestrator::CheckWinCondition()
 	return ECombatState::InProgress;
 }
 
-int32 ACombatOrchestrator::CountLivingMembers(const TArray<AActor*>& Team)
+int32 ACombatOrchestrator::CountLivingMembers(const TArray<AActor *> &Team)
 {
 	int32 Count = 0;
-	for (AActor* Actor : Team)
+	for (AActor *Actor : Team)
 	{
 		if (IsActorAlive(Actor))
 		{
@@ -526,19 +532,19 @@ int32 ACombatOrchestrator::CountLivingMembers(const TArray<AActor*>& Team)
 	return Count;
 }
 
-bool ACombatOrchestrator::IsActorAlive(AActor* Actor)
+bool ACombatOrchestrator::IsActorAlive(AActor *Actor)
 {
 	if (!Actor)
 		return false;
 
-	UCharacterDataComponent* CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (!CharComp)
 		return false;
 
 	return CharComp->bIsAlive;
 }
 
-int32 ACombatOrchestrator::GetActorTeamIndex(AActor* Actor) const
+int32 ACombatOrchestrator::GetActorTeamIndex(AActor *Actor) const
 {
 	if (Team0Combatants.Contains(Actor))
 		return 0;
@@ -547,14 +553,14 @@ int32 ACombatOrchestrator::GetActorTeamIndex(AActor* Actor) const
 	return -1;
 }
 
-TArray<AActor*> ACombatOrchestrator::GetEnemyTeam(AActor* Actor) const
+TArray<AActor *> ACombatOrchestrator::GetEnemyTeam(AActor *Actor) const
 {
 	int32 TeamIndex = GetActorTeamIndex(Actor);
 	if (TeamIndex == 0)
 		return Team1Combatants;
 	if (TeamIndex == 1)
 		return Team0Combatants;
-	return TArray<AActor*>();
+	return TArray<AActor *>();
 }
 
 FCombatResult ACombatOrchestrator::BuildCombatResult()
@@ -568,7 +574,7 @@ FCombatResult ACombatOrchestrator::BuildCombatResult()
 	// Find last standing actor (for victory screen)
 	if (Result.Team0Survivors > 0)
 	{
-		for (AActor* Actor : Team0Combatants)
+		for (AActor *Actor : Team0Combatants)
 		{
 			if (IsActorAlive(Actor))
 			{
@@ -579,7 +585,7 @@ FCombatResult ACombatOrchestrator::BuildCombatResult()
 	}
 	else if (Result.Team1Survivors > 0)
 	{
-		for (AActor* Actor : Team1Combatants)
+		for (AActor *Actor : Team1Combatants)
 		{
 			if (IsActorAlive(Actor))
 			{
@@ -590,6 +596,40 @@ FCombatResult ACombatOrchestrator::BuildCombatResult()
 	}
 
 	return Result;
+}
+
+void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
+{
+	auto PrepareActor = [](AActor *Actor)
+	{
+		if (!Actor)
+			return;
+
+		UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
+		ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+
+		if (Loadout && Inventory)
+		{
+			if (Loadout->PrepareForBattle(Inventory))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Prepared loadout for %s"), *Actor->GetName());
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Failed to prepare loadout for %s"), *Actor->GetName());
+			}
+		}
+	};
+
+	for (AActor *Actor : Team0Combatants)
+	{
+		PrepareActor(Actor);
+	}
+
+	for (AActor *Actor : Team1Combatants)
+	{
+		PrepareActor(Actor);
+	}
 }
 
 // ========================================
@@ -603,20 +643,20 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("Current Turn: %d"), CurrentTurnNumber);
 	UE_LOG(LogTemp, Display, TEXT("Current Actor: %s"), CurrentActor ? *CurrentActor->GetName() : TEXT("None"));
 	UE_LOG(LogTemp, Display, TEXT("Auto-Advance: %s (%.1fs delay)"),
-		bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
+		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"), AutoAdvanceDelay);
 	UE_LOG(LogTemp, Display, TEXT("Waiting for Async: %s"), bWaitingForAsyncAction ? TEXT("Yes") : TEXT("No"));
 
 	UE_LOG(LogTemp, Display, TEXT("\nTeam 0 (%d members):"), Team0Combatants.Num());
-	for (AActor* Actor : Team0Combatants)
+	for (AActor *Actor : Team0Combatants)
 	{
-		UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
 			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s"),
-				*Actor->GetName(),
-				Comp->CurrentHP, Comp->MaxHP,
-				Comp->CurrentEP, Comp->MaxEP,
-				Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
+				   *Actor->GetName(),
+				   Comp->CurrentHP, Comp->MaxHP,
+				   Comp->CurrentEP, Comp->MaxEP,
+				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
 		}
 		else
 		{
@@ -625,16 +665,16 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("\nTeam 1 (%d members):"), Team1Combatants.Num());
-	for (AActor* Actor : Team1Combatants)
+	for (AActor *Actor : Team1Combatants)
 	{
-		UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
 			UE_LOG(LogTemp, Display, TEXT("  %s - HP: %d/%d, EP: %d/%d, Alive: %s"),
-				*Actor->GetName(),
-				Comp->CurrentHP, Comp->MaxHP,
-				Comp->CurrentEP, Comp->MaxEP,
-				Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
+				   *Actor->GetName(),
+				   Comp->CurrentHP, Comp->MaxHP,
+				   Comp->CurrentEP, Comp->MaxEP,
+				   Comp->bIsAlive ? TEXT("Yes") : TEXT("No"));
 		}
 		else
 		{
@@ -645,7 +685,7 @@ void ACombatOrchestrator::DebugPrintCombatState()
 	UE_LOG(LogTemp, Display, TEXT("================================="));
 }
 
-void ACombatOrchestrator::DebugKillActor(AActor* Actor)
+void ACombatOrchestrator::DebugKillActor(AActor *Actor)
 {
 	if (!Actor)
 	{
@@ -653,7 +693,7 @@ void ACombatOrchestrator::DebugKillActor(AActor* Actor)
 		return;
 	}
 
-	UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (Comp)
 	{
 		Comp->ServerTakeDamage(9999);
@@ -664,11 +704,11 @@ void ACombatOrchestrator::DebugKillActor(AActor* Actor)
 
 void ACombatOrchestrator::DebugHealAllTeam(int32 TeamIndex)
 {
-	TArray<AActor*>& Team = (TeamIndex == 0) ? Team0Combatants : Team1Combatants;
+	TArray<AActor *> &Team = (TeamIndex == 0) ? Team0Combatants : Team1Combatants;
 
-	for (AActor* Actor : Team)
+	for (AActor *Actor : Team)
 	{
-		UCharacterDataComponent* Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (Comp)
 		{
 			if (!Comp->bIsAlive)
@@ -695,9 +735,9 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 	}
 
 	// Find a living enemy target
-	TArray<AActor*> Enemies = GetEnemyTeam(CurrentActor);
-	AActor* Target = nullptr;
-	for (AActor* Enemy : Enemies)
+	TArray<AActor *> Enemies = GetEnemyTeam(CurrentActor);
+	AActor *Target = nullptr;
+	for (AActor *Enemy : Enemies)
 	{
 		if (IsActorAlive(Enemy))
 		{
@@ -718,7 +758,36 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 	TestAction.ActionType = EActionType::Defend;
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: %s executing Defend action"),
-		*CurrentActor->GetName());
+		   *CurrentActor->GetName());
 
 	SubmitAction(TestAction);
+}
+
+void ACombatOrchestrator::ConsumeAllUsedItems()
+{
+	auto ConsumeForActor = [](AActor *Actor)
+	{
+		if (!Actor)
+			return;
+
+		UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
+		ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+
+		if (Loadout && Inventory)
+		{
+			Loadout->ConsumeUsedItems(Inventory);
+			Loadout->ResetBattleState();
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Consumed items and reset loadout for %s"), *Actor->GetName());
+		}
+	};
+
+	for (AActor *Actor : Team0Combatants)
+	{
+		ConsumeForActor(Actor);
+	}
+
+	for (AActor *Actor : Team1Combatants)
+	{
+		ConsumeForActor(Actor);
+	}
 }
