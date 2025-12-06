@@ -9,6 +9,8 @@
 #include "UI/Combat/PieMenuButtonData.h"
 #include "ECharacterClass.h"
 #include "EInfusionSourceOption.h"
+#include "LoadoutComponent.h"
+#include "CharacterDataComponent.h"
 #include "CombatMenuSubsystem.generated.h"
 
 class UCharacterData;
@@ -70,6 +72,10 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Combat Menu")
 	TArray<FPieMenuButtonData> GetMainMenuButtons(UCharacterData *CharacterData);
+
+	/** Get main menu buttons from an actor (uses LoadoutComponent when available) */
+	UFUNCTION(BlueprintCallable, Category = "Combat Menu")
+	TArray<FPieMenuButtonData> GetMainMenuButtonsForActor(AActor *Actor);
 
 	// ==================== SUB-MENUS ====================
 
@@ -176,6 +182,10 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Menu|State")
 	TWeakObjectPtr<UCharacterData> CurrentCharacter;
 
+	/** Current actor (for LoadoutComponent access) */
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Menu|State")
+	TWeakObjectPtr<AActor> CurrentActor;
+
 	// ==================== STATE MANAGEMENT ====================
 
 	/** Set menu state and broadcast change */
@@ -230,4 +240,7 @@ private:
 
 	/** Check if character can switch weapons */
 	bool CanSwitchWeapon(UCharacterData *CharacterData) const;
+
+	/** Get LoadoutComponent from current actor */
+	ULoadoutComponent *GetLoadoutComponent() const;
 };

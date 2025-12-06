@@ -19,6 +19,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "EInfusionSourceOption.h"
+#include "LoadoutComponent.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -378,6 +379,12 @@ private:
 	// ========================================
 	// INTERNAL HELPERS
 	// ========================================
+
+	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
+
+	// New validation method
+	bool CanUseAbility(AActor *Actor, UAbilityData *Ability) const;
+	bool CanUseSpell(AActor *Actor, USpellData *Spell) const;
 
 	/** Get CharacterDataComponent from actor */
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;

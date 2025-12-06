@@ -65,6 +65,26 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetMainMenuButtons(UCharacterDa
 	return Buttons;
 }
 
+TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetMainMenuButtonsForActor(AActor *Actor)
+{
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatMenuSubsystem] GetMainMenuButtonsForActor: null Actor"));
+		return TArray<FPieMenuButtonData>();
+	}
+
+	CurrentActor = Actor;
+
+	// Get CharacterData from component
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (CharComp && CharComp->CharacterData)
+	{
+		return GetMainMenuButtons(CharComp->CharacterData);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[CombatMenuSubsystem] GetMainMenuButtonsForActor: no CharacterDataComponent"));
+	return TArray<FPieMenuButtonData>();
+}
 // ==================== MAIN MENU BUILDERS ====================
 
 void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons)
@@ -1092,6 +1112,15 @@ void UCombatMenuSubsystem::NavigateBack()
 
 // ==================== HELPERS ====================
 
+ULoadoutComponent *UCombatMenuSubsystem::GetLoadoutComponent() const
+{
+	if (CurrentActor.IsValid())
+	{
+		return CurrentActor->FindComponentByClass<ULoadoutComponent>();
+	}
+	return nullptr;
+}
+
 TArray<USpellData *> UCombatMenuSubsystem::GetSpellsBySchool(UCharacterData *CharacterData, EPieMenuSpellSchool School) const
 {
 	TArray<USpellData *> Result;
@@ -1114,8 +1143,16 @@ TArray<USpellData *> UCombatMenuSubsystem::GetSpellsBySchool(UCharacterData *Cha
 
 TArray<USpellData *> UCombatMenuSubsystem::GetAllSpells(UCharacterData *CharacterData) const
 {
-	TArray<USpellData *> Result;
+	// Try LoadoutComponent first (new system)
+	ULoadoutComponent *Loadout = GetLoadoutComponent();
+	if (Loadout && Loadout->IsReadyForBattle())
+	{
+		return Loadout->GetAvailableSpells();
+	}
 
+	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
+	// TODO: Remove once GetMainMenuButtonsForActor() is used everywhere
+	TArray<USpellData *> Result;
 	if (!CharacterData)
 	{
 		return Result;
@@ -1123,22 +1160,17 @@ TArray<USpellData *> UCombatMenuSubsystem::GetAllSpells(UCharacterData *Characte
 
 	if (CharacterData->IsCaster())
 	{
-		// Caster: use innate spells
 		Result = CharacterData->InnateSpells;
 	}
 	else if (CharacterData->IsResonator())
 	{
-		// Resonator: get spells from current active ring
-		// TODO: Get active ring index from runtime state
 		int32 ActiveRingIndex = 0;
-
 		if (CharacterData->EquippedRings.IsValidIndex(ActiveRingIndex))
 		{
 			URingData *Ring = CharacterData->EquippedRings[ActiveRingIndex];
 			if (Ring)
 			{
-				// TODO: Get spells from ring
-				// Result = Ring->RingSpells;
+				Result = Ring->GetAvailableSpells();
 			}
 		}
 	}
@@ -1148,8 +1180,16 @@ TArray<USpellData *> UCombatMenuSubsystem::GetAllSpells(UCharacterData *Characte
 
 TArray<UAbilityData *> UCombatMenuSubsystem::GetCurrentWeaponAbilities(UCharacterData *CharacterData) const
 {
-	TArray<UAbilityData *> Result;
+	// Try LoadoutComponent first (new system)
+	ULoadoutComponent *Loadout = GetLoadoutComponent();
+	if (Loadout && Loadout->IsReadyForBattle())
+	{
+		return Loadout->GetAvailableAbilities();
+	}
 
+	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
+	// TODO: Remove once GetMainMenuButtonsForActor() is used everywhere
+	TArray<UAbilityData *> Result;
 	if (!CharacterData)
 	{
 		return Result;
@@ -1159,8 +1199,7 @@ TArray<UAbilityData *> UCombatMenuSubsystem::GetCurrentWeaponAbilities(UCharacte
 
 	if (CurrentWeapon)
 	{
-		// TODO: Get abilities from weapon
-		// Result = CurrentWeapon->WeaponAbilities;
+		Result = CurrentWeapon->PresetAbilities;
 	}
 
 	return Result;

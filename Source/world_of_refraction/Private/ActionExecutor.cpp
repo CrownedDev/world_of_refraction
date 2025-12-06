@@ -32,6 +32,7 @@
 #include "EInfusionSourceOption.h"
 #include "RingData.h"
 #include "InfusionVFXComponent.h"
+#include "LoadoutComponent.h"
 #include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
@@ -3323,4 +3324,66 @@ void UActionExecutor::DebugPrintInfusionInfo(AActor *Actor) const
 	UE_LOG(LogTemp, Display, TEXT("L2 Cost: %s"),
 		   *InfusionSourceHelpers::GetL2CostDescription(Source));
 	UE_LOG(LogTemp, Display, TEXT("================================"));
+}
+
+ULoadoutComponent *UActionExecutor::GetLoadoutComponent(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	return Actor->FindComponentByClass<ULoadoutComponent>();
+}
+
+bool UActionExecutor::CanUseAbility(AActor *Actor, UAbilityData *Ability) const
+{
+	if (!Actor || !Ability)
+	{
+		return false;
+	}
+
+	// Check LoadoutComponent first (new system)
+	ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	if (Loadout && Loadout->IsReadyForBattle())
+	{
+		TArray<UAbilityData *> Available = Loadout->GetAvailableAbilities();
+		return Available.Contains(Ability);
+	}
+
+	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
+	// TODO: Remove this fallback once all combat entry points call PrepareForBattle()
+
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (CharData && CharData->PrimaryWeapon)
+	{
+		return CharData->PrimaryWeapon->PresetAbilities.Contains(Ability);
+	}
+
+	return false;
+}
+
+bool UActionExecutor::CanUseSpell(AActor *Actor, USpellData *Spell) const
+{
+	if (!Actor || !Spell)
+	{
+		return false;
+	}
+
+	// Check LoadoutComponent first (new system)
+	ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	if (Loadout && Loadout->IsReadyForBattle())
+	{
+		TArray<USpellData *> Available = Loadout->GetAvailableSpells();
+		return Available.Contains(Spell);
+	}
+
+	// DEPRECATED: Fallback to CharacterData (remove after full LoadoutComponent migration)
+	// TODO: Remove this fallback once all combat entry points call PrepareForBattle()
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (CharData)
+	{
+		return CharData->InnateSpells.Contains(Spell);
+	}
+
+	return false;
 }
