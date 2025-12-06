@@ -778,20 +778,20 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Ability Execution (DA_Abilities_HeavyStrike)"));
 
-	// Load HeavyStrike ability - located in Gauntlets subfolder
+	// Load HeavyStrike ability - located in Fist subfolder
 	UAbilityData *Ability = LoadObject<UAbilityData>(nullptr,
-													 TEXT("/Game/Data/Abilities/Gauntlets/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+													 TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
 
 	if (!Ability)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("    DA_Abilities_HeavyStrike not found, trying DA_Abilities_Focus"));
 		Ability = LoadObject<UAbilityData>(nullptr,
-										   TEXT("/Game/Data/Abilities/Gauntlets/DA_Abilities_Focus.DA_Abilities_Focus"));
+										   TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_Focus.DA_Abilities_Focus"));
 	}
 
 	if (!Ability)
 	{
-		UE_LOG(LogTemp, Error, TEXT("    No ability found - check asset paths in /Game/Data/Abilities/Gauntlets/"));
+		UE_LOG(LogTemp, Error, TEXT("    No ability found - check asset paths in /Game/Data/Weapons/Gauntlets/Abilities/"));
 		PrintTestResult("Ability Execution", false);
 		return;
 	}
@@ -1114,7 +1114,7 @@ void ACombatOrchestratorTestActor::Test_EnergyCost()
 	if (!Spell)
 	{
 		Spell = LoadObject<USpellData>(nullptr,
-									   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fireball.DA_Spells_Fireball"));
+									   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_FireBall.DA_Spells_Fire_FireBall"));
 	}
 
 	if (!Spell)
