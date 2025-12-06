@@ -30,11 +30,11 @@ class UEvolutionData;
 /**
  * UInventoryComponent
  * Manages all character inventory (what they OWN)
- * 
+ *
  * Attach to any actor that needs inventory (player characters, party members)
  * Provides validation, capacity management, and Blueprint access
  */
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UInventoryComponent : public UActorComponent
 {
     GENERATED_BODY()
@@ -43,6 +43,10 @@ public:
     UInventoryComponent();
 
     // ==================== INVENTORY DATA ====================
+
+    /** Initialize inventory from CharacterData template */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Setup")
+    void InitializeFromCharacterData(UCharacterData *CharacterData);
 
     /** Learned spells (max 50) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Spells")
@@ -66,49 +70,49 @@ public:
 
     /** Evolution crystals (max 10) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Evolution")
-    TArray<UEvolutionData*> EvolutionCrystals;
+    TArray<UEvolutionData *> EvolutionCrystals;
 
     // ==================== SPELL OPERATIONS ====================
 
     /** Learn a new spell */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Spells")
-    bool LearnSpell(USpellData* Spell);
+    bool LearnSpell(USpellData *Spell);
 
     /** Unlearn a spell */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Spells")
-    bool UnlearnSpell(USpellData* Spell);
+    bool UnlearnSpell(USpellData *Spell);
 
     /** Check if spell is known */
     UFUNCTION(BlueprintPure, Category = "Inventory|Spells")
-    bool HasSpell(USpellData* Spell) const;
+    bool HasSpell(USpellData *Spell) const;
 
     /** Get spells by element */
     UFUNCTION(BlueprintPure, Category = "Inventory|Spells")
-    TArray<USpellData*> GetSpellsByElement(ESpellElement Element) const;
+    TArray<USpellData *> GetSpellsByElement(ESpellElement Element) const;
 
     // ==================== ABILITY OPERATIONS ====================
 
     /** Learn a new ability */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Abilities")
-    bool LearnAbility(UAbilityData* Ability);
+    bool LearnAbility(UAbilityData *Ability);
 
     /** Unlearn an ability */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Abilities")
-    bool UnlearnAbility(UAbilityData* Ability);
+    bool UnlearnAbility(UAbilityData *Ability);
 
     /** Check if ability is known */
     UFUNCTION(BlueprintPure, Category = "Inventory|Abilities")
-    bool HasAbility(UAbilityData* Ability) const;
+    bool HasAbility(UAbilityData *Ability) const;
 
     /** Get abilities for weapon type */
     UFUNCTION(BlueprintPure, Category = "Inventory|Abilities")
-    TArray<UAbilityData*> GetAbilitiesForWeaponType(EWeaponType WeaponType) const;
+    TArray<UAbilityData *> GetAbilitiesForWeaponType(EWeaponType WeaponType) const;
 
     // ==================== WEAPON OPERATIONS ====================
 
     /** Add a weapon to inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool AddWeapon(UWeaponData* Weapon, bool bCopyDefaultCrystal = false);
+    bool AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrystal = false);
 
     /** Remove a weapon from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
@@ -132,27 +136,27 @@ public:
 
     /** Can add weapon (checks capacity) */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
-    bool CanAddWeapon(UWeaponData* Weapon) const;
+    bool CanAddWeapon(UWeaponData *Weapon) const;
 
     // ==================== WEAPON CRYSTAL OPERATIONS ====================
 
     /** Attach crystal to weapon */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool AttachCrystalToWeapon(int32 WeaponIndex, UItemData* Crystal);
+    bool AttachCrystalToWeapon(int32 WeaponIndex, UItemData *Crystal);
 
     /** Remove crystal from weapon (returns removed crystal) */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    UItemData* RemoveCrystalFromWeapon(int32 WeaponIndex);
+    UItemData *RemoveCrystalFromWeapon(int32 WeaponIndex);
 
     /** Apply evolution to weapon */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionData* Evolution);
+    bool ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionData *Evolution);
 
     // ==================== RING OPERATIONS ====================
 
     /** Add a ring to inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool AddRing(URingData* Ring, bool bCopyDefaultCrystal = false);
+    bool AddRing(URingData *Ring, bool bCopyDefaultCrystal = false);
 
     /** Remove a ring from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
@@ -176,61 +180,61 @@ public:
 
     /** Can add ring (checks capacity) */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
-    bool CanAddRing(URingData* Ring) const;
+    bool CanAddRing(URingData *Ring) const;
 
     // ==================== RING CRYSTAL OPERATIONS ====================
 
     /** Attach crystal to ring */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool AttachCrystalToRing(int32 RingIndex, UItemData* Crystal);
+    bool AttachCrystalToRing(int32 RingIndex, UItemData *Crystal);
 
     /** Remove crystal from ring (returns removed crystal) */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    UItemData* RemoveCrystalFromRing(int32 RingIndex);
+    UItemData *RemoveCrystalFromRing(int32 RingIndex);
 
     /** Apply evolution to ring */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool ApplyEvolutionToRing(int32 RingIndex, UEvolutionData* Evolution);
+    bool ApplyEvolutionToRing(int32 RingIndex, UEvolutionData *Evolution);
 
     // ==================== ITEM OPERATIONS ====================
 
     /** Add item crystal to inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool AddItem(UItemData* Item);
+    bool AddItem(UItemData *Item);
 
     /** Remove item crystal from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool RemoveItem(UItemData* Item);
+    bool RemoveItem(UItemData *Item);
 
     /** Check if item is in inventory */
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    bool HasItem(UItemData* Item) const;
+    bool HasItem(UItemData *Item) const;
 
     /** Get items by type */
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    TArray<UItemData*> GetItemsByType(ECrystalType Type) const;
+    TArray<UItemData *> GetItemsByType(ECrystalType Type) const;
 
     /** Get items by tier */
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    TArray<UItemData*> GetItemsByTier(EItemTier Tier) const;
+    TArray<UItemData *> GetItemsByTier(EItemTier Tier) const;
 
     // ==================== EVOLUTION OPERATIONS ====================
 
     /** Add evolution crystal */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
-    bool AddEvolutionCrystal(UEvolutionData* Evolution);
+    bool AddEvolutionCrystal(UEvolutionData *Evolution);
 
     /** Remove evolution crystal */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
-    bool RemoveEvolutionCrystal(UEvolutionData* Evolution);
+    bool RemoveEvolutionCrystal(UEvolutionData *Evolution);
 
     /** Check if evolution crystal is owned */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
-    bool HasEvolutionCrystal(UEvolutionData* Evolution) const;
+    bool HasEvolutionCrystal(UEvolutionData *Evolution) const;
 
     /** Get evolution crystals by element */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
-    TArray<UEvolutionData*> GetEvolutionCrystalsByElement(ESpellElement Element) const;
+    TArray<UEvolutionData *> GetEvolutionCrystalsByElement(ESpellElement Element) const;
 
     // ==================== UTILITY ====================
 

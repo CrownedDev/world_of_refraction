@@ -175,6 +175,10 @@ public:
 
     // ==================== QUICK SETUP ====================
 
+    /** Initialize loadout from CharacterData and Inventory */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")
+    void InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory);
+
     /** Auto-populate loadout from inventory (best available) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")
     bool AutoPopulateLoadout(int32 LoadoutIndex, UInventoryComponent *Inventory);

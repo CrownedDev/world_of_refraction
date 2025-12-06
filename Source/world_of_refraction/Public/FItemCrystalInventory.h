@@ -20,9 +20,9 @@ class UItemData;
  * Manages consumable item crystals with tiered capacity limits (runtime state)
  * S-tier: 3, A-tier: 5, B-tier: 8, C-tier: 12, D-tier: 15, E-tier: 20, F-tier: 25
  * Total: 88 crystals maximum
- * 
+ *
  * Crystals are consumed permanently when used in combat.
- * 
+ *
  * NOTE: Using separate arrays per tier because UHT doesn't support TMap<Enum, TArray<>>
  */
 USTRUCT(BlueprintType)
@@ -31,27 +31,27 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
     GENERATED_BODY()
 
     // ==================== STORAGE (Per-Tier Arrays) ====================
-    
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|F-Tier")
-    TArray<UItemData*> CrystalsF; // Max 25
-    
+    TArray<UItemData *> CrystalsF; // Max 25
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|E-Tier")
-    TArray<UItemData*> CrystalsE; // Max 20
-    
+    TArray<UItemData *> CrystalsE; // Max 20
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|D-Tier")
-    TArray<UItemData*> CrystalsD; // Max 15
-    
+    TArray<UItemData *> CrystalsD; // Max 15
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|C-Tier")
-    TArray<UItemData*> CrystalsC; // Max 12
-    
+    TArray<UItemData *> CrystalsC; // Max 12
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|B-Tier")
-    TArray<UItemData*> CrystalsB; // Max 8
-    
+    TArray<UItemData *> CrystalsB; // Max 8
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|A-Tier")
-    TArray<UItemData*> CrystalsA; // Max 5
-    
+    TArray<UItemData *> CrystalsA; // Max 5
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|S-Tier")
-    TArray<UItemData*> CrystalsS; // Max 3
+    TArray<UItemData *> CrystalsS; // Max 3
 
     // ==================== CAPACITY ====================
 
@@ -60,14 +60,22 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
     {
         switch (Tier)
         {
-            case EItemTier::S_Tier: return InventoryConstants::ITEM_CAPACITY_S;
-            case EItemTier::A_Tier: return InventoryConstants::ITEM_CAPACITY_A;
-            case EItemTier::B_Tier: return InventoryConstants::ITEM_CAPACITY_B;
-            case EItemTier::C_Tier: return InventoryConstants::ITEM_CAPACITY_C;
-            case EItemTier::D_Tier: return InventoryConstants::ITEM_CAPACITY_D;
-            case EItemTier::E_Tier: return InventoryConstants::ITEM_CAPACITY_E;
-            case EItemTier::F_Tier: return InventoryConstants::ITEM_CAPACITY_F;
-            default: return 0;
+        case EItemTier::S_Tier:
+            return InventoryConstants::ITEM_CAPACITY_S;
+        case EItemTier::A_Tier:
+            return InventoryConstants::ITEM_CAPACITY_A;
+        case EItemTier::B_Tier:
+            return InventoryConstants::ITEM_CAPACITY_B;
+        case EItemTier::C_Tier:
+            return InventoryConstants::ITEM_CAPACITY_C;
+        case EItemTier::D_Tier:
+            return InventoryConstants::ITEM_CAPACITY_D;
+        case EItemTier::E_Tier:
+            return InventoryConstants::ITEM_CAPACITY_E;
+        case EItemTier::F_Tier:
+            return InventoryConstants::ITEM_CAPACITY_F;
+        default:
+            return 0;
         }
     }
 
@@ -92,34 +100,34 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
     /** Get total crystals across all tiers */
     int32 GetTotalCount() const
     {
-        return CrystalsF.Num() + CrystalsE.Num() + CrystalsD.Num() + 
+        return CrystalsF.Num() + CrystalsE.Num() + CrystalsD.Num() +
                CrystalsC.Num() + CrystalsB.Num() + CrystalsA.Num() + CrystalsS.Num();
     }
 
     // ==================== ADD/REMOVE ====================
 
     /** Check if crystal can be added (validates tier capacity) */
-    bool CanAddCrystal(UItemData* Crystal) const;
+    bool CanAddCrystal(UItemData *Crystal) const;
 
     /** Add crystal to inventory (returns false if at capacity) */
-    bool AddCrystal(UItemData* Crystal);
+    bool AddCrystal(UItemData *Crystal);
 
     /** Remove crystal from inventory (returns false if not found) */
-    bool RemoveCrystal(UItemData* Crystal);
+    bool RemoveCrystal(UItemData *Crystal);
 
     // ==================== QUERIES ====================
 
     /** Check if crystal is in inventory */
-    bool HasCrystal(UItemData* Crystal) const;
+    bool HasCrystal(UItemData *Crystal) const;
 
     /** Get all crystals of a specific tier */
-    TArray<UItemData*> GetCrystalsOfTier(EItemTier Tier) const
+    TArray<UItemData *> GetCrystalsOfTier(EItemTier Tier) const
     {
         return GetArrayForTier(Tier);
     }
 
     /** Get all crystals of a specific type (across all tiers) */
-    TArray<UItemData*> GetCrystalsOfType(ECrystalType Type) const;
+    TArray<UItemData *> GetCrystalsOfType(ECrystalType Type) const;
 
     // ==================== CLEAR ====================
 
@@ -143,34 +151,48 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
 
 private:
     /** Get array for tier (const) */
-    const TArray<UItemData*>& GetArrayForTier(EItemTier Tier) const
+    const TArray<UItemData *> &GetArrayForTier(EItemTier Tier) const
     {
         switch (Tier)
         {
-            case EItemTier::S_Tier: return CrystalsS;
-            case EItemTier::A_Tier: return CrystalsA;
-            case EItemTier::B_Tier: return CrystalsB;
-            case EItemTier::C_Tier: return CrystalsC;
-            case EItemTier::D_Tier: return CrystalsD;
-            case EItemTier::E_Tier: return CrystalsE;
-            case EItemTier::F_Tier: 
-            default: return CrystalsF;
+        case EItemTier::S_Tier:
+            return CrystalsS;
+        case EItemTier::A_Tier:
+            return CrystalsA;
+        case EItemTier::B_Tier:
+            return CrystalsB;
+        case EItemTier::C_Tier:
+            return CrystalsC;
+        case EItemTier::D_Tier:
+            return CrystalsD;
+        case EItemTier::E_Tier:
+            return CrystalsE;
+        case EItemTier::F_Tier:
+        default:
+            return CrystalsF;
         }
     }
-    
+
     /** Get array for tier (mutable) */
-    TArray<UItemData*>& GetMutableArrayForTier(EItemTier Tier)
+    TArray<UItemData *> &GetMutableArrayForTier(EItemTier Tier)
     {
         switch (Tier)
         {
-            case EItemTier::S_Tier: return CrystalsS;
-            case EItemTier::A_Tier: return CrystalsA;
-            case EItemTier::B_Tier: return CrystalsB;
-            case EItemTier::C_Tier: return CrystalsC;
-            case EItemTier::D_Tier: return CrystalsD;
-            case EItemTier::E_Tier: return CrystalsE;
-            case EItemTier::F_Tier: 
-            default: return CrystalsF;
+        case EItemTier::S_Tier:
+            return CrystalsS;
+        case EItemTier::A_Tier:
+            return CrystalsA;
+        case EItemTier::B_Tier:
+            return CrystalsB;
+        case EItemTier::C_Tier:
+            return CrystalsC;
+        case EItemTier::D_Tier:
+            return CrystalsD;
+        case EItemTier::E_Tier:
+            return CrystalsE;
+        case EItemTier::F_Tier:
+        default:
+            return CrystalsF;
         }
     }
 };

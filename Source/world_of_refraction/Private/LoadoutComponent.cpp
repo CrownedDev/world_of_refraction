@@ -8,6 +8,7 @@
 #include "ItemData.h"
 #include "WeaponData.h"
 #include "RingData.h"
+#include "CharacterData.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -565,6 +566,136 @@ void ULoadoutComponent::ClearLoadout(int32 LoadoutIndex)
 
     SavedLoadouts[LoadoutIndex].Clear();
     SavedLoadouts[LoadoutIndex].InitializeForClass(CharacterClass);
+}
+
+void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory)
+{
+    if (!CharacterData || !Inventory)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("InitializeFromCharacterData: Null CharacterData or Inventory"));
+        return;
+    }
+
+    // Set class from CharacterData
+    CharacterClass = CharacterData->CharacterClass;
+
+    // Clear and create one default loadout
+    SavedLoadouts.Empty();
+    FCombatLoadout DefaultLoadout;
+    DefaultLoadout.LoadoutName = TEXT("Default");
+
+    // Find weapons in inventory
+    FWeaponInventoryEntry *PrimaryEntry = nullptr;
+    FWeaponInventoryEntry *SecondaryEntry = nullptr;
+
+    for (FWeaponInventoryEntry &Entry : Inventory->Weapons)
+    {
+        if (Entry.Weapon == CharacterData->PrimaryWeapon && !PrimaryEntry)
+        {
+            PrimaryEntry = &Entry;
+        }
+        else if (Entry.Weapon == CharacterData->SecondaryWeapon && !SecondaryEntry)
+        {
+            SecondaryEntry = &Entry;
+        }
+    }
+
+    // Configure primary weapon loadout
+    if (PrimaryEntry)
+    {
+        DefaultLoadout.PrimaryWeapon.WeaponEntry = *PrimaryEntry;
+
+        // Copy preset abilities
+        if (PrimaryEntry->Weapon)
+        {
+            for (UAbilityData *Ability : PrimaryEntry->Weapon->PresetAbilities)
+            {
+                if (Ability && DefaultLoadout.PrimaryWeapon.AssignedAbilities.Num() < LoadoutConstants::MAX_WEAPON_ABILITIES)
+                {
+                    DefaultLoadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
+                }
+            }
+        }
+    }
+
+    // Configure secondary based on class
+    if (CharacterClass == ECharacterClass::Generic)
+    {
+        if (SecondaryEntry)
+        {
+            DefaultLoadout.SecondaryWeapon.WeaponEntry = *SecondaryEntry;
+
+            if (SecondaryEntry->Weapon)
+            {
+                for (UAbilityData *Ability : SecondaryEntry->Weapon->PresetAbilities)
+                {
+                    if (Ability && DefaultLoadout.SecondaryWeapon.AssignedAbilities.Num() < LoadoutConstants::MAX_WEAPON_ABILITIES)
+                    {
+                        DefaultLoadout.SecondaryWeapon.AssignedAbilities.Add(Ability);
+                    }
+                }
+            }
+        }
+        else if (CharacterData->SecondaryRing)
+        {
+            // Find ring in inventory
+            for (FRingInventoryEntry &RingEntry : Inventory->Rings)
+            {
+                if (RingEntry.Ring == CharacterData->SecondaryRing)
+                {
+                    DefaultLoadout.SecondaryRing.RingEntry = RingEntry;
+                    break;
+                }
+            }
+        }
+    }
+    else if (CharacterClass == ECharacterClass::Caster)
+    {
+        // Caster innate spells go into InnateSpells
+        for (USpellData *Spell : CharacterData->InnateSpells)
+        {
+            if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
+            {
+                DefaultLoadout.InnateSpells.Add(Spell);
+            }
+        }
+    }
+    else if (CharacterClass == ECharacterClass::Resonator)
+    {
+        // Copy equipped rings to ring loadout
+        int32 RingIndex = 0;
+        for (URingData *RingData : CharacterData->EquippedRings)
+        {
+            if (RingData && RingIndex < InventoryConstants::MAX_RESONATOR_RINGS)
+            {
+                // Find in inventory
+                for (FRingInventoryEntry &RingEntry : Inventory->Rings)
+                {
+                    if (RingEntry.Ring == RingData)
+                    {
+                        DefaultLoadout.RingLoadout[RingIndex].RingEntry = RingEntry;
+                        RingIndex++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    DefaultLoadout.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
+    for (FItemLoadoutSlot &Slot : DefaultLoadout.ItemSlots)
+    {
+        Slot.Clear();
+    }
+
+    SavedLoadouts.Add(DefaultLoadout);
+
+    SavedLoadouts.Add(DefaultLoadout);
+    ActiveLoadoutIndex = 0;
+
+    UE_LOG(LogTemp, Display, TEXT("Initialized loadout for %s (%s class)"),
+           *CharacterData->CharacterName,
+           *UEnum::GetValueAsString(CharacterClass));
 }
 
 #if WITH_EDITOR

@@ -5,6 +5,8 @@
 #include "EWeaponSlotType.h"
 #include "WeaponData.h"
 #include "StanceData.h"
+#include "InventoryComponent.h"
+#include "LoadoutComponent.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
 {
@@ -21,14 +23,30 @@ void UCharacterDataComponent::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Initialize HP/EP from CharacterData
     if (CharacterData)
     {
-        InitializeFromTemplate();
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[CharacterDataComponent] %s: No CharacterData assigned!"),
-               *GetOwner()->GetName());
+        MaxHP = CharacterData->CalculateMaxHP();
+        CurrentHP = MaxHP;
+        MaxEP = CharacterData->CalculateMaxEP();
+        CurrentEP = MaxEP;
+
+        // Auto-initialize Inventory and Loadout if present
+        AActor *Owner = GetOwner();
+        if (Owner)
+        {
+            UInventoryComponent *Inventory = Owner->FindComponentByClass<UInventoryComponent>();
+            ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>();
+
+            if (Inventory)
+            {
+                Inventory->InitializeFromCharacterData(CharacterData);
+            }
+            if (Loadout && Inventory)
+            {
+                Loadout->InitializeFromCharacterData(CharacterData, Inventory);
+            }
+        }
     }
 }
 
