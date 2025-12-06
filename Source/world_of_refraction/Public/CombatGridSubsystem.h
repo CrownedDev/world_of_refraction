@@ -11,7 +11,7 @@
 /**
  * Manages combat grid positions for all combatants
  * Provides damage/defense modifiers based on row positioning
- * 
+ *
  * Grid Layout (per team):
  *   [0,0] [0,1] [0,2]  ← Back Row   (-5% dmg, +5% def)
  *   [1,0] [1,1] [1,2]  ← Middle Row (no modifiers)
@@ -21,15 +21,15 @@ UCLASS()
 class WORLD_OF_REFRACTION_API UCombatGridSubsystem : public UGameInstanceSubsystem
 {
     GENERATED_BODY()
-    
+
 public:
     // ==================== LIFECYCLE ====================
-    
-    virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+    virtual void Initialize(FSubsystemCollectionBase &Collection) override;
     virtual void Deinitialize() override;
-    
+
     // ==================== POSITION MANAGEMENT ====================
-    
+
     /**
      * Assign an actor to a grid position
      * @param Actor The combatant to position
@@ -37,15 +37,15 @@ public:
      * @return True if assignment successful
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
-    bool AssignPosition(AActor* Actor, const FCombatGridPosition& Position);
-    
+    bool AssignPosition(AActor *Actor, const FCombatGridPosition &Position);
+
     /**
      * Remove an actor from the grid
      * @param Actor The combatant to remove
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
-    void RemoveFromGrid(AActor* Actor);
-    
+    void RemoveFromGrid(AActor *Actor);
+
     /**
      * Get an actor's current grid position
      * @param Actor The combatant to query
@@ -53,66 +53,66 @@ public:
      * @return True if actor has a position
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
-    bool GetActorPosition(AActor* Actor, FCombatGridPosition& OutPosition) const;
-    
+    bool GetActorPosition(AActor *Actor, FCombatGridPosition &OutPosition) const;
+
     /**
      * Check if a grid position is occupied
      * @param Position The position to check
      * @return True if position has an actor
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
-    bool IsPositionOccupied(const FCombatGridPosition& Position) const;
-    
+    bool IsPositionOccupied(const FCombatGridPosition &Position) const;
+
     /**
      * Get the actor at a specific position
      * @param Position The position to query
      * @return The actor at that position, or nullptr
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
-    AActor* GetActorAtPosition(const FCombatGridPosition& Position) const;
-    
+    AActor *GetActorAtPosition(const FCombatGridPosition &Position) const;
+
     /**
      * Clear all positions (call at combat end)
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid")
     void ClearAllPositions();
-    
+
     // ==================== MODIFIER GETTERS ====================
-    
+
     /**
      * Get damage modifier for an actor based on their row position
      * @param Actor The attacking actor
      * @return Damage multiplier (0.95, 1.0, or 1.05)
      */
     UFUNCTION(BlueprintPure, Category = "Combat Grid|Modifiers")
-    float GetDamageModifier(AActor* Actor) const;
-    
+    float GetDamageModifier(AActor *Actor) const;
+
     /**
      * Get defense modifier for an actor based on their row position
      * @param Actor The defending actor
      * @return Defense multiplier (0.95, 1.0, or 1.05)
      */
     UFUNCTION(BlueprintPure, Category = "Combat Grid|Modifiers")
-    float GetDefenseModifier(AActor* Actor) const;
-    
+    float GetDefenseModifier(AActor *Actor) const;
+
     /**
      * Get row for an actor
      * @param Actor The actor to query
      * @return The row (defaults to Middle if not found)
      */
     UFUNCTION(BlueprintPure, Category = "Combat Grid")
-    ECombatRow GetActorRow(AActor* Actor) const;
-    
+    ECombatRow GetActorRow(AActor *Actor) const;
+
     // ==================== TEAM QUERIES ====================
-    
+
     /**
      * Get all actors on a team
      * @param TeamIndex The team to query (0 or 1)
      * @return Array of actors on that team
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Teams")
-    TArray<AActor*> GetTeamActors(int32 TeamIndex) const;
-    
+    TArray<AActor *> GetTeamActors(int32 TeamIndex) const;
+
     /**
      * Get all actors in a specific row
      * @param TeamIndex The team to query
@@ -120,8 +120,8 @@ public:
      * @return Array of actors in that row
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Teams")
-    TArray<AActor*> GetActorsInRow(int32 TeamIndex, ECombatRow Row) const;
-    
+    TArray<AActor *> GetActorsInRow(int32 TeamIndex, ECombatRow Row) const;
+
     /**
      * Get count of actors on a team
      * @param TeamIndex The team to query
@@ -129,9 +129,9 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "Combat Grid|Teams")
     int32 GetTeamCount(int32 TeamIndex) const;
-    
+
     // ==================== WORLD POSITIONING ====================
-    
+
     /**
      * Calculate world position for a grid position
      * @param Position The grid position
@@ -139,8 +139,8 @@ public:
      * @return World location for the position
      */
     UFUNCTION(BlueprintPure, Category = "Combat Grid|World")
-    FVector CalculateWorldPosition(const FCombatGridPosition& Position, const FVector& ArenaCenter) const;
-    
+    FVector CalculateWorldPosition(const FCombatGridPosition &Position, const FVector &ArenaCenter) const;
+
     /**
      * Place an actor at their assigned grid position in the world
      * @param Actor The actor to place
@@ -148,17 +148,17 @@ public:
      * @return True if placement successful
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|World")
-    bool PlaceActorAtGridPosition(AActor* Actor, const FVector& ArenaCenter);
-    
+    bool PlaceActorAtGridPosition(AActor *Actor, const FVector &ArenaCenter);
+
     /**
      * Place all assigned actors at their grid positions
      * @param ArenaCenter The center of the arena
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|World")
-    void PlaceAllActors(const FVector& ArenaCenter);
-    
+    void PlaceAllActors(const FVector &ArenaCenter);
+
     // ==================== AUTO-ASSIGNMENT ====================
-    
+
     /**
      * Automatically assign positions for a team
      * Places actors in default formation (one per column, starting from middle row)
@@ -167,23 +167,57 @@ public:
      * @param PreferredRow Default row for all actors
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Auto")
-    void AutoAssignTeam(const TArray<AActor*>& TeamActors, int32 TeamIndex, ECombatRow PreferredRow = ECombatRow::Middle);
-    
+    void AutoAssignTeam(const TArray<AActor *> &TeamActors, int32 TeamIndex, ECombatRow PreferredRow = ECombatRow::Middle);
+
     // ==================== DEBUG ====================
-    
+
     /** Log all current positions */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug", CallInEditor)
     void DebugLogAllPositions() const;
-    
+
     /** Log modifiers for all actors */
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug", CallInEditor)
     void DebugLogModifiers() const;
-    
+
+    /** Draw debug visualization of grid in world */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug", meta = (DevelopmentOnly))
+    void DebugDrawGrid(const FVector &ArenaCenter, float Duration = 5.0f);
+
+    /** Draw all actor positions */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Debug", meta = (DevelopmentOnly))
+    void DebugDrawActorPositions(const FVector &ArenaCenter, float Duration = 5.0f);
+
+    // ==================== FACING ====================
+
+    /**
+     * Update all actors to face their target enemy
+     * Call after PlaceAllActors or when someone dies
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Facing")
+    void UpdateAllActorFacing(const FVector &ArenaCenter);
+
+    /**
+     * Update single actor to face their target enemy
+     * @param Actor The actor to update
+     * @param ArenaCenter The arena center for position calculation
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Facing")
+    void UpdateActorFacing(AActor *Actor, const FVector &ArenaCenter);
+
+    /**
+     * Get the enemy this actor should be facing
+     * Priority: Same column (front row first), then closest enemy
+     * @param Actor The actor to query
+     * @return The target enemy, or nullptr if no enemies
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Facing")
+    AActor *GetFacingTarget(AActor *Actor) const;
+
 private:
     /** Map of actors to their grid positions */
     UPROPERTY()
-    TMap<AActor*, FCombatGridPosition> ActorPositions;
-    
+    TMap<AActor *, FCombatGridPosition> ActorPositions;
+
     /** Get unique key for position lookup */
-    int32 GetPositionKey(const FCombatGridPosition& Position) const;
+    int32 GetPositionKey(const FCombatGridPosition &Position) const;
 };

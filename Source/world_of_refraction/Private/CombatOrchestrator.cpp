@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "InventoryComponent.h"
 #include "LoadoutComponent.h"
+#include "CombatGridSubsystem.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -97,6 +98,14 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	// Prepare loadouts for battle
 	PrepareAllLoadoutsForBattle();
 
+	// Assign grid positions
+	if (UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+	{
+		Grid->AutoAssignTeam(Team0Combatants, 0, ECombatRow::Middle);
+		Grid->AutoAssignTeam(Team1Combatants, 1, ECombatRow::Middle);
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned"));
+	}
+
 	// Bind to TurnManager events
 	BindTurnManagerEvents();
 
@@ -126,8 +135,16 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	{
 		StatusEffectManagerRef->ClearAllEffects();
 	}
+
 	// === Consume used items and reset loadouts ===
 	ConsumeAllUsedItems();
+
+	// Clear grid positions
+	if (UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+	{
+		Grid->ClearAllPositions();
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions cleared"));
+	}
 
 	if (TurnManagerRef)
 	{
@@ -699,6 +716,13 @@ void ACombatOrchestrator::DebugKillActor(AActor *Actor)
 		Comp->ServerTakeDamage(9999);
 		TurnManagerRef->OnActorDied(Actor);
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Killed %s"), *Actor->GetName());
+
+		// Update facing for remaining actors
+		UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+		if (Grid)
+		{
+			Grid->UpdateAllActorFacing(GetActorLocation());
+		}
 	}
 }
 
@@ -761,6 +785,101 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 		   *CurrentActor->GetName());
 
 	SubmitAction(TestAction);
+}
+
+void ACombatOrchestrator::DebugDrawCombatGrid(float Duration)
+{
+	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+	if (!Grid)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] CombatGridSubsystem not available"));
+		return;
+	}
+
+	// Use world origin or this actor's location as arena center
+	FVector ArenaCenter = GetActorLocation();
+
+	// Draw the grid layout
+	Grid->DebugDrawGrid(ArenaCenter, Duration);
+
+	// Draw actor positions
+	Grid->DebugDrawActorPositions(ArenaCenter, Duration);
+
+	// Also log to output
+	Grid->DebugLogAllPositions();
+	Grid->DebugLogModifiers();
+}
+
+void ACombatOrchestrator::DebugStartCombatWithLevelActors()
+{
+	UWorld *World = GetWorld();
+	if (!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No world available"));
+		return;
+	}
+
+	// Find actors by tag
+	TArray<AActor *> Team0;
+	TArray<AActor *> Team1;
+
+	TArray<AActor *> AllActors;
+	UGameplayStatics::GetAllActorsWithTag(World, FName("Team0"), AllActors);
+	for (AActor *Actor : AllActors)
+	{
+		if (Actor->FindComponentByClass<UCharacterDataComponent>())
+		{
+			Team0.Add(Actor);
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Found Team0: %s"), *Actor->GetName());
+		}
+	}
+
+	AllActors.Empty();
+	UGameplayStatics::GetAllActorsWithTag(World, FName("Team1"), AllActors);
+	for (AActor *Actor : AllActors)
+	{
+		if (Actor->FindComponentByClass<UCharacterDataComponent>())
+		{
+			Team1.Add(Actor);
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Found Team1: %s"), *Actor->GetName());
+		}
+	}
+
+	// Validate
+	if (Team0.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No actors with 'Team0' tag found. Add tag to player characters."));
+		return;
+	}
+	if (Team1.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] No actors with 'Team1' tag found. Add tag to enemy characters."));
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: %d vs %d"), Team0.Num(), Team1.Num());
+
+	// Start combat (this calls PrepareAllLoadoutsForBattle and assigns grid positions)
+	StartCombat(Team0, Team1);
+
+	// Snap actors to grid world positions
+	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+	if (Grid)
+	{
+		FVector ArenaCenter = GetActorLocation();
+		Grid->PlaceAllActors(ArenaCenter);
+
+		// Make actors face their targets
+		Grid->UpdateAllActorFacing(ArenaCenter);
+
+		// Draw debug visualization
+		Grid->DebugDrawGrid(ArenaCenter, 10.0f);
+		Grid->DebugDrawActorPositions(ArenaCenter, 10.0f);
+		Grid->DebugLogAllPositions();
+		Grid->DebugLogModifiers();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Combat started and actors positioned!"));
 }
 
 void ACombatOrchestrator::ConsumeAllUsedItems()

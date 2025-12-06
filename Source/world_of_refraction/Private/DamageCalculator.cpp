@@ -12,6 +12,7 @@
 #include "Engine/GameInstance.h"
 #include "WeaponData.h"
 #include "WeaponManager.h"
+#include "CombatGridSubsystem.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -40,6 +41,14 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.bIsElemental);
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
+
+	// Step 1.5: Grid position damage modifier (attacker)
+	UCombatGridSubsystem *Grid = GetCombatGridSubsystem();
+	if (Grid)
+	{
+		float GridDamageMod = Grid->GetDamageModifier(Attacker);
+		RunningDamage *= GridDamageMod;
+	}
 
 	// Step 2: Status effect modifiers (buffs/debuffs)
 	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.bIsElemental);
@@ -89,6 +98,19 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		RunningDamage *= (1.0f - Result.DefenderResistance);
 		Result.DamageReducedByResistance = BeforeResist - FMath::RoundToInt(RunningDamage);
 	}
+
+	// Step 6.5: Grid position defense modifier (defender)
+	if (Grid && Defender)
+	{
+		float GridDefenseMod = Grid->GetDefenseModifier(Defender);
+		if (GridDefenseMod > 0.0f)
+		{
+			RunningDamage /= GridDefenseMod;
+		}
+	}
+
+	// Step 7: Ensure minimum damage
+	Result.FinalDamage = FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(RunningDamage));
 
 	// Step 7: Ensure minimum damage
 	Result.FinalDamage = FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(RunningDamage));
@@ -571,4 +593,16 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	// TODO: Add DamageTakenBuff/Debuff to EAbilityEffectType if needed
 
 	return FMath::Max(0.0f, Modifier);
+}
+
+UCombatGridSubsystem *UDamageCalculator::GetCombatGridSubsystem() const
+{
+	if (!CachedCombatGridSubsystem)
+	{
+		if (UGameInstance *GI = GetGameInstance())
+		{
+			CachedCombatGridSubsystem = GI->GetSubsystem<UCombatGridSubsystem>();
+		}
+	}
+	return CachedCombatGridSubsystem;
 }

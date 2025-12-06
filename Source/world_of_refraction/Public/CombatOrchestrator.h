@@ -200,8 +200,16 @@ public:
 	void DebugHealAllTeam(int32 TeamIndex);
 
 	/** Execute a test action (basic attack on random enemy) */
-	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
 	void DebugExecuteTestAction();
+
+	/** Draw grid visualization with actor positions */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
+	void DebugDrawCombatGrid(float Duration = 5.0f);
+
+	/** Start combat using tagged actors in level and snap to grid positions */
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
+	void DebugStartCombatWithLevelActors();
 
 protected:
 	virtual void BeginPlay() override;

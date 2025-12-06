@@ -16,7 +16,7 @@ class UAbilityData;
 class UWeaponAttackData;
 class UStatusEffectManager;
 class UBrokenDarknessManager;
-
+class UCombatGridSubsystem;
 /**
  * Damage calculation constants
  */
@@ -331,7 +331,13 @@ private:
 	/** Apply status effect modifiers to damage */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, bool bIsElemental) const;
 
-	/** Cached reference */
+	/** Get CombatGridSubsystem */
+	UCombatGridSubsystem *GetCombatGridSubsystem() const;
+
+	/** Cached references */
 	UPROPERTY()
 	mutable UStatusEffectManager *CachedStatusManager = nullptr;
+
+	UPROPERTY()
+	mutable UCombatGridSubsystem *CachedCombatGridSubsystem = nullptr;
 };
