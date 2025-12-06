@@ -424,20 +424,20 @@ void ACombatOrchestratorTestActor::Test_ActionExecutorIntegration()
 
 void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 {
-	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Bolt)"));
+	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Sword_Slash)"));
 
 	// Load the attack data asset
-	UWeaponAttackData *BoltAttack = LoadObject<UWeaponAttackData>(nullptr,
-																  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
+															  TEXT("/Game/Data/Weapons/Sword/Attacks/DA_Attack_Sword_Slash.DA_Attack_Sword_Slash"));
 
-	if (!BoltAttack)
+	if (!Attack)
 	{
-		UE_LOG(LogTemp, Error, TEXT("    Failed to load DA_Attack_Bolt - check asset path"));
-		PrintTestResult("Real Attack Execution", false);
-		return;
+		// Fallback to spear
+		Attack = LoadObject<UWeaponAttackData>(nullptr,
+											   TEXT("/Game/Data/Weapons/Spear/Attacks/DA_Attack_Spear_Strike.DA_Attack_Spear_Strike"));
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *BoltAttack->AttackName, BoltAttack->HitCount);
+	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *Attack->AttackName, Attack->HitCount);
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
@@ -488,7 +488,7 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	// Create attack action
 	FAction AttackAction;
 	AttackAction.ActionType = EActionType::Attack;
-	AttackAction.AttackData = BoltAttack;
+	AttackAction.AttackData = Attack;
 	AttackAction.Targets.Add(Target);
 
 	// Validate action
@@ -656,17 +656,17 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Spell Execution (DA_Spells_Inferno)"));
 
 	// Load a Fire spell - Inferno is a Destruction spell
-	USpellData *InfernoSpell = LoadObject<USpellData>(nullptr,
-													  TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
+	USpellData *Spell = LoadObject<USpellData>(nullptr,
+											   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Inferno.DA_Spells_Inferno"));
 
-	if (!InfernoSpell)
+	if (!Spell)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("    DA_Spells_Inferno not found, trying DA_Spells_Fireball"));
-		InfernoSpell = LoadObject<USpellData>(nullptr,
-											  TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fireball.DA_Spells_Fireball"));
+		// Fallback to FireBall
+		Spell = LoadObject<USpellData>(nullptr,
+									   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_FireBall.DA_Spells_Fire_FireBall"));
 	}
 
-	if (!InfernoSpell)
+	if (!Spell)
 	{
 		UE_LOG(LogTemp, Error, TEXT("    No Fire spell found - check asset paths"));
 		PrintTestResult("Spell Execution", false);
@@ -674,7 +674,7 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Element: %d)"),
-		   *InfernoSpell->SpellName, (int32)InfernoSpell->Element);
+		   *Spell->SpellName, (int32)Spell->Element);
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
@@ -730,7 +730,7 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	// Create spell action
 	FAction SpellAction;
 	SpellAction.ActionType = EActionType::Spell;
-	SpellAction.SpellData = InfernoSpell;
+	SpellAction.SpellData = Spell;
 	SpellAction.Targets.Add(Target);
 
 	// Validate action
@@ -778,20 +778,20 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 {
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Ability Execution (DA_Abilities_HeavyStrike)"));
 
-	// Load HeavyStrike ability - located in Fist subfolder
+	// Load HeavyStrike ability - located in Gauntlets subfolder
 	UAbilityData *Ability = LoadObject<UAbilityData>(nullptr,
-													 TEXT("/Game/Data/Abilities/Fist/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+													 TEXT("/Game/Data/Abilities/Gauntlets/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
 
 	if (!Ability)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("    DA_Abilities_HeavyStrike not found, trying DA_Abilities_Focus"));
 		Ability = LoadObject<UAbilityData>(nullptr,
-										   TEXT("/Game/Data/Abilities/Fist/DA_Abilities_Focus.DA_Abilities_Focus"));
+										   TEXT("/Game/Data/Abilities/Gauntlets/DA_Abilities_Focus.DA_Abilities_Focus"));
 	}
 
 	if (!Ability)
 	{
-		UE_LOG(LogTemp, Error, TEXT("    No ability found - check asset paths in /Game/Data/Abilities/Fist/"));
+		UE_LOG(LogTemp, Error, TEXT("    No ability found - check asset paths in /Game/Data/Abilities/Gauntlets/"));
 		PrintTestResult("Ability Execution", false);
 		return;
 	}
@@ -995,13 +995,13 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 
 	// Load attack data
 	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
-															  TEXT("/Game/Data/Attacks/DA_Attack_Bolt.DA_Attack_Bolt"));
+															  TEXT("/Game/Data/Weapons/Sword/Attacks/DA_Attack_Sword_Slash.DA_Attack_Sword_Slash"));
 
 	if (!Attack)
 	{
-		UE_LOG(LogTemp, Error, TEXT("    DA_Attack_Bolt not found"));
-		PrintTestResult("Multi-Target Action", false);
-		return;
+		// Fallback to spear
+		Attack = LoadObject<UWeaponAttackData>(nullptr,
+											   TEXT("/Game/Data/Weapons/Spear/Attacks/DA_Attack_Spear_Strike.DA_Attack_Spear_Strike"));
 	}
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
