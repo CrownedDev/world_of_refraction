@@ -577,6 +577,31 @@ private:
 	FTimerHandle AsyncTimeoutHandle;
 
 	// ========================================
+	// APPROACH MOVEMENT BINDING
+	// ========================================
+
+	/** Handle for approach complete delegate binding */
+	FDelegateHandle ApproachCompleteHandle;
+
+	/** Cached actor for approach completion */
+	UPROPERTY()
+	AActor *PendingExecutionActor = nullptr;
+
+	/** Cached character data for approach completion */
+	UPROPERTY()
+	UCharacterData *PendingExecutionCharData = nullptr;
+
+	/** Bind to movement component's OnApproachComplete */
+	void BindApproachComplete(AActor *Actor);
+
+	/** Unbind from movement component */
+	void UnbindApproachComplete(AActor *Actor);
+
+	/** Called when approach movement completes - executes the actual action */
+	UFUNCTION()
+	void OnApproachComplete();
+
+	// ========================================
 	// ASYNC EXECUTION - INTERNAL METHODS
 	// ========================================
 

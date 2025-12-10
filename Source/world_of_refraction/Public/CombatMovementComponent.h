@@ -125,6 +125,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
     float ArrivalThreshold = 10.0f;
 
+    /** Default return animation (used if no approach-specific one) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
+    UAnimMontage *DefaultReturnMontage = nullptr;
+
 protected:
     virtual void BeginPlay() override;
 
@@ -139,6 +143,9 @@ private:
 
     UPROPERTY()
     AActor *CurrentTarget = nullptr;
+
+    /** Get return animation to play */
+    UAnimMontage *GetReturnMontage() const;
 
     /** Position to return to after action */
     FVector GridPosition = FVector::ZeroVector;

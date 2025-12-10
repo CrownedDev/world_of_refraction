@@ -325,9 +325,27 @@ void UCombatMovementComponent::CompleteReturn()
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Return complete"),
            GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
 
+    // Face arena center (toward opposing team)
+    if (GetOwner() && !CachedArenaCenter.IsZero())
+    {
+        FVector Direction = CachedArenaCenter - GridPosition;
+        Direction.Z = 0;
+        if (!Direction.IsNearlyZero())
+        {
+            UpdateFacingDirection(Direction);
+        }
+    }
+
     MovementState = ECombatMovementState::Idle;
     SetComponentTickEnabled(false);
     CurrentTarget = nullptr;
 
     OnReturnComplete.Broadcast();
+}
+
+UAnimMontage *UCombatMovementComponent::GetReturnMontage() const
+{
+    // Return animation is global, not per-approach
+    // All characters use the same default return animation
+    return DefaultReturnMontage;
 }

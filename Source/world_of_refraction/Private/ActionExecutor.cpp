@@ -43,7 +43,7 @@ class USpellData;
 class UAbilityData;
 class UItemData;
 
-	void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
+void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 	BindDefenseSystemEvents();
@@ -397,66 +397,45 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	UApproachData *ApproachData = GetApproachData(Action);
 	float ExecutionRange = GetExecutionRange(Action);
 
-	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	// Cache for approach completion callback
+	PendingExecutionActor = Actor;
+	PendingExecutionCharData = CharData;
+
+	// Handle instant actions (no movement required)
+	if (Action.ActionType == EActionType::Item ||
+		Action.ActionType == EActionType::Defend ||
+		Action.ActionType == EActionType::SwitchWeapon ||
+		Action.ActionType == EActionType::Flee)
 	{
+		// These don't need movement - execute synchronously
+		FActionResult Result = ExecuteAction(Actor, Action);
+		CurrentExecutionContext.Reset();
+		PendingExecutionActor = nullptr;
+		PendingExecutionCharData = nullptr;
+		if (OnComplete.IsBound())
+		{
+			OnComplete.Execute(Result);
+		}
+		return;
+	}
+
+	// Start approach movement
+	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
+	if (Movement)
+	{
+		// Bind to approach complete - action will execute when movement finishes
+		BindApproachComplete(Actor);
+
 		Movement->StartApproach(PrimaryTarget, ApproachData, ExecutionRange, CachedArenaCenter);
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Started %s approach for %s"),
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Started %s approach for %s - waiting for completion"),
 			   ApproachData ? *ApproachData->ApproachName : TEXT("Ranged"),
 			   *Actor->GetName());
 	}
-
-	// Process based on action type
-	switch (Action.ActionType)
+	else
 	{
-	case EActionType::Spell:
-		ExecuteSpellAsync(Actor, Action, CharData);
-		break;
-
-	case EActionType::Ability:
-		ExecuteAbilityAsync(Actor, Action, CharData);
-		break;
-
-	case EActionType::Attack:
-		ExecuteAttackAsync(Actor, Action, CharData);
-		break;
-
-	case EActionType::Item:
-	case EActionType::Defend:
-	case EActionType::SwitchWeapon:
-	case EActionType::Flee:
-		// These don't have defense windows - execute synchronously
-		{
-			FActionResult Result = ExecuteAction(Actor, Action);
-			CurrentExecutionContext.Reset();
-			if (OnComplete.IsBound())
-			{
-				OnComplete.Execute(Result);
-			}
-		}
-		return;
-
-	default:
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unknown action type for async execution"));
-		CancelAsyncAction();
-		return;
-	}
-
-	// Set timeout timer as failsafe
-	if (UWorld *World = GetWorld())
-	{
-		World->GetTimerManager().SetTimer(
-			AsyncTimeoutHandle,
-			this,
-			&UActionExecutor::OnAsyncActionTimeout,
-			CurrentExecutionContext->TimeoutDuration,
-			false);
-	}
-
-	// Check if any defense windows were opened
-	if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
-	{
-		// No defense windows needed - finalize immediately
-		FinalizeAsyncAction();
+		// No movement component - execute immediately
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No movement component - executing immediately"));
+		OnApproachComplete();
 	}
 }
 
@@ -1139,6 +1118,10 @@ void UActionExecutor::FinalizeAsyncAction()
 		OnActionCompleted.Broadcast(Executor, FinalResult);
 	}
 
+	// Clear pending execution state
+	PendingExecutionActor = nullptr;
+	PendingExecutionCharData = nullptr;
+
 	// Clear context
 	CurrentExecutionContext.Reset();
 }
@@ -1187,6 +1170,14 @@ void UActionExecutor::CancelAsyncAction()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
+	}
+
+	// Unbind approach delegate
+	if (PendingExecutionActor)
+	{
+		UnbindApproachComplete(PendingExecutionActor);
+		PendingExecutionActor = nullptr;
+		PendingExecutionCharData = nullptr;
 	}
 
 	// Close any open defense windows
@@ -3463,5 +3454,95 @@ void UActionExecutor::SignalActionComplete(AActor *Actor)
 	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
 	{
 		Movement->OnActionExecutionComplete();
+	}
+}
+
+// ========================================
+// APPROACH MOVEMENT BINDING
+// ========================================
+
+void UActionExecutor::BindApproachComplete(AActor *Actor)
+{
+	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	{
+		// Unbind any existing
+		UnbindApproachComplete(Actor);
+
+		// Bind to approach complete
+		Movement->OnApproachComplete.AddDynamic(this, &UActionExecutor::OnApproachComplete);
+
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Bound to OnApproachComplete for %s"), *Actor->GetName());
+	}
+}
+
+void UActionExecutor::UnbindApproachComplete(AActor *Actor)
+{
+	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	{
+		Movement->OnApproachComplete.RemoveDynamic(this, &UActionExecutor::OnApproachComplete);
+	}
+}
+
+void UActionExecutor::OnApproachComplete()
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnApproachComplete called but no active context"));
+		return;
+	}
+
+	AActor *Actor = PendingExecutionActor;
+	UCharacterData *CharData = PendingExecutionCharData;
+	const FAction &Action = CurrentExecutionContext->Action;
+
+	if (!Actor || !CharData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnApproachComplete - missing actor or char data"));
+		CancelAsyncAction();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Approach complete - executing %s"), *Action.GetActionName());
+
+	// Unbind now that we've received the callback
+	UnbindApproachComplete(Actor);
+
+	// NOW execute the actual action logic
+	switch (Action.ActionType)
+	{
+	case EActionType::Spell:
+		ExecuteSpellAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Ability:
+		ExecuteAbilityAsync(Actor, Action, CharData);
+		break;
+
+	case EActionType::Attack:
+		ExecuteAttackAsync(Actor, Action, CharData);
+		break;
+
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in OnApproachComplete"));
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Set timeout timer as failsafe
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			AsyncTimeoutHandle,
+			this,
+			&UActionExecutor::OnAsyncActionTimeout,
+			CurrentExecutionContext->TimeoutDuration,
+			false);
+	}
+
+	// Check if any defense windows were opened
+	if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+	{
+		// No defense windows needed - finalize immediately
+		FinalizeAsyncAction();
 	}
 }

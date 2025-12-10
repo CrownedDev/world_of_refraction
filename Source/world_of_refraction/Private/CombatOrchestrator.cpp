@@ -9,6 +9,9 @@
 #include "InventoryComponent.h"
 #include "LoadoutComponent.h"
 #include "CombatGridSubsystem.h"
+#include "LoadoutComponent.h"
+#include "WeaponData.h"
+#include "WeaponAttackData.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -807,6 +810,72 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 		   *CurrentActor->GetName());
 
 	SubmitAction(TestAction);
+}
+
+void ACombatOrchestrator::DebugTestAttackMovement()
+{
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestAttackMovement: No active turn"));
+		return;
+	}
+
+	// Find target from opposing team
+	AActor *Target = nullptr;
+	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+
+	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestAttackMovement: No valid target"));
+		return;
+	}
+
+	// Build attack action
+	FAction AttackAction;
+	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.Targets.Add(Target);
+
+	// Get weapon attack data from LoadoutComponent
+	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	{
+		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
+		if (ActiveLoadout.PrimaryWeapon.IsValid() && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon)
+		{
+			UWeaponData *Weapon = ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon;
+			if (Weapon->WeaponAttack)
+			{
+				AttackAction.AttackData = Weapon->WeaponAttack;
+				UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
+					   *Weapon->WeaponAttack->AttackName, *Weapon->WeaponName);
+			}
+		}
+	}
+
+	if (!AttackAction.AttackData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAttackMovement] No weapon attack data found on %s"),
+			   *CurrentActor->GetName());
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] %s attacking %s"),
+		   *CurrentActor->GetName(), *Target->GetName());
+
+	// Execute through ActionExecutor with callback
+	if (ActionExecutorRef)
+	{
+		ActionExecutorRef->ExecuteActionAsync(CurrentActor, AttackAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
 }
 
 void ACombatOrchestrator::DebugDrawCombatGrid(float Duration)

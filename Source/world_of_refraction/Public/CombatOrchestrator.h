@@ -207,6 +207,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
 	void DebugExecuteTestAction();
 
+	/** Test attack with movement - current actor attacks first enemy */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestAttackMovement();
+
 	/** Draw grid visualization with actor positions */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
 	void DebugDrawCombatGrid(float Duration = 5.0f);
