@@ -42,11 +42,6 @@ class UStatusEffectManager;
 class USpellData;
 class UAbilityData;
 class UItemData;
-class UWeaponAttackData;
-class UItemExecutor;
-class UWeaponManager;
-class URingManager;
-void UActionExecutor::FinalizeAsyncAction()
 
 	void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {

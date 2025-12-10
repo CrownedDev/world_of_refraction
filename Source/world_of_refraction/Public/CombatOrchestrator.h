@@ -182,6 +182,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
 	bool bAutoAdvanceTurns = true;
 
+	/** Automatically start combat on BeginPlay using tagged actors */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
+	bool bAutoStartCombat = false;
+
 	/** Delay before auto-advancing (simulates action time) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug", meta = (EditCondition = "bAutoAdvanceTurns"))
 	float AutoAdvanceDelay = 1.0f;

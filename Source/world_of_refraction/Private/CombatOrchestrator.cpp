@@ -27,7 +27,7 @@ void ACombatOrchestrator::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Cache subsystem references
+	// Cache subsystem references FIRST
 	UGameInstance *GI = GetGameInstance();
 	if (GI)
 	{
@@ -49,6 +49,12 @@ void ACombatOrchestrator::BeginPlay()
 	if (!ActionExecutorRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get ActionExecutor subsystem!"));
+	}
+
+	// Auto-start combat if enabled (AFTER subsystems are cached)
+	if (bAutoStartCombat)
+	{
+		DebugStartCombatWithLevelActors();
 	}
 }
 
@@ -76,7 +82,6 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	if (!TurnManagerRef)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Cannot start combat - TurnManager not available!"));
-		return;
 	}
 
 	// Validate teams
@@ -98,12 +103,17 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	// Prepare loadouts for battle
 	PrepareAllLoadoutsForBattle();
 
-	// Assign grid positions
+	// Assign grid positions and place actors
 	if (UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
 	{
+		FVector ArenaCenter = GetActorLocation();
+
 		Grid->AutoAssignTeam(Team0Combatants, 0, ECombatRow::Middle);
 		Grid->AutoAssignTeam(Team1Combatants, 1, ECombatRow::Middle);
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned"));
+		Grid->PlaceAllActors(ArenaCenter);
+		Grid->UpdateAllActorFacing(ArenaCenter);
+
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned and actors placed"));
 	}
 
 	// Set arena center for ActionExecutor movement calculations
@@ -112,7 +122,13 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 		Executor->SetArenaCenter(GetActorLocation());
 	}
 
-	// Bind to TurnManager events
+	// Bind to TurnManager events and start turns (if TurnManager available)
+	if (!TurnManagerRef)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] TurnManager not available - grid positioned but turns won't advance"));
+		return;
+	}
+
 	BindTurnManagerEvents();
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: Team0 (%d) vs Team1 (%d)"),
@@ -865,25 +881,11 @@ void ACombatOrchestrator::DebugStartCombatWithLevelActors()
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Starting combat: %d vs %d"), Team0.Num(), Team1.Num());
 
-	// Start combat (this calls PrepareAllLoadoutsForBattle and assigns grid positions)
+	// Start combat (handles grid assignment and actor placement)
 	StartCombat(Team0, Team1);
 
-	// Snap actors to grid world positions
-	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
-	if (Grid)
-	{
-		FVector ArenaCenter = GetActorLocation();
-		Grid->PlaceAllActors(ArenaCenter);
-
-		// Make actors face their targets
-		Grid->UpdateAllActorFacing(ArenaCenter);
-
-		// Draw debug visualization
-		Grid->DebugDrawGrid(ArenaCenter, 10.0f);
-		Grid->DebugDrawActorPositions(ArenaCenter, 10.0f);
-		Grid->DebugLogAllPositions();
-		Grid->DebugLogModifiers();
-	}
+	// Draw debug visualization
+	DebugDrawCombatGrid(10.0f);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Combat started and actors positioned!"));
 }
