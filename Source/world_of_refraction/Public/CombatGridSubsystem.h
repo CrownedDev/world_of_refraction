@@ -213,6 +213,46 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Grid|Facing")
     AActor *GetFacingTarget(AActor *Actor) const;
 
+    // ==================== POSITION MOVEMENT ====================
+
+    /**
+     * Move actor to a specific row (keeps same column)
+     * @param Actor The actor to move
+     * @param NewRow The target row
+     * @param ArenaCenter Arena center for world position update
+     * @return True if move successful
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Movement")
+    bool MoveActorToRow(AActor *Actor, ECombatRow NewRow, const FVector &ArenaCenter);
+
+    /**
+     * Push actor one row toward Back (Front→Middle→Back)
+     * @param Actor The actor to push
+     * @param ArenaCenter Arena center for world position update
+     * @return True if pushed, false if already at Back
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Movement")
+    bool PushActorBack(AActor *Actor, const FVector &ArenaCenter);
+
+    /**
+     * Pull actor one row toward Front (Back→Middle→Front)
+     * @param Actor The actor to pull
+     * @param ArenaCenter Arena center for world position update
+     * @return True if pulled, false if already at Front
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Movement")
+    bool PullActorForward(AActor *Actor, const FVector &ArenaCenter);
+
+    /**
+     * Swap positions of two actors (must be on same team)
+     * @param ActorA First actor
+     * @param ActorB Second actor
+     * @param ArenaCenter Arena center for world position update
+     * @return True if swap successful
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat Grid|Movement")
+    bool SwapActorPositions(AActor *ActorA, AActor *ActorB, const FVector &ArenaCenter);
+
 private:
     /** Map of actors to their grid positions */
     UPROPERTY()

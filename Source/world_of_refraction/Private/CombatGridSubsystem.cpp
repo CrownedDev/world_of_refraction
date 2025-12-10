@@ -574,6 +574,169 @@ AActor *UCombatGridSubsystem::GetFacingTarget(AActor *Actor) const
     return ClosestEnemy;
 }
 
+// ==================== POSITION MOVEMENT ====================
+
+bool UCombatGridSubsystem::MoveActorToRow(AActor *Actor, ECombatRow NewRow, const FVector &ArenaCenter)
+{
+    if (!Actor)
+    {
+        return false;
+    }
+
+    FCombatGridPosition CurrentPos;
+    if (!GetActorPosition(Actor, CurrentPos))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] MoveActorToRow: %s not on grid"), *Actor->GetName());
+        return false;
+    }
+
+    // Already at target row
+    if (CurrentPos.Row == NewRow)
+    {
+        return true;
+    }
+
+    // Create new position
+    FCombatGridPosition NewPos = CurrentPos;
+    NewPos.Row = NewRow;
+
+    // Check if new position is occupied
+    if (IsPositionOccupied(NewPos))
+    {
+        AActor *Occupant = GetActorAtPosition(NewPos);
+        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] MoveActorToRow: Position %s occupied by %s"),
+               *NewPos.ToString(), *Occupant->GetName());
+        return false;
+    }
+
+    // Update position in map
+    ActorPositions[Actor] = NewPos;
+
+    // Update world position
+    FVector WorldPos = CalculateWorldPosition(NewPos, ArenaCenter);
+    Actor->SetActorLocation(WorldPos);
+
+    // Update facing
+    UpdateActorFacing(Actor, ArenaCenter);
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s moved to %s (Dmg: %+.0f%%, Def: %+.0f%%)"),
+           *Actor->GetName(),
+           *NewPos.ToString(),
+           (NewPos.GetDamageModifier() - 1.0f) * 100.0f,
+           (NewPos.GetDefenseModifier() - 1.0f) * 100.0f);
+
+    return true;
+}
+
+bool UCombatGridSubsystem::PushActorBack(AActor *Actor, const FVector &ArenaCenter)
+{
+    if (!Actor)
+    {
+        return false;
+    }
+
+    FCombatGridPosition CurrentPos;
+    if (!GetActorPosition(Actor, CurrentPos))
+    {
+        return false;
+    }
+
+    // Determine new row (Front→Middle→Back)
+    ECombatRow NewRow;
+    switch (CurrentPos.Row)
+    {
+    case ECombatRow::Front:
+        NewRow = ECombatRow::Middle;
+        break;
+    case ECombatRow::Middle:
+        NewRow = ECombatRow::Back;
+        break;
+    case ECombatRow::Back:
+        UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s already at Back row, cannot push further"),
+               *Actor->GetName());
+        return false;
+    default:
+        return false;
+    }
+
+    return MoveActorToRow(Actor, NewRow, ArenaCenter);
+}
+
+bool UCombatGridSubsystem::PullActorForward(AActor *Actor, const FVector &ArenaCenter)
+{
+    if (!Actor)
+    {
+        return false;
+    }
+
+    FCombatGridPosition CurrentPos;
+    if (!GetActorPosition(Actor, CurrentPos))
+    {
+        return false;
+    }
+
+    // Determine new row (Back→Middle→Front)
+    ECombatRow NewRow;
+    switch (CurrentPos.Row)
+    {
+    case ECombatRow::Back:
+        NewRow = ECombatRow::Middle;
+        break;
+    case ECombatRow::Middle:
+        NewRow = ECombatRow::Front;
+        break;
+    case ECombatRow::Front:
+        UE_LOG(LogTemp, Log, TEXT("[CombatGrid] %s already at Front row, cannot pull further"),
+               *Actor->GetName());
+        return false;
+    default:
+        return false;
+    }
+
+    return MoveActorToRow(Actor, NewRow, ArenaCenter);
+}
+
+bool UCombatGridSubsystem::SwapActorPositions(AActor *ActorA, AActor *ActorB, const FVector &ArenaCenter)
+{
+    if (!ActorA || !ActorB || ActorA == ActorB)
+    {
+        return false;
+    }
+
+    FCombatGridPosition PosA, PosB;
+    if (!GetActorPosition(ActorA, PosA) || !GetActorPosition(ActorB, PosB))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] SwapActorPositions: One or both actors not on grid"));
+        return false;
+    }
+
+    // Must be same team
+    if (PosA.TeamIndex != PosB.TeamIndex)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatGrid] SwapActorPositions: Cannot swap actors on different teams"));
+        return false;
+    }
+
+    // Swap positions in map
+    ActorPositions[ActorA] = PosB;
+    ActorPositions[ActorB] = PosA;
+
+    // Update world positions
+    FVector WorldPosA = CalculateWorldPosition(PosB, ArenaCenter);
+    FVector WorldPosB = CalculateWorldPosition(PosA, ArenaCenter);
+    ActorA->SetActorLocation(WorldPosA);
+    ActorB->SetActorLocation(WorldPosB);
+
+    // Update facing for both
+    UpdateActorFacing(ActorA, ArenaCenter);
+    UpdateActorFacing(ActorB, ArenaCenter);
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatGrid] Swapped %s and %s positions"),
+           *ActorA->GetName(), *ActorB->GetName());
+
+    return true;
+}
+
 int32 UCombatGridSubsystem::GetPositionKey(const FCombatGridPosition &Position) const
 {
     // Unique key: TeamIndex * 100 + RowIndex * 10 + Column
