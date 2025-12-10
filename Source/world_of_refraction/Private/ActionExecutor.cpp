@@ -33,6 +33,7 @@
 #include "RingData.h"
 #include "InfusionVFXComponent.h"
 #include "LoadoutComponent.h"
+#include "CombatMovementComponent.h"
 #include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
@@ -42,12 +43,12 @@ class USpellData;
 class UAbilityData;
 class UItemData;
 class UWeaponAttackData;
-
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;
+void UActionExecutor::FinalizeAsyncAction()
 
-void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
+	void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 	BindDefenseSystemEvents();
@@ -395,6 +396,19 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// === BROKEN DARKNESS & INFUSION HOOKS ===
 	// Check for Broken Darkness break triggers
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
+
+	// Start approach movement (if applicable)
+	AActor *PrimaryTarget = Action.Targets.Num() > 0 ? Action.Targets[0] : nullptr;
+	ECombatApproachType ApproachType = GetApproachType(Action);
+	float ExecutionRange = GetExecutionRange(Action);
+
+	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	{
+		Movement->StartApproach(PrimaryTarget, ApproachType, ExecutionRange, CachedArenaCenter);
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Started %s approach for %s"),
+			   *CombatApproachHelpers::GetApproachName(ApproachType),
+			   *Actor->GetName());
+	}
 
 	// Process based on action type
 	switch (Action.ActionType)
@@ -1115,6 +1129,12 @@ void UActionExecutor::FinalizeAsyncAction()
 	{
 		AsyncActionCallback.Execute(FinalResult);
 		AsyncActionCallback.Unbind();
+	}
+
+	// Signal movement component to start return
+	if (Executor)
+	{
+		SignalActionComplete(Executor);
 	}
 
 	// Broadcast completion
@@ -3398,4 +3418,67 @@ bool UActionExecutor::CanUseSpell(AActor *Actor, USpellData *Spell) const
 	}
 
 	return false;
+}
+
+// ==================== MOVEMENT INTEGRATION ====================
+
+ECombatApproachType UActionExecutor::GetApproachType(const FAction &Action) const
+{
+	switch (Action.ActionType)
+	{
+	case EActionType::Attack:
+		if (Action.AttackData)
+		{
+			return Action.AttackData->ApproachType;
+		}
+		return ECombatApproachType::Direct;
+
+	case EActionType::Ability:
+		if (Action.AbilityData)
+		{
+			return Action.AbilityData->ApproachType;
+		}
+		return ECombatApproachType::Direct;
+
+	case EActionType::Spell:
+		if (Action.SpellData)
+		{
+			return Action.SpellData->ApproachType;
+		}
+		return ECombatApproachType::None;
+
+	default:
+		return ECombatApproachType::None;
+	}
+}
+
+float UActionExecutor::GetExecutionRange(const FAction &Action) const
+{
+	switch (Action.ActionType)
+	{
+	case EActionType::Attack:
+		return Action.AttackData ? Action.AttackData->ExecutionRange : 100.0f;
+
+	case EActionType::Ability:
+		return Action.AbilityData ? Action.AbilityData->ExecutionRange : 150.0f;
+
+	case EActionType::Spell:
+		return Action.SpellData ? Action.SpellData->ExecutionRange : 0.0f;
+
+	default:
+		return 0.0f;
+	}
+}
+
+UCombatMovementComponent *UActionExecutor::GetMovementComponent(AActor *Actor) const
+{
+	return Actor ? Actor->FindComponentByClass<UCombatMovementComponent>() : nullptr;
+}
+
+void UActionExecutor::SignalActionComplete(AActor *Actor)
+{
+	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	{
+		Movement->OnActionExecutionComplete();
+	}
 }

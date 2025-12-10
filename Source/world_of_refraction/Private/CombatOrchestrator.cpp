@@ -106,6 +106,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned"));
 	}
 
+	// Set arena center for ActionExecutor movement calculations
+	if (UActionExecutor *Executor = GetGameInstance()->GetSubsystem<UActionExecutor>())
+	{
+		Executor->SetArenaCenter(GetActorLocation());
+	}
+
 	// Bind to TurnManager events
 	BindTurnManagerEvents();
 

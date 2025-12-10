@@ -20,6 +20,7 @@
 #include "NiagaraComponent.h"
 #include "EInfusionSourceOption.h"
 #include "LoadoutComponent.h"
+#include "CombatMovementComponent.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -195,6 +196,11 @@ public:
 	/** Check if weapon stats apply for this source */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	bool DoWeaponStatsApply(EInfusionSourceOption Option) const;
+
+	// ==================== MOVEMENT ====================
+	/** Set arena center for movement calculations */
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Movement")
+	void SetArenaCenter(const FVector &ArenaCenter) { CachedArenaCenter = ArenaCenter; }
 
 	// ========================================
 	// EXECUTION - SPECIFIC ACTIONS
@@ -666,6 +672,23 @@ private:
 	 * Applies self-damage if casting Dark Light or Dark Void
 	 */
 	void ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage);
+
+	// ==================== MOVEMENT INTEGRATION ====================
+
+	/** Get approach type from action data */
+	ECombatApproachType GetApproachType(const FAction &Action) const;
+
+	/** Get execution range from action data */
+	float GetExecutionRange(const FAction &Action) const;
+
+	/** Get movement component from actor */
+	UCombatMovementComponent *GetMovementComponent(AActor *Actor) const;
+
+	/** Signal movement component that action execution is done */
+	void SignalActionComplete(AActor *Actor);
+
+	/** Arena center for movement calculations */
+	FVector CachedArenaCenter = FVector::ZeroVector;
 
 protected:
 	/**
