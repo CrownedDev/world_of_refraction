@@ -2,6 +2,7 @@
 // Combat movement implementation
 
 #include "CombatMovementComponent.h"
+#include "ApproachData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "GameFramework/Actor.h"
@@ -31,7 +32,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     {
     case ECombatMovementState::Approaching:
     {
-        float Speed = CalculateMovementSpeed(CurrentApproachType);
+        float Speed = CalculateMovementSpeed();
         if (MoveToward(TargetPosition, Speed, DeltaTime))
         {
             CompleteApproach();
@@ -41,7 +42,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
     case ECombatMovementState::Returning:
     {
-        float Speed = CalculateMovementSpeed(ECombatApproachType::Direct) * ReturnSpeedMultiplier;
+        float Speed = BaseSpeed * ReturnSpeedMultiplier; // Return is always base speed
         if (MoveToward(GridPosition, Speed, DeltaTime))
         {
             CompleteReturn();
@@ -58,7 +59,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 // ==================== MOVEMENT CONTROL ====================
 
-void UCombatMovementComponent::StartApproach(AActor *Target, ECombatApproachType ApproachType, float ExecutionRange, const FVector &ArenaCenter)
+void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Approach, float ExecutionRange, const FVector &ArenaCenter)
 {
     if (!GetOwner())
     {
@@ -72,12 +73,12 @@ void UCombatMovementComponent::StartApproach(AActor *Target, ECombatApproachType
     CachedArenaCenter = ArenaCenter;
 
     CurrentTarget = Target;
-    CurrentApproachType = ApproachType;
+    CurrentApproachData = Approach;
 
-    // Handle None (ranged) - no movement needed
-    if (ApproachType == ECombatApproachType::None)
+    // Handle no approach data (ranged) - no movement needed
+    if (!Approach)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Ranged action, no approach needed"),
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: No approach data, ranged action"),
                *GetOwner()->GetName());
 
         // Face target but don't move
@@ -93,6 +94,8 @@ void UCombatMovementComponent::StartApproach(AActor *Target, ECombatApproachType
         OnApproachComplete.Broadcast();
         return;
     }
+
+    ECombatApproachType ApproachType = Approach->ApproachType;
 
     // Calculate target position (ExecutionRange away from target)
     if (Target)
@@ -113,8 +116,10 @@ void UCombatMovementComponent::StartApproach(AActor *Target, ECombatApproachType
     // Handle Teleport - instant movement
     if (ApproachType == ECombatApproachType::Teleport)
     {
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Teleporting to target"),
-               *GetOwner()->GetName());
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Teleporting to target (%s)"),
+               *GetOwner()->GetName(), *Approach->ApproachName);
+
+        // TODO: Play DepartureVFX, DepartureSound, ApproachMontage (vanish)
 
         TeleportTo(TargetPosition);
 
@@ -124,6 +129,8 @@ void UCombatMovementComponent::StartApproach(AActor *Target, ECombatApproachType
             Direction.Z = 0;
             UpdateFacingDirection(Direction);
         }
+
+        // TODO: Play ArrivalVFX, ArrivalSound, ArrivalMontage (appear)
 
         // Immediately complete approach
         MovementState = ECombatMovementState::Executing;
@@ -135,9 +142,11 @@ void UCombatMovementComponent::StartApproach(AActor *Target, ECombatApproachType
     MovementState = ECombatMovementState::Approaching;
     SetComponentTickEnabled(true);
 
+    // TODO: Play ApproachMontage, TrailVFX, MovementSound
+
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Starting %s approach (%.0f units)"),
            *GetOwner()->GetName(),
-           *CombatApproachHelpers::GetApproachName(ApproachType),
+           *Approach->ApproachName,
            FVector::Dist(GridPosition, TargetPosition));
 }
 
@@ -206,7 +215,7 @@ void UCombatMovementComponent::OnActionExecutionComplete()
 
 // ==================== MOVEMENT HELPERS ====================
 
-float UCombatMovementComponent::CalculateMovementSpeed(ECombatApproachType ApproachType) const
+float UCombatMovementComponent::CalculateMovementSpeed() const
 {
     float StatMultiplier = 1.0f;
 
@@ -218,7 +227,12 @@ float UCombatMovementComponent::CalculateMovementSpeed(ECombatApproachType Appro
         StatMultiplier = FMath::Max(StatMultiplier, 0.5f);
     }
 
-    float ApproachMultiplier = CombatApproachHelpers::GetSpeedMultiplier(ApproachType);
+    // Get multiplier from approach data
+    float ApproachMultiplier = 1.0f;
+    if (CurrentApproachData)
+    {
+        ApproachMultiplier = CurrentApproachData->GetEffectiveSpeedMultiplier();
+    }
 
     return BaseSpeed * StatMultiplier * ApproachMultiplier;
 }

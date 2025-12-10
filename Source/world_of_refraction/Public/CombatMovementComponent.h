@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ECombatApproachType.h"
+#include "ApproachData.h"
 #include "CombatMovementComponent.generated.h"
 
 class UCombatGridSubsystem;
@@ -58,12 +59,12 @@ public:
     /**
      * Start approach movement toward target
      * @param Target The target actor to approach
-     * @param ApproachType How to approach (Direct, Dash, Teleport, None)
+     * @param Approach Approach data asset (nullptr = no movement)
      * @param ExecutionRange Distance from target to stop
      * @param ArenaCenter Center of arena for grid calculations
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Movement")
-    void StartApproach(AActor *Target, ECombatApproachType ApproachType, float ExecutionRange, const FVector &ArenaCenter);
+    void StartApproach(AActor *Target, UApproachData *Approach, float ExecutionRange, const FVector &ArenaCenter);
 
     /**
      * Start return movement back to grid position
@@ -134,7 +135,7 @@ private:
     ECombatMovementState MovementState = ECombatMovementState::Idle;
 
     UPROPERTY()
-    ECombatApproachType CurrentApproachType = ECombatApproachType::None;
+    UApproachData *CurrentApproachData = nullptr;
 
     UPROPERTY()
     AActor *CurrentTarget = nullptr;
@@ -159,7 +160,7 @@ private:
     // ==================== MOVEMENT HELPERS ====================
 
     /** Calculate final movement speed based on approach type and stats */
-    float CalculateMovementSpeed(ECombatApproachType ApproachType) const;
+    float CalculateMovementSpeed() const;
 
     /** Move toward destination, returns true if arrived */
     bool MoveToward(const FVector &Destination, float Speed, float DeltaTime);

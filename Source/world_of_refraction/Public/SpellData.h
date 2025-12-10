@@ -16,7 +16,6 @@
 #include "NiagaraSystem.h"
 #include "ESpellDeliveryType.h"
 #include "EDefenseType.h"
-#include "ECombatApproachType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -164,16 +163,6 @@ public:
               meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
                       EditConditionHides, ClampMin = "0.1"))
     float BeamDuration = 1.0f;
-
-    // ==================== CASTER MOVEMENT ====================
-
-    /** How the caster approaches the target (most spells = None/ranged) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Caster Movement")
-    ECombatApproachType ApproachType = ECombatApproachType::None;
-
-    /** Distance from target to stop and cast (only if ApproachType != None) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Caster Movement", meta = (ClampMin = "0.0", EditCondition = "ApproachType != ECombatApproachType::None"))
-    float ExecutionRange = 0.0f;
 
     // ==================== SIZE ====================
 

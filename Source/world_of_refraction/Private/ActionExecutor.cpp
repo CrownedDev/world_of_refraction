@@ -399,14 +399,14 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 
 	// Start approach movement (if applicable)
 	AActor *PrimaryTarget = Action.Targets.Num() > 0 ? Action.Targets[0] : nullptr;
-	ECombatApproachType ApproachType = GetApproachType(Action);
+	UApproachData *ApproachData = GetApproachData(Action);
 	float ExecutionRange = GetExecutionRange(Action);
 
 	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
 	{
-		Movement->StartApproach(PrimaryTarget, ApproachType, ExecutionRange, CachedArenaCenter);
+		Movement->StartApproach(PrimaryTarget, ApproachData, ExecutionRange, CachedArenaCenter);
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Started %s approach for %s"),
-			   *CombatApproachHelpers::GetApproachName(ApproachType),
+			   ApproachData ? *ApproachData->ApproachName : TEXT("Ranged"),
 			   *Actor->GetName());
 	}
 
@@ -3422,33 +3422,21 @@ bool UActionExecutor::CanUseSpell(AActor *Actor, USpellData *Spell) const
 
 // ==================== MOVEMENT INTEGRATION ====================
 
-ECombatApproachType UActionExecutor::GetApproachType(const FAction &Action) const
+UApproachData *UActionExecutor::GetApproachData(const FAction &Action) const
 {
 	switch (Action.ActionType)
 	{
 	case EActionType::Attack:
-		if (Action.AttackData)
-		{
-			return Action.AttackData->ApproachType;
-		}
-		return ECombatApproachType::Direct;
+		return Action.AttackData ? Action.AttackData->ApproachData : nullptr;
 
 	case EActionType::Ability:
-		if (Action.AbilityData)
-		{
-			return Action.AbilityData->ApproachType;
-		}
-		return ECombatApproachType::Direct;
+		return Action.AbilityData ? Action.AbilityData->ApproachData : nullptr;
 
 	case EActionType::Spell:
-		if (Action.SpellData)
-		{
-			return Action.SpellData->ApproachType;
-		}
-		return ECombatApproachType::None;
+		return nullptr; // Spells are always ranged
 
 	default:
-		return ECombatApproachType::None;
+		return nullptr;
 	}
 }
 
@@ -3463,7 +3451,7 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 		return Action.AbilityData ? Action.AbilityData->ExecutionRange : 150.0f;
 
 	case EActionType::Spell:
-		return Action.SpellData ? Action.SpellData->ExecutionRange : 0.0f;
+		return 0.0f; // Spells are always ranged, no approach
 
 	default:
 		return 0.0f;

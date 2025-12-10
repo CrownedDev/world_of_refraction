@@ -21,6 +21,7 @@
 #include "EInfusionSourceOption.h"
 #include "LoadoutComponent.h"
 #include "CombatMovementComponent.h"
+#include "ApproachData.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -674,9 +675,8 @@ private:
 	void ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage);
 
 	// ==================== MOVEMENT INTEGRATION ====================
-
-	/** Get approach type from action data */
-	ECombatApproachType GetApproachType(const FAction &Action) const;
+	/** Get approach data from action data */
+	UApproachData *GetApproachData(const FAction &Action) const;
 
 	/** Get execution range from action data */
 	float GetExecutionRange(const FAction &Action) const;

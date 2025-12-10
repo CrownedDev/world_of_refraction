@@ -8,7 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/Texture2D.h"
 #include "EPhysicalDamageType.h"
-#include "ECombatApproachType.h"
+#include "ApproachData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -72,12 +72,12 @@ public:
 
     // ==================== MOVEMENT ====================
 
-    /** How the attacker approaches the target */
+    /** How the attacker approaches the target (nullptr = use character default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-    ECombatApproachType ApproachType = ECombatApproachType::Direct;
+    UApproachData *ApproachData = nullptr;
 
     /** Distance from target to stop and execute attack (units) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0", EditCondition = "ApproachType != ECombatApproachType::None"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
     float ExecutionRange = 100.0f;
 
     // ==================== PRESENTATION ====================
