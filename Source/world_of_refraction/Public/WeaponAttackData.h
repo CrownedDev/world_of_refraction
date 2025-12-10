@@ -8,6 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/Texture2D.h"
 #include "EPhysicalDamageType.h"
+#include "ECombatApproachType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -68,6 +69,16 @@ public:
     // Animation playback speed (1.0 = normal, affected by Animation Speed stat)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.5", ClampMax = "2.0"))
     float BaseAnimSpeed = 1.0f;
+
+    // ==================== MOVEMENT ====================
+
+    /** How the attacker approaches the target */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
+    ECombatApproachType ApproachType = ECombatApproachType::Direct;
+
+    /** Distance from target to stop and execute attack (units) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0", EditCondition = "ApproachType != ECombatApproachType::None"))
+    float ExecutionRange = 100.0f;
 
     // ==================== PRESENTATION ====================
 

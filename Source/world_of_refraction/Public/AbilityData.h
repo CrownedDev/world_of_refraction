@@ -11,6 +11,7 @@
 #include "NiagaraSystem.h"
 #include "EWeaponType.h"
 #include "CombatConstants.h"
+#include "ECombatApproachType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -41,6 +42,16 @@ public:
     // Add in Identity section after Description:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType RequiredWeaponType = EWeaponType::Sword;
+
+    // ==================== MOVEMENT ====================
+
+    /** How the user approaches the target */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
+    ECombatApproachType ApproachType = ECombatApproachType::Direct;
+
+    /** Distance from target to stop and execute ability (units) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0", EditCondition = "ApproachType != ECombatApproachType::None"))
+    float ExecutionRange = 150.0f;
 
     // ==================== MECHANICS ====================
 
