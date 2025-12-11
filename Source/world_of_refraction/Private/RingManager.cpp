@@ -4,6 +4,8 @@
 #include "RingManager.h"
 #include "RingData.h"
 #include "SpellData.h"
+#include "ElementColorDebugComponent.h"
+#include "ElementColors.h"
 
 void URingManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -113,6 +115,12 @@ bool URingManager::SwitchToRing(AActor *Actor, int32 RingIndex)
 		return false;
 
 	ActiveRingIndex[Actor] = RingIndex;
+	if (UElementColorDebugComponent *ColorComp = Actor->FindComponentByClass<UElementColorDebugComponent>())
+	{
+		ESpellElement NewElement = TargetRing->GetRingElement(); // or from inventory entry
+		FLinearColor ElementColor = ElementColors::GetColorForElement(NewElement);
+		ColorComp->SetColorDirect(ElementColor);
+	}
 	return true;
 }
 

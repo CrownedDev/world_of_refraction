@@ -303,7 +303,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     // Validate ring loadout (Resonator)
     if (CharacterClass == ECharacterClass::Resonator)
     {
-        int32 EvolvedCount = 0;
+        int32 TotalSlotCost = 0;
         for (const FRingLoadoutEntry &RingEntry : Loadout.RingLoadout)
         {
             if (RingEntry.IsValid())
@@ -322,17 +322,15 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
                     Errors.Add(TEXT("Ring in loadout not in inventory"));
                 }
 
-                if (RingEntry.IsEvolved())
-                {
-                    EvolvedCount++;
-                }
+                // Add slot cost (1 for normal, 2 for evolved)
+                TotalSlotCost += InventoryConstants::GetRingSlotCost(RingEntry.IsEvolved());
             }
         }
 
-        if (EvolvedCount > InventoryConstants::MAX_EVOLVED_RESONATOR_RINGS)
+        if (TotalSlotCost > InventoryConstants::RESONATOR_RING_LOADOUT_SLOT_CAPACITY)
         {
-            Errors.Add(FString::Printf(TEXT("Too many evolved rings (%d/%d)"),
-                                       EvolvedCount, InventoryConstants::MAX_EVOLVED_RESONATOR_RINGS));
+            Errors.Add(FString::Printf(TEXT("Ring loadout exceeds slot capacity (%d/%d slots)"),
+                                       TotalSlotCost, InventoryConstants::RESONATOR_RING_LOADOUT_SLOT_CAPACITY));
         }
     }
 

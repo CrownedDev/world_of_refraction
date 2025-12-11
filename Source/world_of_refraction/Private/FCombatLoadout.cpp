@@ -12,34 +12,34 @@
 // Forward declare - will be implemented in Phase 3
 // #include "InventoryComponent.h"
 
-bool FCombatLoadout::Validate(ECharacterClass CharClass, UInventoryComponent* Inventory) const
+bool FCombatLoadout::Validate(ECharacterClass CharClass, UInventoryComponent *Inventory) const
 {
     // TODO: Implement full validation when InventoryComponent exists
     switch (CharClass)
     {
-        case ECharacterClass::Generic:
-            return ValidateGeneric(Inventory);
-        case ECharacterClass::Caster:
-            return ValidateCaster(Inventory);
-        case ECharacterClass::Resonator:
-            return ValidateResonator(Inventory);
-        default:
-            return false;
+    case ECharacterClass::Generic:
+        return ValidateGeneric(Inventory);
+    case ECharacterClass::Caster:
+        return ValidateCaster(Inventory);
+    case ECharacterClass::Resonator:
+        return ValidateResonator(Inventory);
+    default:
+        return false;
     }
 }
 
-bool FCombatLoadout::ValidateGeneric(UInventoryComponent* Inventory) const
+bool FCombatLoadout::ValidateGeneric(UInventoryComponent *Inventory) const
 {
     // Generic: Primary weapon required, secondary is weapon OR ring
     if (!PrimaryWeapon.IsValid())
     {
         return false;
     }
-    
+
     // Secondary must be one or the other, not both
     bool bHasSecondaryWeapon = SecondaryWeapon.IsValid();
     bool bHasSecondaryRing = SecondaryRing.IsValid();
-    
+
     if (bSecondaryIsRing && bHasSecondaryWeapon)
     {
         return false;
@@ -48,17 +48,17 @@ bool FCombatLoadout::ValidateGeneric(UInventoryComponent* Inventory) const
     {
         return false;
     }
-    
+
     // TODO: Validate against inventory when component exists
     return true;
 }
 
-bool FCombatLoadout::ValidateCaster(UInventoryComponent* Inventory) const
+bool FCombatLoadout::ValidateCaster(UInventoryComponent *Inventory) const
 {
     // Caster: Primary is weapon OR ring
     bool bHasPrimaryWeapon = PrimaryWeapon.IsValid();
     bool bHasPrimaryRing = PrimaryRing.IsValid();
-    
+
     if (bPrimaryIsRing && !bHasPrimaryRing)
     {
         return false;
@@ -67,7 +67,7 @@ bool FCombatLoadout::ValidateCaster(UInventoryComponent* Inventory) const
     {
         return false;
     }
-    
+
     // Innate spells: max 6 per school
     for (int32 i = 0; i < static_cast<int32>(ESpellSchool::Conjuration) + 1; ++i)
     {
@@ -76,80 +76,75 @@ bool FCombatLoadout::ValidateCaster(UInventoryComponent* Inventory) const
             return false;
         }
     }
-    
+
     // Total innate spells
     if (InnateSpells.Num() > InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
     {
         return false;
     }
-    
+
     // TODO: Validate against inventory when component exists
     return true;
 }
 
-bool FCombatLoadout::ValidateResonator(UInventoryComponent* Inventory) const
+bool FCombatLoadout::ValidateResonator(UInventoryComponent *Inventory) const
 {
     // Resonator: Primary weapon required, ring loadout
     if (!PrimaryWeapon.IsValid())
     {
         return false;
     }
-    
+
     // Ring loadout: max 5 rings, max 2 evolved
-    if (RingLoadout.Num() > InventoryConstants::MAX_RESONATOR_RINGS)
+    int32 TotalSlotCost = 0;
+    for (const FRingLoadoutEntry &Entry : RingLoadout)
     {
-        return false;
-    }
-    
-    int32 EvolvedCount = 0;
-    for (const FRingLoadoutEntry& Entry : RingLoadout)
-    {
-        if (Entry.IsEvolved())
+        if (Entry.IsValid())
         {
-            EvolvedCount++;
+            TotalSlotCost += InventoryConstants::GetRingSlotCost(Entry.IsEvolved());
         }
     }
-    
-    if (EvolvedCount > InventoryConstants::MAX_EVOLVED_RESONATOR_RINGS)
+
+    if (TotalSlotCost > InventoryConstants::RESONATOR_RING_LOADOUT_SLOT_CAPACITY)
     {
         return false;
     }
-    
+
     // TODO: Validate against inventory when component exists
     return true;
 }
 
-TArray<USpellData*> FCombatLoadout::GetInnateSpellsBySchool(ESpellSchool School) const
+TArray<USpellData *> FCombatLoadout::GetInnateSpellsBySchool(ESpellSchool School) const
 {
-    TArray<USpellData*> Result;
-    
-    for (USpellData* Spell : InnateSpells)
+    TArray<USpellData *> Result;
+
+    for (USpellData *Spell : InnateSpells)
     {
         if (Spell && Spell->School == School)
         {
             Result.Add(Spell);
         }
     }
-    
+
     return Result;
 }
 
 int32 FCombatLoadout::GetInnateSpellCountForSchool(ESpellSchool School) const
 {
     int32 Count = 0;
-    
-    for (USpellData* Spell : InnateSpells)
+
+    for (USpellData *Spell : InnateSpells)
     {
         if (Spell && Spell->School == School)
         {
             Count++;
         }
     }
-    
+
     return Count;
 }
 
-bool FCombatLoadout::ValidateInnateSpells(ESpellElement InnateElement, const FSpellCollection& OwnedSpells) const
+bool FCombatLoadout::ValidateInnateSpells(ESpellElement InnateElement, const FSpellCollection &OwnedSpells) const
 {
     // Check school limits
     for (int32 i = 0; i < static_cast<int32>(ESpellSchool::Conjuration) + 1; ++i)
@@ -159,42 +154,42 @@ bool FCombatLoadout::ValidateInnateSpells(ESpellElement InnateElement, const FSp
             return false;
         }
     }
-    
+
     // Check each spell
-    for (USpellData* Spell : InnateSpells)
+    for (USpellData *Spell : InnateSpells)
     {
         if (!Spell)
         {
             continue;
         }
-        
+
         // Must be owned
         if (!OwnedSpells.HasSpell(Spell))
         {
             return false;
         }
-        
+
         // Must match innate element (unless universal)
         if (!Spell->bIsUniversalSpell && Spell->Element != InnateElement)
         {
             return false;
         }
     }
-    
+
     return true;
 }
 
 bool FCombatLoadout::HasDuplicateItemTypes() const
 {
     TSet<ECrystalType> SeenTypes;
-    
-    for (const FItemLoadoutSlot& Slot : ItemSlots)
+
+    for (const FItemLoadoutSlot &Slot : ItemSlots)
     {
         if (!Slot.HasCrystal())
         {
             continue;
         }
-        
+
         ECrystalType Type = Slot.Crystal->CrystalType;
         if (SeenTypes.Contains(Type))
         {
@@ -202,111 +197,111 @@ bool FCombatLoadout::HasDuplicateItemTypes() const
         }
         SeenTypes.Add(Type);
     }
-    
+
     return false;
 }
 
 int32 FCombatLoadout::GetTotalItemUses() const
 {
     int32 Total = 0;
-    
-    for (const FItemLoadoutSlot& Slot : ItemSlots)
+
+    for (const FItemLoadoutSlot &Slot : ItemSlots)
     {
         Total += Slot.GetRemainingUses();
     }
-    
+
     return Total;
 }
 
-TArray<UAbilityData*> FCombatLoadout::GetAllAbilities() const
+TArray<UAbilityData *> FCombatLoadout::GetAllAbilities() const
 {
-    TArray<UAbilityData*> Result;
-    
+    TArray<UAbilityData *> Result;
+
     // Primary weapon abilities
     if (PrimaryWeapon.IsValid())
     {
         Result.Append(PrimaryWeapon.GetAllAbilities());
     }
-    
+
     // Secondary weapon abilities (Generic only)
     if (!bSecondaryIsRing && SecondaryWeapon.IsValid())
     {
         Result.Append(SecondaryWeapon.GetAllAbilities());
     }
-    
+
     return Result;
 }
 
-TArray<USpellData*> FCombatLoadout::GetAllSpells() const
+TArray<USpellData *> FCombatLoadout::GetAllSpells() const
 {
-    TArray<USpellData*> Result;
-    
+    TArray<USpellData *> Result;
+
     // Innate spells (Caster)
     Result.Append(InnateSpells);
-    
+
     // Primary weapon spells
     if (!bPrimaryIsRing && PrimaryWeapon.IsValid())
     {
         Result.Append(PrimaryWeapon.GetAllSpells());
     }
-    
+
     // Primary ring spells
     if (bPrimaryIsRing && PrimaryRing.IsValid())
     {
         Result.Append(PrimaryRing.GetAllSpells());
     }
-    
+
     // Secondary weapon spells (Generic)
     if (!bSecondaryIsRing && SecondaryWeapon.IsValid())
     {
         Result.Append(SecondaryWeapon.GetAllSpells());
     }
-    
+
     // Secondary ring spells (Generic)
     if (bSecondaryIsRing && SecondaryRing.IsValid())
     {
         Result.Append(SecondaryRing.GetAllSpells());
     }
-    
+
     // Ring loadout spells (Resonator)
-    for (const FRingLoadoutEntry& Entry : RingLoadout)
+    for (const FRingLoadoutEntry &Entry : RingLoadout)
     {
         if (Entry.IsValid())
         {
             Result.Append(Entry.GetAllSpells());
         }
     }
-    
+
     return Result;
 }
 
 TArray<FItemLoadoutSlot> FCombatLoadout::GetUsableItemSlots() const
 {
     TArray<FItemLoadoutSlot> Result;
-    
-    for (const FItemLoadoutSlot& Slot : ItemSlots)
+
+    for (const FItemLoadoutSlot &Slot : ItemSlots)
     {
         if (Slot.CanUse())
         {
             Result.Add(Slot);
         }
     }
-    
+
     return Result;
 }
 
 void FCombatLoadout::Clear()
 {
     LoadoutName = TEXT("Default Loadout");
-    
+
     PrimaryWeapon.Clear();
     PrimaryRing.Clear();
     bPrimaryIsRing = false;
-    
+
     SecondaryWeapon.Clear();
     SecondaryRing.Clear();
     bSecondaryIsRing = false;
-    
+
     RingLoadout.Empty();
     InnateSpells.Empty();
     ItemSlots.Empty();
@@ -315,31 +310,31 @@ void FCombatLoadout::Clear()
 void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
 {
     Clear();
-    
+
     switch (CharClass)
     {
-        case ECharacterClass::Generic:
-            // Generic: Primary weapon, optional secondary
-            bPrimaryIsRing = false;
-            bSecondaryIsRing = false;
-            break;
-            
-        case ECharacterClass::Caster:
-            // Caster: Primary weapon by default, innate spells
-            bPrimaryIsRing = false;
-            InnateSpells.SetNum(0); // Empty, to be filled
-            break;
-            
-        case ECharacterClass::Resonator:
-            // Resonator: Primary weapon, ring loadout
-            bPrimaryIsRing = false;
-            RingLoadout.SetNum(0); // Empty, to be filled
-            break;
+    case ECharacterClass::Generic:
+        // Generic: Primary weapon, optional secondary
+        bPrimaryIsRing = false;
+        bSecondaryIsRing = false;
+        break;
+
+    case ECharacterClass::Caster:
+        // Caster: Primary weapon by default, innate spells
+        bPrimaryIsRing = false;
+        InnateSpells.SetNum(0); // Empty, to be filled
+        break;
+
+    case ECharacterClass::Resonator:
+        // Resonator: Primary weapon, ring loadout
+        bPrimaryIsRing = false;
+        RingLoadout.SetNum(0); // Empty, to be filled
+        break;
     }
-    
+
     // Initialize item slots (empty)
     ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
-    for (FItemLoadoutSlot& Slot : ItemSlots)
+    for (FItemLoadoutSlot &Slot : ItemSlots)
     {
         Slot.Clear();
     }
