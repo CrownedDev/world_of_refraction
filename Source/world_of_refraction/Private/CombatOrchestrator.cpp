@@ -893,6 +893,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
 		return;
 	}
+	bool bUsingOverride = (DebugOverrideActor != nullptr);
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
@@ -977,8 +978,10 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 		OnActionExecuted.Broadcast(CurrentActor, Result);
 	}
 
-	// End turn
-	OnActionCompleted();
+	if (!bUsingOverride)
+	{
+		OnActionCompleted();
+	}
 }
 
 void ACombatOrchestrator::DebugExecuteSyncSpell()
@@ -989,6 +992,8 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
 		return;
 	}
+
+	bool bUsingOverride = (DebugOverrideActor != nullptr);
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
@@ -1074,7 +1079,10 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 	}
 
 	// End turn
-	OnActionCompleted();
+	if (!bUsingOverride)
+	{
+		OnActionCompleted();
+	}
 }
 
 void ACombatOrchestrator::DebugExecuteSyncAbility()
@@ -1085,6 +1093,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No active turn"));
 		return;
 	}
+	bool bUsingOverride = (DebugOverrideActor != nullptr);
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
@@ -1170,7 +1179,10 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 	}
 
 	// End turn
-	OnActionCompleted();
+	if (!bUsingOverride)
+	{
+		OnActionCompleted();
+	}
 }
 
 void ACombatOrchestrator::DebugDrawCombatGrid(float Duration)

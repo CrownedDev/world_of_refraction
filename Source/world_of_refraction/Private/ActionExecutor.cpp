@@ -759,12 +759,14 @@ FActionResult UActionExecutor::ExecuteSpell(
 	int32 BaseDamage = Spell->CalculateDamage(CasterData);
 	Result.BaseDamageBeforeDefense = BaseDamage;
 
-	// Play animation and VFX (stubs - override or bind events for real implementation)
-	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
-	SpawnSpellVFX(Caster, Spell, FinalSpellSize);
-
-	// Process each target
+	// Get valid targets FIRST
 	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
+
+	// Play animation and VFX with explicit targets
+	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
+	SpawnSpellVFX(Caster, Spell, FinalSpellSize, ValidTargets);
+
+	// Process each target (remove duplicate FilterValidTargets call below if exists)
 
 	for (AActor *Target : ValidTargets)
 	{
@@ -2032,28 +2034,27 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 	}
 }
 
-void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize)
+void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets)
 {
-	// This is now a wrapper that calls SpawnSpellDelivery
-	// Called from ExecuteSpell after damage calculation
-
 	if (!Caster || !Spell)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] SpawnSpellVFX - Invalid caster or spell"));
 		return;
 	}
 
-	// Get BD status for coloring
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
 	bool bIsBD = BDManager && BDManager->IsTransformed();
 
-	// Calculate final values
 	float FinalImpactRadius = Spell->BaseSize * Spell->HitboxRatio * SpellSize;
 	float FinalVisualScale = Spell->BaseSize * SpellSize;
 
-	// Get targets from current execution context
+	// Use explicit targets if provided, otherwise get from context
 	TArray<AActor *> Targets;
-	if (CurrentExecutionContext.IsSet())
+	if (ExplicitTargets.Num() > 0)
+	{
+		Targets = ExplicitTargets;
+	}
+	else if (CurrentExecutionContext.IsSet())
 	{
 		for (const auto &Pair : CurrentExecutionContext->PendingDefenses)
 		{
@@ -2064,7 +2065,6 @@ void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float Spe
 		}
 	}
 
-	// Get damage from context
 	int32 FinalDamage = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0;
 
 	SpawnSpellDelivery(Caster, Targets, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD);
