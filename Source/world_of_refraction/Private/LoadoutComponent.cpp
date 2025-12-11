@@ -581,6 +581,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     SavedLoadouts.Empty();
     FCombatLoadout DefaultLoadout;
     DefaultLoadout.LoadoutName = TEXT("Default");
+    DefaultLoadout.InitializeForClass(CharacterClass);
 
     // Find weapons in inventory
     FWeaponInventoryEntry *PrimaryEntry = nullptr;
@@ -660,6 +661,12 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     }
     else if (CharacterClass == ECharacterClass::Resonator)
     {
+        // Ensure RingLoadout is properly sized
+        if (DefaultLoadout.RingLoadout.Num() < InventoryConstants::MAX_RESONATOR_RINGS)
+        {
+            DefaultLoadout.RingLoadout.SetNum(InventoryConstants::MAX_RESONATOR_RINGS);
+        }
+
         // Copy equipped rings to ring loadout
         int32 RingIndex = 0;
         for (URingData *RingData : CharacterData->EquippedRings)

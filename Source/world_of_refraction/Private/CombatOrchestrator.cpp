@@ -23,7 +23,7 @@ ACombatOrchestrator::ACombatOrchestrator()
 	CurrentActor = nullptr;
 	CurrentTurnNumber = 0;
 
-		TurnManagerRef = nullptr;
+	TurnManagerRef = nullptr;
 	StatusEffectManagerRef = nullptr;
 	ActionExecutorRef = nullptr;
 	bWaitingForAsyncAction = false;
@@ -206,7 +206,8 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		return false;
 	}
 
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitAction called with no current actor"));
 		return false;
@@ -262,7 +263,8 @@ void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 		return;
 	}
 
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitActionAsync called with no current actor"));
 		return;
@@ -308,7 +310,8 @@ FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction &Actio
 		return FActionValidationResult(false, TEXT("ActionExecutor not available"));
 	}
 
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
 	{
 		return FActionValidationResult(false, TEXT("No current actor"));
 	}
@@ -817,7 +820,8 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 
 void ACombatOrchestrator::DebugTestAttackMovement()
 {
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestAttackMovement: No active turn"));
 		return;
@@ -825,13 +829,13 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
 
-	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
 	{
 		Target = Team1Combatants[0];
 	}
-	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
 	{
 		Target = Team0Combatants[0];
 	}
@@ -883,21 +887,22 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 
 void ACombatOrchestrator::DebugExecuteSyncAttack()
 {
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor(); // Changed from CurrentActor
+	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No active turn"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
 		return;
 	}
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
 
-	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
 	{
 		Target = Team1Combatants[0];
 	}
-	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
 	{
 		Target = Team0Combatants[0];
 	}
@@ -978,21 +983,22 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 
 void ACombatOrchestrator::DebugExecuteSyncSpell()
 {
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor(); // Changed from CurrentActor
+	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncSpell: No active turn"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
 		return;
 	}
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
 
-	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
 	{
 		Target = Team1Combatants[0];
 	}
-	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
 	{
 		Target = Team0Combatants[0];
 	}
@@ -1073,7 +1079,8 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 
 void ACombatOrchestrator::DebugExecuteSyncAbility()
 {
-	if (!CurrentActor)
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No active turn"));
 		return;
@@ -1081,13 +1088,13 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
-	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
 
-	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
 	{
 		Target = Team1Combatants[0];
 	}
-	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
 	{
 		Target = Team0Combatants[0];
 	}
@@ -1274,4 +1281,14 @@ void ACombatOrchestrator::ConsumeAllUsedItems()
 	{
 		ConsumeForActor(Actor);
 	}
+}
+
+AActor *ACombatOrchestrator::GetDebugActor() const
+{
+	// Use override if set, otherwise fall back to current turn actor
+	if (DebugOverrideActor)
+	{
+		return DebugOverrideActor;
+	}
+	return CurrentActor;
 }

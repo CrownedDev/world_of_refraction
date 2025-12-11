@@ -194,6 +194,13 @@ public:
 	// DEBUG TOOLS
 	// ========================================
 
+	/** Override actor for debug commands (if set, uses this instead of CurrentActor) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
+	AActor *DebugOverrideActor = nullptr;
+
+	/** Helper to get actor for debug commands */
+	AActor *GetDebugActor() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugPrintCombatState();
 
