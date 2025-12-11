@@ -852,7 +852,7 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 	AttackAction.Targets.Add(Target);
 
 	// Get weapon attack data from LoadoutComponent
-	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
 		if (ActiveLoadout.PrimaryWeapon.IsValid() && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon)
@@ -870,24 +870,24 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 	if (!AttackAction.AttackData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAttackMovement] No weapon attack data found on %s"),
-			   *CurrentActor->GetName());
+			   *Actor->GetName());
 		return;
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] %s attacking %s"),
-		   *CurrentActor->GetName(), *Target->GetName());
+		   *Actor->GetName(), *Target->GetName());
 
 	// Execute through ActionExecutor with callback
 	if (ActionExecutorRef)
 	{
-		ActionExecutorRef->ExecuteActionAsync(CurrentActor, AttackAction,
+		ActionExecutorRef->ExecuteActionAsync(Actor, AttackAction,
 											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }
 
 void ACombatOrchestrator::DebugExecuteSyncAttack()
 {
-	AActor *Actor = GetDebugActor(); // Changed from CurrentActor
+	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
@@ -916,7 +916,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 
 	// Get weapon attack data
 	UWeaponAttackData *AttackData = nullptr;
-	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
 		if (ActiveLoadout.PrimaryWeapon.IsValid() && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon)
@@ -928,7 +928,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 	if (!AttackData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncAttack] No weapon attack data on %s"),
-			   *CurrentActor->GetName());
+			   *Actor->GetName());
 		return;
 	}
 
@@ -946,7 +946,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAttack] %s attacking %s with %s (Target HP: %d)"),
-		   *CurrentActor->GetName(), *Target->GetName(), *AttackData->AttackName, TargetHPBefore);
+		   *Actor->GetName(), *Target->GetName(), *AttackData->AttackName, TargetHPBefore);
 
 	// Execute SYNCHRONOUSLY - bypasses movement entirely
 	if (ActionExecutorRef)
@@ -955,7 +955,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 		Targets.Add(Target);
 
 		FActionResult Result = ActionExecutorRef->ExecuteAttack(
-			CurrentActor,
+			Actor,
 			AttackData,
 			Targets,
 			false // bIsInfused
@@ -975,7 +975,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 			   Result.bWasCritical ? TEXT("YES") : TEXT("NO"));
 
 		// Broadcast for UI
-		OnActionExecuted.Broadcast(CurrentActor, Result);
+		OnActionExecuted.Broadcast(Actor, Result);
 	}
 
 	if (!bUsingOverride)
@@ -986,10 +986,10 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 
 void ACombatOrchestrator::DebugExecuteSyncSpell()
 {
-	AActor *Actor = GetDebugActor(); // Changed from CurrentActor
+	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncSpell: No actor available"));
 		return;
 	}
 
@@ -1016,7 +1016,7 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 
 	// Try to get a spell from LoadoutComponent
 	USpellData *SpellData = nullptr;
-	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		TArray<USpellData *> AvailableSpells = Loadout->GetAvailableSpells();
 		if (AvailableSpells.Num() > 0)
@@ -1046,7 +1046,13 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncSpell] %s casting %s on %s (Target HP: %d)"),
-		   *CurrentActor->GetName(), *SpellData->SpellName, *Target->GetName(), TargetHPBefore);
+		   *Actor->GetName(), *SpellData->SpellName, *Target->GetName(), TargetHPBefore);
+
+	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] Spell: %s | TargetType: %d | DeliveryType: %d | CastAnim: %s"),
+		   *SpellData->SpellName,
+		   (int32)SpellData->TargetType,
+		   (int32)SpellData->DeliveryType,
+		   SpellData->CastAnimation ? *SpellData->CastAnimation->GetName() : TEXT("NONE"));
 
 	// Execute SYNCHRONOUSLY
 	if (ActionExecutorRef)
@@ -1055,7 +1061,7 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 		Targets.Add(Target);
 
 		FActionResult Result = ActionExecutorRef->ExecuteSpell(
-			CurrentActor,
+			Actor,
 			SpellData,
 			Targets,
 			0 // InfusionLevel
@@ -1075,10 +1081,9 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 			   TargetHPBefore, TargetHPAfter);
 
 		// Broadcast for UI
-		OnActionExecuted.Broadcast(CurrentActor, Result);
+		OnActionExecuted.Broadcast(Actor, Result);
 	}
 
-	// End turn
 	if (!bUsingOverride)
 	{
 		OnActionCompleted();
@@ -1090,7 +1095,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No active turn"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No actor available"));
 		return;
 	}
 	bool bUsingOverride = (DebugOverrideActor != nullptr);
@@ -1116,7 +1121,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 
 	// Try to get an ability from LoadoutComponent
 	UAbilityData *AbilityData = nullptr;
-	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		TArray<UAbilityData *> AvailableAbilities = Loadout->GetAvailableAbilities();
 		if (AvailableAbilities.Num() > 0)
@@ -1146,7 +1151,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAbility] %s using %s on %s (Target HP: %d)"),
-		   *CurrentActor->GetName(), *AbilityData->AbilityName, *Target->GetName(), TargetHPBefore);
+		   *Actor->GetName(), *AbilityData->AbilityName, *Target->GetName(), TargetHPBefore);
 
 	// Execute SYNCHRONOUSLY
 	if (ActionExecutorRef)
@@ -1155,7 +1160,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 		Targets.Add(Target);
 
 		FActionResult Result = ActionExecutorRef->ExecuteAbility(
-			CurrentActor,
+			Actor,
 			AbilityData,
 			Targets,
 			false // bIsElementInfused
@@ -1175,10 +1180,9 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 			   TargetHPBefore, TargetHPAfter);
 
 		// Broadcast for UI
-		OnActionExecuted.Broadcast(CurrentActor, Result);
+		OnActionExecuted.Broadcast(Actor, Result);
 	}
 
-	// End turn
 	if (!bUsingOverride)
 	{
 		OnActionCompleted();

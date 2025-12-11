@@ -460,11 +460,11 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     // Add rings based on class
     if (CharacterData->PrimaryRing)
     {
-        AddRing(CharacterData->PrimaryRing);
+        AddRing(CharacterData->PrimaryRing, true);
     }
     if (CharacterData->SecondaryRing)
     {
-        AddRing(CharacterData->SecondaryRing);
+        AddRing(CharacterData->SecondaryRing, true);
     }
 
     // Resonator rings
@@ -472,7 +472,7 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     {
         if (Ring)
         {
-            AddRing(Ring);
+            AddRing(Ring, true);
         }
     }
 
