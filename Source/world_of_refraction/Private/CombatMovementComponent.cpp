@@ -6,6 +6,7 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "GameFramework/Actor.h"
+#include "GameFramework/Character.h"
 
 UCombatMovementComponent::UCombatMovementComponent()
 {
@@ -140,9 +141,32 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
 
     // Start movement (Direct or Dash)
     MovementState = ECombatMovementState::Approaching;
-    SetComponentTickEnabled(true);
 
-    // TODO: Play ApproachMontage, TrailVFX, MovementSound
+    // Debug: Log what animation we're trying to play
+    UAnimMontage *ApproachMontage = nullptr;
+    if (Approach && Approach->ApproachMontage)
+    {
+        ApproachMontage = Approach->ApproachMontage;
+        UE_LOG(LogTemp, Warning, TEXT("[CombatMovement] Using ApproachData montage: %s"),
+               *ApproachMontage->GetName());
+    }
+    else if (DefaultApproachMontage)
+    {
+        ApproachMontage = DefaultApproachMontage;
+        UE_LOG(LogTemp, Warning, TEXT("[CombatMovement] Using Default montage: %s"),
+               *ApproachMontage->GetName());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("[CombatMovement] NO APPROACH MONTAGE AVAILABLE!"));
+    }
+
+    if (ApproachMontage)
+    {
+        PlayMovementMontage(ApproachMontage);
+    }
+
+    SetComponentTickEnabled(true);
 
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Starting %s approach (%.0f units)"),
            *GetOwner()->GetName(),
@@ -175,6 +199,35 @@ void UCombatMovementComponent::StartReturn()
 
     MovementState = ECombatMovementState::Returning;
     SetComponentTickEnabled(true);
+
+    // Cache the direction to face during return (toward target/arena center)
+    if (CurrentTarget)
+    {
+        ReturnFacingDirection = CurrentTarget->GetActorLocation() - GetOwner()->GetActorLocation();
+    }
+    else if (!CachedArenaCenter.IsZero())
+    {
+        ReturnFacingDirection = CachedArenaCenter - GridPosition;
+    }
+    ReturnFacingDirection.Z = 0;
+    ReturnFacingDirection.Normalize();
+
+    // Play return animation - fallback chain
+    UAnimMontage *ReturnMontage = GetReturnMontage();
+    if (!ReturnMontage && CurrentApproachData && CurrentApproachData->ApproachMontage)
+    {
+        ReturnMontage = CurrentApproachData->ApproachMontage;
+    }
+    if (!ReturnMontage)
+    {
+        ReturnMontage = DefaultApproachMontage;
+    }
+
+    if (ReturnMontage)
+    {
+        PlayMovementMontage(ReturnMontage);
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Return montage: %s"), *ReturnMontage->GetName());
+    }
 
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Returning to grid (%.0f units)"),
            *GetOwner()->GetName(), DistanceToGrid);
@@ -214,6 +267,67 @@ void UCombatMovementComponent::OnActionExecutionComplete()
 }
 
 // ==================== MOVEMENT HELPERS ====================
+void UCombatMovementComponent::PlayMovementMontage(UAnimMontage *Montage)
+{
+    if (!Montage)
+    {
+        return;
+    }
+
+    AActor *Owner = GetOwner();
+    if (!Owner)
+    {
+        return;
+    }
+
+    ACharacter *Character = Cast<ACharacter>(Owner);
+    if (Character)
+    {
+        Character->PlayAnimMontage(Montage, 1.0f);
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Playing montage: %s"), *Montage->GetName());
+    }
+}
+
+void UCombatMovementComponent::StopMovementMontage()
+{
+    AActor *Owner = GetOwner();
+    if (!Owner)
+    {
+        return;
+    }
+
+    ACharacter *Character = Cast<ACharacter>(Owner);
+    if (Character)
+    {
+        Character->StopAnimMontage();
+    }
+}
+
+void UCombatMovementComponent::FaceCurrentTarget()
+{
+    AActor *Owner = GetOwner();
+    if (!Owner)
+    {
+        return;
+    }
+
+    FVector FaceDirection = FVector::ZeroVector;
+
+    if (CurrentTarget)
+    {
+        FaceDirection = CurrentTarget->GetActorLocation() - Owner->GetActorLocation();
+    }
+    else if (!CachedArenaCenter.IsZero())
+    {
+        FaceDirection = CachedArenaCenter - Owner->GetActorLocation();
+    }
+
+    FaceDirection.Z = 0;
+    if (!FaceDirection.IsNearlyZero())
+    {
+        UpdateFacingDirection(FaceDirection);
+    }
+}
 
 float UCombatMovementComponent::CalculateMovementSpeed() const
 {
@@ -273,8 +387,15 @@ bool UCombatMovementComponent::MoveToward(const FVector &Destination, float Spee
     FVector NewLocation = CurrentLocation + (Direction * MoveDistance);
     Owner->SetActorLocation(NewLocation);
 
-    // Face movement direction
-    UpdateFacingDirection(Direction);
+    // Face appropriate direction
+    if (MovementState == ECombatMovementState::Returning)
+    {
+        FaceCurrentTarget();
+    }
+    else
+    {
+        UpdateFacingDirection(Direction);
+    }
 
     return false;
 }
@@ -309,6 +430,10 @@ void UCombatMovementComponent::CompleteApproach()
     MovementState = ECombatMovementState::Executing;
     SetComponentTickEnabled(false);
 
+    // Stop movement animation - attack animation will play next
+    StopMovementMontage();
+    SetComponentTickEnabled(false);
+
     // Face target
     if (CurrentTarget && GetOwner())
     {
@@ -324,6 +449,9 @@ void UCombatMovementComponent::CompleteReturn()
 {
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Return complete"),
            GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+
+    // Stop movement animation
+    StopMovementMontage();
 
     // Face arena center (toward opposing team)
     if (GetOwner() && !CachedArenaCenter.IsZero())

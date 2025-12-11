@@ -34,6 +34,7 @@
 #include "InfusionVFXComponent.h"
 #include "LoadoutComponent.h"
 #include "CombatMovementComponent.h"
+#include "CombatAnimInstance.h"
 #include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
@@ -2440,10 +2441,48 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
 
 void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack)
 {
-	// Stub - override in subclass for attack animations
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlayAttackAnimation stub - %s attacking with %s"),
-		   Attacker ? *Attacker->GetName() : TEXT("None"),
-		   Attack ? *Attack->GetName() : TEXT("None"));
+	if (!Attacker || !Attack)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - Invalid attacker or attack"));
+		return;
+	}
+
+	if (!Attack->AttackMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - No montage on %s"),
+			   *Attack->AttackName);
+		return;
+	}
+
+	// Try to get CombatAnimInstance from skeletal mesh
+	ACharacter *Character = Cast<ACharacter>(Attacker);
+	if (Character && Character->GetMesh())
+	{
+		UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(
+			Character->GetMesh()->GetAnimInstance());
+
+		if (CombatAnim)
+		{
+			CombatAnim->PlayAttackMontage(Attack->AttackMontage);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack montage %s via CombatAnimInstance"),
+				   *Attack->AttackMontage->GetName());
+			return;
+		}
+	}
+
+	// Fallback: Direct montage play on Character
+	if (Character)
+	{
+		float PlayRate = Attack->BaseAnimSpeed;
+		Character->PlayAnimMontage(Attack->AttackMontage, PlayRate);
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack montage %s at %.2fx speed (fallback)"),
+			   *Attack->AttackMontage->GetName(), PlayRate);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - %s is not a Character"),
+			   *Attacker->GetName());
+	}
 }
 
 // ========================================

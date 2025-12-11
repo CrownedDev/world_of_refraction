@@ -12,6 +12,8 @@
 #include "LoadoutComponent.h"
 #include "WeaponData.h"
 #include "WeaponAttackData.h"
+#include "SpellData.h"
+#include "AbilityData.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -20,7 +22,8 @@ ACombatOrchestrator::ACombatOrchestrator()
 	CombatState = ECombatState::Idle;
 	CurrentActor = nullptr;
 	CurrentTurnNumber = 0;
-	TurnManagerRef = nullptr;
+
+		TurnManagerRef = nullptr;
 	StatusEffectManagerRef = nullptr;
 	ActionExecutorRef = nullptr;
 	bWaitingForAsyncAction = false;
@@ -876,6 +879,291 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 		ActionExecutorRef->ExecuteActionAsync(CurrentActor, AttackAction,
 											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
+}
+
+void ACombatOrchestrator::DebugExecuteSyncAttack()
+{
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No active turn"));
+		return;
+	}
+
+	// Find target from opposing team
+	AActor *Target = nullptr;
+	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+
+	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No valid target"));
+		return;
+	}
+
+	// Get weapon attack data
+	UWeaponAttackData *AttackData = nullptr;
+	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	{
+		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
+		if (ActiveLoadout.PrimaryWeapon.IsValid() && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon)
+		{
+			AttackData = ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon->WeaponAttack;
+		}
+	}
+
+	if (!AttackData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncAttack] No weapon attack data on %s"),
+			   *CurrentActor->GetName());
+		return;
+	}
+
+	// Build action
+	FAction AttackAction;
+	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.AttackData = AttackData;
+	AttackAction.Targets.Add(Target);
+
+	// Get target HP before
+	int32 TargetHPBefore = 0;
+	if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+	{
+		TargetHPBefore = TargetComp->CurrentHP;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAttack] %s attacking %s with %s (Target HP: %d)"),
+		   *CurrentActor->GetName(), *Target->GetName(), *AttackData->AttackName, TargetHPBefore);
+
+	// Execute SYNCHRONOUSLY - bypasses movement entirely
+	if (ActionExecutorRef)
+	{
+		TArray<AActor *> Targets;
+		Targets.Add(Target);
+
+		FActionResult Result = ActionExecutorRef->ExecuteAttack(
+			CurrentActor,
+			AttackData,
+			Targets,
+			false // bIsInfused
+		);
+
+		// Get target HP after
+		int32 TargetHPAfter = 0;
+		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+		{
+			TargetHPAfter = TargetComp->CurrentHP;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAttack] Result: %s | Damage: %d | Target HP: %d -> %d | Crit: %s"),
+			   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+			   Result.TotalDamageDealt,
+			   TargetHPBefore, TargetHPAfter,
+			   Result.bWasCritical ? TEXT("YES") : TEXT("NO"));
+
+		// Broadcast for UI
+		OnActionExecuted.Broadcast(CurrentActor, Result);
+	}
+
+	// End turn
+	OnActionCompleted();
+}
+
+void ACombatOrchestrator::DebugExecuteSyncSpell()
+{
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncSpell: No active turn"));
+		return;
+	}
+
+	// Find target from opposing team
+	AActor *Target = nullptr;
+	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+
+	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncSpell: No valid target"));
+		return;
+	}
+
+	// Try to get a spell from LoadoutComponent
+	USpellData *SpellData = nullptr;
+	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	{
+		TArray<USpellData *> AvailableSpells = Loadout->GetAvailableSpells();
+		if (AvailableSpells.Num() > 0)
+		{
+			SpellData = AvailableSpells[0];
+		}
+	}
+
+	// Fallback: Load a test spell directly
+	if (!SpellData)
+	{
+		SpellData = LoadObject<USpellData>(nullptr,
+										   TEXT("/Game/Data/Spells/Fire/Destruction/DA_Spells_Fire_FireBall.DA_Spells_Fire_FireBall"));
+	}
+
+	if (!SpellData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncSpell] No spell available"));
+		return;
+	}
+
+	// Get target HP before
+	int32 TargetHPBefore = 0;
+	if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+	{
+		TargetHPBefore = TargetComp->CurrentHP;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncSpell] %s casting %s on %s (Target HP: %d)"),
+		   *CurrentActor->GetName(), *SpellData->SpellName, *Target->GetName(), TargetHPBefore);
+
+	// Execute SYNCHRONOUSLY
+	if (ActionExecutorRef)
+	{
+		TArray<AActor *> Targets;
+		Targets.Add(Target);
+
+		FActionResult Result = ActionExecutorRef->ExecuteSpell(
+			CurrentActor,
+			SpellData,
+			Targets,
+			0 // InfusionLevel
+		);
+
+		// Get target HP after
+		int32 TargetHPAfter = 0;
+		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+		{
+			TargetHPAfter = TargetComp->CurrentHP;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncSpell] Result: %s | Damage: %d | EP Spent: %d | Target HP: %d -> %d"),
+			   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+			   Result.TotalDamageDealt,
+			   Result.EnergySpent,
+			   TargetHPBefore, TargetHPAfter);
+
+		// Broadcast for UI
+		OnActionExecuted.Broadcast(CurrentActor, Result);
+	}
+
+	// End turn
+	OnActionCompleted();
+}
+
+void ACombatOrchestrator::DebugExecuteSyncAbility()
+{
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No active turn"));
+		return;
+	}
+
+	// Find target from opposing team
+	AActor *Target = nullptr;
+	bool bCurrentActorInTeam0 = Team0Combatants.Contains(CurrentActor);
+
+	if (bCurrentActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bCurrentActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No valid target"));
+		return;
+	}
+
+	// Try to get an ability from LoadoutComponent
+	UAbilityData *AbilityData = nullptr;
+	if (ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>())
+	{
+		TArray<UAbilityData *> AvailableAbilities = Loadout->GetAvailableAbilities();
+		if (AvailableAbilities.Num() > 0)
+		{
+			AbilityData = AvailableAbilities[0];
+		}
+	}
+
+	// Fallback: Load a test ability directly
+	if (!AbilityData)
+	{
+		AbilityData = LoadObject<UAbilityData>(nullptr,
+											   TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+	}
+
+	if (!AbilityData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncAbility] No ability available"));
+		return;
+	}
+
+	// Get target HP before
+	int32 TargetHPBefore = 0;
+	if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+	{
+		TargetHPBefore = TargetComp->CurrentHP;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAbility] %s using %s on %s (Target HP: %d)"),
+		   *CurrentActor->GetName(), *AbilityData->AbilityName, *Target->GetName(), TargetHPBefore);
+
+	// Execute SYNCHRONOUSLY
+	if (ActionExecutorRef)
+	{
+		TArray<AActor *> Targets;
+		Targets.Add(Target);
+
+		FActionResult Result = ActionExecutorRef->ExecuteAbility(
+			CurrentActor,
+			AbilityData,
+			Targets,
+			false // bIsElementInfused
+		);
+
+		// Get target HP after
+		int32 TargetHPAfter = 0;
+		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+		{
+			TargetHPAfter = TargetComp->CurrentHP;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAbility] Result: %s | Damage: %d | EP Spent: %d | Target HP: %d -> %d"),
+			   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+			   Result.TotalDamageDealt,
+			   Result.EnergySpent,
+			   TargetHPBefore, TargetHPAfter);
+
+		// Broadcast for UI
+		OnActionExecuted.Broadcast(CurrentActor, Result);
+	}
+
+	// End turn
+	OnActionCompleted();
 }
 
 void ACombatOrchestrator::DebugDrawCombatGrid(float Duration)

@@ -86,6 +86,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Movement")
     void OnActionExecutionComplete();
 
+    /** Face the current target (or arena center if no target) */
+    UFUNCTION(BlueprintCallable, Category = "Combat Movement")
+    void FaceCurrentTarget();
     // ==================== STATE QUERIES ====================
 
     UFUNCTION(BlueprintPure, Category = "Combat Movement")
@@ -129,6 +132,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
     UAnimMontage *DefaultReturnMontage = nullptr;
 
+    /** Default approach animation (run/dash forward) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
+    UAnimMontage *DefaultApproachMontage = nullptr;
+
+    /** Whether to face target during return (true) or face movement direction (false) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
+    bool bFaceTargetDuringReturn = true;
+
 protected:
     virtual void BeginPlay() override;
 
@@ -159,6 +170,9 @@ private:
     /** Has a valid grid position been stored? */
     bool bHasGridPosition = false;
 
+    /** Cached facing direction for return phase */
+    FVector ReturnFacingDirection = FVector::ZeroVector;
+
     // ==================== CACHED REFERENCES ====================
 
     UPROPERTY()
@@ -183,4 +197,12 @@ private:
 
     /** Complete return phase */
     void CompleteReturn();
+
+    // ==================== HELPER FUNCTIONS ====================
+
+    /** Play movement animation montage */
+    void PlayMovementMontage(UAnimMontage *Montage);
+
+    /** Stop current movement montage */
+    void StopMovementMontage();
 };

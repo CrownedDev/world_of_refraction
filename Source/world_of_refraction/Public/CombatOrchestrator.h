@@ -211,6 +211,18 @@ public:
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugTestAttackMovement();
 
+	/** Execute sync attack - bypasses movement, tests damage pipeline + animation */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugExecuteSyncAttack();
+
+	/** Execute sync spell - tests spell pipeline + VFX */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugExecuteSyncSpell();
+
+	/** Execute sync ability - tests ability pipeline */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugExecuteSyncAbility();
+
 	/** Draw grid visualization with actor positions */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
 	void DebugDrawCombatGrid(float Duration = 5.0f);
