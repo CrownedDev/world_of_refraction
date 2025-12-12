@@ -894,6 +894,10 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 		return;
 	}
 	bool bUsingOverride = (DebugOverrideActor != nullptr);
+	if (bUsingOverride)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	}
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
@@ -994,6 +998,11 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 	}
 
 	bool bUsingOverride = (DebugOverrideActor != nullptr);
+	// Clear auto-advance timer when using debug
+	if (bUsingOverride)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	}
 
 	// Find target from opposing team
 	AActor *Target = nullptr;
@@ -1099,6 +1108,11 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 		return;
 	}
 	bool bUsingOverride = (DebugOverrideActor != nullptr);
+
+	if (bUsingOverride)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	}
 
 	// Find target from opposing team
 	AActor *Target = nullptr;

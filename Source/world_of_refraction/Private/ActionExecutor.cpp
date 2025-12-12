@@ -496,12 +496,20 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = true;
 
-	// Play animation and VFX
-	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
-	SpawnSpellVFX(Caster, Spell, FinalSpellSize);
-
-	// Get valid targets
+	// Get valid targets FIRST
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
+
+	if (ValidTargets.Num() == 0)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Play animation and VFX (now we have targets)
+	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
+	SpawnSpellVFX(Caster, Spell, FinalSpellSize, ValidTargets);
 
 	if (ValidTargets.Num() == 0)
 	{
