@@ -9,6 +9,7 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "CharacterData.h"
+#include "EvolutionData.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -585,6 +586,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
 
     // Find weapons in inventory
     FWeaponInventoryEntry *PrimaryEntry = nullptr;
+    UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] PrimaryEntry found: %s, HasEvolution: %s"),
+           PrimaryEntry ? *PrimaryEntry->Weapon->WeaponName : TEXT("NULL"),
+           (PrimaryEntry && PrimaryEntry->Evolution) ? TEXT("YES") : TEXT("NO"));
     FWeaponInventoryEntry *SecondaryEntry = nullptr;
 
     for (FWeaponInventoryEntry &Entry : Inventory->Weapons)
@@ -615,6 +619,20 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
                 }
             }
         }
+
+        // Copy evolution spells if weapon has evolution
+        if (PrimaryEntry->Evolution)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Copying %d evolution spells from primary weapon"),
+                   PrimaryEntry->Evolution->EquippedSpells.Num());
+            for (USpellData *Spell : PrimaryEntry->Evolution->EquippedSpells)
+            {
+                if (Spell && DefaultLoadout.PrimaryWeapon.AssignedSpells.Num() < LoadoutConstants::MAX_SPELL_SLOTS)
+                {
+                    DefaultLoadout.PrimaryWeapon.AssignedSpells.Add(Spell);
+                }
+            }
+        }
     }
 
     // Configure secondary based on class
@@ -634,6 +652,17 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
                     }
                 }
             }
+            // Copy evolution spells if secondary weapon has evolution
+            if (SecondaryEntry->Evolution)
+            {
+                for (USpellData *Spell : SecondaryEntry->Evolution->EquippedSpells)
+                {
+                    if (Spell && DefaultLoadout.SecondaryWeapon.AssignedSpells.Num() < LoadoutConstants::MAX_SPELL_SLOTS)
+                    {
+                        DefaultLoadout.SecondaryWeapon.AssignedSpells.Add(Spell);
+                    }
+                }
+            }
         }
         else if (CharacterData->SecondaryRing)
         {
@@ -650,12 +679,28 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     }
     else if (CharacterClass == ECharacterClass::Caster)
     {
+        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasActiveEvolution: %s"),
+               CharacterData->InnateSpells.Num(),
+               CharacterData->IsEvolved() ? TEXT("YES") : TEXT("NO"),
+               CharacterData->ActiveEvolution ? TEXT("YES") : TEXT("NO"));
         // Caster innate spells go into InnateSpells
         for (USpellData *Spell : CharacterData->InnateSpells)
         {
             if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
             {
                 DefaultLoadout.InnateSpells.Add(Spell);
+            }
+        }
+
+        // Copy evolution spells if caster is evolved
+        if (CharacterData->IsEvolved() && CharacterData->ActiveEvolution)
+        {
+            for (USpellData *Spell : CharacterData->ActiveEvolution->EquippedSpells)
+            {
+                if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
+                {
+                    DefaultLoadout.InnateSpells.Add(Spell);
+                }
             }
         }
     }

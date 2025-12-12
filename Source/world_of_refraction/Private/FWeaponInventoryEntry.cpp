@@ -5,20 +5,26 @@
 #include "WeaponData.h"
 #include "ItemData.h"
 #include "EvolutionData.h"
+#include "CrystalType.h"
 
-FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData* InWeapon, bool bCopyDefaultCrystal)
+FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWeapon, bool bCopyDefaultCrystal)
 {
     FWeaponInventoryEntry Entry;
     Entry.Weapon = InWeapon;
-    
+
     if (bCopyDefaultCrystal && InWeapon && InWeapon->SlottedCrystal)
     {
         // Copy reference to default crystal from data asset
-        // NOTE: This shares the same ItemData instance - if you need true duplication,
-        // you'd need to duplicate the asset at runtime
         Entry.AttachedCrystal = InWeapon->SlottedCrystal;
+
+        // If crystal is an evolution crystal, set Evolution reference
+        if (InWeapon->SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal &&
+            InWeapon->SlottedCrystal->Evolution)
+        {
+            Entry.Evolution = InWeapon->SlottedCrystal->Evolution;
+        }
     }
-    
+
     return Entry;
 }
 
@@ -29,13 +35,13 @@ ESpellElement FWeaponInventoryEntry::GetElement() const
     {
         return Evolution->Element;
     }
-    
+
     // Then attached crystal (RUNTIME STATE - not WeaponData.SlottedCrystal)
     if (AttachedCrystal)
     {
         return AttachedCrystal->GetAssociatedElement();
     }
-    
+
     // Base weapon has no element
     return ESpellElement::Generic;
 }
