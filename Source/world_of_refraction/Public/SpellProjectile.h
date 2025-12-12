@@ -20,39 +20,36 @@ class USpellData;
 /** Broadcast when projectile hits target (or reaches target location) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
     FOnSpellImpact,
-    AActor*, Target,
+    AActor *, Target,
     FVector, ImpactLocation,
     float, ImpactRadius,
-    int32, Damage
-);
+    int32, Damage);
 
 /** Broadcast when target successfully dodged (moved out of impact zone) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     FOnSpellDodged,
-    AActor*, Target,
-    FVector, ImpactLocation
-);
+    AActor *, Target,
+    FVector, ImpactLocation);
 
 /** Broadcast when beam connects each tick */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
     FOnBeamTick,
-    AActor*, Target,
+    AActor *, Target,
     float, DeltaTime,
-    bool, bTargetInBeam
-);
+    bool, bTargetInBeam);
 
 // ==================== MAIN CLASS ====================
 
 /**
  * ASpellProjectile
- * 
+ *
  * Unified spell delivery actor that handles:
  * - Projectile: Travels to fixed location, dodgeable by moving
  * - Homing: Tracks target actor, harder to dodge
  * - Beam: Continuous line trace, brief dodge window
- * 
+ *
  * AOE and Instant spells don't use this actor.
- * 
+ *
  * Usage:
  * 1. Spawn via SpawnActor
  * 2. Call InitializeProjectile() with spell data
@@ -72,23 +69,23 @@ public:
 protected:
     /** Root scene component */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    USceneComponent* Root;
+    USceneComponent *Root;
 
     /** Collision detection sphere - sized by ImpactRadius */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    USphereComponent* HitBox;
+    USphereComponent *HitBox;
 
     /** VFX: Spawn flash at caster (optional) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|VFX")
-    UNiagaraComponent* MuzzleFX;
+    UNiagaraComponent *MuzzleFX;
 
     /** VFX: Traveling projectile visual */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|VFX")
-    UNiagaraComponent* ProjectileFX;
+    UNiagaraComponent *ProjectileFX;
 
     /** VFX: Impact effect (spawned on hit/miss) */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components|VFX")
-    UNiagaraComponent* HitFX;
+    UNiagaraComponent *HitFX;
 
 public:
     // ==================== EVENTS ====================
@@ -118,15 +115,15 @@ protected:
 
     /** Reference to source spell data */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
-    USpellData* SourceSpell;
+    USpellData *SourceSpell;
 
     /** Who cast this spell */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
-    AActor* Caster;
+    AActor *Caster;
 
     /** Primary target actor (for homing/beam) */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
-    AActor* Target;
+    AActor *Target;
 
     /** Target location at cast time (for projectile) */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
@@ -160,24 +157,13 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     bool bIsElemental;
 
-    // ==================== RUNTIME STATE ====================
-
-    /** Has the projectile reached its destination? */
-    bool bHasImpacted;
-
-    /** Beam: Time remaining */
-    float BeamTimeRemaining;
-
-    /** Beam: Is target currently in beam path? */
-    bool bTargetInBeam;
-
 public:
     // ==================== INITIALIZATION ====================
 
     /**
      * Initialize the projectile with spell data and combat context
      * Call this immediately after spawning
-     * 
+     *
      * @param Spell Source spell data asset
      * @param InCaster Actor who cast this spell
      * @param InTarget Target actor
@@ -187,41 +173,60 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "SpellProjectile")
     void InitializeProjectile(
-        USpellData* Spell,
-        AActor* InCaster,
-        AActor* InTarget,
+        USpellData *Spell,
+        AActor *InCaster,
+        AActor *InTarget,
         float FinalImpactRadius,
         float FinalVisualScale,
-        int32 FinalDamage
-    );
+        int32 FinalDamage);
 
     /**
      * Set VFX assets (call after Initialize or set via defaults)
-     * 
+     *
      * @param InMuzzleFX Spawn flash effect (optional)
      * @param InProjectileFX Traveling projectile effect
      * @param InHitFX Impact explosion effect (optional)
      */
     UFUNCTION(BlueprintCallable, Category = "SpellProjectile|VFX")
     void SetVFXAssets(
-        UNiagaraSystem* InMuzzleFX,
-        UNiagaraSystem* InProjectileFX,
-        UNiagaraSystem* InHitFX
-    );
+        UNiagaraSystem *InMuzzleFX,
+        UNiagaraSystem *InProjectileFX,
+        UNiagaraSystem *InHitFX);
 
+    /**
+     * Start projectile movement and activate VFX
+     * Call after SetVFXAssets and InitializeProjectile
+     */
+
+    UFUNCTION(BlueprintCallable, Category = "SpellProjectile")
+    void Launch();
     // ==================== GETTERS ====================
 
     UFUNCTION(BlueprintPure, Category = "SpellProjectile")
     FORCEINLINE ESpellDeliveryType GetDeliveryType() const { return DeliveryType; }
 
     UFUNCTION(BlueprintPure, Category = "SpellProjectile")
-    FORCEINLINE AActor* GetCaster() const { return Caster; }
+    FORCEINLINE AActor *GetCaster() const { return Caster; }
 
     UFUNCTION(BlueprintPure, Category = "SpellProjectile")
-    FORCEINLINE AActor* GetTarget() const { return Target; }
+    FORCEINLINE AActor *GetTarget() const { return Target; }
 
     UFUNCTION(BlueprintPure, Category = "SpellProjectile")
     FORCEINLINE float GetImpactRadius() const { return ImpactRadius; }
+
+    // ==================== RUNTIME STATE ====================
+
+    /** Has the projectile reached its destination? */
+    bool bHasImpacted = false;
+
+    /** Has Launch() been called? Prevents Tick until ready */
+    bool bIsLaunched = false;
+
+    /** Beam: Time remaining */
+    float BeamTimeRemaining;
+
+    /** Beam: Is target currently in beam path? */
+    bool bTargetInBeam;
 
     UFUNCTION(BlueprintPure, Category = "SpellProjectile")
     FORCEINLINE bool HasImpacted() const { return bHasImpacted; }
@@ -251,13 +256,12 @@ protected:
 
     UFUNCTION()
     void OnHitBoxOverlap(
-        UPrimitiveComponent* OverlappedComponent,
-        AActor* OtherActor,
-        UPrimitiveComponent* OtherComp,
+        UPrimitiveComponent *OverlappedComponent,
+        AActor *OtherActor,
+        UPrimitiveComponent *OtherComp,
         int32 OtherBodyIndex,
         bool bFromSweep,
-        const FHitResult& SweepResult
-    );
+        const FHitResult &SweepResult);
 
     // ==================== RESOLUTION ====================
 

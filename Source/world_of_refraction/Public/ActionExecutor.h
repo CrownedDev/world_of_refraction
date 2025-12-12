@@ -364,7 +364,7 @@ public:
 	virtual void PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize);
 
 	/** Called when spell VFX should spawn. Override or bind OnActionStarted for custom handling. */
-	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &Targets = TArray<AActor *>());
+	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage = 0);
 
 	/** Called when ability animation should play */
 	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability);

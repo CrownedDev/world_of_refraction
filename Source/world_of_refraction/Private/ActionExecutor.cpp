@@ -764,7 +764,7 @@ FActionResult UActionExecutor::ExecuteSpell(
 
 	// Play animation and VFX with explicit targets
 	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
-	SpawnSpellVFX(Caster, Spell, FinalSpellSize, ValidTargets);
+	SpawnSpellVFX(Caster, Spell, FinalSpellSize, ValidTargets, BaseDamage);
 
 	// Process each target (remove duplicate FilterValidTargets call below if exists)
 
@@ -2034,7 +2034,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 	}
 }
 
-void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets)
+void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage)
 {
 	if (!Caster || !Spell)
 	{
@@ -2065,7 +2065,7 @@ void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float Spe
 		}
 	}
 
-	int32 FinalDamage = CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0;
+	int32 FinalDamage = (Damage > 0) ? Damage : (CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0);
 
 	SpawnSpellDelivery(Caster, Targets, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD);
 }
@@ -2197,38 +2197,38 @@ void UActionExecutor::SpawnProjectileActor(
 		FRotator::ZeroRotator,
 		SpawnParams);
 
-	if (!Projectile)
+	if (Projectile)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[ActionExecutor] Failed to spawn projectile!"));
-		return;
+		// 1. Assign VFX assets FIRST
+		Projectile->SetVFXAssets(
+			Spell->MuzzleVFX,
+			Spell->SpellVFX,
+			Spell->ImpactVFX);
+
+		// 2. Initialize with combat data
+		Projectile->InitializeProjectile(
+			Spell,
+			Caster,
+			Target,
+			FinalImpactRadius,
+			FinalVisualScale,
+			FinalDamage);
+
+		// 3. Bind to events
+		Projectile->OnSpellImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
+		Projectile->OnSpellDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
+
+		if (Spell->DeliveryType == ESpellDeliveryType::Beam)
+		{
+			Projectile->OnBeamTick.AddDynamic(this, &UActionExecutor::OnBeamTick);
+		}
+
+		// 4. Launch (activates VFX and starts movement)
+		Projectile->Launch();
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
+			   *Target->GetName(), (int32)Spell->DeliveryType, Spell->ProjectileSpeed);
 	}
-
-	// Initialize with combat data
-	Projectile->InitializeProjectile(
-		Spell,
-		Caster,
-		Target,
-		FinalImpactRadius,
-		FinalVisualScale,
-		FinalDamage);
-
-	// Assign VFX from SpellData
-	Projectile->SetVFXAssets(
-		Spell->MuzzleVFX,
-		Spell->SpellVFX,
-		Spell->ImpactVFX);
-
-	// Bind to events
-	Projectile->OnSpellImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
-	Projectile->OnSpellDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
-
-	if (Spell->DeliveryType == ESpellDeliveryType::Beam)
-	{
-		Projectile->OnBeamTick.AddDynamic(this, &UActionExecutor::OnBeamTick);
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
-		   *Target->GetName(), (int32)Spell->DeliveryType, Spell->ProjectileSpeed);
 }
 
 void UActionExecutor::SpawnAOEEffect(

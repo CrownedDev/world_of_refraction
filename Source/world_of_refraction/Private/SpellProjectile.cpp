@@ -23,22 +23,22 @@ namespace SpellProjectileConstants
 {
     /** Default projectile speed (units/second) */
     constexpr float DEFAULT_SPEED = 1500.f;
-    
+
     /** Default homing strength */
     constexpr float DEFAULT_HOMING_STRENGTH = 0.5f;
-    
+
     /** Default beam duration (seconds) */
     constexpr float DEFAULT_BEAM_DURATION = 1.0f;
-    
+
     /** Minimum distance to consider "reached destination" */
     constexpr float DESTINATION_THRESHOLD = 50.f;
-    
+
     /** Time to wait after impact before destroying actor */
     constexpr float POST_IMPACT_LIFETIME = 2.0f;
-    
+
     /** Default collision radius (before scaling) */
     constexpr float DEFAULT_COLLISION_RADIUS = 50.f;
-    
+
     /** Scale multiplier from game units to UE units */
     constexpr float UNITS_SCALE = 100.f;
 }
@@ -106,27 +106,31 @@ void ASpellProjectile::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bHasImpacted) return;
+    if (!bIsLaunched || bHasImpacted)
+        return;
+
+    if (bHasImpacted)
+        return;
 
     switch (DeliveryType)
     {
-        case ESpellDeliveryType::Projectile:
-            TickProjectile(DeltaTime);
-            break;
+    case ESpellDeliveryType::Projectile:
+        TickProjectile(DeltaTime);
+        break;
 
-        case ESpellDeliveryType::Homing:
-            TickHoming(DeltaTime);
-            break;
+    case ESpellDeliveryType::Homing:
+        TickHoming(DeltaTime);
+        break;
 
-        case ESpellDeliveryType::Beam:
-            TickBeam(DeltaTime);
-            break;
+    case ESpellDeliveryType::Beam:
+        TickBeam(DeltaTime);
+        break;
 
-        default:
-            // AOE and Instant don't use this actor
-            UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Invalid DeliveryType for projectile actor"));
-            DestroyProjectile();
-            break;
+    default:
+        // AOE and Instant don't use this actor
+        UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Invalid DeliveryType for projectile actor"));
+        DestroyProjectile();
+        break;
     }
 }
 
@@ -134,16 +138,16 @@ void ASpellProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     // Cleanup any bound delegates
     HitBox->OnComponentBeginOverlap.RemoveAll(this);
-    
+
     Super::EndPlay(EndPlayReason);
 }
 
 // ==================== INITIALIZATION ====================
 
 void ASpellProjectile::InitializeProjectile(
-    USpellData* Spell,
-    AActor* InCaster,
-    AActor* InTarget,
+    USpellData *Spell,
+    AActor *InCaster,
+    AActor *InTarget,
     float FinalImpactRadius,
     float FinalVisualScale,
     int32 FinalDamage)
@@ -189,7 +193,7 @@ void ASpellProjectile::InitializeProjectile(
     if (Caster)
     {
         SetActorLocation(Caster->GetActorLocation());
-        
+
         FVector Direction = (TargetLocation - GetActorLocation()).GetSafeNormal();
         if (!Direction.IsNearlyZero())
         {
@@ -200,22 +204,6 @@ void ASpellProjectile::InitializeProjectile(
     // Apply VFX settings
     ApplyElementColors();
     ApplyVisualScale();
-
-    // Start muzzle effect
-    if (MuzzleFX && MuzzleFX->GetAsset())
-    {
-        MuzzleFX->Activate(true);
-    }
-
-    // Start projectile effect (for Projectile/Homing)
-    if (DeliveryType == ESpellDeliveryType::Projectile || 
-        DeliveryType == ESpellDeliveryType::Homing)
-    {
-        if (ProjectileFX && ProjectileFX->GetAsset())
-        {
-            ProjectileFX->Activate(true);
-        }
-    }
 
     // Beam: Initialize duration
     if (DeliveryType == ESpellDeliveryType::Beam)
@@ -231,9 +219,9 @@ void ASpellProjectile::InitializeProjectile(
 }
 
 void ASpellProjectile::SetVFXAssets(
-    UNiagaraSystem* InMuzzleFX,
-    UNiagaraSystem* InProjectileFX,
-    UNiagaraSystem* InHitFX)
+    UNiagaraSystem *InMuzzleFX,
+    UNiagaraSystem *InProjectileFX,
+    UNiagaraSystem *InHitFX)
 {
     if (InMuzzleFX && MuzzleFX)
     {
@@ -255,6 +243,43 @@ void ASpellProjectile::SetVFXAssets(
     ApplyElementColors();
 }
 
+void ASpellProjectile::Launch()
+{
+    // Validate setup
+    if (!Caster || !Target)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Launch called without valid Caster/Target"));
+        return;
+    }
+
+    if (!ProjectileFX || !ProjectileFX->GetAsset())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Launch called without ProjectileFX asset"));
+    }
+
+    // Start muzzle effect
+    if (MuzzleFX && MuzzleFX->GetAsset())
+    {
+        MuzzleFX->Activate(true);
+    }
+
+    // Start projectile effect (for Projectile/Homing)
+    if (DeliveryType == ESpellDeliveryType::Projectile ||
+        DeliveryType == ESpellDeliveryType::Homing)
+    {
+        if (ProjectileFX && ProjectileFX->GetAsset())
+        {
+            ProjectileFX->Activate(true);
+        }
+    }
+
+    bIsLaunched = true;
+
+    UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Launched toward %s (VFX: %s)"),
+           *Target->GetName(),
+           (ProjectileFX && ProjectileFX->GetAsset()) ? TEXT("Active") : TEXT("None"));
+}
+
 // ==================== MOVEMENT ====================
 
 void ASpellProjectile::TickProjectile(float DeltaTime)
@@ -262,7 +287,7 @@ void ASpellProjectile::TickProjectile(float DeltaTime)
     // Move toward FIXED target location (captured at cast time)
     FVector CurrentLocation = GetActorLocation();
     FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
-    
+
     if (Direction.IsNearlyZero())
     {
         // Already at destination
@@ -298,7 +323,7 @@ void ASpellProjectile::TickHoming(float DeltaTime)
     // Move toward interpolated location
     FVector CurrentLocation = GetActorLocation();
     FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
-    
+
     if (Direction.IsNearlyZero())
     {
         ResolveImpact();
@@ -342,8 +367,7 @@ void ASpellProjectile::TickBeam(float DeltaTime)
         Start,
         End,
         ECC_Pawn,
-        QueryParams
-    );
+        QueryParams);
 
     bTargetInBeam = (bHit && HitResult.GetActor() == Target);
 
@@ -351,13 +375,13 @@ void ASpellProjectile::TickBeam(float DeltaTime)
     if (ProjectileFX)
     {
         ProjectileFX->SetWorldLocation(Start);
-        
+
         FVector BeamDirection = (End - Start).GetSafeNormal();
         if (!BeamDirection.IsNearlyZero())
         {
             ProjectileFX->SetWorldRotation(BeamDirection.Rotation());
         }
-        
+
         // Set beam length parameter if available
         float BeamLength = FVector::Dist(Start, End);
         ProjectileFX->SetFloatParameter(FName("BeamLength"), BeamLength);
@@ -375,19 +399,22 @@ void ASpellProjectile::TickBeam(float DeltaTime)
 // ==================== COLLISION ====================
 
 void ASpellProjectile::OnHitBoxOverlap(
-    UPrimitiveComponent* OverlappedComponent,
-    AActor* OtherActor,
-    UPrimitiveComponent* OtherComp,
+    UPrimitiveComponent *OverlappedComponent,
+    AActor *OtherActor,
+    UPrimitiveComponent *OtherComp,
     int32 OtherBodyIndex,
     bool bFromSweep,
-    const FHitResult& SweepResult)
+    const FHitResult &SweepResult)
 {
     // Ignore self and caster
-    if (OtherActor == this || OtherActor == Caster) return;
-    
+    if (OtherActor == this || OtherActor == Caster)
+        return;
+
     // Only trigger on target
-    if (OtherActor != Target) return;
-    if (bHasImpacted) return;
+    if (OtherActor != Target)
+        return;
+    if (bHasImpacted)
+        return;
 
     UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Overlap with target: %s"), *OtherActor->GetName());
 
@@ -404,7 +431,8 @@ void ASpellProjectile::OnHitBoxOverlap(
 
 void ASpellProjectile::ResolveImpact()
 {
-    if (bHasImpacted) return;
+    if (bHasImpacted)
+        return;
     bHasImpacted = true;
 
     UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Resolving impact at %s"), *GetActorLocation().ToString());
@@ -421,7 +449,7 @@ void ASpellProjectile::ResolveImpact()
         // Target moved out of impact zone - DODGED
         UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Target dodged by moving!"));
         OnSpellDodged.Broadcast(Target, TargetLocation);
-        PlayHitEffect(TargetLocation);  // VFX at original location
+        PlayHitEffect(TargetLocation); // VFX at original location
     }
     else
     {
@@ -439,13 +467,13 @@ void ASpellProjectile::ResolveImpact()
         this,
         &ASpellProjectile::DestroyProjectile,
         SpellProjectileConstants::POST_IMPACT_LIFETIME,
-        false
-    );
+        false);
 }
 
 bool ASpellProjectile::CheckMoveDodge() const
 {
-    if (!Target || !IsValid(Target)) return false;
+    if (!Target || !IsValid(Target))
+        return false;
 
     // How far did target move from original position?
     FVector CurrentTargetLocation = Target->GetActorLocation();
@@ -456,7 +484,7 @@ bool ASpellProjectile::CheckMoveDodge() const
 
     // Dodged if moved beyond impact radius
     bool bDodged = DistanceMoved > ImpactRadiusUnits;
-    
+
     UE_LOG(LogTemp, Verbose, TEXT("[SpellProjectile] Dodge check: Moved=%.1f, Radius=%.1f, Dodged=%d"),
            DistanceMoved, ImpactRadiusUnits, bDodged);
 
@@ -486,9 +514,9 @@ void ASpellProjectile::ApplyElementColors()
     FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Element, false);
 
     // Apply to each Niagara component
-    TArray<UNiagaraComponent*> VFXComponents = { MuzzleFX, ProjectileFX, HitFX };
-    
-    for (UNiagaraComponent* Comp : VFXComponents)
+    TArray<UNiagaraComponent *> VFXComponents = {MuzzleFX, ProjectileFX, HitFX};
+
+    for (UNiagaraComponent *Comp : VFXComponents)
     {
         if (Comp && Comp->GetAsset())
         {
@@ -503,17 +531,17 @@ void ASpellProjectile::ApplyVisualScale()
 {
     // Scale VFX components
     FVector Scale = FVector(VisualScale);
-    
+
     if (ProjectileFX)
     {
         ProjectileFX->SetWorldScale3D(Scale);
     }
-    
+
     if (HitFX)
     {
         HitFX->SetWorldScale3D(Scale);
     }
-    
+
     // Muzzle typically stays at caster scale
 }
 
@@ -526,7 +554,7 @@ void ASpellProjectile::Debug_DrawCollision()
     {
         float Radius = HitBox->GetScaledSphereRadius();
         DrawDebugSphere(GetWorld(), GetActorLocation(), Radius, 16, FColor::Green, false, 5.0f);
-        
+
         UE_LOG(LogTemp, Display, TEXT("[SpellProjectile] Collision radius: %.1f"), Radius);
     }
 }
