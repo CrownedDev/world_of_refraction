@@ -450,11 +450,11 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     // Add weapons
     if (CharacterData->PrimaryWeapon)
     {
-        AddWeapon(CharacterData->PrimaryWeapon);
+        AddWeapon(CharacterData->PrimaryWeapon, true);
     }
     if (CharacterData->SecondaryWeapon)
     {
-        AddWeapon(CharacterData->SecondaryWeapon);
+        AddWeapon(CharacterData->SecondaryWeapon, true);
     }
 
     // Add rings based on class

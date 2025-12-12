@@ -451,10 +451,13 @@ TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
     {
+        UE_LOG(LogTemp, Warning, TEXT("[GetAvailableSpells] Invalid ActiveLoadoutIndex: %d"), ActiveLoadoutIndex);
         return TArray<USpellData *>();
     }
 
-    return SavedLoadouts[ActiveLoadoutIndex].GetAllSpells();
+    TArray<USpellData *> Result = SavedLoadouts[ActiveLoadoutIndex].GetAllSpells();
+    UE_LOG(LogTemp, Warning, TEXT("[GetAvailableSpells] Returning %d spells"), Result.Num());
+    return Result;
 }
 
 TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
@@ -586,9 +589,6 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
 
     // Find weapons in inventory
     FWeaponInventoryEntry *PrimaryEntry = nullptr;
-    UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] PrimaryEntry found: %s, HasEvolution: %s"),
-           PrimaryEntry ? *PrimaryEntry->Weapon->WeaponName : TEXT("NULL"),
-           (PrimaryEntry && PrimaryEntry->Evolution) ? TEXT("YES") : TEXT("NO"));
     FWeaponInventoryEntry *SecondaryEntry = nullptr;
 
     for (FWeaponInventoryEntry &Entry : Inventory->Weapons)
@@ -602,6 +602,10 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
             SecondaryEntry = &Entry;
         }
     }
+
+    UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] PrimaryEntry found: %s, HasEvolution: %s"),
+           PrimaryEntry ? *PrimaryEntry->Weapon->WeaponName : TEXT("NULL"),
+           (PrimaryEntry && PrimaryEntry->Evolution) ? TEXT("YES") : TEXT("NO"));
 
     // Configure primary weapon loadout
     if (PrimaryEntry)
@@ -740,7 +744,6 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
 
     SavedLoadouts.Add(DefaultLoadout);
 
-    SavedLoadouts.Add(DefaultLoadout);
     ActiveLoadoutIndex = 0;
 
     UE_LOG(LogTemp, Display, TEXT("Initialized loadout for %s (%s class)"),
