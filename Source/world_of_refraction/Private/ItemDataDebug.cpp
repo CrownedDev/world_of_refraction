@@ -2,6 +2,7 @@
 // Implementation of item system debug utilities
 
 #include "ItemDataDebug.h"
+#include "ECrystalCategory.h"
 
 bool UItemDataDebug::ValidateAllItemCombinations()
 {
@@ -160,31 +161,6 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
     case ECrystalType::Amethyst:
         // Gamble - no specific values to check
         break;
-
-    case ECrystalType::EvolutionCrystal:
-        // Evolution crystals must have valid Evolution reference
-        if (!Item->GrantsEvolution())
-        {
-            Errors.Add(TEXT("EvolutionCrystal missing Evolution data reference"));
-            bValid = false;
-        }
-        else
-        {
-            // Validate evolution has element
-            if (Item->GetAssociatedElement() == ESpellElement::Generic)
-            {
-                Errors.Add(TEXT("Evolution has Generic element (should be specific)"));
-                bValid = false;
-            }
-
-            // Warn if not refined (can't be slotted)
-            if (!Item->CanBeSlotted())
-            {
-                Errors.Add(TEXT("EvolutionCrystal should be refined for weapon/ring slotting"));
-                // Not invalid, just a warning scenario
-            }
-        }
-        break;
     }
 
     // Log errors if any
@@ -222,7 +198,7 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Category: %s"), Item->GrantsEvolution() ? TEXT("Evolution") : (Item->CanBeSlotted() ? TEXT("Refined") : TEXT("Item")));
 
     // ADD: Evolution details if applicable
-    if (Item->CrystalType == ECrystalType::EvolutionCrystal)
+    if (Item->Category == ECrystalCategory::Evolution)
     {
         UE_LOG(LogTemp, Display, TEXT(""));
         UE_LOG(LogTemp, Display, TEXT("--- Evolution Details ---"));
@@ -382,7 +358,7 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
         UE_LOG(LogTemp, Display, TEXT("Usage: Can be slotted into Weapons or Rings"));
         UE_LOG(LogTemp, Display, TEXT("Element Provided: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
 
-        if (Item->CrystalType == ECrystalType::EvolutionCrystal)
+        if (Item->Category == ECrystalCategory::Evolution)
         {
             UE_LOG(LogTemp, Display, TEXT("Special: EVOLUTION CRYSTAL"));
             if (Item->GrantsEvolution())
@@ -597,8 +573,6 @@ FString UItemDataDebug::GetCrystalTypeName(ECrystalType CrystalType)
         return TEXT("Iolite");
     case ECrystalType::Quartz:
         return TEXT("Quartz");
-    case ECrystalType::EvolutionCrystal:
-        return TEXT("Evolution");
     default:
         return TEXT("Unknown");
     }
@@ -662,9 +636,6 @@ float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
 
     case ECrystalType::Quartz:
         return static_cast<float>(Item->GetTransformThreshold());
-    case ECrystalType::EvolutionCrystal:
-        // Evolution crystals don't have standard progression values
-        return 0.0f;
 
     default:
         return 0.0f;

@@ -4,6 +4,7 @@
 #include "SpellData.h"
 #include "ItemData.h"
 #include "CrystalType.h"
+#include "ECrystalCategory.h"
 
 TArray<USpellData *> URingData::GetAvailableSpells() const
 {
@@ -19,7 +20,7 @@ TArray<USpellData *> URingData::GetAvailableSpells() const
 
 bool URingData::IsEvolved() const
 {
-    return SlottedCrystal && SlottedCrystal->CrystalType == ECrystalType::EvolutionCrystal;
+    return SlottedCrystal && SlottedCrystal->Category == ECrystalCategory::Evolution;
 }
 
 float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
@@ -125,7 +126,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
     // Evolved ring validation
     if (IsEvolved())
     {
-        if (!SlottedCrystal->Evolution)
+        if (!SlottedCrystal->GrantsEvolution())
         {
             Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
             Result = EDataValidationResult::Invalid;

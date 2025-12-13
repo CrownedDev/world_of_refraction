@@ -62,8 +62,6 @@ FString UItemData::GetCrystalName() const
 {
     switch (CrystalType)
     {
-    case ECrystalType::EvolutionCrystal:
-        return ItemName.IsEmpty() ? TEXT("Evolution Crystal") : ItemName;
     case ECrystalType::Garnet:
         return TEXT("Garnet");
     case ECrystalType::Sapphire:
@@ -118,8 +116,6 @@ ESpellElement UItemData::GetAssociatedElement() const
         return ESpellElement::Reality;
     case ECrystalType::Quartz:
         return ESpellElement::Generic;
-    case ECrystalType::EvolutionCrystal:
-        return ESpellElement::Generic; // Element set per-instance, not on crystal type
     default:
         return ESpellElement::Generic;
     }
@@ -1041,15 +1037,88 @@ FString UItemData::GenerateDescription() const
     return FString::Printf(TEXT("A %s %s crystal. %s."), *TierDesc, *BaseName.ToLower(), *Effect);
 }
 
+FString UItemData::GenerateEvolutionDescription() const
+{
+    TArray<FString> Parts;
+
+    // Stat modifiers
+    FString StatSummary = GetStatModifierSummary();
+    if (!StatSummary.IsEmpty() && StatSummary != TEXT("No stat changes"))
+    {
+        Parts.Add(StatSummary);
+    }
+
+    // Spells - list by name
+    if (Spells.Num() > 0)
+    {
+        TArray<FString> SpellNames;
+        int32 LockedCount = GetLockedSpellCount();
+
+        for (int32 i = 0; i < Spells.Num(); ++i)
+        {
+            if (Spells[i])
+            {
+                FString SpellEntry = Spells[i]->SpellName;
+                if (i < LockedCount)
+                {
+                    SpellEntry += TEXT(" [Locked]");
+                }
+                SpellNames.Add(SpellEntry);
+            }
+        }
+
+        if (SpellNames.Num() > 0)
+        {
+            Parts.Add(TEXT("Spells: ") + FString::Join(SpellNames, TEXT(", ")));
+        }
+    }
+
+    // Passives - names only
+    if (PassiveEffects.Num() > 0)
+    {
+        TArray<FString> PassiveNames;
+        for (const FPassiveEffect &Passive : PassiveEffects)
+        {
+            if (!Passive.PassiveName.IsEmpty())
+            {
+                PassiveNames.Add(Passive.PassiveName);
+            }
+        }
+
+        if (PassiveNames.Num() > 0)
+        {
+            Parts.Add(TEXT("Passives: ") + FString::Join(PassiveNames, TEXT(", ")));
+        }
+    }
+
+    if (Parts.Num() == 0)
+    {
+        return TEXT("Configure stats, spells, and passives");
+    }
+
+    return FString::Join(Parts, TEXT(". ")) + TEXT(".");
+}
+
 void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
 {
     UObject::PostEditChangeProperty(PropertyChangedEvent);
 
-    // Always auto-generate item name
-    ItemName = GetFullItemName();
-
-    // Always auto-generate description
-    Description = GenerateDescription();
+    // Evolution crystals: Don't auto-generate name/description (user provides unique values)
+    if (Category == ECrystalCategory::Evolution)
+    {
+        // Only auto-generate description if empty, based on stats/spells
+        if (Description.IsEmpty())
+        {
+            Description = GenerateEvolutionDescription();
+        }
+        // Leave ItemName alone for manual entry
+    }
+    else
+    {
+        // Item/Refined: Auto-generate name and description
+        ItemName = GetFullItemName();
+        Description = GenerateDescription();
+    }
 
     // Update all display values for editor viewing
     DisplayElement = GetAssociatedElement();

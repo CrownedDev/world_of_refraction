@@ -422,7 +422,7 @@ void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
     // Update evolution element display
     if (bIsEvolved && ActiveEvolution)
     {
-        EvolutionElementDisplay = UEnum::GetValueAsString(ActiveEvolution->Element);
+        EvolutionElementDisplay = UEnum::GetValueAsString(ActiveEvolution->GetAssociatedElement());
         EvolutionElementDisplay.RemoveFromStart(TEXT("ESpellElement::"));
     }
     else
