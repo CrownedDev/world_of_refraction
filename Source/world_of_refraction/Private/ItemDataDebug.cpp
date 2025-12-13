@@ -2,7 +2,6 @@
 // Implementation of item system debug utilities
 
 #include "ItemDataDebug.h"
-#include "EvolutionData.h"
 
 bool UItemDataDebug::ValidateAllItemCombinations()
 {

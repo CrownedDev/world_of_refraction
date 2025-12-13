@@ -9,7 +9,6 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "ItemData.h"
-#include "EvolutionData.h"
 
 void UInventoryDebug::LogSeparator(const FString &Title)
 {

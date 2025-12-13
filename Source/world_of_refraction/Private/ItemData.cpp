@@ -3,7 +3,7 @@
 
 #include "ItemData.h"
 #include "ItemConstants.h"
-#include "EvolutionData.h"
+
 #include "ECrystalCategory.h"
 #include "SpellData.h"
 

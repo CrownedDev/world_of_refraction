@@ -9,7 +9,6 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "CharacterData.h"
-#include "EvolutionData.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {

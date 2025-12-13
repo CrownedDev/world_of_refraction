@@ -2,7 +2,7 @@
 
 #include "CharacterData.h"
 #include "RingData.h"
-#include "EvolutionData.h"
+
 #include "StanceData.h"
 #include "WeaponData.h"
 #include "EWeaponSlotType.h"

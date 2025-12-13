@@ -4,7 +4,6 @@
 #include "SpellData.h"
 #include "ItemData.h"
 #include "CrystalType.h"
-#include "EvolutionData.h"
 
 TArray<USpellData *> URingData::GetAvailableSpells() const
 {

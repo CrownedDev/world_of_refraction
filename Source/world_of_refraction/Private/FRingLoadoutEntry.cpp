@@ -4,7 +4,7 @@
 #include "FRingLoadoutEntry.h"
 #include "RingData.h"
 #include "SpellData.h"
-#include "EvolutionData.h"
+
 #include "FSpellCollection.h"
 
 int32 FRingLoadoutEntry::GetLockedSpellCount() const
