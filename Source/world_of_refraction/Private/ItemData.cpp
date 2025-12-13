@@ -699,6 +699,181 @@ float UItemData::GetSpiritModifierPercent() const
     return (Category == ECrystalCategory::Evolution) ? SpiritModifierPercent : 0.0f;
 }
 
+// ==================== EVOLUTION HELPER FUNCTIONS ====================
+
+FString UItemData::GetEvolutionTypeName() const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return TEXT("N/A");
+    }
+
+    switch (EvolutionType)
+    {
+    case EEvolutionType::Positive:
+        return TEXT("Positive");
+    case EEvolutionType::Cursed:
+        return TEXT("Cursed");
+    case EEvolutionType::Balanced:
+        return TEXT("Balanced");
+    case EEvolutionType::Specialist:
+        return TEXT("Specialist");
+    default:
+        return TEXT("Unknown");
+    }
+}
+
+FString UItemData::GetEvolutionStatSummary() const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return TEXT("N/A");
+    }
+
+    TArray<FString> Modifiers;
+
+    if (StatModifierMode == EStatModifierMode::Pillar)
+    {
+        if (MindModifierPercent != 0.0f)
+        {
+            FString Sign = MindModifierPercent > 0 ? TEXT("+") : TEXT("");
+            Modifiers.Add(FString::Printf(TEXT("Mind %s%.0f%%"), *Sign, MindModifierPercent));
+        }
+        if (BodyModifierPercent != 0.0f)
+        {
+            FString Sign = BodyModifierPercent > 0 ? TEXT("+") : TEXT("");
+            Modifiers.Add(FString::Printf(TEXT("Body %s%.0f%%"), *Sign, BodyModifierPercent));
+        }
+        if (SpiritModifierPercent != 0.0f)
+        {
+            FString Sign = SpiritModifierPercent > 0 ? TEXT("+") : TEXT("");
+            Modifiers.Add(FString::Printf(TEXT("Spirit %s%.0f%%"), *Sign, SpiritModifierPercent));
+        }
+    }
+    else
+    {
+        auto AddMod = [&](const TCHAR *Name, float Value)
+        {
+            if (Value != 0.0f)
+            {
+                FString Sign = Value > 0 ? TEXT("+") : TEXT("");
+                Modifiers.Add(FString::Printf(TEXT("%s %s%.0f%%"), Name, *Sign, Value));
+            }
+        };
+
+        AddMod(TEXT("Cost Reduction"), CostReductionModifierPercent);
+        AddMod(TEXT("Turn Speed"), TurnSpeedModifierPercent);
+        AddMod(TEXT("Crit Chance"), CritChanceModifierPercent);
+        AddMod(TEXT("Defense"), DefenseModifierPercent);
+        AddMod(TEXT("Attack Speed"), AttackSpeedModifierPercent);
+        AddMod(TEXT("Raw Damage"), RawDamageModifierPercent);
+        AddMod(TEXT("Effect Damage"), EffectDamageModifierPercent);
+        AddMod(TEXT("Resistance"), ResistanceModifierPercent);
+        AddMod(TEXT("Ability Size"), AbilitySizeModifierPercent);
+    }
+
+    if (Modifiers.Num() == 0)
+    {
+        return TEXT("No stat changes");
+    }
+
+    return FString::Join(Modifiers, TEXT(", "));
+}
+
+// ==================== STAT CALCULATION ====================
+
+float UItemData::CalculateModifiedMind(float BaseMind) const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return BaseMind;
+    }
+    return BaseMind * (1.0f + MindModifierPercent / 100.0f);
+}
+
+float UItemData::CalculateModifiedBody(float BaseBody) const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return BaseBody;
+    }
+    return BaseBody * (1.0f + BodyModifierPercent / 100.0f);
+}
+
+float UItemData::CalculateModifiedSpirit(float BaseSpirit) const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return BaseSpirit;
+    }
+    return BaseSpirit * (1.0f + SpiritModifierPercent / 100.0f);
+}
+
+// ==================== SUB-STAT GETTERS ====================
+
+float UItemData::GetCostReductionModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : CostReductionModifierPercent;
+}
+
+float UItemData::GetTurnSpeedModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : TurnSpeedModifierPercent;
+}
+
+float UItemData::GetCritChanceModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : CritChanceModifierPercent;
+}
+
+float UItemData::GetDefenseModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : DefenseModifierPercent;
+}
+
+float UItemData::GetAttackSpeedModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : AttackSpeedModifierPercent;
+}
+
+float UItemData::GetRawDamageModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : RawDamageModifierPercent;
+}
+
+float UItemData::GetEffectDamageModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : EffectDamageModifierPercent;
+}
+
+float UItemData::GetResistanceModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : ResistanceModifierPercent;
+}
+
+float UItemData::GetAbilitySizeModifier() const
+{
+    if (Category != ECrystalCategory::Evolution)
+        return 0.0f;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : AbilitySizeModifierPercent;
+}
+
 // ==================== PASSIVE HELPER FUNCTIONS ====================
 
 TArray<FPassiveEffect> UItemData::GetAlwaysActivePassives() const

@@ -18,6 +18,8 @@
 #include "ECrystalCategory.h"
 #include "PassiveEffect.h"
 #include "NiagaraSystem.h"
+#include "EEvolutionType.h"
+#include "EStatModifierMode.h"
 #include "ItemData.generated.h"
 
 class USpellData;
@@ -61,6 +63,75 @@ public:
     /** Whether crystal has been refined (cut) for slotting onto equipment */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
     bool bIsRefined = false;
+
+    /** Evolution type (only for Evolution category crystals) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
+              meta = (EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    EEvolutionType EvolutionType = EEvolutionType::Balanced;
+
+    /** Stat modifier mode - Pillar (Mind/Body/Spirit) or SubStats (9 individual stats) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
+              meta = (EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    EStatModifierMode StatModifierMode = EStatModifierMode::Pillar;
+
+    // ==================== SUB-STAT MODIFIERS (Evolution only, SubStats mode) ====================
+
+    /** Mind sub-stats */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float CostReductionModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float TurnSpeedModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float CritChanceModifierPercent = 0.0f;
+
+    /** Body sub-stats */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float DefenseModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float AttackSpeedModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float RawDamageModifierPercent = 0.0f;
+
+    /** Spirit sub-stats */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float EffectDamageModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float ResistanceModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                      EditConditionHides))
+    float AbilitySizeModifierPercent = 0.0f;
 
     // ==================== SPELLS (Refined/Evolution only) ====================
 
@@ -268,6 +339,68 @@ public:
     /** Get triggered passives (not always-active) */
     UFUNCTION(BlueprintPure, Category = "Item|Passives")
     TArray<FPassiveEffect> GetTriggeredPassives() const;
+
+    // ==================== EVOLUTION HELPER FUNCTIONS ====================
+
+    /** Get evolution type name for display */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution")
+    FString GetEvolutionTypeName() const;
+
+    /** Get stat modifier summary string */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution")
+    FString GetEvolutionStatSummary() const;
+
+    // ==================== STAT CALCULATION (Evolution only) ====================
+
+    /** Calculate modified Mind stat */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
+    float CalculateModifiedMind(float BaseMind) const;
+
+    /** Calculate modified Body stat */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
+    float CalculateModifiedBody(float BaseBody) const;
+
+    /** Calculate modified Spirit stat */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
+    float CalculateModifiedSpirit(float BaseSpirit) const;
+
+    // ==================== SUB-STAT GETTERS (Evolution only) ====================
+
+    /** Get cost reduction modifier (uses Mind in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetCostReductionModifier() const;
+
+    /** Get turn speed modifier (uses Mind in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetTurnSpeedModifier() const;
+
+    /** Get crit chance modifier (uses Mind in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetCritChanceModifier() const;
+
+    /** Get defense modifier (uses Body in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetDefenseModifier() const;
+
+    /** Get attack speed modifier (uses Body in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetAttackSpeedModifier() const;
+
+    /** Get raw damage modifier (uses Body in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetRawDamageModifier() const;
+
+    /** Get effect damage modifier (uses Spirit in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetEffectDamageModifier() const;
+
+    /** Get resistance modifier (uses Spirit in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetResistanceModifier() const;
+
+    /** Get ability size modifier (uses Spirit in Pillar mode) */
+    UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
+    float GetAbilitySizeModifier() const;
 
     // ==================== EXISTING UTILITY FUNCTIONS ====================
 
