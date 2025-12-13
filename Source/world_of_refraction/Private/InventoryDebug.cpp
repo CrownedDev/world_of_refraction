@@ -11,7 +11,7 @@
 #include "ItemData.h"
 #include "EvolutionData.h"
 
-void UInventoryDebug::LogSeparator(const FString& Title)
+void UInventoryDebug::LogSeparator(const FString &Title)
 {
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("========== %s =========="), *Title);
@@ -19,7 +19,7 @@ void UInventoryDebug::LogSeparator(const FString& Title)
 
 // ==================== INVENTORY LOGGING ====================
 
-void UInventoryDebug::LogInventory(UInventoryComponent* Inventory)
+void UInventoryDebug::LogInventory(UInventoryComponent *Inventory)
 {
     if (!Inventory)
     {
@@ -29,7 +29,7 @@ void UInventoryDebug::LogInventory(UInventoryComponent* Inventory)
 
     LogSeparator(TEXT("INVENTORY SUMMARY"));
     UE_LOG(LogTemp, Display, TEXT("%s"), *Inventory->GetInventorySummary());
-    
+
     LogSpells(Inventory);
     LogAbilities(Inventory);
     LogWeapons(Inventory);
@@ -37,122 +37,126 @@ void UInventoryDebug::LogInventory(UInventoryComponent* Inventory)
     LogItems(Inventory);
 }
 
-void UInventoryDebug::LogSpells(UInventoryComponent* Inventory)
+void UInventoryDebug::LogSpells(UInventoryComponent *Inventory)
 {
-    if (!Inventory) return;
+    if (!Inventory)
+        return;
 
     LogSeparator(TEXT("SPELLS"));
-    UE_LOG(LogTemp, Display, TEXT("Count: %d/%d"), 
-        Inventory->Spells.GetCount(), 
-        Inventory->Spells.GetMaxCapacity());
+    UE_LOG(LogTemp, Display, TEXT("Count: %d/%d"),
+           Inventory->Spells.GetCount(),
+           Inventory->Spells.GetMaxCapacity());
 
-    for (USpellData* Spell : Inventory->Spells.LearnedSpells)
+    for (USpellData *Spell : Inventory->Spells.LearnedSpells)
     {
         if (Spell)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [%s] (School: %d, Tier: %d)"),
-                *Spell->SpellName,
-                *UEnum::GetValueAsString(Spell->Element),
-                static_cast<int32>(Spell->School),
-                static_cast<int32>(Spell->Tier));
+                   *Spell->SpellName,
+                   *UEnum::GetValueAsString(Spell->Element),
+                   static_cast<int32>(Spell->School),
+                   static_cast<int32>(Spell->Tier));
         }
     }
 }
 
-void UInventoryDebug::LogAbilities(UInventoryComponent* Inventory)
+void UInventoryDebug::LogAbilities(UInventoryComponent *Inventory)
 {
-    if (!Inventory) return;
+    if (!Inventory)
+        return;
 
     LogSeparator(TEXT("ABILITIES"));
     UE_LOG(LogTemp, Display, TEXT("Count: %d/%d"),
-        Inventory->Abilities.GetCount(),
-        Inventory->Abilities.GetMaxCapacity());
+           Inventory->Abilities.GetCount(),
+           Inventory->Abilities.GetMaxCapacity());
 
-    for (UAbilityData* Ability : Inventory->Abilities.LearnedAbilities)
+    for (UAbilityData *Ability : Inventory->Abilities.LearnedAbilities)
     {
         if (Ability)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [Weapon: %d]"),
-                *Ability->AbilityName,
-                static_cast<int32>(Ability->RequiredWeaponType));
+                   *Ability->AbilityName,
+                   static_cast<int32>(Ability->RequiredWeaponType));
         }
     }
 }
 
-void UInventoryDebug::LogWeapons(UInventoryComponent* Inventory)
+void UInventoryDebug::LogWeapons(UInventoryComponent *Inventory)
 {
-    if (!Inventory) return;
+    if (!Inventory)
+        return;
 
     LogSeparator(TEXT("WEAPONS"));
     UE_LOG(LogTemp, Display, TEXT("Count: %d (Cost: %d/%d)"),
-        Inventory->GetWeaponCount(),
-        Inventory->GetWeaponSlotCostTotal(),
-        InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
+           Inventory->GetWeaponCount(),
+           Inventory->GetWeaponSlotCostTotal(),
+           InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
 
     for (int32 i = 0; i < Inventory->Weapons.Num(); ++i)
     {
-        const FWeaponInventoryEntry& Entry = Inventory->Weapons[i];
+        const FWeaponInventoryEntry &Entry = Inventory->Weapons[i];
         if (Entry.IsValid())
         {
             FString CrystalStr = Entry.HasCrystal() ? TEXT("Crystal") : TEXT("None");
             FString EvoStr = Entry.IsEvolved() ? TEXT(", Evolved") : TEXT("");
-            
+
             UE_LOG(LogTemp, Display, TEXT("  [%d] %s (Type: %d, %s%s) Cost: %d"),
-                i,
-                *Entry.Weapon->WeaponName,
-                static_cast<int32>(Entry.Weapon->WeaponType),
-                *CrystalStr,
-                *EvoStr,
-                Entry.GetSlotCost());
+                   i,
+                   *Entry.Weapon->WeaponName,
+                   static_cast<int32>(Entry.Weapon->WeaponType),
+                   *CrystalStr,
+                   *EvoStr,
+                   Entry.GetSlotCost());
         }
     }
 }
 
-void UInventoryDebug::LogRings(UInventoryComponent* Inventory)
+void UInventoryDebug::LogRings(UInventoryComponent *Inventory)
 {
-    if (!Inventory) return;
+    if (!Inventory)
+        return;
 
     LogSeparator(TEXT("RINGS"));
     UE_LOG(LogTemp, Display, TEXT("Count: %d (Cost: %d/%d)"),
-        Inventory->GetRingCount(),
-        Inventory->GetRingSlotCostTotal(),
-        InventoryConstants::MAX_RING_INVENTORY_SLOTS);
+           Inventory->GetRingCount(),
+           Inventory->GetRingSlotCostTotal(),
+           InventoryConstants::MAX_RING_INVENTORY_SLOTS);
 
     for (int32 i = 0; i < Inventory->Rings.Num(); ++i)
     {
-        const FRingInventoryEntry& Entry = Inventory->Rings[i];
+        const FRingInventoryEntry &Entry = Inventory->Rings[i];
         if (Entry.IsValid())
         {
             FString CrystalStr = Entry.HasCrystal() ? TEXT("Crystal") : TEXT("Empty");
             FString EvoStr = Entry.IsEvolved() ? TEXT(", Evolved") : TEXT("");
             FString EquipStr = Entry.CanBeEquipped() ? TEXT("") : TEXT(" [CANNOT EQUIP]");
-            
+
             UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%s%s) Cost: %d%s"),
-                i,
-                *Entry.Ring->RingName,
-                *CrystalStr,
-                *EvoStr,
-                Entry.GetSlotCost(),
-                *EquipStr);
+                   i,
+                   *Entry.Ring->RingName,
+                   *CrystalStr,
+                   *EvoStr,
+                   Entry.GetSlotCost(),
+                   *EquipStr);
         }
     }
 }
 
-void UInventoryDebug::LogItems(UInventoryComponent* Inventory)
+void UInventoryDebug::LogItems(UInventoryComponent *Inventory)
 {
-    if (!Inventory) return;
+    if (!Inventory)
+        return;
 
     LogSeparator(TEXT("ITEM CRYSTALS"));
     UE_LOG(LogTemp, Display, TEXT("Total: %d/%d"),
-        Inventory->Items.GetTotalCount(),
-        InventoryConstants::ITEM_CAPACITY_TOTAL);
+           Inventory->Items.GetTotalCount(),
+           InventoryConstants::ITEM_CAPACITY_TOTAL);
 
     // Log by tier
-    const EItemTier Tiers[] = { 
-        EItemTier::S_Tier, EItemTier::A_Tier, EItemTier::B_Tier, 
-        EItemTier::C_Tier, EItemTier::D_Tier, EItemTier::E_Tier, EItemTier::F_Tier 
-    };
-    const TCHAR* TierNames[] = { TEXT("S"), TEXT("A"), TEXT("B"), TEXT("C"), TEXT("D"), TEXT("E"), TEXT("F") };
+    const EItemTier Tiers[] = {
+        EItemTier::S_Tier, EItemTier::A_Tier, EItemTier::B_Tier,
+        EItemTier::C_Tier, EItemTier::D_Tier, EItemTier::E_Tier, EItemTier::F_Tier};
+    const TCHAR *TierNames[] = {TEXT("S"), TEXT("A"), TEXT("B"), TEXT("C"), TEXT("D"), TEXT("E"), TEXT("F")};
 
     for (int32 i = 0; i < 7; ++i)
     {
@@ -167,7 +171,7 @@ void UInventoryDebug::LogItems(UInventoryComponent* Inventory)
 
 // ==================== LOADOUT LOGGING ====================
 
-void UInventoryDebug::LogAllLoadouts(ULoadoutComponent* Loadout)
+void UInventoryDebug::LogAllLoadouts(ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {
@@ -177,9 +181,9 @@ void UInventoryDebug::LogAllLoadouts(ULoadoutComponent* Loadout)
 
     LogSeparator(TEXT("ALL LOADOUTS"));
     UE_LOG(LogTemp, Display, TEXT("Saved: %d/%d, Active: %d"),
-        Loadout->GetLoadoutCount(),
-        Loadout->MaxSavedLoadouts,
-        Loadout->GetActiveLoadoutIndex());
+           Loadout->GetLoadoutCount(),
+           Loadout->MaxSavedLoadouts,
+           Loadout->GetActiveLoadoutIndex());
 
     TArray<FString> Names = Loadout->GetLoadoutNames();
     for (int32 i = 0; i < Names.Num(); ++i)
@@ -189,7 +193,7 @@ void UInventoryDebug::LogAllLoadouts(ULoadoutComponent* Loadout)
     }
 }
 
-void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
+void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {
@@ -200,8 +204,8 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
     FCombatLoadout Active = Loadout->GetActiveLoadout();
 
     LogSeparator(FString::Printf(TEXT("ACTIVE LOADOUT: %s"), *Active.LoadoutName));
-    UE_LOG(LogTemp, Display, TEXT("Ready for Battle: %s"), 
-        Loadout->IsReadyForBattle() ? TEXT("Yes") : TEXT("No"));
+    UE_LOG(LogTemp, Display, TEXT("Ready for Battle: %s"),
+           Loadout->IsReadyForBattle() ? TEXT("Yes") : TEXT("No"));
 
     // Primary
     if (!Active.bPrimaryIsRing)
@@ -209,11 +213,11 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
         if (Active.PrimaryWeapon.IsValid())
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Weapon: %s"),
-                *Active.PrimaryWeapon.WeaponEntry.Weapon->WeaponName);
-            UE_LOG(LogTemp, Display, TEXT("  Abilities: %d"), 
-                Active.PrimaryWeapon.GetAllAbilities().Num());
-            UE_LOG(LogTemp, Display, TEXT("  Spells: %d"), 
-                Active.PrimaryWeapon.GetAllSpells().Num());
+                   *Active.PrimaryWeapon.WeaponEntry.Weapon->WeaponName);
+            UE_LOG(LogTemp, Display, TEXT("  Abilities: %d"),
+                   Active.PrimaryWeapon.GetAllAbilities().Num());
+            UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
+                   Active.PrimaryWeapon.GetAllSpells().Num());
         }
         else
         {
@@ -225,9 +229,9 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
         if (Active.PrimaryRing.IsValid())
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Ring: %s"),
-                *Active.PrimaryRing.RingEntry.Ring->RingName);
-            UE_LOG(LogTemp, Display, TEXT("  Spells: %d"), 
-                Active.PrimaryRing.GetAllSpells().Num());
+                   *Active.PrimaryRing.RingEntry.Ring->RingName);
+            UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
+                   Active.PrimaryRing.GetAllSpells().Num());
         }
         else
         {
@@ -239,12 +243,12 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
     if (!Active.bSecondaryIsRing && Active.SecondaryWeapon.IsValid())
     {
         UE_LOG(LogTemp, Display, TEXT("Secondary Weapon: %s"),
-            *Active.SecondaryWeapon.WeaponEntry.Weapon->WeaponName);
+               *Active.SecondaryWeapon.WeaponEntry.Weapon->WeaponName);
     }
     else if (Active.bSecondaryIsRing && Active.SecondaryRing.IsValid())
     {
         UE_LOG(LogTemp, Display, TEXT("Secondary Ring: %s"),
-            *Active.SecondaryRing.RingEntry.Ring->RingName);
+               *Active.SecondaryRing.RingEntry.Ring->RingName);
     }
 
     // Ring loadout (Resonator)
@@ -253,11 +257,11 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
         UE_LOG(LogTemp, Display, TEXT("Ring Loadout: %d rings"), Active.RingLoadout.Num());
         for (int32 i = 0; i < Active.RingLoadout.Num(); ++i)
         {
-            const FRingLoadoutEntry& R = Active.RingLoadout[i];
+            const FRingLoadoutEntry &R = Active.RingLoadout[i];
             if (R.IsValid())
             {
                 UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%d spells)"),
-                    i, *R.RingEntry.Ring->RingName, R.GetSpellCount());
+                       i, *R.RingEntry.Ring->RingName, R.GetSpellCount());
             }
         }
     }
@@ -271,7 +275,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
     // Items
     int32 UsableItems = 0;
     int32 TotalUses = 0;
-    for (const FItemLoadoutSlot& Slot : Active.ItemSlots)
+    for (const FItemLoadoutSlot &Slot : Active.ItemSlots)
     {
         if (Slot.CanUse())
         {
@@ -287,7 +291,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent* Loadout)
     UE_LOG(LogTemp, Display, TEXT("Total Spells: %d"), Active.GetAllSpells().Num());
 }
 
-void UInventoryDebug::LogValidation(ULoadoutComponent* Loadout, UInventoryComponent* Inventory)
+void UInventoryDebug::LogValidation(ULoadoutComponent *Loadout, UInventoryComponent *Inventory)
 {
     if (!Loadout || !Inventory)
     {
@@ -300,12 +304,12 @@ void UInventoryDebug::LogValidation(ULoadoutComponent* Loadout, UInventoryCompon
     for (int32 i = 0; i < Loadout->GetLoadoutCount(); ++i)
     {
         TArray<FString> Errors = Loadout->GetValidationErrors(i, Inventory);
-        
+
         FString StatusStr = Errors.Num() == 0 ? TEXT("VALID") : TEXT("INVALID");
-        UE_LOG(LogTemp, Display, TEXT("[%d] %s: %s"), 
-            i, *Loadout->GetLoadoutNames()[i], *StatusStr);
-        
-        for (const FString& Error : Errors)
+        UE_LOG(LogTemp, Display, TEXT("[%d] %s: %s"),
+               i, *Loadout->GetLoadoutNames()[i], *StatusStr);
+
+        for (const FString &Error : Errors)
         {
             UE_LOG(LogTemp, Warning, TEXT("  - %s"), *Error);
         }
@@ -314,7 +318,7 @@ void UInventoryDebug::LogValidation(ULoadoutComponent* Loadout, UInventoryCompon
 
 // ==================== TEST DATA GENERATION ====================
 
-void UInventoryDebug::PopulateTestInventory(UInventoryComponent* Inventory)
+void UInventoryDebug::PopulateTestInventory(UInventoryComponent *Inventory)
 {
     if (!Inventory)
     {
@@ -332,7 +336,7 @@ void UInventoryDebug::PopulateTestInventory(UInventoryComponent* Inventory)
     UE_LOG(LogTemp, Display, TEXT("%s"), *Inventory->GetInventorySummary());
 }
 
-void UInventoryDebug::CreateTestLoadout(ULoadoutComponent* Loadout, UInventoryComponent* Inventory)
+void UInventoryDebug::CreateTestLoadout(ULoadoutComponent *Loadout, UInventoryComponent *Inventory)
 {
     if (!Loadout || !Inventory)
     {
@@ -356,7 +360,7 @@ void UInventoryDebug::CreateTestLoadout(ULoadoutComponent* Loadout, UInventoryCo
 
 // ==================== CAPACITY TESTING ====================
 
-void UInventoryDebug::TestCapacityLimits(UInventoryComponent* Inventory)
+void UInventoryDebug::TestCapacityLimits(UInventoryComponent *Inventory)
 {
     if (!Inventory)
     {
@@ -368,77 +372,77 @@ void UInventoryDebug::TestCapacityLimits(UInventoryComponent* Inventory)
 
     // Test spell capacity
     UE_LOG(LogTemp, Display, TEXT("Spell Capacity:"));
-    UE_LOG(LogTemp, Display, TEXT("  Current: %d/%d"), 
-        Inventory->Spells.GetCount(), InventoryConstants::MAX_LEARNED_SPELLS);
-    UE_LOG(LogTemp, Display, TEXT("  Can Learn: %s"), 
-        Inventory->Spells.CanLearn() ? TEXT("Yes") : TEXT("No"));
+    UE_LOG(LogTemp, Display, TEXT("  Current: %d/%d"),
+           Inventory->Spells.GetCount(), InventoryConstants::MAX_LEARNED_SPELLS);
+    UE_LOG(LogTemp, Display, TEXT("  Can Learn: %s"),
+           Inventory->Spells.CanLearn() ? TEXT("Yes") : TEXT("No"));
 
     // Test ability capacity
     UE_LOG(LogTemp, Display, TEXT("Ability Capacity:"));
     UE_LOG(LogTemp, Display, TEXT("  Current: %d/%d"),
-        Inventory->Abilities.GetCount(), InventoryConstants::MAX_LEARNED_ABILITIES);
+           Inventory->Abilities.GetCount(), InventoryConstants::MAX_LEARNED_ABILITIES);
     UE_LOG(LogTemp, Display, TEXT("  Can Learn: %s"),
-        Inventory->Abilities.CanLearn() ? TEXT("Yes") : TEXT("No"));
+           Inventory->Abilities.CanLearn() ? TEXT("Yes") : TEXT("No"));
 
     // Test weapon weighted capacity
     UE_LOG(LogTemp, Display, TEXT("Weapon Capacity (Weighted):"));
     UE_LOG(LogTemp, Display, TEXT("  Current Cost: %d/%d"),
-        Inventory->GetWeaponSlotCostTotal(), InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
+           Inventory->GetWeaponSlotCostTotal(), InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
     UE_LOG(LogTemp, Display, TEXT("  Remaining: %d slots"),
-        Inventory->GetRemainingWeaponCapacity());
+           Inventory->GetRemainingWeaponCapacity());
 
     // Test ring weighted capacity
     UE_LOG(LogTemp, Display, TEXT("Ring Capacity (Weighted):"));
     UE_LOG(LogTemp, Display, TEXT("  Current Cost: %d/%d"),
-        Inventory->GetRingSlotCostTotal(), InventoryConstants::MAX_RING_INVENTORY_SLOTS);
+           Inventory->GetRingSlotCostTotal(), InventoryConstants::MAX_RING_INVENTORY_SLOTS);
     UE_LOG(LogTemp, Display, TEXT("  Remaining: %d slots"),
-        Inventory->GetRemainingRingCapacity());
+           Inventory->GetRemainingRingCapacity());
 
     // Test item tiered capacity
     UE_LOG(LogTemp, Display, TEXT("Item Capacity (Tiered):"));
     UE_LOG(LogTemp, Display, TEXT("  Total: %d/%d"),
-        Inventory->Items.GetTotalCount(), InventoryConstants::ITEM_CAPACITY_TOTAL);
+           Inventory->Items.GetTotalCount(), InventoryConstants::ITEM_CAPACITY_TOTAL);
 }
 
-void UInventoryDebug::LogCapacityStatus(UInventoryComponent* Inventory)
+void UInventoryDebug::LogCapacityStatus(UInventoryComponent *Inventory)
 {
-    if (!Inventory) return;
+    if (!Inventory)
+        return;
 
     LogSeparator(TEXT("CAPACITY STATUS"));
-    
+
     // Quick overview
     UE_LOG(LogTemp, Display, TEXT("Spells:    %3d / %3d  (%d remaining)"),
-        Inventory->Spells.GetCount(),
-        InventoryConstants::MAX_LEARNED_SPELLS,
-        Inventory->Spells.GetRemainingCapacity());
-    
+           Inventory->Spells.GetCount(),
+           InventoryConstants::MAX_LEARNED_SPELLS,
+           Inventory->Spells.GetRemainingCapacity());
+
     UE_LOG(LogTemp, Display, TEXT("Abilities: %3d / %3d  (%d remaining)"),
-        Inventory->Abilities.GetCount(),
-        InventoryConstants::MAX_LEARNED_ABILITIES,
-        Inventory->Abilities.GetRemainingCapacity());
-    
+           Inventory->Abilities.GetCount(),
+           InventoryConstants::MAX_LEARNED_ABILITIES,
+           Inventory->Abilities.GetRemainingCapacity());
+
     UE_LOG(LogTemp, Display, TEXT("Weapons:   %3d / %3d  (%d remaining) [weighted]"),
-        Inventory->GetWeaponSlotCostTotal(),
-        InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS,
-        Inventory->GetRemainingWeaponCapacity());
-    
+           Inventory->GetWeaponSlotCostTotal(),
+           InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS,
+           Inventory->GetRemainingWeaponCapacity());
+
     UE_LOG(LogTemp, Display, TEXT("Rings:     %3d / %3d  (%d remaining) [weighted]"),
-        Inventory->GetRingSlotCostTotal(),
-        InventoryConstants::MAX_RING_INVENTORY_SLOTS,
-        Inventory->GetRemainingRingCapacity());
-    
+           Inventory->GetRingSlotCostTotal(),
+           InventoryConstants::MAX_RING_INVENTORY_SLOTS,
+           Inventory->GetRemainingRingCapacity());
+
     UE_LOG(LogTemp, Display, TEXT("Items:     %3d / %3d"),
-        Inventory->Items.GetTotalCount(),
-        InventoryConstants::ITEM_CAPACITY_TOTAL);
-    
-    UE_LOG(LogTemp, Display, TEXT("Evolution: %3d / %3d"),
-        Inventory->EvolutionCrystals.Num(),
-        InventoryConstants::MAX_EVOLUTION_CRYSTALS);
+           Inventory->Items.GetTotalCount(),
+           InventoryConstants::ITEM_CAPACITY_TOTAL);
+
+    UE_LOG(LogTemp, Display, TEXT("Evolution Crystals: %3d"),
+           Inventory->GetEvolutionCrystals().Num());
 }
 
 // ==================== VALIDATION TESTING ====================
 
-bool UInventoryDebug::RunValidationSuite(UInventoryComponent* Inventory, ULoadoutComponent* Loadout)
+bool UInventoryDebug::RunValidationSuite(UInventoryComponent *Inventory, ULoadoutComponent *Loadout)
 {
     if (!Inventory || !Loadout)
     {
@@ -455,7 +459,7 @@ bool UInventoryDebug::RunValidationSuite(UInventoryComponent* Inventory, ULoadou
     // Test 1: Inventory has valid data
     UE_LOG(LogTemp, Display, TEXT("Test 1: Inventory data integrity..."));
     bool bTest1 = true;
-    for (USpellData* Spell : Inventory->Spells.LearnedSpells)
+    for (USpellData *Spell : Inventory->Spells.LearnedSpells)
     {
         if (!Spell)
         {
@@ -463,33 +467,42 @@ bool UInventoryDebug::RunValidationSuite(UInventoryComponent* Inventory, ULoadou
             break;
         }
     }
-    if (bTest1) TestsPassed++; else TestsFailed++;
+    if (bTest1)
+        TestsPassed++;
+    else
+        TestsFailed++;
     UE_LOG(LogTemp, Display, TEXT("  Result: %s"), bTest1 ? TEXT("PASS") : TEXT("FAIL"));
 
     // Test 2: Weapon slot costs are correct
     UE_LOG(LogTemp, Display, TEXT("Test 2: Weapon slot cost calculation..."));
     int32 ManualCost = 0;
-    for (const FWeaponInventoryEntry& W : Inventory->Weapons)
+    for (const FWeaponInventoryEntry &W : Inventory->Weapons)
     {
         ManualCost += W.GetSlotCost();
     }
     bool bTest2 = (ManualCost == Inventory->GetWeaponSlotCostTotal());
-    if (bTest2) TestsPassed++; else TestsFailed++;
+    if (bTest2)
+        TestsPassed++;
+    else
+        TestsFailed++;
     UE_LOG(LogTemp, Display, TEXT("  Result: %s (Manual: %d, Reported: %d)"),
-        bTest2 ? TEXT("PASS") : TEXT("FAIL"), ManualCost, Inventory->GetWeaponSlotCostTotal());
+           bTest2 ? TEXT("PASS") : TEXT("FAIL"), ManualCost, Inventory->GetWeaponSlotCostTotal());
 
     // Test 3: Loadout validation
     UE_LOG(LogTemp, Display, TEXT("Test 3: Active loadout validation..."));
     bool bTest3 = Loadout->ValidateActiveLoadout(Inventory);
-    if (bTest3) TestsPassed++; else TestsFailed++;
+    if (bTest3)
+        TestsPassed++;
+    else
+        TestsFailed++;
     UE_LOG(LogTemp, Display, TEXT("  Result: %s"), bTest3 ? TEXT("PASS") : TEXT("FAIL"));
 
     // Summary
     bAllPassed = (TestsFailed == 0);
     UE_LOG(LogTemp, Display, TEXT("---"));
     UE_LOG(LogTemp, Display, TEXT("Suite Result: %s (%d passed, %d failed)"),
-        bAllPassed ? TEXT("ALL PASSED") : TEXT("FAILURES DETECTED"),
-        TestsPassed, TestsFailed);
+           bAllPassed ? TEXT("ALL PASSED") : TEXT("FAILURES DETECTED"),
+           TestsPassed, TestsFailed);
 
     return bAllPassed;
 }

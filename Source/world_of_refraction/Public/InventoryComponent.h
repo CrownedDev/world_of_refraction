@@ -25,7 +25,6 @@ class UAbilityData;
 class UWeaponData;
 class URingData;
 class UItemData;
-class UEvolutionData;
 
 /**
  * UInventoryComponent
@@ -67,10 +66,6 @@ public:
     /** Consumable item crystals (tiered capacity) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Items")
     FItemCrystalInventory Items;
-
-    /** Evolution crystals (max 10) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Evolution")
-    TArray<UEvolutionData *> EvolutionCrystals;
 
     // ==================== SPELL OPERATIONS ====================
 
@@ -150,7 +145,7 @@ public:
 
     /** Apply evolution to weapon */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionData *Evolution);
+    bool ApplyEvolutionToWeapon(int32 WeaponIndex, UItemData *EvolutionCrystal);
 
     // ==================== RING OPERATIONS ====================
 
@@ -194,7 +189,7 @@ public:
 
     /** Apply evolution to ring */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool ApplyEvolutionToRing(int32 RingIndex, UEvolutionData *Evolution);
+    bool ApplyEvolutionToRing(int32 RingIndex, UItemData *EvolutionCrystal);
 
     // ==================== ITEM OPERATIONS ====================
 
@@ -218,23 +213,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
     TArray<UItemData *> GetItemsByTier(EItemTier Tier) const;
 
-    // ==================== EVOLUTION OPERATIONS ====================
+    // ==================== EVOLUTION HELPERS ====================
 
-    /** Add evolution crystal */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
-    bool AddEvolutionCrystal(UEvolutionData *Evolution);
-
-    /** Remove evolution crystal */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
-    bool RemoveEvolutionCrystal(UEvolutionData *Evolution);
-
-    /** Check if evolution crystal is owned */
+    /** Get all evolution crystals from items (Category::Evolution) */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
-    bool HasEvolutionCrystal(UEvolutionData *Evolution) const;
+    TArray<UItemData *> GetEvolutionCrystals() const;
 
     /** Get evolution crystals by element */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
-    TArray<UEvolutionData *> GetEvolutionCrystalsByElement(ESpellElement Element) const;
+    TArray<UItemData *> GetEvolutionCrystalsByElement(ESpellElement Element) const;
 
     // ==================== UTILITY ====================
 

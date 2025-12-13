@@ -58,16 +58,20 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ECrystalCategory Category = ECrystalCategory::Item;
 
+    /** Whether crystal has been refined (cut) for slotting onto equipment */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
+    bool bIsRefined = false;
+
     // ==================== SPELLS (Refined/Evolution only) ====================
 
     /** Spells available on this crystal (max 6) - only for Refined/Evolution */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
               meta = (EditCondition = "Category != ECrystalCategory::Item", EditConditionHides))
-    TArray<USpellData*> Spells;
+    TArray<USpellData *> Spells;
 
     /** Number of locked spells (0-6) - first N spells are unchangeable (Evolution only) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
-              meta = (ClampMin = "0", ClampMax = "6", 
+              meta = (ClampMin = "0", ClampMax = "6",
                       EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
     int32 LockedSpellCount = CrystalSpellConstants::DEFAULT_LOCKED_SPELLS;
 
@@ -167,44 +171,55 @@ public:
     // ==================== VISUAL/AUDIO ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D* Icon;
+    UTexture2D *Icon;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FLinearColor TierColor;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UNiagaraSystem* UseEffect;
+    UNiagaraSystem *UseEffect;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    USoundBase* UseSound;
+    USoundBase *UseSound;
 
     // ==================== CATEGORY HELPER FUNCTIONS ====================
 
-    /** Check if crystal can be slotted on weapons/rings (Refined or Evolution) */
+    /** Check if crystal can be slotted on weapons/rings (must be refined) */
     UFUNCTION(BlueprintPure, Category = "Item|Category")
-    bool CanBeSlotted() const { return Category != ECrystalCategory::Item; }
+    bool CanBeSlotted() const { return bIsRefined; }
 
-    /** Check if crystal can have spells (Refined or Evolution) */
+    /** Check if crystal can have spells (must be refined) */
     UFUNCTION(BlueprintPure, Category = "Item|Category")
-    bool CanHaveSpells() const { return Category != ECrystalCategory::Item; }
+    bool CanHaveSpells() const { return bIsRefined; }
+
+    /** Check if crystal has been refined (cut for slotting) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool IsRefined() const { return bIsRefined; }
 
     /** Check if crystal grants evolution status */
     UFUNCTION(BlueprintPure, Category = "Item|Category")
     bool GrantsEvolution() const { return Category == ECrystalCategory::Evolution; }
 
-    /** Check if crystal is refined (non-evolution slottable) */
+    /** Check if crystal is a refined item crystal (non-evolution slottable) */
     UFUNCTION(BlueprintPure, Category = "Item|Category")
-    bool IsRefined() const { return Category == ECrystalCategory::Refined; }
+    bool IsRefinedItemCrystal() const { return Category == ECrystalCategory::Item && bIsRefined; }
 
-    /** Check if item effects are active (Item category only) */
+    /** Check if crystal is a refined evolution crystal (slottable, grants evolution) */
     UFUNCTION(BlueprintPure, Category = "Item|Category")
-    bool HasItemEffects() const { return Category == ECrystalCategory::Item; }
+    bool IsRefinedEvolutionCrystal() const { return Category == ECrystalCategory::Evolution && bIsRefined; }
 
+    /** Check if item effects are active (unrefined Item category only) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool HasItemEffects() const { return Category == ECrystalCategory::Item && !bIsRefined; }
+
+    /** Check if can be applied to character directly (unrefined Evolution only) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool CanApplyToCharacter() const { return Category == ECrystalCategory::Evolution && !bIsRefined; }
     // ==================== SPELL HELPER FUNCTIONS ====================
 
     /** Get all spells on this crystal */
     UFUNCTION(BlueprintPure, Category = "Item|Spells")
-    const TArray<USpellData*>& GetSpells() const { return Spells; }
+    const TArray<USpellData *> &GetSpells() const { return Spells; }
 
     /** Get locked spell count (0 for non-Evolution) */
     UFUNCTION(BlueprintPure, Category = "Item|Spells")
@@ -340,7 +355,7 @@ public:
 
 #if WITH_EDITOR
     FString GenerateDescription() const;
-    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-    virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

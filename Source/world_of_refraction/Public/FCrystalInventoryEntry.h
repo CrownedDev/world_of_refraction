@@ -15,6 +15,7 @@
 
 #include "CoreMinimal.h"
 #include "SpellElement.h"
+#include "ECrystalCategory.h"
 #include "FCrystalInventoryEntry.generated.h"
 
 class UItemData;
@@ -32,16 +33,16 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
 
     /** The crystal data asset */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
-    UItemData* Crystal = nullptr;
+    UItemData *Crystal = nullptr;
 
     /** Player-assigned custom spells (fills slots after locked spells) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
-    TArray<USpellData*> CustomSpells;
+    TArray<USpellData *> CustomSpells;
 
     // ==================== FACTORY ====================
 
     /** Create entry from crystal */
-    static FCrystalInventoryEntry CreateFromCrystal(UItemData* InCrystal);
+    static FCrystalInventoryEntry CreateFromCrystal(UItemData *InCrystal);
 
     // ==================== VALIDATION ====================
 
@@ -68,10 +69,10 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     // ==================== SPELL ACCESS ====================
 
     /** Get locked spells from crystal (Evolution only) */
-    TArray<USpellData*> GetLockedSpells() const;
+    TArray<USpellData *> GetLockedSpells() const;
 
     /** Get all spells (locked + custom) */
-    TArray<USpellData*> GetAllSpells() const;
+    TArray<USpellData *> GetAllSpells() const;
 
     /** Get count of locked spell slots */
     int32 GetLockedSpellCount() const;
@@ -85,16 +86,16 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     // ==================== SPELL MANAGEMENT ====================
 
     /** Add a custom spell (returns false if at capacity) */
-    bool AddCustomSpell(USpellData* Spell);
+    bool AddCustomSpell(USpellData *Spell);
 
     /** Remove a custom spell */
-    bool RemoveCustomSpell(USpellData* Spell);
+    bool RemoveCustomSpell(USpellData *Spell);
 
     /** Clear all custom spells */
     void ClearCustomSpells();
 
     /** Set custom spells directly (validates count) */
-    bool SetCustomSpells(const TArray<USpellData*>& Spells);
+    bool SetCustomSpells(const TArray<USpellData *> &Spells);
 
     // ==================== STAT MODIFIERS (Evolution only) ====================
 
@@ -115,12 +116,12 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
 
     // ==================== COMPARISON ====================
 
-    bool operator==(const FCrystalInventoryEntry& Other) const
+    bool operator==(const FCrystalInventoryEntry &Other) const
     {
         return Crystal == Other.Crystal && CustomSpells == Other.CustomSpells;
     }
 
-    bool operator!=(const FCrystalInventoryEntry& Other) const
+    bool operator!=(const FCrystalInventoryEntry &Other) const
     {
         return !(*this == Other);
     }

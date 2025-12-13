@@ -10,6 +10,7 @@
 #include "EvolutionData.h"
 #include "CrystalType.h"
 #include "CharacterData.h"
+#include "ECrystalCategory.h"
 
 UInventoryComponent::UInventoryComponent()
 {
@@ -136,7 +137,7 @@ bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
 
 bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UItemData *Crystal)
 {
-    if (!Weapons.IsValidIndex(WeaponIndex) || !Crystal)
+    if (!Weapons.IsValidIndex(WeaponIndex) || !Crystal || !Crystal->CanBeSlotted())
     {
         return false;
     }
@@ -170,12 +171,35 @@ UItemData *UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
     return OldCrystal;
 }
 
-bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionData *Evolution)
+bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UItemData *EvolutionCrystal)
 {
-    // TODO: Phase 3 - Update function signature to take UItemData* EvolutionCrystal
-    // For now, stub out
-    UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToWeapon: Function needs update to new crystal system"));
-    return false;
+    if (!Weapons.IsValidIndex(WeaponIndex))
+    {
+        return false;
+    }
+
+    if (!EvolutionCrystal || !EvolutionCrystal->CanBeSlotted() || !EvolutionCrystal->GrantsEvolution())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToWeapon: Crystal must be refined and grant evolution"));
+        return false;
+    }
+
+    FWeaponInventoryEntry &Entry = Weapons[WeaponIndex];
+
+    int32 CurrentCost = Entry.GetSlotCost();
+    FCrystalInventoryEntry OldCrystalEntry = Entry.AttachedCrystal;
+
+    Entry.AttachCrystal(EvolutionCrystal);
+    int32 NewCost = Entry.GetSlotCost();
+
+    int32 CostDelta = NewCost - CurrentCost;
+    if (GetRemainingWeaponCapacity() < CostDelta)
+    {
+        Entry.AttachedCrystal = OldCrystalEntry;
+        return false;
+    }
+
+    return true;
 }
 
 // ==================== RING OPERATIONS ====================
@@ -249,7 +273,7 @@ bool UInventoryComponent::CanAddRing(URingData *Ring) const
 
 bool UInventoryComponent::AttachCrystalToRing(int32 RingIndex, UItemData *Crystal)
 {
-    if (!Rings.IsValidIndex(RingIndex) || !Crystal)
+    if (!Rings.IsValidIndex(RingIndex) || !Crystal || !Crystal->CanBeSlotted())
     {
         return false;
     }
@@ -270,12 +294,35 @@ UItemData *UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
     return OldCrystal;
 }
 
-bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionData *Evolution)
+bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UItemData *EvolutionCrystal)
 {
-    // TODO: Phase 3 - Update function signature to take UItemData* EvolutionCrystal
-    // For now, stub out
-    UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToRing: Function needs update to new crystal system"));
-    return false;
+    if (!Rings.IsValidIndex(RingIndex))
+    {
+        return false;
+    }
+
+    if (!EvolutionCrystal || !EvolutionCrystal->CanBeSlotted() || !EvolutionCrystal->GrantsEvolution())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToRing: Crystal must be refined and grant evolution"));
+        return false;
+    }
+
+    FRingInventoryEntry &Entry = Rings[RingIndex];
+
+    int32 CurrentCost = Entry.GetSlotCost();
+    FCrystalInventoryEntry OldCrystalEntry = Entry.AttachedCrystal;
+
+    Entry.AttachCrystal(EvolutionCrystal);
+    int32 NewCost = Entry.GetSlotCost();
+
+    int32 CostDelta = NewCost - CurrentCost;
+    if (GetRemainingRingCapacity() < CostDelta)
+    {
+        Entry.AttachedCrystal = OldCrystalEntry;
+        return false;
+    }
+
+    return true;
 }
 
 // ==================== ITEM OPERATIONS ====================
@@ -305,53 +352,23 @@ TArray<UItemData *> UInventoryComponent::GetItemsByTier(EItemTier Tier) const
     return Items.GetCrystalsOfTier(Tier);
 }
 
-// ==================== EVOLUTION OPERATIONS ====================
+// ==================== EVOLUTION HELPERS ====================
 
-bool UInventoryComponent::AddEvolutionCrystal(UEvolutionData *Evolution)
+TArray<UItemData *> UInventoryComponent::GetEvolutionCrystals() const
 {
-    if (!Evolution)
-    {
-        return false;
-    }
-
-    if (EvolutionCrystals.Num() >= InventoryConstants::MAX_EVOLUTION_CRYSTALS)
-    {
-        return false;
-    }
-
-    if (EvolutionCrystals.Contains(Evolution))
-    {
-        return false; // Already owned
-    }
-
-    EvolutionCrystals.Add(Evolution);
-    return true;
+    return Items.GetCrystalsOfCategory(ECrystalCategory::Evolution);
 }
 
-bool UInventoryComponent::RemoveEvolutionCrystal(UEvolutionData *Evolution)
+TArray<UItemData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const
 {
-    if (!Evolution)
+    TArray<UItemData *> Result;
+
+    TArray<UItemData *> AllEvolutions = GetEvolutionCrystals();
+    for (UItemData *Crystal : AllEvolutions)
     {
-        return false;
-    }
-
-    return EvolutionCrystals.Remove(Evolution) > 0;
-}
-
-bool UInventoryComponent::HasEvolutionCrystal(UEvolutionData *Evolution) const
-{
-    return Evolution && EvolutionCrystals.Contains(Evolution);
-}
-
-TArray<UEvolutionData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const
-{
-    TArray<UEvolutionData *> Result;
-
-    for (UEvolutionData *Evolution : EvolutionCrystals)
-    {
-        if (Evolution && Evolution->Element == Element)
+        if (Crystal && Crystal->GetAssociatedElement() == Element)
         {
-            Result.Add(Evolution);
+            Result.Add(Crystal);
         }
     }
 
@@ -367,11 +384,12 @@ void UInventoryComponent::ClearAll()
     Weapons.Empty();
     Rings.Empty();
     Items.Clear();
-    EvolutionCrystals.Empty();
 }
 
 FString UInventoryComponent::GetInventorySummary() const
 {
+    int32 EvolutionCount = GetEvolutionCrystals().Num();
+
     return FString::Printf(
         TEXT("Inventory Summary:\n")
             TEXT("  Spells: %d/%d\n")
@@ -379,13 +397,13 @@ FString UInventoryComponent::GetInventorySummary() const
                     TEXT("  Weapons: %d (cost %d/%d)\n")
                         TEXT("  Rings: %d (cost %d/%d)\n")
                             TEXT("  Items: %d/%d\n")
-                                TEXT("  Evolutions: %d/%d"),
+                                TEXT("  Evolution Crystals: %d"),
         Spells.GetCount(), InventoryConstants::MAX_LEARNED_SPELLS,
         Abilities.GetCount(), InventoryConstants::MAX_LEARNED_ABILITIES,
         Weapons.Num(), GetWeaponSlotCostTotal(), InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS,
         Rings.Num(), GetRingSlotCostTotal(), InventoryConstants::MAX_RING_INVENTORY_SLOTS,
         Items.GetTotalCount(), InventoryConstants::ITEM_CAPACITY_TOTAL,
-        EvolutionCrystals.Num(), InventoryConstants::MAX_EVOLUTION_CRYSTALS);
+        EvolutionCount);
 }
 
 void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterData)
@@ -401,7 +419,6 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     Abilities.LearnedAbilities.Empty();
     Weapons.Empty();
     Rings.Empty();
-    EvolutionCrystals.Empty();
     Items.Clear();
 
     // Add weapons
