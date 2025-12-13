@@ -145,14 +145,13 @@ bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UItemData *Cr
 
     // Check if adding crystal would exceed capacity
     int32 CurrentCost = Entry.GetSlotCost();
-    Entry.AttachedCrystal = Crystal;
+    Entry.AttachCrystal(Crystal);
     int32 NewCost = Entry.GetSlotCost();
 
     int32 CostDelta = NewCost - CurrentCost;
     if (GetRemainingWeaponCapacity() < CostDelta)
     {
         // Revert
-        Entry.AttachedCrystal = nullptr;
         return false;
     }
 
@@ -166,38 +165,17 @@ UItemData *UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
         return nullptr;
     }
 
-    return Weapons[WeaponIndex].RemoveCrystal();
+    UItemData *OldCrystal = Weapons[WeaponIndex].AttachedCrystal.Crystal;
+    Weapons[WeaponIndex].RemoveCrystal();
+    return OldCrystal;
 }
 
 bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionData *Evolution)
 {
-    if (!Weapons.IsValidIndex(WeaponIndex) || !Evolution)
-    {
-        return false;
-    }
-
-    FWeaponInventoryEntry &Entry = Weapons[WeaponIndex];
-
-    // Check if adding evolution would exceed capacity
-    int32 CurrentCost = Entry.GetSlotCost();
-
-    // Simulate
-    UItemData *OldCrystal = Entry.AttachedCrystal;
-    UEvolutionData *OldEvolution = Entry.Evolution;
-    Entry.AttachedCrystal = nullptr;
-    Entry.Evolution = Evolution;
-    int32 NewCost = Entry.GetSlotCost();
-
-    int32 CostDelta = NewCost - CurrentCost;
-    if (GetRemainingWeaponCapacity() < CostDelta)
-    {
-        // Revert
-        Entry.AttachedCrystal = OldCrystal;
-        Entry.Evolution = OldEvolution;
-        return false;
-    }
-
-    return true;
+    // TODO: Phase 3 - Update function signature to take UItemData* EvolutionCrystal
+    // For now, stub out
+    UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToWeapon: Function needs update to new crystal system"));
+    return false;
 }
 
 // ==================== RING OPERATIONS ====================
@@ -287,38 +265,17 @@ UItemData *UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
         return nullptr;
     }
 
-    return Rings[RingIndex].RemoveCrystal();
+    UItemData *OldCrystal = Rings[RingIndex].AttachedCrystal.Crystal;
+    Rings[RingIndex].RemoveCrystal();
+    return OldCrystal;
 }
 
 bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionData *Evolution)
 {
-    if (!Rings.IsValidIndex(RingIndex) || !Evolution)
-    {
-        return false;
-    }
-
-    FRingInventoryEntry &Entry = Rings[RingIndex];
-
-    // Check if adding evolution would exceed capacity
-    int32 CurrentCost = Entry.GetSlotCost();
-
-    // Simulate
-    bool OldEvolved = Entry.IsEvolved();
-    UEvolutionData *OldEvolution = Entry.Evolution;
-    Entry.Evolution = Evolution;
-    int32 NewCost = Entry.GetSlotCost();
-
-    int32 CostDelta = NewCost - CurrentCost;
-    if (GetRemainingRingCapacity() < CostDelta)
-    {
-        // Revert
-        Entry.Evolution = OldEvolution;
-        return false;
-    }
-
-    // Clear crystal when evolving
-    Entry.AttachedCrystal = nullptr;
-    return true;
+    // TODO: Phase 3 - Update function signature to take UItemData* EvolutionCrystal
+    // For now, stub out
+    UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToRing: Function needs update to new crystal system"));
+    return false;
 }
 
 // ==================== ITEM OPERATIONS ====================

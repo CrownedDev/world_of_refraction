@@ -164,7 +164,7 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
 
     case ECrystalType::EvolutionCrystal:
         // Evolution crystals must have valid Evolution reference
-        if (!Item->Evolution)
+        if (!Item->GrantsEvolution())
         {
             Errors.Add(TEXT("EvolutionCrystal missing Evolution data reference"));
             bValid = false;
@@ -172,14 +172,14 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
         else
         {
             // Validate evolution has element
-            if (Item->Evolution->Element == ESpellElement::Generic)
+            if (Item->GetAssociatedElement() == ESpellElement::Generic)
             {
                 Errors.Add(TEXT("Evolution has Generic element (should be specific)"));
                 bValid = false;
             }
 
             // Warn if not refined (can't be slotted)
-            if (!Item->bIsRefined)
+            if (!Item->CanBeSlotted())
             {
                 Errors.Add(TEXT("EvolutionCrystal should be refined for weapon/ring slotting"));
                 // Not invalid, just a warning scenario
@@ -220,19 +220,19 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     // ADD: Crystal state
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("--- Crystal State ---"));
-    UE_LOG(LogTemp, Display, TEXT("Refined: %s"), Item->bIsRefined ? TEXT("YES (slottable)") : TEXT("NO (consumable)"));
+    UE_LOG(LogTemp, Display, TEXT("Category: %s"), Item->GrantsEvolution() ? TEXT("Evolution") : (Item->CanBeSlotted() ? TEXT("Refined") : TEXT("Item")));
 
     // ADD: Evolution details if applicable
     if (Item->CrystalType == ECrystalType::EvolutionCrystal)
     {
         UE_LOG(LogTemp, Display, TEXT(""));
         UE_LOG(LogTemp, Display, TEXT("--- Evolution Details ---"));
-        if (Item->Evolution)
+        if (Item->GrantsEvolution())
         {
-            UE_LOG(LogTemp, Display, TEXT("Evolution Name: %s"), *Item->Evolution->EvolutionName);
-            UE_LOG(LogTemp, Display, TEXT("Evolution Element: %s"), *Item->Evolution->GetElementName());
-            UE_LOG(LogTemp, Display, TEXT("Evolution Type: %s"), *Item->Evolution->GetEvolutionTypeName());
-            UE_LOG(LogTemp, Display, TEXT("Exclusive Spells: %d"), Item->Evolution->ExclusiveSpells.Num());
+            UE_LOG(LogTemp, Display, TEXT("Evolution Name: %s"), *Item->ItemName);
+            UE_LOG(LogTemp, Display, TEXT("Evolution Element: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
+            UE_LOG(LogTemp, Display, TEXT("Locked Spells: %d"), Item->GetLockedSpellCount());
+            UE_LOG(LogTemp, Display, TEXT("Total Spells: %d"), Item->GetSpells().Num());
         }
         else
         {
@@ -375,10 +375,10 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("===== CRYSTAL STATE: %s ====="), *Item->GetFullItemName());
     UE_LOG(LogTemp, Display, TEXT("Type: %s"), *GetCrystalTypeName(Item->CrystalType));
     UE_LOG(LogTemp, Display, TEXT("Tier: %s"), *Item->GetTierName());
-    UE_LOG(LogTemp, Display, TEXT("Refined: %s"), Item->bIsRefined ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Display, TEXT("Slottable: %s"), Item->CanBeSlotted() ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogTemp, Display, TEXT(""));
 
-    if (Item->bIsRefined)
+    if (Item->CanBeSlotted())
     {
         UE_LOG(LogTemp, Display, TEXT("Usage: Can be slotted into Weapons or Rings"));
         UE_LOG(LogTemp, Display, TEXT("Element Provided: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
@@ -386,11 +386,10 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
         if (Item->CrystalType == ECrystalType::EvolutionCrystal)
         {
             UE_LOG(LogTemp, Display, TEXT("Special: EVOLUTION CRYSTAL"));
-            if (Item->Evolution)
+            if (Item->GrantsEvolution())
             {
-                UE_LOG(LogTemp, Display, TEXT("  Evolution: %s"), *Item->Evolution->EvolutionName);
-                UE_LOG(LogTemp, Display, TEXT("  Grants: %d exclusive spells"), Item->Evolution->ExclusiveSpells.Num());
-                UE_LOG(LogTemp, Display, TEXT("  Grants: Stat modifiers + passives"));
+                UE_LOG(LogTemp, Display, TEXT("  Evolution: %s"), *Item->ItemName);
+                UE_LOG(LogTemp, Display, TEXT("  Spells: %d (Locked: %d)"), Item->GetSpells().Num(), Item->GetLockedSpellCount());
             }
             else
             {

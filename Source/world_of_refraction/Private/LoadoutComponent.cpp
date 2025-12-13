@@ -603,9 +603,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         }
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] PrimaryEntry found: %s, HasEvolution: %s"),
-           PrimaryEntry ? *PrimaryEntry->Weapon->WeaponName : TEXT("NULL"),
-           (PrimaryEntry && PrimaryEntry->Evolution) ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] PrimaryEntry found: %s, IsEvolved: %s"),
+           PrimaryEntry->Weapon ? TEXT("Yes") : TEXT("No"),
+           PrimaryEntry->IsEvolved() ? TEXT("Yes") : TEXT("No"));
 
     // Configure primary weapon loadout
     if (PrimaryEntry)
@@ -625,11 +625,12 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         }
 
         // Copy evolution spells if weapon has evolution
-        if (PrimaryEntry->Evolution)
+        if (PrimaryEntry->IsEvolved())
         {
+            TArray<USpellData *> EvolutionSpells = PrimaryEntry->GetSpells();
             UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Copying %d evolution spells from primary weapon"),
-                   PrimaryEntry->Evolution->EquippedSpells.Num());
-            for (USpellData *Spell : PrimaryEntry->Evolution->EquippedSpells)
+                   EvolutionSpells.Num());
+            for (USpellData *Spell : EvolutionSpells)
             {
                 if (Spell && DefaultLoadout.PrimaryWeapon.AssignedSpells.Num() < LoadoutConstants::MAX_SPELL_SLOTS)
                 {
@@ -657,9 +658,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
                 }
             }
             // Copy evolution spells if secondary weapon has evolution
-            if (SecondaryEntry->Evolution)
+            if (SecondaryEntry->IsEvolved())
             {
-                for (USpellData *Spell : SecondaryEntry->Evolution->EquippedSpells)
+                for (USpellData *Spell : SecondaryEntry->GetSpells())
                 {
                     if (Spell && DefaultLoadout.SecondaryWeapon.AssignedSpells.Num() < LoadoutConstants::MAX_SPELL_SLOTS)
                     {

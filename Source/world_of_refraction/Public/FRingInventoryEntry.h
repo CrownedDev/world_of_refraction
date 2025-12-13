@@ -1,15 +1,15 @@
 // FRingInventoryEntry.h
-// Ring inventory entry with crystal and evolution state
+// Ring inventory entry with unified crystal system
 //
 // ARCHITECTURE: Runtime inventory instance, separate from RingData asset
 // RingData = immutable template (spells, tier, default crystal for editor preview)
-// FRingInventoryEntry = mutable runtime state (ACTUAL attached crystal, evolution)
+// FRingInventoryEntry = mutable runtime state (ACTUAL attached crystal + custom spells)
 //
-// IMPORTANT: When checking crystal state at runtime, use FRingInventoryEntry fields,
+// IMPORTANT: When checking crystal state at runtime, use FRingInventoryEntry.AttachedCrystal,
 // NOT RingData.SlottedCrystal. The data asset may have a default crystal for editor
 // testing, but the inventory entry is the runtime truth.
 //
-// NOTE: Rings require a crystal to function. An entry with AttachedCrystal = nullptr
+// NOTE: Rings require a crystal to function. An entry with no crystal
 // is an "empty ring shell" - it takes inventory space but cannot be equipped for combat.
 
 #pragma once
@@ -17,15 +17,16 @@
 #include "CoreMinimal.h"
 #include "InventoryConstants.h"
 #include "SpellElement.h"
+#include "FCrystalInventoryEntry.h"
 #include "FRingInventoryEntry.generated.h"
 
 class URingData;
 class UItemData;
-class UEvolutionData;
+class USpellData;
 
 /**
  * FRingInventoryEntry
- * Represents a single ring INSTANCE in inventory with its attached crystal/evolution state
+ * Represents a single ring INSTANCE in inventory with its attached crystal state
  * Slot cost: Base=1 (with crystal), Evolved=2
  * 
  * This is RUNTIME STATE - the actual crystal attached to this specific ring instance.
@@ -40,13 +41,9 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     URingData* Ring = nullptr;
 
-    /** Attached crystal - RUNTIME STATE (nullptr = empty ring, cannot be used in combat) */
+    /** Attached crystal with runtime spell customization */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
-    UItemData* AttachedCrystal = nullptr;
-
-    /** Evolution data - RUNTIME STATE (nullptr = not evolved) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
-    UEvolutionData* Evolution = nullptr;
+    FCrystalInventoryEntry AttachedCrystal;
 
     // ==================== FACTORY ====================
 
@@ -64,19 +61,19 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     /** Check if ring has a crystal (required for combat use) */
     bool HasCrystal() const
     {
-        return AttachedCrystal != nullptr;
+        return AttachedCrystal.IsValid();
     }
 
-    /** Check if ring can be used in combat (has crystal) */
+    /** Check if ring can be used in combat (has valid crystal) */
     bool CanBeEquipped() const
     {
         return IsValid() && HasCrystal();
     }
 
-    /** Check if ring is evolved */
+    /** Check if ring is evolved (crystal grants evolution) */
     bool IsEvolved() const
     {
-        return Evolution != nullptr;
+        return AttachedCrystal.GrantsEvolution();
     }
 
     /** Get slot cost based on current state */
@@ -85,49 +82,84 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
         return InventoryConstants::GetRingSlotCost(IsEvolved());
     }
 
-    /** Get ring's element from attached crystal or evolution */
-    ESpellElement GetElement() const;
+    /** Get ring's element from attached crystal */
+    ESpellElement GetElement() const
+    {
+        if (HasCrystal())
+        {
+            return AttachedCrystal.GetElement();
+        }
+        return ESpellElement::Generic;
+    }
+
+    // ==================== SPELL ACCESS ====================
+
+    /** Get all spells from attached crystal (locked + custom) */
+    TArray<USpellData*> GetSpells() const
+    {
+        return AttachedCrystal.GetAllSpells();
+    }
+
+    /** Get locked spells only (Evolution crystals) */
+    TArray<USpellData*> GetLockedSpells() const
+    {
+        return AttachedCrystal.GetLockedSpells();
+    }
+
+    /** Get spell count */
+    int32 GetSpellCount() const
+    {
+        return AttachedCrystal.GetAllSpells().Num();
+    }
 
     // ==================== CRYSTAL OPERATIONS ====================
 
-    /** Attach a crystal (returns old crystal if replaced) */
-    UItemData* AttachCrystal(UItemData* NewCrystal)
+    /** Attach a crystal (creates new FCrystalInventoryEntry) */
+    void AttachCrystal(UItemData* NewCrystal)
     {
-        UItemData* OldCrystal = AttachedCrystal;
-        AttachedCrystal = NewCrystal;
-        return OldCrystal; // Caller responsible for handling old crystal
+        AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }
 
-    /** Remove crystal (returns the removed crystal) */
-    UItemData* RemoveCrystal()
+    /** Remove crystal (clears the entry) */
+    void RemoveCrystal()
     {
-        UItemData* OldCrystal = AttachedCrystal;
-        AttachedCrystal = nullptr;
-        return OldCrystal;
+        AttachedCrystal = FCrystalInventoryEntry();
     }
 
-    // ==================== EVOLUTION OPERATIONS ====================
-
-    /** Apply evolution (replaces existing crystal) */
-    bool ApplyEvolution(UEvolutionData* NewEvolution)
+    /** Get direct access to crystal entry for spell customization */
+    FCrystalInventoryEntry& GetCrystalEntry()
     {
-        if (!NewEvolution)
-        {
-            return false;
-        }
-        
-        // Evolution replaces crystal
-        AttachedCrystal = nullptr;
-        Evolution = NewEvolution;
-        return true;
+        return AttachedCrystal;
+    }
+
+    const FCrystalInventoryEntry& GetCrystalEntry() const
+    {
+        return AttachedCrystal;
+    }
+
+    // ==================== STAT MODIFIERS (Evolution only) ====================
+
+    /** Check if ring has stat modifiers (from evolution crystal) */
+    bool HasStatModifiers() const
+    {
+        return AttachedCrystal.HasStatModifiers();
+    }
+
+    /** Get stat modifier summary */
+    FString GetStatModifierSummary() const
+    {
+        return AttachedCrystal.GetStatModifierSummary();
     }
 
     // ==================== COMPARISON ====================
 
     bool operator==(const FRingInventoryEntry& Other) const
     {
-        return Ring == Other.Ring && 
-               AttachedCrystal == Other.AttachedCrystal && 
-               Evolution == Other.Evolution;
+        return Ring == Other.Ring && AttachedCrystal == Other.AttachedCrystal;
+    }
+
+    bool operator!=(const FRingInventoryEntry& Other) const
+    {
+        return !(*this == Other);
     }
 };

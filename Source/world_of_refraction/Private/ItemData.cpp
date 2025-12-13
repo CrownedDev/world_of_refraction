@@ -4,6 +4,8 @@
 #include "ItemData.h"
 #include "ItemConstants.h"
 #include "EvolutionData.h"
+#include "ECrystalCategory.h"
+#include "SpellData.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -61,7 +63,7 @@ FString UItemData::GetCrystalName() const
     switch (CrystalType)
     {
     case ECrystalType::EvolutionCrystal:
-        return Evolution ? Evolution->EvolutionName : TEXT("Evolution Crystal");
+        return ItemName.IsEmpty() ? TEXT("Evolution Crystal") : ItemName;
     case ECrystalType::Garnet:
         return TEXT("Garnet");
     case ECrystalType::Sapphire:
@@ -117,7 +119,7 @@ ESpellElement UItemData::GetAssociatedElement() const
     case ECrystalType::Quartz:
         return ESpellElement::Generic;
     case ECrystalType::EvolutionCrystal:
-        return Evolution ? Evolution->Element : ESpellElement::Generic;
+        return ESpellElement::Generic; // Element set per-instance, not on crystal type
     default:
         return ESpellElement::Generic;
     }
@@ -602,6 +604,141 @@ int32 UItemData::GetSecondaryDuration() const
         return 3; // Garnet S burn duration
     }
     return 0;
+}
+
+// ==================== SPELL HELPER FUNCTIONS ====================
+
+int32 UItemData::GetLockedSpellCount() const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return 0; // Only Evolution has locked spells
+    }
+    return FMath::Clamp(LockedSpellCount, 0, CrystalSpellConstants::MAX_SPELL_SLOTS);
+}
+
+int32 UItemData::GetCustomSpellSlots() const
+{
+    if (!CanHaveSpells())
+    {
+        return 0;
+    }
+
+    // Refined: all 6 customizable
+    // Evolution: 6 - locked count
+    return CrystalSpellConstants::MAX_SPELL_SLOTS - GetLockedSpellCount();
+}
+
+int32 UItemData::GetTotalSpellSlots() const
+{
+    if (!CanHaveSpells())
+    {
+        return 0;
+    }
+    return CrystalSpellConstants::MAX_SPELL_SLOTS;
+}
+
+// ==================== STAT MODIFIER FUNCTIONS ====================
+
+bool UItemData::HasStatModifiers() const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return false;
+    }
+    return MindModifierPercent != 0.0f ||
+           BodyModifierPercent != 0.0f ||
+           SpiritModifierPercent != 0.0f;
+}
+
+FString UItemData::GetStatModifierSummary() const
+{
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return TEXT("");
+    }
+
+    TArray<FString> Modifiers;
+
+    if (MindModifierPercent != 0.0f)
+    {
+        FString Sign = MindModifierPercent > 0 ? TEXT("+") : TEXT("");
+        Modifiers.Add(FString::Printf(TEXT("Mind %s%.0f%%"), *Sign, MindModifierPercent));
+    }
+    if (BodyModifierPercent != 0.0f)
+    {
+        FString Sign = BodyModifierPercent > 0 ? TEXT("+") : TEXT("");
+        Modifiers.Add(FString::Printf(TEXT("Body %s%.0f%%"), *Sign, BodyModifierPercent));
+    }
+    if (SpiritModifierPercent != 0.0f)
+    {
+        FString Sign = SpiritModifierPercent > 0 ? TEXT("+") : TEXT("");
+        Modifiers.Add(FString::Printf(TEXT("Spirit %s%.0f%%"), *Sign, SpiritModifierPercent));
+    }
+
+    if (Modifiers.Num() == 0)
+    {
+        return TEXT("No stat changes");
+    }
+
+    return FString::Join(Modifiers, TEXT(", "));
+}
+
+float UItemData::GetMindModifierPercent() const
+{
+    return (Category == ECrystalCategory::Evolution) ? MindModifierPercent : 0.0f;
+}
+
+float UItemData::GetBodyModifierPercent() const
+{
+    return (Category == ECrystalCategory::Evolution) ? BodyModifierPercent : 0.0f;
+}
+
+float UItemData::GetSpiritModifierPercent() const
+{
+    return (Category == ECrystalCategory::Evolution) ? SpiritModifierPercent : 0.0f;
+}
+
+// ==================== PASSIVE HELPER FUNCTIONS ====================
+
+TArray<FPassiveEffect> UItemData::GetAlwaysActivePassives() const
+{
+    TArray<FPassiveEffect> Result;
+
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return Result;
+    }
+
+    for (const FPassiveEffect &Passive : PassiveEffects)
+    {
+        if (Passive.IsAlwaysActive())
+        {
+            Result.Add(Passive);
+        }
+    }
+
+    return Result;
+}
+
+TArray<FPassiveEffect> UItemData::GetTriggeredPassives() const
+{
+    TArray<FPassiveEffect> Result;
+
+    if (Category != ECrystalCategory::Evolution)
+    {
+        return Result;
+    }
+
+    for (const FPassiveEffect &Passive : PassiveEffects)
+    {
+        if (!Passive.IsAlwaysActive())
+        {
+            Result.Add(Passive);
+        }
+    }
+
+    return Result;
 }
 
 // ==================== EDITOR FUNCTIONS ====================

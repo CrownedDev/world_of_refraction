@@ -9,9 +9,9 @@
 TArray<USpellData *> URingData::GetAvailableSpells() const
 {
     // If evolved, use evolution's equipped spells
-    if (IsEvolved() && SlottedCrystal && SlottedCrystal->Evolution)
+    if (IsEvolved() && SlottedCrystal && SlottedCrystal->GrantsEvolution())
     {
-        return SlottedCrystal->Evolution->GetEquippedSpells();
+        return SlottedCrystal->GetSpells();
     }
 
     // Otherwise use ring's spell array

@@ -1,6 +1,11 @@
 // ItemData.h
 // Primary data asset for items in World of Refraction
-// Defines properties, effects, and mechanics for consumable crystals
+// Defines properties, effects, and mechanics for crystals
+//
+// CRYSTAL CATEGORIES:
+// - Item: Consumable in combat, item effects active
+// - Refined: Slottable on weapons/rings, 6 customizable spell slots, no item effects
+// - Evolution: Slottable on weapons/rings/characters, locked+custom spells, stat modifiers, no item effects
 
 #pragma once
 
@@ -10,16 +15,27 @@
 #include "ItemTier.h"
 #include "ItemEffectType.h"
 #include "SpellElement.h"
+#include "ECrystalCategory.h"
+#include "PassiveEffect.h"
 #include "NiagaraSystem.h"
 #include "ItemData.generated.h"
-class UEvolutionData;
+
+class USpellData;
+
+// Spell slot constants
+namespace CrystalSpellConstants
+{
+    constexpr int32 MAX_SPELL_SLOTS = 6;
+    constexpr int32 DEFAULT_LOCKED_SPELLS = 2;
+}
+
 /**
  * Primary data asset for items (crystals)
- * Each item is defined by crystal type + tier combination
- * Contains all effect values and mechanics for that specific item
+ * Each item is defined by crystal type + tier + category combination
+ * Category determines usage: Item (consumable), Refined (slottable), Evolution (grants evolution)
  */
 UCLASS(BlueprintType)
-class UItemData : public UPrimaryDataAsset
+class WORLD_OF_REFRACTION_API UItemData : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
@@ -38,16 +54,49 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description;
 
-    /** Whether crystal is refined (for slotting into weapons/rings) or raw (consumable) */
+    /** Crystal category - determines usage (replaces bIsRefined) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    bool bIsRefined = false;
+    ECrystalCategory Category = ECrystalCategory::Item;
 
-    // ==================== EVOLUTION (EvolutionCrystal only) ====================
+    // ==================== SPELLS (Refined/Evolution only) ====================
 
-    /** Evolution data - only visible for EvolutionCrystal type */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
-              meta = (EditCondition = "CrystalType == ECrystalType::EvolutionCrystal", EditConditionHides))
-    UEvolutionData *Evolution = nullptr;
+    /** Spells available on this crystal (max 6) - only for Refined/Evolution */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
+              meta = (EditCondition = "Category != ECrystalCategory::Item", EditConditionHides))
+    TArray<USpellData*> Spells;
+
+    /** Number of locked spells (0-6) - first N spells are unchangeable (Evolution only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
+              meta = (ClampMin = "0", ClampMax = "6", 
+                      EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    int32 LockedSpellCount = CrystalSpellConstants::DEFAULT_LOCKED_SPELLS;
+
+    // ==================== STAT MODIFIERS (Evolution only) ====================
+
+    /** Mind stat modifier percentage (affects Cost Reduction, Turn Speed, Crit Chance) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    float MindModifierPercent = 0.0f;
+
+    /** Body stat modifier percentage (affects Defense, Attack Speed, Raw Damage) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    float BodyModifierPercent = 0.0f;
+
+    /** Spirit stat modifier percentage (affects Effect Damage, Resistance, Ability Size) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
+              meta = (ClampMin = "-50", ClampMax = "50",
+                      EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    float SpiritModifierPercent = 0.0f;
+
+    // ==================== PASSIVE EFFECTS (Evolution only) ====================
+
+    /** Passive effects granted by this evolution crystal */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passives|Evolution",
+              meta = (EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+    TArray<FPassiveEffect> PassiveEffects;
 
     // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
     // These are computed and displayed for reference - not editable
@@ -115,26 +164,97 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Bonuses")
     int32 DisplayBDEnergy;
 
-    // ==================== COMPUTED EFFECT VALUES ====================
-    // All effect values are computed based on Crystal Type + Tier
-    // See GetDamageValue(), GetEnergyValue(), etc.
-
     // ==================== VISUAL/AUDIO ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D *Icon;
+    UTexture2D* Icon;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FLinearColor TierColor;
 
-    // probably needs to be changed to animation later
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UNiagaraSystem *UseEffect;
+    UNiagaraSystem* UseEffect;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    USoundBase *UseSound;
+    USoundBase* UseSound;
 
-    // ==================== UTILITY FUNCTIONS ====================
+    // ==================== CATEGORY HELPER FUNCTIONS ====================
+
+    /** Check if crystal can be slotted on weapons/rings (Refined or Evolution) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool CanBeSlotted() const { return Category != ECrystalCategory::Item; }
+
+    /** Check if crystal can have spells (Refined or Evolution) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool CanHaveSpells() const { return Category != ECrystalCategory::Item; }
+
+    /** Check if crystal grants evolution status */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool GrantsEvolution() const { return Category == ECrystalCategory::Evolution; }
+
+    /** Check if crystal is refined (non-evolution slottable) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool IsRefined() const { return Category == ECrystalCategory::Refined; }
+
+    /** Check if item effects are active (Item category only) */
+    UFUNCTION(BlueprintPure, Category = "Item|Category")
+    bool HasItemEffects() const { return Category == ECrystalCategory::Item; }
+
+    // ==================== SPELL HELPER FUNCTIONS ====================
+
+    /** Get all spells on this crystal */
+    UFUNCTION(BlueprintPure, Category = "Item|Spells")
+    const TArray<USpellData*>& GetSpells() const { return Spells; }
+
+    /** Get locked spell count (0 for non-Evolution) */
+    UFUNCTION(BlueprintPure, Category = "Item|Spells")
+    int32 GetLockedSpellCount() const;
+
+    /** Get customizable spell slot count */
+    UFUNCTION(BlueprintPure, Category = "Item|Spells")
+    int32 GetCustomSpellSlots() const;
+
+    /** Get total spell capacity */
+    UFUNCTION(BlueprintPure, Category = "Item|Spells")
+    int32 GetTotalSpellSlots() const;
+
+    // ==================== STAT MODIFIER FUNCTIONS ====================
+
+    /** Check if crystal has any stat modifiers */
+    UFUNCTION(BlueprintPure, Category = "Item|Stats")
+    bool HasStatModifiers() const;
+
+    /** Get stat modifier summary string */
+    UFUNCTION(BlueprintPure, Category = "Item|Stats")
+    FString GetStatModifierSummary() const;
+
+    /** Get Mind modifier (returns 0 if not Evolution) */
+    UFUNCTION(BlueprintPure, Category = "Item|Stats")
+    float GetMindModifierPercent() const;
+
+    /** Get Body modifier (returns 0 if not Evolution) */
+    UFUNCTION(BlueprintPure, Category = "Item|Stats")
+    float GetBodyModifierPercent() const;
+
+    /** Get Spirit modifier (returns 0 if not Evolution) */
+    UFUNCTION(BlueprintPure, Category = "Item|Stats")
+    float GetSpiritModifierPercent() const;
+
+    // ==================== PASSIVE HELPER FUNCTIONS ====================
+
+    /** Get passive effect count */
+    UFUNCTION(BlueprintPure, Category = "Item|Passives")
+    int32 GetPassiveCount() const { return PassiveEffects.Num(); }
+
+    /** Get always-active passives */
+    UFUNCTION(BlueprintPure, Category = "Item|Passives")
+    TArray<FPassiveEffect> GetAlwaysActivePassives() const;
+
+    /** Get triggered passives (not always-active) */
+    UFUNCTION(BlueprintPure, Category = "Item|Passives")
+    TArray<FPassiveEffect> GetTriggeredPassives() const;
+
+    // ==================== EXISTING UTILITY FUNCTIONS ====================
 
     UFUNCTION(BlueprintPure, Category = "Item")
     FString GetFullItemName() const;
@@ -143,7 +263,7 @@ public:
     FString GetTierName() const;
 
     UFUNCTION(BlueprintPure, Category = "Item")
-    FString GetTierString() const; // Returns "F", "S", etc.
+    FString GetTierString() const;
 
     UFUNCTION(BlueprintPure, Category = "Item")
     FString GetCrystalName() const;
@@ -151,53 +271,44 @@ public:
     UFUNCTION(BlueprintPure, Category = "Item")
     int32 GetTierValue() const;
 
-    // Get associated element based on crystal type
     UFUNCTION(BlueprintPure, Category = "Item")
     ESpellElement GetAssociatedElement() const;
 
-    // Get Generic character resistance bonus (constant)
     UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
     float GetGenericResistanceBonus() const;
 
     UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
     int32 GetGenericResistanceDuration() const;
 
-    // Get Broken Darkness energy bonus based on tier
     UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
     int32 GetBrokenDarknessEnergyBonus() const;
 
     // ==================== COMPUTED EFFECT VALUES ====================
 
-    // Get primary effect type (derived from crystal type)
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     EItemEffectType GetPrimaryEffectType() const;
 
-    // Damage/Healing values
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     float GetDamageValue() const;
 
-    // Energy restore values
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetEnergyValue() const;
 
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetSelfDamage() const;
 
-    // Buff values
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     float GetBuffPercentage() const;
 
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetBuffDuration() const;
 
-    // Silence values
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     float GetSilencePercentage() const;
 
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetSilenceDuration() const;
 
-    // Cleanse properties
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetDebuffsToRemove() const;
 
@@ -207,18 +318,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetImmunityDuration() const;
 
-    // Opal reveal flags
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     bool GetRevealsHP() const;
 
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     bool GetRevealsStats() const;
 
-    // Quartz transform threshold
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetTransformThreshold() const;
 
-    // Secondary effects (S-tier only)
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     bool HasSecondaryEffect() const;
 
@@ -228,14 +336,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Item|Effects")
     int32 GetSecondaryDuration() const;
 
+    // ==================== EDITOR SUPPORT ====================
+
 #if WITH_EDITOR
-    // Editor-only: Auto-configure properties when changed
-    virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-
-    // Generate description based on crystal type and tier
     FString GenerateDescription() const;
-
-    // Validate item configuration
-    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+    virtual EDataValidationResult IsDataValid(FDataValidationContext& Context) const override;
 #endif
 };
