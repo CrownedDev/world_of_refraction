@@ -6,9 +6,9 @@
 #include "WeaponAttackData.h"
 #include "RingData.h"
 #include "SpellData.h"
-
 #include "ItemData.h"
 #include "LoadoutConstants.h"
+#include "ItemData.h"
 
 void UCharacterDataDebug::PrintCharacterStats(UCharacterData *Character, float Duration, FLinearColor TextColor)
 {
@@ -112,7 +112,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 			// Combat spells from evolution
 			TArray<USpellData *> CombatSpells = Character->GetCombatSpells();
 			Output += FString::Printf(TEXT("  Combat Spells: %d/%d\n"),
-									  CombatSpells.Num(), 6); // TODO: Move to CrystalConstants
+									  CombatSpells.Num(), CrystalSpellConstants::MAX_SPELL_SLOTS);
 			for (int32 i = 0; i < CombatSpells.Num(); ++i)
 			{
 				if (CombatSpells[i])
@@ -183,7 +183,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 			// Combat spells from evolution
 			TArray<USpellData *> CombatSpells = Character->GetCombatSpells();
 			Output += FString::Printf(TEXT("  Combat Spells: %d/%d\n"),
-									  CombatSpells.Num(), 6); // TODO: Move to CrystalConstants
+									  CombatSpells.Num(), CrystalSpellConstants::MAX_SPELL_SLOTS);
 			for (int32 i = 0; i < CombatSpells.Num(); ++i)
 			{
 				if (CombatSpells[i])
