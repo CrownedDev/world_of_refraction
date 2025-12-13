@@ -197,3 +197,64 @@ void UCombatAnimInstance::DebugPlayCurrentAttack()
 
     PlayAttackMontage(AttackMontage);
 }
+
+void UCombatAnimInstance::PlayActionMontage(UAnimMontage *ActionMontage, float PlayRate)
+{
+    if (!ActionMontage)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] PlayActionMontage - null montage"));
+        return;
+    }
+
+    // Stop stance montage
+    if (CurrentStanceMontage && Montage_IsPlaying(CurrentStanceMontage))
+    {
+        Montage_Stop(0.2f, CurrentStanceMontage);
+    }
+
+    // Stop any current action
+    if (bIsPlayingAction && CurrentActionMontage)
+    {
+        Montage_Stop(0.1f, CurrentActionMontage);
+    }
+
+    bIsPlayingAction = true;
+    CurrentActionMontage = ActionMontage;
+
+    float Duration = Montage_Play(ActionMontage, PlayRate);
+
+    if (Duration > 0.f)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Playing action montage: %s (%.2fs at %.2fx)"),
+               *ActionMontage->GetName(), Duration, PlayRate);
+
+        FOnMontageEnded EndDelegate;
+        EndDelegate.BindUObject(this, &UCombatAnimInstance::OnActionMontageEndedInternal);
+        Montage_SetEndDelegate(EndDelegate, ActionMontage);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] Failed to play action montage: %s"),
+               *ActionMontage->GetName());
+        bIsPlayingAction = false;
+        CurrentActionMontage = nullptr;
+    }
+}
+
+void UCombatAnimInstance::OnActionMontageEndedInternal(UAnimMontage *Montage, bool bInterrupted)
+{
+    if (Montage == CurrentActionMontage)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Action montage ended: %s (Interrupted: %s)"),
+               *Montage->GetName(), bInterrupted ? TEXT("Yes") : TEXT("No"));
+
+        bIsPlayingAction = false;
+        CurrentActionMontage = nullptr;
+
+        // Broadcast for external listeners (VFX cleanup, damage finalization, etc.)
+        OnActionMontageEnded.Broadcast(Montage, bInterrupted);
+
+        // Resume stance
+        ResumeStanceMontage();
+    }
+}

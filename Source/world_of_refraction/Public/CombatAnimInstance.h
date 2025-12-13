@@ -52,6 +52,22 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat")
     bool IsPlayingAttack() const { return bIsPlayingAttack; }
 
+    // ==================== ACTION MONTAGE (Unified) ====================
+
+    /** Play any action montage (attack, ability, spell), auto-resumes stance when done */
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void PlayActionMontage(UAnimMontage *ActionMontage, float PlayRate = 1.0f);
+
+    /** Check if currently playing any action */
+    UFUNCTION(BlueprintPure, Category = "Combat")
+    bool IsPlayingAction() const { return bIsPlayingAction; }
+
+    /** Delegate broadcast when action montage ends */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionMontageEnded, UAnimMontage *, Montage, bool, bInterrupted);
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat")
+    FOnActionMontageEnded OnActionMontageEnded;
+
     // ==================== DEBUG ====================
 
     /** Debug: Play attack from current weapon */
@@ -85,4 +101,13 @@ private:
     /** The attack montage currently playing */
     UPROPERTY()
     UAnimMontage *CurrentAttackMontage = nullptr;
+
+    // ==================== ACTION MONTAGE (Unified) ====================
+
+    /** Called when any action montage ends */
+    UFUNCTION()
+    void OnActionMontageEndedInternal(UAnimMontage *Montage, bool bInterrupted);
+
+    bool bIsPlayingAction = false;
+    UAnimMontage *CurrentActionMontage = nullptr;
 };

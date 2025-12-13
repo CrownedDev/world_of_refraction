@@ -1187,6 +1187,7 @@ void UActionExecutor::CancelAsyncAction()
 	if (PendingExecutionActor)
 	{
 		UnbindApproachComplete(PendingExecutionActor);
+		UnbindActionAnimationEnd(PendingExecutionActor);
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
 	}
@@ -2025,21 +2026,18 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	ACharacter *Character = Cast<ACharacter>(Caster);
-	if (Character)
+	// Could adjust play rate based on character's spell speed stat
+	float PlayRate = 1.0f;
+	UCharacterData *CharData = GetCharacterData(Caster);
+	if (CharData)
 	{
-		float Duration = Character->PlayAnimMontage(Spell->CastAnimation, 1.0f);
+		PlayRate = CharData->CalculateSpellSpeed();
+	}
 
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell cast montage %s (%.2fs) for %s"),
-			   *Spell->CastAnimation->GetName(),
-			   Duration,
-			   *Spell->SpellName);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlaySpellAnimation - Caster %s is not a Character"),
-			   *Caster->GetName());
-	}
+	PlayActionMontageOnActor(Caster, Spell->CastAnimation, PlayRate);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell animation %s at %.2fx"),
+		   *Spell->CastAnimation->GetName(), PlayRate);
 }
 
 void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage)
@@ -2441,10 +2439,23 @@ void UActionExecutor::OnBeamTick(AActor *Target, float DeltaTime, bool bTargetIn
 
 void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
 {
-	// Stub - override in subclass for ability animations
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] PlayAbilityAnimation stub - %s using %s"),
-		   User ? *User->GetName() : TEXT("None"),
-		   Ability ? *Ability->GetName() : TEXT("None"));
+	if (!User || !Ability)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAbilityAnimation - Invalid user or ability"));
+		return;
+	}
+
+	if (!Ability->CastAnimation)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlayAbilityAnimation - No CastAnimation on %s"),
+			   *Ability->AbilityName);
+		return;
+	}
+
+	PlayActionMontageOnActor(User, Ability->CastAnimation, 1.0f);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s"),
+		   *Ability->CastAnimation->GetName(), *Ability->AbilityName);
 }
 
 void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack)
@@ -2462,35 +2473,10 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		return;
 	}
 
-	// Try to get CombatAnimInstance from skeletal mesh
-	ACharacter *Character = Cast<ACharacter>(Attacker);
-	if (Character && Character->GetMesh())
-	{
-		UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(
-			Character->GetMesh()->GetAnimInstance());
+	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, Attack->BaseAnimSpeed);
 
-		if (CombatAnim)
-		{
-			CombatAnim->PlayAttackMontage(Attack->AttackMontage);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack montage %s via CombatAnimInstance"),
-				   *Attack->AttackMontage->GetName());
-			return;
-		}
-	}
-
-	// Fallback: Direct montage play on Character
-	if (Character)
-	{
-		float PlayRate = Attack->BaseAnimSpeed;
-		Character->PlayAnimMontage(Attack->AttackMontage, PlayRate);
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack montage %s at %.2fx speed (fallback)"),
-			   *Attack->AttackMontage->GetName(), PlayRate);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - %s is not a Character"),
-			   *Attacker->GetName());
-	}
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
+		   *Attack->AttackMontage->GetName(), Attack->BaseAnimSpeed);
 }
 
 // ========================================
@@ -3551,26 +3537,27 @@ void UActionExecutor::OnApproachComplete()
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Approach complete - executing %s"), *Action.GetActionName());
 
-	// Unbind now that we've received the callback
+	// Unbind approach delegate
 	UnbindApproachComplete(Actor);
 
-	// NOW execute the actual action logic
+	// Bind to action animation end BEFORE executing (so we catch the animation)
+	BindActionAnimationEnd(Actor);
+
+	// Execute the action (plays animation)
 	switch (Action.ActionType)
 	{
 	case EActionType::Spell:
 		ExecuteSpellAsync(Actor, Action, CharData);
 		break;
-
 	case EActionType::Ability:
 		ExecuteAbilityAsync(Actor, Action, CharData);
 		break;
-
 	case EActionType::Attack:
 		ExecuteAttackAsync(Actor, Action, CharData);
 		break;
-
 	default:
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in OnApproachComplete"));
+		UnbindActionAnimationEnd(Actor);
 		FinalizeAsyncAction();
 		return;
 	}
@@ -3586,10 +3573,91 @@ void UActionExecutor::OnApproachComplete()
 			false);
 	}
 
-	// Check if any defense windows were opened
-	if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+	// Check if animation was actually played
+	// If not waiting for animation (no montage), finalize now
+	if (!bWaitingForAnimationEnd)
 	{
-		// No defense windows needed - finalize immediately
-		FinalizeAsyncAction();
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No animation to wait for - finalizing immediately"));
+		if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+		{
+			FinalizeAsyncAction();
+		}
 	}
+	// Otherwise, OnActionAnimationEnded will call FinalizeAsyncAction
+}
+
+UCombatAnimInstance *UActionExecutor::GetCombatAnimInstance(AActor *Actor) const
+{
+	ACharacter *Character = Cast<ACharacter>(Actor);
+	if (Character && Character->GetMesh())
+	{
+		return Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance());
+	}
+	return nullptr;
+}
+
+void UActionExecutor::PlayActionMontageOnActor(AActor *Actor, UAnimMontage *Montage, float PlayRate)
+{
+	if (!Actor || !Montage)
+	{
+		return;
+	}
+
+	UCombatAnimInstance *CombatAnim = GetCombatAnimInstance(Actor);
+	if (CombatAnim)
+	{
+		CombatAnim->PlayActionMontage(Montage, PlayRate);
+		return;
+	}
+
+	// Fallback: Direct character montage
+	ACharacter *Character = Cast<ACharacter>(Actor);
+	if (Character)
+	{
+		Character->PlayAnimMontage(Montage, PlayRate);
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing montage %s via fallback"), *Montage->GetName());
+	}
+}
+
+void UActionExecutor::BindActionAnimationEnd(AActor *Actor)
+{
+	UCombatAnimInstance *CombatAnim = GetCombatAnimInstance(Actor);
+	if (CombatAnim)
+	{
+		CombatAnim->OnActionMontageEnded.AddDynamic(this, &UActionExecutor::OnActionAnimationEnded);
+		bWaitingForAnimationEnd = true;
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Bound to OnActionMontageEnded for %s"), *Actor->GetName());
+	}
+}
+
+void UActionExecutor::UnbindActionAnimationEnd(AActor *Actor)
+{
+	UCombatAnimInstance *CombatAnim = GetCombatAnimInstance(Actor);
+	if (CombatAnim)
+	{
+		CombatAnim->OnActionMontageEnded.RemoveDynamic(this, &UActionExecutor::OnActionAnimationEnded);
+	}
+	bWaitingForAnimationEnd = false;
+}
+
+void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted)
+{
+	if (!bWaitingForAnimationEnd)
+	{
+		return;
+	}
+
+	AActor *Actor = PendingExecutionActor;
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended%s - finalizing"),
+		   bInterrupted ? TEXT(" (interrupted)") : TEXT(""));
+
+	// Unbind
+	if (Actor)
+	{
+		UnbindActionAnimationEnd(Actor);
+	}
+
+	// NOW finalize and trigger return
+	FinalizeAsyncAction();
 }

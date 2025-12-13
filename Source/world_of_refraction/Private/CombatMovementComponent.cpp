@@ -142,24 +142,39 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
     // Start movement (Direct or Dash)
     MovementState = ECombatMovementState::Approaching;
 
-    // Debug: Log what animation we're trying to play
+    // CRITICAL: Enable tick so movement actually happens
+    SetComponentTickEnabled(true);
+
+    // Get approach montage
     UAnimMontage *ApproachMontage = nullptr;
     if (Approach && Approach->ApproachMontage)
     {
         ApproachMontage = Approach->ApproachMontage;
-        UE_LOG(LogTemp, Warning, TEXT("[CombatMovement] Using ApproachData montage: %s"),
-               *ApproachMontage->GetName());
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Using ApproachData montage: %s"),
+               *GetOwner()->GetName(), *ApproachMontage->GetName());
     }
     else if (DefaultApproachMontage)
     {
         ApproachMontage = DefaultApproachMontage;
-        UE_LOG(LogTemp, Warning, TEXT("[CombatMovement] Using Default montage: %s"),
-               *ApproachMontage->GetName());
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Using Default montage: %s"),
+               *GetOwner()->GetName(), *ApproachMontage->GetName());
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("[CombatMovement] NO APPROACH MONTAGE AVAILABLE!"));
+        UE_LOG(LogTemp, Warning, TEXT("[CombatMovement] %s: No approach montage available"),
+               *GetOwner()->GetName());
     }
+
+    // Play approach animation
+    if (ApproachMontage)
+    {
+        PlayMovementMontage(ApproachMontage);
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Started approach to %s (%.1f units away)"),
+           *GetOwner()->GetName(),
+           CurrentTarget ? *CurrentTarget->GetName() : TEXT("position"),
+           FVector::Dist(GetOwner()->GetActorLocation(), TargetPosition));
 
     if (ApproachMontage)
     {
@@ -283,13 +298,24 @@ void UCombatMovementComponent::PlayMovementMontage(UAnimMontage *Montage)
     ACharacter *Character = Cast<ACharacter>(Owner);
     if (Character)
     {
-        Character->PlayAnimMontage(Montage, 1.0f);
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Playing montage: %s"), *Montage->GetName());
+        // Stop any current movement montage
+        StopMovementMontage();
+
+        CurrentMovementMontage = Montage;
+        float Duration = Character->PlayAnimMontage(Montage, 1.0f);
+
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Playing movement montage %s (%.2fs)"),
+               *Owner->GetName(), *Montage->GetName(), Duration);
     }
 }
 
 void UCombatMovementComponent::StopMovementMontage()
 {
+    if (!CurrentMovementMontage)
+    {
+        return;
+    }
+
     AActor *Owner = GetOwner();
     if (!Owner)
     {
@@ -299,8 +325,12 @@ void UCombatMovementComponent::StopMovementMontage()
     ACharacter *Character = Cast<ACharacter>(Owner);
     if (Character)
     {
-        Character->StopAnimMontage();
+        Character->StopAnimMontage(CurrentMovementMontage);
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Stopped movement montage"),
+               *Owner->GetName());
     }
+
+    CurrentMovementMontage = nullptr;
 }
 
 void UCombatMovementComponent::FaceCurrentTarget()

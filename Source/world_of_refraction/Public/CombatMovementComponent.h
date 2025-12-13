@@ -155,6 +155,10 @@ private:
     UPROPERTY()
     AActor *CurrentTarget = nullptr;
 
+    /** Currently playing movement montage */
+    UPROPERTY()
+    UAnimMontage *CurrentMovementMontage = nullptr;
+
     /** Get return animation to play */
     UAnimMontage *GetReturnMontage() const;
 

@@ -40,6 +40,7 @@ struct FHybridSpellColorData;
 struct FDefenseResult;
 struct FActionExecutionContext;
 struct FPendingDefenseContext;
+class UCombatAnimInstance;
 
 // ========================================
 // DELEGATES
@@ -387,6 +388,9 @@ private:
 	// INTERNAL HELPERS
 	// ========================================
 
+	UCombatAnimInstance *GetCombatAnimInstance(AActor *Actor) const;
+	void PlayActionMontageOnActor(AActor *Actor, UAnimMontage *Montage, float PlayRate = 1.0f);
+
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 
 	// New validation method
@@ -600,6 +604,22 @@ private:
 	/** Called when approach movement completes - executes the actual action */
 	UFUNCTION()
 	void OnApproachComplete();
+
+private:
+	// ==================== ACTION ANIMATION BINDING ====================
+
+	/** Bind to CombatAnimInstance for action completion */
+	void BindActionAnimationEnd(AActor *Actor);
+
+	/** Unbind from CombatAnimInstance */
+	void UnbindActionAnimationEnd(AActor *Actor);
+
+	/** Called when action animation completes - triggers return movement */
+	UFUNCTION()
+	void OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted);
+
+	/** Track whether we're waiting for animation */
+	bool bWaitingForAnimationEnd = false;
 
 	// ========================================
 	// ASYNC EXECUTION - INTERNAL METHODS
