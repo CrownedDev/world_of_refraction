@@ -22,26 +22,6 @@ class UCharacterData;
 class USpellData;
 
 /**
- * Describes what a character loses/gains from evolution
- */
-USTRUCT(BlueprintType)
-struct WORLD_OF_REFRACTION_API FEvolutionCostResult
-{
-    GENERATED_BODY()
-
-    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
-    bool bCanEvolve = true;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
-    FString CostDescription;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
-    FString GainDescription;
-
-    UPROPERTY(BlueprintReadOnly, Category = "Evolution")
-    TArray<FString> Warnings;
-};
-/**
  * Evolution Data Asset - Character transformations
  * Provides stat modifications, passive effects, exclusive spells overrides
  */

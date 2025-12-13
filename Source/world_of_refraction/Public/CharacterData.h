@@ -19,11 +19,31 @@
 
 class UWeaponAttackData;
 class UStanceData;
-
 class UWeaponData;
 class URingData;
 class USpellData;
-class UEvolutionData;
+class UItemData;
+
+/**
+ * Describes what a character loses/gains from evolution
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FEvolutionCostResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+	bool bCanEvolve = true;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+	FString CostDescription;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+	FString GainDescription;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Evolution")
+	TArray<FString> Warnings;
+};
 
 /**
  * Character Data Asset - Contains all character stats, abilities, and visual data
@@ -64,7 +84,8 @@ public:
 	/** Active evolution data (if evolved) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
 			  meta = (EditCondition = "bIsEvolved", EditConditionHides))
-	UEvolutionData *ActiveEvolution = nullptr;
+	UItemData *ActiveEvolution = nullptr;
+
 #if WITH_EDITORONLY_DATA
 	/** Display only - shows element from ActiveEvolution */
 	UPROPERTY(VisibleAnywhere, Category = "Evolution",
@@ -75,7 +96,7 @@ public:
 	// ==================== EVOLUTION HELPERS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
-	bool IsEvolved() const { return bIsEvolved && ActiveEvolution != nullptr; }
+	bool IsEvolved() const;
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
 	ESpellElement GetSecondaryElement() const;
@@ -93,6 +114,20 @@ public:
 	/** Check if character has weapon access (evolved Casters lose weapons) */
 	UFUNCTION(BlueprintPure, Category = "Evolution|Loadout")
 	bool HasWeaponAccess() const;
+
+	// ==================== EVOLUTION COST FUNCTIONS ====================
+
+	/** Check if character can apply this evolution crystal */
+	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
+	bool CanApplyEvolution(UItemData *EvolutionCrystal) const;
+
+	/** Calculate evolution cost for this crystal */
+	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
+	FEvolutionCostResult CalculateEvolutionCost(UItemData *EvolutionCrystal) const;
+
+	/** Get user-friendly cost description */
+	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
+	FString GetEvolutionCostDescription(UItemData *EvolutionCrystal) const;
 
 	// ==================== COMBAT LOADOUT ====================
 

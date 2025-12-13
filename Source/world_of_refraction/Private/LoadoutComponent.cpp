@@ -700,7 +700,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         // Copy evolution spells if caster is evolved
         if (CharacterData->IsEvolved() && CharacterData->ActiveEvolution)
         {
-            for (USpellData *Spell : CharacterData->ActiveEvolution->EquippedSpells)
+            for (USpellData *Spell : CharacterData->ActiveEvolution->GetSpells())
             {
                 if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
                 {

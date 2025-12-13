@@ -7,7 +7,7 @@
 #include "RingData.h"
 #include "SpellData.h"
 #include "EvolutionData.h"
-
+#include "ItemData.h"
 #include "LoadoutConstants.h"
 
 void UCharacterDataDebug::PrintCharacterStats(UCharacterData *Character, float Duration, FLinearColor TextColor)
@@ -105,9 +105,9 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 		{
 			Output += TEXT("  [EVOLVED - Gained Element]\n");
 			Output += FString::Printf(TEXT("  Evolution Element: %s\n"),
-									  *Character->ActiveEvolution->GetElementName());
+									  *Character->ActiveEvolution->GetCrystalName());
 			Output += FString::Printf(TEXT("  Evolution: %s\n"),
-									  *Character->ActiveEvolution->GetDisplayName());
+									  *Character->ActiveEvolution->GetFullItemName());
 
 			// Combat spells from evolution
 			TArray<USpellData *> CombatSpells = Character->GetCombatSpells();
@@ -176,9 +176,9 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 			Output += TEXT("  [EVOLVED - Dual Element Caster]\n");
 			Output += FString::Printf(TEXT("  Primary Element: %s\n"), *ElementName);
 			Output += FString::Printf(TEXT("  Secondary Element: %s\n"),
-									  *Character->ActiveEvolution->GetElementName());
+									  *Character->ActiveEvolution->GetCrystalName());
 			Output += FString::Printf(TEXT("  Evolution: %s\n"),
-									  *Character->ActiveEvolution->GetDisplayName());
+									  *Character->ActiveEvolution->GetFullItemName());
 
 			// Combat spells from evolution
 			TArray<USpellData *> CombatSpells = Character->GetCombatSpells();

@@ -1,20 +1,22 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "CharacterData.h"
-#include "EvolutionData.h"
 #include "RingData.h"
 #include "EvolutionData.h"
 #include "StanceData.h"
 #include "WeaponData.h"
 #include "EWeaponSlotType.h"
 #include "WeaponAttackData.h"
+#include "ItemData.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
 
 ESpellElement UCharacterData::GetSecondaryElement() const
 {
-    return (bIsEvolved && ActiveEvolution) ? ActiveEvolution->Element : ESpellElement::Generic;
+    return (bIsEvolved && ActiveEvolution && ActiveEvolution->GrantsEvolution())
+               ? ActiveEvolution->GetAssociatedElement()
+               : ESpellElement::Generic;
 }
 
 bool UCharacterData::HasSecondaryElement() const
@@ -24,8 +26,16 @@ bool UCharacterData::HasSecondaryElement() const
 
 bool UCharacterData::IsDualElementCaster() const
 {
-    return IsCaster() && bIsEvolved && ActiveEvolution && ActiveEvolution->Element != InnateElement;
+    return IsCaster() && bIsEvolved && ActiveEvolution &&
+           ActiveEvolution->GrantsEvolution() &&
+           ActiveEvolution->GetAssociatedElement() != InnateElement;
 }
+
+bool UCharacterData::IsEvolved() const
+{
+    return bIsEvolved && ActiveEvolution != nullptr && ActiveEvolution->GrantsEvolution();
+}
+
 TArray<USpellData *> UCharacterData::GetCombatSpells() const
 {
     TArray<USpellData *> CombatSpells;
@@ -39,7 +49,7 @@ TArray<USpellData *> UCharacterData::GetCombatSpells() const
     // If evolved, also add evolution spells
     if (IsEvolved() && ActiveEvolution)
     {
-        CombatSpells.Append(ActiveEvolution->GetEquippedSpells());
+        CombatSpells.Append(ActiveEvolution->GetSpells());
     }
 
     return CombatSpells;
@@ -170,6 +180,129 @@ UWeaponData *UCharacterData::GetActiveCharacterWeapon() const
 
     // Caster/Resonator: only primary when armed
     return bUsePrimary ? PrimaryWeapon : nullptr;
+}
+
+// ==================== EVOLUTION COST FUNCTIONS ====================
+
+bool UCharacterData::CanApplyEvolution(UItemData *EvolutionCrystal) const
+{
+    if (!EvolutionCrystal || !EvolutionCrystal->GrantsEvolution())
+    {
+        return false;
+    }
+
+    ESpellElement EvolutionElement = EvolutionCrystal->GetAssociatedElement();
+
+    // Special elements may have restrictions
+    if (EvolutionElement == ESpellElement::BrokenDarkness || EvolutionElement == ESpellElement::Reality)
+    {
+        return false;
+    }
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+        return true;
+
+    case ECharacterClass::Caster:
+        return true;
+
+    case ECharacterClass::Resonator:
+        // Resonator must have at least one ring of the evolution element
+        for (URingData *Ring : EquippedRings)
+        {
+            if (Ring && Ring->Element == EvolutionElement)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    return false;
+}
+
+FEvolutionCostResult UCharacterData::CalculateEvolutionCost(UItemData *EvolutionCrystal) const
+{
+    FEvolutionCostResult Result;
+    Result.bCanEvolve = CanApplyEvolution(EvolutionCrystal);
+
+    if (!EvolutionCrystal || !EvolutionCrystal->GrantsEvolution())
+    {
+        Result.bCanEvolve = false;
+        Result.CostDescription = TEXT("Invalid evolution crystal");
+        return Result;
+    }
+
+    ESpellElement EvolutionElement = EvolutionCrystal->GetAssociatedElement();
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+        Result.CostDescription = TEXT("Lose secondary weapon slot");
+        Result.GainDescription = TEXT("Gain evolution abilities and spells");
+        if (SecondaryWeapon)
+        {
+            Result.Warnings.Add(FString::Printf(
+                TEXT("Will lose access to %s"), *SecondaryWeapon->WeaponName));
+        }
+        break;
+
+    case ECharacterClass::Caster:
+        if (EvolutionElement == InnateElement)
+        {
+            Result.CostDescription = TEXT("No cost (same element)");
+            Result.GainDescription = TEXT("Gain evolution abilities");
+        }
+        else
+        {
+            Result.CostDescription = TEXT("Lose weapon slot");
+            Result.GainDescription = FString::Printf(
+                TEXT("Gain %s as second element, can switch between elements"),
+                *EvolutionCrystal->GetCrystalName());
+            if (PrimaryWeapon)
+            {
+                Result.Warnings.Add(FString::Printf(
+                    TEXT("Will lose access to %s"), *PrimaryWeapon->WeaponName));
+            }
+        }
+        break;
+
+    case ECharacterClass::Resonator:
+        Result.CostDescription = FString::Printf(
+            TEXT("Locked to %s element only"), *EvolutionCrystal->GetCrystalName());
+        Result.GainDescription = TEXT("Gain innate spells (no ring required), can equip 2nd weapon OR 2nd ring");
+        Result.Warnings.Add(TEXT("Will lose access to other elements"));
+        Result.Warnings.Add(TEXT("Multi-element builds no longer possible"));
+        break;
+    }
+
+    return Result;
+}
+
+FString UCharacterData::GetEvolutionCostDescription(UItemData *EvolutionCrystal) const
+{
+    if (!EvolutionCrystal || !EvolutionCrystal->GrantsEvolution())
+    {
+        return TEXT("Invalid evolution crystal");
+    }
+
+    ESpellElement EvolutionElement = EvolutionCrystal->GetAssociatedElement();
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+        return TEXT("Loses secondary weapon, gains abilities + spells");
+
+    case ECharacterClass::Caster:
+        return TEXT("Same element: No cost. Different element: Loses weapon, gains dual-element");
+
+    case ECharacterClass::Resonator:
+        return FString::Printf(TEXT("Locked to %s, gains innate spells"), *EvolutionCrystal->GetCrystalName());
+
+    default:
+        return TEXT("Unknown");
+    }
 }
 
 // ==================== EDITOR VALIDATION ====================
