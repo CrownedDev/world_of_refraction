@@ -8,15 +8,12 @@
 
 TArray<USpellData *> URingData::GetAvailableSpells() const
 {
-    // If evolved, use evolution's equipped spells
-    if (IsEvolved() && SlottedCrystal && SlottedCrystal->GrantsEvolution())
+    if (SlottedCrystal && SlottedCrystal->CanHaveSpells())
     {
         return SlottedCrystal->GetSpells();
     }
-
-    // Otherwise use ring's spell array
-    return Spells;
-} // <-- Make sure this closing brace exists!
+    return TArray<USpellData *>();
+}
 
 bool URingData::IsEvolved() const
 {
@@ -79,10 +76,9 @@ ESpellElement URingData::GetRingElement() const
     {
         return SlottedCrystal->GetAssociatedElement();
     }
-    return Element;
+    return ESpellElement::Generic;
 }
 
-;
 #if WITH_EDITOR
 EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) const
 {
@@ -95,82 +91,29 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         Result = EDataValidationResult::Invalid;
     }
 
-    // Element validation
-    if (Element == ESpellElement::Generic)
-    {
-        Context.AddError(FText::FromString(TEXT("Ring cannot have Generic element")));
-        Result = EDataValidationResult::Invalid;
-    }
-    if (Element == ESpellElement::BrokenDarkness)
-    {
-        Context.AddError(FText::FromString(TEXT("Ring cannot have BrokenDarkness element")));
-        Result = EDataValidationResult::Invalid;
-    }
-
     // Crystal validation
-    if (SlottedCrystal)
+    if (!SlottedCrystal)
+    {
+        Context.AddWarning(FText::FromString(TEXT("Ring has no crystal - cannot be used in combat")));
+    }
+    else
     {
         if (!SlottedCrystal->bIsRefined)
         {
             Context.AddWarning(FText::FromString(TEXT("Slotted crystal is not refined")));
         }
 
-        ESpellElement CrystalElement = SlottedCrystal->GetAssociatedElement();
-        if (CrystalElement != Element && CrystalElement != ESpellElement::Generic)
-        {
-            Context.AddWarning(FText::FromString(
-                TEXT("Crystal element differs from ring element - GetRingElement() will use crystal")));
-        }
-    }
-
-    // Evolved ring validation
-    if (IsEvolved())
-    {
-        if (!SlottedCrystal->GrantsEvolution())
+        // Evolved ring validation
+        if (IsEvolved() && !SlottedCrystal->GrantsEvolution())
         {
             Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
             Result = EDataValidationResult::Invalid;
         }
 
-        // Spells array should be empty for evolved rings (uses evolution spells)
-        if (Spells.Num() > 0)
+        // Spell check
+        if (SlottedCrystal->bIsRefined && SlottedCrystal->GetSpells().Num() == 0)
         {
-            Context.AddWarning(FText::FromString(
-                TEXT("Ring has spells but is evolved - ring spells will be ignored, using evolution spells")));
-        }
-    }
-    else
-    {
-        // Non-evolved ring spell validation
-        if (Spells.Num() > MaxSpellSlots)
-        {
-            Context.AddError(FText::FromString(FString::Printf(
-                TEXT("Too many spells (%d) for spell slots (%d)"), Spells.Num(), MaxSpellSlots)));
-            Result = EDataValidationResult::Invalid;
-        }
-
-        if (Spells.Num() == 0)
-        {
-            Context.AddWarning(FText::FromString(TEXT("Ring has no spells")));
-        }
-
-        // Spell element validation - must match ring element
-        ESpellElement RingElement = GetRingElement();
-        for (int32 i = 0; i < Spells.Num(); ++i)
-        {
-            if (Spells[i])
-            {
-                ESpellElement SpellElement = Spells[i]->Element;
-                if (SpellElement != RingElement && SpellElement != ESpellElement::Generic)
-                {
-                    Context.AddError(FText::FromString(FString::Printf(
-                        TEXT("Spell '%s' element (%s) doesn't match ring element (%s)"),
-                        *Spells[i]->SpellName,
-                        *Spells[i]->GetElementName(),
-                        *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(RingElement)))));
-                    Result = EDataValidationResult::Invalid;
-                }
-            }
+            Context.AddWarning(FText::FromString(TEXT("Slotted crystal has no spells")));
         }
     }
 

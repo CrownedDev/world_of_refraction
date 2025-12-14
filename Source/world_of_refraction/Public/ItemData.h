@@ -137,7 +137,7 @@ public:
 
         /** Spells available on this crystal (max 6) - only for Refined/Evolution */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
-                  meta = (EditCondition = "Category != ECrystalCategory::Item", EditConditionHides))
+                  meta = (EditCondition = "bIsRefined || Category == ECrystalCategory::Evolution", EditConditionHides))
         TArray<USpellData *> Spells;
 
         /** Number of locked spells (0-6) - first N spells are unchangeable (Evolution only) */

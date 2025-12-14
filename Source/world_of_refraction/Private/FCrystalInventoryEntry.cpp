@@ -92,14 +92,26 @@ TArray<USpellData *> FCrystalInventoryEntry::GetAllSpells() const
         return Result;
     }
 
-    // Add locked spells first (Evolution only)
+    // Evolution: locked spells first
     if (GrantsEvolution())
     {
         TArray<USpellData *> Locked = GetLockedSpells();
         Result.Append(Locked);
     }
+    // Refined: use asset spells as defaults
+    else if (IsRefined())
+    {
+        const TArray<USpellData *> &AssetSpells = Crystal->GetSpells();
+        for (USpellData *Spell : AssetSpells)
+        {
+            if (Spell && Result.Num() < CrystalSpellConstants::MAX_SPELL_SLOTS)
+            {
+                Result.Add(Spell);
+            }
+        }
+    }
 
-    // Add custom spells
+    // Add custom spells (player-assigned, fills remaining slots)
     for (USpellData *Spell : CustomSpells)
     {
         if (Spell && Result.Num() < CrystalSpellConstants::MAX_SPELL_SLOTS)

@@ -44,28 +44,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	FString RingName = TEXT("Unnamed Ring");
 
-	/** Ring's element - determines spell element and cannot be Generic or BrokenDarkness */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	ESpellElement Element = ESpellElement::Fire;
-
 	/** Ring tier - affects break chance when casting higher-tier spells */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	EItemTier Tier = EItemTier::E_Tier;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Ring description...");
-
-	// ==================== SPELLS ====================
-
-	/** Ring spells - hidden when EvolutionCrystal is slotted (uses evolution spells instead) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
-			  meta = (EditCondition = "!IsEvolved()", EditConditionHides))
-	TArray<USpellData *> Spells;
-
-	/** Maximum spell slots - hidden when evolved (always 6 for evolution) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
-			  meta = (ClampMin = "1", ClampMax = "12", EditCondition = "!IsEvolved()", EditConditionHides))
-	int32 MaxSpellSlots = 6;
 
 	// ==================== CRYSTAL SLOT ====================
 
@@ -171,7 +155,7 @@ public:
 	static int32 GetEvolutionMaxSpells() { return 6; }
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	int32 GetMaxSpells() const { return IsEvolved() ? GetEvolutionMaxSpells() : MaxSpellSlots; }
+	int32 GetMaxSpells() const { return 6; }
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif

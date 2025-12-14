@@ -212,7 +212,7 @@ bool UCharacterData::CanApplyEvolution(UItemData *EvolutionCrystal) const
         // Resonator must have at least one ring of the evolution element
         for (URingData *Ring : EquippedRings)
         {
-            if (Ring && Ring->Element == EvolutionElement)
+            if (Ring && Ring->GetRingElement() == EvolutionElement)
             {
                 return true;
             }

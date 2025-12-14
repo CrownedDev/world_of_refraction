@@ -238,7 +238,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 			URingData *Ring = Character->EquippedRings[i];
 			if (Ring)
 			{
-				FString RingElement = UEnum::GetValueAsString(Ring->Element);
+				FString RingElement = UEnum::GetValueAsString(Ring->GetRingElement());
 				RingElement.RemoveFromStart(TEXT("ESpellElement::"));
 
 				Output += FString::Printf(TEXT("    [%d] %s (%s) - %d spells\n"),

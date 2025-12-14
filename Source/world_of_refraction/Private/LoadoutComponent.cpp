@@ -736,7 +736,12 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
                     if (RingEntry.Ring == RingData)
                     {
                         DefaultLoadout.RingLoadout[RingIndex].RingEntry = RingEntry;
-                        RingIndex++;
+                        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Ring[%d]: %s, HasCrystal: %s, IsEvolved: %s, SpellCount: %d"),
+                               RingIndex - 1,
+                               *RingEntry.Ring->RingName,
+                               RingEntry.HasCrystal() ? TEXT("YES") : TEXT("NO"),
+                               RingEntry.IsEvolved() ? TEXT("YES") : TEXT("NO"),
+                               RingEntry.GetSpellCount());
                         break;
                     }
                 }

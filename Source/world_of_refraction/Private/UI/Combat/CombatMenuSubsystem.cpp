@@ -442,7 +442,7 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateButton(UCharacterData *Ch
 			bSourceIsRing = true;
 			bHasBreakChance = !CharacterData->PrimaryRing->IsEvolved();
 			SpellCount = CharacterData->PrimaryRing->GetAvailableSpells().Num();
-			TintColor = GetElementColor(static_cast<int32>(CharacterData->PrimaryRing->Element));
+			TintColor = GetElementColor(static_cast<int32>(CharacterData->PrimaryRing->GetRingElement()));
 		}
 		else if (CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
 				 CharacterData->PrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved())
@@ -626,7 +626,7 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateRingButton(UCharacterData
 			Button.Description = FText::FromString(FString::Printf(TEXT("%s spells (break chance)"), *Ring->RingName));
 		}
 		Button.bEnabled = true;
-		Button.ButtonTint = GetElementColor(static_cast<int32>(Ring->Element));
+		Button.ButtonTint = GetElementColor(static_cast<int32>(Ring->GetRingElement()));
 	}
 	else
 	{
@@ -783,7 +783,7 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetRingsButtons(UCharacterData 
 			nullptr); // TODO: Add Icon property to RingData
 
 		Button.Description = FText::FromString(Ring->Description);
-		Button.ButtonTint = GetElementColor(static_cast<int32>(Ring->Element));
+		Button.ButtonTint = GetElementColor(static_cast<int32>(Ring->GetRingElement()));
 		Button.bEnabled = true;
 
 		// TODO: Mark currently active ring
@@ -887,7 +887,7 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 			Button.Category = EPieMenuCategory::InfusionSource;
 			Button.DataIndex = static_cast<int32>(EInfusionSourceOption::ActiveRing);
 			Button.bEnabled = true;
-			Button.ButtonTint = GetElementColor(static_cast<int32>(ActiveRing->Element));
+			Button.ButtonTint = GetElementColor(static_cast<int32>(ActiveRing->GetRingElement()));
 			Buttons.Add(Button);
 		}
 	}
@@ -905,7 +905,7 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 			Button.Category = EPieMenuCategory::InfusionSource;
 			Button.DataIndex = static_cast<int32>(EInfusionSourceOption::SecondaryRing);
 			Button.bEnabled = true;
-			Button.ButtonTint = GetElementColor(static_cast<int32>(SecRing->Element));
+			Button.ButtonTint = GetElementColor(static_cast<int32>(SecRing->GetRingElement()));
 			Buttons.Add(Button);
 		}
 	}

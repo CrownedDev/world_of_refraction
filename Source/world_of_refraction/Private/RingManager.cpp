@@ -76,7 +76,7 @@ URingData *URingManager::GetActiveRing(AActor *Actor) const
 ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 {
 	URingData *Ring = GetActiveRing(Actor);
-	return Ring ? Ring->Element : ESpellElement::Generic;
+	return Ring ? Ring->GetRingElement() : ESpellElement::Generic;
 }
 
 TArray<URingData *> URingManager::GetEquippedRings(AActor *Actor) const

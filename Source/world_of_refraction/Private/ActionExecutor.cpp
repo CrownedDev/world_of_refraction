@@ -2723,7 +2723,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	{
 		if (Data->IsGeneric() && Data->SecondaryRing)
 		{
-			return Data->SecondaryRing->Element;
+			return Data->SecondaryRing->GetRingElement();
 		}
 		return ESpellElement::Generic;
 	}
