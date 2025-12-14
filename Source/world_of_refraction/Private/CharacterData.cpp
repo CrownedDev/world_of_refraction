@@ -8,6 +8,7 @@
 #include "EWeaponSlotType.h"
 #include "WeaponAttackData.h"
 #include "ItemData.h"
+#include "StatConstants.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
@@ -317,7 +318,7 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
     {
         Context.AddError(FText::FromString(FString::Printf(
             TEXT("Initial sub-stat distribution (%d) doesn't match budget (%d)"),
-            GetInitialSubStatSum(), InitialStatBudget)));
+            GetInitialSubStatSum(), StatConstants::INITIAL_STAT_BUDGET)));
         Result = EDataValidationResult::Invalid;
     }
 

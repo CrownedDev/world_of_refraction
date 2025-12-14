@@ -195,14 +195,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
 	UInfusionDisplayData *InfusionDisplay = nullptr;
 
-	// ==================== STAT BUDGET ====================
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", meta = (ClampMin = "20", ClampMax = "40"))
-	int32 InitialStatBudget = CombatConstants::STAT_BUDGET_STANDARD;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-	int32 PointsPerWorldStatLevel = CombatConstants::POINTS_PER_WORLD_STAT_LEVEL;
-
 	// ==================== WORLD STAT LEVELS ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses",
@@ -219,7 +211,7 @@ public:
 
 	// ==================== INITIAL SUB-STATS (CHARACTER DNA) ====================
 	// 11 Stats: Mind(4), Body(3), Spirit(4)
-	// Total must equal InitialStatBudget (default 30)
+	// Total must equal StatConstants::INITIAL_STAT_BUDGET (30)
 
 	// ----- MIND (4 stats) -----
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|Initial", meta = (ClampMin = "0"))
@@ -259,7 +251,7 @@ public:
 
 	// ==================== WORLD SUB-STATS (PROGRESSION BONUSES) ====================
 	// Points generated from World Stat Levels (3 points per level)
-	// Must match: (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * PointsPerWorldStatLevel
+	// Must match: (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * StatConstants::POINTS_PER_WORLD_STAT_LEVEL
 
 	// ----- MIND (4 stats) -----
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind|World", meta = (ClampMin = "0"))
@@ -347,13 +339,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
 	bool IsValidInitialDistribution() const
 	{
-		return GetInitialSubStatSum() == InitialStatBudget;
+		return GetInitialSubStatSum() == StatConstants::INITIAL_STAT_BUDGET;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")
 	int32 GetExpectedWorldPoints() const
 	{
-		return (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * PointsPerWorldStatLevel;
+		return (WorldMindLevel + WorldBodyLevel + WorldSpiritLevel) * StatConstants::POINTS_PER_WORLD_STAT_LEVEL;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Validation")

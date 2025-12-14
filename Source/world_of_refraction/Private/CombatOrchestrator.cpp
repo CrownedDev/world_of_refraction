@@ -340,6 +340,12 @@ void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result
 
 void ACombatOrchestrator::OnActionCompleted()
 {
+	if (bWaitingForAsyncAction)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] OnActionCompleted ignored - waiting for async action"));
+		return;
+	}
+
 	if (CombatState != ECombatState::InProgress)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] OnActionCompleted called but combat not in progress"));
@@ -820,6 +826,7 @@ void ACombatOrchestrator::DebugExecuteTestAction()
 
 void ACombatOrchestrator::DebugTestAttackMovement()
 {
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{

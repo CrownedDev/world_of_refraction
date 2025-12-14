@@ -11,9 +11,7 @@ namespace CombatConstants
 {
     // ==================== WORLD STAT BONUSES ====================
 
-    constexpr int32 WORLD_STAT_MAX_LEVEL = 7;         // Max level per stat
     constexpr float WORLD_STAT_SCALING_BONUS = 0.03f; // 3% per level
-    constexpr int32 POINTS_PER_WORLD_STAT_LEVEL = 3;  // Sub-stat points generated
 
     // ==================== STAT SCALING ====================
     // 11 Stats: Mind(4), Body(3), Spirit(4)
@@ -80,12 +78,6 @@ namespace CombatConstants
 
     constexpr float TURN_SPEED_THRESHOLD_DOUBLE = 15.0f; // Need +15 for 2:1 ratio
     constexpr int32 MAX_TURN_RATIO = 2;                  // Capped at 2:1
-
-    // ==================== STAT BUDGET ====================
-
-    constexpr int32 STAT_BUDGET_MIN = 20;      // Minimum distributable points
-    constexpr int32 STAT_BUDGET_STANDARD = 30; // Standard character
-    constexpr int32 STAT_BUDGET_MAX = 40;      // Maximum distributable points
 
     // ==================== ABILITY SYSTEM ====================
 

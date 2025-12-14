@@ -83,7 +83,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 
 	// Initial Budget Validation
 	Output += TEXT("INITIAL DISTRIBUTION:\n");
-	Output += FString::Printf(TEXT("  Budget: %d\n"), Character->InitialStatBudget);
+	Output += FString::Printf(TEXT("  Budget: %d\n"), StatConstants::INITIAL_STAT_BUDGET);
 	Output += FString::Printf(TEXT("  Used:   %d %s\n\n"),
 							  Character->GetInitialSubStatSum(),
 							  Character->IsValidInitialDistribution() ? TEXT("[OK]") : TEXT("[X] INVALID"));

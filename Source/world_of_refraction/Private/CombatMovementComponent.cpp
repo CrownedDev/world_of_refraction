@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
 #include "CombatAnimInstance.h"
+#include "StatConstants.h"
 
 UCombatMovementComponent::UCombatMovementComponent()
 {
@@ -367,19 +368,24 @@ void UCombatMovementComponent::FaceCurrentTarget()
     }
 }
 
+#include "StatConstants.h"
+
 float UCombatMovementComponent::CalculateMovementSpeed() const
 {
-    float StatMultiplier = 1.0f;
+    float StatMultiplier = StatConstants::MOVEMENT_SPEED_MIN_MULTIPLIER;
 
-    // Get movement speed from character stats
     if (CharacterDataComp && CharacterDataComp->CharacterData)
     {
-        StatMultiplier = CharacterDataComp->CharacterData->CalculateMovementSpeed() / 100.0f;
-        // CalculateMovementSpeed returns a value like 100-200, normalize it
-        StatMultiplier = FMath::Max(StatMultiplier, 0.5f);
+        int32 MovementPoints = CharacterDataComp->CharacterData->GetTotalMovementSpeed();
+        float PointRatio = FMath::Clamp(
+            (float)MovementPoints / (float)StatConstants::MAX_SUBSTAT_POINTS_PER_PILLAR,
+            0.0f,
+            1.0f);
+
+        StatMultiplier = StatConstants::MOVEMENT_SPEED_MIN_MULTIPLIER +
+                         (PointRatio * (StatConstants::MOVEMENT_SPEED_MAX_MULTIPLIER - StatConstants::MOVEMENT_SPEED_MIN_MULTIPLIER));
     }
 
-    // Get multiplier from approach data
     float ApproachMultiplier = 1.0f;
     if (CurrentApproachData)
     {
