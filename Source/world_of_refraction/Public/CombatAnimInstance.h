@@ -42,16 +42,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ResumeStanceMontage();
 
-    // ==================== ATTACK MONTAGE ====================
-
-    /** Play an attack montage, auto-resumes stance when done */
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void PlayAttackMontage(UAnimMontage *AttackMontage);
-
-    /** Check if currently playing an attack */
-    UFUNCTION(BlueprintPure, Category = "Combat")
-    bool IsPlayingAttack() const { return bIsPlayingAttack; }
-
     // ==================== ACTION MONTAGE (Unified) ====================
 
     /** Play any action montage (attack, ability, spell), auto-resumes stance when done */
@@ -68,11 +58,21 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Combat")
     FOnActionMontageEnded OnActionMontageEnded;
 
-    // ==================== DEBUG ====================
+    // ==================== MOVEMENT MONTAGE ====================
 
-    /** Debug: Play attack from current weapon */
-    UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
-    void DebugPlayCurrentAttack();
+    /** Play a movement montage (approach/return), blocks stance updates */
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void PlayMovementMontage(UAnimMontage *MovementMontage);
+
+    /** Stop current movement montage */
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void StopMovementMontage();
+
+    /** Check if playing movement */
+    UFUNCTION(BlueprintPure, Category = "Combat")
+    bool IsPlayingMovement() const { return bIsPlayingMovement; }
+
+    // ==================== DEBUG ====================
 
 protected:
     virtual void NativeInitializeAnimation() override;
@@ -91,17 +91,6 @@ private:
     UPROPERTY()
     UStanceData *LastAppliedStance = nullptr;
 
-    /** Called when attack montage ends */
-    UFUNCTION()
-    void OnAttackMontageEnded(UAnimMontage *Montage, bool bInterrupted);
-
-    /** Currently playing an attack (blocks stance updates) */
-    bool bIsPlayingAttack = false;
-
-    /** The attack montage currently playing */
-    UPROPERTY()
-    UAnimMontage *CurrentAttackMontage = nullptr;
-
     // ==================== ACTION MONTAGE (Unified) ====================
 
     /** Called when any action montage ends */
@@ -109,5 +98,12 @@ private:
     void OnActionMontageEndedInternal(UAnimMontage *Montage, bool bInterrupted);
 
     bool bIsPlayingAction = false;
+
+    UPROPERTY()
     UAnimMontage *CurrentActionMontage = nullptr;
+
+    bool bIsPlayingMovement = false;
+
+    UPROPERTY()
+    UAnimMontage *CurrentMovementMontage = nullptr;
 };

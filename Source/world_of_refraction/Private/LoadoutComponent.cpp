@@ -602,9 +602,17 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         }
     }
 
-    UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] PrimaryEntry found: %s, IsEvolved: %s"),
-           PrimaryEntry->Weapon ? TEXT("Yes") : TEXT("No"),
-           PrimaryEntry->IsEvolved() ? TEXT("Yes") : TEXT("No"));
+    if (PrimaryEntry)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutInit] PrimaryEntry: %s, IsEvolved: %s"),
+               PrimaryEntry->Weapon ? *PrimaryEntry->Weapon->GetName() : TEXT("None"),
+               PrimaryEntry->IsEvolved() ? TEXT("Yes") : TEXT("No"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("[LoadoutInit] No PrimaryWeapon (expected for %s class)"),
+               *UEnum::GetValueAsString(CharacterClass));
+    }
 
     // Configure primary weapon loadout
     if (PrimaryEntry)

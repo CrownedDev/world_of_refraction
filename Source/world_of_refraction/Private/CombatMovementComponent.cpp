@@ -7,6 +7,7 @@
 #include "CharacterData.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/Character.h"
+#include "CombatAnimInstance.h"
 
 UCombatMovementComponent::UCombatMovementComponent()
 {
@@ -34,6 +35,8 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     case ECombatMovementState::Approaching:
     {
         float Speed = CalculateMovementSpeed();
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Tick - Speed: %.1f, Distance: %.1f"),
+               Speed, FVector::Dist(GetOwner()->GetActorLocation(), TargetPosition));
         if (MoveToward(TargetPosition, Speed, DeltaTime))
         {
             CompleteApproach();
@@ -176,11 +179,6 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
            CurrentTarget ? *CurrentTarget->GetName() : TEXT("position"),
            FVector::Dist(GetOwner()->GetActorLocation(), TargetPosition));
 
-    if (ApproachMontage)
-    {
-        PlayMovementMontage(ApproachMontage);
-    }
-
     SetComponentTickEnabled(true);
 
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Starting %s approach (%.0f units)"),
@@ -284,53 +282,63 @@ void UCombatMovementComponent::OnActionExecutionComplete()
 // ==================== MOVEMENT HELPERS ====================
 void UCombatMovementComponent::PlayMovementMontage(UAnimMontage *Montage)
 {
-    if (!Montage)
+    if (!Montage || !GetOwner())
     {
         return;
     }
 
-    AActor *Owner = GetOwner();
-    if (!Owner)
+    ACharacter *Character = Cast<ACharacter>(GetOwner());
+    if (!Character || !Character->GetMesh())
     {
         return;
     }
 
-    ACharacter *Character = Cast<ACharacter>(Owner);
-    if (Character)
-    {
-        // Stop any current movement montage
-        StopMovementMontage();
+    // Stop any current movement montage first
+    StopMovementMontage();
 
+    UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance());
+    if (CombatAnim)
+    {
+        CombatAnim->PlayMovementMontage(Montage);
         CurrentMovementMontage = Montage;
-        float Duration = Character->PlayAnimMontage(Montage, 1.0f);
-
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Playing movement montage %s (%.2fs)"),
-               *Owner->GetName(), *Montage->GetName(), Duration);
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Playing movement montage %s via CombatAnimInstance"),
+               *GetOwner()->GetName(), *Montage->GetName());
+    }
+    else
+    {
+        // Fallback to direct play
+        CurrentMovementMontage = Montage;
+        Character->PlayAnimMontage(Montage, 1.0f);
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Playing movement montage %s (fallback)"),
+               *GetOwner()->GetName(), *Montage->GetName());
     }
 }
 
 void UCombatMovementComponent::StopMovementMontage()
 {
-    if (!CurrentMovementMontage)
+    if (!GetOwner())
     {
         return;
     }
 
-    AActor *Owner = GetOwner();
-    if (!Owner)
+    ACharacter *Character = Cast<ACharacter>(GetOwner());
+    if (!Character)
     {
         return;
     }
 
-    ACharacter *Character = Cast<ACharacter>(Owner);
-    if (Character)
+    UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance());
+    if (CombatAnim)
+    {
+        CombatAnim->StopMovementMontage();
+    }
+    else if (CurrentMovementMontage)
     {
         Character->StopAnimMontage(CurrentMovementMontage);
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Stopped movement montage"),
-               *Owner->GetName());
     }
 
     CurrentMovementMontage = nullptr;
+    UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Stopped movement montage"), *GetOwner()->GetName());
 }
 
 void UCombatMovementComponent::FaceCurrentTarget()
