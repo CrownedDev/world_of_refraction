@@ -15,6 +15,15 @@ void UCombatAnimInstance::NativeInitializeAnimation()
 {
     Super::NativeInitializeAnimation();
     CacheReferences();
+
+    // Bind to montage notify events
+    OnPlayMontageNotifyBegin.AddDynamic(this, &UCombatAnimInstance::HandleMontageNotify);
+}
+
+void UCombatAnimInstance::HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload)
+{
+    UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
+    OnActionNotify.Broadcast(NotifyName);
 }
 
 void UCombatAnimInstance::NativeUpdateAnimation(float DeltaSeconds)

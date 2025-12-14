@@ -58,6 +58,12 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Combat")
     FOnActionMontageEnded OnActionMontageEnded;
 
+    /** Broadcast when animation notify fires during action montage */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionNotify, FName, NotifyName);
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat")
+    FOnActionNotify OnActionNotify;
+
     // ==================== MOVEMENT MONTAGE ====================
 
     /** Play a movement montage (approach/return), blocks stance updates */
@@ -106,4 +112,8 @@ private:
 
     UPROPERTY()
     UAnimMontage *CurrentMovementMontage = nullptr;
+
+    /** Handle montage notify events */
+    UFUNCTION()
+    void HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload);
 };

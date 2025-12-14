@@ -474,13 +474,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
 	// Calculate damage with charge infusion multiplier
-	// L1 = base damage (status boost instead), L2 = +30% damage
 	int32 BaseDamage = Spell->CalculateDamage(CasterData);
 	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Track status multiplier for later application
-	// L1 = +50% status, L2 = base status
 	float StatusMultiplier = GetSpellChargeStatusMultiplier(Action.SpellInfusionLevel);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
@@ -496,7 +494,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = true;
 
-	// Get valid targets FIRST
+	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
 
 	if (ValidTargets.Num() == 0)
@@ -507,17 +505,21 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		return;
 	}
 
-	// Play animation and VFX (now we have targets)
-	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
-	SpawnSpellVFX(Caster, Spell, FinalSpellSize, ValidTargets);
+	// Cache spell data for notify-triggered VFX
+	PendingSpellCaster = Caster;
+	PendingSpellData = Spell;
+	PendingSpellTargets = ValidTargets;
+	PendingSpellSize = FinalSpellSize;
+	PendingSpellDamage = FinalDamage;
 
-	if (ValidTargets.Num() == 0)
-	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
-		FinalizeAsyncAction();
-		return;
-	}
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
+	bPendingSpellIsBrokenDarkness = BDManager && BDManager->IsTransformed();
+
+	// Bind to notify for VFX timing
+	BindSpellNotify(Caster);
+
+	// Play animation - VFX spawns on SpellRelease notify (NOT here)
+	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
 
 	// Calculate damage per hit
 	int32 DamagePerHit = BaseDamage / FMath::Max(1, Spell->HitCount);
@@ -3652,12 +3654,91 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended%s - finalizing"),
 		   bInterrupted ? TEXT(" (interrupted)") : TEXT(""));
 
-	// Unbind
+	// Unbind action animation
 	if (Actor)
 	{
 		UnbindActionAnimationEnd(Actor);
 	}
 
+	// Cleanup spell notify binding
+	if (PendingSpellCaster)
+	{
+		UnbindSpellNotify(PendingSpellCaster);
+		ClearPendingSpellData();
+	}
+
 	// NOW finalize and trigger return
 	FinalizeAsyncAction();
+}
+
+void UActionExecutor::BindSpellNotify(AActor *Actor)
+{
+	UCombatAnimInstance *AnimInst = GetCombatAnimInstance(Actor);
+	if (AnimInst)
+	{
+		AnimInst->OnActionNotify.AddDynamic(this, &UActionExecutor::OnSpellAnimNotify);
+	}
+}
+
+void UActionExecutor::UnbindSpellNotify(AActor *Actor)
+{
+	UCombatAnimInstance *AnimInst = GetCombatAnimInstance(Actor);
+	if (AnimInst)
+	{
+		AnimInst->OnActionNotify.RemoveDynamic(this, &UActionExecutor::OnSpellAnimNotify);
+	}
+}
+
+void UActionExecutor::ClearPendingSpellData()
+{
+	PendingSpellCaster = nullptr;
+	PendingSpellData = nullptr;
+	PendingSpellTargets.Empty();
+	PendingSpellSize = 1.0f;
+	PendingSpellDamage = 0;
+	bPendingSpellIsBrokenDarkness = false;
+}
+
+void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
+{
+	if (!PendingSpellCaster || !PendingSpellData)
+	{
+		return;
+	}
+
+	if (NotifyName == FName("SpellCastStart"))
+	{
+		// Spawn muzzle/charging VFX at caster
+		if (PendingSpellData->MuzzleVFX)
+		{
+			FVector SpawnLocation = PendingSpellCaster->GetActorLocation();
+			// TODO: Get hand socket location if available
+
+			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(
+				PendingSpellData->Element, bPendingSpellIsBrokenDarkness);
+
+			UNiagaraComponent *MuzzleComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+				GetWorld(),
+				PendingSpellData->MuzzleVFX,
+				SpawnLocation,
+				PendingSpellCaster->GetActorRotation(),
+				FVector(PendingSpellSize),
+				true, true);
+
+			if (MuzzleComp)
+			{
+				MuzzleComp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
+			}
+
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellCastStart - Muzzle VFX spawned"));
+		}
+	}
+	else if (NotifyName == FName("SpellRelease"))
+	{
+		// Spawn projectile/main spell VFX
+		SpawnSpellVFX(PendingSpellCaster, PendingSpellData, PendingSpellSize,
+					  PendingSpellTargets, PendingSpellDamage);
+
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned"));
+	}
 }

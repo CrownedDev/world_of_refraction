@@ -384,7 +384,36 @@ public:
 	void DebugPrintInfusionInfo(AActor *Actor) const;
 
 private:
-	// ========================================
+	// ==================== SPELL VFX NOTIFY STATE ====================
+
+	/** Cached spell data for notify-triggered VFX */
+	UPROPERTY()
+	AActor *PendingSpellCaster = nullptr;
+
+	UPROPERTY()
+	USpellData *PendingSpellData = nullptr;
+
+	UPROPERTY()
+	TArray<AActor *> PendingSpellTargets;
+
+	float PendingSpellSize = 1.0f;
+	int32 PendingSpellDamage = 0;
+	bool bPendingSpellIsBrokenDarkness = false;
+
+	/** Handle animation notify for spell VFX timing */
+	UFUNCTION()
+	void OnSpellAnimNotify(FName NotifyName);
+
+	/** Bind to CombatAnimInstance notify delegate */
+	void BindSpellNotify(AActor *Actor);
+
+	/** Unbind from notify delegate */
+	void UnbindSpellNotify(AActor *Actor);
+
+	/** Clear cached spell data */
+	void ClearPendingSpellData();
+
+		// ========================================
 	// INTERNAL HELPERS
 	// ========================================
 
