@@ -591,7 +591,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		case EAbilityEffectType::RawDamageBuff:
 		case EAbilityEffectType::MaxEnergyBuff:
 		case EAbilityEffectType::ResistanceBuff:
-		case EAbilityEffectType::AbilitySizeBuff:
+		case EAbilityEffectType::SpellSizeBuff:
 		case EAbilityEffectType::DamageBuff:
 		case EAbilityEffectType::SpeedBuff:
 		case EAbilityEffectType::HealthRestore:
@@ -618,7 +618,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		case EAbilityEffectType::RawDamageDebuff:
 		case EAbilityEffectType::MaxEnergyDebuff:
 		case EAbilityEffectType::ResistanceDebuff:
-		case EAbilityEffectType::AbilitySizeDebuff:
+		case EAbilityEffectType::SpellSizeDebuff:
 		case EAbilityEffectType::DamageDebuff:
 		case EAbilityEffectType::SpeedDebuff:
 		case EAbilityEffectType::EnergyDrain:

@@ -587,7 +587,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty for element
 	}
 
-	// Ability size (fixed, no character scaling)
+	// Spell Size (fixed, no character scaling)
 	float AttackSize = 1.0f;
 
 	// Store in result

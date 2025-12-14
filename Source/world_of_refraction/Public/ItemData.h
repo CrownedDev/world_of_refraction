@@ -131,7 +131,7 @@ public:
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float AbilitySizeModifierPercent = 0.0f;
+        float SpellSizeModifierPercent = 0.0f;
 
         // ==================== SPELLS (Refined/Evolution only) ====================
 
@@ -160,7 +160,7 @@ public:
                           EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
         float BodyModifierPercent = 0.0f;
 
-        /** Spirit stat modifier percentage (affects Effect Damage, Resistance, Ability Size) */
+        /** Spirit stat modifier percentage (affects Effect Damage, Resistance, Spell Size) */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
@@ -398,9 +398,9 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
         float GetResistanceModifier() const;
 
-        /** Get ability size modifier (uses Spirit in Pillar mode) */
+        /** Get Spell Size modifier (uses Spirit in Pillar mode) */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetAbilitySizeModifier() const;
+        float GetSpellSizeModifier() const;
 
         // ==================== EXISTING UTILITY FUNCTIONS ====================
 

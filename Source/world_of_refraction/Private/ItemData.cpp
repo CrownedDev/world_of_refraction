@@ -765,7 +765,7 @@ FString UItemData::GetEvolutionStatSummary() const
         AddMod(TEXT("Raw Damage"), RawDamageModifierPercent);
         AddMod(TEXT("Effect Damage"), EffectDamageModifierPercent);
         AddMod(TEXT("Resistance"), ResistanceModifierPercent);
-        AddMod(TEXT("Ability Size"), AbilitySizeModifierPercent);
+        AddMod(TEXT("Spell Size"), SpellSizeModifierPercent);
     }
 
     if (Modifiers.Num() == 0)
@@ -863,11 +863,11 @@ float UItemData::GetResistanceModifier() const
     return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : ResistanceModifierPercent;
 }
 
-float UItemData::GetAbilitySizeModifier() const
+float UItemData::GetSpellSizeModifier() const
 {
     if (Category != ECrystalCategory::Evolution)
         return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : AbilitySizeModifierPercent;
+    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : SpellSizeModifierPercent;
 }
 
 // ==================== PASSIVE HELPER FUNCTIONS ====================

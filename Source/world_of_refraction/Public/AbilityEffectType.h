@@ -39,8 +39,8 @@ enum class EAbilityEffectType : uint8
     MaxEnergyDebuff UMETA(DisplayName = "Max Energy Debuff"),
     ResistanceBuff UMETA(DisplayName = "Resistance Buff (Status Effect)"),
     ResistanceDebuff UMETA(DisplayName = "Resistance Debuff (Status Effect)"),
-    AbilitySizeBuff UMETA(DisplayName = "Ability Size Buff"),
-    AbilitySizeDebuff UMETA(DisplayName = "Ability Size Debuff"),
+    SpellSizeBuff UMETA(DisplayName = "Spell Size Buff"),
+    SpellSizeDebuff UMETA(DisplayName = "Spell Size Debuff"),
 
     // Legacy individual buffs/debuffs (kept for compatibility)
     DamageBuff UMETA(DisplayName = "Damage Buff (Generic)"),

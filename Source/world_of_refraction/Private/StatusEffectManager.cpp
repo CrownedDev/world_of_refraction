@@ -929,8 +929,8 @@ void UStatusEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect
 	case EAbilityEffectType::SpellCostDebuff:
 	case EAbilityEffectType::ResistanceBuff:
 	case EAbilityEffectType::ResistanceDebuff:
-	case EAbilityEffectType::AbilitySizeBuff:
-	case EAbilityEffectType::AbilitySizeDebuff:
+	case EAbilityEffectType::SpellSizeBuff:
+	case EAbilityEffectType::SpellSizeDebuff:
 	case EAbilityEffectType::MaxEnergyBuff:
 	case EAbilityEffectType::MaxEnergyDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
