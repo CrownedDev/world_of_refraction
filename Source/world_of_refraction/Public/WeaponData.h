@@ -9,6 +9,7 @@
 #include "EWeaponType.h"
 #include "WorldStatRequirements.h"
 #include "CrystalType.h"
+#include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -149,6 +150,12 @@ public:
     // Idle stance when this weapon is equipped
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UStanceData *WeaponStance = nullptr;
+
+    // ==================== DEFENSE ====================
+
+    /** Weapon-specific parry animation (used when character's bUseWeaponParryAnimation is true) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+    UAnimMontage *ParryMontage = nullptr;
 
     // ==================== INFUSION (GENERIC ONLY) ====================
 

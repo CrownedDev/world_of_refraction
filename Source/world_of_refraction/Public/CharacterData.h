@@ -10,6 +10,7 @@
 #include "EWeaponSlotType.h"
 #include <CombatConstants.h>
 #include "InfusionDisplayData.h"
+#include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -129,6 +130,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
 	FString GetEvolutionCostDescription(UItemData *EvolutionCrystal) const;
 
+	// ==================== CASTER SPELLS ====================
+
+	/** Innate spells (Caster only, hidden when evolved - uses Evolution spells instead) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Spells",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
+	TArray<USpellData *> InnateSpells;
+
+	// ==================== RESONATOR RINGS ====================
+
+	/** Equipped rings (Resonator only - up to 5 slots, max 2 evolved) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Rings",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
+	TArray<URingData *> EquippedRings;
+
 	// ==================== COMBAT LOADOUT ====================
 
 	// Use primary weapon/state at combat start?
@@ -170,30 +185,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
 	URingData *SecondaryRing = nullptr;
-
-	// ==================== CASTER SPELLS ====================
-
-	/** Innate spells (Caster only, hidden when evolved - uses Evolution spells instead) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Spells",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
-	TArray<USpellData *> InnateSpells;
-
-	// ==================== RESONATOR RINGS ====================
-
-	/** Equipped rings (Resonator only - up to 5 slots, max 2 evolved) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Rings",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
-	TArray<URingData *> EquippedRings;
-
-	// ==================== STANCE ====================
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
-	UStanceData *UnarmedStance = nullptr;
-
-	// ==================== INFUSION ====================
-	/** Visual effect when infusion is active */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
-	UInfusionDisplayData *InfusionDisplay = nullptr;
 
 	// ==================== WORLD STAT LEVELS ====================
 
@@ -288,6 +279,38 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|World", meta = (ClampMin = "0"))
 	int32 WorldTurnSpeedPoints = 0;
+
+	// ==================== INFUSION ====================
+	/** Visual effect when infusion is active */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
+	UInfusionDisplayData *InfusionDisplay = nullptr;
+
+	// ==================== STANCE ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
+	UStanceData *UnarmedStance = nullptr;
+
+	// ==================== DEFENSE ANIMATIONS ====================
+
+	/** Animation for dodging left */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+	UAnimMontage *DodgeLeftMontage = nullptr;
+
+	/** Animation for dodging right */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+	UAnimMontage *DodgeRightMontage = nullptr;
+
+	/** Animation for blocking */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+	UAnimMontage *BlockMontage = nullptr;
+
+	/** Default parry animation (used if bUseWeaponParryAnimation is false) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+	UAnimMontage *ParryMontage = nullptr;
+
+	/** If true, use equipped weapon's parry animation instead of character's */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Options")
+	bool bUseWeaponParryAnimation = false;
 
 	// ==================== CLASS HELPERS ====================
 

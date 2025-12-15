@@ -7,6 +7,9 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "EDefenseType.h"
 #include "EDefenseDirection.h"
+#include "CharacterData.h"
+#include "WeaponData.h"
+#include "GameFramework/Character.h"
 #include "DefenseSystem.generated.h"
 
 class UCharacterDataComponent;
@@ -124,19 +127,19 @@ struct WORLD_OF_REFRACTION_API FDefenseWindowConfig
 // ========================================
 
 /** Broadcast when defense window opens */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDefenseWindowOpened, AActor*, Defender, float, AttackSize, float, WindowDuration);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDefenseWindowOpened, AActor *, Defender, float, AttackSize, float, WindowDuration);
 
 /** Broadcast when defense window closes */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseWindowClosed, AActor*, Defender, const FDefenseResult&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseWindowClosed, AActor *, Defender, const FDefenseResult &, Result);
 
 /** Broadcast when player submits defense input */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDefenseInputReceived, AActor*, Defender, EDefenseType, DefenseType, EDefenseDirection, Direction);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnDefenseInputReceived, AActor *, Defender, EDefenseType, DefenseType, EDefenseDirection, Direction);
 
 /** Broadcast when visual cue should show (before window opens) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseCueTriggered, AActor*, Defender, float, TimeUntilWindow);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseCueTriggered, AActor *, Defender, float, TimeUntilWindow);
 
 /** Broadcast when parry reflects damage */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnParryReflect, AActor*, Defender, AActor*, Attacker, int32, ReflectedDamage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnParryReflect, AActor *, Defender, AActor *, Attacker, int32, ReflectedDamage);
 
 // ========================================
 // DEFENSE SYSTEM
@@ -166,7 +169,7 @@ class WORLD_OF_REFRACTION_API UDefenseSystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 
 public:
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
 	// ========================================
@@ -184,8 +187,8 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
 	void OpenDefenseWindow(
-		AActor* Attacker,
-		AActor* Defender,
+		AActor *Attacker,
+		AActor *Defender,
 		float AttackSize,
 		int32 BaseDamage,
 		float WindowDuration = 0.3f,
@@ -196,7 +199,7 @@ public:
 	 * Called automatically when window expires, or manually
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
-	FDefenseResult CloseDefenseWindow(AActor* Defender);
+	FDefenseResult CloseDefenseWindow(AActor *Defender);
 
 	/**
 	 * Submit player's defense input
@@ -205,25 +208,33 @@ public:
 	 * @param Direction Dodge direction (only for Dodge, left/right only)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
-	void SubmitDefenseInput(AActor* Defender, EDefenseType DefenseType, EDefenseDirection Direction = EDefenseDirection::None);
+	void SubmitDefenseInput(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction = EDefenseDirection::None);
+	/**
+	 * Play defense animation on defender
+	 * @param Defender The defending actor
+	 * @param DefenseType Block/Parry/Dodge
+	 * @param Direction Dodge direction (only for Dodge)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Defense System")
+	void PlayDefenseAnimation(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction = EDefenseDirection::None);
 
 	/**
 	 * Check if defense window is currently open for actor
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
-	bool IsDefenseWindowOpen(AActor* Defender) const;
+	bool IsDefenseWindowOpen(AActor *Defender) const;
 
 	/**
 	 * Get current defense state for actor
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
-	FDefenseState GetDefenseState(AActor* Defender) const;
+	FDefenseState GetDefenseState(AActor *Defender) const;
 
 	/**
 	 * Get remaining time in defense window
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
-	float GetRemainingWindowTime(AActor* Defender) const;
+	float GetRemainingWindowTime(AActor *Defender) const;
 
 	// ========================================
 	// DODGE CALCULATIONS
@@ -233,13 +244,13 @@ public:
 	 * Check if an attack can be dodged based on size
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
-	bool CanDodgeAttack(AActor* Defender, float AttackSize) const;
+	bool CanDodgeAttack(AActor *Defender, float AttackSize) const;
 
 	/**
 	 * Get dodge threshold for a defender
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
-	float GetDodgeThreshold(AActor* Defender) const;
+	float GetDodgeThreshold(AActor *Defender) const;
 
 	// ========================================
 	// DAMAGE CALCULATION
@@ -320,11 +331,11 @@ private:
 	// ========================================
 
 	/** Called when window timer expires */
-	void OnWindowTimerExpired(AActor* Defender);
+	void OnWindowTimerExpired(AActor *Defender);
 
 	/** Apply reflected damage from parry */
-	void ApplyReflectedDamage(AActor* Attacker, int32 Damage);
+	void ApplyReflectedDamage(AActor *Attacker, int32 Damage);
 
 	/** Get CharacterDataComponent from actor */
-	UCharacterDataComponent* GetCharacterDataComponent(AActor* Actor) const;
+	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
 };

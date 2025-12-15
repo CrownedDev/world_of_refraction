@@ -6,7 +6,7 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 
-void UDefenseSystem::Initialize(FSubsystemCollectionBase& Collection)
+void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Initialized"));
@@ -15,9 +15,9 @@ void UDefenseSystem::Initialize(FSubsystemCollectionBase& Collection)
 void UDefenseSystem::Deinitialize()
 {
 	// Clear all timers
-	if (UWorld* World = GetWorld())
+	if (UWorld *World = GetWorld())
 	{
-		for (auto& Pair : WindowTimerHandles)
+		for (auto &Pair : WindowTimerHandles)
 		{
 			World->GetTimerManager().ClearTimer(Pair.Value);
 		}
@@ -33,8 +33,8 @@ void UDefenseSystem::Deinitialize()
 // ========================================
 
 void UDefenseSystem::OpenDefenseWindow(
-	AActor* Attacker,
-	AActor* Defender,
+	AActor *Attacker,
+	AActor *Defender,
 	float AttackSize,
 	int32 BaseDamage,
 	float WindowDuration,
@@ -72,15 +72,15 @@ void UDefenseSystem::OpenDefenseWindow(
 	FTimerHandle TimerHandle;
 	FTimerDelegate TimerDelegate;
 	TimerDelegate.BindUObject(this, &UDefenseSystem::OnWindowTimerExpired, Defender);
-	
-	if (UWorld* World = GetWorld())
+
+	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
 			TimerHandle,
 			TimerDelegate,
 			State.WindowDuration,
 			false);
-		
+
 		WindowTimerHandles.Add(Defender, TimerHandle);
 	}
 
@@ -88,10 +88,10 @@ void UDefenseSystem::OpenDefenseWindow(
 	OnDefenseWindowOpened.Broadcast(Defender, AttackSize, State.WindowDuration);
 
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Duration: %.2fs)"),
-		*Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration);
+		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration);
 }
 
-FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor* Defender)
+FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 {
 	FDefenseResult Result;
 
@@ -101,11 +101,11 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor* Defender)
 	}
 
 	// Get and remove state
-	FDefenseState* StatePtr = ActiveDefenseStates.Find(Defender);
+	FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	if (!StatePtr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No active defense window for %s"),
-			*Defender->GetName());
+			   *Defender->GetName());
 		return Result;
 	}
 
@@ -113,9 +113,9 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor* Defender)
 	ActiveDefenseStates.Remove(Defender);
 
 	// Clear timer
-	if (FTimerHandle* TimerHandle = WindowTimerHandles.Find(Defender))
+	if (FTimerHandle *TimerHandle = WindowTimerHandles.Find(Defender))
 	{
-		if (UWorld* World = GetWorld())
+		if (UWorld *World = GetWorld())
 		{
 			World->GetTimerManager().ClearTimer(*TimerHandle);
 		}
@@ -147,41 +147,41 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor* Defender)
 	OnDefenseWindowClosed.Broadcast(Defender, Result);
 
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window closed for %s - Type: %d, Success: %s, Damage: %d → %d"),
-		*Defender->GetName(),
-		static_cast<int32>(State.DefenseChosen),
-		Result.bSuccess ? TEXT("Yes") : TEXT("No"),
-		State.BaseDamage,
-		Result.FinalDamage);
+		   *Defender->GetName(),
+		   static_cast<int32>(State.DefenseChosen),
+		   Result.bSuccess ? TEXT("Yes") : TEXT("No"),
+		   State.BaseDamage,
+		   Result.FinalDamage);
 
 	return Result;
 }
 
-void UDefenseSystem::SubmitDefenseInput(AActor* Defender, EDefenseType DefenseType, EDefenseDirection Direction)
+void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction)
 {
 	if (!Defender)
 	{
 		return;
 	}
 
-	FDefenseState* StatePtr = ActiveDefenseStates.Find(Defender);
+	FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	if (!StatePtr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No active defense window for %s - input ignored"),
-			*Defender->GetName());
+			   *Defender->GetName());
 		return;
 	}
 
 	if (!StatePtr->bWindowOpen)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] Defense window not open for %s - input ignored"),
-			*Defender->GetName());
+			   *Defender->GetName());
 		return;
 	}
 
 	if (StatePtr->bInputReceived)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] Defense input already received for %s"),
-			*Defender->GetName());
+			   *Defender->GetName());
 		return;
 	}
 
@@ -200,45 +200,48 @@ void UDefenseSystem::SubmitDefenseInput(AActor* Defender, EDefenseType DefenseTy
 	StatePtr->DodgeDirection = Direction;
 	StatePtr->bInputReceived = true;
 
+	// Play defense animation
+	PlayDefenseAnimation(Defender, DefenseType, Direction);
+
 	// Broadcast event
 	OnDefenseInputReceived.Broadcast(Defender, DefenseType, Direction);
 
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense input received: %s chose %d (Direction: %d)"),
-		*Defender->GetName(),
-		static_cast<int32>(DefenseType),
-		static_cast<int32>(Direction));
+		   *Defender->GetName(),
+		   static_cast<int32>(DefenseType),
+		   static_cast<int32>(Direction));
 }
 
-bool UDefenseSystem::IsDefenseWindowOpen(AActor* Defender) const
+bool UDefenseSystem::IsDefenseWindowOpen(AActor *Defender) const
 {
 	if (!Defender)
 	{
 		return false;
 	}
 
-	const FDefenseState* StatePtr = ActiveDefenseStates.Find(Defender);
+	const FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	return StatePtr && StatePtr->bWindowOpen;
 }
 
-FDefenseState UDefenseSystem::GetDefenseState(AActor* Defender) const
+FDefenseState UDefenseSystem::GetDefenseState(AActor *Defender) const
 {
 	if (!Defender)
 	{
 		return FDefenseState();
 	}
 
-	const FDefenseState* StatePtr = ActiveDefenseStates.Find(Defender);
+	const FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	return StatePtr ? *StatePtr : FDefenseState();
 }
 
-float UDefenseSystem::GetRemainingWindowTime(AActor* Defender) const
+float UDefenseSystem::GetRemainingWindowTime(AActor *Defender) const
 {
 	if (!Defender)
 	{
 		return 0.0f;
 	}
 
-	const FDefenseState* StatePtr = ActiveDefenseStates.Find(Defender);
+	const FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	if (!StatePtr || !StatePtr->bWindowOpen)
 	{
 		return 0.0f;
@@ -253,13 +256,13 @@ float UDefenseSystem::GetRemainingWindowTime(AActor* Defender) const
 // DODGE CALCULATIONS
 // ========================================
 
-bool UDefenseSystem::CanDodgeAttack(AActor* Defender, float AttackSize) const
+bool UDefenseSystem::CanDodgeAttack(AActor *Defender, float AttackSize) const
 {
 	float Threshold = GetDodgeThreshold(Defender);
 	return AttackSize < Threshold;
 }
 
-float UDefenseSystem::GetDodgeThreshold(AActor* Defender) const
+float UDefenseSystem::GetDodgeThreshold(AActor *Defender) const
 {
 	// Base threshold
 	float Threshold = BaseDodgeThreshold;
@@ -337,11 +340,96 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	return Result;
 }
 
+void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction)
+{
+	if (!Defender)
+	{
+		return;
+	}
+
+	// Get CharacterData for animation references
+	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Defender);
+	if (!CharComp || !CharComp->CharacterData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No CharacterData for %s - cannot play defense animation"),
+			   *Defender->GetName());
+		return;
+	}
+
+	UCharacterData *CharData = CharComp->CharacterData;
+	UAnimMontage *MontageToPlay = nullptr;
+
+	switch (DefenseType)
+	{
+	case EDefenseType::Block:
+		MontageToPlay = CharData->BlockMontage;
+		break;
+
+	case EDefenseType::Parry:
+		// Check if should use weapon parry animation
+		if (CharData->bUseWeaponParryAnimation)
+		{
+			UWeaponData *Weapon = CharData->bUsePrimary ? CharData->PrimaryWeapon : CharData->SecondaryWeapon;
+			if (Weapon && Weapon->ParryMontage)
+			{
+				MontageToPlay = Weapon->ParryMontage;
+			}
+		}
+		// Fallback to character parry
+		if (!MontageToPlay)
+		{
+			MontageToPlay = CharData->ParryMontage;
+		}
+		break;
+
+	case EDefenseType::Dodge:
+		if (Direction == EDefenseDirection::Left)
+		{
+			MontageToPlay = CharData->DodgeLeftMontage;
+		}
+		else if (Direction == EDefenseDirection::Right)
+		{
+			MontageToPlay = CharData->DodgeRightMontage;
+		}
+		else
+		{
+			// Default to left if no direction specified
+			MontageToPlay = CharData->DodgeLeftMontage;
+		}
+		break;
+
+	default:
+		return;
+	}
+
+	if (!MontageToPlay)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No montage for %s defense type %d"),
+			   *Defender->GetName(), static_cast<int32>(DefenseType));
+		return;
+	}
+
+	// Get AnimInstance and play montage
+	ACharacter *Character = Cast<ACharacter>(Defender);
+	if (!Character)
+	{
+		return;
+	}
+
+	UAnimInstance *AnimInstance = Character->GetMesh()->GetAnimInstance();
+	if (AnimInstance)
+	{
+		AnimInstance->Montage_Play(MontageToPlay);
+		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Playing %s for %s"),
+			   *MontageToPlay->GetName(), *Defender->GetName());
+	}
+}
+
 // ========================================
 // INTERNAL METHODS
 // ========================================
 
-void UDefenseSystem::OnWindowTimerExpired(AActor* Defender)
+void UDefenseSystem::OnWindowTimerExpired(AActor *Defender)
 {
 	if (!Defender)
 	{
@@ -349,29 +437,29 @@ void UDefenseSystem::OnWindowTimerExpired(AActor* Defender)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window timer expired for %s"),
-		*Defender->GetName());
+		   *Defender->GetName());
 
 	// Close window and apply result
 	CloseDefenseWindow(Defender);
 }
 
-void UDefenseSystem::ApplyReflectedDamage(AActor* Attacker, int32 Damage)
+void UDefenseSystem::ApplyReflectedDamage(AActor *Attacker, int32 Damage)
 {
 	if (!Attacker || Damage <= 0)
 	{
 		return;
 	}
 
-	UCharacterDataComponent* Comp = GetCharacterDataComponent(Attacker);
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Attacker);
 	if (Comp)
 	{
 		Comp->ServerTakeDamage(Damage);
 		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Applied %d reflected damage to %s"),
-			Damage, *Attacker->GetName());
+			   Damage, *Attacker->GetName());
 	}
 }
 
-UCharacterDataComponent* UDefenseSystem::GetCharacterDataComponent(AActor* Actor) const
+UCharacterDataComponent *UDefenseSystem::GetCharacterDataComponent(AActor *Actor) const
 {
 	if (!Actor)
 	{
