@@ -14,6 +14,7 @@
 #include "WeaponAttackData.h"
 #include "SpellData.h"
 #include "AbilityData.h"
+#include "BrokenDarknessManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -406,6 +407,9 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 
 	// Process start-of-turn status effects
 	ProcessStartOfTurnEffects(Actor);
+
+	// Process Broken Darkness overflow (aura damage to nearby, self-damage, energy drain)
+	ProcessBrokenDarknessOverflow(Actor);
 
 	// Check if actor died from DOT effects
 	if (!IsActorAlive(Actor))
@@ -1328,4 +1332,88 @@ AActor *ACombatOrchestrator::GetDebugActor() const
 		return DebugOverrideActor;
 	}
 	return CurrentActor;
+}
+
+// ========================================
+// BROKEN DARKNESS HELPERS
+// ========================================
+
+UBrokenDarknessManager *ACombatOrchestrator::GetBrokenDarknessManager(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	return Actor->FindComponentByClass<UBrokenDarknessManager>();
+}
+
+TArray<AActor *> ACombatOrchestrator::GetCombatantsInRange(AActor *Origin, float Range)
+{
+	TArray<AActor *> Result;
+
+	if (!Origin || Range <= 0.0f)
+	{
+		return Result;
+	}
+
+	FVector OriginLocation = Origin->GetActorLocation();
+
+	// Check all combatants from both teams
+	for (AActor *Combatant : Team0Combatants)
+	{
+		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
+		{
+			float Distance = FVector::Dist(OriginLocation, Combatant->GetActorLocation());
+			if (Distance <= Range)
+			{
+				Result.Add(Combatant);
+			}
+		}
+	}
+
+	for (AActor *Combatant : Team1Combatants)
+	{
+		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
+		{
+			float Distance = FVector::Dist(OriginLocation, Combatant->GetActorLocation());
+			if (Distance <= Range)
+			{
+				Result.Add(Combatant);
+			}
+		}
+	}
+
+	return Result;
+}
+
+void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
+{
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager || !BDManager->IsOverloaded())
+	{
+		return;
+	}
+
+	// Get aura range based on MaxEnergy stat
+	float AuraRange = BDManager->CalculateAuraRange();
+
+	// Find all combatants in range
+	TArray<AActor *> ActorsInRange = GetCombatantsInRange(Actor, AuraRange);
+
+	// Get character stats for damage/efficiency calculations
+	float EffectDamageMult = 1.0f;
+	float EfficiencyPercent = 0.0f;
+
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (CharComp && CharComp->CharacterData)
+	{
+		EffectDamageMult = CharComp->CharacterData->CalculateEffectDamageMultiplier();
+		EfficiencyPercent = CharComp->CharacterData->CalculateEfficiencyMultiplier() * 100.0f;
+	}
+
+	// Process the overflow tick (aura damage, self-damage, energy drain)
+	BDManager->ProcessOverloadTick(ActorsInRange, EffectDamageMult, EfficiencyPercent);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
+		   *Actor->GetName(), AuraRange, ActorsInRange.Num());
 }

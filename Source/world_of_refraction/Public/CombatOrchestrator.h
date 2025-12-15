@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "ActionStructs.h"
+#include "BrokenDarknessManager.h"
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
@@ -323,4 +324,17 @@ private:
 
 	// Result building
 	FCombatResult BuildCombatResult();
+
+	// ========================================
+	// BROKEN DARKNESS HELPERS
+	// ========================================
+
+	/** Get BrokenDarknessManager from an actor */
+	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
+
+	/** Get all combatants within range of an actor (excludes the actor itself) */
+	TArray<AActor *> GetCombatantsInRange(AActor *Origin, float Range);
+
+	/** Process BD overflow effects for an actor (aura damage, self-damage, drain) */
+	void ProcessBrokenDarknessOverflow(AActor *Actor);
 };
