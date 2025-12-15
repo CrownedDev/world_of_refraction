@@ -17,12 +17,12 @@ class UDefenseSystem;
 class UCharacterDataComponent;
 
 // Delegates
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBrokenDarknessTransformed, AActor*, Actor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEnergyAbsorbed, AActor*, Actor, float, AmountAbsorbed, ESpellElement, AbsorbedElement);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOverloadStateChanged, AActor*, Actor, bool, bIsOverloaded);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStacksChanged, AActor*, Actor, ESpellElement, Element, int32, NewStackCount);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAlignmentChanged, AActor*, Actor, ESpellElement, OldElement, ESpellElement, NewElement);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnOverloadDamage, AActor*, Source, AActor*, Target, float, Damage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBrokenDarknessTransformed, AActor *, Actor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEnergyAbsorbed, AActor *, Actor, float, AmountAbsorbed, ESpellElement, AbsorbedElement);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnOverloadStateChanged, AActor *, Actor, bool, bIsOverloaded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStacksChanged, AActor *, Actor, ESpellElement, Element, int32, NewStackCount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAlignmentChanged, AActor *, Actor, ESpellElement, OldElement, ESpellElement, NewElement);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnOverloadDamage, AActor *, Source, AActor *, Target, float, Damage);
 
 /**
  * BrokenDarkness Manager Component
@@ -59,7 +59,7 @@ public:
 	 * @return True if transformation occurred
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
-	bool RollForBreak(const FString& TriggerReason);
+	bool RollForBreak(const FString &TriggerReason);
 
 	/**
 	 * Check if spell exceeds character's stat requirements
@@ -68,7 +68,7 @@ public:
 	 * @return True if any world stat is below spell requirements
 	 */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Break")
-	static bool DoesSpellExceedRequirements(USpellData* Spell, UCharacterData* Character);
+	static bool DoesSpellExceedRequirements(USpellData *Spell, UCharacterData *Character);
 
 	/**
 	 * Check if ability exceeds character's stat requirements
@@ -77,7 +77,7 @@ public:
 	 * @return True if any world stat is below ability requirements
 	 */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Break")
-	static bool DoesAbilityExceedRequirements(UAbilityData* Ability, UCharacterData* Character);
+	static bool DoesAbilityExceedRequirements(UAbilityData *Ability, UCharacterData *Character);
 
 	/**
 	 * Force transformation (for testing/story events)
@@ -159,7 +159,7 @@ public:
 	 * Applies aura damage to enemies, self-damage, energy drain
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Overload")
-	void ProcessOverloadTick(const TArray<AActor*>& NearbyEnemies, float EffectDamageMultiplier, float EfficiencyPercent);
+	void ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies, float EffectDamageMultiplier, float EfficiencyPercent);
 
 	// ==================== ABSORPTION STACKS ====================
 
@@ -207,8 +207,8 @@ public:
 	 * Handles absorption based on defense type and result
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Defense")
-	void OnDefenseResolved(EDefenseType DefenseType, const FDefenseResult& DefenseResult,
-		ESpellElement AttackElement, float AttackEnergyCost);
+	void OnDefenseResolved(EDefenseType DefenseType, const FDefenseResult &DefenseResult,
+						   ESpellElement AttackElement, float AttackEnergyCost);
 
 	// ==================== DELEGATES ====================
 
@@ -230,6 +230,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "BrokenDarkness|Events")
 	FOnOverloadDamage OnOverloadDamage;
 
+	/** Calculate current aura range based on MaxEnergy stat investment */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Overload")
+	float CalculateAuraRange() const;
+
 private:
 	// ==================== PRIVATE METHODS ====================
 
@@ -249,7 +253,7 @@ private:
 	void ExitOverload();
 
 	/** Apply damage to CharacterDataComponent */
-	void ApplyDamageToActor(AActor* Target, float Damage);
+	void ApplyDamageToActor(AActor *Target, float Damage);
 
 	/** Process element absorption for stacks */
 	void ProcessElementAbsorption(ESpellElement Element);
@@ -342,5 +346,5 @@ protected:
 
 	/** Self-damage percentage when casting forbidden elements (Light/Void) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Forbidden")
-	float ForbiddenCastSelfDamagePercent = 0.25f;  // 25% of spell damage to self
+	float ForbiddenCastSelfDamagePercent = 0.25f; // 25% of spell damage to self
 };
