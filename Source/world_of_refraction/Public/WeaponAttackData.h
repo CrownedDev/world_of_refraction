@@ -8,7 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/Texture2D.h"
 #include "EPhysicalDamageType.h"
-#include "ApproachData.h"
+#include "MovementData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -74,7 +74,7 @@ public:
 
     /** How the attacker approaches the target (nullptr = use character default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-    UApproachData *ApproachData = nullptr;
+    UMovementData *MovementData = nullptr;
 
     /** Distance from target to stop and execute attack (units) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))

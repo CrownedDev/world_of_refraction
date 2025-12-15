@@ -2,7 +2,7 @@
 // Combat movement implementation
 
 #include "CombatMovementComponent.h"
-#include "ApproachData.h"
+#include "MovementData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "GameFramework/Actor.h"
@@ -64,7 +64,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
 // ==================== MOVEMENT CONTROL ====================
 
-void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Approach, float ExecutionRange, const FVector &ArenaCenter)
+void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter)
 {
     if (!GetOwner())
     {
@@ -78,7 +78,7 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
     CachedArenaCenter = ArenaCenter;
 
     CurrentTarget = Target;
-    CurrentApproachData = Approach;
+    CurrentMovementData = Approach;
 
     // Handle no approach data (ranged) - no movement needed
     if (!Approach)
@@ -96,11 +96,11 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
 
         // Immediately complete approach
         MovementState = ECombatMovementState::Executing;
-        OnApproachComplete.Broadcast();
+        OnMovementComplete.Broadcast();
         return;
     }
 
-    ECombatApproachType ApproachType = Approach->ApproachType;
+    ECombatMovementType MovementType = Approach->MovementType;
 
     // Calculate target position (ExecutionRange away from target)
     if (Target)
@@ -119,12 +119,12 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
     }
 
     // Handle Teleport - instant movement
-    if (ApproachType == ECombatApproachType::Teleport)
+    if (MovementType == ECombatMovementType::Teleport)
     {
         UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Teleporting to target (%s)"),
-               *GetOwner()->GetName(), *Approach->ApproachName);
+               *GetOwner()->GetName(), *Approach->MovementName);
 
-        // TODO: Play DepartureVFX, DepartureSound, ApproachMontage (vanish)
+        // TODO: Play DepartureVFX, DepartureSound, MovementMontage (vanish)
 
         TeleportTo(TargetPosition);
 
@@ -139,7 +139,7 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
 
         // Immediately complete approach
         MovementState = ECombatMovementState::Executing;
-        OnApproachComplete.Broadcast();
+        OnMovementComplete.Broadcast();
         return;
     }
 
@@ -150,18 +150,18 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
     SetComponentTickEnabled(true);
 
     // Get approach montage
-    UAnimMontage *ApproachMontage = nullptr;
-    if (Approach && Approach->ApproachMontage)
+    UAnimMontage *MovementMontage = nullptr;
+    if (Approach && Approach->MovementMontage)
     {
-        ApproachMontage = Approach->ApproachMontage;
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Using ApproachData montage: %s"),
-               *GetOwner()->GetName(), *ApproachMontage->GetName());
+        MovementMontage = Approach->MovementMontage;
+        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Using MovementData montage: %s"),
+               *GetOwner()->GetName(), *MovementMontage->GetName());
     }
-    else if (DefaultApproachMontage)
+    else if (DefaultMovementMontage)
     {
-        ApproachMontage = DefaultApproachMontage;
+        MovementMontage = DefaultMovementMontage;
         UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Using Default montage: %s"),
-               *GetOwner()->GetName(), *ApproachMontage->GetName());
+               *GetOwner()->GetName(), *MovementMontage->GetName());
     }
     else
     {
@@ -170,9 +170,9 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
     }
 
     // Play approach animation
-    if (ApproachMontage)
+    if (MovementMontage)
     {
-        PlayMovementMontage(ApproachMontage);
+        PlayMovementMontage(MovementMontage);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Started approach to %s (%.1f units away)"),
@@ -184,7 +184,7 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UApproachData *Appr
 
     UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: Starting %s approach (%.0f units)"),
            *GetOwner()->GetName(),
-           *Approach->ApproachName,
+           *Approach->MovementName,
            FVector::Dist(GridPosition, TargetPosition));
 }
 
@@ -228,13 +228,13 @@ void UCombatMovementComponent::StartReturn()
 
     // Play return animation - fallback chain
     UAnimMontage *ReturnMontage = GetReturnMontage();
-    if (!ReturnMontage && CurrentApproachData && CurrentApproachData->ApproachMontage)
+    if (!ReturnMontage && CurrentMovementData && CurrentMovementData->MovementMontage)
     {
-        ReturnMontage = CurrentApproachData->ApproachMontage;
+        ReturnMontage = CurrentMovementData->MovementMontage;
     }
     if (!ReturnMontage)
     {
-        ReturnMontage = DefaultApproachMontage;
+        ReturnMontage = DefaultMovementMontage;
     }
 
     if (ReturnMontage)
@@ -387,9 +387,9 @@ float UCombatMovementComponent::CalculateMovementSpeed() const
     }
 
     float ApproachMultiplier = 1.0f;
-    if (CurrentApproachData)
+    if (CurrentMovementData)
     {
-        ApproachMultiplier = CurrentApproachData->GetEffectiveSpeedMultiplier();
+        ApproachMultiplier = CurrentMovementData->GetEffectiveSpeedMultiplier();
     }
 
     return BaseSpeed * StatMultiplier * ApproachMultiplier;
@@ -486,7 +486,7 @@ void UCombatMovementComponent::CompleteApproach()
         UpdateFacingDirection(Direction);
     }
 
-    OnApproachComplete.Broadcast();
+    OnMovementComplete.Broadcast();
 }
 
 void UCombatMovementComponent::CompleteReturn()

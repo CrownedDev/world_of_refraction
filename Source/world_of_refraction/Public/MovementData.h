@@ -1,25 +1,25 @@
-// ApproachData.h
+// MovementData.h
 // Movement approach data asset - defines how characters approach targets in combat
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "ECombatApproachType.h"
+#include "ECombatMovementType.h"
 #include "NiagaraSystem.h"
 #include "Sound/SoundBase.h"
 #include "Animation/AnimMontage.h"
-#include "ApproachData.generated.h"
+#include "MovementData.generated.h"
 
 /**
  * Approach Data Asset
  * Defines movement behavior, animation, VFX, and audio for combat approach
- * 
- * Note: This only handles APPROACH movement. Return is always instant (jump back).
- * Ranged actions (spells, etc.) don't need ApproachData - their cast animation handles it.
+ *
+ * Note: This only handles Movement. Return is always instant (jump back).
+ * Ranged actions (spells, etc.) don't need MovementData - their cast animation handles it.
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API UApproachData : public UPrimaryDataAsset
+class WORLD_OF_REFRACTION_API UMovementData : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
@@ -27,7 +27,7 @@ public:
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString ApproachName = TEXT("Unnamed Approach");
+    FString MovementName = TEXT("Unnamed Approach");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
@@ -36,7 +36,7 @@ public:
 
     /** Movement type - Direct (walk/run), Dash (fast), or Teleport (instant) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
-    ECombatApproachType ApproachType = ECombatApproachType::Direct;
+    ECombatMovementType MovementType = ECombatMovementType::Direct;
 
     /** Extra speed multiplier on top of character's MovementSpeed stat */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior", meta = (ClampMin = "0.1", ClampMax = "5.0"))
@@ -46,61 +46,61 @@ public:
 
     /** Animation during approach (walk, dash, etc.) - loops until arrival */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-    UAnimMontage* ApproachMontage = nullptr;
+    UAnimMontage *MovementMontage = nullptr;
 
     /** Animation on arrival (for teleport appear effect) - plays once */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-    UAnimMontage* ArrivalMontage = nullptr;
+    UAnimMontage *ArrivalMontage = nullptr;
 
     // ==================== VFX ====================
 
     /** VFX during movement (trail, dust, shadow, etc.) - spawned and attached */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
-    UNiagaraSystem* TrailVFX = nullptr;
+    UNiagaraSystem *TrailVFX = nullptr;
 
     /** VFX on arrival (smoke puff, flash, impact, etc.) - spawned once */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX")
-    UNiagaraSystem* ArrivalVFX = nullptr;
+    UNiagaraSystem *ArrivalVFX = nullptr;
 
     /** VFX on departure for teleport (vanish effect) - spawned once */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX", meta = (EditCondition = "ApproachType == ECombatApproachType::Teleport"))
-    UNiagaraSystem* DepartureVFX = nullptr;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "VFX", meta = (EditCondition = "MovementType == ECombatMovementType::Teleport"))
+    UNiagaraSystem *DepartureVFX = nullptr;
 
     // ==================== AUDIO ====================
 
     /** Sound during movement (footsteps, whoosh, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
-    USoundBase* MovementSound = nullptr;
+    USoundBase *MovementSound = nullptr;
 
     /** Sound on arrival (land, appear, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio")
-    USoundBase* ArrivalSound = nullptr;
+    USoundBase *ArrivalSound = nullptr;
 
     /** Sound on departure for teleport (vanish sound) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio", meta = (EditCondition = "ApproachType == ECombatApproachType::Teleport"))
-    USoundBase* DepartureSound = nullptr;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Audio", meta = (EditCondition = "MovementType == ECombatMovementType::Teleport"))
+    USoundBase *DepartureSound = nullptr;
 
     // ==================== UTILITY ====================
 
-    UFUNCTION(BlueprintPure, Category = "Approach")
-    FString GetDisplayName() const { return ApproachName; }
+    UFUNCTION(BlueprintPure, Category = "Movement")
+    FString GetDisplayName() const { return MovementName; }
 
-    UFUNCTION(BlueprintPure, Category = "Approach")
-    bool IsTeleport() const { return ApproachType == ECombatApproachType::Teleport; }
+    UFUNCTION(BlueprintPure, Category = "Movement")
+    bool IsTeleport() const { return MovementType == ECombatMovementType::Teleport; }
 
-    UFUNCTION(BlueprintPure, Category = "Approach")
-    bool IsDash() const { return ApproachType == ECombatApproachType::Dash; }
+    UFUNCTION(BlueprintPure, Category = "Movement")
+    bool IsDash() const { return MovementType == ECombatMovementType::Dash; }
 
-    UFUNCTION(BlueprintPure, Category = "Approach")
-    bool RequiresMovement() const { return CombatApproachHelpers::RequiresMovement(ApproachType); }
+    UFUNCTION(BlueprintPure, Category = "Movement")
+    bool RequiresMovement() const { return CombatMovementHelpers::RequiresMovement(MovementType); }
 
-    /** Get effective speed multiplier (ApproachType multiplier * asset multiplier) */
-    UFUNCTION(BlueprintPure, Category = "Approach")
+    /** Get effective speed multiplier (MovementType multiplier * asset multiplier) */
+    UFUNCTION(BlueprintPure, Category = "Movement")
     float GetEffectiveSpeedMultiplier() const
     {
-        return CombatApproachHelpers::GetSpeedMultiplier(ApproachType) * SpeedMultiplier;
+        return CombatMovementHelpers::GetSpeedMultiplier(MovementType) * SpeedMultiplier;
     }
 
-    UFUNCTION(BlueprintPure, Category = "Approach")
-    FString GetApproachSummary() const;
+    UFUNCTION(BlueprintPure, Category = "Movement")
+    FString GetMovementSummary() const;
 };

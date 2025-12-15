@@ -5,8 +5,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "ECombatApproachType.h"
-#include "ApproachData.h"
+#include "ECombatMovementType.h"
+#include "MovementData.h"
 #include "CombatMovementComponent.generated.h"
 
 class UCombatGridSubsystem;
@@ -14,7 +14,7 @@ class UCharacterDataComponent;
 
 // ==================== DELEGATES ====================
 
-/** Broadcast when approach movement completes (ready to execute action) */
+/** Broadcast when Movement completes (ready to execute action) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnApproachComplete);
 
 /** Broadcast when return movement completes (back at grid position) */
@@ -40,7 +40,7 @@ enum class ECombatMovementState : uint8
  *
  * Flow:
  * 1. StartApproach() - Move toward target
- * 2. OnApproachComplete fires - Action system executes attack/ability/spell
+ * 2. OnMovementComplete fires - Action system executes attack/ability/spell
  * 3. StartReturn() - Move back to grid position
  * 4. OnReturnComplete fires - Turn ends
  */
@@ -57,14 +57,14 @@ public:
     // ==================== MOVEMENT CONTROL ====================
 
     /**
-     * Start approach movement toward target
+     * Start Movement toward target
      * @param Target The target actor to approach
      * @param Approach Approach data asset (nullptr = no movement)
      * @param ExecutionRange Distance from target to stop
      * @param ArenaCenter Center of arena for grid calculations
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Movement")
-    void StartApproach(AActor *Target, UApproachData *Approach, float ExecutionRange, const FVector &ArenaCenter);
+    void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter);
 
     /**
      * Start return movement back to grid position
@@ -104,7 +104,7 @@ public:
 
     /** Fires when approach completes - action system should execute attack/ability/spell */
     UPROPERTY(BlueprintAssignable, Category = "Combat Movement|Events")
-    FOnApproachComplete OnApproachComplete;
+    FOnApproachComplete OnMovementComplete;
 
     /** Fires when return completes - turn can end */
     UPROPERTY(BlueprintAssignable, Category = "Combat Movement|Events")
@@ -134,7 +134,7 @@ public:
 
     /** Default approach animation (run/dash forward) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
-    UAnimMontage *DefaultApproachMontage = nullptr;
+    UAnimMontage *DefaultMovementMontage = nullptr;
 
     /** Whether to face target during return (true) or face movement direction (false) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
@@ -150,7 +150,7 @@ private:
     ECombatMovementState MovementState = ECombatMovementState::Idle;
 
     UPROPERTY()
-    UApproachData *CurrentApproachData = nullptr;
+    UMovementData *CurrentMovementData = nullptr;
 
     UPROPERTY()
     AActor *CurrentTarget = nullptr;

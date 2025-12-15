@@ -393,9 +393,9 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Check for Broken Darkness break triggers
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
 
-	// Start approach movement (if applicable)
+	// Start Movement (if applicable)
 	AActor *PrimaryTarget = Action.Targets.Num() > 0 ? Action.Targets[0] : nullptr;
-	UApproachData *ApproachData = GetApproachData(Action);
+	UMovementData *MovementData = GetMovementData(Action);
 	float ExecutionRange = GetExecutionRange(Action);
 
 	// Cache for approach completion callback
@@ -420,23 +420,23 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		return;
 	}
 
-	// Start approach movement
+	// Start Movement
 	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
 	if (Movement)
 	{
 		// Bind to approach complete - action will execute when movement finishes
-		BindApproachComplete(Actor);
+		BindMovementComplete(Actor);
 
-		Movement->StartApproach(PrimaryTarget, ApproachData, ExecutionRange, CachedArenaCenter);
+		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter);
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Started %s approach for %s - waiting for completion"),
-			   ApproachData ? *ApproachData->ApproachName : TEXT("Ranged"),
+			   MovementData ? *MovementData->MovementName : TEXT("Ranged"),
 			   *Actor->GetName());
 	}
 	else
 	{
 		// No movement component - execute immediately
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No movement component - executing immediately"));
-		OnApproachComplete();
+		OnMovementComplete();
 	}
 }
 
@@ -1188,7 +1188,7 @@ void UActionExecutor::CancelAsyncAction()
 	// Unbind approach delegate
 	if (PendingExecutionActor)
 	{
-		UnbindApproachComplete(PendingExecutionActor);
+		UnbindMovementComplete(PendingExecutionActor);
 		UnbindActionAnimationEnd(PendingExecutionActor);
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
@@ -3443,15 +3443,15 @@ bool UActionExecutor::CanUseSpell(AActor *Actor, USpellData *Spell) const
 
 // ==================== MOVEMENT INTEGRATION ====================
 
-UApproachData *UActionExecutor::GetApproachData(const FAction &Action) const
+UMovementData *UActionExecutor::GetMovementData(const FAction &Action) const
 {
 	switch (Action.ActionType)
 	{
 	case EActionType::Attack:
-		return Action.AttackData ? Action.AttackData->ApproachData : nullptr;
+		return Action.AttackData ? Action.AttackData->MovementData : nullptr;
 
 	case EActionType::Ability:
-		return Action.AbilityData ? Action.AbilityData->ApproachData : nullptr;
+		return Action.AbilityData ? Action.AbilityData->MovementData : nullptr;
 
 	case EActionType::Spell:
 		return nullptr; // Spells are always ranged
@@ -3493,36 +3493,36 @@ void UActionExecutor::SignalActionComplete(AActor *Actor)
 }
 
 // ========================================
-// APPROACH MOVEMENT BINDING
+// Movement BINDING
 // ========================================
 
-void UActionExecutor::BindApproachComplete(AActor *Actor)
+void UActionExecutor::BindMovementComplete(AActor *Actor)
 {
 	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
 	{
 		// Unbind any existing
-		UnbindApproachComplete(Actor);
+		UnbindMovementComplete(Actor);
 
 		// Bind to approach complete
-		Movement->OnApproachComplete.AddDynamic(this, &UActionExecutor::OnApproachComplete);
+		Movement->OnMovementComplete.AddDynamic(this, &UActionExecutor::OnMovementComplete);
 
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Bound to OnApproachComplete for %s"), *Actor->GetName());
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Bound to OnMovementComplete for %s"), *Actor->GetName());
 	}
 }
 
-void UActionExecutor::UnbindApproachComplete(AActor *Actor)
+void UActionExecutor::UnbindMovementComplete(AActor *Actor)
 {
 	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
 	{
-		Movement->OnApproachComplete.RemoveDynamic(this, &UActionExecutor::OnApproachComplete);
+		Movement->OnMovementComplete.RemoveDynamic(this, &UActionExecutor::OnMovementComplete);
 	}
 }
 
-void UActionExecutor::OnApproachComplete()
+void UActionExecutor::OnMovementComplete()
 {
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnApproachComplete called but no active context"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnMovementComplete called but no active context"));
 		return;
 	}
 
@@ -3532,7 +3532,7 @@ void UActionExecutor::OnApproachComplete()
 
 	if (!Actor || !CharData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnApproachComplete - missing actor or char data"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnMovementComplete - missing actor or char data"));
 		CancelAsyncAction();
 		return;
 	}
@@ -3540,7 +3540,7 @@ void UActionExecutor::OnApproachComplete()
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Approach complete - executing %s"), *Action.GetActionName());
 
 	// Unbind approach delegate
-	UnbindApproachComplete(Actor);
+	UnbindMovementComplete(Actor);
 
 	// Bind to action animation end BEFORE executing (so we catch the animation)
 	BindActionAnimationEnd(Actor);
@@ -3558,7 +3558,7 @@ void UActionExecutor::OnApproachComplete()
 		ExecuteAttackAsync(Actor, Action, CharData);
 		break;
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in OnApproachComplete"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in OnMovementComplete"));
 		UnbindActionAnimationEnd(Actor);
 		FinalizeAsyncAction();
 		return;

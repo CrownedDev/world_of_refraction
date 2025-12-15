@@ -11,7 +11,7 @@
 #include "NiagaraSystem.h"
 #include "EWeaponType.h"
 #include "CombatConstants.h"
-#include "ApproachData.h"
+#include "MovementData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -47,7 +47,7 @@ public:
 
     /** How the user approaches the target (nullptr = use character default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-    UApproachData *ApproachData = nullptr;
+    UMovementData *MovementData = nullptr;
 
     /** Distance from target to stop and execute ability (units) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))

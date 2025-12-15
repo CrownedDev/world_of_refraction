@@ -21,7 +21,7 @@
 #include "EInfusionSourceOption.h"
 #include "LoadoutComponent.h"
 #include "CombatMovementComponent.h"
-#include "ApproachData.h"
+#include "MovementData.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -413,7 +413,7 @@ private:
 	/** Clear cached spell data */
 	void ClearPendingSpellData();
 
-		// ========================================
+	// ========================================
 	// INTERNAL HELPERS
 	// ========================================
 
@@ -610,11 +610,11 @@ private:
 	FTimerHandle AsyncTimeoutHandle;
 
 	// ========================================
-	// APPROACH MOVEMENT BINDING
+	// Movement BINDING
 	// ========================================
 
 	/** Handle for approach complete delegate binding */
-	FDelegateHandle ApproachCompleteHandle;
+	FDelegateHandle MovementCompleteHandle;
 
 	/** Cached actor for approach completion */
 	UPROPERTY()
@@ -624,15 +624,15 @@ private:
 	UPROPERTY()
 	UCharacterData *PendingExecutionCharData = nullptr;
 
-	/** Bind to movement component's OnApproachComplete */
-	void BindApproachComplete(AActor *Actor);
+	/** Bind to movement component's OnMovementComplete */
+	void BindMovementComplete(AActor *Actor);
 
 	/** Unbind from movement component */
-	void UnbindApproachComplete(AActor *Actor);
+	void UnbindMovementComplete(AActor *Actor);
 
-	/** Called when approach movement completes - executes the actual action */
+	/** Called when Movement completes - executes the actual action */
 	UFUNCTION()
-	void OnApproachComplete();
+	void OnMovementComplete();
 
 private:
 	// ==================== ACTION ANIMATION BINDING ====================
@@ -750,7 +750,7 @@ private:
 
 	// ==================== MOVEMENT INTEGRATION ====================
 	/** Get approach data from action data */
-	UApproachData *GetApproachData(const FAction &Action) const;
+	UMovementData *GetMovementData(const FAction &Action) const;
 
 	/** Get execution range from action data */
 	float GetExecutionRange(const FAction &Action) const;

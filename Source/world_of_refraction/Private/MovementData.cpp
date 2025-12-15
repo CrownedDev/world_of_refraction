@@ -1,22 +1,22 @@
-// ApproachData.cpp
+// MovementData.cpp
 // Approach data asset implementation
 
-#include "ApproachData.h"
+#include "MovementData.h"
 
-FString UApproachData::GetApproachSummary() const
+FString UMovementData::GetMovementSummary() const
 {
     FString Summary = FString::Printf(TEXT("%s (%s)"),
-                                      *ApproachName,
-                                      *CombatApproachHelpers::GetApproachName(ApproachType));
+                                      *MovementName,
+                                      *CombatMovementHelpers::GetMovementName(MovementType));
 
     if (SpeedMultiplier != 1.0f)
     {
         Summary += FString::Printf(TEXT(" | Speed: %.1fx"), GetEffectiveSpeedMultiplier());
     }
 
-    if (ApproachMontage)
+    if (MovementMontage)
     {
-        Summary += FString::Printf(TEXT(" | Anim: %s"), *ApproachMontage->GetName());
+        Summary += FString::Printf(TEXT(" | Anim: %s"), *MovementMontage->GetName());
     }
 
     if (TrailVFX)
