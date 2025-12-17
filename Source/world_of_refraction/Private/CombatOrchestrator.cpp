@@ -15,6 +15,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "BrokenDarknessManager.h"
+#include "CharacterData.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -58,6 +59,13 @@ void ACombatOrchestrator::BeginPlay()
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get ActionExecutor subsystem!"));
 	}
 
+	AIDecisionManagerRef = GI->GetSubsystem<UAIDecisionManager>();
+
+	if (!AIDecisionManagerRef)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get AIDecisionManager subsystem!"));
+	}
+
 	// Auto-start combat if enabled (AFTER subsystems are cached)
 	if (bAutoStartCombat)
 	{
@@ -78,8 +86,17 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 // COMBAT CONTROL
 // ========================================
 
-void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1)
+void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1, EAIDifficulty Difficulty)
 {
+	// Store difficulty
+	CombatDifficulty = Difficulty;
+
+	// Register with AI manager
+	if (AIDecisionManagerRef)
+	{
+		AIDecisionManagerRef->SetCombatOrchestrator(this);
+	}
+
 	if (CombatState != ECombatState::Idle)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StartCombat called while combat already active. Forcing end."));
@@ -184,6 +201,12 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 
 	FCombatResult Result = BuildCombatResult();
 	OnCombatResultReady.Broadcast(Result);
+
+	// Unregister from AI manager
+	if (AIDecisionManagerRef)
+	{
+		AIDecisionManagerRef->ClearCombatOrchestrator();
+	}
 
 	// Reset for next combat
 	Team0Combatants.Empty();
@@ -537,7 +560,25 @@ void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 
 void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 {
-	// Broadcast that we're waiting for action
+	// Check if AI-controlled
+	if (IsActorAIControlled(Actor))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Routing %s to AI decision"), *Actor->GetName());
+
+		if (AIDecisionManagerRef)
+		{
+			// Disable auto-advance - AI will submit action
+			GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+			AIDecisionManagerRef->RequestDecision(Actor);
+			return;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] AI actor but no AIDecisionManager - falling back to auto-advance"));
+		}
+	}
+
+	// Player turn - broadcast for UI
 	OnActionRequested.Broadcast(Actor);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Requesting action from %s"), *Actor->GetName());
@@ -590,7 +631,7 @@ int32 ACombatOrchestrator::CountLivingMembers(const TArray<AActor *> &Team)
 	return Count;
 }
 
-bool ACombatOrchestrator::IsActorAlive(AActor *Actor)
+bool ACombatOrchestrator::IsActorAlive(AActor *Actor) const
 {
 	if (!Actor)
 		return false;
@@ -688,6 +729,141 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 	{
 		PrepareActor(Actor);
 	}
+}
+
+// ========================================
+// Enemy AI
+// ========================================
+
+bool ACombatOrchestrator::IsActorAIControlled(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return false;
+	}
+
+	UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!Comp || !Comp->CharacterData)
+	{
+		return false;
+	}
+
+	return Comp->CharacterData->ShouldUseAI();
+}
+
+TArray<AActor *> ACombatOrchestrator::GetLivingEnemies(AActor *ForActor) const
+{
+	TArray<AActor *> Enemies = GetEnemyTeam(ForActor);
+
+	Enemies.RemoveAll([this](AActor *Actor)
+					  { return !IsActorAlive(Actor); });
+
+	return Enemies;
+}
+
+TArray<AActor *> ACombatOrchestrator::GetLivingAllies(AActor *ForActor) const
+{
+	TArray<AActor *> Allies;
+	int32 TeamIndex = GetActorTeamIndex(ForActor);
+
+	if (TeamIndex == 0)
+	{
+		Allies = Team0Combatants;
+	}
+	else if (TeamIndex == 1)
+	{
+		Allies = Team1Combatants;
+	}
+
+	// Remove self and dead allies
+	Allies.RemoveAll([this, ForActor](AActor *Actor)
+					 { return Actor == ForActor || !IsActorAlive(Actor); });
+
+	return Allies;
+}
+
+// ========================================
+// BROKEN DARKNESS HELPERS
+// ========================================
+
+UBrokenDarknessManager *ACombatOrchestrator::GetBrokenDarknessManager(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	return Actor->FindComponentByClass<UBrokenDarknessManager>();
+}
+
+TArray<AActor *> ACombatOrchestrator::GetCombatantsInRange(AActor *Origin, float Range)
+{
+	TArray<AActor *> Result;
+
+	if (!Origin || Range <= 0.0f)
+	{
+		return Result;
+	}
+
+	FVector OriginLocation = Origin->GetActorLocation();
+
+	// Check all combatants from both teams
+	for (AActor *Combatant : Team0Combatants)
+	{
+		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
+		{
+			float Distance = FVector::Dist(OriginLocation, Combatant->GetActorLocation());
+			if (Distance <= Range)
+			{
+				Result.Add(Combatant);
+			}
+		}
+	}
+
+	for (AActor *Combatant : Team1Combatants)
+	{
+		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
+		{
+			float Distance = FVector::Dist(OriginLocation, Combatant->GetActorLocation());
+			if (Distance <= Range)
+			{
+				Result.Add(Combatant);
+			}
+		}
+	}
+
+	return Result;
+}
+
+void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
+{
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager || !BDManager->IsOverloaded())
+	{
+		return;
+	}
+
+	// Get aura range based on MaxEnergy stat
+	float AuraRange = BDManager->CalculateAuraRange();
+
+	// Find all combatants in range
+	TArray<AActor *> ActorsInRange = GetCombatantsInRange(Actor, AuraRange);
+
+	// Get character stats for damage/efficiency calculations
+	float EffectDamageMult = 1.0f;
+	float EfficiencyPercent = 0.0f;
+
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (CharComp && CharComp->CharacterData)
+	{
+		EffectDamageMult = CharComp->CharacterData->CalculateEffectDamageMultiplier();
+		EfficiencyPercent = CharComp->CharacterData->CalculateEfficiencyMultiplier() * 100.0f;
+	}
+
+	// Process the overflow tick (aura damage, self-damage, energy drain)
+	BDManager->ProcessOverloadTick(ActorsInRange, EffectDamageMult, EfficiencyPercent);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
+		   *Actor->GetName(), AuraRange, ActorsInRange.Num());
 }
 
 // ========================================
@@ -1332,88 +1508,4 @@ AActor *ACombatOrchestrator::GetDebugActor() const
 		return DebugOverrideActor;
 	}
 	return CurrentActor;
-}
-
-// ========================================
-// BROKEN DARKNESS HELPERS
-// ========================================
-
-UBrokenDarknessManager *ACombatOrchestrator::GetBrokenDarknessManager(AActor *Actor) const
-{
-	if (!Actor)
-	{
-		return nullptr;
-	}
-	return Actor->FindComponentByClass<UBrokenDarknessManager>();
-}
-
-TArray<AActor *> ACombatOrchestrator::GetCombatantsInRange(AActor *Origin, float Range)
-{
-	TArray<AActor *> Result;
-
-	if (!Origin || Range <= 0.0f)
-	{
-		return Result;
-	}
-
-	FVector OriginLocation = Origin->GetActorLocation();
-
-	// Check all combatants from both teams
-	for (AActor *Combatant : Team0Combatants)
-	{
-		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
-		{
-			float Distance = FVector::Dist(OriginLocation, Combatant->GetActorLocation());
-			if (Distance <= Range)
-			{
-				Result.Add(Combatant);
-			}
-		}
-	}
-
-	for (AActor *Combatant : Team1Combatants)
-	{
-		if (Combatant && Combatant != Origin && IsActorAlive(Combatant))
-		{
-			float Distance = FVector::Dist(OriginLocation, Combatant->GetActorLocation());
-			if (Distance <= Range)
-			{
-				Result.Add(Combatant);
-			}
-		}
-	}
-
-	return Result;
-}
-
-void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
-{
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
-	if (!BDManager || !BDManager->IsOverloaded())
-	{
-		return;
-	}
-
-	// Get aura range based on MaxEnergy stat
-	float AuraRange = BDManager->CalculateAuraRange();
-
-	// Find all combatants in range
-	TArray<AActor *> ActorsInRange = GetCombatantsInRange(Actor, AuraRange);
-
-	// Get character stats for damage/efficiency calculations
-	float EffectDamageMult = 1.0f;
-	float EfficiencyPercent = 0.0f;
-
-	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-	if (CharComp && CharComp->CharacterData)
-	{
-		EffectDamageMult = CharComp->CharacterData->CalculateEffectDamageMultiplier();
-		EfficiencyPercent = CharComp->CharacterData->CalculateEfficiencyMultiplier() * 100.0f;
-	}
-
-	// Process the overflow tick (aura damage, self-damage, energy drain)
-	BDManager->ProcessOverloadTick(ActorsInRange, EffectDamageMult, EfficiencyPercent);
-
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
-		   *Actor->GetName(), AuraRange, ActorsInRange.Num());
 }

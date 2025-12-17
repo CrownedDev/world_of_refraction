@@ -6,6 +6,8 @@
 #include "GameFramework/Actor.h"
 #include "ActionStructs.h"
 #include "BrokenDarknessManager.h"
+#include "EAIDifficulty.h"
+#include "AIDecisionManager.h"
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
@@ -93,7 +95,7 @@ public:
 
 	/** Start combat between two teams. Team 0 = players, Team 1 = enemies (by convention) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
-	void StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
+	void StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1, EAIDifficulty Difficulty = EAIDifficulty::Medium);
 
 	/** Force end combat (e.g., flee, cutscene interrupt) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -154,6 +156,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsActorsTurn(AActor *Actor) const { return CurrentActor == Actor && CombatState == ECombatState::InProgress; }
 
+	/** Check if actor is AI-controlled */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsActorAIControlled(AActor *Actor) const;
+
+	/** Get living enemies for an actor */
+	UFUNCTION(BlueprintPure, Category = "Combat|Targeting")
+	TArray<AActor *> GetLivingEnemies(AActor *ForActor) const;
+
+	/** Get living allies for an actor */
+	UFUNCTION(BlueprintPure, Category = "Combat|Targeting")
+	TArray<AActor *> GetLivingAllies(AActor *ForActor) const;
+
+	/** Get current AI difficulty */
+	UFUNCTION(BlueprintPure, Category = "Combat|AI")
+	EAIDifficulty GetCombatDifficulty() const { return CombatDifficulty; }
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -190,6 +208,10 @@ public:
 	/** Delay before auto-advancing (simulates action time) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug", meta = (EditCondition = "bAutoAdvanceTurns"))
 	float AutoAdvanceDelay = 1.0f;
+
+	/** AI difficulty level for this combat */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|AI")
+	EAIDifficulty CombatDifficulty = EAIDifficulty::Medium;
 
 	// ========================================
 	// DEBUG TOOLS
@@ -274,6 +296,9 @@ private:
 
 	FTimerHandle AutoAdvanceTimerHandle;
 
+	UPROPERTY()
+	UAIDecisionManager *AIDecisionManagerRef = nullptr;
+
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
 
@@ -316,7 +341,7 @@ private:
 	// Win condition
 	ECombatState CheckWinCondition();
 	int32 CountLivingMembers(const TArray<AActor *> &Team);
-	bool IsActorAlive(AActor *Actor);
+	bool IsActorAlive(AActor *Actor) const;
 
 	// Team helpers
 	int32 GetActorTeamIndex(AActor *Actor) const;

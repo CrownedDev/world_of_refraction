@@ -76,6 +76,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
 	UTexture2D *Portrait = nullptr;
 
+	// ==================== CONTROL ====================
+
+	/** If true, this character is controlled by AI in combat */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control")
+	bool bIsAIControlled = false;
+
 	// ==================== EVOLUTION ====================
 
 	/** Is this character evolved? */
@@ -313,6 +319,10 @@ public:
 	bool bUseWeaponParryAnimation = false;
 
 	// ==================== CLASS HELPERS ====================
+
+	/** Check if this character should use AI control */
+	UFUNCTION(BlueprintPure, Category = "Character|Control")
+	bool ShouldUseAI() const { return bIsAIControlled; }
 
 	UFUNCTION(BlueprintPure, Category = "Character|Class")
 	bool IsGeneric() const { return CharacterClass == ECharacterClass::Generic; }
