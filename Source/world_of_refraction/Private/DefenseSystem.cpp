@@ -5,6 +5,7 @@
 #include "CharacterDataComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
+#include "CombatAnimInstance.h"
 
 void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -409,17 +410,17 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		return;
 	}
 
-	// Get AnimInstance and play montage
+	// Get CombatAnimInstance and play through action system (blocks stance updates)
 	ACharacter *Character = Cast<ACharacter>(Defender);
 	if (!Character)
 	{
 		return;
 	}
 
-	UAnimInstance *AnimInstance = Character->GetMesh()->GetAnimInstance();
-	if (AnimInstance)
+	UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance());
+	if (CombatAnim)
 	{
-		AnimInstance->Montage_Play(MontageToPlay);
+		CombatAnim->PlayActionMontage(MontageToPlay);
 		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Playing %s for %s"),
 			   *MontageToPlay->GetName(), *Defender->GetName());
 	}
