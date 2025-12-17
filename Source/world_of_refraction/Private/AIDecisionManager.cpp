@@ -84,15 +84,17 @@ void UAIDecisionManager::ExecuteDecision()
         return;
     }
 
-    FAction Action = BuildAction(PendingActor);
+    // Capture locally BEFORE SubmitAction (which may trigger next turn synchronously)
+    AActor *Actor = PendingActor;
+    PendingActor = nullptr; // Clear BEFORE submit
+
+    FAction Action = BuildAction(Actor);
 
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s executing action type %d"),
-           *PendingActor->GetName(), static_cast<int32>(Action.ActionType));
+           *Actor->GetName(), static_cast<int32>(Action.ActionType));
 
-    // Submit through orchestrator
+    // Submit through orchestrator (may advance turn synchronously)
     CurrentCombat->SubmitAction(Action);
-
-    PendingActor = nullptr;
 }
 
 // ==================== QUERY ====================

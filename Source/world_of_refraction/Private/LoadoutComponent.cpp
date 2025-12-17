@@ -455,7 +455,7 @@ TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
     }
 
     TArray<USpellData *> Result = SavedLoadouts[ActiveLoadoutIndex].GetAllSpells();
-    UE_LOG(LogTemp, Warning, TEXT("[GetAvailableSpells] Returning %d spells"), Result.Num());
+    UE_LOG(LogTemp, Verbose, TEXT("[GetAvailableSpells] Returning %d spells"), Result.Num());
     return Result;
 }
 
