@@ -260,7 +260,43 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		return false;
 	}
 
-	// Execute action synchronously
+	// Check if this action requires async execution (projectile spells, attacks with movement)
+	bool bRequiresAsync = false;
+
+	if (Action.ActionType == EActionType::Spell && Action.SpellData)
+	{
+		// Projectile/Homing/Beam spells need async for defense window
+		ESpellDeliveryType Delivery = Action.SpellData->DeliveryType;
+		bRequiresAsync = (Delivery == ESpellDeliveryType::Projectile ||
+						  Delivery == ESpellDeliveryType::Homing ||
+						  Delivery == ESpellDeliveryType::Beam);
+	}
+	else if (Action.ActionType == EActionType::Attack && Action.AttackData)
+	{
+		// Attacks with movement data need async
+		bRequiresAsync = (Action.AttackData->MovementData != nullptr);
+	}
+	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
+	{
+		// Abilities with movement data need async
+		bRequiresAsync = (Action.AbilityData->MovementData != nullptr);
+	}
+
+	if (bRequiresAsync)
+	{
+		// Use async path - turn will end when action fully completes
+		bWaitingForAsyncAction = true;
+
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executing %s asynchronously..."),
+			   *CurrentActor->GetName(), *Action.GetActionName());
+
+		ActionExecutorRef->ExecuteActionAsync(CurrentActor, Action,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+
+		return true; // Action started, will complete later
+	}
+
+	// Synchronous execution for instant actions
 	FActionResult Result = ActionExecutorRef->ExecuteAction(CurrentActor, Action);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] %s executed %s: %s (Damage: %d, Healing: %d)"),

@@ -107,25 +107,32 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
     if (!Character)
         return false;
 
-    // Generic element cannot cast any spells
-    if (Character->InnateElement == ESpellElement::Generic)
-    {
-        return false;
-    }
-
-    // Universal spells can be cast by any non-Generic element
+    // Universal spells can be cast by anyone
     if (bIsUniversalSpell)
     {
         return true;
     }
 
-    // Regular spells: check element match
-    if (Character->InnateElement != Element)
+    // Generic CLASS can cast any spell from their loadout (no element restriction)
+    // The loadout system already ensures they only have valid spells
+    if (Character->CharacterClass == ECharacterClass::Generic)
     {
-        return false; // Element locked!
+        return true; // Loadout validation handles restrictions
     }
 
-    return true; // Can attempt (might have penalties)
+    // Resonator CLASS can cast any spell from rings (no innate element)
+    if (Character->CharacterClass == ECharacterClass::Resonator)
+    {
+        return true; // Ring system handles element availability
+    }
+
+    // Caster CLASS: check element match
+    if (Character->InnateElement != Element)
+    {
+        return false; // Element locked for Casters
+    }
+
+    return true;
 }
 
 FString USpellData::GetDisplayName(UCharacterData *Caster) const

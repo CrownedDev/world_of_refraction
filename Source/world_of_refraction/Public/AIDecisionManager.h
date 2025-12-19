@@ -7,11 +7,13 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "EAIDifficulty.h"
 #include "ActionStructs.h"
+#include "EDefenseType.h"
 #include "AIDecisionManager.generated.h"
 
 class ACombatOrchestrator;
 class UCharacterDataComponent;
 class ULoadoutComponent;
+class UDefenseSystem;
 
 /**
  * Handles AI decision making during combat
@@ -45,11 +47,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AI")
     void RequestDecision(AActor *AIActor);
 
-    // ==================== QUERY ====================
+    // ==================== DEFENSE DECISIONS ====================
 
-    /** Get current difficulty from combat */
-    UFUNCTION(BlueprintPure, Category = "AI")
-    EAIDifficulty GetCurrentDifficulty() const;
+    /**
+     * Schedule defense decision for AI defender
+     * Called by DefenseSystem when window opens
+     */
+    UFUNCTION(BlueprintCallable, Category = "AI|Defense")
+    void ScheduleDefenseDecision(AActor *Defender, float AttackSize, int32 BaseDamage, float WindowDuration);
 
 private:
     // ==================== INTERNAL ====================
@@ -81,4 +86,33 @@ private:
 
     /** Calculate random thinking delay */
     float CalculateThinkingDelay(EAIDifficulty Difficulty) const;
+
+    // ==================== DEFENSE DECISIONS ====================
+
+    /** Defense system reference */
+    UPROPERTY()
+    UDefenseSystem *DefenseSystemRef = nullptr;
+
+    /** Active defense timers per actor */
+    TMap<AActor *, FTimerHandle> DefenseTimerHandles;
+
+    // ==================== DEFENSE LOGIC ====================
+
+    /** Choose defense type based on attack and difficulty */
+    EDefenseType ChooseDefenseType(AActor *Defender, float AttackSize, EAIDifficulty Difficulty);
+
+    /** Get defense attempt chance for difficulty */
+    float GetDefenseAttemptChance(EAIDifficulty Difficulty) const;
+
+    /** Get defense timing accuracy for difficulty */
+    float GetDefenseAccuracy(EAIDifficulty Difficulty) const;
+
+    /** Calculate reaction delay for defense */
+    float CalculateDefenseReactionDelay(EAIDifficulty Difficulty, float WindowDuration) const;
+
+    // ==================== QUERY ====================
+
+    /** Get current difficulty from combat */
+    UFUNCTION(BlueprintPure, Category = "AI")
+    EAIDifficulty GetCurrentDifficulty() const;
 };

@@ -6,6 +6,8 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "CombatAnimInstance.h"
+#include "AIDecisionManager.h"
+#include "CharacterData.h"
 
 void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -90,6 +92,34 @@ void UDefenseSystem::OpenDefenseWindow(
 
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Duration: %.2fs)"),
 		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration);
+
+	// Check if AI-controlled and schedule defense
+	UCharacterDataComponent *CharComp = Defender->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No CharacterDataComponent on %s"), *Defender->GetName());
+	}
+	else if (!CharComp->CharacterData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] CharacterData is null on %s"), *Defender->GetName());
+	}
+	else if (!CharComp->CharacterData->ShouldUseAI())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] %s is not AI-controlled, skipping AI defense"), *Defender->GetName());
+	}
+	else
+	{
+		UAIDecisionManager *AIManager = GetGameInstance()->GetSubsystem<UAIDecisionManager>();
+		if (!AIManager)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[DefenseSystem] Failed to get AIDecisionManager!"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Scheduling AI defense for %s"), *Defender->GetName());
+			AIManager->ScheduleDefenseDecision(Defender, AttackSize, BaseDamage, State.WindowDuration);
+		}
+	}
 }
 
 FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)

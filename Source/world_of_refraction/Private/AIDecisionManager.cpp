@@ -12,10 +12,17 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "TimerManager.h"
+#include "DefenseSystem.h"
+#include "EDefenseType.h"
+#include "EDefenseDirection.h"
 
 void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
 {
     Super::Initialize(Collection);
+
+    // Note: DefenseSystem may not be ready yet - will lazy-load when needed
+    DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] Initialized"));
 }
 
@@ -275,4 +282,217 @@ float UAIDecisionManager::CalculateThinkingDelay(EAIDifficulty Difficulty) const
     float Min, Max;
     GetThinkingDelayRange(Difficulty, Min, Max);
     return FMath::FRandRange(Min, Max);
+}
+
+// ==================== DEFENSE DECISIONS ====================
+
+void UAIDecisionManager::ScheduleDefenseDecision(AActor *Defender, float AttackSize, int32 BaseDamage, float WindowDuration)
+{
+    if (!Defender)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] ScheduleDefenseDecision - null Defender"));
+        return;
+    }
+
+    // Lazy-load DefenseSystem (may not be ready at Initialize time)
+    if (!DefenseSystemRef)
+    {
+        DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+    }
+
+    if (!DefenseSystemRef)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] ScheduleDefenseDecision - could not get DefenseSystem"));
+        return;
+    }
+
+    EAIDifficulty Difficulty = GetCurrentDifficulty();
+
+    // Roll for defense attempt
+    float AttemptChance = GetDefenseAttemptChance(Difficulty);
+    float Roll = FMath::FRand();
+
+    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s defense roll: %.2f vs %.2f (%.0f%% chance)"),
+           *Defender->GetName(), Roll, AttemptChance, AttemptChance * 100.0f);
+
+    if (Roll > AttemptChance)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose not to defend"),
+               *Defender->GetName());
+        return;
+    }
+
+    // Choose defense type
+    EDefenseType Choice = ChooseDefenseType(Defender, AttackSize, Difficulty);
+
+    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose defense type: %d"),
+           *Defender->GetName(), static_cast<int32>(Choice));
+
+    if (Choice == EDefenseType::None)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] %s - ChooseDefenseType returned None"),
+               *Defender->GetName());
+        return;
+    }
+
+    // Calculate reaction delay (must be within window)
+    float ReactionDelay = CalculateDefenseReactionDelay(Difficulty, WindowDuration);
+
+    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s will %s in %.2fs"),
+           *Defender->GetName(),
+           Choice == EDefenseType::Block ? TEXT("Block") : Choice == EDefenseType::Parry ? TEXT("Parry")
+                                                                                         : TEXT("Dodge"),
+           ReactionDelay);
+
+    // Schedule defense input
+    FTimerHandle &TimerHandle = DefenseTimerHandles.FindOrAdd(Defender);
+
+    if (UWorld *World = GetWorld())
+    {
+        World->GetTimerManager().ClearTimer(TimerHandle);
+
+        FTimerDelegate TimerDelegate;
+        TimerDelegate.BindLambda([this, Defender, Choice]()
+                                 {
+            if (!Defender || !DefenseSystemRef)
+            {
+                return;
+            }
+
+            // Roll for timing accuracy
+            EAIDifficulty Diff = GetCurrentDifficulty();
+            float Accuracy = GetDefenseAccuracy(Diff);
+            bool bGoodTiming = FMath::FRand() < Accuracy;
+
+            if (bGoodTiming)
+            {
+                EDefenseDirection Direction = EDefenseDirection::None;
+                if (Choice == EDefenseType::Dodge)
+                {
+                    Direction = FMath::RandBool() ? EDefenseDirection::Left : EDefenseDirection::Right;
+                }
+
+                DefenseSystemRef->SubmitDefenseInput(Defender, Choice, Direction);
+                
+                UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s executed %s defense"),
+                    *Defender->GetName(),
+                    Choice == EDefenseType::Block ? TEXT("Block") : 
+                    Choice == EDefenseType::Parry ? TEXT("Parry") : TEXT("Dodge"));
+            }
+            else
+            {
+                UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s mistimed defense (%.0f%% accuracy)"),
+                    *Defender->GetName(), Accuracy * 100.0f);
+            }
+
+            DefenseTimerHandles.Remove(Defender); });
+
+        World->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, ReactionDelay, false);
+    }
+}
+
+EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float AttackSize, EAIDifficulty Difficulty)
+{
+    // Check if dodge is viable
+    bool bCanDodge = DefenseSystemRef && DefenseSystemRef->CanDodgeAttack(Defender, AttackSize);
+
+    // Easy: Always block (safest)
+    if (Difficulty == EAIDifficulty::Easy)
+    {
+        return EDefenseType::Block;
+    }
+
+    // Medium: Block or Dodge (no parry - too risky)
+    if (Difficulty == EAIDifficulty::Medium)
+    {
+        if (bCanDodge && FMath::RandBool())
+        {
+            return EDefenseType::Dodge;
+        }
+        return EDefenseType::Block;
+    }
+
+    // Hard/Expert: Smart choice
+    // Prioritize: Dodge (100% avoid) > Parry (70% + reflect) > Block (50%)
+    if (bCanDodge)
+    {
+        return EDefenseType::Dodge;
+    }
+
+    // Parry vs Block: Higher difficulty = more parry attempts
+    float ParryChance = (Difficulty == EAIDifficulty::Expert) ? 0.7f : 0.4f;
+    if (FMath::FRand() < ParryChance)
+    {
+        return EDefenseType::Parry;
+    }
+
+    return EDefenseType::Block;
+}
+
+float UAIDecisionManager::GetDefenseAttemptChance(EAIDifficulty Difficulty) const
+{
+    switch (Difficulty)
+    {
+    case EAIDifficulty::Easy:
+        return AIConstants::EASY_DEFENSE_ATTEMPT;
+    case EAIDifficulty::Medium:
+        return AIConstants::MEDIUM_DEFENSE_ATTEMPT;
+    case EAIDifficulty::Hard:
+        return AIConstants::HARD_DEFENSE_ATTEMPT;
+    case EAIDifficulty::Expert:
+        return AIConstants::EXPERT_DEFENSE_ATTEMPT;
+    default:
+        return AIConstants::MEDIUM_DEFENSE_ATTEMPT;
+    }
+}
+
+float UAIDecisionManager::GetDefenseAccuracy(EAIDifficulty Difficulty) const
+{
+    switch (Difficulty)
+    {
+    case EAIDifficulty::Easy:
+        return AIConstants::EASY_DEFENSE_ACCURACY;
+    case EAIDifficulty::Medium:
+        return AIConstants::MEDIUM_DEFENSE_ACCURACY;
+    case EAIDifficulty::Hard:
+        return AIConstants::HARD_DEFENSE_ACCURACY;
+    case EAIDifficulty::Expert:
+        return AIConstants::EXPERT_DEFENSE_ACCURACY;
+    default:
+        return AIConstants::MEDIUM_DEFENSE_ACCURACY;
+    }
+}
+
+float UAIDecisionManager::CalculateDefenseReactionDelay(EAIDifficulty Difficulty, float WindowDuration) const
+{
+    // Reaction time as fraction of window
+    // Easy: Late in window (70-90%)
+    // Expert: Early in window (10-30%)
+    float MinFraction, MaxFraction;
+
+    switch (Difficulty)
+    {
+    case EAIDifficulty::Easy:
+        MinFraction = 0.7f;
+        MaxFraction = 0.9f;
+        break;
+    case EAIDifficulty::Medium:
+        MinFraction = 0.4f;
+        MaxFraction = 0.7f;
+        break;
+    case EAIDifficulty::Hard:
+        MinFraction = 0.2f;
+        MaxFraction = 0.5f;
+        break;
+    case EAIDifficulty::Expert:
+        MinFraction = 0.1f;
+        MaxFraction = 0.3f;
+        break;
+    default:
+        MinFraction = 0.4f;
+        MaxFraction = 0.7f;
+    }
+
+    float Fraction = FMath::FRandRange(MinFraction, MaxFraction);
+    return WindowDuration * Fraction;
 }
