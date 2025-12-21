@@ -635,6 +635,8 @@ private:
 	void OnMovementComplete();
 
 private:
+	/** Apply status buildup from spell hit */
+	void ApplySpellStatusBuildup(AActor *Caster, AActor *Target, USpellData *Spell, int32 InfusionLevel);
 	// ==================== ACTION ANIMATION BINDING ====================
 
 	/** Bind to CombatAnimInstance for action completion */

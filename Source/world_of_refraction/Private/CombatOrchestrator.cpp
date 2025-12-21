@@ -180,6 +180,22 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	if (StatusEffectManagerRef)
 	{
 		StatusEffectManagerRef->ClearAllEffects();
+
+		// NEW: Reset all status bars
+		for (AActor *Actor : Team0Combatants)
+		{
+			if (Actor)
+			{
+				StatusEffectManagerRef->ResetStatusBar(Actor);
+			}
+		}
+		for (AActor *Actor : Team1Combatants)
+		{
+			if (Actor)
+			{
+				StatusEffectManagerRef->ResetStatusBar(Actor);
+			}
+		}
 	}
 
 	// === Consume used items and reset loadouts ===
@@ -574,6 +590,9 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 
 	// Delegate to StatusEffectManager - processes buffs, regen, etc.
 	StatusEffectManagerRef->ProcessStartOfTurnEffects(Actor);
+
+	// Process status bar decay
+	StatusEffectManagerRef->ProcessStatusBarDecay(Actor);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
 		   *Actor->GetName());

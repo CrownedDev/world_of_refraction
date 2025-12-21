@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "StatusEffect.h"
+#include "EStatusType.h"
 #include "StatusEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -352,6 +353,36 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
 	bool IsImmuneToEffectType(AActor *Actor, EAbilityEffectType EffectType) const;
 
+	// ==================== STATUS BAR SYSTEM ====================
+
+	/** Get current status bar percentage for a target (0.0 - 1.0) */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	float GetStatusBarPercent(AActor *Target) const;
+
+	/** Get current status bar buildup value */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	float GetStatusBarBuildup(AActor *Target) const;
+
+	/** Get remaining buildup needed to trigger status */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	float GetBuildupToTrigger(AActor *Target) const;
+
+	/** Get the pending status type (what will trigger when bar fills) */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	EStatusType GetPendingStatus(AActor *Target) const;
+
+	/** Add buildup to target's status bar, returns true if triggered */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount, EStatusType StatusType, ESpellElement Element);
+
+	/** Reset status bar for target */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	void ResetStatusBar(AActor *Target);
+
+	/** Process status bar decay at turn start */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	void ProcessStatusBarDecay(AActor *Target);
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -439,4 +470,28 @@ private:
 
 	/** Notify TurnManager that an actor's speed has changed */
 	void NotifySpeedChanged(AActor *Actor);
+
+	// ==================== STATUS BAR STATE ====================
+
+	/** Status bar state per actor */
+	struct FStatusBarState
+	{
+		float CurrentBuildup = 0.0f;
+		EStatusType PendingStatus = EStatusType::None;
+		ESpellElement PendingElement = ESpellElement::Generic;
+		TWeakObjectPtr<AActor> LastSource;
+		int32 TurnsSinceLastHit = 0;
+	};
+
+	/** Status bar state tracking */
+	TMap<TWeakObjectPtr<AActor>, FStatusBarState> StatusBarStates;
+
+	/** Trigger the status effect when bar fills */
+	void TriggerStatusEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+
+	/** Apply immediate (on-hit) status effect */
+	void ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+
+	/** Apply triggered (bar-full) status effect */
+	void ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 };

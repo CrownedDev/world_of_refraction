@@ -375,6 +375,9 @@ public:
 	void DebugPrintActorWeaponState(AActor *Actor) const;
 
 private:
+	/** Apply status buildup from weapon attack */
+	void ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, UWeaponData *Weapon, UWeaponAttackData *Attack, int32 InfusionLevel);
+
 	// ========================================
 	// HELPERS
 	// ========================================

@@ -3,6 +3,10 @@
 #include "StatusEffectManager.h"
 #include "CharacterDataComponent.h"
 #include "TurnManager.h"
+#include "EStatusType.h"
+#include "CombatConstants.h"
+#include "InfusionConstants.h"
+#include "CharacterDataComponent.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -1389,4 +1393,459 @@ void UStatusEffectManager::NotifySpeedChanged(AActor *Actor)
 		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Notified TurnManager of speed change for %s"),
 			   *Actor->GetName());
 	}
+}
+
+// ==================== STATUS BAR SYSTEM ====================
+
+float UStatusEffectManager::GetStatusBarPercent(AActor *Target) const
+{
+	if (!Target)
+	{
+		return 0.0f;
+	}
+
+	const FStatusBarState *State = StatusBarStates.Find(Target);
+	if (!State)
+	{
+		return 0.0f;
+	}
+
+	return FMath::Clamp(State->CurrentBuildup / CombatConstants::STATUS_EFFECT_THRESHOLD, 0.0f, 1.0f);
+}
+
+float UStatusEffectManager::GetStatusBarBuildup(AActor *Target) const
+{
+	if (!Target)
+	{
+		return 0.0f;
+	}
+
+	const FStatusBarState *State = StatusBarStates.Find(Target);
+	return State ? State->CurrentBuildup : 0.0f;
+}
+
+float UStatusEffectManager::GetBuildupToTrigger(AActor *Target) const
+{
+	if (!Target)
+	{
+		return CombatConstants::STATUS_EFFECT_THRESHOLD;
+	}
+
+	const FStatusBarState *State = StatusBarStates.Find(Target);
+	float Current = State ? State->CurrentBuildup : 0.0f;
+	return FMath::Max(0.0f, CombatConstants::STATUS_EFFECT_THRESHOLD - Current);
+}
+
+EStatusType UStatusEffectManager::GetPendingStatus(AActor *Target) const
+{
+	if (!Target)
+	{
+		return EStatusType::None;
+	}
+
+	const FStatusBarState *State = StatusBarStates.Find(Target);
+	return State ? State->PendingStatus : EStatusType::None;
+}
+
+bool UStatusEffectManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount, EStatusType StatusType, ESpellElement Element)
+{
+	if (!Target || Amount <= 0.0f)
+	{
+		return false;
+	}
+
+	// Get or create state
+	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
+
+	// Apply resistance reduction
+	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	if (TargetComp && TargetComp->CharacterData)
+	{
+		float Resistance = TargetComp->CharacterData->CalculateResistance();
+		Amount *= (1.0f - Resistance);
+	}
+
+	// Update pending trigger (last hit wins)
+	State.PendingStatus = StatusType;
+	State.PendingElement = Element;
+	State.LastSource = Source;
+	State.TurnsSinceLastHit = 0; // Reset decay counter
+
+	// Add buildup
+	float OldBuildup = State.CurrentBuildup;
+	State.CurrentBuildup += Amount;
+
+	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s status buildup: %.1f → %.1f (+%.1f) - Pending: %s"),
+		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
+		   *UEnum::GetValueAsString(State.PendingStatus));
+
+	// Check if triggered
+	if (State.CurrentBuildup >= CombatConstants::STATUS_EFFECT_THRESHOLD)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s status bar FULL - Triggering %s"),
+			   *Target->GetName(), *UEnum::GetValueAsString(State.PendingStatus));
+
+		TriggerStatusEffect(Source, Target, State.PendingStatus, State.PendingElement);
+		ResetStatusBar(Target);
+		return true;
+	}
+
+	return false;
+}
+
+void UStatusEffectManager::ResetStatusBar(AActor *Target)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	if (FStatusBarState *State = StatusBarStates.Find(Target))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] %s status bar reset"), *Target->GetName());
+
+		State->CurrentBuildup = 0.0f;
+		State->PendingStatus = EStatusType::None;
+		State->PendingElement = ESpellElement::Generic;
+		State->LastSource = nullptr;
+		State->TurnsSinceLastHit = 0;
+	}
+}
+
+void UStatusEffectManager::ProcessStatusBarDecay(AActor *Target)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	FStatusBarState *State = StatusBarStates.Find(Target);
+	if (!State || State->CurrentBuildup <= 0.0f)
+	{
+		return;
+	}
+
+	State->TurnsSinceLastHit++;
+
+	// Full reset after 3 turns
+	if (State->TurnsSinceLastHit >= CombatConstants::STATUS_DECAY_FULL_RESET_TURNS)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s status bar decayed to 0 (3 turns)"),
+			   *Target->GetName());
+		ResetStatusBar(Target);
+		return;
+	}
+
+	// Decay 25% per turn
+	float OldBuildup = State->CurrentBuildup;
+	State->CurrentBuildup *= (1.0f - CombatConstants::STATUS_DECAY_RATE);
+
+	UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] %s status bar decayed: %.1f → %.1f (-%d%%, turn %d)"),
+		   *Target->GetName(), OldBuildup, State->CurrentBuildup,
+		   FMath::RoundToInt(CombatConstants::STATUS_DECAY_RATE * 100.0f),
+		   State->TurnsSinceLastHit);
+}
+
+void UStatusEffectManager::TriggerStatusEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+{
+	if (!Target || StatusType == EStatusType::None)
+	{
+		return;
+	}
+
+	// Apply triggered (full power) status effect
+	ApplyTriggeredStatus(Source, Target, StatusType, Element);
+}
+
+void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+{
+	if (!Target || StatusType == EStatusType::None)
+	{
+		return;
+	}
+
+	// Get source data for scaling
+	UCharacterData *SourceData = nullptr;
+	if (Source)
+	{
+		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
+		SourceData = SourceComp ? SourceComp->CharacterData : nullptr;
+	}
+
+	FStatusEffect Effect;
+	Effect.Element = Element;
+	Effect.EffectID = FMath::Rand();
+
+	// Immediate effects: Weak, longer duration
+	switch (StatusType)
+	{
+	case EStatusType::Bleed:
+		Effect.EffectName = TEXT("Bleed");
+		Effect.EffectType = EAbilityEffectType::BleedDOT;
+		Effect.EffectValue = 10.0f;
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		break;
+
+	case EStatusType::ArmorBreak:
+		Effect.EffectName = TEXT("Armor Break");
+		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+		Effect.EffectValue = 15.0f; // 15%
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Burn:
+		Effect.EffectName = TEXT("Burn");
+		Effect.EffectType = EAbilityEffectType::BurnDOT;
+		Effect.EffectValue = 10.0f;
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		break;
+
+	case EStatusType::Slow:
+		Effect.EffectName = TEXT("Slowed");
+		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
+		Effect.EffectValue = 25.0f; // 25%
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Shocked:
+		// Apply both slow and DOT
+		Effect.EffectName = TEXT("Shocked");
+		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
+		Effect.EffectValue = 10.0f; // 10%
+		Effect.RemainingTurns = 2;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+
+		// Also apply DOT component
+		{
+			FStatusEffect ShockDOT;
+			ShockDOT.EffectName = TEXT("Shocked (DOT)");
+			ShockDOT.EffectID = FMath::Rand();
+			ShockDOT.EffectType = EAbilityEffectType::ElectrifiedDOT;
+			ShockDOT.EffectValue = 5.0f;
+			ShockDOT.RemainingTurns = 2;
+			ShockDOT.Element = Element;
+			ShockDOT.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+			ApplyEffect(Target, ShockDOT, Source, TEXT("Immediate Status"), -1);
+		}
+		break;
+
+	case EStatusType::Weakened:
+		Effect.EffectName = TEXT("Weakened");
+		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+		Effect.EffectValue = 15.0f; // 15%
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Dimmed:
+		Effect.EffectName = TEXT("Dimmed");
+		Effect.EffectType = EAbilityEffectType::CritChanceDebuff;
+		Effect.EffectValue = 15.0f; // 15%
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Silenced:
+		Effect.EffectName = TEXT("Silenced");
+		Effect.EffectType = EAbilityEffectType::EnergyDrain;
+		Effect.EffectValue = 25.0f; // 25% locked
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Destabilized:
+		// Random debuff
+		{
+			TArray<EAbilityEffectType> Debuffs = {
+				EAbilityEffectType::DamageDebuff,
+				EAbilityEffectType::DefenseDebuff,
+				EAbilityEffectType::SpeedDebuff,
+				EAbilityEffectType::CritChanceDebuff};
+			Effect.EffectName = TEXT("Destabilized");
+			Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
+			Effect.EffectValue = 15.0f; // 15%
+			Effect.RemainingTurns = 3;
+			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		}
+		break;
+
+	case EStatusType::Staggered:
+	case EStatusType::Tripped:
+	case EStatusType::RawDamage:
+		// These have no immediate effect
+		return;
+
+	default:
+		return;
+	}
+
+	Effect.InitialDuration = Effect.RemainingTurns;
+	ApplyEffect(Target, Effect, Source, TEXT("Immediate Status"), -1);
+
+	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied immediate %s to %s"),
+		   *Effect.EffectName, *Target->GetName());
+}
+
+void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+{
+	if (!Target || StatusType == EStatusType::None)
+	{
+		return;
+	}
+
+	// Get source data for scaling
+	UCharacterData *SourceData = nullptr;
+	if (Source)
+	{
+		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
+		SourceData = SourceComp ? SourceComp->CharacterData : nullptr;
+	}
+
+	FStatusEffect Effect;
+	Effect.Element = Element;
+	Effect.EffectID = FMath::Rand();
+
+	// Triggered effects: Full power, shorter duration
+	switch (StatusType)
+	{
+	case EStatusType::Bleed:
+		Effect.EffectName = TEXT("Bleed (Triggered)");
+		Effect.EffectType = EAbilityEffectType::BleedDOT;
+		Effect.EffectValue = 30.0f;
+		Effect.RemainingTurns = 2;
+		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		break;
+
+	case EStatusType::ArmorBreak:
+		Effect.EffectName = TEXT("Armor Break (Triggered)");
+		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+		Effect.EffectValue = 40.0f; // 40%
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Staggered:
+		Effect.EffectName = TEXT("Staggered");
+		Effect.EffectType = EAbilityEffectType::Stun;
+		Effect.EffectValue = 1.0f;
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		break;
+
+	case EStatusType::Burn:
+		Effect.EffectName = TEXT("Burn (Triggered)");
+		Effect.EffectType = EAbilityEffectType::BurnDOT;
+		Effect.EffectValue = 30.0f;
+		Effect.RemainingTurns = 2;
+		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		break;
+
+	case EStatusType::Slow:
+		Effect.EffectName = TEXT("Slowed (Triggered)");
+		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
+		Effect.EffectValue = 50.0f; // 50%
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Tripped:
+		Effect.EffectName = TEXT("Tripped");
+		Effect.EffectType = EAbilityEffectType::Stun;
+		Effect.EffectValue = 1.0f;
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		break;
+
+	case EStatusType::Shocked:
+		// Apply strong slow + DOT
+		Effect.EffectName = TEXT("Shocked (Triggered)");
+		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
+		Effect.EffectValue = 25.0f; // 25%
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+
+		// DOT component
+		{
+			FStatusEffect ShockDOT;
+			ShockDOT.EffectName = TEXT("Shocked DOT (Triggered)");
+			ShockDOT.EffectID = FMath::Rand();
+			ShockDOT.EffectType = EAbilityEffectType::ElectrifiedDOT;
+			ShockDOT.EffectValue = 15.0f;
+			ShockDOT.RemainingTurns = 1;
+			ShockDOT.Element = Element;
+			ShockDOT.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+			ApplyEffect(Target, ShockDOT, Source, TEXT("Status Bar Trigger"), -1);
+		}
+		break;
+
+	case EStatusType::Weakened:
+		Effect.EffectName = TEXT("Weakened (Triggered)");
+		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+		Effect.EffectValue = 40.0f; // 40%
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Dimmed:
+		Effect.EffectName = TEXT("Dimmed (Triggered)");
+		Effect.EffectType = EAbilityEffectType::CritChanceDebuff;
+		Effect.EffectValue = 50.0f; // 50%
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Silenced:
+		Effect.EffectName = TEXT("Silenced (Triggered)");
+		Effect.EffectType = EAbilityEffectType::EnergyDrain;
+		Effect.EffectValue = 100.0f; // 100% locked
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Destabilized:
+		// Random strong debuff
+		{
+			TArray<EAbilityEffectType> Debuffs = {
+				EAbilityEffectType::DamageDebuff,
+				EAbilityEffectType::DefenseDebuff,
+				EAbilityEffectType::SpeedDebuff,
+				EAbilityEffectType::CritChanceDebuff};
+			Effect.EffectName = TEXT("Destabilized (Triggered)");
+			Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
+			Effect.EffectValue = 30.0f; // 30%
+			Effect.RemainingTurns = 1;
+			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		}
+		break;
+
+	case EStatusType::RawDamage:
+		// Apply burst damage scaled by source's RawDamage stat
+		if (SourceData)
+		{
+			int32 BurstDamage = FMath::RoundToInt(SourceData->CalculateRawDamage() * 2.0f);
+
+			UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+			if (TargetComp)
+			{
+				TargetComp->ServerTakeDamage(BurstDamage);
+
+				UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied %d raw burst damage to %s"),
+					   BurstDamage, *Target->GetName());
+			}
+		}
+		return;
+
+	default:
+		return;
+	}
+
+	Effect.InitialDuration = Effect.RemainingTurns;
+	ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
+
+	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied triggered %s to %s"),
+		   *Effect.EffectName, *Target->GetName());
 }

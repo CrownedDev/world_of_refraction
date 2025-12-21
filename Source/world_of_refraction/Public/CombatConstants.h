@@ -96,4 +96,9 @@ namespace CombatConstants
     // ==================== SPELL DATA ====================
     /** Raw mode damage bonus (+10%) */
     constexpr float RAW_MODE_DAMAGE_MULTIPLIER = 1.10f;
+
+    // Status bar system
+    constexpr float STATUS_EFFECT_THRESHOLD = 100.0f;
+    constexpr float STATUS_DECAY_RATE = 0.25f; // 25% per turn
+    constexpr int32 STATUS_DECAY_FULL_RESET_TURNS = 3;
 }

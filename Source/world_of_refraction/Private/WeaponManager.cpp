@@ -328,7 +328,7 @@ bool UWeaponManager::CanUseInfusion(AActor *Actor) const
 	}
 
 	// Weapon must support infusion
-	return true;  // All weapons can be infused //return Weapon->bCanBeInfused;
+	return true; // All weapons can be infused //return Weapon->bCanBeInfused;
 }
 
 // ========================================
@@ -517,26 +517,13 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, 
 		Result.TotalDamageDealt += TotalDamageToTarget;
 		Result.DamagePerTarget.Add(Target, TotalDamageToTarget);
 
-		// Physical status buildup (only for weapon attacks, not infused)
-		if (WeaponAttack && !bUseInfusion)
+		// Apply unified status buildup (both physical and elemental)
+		if (WeaponAttack)
 		{
-			float Buildup = CalculateStatusBuildup(Weapon, WeaponAttack, HitCount);
-			Result.StatusBuildupApplied += Buildup;
+			// Weapons don't have charge levels yet (just toggle), so InfusionLevel = 0
+			int32 InfusionLevel = 0;
 
-			FWeaponState *State = WeaponStates.Find(Attacker);
-			if (State)
-			{
-				State->AddBuildup(Target, Buildup);
-				float TotalBuildup = State->GetBuildup(Target);
-				float Threshold = GetStatusThreshold(WeaponAttack->PhysicalDamageType);
-
-				if (TotalBuildup >= Threshold)
-				{
-					TriggerPhysicalStatus(Attacker, Target, WeaponAttack->PhysicalDamageType);
-					State->ResetBuildup(Target);
-					Result.bTriggeredPhysicalStatus = true;
-				}
-			}
+			ApplyWeaponStatusBuildup(Attacker, Target, Weapon, WeaponAttack, InfusionLevel);
 		}
 	}
 
@@ -929,4 +916,66 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor *Actor) const
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("================================"));
+}
+
+void UWeaponManager::ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, UWeaponData *Weapon, UWeaponAttackData *Attack, int32 InfusionLevel)
+{
+	if (!Attacker || !Target || !Weapon || !Attack)
+	{
+		return;
+	}
+
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	if (!StatusManager)
+	{
+		return;
+	}
+
+	// Determine status type
+	EStatusType StatusType = EStatusType::None;
+
+	// If weapon is infused, use elemental status
+	FWeaponState *State = WeaponStates.Find(Attacker);
+	if (State && State->bInfusionActive)
+	{
+		// Get infusion element (from crystal, innate, or ring)
+		ESpellElement InfusionElement = GetInfusionElement(Attacker);
+		StatusType = StatusTypeHelper::GetDefaultForElement(InfusionElement);
+	}
+	else
+	{
+		// Use physical damage type
+		StatusType = StatusTypeHelper::GetDefaultForPhysical(Attack->PhysicalDamageType);
+	}
+
+	// Calculate buildup
+	float Buildup = Attack->StatusBuildup;
+
+	// L1 infusion: +50% buildup
+	if (InfusionLevel == 1)
+	{
+		Buildup *= 1.5f;
+	}
+
+	// Add to status bar
+	ESpellElement Element = State && State->bInfusionActive ? GetInfusionElement(Attacker) : ESpellElement::Generic;
+
+	bool bTriggered = StatusManager->AddStatusBuildup(
+		Attacker,
+		Target,
+		Buildup,
+		StatusType,
+		Element);
+
+	if (bTriggered)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s triggered status %s on %s"),
+			   *Weapon->WeaponName, *UEnum::GetValueAsString(StatusType), *Target->GetName());
+	}
+
+	// Apply immediate status
+	if (StatusType != EStatusType::None)
+	{
+		StatusManager->ApplyImmediateStatus(Attacker, Target, StatusType, Element);
+	}
 }

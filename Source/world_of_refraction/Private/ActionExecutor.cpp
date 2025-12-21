@@ -526,6 +526,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// Check for forbidden element self-damage (BD casting Dark Light/Void)
 	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
+	ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
 
 	// Open defense windows for all targets (damage applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -807,7 +808,13 @@ FActionResult UActionExecutor::ExecuteSpell(
 		}
 	}
 
-	// Apply status effects from spell
+	// Apply status buildup to unified status bar
+	for (AActor *Target : ValidTargets)
+	{
+		ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
+	}
+
+	// Apply status effects from spell (existing system)
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager && Spell->PrimaryEffect != EAbilityEffectType::None)
 	{
@@ -3740,5 +3747,92 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 					  PendingSpellTargets, PendingSpellDamage);
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned"));
+	}
+}
+
+void UActionExecutor::ApplySpellStatusBuildup(AActor *Caster, AActor *Target, USpellData *Spell, int32 InfusionLevel)
+{
+	if (!Caster || !Target || !Spell)
+	{
+		return;
+	}
+
+	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	if (!StatusManager)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] StatusEffectManager not available for spell buildup"));
+		return;
+	}
+
+	// Raw mode spells build up RawDamage type
+	if (Spell->bIsRawMode)
+	{
+		float Buildup = Spell->StatusBuildup;
+
+		// L1 infusion boosts buildup by 50%
+		if (InfusionLevel == 1)
+		{
+			Buildup *= 1.5f;
+		}
+
+		bool bTriggered = StatusManager->AddStatusBuildup(
+			Caster,
+			Target,
+			Buildup,
+			EStatusType::RawDamage,
+			Spell->Element);
+
+		if (bTriggered)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s triggered RawDamage on %s"),
+				   *Spell->SpellName, *Target->GetName());
+		}
+		return;
+	}
+
+	// Elemental mode: determine status type
+	EStatusType StatusType = EStatusType::None;
+
+	// Use PrimaryEffect if specified to determine status type
+	if (Spell->PrimaryEffect != EAbilityEffectType::None)
+	{
+		StatusType = StatusTypeHelper::GetFromAbilityEffect(Spell->PrimaryEffect);
+	}
+
+	// Fallback to element default if no valid status from PrimaryEffect
+	if (StatusType == EStatusType::None)
+	{
+		StatusType = StatusTypeHelper::GetDefaultForElement(Spell->Element);
+	}
+
+	// Calculate buildup
+	float Buildup = Spell->StatusBuildup;
+
+	// L1 infusion: +50% buildup
+	if (InfusionLevel == 1)
+	{
+		Buildup *= 1.5f;
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] L1 infusion boosted buildup: %d → %.1f"),
+			   Spell->StatusBuildup, Buildup);
+	}
+
+	// Add to status bar
+	bool bTriggered = StatusManager->AddStatusBuildup(
+		Caster,
+		Target,
+		Buildup,
+		StatusType,
+		Spell->Element);
+
+	if (bTriggered)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s triggered status %s on %s"),
+			   *Spell->SpellName, *UEnum::GetValueAsString(StatusType), *Target->GetName());
+	}
+
+	// Apply immediate status effect (on-hit, weaker version)
+	if (StatusType != EStatusType::None && StatusType != EStatusType::RawDamage)
+	{
+		StatusManager->ApplyImmediateStatus(Caster, Target, StatusType, Spell->Element);
 	}
 }
