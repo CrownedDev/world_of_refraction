@@ -785,15 +785,14 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
 {
     FAction Action;
 
-    UCombatOrchestrator *CombatOrchestrator = GetGameInstance()->GetSubsystem<UCombatOrchestrator>();
-    if (!CombatOrchestrator)
+    if (!CurrentCombat)
     {
         Action.ActionType = EActionType::Defend;
         return Action;
     }
 
     // Get all enemies
-    TArray<AActor *> Enemies = CombatOrchestrator->GetEnemiesOf(AIActor);
+    TArray<AActor *> Enemies = CurrentCombat->GetLivingEnemies(AIActor);
     if (Enemies.Num() == 0)
     {
         Action.ActionType = EActionType::Defend;
