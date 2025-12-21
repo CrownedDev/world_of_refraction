@@ -123,15 +123,15 @@ public:
 		AActor *Target,
 		const FString &SpellName,
 		int32 SpellID,
-		EAbilityEffectType PrimaryType,
+		EStatusType PrimaryType,
 		float PrimaryMagnitude,
 		int32 PrimaryValue,
 		int32 PrimaryDuration,
-		EAbilityEffectType SecondaryType,
+		EStatusType SecondaryType,
 		float SecondaryMagnitude,
 		int32 SecondaryValue,
 		int32 SecondaryDuration,
-		ESpellElement Element,
+		ESpellElement InElement,
 		AActor *Source = nullptr,
 		int32 SourceTeam = -1);
 
@@ -234,7 +234,7 @@ public:
 
 	/** Remove all effects of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
-	int32 RemoveEffectsByType(AActor *Target, EAbilityEffectType EffectType);
+	int32 RemoveEffectsByType(AActor *Target, EStatusType EffectType);
 
 	/** Remove all buffs from target */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects")
@@ -351,7 +351,7 @@ public:
 
 	/** Check if actor is immune to a specific effect type */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool IsImmuneToEffectType(AActor *Actor, EAbilityEffectType EffectType) const;
+	bool IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const;
 
 	// ==================== STATUS BAR SYSTEM ====================
 

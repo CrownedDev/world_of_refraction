@@ -713,7 +713,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 		Effect = FStatusEffect::CreateBuff(
 			TEXT("Armor Break"),
 			FMath::Rand(),
-			EAbilityEffectType::DefenseDebuff,
+			EStatusType::DefenseDebuff,
 			30.0f, // 30% defense reduction
 			3);
 		Effect.Element = ESpellElement::Generic;
@@ -721,11 +721,11 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 
 	case EPhysicalDamageType::Blunt:
 		// Stun - Skip turn (using AttackSpeedDebuff as placeholder)
-		// TODO: Add proper Stun type to EAbilityEffectType
+		// TODO: Add proper Stun type to EStatusType
 		Effect = FStatusEffect::CreateBuff(
 			TEXT("Stun"),
 			FMath::Rand(),
-			EAbilityEffectType::AttackSpeedDebuff, // Placeholder for stun
+			EStatusType::AttackSpeedDebuff, // Placeholder for stun
 			100.0f,								   // 100% speed reduction = skip turn
 			1);									   // 1 turn
 		Effect.Element = ESpellElement::Generic;
@@ -764,8 +764,8 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 		UStatusEffectManager *StatusManager = GetStatusEffectManager();
 		if (StatusManager)
 		{
-			float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseBuff);
-			float DefenseDebuffPercent = StatusManager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseDebuff);
+			float DefenseBuffPercent = StatusManager->GetTotalStatModifier(Target, EStatusType::DefenseBuff);
+			float DefenseDebuffPercent = StatusManager->GetTotalStatModifier(Target, EStatusType::DefenseDebuff);
 			float DefenseModifier = 1.0f + (DefenseBuffPercent - DefenseDebuffPercent) / 100.0f;
 			FlatDefense = FMath::RoundToInt(FlatDefense * FMath::Max(0.0f, DefenseModifier));
 		}
@@ -788,8 +788,8 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 		float CritChance = AttackerData->CalculateCritChance() * 100.0f; // Convert to percentage
 		if (StatusManager)
 		{
-			CritChance += StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
-			CritChance -= StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceDebuff);
+			CritChance += StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
+			CritChance -= StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceDebuff);
 		}
 		CritChance = FMath::Clamp(CritChance, 0.0f, 100.0f);
 

@@ -325,8 +325,8 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
-		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseBuff);
-		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::DefenseDebuff);
+		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::DefenseBuff);
+		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::DefenseDebuff);
 
 		// Buffs/debuffs are percentage modifiers
 		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / 100.0f;
@@ -350,8 +350,8 @@ float UDamageCalculator::GetDefenderResistance(AActor *Defender) const
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
-		float ResBuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::ResistanceBuff);
-		float ResDebuff = StatusManager->GetTotalStatModifier(Defender, EAbilityEffectType::ResistanceDebuff);
+		float ResBuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::ResistanceBuff);
+		float ResDebuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::ResistanceDebuff);
 
 		BaseResistance += (ResBuff - ResDebuff) / 100.0f;
 	}
@@ -373,8 +373,8 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
-		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
-		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceDebuff);
+		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
+		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceDebuff);
 
 		BaseCrit += (CritBuff - CritDebuff) / 100.0f;
 	}
@@ -465,7 +465,7 @@ int32 UDamageCalculator::CalculateHealing(
 		Healing *= HealerData->CalculateEffectDamageMultiplier();
 	}
 
-	// TODO: Add HealingReceivedBuff/Debuff to EAbilityEffectType when needed
+	// TODO: Add HealingReceivedBuff/Debuff to EStatusType when needed
 	// Currently no healing modifiers in status effect system
 
 	return FMath::Max(0, FMath::RoundToInt(Healing));
@@ -583,14 +583,14 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	// Attacker damage buffs/debuffs
 	if (Attacker)
 	{
-		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::DamageBuff);
-		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::DamageDebuff);
+		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::DamageBuff);
+		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::DamageDebuff);
 		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / 100.0f);
 	}
 
 	// Defender defense modifiers affect incoming damage indirectly
 	// (handled separately in defense calculations)
-	// TODO: Add DamageTakenBuff/Debuff to EAbilityEffectType if needed
+	// TODO: Add DamageTakenBuff/Debuff to EStatusType if needed
 
 	return FMath::Max(0.0f, Modifier);
 }

@@ -99,10 +99,10 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
         Output += TEXT("INFUSION: Not Available\n\n");
     }
     // Effects
-    if (Ability->EffectType != EAbilityEffectType::None)
+    if (Ability->EffectType != EStatusType::None)
     {
         FString EffectTypeName = UEnum::GetValueAsString(Ability->EffectType);
-        EffectTypeName.RemoveFromStart(TEXT("EAbilityEffectType::"));
+        EffectTypeName.RemoveFromStart(TEXT("EStatusType::"));
 
         Output += TEXT("EFFECTS:\n");
         Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
@@ -126,8 +126,8 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
                                       Ability->EffectDuration,
                                       Ability->EffectDuration == 1 ? TEXT("") : TEXT("s"));
         }
-        else if (Ability->EffectType == EAbilityEffectType::EnergyRestore ||
-                 Ability->EffectType == EAbilityEffectType::HealthRestore)
+        else if (Ability->EffectType == EStatusType::EnergyRestore ||
+                 Ability->EffectType == EStatusType::HealthRestore)
         {
             Output += TEXT("  Duration: Instant\n");
         }

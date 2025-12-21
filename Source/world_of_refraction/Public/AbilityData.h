@@ -80,7 +80,7 @@ public:
     // ==================== EFFECTS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-    EAbilityEffectType EffectType = EAbilityEffectType::None;
+    EStatusType EffectType = EStatusType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float EffectMagnitude = 0.0f; // 0.2 = 20% buff/debuff

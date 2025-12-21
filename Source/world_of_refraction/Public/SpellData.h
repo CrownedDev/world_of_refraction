@@ -98,7 +98,7 @@ public:
     // ==================== PRIMARY EFFECTS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Primary")
-    EAbilityEffectType PrimaryEffect = EAbilityEffectType::None;
+    EStatusType PrimaryEffect = EStatusType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Primary", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float PrimaryEffectMagnitude = 0.0f;
@@ -112,7 +112,7 @@ public:
     // ==================== SECONDARY EFFECTS (CROSS-SCHOOL) ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Secondary")
-    EAbilityEffectType SecondaryEffect = EAbilityEffectType::None;
+    EStatusType SecondaryEffect = EStatusType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Secondary", meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float SecondaryEffectMagnitude = 0.0f;

@@ -234,7 +234,7 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemDa
 	FStatusEffect SpeedBuff = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Speed"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EAbilityEffectType::SpeedBuff,
+		EStatusType::SpeedBuff,
 		BuffPercent,
 		Duration);
 	SpeedBuff.Element = Item->GetAssociatedElement();
@@ -262,7 +262,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItem
 	FStatusEffect DefenseBuff = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Defense"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EAbilityEffectType::DefenseBuff,
+		EStatusType::DefenseBuff,
 		BuffPercent,
 		Duration);
 	DefenseBuff.Element = Item->GetAssociatedElement();
@@ -290,7 +290,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemDat
 	FStatusEffect CritBuff = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Crit"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EAbilityEffectType::CritChanceBuff,
+		EStatusType::CritChanceBuff,
 		BuffPercent,
 		Duration);
 	CritBuff.Element = Item->GetAssociatedElement();
@@ -328,7 +328,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData
 	FStatusEffect Silence = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EAbilityEffectType::EnergyDrain, // TODO: Add proper Silence type
+		EStatusType::EnergyDrain, // TODO: Add proper Silence type
 		1.0f,							 // Binary effect
 		Duration);
 	Silence.Element = Item->GetAssociatedElement();
@@ -357,19 +357,19 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData 
 	OutResult.bGambleWon = bIsPositive;
 
 	// Random effect type
-	TArray<EAbilityEffectType> BuffTypes = {
-		EAbilityEffectType::DamageBuff,
-		EAbilityEffectType::DefenseBuff,
-		EAbilityEffectType::SpeedBuff,
-		EAbilityEffectType::CritChanceBuff};
+	TArray<EStatusType> BuffTypes = {
+		EStatusType::DamageBuff,
+		EStatusType::DefenseBuff,
+		EStatusType::SpeedBuff,
+		EStatusType::CritChanceBuff};
 
-	TArray<EAbilityEffectType> DebuffTypes = {
-		EAbilityEffectType::DamageDebuff,
-		EAbilityEffectType::DefenseDebuff,
-		EAbilityEffectType::SpeedDebuff,
-		EAbilityEffectType::CritChanceDebuff};
+	TArray<EStatusType> DebuffTypes = {
+		EStatusType::DamageDebuff,
+		EStatusType::DefenseDebuff,
+		EStatusType::SpeedDebuff,
+		EStatusType::CritChanceDebuff};
 
-	EAbilityEffectType ChosenType;
+	EStatusType ChosenType;
 	if (bIsPositive)
 	{
 		ChosenType = BuffTypes[FMath::RandRange(0, BuffTypes.Num() - 1)];
@@ -452,7 +452,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData
 		FStatusEffect Immunity = FStatusEffect::CreateBuff(
 			TEXT("Cleanse Immunity"),
 			Item->GetUniqueID(),
-			EAbilityEffectType::ResistanceBuff, // 100% = immunity
+			EStatusType::ResistanceBuff, // 100% = immunity
 			100.0f,
 			ImmunityDuration);
 		Immunity.Element = ESpellElement::Reality;
@@ -511,7 +511,7 @@ void UItemExecutor::ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseRes
 	FStatusEffect ResistBuff = FStatusEffect::CreateBuff(
 		FString::Printf(TEXT("%s Resistance"), *UEnum::GetValueAsString(Element)),
 		Item->GetUniqueID() + 1000, // Offset to avoid ID collision
-		EAbilityEffectType::ResistanceBuff,
+		EStatusType::ResistanceBuff,
 		Resistance,
 		Duration);
 	ResistBuff.Element = Element;

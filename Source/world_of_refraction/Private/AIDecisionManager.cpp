@@ -876,10 +876,10 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
         // Check for dangerous debuffs (stun, heavy DOT, etc.)
         switch (Effect.EffectType)
         {
-        case EAbilityEffectType::Stun:
-        case EAbilityEffectType::Silence:
+        case EStatusType::Stun:
+        case EStatusType::Silence:
             return true;
-        case EAbilityEffectType::DOT:
+        case EStatusType::DOT:
             // DOT is dangerous if it will kill us
             if (Effect.Magnitude * Effect.RemainingDuration >= GetCurrentHP(Actor))
             {
@@ -908,7 +908,7 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
         if (Spell && Spell->School == ESpellSchool::Restoration)
         {
             // Check if it's actually a heal (positive effect on self)
-            if (Spell->PrimaryEffect == EAbilityEffectType::Heal ||
+            if (Spell->PrimaryEffect == EStatusType::Heal ||
                 Spell->Damage < 0) // Negative damage = healing
             {
                 return Spell;
@@ -930,7 +930,7 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
 
     for (USpellData *Spell : Spells)
     {
-        if (Spell && Spell->PrimaryEffect == EAbilityEffectType::Cleanse)
+        if (Spell && Spell->PrimaryEffect == EStatusType::Cleanse)
         {
             return Spell;
         }
@@ -1104,7 +1104,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         if (PendingStatus == EStatusType::None)
         {
             // Determine what status this spell would set
-            if (Spell->PrimaryEffect != EAbilityEffectType::None)
+            if (Spell->PrimaryEffect != EStatusType::None)
             {
                 PendingStatus = StatusTypeHelper::GetFromAbilityEffect(Spell->PrimaryEffect);
             }

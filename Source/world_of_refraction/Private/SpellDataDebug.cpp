@@ -138,10 +138,10 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     }
 
     // Effects
-    if (Spell->PrimaryEffect != EAbilityEffectType::None)
+    if (Spell->PrimaryEffect != EStatusType::None)
     {
         FString EffectTypeName = UEnum::GetValueAsString(Spell->PrimaryEffect);
-        EffectTypeName.RemoveFromStart(TEXT("EAbilityEffectType::"));
+        EffectTypeName.RemoveFromStart(TEXT("EStatusType::"));
 
         Output += TEXT("PRIMARY EFFECT:\n");
         Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
@@ -165,10 +165,10 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
         Output += TEXT("\n");
     }
 
-    if (Spell->SecondaryEffect != EAbilityEffectType::None)
+    if (Spell->SecondaryEffect != EStatusType::None)
     {
         FString EffectTypeName = UEnum::GetValueAsString(Spell->SecondaryEffect);
-        EffectTypeName.RemoveFromStart(TEXT("EAbilityEffectType::"));
+        EffectTypeName.RemoveFromStart(TEXT("EStatusType::"));
 
         Output += TEXT("SECONDARY EFFECT (Cross-School!):\n");
         Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);

@@ -446,10 +446,10 @@ private:
 	void ApplyStatusEffects(
 		AActor *Source,
 		AActor *Target,
-		EAbilityEffectType PrimaryEffect,
+		EStatusType PrimaryEffect,
 		float PrimaryValue,
 		int32 PrimaryDuration,
-		EAbilityEffectType SecondaryEffect = EAbilityEffectType::None,
+		EStatusType SecondaryEffect = EStatusType::None,
 		float SecondaryValue = 0.0f,
 		int32 SecondaryDuration = 0,
 		ESpellElement Element = ESpellElement::Generic);

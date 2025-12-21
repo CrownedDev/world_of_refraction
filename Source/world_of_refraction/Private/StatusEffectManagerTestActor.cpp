@@ -98,7 +98,7 @@ void AStatusEffectManagerTestActor::Test_ApplyEffect()
 		return;
 
 	// Create and apply a simple buff
-	FStatusEffect Buff = FStatusEffect::CreateBuff(TEXT("Test Buff"), 1001, EAbilityEffectType::DamageBuff, 10.0f, 3);
+	FStatusEffect Buff = FStatusEffect::CreateBuff(TEXT("Test Buff"), 1001, EStatusType::DamageBuff, 10.0f, 3);
 
 	EEffectApplicationResult Result = Manager->ApplyEffect(TestActor, Buff);
 
@@ -128,7 +128,7 @@ void AStatusEffectManagerTestActor::Test_StackingBehavior()
 	FStatusEffect StackableBuff;
 	StackableBuff.EffectName = TEXT("Stackable Buff");
 	StackableBuff.EffectID = 2001;
-	StackableBuff.EffectType = EAbilityEffectType::DamageBuff;
+	StackableBuff.EffectType = EStatusType::DamageBuff;
 	StackableBuff.EffectValue = 5.0f;
 	StackableBuff.RemainingTurns = 3;
 	StackableBuff.bCanStack = true;
@@ -176,7 +176,7 @@ void AStatusEffectManagerTestActor::Test_DurationRefresh()
 	FStatusEffect Buff;
 	Buff.EffectName = TEXT("Refresh Buff");
 	Buff.EffectID = 3001;
-	Buff.EffectType = EAbilityEffectType::SpeedBuff;
+	Buff.EffectType = EStatusType::SpeedBuff;
 	Buff.EffectValue = 10.0f;
 	Buff.RemainingTurns = 3;
 	Buff.bCanStack = false;
@@ -221,8 +221,8 @@ void AStatusEffectManagerTestActor::Test_RemoveByID()
 		return;
 
 	// Apply two different effects
-	FStatusEffect Buff1 = FStatusEffect::CreateBuff(TEXT("Buff 1"), 4001, EAbilityEffectType::DamageBuff, 10.0f, 3);
-	FStatusEffect Buff2 = FStatusEffect::CreateBuff(TEXT("Buff 2"), 4002, EAbilityEffectType::SpeedBuff, 5.0f, 3);
+	FStatusEffect Buff1 = FStatusEffect::CreateBuff(TEXT("Buff 1"), 4001, EStatusType::DamageBuff, 10.0f, 3);
+	FStatusEffect Buff2 = FStatusEffect::CreateBuff(TEXT("Buff 2"), 4002, EStatusType::SpeedBuff, 5.0f, 3);
 
 	Manager->ApplyEffect(TestActor, Buff1);
 	Manager->ApplyEffect(TestActor, Buff2);
@@ -256,19 +256,19 @@ void AStatusEffectManagerTestActor::Test_RemoveByType()
 		return;
 
 	// Apply mixed effects
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 1"), 5001, EAbilityEffectType::DamageBuff, 10.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 2"), 5002, EAbilityEffectType::DamageBuff, 5.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed"), 5003, EAbilityEffectType::SpeedBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 1"), 5001, EStatusType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 2"), 5002, EStatusType::DamageBuff, 5.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed"), 5003, EStatusType::SpeedBuff, 10.0f, 3));
 
 	bool bPassed = true;
 	bPassed &= AssertEqual(3, Manager->GetEffectCount(TestActor), TEXT("Has 3 effects"));
 
 	// Remove all damage buffs
-	int32 Removed = Manager->RemoveEffectsByType(TestActor, EAbilityEffectType::DamageBuff);
+	int32 Removed = Manager->RemoveEffectsByType(TestActor, EStatusType::DamageBuff);
 
 	bPassed &= AssertEqual(2, Removed, TEXT("Removed 2 damage buffs"));
 	bPassed &= AssertEqual(1, Manager->GetEffectCount(TestActor), TEXT("Has 1 effect remaining"));
-	bPassed &= AssertTrue(Manager->HasEffectOfType(TestActor, EAbilityEffectType::SpeedBuff), TEXT("Speed buff remains"));
+	bPassed &= AssertTrue(Manager->HasEffectOfType(TestActor, EStatusType::SpeedBuff), TEXT("Speed buff remains"));
 
 	LogTestResult(TEXT("Remove By Type"), bPassed);
 
@@ -288,13 +288,13 @@ void AStatusEffectManagerTestActor::Test_RemoveAllBuffs()
 		return;
 
 	// Apply buffs and debuffs
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 6001, EAbilityEffectType::DamageBuff, 10.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed Buff"), 6002, EAbilityEffectType::SpeedBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 6001, EStatusType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed Buff"), 6002, EStatusType::SpeedBuff, 10.0f, 3));
 
 	FStatusEffect Debuff;
 	Debuff.EffectName = TEXT("Speed Debuff");
 	Debuff.EffectID = 6003;
-	Debuff.EffectType = EAbilityEffectType::SpeedDebuff;
+	Debuff.EffectType = EStatusType::SpeedDebuff;
 	Debuff.EffectValue = -10.0f;
 	Debuff.RemainingTurns = 3;
 	Debuff.ProcessTiming = EStatusEffectTiming::Persistent;
@@ -331,12 +331,12 @@ void AStatusEffectManagerTestActor::Test_RemoveAllDebuffs()
 		return;
 
 	// Apply buffs and debuffs
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 7001, EAbilityEffectType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 7001, EStatusType::DamageBuff, 10.0f, 3));
 
 	FStatusEffect Debuff1;
 	Debuff1.EffectName = TEXT("Speed Debuff");
 	Debuff1.EffectID = 7002;
-	Debuff1.EffectType = EAbilityEffectType::SpeedDebuff;
+	Debuff1.EffectType = EStatusType::SpeedDebuff;
 	Debuff1.EffectValue = -10.0f;
 	Debuff1.RemainingTurns = 3;
 	Debuff1.ProcessTiming = EStatusEffectTiming::Persistent;
@@ -345,7 +345,7 @@ void AStatusEffectManagerTestActor::Test_RemoveAllDebuffs()
 	FStatusEffect Debuff2;
 	Debuff2.EffectName = TEXT("Defense Debuff");
 	Debuff2.EffectID = 7003;
-	Debuff2.EffectType = EAbilityEffectType::DefenseDebuff;
+	Debuff2.EffectType = EStatusType::DefenseDebuff;
 	Debuff2.EffectValue = -15.0f;
 	Debuff2.RemainingTurns = 3;
 	Debuff2.ProcessTiming = EStatusEffectTiming::Persistent;
@@ -389,7 +389,7 @@ void AStatusEffectManagerTestActor::Test_StartOfTurnProcessing()
 	FStatusEffect HoT;
 	HoT.EffectName = TEXT("Regeneration");
 	HoT.EffectID = 8001;
-	HoT.EffectType = EAbilityEffectType::HealthRestore;
+	HoT.EffectType = EStatusType::HealthRestore;
 	HoT.EffectValue = 10.0f;
 	HoT.RemainingTurns = 3;
 	HoT.InitialDuration = 3;
@@ -429,7 +429,7 @@ void AStatusEffectManagerTestActor::Test_EndOfTurnProcessing()
 	FStatusEffect EnergyDrain;
 	EnergyDrain.EffectName = TEXT("Energy Drain");
 	EnergyDrain.EffectID = 9001;
-	EnergyDrain.EffectType = EAbilityEffectType::EnergyDrain;
+	EnergyDrain.EffectType = EStatusType::EnergyDrain;
 	EnergyDrain.EffectValue = 5.0f;
 	EnergyDrain.RemainingTurns = 2;
 	EnergyDrain.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
@@ -507,7 +507,7 @@ void AStatusEffectManagerTestActor::Test_DurationExpiration()
 		return;
 
 	// Apply 2-turn buff
-	FStatusEffect ShortBuff = FStatusEffect::CreateBuff(TEXT("Short Buff"), 11001, EAbilityEffectType::DamageBuff, 10.0f, 2);
+	FStatusEffect ShortBuff = FStatusEffect::CreateBuff(TEXT("Short Buff"), 11001, EStatusType::DamageBuff, 10.0f, 2);
 	ShortBuff.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, ShortBuff);
@@ -547,7 +547,7 @@ void AStatusEffectManagerTestActor::Test_ConditionalTrigger()
 	FStatusEffect AdrenalineRush;
 	AdrenalineRush.EffectName = TEXT("Adrenaline Rush");
 	AdrenalineRush.EffectID = 12001;
-	AdrenalineRush.EffectType = EAbilityEffectType::DamageBuff;
+	AdrenalineRush.EffectType = EStatusType::DamageBuff;
 	AdrenalineRush.EffectValue = 25.0f;
 	AdrenalineRush.ProcessTiming = EStatusEffectTiming::OnTrigger;
 	AdrenalineRush.TriggerCondition = EPassiveTrigger::OnHPBelowThreshold;
@@ -591,7 +591,7 @@ void AStatusEffectManagerTestActor::Test_PermanentEffects()
 		return;
 
 	// Apply permanent effect
-	FStatusEffect Permanent = FStatusEffect::CreatePersistent(TEXT("Equipment Bonus"), 13001, EAbilityEffectType::DamageBuff, 15.0f);
+	FStatusEffect Permanent = FStatusEffect::CreatePersistent(TEXT("Equipment Bonus"), 13001, EStatusType::DamageBuff, 15.0f);
 
 	Manager->ApplyEffect(TestActor, Permanent);
 
@@ -624,13 +624,13 @@ void AStatusEffectManagerTestActor::Test_StatModifierQuery()
 		return;
 
 	// Apply multiple damage buffs
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 1"), 14001, EAbilityEffectType::DamageBuff, 10.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 2"), 14002, EAbilityEffectType::DamageBuff, 15.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed"), 14003, EAbilityEffectType::SpeedBuff, 5.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 1"), 14001, EStatusType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 2"), 14002, EStatusType::DamageBuff, 15.0f, 3));
+	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed"), 14003, EStatusType::SpeedBuff, 5.0f, 3));
 
-	float TotalDamageBuff = Manager->GetTotalStatModifier(TestActor, EAbilityEffectType::DamageBuff);
-	float TotalSpeedBuff = Manager->GetTotalStatModifier(TestActor, EAbilityEffectType::SpeedBuff);
-	float TotalDefense = Manager->GetTotalStatModifier(TestActor, EAbilityEffectType::DefenseBuff);
+	float TotalDamageBuff = Manager->GetTotalStatModifier(TestActor, EStatusType::DamageBuff);
+	float TotalSpeedBuff = Manager->GetTotalStatModifier(TestActor, EStatusType::SpeedBuff);
+	float TotalDefense = Manager->GetTotalStatModifier(TestActor, EStatusType::DefenseBuff);
 
 	bool bPassed = true;
 	bPassed &= AssertEqualFloat(25.0f, TotalDamageBuff, TEXT("Total damage buff is 25 (10+15)"));
@@ -656,7 +656,7 @@ void AStatusEffectManagerTestActor::Test_SourceTracking()
 		return;
 
 	// Apply effect with source tracking
-	FStatusEffect Curse = FStatusEffect::CreateBuff(TEXT("Curse"), 15001, EAbilityEffectType::DamageDebuff, -20.0f, 3);
+	FStatusEffect Curse = FStatusEffect::CreateBuff(TEXT("Curse"), 15001, EStatusType::DamageDebuff, -20.0f, 3);
 
 	Manager->ApplyEffect(Target, Curse, Caster, TEXT("Dark Curse"), 1);
 
@@ -709,11 +709,11 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 		Target,
 		TEXT("Dehydration"),			 // SpellName
 		5001,							 // SpellID
-		EAbilityEffectType::EnergyDrain, // PrimaryType (drain enemy)
+		EStatusType::EnergyDrain, // PrimaryType (drain enemy)
 		0.0f,							 // PrimaryMagnitude
 		15,								 // PrimaryValue (15 energy drain)
 		2,								 // PrimaryDuration
-		EAbilityEffectType::SpeedDebuff, // SecondaryType (slow)
+		EStatusType::SpeedDebuff, // SecondaryType (slow)
 		0.20f,							 // SecondaryMagnitude (20% slow)
 		0,								 // SecondaryValue
 		3,								 // SecondaryDuration
@@ -727,8 +727,8 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 	bPassed &= AssertEqual(2, Manager->GetEffectCount(Target), TEXT("Target has 2 effects from single spell"));
 
 	// Verify both effects exist
-	bPassed &= AssertTrue(Manager->HasEffectOfType(Target, EAbilityEffectType::EnergyDrain), TEXT("Has primary effect (EnergyDrain)"));
-	bPassed &= AssertTrue(Manager->HasEffectOfType(Target, EAbilityEffectType::SpeedDebuff), TEXT("Has secondary effect (SpeedDebuff)"));
+	bPassed &= AssertTrue(Manager->HasEffectOfType(Target, EStatusType::EnergyDrain), TEXT("Has primary effect (EnergyDrain)"));
+	bPassed &= AssertTrue(Manager->HasEffectOfType(Target, EStatusType::SpeedDebuff), TEXT("Has secondary effect (SpeedDebuff)"));
 
 	// Process end of turn to apply effects
 	int32 EPBefore = CharComp->CurrentEP;
@@ -738,7 +738,7 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 	bPassed &= AssertEqual(85, EPAfter, TEXT("Energy drained by 15 (100 -> 85)"));
 
 	// Check stat modifier from speed debuff
-	float SpeedMod = Manager->GetTotalStatModifier(Target, EAbilityEffectType::SpeedDebuff);
+	float SpeedMod = Manager->GetTotalStatModifier(Target, EStatusType::SpeedDebuff);
 	bPassed &= AssertEqualFloat(20.0f, SpeedMod, TEXT("Speed debuff modifier is 20%"));
 
 	// Verify source tracking on both effects
@@ -784,9 +784,9 @@ void AStatusEffectManagerTestActor::Test_WeaponBonuses()
 	bPassed &= AssertEqual(3, Manager->GetEffectCount(TestActor), TEXT("Has 3 weapon bonus effects"));
 
 	// Check stat modifiers are queryable
-	float AttackMod = Manager->GetTotalStatModifier(TestActor, EAbilityEffectType::RawDamageBuff);
-	float SpeedMod = Manager->GetTotalStatModifier(TestActor, EAbilityEffectType::SpeedBuff);
-	float CritMod = Manager->GetTotalStatModifier(TestActor, EAbilityEffectType::CritChanceBuff);
+	float AttackMod = Manager->GetTotalStatModifier(TestActor, EStatusType::RawDamageBuff);
+	float SpeedMod = Manager->GetTotalStatModifier(TestActor, EStatusType::SpeedBuff);
+	float CritMod = Manager->GetTotalStatModifier(TestActor, EStatusType::CritChanceBuff);
 
 	bPassed &= AssertEqualFloat(5.0f, AttackMod, TEXT("Attack bonus is +5"));
 	bPassed &= AssertEqualFloat(2.0f, SpeedMod, TEXT("Speed bonus is +2"));
@@ -861,7 +861,7 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 		Attacker,
 		0);
 
-	float DefenseDebuff = Manager->GetTotalStatModifier(Target, EAbilityEffectType::DefenseDebuff);
+	float DefenseDebuff = Manager->GetTotalStatModifier(Target, EStatusType::DefenseDebuff);
 	bPassed &= AssertTrue(DefenseDebuff > 0.0f, TEXT("Pierce applied Armor Break (defense debuff)"));
 	bPassed &= AssertTrue(Manager->GetDebuffCount(Target) > 0, TEXT("Target has debuff from Pierce"));
 
@@ -928,7 +928,7 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	FStatusEffect HasteEffect;
 	HasteEffect.EffectName = TEXT("Haste");
 	HasteEffect.EffectID = 9001;
-	HasteEffect.EffectType = EAbilityEffectType::SpeedBuff;
+	HasteEffect.EffectType = EStatusType::SpeedBuff;
 	HasteEffect.EffectValue = 10.0f;
 	HasteEffect.RemainingTurns = 3;
 	HasteEffect.InitialDuration = 3;
@@ -937,11 +937,11 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	Manager->ApplyEffect(FastChar, HasteEffect, nullptr, TEXT("Haste Spell"), -1);
 
 	// Verify effect was applied
-	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EAbilityEffectType::SpeedBuff),
+	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),
 						  TEXT("Speed buff applied"));
 
 	// Query the speed modifier
-	float SpeedMod = Manager->GetTotalStatModifier(FastChar, EAbilityEffectType::SpeedBuff);
+	float SpeedMod = Manager->GetTotalStatModifier(FastChar, EStatusType::SpeedBuff);
 	bPassed &= AssertEqualFloat(10.0f, SpeedMod, TEXT("Speed modifier queryable (+10)"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff applied - TurnManager should have been notified"));
@@ -950,7 +950,7 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	FStatusEffect SlowEffect;
 	SlowEffect.EffectName = TEXT("Slow");
 	SlowEffect.EffectID = 9002;
-	SlowEffect.EffectType = EAbilityEffectType::SpeedDebuff;
+	SlowEffect.EffectType = EStatusType::SpeedDebuff;
 	SlowEffect.EffectValue = 5.0f;
 	SlowEffect.RemainingTurns = 2;
 	SlowEffect.InitialDuration = 2;
@@ -958,7 +958,7 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 
 	Manager->ApplyEffect(SlowChar, SlowEffect, nullptr, TEXT("Slow Spell"), -1);
 
-	float SlowMod = Manager->GetTotalStatModifier(SlowChar, EAbilityEffectType::SpeedDebuff);
+	float SlowMod = Manager->GetTotalStatModifier(SlowChar, EStatusType::SpeedDebuff);
 	bPassed &= AssertEqualFloat(5.0f, SlowMod, TEXT("Speed debuff queryable (-5)"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed debuff applied - TurnManager should have been notified"));
@@ -966,7 +966,7 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	// Test 3: Remove speed effect - should notify TurnManager
 	Manager->RemoveEffectByID(FastChar, 9001);
 
-	float SpeedModAfterRemove = Manager->GetTotalStatModifier(FastChar, EAbilityEffectType::SpeedBuff);
+	float SpeedModAfterRemove = Manager->GetTotalStatModifier(FastChar, EStatusType::SpeedBuff);
 	bPassed &= AssertEqualFloat(0.0f, SpeedModAfterRemove, TEXT("Speed buff removed, modifier is 0"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff removed - TurnManager should have been notified"));
@@ -976,20 +976,20 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	FStatusEffect ShortHaste;
 	ShortHaste.EffectName = TEXT("Quick Haste");
 	ShortHaste.EffectID = 9003;
-	ShortHaste.EffectType = EAbilityEffectType::SpeedBuff;
+	ShortHaste.EffectType = EStatusType::SpeedBuff;
 	ShortHaste.EffectValue = 8.0f;
 	ShortHaste.RemainingTurns = 1;
 	ShortHaste.InitialDuration = 1;
 	ShortHaste.ProcessTiming = EStatusEffectTiming::Persistent;
 
 	Manager->ApplyEffect(FastChar, ShortHaste, nullptr, TEXT("Quick Haste"), -1);
-	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EAbilityEffectType::SpeedBuff),
+	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),
 						  TEXT("Short haste applied"));
 
 	// Process end of turn - should expire and notify
 	Manager->ProcessEndOfTurnEffects(FastChar);
 
-	bPassed &= AssertTrue(!Manager->HasEffectOfType(FastChar, EAbilityEffectType::SpeedBuff),
+	bPassed &= AssertTrue(!Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),
 						  TEXT("Short haste expired after 1 turn"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff expired - TurnManager should have been notified"));

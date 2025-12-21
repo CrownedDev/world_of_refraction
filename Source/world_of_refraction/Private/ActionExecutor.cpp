@@ -816,7 +816,7 @@ FActionResult UActionExecutor::ExecuteSpell(
 
 	// Apply status effects from spell (existing system)
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (StatusManager && Spell->PrimaryEffect != EAbilityEffectType::None)
+	if (StatusManager && Spell->PrimaryEffect != EStatusType::None)
 	{
 		for (AActor *Target : ValidTargets)
 		{
@@ -1084,7 +1084,7 @@ void UActionExecutor::FinalizeAsyncAction()
 
 		if (Action.ActionType == EActionType::Spell && Action.SpellData && StatusManager)
 		{
-			if (Action.SpellData->PrimaryEffect != EAbilityEffectType::None)
+			if (Action.SpellData->PrimaryEffect != EStatusType::None)
 			{
 				for (AActor *Target : FinalResult.AffectedTargets)
 				{
@@ -1385,7 +1385,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 	}
 
 	// Apply status effects from ability (existing system)
-	if (Ability->EffectType != EAbilityEffectType::None)
+	if (Ability->EffectType != EStatusType::None)
 	{
 		for (AActor *Target : ValidTargets)
 		{
@@ -1394,7 +1394,7 @@ FActionResult UActionExecutor::ExecuteAbility(
 				Ability->EffectType,
 				Ability->EffectValue,
 				Ability->EffectDuration,
-				EAbilityEffectType::None, 0.0f, 0,
+				EStatusType::None, 0.0f, 0,
 				Element);
 			Result.StatusEffectsApplied++;
 		}
@@ -1668,7 +1668,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 		FStatusEffect DefendBuff = FStatusEffect::CreateBuff(
 			TEXT("Defending"),
 			9999, // Special ID for defend
-			EAbilityEffectType::DefenseBuff,
+			EStatusType::DefenseBuff,
 			50.0f, // 50% defense boost
 			1);	   // Lasts until next turn
 
@@ -1912,8 +1912,8 @@ bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
-		CritChance += StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceBuff);
-		CritChance -= StatusManager->GetTotalStatModifier(Attacker, EAbilityEffectType::CritChanceDebuff);
+		CritChance += StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
+		CritChance -= StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceDebuff);
 	}
 
 	CritChance = FMath::Clamp(CritChance, 0.0f, 100.0f);
@@ -1924,10 +1924,10 @@ bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 void UActionExecutor::ApplyStatusEffects(
 	AActor *Source,
 	AActor *Target,
-	EAbilityEffectType PrimaryEffect,
+	EStatusType PrimaryEffect,
 	float PrimaryValue,
 	int32 PrimaryDuration,
-	EAbilityEffectType SecondaryEffect,
+	EStatusType SecondaryEffect,
 	float SecondaryValue,
 	int32 SecondaryDuration,
 	ESpellElement Element)
@@ -1937,7 +1937,7 @@ void UActionExecutor::ApplyStatusEffects(
 		return;
 
 	// Apply primary effect
-	if (PrimaryEffect != EAbilityEffectType::None && PrimaryDuration > 0)
+	if (PrimaryEffect != EStatusType::None && PrimaryDuration > 0)
 	{
 		FStatusEffect Primary = FStatusEffect::CreateBuff(
 			TEXT("Primary Effect"),
@@ -1951,7 +1951,7 @@ void UActionExecutor::ApplyStatusEffects(
 	}
 
 	// Apply secondary effect
-	if (SecondaryEffect != EAbilityEffectType::None && SecondaryDuration > 0)
+	if (SecondaryEffect != EStatusType::None && SecondaryDuration > 0)
 	{
 		FStatusEffect Secondary = FStatusEffect::CreateBuff(
 			TEXT("Secondary Effect"),
@@ -3794,7 +3794,7 @@ void UActionExecutor::ApplySpellStatusBuildup(AActor *Caster, AActor *Target, US
 	EStatusType StatusType = EStatusType::None;
 
 	// Use PrimaryEffect if specified to determine status type
-	if (Spell->PrimaryEffect != EAbilityEffectType::None)
+	if (Spell->PrimaryEffect != EStatusType::None)
 	{
 		StatusType = StatusTypeHelper::GetFromAbilityEffect(Spell->PrimaryEffect);
 	}
