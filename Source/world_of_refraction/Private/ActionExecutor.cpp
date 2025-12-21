@@ -3831,7 +3831,7 @@ void UActionExecutor::ApplySpellStatusBuildup(AActor *Caster, AActor *Target, US
 	}
 
 	// Apply immediate status effect (on-hit, weaker version)
-	if (StatusType != EStatusType::None && StatusType != EStatusType::RawDamage)
+	if (StatusType != EStatusType::None && StatusType != EStatusType::BurstDamage)
 	{
 		StatusManager->ApplyImmediateStatus(Caster, Target, StatusType, Spell->Element);
 	}

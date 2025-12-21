@@ -7,6 +7,7 @@
 #include "CombatConstants.h"
 #include "InfusionConstants.h"
 #include "CharacterDataComponent.h"
+#include "StatusDisplayNames.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -1564,118 +1565,67 @@ void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, 
 		return;
 	}
 
-	// Get source data for scaling
-	UCharacterData *SourceData = nullptr;
-	if (Source)
-	{
-		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
-		SourceData = SourceComp ? SourceComp->CharacterData : nullptr;
-	}
-
 	FStatusEffect Effect;
 	Effect.Element = Element;
 	Effect.EffectID = FMath::Rand();
 
+	// Generate element-aware display name
+	Effect.EffectName = StatusDisplayNames::GetDisplayName(StatusType, Element);
+
 	// Immediate effects: Weak, longer duration
 	switch (StatusType)
 	{
-	case EStatusType::Bleed:
-		Effect.EffectName = TEXT("Bleed");
-		Effect.EffectType = EAbilityEffectType::BleedDOT;
+	case EStatusType::DOT:
+		Effect.EffectType = EAbilityEffectType::BurnDOT; // Generic DOT type
 		Effect.EffectValue = 10.0f;
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		break;
 
-	case EStatusType::ArmorBreak:
-		Effect.EffectName = TEXT("Armor Break");
+	case EStatusType::DefenseDebuff:
 		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Burn:
-		Effect.EffectName = TEXT("Burn");
-		Effect.EffectType = EAbilityEffectType::BurnDOT;
-		Effect.EffectValue = 10.0f;
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
-		break;
-
-	case EStatusType::Slow:
-		Effect.EffectName = TEXT("Slowed");
+	case EStatusType::SpeedDebuff:
 		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
 		Effect.EffectValue = 25.0f; // 25%
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Shocked:
-		// Apply both slow and DOT
-		Effect.EffectName = TEXT("Shocked");
-		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
-		Effect.EffectValue = 10.0f; // 10%
-		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
-
-		// Also apply DOT component
-		{
-			FStatusEffect ShockDOT;
-			ShockDOT.EffectName = TEXT("Shocked (DOT)");
-			ShockDOT.EffectID = FMath::Rand();
-			ShockDOT.EffectType = EAbilityEffectType::ElectrifiedDOT;
-			ShockDOT.EffectValue = 5.0f;
-			ShockDOT.RemainingTurns = 2;
-			ShockDOT.Element = Element;
-			ShockDOT.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
-			ApplyEffect(Target, ShockDOT, Source, TEXT("Immediate Status"), -1);
-		}
-		break;
-
-	case EStatusType::Weakened:
-		Effect.EffectName = TEXT("Weakened");
-		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
-		Effect.EffectValue = 15.0f; // 15%
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
-		break;
-
-	case EStatusType::Dimmed:
-		Effect.EffectName = TEXT("Dimmed");
+	case EStatusType::CritDebuff:
 		Effect.EffectType = EAbilityEffectType::CritChanceDebuff;
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Silenced:
-		Effect.EffectName = TEXT("Silenced");
+	case EStatusType::EnergyDebuff:
 		Effect.EffectType = EAbilityEffectType::EnergyDrain;
 		Effect.EffectValue = 25.0f; // 25% locked
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Destabilized:
-		// Random debuff
-		{
-			TArray<EAbilityEffectType> Debuffs = {
-				EAbilityEffectType::DamageDebuff,
-				EAbilityEffectType::DefenseDebuff,
-				EAbilityEffectType::SpeedDebuff,
-				EAbilityEffectType::CritChanceDebuff};
-			Effect.EffectName = TEXT("Destabilized");
-			Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
-			Effect.EffectValue = 15.0f; // 15%
-			Effect.RemainingTurns = 3;
-			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
-		}
-		break;
+	case EStatusType::RandomDebuff:
+	{
+		TArray<EAbilityEffectType> Debuffs = {
+			EAbilityEffectType::DamageDebuff,
+			EAbilityEffectType::DefenseDebuff,
+			EAbilityEffectType::SpeedDebuff,
+			EAbilityEffectType::CritChanceDebuff};
+		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
+		Effect.EffectValue = 15.0f; // 15%
+		Effect.RemainingTurns = 3;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+	}
+	break;
 
-	case EStatusType::Staggered:
-	case EStatusType::Tripped:
-	case EStatusType::RawDamage:
+	case EStatusType::SkipTurn:
+	case EStatusType::BurstDamage:
 		// These have no immediate effect
 		return;
 
@@ -1709,120 +1659,69 @@ void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, 
 	Effect.Element = Element;
 	Effect.EffectID = FMath::Rand();
 
+	// Generate element-aware display name
+	Effect.EffectName = StatusDisplayNames::GetDisplayName(StatusType, Element);
+
 	// Triggered effects: Full power, shorter duration
 	switch (StatusType)
 	{
-	case EStatusType::Bleed:
-		Effect.EffectName = TEXT("Bleed (Triggered)");
-		Effect.EffectType = EAbilityEffectType::BleedDOT;
+	case EStatusType::DOT:
+		Effect.EffectType = EAbilityEffectType::BurnDOT; // Generic DOT type
 		Effect.EffectValue = 30.0f;
 		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		break;
 
-	case EStatusType::ArmorBreak:
-		Effect.EffectName = TEXT("Armor Break (Triggered)");
+	case EStatusType::DefenseDebuff:
 		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
 		Effect.EffectValue = 40.0f; // 40%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Staggered:
-		Effect.EffectName = TEXT("Staggered");
+	case EStatusType::SkipTurn:
 		Effect.EffectType = EAbilityEffectType::Stun;
 		Effect.EffectValue = 1.0f;
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 		break;
 
-	case EStatusType::Burn:
-		Effect.EffectName = TEXT("Burn (Triggered)");
-		Effect.EffectType = EAbilityEffectType::BurnDOT;
-		Effect.EffectValue = 30.0f;
-		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
-		break;
-
-	case EStatusType::Slow:
-		Effect.EffectName = TEXT("Slowed (Triggered)");
+	case EStatusType::SpeedDebuff:
 		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Tripped:
-		Effect.EffectName = TEXT("Tripped");
-		Effect.EffectType = EAbilityEffectType::Stun;
-		Effect.EffectValue = 1.0f;
-		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
-		break;
-
-	case EStatusType::Shocked:
-		// Apply strong slow + DOT
-		Effect.EffectName = TEXT("Shocked (Triggered)");
-		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
-		Effect.EffectValue = 25.0f; // 25%
-		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
-
-		// DOT component
-		{
-			FStatusEffect ShockDOT;
-			ShockDOT.EffectName = TEXT("Shocked DOT (Triggered)");
-			ShockDOT.EffectID = FMath::Rand();
-			ShockDOT.EffectType = EAbilityEffectType::ElectrifiedDOT;
-			ShockDOT.EffectValue = 15.0f;
-			ShockDOT.RemainingTurns = 1;
-			ShockDOT.Element = Element;
-			ShockDOT.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
-			ApplyEffect(Target, ShockDOT, Source, TEXT("Status Bar Trigger"), -1);
-		}
-		break;
-
-	case EStatusType::Weakened:
-		Effect.EffectName = TEXT("Weakened (Triggered)");
-		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
-		Effect.EffectValue = 40.0f; // 40%
-		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
-		break;
-
-	case EStatusType::Dimmed:
-		Effect.EffectName = TEXT("Dimmed (Triggered)");
+	case EStatusType::CritDebuff:
 		Effect.EffectType = EAbilityEffectType::CritChanceDebuff;
 		Effect.EffectValue = 50.0f; // 50%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Silenced:
-		Effect.EffectName = TEXT("Silenced (Triggered)");
+	case EStatusType::EnergyDebuff:
 		Effect.EffectType = EAbilityEffectType::EnergyDrain;
 		Effect.EffectValue = 100.0f; // 100% locked
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Destabilized:
-		// Random strong debuff
-		{
-			TArray<EAbilityEffectType> Debuffs = {
-				EAbilityEffectType::DamageDebuff,
-				EAbilityEffectType::DefenseDebuff,
-				EAbilityEffectType::SpeedDebuff,
-				EAbilityEffectType::CritChanceDebuff};
-			Effect.EffectName = TEXT("Destabilized (Triggered)");
-			Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
-			Effect.EffectValue = 30.0f; // 30%
-			Effect.RemainingTurns = 1;
-			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
-		}
-		break;
+	case EStatusType::RandomDebuff:
+	{
+		TArray<EAbilityEffectType> Debuffs = {
+			EAbilityEffectType::DamageDebuff,
+			EAbilityEffectType::DefenseDebuff,
+			EAbilityEffectType::SpeedDebuff,
+			EAbilityEffectType::CritChanceDebuff};
+		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
+		Effect.EffectValue = 30.0f; // 30%
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+	}
+	break;
 
-	case EStatusType::RawDamage:
+	case EStatusType::BurstDamage:
 		// Apply burst damage scaled by source's RawDamage stat
 		if (SourceData)
 		{
