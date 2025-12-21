@@ -566,28 +566,8 @@ public:
 		return CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT);
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	float CalculateRawDamage() const
-	{
-		float EffectiveBody = GetEffectiveBody();
-		int32 TotalPoints = GetTotalRawDamage();
-		return 1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
-	}
-
 	// ==================== SPIRIT CALCULATIONS ====================
 	// Spirit (4): MaxEnergy, MaxHealth, Resistance, TurnSpeed
-
-	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
-	float CalculateResistance() const
-	{
-		// Reduces status effect damage and buildup
-		float EffectiveSpirit = GetEffectiveSpirit();
-		int32 TotalPoints = GetTotalResistance();
-		return FMath::Clamp(
-			EffectiveSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
-			0.0f,
-			CombatConstants::RESISTANCE_MAX);
-	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateTurnSpeed() const
@@ -634,6 +614,18 @@ public:
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalEffectDamage();
 		return FMath::RoundToInt(EffectiveMind * TotalPoints);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
+	float CalculateResistance() const
+	{
+		// Reduces status effect damage and buildup
+		float EffectiveSpirit = GetEffectiveSpirit();
+		int32 TotalPoints = GetTotalResistance();
+		return FMath::Clamp(
+			EffectiveSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
+			0.0f,
+			CombatConstants::RESISTANCE_MAX);
 	}
 
 	// ==================== EQUIPMENT HELPERS ====================

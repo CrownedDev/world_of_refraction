@@ -938,11 +938,6 @@ void UStatusEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
-	// ==================== DEBUFF REMOVAL ====================
-	case EStatusType::RemoveDebuffs:
-		RemoveAllDebuffs(Actor);
-		break;
-
 	case EStatusType::RemoveSpeedDebuff:
 		RemoveEffectsByType(Actor, EStatusType::SpeedDebuff);
 		break;
@@ -1658,7 +1653,7 @@ void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, 
 	switch (StatusType)
 	{
 	case EStatusType::DOT:
-		Effect.EffectType = EStatusType::BurnDOT; // Generic DOT type
+		Effect.EffectType = EStatusType::DOT; // Generic DOT type
 		Effect.EffectValue = 30.0f;
 		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
@@ -1672,7 +1667,7 @@ void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, 
 		break;
 
 	case EStatusType::SkipTurn:
-		Effect.EffectType = EStatusType::Stun;
+		Effect.EffectType = EStatusType::SkipTurn;
 		Effect.EffectValue = 1.0f;
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;

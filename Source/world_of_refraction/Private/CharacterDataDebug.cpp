@@ -289,7 +289,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("  Defense: %d\n"), Character->CalculateFlatDefense());
 	Output += FString::Printf(TEXT("  Movement Speed: %.1f\n"), Character->CalculateMovementSpeed());
 	Output += FString::Printf(TEXT("  Animation Speed: x%.2f\n"), Character->CalculateAnimationSpeed());
-	Output += FString::Printf(TEXT("  Raw Damage: x%.2f\n\n"), Character->CalculateRawDamage());
+	Output += FString::Printf(TEXT("  Raw Damage: %d\n\n"), Character->CalculateRawDamage());
 
 	// Spirit Stats (4): MaxEnergy, MaxHealth, Resistance, TurnSpeed
 	Output += TEXT("SPIRIT STATS:\n");

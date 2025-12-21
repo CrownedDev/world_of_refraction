@@ -144,7 +144,8 @@ namespace StatusDisplayNames
         // All other status types use their enum display name
         default:
         {
-            FString EnumName = UEnum::GetDisplayNameTextByValue(StatusType).ToString();
+            const UEnum *EnumPtr = StaticEnum<EStatusType>();
+            FString EnumName = EnumPtr ? EnumPtr->GetDisplayNameTextByValue(static_cast<int64>(StatusType)).ToString() : TEXT("Unknown");
             return EnumName;
         }
         }

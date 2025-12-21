@@ -932,8 +932,8 @@ void UWeaponManager::ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, 
 
 	switch (Attack->PhysicalDamageType)
 	{
-	case EPhysicalDamageType::Slashing:
-	case EPhysicalDamageType::Piercing:
+	case EPhysicalDamageType::Slash:
+	case EPhysicalDamageType::Pierce:
 		StatusType = EStatusType::DOT; // Bleed/Pierce bleed
 		break;
 	case EPhysicalDamageType::Impact:
