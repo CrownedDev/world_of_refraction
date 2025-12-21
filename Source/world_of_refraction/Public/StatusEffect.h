@@ -6,7 +6,7 @@
 #include "EStatusEffectTiming.h"
 #include "EPassiveTrigger.h"
 #include "EStatusType.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "StatusEffect.generated.h"
 
 /**
@@ -164,7 +164,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 *
 	 * @param SpellName Display name for the effect
 	 * @param EffectIDBase Base ID (primary gets +0, secondary gets +1)
-	 * @param EffectType The EAbilityEffectType from SpellData
+	 * @param EffectType The EStatusType from SpellData
 	 * @param Magnitude Percentage modifier (0.0-1.0 range from SpellData)
 	 * @param Value Flat value from SpellData
 	 * @param Duration Turns from SpellData
@@ -449,7 +449,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 		case 1: // Pierce → Armor Break (defense debuff)
 			Effect.EffectName = WeaponName + TEXT(" Armor Break");
-			Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+			Effect.EffectType = EStatusType::DefenseDebuff;
 			Effect.EffectValue = TotalBuildup * 0.3f; // Defense reduction
 			Effect.RemainingTurns = 2;
 			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
@@ -459,8 +459,8 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 		case 2: // Blunt → Stun (skip turn - uses special handling)
 			Effect.EffectName = WeaponName + TEXT(" Stun");
-			Effect.EffectType = EAbilityEffectType::None; // TODO: Add Stun effect type
-			Effect.EffectValue = 1.0f;					  // Stun duration multiplier
+			Effect.EffectType = EStatusType::None; // TODO: Add Stun effect type
+			Effect.EffectValue = 1.0f;			   // Stun duration multiplier
 			Effect.RemainingTurns = 1;
 			Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 			Effect.bCanStack = false; // Stun doesn't stack, refreshes
@@ -469,7 +469,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 		default:
 			Effect.EffectName = TEXT("Unknown Physical Effect");
-			Effect.EffectType = EAbilityEffectType::None;
+			Effect.EffectType = EStatusType::None;
 			break;
 		}
 
@@ -552,35 +552,72 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	/** Check if this is a buff (positive effect) */
 	bool IsBuff() const
 	{
-		return StatusTypeHelper::IsBuff(EffectType);
-	}
-	/** Check if this is a debuff (negative effect) */
-	bool IsDebuff() const
-	{
-		return StatusTypeHelper::IsDebuff(EffectType);
-	}
-
-	/** Check if this is a DOT effect */
-	bool IsDOT() const
-	{
 		switch (EffectType)
 		{
-		case EAbilityEffectType::BurnDOT:
-		case EAbilityEffectType::ChillDOT:
-		case EAbilityEffectType::PoisonDOT:
-		case EAbilityEffectType::ElectrifiedDOT:
-		case EAbilityEffectType::BleedDOT:
-		case EAbilityEffectType::CorruptDOT:
+		case EStatusType::MindBuff:
+		case EStatusType::BodyBuff:
+		case EStatusType::SpiritBuff:
+		case EStatusType::DamageBuff:
+		case EStatusType::DefenseBuff:
+		case EStatusType::SpeedBuff:
+		case EStatusType::CritChanceBuff:
+		case EStatusType::AttackSpeedBuff:
+		case EStatusType::RawDamageBuff:
+		case EStatusType::EffectDamageBuff:
+		case EStatusType::SpellCostBuff:
+		case EStatusType::ResistanceBuff:
+		case EStatusType::SpellSizeBuff:
+		case EStatusType::MaxEnergyBuff:
+		case EStatusType::HealthRestore:
+		case EStatusType::EnergyRestore:
 			return true;
 		default:
 			return false;
 		}
 	}
 
-	/** Check if effect deals damage (DOT or direct) */
+	/** Check if this is a debuff (negative effect) */
+	bool IsDebuff() const
+	{
+		switch (EffectType)
+		{
+		case EStatusType::MindDebuff:
+		case EStatusType::BodyDebuff:
+		case EStatusType::SpiritDebuff:
+		case EStatusType::DamageDebuff:
+		case EStatusType::DefenseDebuff:
+		case EStatusType::SpeedDebuff:
+		case EStatusType::CritDebuff:
+		case EStatusType::EnergyDebuff:
+		case EStatusType::AttackSpeedDebuff:
+		case EStatusType::RawDamageDebuff:
+		case EStatusType::EffectDamageDebuff:
+		case EStatusType::SpellCostDebuff:
+		case EStatusType::ResistanceDebuff:
+		case EStatusType::SpellSizeDebuff:
+		case EStatusType::MaxEnergyDebuff:
+		case EStatusType::DOT:
+		case EStatusType::SkipTurn:
+		case EStatusType::RandomDebuff:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	/** Check if this is DOT damage */
+	bool IsDOT() const
+	{
+		return EffectType == EStatusType::DOT;
+	}
+
+	/** Check if this effect deals damage */
 	bool DealsDamage() const
 	{
-		return IsDOT() || EffectType == EStatusType::RetaliationDamage || EffectType == EStatusType::SelfDamage;
+		return IsDOT() ||
+			   EffectType == EStatusType::RetaliationDamage ||
+			   EffectType == EStatusType::SelfDamage ||
+			   EffectType == EStatusType::BurstDamage;
 	}
 
 	/** Get effective value considering stacks */

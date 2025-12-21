@@ -5,7 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "EDefenseType.h"
 #include "DefenseSystem.h"
 #include "BrokenDarknessManager.generated.h"

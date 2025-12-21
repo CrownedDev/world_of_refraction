@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "ESpellDeliveryType.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "SpellProjectile.generated.h"
 
 class UNiagaraSystem;

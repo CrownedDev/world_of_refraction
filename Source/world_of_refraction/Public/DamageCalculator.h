@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "EInfusionSourceOption.h"
 #include "DamageCalculator.generated.h"
 

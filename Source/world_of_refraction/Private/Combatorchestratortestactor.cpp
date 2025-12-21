@@ -9,7 +9,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "StatusEffectManager.h"
-#include "AbilityEffectType.h"
+#include "EStatusType.h"
 #include "Kismet/GameplayStatics.h"
 
 ACombatOrchestratorTestActor::ACombatOrchestratorTestActor()

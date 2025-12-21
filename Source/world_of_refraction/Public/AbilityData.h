@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "TargetType.h"
-#include "AbilityEffectType.h"
+#include "EStatusType.h"
 #include "WorldStatRequirements.h"
 #include "NiagaraSystem.h"
 #include "EWeaponType.h"

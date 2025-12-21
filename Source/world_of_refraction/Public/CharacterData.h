@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "ECharacterClass.h"
 #include "StatConstants.h"
 #include "EWeaponSlotType.h"

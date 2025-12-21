@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "InventoryConstants.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "SpellSchool.h"
 #include "FSpellCollection.generated.h"
 
@@ -18,7 +18,7 @@ class USpellData;
  * FSpellCollection
  * Manages a character's learned spell inventory (runtime state)
  * Capacity: 50 spells, supports learn/unlearn
- * 
+ *
  * NOTE: This tracks which spells a character OWNS, not which are EQUIPPED.
  * Loadout system assigns owned spells to equipment slots.
  */
@@ -29,7 +29,7 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
 
     /** Array of learned spells */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
-    TArray<USpellData*> LearnedSpells;
+    TArray<USpellData *> LearnedSpells;
 
     // ==================== CAPACITY ====================
 
@@ -60,7 +60,7 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
     // ==================== LEARN/UNLEARN ====================
 
     /** Learn a new spell (returns false if at capacity or already known) */
-    bool LearnSpell(USpellData* Spell)
+    bool LearnSpell(USpellData *Spell)
     {
         if (!Spell || !CanLearn() || HasSpell(Spell))
         {
@@ -71,7 +71,7 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
     }
 
     /** Unlearn a spell (returns false if not known) */
-    bool UnlearnSpell(USpellData* Spell)
+    bool UnlearnSpell(USpellData *Spell)
     {
         if (!Spell)
         {
@@ -83,20 +83,20 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
     // ==================== QUERIES ====================
 
     /** Check if spell is in collection */
-    bool HasSpell(USpellData* Spell) const
+    bool HasSpell(USpellData *Spell) const
     {
         return Spell && LearnedSpells.Contains(Spell);
     }
 
     /** Count occurrences of a spell (for duplication tracking) */
-    int32 CountSpell(USpellData* Spell) const
+    int32 CountSpell(USpellData *Spell) const
     {
         if (!Spell)
         {
             return 0;
         }
         int32 Count = 0;
-        for (const USpellData* S : LearnedSpells)
+        for (const USpellData *S : LearnedSpells)
         {
             if (S == Spell)
             {
@@ -107,13 +107,13 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
     }
 
     /** Get spells filtered by element */
-    TArray<USpellData*> GetSpellsByElement(ESpellElement Element) const;
+    TArray<USpellData *> GetSpellsByElement(ESpellElement Element) const;
 
     /** Get spells filtered by school */
-    TArray<USpellData*> GetSpellsBySchool(ESpellSchool School) const;
+    TArray<USpellData *> GetSpellsBySchool(ESpellSchool School) const;
 
     /** Get spells filtered by element AND school */
-    TArray<USpellData*> GetSpellsByElementAndSchool(ESpellElement Element, ESpellSchool School) const;
+    TArray<USpellData *> GetSpellsByElementAndSchool(ESpellElement Element, ESpellSchool School) const;
 
     // ==================== CLEAR ====================
 

@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "ItemTier.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"

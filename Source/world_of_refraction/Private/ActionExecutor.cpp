@@ -3779,7 +3779,7 @@ void UActionExecutor::ApplySpellStatusBuildup(AActor *Caster, AActor *Target, US
 			Caster,
 			Target,
 			Buildup,
-			EStatusType::RawDamage,
+			EStatusType::BurstDamage,
 			Spell->Element);
 
 		if (bTriggered)
@@ -3796,13 +3796,14 @@ void UActionExecutor::ApplySpellStatusBuildup(AActor *Caster, AActor *Target, US
 	// Use PrimaryEffect if specified to determine status type
 	if (Spell->PrimaryEffect != EStatusType::None)
 	{
-		StatusType = StatusTypeHelper::GetFromAbilityEffect(Spell->PrimaryEffect);
+		StatusType = Spell->PrimaryEffect;
 	}
 
 	// Fallback to element default if no valid status from PrimaryEffect
 	if (StatusType == EStatusType::None)
 	{
-		StatusType = StatusTypeHelper::GetDefaultForElement(Spell->Element);
+		// If spell doesn't specify effect, default to DOT for elemental damage
+		StatusType = EStatusType::DOT;
 	}
 
 	// Calculate buildup

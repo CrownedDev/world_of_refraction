@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EActionType.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "EInfusionType.h"
 #include "EInfusionSource.h"
 #include "ESpellSource.h"

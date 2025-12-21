@@ -90,15 +90,14 @@ namespace CombatConstants
     constexpr float INFUSION_ENERGY_MULTIPLIER = 1.5f; // 50% more energy cost when infused
     constexpr int32 BASE_STATUS_BUILDUP_PER_HIT = 5;   // Base buildup before Spirit scaling
 
-    // Status Effect Thresholds
-    constexpr int32 STATUS_EFFECT_THRESHOLD = 100; // Buildup needed to trigger status
-
     // ==================== SPELL DATA ====================
     /** Raw mode damage bonus (+10%) */
     constexpr float RAW_MODE_DAMAGE_MULTIPLIER = 1.10f;
 
     // Status bar system
-    constexpr float STATUS_EFFECT_THRESHOLD = 100.0f;
+    // Status Effect Thresholds
+    constexpr float STATUS_EFFECT_THRESHOLD = 100.0f; // Buildup needed to trigger status
+
     constexpr float STATUS_DECAY_RATE = 0.25f; // 25% per turn
     constexpr int32 STATUS_DECAY_FULL_RESET_TURNS = 3;
 }

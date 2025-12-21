@@ -13,7 +13,7 @@
 
 #include "CoreMinimal.h"
 #include "InventoryConstants.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "FCrystalInventoryEntry.h"
 #include "FWeaponInventoryEntry.generated.h"
 
@@ -25,7 +25,7 @@ class USpellData;
  * FWeaponInventoryEntry
  * Represents a single weapon INSTANCE in inventory with its attached crystal state
  * Slot cost varies based on crystal: Base=1, Refined=2, Evolution=3
- * 
+ *
  * This is RUNTIME STATE - the actual crystal attached to this specific weapon instance.
  * Multiple characters can reference the same WeaponData but have different crystals attached.
  */
@@ -36,7 +36,7 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     /** The weapon data asset (immutable template) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
-    UWeaponData* Weapon = nullptr;
+    UWeaponData *Weapon = nullptr;
 
     /** Attached crystal with runtime spell customization */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
@@ -45,7 +45,7 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     // ==================== FACTORY ====================
 
     /** Create entry from WeaponData, optionally copying default crystal */
-    static FWeaponInventoryEntry CreateFromWeapon(UWeaponData* InWeapon, bool bCopyDefaultCrystal = false);
+    static FWeaponInventoryEntry CreateFromWeapon(UWeaponData *InWeapon, bool bCopyDefaultCrystal = false);
 
     // ==================== STATE QUERIES ====================
 
@@ -96,13 +96,13 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     // ==================== SPELL ACCESS ====================
 
     /** Get all spells from attached crystal (locked + custom) */
-    TArray<USpellData*> GetSpells() const
+    TArray<USpellData *> GetSpells() const
     {
         return AttachedCrystal.GetAllSpells();
     }
 
     /** Get locked spells only (Evolution crystals) */
-    TArray<USpellData*> GetLockedSpells() const
+    TArray<USpellData *> GetLockedSpells() const
     {
         return AttachedCrystal.GetLockedSpells();
     }
@@ -116,7 +116,7 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     // ==================== CRYSTAL OPERATIONS ====================
 
     /** Attach a crystal (creates new FCrystalInventoryEntry) */
-    void AttachCrystal(UItemData* NewCrystal)
+    void AttachCrystal(UItemData *NewCrystal)
     {
         AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }
@@ -128,12 +128,12 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     }
 
     /** Get direct access to crystal entry for spell customization */
-    FCrystalInventoryEntry& GetCrystalEntry()
+    FCrystalInventoryEntry &GetCrystalEntry()
     {
         return AttachedCrystal;
     }
 
-    const FCrystalInventoryEntry& GetCrystalEntry() const
+    const FCrystalInventoryEntry &GetCrystalEntry() const
     {
         return AttachedCrystal;
     }
@@ -154,12 +154,12 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     // ==================== COMPARISON ====================
 
-    bool operator==(const FWeaponInventoryEntry& Other) const
+    bool operator==(const FWeaponInventoryEntry &Other) const
     {
         return Weapon == Other.Weapon && AttachedCrystal == Other.AttachedCrystal;
     }
 
-    bool operator!=(const FWeaponInventoryEntry& Other) const
+    bool operator!=(const FWeaponInventoryEntry &Other) const
     {
         return !(*this == Other);
     }

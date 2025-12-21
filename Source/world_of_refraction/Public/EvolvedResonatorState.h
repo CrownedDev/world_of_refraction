@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "EvolvedResonatorState.generated.h"
 
 /**

@@ -7,7 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "EInfusionSourceOption.h"
 #include "EInfusionDisplayLocation.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "EChargeInfusionType.h"
 #include "InfusionVFXComponent.generated.h"
 

@@ -423,6 +423,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug")
 	FString GetEffectsSummary(AActor *Actor) const;
 
+	/** Apply immediate (on-hit) status effect */
+	void ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+
 private:
 	// ========================================
 	// INTERNAL DATA
@@ -488,9 +491,6 @@ private:
 
 	/** Trigger the status effect when bar fills */
 	void TriggerStatusEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
-
-	/** Apply immediate (on-hit) status effect */
-	void ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 
 	/** Apply triggered (bar-full) status effect */
 	void ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);

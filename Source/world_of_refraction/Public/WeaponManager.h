@@ -6,7 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ActionStructs.h"
 #include "EPhysicalDamageType.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "WeaponManager.generated.h"
 
 class UWeaponData;

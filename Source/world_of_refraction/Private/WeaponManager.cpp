@@ -726,8 +726,8 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 			TEXT("Stun"),
 			FMath::Rand(),
 			EStatusType::AttackSpeedDebuff, // Placeholder for stun
-			100.0f,								   // 100% speed reduction = skip turn
-			1);									   // 1 turn
+			100.0f,							// 100% speed reduction = skip turn
+			1);								// 1 turn
 		Effect.Element = ESpellElement::Generic;
 		break;
 
@@ -921,31 +921,26 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor *Actor) const
 void UWeaponManager::ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, UWeaponData *Weapon, UWeaponAttackData *Attack, int32 InfusionLevel)
 {
 	if (!Attacker || !Target || !Weapon || !Attack)
-	{
 		return;
-	}
 
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
-	{
 		return;
-	}
 
-	// Determine status type
+	// Determine status type from weapon's physical damage type
 	EStatusType StatusType = EStatusType::None;
 
-	// If weapon is infused, use elemental status
-	FWeaponState *State = WeaponStates.Find(Attacker);
-	if (State && State->bInfusionActive)
+	switch (Attack->PhysicalDamageType)
 	{
-		// Get infusion element (from crystal, innate, or ring)
-		ESpellElement InfusionElement = GetInfusionElement(Attacker);
-		StatusType = StatusTypeHelper::GetDefaultForElement(InfusionElement);
-	}
-	else
-	{
-		// Use physical damage type
-		StatusType = StatusTypeHelper::GetDefaultForPhysical(Attack->PhysicalDamageType);
+	case EPhysicalDamageType::Slashing:
+	case EPhysicalDamageType::Piercing:
+		StatusType = EStatusType::DOT; // Bleed/Pierce bleed
+		break;
+	case EPhysicalDamageType::Impact:
+		StatusType = EStatusType::DefenseDebuff; // Armor break
+		break;
+	default:
+		StatusType = EStatusType::None;
 	}
 
 	// Calculate buildup
@@ -953,13 +948,23 @@ void UWeaponManager::ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, 
 
 	// L1 infusion: +50% buildup
 	if (InfusionLevel == 1)
-	{
 		Buildup *= 1.5f;
+
+	// Determine element (for display name)
+	FWeaponState *State = WeaponStates.Find(Attacker);
+	ESpellElement Element = ESpellElement::Generic; // Default to physical
+
+	if (State && State->bInfusionActive)
+	{
+		// Get character's infusion element
+		UCharacterDataComponent *CharComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+		if (CharComp && CharComp->CharacterData)
+		{
+			Element = CharComp->CharacterData->InnateElement;
+		}
 	}
 
 	// Add to status bar
-	ESpellElement Element = State && State->bInfusionActive ? GetInfusionElement(Attacker) : ESpellElement::Generic;
-
 	bool bTriggered = StatusManager->AddStatusBuildup(
 		Attacker,
 		Target,
@@ -973,7 +978,7 @@ void UWeaponManager::ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, 
 			   *Weapon->WeaponName, *UEnum::GetValueAsString(StatusType), *Target->GetName());
 	}
 
-	// Apply immediate status
+	// Apply immediate status (change to public method first)
 	if (StatusType != EStatusType::None)
 	{
 		StatusManager->ApplyImmediateStatus(Attacker, Target, StatusType, Element);

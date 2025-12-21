@@ -14,7 +14,7 @@
 #include "CrystalType.h"
 #include "ItemTier.h"
 #include "ItemEffectType.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "ECrystalCategory.h"
 #include "PassiveEffect.h"
 #include "NiagaraSystem.h"

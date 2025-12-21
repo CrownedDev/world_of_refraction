@@ -16,7 +16,7 @@
 
 #include "CoreMinimal.h"
 #include "InventoryConstants.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "FCrystalInventoryEntry.h"
 #include "FRingInventoryEntry.generated.h"
 
@@ -28,7 +28,7 @@ class USpellData;
  * FRingInventoryEntry
  * Represents a single ring INSTANCE in inventory with its attached crystal state
  * Slot cost: Base=1 (with crystal), Evolved=2
- * 
+ *
  * This is RUNTIME STATE - the actual crystal attached to this specific ring instance.
  * Multiple characters can reference the same RingData but have different crystals attached.
  */
@@ -39,7 +39,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     /** The ring data asset (immutable template) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
-    URingData* Ring = nullptr;
+    URingData *Ring = nullptr;
 
     /** Attached crystal with runtime spell customization */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
@@ -48,7 +48,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     // ==================== FACTORY ====================
 
     /** Create entry from RingData, optionally copying default crystal */
-    static FRingInventoryEntry CreateFromRing(URingData* InRing, bool bCopyDefaultCrystal = false);
+    static FRingInventoryEntry CreateFromRing(URingData *InRing, bool bCopyDefaultCrystal = false);
 
     // ==================== STATE QUERIES ====================
 
@@ -95,13 +95,13 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     // ==================== SPELL ACCESS ====================
 
     /** Get all spells from attached crystal (locked + custom) */
-    TArray<USpellData*> GetSpells() const
+    TArray<USpellData *> GetSpells() const
     {
         return AttachedCrystal.GetAllSpells();
     }
 
     /** Get locked spells only (Evolution crystals) */
-    TArray<USpellData*> GetLockedSpells() const
+    TArray<USpellData *> GetLockedSpells() const
     {
         return AttachedCrystal.GetLockedSpells();
     }
@@ -115,7 +115,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     // ==================== CRYSTAL OPERATIONS ====================
 
     /** Attach a crystal (creates new FCrystalInventoryEntry) */
-    void AttachCrystal(UItemData* NewCrystal)
+    void AttachCrystal(UItemData *NewCrystal)
     {
         AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }
@@ -127,12 +127,12 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     }
 
     /** Get direct access to crystal entry for spell customization */
-    FCrystalInventoryEntry& GetCrystalEntry()
+    FCrystalInventoryEntry &GetCrystalEntry()
     {
         return AttachedCrystal;
     }
 
-    const FCrystalInventoryEntry& GetCrystalEntry() const
+    const FCrystalInventoryEntry &GetCrystalEntry() const
     {
         return AttachedCrystal;
     }
@@ -153,12 +153,12 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     // ==================== COMPARISON ====================
 
-    bool operator==(const FRingInventoryEntry& Other) const
+    bool operator==(const FRingInventoryEntry &Other) const
     {
         return Ring == Other.Ring && AttachedCrystal == Other.AttachedCrystal;
     }
 
-    bool operator!=(const FRingInventoryEntry& Other) const
+    bool operator!=(const FRingInventoryEntry &Other) const
     {
         return !(*this == Other);
     }

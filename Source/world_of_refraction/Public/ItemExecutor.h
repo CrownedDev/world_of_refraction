@@ -6,7 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ActionStructs.h"
 #include "ItemEffectType.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "ItemExecutor.generated.h"
 
 class UItemData;

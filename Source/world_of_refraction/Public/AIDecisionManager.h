@@ -8,6 +8,7 @@
 #include "EAIDifficulty.h"
 #include "ActionStructs.h"
 #include "EDefenseType.h"
+#include "EStatusType.h"
 #include "AIDecisionManager.generated.h"
 
 class ACombatOrchestrator;

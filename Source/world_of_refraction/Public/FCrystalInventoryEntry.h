@@ -14,7 +14,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "ECrystalCategory.h"
 #include "FCrystalInventoryEntry.generated.h"
 

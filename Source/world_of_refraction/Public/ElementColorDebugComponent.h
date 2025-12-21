@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "SpellElement.h"
+#include "ESpellElement.h"
 #include "ElementColorDebugComponent.generated.h"
 
 class UCharacterDataComponent;
