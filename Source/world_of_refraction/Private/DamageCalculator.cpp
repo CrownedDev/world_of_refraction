@@ -307,7 +307,7 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, bool bIsE
 	}
 	else
 	{
-		return Data->CalculateRawDamageMultiplier();
+		return Data->CalculateRawDamage();
 	}
 }
 
@@ -344,7 +344,7 @@ float UDamageCalculator::GetDefenderResistance(AActor *Defender) const
 		return 0.0f;
 	}
 
-	float BaseResistance = Data->CalculateStatusResistance();
+	float BaseResistance = Data->CalculateResistance();
 
 	// Apply status effect modifiers
 	UStatusEffectManager *StatusManager = GetStatusEffectManager();

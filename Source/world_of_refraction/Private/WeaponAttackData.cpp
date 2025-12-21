@@ -4,7 +4,6 @@
 #include "WeaponAttackData.h"
 #include "WeaponData.h"
 
-
 float UWeaponAttackData::GetHitDamagePercent(int32 HitIndex) const
 {
     if (HitCount == 1)
@@ -66,8 +65,8 @@ FString UWeaponAttackData::GetDamageTypeName() const
         return TEXT("Slash");
     case EPhysicalDamageType::Pierce:
         return TEXT("Pierce");
-    case EPhysicalDamageType::Blunt:
-        return TEXT("Blunt");
+    case EPhysicalDamageType::Impact:
+        return TEXT("Impact");
     default:
         return TEXT("Unknown");
     }

@@ -469,7 +469,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, 
 
 	// Calculate base damage - attacks use character's RawDamageMultiplier
 	// Base damage is 100, scaled by character stats
-	float DamageMultiplier = AttackerData->CalculateRawDamageMultiplier();
+	float DamageMultiplier = AttackerData->CalculateRawDamage();
 	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
 
 	// Infusion penalty
@@ -559,7 +559,7 @@ float UWeaponManager::GetStatusThreshold(EPhysicalDamageType DamageType) const
 		return STATUS_THRESHOLD_BLEED;
 	case EPhysicalDamageType::Pierce:
 		return STATUS_THRESHOLD_ARMOR_BREAK;
-	case EPhysicalDamageType::Blunt:
+	case EPhysicalDamageType::Impact:
 		return STATUS_THRESHOLD_STUN;
 	default:
 		return 100.0f;
@@ -719,7 +719,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 		Effect.Element = ESpellElement::Generic;
 		break;
 
-	case EPhysicalDamageType::Blunt:
+	case EPhysicalDamageType::Impact:
 		// Stun - Skip turn (using AttackSpeedDebuff as placeholder)
 		// TODO: Add proper Stun type to EStatusType
 		Effect = FStatusEffect::CreateBuff(
@@ -775,8 +775,8 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 		// Step 2: Apply resistance (percentage) - elemental damage only
 		if (bIsElemental && FinalDamage > 0)
 		{
-			float Resistance = TargetData->CalculateStatusResistance(); // Returns 0.0-1.0
-			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);			// Cap at 80%
+			float Resistance = TargetData->CalculateResistance(); // Returns 0.0-1.0
+			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);	  // Cap at 80%
 			FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
 		}
 	}

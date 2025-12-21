@@ -97,7 +97,7 @@ namespace StatusDisplayNames
             case ESpellElement::Water:
                 return TEXT("Frozen Solid");
             case ESpellElement::Generic:
-                return TEXT("Staggered"); // Physical Blunt
+                return TEXT("Staggered"); // Physical Impact
             default:
                 return TEXT("Stunned");
             }

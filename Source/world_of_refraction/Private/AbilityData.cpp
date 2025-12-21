@@ -48,7 +48,7 @@ int32 UAbilityData::CalculateNormalDamage(UCharacterData *Character) const
     Damage *= (1.0f - RequirementPenalty);
 
     // Apply character's raw damage multiplier (Body stat)
-    float RawDamageMultiplier = Character->CalculateRawDamageMultiplier();
+    float RawDamageMultiplier = Character->CalculateRawDamage();
     Damage *= RawDamageMultiplier;
 
     return FMath::RoundToInt(Damage);
@@ -70,7 +70,7 @@ int32 UAbilityData::CalculateInfusedDamage(UCharacterData *Character) const
     Damage *= (1.0f - CombatConstants::INFUSION_DAMAGE_PENALTY);
 
     // Apply character's raw damage multiplier
-    float RawDamageMultiplier = Character->CalculateRawDamageMultiplier();
+    float RawDamageMultiplier = Character->CalculateRawDamage();
     Damage *= RawDamageMultiplier;
 
     return FMath::RoundToInt(Damage);

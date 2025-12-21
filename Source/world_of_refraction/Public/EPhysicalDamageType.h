@@ -11,5 +11,5 @@ enum class EPhysicalDamageType : uint8
 {
     Slash,  // → Bleed
     Pierce, // → Armor Break
-    Blunt   // → Stun
+    Impact  // → Stun
 };

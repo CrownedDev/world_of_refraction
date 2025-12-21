@@ -113,7 +113,7 @@ struct WORLD_OF_REFRACTION_API FWeaponAttackResult
 
 	/** Physical damage type used */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
-	EPhysicalDamageType PhysicalType = EPhysicalDamageType::Blunt;
+	EPhysicalDamageType PhysicalType = EPhysicalDamageType::Impact;
 
 	/** Status buildup applied this attack */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
@@ -153,7 +153,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnConjurationEnded, AActor *, Actor
  * - Weapon state tracking (armed/unarmed, primary/secondary)
  * - Weapon switching
  * - Attack execution with physical damage types
- * - Physical status buildup (Slash→Bleed, Pierce→ArmorBreak, Blunt→Stun)
+ * - Physical status buildup (Slash→Bleed, Pierce→ArmorBreak, Impact→Stun)
  * - Infusion toggle for Generic characters
  * - Conjured weapon management for Elemental characters
  *
@@ -427,7 +427,7 @@ private:
 
 	static constexpr float STATUS_THRESHOLD_BLEED = 100.0f;		  // Slash → Bleed
 	static constexpr float STATUS_THRESHOLD_ARMOR_BREAK = 100.0f; // Pierce → ArmorBreak
-	static constexpr float STATUS_THRESHOLD_STUN = 100.0f;		  // Blunt → Stun
+	static constexpr float STATUS_THRESHOLD_STUN = 100.0f;		  // Impact → Stun
 
 	static constexpr int32 INFUSED_ATTACK_ENERGY_COST = 5;
 	static constexpr float INFUSION_DAMAGE_PENALTY = 0.3f; // 30% damage reduction when infused

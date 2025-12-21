@@ -412,11 +412,11 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 	/**
 	 * Create status effect from physical damage type (Generic character weapon attacks)
-	 * Slash → Bleed DOT, Pierce → Armor Break, Blunt → Stun
+	 * Slash → Bleed DOT, Pierce → Armor Break, Impact → Stun
 	 *
 	 * @param WeaponName Name of weapon
 	 * @param WeaponID Unique weapon identifier
-	 * @param PhysicalType The physical damage type (0=Slash, 1=Pierce, 2=Blunt)
+	 * @param PhysicalType The physical damage type (0=Slash, 1=Pierce, 2=Impact)
 	 * @param StatusBuildup Base buildup value from WeaponAttackData
 	 * @param InfusionMultiplier Weapon's InfusionStatusMultiplier (1.0 = normal)
 	 * @param HitCount Number of hits (multiplies buildup)
@@ -435,7 +435,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		// Calculate actual buildup: base × multiplier × hits
 		float TotalBuildup = static_cast<float>(StatusBuildup) * InfusionMultiplier * static_cast<float>(HitCount);
 
-		// Physical damage types: 0=Slash, 1=Pierce, 2=Blunt
+		// Physical damage types: 0=Slash, 1=Pierce, 2=Impact
 		switch (PhysicalType)
 		{
 		case 0: // Slash → Bleed DOT
@@ -457,7 +457,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			Effect.MaxStacks = 3;
 			break;
 
-		case 2: // Blunt → Stun (skip turn - uses special handling)
+		case 2: // Impact → Stun (skip turn - uses special handling)
 			Effect.EffectName = WeaponName + TEXT(" Stun");
 			Effect.EffectType = EStatusType::None; // TODO: Add Stun effect type
 			Effect.EffectValue = 1.0f;			   // Stun duration multiplier

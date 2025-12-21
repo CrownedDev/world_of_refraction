@@ -576,7 +576,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
 
 	// Calculate damage with power infusion
-	float DamageMultiplier = UserData->CalculateRawDamageMultiplier();
+	float DamageMultiplier = UserData->CalculateRawDamage();
 	int32 BaseDamage = Ability->CalculateDamage(UserData, Action.bIsElementInfused);
 
 	// Element handling
@@ -654,7 +654,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	}
 
 	// Calculate damage
-	float DamageMultiplier = AttackerData->CalculateRawDamageMultiplier();
+	float DamageMultiplier = AttackerData->CalculateRawDamage();
 	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
 
 	bool bIsInfused = Action.bIsElementInfused;
@@ -1587,7 +1587,7 @@ FActionResult UActionExecutor::ExecuteAttack(
 
 	// Calculate damage - attacks use character's RawDamageMultiplier
 	// Base damage is 100, scaled by the attack's damage distribution and character stats
-	float DamageMultiplier = AttackerData->CalculateRawDamageMultiplier();
+	float DamageMultiplier = AttackerData->CalculateRawDamage();
 	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
 	if (bIsInfused)
 	{
@@ -3031,7 +3031,7 @@ void UActionExecutor::ApplyL2InfusionCost(
 	{
 		// Caster innate: HP cost
 		int32 HPCost = FMath::RoundToInt(
-			Data->CalculateMaxHP() * InfusionConstants::INNATE_L2_HP_COST_PERCENT);
+			Data->CalculateMaxHealth() * InfusionConstants::INNATE_L2_HP_COST_PERCENT);
 		ApplySelfDamage(Actor, HPCost);
 		Result.SelfDamageTaken = HPCost;
 
@@ -3061,7 +3061,7 @@ void UActionExecutor::ApplyL2InfusionCost(
 	{
 		// Evolution: HP cost + self-status
 		int32 HPCost = FMath::RoundToInt(
-			Data->CalculateMaxHP() * InfusionConstants::EVOLUTION_L2_HP_COST_PERCENT);
+			Data->CalculateMaxHealth() * InfusionConstants::EVOLUTION_L2_HP_COST_PERCENT);
 		ApplySelfDamage(Actor, HPCost);
 		Result.SelfDamageTaken = HPCost;
 
@@ -3100,7 +3100,7 @@ void UActionExecutor::ApplySpellSizeL2Cost(
 	{
 		// Caster innate spell: HP cost
 		int32 HPCost = FMath::RoundToInt(
-			Data->CalculateMaxHP() * InfusionConstants::INNATE_L2_HP_COST_PERCENT);
+			Data->CalculateMaxHealth() * InfusionConstants::INNATE_L2_HP_COST_PERCENT);
 		ApplySelfDamage(Actor, HPCost);
 		Result.SelfDamageTaken = HPCost;
 		break;
@@ -3117,7 +3117,7 @@ void UActionExecutor::ApplySpellSizeL2Cost(
 	{
 		// Evolution weapon spell: HP + self-status
 		int32 HPCost = FMath::RoundToInt(
-			Data->CalculateMaxHP() * InfusionConstants::EVOLUTION_L2_HP_COST_PERCENT);
+			Data->CalculateMaxHealth() * InfusionConstants::EVOLUTION_L2_HP_COST_PERCENT);
 		ApplySelfDamage(Actor, HPCost);
 		Result.SelfDamageTaken = HPCost;
 

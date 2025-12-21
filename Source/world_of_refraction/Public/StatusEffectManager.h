@@ -190,7 +190,7 @@ public:
 
 	/**
 	 * Apply physical damage type status effect (Generic character weapon attacks)
-	 * Slash → Bleed, Pierce → Armor Break, Blunt → Stun
+	 * Slash → Bleed, Pierce → Armor Break, Impact → Stun
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
 	void ApplyPhysicalDamageEffect(

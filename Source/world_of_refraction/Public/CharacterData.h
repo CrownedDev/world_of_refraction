@@ -567,7 +567,7 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	float CalculateRawDamageMultiplier() const
+	float CalculateRawDamage() const
 	{
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalRawDamage();
@@ -578,7 +578,7 @@ public:
 	// Spirit (4): MaxEnergy, MaxHealth, Resistance, TurnSpeed
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
-	float CalculateStatusResistance() const
+	float CalculateResistance() const
 	{
 		// Reduces status effect damage and buildup
 		float EffectiveSpirit = GetEffectiveSpirit();
@@ -601,7 +601,7 @@ public:
 	// ==================== HELPER FUNCTIONS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateMaxHP() const
+	int32 CalculateMaxHealth() const
 	{
 		// Now uses explicit MaxHealth stat (Spirit-based)
 		float EffectiveSpirit = GetEffectiveSpirit();
@@ -610,12 +610,30 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateMaxEP() const
+	int32 CalculateMaxEnergy() const
 	{
 		// Now uses explicit MaxEnergy stat (Spirit-based)
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalMaxEnergy();
 		return FMath::RoundToInt(CombatConstants::MAX_ENERGY_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_ENERGY_PER_POINT));
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
+	int32 CalculateRawDamage() const
+	{
+		// Flat raw damage value (Body-based)
+		float EffectiveBody = GetEffectiveBody();
+		int32 TotalPoints = GetTotalRawDamage();
+		return FMath::RoundToInt(EffectiveBody * TotalPoints);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
+	int32 CalculateEffectDamage() const
+	{
+		// Flat effect damage value (Mind-based)
+		float EffectiveMind = GetEffectiveMind();
+		int32 TotalPoints = GetTotalEffectDamage();
+		return FMath::RoundToInt(EffectiveMind * TotalPoints);
 	}
 
 	// ==================== EQUIPMENT HELPERS ====================

@@ -159,6 +159,6 @@ private:
 
     void CheckDeath();
     bool HasServerAuthority() const;
-    int32 CalculateMaxHP() const;
-    int32 CalculateMaxEP() const;
+    int32 CalculateMaxHealth() const;
+    int32 CalculateMaxEnergy() const;
 };

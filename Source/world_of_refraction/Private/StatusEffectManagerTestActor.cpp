@@ -707,19 +707,19 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 
 	Manager->ApplySpellEffects(
 		Target,
-		TEXT("Dehydration"),			 // SpellName
-		5001,							 // SpellID
+		TEXT("Dehydration"),	  // SpellName
+		5001,					  // SpellID
 		EStatusType::EnergyDrain, // PrimaryType (drain enemy)
-		0.0f,							 // PrimaryMagnitude
-		15,								 // PrimaryValue (15 energy drain)
-		2,								 // PrimaryDuration
+		0.0f,					  // PrimaryMagnitude
+		15,						  // PrimaryValue (15 energy drain)
+		2,						  // PrimaryDuration
 		EStatusType::SpeedDebuff, // SecondaryType (slow)
-		0.20f,							 // SecondaryMagnitude (20% slow)
-		0,								 // SecondaryValue
-		3,								 // SecondaryDuration
-		ESpellElement::Water,			 // Element
-		Caster,							 // Source
-		0);								 // SourceTeam
+		0.20f,					  // SecondaryMagnitude (20% slow)
+		0,						  // SecondaryValue
+		3,						  // SecondaryDuration
+		ESpellElement::Water,	  // Element
+		Caster,					  // Source
+		0);						  // SourceTeam
 
 	bool bPassed = true;
 
@@ -810,7 +810,7 @@ void AStatusEffectManagerTestActor::Test_WeaponBonuses()
 
 void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 {
-	UE_LOG(LogTemp, Display, TEXT("[TEST] Physical Damage Effects (Slash/Pierce/Blunt)"));
+	UE_LOG(LogTemp, Display, TEXT("[TEST] Physical Damage Effects (Slash/Pierce/Impact)"));
 
 	UStatusEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
@@ -867,19 +867,19 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 
 	Manager->RemoveAllEffects(Target);
 
-	// Test 3: Blunt → Stun (processed at start of turn)
+	// Test 3: Impact → Stun (processed at start of turn)
 	Manager->ApplyPhysicalDamageEffect(
 		Target,
 		TEXT("Warhammer"),
 		2003,
-		2, // PhysicalType: 2 = Blunt
+		2, // PhysicalType: 2 = Impact
 		20,
 		1.0f,
 		1,
 		Attacker,
 		0);
 
-	bPassed &= AssertEqual(1, Manager->GetEffectCount(Target), TEXT("Blunt applied Stun effect"));
+	bPassed &= AssertEqual(1, Manager->GetEffectCount(Target), TEXT("Impact applied Stun effect"));
 
 	// Stun should process at start of turn
 	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(Target);
@@ -889,7 +889,7 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 							  TEXT("Stun processes at start of turn"));
 	}
 
-	LogTestResult(TEXT("Physical Damage Effects (Slash/Pierce/Blunt)"), bPassed);
+	LogTestResult(TEXT("Physical Damage Effects (Slash/Pierce/Impact)"), bPassed);
 
 	Manager->RemoveAllEffects(Target);
 }

@@ -26,9 +26,9 @@ void UCharacterDataComponent::BeginPlay()
     // Initialize HP/EP from CharacterData
     if (CharacterData)
     {
-        MaxHP = CharacterData->CalculateMaxHP();
+        MaxHP = CharacterData->CalculateMaxHealth();
         CurrentHP = MaxHP;
-        MaxEP = CharacterData->CalculateMaxEP();
+        MaxEP = CharacterData->CalculateMaxEnergy();
         CurrentEP = MaxEP;
 
         // Auto-initialize Inventory and Loadout if present
@@ -68,8 +68,8 @@ void UCharacterDataComponent::InitializeFromTemplate()
         return;
     }
 
-    MaxHP = CalculateMaxHP();
-    MaxEP = CalculateMaxEP();
+    MaxHP = CalculateMaxHealth();
+    MaxEP = CalculateMaxEnergy();
     CurrentHP = MaxHP;
     CurrentEP = MaxEP;
     bIsAlive = true;
@@ -198,7 +198,7 @@ void UCharacterDataComponent::OnRep_bIsAlive()
         OnDied.Broadcast(GetOwner());
 }
 
-int32 UCharacterDataComponent::CalculateMaxHP() const
+int32 UCharacterDataComponent::CalculateMaxHealth() const
 {
     if (!CharacterData)
         return 100;
@@ -207,7 +207,7 @@ int32 UCharacterDataComponent::CalculateMaxHP() const
     return 100;
 }
 
-int32 UCharacterDataComponent::CalculateMaxEP() const
+int32 UCharacterDataComponent::CalculateMaxEnergy() const
 {
     if (!CharacterData)
         return 100;
