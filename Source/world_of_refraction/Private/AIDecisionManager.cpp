@@ -610,10 +610,18 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
         UWeaponAttackData *Attack = WeaponManager->GetActiveAttack(Attacker);
         if (Attack)
         {
-            // WeaponAttackData doesn't have CalculateDamage - use DamageCalculator instead
-            // TODO: Fix variable scope - need to check what variables are available
-            int32 AttackDamage = 50; // Placeholder
-            BestDamage = FMath::Max(BestDamage, AttackDamage);
+            UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
+            if (DamageCalc)
+            {
+                FDamageCalculationResult DamageResult = DamageCalc->CalculateAttackDamage(Attacker, Target, Attack, false);
+                int32 AttackDamage = DamageResult.FinalDamage;
+                BestDamage = FMath::Max(BestDamage, AttackDamage);
+            }
+            else
+            {
+                // Fallback if DamageCalculator unavailable
+                BestDamage = FMath::Max(BestDamage, 50);
+            }
         }
     }
 
