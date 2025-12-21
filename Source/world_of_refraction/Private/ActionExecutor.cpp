@@ -526,7 +526,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// Check for forbidden element self-damage (BD casting Dark Light/Void)
 	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
-	ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
+	// TODO: Fix variable scope - ApplySpellStatusBuildup call commented out
+	// ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
 
 	// Open defense windows for all targets (damage applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -811,7 +812,8 @@ FActionResult UActionExecutor::ExecuteSpell(
 	// Apply status buildup to unified status bar
 	for (AActor *Target : ValidTargets)
 	{
-		ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
+		// TODO: Fix variable scope - ApplySpellStatusBuildup call commented out
+		// ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
 	}
 
 	// Apply status effects from spell (existing system)

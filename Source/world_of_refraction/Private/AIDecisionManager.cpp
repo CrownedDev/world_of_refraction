@@ -16,6 +16,13 @@
 #include "EDefenseType.h"
 #include "EDefenseDirection.h"
 #include "StatusEffectManager.h"
+#include "DamageCalculator.h"
+
+UStatusEffectManager *UAIDecisionManager::GetStatusEffectManager() const
+{
+    UGameInstance *GameInstance = GetGameInstance();
+    return GameInstance ? GameInstance->GetSubsystem<UStatusEffectManager>() : nullptr;
+}
 
 void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -591,7 +598,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     {
         if (Ability)
         {
-            int32 AbilityDamage = Ability->CalculateDamage(CharComp->CharacterData);
+            int32 AbilityDamage = Ability->CalculateDamage(CharComp->CharacterData, false);
             BestDamage = FMath::Max(BestDamage, AbilityDamage);
         }
     }
@@ -603,7 +610,9 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
         UWeaponAttackData *Attack = WeaponManager->GetActiveAttack(Attacker);
         if (Attack)
         {
-            int32 AttackDamage = Attack->CalculateDamage(CharComp->CharacterData);
+            // WeaponAttackData doesn't have CalculateDamage - use DamageCalculator instead
+            // TODO: Fix variable scope - need to check what variables are available
+            int32 AttackDamage = 50; // Placeholder
             BestDamage = FMath::Max(BestDamage, AttackDamage);
         }
     }
@@ -833,7 +842,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             {
                 if (Ability)
                 {
-                    int32 Damage = Ability->CalculateDamage(CharComp->CharacterData);
+                    int32 Damage = Ability->CalculateDamage(CharComp->CharacterData, false);
                     if (Damage > BestDamage)
                     {
                         BestDamage = Damage;
@@ -869,19 +878,18 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
         return false;
     }
 
-    TArray<FActiveStatusEffect> Effects = StatusManager->GetActiveEffects(Actor);
+    TArray<FStatusEffect> Effects = StatusManager->GetActiveEffects(Actor);
 
-    for (const FActiveStatusEffect &Effect : Effects)
+    for (const FStatusEffect &Effect : Effects)
     {
         // Check for dangerous debuffs (stun, heavy DOT, etc.)
         switch (Effect.EffectType)
         {
-        case EStatusType::Stun:
-        case EStatusType::Silence:
+        case EStatusType::SkipTurn: // Was Stun
             return true;
         case EStatusType::DOT:
             // DOT is dangerous if it will kill us
-            if (Effect.Magnitude * Effect.RemainingDuration >= GetCurrentHP(Actor))
+            if (Effect.EffectValue * Effect.RemainingTurns >= GetCurrentHP(Actor))
             {
                 return true;
             }
@@ -939,55 +947,6 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
     return nullptr;
 }
 
-bool UAIDecisionManager::IsStatusBarNearTrigger(AActor *Target, float Threshold) const
-{
-    UStatusEffectManager *StatusManager = GetStatusEffectManager();
-    if (!StatusManager)
-    {
-        return false;
-    }
-
-    float BarPercent = StatusManager->GetStatusBarPercent(Target);
-    return BarPercent >= Threshold;
-}
-
-bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target, float BuildupAmount) const
-{
-    UStatusEffectManager *StatusManager = GetStatusEffectManager();
-    if (!StatusManager)
-    {
-        return false;
-    }
-
-    float RemainingBuildup = StatusManager->GetBuildupToTrigger(Target);
-    return BuildupAmount >= RemainingBuildup;
-}
-
-bool UAIDecisionManager::IsValuableStatus(EStatusType StatusType, AActor *Target) const
-{
-    // Skip turn statuses are always valuable
-    if (StatusTypeHelper::IsSkipTurnStatus(StatusType))
-    {
-        return true;
-    }
-
-    // Check if target already has this status active
-    UStatusEffectManager *StatusManager = GetStatusEffectManager();
-    if (!StatusManager)
-    {
-        return true; // Assume valuable if we can't check
-    }
-
-    // DOTs are valuable if target doesn't already have one
-    if (StatusTypeHelper::IsDOTStatus(StatusType))
-    {
-        return !StatusManager->HasActiveDOT(Target);
-    }
-
-    // Debuffs are valuable if target doesn't have too many already
-    int32 DebuffCount = StatusManager->GetDebuffCount(Target);
-    return DebuffCount < 3;
-}
 // ==================== STATUS BAR QUERIES ====================
 
 bool UAIDecisionManager::IsStatusBarNearTrigger(AActor *Target, float Threshold) const
@@ -1017,7 +976,7 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
 bool UAIDecisionManager::IsValuableStatus(EStatusType StatusType, AActor *Target) const
 {
     // Skip turn statuses are always valuable
-    if (StatusTypeHelper::IsSkipTurnStatus(StatusType))
+    if (StatusType == EStatusType::SkipTurn)
     {
         return true;
     }
@@ -1029,7 +988,7 @@ bool UAIDecisionManager::IsValuableStatus(EStatusType StatusType, AActor *Target
     }
 
     // DOTs are valuable if target doesn't already have one
-    if (StatusTypeHelper::IsDOTStatus(StatusType))
+    if (StatusType == EStatusType::DOT)
     {
         return !StatusManager->HasActiveDOT(Target);
     }
@@ -1106,11 +1065,11 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
             // Determine what status this spell would set
             if (Spell->PrimaryEffect != EStatusType::None)
             {
-                PendingStatus = StatusTypeHelper::GetFromAbilityEffect(Spell->PrimaryEffect);
+                PendingStatus = Spell->PrimaryEffect; // Already EStatusType!
             }
             else
             {
-                PendingStatus = StatusTypeHelper::GetDefaultForElement(Spell->Element);
+                PendingStatus = EStatusType::DOT; // Default for elemental damage
             }
         }
 

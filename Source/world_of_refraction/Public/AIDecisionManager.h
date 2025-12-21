@@ -14,6 +14,8 @@
 class ACombatOrchestrator;
 class UCharacterDataComponent;
 class ULoadoutComponent;
+class UStatusEffectManager;
+class UDamageCalculator;
 class UDefenseSystem;
 
 /**
@@ -59,6 +61,8 @@ public:
 
 private:
     // ==================== INTERNAL ====================
+
+    UStatusEffectManager *GetStatusEffectManager() const;
 
     /** Active combat reference */
     UPROPERTY()
