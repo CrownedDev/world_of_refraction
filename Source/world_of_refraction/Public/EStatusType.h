@@ -14,7 +14,7 @@
  * Unified status effect types - ELEMENT AGNOSTIC
  * Effects are generic mechanics, elements provide display names
  * Example: DOT + Fire = "Burn", DOT + Lightning = "Shocked"
- * 
+ *
  * MIGRATION NOTE: Replaces both old EStatusType (13 values) and EAbilityEffectType (55+ values)
  */
 UENUM(BlueprintType)
@@ -119,17 +119,28 @@ namespace StatusTypeHelper
     {
         switch (Element)
         {
-        case ESpellElement::Fire:       return EStatusType::DOT;
-        case ESpellElement::Water:      return EStatusType::SpeedDebuff;
-        case ESpellElement::Earth:      return EStatusType::DefenseDebuff;
-        case ESpellElement::Wind:       return EStatusType::SkipTurn;
-        case ESpellElement::Lightning:  return EStatusType::DOT;
-        case ESpellElement::Light:      return EStatusType::CritDebuff;
-        case ESpellElement::Darkness:   return EStatusType::EnergyDebuff;
-        case ESpellElement::Void:       return EStatusType::RandomDebuff;
-        case ESpellElement::Reality:    return EStatusType::BurstDamage;
-        case ESpellElement::Generic:    return EStatusType::BurstDamage;
-        default:                        return EStatusType::None;
+        case ESpellElement::Fire:
+            return EStatusType::DOT;
+        case ESpellElement::Water:
+            return EStatusType::SpeedDebuff;
+        case ESpellElement::Earth:
+            return EStatusType::DefenseDebuff;
+        case ESpellElement::Wind:
+            return EStatusType::SkipTurn;
+        case ESpellElement::Lightning:
+            return EStatusType::DOT;
+        case ESpellElement::Light:
+            return EStatusType::CritDebuff;
+        case ESpellElement::Darkness:
+            return EStatusType::EnergyDebuff;
+        case ESpellElement::Void:
+            return EStatusType::RandomDebuff;
+        case ESpellElement::Reality:
+            return EStatusType::BurstDamage;
+        case ESpellElement::Generic:
+            return EStatusType::BurstDamage;
+        default:
+            return EStatusType::None;
         }
     }
 
@@ -138,10 +149,14 @@ namespace StatusTypeHelper
     {
         switch (DamageType)
         {
-        case EPhysicalDamageType::Slash:    return EStatusType::DOT;
-        case EPhysicalDamageType::Pierce:   return EStatusType::DefenseDebuff;
-        case EPhysicalDamageType::Blunt:    return EStatusType::SkipTurn;
-        default:                            return EStatusType::None;
+        case EPhysicalDamageType::Slash:
+            return EStatusType::DOT;
+        case EPhysicalDamageType::Pierce:
+            return EStatusType::DefenseDebuff;
+        case EPhysicalDamageType::Blunt:
+            return EStatusType::SkipTurn;
+        default:
+            return EStatusType::None;
         }
     }
 

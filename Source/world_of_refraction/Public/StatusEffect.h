@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "EStatusEffectTiming.h"
 #include "EPassiveTrigger.h"
-#include "AbilityEffectType.h"
+#include "EStatusType.h"
 #include "SpellElement.h"
 #include "StatusEffect.generated.h"
 
@@ -84,9 +84,9 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	// EFFECT DATA
 	// ========================================
 
-	/** Type of effect (buff, debuff, DOT, etc.) - uses existing enum */
+	/** Type of effect (buff, debuff, DOT, etc.) - uses unified enum */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-	EAbilityEffectType EffectType = EAbilityEffectType::None;
+	EStatusType EffectType = EStatusType::None;
 
 	/** Effect magnitude (damage amount, buff percentage, etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
@@ -174,7 +174,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	static FStatusEffect CreateFromSpellEffect(
 		const FString &SpellName,
 		int32 EffectIDBase,
-		EAbilityEffectType EffectType,
+		EStatusType EffectType,
 		float Magnitude,
 		int32 Value,
 		int32 Duration,
@@ -196,16 +196,15 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		{
 			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		}
-		else if (Effect.EffectType == EAbilityEffectType::HealthRestore ||
-				 Effect.EffectType == EAbilityEffectType::EnergyRestore)
+		else if (Effect.EffectType == EStatusType::HealthRestore ||
+				 Effect.EffectType == EStatusType::EnergyRestore)
 		{
 			Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 		}
-		else if (Effect.EffectType == EAbilityEffectType::EnergyDrain)
+		else if (Effect.EffectType == EStatusType::EnergyDrain)
 		{
 			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		}
-
 		return Effect;
 	}
 
@@ -228,11 +227,11 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	static TArray<FStatusEffect> CreateFromSpellData(
 		const FString &SpellName,
 		int32 SpellID,
-		EAbilityEffectType PrimaryType,
+		EStatusType PrimaryType,
 		float PrimaryMagnitude,
 		int32 PrimaryValue,
 		int32 PrimaryDuration,
-		EAbilityEffectType SecondaryType,
+		EStatusType SecondaryType,
 		float SecondaryMagnitude,
 		int32 SecondaryValue,
 		int32 SecondaryDuration,
@@ -241,7 +240,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		TArray<FStatusEffect> Effects;
 
 		// Primary effect
-		if (PrimaryType != EAbilityEffectType::None)
+		if (PrimaryType != EStatusType::None)
 		{
 			FStatusEffect Primary = CreateFromSpellEffect(
 				SpellName + TEXT(" (Primary)"),
@@ -255,7 +254,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		}
 
 		// Secondary effect (cross-school)
-		if (SecondaryType != EAbilityEffectType::None)
+		if (SecondaryType != EStatusType::None)
 		{
 			FStatusEffect Secondary = CreateFromSpellEffect(
 				SpellName + TEXT(" (Secondary)"),
@@ -284,7 +283,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	static FStatusEffect CreateFromEvolutionPassive(
 		const FString &EvolutionName,
 		int32 EvolutionID,
-		EAbilityEffectType PassiveType,
+		EStatusType PassiveType,
 		float Value,
 		int32 PassiveIndex)
 	{
@@ -353,7 +352,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			FStatusEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Attack)"),
 				BaseID + 1,
-				BonusAttack > 0 ? EAbilityEffectType::RawDamageBuff : EAbilityEffectType::RawDamageDebuff,
+				BonusAttack > 0 ? EStatusType::RawDamageBuff : EStatusType::RawDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusAttack)));
 			Effects.Add(Bonus);
 		}
@@ -363,7 +362,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			FStatusEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Defense)"),
 				BaseID + 2,
-				BonusDefense > 0 ? EAbilityEffectType::DefenseBuff : EAbilityEffectType::DefenseDebuff,
+				BonusDefense > 0 ? EStatusType::DefenseBuff : EStatusType::DefenseDebuff,
 				static_cast<float>(FMath::Abs(BonusDefense)));
 			Effects.Add(Bonus);
 		}
@@ -373,7 +372,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			FStatusEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Magic)"),
 				BaseID + 3,
-				BonusMagicPower > 0 ? EAbilityEffectType::EffectDamageBuff : EAbilityEffectType::EffectDamageDebuff,
+				BonusMagicPower > 0 ? EStatusType::EffectDamageBuff : EStatusType::EffectDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusMagicPower)));
 			Effects.Add(Bonus);
 		}
@@ -383,7 +382,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			FStatusEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Speed)"),
 				BaseID + 4,
-				BonusSpeed > 0 ? EAbilityEffectType::SpeedBuff : EAbilityEffectType::SpeedDebuff,
+				BonusSpeed > 0 ? EStatusType::SpeedBuff : EStatusType::SpeedDebuff,
 				static_cast<float>(FMath::Abs(BonusSpeed)));
 			Effects.Add(Bonus);
 		}
@@ -393,7 +392,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			FStatusEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Crit Chance)"),
 				BaseID + 5,
-				BonusCritChance > 0 ? EAbilityEffectType::CritChanceBuff : EAbilityEffectType::CritChanceDebuff,
+				BonusCritChance > 0 ? EStatusType::CritChanceBuff : EStatusType::CritChanceDebuff,
 				FMath::Abs(BonusCritChance));
 			Effects.Add(Bonus);
 		}
@@ -403,7 +402,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			FStatusEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Crit Damage)"),
 				BaseID + 6,
-				EAbilityEffectType::CritChanceBuff, // TODO: Add CritDamageBuff type
+				EStatusType::CritChanceBuff, // TODO: Add CritDamageBuff type
 				FMath::Abs(BonusCritDamage));
 			Effects.Add(Bonus);
 		}
@@ -441,13 +440,12 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		{
 		case 0: // Slash → Bleed DOT
 			Effect.EffectName = WeaponName + TEXT(" Bleed");
-			Effect.EffectType = EAbilityEffectType::BleedDOT;
+			Effect.EffectType = EStatusType::DOT;
+			Effect.Element = ESpellElement::Generic;  // Physical damage
 			Effect.EffectValue = TotalBuildup * 0.5f; // DOT damage = half of buildup
 			Effect.RemainingTurns = 3;
 			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 			Effect.bCanStack = true;
-			Effect.MaxStacks = 5;
-			break;
 
 		case 1: // Pierce → Armor Break (defense debuff)
 			Effect.EffectName = WeaponName + TEXT(" Armor Break");
@@ -503,7 +501,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	}
 
 	/** Quick constructor for common buff/debuff creation */
-	static FStatusEffect CreateBuff(const FString &Name, int32 ID, EAbilityEffectType Type, float Value, int32 Duration)
+	static FStatusEffect CreateBuff(const FString &Name, int32 ID, EStatusType Type, float Value, int32 Duration)
 	{
 		FStatusEffect Effect;
 		Effect.EffectName = Name;
@@ -522,44 +520,20 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		FStatusEffect Effect;
 		Effect.EffectName = Name;
 		Effect.EffectID = ID;
-		Effect.EffectType = EAbilityEffectType::BurnDOT; // Will be overridden based on element
+		Effect.EffectType = EStatusType::DOT; // Generic DOT type
 		Effect.EffectValue = DamagePerTurn;
 		Effect.RemainingTurns = Duration;
 		Effect.InitialDuration = Duration;
 		Effect.Element = InElement;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 
-		// Set appropriate DOT type based on element
-		switch (InElement)
-		{
-		case ESpellElement::Fire:
-			Effect.EffectType = EAbilityEffectType::BurnDOT;
-			break;
-		case ESpellElement::Water:
-			Effect.EffectType = EAbilityEffectType::ChillDOT;
-			break;
-		case ESpellElement::Earth:
-			Effect.EffectType = EAbilityEffectType::PoisonDOT;
-			break;
-		case ESpellElement::Lightning:
-			Effect.EffectType = EAbilityEffectType::ElectrifiedDOT;
-			break;
-		case ESpellElement::Darkness:
-			Effect.EffectType = EAbilityEffectType::BleedDOT;
-			break;
-		case ESpellElement::Void:
-			Effect.EffectType = EAbilityEffectType::CorruptDOT;
-			break;
-		default:
-			Effect.EffectType = EAbilityEffectType::BurnDOT;
-			break;
-		}
+		// No element-specific switch needed - display name handled by StatusDisplayNames
 
 		return Effect;
 	}
 
 	/** Quick constructor for persistent stat modifiers */
-	static FStatusEffect CreatePersistent(const FString &Name, int32 ID, EAbilityEffectType Type, float Value)
+	static FStatusEffect CreatePersistent(const FString &Name, int32 ID, EStatusType Type, float Value)
 	{
 		FStatusEffect Effect;
 		Effect.EffectName = Name;
@@ -578,54 +552,12 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	/** Check if this is a buff (positive effect) */
 	bool IsBuff() const
 	{
-		switch (EffectType)
-		{
-		case EAbilityEffectType::MindBuff:
-		case EAbilityEffectType::BodyBuff:
-		case EAbilityEffectType::SpiritBuff:
-		case EAbilityEffectType::SpellCostBuff:
-		case EAbilityEffectType::EffectDamageBuff:
-		case EAbilityEffectType::CritChanceBuff:
-		case EAbilityEffectType::DefenseBuff:
-		case EAbilityEffectType::AttackSpeedBuff:
-		case EAbilityEffectType::RawDamageBuff:
-		case EAbilityEffectType::MaxEnergyBuff:
-		case EAbilityEffectType::ResistanceBuff:
-		case EAbilityEffectType::SpellSizeBuff:
-		case EAbilityEffectType::DamageBuff:
-		case EAbilityEffectType::SpeedBuff:
-		case EAbilityEffectType::HealthRestore:
-		case EAbilityEffectType::EnergyRestore:
-			return true;
-		default:
-			return false;
-		}
+		return StatusTypeHelper::IsBuff(EffectType);
 	}
-
 	/** Check if this is a debuff (negative effect) */
 	bool IsDebuff() const
 	{
-		switch (EffectType)
-		{
-		case EAbilityEffectType::MindDebuff:
-		case EAbilityEffectType::BodyDebuff:
-		case EAbilityEffectType::SpiritDebuff:
-		case EAbilityEffectType::SpellCostDebuff:
-		case EAbilityEffectType::EffectDamageDebuff:
-		case EAbilityEffectType::CritChanceDebuff:
-		case EAbilityEffectType::DefenseDebuff:
-		case EAbilityEffectType::AttackSpeedDebuff:
-		case EAbilityEffectType::RawDamageDebuff:
-		case EAbilityEffectType::MaxEnergyDebuff:
-		case EAbilityEffectType::ResistanceDebuff:
-		case EAbilityEffectType::SpellSizeDebuff:
-		case EAbilityEffectType::DamageDebuff:
-		case EAbilityEffectType::SpeedDebuff:
-		case EAbilityEffectType::EnergyDrain:
-			return true;
-		default:
-			return false;
-		}
+		return StatusTypeHelper::IsDebuff(EffectType);
 	}
 
 	/** Check if this is a DOT effect */
@@ -648,7 +580,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	/** Check if effect deals damage (DOT or direct) */
 	bool DealsDamage() const
 	{
-		return IsDOT() || EffectType == EAbilityEffectType::RetaliationDamage || EffectType == EAbilityEffectType::SelfDamage;
+		return IsDOT() || EffectType == EStatusType::RetaliationDamage || EffectType == EStatusType::SelfDamage;
 	}
 
 	/** Get effective value considering stacks */

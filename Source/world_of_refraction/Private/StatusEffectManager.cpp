@@ -149,11 +149,11 @@ void UStatusEffectManager::ApplySpellEffects(
 	AActor *Target,
 	const FString &SpellName,
 	int32 SpellID,
-	EAbilityEffectType PrimaryType,
+	EStatusType PrimaryType,
 	float PrimaryMagnitude,
 	int32 PrimaryValue,
 	int32 PrimaryDuration,
-	EAbilityEffectType SecondaryType,
+	EStatusType SecondaryType,
 	float SecondaryMagnitude,
 	int32 SecondaryValue,
 	int32 SecondaryDuration,
@@ -201,7 +201,7 @@ void UStatusEffectManager::ApplyEvolutionPassives(
 	AActor *Target,
 	const FString &EvolutionName,
 	int32 EvolutionID,
-	const TArray<EAbilityEffectType> &PassiveTypes,
+	const TArray<EStatusType> &PassiveTypes,
 	const TArray<float> &PassiveValues)
 {
 	if (PassiveTypes.Num() != PassiveValues.Num())
@@ -212,7 +212,7 @@ void UStatusEffectManager::ApplyEvolutionPassives(
 
 	for (int32 i = 0; i < PassiveTypes.Num(); ++i)
 	{
-		if (PassiveTypes[i] != EAbilityEffectType::None)
+		if (PassiveTypes[i] != EStatusType::None)
 		{
 			FStatusEffect Passive = FStatusEffect::CreateFromEvolutionPassive(
 				EvolutionName,
@@ -432,7 +432,7 @@ int32 UStatusEffectManager::RemoveEffectsByName(AActor *Target, const FString &E
 	return RemovedCount;
 }
 
-int32 UStatusEffectManager::RemoveEffectsByType(AActor *Target, EAbilityEffectType EffectType)
+int32 UStatusEffectManager::RemoveEffectsByType(AActor *Target, EStatusType EffectType)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -877,32 +877,27 @@ void UStatusEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect
 	switch (Effect.EffectType)
 	{
 	// ==================== DOT EFFECTS ====================
-	case EAbilityEffectType::BurnDOT:
-	case EAbilityEffectType::ChillDOT:
-	case EAbilityEffectType::PoisonDOT:
-	case EAbilityEffectType::ElectrifiedDOT:
-	case EAbilityEffectType::BleedDOT:
-	case EAbilityEffectType::CorruptDOT:
+	case EStatusType::DOT:
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s took %d DOT damage from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
-	// ==================== HEALING ====================
-	case EAbilityEffectType::HealthRestore:
+		// ==================== HEALING ====================
+	case EStatusType::HealthRestore:
 		CharComp->ServerHeal(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s healed %d from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	// ==================== ENERGY ====================
-	case EAbilityEffectType::EnergyRestore:
+	case EStatusType::EnergyRestore:
 		CharComp->ServerGainEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s gained %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
-	case EAbilityEffectType::EnergyDrain:
+	case EStatusType::EnergyDrain:
 		CharComp->ServerSpendEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s lost %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -910,54 +905,54 @@ void UStatusEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect
 
 	// ==================== STAT MODIFIERS ====================
 	// These don't apply immediate changes - they're queried via GetTotalStatModifier
-	case EAbilityEffectType::DamageBuff:
-	case EAbilityEffectType::DamageDebuff:
-	case EAbilityEffectType::DefenseBuff:
-	case EAbilityEffectType::DefenseDebuff:
-	case EAbilityEffectType::SpeedBuff:
-	case EAbilityEffectType::SpeedDebuff:
-	case EAbilityEffectType::MindBuff:
-	case EAbilityEffectType::MindDebuff:
-	case EAbilityEffectType::BodyBuff:
-	case EAbilityEffectType::BodyDebuff:
-	case EAbilityEffectType::SpiritBuff:
-	case EAbilityEffectType::SpiritDebuff:
-	case EAbilityEffectType::CritChanceBuff:
-	case EAbilityEffectType::CritChanceDebuff:
-	case EAbilityEffectType::AttackSpeedBuff:
-	case EAbilityEffectType::AttackSpeedDebuff:
-	case EAbilityEffectType::RawDamageBuff:
-	case EAbilityEffectType::RawDamageDebuff:
-	case EAbilityEffectType::EffectDamageBuff:
-	case EAbilityEffectType::EffectDamageDebuff:
-	case EAbilityEffectType::SpellCostBuff:
-	case EAbilityEffectType::SpellCostDebuff:
-	case EAbilityEffectType::ResistanceBuff:
-	case EAbilityEffectType::ResistanceDebuff:
-	case EAbilityEffectType::SpellSizeBuff:
-	case EAbilityEffectType::SpellSizeDebuff:
-	case EAbilityEffectType::MaxEnergyBuff:
-	case EAbilityEffectType::MaxEnergyDebuff:
+	case EStatusType::DamageBuff:
+	case EStatusType::DamageDebuff:
+	case EStatusType::DefenseBuff:
+	case EStatusType::DefenseDebuff:
+	case EStatusType::SpeedBuff:
+	case EStatusType::SpeedDebuff:
+	case EStatusType::MindBuff:
+	case EStatusType::MindDebuff:
+	case EStatusType::BodyBuff:
+	case EStatusType::BodyDebuff:
+	case EStatusType::SpiritBuff:
+	case EStatusType::SpiritDebuff:
+	case EStatusType::CritChanceBuff:
+	case EStatusType::CritChanceDebuff:
+	case EStatusType::AttackSpeedBuff:
+	case EStatusType::AttackSpeedDebuff:
+	case EStatusType::RawDamageBuff:
+	case EStatusType::RawDamageDebuff:
+	case EStatusType::EffectDamageBuff:
+	case EStatusType::EffectDamageDebuff:
+	case EStatusType::SpellCostBuff:
+	case EStatusType::SpellCostDebuff:
+	case EStatusType::ResistanceBuff:
+	case EStatusType::ResistanceDebuff:
+	case EStatusType::SpellSizeBuff:
+	case EStatusType::SpellSizeDebuff:
+	case EStatusType::MaxEnergyBuff:
+	case EStatusType::MaxEnergyDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
 		UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
 	// ==================== DEBUFF REMOVAL ====================
-	case EAbilityEffectType::RemoveDebuffs:
+	case EStatusType::RemoveDebuffs:
 		RemoveAllDebuffs(Actor);
 		break;
 
-	case EAbilityEffectType::RemoveSpeedDebuff:
-		RemoveEffectsByType(Actor, EAbilityEffectType::SpeedDebuff);
+	case EStatusType::RemoveSpeedDebuff:
+		RemoveEffectsByType(Actor, EStatusType::SpeedDebuff);
 		break;
 
-	case EAbilityEffectType::RemoveDamageDebuff:
-		RemoveEffectsByType(Actor, EAbilityEffectType::DamageDebuff);
+	case EStatusType::RemoveDamageDebuff:
+		RemoveEffectsByType(Actor, EStatusType::DamageDebuff);
 		break;
 
-	case EAbilityEffectType::RemoveDefenseDebuff:
-		RemoveEffectsByType(Actor, EAbilityEffectType::DefenseDebuff);
+	case EStatusType::RemoveDefenseDebuff:
+		RemoveEffectsByType(Actor, EStatusType::DefenseDebuff);
 		break;
 
 	default:
@@ -981,7 +976,7 @@ TArray<FStatusEffect> UStatusEffectManager::GetActiveEffects(AActor *Actor) cons
 	return ActiveEffects[Actor];
 }
 
-TArray<FStatusEffect> UStatusEffectManager::GetEffectsByType(AActor *Actor, EAbilityEffectType EffectType) const
+TArray<FStatusEffect> UStatusEffectManager::GetEffectsByType(AActor *Actor, EStatusType EffectType) const
 {
 	TArray<FStatusEffect> Result;
 
@@ -1019,7 +1014,7 @@ bool UStatusEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 	return false;
 }
 
-bool UStatusEffectManager::HasEffectOfType(AActor *Actor, EAbilityEffectType EffectType) const
+bool UStatusEffectManager::HasEffectOfType(AActor *Actor, EStatusType EffectType) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1037,7 +1032,7 @@ bool UStatusEffectManager::HasEffectOfType(AActor *Actor, EAbilityEffectType Eff
 	return false;
 }
 
-float UStatusEffectManager::GetTotalStatModifier(AActor *Actor, EAbilityEffectType ModifierType) const
+float UStatusEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1145,7 +1140,7 @@ bool UStatusEffectManager::HasActiveDOT(AActor *Actor) const
 	return false;
 }
 
-bool UStatusEffectManager::IsImmuneToEffectType(AActor *Actor, EAbilityEffectType EffectType) const
+bool UStatusEffectManager::IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const
 {
 	// TODO: Implement immunity system via ResistanceBuff at 100%+
 	return false;
@@ -1360,14 +1355,14 @@ void UStatusEffectManager::ResetTurnFlags(AActor *Actor)
 	}
 }
 
-bool UStatusEffectManager::IsSpeedEffect(EAbilityEffectType EffectType) const
+bool UStatusEffectManager::IsSpeedEffect(EStatusType EffectType) const
 {
 	switch (EffectType)
 	{
-	case EAbilityEffectType::SpeedBuff:
-	case EAbilityEffectType::SpeedDebuff:
-	case EAbilityEffectType::AttackSpeedBuff:
-	case EAbilityEffectType::AttackSpeedDebuff:
+	case EStatusType::SpeedBuff:
+	case EStatusType::SpeedDebuff:
+	case EStatusType::AttackSpeedBuff:
+	case EStatusType::AttackSpeedDebuff:
 		return true;
 	default:
 		return false;
@@ -1568,6 +1563,7 @@ void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, 
 	FStatusEffect Effect;
 	Effect.Element = Element;
 	Effect.EffectID = FMath::Rand();
+	Effect.EffectType = StatusType; // Set directly to the generic type
 
 	// Generate element-aware display name
 	Effect.EffectName = StatusDisplayNames::GetDisplayName(StatusType, Element);
@@ -1576,35 +1572,30 @@ void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, 
 	switch (StatusType)
 	{
 	case EStatusType::DOT:
-		Effect.EffectType = EAbilityEffectType::BurnDOT; // Generic DOT type
 		Effect.EffectValue = 10.0f;
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		break;
 
 	case EStatusType::DefenseDebuff:
-		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::SpeedDebuff:
-		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
 		Effect.EffectValue = 25.0f; // 25%
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::CritDebuff:
-		Effect.EffectType = EAbilityEffectType::CritChanceDebuff;
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::EnergyDebuff:
-		Effect.EffectType = EAbilityEffectType::EnergyDrain;
 		Effect.EffectValue = 25.0f; // 25% locked
 		Effect.RemainingTurns = 3;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
@@ -1612,11 +1603,12 @@ void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, 
 
 	case EStatusType::RandomDebuff:
 	{
-		TArray<EAbilityEffectType> Debuffs = {
-			EAbilityEffectType::DamageDebuff,
-			EAbilityEffectType::DefenseDebuff,
-			EAbilityEffectType::SpeedDebuff,
-			EAbilityEffectType::CritChanceDebuff};
+		// Pick a random debuff type
+		TArray<EStatusType> Debuffs = {
+			EStatusType::DamageDebuff,
+			EStatusType::DefenseDebuff,
+			EStatusType::SpeedDebuff,
+			EStatusType::CritDebuff};
 		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
@@ -1666,42 +1658,42 @@ void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, 
 	switch (StatusType)
 	{
 	case EStatusType::DOT:
-		Effect.EffectType = EAbilityEffectType::BurnDOT; // Generic DOT type
+		Effect.EffectType = EStatusType::BurnDOT; // Generic DOT type
 		Effect.EffectValue = 30.0f;
 		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		break;
 
 	case EStatusType::DefenseDebuff:
-		Effect.EffectType = EAbilityEffectType::DefenseDebuff;
+		Effect.EffectType = EStatusType::DefenseDebuff;
 		Effect.EffectValue = 40.0f; // 40%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::SkipTurn:
-		Effect.EffectType = EAbilityEffectType::Stun;
+		Effect.EffectType = EStatusType::Stun;
 		Effect.EffectValue = 1.0f;
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 		break;
 
 	case EStatusType::SpeedDebuff:
-		Effect.EffectType = EAbilityEffectType::SpeedDebuff;
+		Effect.EffectType = EStatusType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::CritDebuff:
-		Effect.EffectType = EAbilityEffectType::CritChanceDebuff;
+		Effect.EffectType = EStatusType::CritChanceDebuff;
 		Effect.EffectValue = 50.0f; // 50%
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::EnergyDebuff:
-		Effect.EffectType = EAbilityEffectType::EnergyDrain;
+		Effect.EffectType = EStatusType::EnergyDrain;
 		Effect.EffectValue = 100.0f; // 100% locked
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
@@ -1709,11 +1701,11 @@ void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, 
 
 	case EStatusType::RandomDebuff:
 	{
-		TArray<EAbilityEffectType> Debuffs = {
-			EAbilityEffectType::DamageDebuff,
-			EAbilityEffectType::DefenseDebuff,
-			EAbilityEffectType::SpeedDebuff,
-			EAbilityEffectType::CritChanceDebuff};
+		TArray<EStatusType> Debuffs = {
+			EStatusType::DamageDebuff,
+			EStatusType::DefenseDebuff,
+			EStatusType::SpeedDebuff,
+			EStatusType::CritChanceDebuff};
 		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 30.0f; // 30%
 		Effect.RemainingTurns = 1;

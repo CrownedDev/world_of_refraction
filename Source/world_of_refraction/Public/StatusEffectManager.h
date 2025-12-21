@@ -159,7 +159,7 @@ public:
 		AActor *Target,
 		const FString &EvolutionName,
 		int32 EvolutionID,
-		const TArray<EAbilityEffectType> &PassiveTypes,
+		const TArray<EStatusType> &PassiveTypes,
 		const TArray<float> &PassiveValues);
 
 	// ========================================
@@ -303,7 +303,7 @@ public:
 
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	TArray<FStatusEffect> GetEffectsByType(AActor *Actor, EAbilityEffectType EffectType) const;
+	TArray<FStatusEffect> GetEffectsByType(AActor *Actor, EStatusType EffectType) const;
 
 	/** Check if actor has a specific effect by ID */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
@@ -311,11 +311,11 @@ public:
 
 	/** Check if actor has any effect of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	bool HasEffectOfType(AActor *Actor, EAbilityEffectType EffectType) const;
+	bool HasEffectOfType(AActor *Actor, EStatusType EffectType) const;
 
 	/** Get total stat modifier from all effects of a category */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	float GetTotalStatModifier(AActor *Actor, EAbilityEffectType ModifierType) const;
+	float GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const;
 
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
@@ -466,7 +466,7 @@ private:
 	void ResetTurnFlags(AActor *Actor);
 
 	/** Check if effect type affects speed (requires TurnManager notification) */
-	bool IsSpeedEffect(EAbilityEffectType EffectType) const;
+	bool IsSpeedEffect(EStatusType EffectType) const;
 
 	/** Notify TurnManager that an actor's speed has changed */
 	void NotifySpeedChanged(AActor *Actor);
