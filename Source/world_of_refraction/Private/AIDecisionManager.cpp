@@ -17,8 +17,12 @@
 #include "EDefenseDirection.h"
 #include "StatusEffectManager.h"
 #include "DamageCalculator.h"
+#include "FItemLoadoutSlot.h"
+#include "ItemData.h"
+#include "CrystalType.h"
 
-UStatusEffectManager *UAIDecisionManager::GetStatusEffectManager() const
+UStatusEffectManager *
+UAIDecisionManager::GetStatusEffectManager() const
 {
     UGameInstance *GameInstance = GetGameInstance();
     return GameInstance ? GameInstance->GetSubsystem<UStatusEffectManager>() : nullptr;
@@ -683,44 +687,52 @@ int32 UAIDecisionManager::GetMaxHP(AActor *Actor)
     return 100;
 }
 
-// ==================== DECISION BRANCHES ====================
+// ==================== SMART DECISION BUILDING ====================
 
 FAction UAIDecisionManager::BuildAction_Smart(AActor *AIActor, ULoadoutComponent *Loadout, UCharacterDataComponent *CharComp)
 {
     FAction Action;
-    Action.ActionType = EActionType::Defend;
 
-    // Branch 1: Survival
+    // Branch 1: Survival - heal or defend if low HP
     if (TrySurvivalBranch(AIActor, Loadout, Action))
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s: Survival branch triggered"),
-               *AIActor->GetName());
+        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose survival action"), *AIActor->GetName());
         return Action;
     }
 
-    // Branch 2: Cleanse
+    // Branch 2: Cleanse - remove dangerous debuffs
     if (TryCleanseBranch(AIActor, Loadout, Action))
     {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s: Cleanse branch triggered"),
-               *AIActor->GetName());
+        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose cleanse action"), *AIActor->GetName());
         return Action;
     }
 
-    // Branch 3: Offensive (default)
-    return BuildOffensiveAction(AIActor, Loadout, CharComp);
+    // Branch 3: Offensive - attack best target
+    Action = BuildOffensiveAction(AIActor, Loadout, CharComp);
+
+    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose offensive action"), *AIActor->GetName());
+    return Action;
 }
+
+// ==================== SURVIVAL BRANCH ====================
 
 bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *Loadout, FAction &OutAction)
 {
-    float HPPercent = GetHPPercent(AIActor);
-
-    if (HPPercent >= AIConstants::SURVIVAL_HP_THRESHOLD)
+    if (!AIActor || !Loadout)
     {
-        return false; // HP is fine
+        return false;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s HP at %.0f%% - checking survival options"),
-           *AIActor->GetName(), HPPercent * 100.0f);
+    float HPPercent = GetHPPercent(AIActor);
+
+    // Low HP threshold based on difficulty
+    EAIDifficulty Difficulty = GetCurrentDifficulty();
+    float HealThreshold = (Difficulty == EAIDifficulty::Hard || Difficulty == EAIDifficulty::Expert) ? 0.4f : 0.25f;
+
+    if (HPPercent > HealThreshold)
+    {
+        return false; // Not in danger
+    }
 
     // Try to find healing spell
     USpellData *HealSpell = FindHealingSpell(Loadout);
@@ -728,175 +740,271 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     {
         OutAction.ActionType = EActionType::Spell;
         OutAction.SpellData = HealSpell;
-        OutAction.Targets.Add(AIActor); // Self-target
-
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s will heal with %s"),
-               *AIActor->GetName(), *HealSpell->SpellName);
+        OutAction.Targets.Add(AIActor);               // Self-target
+        OutAction.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
         return true;
     }
 
-    // TODO: Check for healing items when ItemExecutor supports it
-
-    // No healing available - defend to reduce incoming damage
+    // No healing available - defend as fallback
     OutAction.ActionType = EActionType::Defend;
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s has no healing - defending"),
-           *AIActor->GetName());
     return true;
 }
 
+// ==================== CLEANSE BRANCH ====================
+
 bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Loadout, FAction &OutAction)
 {
+    if (!AIActor || !Loadout)
+    {
+        return false;
+    }
+
+    // Check for dangerous debuffs
     if (!HasDangerousDebuff(AIActor))
     {
         return false;
     }
 
+    // Try to find cleanse spell
     USpellData *CleanseSpell = FindCleanseSpell(Loadout);
     if (CleanseSpell)
     {
         OutAction.ActionType = EActionType::Spell;
         OutAction.SpellData = CleanseSpell;
-        OutAction.Targets.Add(AIActor); // Self-target
-
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s will cleanse with %s"),
-               *AIActor->GetName(), *CleanseSpell->SpellName);
+        OutAction.Targets.Add(AIActor);               // Self-target
+        OutAction.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
         return true;
     }
 
-    // No cleanse available - continue to offensive
     return false;
 }
+
+// ==================== OFFENSIVE ACTION ====================
 
 FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutComponent *Loadout, UCharacterDataComponent *CharComp)
 {
     FAction Action;
-    Action.ActionType = EActionType::Defend;
 
-    // Get enemies and select best target
-    TArray<AActor *> Enemies = CurrentCombat->GetLivingEnemies(AIActor);
-    if (Enemies.Num() == 0)
+    UCombatOrchestrator *CombatOrchestrator = GetGameInstance()->GetSubsystem<UCombatOrchestrator>();
+    if (!CombatOrchestrator)
     {
+        Action.ActionType = EActionType::Defend;
         return Action;
     }
 
-    AActor *Target = SelectBestTarget(AIActor, Enemies);
-    Action.Targets.Add(Target);
-
-    // Choose action type
-    EActionType ChosenType = ChooseActionType(AIActor, Loadout);
-    Action.ActionType = ChosenType;
-
-    // Populate action data based on type
-    switch (ChosenType)
+    // Get all enemies
+    TArray<AActor *> Enemies = CombatOrchestrator->GetEnemiesOf(AIActor);
+    if (Enemies.Num() == 0)
     {
-    case EActionType::Attack:
-    {
-        UWeaponManager *WeaponManager = GetGameInstance()->GetSubsystem<UWeaponManager>();
-        Action.AttackData = WeaponManager ? WeaponManager->GetActiveAttack(AIActor) : nullptr;
-
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose Attack on %s"),
-               *AIActor->GetName(), *Target->GetName());
-        break;
+        Action.ActionType = EActionType::Defend;
+        return Action;
     }
 
-    case EActionType::Spell:
+    // Select best target
+    AActor *BestTarget = SelectBestTarget(AIActor, Enemies);
+    if (!BestTarget)
     {
-        TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
-        if (Spells.Num() > 0)
-        {
-            // Pick highest damage spell for now
-            USpellData *BestSpell = nullptr;
-            int32 BestDamage = 0;
+        Action.ActionType = EActionType::Defend;
+        return Action;
+    }
 
+    Action.Targets.Add(BestTarget);
+
+    // Evaluate options and pick best
+    TArray<EActionType> AvailableActions;
+    TMap<EActionType, int32> ActionScores;
+
+    // Gather available actions
+    UWeaponManager *WeaponManager = GetGameInstance()->GetSubsystem<UWeaponManager>();
+    if (WeaponManager && WeaponManager->GetActiveAttack(AIActor))
+    {
+        AvailableActions.Add(EActionType::Attack);
+    }
+
+    if (Loadout->GetAvailableSpells().Num() > 0)
+    {
+        AvailableActions.Add(EActionType::Spell);
+    }
+
+    if (Loadout->GetAvailableAbilities().Num() > 0)
+    {
+        AvailableActions.Add(EActionType::Ability);
+    }
+
+    if (AvailableActions.Num() == 0)
+    {
+        Action.ActionType = EActionType::Defend;
+        return Action;
+    }
+
+    // Score each action type
+    for (EActionType ActionType : AvailableActions)
+    {
+        int32 Score = 0;
+
+        switch (ActionType)
+        {
+        case EActionType::Attack:
+        {
+            UWeaponAttackData *Attack = WeaponManager->GetActiveAttack(AIActor);
+            if (Attack)
+            {
+                UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
+                if (DamageCalc)
+                {
+                    FDamageCalculationResult Result = DamageCalc->CalculateAttackDamage(AIActor, BestTarget, Attack, false);
+                    Score = Result.FinalDamage;
+                }
+            }
+            break;
+        }
+        case EActionType::Spell:
+        {
+            // Find best damage spell
+            TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+            int32 BestSpellDamage = 0;
             for (USpellData *Spell : Spells)
             {
                 if (Spell && Spell->School == ESpellSchool::Destruction)
                 {
                     int32 Damage = Spell->CalculateDamage(CharComp->CharacterData);
-                    if (Damage > BestDamage)
-                    {
-                        BestDamage = Damage;
-                        BestSpell = Spell;
-                    }
+                    BestSpellDamage = FMath::Max(BestSpellDamage, Damage);
                 }
             }
-
-            // Fallback to any spell if no destruction spells
-            if (!BestSpell && Spells.Num() > 0)
-            {
-                BestSpell = Spells[FMath::RandRange(0, Spells.Num() - 1)];
-            }
-
-            Action.SpellData = BestSpell;
-
-            UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose Spell: %s on %s"),
-                   *AIActor->GetName(),
-                   BestSpell ? *BestSpell->SpellName : TEXT("None"),
-                   *Target->GetName());
+            Score = BestSpellDamage;
+            break;
         }
-        break;
-    }
-
-    case EActionType::Ability:
-    {
-        TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
-        if (Abilities.Num() > 0)
+        case EActionType::Ability:
         {
-            // Pick highest damage ability
-            UAbilityData *BestAbility = nullptr;
-            int32 BestDamage = 0;
-
+            // Find best damage ability
+            TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
+            int32 BestAbilityDamage = 0;
             for (UAbilityData *Ability : Abilities)
             {
                 if (Ability)
                 {
                     int32 Damage = Ability->CalculateDamage(CharComp->CharacterData, false);
-                    if (Damage > BestDamage)
-                    {
-                        BestDamage = Damage;
-                        BestAbility = Ability;
-                    }
+                    BestAbilityDamage = FMath::Max(BestAbilityDamage, Damage);
                 }
             }
-
-            Action.AbilityData = BestAbility;
-
-            UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose Ability: %s on %s"),
-                   *AIActor->GetName(),
-                   BestAbility ? *BestAbility->AbilityName : TEXT("None"),
-                   *Target->GetName());
+            Score = BestAbilityDamage;
+            break;
         }
-        break;
+        default:
+            break;
+        }
+
+        ActionScores.Add(ActionType, Score);
     }
 
+    // Pick action with highest score
+    EActionType BestActionType = EActionType::Defend;
+    int32 BestScore = -1;
+
+    for (const auto &Pair : ActionScores)
+    {
+        if (Pair.Value > BestScore)
+        {
+            BestScore = Pair.Value;
+            BestActionType = Pair.Key;
+        }
+    }
+
+    // Build final action
+    Action.ActionType = BestActionType;
+
+    switch (BestActionType)
+    {
+    case EActionType::Attack:
+    {
+        Action.AttackData = WeaponManager->GetActiveAttack(AIActor);
+        break;
+    }
+    case EActionType::Spell:
+    {
+        // Pick highest damage spell
+        TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
+        USpellData *BestSpell = nullptr;
+        int32 BestDamage = 0;
+
+        for (USpellData *Spell : Spells)
+        {
+            if (Spell && Spell->School == ESpellSchool::Destruction)
+            {
+                int32 Damage = Spell->CalculateDamage(CharComp->CharacterData);
+                if (Damage > BestDamage)
+                {
+                    BestDamage = Damage;
+                    BestSpell = Spell;
+                }
+            }
+        }
+
+        // Fallback to any spell
+        if (!BestSpell && Spells.Num() > 0)
+        {
+            BestSpell = Spells[0];
+        }
+
+        Action.SpellData = BestSpell;
+        Action.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
+        break;
+    }
+    case EActionType::Ability:
+    {
+        // Pick highest damage ability
+        TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
+        UAbilityData *BestAbility = nullptr;
+        int32 BestDamage = 0;
+
+        for (UAbilityData *Ability : Abilities)
+        {
+            if (Ability)
+            {
+                int32 Damage = Ability->CalculateDamage(CharComp->CharacterData, false);
+                if (Damage > BestDamage)
+                {
+                    BestDamage = Damage;
+                    BestAbility = Ability;
+                }
+            }
+        }
+
+        Action.AbilityData = BestAbility;
+        break;
+    }
     default:
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose Defend"),
-               *AIActor->GetName());
+        Action.ActionType = EActionType::Defend;
         break;
     }
 
     return Action;
 }
 
+// ==================== HELPER FUNCTIONS ====================
+
 bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
 {
-    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
+    if (!Actor)
+    {
+        return false;
+    }
+
+    UStatusEffectManager *StatusManager = GetStatusEffectManager();
     if (!StatusManager)
     {
         return false;
     }
 
     TArray<FStatusEffect> Effects = StatusManager->GetActiveEffects(Actor);
-
     for (const FStatusEffect &Effect : Effects)
     {
-        // Check for dangerous debuffs (stun, heavy DOT, etc.)
         switch (Effect.EffectType)
         {
-        case EStatusType::SkipTurn: // Was Stun
+        case EStatusType::SkipTurn: // Stun
             return true;
         case EStatusType::DOT:
-            // DOT is dangerous if it will kill us
+            // Check if DOT will kill us
             if (Effect.EffectValue * Effect.RemainingTurns >= GetCurrentHP(Actor))
             {
                 return true;
@@ -918,14 +1026,16 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
     }
 
     TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
-
     for (USpellData *Spell : Spells)
     {
         if (Spell && Spell->School == ESpellSchool::Restoration)
         {
-            // Check if it's actually a heal (positive effect on self)
+            // Check if it's a healing spell (has positive HP modifier)
+            // This is a simplified check - you might need more sophisticated logic
             if (Spell->PrimaryEffect == EStatusType::Heal ||
-                Spell->Damage < 0) // Negative damage = healing
+                Spell->PrimaryEffect == EStatusType::HealthRestore ||
+                Spell->SecondaryEffect == EStatusType::Heal ||
+                Spell->SecondaryEffect == EStatusType::HealthRestore)
             {
                 return Spell;
             }
@@ -943,10 +1053,10 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
     }
 
     TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
-
     for (USpellData *Spell : Spells)
     {
-        if (Spell && Spell->PrimaryEffect == EStatusType::Cleanse)
+        if (Spell && (Spell->PrimaryEffect == EStatusType::Cleanse ||
+                      Spell->SecondaryEffect == EStatusType::Cleanse))
         {
             return Spell;
         }
@@ -959,25 +1069,41 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
 
 bool UAIDecisionManager::IsStatusBarNearTrigger(AActor *Target, float Threshold) const
 {
-    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
+    if (!Target)
+    {
+        return false;
+    }
+
+    UStatusEffectManager *StatusManager = GetStatusEffectManager();
     if (!StatusManager)
     {
         return false;
     }
 
+    // Get current bar percentage (0.0 - 1.0)
     float BarPercent = StatusManager->GetStatusBarPercent(Target);
-    return BarPercent >= Threshold;
+
+    // Check if bar is near trigger threshold
+    return BarPercent >= Threshold; // Default threshold is 0.70 (70%)
 }
 
 bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target, float BuildupAmount) const
 {
-    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
+    if (!Attacker || !Target)
+    {
+        return false;
+    }
+
+    UStatusEffectManager *StatusManager = GetStatusEffectManager();
     if (!StatusManager)
     {
         return false;
     }
 
+    // Get remaining buildup needed to trigger
     float RemainingBuildup = StatusManager->GetBuildupToTrigger(Target);
+
+    // Check if this hit would trigger the bar
     return BuildupAmount >= RemainingBuildup;
 }
 
@@ -1066,19 +1192,12 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
-        // Get pending status type
+        // Get pending status type (abilities apply physical status, not specific types)
         EStatusType PendingStatus = StatusManager->GetPendingStatus(Target);
         if (PendingStatus == EStatusType::None)
         {
-            // Determine what status this spell would set
-            if (Spell->PrimaryEffect != EStatusType::None)
-            {
-                PendingStatus = Spell->PrimaryEffect; // Already EStatusType!
-            }
-            else
-            {
-                PendingStatus = EStatusType::DOT; // Default for elemental damage
-            }
+            // Default to DOT for abilities (they apply status via infusion)
+            PendingStatus = EStatusType::DOT;
         }
 
         // Use L1 if it triggers valuable status and L0 wouldn't
@@ -1109,16 +1228,10 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
 
 int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const
 {
-    // Abilities use same logic as spells for now
-    // (can differentiate later if needed)
-
-    if (!Ability)
+    if (!Attacker || !Target || !Ability)
     {
         return 0;
     }
-
-    // Treat ability similar to spell for infusion decisions
-    // For now, simplified - just check kill potential
 
     UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
     UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
@@ -1137,24 +1250,114 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     int32 MaxEnergy = AttackerComp->CharacterData->CalculateMaxEnergy();
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
+    // Calculate damage at each level
     int32 L0Damage = Ability->CalculateDamage(AttackerComp->CharacterData, false);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * 1.3f);
+    int32 L2Damage = FMath::RoundToInt(L0Damage * 1.3f); // L2: +30% damage
     int32 TargetHP = TargetComp->CurrentHP;
 
-    // Kill with L0? Don't waste
+    // Priority 1: Can we kill with L0? Don't waste
     if (L0Damage >= TargetHP)
     {
         return 0;
     }
 
-    // Kill with L2? Use it
+    // Priority 2: Can we kill with L2? Use it
     if (L2Damage >= TargetHP && EnergyPercent > AIConstants::ENERGY_CONSERVATION_THRESHOLD)
     {
         return 2;
     }
 
-    // Status bar logic (similar to spell)
-    // TODO: Can add ability-specific status logic here
+    // Priority 3: Status bar considerations (Medium+)
+    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
+    if (StatusManager && Difficulty >= EAIDifficulty::Medium)
+    {
+        // Calculate L1 status buildup
+        int32 BaseBuildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
+        float L1Buildup = BaseBuildup * 1.5f; // L1: +50% status buildup
+
+        // Would L1 trigger the bar?
+        bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
+        bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
+
+        // Get pending status type
+        EStatusType PendingStatus = StatusManager->GetPendingStatus(Target);
+        if (PendingStatus == EStatusType::None)
+        {
+            PendingStatus = EStatusType::DOT;
+        }
+
+        // Use L1 if it triggers valuable status and L0 wouldn't
+        if (bL1WouldTrigger && !bL0WouldTrigger && IsValuableStatus(PendingStatus, Target))
+        {
+            return 1;
+        }
+
+        // Hard+: Use L1 if bar is high (>70%) and we have good energy
+        if (Difficulty >= EAIDifficulty::Hard &&
+            IsStatusBarNearTrigger(Target, 0.70f) &&
+            EnergyPercent > AIConstants::ENERGY_ABUNDANT_THRESHOLD &&
+            IsValuableStatus(PendingStatus, Target))
+        {
+            return 1;
+        }
+    }
+
+    // Conserve energy if low
+    if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD)
+    {
+        return 0;
+    }
+
+    // Default: No infusion
+    return 0;
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
+int32 UAIDecisionManager::GetCurrentEP(AActor *Actor) const
+{
+    if (!Actor)
+    {
+        return 0;
+    }
+
+    UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+    if (CharComp)
+    {
+        return CharComp->CurrentEP;
+    }
 
     return 0;
+}
+
+int32 UAIDecisionManager::GetMaxEP(AActor *Actor) const
+{
+    if (!Actor)
+    {
+        return 1; // Avoid division by zero
+    }
+
+    UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+    if (CharComp && CharComp->CharacterData)
+    {
+        return CharComp->CharacterData->CalculateMaxEnergy();
+    }
+
+    return 1; // Avoid division by zero
+}
+
+UCharacterData *UAIDecisionManager::GetCharacterData(AActor *Actor) const
+{
+    if (!Actor)
+    {
+        return nullptr;
+    }
+
+    UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+    if (CharComp)
+    {
+        return CharComp->CharacterData;
+    }
+
+    return nullptr;
 }

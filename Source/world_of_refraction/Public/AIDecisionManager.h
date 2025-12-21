@@ -17,6 +17,7 @@ class ULoadoutComponent;
 class UStatusEffectManager;
 class UDamageCalculator;
 class UDefenseSystem;
+class UCharacterData;
 
 /**
  * Handles AI decision making during combat
@@ -164,12 +165,23 @@ private:
     /** Check if actor has dangerous debuffs */
     bool HasDangerousDebuff(AActor *Actor);
 
-    /** Find a healing spell/item */
+    // Healing detection
     USpellData *FindHealingSpell(ULoadoutComponent *Loadout);
+    UItemData *FindHealingItem(ULoadoutComponent *Loadout);
 
-    /** Find a cleanse spell/item */
+    // Cleanse detection
     USpellData *FindCleanseSpell(ULoadoutComponent *Loadout);
+    UItemData *FindCleanseItem(ULoadoutComponent *Loadout);
 
+    // Energy detection
+    UItemData *FindEnergyItem(ULoadoutComponent *Loadout);
+
+    // Energy helpers
+    int32 GetCurrentEP(AActor *Actor) const;
+    int32 GetMaxEP(AActor *Actor) const;
+
+    // Character data helper
+    UCharacterData *GetCharacterData(AActor *Actor) const;
     // ==================== STATUS BAR QUERIES ====================
 
     /** Check if target's status bar is near triggering */
