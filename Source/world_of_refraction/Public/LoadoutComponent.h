@@ -15,6 +15,7 @@
 #include "ECharacterClass.h"
 #include "FCombatLoadout.h"
 #include "FItemLoadoutSlot.h"
+#include "LoadoutData.h"
 #include "LoadoutComponent.generated.h"
 
 class UInventoryComponent;
@@ -188,6 +189,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")
     void InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory);
 
+    /**
+     * Initialize from pre-configured LoadoutData asset (AI enemies)
+     * Copies asset configuration into SavedLoadouts[0] and sets as active
+     */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Init")
+    void InitializeFromAsset(ULoadoutData *LoadoutAsset);
+
+    /** Check if initialized from asset (AI) vs inventory (Player) */
+    UFUNCTION(BlueprintPure, Category = "Loadout")
+    bool IsAssetBased() const { return bInitializedFromAsset; }
+
     /** Auto-populate loadout from inventory (best available) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")
     bool AutoPopulateLoadout(int32 LoadoutIndex, UInventoryComponent *Inventory);
@@ -209,6 +221,10 @@ public:
     /** Fired when loadout validation fails */
     UPROPERTY(BlueprintAssignable, Category = "Loadout|Events")
     FOnLoadoutValidationFailed OnValidationFailed;
+
+private:
+    /** True if initialized from LoadoutData asset (AI), false if from inventory (Player) */
+    bool bInitializedFromAsset = false;
 
 protected:
     virtual void BeginPlay() override;

@@ -20,11 +20,12 @@
 
 class USpellData;
 class UInventoryComponent;
+class ULoadoutData;
 
 /**
  * FCombatLoadout
  * Complete loadout configuration for combat
- * 
+ *
  * Class-specific rules:
  * - Generic: Primary weapon + Secondary (weapon OR ring)
  * - Caster: Primary (weapon OR ring) + 24 innate spells
@@ -38,6 +39,11 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** Loadout name for UI */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
     FString LoadoutName = TEXT("Default Loadout");
+
+    // ==================== FACTORY ====================
+
+    /** Create FCombatLoadout from LoadoutData asset (for AI enemies) */
+    static FCombatLoadout CreateFromAsset(const ULoadoutData *Asset);
 
     // ==================== PRIMARY EQUIPMENT ====================
 
@@ -77,7 +83,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     /** Innate spells for Caster (24 total, 6 per school, element-matched) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells|Innate")
-    TArray<USpellData*> InnateSpells;
+    TArray<USpellData *> InnateSpells;
 
     // ==================== ITEMS ====================
 
@@ -88,27 +94,27 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     // ==================== VALIDATION ====================
 
     /** Validate entire loadout for a character class */
-    bool Validate(ECharacterClass CharClass, UInventoryComponent* Inventory) const;
+    bool Validate(ECharacterClass CharClass, UInventoryComponent *Inventory) const;
 
     /** Validate Generic loadout */
-    bool ValidateGeneric(UInventoryComponent* Inventory) const;
+    bool ValidateGeneric(UInventoryComponent *Inventory) const;
 
     /** Validate Caster loadout */
-    bool ValidateCaster(UInventoryComponent* Inventory) const;
+    bool ValidateCaster(UInventoryComponent *Inventory) const;
 
     /** Validate Resonator loadout */
-    bool ValidateResonator(UInventoryComponent* Inventory) const;
+    bool ValidateResonator(UInventoryComponent *Inventory) const;
 
     // ==================== INNATE SPELL HELPERS ====================
 
     /** Get innate spells by school */
-    TArray<USpellData*> GetInnateSpellsBySchool(ESpellSchool School) const;
+    TArray<USpellData *> GetInnateSpellsBySchool(ESpellSchool School) const;
 
     /** Get innate spell count for school */
     int32 GetInnateSpellCountForSchool(ESpellSchool School) const;
 
     /** Check if innate spells are valid (max 6 per school) */
-    bool ValidateInnateSpells(ESpellElement InnateElement, const struct FSpellCollection& OwnedSpells) const;
+    bool ValidateInnateSpells(ESpellElement InnateElement, const struct FSpellCollection &OwnedSpells) const;
 
     // ==================== ITEM HELPERS ====================
 
@@ -121,10 +127,10 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     // ==================== AGGREGATED ACCESS ====================
 
     /** Get all available abilities from all equipment */
-    TArray<UAbilityData*> GetAllAbilities() const;
+    TArray<UAbilityData *> GetAllAbilities() const;
 
     /** Get all available spells from all sources */
-    TArray<USpellData*> GetAllSpells() const;
+    TArray<USpellData *> GetAllSpells() const;
 
     /** Get all usable item slots */
     TArray<FItemLoadoutSlot> GetUsableItemSlots() const;

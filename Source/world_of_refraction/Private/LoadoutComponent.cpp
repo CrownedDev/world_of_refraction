@@ -9,6 +9,7 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "CharacterData.h"
+#include "LoadoutData.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -894,6 +895,45 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
 
     UE_LOG(LogTemp, Display, TEXT("Initialized loadout for %s (%s class)"),
            *CharacterData->CharacterName,
+           *UEnum::GetValueAsString(CharacterClass));
+}
+
+void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
+{
+    if (!LoadoutAsset)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[LoadoutComponent] InitializeFromAsset: Null LoadoutAsset"));
+        return;
+    }
+
+    // Log validation warnings (but don't block - designer may be testing)
+    if (LoadoutAsset->HasValidationErrors())
+    {
+        TArray<FString> Errors = LoadoutAsset->GetValidationErrors();
+        for (const FString &Error : Errors)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] LoadoutData '%s' validation: %s"),
+                   *LoadoutAsset->LoadoutName, *Error);
+        }
+    }
+
+    // Set class from asset
+    CharacterClass = LoadoutAsset->RequiredClass;
+
+    // Clear existing loadouts
+    SavedLoadouts.Empty();
+
+    // Create loadout from asset using factory function
+    FCombatLoadout NewLoadout = FCombatLoadout::CreateFromAsset(LoadoutAsset);
+    SavedLoadouts.Add(NewLoadout);
+    ActiveLoadoutIndex = 0;
+
+    // Mark as asset-based (skips inventory validation)
+    bInitializedFromAsset = true;
+    bIsReadyForBattle = true; // Asset-based loadouts are always ready
+
+    UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Initialized from asset '%s' (Class: %s)"),
+           *LoadoutAsset->LoadoutName,
            *UEnum::GetValueAsString(CharacterClass));
 }
 

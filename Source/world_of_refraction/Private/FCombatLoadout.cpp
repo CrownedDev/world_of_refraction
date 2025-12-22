@@ -8,6 +8,7 @@
 #include "CrystalType.h"
 #include "FSpellCollection.h"
 #include "FAbilityCollection.h"
+#include "LoadoutData.h"
 
 // Forward declare - will be implemented in Phase 3
 // #include "InventoryComponent.h"
@@ -338,4 +339,109 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
     {
         Slot.Clear();
     }
+}
+
+FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
+{
+    FCombatLoadout Result;
+
+    if (!Asset)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[FCombatLoadout] CreateFromAsset: Null asset"));
+        return Result;
+    }
+
+    Result.LoadoutName = Asset->LoadoutName;
+
+    // ==================== PRIMARY EQUIPMENT ====================
+
+    // Handle Caster primary slot type (weapon vs ring)
+    if (Asset->RequiredClass == ECharacterClass::Caster)
+    {
+        Result.bPrimaryIsRing = (Asset->PrimarySlotType == EPrimarySlotType::Ring);
+
+        if (Result.bPrimaryIsRing && Asset->PrimaryRing)
+        {
+            Result.PrimaryRing.RingEntry.Ring = Asset->PrimaryRing;
+            Result.PrimaryRing.InitializeFromRing();
+        }
+        else if (!Result.bPrimaryIsRing && Asset->PrimaryWeapon)
+        {
+            Result.PrimaryWeapon.WeaponEntry.Weapon = Asset->PrimaryWeapon;
+            Result.PrimaryWeapon.InitializeFromWeapon();
+            Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
+            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryWeaponSpells;
+        }
+    }
+    else
+    {
+        // Generic/Resonator always have weapon primary
+        Result.bPrimaryIsRing = false;
+        if (Asset->PrimaryWeapon)
+        {
+            Result.PrimaryWeapon.WeaponEntry.Weapon = Asset->PrimaryWeapon;
+            Result.PrimaryWeapon.InitializeFromWeapon();
+            Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
+            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryWeaponSpells;
+        }
+    }
+
+    // ==================== SECONDARY EQUIPMENT (Generic only) ====================
+
+    if (Asset->RequiredClass == ECharacterClass::Generic)
+    {
+        Result.bSecondaryIsRing = (Asset->SecondarySlotType == ESecondarySlotType::Ring);
+
+        if (Asset->SecondarySlotType == ESecondarySlotType::Weapon && Asset->SecondaryWeapon)
+        {
+            Result.SecondaryWeapon.WeaponEntry.Weapon = Asset->SecondaryWeapon;
+            Result.SecondaryWeapon.InitializeFromWeapon();
+            Result.SecondaryWeapon.AssignedAbilities = Asset->SecondaryWeaponAbilities;
+            Result.SecondaryWeapon.AssignedSpells = Asset->SecondaryWeaponSpells;
+        }
+        else if (Asset->SecondarySlotType == ESecondarySlotType::Ring && Asset->SecondaryRing)
+        {
+            Result.SecondaryRing.RingEntry.Ring = Asset->SecondaryRing;
+            Result.SecondaryRing.InitializeFromRing();
+        }
+    }
+
+    // ==================== RESONATOR RINGS ====================
+
+    if (Asset->RequiredClass == ECharacterClass::Resonator)
+    {
+        for (URingData *Ring : Asset->EquippedRings)
+        {
+            if (Ring)
+            {
+                FRingLoadoutEntry RingEntry;
+                RingEntry.RingEntry.Ring = Ring;
+                RingEntry.InitializeFromRing();
+                Result.RingLoadout.Add(RingEntry);
+            }
+        }
+    }
+
+    // ==================== CASTER INNATE SPELLS ====================
+
+    if (Asset->RequiredClass == ECharacterClass::Caster)
+    {
+        Result.InnateSpells = Asset->InnateSpells;
+    }
+
+    // ==================== ITEMS ====================
+
+    Result.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
+    for (int32 i = 0; i < Asset->EquippedItems.Num() && i < Result.ItemSlots.Num(); i++)
+    {
+        if (Asset->EquippedItems[i])
+        {
+            Result.ItemSlots[i].Crystal = Asset->EquippedItems[i];
+            Result.ItemSlots[i].ResetForBattle();
+        }
+    }
+
+    UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s'"), *Asset->LoadoutName);
+
+    return Result;
 }
