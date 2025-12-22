@@ -93,6 +93,139 @@ int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
     return NewIndex;
 }
 
+int32 ULoadoutComponent::CreateAndConfigureLoadout(
+    const FString &LoadoutName,
+    UInventoryComponent *Inventory,
+    const TArray<USpellData *> &SpellsToAdd,
+    const TArray<UAbilityData *> &AbilitiesToAdd,
+    const TArray<UItemData *> &ItemsToAdd)
+{
+    // Validate inventory
+    if (!Inventory)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[LoadoutComponent] CreateAndConfigureLoadout: Null Inventory"));
+        return -1;
+    }
+
+    // Create new empty loadout
+    int32 NewIndex = CreateNewLoadout(LoadoutName);
+    if (NewIndex < 0)
+    {
+        UE_LOG(LogTemp, Error, TEXT("[LoadoutComponent] Failed to create loadout - max loadouts reached (%d/%d)"),
+               SavedLoadouts.Num(), MaxSavedLoadouts);
+        return -1;
+    }
+
+    FCombatLoadout &Loadout = SavedLoadouts[NewIndex];
+
+    UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Created loadout '%s' at index %d"), *LoadoutName, NewIndex);
+
+    // Add spells (validate against inventory)
+    int32 SpellsAdded = 0;
+    for (USpellData *Spell : SpellsToAdd)
+    {
+        if (!Spell)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Null spell in SpellsToAdd array"));
+            continue;
+        }
+
+        if (!Inventory->HasSpell(Spell))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Spell '%s' not in inventory - skipping"),
+                   *Spell->SpellName);
+            continue;
+        }
+
+        // Add to primary weapon or ring depending on class
+        if (!Loadout.bPrimaryIsRing && Loadout.PrimaryWeapon.IsValid())
+        {
+            Loadout.PrimaryWeapon.AssignedSpells.Add(Spell);
+            SpellsAdded++;
+            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to weapon"), *Spell->SpellName);
+        }
+        else if (Loadout.bPrimaryIsRing && Loadout.PrimaryRing.IsValid())
+        {
+            Loadout.PrimaryRing.AssignedSpells.Add(Spell);
+            SpellsAdded++;
+            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to ring"), *Spell->SpellName);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] No valid weapon/ring to add spell to"));
+        }
+    }
+
+    // Add abilities (validate against inventory)
+    int32 AbilitiesAdded = 0;
+    for (UAbilityData *Ability : AbilitiesToAdd)
+    {
+        if (!Ability)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Null ability in AbilitiesToAdd array"));
+            continue;
+        }
+
+        if (!Inventory->HasAbility(Ability))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Ability '%s' not in inventory - skipping"),
+                   *Ability->AbilityName);
+            continue;
+        }
+
+        // Add to primary weapon
+        if (!Loadout.bPrimaryIsRing && Loadout.PrimaryWeapon.IsValid())
+        {
+            Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
+            AbilitiesAdded++;
+            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added ability '%s'"), *Ability->AbilityName);
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] No valid weapon to add ability to"));
+        }
+    }
+
+    // Add items (validate against inventory)
+    int32 ItemsAdded = 0;
+    int32 SlotIndex = 0;
+    for (UItemData *Item : ItemsToAdd)
+    {
+        if (!Item)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Null item in ItemsToAdd array"));
+            continue;
+        }
+
+        if (SlotIndex >= Loadout.ItemSlots.Num())
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Item slots full (%d) - skipping item '%s'"),
+                   Loadout.ItemSlots.Num(), *Item->ItemName);
+            break;
+        }
+
+        if (!Inventory->HasItem(Item))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Item '%s' not in inventory - skipping"),
+                   *Item->ItemName);
+            SlotIndex++;
+            continue;
+        }
+
+        Loadout.ItemSlots[SlotIndex].Crystal = Item;
+        Loadout.ItemSlots[SlotIndex].ResetForBattle();
+        ItemsAdded++;
+        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added item '%s' to slot %d"),
+               *Item->ItemName, SlotIndex);
+        SlotIndex++;
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Loadout '%s' configured: %d spells, %d abilities, %d items"),
+           *LoadoutName, SpellsAdded, AbilitiesAdded, ItemsAdded);
+
+    return NewIndex;
+}
+
 bool ULoadoutComponent::DeleteLoadout(int32 Index)
 {
     if (!SavedLoadouts.IsValidIndex(Index))

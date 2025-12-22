@@ -90,6 +90,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
     int32 CreateNewLoadout(const FString &LoadoutName);
 
+    /** Create and populate a new loadout with spells, abilities, and items */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
+    int32 CreateAndConfigureLoadout(
+        const FString &LoadoutName,
+        UInventoryComponent *Inventory,
+        const TArray<USpellData *> &SpellsToAdd,
+        const TArray<UAbilityData *> &AbilitiesToAdd,
+        const TArray<UItemData *> &ItemsToAdd);
+
     /** Delete a saved loadout */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
     bool DeleteLoadout(int32 Index);
