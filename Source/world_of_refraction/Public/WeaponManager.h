@@ -386,7 +386,6 @@ private:
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 	UStatusEffectManager *GetStatusEffectManager() const;
 	URingData *GetPrimaryRing(AActor *Actor) const;
-	URingData *GetSecondaryRing(AActor *Actor) const;
 
 	/** Check if actor is Generic class (dual-wield, secondary slot) */
 	bool IsGenericCharacter(AActor *Actor) const;

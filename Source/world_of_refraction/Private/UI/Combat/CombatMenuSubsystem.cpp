@@ -90,59 +90,69 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetMainMenuButtonsForActor(AAct
 void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons)
 {
 	/**
-	 * Generic has 12 states based on equipment:
+	 * Generic Menu States based on Primary + Secondary slot combinations:
 	 *
-	 * SINGLE WEAPON (States 1-4):
-	 * 1. Weapon only                    -> Attack, Abilities, Items
-	 * 2. Evolved Weapon only            -> Attack, Abilities, Resonate, Items
-	 * 3. Evolved Char + Weapon          -> Attack, Abilities, Breakthrough, Items
-	 * 4. Evolved Char + Evolved Weapon  -> Attack, Abilities, Breakthrough, Resonate, Items
+	 * PRIMARY WEAPON (States 1-6):
+	 * 1. Weapon only                      -> Attack, Abilities, Items
+	 * 2. Weapon (evolved) only            -> Attack, Abilities, Resonate, Items
+	 * 3. Weapon + Weapon                  -> Attack, Abilities, Items, Switch
+	 * 4. Weapon + Weapon (pri evolved)    -> Attack, Abilities, Resonate, Items, Switch
+	 * 5. Weapon + Weapon (sec evolved)    -> Attack, Abilities, [Resonate if active], Items, Switch
+	 * 6. Weapon + Weapon (both evolved)   -> Attack, Abilities, Resonate, Items, Switch
 	 *
-	 * UNIFIED MENU - Weapon + Ring (States 5-8):
-	 * 5. Weapon + Ring                  -> Attack, Abilities, Resonate (R), Items
-	 * 6. Weapon + Evolved Ring          -> Attack, Abilities, Resonate (R), Items
-	 * 7. Evolved Weapon + Ring          -> Attack, Abilities, Resonate (W), Resonate (R), Items
-	 * 8. Evolved Weapon + Evolved Ring  -> Attack, Abilities, Resonate (W), Resonate (R), Items
+	 * PRIMARY RING (States 7-10):
+	 * 7. Ring only                        -> Resonate (R), Items
+	 * 8. Ring (evolved) only              -> Resonate (R), Items
+	 * 9. Ring + Weapon                    -> Attack, Abilities, Resonate (R), Items
+	 * 10. Ring + Weapon (evolved)         -> Attack, Abilities, Resonate (W), Resonate (R), Items
 	 *
-	 * SPLIT MENU - Weapon + Weapon (States 9-12):
-	 * 9-10. Primary active              -> Attack, Abilities, [Resonate if evolved], Items, Switch
-	 * 11-12. Secondary active           -> Attack, Abilities, [Resonate if evolved], Items, Switch
+	 * PRIMARY EVOLUTION (States 11-14):
+	 * 11. Evolution only                  -> Breakthrough, Items
+	 * 12. Evolution + Weapon              -> Attack, Abilities, Breakthrough, Items
+	 * 13. Evolution + Weapon (evolved)    -> Attack, Abilities, Breakthrough, Resonate, Items
 	 *
-	 * NOTE: Evolved Generic loses secondary slot (States 3-4 have DISABLED secondary)
+	 * NOTE: Evolved rings have no break chance, normal rings do.
+	 * NOTE: "Resonate (W)" and "Resonate (R)" modifiers only shown when both sources present.
 	 */
 
 	bool bCharacterEvolved = CharacterData->IsEvolved();
 
-	// Evolved Generic loses secondary slot access
+	// Check secondary weapon availability
 	bool bHasSecondaryWeapon = !bCharacterEvolved &&
 							   CharacterData->SecondarySlotType == ESecondarySlotType::Weapon &&
 							   CharacterData->SecondaryWeapon != nullptr;
-	bool bHasSecondaryRing = !bCharacterEvolved &&
-							 CharacterData->SecondarySlotType == ESecondarySlotType::Ring &&
-							 CharacterData->SecondaryRing != nullptr;
 
-	// DEBUG: Log state detection
-	UE_LOG(LogTemp, Warning, TEXT("[BuildGenericMainMenu] Evolved=%s, SecondarySlotType=%d, SecondaryWeapon=%s, bHasSecondaryWeapon=%s"),
-		   bCharacterEvolved ? TEXT("true") : TEXT("false"),
-		   static_cast<int32>(CharacterData->SecondarySlotType),
-		   CharacterData->SecondaryWeapon ? *CharacterData->SecondaryWeapon->WeaponName : TEXT("null"),
-		   bHasSecondaryWeapon ? TEXT("true") : TEXT("false"));
+	// Check primary slot type
+	bool bHasPrimaryRing = CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
+						   CharacterData->PrimaryRing != nullptr;
+	bool bHasPrimaryEvolution = CharacterData->PrimarySlotType == EPrimarySlotType::Evolution &&
+								CharacterData->PrimaryEvolution != nullptr;
+	bool bHasPrimaryWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
+							 CharacterData->PrimaryWeapon != nullptr;
 
-	// Get active weapon based on current selection
+	// Determine active weapon
 	UWeaponData *ActiveWeapon = nullptr;
-	if (bHasSecondaryWeapon)
+	if (bHasPrimaryWeapon)
 	{
-		// Dual weapons - use bUsePrimary to determine active
-		ActiveWeapon = CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : CharacterData->SecondaryWeapon;
+		// Primary is weapon
+		if (bHasSecondaryWeapon)
+		{
+			// Two weapons - use bUsePrimary to determine active
+			ActiveWeapon = CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : CharacterData->SecondaryWeapon;
+		}
+		else
+		{
+			ActiveWeapon = CharacterData->PrimaryWeapon;
+		}
 	}
-	else
+	else if (bHasSecondaryWeapon)
 	{
-		// Single weapon or unified menu - always primary
-		ActiveWeapon = CharacterData->PrimaryWeapon;
+		// Primary is Ring/Evolution, weapon comes from secondary
+		ActiveWeapon = CharacterData->SecondaryWeapon;
 	}
+	// else: No weapon access
 
 	bool bActiveWeaponEvolved = ActiveWeapon && ActiveWeapon->IsEvolved();
-	bool bUnifiedMenu = bHasSecondaryRing; // Weapon + Ring = unified menu
 
 	// Attack + Abilities (if has weapon)
 	if (ActiveWeapon)
@@ -151,28 +161,27 @@ void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, T
 		OutButtons.Add(CreateAbilitiesButton(CharacterData));
 	}
 
-	// Breakthrough (if character is evolved)
-	if (bCharacterEvolved)
+	// Breakthrough (if character has evolution in primary)
+	if (bHasPrimaryEvolution)
 	{
 		OutButtons.Add(CreateBreakthroughButton(CharacterData));
 	}
 
 	// Resonate from evolved weapon
-	// Use (W) modifier only in unified menu where ring is also present
 	if (bActiveWeaponEvolved)
 	{
-		if (bUnifiedMenu)
+		if (bHasPrimaryRing)
 		{
-			OutButtons.Add(CreateResonateWeaponButton(CharacterData)); // Shows "Resonate (W)"
+			OutButtons.Add(CreateResonateWeaponButton(CharacterData)); // "Resonate (W)"
 		}
 		else
 		{
-			OutButtons.Add(CreateResonateButton(CharacterData)); // Shows "Resonate" (no modifier)
+			OutButtons.Add(CreateResonateButton(CharacterData)); // "Resonate"
 		}
 	}
 
-	// Resonate (R) from secondary ring (unified menu only)
-	if (bHasSecondaryRing)
+	// Resonate (R) from primary ring
+	if (bHasPrimaryRing)
 	{
 		OutButtons.Add(CreateResonateRingButton(CharacterData));
 	}
@@ -180,8 +189,8 @@ void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, T
 	// Items always
 	OutButtons.Add(CreateItemsButton(CharacterData));
 
-	// Switch only if dual wielding weapons (States 9-12) and NOT evolved
-	if (bHasSecondaryWeapon)
+	// Switch only if Primary=Weapon + Secondary=Weapon
+	if (bHasPrimaryWeapon && bHasSecondaryWeapon)
 	{
 		OutButtons.Add(CreateSwitchWeaponButton(CharacterData));
 	}
@@ -190,128 +199,151 @@ void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, T
 void UCombatMenuSubsystem::BuildCasterMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons)
 {
 	/**
-	 * Caster has 5 states:
+	 * Caster Menu States based on Primary slot:
 	 *
-	 * State 1: Weapon        -> Attack, Abilities, Refractions, Items
-	 * State 2: Ring          -> Refractions, Resonate, Items
-	 * State 3: Evolved Weapon -> Attack, Abilities, Refractions, Resonate, Items
-	 * State 4: Evolved Ring   -> Refractions, Resonate, Items
-	 * State 5: Evolved Character -> Refractions, Breakthrough, Items
+	 * PRIMARY WEAPON (States 1-2):
+	 * 1. Weapon only                -> Attack, Abilities, Refractions, Items
+	 * 2. Weapon (evolved)           -> Attack, Abilities, Refractions, Resonate, Items
 	 *
-	 * IMPORTANT:
-	 * - Caster has NO Switch button (single equipment slot)
-	 * - Caster uses "Resonate" without modifier (single source)
-	 * - Evolved Caster loses ALL equipment access
+	 * PRIMARY RING (States 3-4):
+	 * 3. Ring only                  -> Refractions, Resonate (R), Items
+	 * 4. Ring (evolved)             -> Refractions, Resonate (R), Items
+	 *
+	 * PRIMARY EVOLUTION (State 5):
+	 * 5. Evolution                  -> Refractions, Breakthrough, Items
+	 *
+	 * NOTE: Caster ALWAYS has Refractions (innate spells from InnateElement).
+	 * NOTE: Caster has NO Switch button (single equipment slot).
+	 * NOTE: Caster with Evolution loses all weapon/ring access.
+	 * NOTE: Ring break chance only applies to non-evolved rings.
 	 */
 
-	bool bCharacterEvolved = CharacterData->IsEvolved();
+	// Check primary slot type
+	bool bHasPrimaryWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
+							 CharacterData->PrimaryWeapon != nullptr;
+	bool bHasPrimaryRing = CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
+						   CharacterData->PrimaryRing != nullptr;
+	bool bHasPrimaryEvolution = CharacterData->PrimarySlotType == EPrimarySlotType::Evolution &&
+								CharacterData->PrimaryEvolution != nullptr;
 
-	// Caster has ONE slot: Weapon OR Ring (PrimarySlotType determines which)
-	bool bHasWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
-					  CharacterData->PrimaryWeapon != nullptr;
-	bool bHasRing = CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
-					CharacterData->PrimaryRing != nullptr;
-	bool bWeaponEvolved = bHasWeapon && CharacterData->PrimaryWeapon->IsEvolved();
-	bool bRingEvolved = bHasRing && CharacterData->PrimaryRing->IsEvolved();
+	bool bWeaponEvolved = bHasPrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved();
+	bool bRingEvolved = bHasPrimaryRing && CharacterData->PrimaryRing->IsEvolved();
 
-	// When character evolves, all equipment is DISABLED (State 5)
-	if (bCharacterEvolved)
-	{
-		OutButtons.Add(CreateRefractionsButton(CharacterData));
-		OutButtons.Add(CreateBreakthroughButton(CharacterData));
-		OutButtons.Add(CreateItemsButton(CharacterData));
-		return;
-	}
-
-	// Attack + Abilities only if has weapon (States 1, 3)
-	if (bHasWeapon)
+	// Attack + Abilities (only if primary is weapon)
+	if (bHasPrimaryWeapon)
 	{
 		OutButtons.Add(CreateAttackButton(CharacterData));
 		OutButtons.Add(CreateAbilitiesButton(CharacterData));
 	}
 
-	// Refractions always (innate spells)
+	// Refractions (innate spells) - ALWAYS available for Caster
 	OutButtons.Add(CreateRefractionsButton(CharacterData));
 
-	// Resonate from evolved weapon (State 3) or ring (States 2, 4)
-	// Caster uses "Resonate" without (W)/(R) modifier since they have single source
-	if (bWeaponEvolved || bHasRing)
+	// Breakthrough (if primary is evolution)
+	if (bHasPrimaryEvolution)
 	{
-		OutButtons.Add(CreateResonateButton(CharacterData));
+		OutButtons.Add(CreateBreakthroughButton(CharacterData));
+	}
+
+	// Resonate from evolved weapon (primary weapon only)
+	if (bWeaponEvolved)
+	{
+		OutButtons.Add(CreateResonateButton(CharacterData)); // No modifier needed, single source
+	}
+
+	// Resonate from primary ring
+	if (bHasPrimaryRing)
+	{
+		OutButtons.Add(CreateResonateButton(CharacterData)); // No modifier needed, single source
 	}
 
 	// Items always
 	OutButtons.Add(CreateItemsButton(CharacterData));
 
-	// NO SWITCH BUTTON for Caster
+	// Caster has NO Switch button
 }
 
 void UCombatMenuSubsystem::BuildResonatorMainMenu(UCharacterData *CharacterData, TArray<FPieMenuButtonData> &OutButtons)
 {
 	/**
-	 * Resonator has 6 states:
+	 * Resonator Menu States based on Primary slot + Ring Loadout:
 	 *
-	 * WITH WEAPON (States 1-4):
-	 * 1. Weapon + Normal Ring      -> Attack, Abilities, Resonate (R), Switch Ring, Items
-	 * 2. Weapon + Evolved Ring     -> Attack, Abilities, Resonate (R), Switch Ring, Items
-	 * 3. Evolved Weapon + Normal Ring   -> Attack, Abilities, Resonate (W), Resonate (R), Switch Ring, Items
-	 * 4. Evolved Weapon + Evolved Ring  -> Attack, Abilities, Resonate (W), Resonate (R), Switch Ring, Items
+	 * PRIMARY WEAPON (States 1-4):
+	 * 1. Weapon + Rings                 -> Attack, Abilities, Resonate, Items, Switch Ring
+	 * 2. Weapon (evolved) + Rings       -> Attack, Abilities, Resonate (W), Resonate (R), Items, Switch Ring
+	 * 3. Weapon + No Rings              -> Attack, Abilities, Items
+	 * 4. Weapon (evolved) + No Rings    -> Attack, Abilities, Resonate, Items
 	 *
-	 * EVOLVED CHARACTER - Weapon DISABLED (States 5-6):
-	 * 5. DISABLED + Normal Ring    -> Breakthrough, Resonate (R), Switch Ring, Items
-	 * 6. DISABLED + Evolved Ring   -> Breakthrough, Resonate (R), Switch Ring, Items
+	 * PRIMARY EVOLUTION (States 5-6):
+	 * 5. Evolution + Rings              -> Breakthrough, Resonate, Items, Switch Ring
+	 * 6. Evolution + No Rings           -> Breakthrough, Items
 	 *
-	 * IMPORTANT:
-	 * - Resonator has Switch Ring, NOT Switch Weapon
-	 * - Resonator uses "(W)" and "(R)" modifiers since both sources may be present
-	 * - Evolved Resonator loses weapon but keeps ring loadout
+	 * NOTE: Resonator CANNOT have Ring in primary slot (uses RingLoadout instead).
+	 * NOTE: Resonator has NO secondary slot.
+	 * NOTE: RingLoadout: 5 rings normal, 3 rings if evolved, max 2 evolved rings.
+	 * NOTE: Switch Ring cycles through RingLoadout (not weapon switch).
+	 * NOTE: "Resonate (W)" and "Resonate (R)" modifiers only shown when both sources present.
 	 */
 
-	bool bCharacterEvolved = CharacterData->IsEvolved();
+	// Check primary slot type
+	bool bHasPrimaryWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
+							 CharacterData->PrimaryWeapon != nullptr;
+	bool bHasPrimaryEvolution = CharacterData->PrimarySlotType == EPrimarySlotType::Evolution &&
+								CharacterData->PrimaryEvolution != nullptr;
 
-	// Evolved Resonator loses weapon access but keeps rings
-	bool bHasWeapon = !bCharacterEvolved && CharacterData->PrimaryWeapon != nullptr;
-	bool bWeaponEvolved = bHasWeapon && CharacterData->PrimaryWeapon->IsEvolved();
+	bool bWeaponEvolved = bHasPrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved();
 
-	// Get active ring (TODO: track active ring index at runtime)
-	URingData *ActiveRing = nullptr;
-	if (CharacterData->EquippedRings.Num() > 0)
-	{
-		ActiveRing = CharacterData->EquippedRings[0]; // Default to first ring
-	}
+	// Check ring loadout
+	bool bHasRings = CharacterData->EquippedRings.Num() > 0;
+	bool bHasMultipleRings = CharacterData->EquippedRings.Num() > 1;
 
-	// Attack + Abilities only if has weapon (States 1-4)
-	if (bHasWeapon)
+	// Attack + Abilities (only if primary is weapon)
+	if (bHasPrimaryWeapon)
 	{
 		OutButtons.Add(CreateAttackButton(CharacterData));
 		OutButtons.Add(CreateAbilitiesButton(CharacterData));
 	}
 
-	// Breakthrough (if character is evolved - States 5-6)
-	if (bCharacterEvolved)
+	// Breakthrough (if primary is evolution)
+	if (bHasPrimaryEvolution)
 	{
 		OutButtons.Add(CreateBreakthroughButton(CharacterData));
 	}
 
-	// Resonate (W) from evolved weapon (States 3-4 only)
+	// Resonate from evolved weapon
 	if (bWeaponEvolved)
 	{
-		OutButtons.Add(CreateResonateWeaponButton(CharacterData));
+		if (bHasRings)
+		{
+			OutButtons.Add(CreateResonateWeaponButton(CharacterData)); // "Resonate (W)"
+		}
+		else
+		{
+			OutButtons.Add(CreateResonateButton(CharacterData)); // "Resonate"
+		}
 	}
 
-	// Resonate (R) from active ring - always available for Resonator
-	if (ActiveRing)
+	// Resonate from active ring in loadout
+	if (bHasRings)
 	{
-		OutButtons.Add(CreateResonateRingButton(CharacterData));
+		if (bWeaponEvolved)
+		{
+			OutButtons.Add(CreateResonateRingButton(CharacterData)); // "Resonate (R)"
+		}
+		else
+		{
+			OutButtons.Add(CreateResonateButton(CharacterData)); // "Resonate"
+		}
 	}
-
-	// Switch Ring always available for Resonator
-	OutButtons.Add(CreateChangeRingButton(CharacterData));
 
 	// Items always
 	OutButtons.Add(CreateItemsButton(CharacterData));
 
-	// NO SWITCH WEAPON for Resonator
+	// Switch Ring (only if multiple rings in loadout)
+	if (bHasMultipleRings)
+	{
+		OutButtons.Add(CreateChangeRingButton(CharacterData));
+	}
 }
 
 // ==================== BUTTON CREATORS ====================
@@ -603,7 +635,7 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateRingButton(UCharacterData
 	}
 	else if (CharacterData->IsGeneric())
 	{
-		Ring = CharacterData->SecondaryRing;
+		Ring = CharacterData->PrimaryRing;
 	}
 	else if (CharacterData->IsResonator())
 	{
@@ -892,22 +924,21 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 		}
 	}
 
-	// SecondaryRing (Generic with ring in secondary slot)
-	if (CharacterData->HasRingInSecondary())
+	// PrimaryRing (Generic with ring in primary slot)
+	if (CharacterData->IsGeneric() &&
+		CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
+		CharacterData->PrimaryRing != nullptr)
 	{
-		URingData *SecRing = CharacterData->SecondaryRing;
-		if (SecRing)
-		{
-			FPieMenuButtonData Button;
-			Button.ButtonID = TEXT("Infusion_SecondaryRing");
-			Button.DisplayName = FText::FromString(TEXT("Secondary Ring"));
-			Button.Description = FText::FromString(FString::Printf(TEXT("Use %s element (ring may break)"), *SecRing->RingName));
-			Button.Category = EPieMenuCategory::InfusionSource;
-			Button.DataIndex = static_cast<int32>(EInfusionSourceOption::SecondaryRing);
-			Button.bEnabled = true;
-			Button.ButtonTint = GetElementColor(static_cast<int32>(SecRing->GetRingElement()));
-			Buttons.Add(Button);
-		}
+		URingData *PriRing = CharacterData->PrimaryRing;
+		FPieMenuButtonData Button;
+		Button.ButtonID = TEXT("Infusion_PrimaryRing");
+		Button.DisplayName = FText::FromString(TEXT("Primary Ring"));
+		Button.Description = FText::FromString(FString::Printf(TEXT("Use %s element (ring may break)"), *PriRing->RingName));
+		Button.Category = EPieMenuCategory::InfusionSource;
+		Button.DataIndex = static_cast<int32>(EInfusionSourceOption::PrimaryRing);
+		Button.bEnabled = true;
+		Button.ButtonTint = GetElementColor(static_cast<int32>(PriRing->GetRingElement()));
+		Buttons.Add(Button);
 	}
 
 	// WeaponCrystal (any class with non-Ilodite crystal)

@@ -817,24 +817,11 @@ URingData *UWeaponManager::GetPrimaryRing(AActor *Actor) const
 	if (!CharData)
 		return nullptr;
 
-	// Caster with ring primary
-	if (CharData->IsCaster() && CharData->PrimarySlotType == EPrimarySlotType::Ring)
+	// Caster OR Generic with ring primary
+	if ((CharData->IsCaster() || CharData->IsGeneric()) &&
+		CharData->PrimarySlotType == EPrimarySlotType::Ring)
 	{
 		return CharData->PrimaryRing;
-	}
-	return nullptr;
-}
-
-URingData *UWeaponManager::GetSecondaryRing(AActor *Actor) const
-{
-	UCharacterData *CharData = GetCharacterData(Actor);
-	if (!CharData)
-		return nullptr;
-
-	// Generic with ring secondary
-	if (CharData->IsGeneric() && CharData->SecondarySlotType == ESecondarySlotType::Ring)
-	{
-		return CharData->SecondaryRing;
 	}
 	return nullptr;
 }

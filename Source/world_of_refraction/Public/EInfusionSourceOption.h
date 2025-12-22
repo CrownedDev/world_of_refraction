@@ -16,7 +16,7 @@
  * Availability by class:
  * - Caster: None, Innate, WeaponCrystal*, Evolution**
  * - Resonator: None, ActiveRing, WeaponCrystal*, Evolution**
- * - Generic: None, SecondaryRing***, WeaponCrystal*, Evolution**
+ * - Generic: None, , WeaponCrystal*, Evolution**
  *
  * * If non-Ilodite crystal equipped
  * ** If evolved
@@ -33,6 +33,9 @@ enum class EInfusionSourceOption : uint8
 
     /** Resonator's currently equipped ring - L2 risks ring break */
     ActiveRing UMETA(DisplayName = "Active Ring"),
+
+    /** Gaster/Generics's current primary ring - L2 risks ring break */
+    PrimaryRing UMETA(DisplayName = "Primary Ring"),
 
     /** Weapon's slotted crystal element - L2 risks crystal break */
     WeaponCrystal UMETA(DisplayName = "Weapon Crystal"),

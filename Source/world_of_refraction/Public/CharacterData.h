@@ -83,10 +83,10 @@ public:
 	bool bIsAIControlled = false;
 
 #if WITH_EDITORONLY_DATA
-	/** Display only - shows element from ActiveEvolution */
+	/** Display only - shows element from PrimaryEvolution */
 	UPROPERTY(VisibleAnywhere, Category = "Evolution",
-			  meta = (EditCondition = "bIsEvolved && ActiveEvolution != nullptr", EditConditionHides))
-	FString EvolutionElementDisplay = TEXT("(Set by ActiveEvolution)");
+			  meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution && PrimaryEvolution != nullptr", EditConditionHides))
+	FString EvolutionElementDisplay = TEXT("(Set by PrimaryEvolution)");
 #endif
 
 	// ==================== EVOLUTION HELPERS ====================

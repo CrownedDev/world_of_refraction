@@ -139,7 +139,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
 
         // Add to primary weapon or ring depending on class
-        if (!Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
+        if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
         {
             Loadout.PrimaryWeapon.AssignedSpells.Add(Spell);
             SpellsAdded++;
@@ -175,7 +175,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
 
         // Add to primary weapon
-        if (!Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
+        if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
         {
             Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
             AbilitiesAdded++;
@@ -342,7 +342,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     const FCombatLoadout &Loadout = SavedLoadouts[Index];
 
     // Validate primary weapon
-    if (!Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
     {
         // Check weapon is owned
         bool bFound = false;
@@ -819,22 +819,10 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
                 }
             }
         }
-        else if (CharacterData->SecondaryRing)
-        {
-            // Find ring in inventory
-            for (FRingInventoryEntry &RingEntry : Inventory->Rings)
-            {
-                if (RingEntry.Ring == CharacterData->SecondaryRing)
-                {
-                    DefaultLoadout.SecondaryRing.RingEntry = RingEntry;
-                    break;
-                }
-            }
-        }
     }
     else if (CharacterClass == ECharacterClass::Caster)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasActiveEvolution: %s"),
+        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasPrimaryEvolution: %s"),
                CharacterData->InnateSpells.Num(),
                CharacterData->IsEvolved() ? TEXT("YES") : TEXT("NO"),
                CharacterData->PrimaryEvolution ? TEXT("YES") : TEXT("NO"));
