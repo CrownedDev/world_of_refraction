@@ -2655,6 +2655,14 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 		}
 	}
 
+	// Primary Ring (Generic/Caster with ring in primary slot)
+	if ((Data->IsGeneric() || Data->IsCaster()) &&
+		Data->PrimarySlotType == EPrimarySlotType::Ring &&
+		Data->PrimaryRing != nullptr)
+	{
+		Sources.Add(EInfusionSourceOption::PrimaryRing);
+	}
+
 	// Weapon Crystal (any class, if non-Ilodite)
 	if (!HasIoliteEquipped(Actor) && GetInfusionSource(Actor) == EInfusionSource::Crystal)
 	{
@@ -2679,6 +2687,7 @@ EInfusionSource UActionExecutor::MapSourceOptionToSource(EInfusionSourceOption O
 	case EInfusionSourceOption::Innate:
 		return EInfusionSource::Innate;
 	case EInfusionSourceOption::ActiveRing:
+	case EInfusionSourceOption::PrimaryRing:
 		return EInfusionSource::Ring;
 	case EInfusionSourceOption::WeaponCrystal:
 		return EInfusionSource::Crystal;
@@ -2718,6 +2727,15 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	{
 		URingManager *RM = GetRingManager();
 		return RM ? RM->GetActiveElement(Actor) : ESpellElement::Generic;
+	}
+
+	case EInfusionSourceOption::PrimaryRing:
+	{
+		if (Data->PrimaryRing)
+		{
+			return Data->PrimaryRing->GetRingElement();
+		}
+		return ESpellElement::Generic;
 	}
 
 	case EInfusionSourceOption::WeaponCrystal:

@@ -128,7 +128,17 @@ UWeaponData *UCharacterData::GetActiveWeapon() const
         return nullptr;
     }
 
-    // Generic uses bUsePrimary to determine active weapon
+    // Generic with Ring/Evolution primary - weapon from secondary only
+    if (IsGeneric() && PrimarySlotType != EPrimarySlotType::Weapon)
+    {
+        if (SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return SecondaryWeapon;
+        }
+        return nullptr;
+    }
+
+    // Generic with Weapon primary - use bUsePrimary toggle
     if (IsGeneric() && !IsEvolved())
     {
         if (bUsePrimary)
@@ -141,7 +151,7 @@ UWeaponData *UCharacterData::GetActiveWeapon() const
         }
     }
 
-    // Default to primary weapon
+    // Default to primary weapon (Caster/Resonator with weapon primary)
     return PrimaryWeapon;
 }
 
