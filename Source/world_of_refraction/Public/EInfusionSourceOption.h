@@ -69,8 +69,6 @@ namespace InfusionSourceOptionHelpers
             return TEXT("Innate");
         case EInfusionSourceOption::ActiveRing:
             return TEXT("Ring");
-        case EInfusionSourceOption::SecondaryRing:
-            return TEXT("Secondary Ring");
         case EInfusionSourceOption::WeaponCrystal:
             return TEXT("Crystal");
         case EInfusionSourceOption::Evolution:

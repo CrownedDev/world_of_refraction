@@ -9,32 +9,27 @@
 #include "WeaponAttackData.h"
 #include "ItemData.h"
 #include "StatConstants.h"
+#include "LoadoutConstants.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
 
 ESpellElement UCharacterData::GetSecondaryElement() const
 {
-    return (bIsEvolved && ActiveEvolution && ActiveEvolution->GrantsEvolution())
-               ? ActiveEvolution->GetAssociatedElement()
+    return (PrimarySlotType == EPrimarySlotType::Evolution && PrimaryEvolution && PrimaryEvolution->GrantsEvolution())
+               ? PrimaryEvolution->GetAssociatedElement()
                : ESpellElement::Generic;
 }
-
 bool UCharacterData::HasSecondaryElement() const
 {
-    return bIsEvolved && GetSecondaryElement() != ESpellElement::Generic;
+    return IsEvolved() && GetSecondaryElement() != ESpellElement::Generic;
 }
 
 bool UCharacterData::IsDualElementCaster() const
 {
-    return IsCaster() && bIsEvolved && ActiveEvolution &&
-           ActiveEvolution->GrantsEvolution() &&
-           ActiveEvolution->GetAssociatedElement() != InnateElement;
-}
-
-bool UCharacterData::IsEvolved() const
-{
-    return bIsEvolved && ActiveEvolution != nullptr && ActiveEvolution->GrantsEvolution();
+    return IsCaster() && IsEvolved() && PrimaryEvolution &&
+           PrimaryEvolution->GrantsEvolution() &&
+           PrimaryEvolution->GetAssociatedElement() != InnateElement;
 }
 
 TArray<USpellData *> UCharacterData::GetCombatSpells() const
@@ -48,12 +43,21 @@ TArray<USpellData *> UCharacterData::GetCombatSpells() const
     }
 
     // If evolved, also add evolution spells
-    if (IsEvolved() && ActiveEvolution)
+    if (IsEvolved() && PrimaryEvolution)
     {
-        CombatSpells.Append(ActiveEvolution->GetSpells());
+        CombatSpells.Append(PrimaryEvolution->GetSpells());
     }
 
     return CombatSpells;
+}
+
+UItemData *UCharacterData::GetPrimaryEvolution() const
+{
+    if (PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        return PrimaryEvolution;
+    }
+    return nullptr;
 }
 
 bool UCharacterData::HasWeaponAccess() const
@@ -342,10 +346,6 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         {
             Context.AddWarning(FText::FromString(TEXT("Secondary slot set to Weapon but no weapon assigned")));
         }
-        if (SecondarySlotType == ESecondarySlotType::Ring && !SecondaryRing)
-        {
-            Context.AddWarning(FText::FromString(TEXT("Secondary slot set to Ring but no ring assigned")));
-        }
         if (InnateSpells.Num() > 0)
         {
             Context.AddError(FText::FromString(TEXT("Generic characters cannot have innate spells")));
@@ -353,7 +353,7 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         }
         if (EquippedRings.Num() > 0)
         {
-            Context.AddError(FText::FromString(TEXT("Generic characters use SecondaryRing, not EquippedRings")));
+            Context.AddError(FText::FromString(TEXT("Generic characters cannot use EquippedRings")));
             Result = EDataValidationResult::Invalid;
         }
         break;
@@ -380,13 +380,21 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         {
             Context.AddWarning(FText::FromString(TEXT("Resonator has no rings equipped")));
         }
-        if (EquippedRings.Num() > 5)
+        // Ring limits depend on evolution state
         {
-            Context.AddError(FText::FromString(TEXT("Resonator can only equip 5 rings")));
-            Result = EDataValidationResult::Invalid;
-        }
-        // Count evolved rings (max 2)
-        {
+            const bool bIsCharEvolved = (PrimarySlotType == EPrimarySlotType::Evolution);
+            const int32 MaxRings = bIsCharEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
+                                                  : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
+            const int32 MaxEvolvedRings = bIsCharEvolved ? LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_EVOLVED
+                                                         : LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_NORMAL;
+
+            if (EquippedRings.Num() > MaxRings)
+            {
+                Context.AddError(FText::FromString(FString::Printf(
+                    TEXT("Resonator can only equip %d rings (current: %d)"), MaxRings, EquippedRings.Num())));
+                Result = EDataValidationResult::Invalid;
+            }
+
             int32 EvolvedRingCount = 0;
             for (URingData *Ring : EquippedRings)
             {
@@ -395,9 +403,10 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
                     EvolvedRingCount++;
                 }
             }
-            if (EvolvedRingCount > 2)
+            if (EvolvedRingCount > MaxEvolvedRings)
             {
-                Context.AddError(FText::FromString(TEXT("Resonator can only equip 2 evolved rings")));
+                Context.AddError(FText::FromString(FString::Printf(
+                    TEXT("Resonator can only equip %d evolved rings (current: %d)"), MaxEvolvedRings, EvolvedRingCount)));
                 Result = EDataValidationResult::Invalid;
             }
         }
@@ -421,9 +430,9 @@ void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
     Super::PostEditChangeProperty(PropertyChangedEvent);
 
     // Update evolution element display
-    if (bIsEvolved && ActiveEvolution)
+    if (PrimarySlotType == EPrimarySlotType::Evolution && PrimaryEvolution)
     {
-        EvolutionElementDisplay = UEnum::GetValueAsString(ActiveEvolution->GetAssociatedElement());
+        EvolutionElementDisplay = UEnum::GetValueAsString(PrimaryEvolution->GetAssociatedElement());
         EvolutionElementDisplay.RemoveFromStart(TEXT("ESpellElement::"));
     }
     else

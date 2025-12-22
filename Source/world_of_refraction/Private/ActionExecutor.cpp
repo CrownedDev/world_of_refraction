@@ -2720,15 +2720,6 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		return RM ? RM->GetActiveElement(Actor) : ESpellElement::Generic;
 	}
 
-	case EInfusionSourceOption::SecondaryRing:
-	{
-		if (Data->IsGeneric() && Data->SecondaryRing)
-		{
-			return Data->SecondaryRing->GetRingElement();
-		}
-		return ESpellElement::Generic;
-	}
-
 	case EInfusionSourceOption::WeaponCrystal:
 	{
 		UWeaponManager *WM = GetWeaponManager();

@@ -289,8 +289,6 @@ EInfusionSourceOption ACombatPlayerController::GetNextSource(EInfusionSourceOpti
     case EInfusionSourceOption::Innate:
         return EInfusionSourceOption::ActiveRing;
     case EInfusionSourceOption::ActiveRing:
-        return EInfusionSourceOption::SecondaryRing;
-    case EInfusionSourceOption::SecondaryRing:
         return EInfusionSourceOption::WeaponCrystal;
     case EInfusionSourceOption::WeaponCrystal:
         return EInfusionSourceOption::Evolution;

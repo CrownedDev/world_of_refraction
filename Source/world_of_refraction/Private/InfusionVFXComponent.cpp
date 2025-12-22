@@ -511,8 +511,6 @@ FString UInfusionVFXComponent::GetCurrentSourceName() const
         return TEXT("Innate");
     case EInfusionSourceOption::ActiveRing:
         return TEXT("Active Ring");
-    case EInfusionSourceOption::SecondaryRing:
-        return TEXT("Secondary Ring");
     case EInfusionSourceOption::WeaponCrystal:
         return TEXT("Weapon Crystal");
     case EInfusionSourceOption::Evolution:

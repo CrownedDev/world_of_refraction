@@ -139,13 +139,13 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
 
         // Add to primary weapon or ring depending on class
-        if (!Loadout.bPrimaryIsRing && Loadout.PrimaryWeapon.IsValid())
+        if (!Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
         {
             Loadout.PrimaryWeapon.AssignedSpells.Add(Spell);
             SpellsAdded++;
             UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to weapon"), *Spell->SpellName);
         }
-        else if (Loadout.bPrimaryIsRing && Loadout.PrimaryRing.IsValid())
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
         {
             Loadout.PrimaryRing.AssignedSpells.Add(Spell);
             SpellsAdded++;
@@ -175,7 +175,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
 
         // Add to primary weapon
-        if (!Loadout.bPrimaryIsRing && Loadout.PrimaryWeapon.IsValid())
+        if (!Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
         {
             Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
             AbilitiesAdded++;
@@ -342,7 +342,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     const FCombatLoadout &Loadout = SavedLoadouts[Index];
 
     // Validate primary weapon
-    if (!Loadout.bPrimaryIsRing && Loadout.PrimaryWeapon.IsValid())
+    if (!Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
     {
         // Check weapon is owned
         bool bFound = false;
@@ -837,7 +837,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasActiveEvolution: %s"),
                CharacterData->InnateSpells.Num(),
                CharacterData->IsEvolved() ? TEXT("YES") : TEXT("NO"),
-               CharacterData->ActiveEvolution ? TEXT("YES") : TEXT("NO"));
+               CharacterData->PrimaryEvolution ? TEXT("YES") : TEXT("NO"));
         // Caster innate spells go into InnateSpells
         for (USpellData *Spell : CharacterData->InnateSpells)
         {
@@ -848,9 +848,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         }
 
         // Copy evolution spells if caster is evolved
-        if (CharacterData->IsEvolved() && CharacterData->ActiveEvolution)
+        if (CharacterData->IsEvolved() && CharacterData->PrimaryEvolution)
         {
-            for (USpellData *Spell : CharacterData->ActiveEvolution->GetSpells())
+            for (USpellData *Spell : CharacterData->PrimaryEvolution->GetSpells())
             {
                 if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
                 {
