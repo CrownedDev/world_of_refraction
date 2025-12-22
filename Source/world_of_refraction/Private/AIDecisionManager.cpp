@@ -723,31 +723,69 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         return false;
     }
 
-    float HPPercent = GetHPPercent(AIActor);
+    UCharacterDataComponent *CharComp = AIActor->FindComponentByClass<UCharacterDataComponent>();
+    if (!CharComp || !CharComp->CharacterData)
+    {
+        return false;
+    }
 
-    // Low HP threshold based on difficulty
+    float HPPercent = static_cast<float>(CharComp->CurrentHP) / CharComp->CharacterData->CalculateMaxHealth();
+    int32 CurrentEnergy = CharComp->CurrentEP;
+    int32 MaxEnergy = CharComp->CharacterData->CalculateMaxEnergy();
+    float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
+
+    // HP threshold based on difficulty
     EAIDifficulty Difficulty = GetCurrentDifficulty();
     float HealThreshold = (Difficulty == EAIDifficulty::Hard || Difficulty == EAIDifficulty::Expert) ? 0.4f : 0.25f;
 
-    if (HPPercent > HealThreshold)
+    // Priority 1: Low HP - need healing
+    if (HPPercent <= HealThreshold)
     {
-        return false; // Not in danger
-    }
+        // Try healing spell first (if we have energy)
+        USpellData *HealSpell = FindHealingSpell(Loadout);
+        if (HealSpell && CurrentEnergy >= HealSpell->CalculateEnergyCost(CharComp->CharacterData))
+        {
+            OutAction.ActionType = EActionType::Spell;
+            OutAction.SpellData = HealSpell;
+            OutAction.Targets.Add(AIActor); // Self-target
+            OutAction.SpellSource = ESpellSource::Innate;
+            UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
+            return true;
+        }
 
-    // Try to find healing spell
-    USpellData *HealSpell = FindHealingSpell(Loadout);
-    if (HealSpell)
-    {
-        OutAction.ActionType = EActionType::Spell;
-        OutAction.SpellData = HealSpell;
-        OutAction.Targets.Add(AIActor);               // Self-target
-        OutAction.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
+        // Fallback: Use healing item (Sapphire)
+        UItemData *HealItem = FindHealingItem(Loadout);
+        if (HealItem)
+        {
+            OutAction.ActionType = EActionType::Item;
+            OutAction.ItemData = HealItem;
+            OutAction.Targets.Add(AIActor); // Self-target
+            UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing item (Sapphire)"));
+            return true;
+        }
+
+        // Last resort: Defend
+        OutAction.ActionType = EActionType::Defend;
+        UE_LOG(LogTemp, Log, TEXT("[AI Survival] No healing available - defending"));
         return true;
     }
 
-    // No healing available - defend as fallback
-    OutAction.ActionType = EActionType::Defend;
-    return true;
+    // Priority 2: Low energy - need energy restoration
+    if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD) // 30%
+    {
+        UItemData *EnergyItem = FindEnergyItem(Loadout);
+        if (EnergyItem)
+        {
+            OutAction.ActionType = EActionType::Item;
+            OutAction.ItemData = EnergyItem;
+            OutAction.Targets.Add(AIActor); // Self-target
+            UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using energy item (Citrine)"));
+            return true;
+        }
+    }
+
+    // Not in danger
+    return false;
 }
 
 // ==================== CLEANSE BRANCH ====================
@@ -765,18 +803,138 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
         return false;
     }
 
-    // Try to find cleanse spell
+    UCharacterDataComponent *CharComp = AIActor->FindComponentByClass<UCharacterDataComponent>();
+    if (!CharComp)
+    {
+        return false;
+    }
+
+    int32 CurrentEnergy = CharComp->CurrentEP;
+
+    // Try cleanse spell first (if we have energy)
     USpellData *CleanseSpell = FindCleanseSpell(Loadout);
     if (CleanseSpell)
     {
-        OutAction.ActionType = EActionType::Spell;
-        OutAction.SpellData = CleanseSpell;
-        OutAction.Targets.Add(AIActor);               // Self-target
-        OutAction.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
+        int32 Cost = CleanseSpell->CalculateEnergyCost(CharComp->CharacterData);
+        if (CurrentEnergy >= Cost)
+        {
+            OutAction.ActionType = EActionType::Spell;
+            OutAction.SpellData = CleanseSpell;
+            OutAction.Targets.Add(AIActor); // Self-target
+            OutAction.SpellSource = ESpellSource::Innate;
+            UE_LOG(LogTemp, Log, TEXT("[AI Cleanse] Using cleanse spell"));
+            return true;
+        }
+    }
+
+    // Fallback: Use cleanse item (Iolite)
+    UItemData *CleanseItem = FindCleanseItem(Loadout);
+    if (CleanseItem)
+    {
+        OutAction.ActionType = EActionType::Item;
+        OutAction.ItemData = CleanseItem;
+        OutAction.Targets.Add(AIActor); // Self-target
+        UE_LOG(LogTemp, Log, TEXT("[AI Cleanse] Using cleanse item (Iolite)"));
         return true;
     }
 
+    // Can't cleanse - continue to offensive
     return false;
+}
+
+// ==================== ITEM DETECTION ====================
+
+UItemData *UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout)
+{
+    if (!Loadout)
+    {
+        return nullptr;
+    }
+
+    // Get all usable items from loadout
+    TArray<FItemLoadoutSlot> Items = Loadout->GetUsableItems();
+
+    for (const FItemLoadoutSlot &Slot : Items)
+    {
+        if (!Slot.Crystal)
+        {
+            continue;
+        }
+
+        // Check if it's a Sapphire (healing crystal)
+        if (Slot.Crystal->CrystalType == ECrystalType::Sapphire)
+        {
+            // Verify it has remaining uses
+            if (Slot.GetRemainingUses() > 0)
+            {
+                return Slot.Crystal;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+UItemData *UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout)
+{
+    if (!Loadout)
+    {
+        return nullptr;
+    }
+
+    // Get all usable items from loadout
+    TArray<FItemLoadoutSlot> Items = Loadout->GetUsableItems();
+
+    for (const FItemLoadoutSlot &Slot : Items)
+    {
+        if (!Slot.Crystal)
+        {
+            continue;
+        }
+
+        // Check if it's an Iolite (cleanse crystal)
+        if (Slot.Crystal->CrystalType == ECrystalType::Iolite)
+        {
+            // Verify it has remaining uses
+            if (Slot.GetRemainingUses() > 0)
+            {
+                return Slot.Crystal;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+UItemData *UAIDecisionManager::FindEnergyItem(ULoadoutComponent *Loadout)
+{
+    if (!Loadout)
+    {
+        return nullptr;
+    }
+
+    // Get all usable items from loadout
+    TArray<FItemLoadoutSlot> Items = Loadout->GetUsableItems();
+
+    for (const FItemLoadoutSlot &Slot : Items)
+    {
+        if (!Slot.Crystal)
+        {
+            continue;
+        }
+
+        // Check if it's a Citrine (energy crystal)
+        if (Slot.Crystal->CrystalType == ECrystalType::Citrine)
+        {
+            // Verify it has remaining uses
+            if (Slot.GetRemainingUses() > 0)
+            {
+                return Slot.Crystal;
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 // ==================== OFFENSIVE ACTION ====================
