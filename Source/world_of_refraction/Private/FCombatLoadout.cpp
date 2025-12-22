@@ -10,12 +10,10 @@
 #include "FAbilityCollection.h"
 #include "LoadoutData.h"
 
-// Forward declare - will be implemented in Phase 3
-// #include "InventoryComponent.h"
+// ==================== VALIDATION ====================
 
 bool FCombatLoadout::Validate(ECharacterClass CharClass, UInventoryComponent *Inventory) const
 {
-    // TODO: Implement full validation when InventoryComponent exists
     switch (CharClass)
     {
     case ECharacterClass::Generic:
@@ -31,21 +29,25 @@ bool FCombatLoadout::Validate(ECharacterClass CharClass, UInventoryComponent *In
 
 bool FCombatLoadout::ValidateGeneric(UInventoryComponent *Inventory) const
 {
-    // Generic: Primary weapon required, secondary is weapon OR ring
-    if (!PrimaryWeapon.IsValid())
+    // Generic: Must have valid primary (Weapon, Ring, or Evolution)
+    switch (PrimarySlotType)
     {
-        return false;
+    case EPrimarySlotType::Weapon:
+        if (!PrimaryWeapon.IsValid())
+            return false;
+        break;
+    case EPrimarySlotType::Ring:
+        if (!PrimaryRing.IsValid())
+            return false;
+        break;
+    case EPrimarySlotType::Evolution:
+        if (!PrimaryEvolution)
+            return false;
+        break;
     }
 
-    // Secondary must be one or the other, not both
-    bool bHasSecondaryWeapon = SecondaryWeapon.IsValid();
-    bool bHasSecondaryRing = SecondaryRing.IsValid();
-
-    if (bSecondaryIsRing && bHasSecondaryWeapon)
-    {
-        return false;
-    }
-    if (!bSecondaryIsRing && bHasSecondaryRing)
+    // Secondary is weapon only (if set)
+    if (SecondarySlotType == ESecondarySlotType::Weapon && !SecondaryWeapon.IsValid())
     {
         return false;
     }
@@ -56,17 +58,21 @@ bool FCombatLoadout::ValidateGeneric(UInventoryComponent *Inventory) const
 
 bool FCombatLoadout::ValidateCaster(UInventoryComponent *Inventory) const
 {
-    // Caster: Primary is weapon OR ring
-    bool bHasPrimaryWeapon = PrimaryWeapon.IsValid();
-    bool bHasPrimaryRing = PrimaryRing.IsValid();
-
-    if (bPrimaryIsRing && !bHasPrimaryRing)
+    // Caster: Must have valid primary (Weapon, Ring, or Evolution)
+    switch (PrimarySlotType)
     {
-        return false;
-    }
-    if (!bPrimaryIsRing && !bHasPrimaryWeapon)
-    {
-        return false;
+    case EPrimarySlotType::Weapon:
+        if (!PrimaryWeapon.IsValid())
+            return false;
+        break;
+    case EPrimarySlotType::Ring:
+        if (!PrimaryRing.IsValid())
+            return false;
+        break;
+    case EPrimarySlotType::Evolution:
+        if (!PrimaryEvolution)
+            return false;
+        break;
     }
 
     // Innate spells: max 6 per school
@@ -90,23 +96,48 @@ bool FCombatLoadout::ValidateCaster(UInventoryComponent *Inventory) const
 
 bool FCombatLoadout::ValidateResonator(UInventoryComponent *Inventory) const
 {
-    // Resonator: Primary weapon required, ring loadout
-    if (!PrimaryWeapon.IsValid())
+    // Resonator: Must have Weapon or Evolution primary (NOT Ring)
+    if (PrimarySlotType == EPrimarySlotType::Ring)
     {
         return false;
     }
 
-    // Ring loadout: max 5 rings, max 2 evolved
-    int32 TotalSlotCost = 0;
+    switch (PrimarySlotType)
+    {
+    case EPrimarySlotType::Weapon:
+        if (!PrimaryWeapon.IsValid())
+            return false;
+        break;
+    case EPrimarySlotType::Evolution:
+        if (!PrimaryEvolution)
+            return false;
+        break;
+    default:
+        return false;
+    }
+
+    // Ring loadout limits depend on evolution state
+    const bool bIsEvolved = (PrimarySlotType == EPrimarySlotType::Evolution);
+    const int32 MaxRings = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
+                                      : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
+    const int32 MaxEvolvedRings = bIsEvolved ? LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_EVOLVED
+                                             : LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_NORMAL;
+
+    if (RingLoadout.Num() > MaxRings)
+    {
+        return false;
+    }
+
+    int32 EvolvedCount = 0;
     for (const FRingLoadoutEntry &Entry : RingLoadout)
     {
-        if (Entry.IsValid())
+        if (Entry.IsValid() && Entry.RingEntry.IsEvolved())
         {
-            TotalSlotCost += InventoryConstants::GetRingSlotCost(Entry.IsEvolved());
+            EvolvedCount++;
         }
     }
 
-    if (TotalSlotCost > InventoryConstants::RESONATOR_RING_LOADOUT_SLOT_CAPACITY)
+    if (EvolvedCount > MaxEvolvedRings)
     {
         return false;
     }
@@ -115,69 +146,19 @@ bool FCombatLoadout::ValidateResonator(UInventoryComponent *Inventory) const
     return true;
 }
 
-TArray<USpellData *> FCombatLoadout::GetInnateSpellsBySchool(ESpellSchool School) const
-{
-    TArray<USpellData *> Result;
-
-    for (USpellData *Spell : InnateSpells)
-    {
-        if (Spell && Spell->School == School)
-        {
-            Result.Add(Spell);
-        }
-    }
-
-    return Result;
-}
+// ==================== ACCESSORS ====================
 
 int32 FCombatLoadout::GetInnateSpellCountForSchool(ESpellSchool School) const
 {
     int32 Count = 0;
-
-    for (USpellData *Spell : InnateSpells)
+    for (const USpellData *Spell : InnateSpells)
     {
         if (Spell && Spell->School == School)
         {
             Count++;
         }
     }
-
     return Count;
-}
-
-bool FCombatLoadout::ValidateInnateSpells(ESpellElement InnateElement, const FSpellCollection &OwnedSpells) const
-{
-    // Check school limits
-    for (int32 i = 0; i < static_cast<int32>(ESpellSchool::Conjuration) + 1; ++i)
-    {
-        if (GetInnateSpellCountForSchool(static_cast<ESpellSchool>(i)) > InventoryConstants::MAX_INNATE_SPELLS_PER_SCHOOL)
-        {
-            return false;
-        }
-    }
-
-    // Check each spell
-    for (USpellData *Spell : InnateSpells)
-    {
-        if (!Spell)
-        {
-            continue;
-        }
-
-        // Must be owned
-        if (!OwnedSpells.HasSpell(Spell))
-        {
-            return false;
-        }
-
-        // Must match innate element (unless universal)
-        if (!Spell->bIsUniversalSpell && Spell->Element != InnateElement)
-        {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 bool FCombatLoadout::HasDuplicateItemTypes() const
@@ -218,17 +199,20 @@ TArray<UAbilityData *> FCombatLoadout::GetAllAbilities() const
 {
     TArray<UAbilityData *> Result;
 
-    // Primary weapon abilities
-    if (PrimaryWeapon.IsValid())
+    // Primary weapon abilities (only if primary is weapon)
+    if (PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid())
     {
         Result.Append(PrimaryWeapon.GetAllAbilities());
     }
 
     // Secondary weapon abilities (Generic only)
-    if (!bSecondaryIsRing && SecondaryWeapon.IsValid())
+    if (SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
     {
         Result.Append(SecondaryWeapon.GetAllAbilities());
     }
+
+    // Note: Evolution abilities would come from PrimaryEvolution
+    // but abilities from evolution are handled separately
 
     return Result;
 }
@@ -237,32 +221,32 @@ TArray<USpellData *> FCombatLoadout::GetAllSpells() const
 {
     TArray<USpellData *> Result;
 
-    // Innate spells (Caster)
-    Result.Append(InnateSpells);
+    // Evolution spells
+    if (PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        Result.Append(EvolutionSpells);
+    }
 
     // Primary weapon spells
-    if (!bPrimaryIsRing && PrimaryWeapon.IsValid())
+    if (PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid())
     {
         Result.Append(PrimaryWeapon.GetAllSpells());
     }
 
     // Primary ring spells
-    if (bPrimaryIsRing && PrimaryRing.IsValid())
+    if (PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.IsValid())
     {
         Result.Append(PrimaryRing.GetAllSpells());
     }
 
-    // Secondary weapon spells (Generic)
-    if (!bSecondaryIsRing && SecondaryWeapon.IsValid())
+    // Secondary weapon spells (Generic only)
+    if (SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid())
     {
         Result.Append(SecondaryWeapon.GetAllSpells());
     }
 
-    // Secondary ring spells (Generic)
-    if (bSecondaryIsRing && SecondaryRing.IsValid())
-    {
-        Result.Append(SecondaryRing.GetAllSpells());
-    }
+    // Innate spells (Caster)
+    Result.Append(InnateSpells);
 
     // Ring loadout spells (Resonator)
     for (const FRingLoadoutEntry &Entry : RingLoadout)
@@ -291,21 +275,27 @@ TArray<FItemLoadoutSlot> FCombatLoadout::GetUsableItemSlots() const
     return Result;
 }
 
+// ==================== HELPERS ====================
+
 void FCombatLoadout::Clear()
 {
     LoadoutName = TEXT("Default Loadout");
 
+    PrimarySlotType = EPrimarySlotType::Weapon;
     PrimaryWeapon.Clear();
     PrimaryRing.Clear();
-    bPrimaryIsRing = false;
+    PrimaryEvolution = nullptr;
+    EvolutionSpells.Empty();
 
+    SecondarySlotType = ESecondarySlotType::None;
     SecondaryWeapon.Clear();
-    SecondaryRing.Clear();
-    bSecondaryIsRing = false;
 
     RingLoadout.Empty();
     InnateSpells.Empty();
     ItemSlots.Empty();
+
+    bUsingPrimary = true;
+    ActiveRingIndex = 0;
 }
 
 void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
@@ -315,20 +305,20 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
     switch (CharClass)
     {
     case ECharacterClass::Generic:
-        // Generic: Primary weapon, optional secondary
-        bPrimaryIsRing = false;
-        bSecondaryIsRing = false;
+        // Generic: Primary weapon/ring/evolution, optional secondary weapon
+        PrimarySlotType = EPrimarySlotType::Weapon;
+        SecondarySlotType = ESecondarySlotType::None;
         break;
 
     case ECharacterClass::Caster:
-        // Caster: Primary weapon by default, innate spells
-        bPrimaryIsRing = false;
+        // Caster: Primary weapon/ring/evolution, innate spells
+        PrimarySlotType = EPrimarySlotType::Weapon;
         InnateSpells.SetNum(0); // Empty, to be filled
         break;
 
     case ECharacterClass::Resonator:
-        // Resonator: Primary weapon, ring loadout
-        bPrimaryIsRing = false;
+        // Resonator: Primary weapon/evolution, ring loadout
+        PrimarySlotType = EPrimarySlotType::Weapon;
         RingLoadout.SetNum(0); // Empty, to be filled
         break;
     }
@@ -341,6 +331,16 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
     }
 }
 
+void FCombatLoadout::ResetForBattle()
+{
+    for (FItemLoadoutSlot &Slot : ItemSlots)
+    {
+        Slot.ResetForBattle();
+    }
+}
+
+// ==================== FACTORY ====================
+
 FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
 {
     FCombatLoadout Result;
@@ -352,31 +352,13 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     }
 
     Result.LoadoutName = Asset->LoadoutName;
+    Result.PrimarySlotType = Asset->PrimarySlotType;
 
     // ==================== PRIMARY EQUIPMENT ====================
 
-    // Handle Caster primary slot type (weapon vs ring)
-    if (Asset->RequiredClass == ECharacterClass::Caster)
+    switch (Asset->PrimarySlotType)
     {
-        Result.bPrimaryIsRing = (Asset->PrimarySlotType == EPrimarySlotType::Ring);
-
-        if (Result.bPrimaryIsRing && Asset->PrimaryRing)
-        {
-            Result.PrimaryRing.RingEntry.Ring = Asset->PrimaryRing;
-            Result.PrimaryRing.InitializeFromRing();
-        }
-        else if (!Result.bPrimaryIsRing && Asset->PrimaryWeapon)
-        {
-            Result.PrimaryWeapon.WeaponEntry.Weapon = Asset->PrimaryWeapon;
-            Result.PrimaryWeapon.InitializeFromWeapon();
-            Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
-            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryWeaponSpells;
-        }
-    }
-    else
-    {
-        // Generic/Resonator always have weapon primary
-        Result.bPrimaryIsRing = false;
+    case EPrimarySlotType::Weapon:
         if (Asset->PrimaryWeapon)
         {
             Result.PrimaryWeapon.WeaponEntry.Weapon = Asset->PrimaryWeapon;
@@ -384,13 +366,28 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
             Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryWeaponSpells;
         }
+        break;
+
+    case EPrimarySlotType::Ring:
+        if (Asset->PrimaryRing)
+        {
+            Result.PrimaryRing.RingEntry.Ring = Asset->PrimaryRing;
+            Result.PrimaryRing.InitializeFromRing();
+            Result.PrimaryRing.AssignedSpells = Asset->PrimaryRingSpells;
+        }
+        break;
+
+    case EPrimarySlotType::Evolution:
+        Result.PrimaryEvolution = Asset->PrimaryEvolution;
+        Result.EvolutionSpells = Asset->EvolutionSpells;
+        break;
     }
 
     // ==================== SECONDARY EQUIPMENT (Generic only) ====================
 
     if (Asset->RequiredClass == ECharacterClass::Generic)
     {
-        Result.bSecondaryIsRing = (Asset->SecondarySlotType == ESecondarySlotType::Ring);
+        Result.SecondarySlotType = Asset->SecondarySlotType;
 
         if (Asset->SecondarySlotType == ESecondarySlotType::Weapon && Asset->SecondaryWeapon)
         {
@@ -398,11 +395,6 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = Asset->SecondaryWeaponAbilities;
             Result.SecondaryWeapon.AssignedSpells = Asset->SecondaryWeaponSpells;
-        }
-        else if (Asset->SecondarySlotType == ESecondarySlotType::Ring && Asset->SecondaryRing)
-        {
-            Result.SecondaryRing.RingEntry.Ring = Asset->SecondaryRing;
-            Result.SecondaryRing.InitializeFromRing();
         }
     }
 
@@ -441,7 +433,8 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
         }
     }
 
-    UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s'"), *Asset->LoadoutName);
+    UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s' (PrimarySlotType: %d)"),
+           *Asset->LoadoutName, static_cast<int32>(Asset->PrimarySlotType));
 
     return Result;
 }

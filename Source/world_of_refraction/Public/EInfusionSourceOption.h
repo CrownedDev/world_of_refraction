@@ -34,9 +34,6 @@ enum class EInfusionSourceOption : uint8
     /** Resonator's currently equipped ring - L2 risks ring break */
     ActiveRing UMETA(DisplayName = "Active Ring"),
 
-    /** Generic's secondary ring - L2 risks ring break, no weapon stats */
-    SecondaryRing UMETA(DisplayName = "Secondary Ring"),
-
     /** Weapon's slotted crystal element - L2 risks crystal break */
     WeaponCrystal UMETA(DisplayName = "Weapon Crystal"),
 

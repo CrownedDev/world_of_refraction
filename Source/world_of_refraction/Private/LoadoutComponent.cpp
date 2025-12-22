@@ -378,8 +378,8 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         }
     }
 
-    // Validate primary ring (Caster)
-    if (Loadout.bPrimaryIsRing && Loadout.PrimaryRing.IsValid())
+    // Validate primary ring (Generic/Caster)
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
     {
         bool bFound = false;
         for (const FRingInventoryEntry &Entry : Inventory->Rings)
@@ -396,10 +396,27 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         }
     }
 
+    // Validate primary evolution
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution)
+    {
+        // Evolution validation - check if character owns this evolution crystal
+        if (!Inventory->HasItem(Loadout.PrimaryEvolution))
+        {
+            Errors.Add(TEXT("Primary evolution crystal not in inventory"));
+        }
+
+        // Validate evolution spells count
+        if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+        {
+            Errors.Add(FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
+                                       Loadout.EvolutionSpells.Num(), LoadoutConstants::MAX_EVOLUTION_SPELLS));
+        }
+    }
+
     // Validate secondary (Generic)
     if (CharacterClass == ECharacterClass::Generic)
     {
-        if (!Loadout.bSecondaryIsRing && Loadout.SecondaryWeapon.IsValid())
+        if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
         {
             bool bFound = false;
             for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
@@ -413,23 +430,6 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             if (!bFound)
             {
                 Errors.Add(TEXT("Secondary weapon not in inventory"));
-            }
-        }
-
-        if (Loadout.bSecondaryIsRing && Loadout.SecondaryRing.IsValid())
-        {
-            bool bFound = false;
-            for (const FRingInventoryEntry &Entry : Inventory->Rings)
-            {
-                if (Entry.Ring == Loadout.SecondaryRing.RingEntry.Ring)
-                {
-                    bFound = true;
-                    break;
-                }
-            }
-            if (!bFound)
-            {
-                Errors.Add(TEXT("Secondary ring not in inventory"));
             }
         }
     }
@@ -461,7 +461,16 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             }
         }
 
-        if (TotalSlotCost > InventoryConstants::RESONATOR_RING_LOADOUT_SLOT_CAPACITY)
+        // Ring limits depend on evolution state
+        const bool bIsEvolved = (Loadout.PrimarySlotType == EPrimarySlotType::Evolution);
+        const int32 MaxSlots = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
+                                          : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
+
+        if (TotalSlotCost > MaxSlots)
+        {
+            Errors.Add(FString::Printf(TEXT("Ring loadout exceeds slot capacity (%d/%d slots)"),
+                                       TotalSlotCost, MaxSlots));
+        }
         {
             Errors.Add(FString::Printf(TEXT("Ring loadout exceeds slot capacity (%d/%d slots)"),
                                        TotalSlotCost, InventoryConstants::RESONATOR_RING_LOADOUT_SLOT_CAPACITY));

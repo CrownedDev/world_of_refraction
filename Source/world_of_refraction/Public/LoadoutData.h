@@ -7,6 +7,12 @@
 // - Templates: Pre-made builds for new players / quick-start
 //
 // At combat start, LoadoutComponent copies this asset into FCombatLoadout
+//
+// CLASS RULES:
+// - Generic: Primary (Weapon/Ring/Evolution) + Secondary (Weapon only)
+// - Caster: Primary (Weapon/Ring/Evolution) + Innate spells
+// - Resonator (normal): Weapon + 5 ring loadout (max 2 evolved)
+// - Resonator (evolved): Evolution + 3 ring loadout (max 1 evolved)
 
 #pragma once
 
@@ -35,9 +41,9 @@ class UAnimMontage;
  * - Quick-start: Pre-made builds for new players
  *
  * Class-specific rules:
- * - Generic: Primary weapon + Secondary (weapon OR ring)
- * - Caster: Primary (weapon OR ring) + 24 innate spells
- * - Resonator: Primary weapon + 5 ring loadout (max 2 evolved)
+ * - Generic: Primary (Weapon/Ring/Evolution) + Secondary (Weapon only)
+ * - Caster: Primary (Weapon/Ring/Evolution) + 24 innate spells
+ * - Resonator: Primary (Weapon/Evolution) + ring loadout (5 normal, 3 if evolved)
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API ULoadoutData : public UPrimaryDataAsset
@@ -61,24 +67,28 @@ public:
 
     // ==================== PRIMARY EQUIPMENT ====================
 
-    /** Primary slot type - Caster only chooses between Weapon/Ring */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
+    /** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary")
     EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
 
-    /** Primary weapon (Generic/Resonator always, Caster if PrimarySlotType == Weapon) */
+    /** Primary weapon (when PrimarySlotType == Weapon) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
-              meta = (EditCondition = "RequiredClass != ECharacterClass::Caster || PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     UWeaponData *PrimaryWeapon = nullptr;
 
-    /** Primary ring (Caster only, when PrimarySlotType == Ring) */
+    /** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
+              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
     URingData *PrimaryRing = nullptr;
+
+    /** Primary evolution crystal (when PrimarySlotType == Evolution) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
+    UItemData *PrimaryEvolution = nullptr;
 
     // ==================== SECONDARY EQUIPMENT (Generic only) ====================
 
-    /** Secondary slot type (Generic only) */
+    /** Secondary slot type (Generic only - None or Weapon) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Secondary",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic", EditConditionHides))
     ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
@@ -88,14 +98,9 @@ public:
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     UWeaponData *SecondaryWeapon = nullptr;
 
-    /** Secondary ring (Generic only, when SecondarySlotType == Ring) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Secondary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
-    URingData *SecondaryRing = nullptr;
-
     // ==================== RESONATOR RINGS ====================
 
-    /** Equipped rings (Resonator only - up to 5, max 2 evolved) */
+    /** Equipped rings (Resonator only - 5 normal, 3 if evolved) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Rings",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
     TArray<URingData *> EquippedRings;
@@ -107,21 +112,28 @@ public:
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
     TArray<USpellData *> InnateSpells;
 
+    // ==================== EVOLUTION CONFIGURATION ====================
+
+    /** Spells selected from evolution crystal (max 6) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
+    TArray<USpellData *> EvolutionSpells;
+
     // ==================== PRIMARY WEAPON CONFIGURATION ====================
 
     /** Abilities assigned to primary weapon (max 6) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Primary",
-              meta = (EditCondition = "RequiredClass != ECharacterClass::Caster || PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponAbilities;
 
     /** Spells assigned to primary weapon crystal (max 6) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Primary",
-              meta = (EditCondition = "RequiredClass != ECharacterClass::Caster || PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<USpellData *> PrimaryWeaponSpells;
 
     /** Override primary weapon stance (nullptr = use weapon default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Primary",
-              meta = (EditCondition = "RequiredClass != ECharacterClass::Caster || PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     UStanceData *PrimaryWeaponStanceOverride = nullptr;
 
     // ==================== SECONDARY WEAPON CONFIGURATION (Generic only) ====================
@@ -141,19 +153,12 @@ public:
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     UStanceData *SecondaryWeaponStanceOverride = nullptr;
 
-    // ==================== PRIMARY RING CONFIGURATION (Caster only) ====================
+    // ==================== PRIMARY RING CONFIGURATION ====================
 
-    /** Spells assigned to primary ring (Caster only, max 6) */
+    /** Spells assigned to primary ring (max 6) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring|Primary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
+              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
     TArray<USpellData *> PrimaryRingSpells;
-
-    // ==================== SECONDARY RING CONFIGURATION (Generic only) ====================
-
-    /** Spells assigned to secondary ring (Generic only, max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring|Secondary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
-    TArray<USpellData *> SecondaryRingSpells;
 
     // ==================== ITEMS ====================
 
@@ -213,13 +218,21 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout")
     TArray<UAbilityData *> GetAllAbilities() const;
 
-    /** Get primary weapon (nullptr if using ring) */
+    /** Get primary weapon (nullptr if using ring or evolution) */
     UFUNCTION(BlueprintPure, Category = "Loadout")
     UWeaponData *GetPrimaryWeapon() const;
 
-    /** Get primary ring (nullptr if using weapon or not Caster) */
+    /** Get primary ring (nullptr if using weapon or evolution) */
     UFUNCTION(BlueprintPure, Category = "Loadout")
     URingData *GetPrimaryRing() const;
+
+    /** Get primary evolution (nullptr if using weapon or ring) */
+    UFUNCTION(BlueprintPure, Category = "Loadout")
+    UItemData *GetPrimaryEvolution() const;
+
+    /** Check if this loadout uses evolution */
+    UFUNCTION(BlueprintPure, Category = "Loadout")
+    bool IsEvolutionLoadout() const { return PrimarySlotType == EPrimarySlotType::Evolution; }
 
     // ==================== EDITOR ====================
 

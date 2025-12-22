@@ -15,4 +15,12 @@ namespace LoadoutConstants
     // Weapons
     constexpr int32 MAX_WEAPONS_GENERIC = 2;
     constexpr int32 MAX_WEAPONS_ELEMENTAL = 1;
+
+    constexpr int32 RESONATOR_RING_SLOTS_NORMAL = 5;
+    constexpr int32 RESONATOR_RING_SLOTS_EVOLVED = 3;
+    constexpr int32 RESONATOR_MAX_EVOLVED_RINGS_NORMAL = 2;
+    constexpr int32 RESONATOR_MAX_EVOLVED_RINGS_EVOLVED = 1;
+
+    // Evolution
+    constexpr int32 MAX_EVOLUTION_SPELLS = 6;
 }

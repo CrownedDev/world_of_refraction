@@ -2625,12 +2625,6 @@ EInfusionSource UActionExecutor::GetInfusionSource(AActor *Actor) const
 		}
 	}
 
-	// 4. Generic with secondary ring
-	if (Data->IsGeneric() && Data->HasRingInSecondary())
-	{
-		return EInfusionSource::Ring;
-	}
-
 	// 4. No element source
 	return EInfusionSource::None;
 }
@@ -2661,12 +2655,6 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 		}
 	}
 
-	// Secondary Ring (Generic only)
-	if (Data->IsGeneric() && Data->HasRingInSecondary())
-	{
-		Sources.Add(EInfusionSourceOption::SecondaryRing);
-	}
-
 	// Weapon Crystal (any class, if non-Ilodite)
 	if (!HasIoliteEquipped(Actor) && GetInfusionSource(Actor) == EInfusionSource::Crystal)
 	{
@@ -2691,7 +2679,6 @@ EInfusionSource UActionExecutor::MapSourceOptionToSource(EInfusionSourceOption O
 	case EInfusionSourceOption::Innate:
 		return EInfusionSource::Innate;
 	case EInfusionSourceOption::ActiveRing:
-	case EInfusionSourceOption::SecondaryRing:
 		return EInfusionSource::Ring;
 	case EInfusionSourceOption::WeaponCrystal:
 		return EInfusionSource::Crystal;

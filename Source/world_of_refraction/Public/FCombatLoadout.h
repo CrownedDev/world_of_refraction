@@ -5,6 +5,11 @@
 // This is what gets SAVED as a loadout configuration.
 // Player can have multiple saved loadouts and switch between them.
 // At battle start, active loadout is loaded into LoadoutComponent for runtime tracking.
+//
+// CLASS RULES:
+// - Generic: Primary (Weapon/Ring/Evolution) + Secondary (Weapon only)
+// - Caster: Primary (Weapon/Ring/Evolution) + Innate spells
+// - Resonator: Primary (Weapon/Evolution) + Ring loadout (5 normal, 3 evolved)
 
 #pragma once
 
@@ -12,6 +17,7 @@
 #include "InventoryConstants.h"
 #include "LoadoutConstants.h"
 #include "ECharacterClass.h"
+#include "EWeaponSlotType.h"
 #include "SpellSchool.h"
 #include "FWeaponLoadoutEntry.h"
 #include "FRingLoadoutEntry.h"
@@ -19,17 +25,19 @@
 #include "FCombatLoadout.generated.h"
 
 class USpellData;
+class UAbilityData;
 class UInventoryComponent;
 class ULoadoutData;
+class UItemData;
 
 /**
  * FCombatLoadout
  * Complete loadout configuration for combat
  *
  * Class-specific rules:
- * - Generic: Primary weapon + Secondary (weapon OR ring)
- * - Caster: Primary (weapon OR ring) + 24 innate spells
- * - Resonator: Primary weapon + 5 ring loadout
+ * - Generic: Primary (Weapon/Ring/Evolution) + Secondary (Weapon only)
+ * - Caster: Primary (Weapon/Ring/Evolution) + 24 innate spells
+ * - Resonator: Primary (Weapon/Evolution) + ring loadout
  */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FCombatLoadout
@@ -47,99 +55,114 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     // ==================== PRIMARY EQUIPMENT ====================
 
-    /** Primary weapon (Generic/Resonator always, Caster if chose weapon) */
+    /** Primary slot type (Weapon/Ring/Evolution) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
+    EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
+
+    /** Primary weapon (when PrimarySlotType == Weapon) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
     FWeaponLoadoutEntry PrimaryWeapon;
 
-    /** Primary ring (Caster only, if chose ring over weapon) */
+    /** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
     FRingLoadoutEntry PrimaryRing;
 
-    /** Is primary slot a ring? (Caster only) */
+    /** Primary evolution crystal (when PrimarySlotType == Evolution) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
-    bool bPrimaryIsRing = false;
+    UItemData *PrimaryEvolution = nullptr;
+
+    /** Spells selected from evolution (max 6) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
+    TArray<USpellData *> EvolutionSpells;
 
     // ==================== SECONDARY EQUIPMENT (Generic only) ====================
 
-    /** Secondary weapon (Generic only, if chose weapon) */
+    /** Secondary slot type (None or Weapon - Ring removed) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Secondary")
+    ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
+
+    /** Secondary weapon (Generic only) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Secondary")
     FWeaponLoadoutEntry SecondaryWeapon;
 
-    /** Secondary ring (Generic only, if chose ring) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Secondary")
-    FRingLoadoutEntry SecondaryRing;
+    // ==================== RESONATOR RINGS ====================
 
-    /** Is secondary slot a ring? (Generic only) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Secondary")
-    bool bSecondaryIsRing = false;
-
-    // ==================== RING LOADOUT (Resonator only) ====================
-
-    /** Equipped rings (Resonator only, max 5, max 2 evolved) */
+    /** Ring loadout (Resonator only - 5 normal, 3 if evolved) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Rings")
     TArray<FRingLoadoutEntry> RingLoadout;
 
     // ==================== CASTER INNATE SPELLS ====================
 
-    /** Innate spells for Caster (24 total, 6 per school, element-matched) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells|Innate")
+    /** Innate spells (Caster only - max 24) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
     TArray<USpellData *> InnateSpells;
 
     // ==================== ITEMS ====================
 
-    /** Item slots (max 6, no duplicate crystal types) */
+    /** Item slots (max 6, 3 uses each) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
     TArray<FItemLoadoutSlot> ItemSlots;
 
+    // ==================== RUNTIME STATE ====================
+
+    /** Currently using primary weapon? (vs secondary for Generic) */
+    UPROPERTY(BlueprintReadWrite, Category = "Runtime")
+    bool bUsingPrimary = true;
+
+    /** Active ring index for Resonator */
+    UPROPERTY(BlueprintReadWrite, Category = "Runtime")
+    int32 ActiveRingIndex = 0;
+
     // ==================== VALIDATION ====================
 
-    /** Validate entire loadout for a character class */
+    /** Full validation against class rules and inventory */
     bool Validate(ECharacterClass CharClass, UInventoryComponent *Inventory) const;
 
-    /** Validate Generic loadout */
+    /** Class-specific validation */
     bool ValidateGeneric(UInventoryComponent *Inventory) const;
-
-    /** Validate Caster loadout */
     bool ValidateCaster(UInventoryComponent *Inventory) const;
-
-    /** Validate Resonator loadout */
     bool ValidateResonator(UInventoryComponent *Inventory) const;
 
-    // ==================== INNATE SPELL HELPERS ====================
+    // ==================== ACCESSORS ====================
 
-    /** Get innate spells by school */
-    TArray<USpellData *> GetInnateSpellsBySchool(ESpellSchool School) const;
-
-    /** Get innate spell count for school */
-    int32 GetInnateSpellCountForSchool(ESpellSchool School) const;
-
-    /** Check if innate spells are valid (max 6 per school) */
-    bool ValidateInnateSpells(ESpellElement InnateElement, const struct FSpellCollection &OwnedSpells) const;
-
-    // ==================== ITEM HELPERS ====================
-
-    /** Check for duplicate crystal types in items */
-    bool HasDuplicateItemTypes() const;
-
-    /** Get total item uses available */
-    int32 GetTotalItemUses() const;
-
-    // ==================== AGGREGATED ACCESS ====================
-
-    /** Get all available abilities from all equipment */
+    /** Get all abilities from this loadout */
     TArray<UAbilityData *> GetAllAbilities() const;
 
-    /** Get all available spells from all sources */
+    /** Get all spells from this loadout */
     TArray<USpellData *> GetAllSpells() const;
 
-    /** Get all usable item slots */
+    /** Get usable item slots (have remaining uses) */
     TArray<FItemLoadoutSlot> GetUsableItemSlots() const;
 
-    // ==================== INITIALIZATION ====================
+    /** Get total remaining item uses */
+    int32 GetTotalItemUses() const;
 
-    /** Clear entire loadout */
+    /** Check for duplicate item types */
+    bool HasDuplicateItemTypes() const;
+
+    /** Get innate spell count for a school */
+    int32 GetInnateSpellCountForSchool(ESpellSchool School) const;
+
+    // ==================== HELPERS ====================
+
+    /** Check if this loadout uses evolution */
+    bool IsEvolutionLoadout() const { return PrimarySlotType == EPrimarySlotType::Evolution; }
+
+    /** Check if primary is weapon */
+    bool HasPrimaryWeapon() const { return PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeapon.IsValid(); }
+
+    /** Check if primary is ring */
+    bool HasPrimaryRing() const { return PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing.IsValid(); }
+
+    /** Check if has secondary weapon */
+    bool HasSecondaryWeapon() const { return SecondarySlotType == ESecondarySlotType::Weapon && SecondaryWeapon.IsValid(); }
+
+    /** Clear all loadout data */
     void Clear();
 
-    /** Initialize for class with defaults */
+    /** Initialize empty loadout for a class */
     void InitializeForClass(ECharacterClass CharClass);
+
+    /** Reset item uses for battle start */
+    void ResetForBattle();
 };

@@ -21,24 +21,50 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
 {
     TArray<FString> Errors;
 
+    // ==================== PRIMARY SLOT VALIDATION (All Classes) ====================
+
+    switch (PrimarySlotType)
+    {
+    case EPrimarySlotType::Weapon:
+        if (!PrimaryWeapon)
+        {
+            Errors.Add(TEXT("Primary slot set to Weapon but no weapon assigned"));
+        }
+        break;
+
+    case EPrimarySlotType::Ring:
+        if (RequiredClass == ECharacterClass::Resonator)
+        {
+            Errors.Add(TEXT("Resonator cannot use Ring as primary slot"));
+        }
+        else if (!PrimaryRing)
+        {
+            Errors.Add(TEXT("Primary slot set to Ring but no ring assigned"));
+        }
+        break;
+
+    case EPrimarySlotType::Evolution:
+        if (!PrimaryEvolution)
+        {
+            Errors.Add(TEXT("Primary slot set to Evolution but no evolution crystal assigned"));
+        }
+        // Validate evolution spells limit
+        if (EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+        {
+            Errors.Add(FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
+                                       EvolutionSpells.Num(), LoadoutConstants::MAX_EVOLUTION_SPELLS));
+        }
+        break;
+    }
+
     // ==================== GENERIC VALIDATION ====================
 
     if (RequiredClass == ECharacterClass::Generic)
     {
-        // Generic must have primary weapon
-        if (!PrimaryWeapon)
-        {
-            Errors.Add(TEXT("Generic class requires a primary weapon"));
-        }
-
         // Validate secondary based on type
         if (SecondarySlotType == ESecondarySlotType::Weapon && !SecondaryWeapon)
         {
             Errors.Add(TEXT("Secondary slot set to Weapon but no weapon assigned"));
-        }
-        if (SecondarySlotType == ESecondarySlotType::Ring && !SecondaryRing)
-        {
-            Errors.Add(TEXT("Secondary slot set to Ring but no ring assigned"));
         }
 
         // Validate secondary weapon abilities/spells counts
@@ -61,16 +87,6 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
 
     if (RequiredClass == ECharacterClass::Caster)
     {
-        // Caster must have either weapon or ring
-        if (PrimarySlotType == EPrimarySlotType::Weapon && !PrimaryWeapon)
-        {
-            Errors.Add(TEXT("Caster with Weapon slot type requires a primary weapon"));
-        }
-        if (PrimarySlotType == EPrimarySlotType::Ring && !PrimaryRing)
-        {
-            Errors.Add(TEXT("Caster with Ring slot type requires a primary ring"));
-        }
-
         // Innate spells limit
         if (InnateSpells.Num() > InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
         {
@@ -86,16 +102,17 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
 
     if (RequiredClass == ECharacterClass::Resonator)
     {
-        // Resonator must have primary weapon
-        if (!PrimaryWeapon)
-        {
-            Errors.Add(TEXT("Resonator class requires a primary weapon"));
-        }
+        // Ring count limit depends on evolution state
+        const bool bIsEvolved = (PrimarySlotType == EPrimarySlotType::Evolution);
+        const int32 MaxRings = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
+                                          : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
+        const int32 MaxEvolvedRings = bIsEvolved ? LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_EVOLVED
+                                                 : LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_NORMAL;
 
-        // Ring count limit
-        if (EquippedRings.Num() > 5)
+        if (EquippedRings.Num() > MaxRings)
         {
-            Errors.Add(FString::Printf(TEXT("Too many equipped rings (%d/5)"), EquippedRings.Num()));
+            Errors.Add(FString::Printf(TEXT("Too many equipped rings (%d/%d)"),
+                                       EquippedRings.Num(), MaxRings));
         }
 
         // Evolved ring limit
@@ -107,27 +124,42 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
                 EvolvedCount++;
             }
         }
-        if (EvolvedCount > 2)
+        if (EvolvedCount > MaxEvolvedRings)
         {
-            Errors.Add(FString::Printf(TEXT("Too many evolved rings (%d/2)"), EvolvedCount));
+            Errors.Add(FString::Printf(TEXT("Too many evolved rings (%d/%d)"),
+                                       EvolvedCount, MaxEvolvedRings));
         }
     }
 
-    // ==================== COMMON VALIDATION ====================
+    // ==================== PRIMARY WEAPON VALIDATION ====================
 
-    // Primary weapon ability/spell limits
-    if (PrimaryWeaponAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
+    if (PrimarySlotType == EPrimarySlotType::Weapon)
     {
-        Errors.Add(FString::Printf(TEXT("Primary weapon has too many abilities (%d/%d)"),
-                                   PrimaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
-    }
-    if (PrimaryWeaponSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
-    {
-        Errors.Add(FString::Printf(TEXT("Primary weapon has too many spells (%d/%d)"),
-                                   PrimaryWeaponSpells.Num(), LoadoutConstants::MAX_SPELL_SLOTS));
+        if (PrimaryWeaponAbilities.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
+        {
+            Errors.Add(FString::Printf(TEXT("Primary weapon has too many abilities (%d/%d)"),
+                                       PrimaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
+        }
+        if (PrimaryWeaponSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
+        {
+            Errors.Add(FString::Printf(TEXT("Primary weapon has too many spells (%d/%d)"),
+                                       PrimaryWeaponSpells.Num(), LoadoutConstants::MAX_SPELL_SLOTS));
+        }
     }
 
-    // Item limit
+    // ==================== PRIMARY RING VALIDATION ====================
+
+    if (PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        if (PrimaryRingSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
+        {
+            Errors.Add(FString::Printf(TEXT("Primary ring has too many spells (%d/%d)"),
+                                       PrimaryRingSpells.Num(), LoadoutConstants::MAX_SPELL_SLOTS));
+        }
+    }
+
+    // ==================== ITEM VALIDATION ====================
+
     if (EquippedItems.Num() > InventoryConstants::MAX_ITEM_LOADOUT_SLOTS)
     {
         Errors.Add(FString::Printf(TEXT("Too many equipped items (%d/%d)"),
@@ -135,27 +167,19 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
     }
 
     // Check for null entries in arrays
-    for (int32 i = 0; i < InnateSpells.Num(); i++)
-    {
-        if (!InnateSpells[i])
-        {
-            Errors.Add(FString::Printf(TEXT("Null innate spell at index %d"), i));
-        }
-    }
-
-    for (int32 i = 0; i < EquippedRings.Num(); i++)
-    {
-        if (!EquippedRings[i])
-        {
-            Errors.Add(FString::Printf(TEXT("Null ring at index %d"), i));
-        }
-    }
-
-    for (int32 i = 0; i < EquippedItems.Num(); i++)
+    for (int32 i = 0; i < EquippedItems.Num(); ++i)
     {
         if (!EquippedItems[i])
         {
-            Errors.Add(FString::Printf(TEXT("Null item at index %d"), i));
+            Errors.Add(FString::Printf(TEXT("Null item in slot %d"), i));
+        }
+    }
+
+    for (int32 i = 0; i < EquippedRings.Num(); ++i)
+    {
+        if (!EquippedRings[i])
+        {
+            Errors.Add(FString::Printf(TEXT("Null ring in slot %d"), i));
         }
     }
 
@@ -173,41 +197,46 @@ TArray<USpellData *> ULoadoutData::GetAllSpells() const
 {
     TArray<USpellData *> Result;
 
-    // Innate spells (Caster)
-    Result.Append(InnateSpells);
+    // Evolution spells
+    if (PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        Result.Append(EvolutionSpells);
+    }
 
-    // Primary weapon spells
-    Result.Append(PrimaryWeaponSpells);
+    // Primary weapon crystal spells
+    if (PrimarySlotType == EPrimarySlotType::Weapon)
+    {
+        Result.Append(PrimaryWeaponSpells);
+    }
 
-    // Secondary weapon spells (Generic)
+    // Primary ring spells
+    if (PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        Result.Append(PrimaryRingSpells);
+    }
+
+    // Secondary weapon spells (Generic only)
     if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon)
     {
         Result.Append(SecondaryWeaponSpells);
     }
 
-    // Ring spells (Resonator - from equipped rings)
+    // Innate spells (Caster only)
+    if (RequiredClass == ECharacterClass::Caster)
+    {
+        Result.Append(InnateSpells);
+    }
+
+    // Ring loadout spells (Resonator only)
     if (RequiredClass == ECharacterClass::Resonator)
     {
-        for (const URingData *Ring : EquippedRings)
+        for (URingData *Ring : EquippedRings)
         {
             if (Ring)
             {
-                // Note: Ring spells would come from ring's crystal
-                // This requires RingData to expose GetSpells()
+                Result.Append(Ring->GetAvailableSpells());
             }
         }
-    }
-
-    // Primary ring spells (Caster with ring)
-    if (RequiredClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring && PrimaryRing)
-    {
-        // Ring spells from primary ring
-    }
-
-    // Secondary ring spells (Generic with ring)
-    if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Ring && SecondaryRing)
-    {
-        // Ring spells from secondary ring
     }
 
     return Result;
@@ -218,36 +247,47 @@ TArray<UAbilityData *> ULoadoutData::GetAllAbilities() const
     TArray<UAbilityData *> Result;
 
     // Primary weapon abilities
-    Result.Append(PrimaryWeaponAbilities);
+    if (PrimarySlotType == EPrimarySlotType::Weapon)
+    {
+        Result.Append(PrimaryWeaponAbilities);
+    }
 
-    // Secondary weapon abilities (Generic)
+    // Secondary weapon abilities (Generic only)
     if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon)
     {
         Result.Append(SecondaryWeaponAbilities);
     }
+
+    // Note: Evolution abilities would come from PrimaryEvolution->GetAbilities()
+    // but we don't store them separately in LoadoutData
 
     return Result;
 }
 
 UWeaponData *ULoadoutData::GetPrimaryWeapon() const
 {
-    // Caster with ring has no weapon
-    if (RequiredClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring)
+    if (PrimarySlotType == EPrimarySlotType::Weapon)
     {
-        return nullptr;
+        return PrimaryWeapon;
     }
-
-    return PrimaryWeapon;
+    return nullptr;
 }
 
 URingData *ULoadoutData::GetPrimaryRing() const
 {
-    // Only Caster can have primary ring
-    if (RequiredClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring)
+    if (PrimarySlotType == EPrimarySlotType::Ring)
     {
         return PrimaryRing;
     }
+    return nullptr;
+}
 
+UItemData *ULoadoutData::GetPrimaryEvolution() const
+{
+    if (PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        return PrimaryEvolution;
+    }
     return nullptr;
 }
 
@@ -283,15 +323,13 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
         {
             SecondarySlotType = ESecondarySlotType::None;
             SecondaryWeapon = nullptr;
-            SecondaryRing = nullptr;
             SecondaryWeaponAbilities.Empty();
             SecondaryWeaponSpells.Empty();
+            SecondaryWeaponStanceOverride = nullptr;
         }
 
         if (RequiredClass != ECharacterClass::Caster)
         {
-            PrimarySlotType = EPrimarySlotType::Weapon;
-            PrimaryRing = nullptr;
             InnateSpells.Empty();
         }
 
@@ -299,24 +337,44 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
         {
             EquippedRings.Empty();
         }
+
+        // Resonator cannot use Ring primary
+        if (RequiredClass == ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            PrimarySlotType = EPrimarySlotType::Weapon;
+            PrimaryRing = nullptr;
+            PrimaryRingSpells.Empty();
+        }
     }
 
-    // Clear ring when switching to weapon
+    // Clear irrelevant data when primary slot type changes
     if (PropertyName == GET_MEMBER_NAME_CHECKED(ULoadoutData, PrimarySlotType))
     {
-        if (PrimarySlotType == EPrimarySlotType::Weapon)
-        {
-            PrimaryRing = nullptr;
-        }
-        else
+        // Clear weapon data if not using weapon
+        if (PrimarySlotType != EPrimarySlotType::Weapon)
         {
             PrimaryWeapon = nullptr;
             PrimaryWeaponAbilities.Empty();
             PrimaryWeaponSpells.Empty();
+            PrimaryWeaponStanceOverride = nullptr;
+        }
+
+        // Clear ring data if not using ring
+        if (PrimarySlotType != EPrimarySlotType::Ring)
+        {
+            PrimaryRing = nullptr;
+            PrimaryRingSpells.Empty();
+        }
+
+        // Clear evolution data if not using evolution
+        if (PrimarySlotType != EPrimarySlotType::Evolution)
+        {
+            PrimaryEvolution = nullptr;
+            EvolutionSpells.Empty();
         }
     }
 
-    // Clear based on secondary slot type
+    // Clear secondary weapon data when secondary slot type changes
     if (PropertyName == GET_MEMBER_NAME_CHECKED(ULoadoutData, SecondarySlotType))
     {
         if (SecondarySlotType != ESecondarySlotType::Weapon)
@@ -324,10 +382,7 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
             SecondaryWeapon = nullptr;
             SecondaryWeaponAbilities.Empty();
             SecondaryWeaponSpells.Empty();
-        }
-        if (SecondarySlotType != ESecondarySlotType::Ring)
-        {
-            SecondaryRing = nullptr;
+            SecondaryWeaponStanceOverride = nullptr;
         }
     }
 }

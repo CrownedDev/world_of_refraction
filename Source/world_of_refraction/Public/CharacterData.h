@@ -82,17 +82,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control")
 	bool bIsAIControlled = false;
 
-	// ==================== EVOLUTION ====================
-
-	/** Is this character evolved? */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution")
-	bool bIsEvolved = false;
-
-	/** Active evolution data (if evolved) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
-			  meta = (EditCondition = "bIsEvolved", EditConditionHides))
-	UItemData *ActiveEvolution = nullptr;
-
 #if WITH_EDITORONLY_DATA
 	/** Display only - shows element from ActiveEvolution */
 	UPROPERTY(VisibleAnywhere, Category = "Evolution",
@@ -103,7 +92,7 @@ public:
 	// ==================== EVOLUTION HELPERS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
-	bool IsEvolved() const;
+	bool IsEvolved() const { return PrimarySlotType == EPrimarySlotType::Evolution; }
 
 	UFUNCTION(BlueprintPure, Category = "Evolution")
 	ESpellElement GetSecondaryElement() const;
@@ -160,37 +149,36 @@ public:
 
 	// ==================== PRIMARY SLOT ====================
 
-	/** Primary slot type (Caster only - choose Weapon or Ring, hidden when evolved) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster && !bIsEvolved", EditConditionHides))
+	/** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary")
 	EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
 
-	/** Primary weapon (Generic: always, Caster: if Weapon and not evolved, Resonator: always) */
+	/** Primary weapon (when PrimarySlotType == Weapon) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
-			  meta = (EditCondition = "(CharacterClass != ECharacterClass::Caster || (PrimarySlotType == EPrimarySlotType::Weapon && !bIsEvolved))", EditConditionHides))
+			  meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
 	UWeaponData *PrimaryWeapon = nullptr;
 
-	/** Primary ring (Caster only, when PrimarySlotType == Ring, hidden when evolved) */
+	/** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster && PrimarySlotType == EPrimarySlotType::Ring && !bIsEvolved", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
 	URingData *PrimaryRing = nullptr;
+
+	/** Primary evolution crystal (when PrimarySlotType == Evolution) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Primary",
+			  meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
+	UItemData *PrimaryEvolution = nullptr;
 
 	// ==================== SECONDARY SLOT (Generic Only) ====================
 
-	/** Secondary slot type (Generic only, hidden when evolved) */
+	/** Secondary slot type (Generic only - None or Weapon) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic", EditConditionHides))
 	ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
 
-	/** Secondary weapon (Generic only, when SecondarySlotType == Weapon, hidden when evolved) */
+	/** Secondary weapon (Generic only, when SecondarySlotType == Weapon) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
 	UWeaponData *SecondaryWeapon = nullptr;
-
-	/** Secondary ring (Generic only, when SecondarySlotType == Ring, hidden when evolved) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Secondary",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Generic && !bIsEvolved && SecondarySlotType == ESecondarySlotType::Ring", EditConditionHides))
-	URingData *SecondaryRing = nullptr;
 
 	// ==================== WORLD STAT LEVELS ====================
 
@@ -656,15 +644,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stance")
 	bool IsArmed() const;
 
-	/** Check if secondary slot is a ring (Generic only) */
+	/** Get primary evolution crystal (nullptr if not using evolution) */
 	UFUNCTION(BlueprintPure, Category = "Equipment")
-	bool HasRingInSecondary() const
-	{
-		return IsGeneric() &&
-			   SecondarySlotType == ESecondarySlotType::Ring &&
-			   SecondaryRing != nullptr &&
-			   !IsEvolved();
-	}
+	UItemData *GetPrimaryEvolution() const;
 
 private:
 	/** Character's active weapon based on bUsePrimary - external systems use WeaponManager */

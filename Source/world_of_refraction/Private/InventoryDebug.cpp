@@ -207,8 +207,9 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
            Loadout->IsReadyForBattle() ? TEXT("Yes") : TEXT("No"));
 
     // Primary
-    if (!Active.bPrimaryIsRing)
+    switch (Active.PrimarySlotType)
     {
+    case EPrimarySlotType::Weapon:
         if (Active.PrimaryWeapon.IsValid())
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Weapon: %s"),
@@ -222,9 +223,9 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Weapon: NONE"));
         }
-    }
-    else
-    {
+        break;
+
+    case EPrimarySlotType::Ring:
         if (Active.PrimaryRing.IsValid())
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Ring: %s"),
@@ -236,18 +237,28 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Ring: NONE"));
         }
+        break;
+
+    case EPrimarySlotType::Evolution:
+        if (Active.PrimaryEvolution)
+        {
+            UE_LOG(LogTemp, Display, TEXT("Primary Evolution: %s"),
+                   *Active.PrimaryEvolution->ItemName);
+            UE_LOG(LogTemp, Display, TEXT("  Evolution Spells: %d"),
+                   Active.EvolutionSpells.Num());
+        }
+        else
+        {
+            UE_LOG(LogTemp, Display, TEXT("Primary Evolution: NONE"));
+        }
+        break;
     }
 
-    // Secondary (Generic)
-    if (!Active.bSecondaryIsRing && Active.SecondaryWeapon.IsValid())
+    // Secondary (Generic only - Weapon only now)
+    if (Active.SecondarySlotType == ESecondarySlotType::Weapon && Active.SecondaryWeapon.IsValid())
     {
         UE_LOG(LogTemp, Display, TEXT("Secondary Weapon: %s"),
                *Active.SecondaryWeapon.WeaponEntry.Weapon->WeaponName);
-    }
-    else if (Active.bSecondaryIsRing && Active.SecondaryRing.IsValid())
-    {
-        UE_LOG(LogTemp, Display, TEXT("Secondary Ring: %s"),
-               *Active.SecondaryRing.RingEntry.Ring->RingName);
     }
 
     // Ring loadout (Resonator)
