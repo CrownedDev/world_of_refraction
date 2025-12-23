@@ -24,6 +24,7 @@ class UWeaponData;
 class URingData;
 class USpellData;
 class UItemData;
+class ULoadoutData;
 
 /**
  * Describes what a character loses/gains from evolution
@@ -81,6 +82,13 @@ public:
 	/** If true, this character is controlled by AI in combat */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control")
 	bool bIsAIControlled = false;
+
+	// ==================== DEFAULT LOADOUT ====================
+
+	/** Default loadout for AI/template use (nullptr = build from inventory) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout",
+			  meta = (DisplayName = "Default Loadout"))
+	ULoadoutData *DefaultLoadout = nullptr;
 
 #if WITH_EDITORONLY_DATA
 	/** Display only - shows element from PrimaryEvolution */

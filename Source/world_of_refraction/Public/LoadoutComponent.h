@@ -22,6 +22,8 @@ class UInventoryComponent;
 class USpellData;
 class UAbilityData;
 class UItemData;
+class URingData;
+class UItemData;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
@@ -168,6 +170,56 @@ public:
     /** Get count of usable item slots (Blueprint friendly) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     int32 GetUsableItemCount() const;
+
+    // ==================== COMBAT ACCESSORS ====================
+
+    /** Get active weapon based on current loadout and bUsingPrimary state */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UWeaponData *GetActiveWeapon() const;
+
+    /** Get primary weapon (nullptr if using ring/evolution) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UWeaponData *GetPrimaryWeapon() const;
+
+    /** Get secondary weapon (Generic only) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UWeaponData *GetSecondaryWeapon() const;
+
+    /** Get primary ring (Generic/Caster with ring in primary slot) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    URingData *GetPrimaryRing() const;
+
+    /** Get active ring for Resonator (from ring loadout) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    URingData *GetActiveRing() const;
+
+    /** Get primary evolution crystal */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UItemData *GetPrimaryEvolution() const;
+
+    /** Get primary slot type */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    EPrimarySlotType GetPrimarySlotType() const;
+
+    /** Get secondary slot type */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    ESecondarySlotType GetSecondarySlotType() const;
+
+    /** Is currently using primary equipment? */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    bool IsUsingPrimary() const;
+
+    /** Switch between primary/secondary (Generic) or armed/unarmed (Caster/Resonator) */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")
+    void ToggleEquipment();
+
+    /** Check if character has weapon access in current state */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    bool HasWeaponAccess() const;
+
+    /** Check if character is currently armed */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    bool IsArmed() const;
 
     // ==================== POST-BATTLE ====================
 

@@ -10,6 +10,7 @@
 #include "ItemData.h"
 #include "StatConstants.h"
 #include "LoadoutConstants.h"
+#include "LoadoutData.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
@@ -431,6 +432,15 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
             Result = EDataValidationResult::Invalid;
         }
         break;
+    }
+    // Validate loadout class matches character class
+    if (DefaultLoadout && DefaultLoadout->RequiredClass != CharacterClass)
+    {
+        Context.AddError(FText::FromString(FString::Printf(
+            TEXT("DefaultLoadout class mismatch: Character is %s but loadout requires %s"),
+            *UEnum::GetValueAsString(CharacterClass),
+            *UEnum::GetValueAsString(DefaultLoadout->RequiredClass))));
+        Result = EDataValidationResult::Invalid;
     }
 
     return Result;

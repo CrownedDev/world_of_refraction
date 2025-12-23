@@ -11,6 +11,7 @@
 
 class URingData;
 class USpellData;
+class ULoadoutComponent;
 
 /**
  * Simplified Ring Manager
@@ -87,6 +88,14 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
 	FOnRingBroken OnRingBroken;
+
+	/** Initialize rings from LoadoutComponent */
+	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
+	void InitializeFromLoadout(AActor *Actor, ULoadoutComponent *LoadoutComp);
+
+	/** Get primary ring (Generic/Caster with ring in primary slot) */
+	UFUNCTION(BlueprintPure, Category = "Ring Manager")
+	URingData *GetPrimaryRing(AActor *Actor) const;
 
 private:
 	/** Active ring index per actor */

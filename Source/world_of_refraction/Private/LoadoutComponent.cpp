@@ -10,6 +10,8 @@
 #include "RingData.h"
 #include "CharacterData.h"
 #include "LoadoutData.h"
+#include "RingData.h"
+#include "ItemData.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -932,6 +934,248 @@ void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
     UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Initialized from asset '%s' (Class: %s)"),
            *LoadoutAsset->LoadoutName,
            *UEnum::GetValueAsString(CharacterClass));
+}
+
+// ==================== COMBAT ACCESSORS ====================
+
+UWeaponData *ULoadoutComponent::GetActiveWeapon() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Evolution primary = no weapon access
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        return nullptr;
+    }
+
+    // Ring primary scenarios:
+    // - Generic: Can have secondary weapon → weapon access via secondary only
+    // - Caster: No secondary slot → NO weapon access (ring-only build)
+    // - Resonator: Cannot have ring primary (N/A)
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        if (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
+        }
+        return nullptr;
+    }
+
+    // Weapon primary - class-specific behavior
+    if (CharacterClass == ECharacterClass::Generic)
+    {
+        // Generic: bUsingPrimary toggles between primary/secondary weapons
+        if (Loadout.bUsingPrimary)
+        {
+            return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
+        }
+        else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
+        }
+        return nullptr;
+    }
+
+    // Caster/Resonator: bUsingPrimary = armed/unarmed state
+    if (Loadout.bUsingPrimary)
+    {
+        return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
+    }
+
+    return nullptr; // Unarmed
+}
+
+UWeaponData *ULoadoutComponent::GetPrimaryWeapon() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
+    {
+        return nullptr;
+    }
+
+    return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
+}
+
+UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (CharacterClass != ECharacterClass::Generic)
+    {
+        return nullptr;
+    }
+
+    if (Loadout.SecondarySlotType != ESecondarySlotType::Weapon)
+    {
+        return nullptr;
+    }
+
+    return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
+}
+
+URingData *ULoadoutComponent::GetPrimaryRing() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
+    {
+        return nullptr;
+    }
+
+    return Loadout.PrimaryRing.IsValid() ? Loadout.PrimaryRing.RingEntry.Ring : nullptr;
+}
+
+URingData *ULoadoutComponent::GetActiveRing() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Only Resonators have ring loadout
+    if (CharacterClass != ECharacterClass::Resonator)
+    {
+        return nullptr;
+    }
+
+    if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
+    {
+        return nullptr;
+    }
+
+    const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
+    return Entry.IsValid() ? Entry.RingEntry.Ring : nullptr;
+}
+
+UItemData *ULoadoutComponent::GetPrimaryEvolution() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
+    {
+        return nullptr;
+    }
+
+    return Loadout.PrimaryEvolution;
+}
+
+EPrimarySlotType ULoadoutComponent::GetPrimarySlotType() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return EPrimarySlotType::Weapon;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].PrimarySlotType;
+}
+
+ESecondarySlotType ULoadoutComponent::GetSecondarySlotType() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return ESecondarySlotType::None;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].SecondarySlotType;
+}
+
+bool ULoadoutComponent::IsUsingPrimary() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return true;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].bUsingPrimary;
+}
+
+void ULoadoutComponent::ToggleEquipment()
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return;
+    }
+
+    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    Loadout.bUsingPrimary = !Loadout.bUsingPrimary;
+
+    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bUsingPrimary = %s"),
+           Loadout.bUsingPrimary ? TEXT("true") : TEXT("false"));
+}
+
+bool ULoadoutComponent::HasWeaponAccess() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Evolution primary = no weapon access
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        return false;
+    }
+
+    // Ring primary - only Generic with secondary weapon has access
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        return CharacterClass == ECharacterClass::Generic &&
+               Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+               Loadout.SecondaryWeapon.IsValid();
+    }
+
+    // Weapon primary - check if any weapon exists
+    return Loadout.PrimaryWeapon.IsValid() ||
+           (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+            Loadout.SecondaryWeapon.IsValid());
+}
+
+bool ULoadoutComponent::IsArmed() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Generic is always armed if they have any weapon
+    if (CharacterClass == ECharacterClass::Generic)
+    {
+        return GetActiveWeapon() != nullptr;
+    }
+
+    // Caster/Resonator: armed when bUsingPrimary AND has weapon
+    return Loadout.bUsingPrimary && GetActiveWeapon() != nullptr;
 }
 
 #if WITH_EDITOR

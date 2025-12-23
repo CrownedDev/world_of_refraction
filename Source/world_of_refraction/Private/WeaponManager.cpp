@@ -8,6 +8,7 @@
 #include "CharacterData.h"
 #include "StatusEffectManager.h"
 #include "StatusEffect.h"
+#include "LoadoutComponent.h"
 
 void UWeaponManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -31,26 +32,30 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 	if (!Actor)
 		return;
 
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
 	UCharacterData *CharData = GetCharacterData(Actor);
-	if (!CharData)
+
+	if (!LoadoutComp && !CharData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Cannot initialize - no CharacterData for %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Cannot initialize - no LoadoutComponent or CharacterData for %s"),
 			   *Actor->GetName());
 		return;
 	}
 
 	FWeaponState State;
 
-	if (IsGenericCharacter(Actor))
+	// Determine initial state from LoadoutComponent or CharacterData
+	bool bIsGeneric = CharData ? CharData->IsGeneric() : (LoadoutComp && LoadoutComp->CharacterClass == ECharacterClass::Generic);
+	bool bUsingPrimary = LoadoutComp ? LoadoutComp->IsUsingPrimary() : (CharData ? CharData->bUsePrimary : true);
+
+	if (bIsGeneric)
 	{
-		// Generic: Start with primary or secondary based on bUsePrimary
-		State.ActiveSlot = CharData->bUsePrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
+		State.ActiveSlot = bUsingPrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
 		State.bInfusionActive = false;
 	}
 	else
 	{
-		// Elemental: Start armed or unarmed based on bUsePrimary
-		State.ActiveSlot = CharData->bUsePrimary ? EWeaponSlot::Primary : EWeaponSlot::Unarmed;
+		State.ActiveSlot = bUsingPrimary ? EWeaponSlot::Primary : EWeaponSlot::Unarmed;
 	}
 
 	State.ConjuredWeapon = nullptr;
@@ -77,46 +82,21 @@ FWeaponState UWeaponManager::GetWeaponState(AActor *Actor) const
 
 UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 {
+	// Try LoadoutComponent first (production path)
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
+	if (LoadoutComp)
+	{
+		return LoadoutComp->GetActiveWeapon();
+	}
+
+	// Fallback to CharacterData (legacy/editor testing)
 	UCharacterData *Data = GetCharacterData(Actor);
 	if (!Data)
 	{
 		return nullptr;
 	}
 
-	// Evolved Casters lose weapon access
-	if (Data->IsCaster() && Data->IsEvolved())
-	{
-		return nullptr;
-	}
-
-	// Evolved Resonators lose weapon access
-	if (Data->IsResonator() && Data->IsEvolved())
-	{
-		return nullptr;
-	}
-
-	// Casters with ring primary have no weapon
-	if (Data->IsCaster() && Data->PrimarySlotType == EPrimarySlotType::Ring)
-	{
-		return nullptr;
-	}
-
-	// Generic uses bUsePrimary
-	if (Data->IsGeneric() && !Data->IsEvolved())
-	{
-		if (Data->bUsePrimary)
-		{
-			return Data->PrimaryWeapon;
-		}
-		else if (Data->SecondarySlotType == ESecondarySlotType::Weapon)
-		{
-			return Data->SecondaryWeapon;
-		}
-		return nullptr;
-	}
-
-	// Default
-	return Data->bUsePrimary ? Data->PrimaryWeapon : nullptr;
+	return Data->GetActiveWeapon();
 }
 
 UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
@@ -237,32 +217,36 @@ bool UWeaponManager::CanSwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot) cons
 TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor *Actor) const
 {
 	TArray<EWeaponSlot> Slots;
+
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
 	UCharacterData *CharData = GetCharacterData(Actor);
-	if (!CharData)
+
+	if (!LoadoutComp && !CharData)
 		return Slots;
 
 	Slots.Add(EWeaponSlot::Unarmed);
 
-	// Primary weapon available?
-	if (CharData->IsGeneric() || CharData->IsResonator())
+	// Check primary weapon availability
+	if (LoadoutComp)
 	{
-		// Generic/Resonator always have weapon primary
-		if (CharData->PrimaryWeapon)
+		if (LoadoutComp->GetPrimaryWeapon())
 			Slots.Add(EWeaponSlot::Primary);
+
+		if (LoadoutComp->GetSecondaryWeapon())
+			Slots.Add(EWeaponSlot::Secondary);
 	}
-	else if (CharData->IsCaster())
+	else if (CharData)
 	{
-		// Caster only if PrimarySlotType == Weapon
+		// Fallback to CharacterData
 		if (CharData->PrimarySlotType == EPrimarySlotType::Weapon && CharData->PrimaryWeapon)
 			Slots.Add(EWeaponSlot::Primary);
-	}
 
-	// Secondary weapon (Generic only, if slot type is Weapon)
-	if (CharData->IsGeneric() &&
-		CharData->SecondarySlotType == ESecondarySlotType::Weapon &&
-		CharData->SecondaryWeapon)
-	{
-		Slots.Add(EWeaponSlot::Secondary);
+		if (CharData->IsGeneric() &&
+			CharData->SecondarySlotType == ESecondarySlotType::Weapon &&
+			CharData->SecondaryWeapon)
+		{
+			Slots.Add(EWeaponSlot::Secondary);
+		}
 	}
 
 	return Slots;
@@ -607,6 +591,12 @@ UCharacterData *UWeaponManager::GetCharacterData(AActor *Actor) const
 	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 	return Comp ? Comp->CharacterData : nullptr;
 }
+ULoadoutComponent *UWeaponManager::GetLoadoutComponent(AActor *Actor) const
+{
+	if (!Actor)
+		return nullptr;
+	return Actor->FindComponentByClass<ULoadoutComponent>();
+}
 
 UStatusEffectManager *UWeaponManager::GetStatusEffectManager() const
 {
@@ -642,10 +632,6 @@ bool UWeaponManager::IsResonatorCharacter(AActor *Actor) const
 UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const
 {
 	const FWeaponState *State = WeaponStates.Find(Actor);
-	UCharacterData *CharData = GetCharacterData(Actor);
-
-	if (!CharData)
-		return nullptr;
 
 	switch (Slot)
 	{
@@ -653,21 +639,37 @@ UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) co
 		return nullptr;
 
 	case EWeaponSlot::Primary:
-		// Both Generic Resonators and Elemental characters use PrimaryWeapon
-		if (CharData->IsCaster() &&
-			CharData->PrimarySlotType == EPrimarySlotType::Ring)
+	{
+		ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
+		if (LoadoutComp)
 		{
-			return nullptr;
+			return LoadoutComp->GetPrimaryWeapon();
 		}
-		return CharData->PrimaryWeapon;
+		// Fallback
+		UCharacterData *CharData = GetCharacterData(Actor);
+		if (CharData && CharData->PrimarySlotType == EPrimarySlotType::Weapon)
+		{
+			return CharData->PrimaryWeapon;
+		}
+		return nullptr;
+	}
 
 	case EWeaponSlot::Secondary:
-		if (IsGenericCharacter(Actor) &&
+	{
+		ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
+		if (LoadoutComp)
+		{
+			return LoadoutComp->GetSecondaryWeapon();
+		}
+		// Fallback
+		UCharacterData *CharData = GetCharacterData(Actor);
+		if (CharData && CharData->IsGeneric() &&
 			CharData->SecondarySlotType == ESecondarySlotType::Weapon)
 		{
 			return CharData->SecondaryWeapon;
 		}
 		return nullptr;
+	}
 
 	case EWeaponSlot::Conjured:
 		return State ? State->ConjuredWeapon : nullptr;

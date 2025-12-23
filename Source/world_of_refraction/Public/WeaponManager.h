@@ -17,6 +17,7 @@ class UCharacterDataComponent;
 class UCharacterData;
 class UStatusEffectManager;
 class URingData;
+class ULoadoutComponent;
 // ========================================
 // WEAPON STATE
 // ========================================
@@ -383,6 +384,8 @@ private:
 	// ========================================
 
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
+	/** Get LoadoutComponent from actor */
+	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 	UStatusEffectManager *GetStatusEffectManager() const;
 	URingData *GetPrimaryRing(AActor *Actor) const;

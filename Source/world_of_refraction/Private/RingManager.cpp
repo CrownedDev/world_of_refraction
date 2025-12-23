@@ -6,6 +6,9 @@
 #include "SpellData.h"
 #include "ElementColorDebugComponent.h"
 #include "ElementColors.h"
+#include "LoadoutComponent.h"
+#include "FCombatLoadout.h"
+#include "FRingLoadoutEntry.h"
 
 void URingManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -62,15 +65,23 @@ URingData *URingManager::GetActiveRing(AActor *Actor) const
 	if (!Actor)
 		return nullptr;
 
+	// Check local state first (runtime tracking with break state)
 	const int32 *Index = ActiveRingIndex.Find(Actor);
 	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
 
-	if (!Index || !Rings)
-		return nullptr;
-	if (!Rings->IsValidIndex(*Index))
-		return nullptr;
+	if (Index && Rings && Rings->IsValidIndex(*Index))
+	{
+		return (*Rings)[*Index];
+	}
 
-	return (*Rings)[*Index];
+	// Fallback to LoadoutComponent (if not yet initialized locally)
+	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (LoadoutComp)
+	{
+		return LoadoutComp->GetActiveRing();
+	}
+
+	return nullptr;
 }
 
 ESpellElement URingManager::GetActiveElement(AActor *Actor) const
@@ -189,4 +200,59 @@ bool URingManager::ProcessPostCastBreakCheck(AActor *Actor, USpellData *SpellCas
 	}
 
 	return bBroke;
+}
+
+void URingManager::InitializeFromLoadout(AActor *Actor, ULoadoutComponent *LoadoutComp)
+{
+	if (!Actor || !LoadoutComp)
+		return;
+
+	// Only Resonators use ring loadout
+	if (LoadoutComp->CharacterClass != ECharacterClass::Resonator)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[RingManager] %s is not a Resonator, skipping ring init"),
+			   *Actor->GetName());
+		return;
+	}
+
+	FCombatLoadout Loadout = LoadoutComp->GetActiveLoadout();
+
+	// Extract rings from ring loadout
+	TArray<URingData *> Rings;
+	for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+	{
+		if (Entry.IsValid())
+		{
+			Rings.Add(Entry.RingEntry.Ring);
+		}
+	}
+
+	if (Rings.Num() > 0)
+	{
+		SetEquippedRings(Actor, Rings);
+
+		// Sync active index
+		if (ActiveRingIndex.Contains(Actor))
+		{
+			ActiveRingIndex[Actor] = Loadout.ActiveRingIndex;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[RingManager] Initialized %d rings for %s from LoadoutComponent"),
+			   Rings.Num(), *Actor->GetName());
+	}
+}
+
+URingData *URingManager::GetPrimaryRing(AActor *Actor) const
+{
+	if (!Actor)
+		return nullptr;
+
+	// Primary ring is LoadoutComponent only
+	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (LoadoutComp)
+	{
+		return LoadoutComp->GetPrimaryRing();
+	}
+
+	return nullptr;
 }
