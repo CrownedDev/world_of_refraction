@@ -1411,7 +1411,21 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
 }
 
-// TODO: [LoadoutComponent Migration] Rewrite to query LoadoutComponent
-#if 0
-    // ... entire section from line 104-260
-#endif
+void ULoadoutComponent::DebugLogLoadout()
+{
+    UE_LOG(LogTemp, Log, TEXT("=== LoadoutComponent Debug ==="));
+    UE_LOG(LogTemp, Log, TEXT("CharacterClass: %s"), *UEnum::GetValueAsString(CharacterClass));
+    UE_LOG(LogTemp, Log, TEXT("ActiveLoadoutIndex: %d"), ActiveLoadoutIndex);
+    UE_LOG(LogTemp, Log, TEXT("SavedLoadouts: %d"), SavedLoadouts.Num());
+    UE_LOG(LogTemp, Log, TEXT("bIsReadyForBattle: %s"), bIsReadyForBattle ? TEXT("true") : TEXT("false"));
+
+    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+        UE_LOG(LogTemp, Log, TEXT("Active Loadout: %s"), *Loadout.LoadoutName);
+        UE_LOG(LogTemp, Log, TEXT("  PrimarySlotType: %s"), *UEnum::GetValueAsString(Loadout.PrimarySlotType));
+        UE_LOG(LogTemp, Log, TEXT("  bUsingPrimary: %s"), Loadout.bUsingPrimary ? TEXT("true") : TEXT("false"));
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("=============================="));
+}

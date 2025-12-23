@@ -346,6 +346,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Loadout|Events")
     FOnLoadoutValidationFailed OnValidationFailed;
 
+    /** Debug: Log current loadout state */
+    UFUNCTION(BlueprintCallable, Category = "Debug")
+    void DebugLogLoadout();
+
 private:
     /** True if initialized from LoadoutData asset (AI), false if from inventory (Player) */
     bool bInitializedFromAsset = false;
@@ -359,10 +363,4 @@ protected:
 
     /** Ensure at least one loadout exists */
     void EnsureDefaultLoadout();
-
-#if WITH_EDITOR
-    /** Debug log loadout state */
-    UFUNCTION(CallInEditor, Category = "Debug")
-    void DebugLogLoadout();
-#endif
 };

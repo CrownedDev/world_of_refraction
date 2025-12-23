@@ -120,3 +120,37 @@ FString UCharacterData::GetEvolutionCostDescription(UItemData *EvolutionCrystal)
         return TEXT("Unknown");
     }
 }
+#if WITH_EDITOR
+EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Context) const
+{
+    EDataValidationResult Result = Super::IsDataValid(Context);
+
+    // Validate name
+    if (CharacterName.IsEmpty())
+    {
+        Context.AddError(FText::FromString(TEXT("Character must have a name")));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // Validate Caster has element
+    if (CharacterClass == ECharacterClass::Caster && InnateElement == ESpellElement::Generic)
+    {
+        Context.AddWarning(FText::FromString(TEXT("Caster should have an innate element set")));
+    }
+
+    // Validate DefaultLoadout exists
+    if (!DefaultLoadout)
+    {
+        Context.AddWarning(FText::FromString(TEXT("No DefaultLoadout assigned - character will have no equipment")));
+    }
+
+    return Result;
+}
+
+void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    // Add any property change handling here if needed
+}
+#endif
