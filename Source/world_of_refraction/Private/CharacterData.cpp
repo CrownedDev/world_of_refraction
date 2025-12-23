@@ -41,15 +41,9 @@ bool UCharacterData::CanApplyEvolution(UItemData *EvolutionCrystal) const
         return true;
 
     case ECharacterClass::Resonator:
-        // Resonator must have at least one ring of the evolution element
-        for (URingData *Ring : EquippedRings)
-        {
-            if (Ring && Ring->GetRingElement() == EvolutionElement)
-            {
-                return true;
-            }
-        }
-        return false;
+        // Ring element validation happens at runtime via LoadoutComponent
+        // CharacterData no longer stores equipment
+        return true;
     }
 
     return false;

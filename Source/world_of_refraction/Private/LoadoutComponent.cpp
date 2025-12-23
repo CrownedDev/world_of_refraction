@@ -718,195 +718,42 @@ void ULoadoutComponent::ClearLoadout(int32 LoadoutIndex)
 
 void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory)
 {
-    if (!CharacterData || !Inventory)
+    if (!CharacterData)
     {
-        UE_LOG(LogTemp, Warning, TEXT("InitializeFromCharacterData: Null CharacterData or Inventory"));
+        UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] InitializeFromCharacterData: Null CharacterData"));
         return;
     }
 
     // Set class from CharacterData
     CharacterClass = CharacterData->CharacterClass;
 
-    // Clear and create one default loadout
+    // If DefaultLoadout exists, use it (AI path or player template)
+    if (CharacterData->DefaultLoadout)
+    {
+        InitializeFromAsset(CharacterData->DefaultLoadout);
+
+        // For players with inventory, we may want to validate against inventory later
+        // For now, asset-based initialization is sufficient
+        if (Inventory)
+        {
+            UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] %s: Initialized from DefaultLoadout (inventory available for future validation)"),
+                   *CharacterData->CharacterName);
+        }
+        return;
+    }
+
+    // No DefaultLoadout - create empty loadout for manual setup
     SavedLoadouts.Empty();
-    FCombatLoadout DefaultLoadout;
-    DefaultLoadout.LoadoutName = TEXT("Default");
-    DefaultLoadout.InitializeForClass(CharacterClass);
-
-    // Find weapons in inventory
-    FWeaponInventoryEntry *PrimaryEntry = nullptr;
-    FWeaponInventoryEntry *SecondaryEntry = nullptr;
-
-    for (FWeaponInventoryEntry &Entry : Inventory->Weapons)
-    {
-        // Check against DefaultLoadout instead of CharacterData properties
-        ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
-        UWeaponData *DefaultPrimaryWeapon = DefaultLoadoutAsset ? DefaultLoadoutAsset->PrimaryWeapon : nullptr;
-        UWeaponData *DefaultSecondaryWeapon = DefaultLoadoutAsset ? DefaultLoadoutAsset->SecondaryWeapon : nullptr;
-
-        if (Entry.Weapon == DefaultPrimaryWeapon && !PrimaryEntry)
-        {
-            PrimaryEntry = &Entry;
-        }
-        else if (Entry.Weapon == DefaultSecondaryWeapon && !SecondaryEntry)
-        {
-            SecondaryEntry = &Entry;
-        }
-    }
-
-    if (PrimaryEntry)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[LoadoutInit] PrimaryEntry: %s, IsEvolved: %s"),
-               PrimaryEntry->Weapon ? *PrimaryEntry->Weapon->GetName() : TEXT("None"),
-               PrimaryEntry->IsEvolved() ? TEXT("Yes") : TEXT("No"));
-    }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("[LoadoutInit] No PrimaryWeapon (expected for %s class)"),
-               *UEnum::GetValueAsString(CharacterClass));
-    }
-
-    // Configure primary weapon loadout
-    if (PrimaryEntry)
-    {
-        DefaultLoadout.PrimaryWeapon.WeaponEntry = *PrimaryEntry;
-
-        // Copy preset abilities
-        if (PrimaryEntry->Weapon)
-        {
-            for (UAbilityData *Ability : PrimaryEntry->Weapon->PresetAbilities)
-            {
-                if (Ability && DefaultLoadout.PrimaryWeapon.AssignedAbilities.Num() < LoadoutConstants::MAX_WEAPON_ABILITIES)
-                {
-                    DefaultLoadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
-                }
-            }
-        }
-
-        // Copy evolution spells if weapon has evolution
-        if (PrimaryEntry->IsEvolved())
-        {
-            TArray<USpellData *> EvolutionSpells = PrimaryEntry->GetSpells();
-            UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Copying %d evolution spells from primary weapon"),
-                   EvolutionSpells.Num());
-            for (USpellData *Spell : EvolutionSpells)
-            {
-                if (Spell && DefaultLoadout.PrimaryWeapon.AssignedSpells.Num() < LoadoutConstants::MAX_SPELL_SLOTS)
-                {
-                    DefaultLoadout.PrimaryWeapon.AssignedSpells.Add(Spell);
-                }
-            }
-        }
-    }
-
-    // Configure secondary based on class
-    if (CharacterClass == ECharacterClass::Generic)
-    {
-        if (SecondaryEntry)
-        {
-            DefaultLoadout.SecondaryWeapon.WeaponEntry = *SecondaryEntry;
-
-            if (SecondaryEntry->Weapon)
-            {
-                for (UAbilityData *Ability : SecondaryEntry->Weapon->PresetAbilities)
-                {
-                    if (Ability && DefaultLoadout.SecondaryWeapon.AssignedAbilities.Num() < LoadoutConstants::MAX_WEAPON_ABILITIES)
-                    {
-                        DefaultLoadout.SecondaryWeapon.AssignedAbilities.Add(Ability);
-                    }
-                }
-            }
-            // Copy evolution spells if secondary weapon has evolution
-            if (SecondaryEntry->IsEvolved())
-            {
-                for (USpellData *Spell : SecondaryEntry->GetSpells())
-                {
-                    if (Spell && DefaultLoadout.SecondaryWeapon.AssignedSpells.Num() < LoadoutConstants::MAX_SPELL_SLOTS)
-                    {
-                        DefaultLoadout.SecondaryWeapon.AssignedSpells.Add(Spell);
-                    }
-                }
-            }
-        }
-    }
-    else if (CharacterClass == ECharacterClass::Caster)
-    {
-        // Use DefaultLoadout to check evolution state during initialization
-        ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
-        bool bHasEvolution = DefaultLoadoutAsset && DefaultLoadoutAsset->PrimarySlotType == EPrimarySlotType::Evolution;
-        UItemData *EvolutionItem = DefaultLoadoutAsset ? DefaultLoadoutAsset->PrimaryEvolution : nullptr;
-
-        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasEvolution: %s"),
-               CharacterData->InnateSpells.Num(),
-               bHasEvolution ? TEXT("YES") : TEXT("NO"),
-               EvolutionItem ? TEXT("YES") : TEXT("NO"));
-        // Caster innate spells go into InnateSpells
-        for (USpellData *Spell : CharacterData->InnateSpells)
-        {
-            if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
-            {
-                DefaultLoadout.InnateSpells.Add(Spell);
-            }
-        }
-
-        // Copy evolution spells if caster is evolved
-        if (bHasEvolution && EvolutionItem)
-        {
-            for (USpellData *Spell : EvolutionItem->GetSpells())
-            {
-                if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
-                {
-                    DefaultLoadout.InnateSpells.Add(Spell);
-                }
-            }
-        }
-    }
-    else if (CharacterClass == ECharacterClass::Resonator)
-    {
-        // Ensure RingLoadout is properly sized
-        if (DefaultLoadout.RingLoadout.Num() < InventoryConstants::MAX_RESONATOR_RINGS)
-        {
-            DefaultLoadout.RingLoadout.SetNum(InventoryConstants::MAX_RESONATOR_RINGS);
-        }
-
-        // Copy equipped rings to ring loadout
-        int32 RingIndex = 0;
-        for (URingData *RingData : CharacterData->EquippedRings)
-        {
-            if (RingData && RingIndex < InventoryConstants::MAX_RESONATOR_RINGS)
-            {
-                // Find in inventory
-                for (FRingInventoryEntry &RingEntry : Inventory->Rings)
-                {
-                    if (RingEntry.Ring == RingData)
-                    {
-                        DefaultLoadout.RingLoadout[RingIndex].RingEntry = RingEntry;
-                        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Ring[%d]: %s, HasCrystal: %s, IsEvolved: %s, SpellCount: %d"),
-                               RingIndex - 1,
-                               *RingEntry.Ring->RingName,
-                               RingEntry.HasCrystal() ? TEXT("YES") : TEXT("NO"),
-                               RingEntry.IsEvolved() ? TEXT("YES") : TEXT("NO"),
-                               RingEntry.GetSpellCount());
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    DefaultLoadout.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
-    for (FItemLoadoutSlot &Slot : DefaultLoadout.ItemSlots)
-    {
-        Slot.Clear();
-    }
-
-    SavedLoadouts.Add(DefaultLoadout);
-
+    FCombatLoadout EmptyLoadout;
+    EmptyLoadout.LoadoutName = TEXT("Default");
+    EmptyLoadout.InitializeForClass(CharacterClass);
+    SavedLoadouts.Add(EmptyLoadout);
     ActiveLoadoutIndex = 0;
+    bInitializedFromAsset = false;
+    bIsReadyForBattle = false;
 
-    UE_LOG(LogTemp, Display, TEXT("Initialized loadout for %s (%s class)"),
-           *CharacterData->CharacterName,
-           *UEnum::GetValueAsString(CharacterClass));
+    UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no DefaultLoadout - created empty loadout. Assign equipment via UI or set DefaultLoadout in CharacterData."),
+           *CharacterData->CharacterName);
 }
 
 void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
@@ -1544,6 +1391,26 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
     return Entry.IsValid() ? &Entry : nullptr;
 }
+
+void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return;
+    }
+
+    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (!Loadout.RingLoadout.IsValidIndex(NewIndex))
+    {
+        return;
+    }
+
+    Loadout.ActiveRingIndex = NewIndex;
+
+    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
+}
+
 // TODO: [LoadoutComponent Migration] Rewrite to query LoadoutComponent
 #if 0
     // ... entire section from line 104-260

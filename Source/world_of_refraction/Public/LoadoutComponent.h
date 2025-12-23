@@ -93,6 +93,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout")
     FString GetActiveLoadoutName() const;
 
+    /** Set active ring index for Resonator */
+    void SetActiveRingIndex(int32 NewIndex);
+
     // ==================== LOADOUT MANAGEMENT ====================
 
     /** Create a new empty loadout */

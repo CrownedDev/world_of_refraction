@@ -301,9 +301,21 @@ void UCombatMenuSubsystem::BuildResonatorMainMenu(UCharacterData *CharacterData,
 	bool bWeaponEvolved = bHasPrimaryWeapon && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon &&
 						  ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon->IsEvolved();
 
-	// Check ring loadout
-	bool bHasRings = CharacterData->EquippedRings.Num() > 0;
-	bool bHasMultipleRings = CharacterData->EquippedRings.Num() > 1;
+	// Get ring count from LoadoutComponent
+	int32 RingCount = 0;
+	if (Loadout)
+	{
+		const TArray<FRingLoadoutEntry> &RingLoadout = Loadout->GetActiveLoadout().RingLoadout;
+		for (const FRingLoadoutEntry &Entry : RingLoadout)
+		{
+			if (Entry.IsValid())
+			{
+				RingCount++;
+			}
+		}
+	}
+	bool bHasRings = RingCount > 0;
+	bool bHasMultipleRings = RingCount > 1;
 
 	// Attack + Abilities (only if primary is weapon)
 	if (bHasPrimaryWeapon)
@@ -812,7 +824,7 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetRingsButtons(UCharacterData 
 
 	for (int32 i = 0; i < Count; ++i)
 	{
-		URingData *Ring = CharacterData->EquippedRings[i];
+		URingData *Ring = Rings[i]; // <-- CHANGED: Use Rings array, not CharacterData
 		if (!Ring)
 			continue;
 
@@ -822,14 +834,11 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetRingsButtons(UCharacterData 
 			EPieMenuCategory::Ring,
 			Ring,
 			i,
-			nullptr); // TODO: Add Icon property to RingData
+			nullptr);
 
 		Button.Description = FText::FromString(Ring->Description);
 		Button.ButtonTint = GetElementColor(static_cast<int32>(Ring->GetRingElement()));
 		Button.bEnabled = true;
-
-		// TODO: Mark currently active ring
-		// if (i == ActiveRingIndex) { ... }
 
 		Buttons.Add(Button);
 	}
@@ -917,9 +926,10 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 	}
 
 	// ActiveRing (Resonator only)
-	if (CharacterData->IsResonator() && CharacterData->EquippedRings.Num() > 0)
+	if (CharacterData->IsResonator())
 	{
-		URingData *ActiveRing = CharacterData->EquippedRings[0]; // TODO: Use actual active ring index
+		ULoadoutComponent *Loadout = GetLoadoutComponent();
+		URingData *ActiveRing = Loadout ? Loadout->GetActiveRing() : nullptr;
 		if (ActiveRing)
 		{
 			FPieMenuButtonData Button;
@@ -1032,14 +1042,23 @@ bool UCombatMenuSubsystem::ExecuteRingSwitch(UCharacterData *CharacterData, int3
 		return false;
 	}
 
-	if (!CharacterData->EquippedRings.IsValidIndex(RingIndex))
+	ULoadoutComponent *Loadout = GetLoadoutComponent();
+	if (!Loadout)
 	{
 		return false;
 	}
 
-	// TODO: Set active ring index in runtime state
-	// For now, just log
-	URingData *Ring = CharacterData->EquippedRings[RingIndex];
+	const TArray<FRingLoadoutEntry> &RingLoadout = Loadout->GetActiveLoadout().RingLoadout;
+	if (!RingLoadout.IsValidIndex(RingIndex) || !RingLoadout[RingIndex].IsValid())
+	{
+		return false;
+	}
+
+	// Set active ring index on LoadoutComponent
+	Loadout->SetActiveRingIndex(RingIndex);
+
+	// Get ring for logging
+	URingData *Ring = RingLoadout[RingIndex].RingEntry.Ring;
 	UE_LOG(LogTemp, Log, TEXT("[CombatMenuSubsystem] Switched to ring: %s"),
 		   Ring ? *Ring->RingName : TEXT("None"));
 

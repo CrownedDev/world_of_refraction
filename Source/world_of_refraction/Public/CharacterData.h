@@ -90,13 +90,6 @@ public:
 			  meta = (DisplayName = "Default Loadout"))
 	ULoadoutData *DefaultLoadout = nullptr;
 
-#if WITH_EDITORONLY_DATA
-	/** Display only - shows element from PrimaryEvolution */
-	UPROPERTY(VisibleAnywhere, Category = "Evolution",
-			  meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution && PrimaryEvolution != nullptr", EditConditionHides))
-	FString EvolutionElementDisplay = TEXT("(Set by PrimaryEvolution)");
-#endif
-
 	// ==================== EVOLUTION COST FUNCTIONS ====================
 
 	/** Check if character can apply this evolution crystal */
@@ -110,20 +103,6 @@ public:
 	/** Get user-friendly cost description */
 	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
 	FString GetEvolutionCostDescription(UItemData *EvolutionCrystal) const;
-
-	// ==================== CASTER SPELLS ====================
-
-	/** Innate spells (Caster only, hidden when evolved - uses Evolution spells instead) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Spells",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
-	TArray<USpellData *> InnateSpells;
-
-	// ==================== RESONATOR RINGS ====================
-
-	/** Equipped rings (Resonator only - up to 5 slots, max 2 evolved) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Rings",
-			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
-	TArray<URingData *> EquippedRings;
 
 	// ==================== WORLD STAT LEVELS ====================
 
