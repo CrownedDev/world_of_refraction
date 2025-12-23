@@ -26,6 +26,10 @@ class URingData;
 class UItemData;
 struct FWeaponLoadoutEntry;
 struct FRingLoadoutEntry;
+class UStanceData;
+class UWeaponAttackData;
+class UAnimMontage;
+class USpellData;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
@@ -222,6 +226,52 @@ public:
     /** Check if character is currently armed */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     bool IsArmed() const;
+
+    /** Check if current loadout has evolution */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    bool IsEvolved() const;
+
+    // ==================== EQUIPMENT STATE HELPERS ====================
+
+    /** Check if character has secondary equipment (Generic only) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    bool HasSecondaryEquipment() const;
+
+    /** Check if secondary slot has a ring (Generic only) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    bool HasRingInSecondary() const;
+
+    // ==================== STANCE & ANIMATION ====================
+
+    /** Get current stance based on armed state and active weapon */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UStanceData *GetCurrentStance() const;
+
+    /** Get current idle montage from stance */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UAnimMontage *GetCurrentIdleMontage() const;
+
+    /** Get current attack data from active weapon */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UWeaponAttackData *GetCurrentAttack() const;
+
+    /** Get current attack montage */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    UAnimMontage *GetCurrentAttackMontage() const;
+
+    // ==================== SPELL ACCESS ====================
+
+    /** Get all combat spells from active loadout */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<USpellData *> GetCombatSpells() const;
+
+    /** Get spells from evolved weapon crystal */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<USpellData *> GetWeaponResonateSpells() const;
+
+    /** Get spells from ring (Generic secondary or Caster primary) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<USpellData *> GetRingResonateSpells() const;
 
     // ==================== LOADOUT ENTRY ACCESSORS ====================
 

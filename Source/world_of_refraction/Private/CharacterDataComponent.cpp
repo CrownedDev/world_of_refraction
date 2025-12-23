@@ -218,37 +218,39 @@ int32 UCharacterDataComponent::CalculateMaxEnergy() const
 
 UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
 {
-    if (!CharacterData)
+    ULoadoutComponent *LoadoutComp = GetOwner()->FindComponentByClass<ULoadoutComponent>();
+    if (LoadoutComp)
     {
-        return nullptr;
+        return LoadoutComp->GetActiveWeapon();
     }
+    return nullptr;
+}
 
-    // Try LoadoutComponent first (runtime truth)
-    AActor *Owner = GetOwner();
-    if (Owner)
+void UCharacterDataComponent::SwitchWeapon()
+{
+    ULoadoutComponent *LoadoutComp = GetOwner()->FindComponentByClass<ULoadoutComponent>();
+    if (LoadoutComp)
     {
-        ULoadoutComponent *LoadoutComp = Owner->FindComponentByClass<ULoadoutComponent>();
-        if (LoadoutComp)
-        {
-            return LoadoutComp->GetActiveWeapon();
-        }
-    }
+        LoadoutComp->ToggleWeapon();
 
-    // Fallback to CharacterData (editor/legacy)
-    if (CharacterData->IsGeneric())
+        UWeaponData *ActiveWeapon = LoadoutComp->GetActiveWeapon();
+        UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] Switched to: %s (UsingPrimary: %s)"),
+               ActiveWeapon ? *ActiveWeapon->WeaponName : TEXT("None"),
+               LoadoutComp->IsUsingPrimary() ? TEXT("true") : TEXT("false"));
+    }
+}
+
+void UCharacterDataComponent::DebugPrintLoadout() const
+{
+    ULoadoutComponent *LoadoutComp = GetOwner()->FindComponentByClass<ULoadoutComponent>();
+    if (LoadoutComp)
     {
-        if (CharacterData->bUsePrimary)
-        {
-            return CharacterData->PrimaryWeapon;
-        }
-        else if (CharacterData->SecondarySlotType == ESecondarySlotType::Weapon)
-        {
-            return CharacterData->SecondaryWeapon;
-        }
-        return nullptr;
+        UE_LOG(LogTemp, Display, TEXT("UsingPrimary: %s"), LoadoutComp->IsUsingPrimary() ? TEXT("true") : TEXT("false"));
+        UWeaponData *Primary = LoadoutComp->GetPrimaryWeapon();
+        UE_LOG(LogTemp, Display, TEXT("Primary Weapon: %s"), Primary ? *Primary->WeaponName : TEXT("None"));
+        UWeaponData *Secondary = LoadoutComp->GetSecondaryWeapon();
+        UE_LOG(LogTemp, Display, TEXT("Secondary Weapon: %s"), Secondary ? *Secondary->WeaponName : TEXT("None"));
     }
-
-    return CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : nullptr;
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()

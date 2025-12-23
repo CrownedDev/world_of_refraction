@@ -958,7 +958,8 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 	}
 
 	// Evolution (any evolved character)
-	if (CharacterData->IsEvolved())
+	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (LoadoutComp && LoadoutComp->IsEvolved())
 	{
 		FPieMenuButtonData Button;
 		Button.ButtonID = TEXT("Infusion_Evolution");

@@ -422,57 +422,42 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     Items.Clear();
 
     // Add weapons
-    if (CharacterData->PrimaryWeapon)
+    // Lines 425-437 - Replace entire section with:
+    ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
+    if (DefaultLoadoutAsset)
     {
-        AddWeapon(CharacterData->PrimaryWeapon, true);
-    }
-    if (CharacterData->SecondaryWeapon)
-    {
-        AddWeapon(CharacterData->SecondaryWeapon, true);
-    }
-
-    // Add rings based on class
-    if (CharacterData->PrimaryRing)
-    {
-        AddRing(CharacterData->PrimaryRing, true);
-    }
-
-    // Resonator rings
-    for (URingData *Ring : CharacterData->EquippedRings)
-    {
-        if (Ring)
+        if (DefaultLoadoutAsset->PrimaryWeapon)
         {
-            AddRing(Ring, true);
+            AddWeapon(DefaultLoadoutAsset->PrimaryWeapon, true);
+        }
+        if (DefaultLoadoutAsset->SecondaryWeapon)
+        {
+            AddWeapon(DefaultLoadoutAsset->SecondaryWeapon, true);
+        }
+        if (DefaultLoadoutAsset->PrimaryRing)
+        {
+            AddRing(DefaultLoadoutAsset->PrimaryRing, true);
         }
     }
 
-    // Caster innate spells
-    for (USpellData *Spell : CharacterData->InnateSpells)
+    // Lines 459-471 - Replace entire section with:
+    if (DefaultLoadoutAsset && DefaultLoadoutAsset->PrimaryWeapon)
     {
-        if (Spell)
-        {
-            Spells.LearnSpell(Spell);
-        }
-    }
-
-    // Add abilities from weapons
-    if (CharacterData->PrimaryWeapon)
-    {
-        for (UAbilityData *Ability : CharacterData->PrimaryWeapon->PresetAbilities)
+        for (UAbilityData *Ability : DefaultLoadoutAsset->PrimaryWeapon->PresetAbilities)
         {
             if (Ability)
             {
-                Abilities.LearnAbility(Ability);
+                AddAbility(Ability);
             }
         }
     }
-    if (CharacterData->SecondaryWeapon)
+    if (DefaultLoadoutAsset && DefaultLoadoutAsset->SecondaryWeapon)
     {
-        for (UAbilityData *Ability : CharacterData->SecondaryWeapon->PresetAbilities)
+        for (UAbilityData *Ability : DefaultLoadoutAsset->SecondaryWeapon->PresetAbilities)
         {
             if (Ability)
             {
-                Abilities.LearnAbility(Ability);
+                AddAbility(Ability);
             }
         }
     }

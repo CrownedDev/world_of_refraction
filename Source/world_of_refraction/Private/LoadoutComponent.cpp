@@ -12,6 +12,8 @@
 #include "LoadoutData.h"
 #include "RingData.h"
 #include "ItemData.h"
+#include "StanceData.h"
+#include "WeaponAttackData.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -737,11 +739,16 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
 
     for (FWeaponInventoryEntry &Entry : Inventory->Weapons)
     {
-        if (Entry.Weapon == CharacterData->PrimaryWeapon && !PrimaryEntry)
+        // Check against DefaultLoadout instead of CharacterData properties
+        ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
+        UWeaponData *DefaultPrimaryWeapon = DefaultLoadoutAsset ? DefaultLoadoutAsset->PrimaryWeapon : nullptr;
+        UWeaponData *DefaultSecondaryWeapon = DefaultLoadoutAsset ? DefaultLoadoutAsset->SecondaryWeapon : nullptr;
+
+        if (Entry.Weapon == DefaultPrimaryWeapon && !PrimaryEntry)
         {
             PrimaryEntry = &Entry;
         }
-        else if (Entry.Weapon == CharacterData->SecondaryWeapon && !SecondaryEntry)
+        else if (Entry.Weapon == DefaultSecondaryWeapon && !SecondaryEntry)
         {
             SecondaryEntry = &Entry;
         }
@@ -824,10 +831,15 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     }
     else if (CharacterClass == ECharacterClass::Caster)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasPrimaryEvolution: %s"),
+        // Use DefaultLoadout to check evolution state during initialization
+        ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
+        bool bHasEvolution = DefaultLoadoutAsset && DefaultLoadoutAsset->PrimarySlotType == EPrimarySlotType::Evolution;
+        UItemData *EvolutionItem = DefaultLoadoutAsset ? DefaultLoadoutAsset->PrimaryEvolution : nullptr;
+
+        UE_LOG(LogTemp, Warning, TEXT("[LoadoutInit] Caster - InnateSpells: %d, IsEvolved: %s, HasEvolution: %s"),
                CharacterData->InnateSpells.Num(),
-               CharacterData->IsEvolved() ? TEXT("YES") : TEXT("NO"),
-               CharacterData->PrimaryEvolution ? TEXT("YES") : TEXT("NO"));
+               bHasEvolution ? TEXT("YES") : TEXT("NO"),
+               EvolutionItem ? TEXT("YES") : TEXT("NO"));
         // Caster innate spells go into InnateSpells
         for (USpellData *Spell : CharacterData->InnateSpells)
         {
@@ -838,9 +850,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         }
 
         // Copy evolution spells if caster is evolved
-        if (CharacterData->IsEvolved() && CharacterData->PrimaryEvolution)
+        if (bHasEvolution && EvolutionItem)
         {
-            for (USpellData *Spell : CharacterData->PrimaryEvolution->GetSpells())
+            for (USpellData *Spell : EvolutionItem->GetSpells())
             {
                 if (Spell && DefaultLoadout.InnateSpells.Num() < InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
                 {
@@ -1192,6 +1204,239 @@ bool ULoadoutComponent::IsArmed() const
     // Caster/Resonator: armed when bUsingPrimary AND has weapon
     return Loadout.bUsingPrimary && GetActiveWeapon() != nullptr;
 }
+bool ULoadoutComponent::IsEvolved() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    return SavedLoadouts[ActiveLoadoutIndex].PrimarySlotType == EPrimarySlotType::Evolution;
+}
+// ==================== EQUIPMENT STATE HELPERS ====================
+
+bool ULoadoutComponent::HasSecondaryEquipment() const
+{
+    if (CharacterClass != ECharacterClass::Generic)
+    {
+        return false;
+    }
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Evolved characters lose secondary
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        return false;
+    }
+
+    if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+    {
+        return Loadout.SecondaryWeapon.IsValid();
+    }
+
+    return false;
+}
+
+bool ULoadoutComponent::HasRingInSecondary() const
+{
+    if (CharacterClass != ECharacterClass::Generic)
+    {
+        return false;
+    }
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Evolved characters lose secondary
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        return false;
+    }
+
+    // TODO: When secondary ring is added to FCombatLoadout
+    // return Loadout.SecondarySlotType == ESecondarySlotType::Ring && Loadout.SecondaryRing.IsValid();
+    return false;
+}
+
+// ==================== STANCE & ANIMATION ====================
+
+UStanceData *ULoadoutComponent::GetCurrentStance() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Get active weapon entry
+    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
+
+    if (WeaponEntry && WeaponEntry->WeaponEntry.Weapon)
+    {
+        UWeaponData *Weapon = WeaponEntry->WeaponEntry.Weapon;
+        if (Weapon->WeaponStance)
+        {
+            return Weapon->WeaponStance;
+        }
+    }
+
+    // TODO: Return UnarmedStance from LoadoutData when available
+    return nullptr;
+}
+
+UAnimMontage *ULoadoutComponent::GetCurrentIdleMontage() const
+{
+    UStanceData *Stance = GetCurrentStance();
+    return Stance ? Stance->IdleAnimMontage : nullptr;
+}
+
+UWeaponAttackData *ULoadoutComponent::GetCurrentAttack() const
+{
+    if (!IsArmed())
+    {
+        return nullptr;
+    }
+
+    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
+
+    if (WeaponEntry && WeaponEntry->WeaponEntry.Weapon)
+    {
+        return WeaponEntry->WeaponEntry.Weapon->WeaponAttack;
+    }
+
+    return nullptr;
+}
+
+UAnimMontage *ULoadoutComponent::GetCurrentAttackMontage() const
+{
+    UWeaponAttackData *Attack = GetCurrentAttack();
+    return Attack ? Attack->AttackMontage : nullptr;
+}
+
+// ==================== SPELL ACCESS ====================
+
+TArray<USpellData *> ULoadoutComponent::GetCombatSpells() const
+{
+    TArray<USpellData *> Result;
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return Result;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Caster innate spells
+    if (CharacterClass == ECharacterClass::Caster)
+    {
+        Result.Append(Loadout.InnateSpells);
+    }
+
+    // Evolution spells
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        Result.Append(Loadout.EvolutionSpells);
+    }
+
+    // Weapon crystal spells
+    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
+    if (WeaponEntry)
+    {
+        Result.Append(WeaponEntry->GetAllSpells());
+    }
+
+    // Ring spells (Resonator)
+    if (CharacterClass == ECharacterClass::Resonator)
+    {
+        const FRingLoadoutEntry *RingEntry = GetActiveRingLoadout();
+        if (RingEntry)
+        {
+            Result.Append(RingEntry->GetAllSpells());
+        }
+    }
+
+    // Primary ring spells (Caster/Generic with ring primary)
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        const FRingLoadoutEntry *RingEntry = GetPrimaryRingLoadout();
+        if (RingEntry)
+        {
+            Result.Append(RingEntry->GetAllSpells());
+        }
+    }
+
+    return Result;
+}
+
+TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
+{
+    TArray<USpellData *> Result;
+
+    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
+    if (!WeaponEntry)
+    {
+        return Result;
+    }
+
+    // Only evolved weapons have resonate spells
+    if (!WeaponEntry->WeaponEntry.IsEvolved())
+    {
+        return Result;
+    }
+
+    // Get spells from evolution crystal
+    if (WeaponEntry->WeaponEntry.AttachedCrystal.IsValid())
+    {
+        Result = WeaponEntry->WeaponEntry.AttachedCrystal.GetAllSpells();
+    }
+
+    return Result;
+}
+
+TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
+{
+    TArray<USpellData *> Result;
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return Result;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Caster with ring primary
+    if (CharacterClass == ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        const FRingLoadoutEntry *RingEntry = GetPrimaryRingLoadout();
+        if (RingEntry)
+        {
+            return RingEntry->GetAllSpells();
+        }
+    }
+
+    // Resonator uses active ring
+    if (CharacterClass == ECharacterClass::Resonator)
+    {
+        const FRingLoadoutEntry *RingEntry = GetActiveRingLoadout();
+        if (RingEntry)
+        {
+            return RingEntry->GetAllSpells();
+        }
+    }
+
+    return Result;
+}
 
 // ==================== LOADOUT ENTRY ACCESSORS ====================
 
@@ -1302,33 +1547,8 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
     return Entry.IsValid() ? &Entry : nullptr;
 }
-#if WITH_EDITOR
-void ULoadoutComponent::DebugLogLoadout()
-{
-    UE_LOG(LogTemp, Display, TEXT("=== LOADOUT DEBUG ==="));
-    UE_LOG(LogTemp, Display, TEXT("Character Class: %d"), static_cast<int32>(CharacterClass));
-    UE_LOG(LogTemp, Display, TEXT("Saved Loadouts: %d/%d"), SavedLoadouts.Num(), MaxSavedLoadouts);
-    UE_LOG(LogTemp, Display, TEXT("Active Index: %d"), ActiveLoadoutIndex);
-    UE_LOG(LogTemp, Display, TEXT("Ready for Battle: %s"), bIsReadyForBattle ? TEXT("Yes") : TEXT("No"));
-
-    for (int32 i = 0; i < SavedLoadouts.Num(); ++i)
-    {
-        const FCombatLoadout &L = SavedLoadouts[i];
-        UE_LOG(LogTemp, Display, TEXT(""));
-        UE_LOG(LogTemp, Display, TEXT("[%d] %s %s"), i, *L.LoadoutName,
-               i == ActiveLoadoutIndex ? TEXT("(ACTIVE)") : TEXT(""));
-
-        if (!L.bPrimaryIsRing && L.PrimaryWeapon.IsValid())
-        {
-            UE_LOG(LogTemp, Display, TEXT("  Primary: %s (%d abilities, %d spells)"),
-                   *L.PrimaryWeapon.WeaponEntry.Weapon->WeaponName,
-                   L.PrimaryWeapon.AssignedAbilities.Num(),
-                   L.PrimaryWeapon.AssignedSpells.Num());
-        }
-
-        UE_LOG(LogTemp, Display, TEXT("  Items: %d slots"), L.ItemSlots.Num());
-        UE_LOG(LogTemp, Display, TEXT("  Total Abilities: %d"), L.GetAllAbilities().Num());
-        UE_LOG(LogTemp, Display, TEXT("  Total Spells: %d"), L.GetAllSpells().Num());
-    }
-}
+// TODO: [LoadoutComponent Migration] Rewrite to query LoadoutComponent
+#if 0
+    // ... entire section from line 104-260
 #endif
+Output += TEXT("  [Loadout info temporarily disabled - needs LoadoutComponent]\n");

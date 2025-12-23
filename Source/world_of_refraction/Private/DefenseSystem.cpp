@@ -400,7 +400,8 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		// Check if should use weapon parry animation
 		if (CharData->bUseWeaponParryAnimation)
 		{
-			UWeaponData *Weapon = CharData->bUsePrimary ? CharData->PrimaryWeapon : CharData->SecondaryWeapon;
+			ULoadoutComponent *LoadoutComp = DefendingActor->FindComponentByClass<ULoadoutComponent>();
+			UWeaponData *Weapon = LoadoutComp ? LoadoutComp->GetActiveWeapon() : nullptr;
 			if (Weapon && Weapon->ParryMontage)
 			{
 				MontageToPlay = Weapon->ParryMontage;
