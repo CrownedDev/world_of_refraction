@@ -251,4 +251,9 @@ private:
 
 	/** Get RingManager subsystem */
 	URingManager *GetRingManager() const;
+	/** Check if active weapon is evolved */
+	bool HasEvolvedWeapon(UCharacterData *CharacterData) const;
+
+	/** Check if active ring is evolved */
+	bool HasEvolvedRing(UCharacterData *CharacterData) const;
 };

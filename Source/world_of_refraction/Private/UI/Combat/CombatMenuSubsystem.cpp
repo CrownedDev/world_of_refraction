@@ -431,7 +431,9 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateChangeRingButton(UCharacterData *
 	Button.DisplayName = FText::FromString(TEXT("Change Ring"));
 	Button.Category = EPieMenuCategory::ChangeRing;
 
-	int32 Count = FMath::Min(CharacterData->EquippedRings.Num(), MAX_RINGS);
+	URingManager *RM = GetRingManager();
+	TArray<URingData *> Rings = RM ? RM->GetEquippedRings(CurrentActor.Get()) : TArray<URingData *>();
+	int32 Count = FMath::Min(Rings.Num(), MAX_RINGS);
 	Button.Description = FText::FromString(FString::Printf(TEXT("%d rings"), Count));
 	Button.bEnabled = Count > 1; // Need at least 2 rings to switch
 
@@ -480,21 +482,25 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateButton(UCharacterData *Ch
 			SpellCount = PriRing->GetAvailableSpells().Num();
 			TintColor = GetElementColor(static_cast<int32>(PriRing->GetRingElement()));
 		}
-		else if (CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
-				 CharacterData->PrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved())
+		else
 		{
-			// Source is evolved weapon
-			bSourceIsEvolvedWeapon = true;
-			bHasBreakChance = false; // Evolved weapon has no break
-			// TODO: Get spell count from weapon evolution
-			SpellCount = 0; // Placeholder until we have GetWeaponEvolutionSpells()
-			TintColor = GetElementColor(static_cast<int32>(CharacterData->PrimaryWeapon->GetWeaponElement()));
+			UWeaponManager *WM = GetWeaponManager();
+			UWeaponData *PriWeapon = WM ? WM->GetActiveWeapon(CurrentActor.Get()) : nullptr;
+			if (PriWeapon && PriWeapon->IsEvolved())
+			{
+				// Source is evolved weapon
+				bSourceIsEvolvedWeapon = true;
+				bHasBreakChance = false;
+				SpellCount = 0;
+				TintColor = GetElementColor(static_cast<int32>(PriWeapon->GetWeaponElement()));
+			}
 		}
 	}
 	else if (CharacterData->IsGeneric())
 	{
 		// Generic: Source is always evolved weapon (ring uses CreateResonateRingButton in unified menu)
-		UWeaponData *ActiveWeapon = CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : CharacterData->SecondaryWeapon;
+		UWeaponManager *WM = GetWeaponManager();
+		UWeaponData *ActiveWeapon = WM ? WM->GetActiveWeapon(CurrentActor.Get()) : nullptr;
 
 		if (ActiveWeapon && ActiveWeapon->IsEvolved())
 		{
@@ -625,29 +631,20 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateRingButton(UCharacterData
 	FPieMenuButtonData Button;
 	Button.ButtonID = TEXT("ResonateRing");
 	Button.DisplayName = FText::FromString(TEXT("Resonate (R)"));
-	Button.Category = EPieMenuCategory::ResonateRing; // Ring spells
+	Button.Category = EPieMenuCategory::ResonateRing;
 
-	// Get ring based on character class:
-	// - Caster: PrimaryRing (single slot)
-	// - Generic: SecondaryRing (if secondary slot is ring)
-	// - Resonator: EquippedRings[ActiveIndex]
 	URingData *Ring = nullptr;
+	URingManager *RM = GetRingManager();
 
-	if (CharacterData->IsCaster())
+	if (CharacterData->IsCaster() || CharacterData->IsGeneric())
 	{
-		Ring = CharacterData->PrimaryRing;
-	}
-	else if (CharacterData->IsGeneric())
-	{
-		Ring = CharacterData->PrimaryRing;
+		// Caster/Generic: Get primary ring via RingManager
+		Ring = RM ? RM->GetPrimaryRing(CurrentActor.Get()) : nullptr;
 	}
 	else if (CharacterData->IsResonator())
 	{
-		// TODO: Get active ring index from runtime state
-		if (CharacterData->EquippedRings.Num() > 0)
-		{
-			Ring = CharacterData->EquippedRings[0];
-		}
+		// Resonator: Get active ring from ring loadout
+		Ring = RM ? RM->GetActiveRing(CurrentActor.Get()) : nullptr;
 	}
 
 	if (Ring)
@@ -1297,4 +1294,34 @@ UWeaponManager *UCombatMenuSubsystem::GetWeaponManager() const
 URingManager *UCombatMenuSubsystem::GetRingManager() const
 {
 	return GetGameInstance()->GetSubsystem<URingManager>();
+}
+
+bool UCombatMenuSubsystem::HasEvolvedWeapon(UCharacterData *CharacterData) const
+{
+	if (!CharacterData)
+		return false;
+
+	UWeaponManager *WM = GetWeaponManager();
+	UWeaponData *Weapon = WM ? WM->GetActiveWeapon(CurrentActor.Get()) : nullptr;
+	return Weapon && Weapon->IsEvolved();
+}
+
+bool UCombatMenuSubsystem::HasEvolvedRing(UCharacterData *CharacterData) const
+{
+	if (!CharacterData)
+		return false;
+
+	URingManager *RM = GetRingManager();
+	URingData *Ring = nullptr;
+
+	if (CharacterData->IsCaster() || CharacterData->IsGeneric())
+	{
+		Ring = RM ? RM->GetPrimaryRing(CurrentActor.Get()) : nullptr;
+	}
+	else if (CharacterData->IsResonator())
+	{
+		Ring = RM ? RM->GetActiveRing(CurrentActor.Get()) : nullptr;
+	}
+
+	return Ring && Ring->IsEvolved();
 }
