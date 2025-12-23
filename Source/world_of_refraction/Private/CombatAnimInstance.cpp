@@ -5,6 +5,7 @@
 #include "CharacterData.h"
 #include "StanceData.h"
 #include "WeaponAttackData.h"
+#include "LoadoutComponent.h"
 #include "GameFramework/Character.h"
 
 UCombatAnimInstance::UCombatAnimInstance()
@@ -56,7 +57,8 @@ UStanceData *UCombatAnimInstance::GetDesiredStance() const
         return nullptr;
     }
 
-    return CharacterDataComponent->CharacterData->GetCurrentStance();
+    ULoadoutComponent *LoadoutComp = GetOwningActor() ? GetOwningActor()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    return LoadoutComp ? LoadoutComp->GetCurrentStance() : nullptr;
 }
 
 void UCombatAnimInstance::UpdateCombatState()
@@ -73,7 +75,8 @@ void UCombatAnimInstance::UpdateCombatState()
     }
 
     UCharacterData *Data = CharacterDataComponent->CharacterData;
-    bIsArmed = Data->IsArmed();
+    ULoadoutComponent *LoadoutComp = GetOwningActor() ? GetOwningActor()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    bIsArmed = LoadoutComp ? LoadoutComp->IsArmed() : false;
 
     // Get the stance we should be in
     UStanceData *DesiredStance = GetDesiredStance();

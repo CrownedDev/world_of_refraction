@@ -82,21 +82,12 @@ FWeaponState UWeaponManager::GetWeaponState(AActor *Actor) const
 
 UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 {
-	// Try LoadoutComponent first (production path)
 	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
 	if (LoadoutComp)
 	{
 		return LoadoutComp->GetActiveWeapon();
 	}
-
-	// Fallback to CharacterData (legacy/editor testing)
-	UCharacterData *Data = GetCharacterData(Actor);
-	if (!Data)
-	{
-		return nullptr;
-	}
-
-	return Data->GetActiveWeapon();
+	return nullptr;
 }
 
 UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const

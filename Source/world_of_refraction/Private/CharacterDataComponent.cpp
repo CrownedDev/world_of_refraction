@@ -218,10 +218,10 @@ int32 UCharacterDataComponent::CalculateMaxEnergy() const
 
 UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
 {
-    ULoadoutComponent *LoadoutComp = GetOwner()->FindComponentByClass<ULoadoutComponent>();
-    if (LoadoutComp)
+    ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    if (Loadout)
     {
-        return LoadoutComp->GetActiveWeapon();
+        return Loadout->GetActiveWeapon();
     }
     return nullptr;
 }

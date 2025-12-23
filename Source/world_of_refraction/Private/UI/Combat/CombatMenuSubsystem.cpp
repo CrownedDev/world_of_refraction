@@ -951,7 +951,8 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 	}
 
 	// WeaponCrystal (any class with non-Ilodite crystal)
-	UWeaponData *ActiveWeapon = CharacterData->GetActiveWeapon();
+	ULoadoutComponent *LC = GetLoadoutComponent();
+	UWeaponData *ActiveWeapon = LC ? LC->GetActiveWeapon() : nullptr;
 	if (ActiveWeapon && ActiveWeapon->IsCrystalFunctional() && !ActiveWeapon->HasIloditeEquipped())
 	{
 		ESpellElement CrystalElement = ActiveWeapon->GetWeaponElement();

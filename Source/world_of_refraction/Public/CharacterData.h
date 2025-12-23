@@ -97,16 +97,6 @@ public:
 	FString EvolutionElementDisplay = TEXT("(Set by PrimaryEvolution)");
 #endif
 
-	// ==================== EVOLUTION HELPERS ====================
-
-	/** Get spells for combat - returns Evolution's EquippedSpells if evolved, else InnateSpells */
-	UFUNCTION(BlueprintPure, Category = "Evolution|Spells")
-	TArray<USpellData *> GetCombatSpells() const;
-
-	/** Check if character has weapon access (evolved Casters lose weapons) */
-	UFUNCTION(BlueprintPure, Category = "Evolution|Loadout")
-	bool HasWeaponAccess() const;
-
 	// ==================== EVOLUTION COST FUNCTIONS ====================
 
 	/** Check if character can apply this evolution crystal */
@@ -570,42 +560,6 @@ public:
 			0.0f,
 			CombatConstants::RESISTANCE_MAX);
 	}
-
-	// ==================== EQUIPMENT HELPERS ====================
-
-	/** Get currently active weapon based on bUsePrimary and class */
-	UFUNCTION(BlueprintPure, Category = "Equipment")
-	UWeaponData *GetActiveWeapon() const;
-
-	// ==================== STANCE HELPERS ====================
-
-	/** Get current idle montage based on current weapon state */
-	UFUNCTION(BlueprintPure, Category = "Stance")
-	UAnimMontage *GetCurrentIdleMontage() const;
-
-	/** Get current stance based on current weapon state */
-	UFUNCTION(BlueprintPure, Category = "Stance")
-	UStanceData *GetCurrentStance() const;
-
-	/** Get current attack based on weapon state (nullptr if unarmed) */
-	UFUNCTION(BlueprintPure, Category = "Combat")
-	UWeaponAttackData *GetCurrentAttack() const;
-
-	/** Get current attack montage based on weapon state */
-	UFUNCTION(BlueprintPure, Category = "Combat")
-	UAnimMontage *GetCurrentAttackMontage() const;
-
-	/** Is character currently in armed state? */
-	UFUNCTION(BlueprintPure, Category = "Stance")
-	bool IsArmed() const;
-
-	/** Get primary evolution crystal (nullptr if not using evolution) */
-	UFUNCTION(BlueprintPure, Category = "Equipment")
-	UItemData *GetPrimaryEvolution() const;
-
-private:
-	/** Character's active weapon based on bUsePrimary - external systems use WeaponManager */
-	UWeaponData *GetActiveCharacterWeapon() const;
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;

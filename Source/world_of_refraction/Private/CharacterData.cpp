@@ -15,48 +15,6 @@
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
 
-UStanceData *UCharacterData::GetCurrentStance() const
-{
-    if (IsArmed())
-    {
-        UWeaponData *ActiveWeapon = GetActiveCharacterWeapon();
-        if (ActiveWeapon && ActiveWeapon->WeaponStance)
-        {
-            return ActiveWeapon->WeaponStance;
-        }
-    }
-
-    return UnarmedStance;
-}
-
-UAnimMontage *UCharacterData::GetCurrentIdleMontage() const
-{
-    UStanceData *Stance = GetCurrentStance();
-    return Stance ? Stance->IdleAnimMontage : nullptr;
-}
-
-UWeaponAttackData *UCharacterData::GetCurrentAttack() const
-{
-    if (!IsArmed())
-    {
-        return nullptr;
-    }
-
-    UWeaponData *ActiveWeapon = GetActiveCharacterWeapon();
-    if (ActiveWeapon && ActiveWeapon->WeaponAttack)
-    {
-        return ActiveWeapon->WeaponAttack;
-    }
-
-    return nullptr;
-}
-
-UAnimMontage *UCharacterData::GetCurrentAttackMontage() const
-{
-    UWeaponAttackData *Attack = GetCurrentAttack();
-    return Attack ? Attack->AttackMontage : nullptr;
-}
-
 // ==================== EVOLUTION COST FUNCTIONS ====================
 
 bool UCharacterData::CanApplyEvolution(UItemData *EvolutionCrystal) const

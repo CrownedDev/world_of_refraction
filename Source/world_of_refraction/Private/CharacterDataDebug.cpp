@@ -48,6 +48,23 @@ void UCharacterDataDebug::LogCharacterStats(UCharacterData *Character)
 	UE_LOG(LogTemp, Display, TEXT("\n%s"), *StatsString);
 }
 
+FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
+{
+	FString Output;
+
+	if (!Character)
+	{
+		return TEXT("No character data");
+	}
+
+	Output += FString::Printf(TEXT("=== %s ===\n"), *Character->CharacterName);
+	Output += FString::Printf(TEXT("Class: %s\n"), *UEnum::GetValueAsString(Character->CharacterClass));
+	Output += FString::Printf(TEXT("Element: %s\n"), *UEnum::GetValueAsString(Character->InnateElement));
+	Output += TEXT("\n[Loadout info: use LoadoutComponent]\n");
+
+	return Output;
+}
+
 // FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 // {
 // 	if (!Character)
