@@ -1295,33 +1295,3 @@ URingManager *UCombatMenuSubsystem::GetRingManager() const
 {
 	return GetGameInstance()->GetSubsystem<URingManager>();
 }
-
-bool UCombatMenuSubsystem::HasEvolvedWeapon(UCharacterData *CharacterData) const
-{
-	if (!CharacterData)
-		return false;
-
-	UWeaponManager *WM = GetWeaponManager();
-	UWeaponData *Weapon = WM ? WM->GetActiveWeapon(CurrentActor.Get()) : nullptr;
-	return Weapon && Weapon->IsEvolved();
-}
-
-bool UCombatMenuSubsystem::HasEvolvedRing(UCharacterData *CharacterData) const
-{
-	if (!CharacterData)
-		return false;
-
-	URingManager *RM = GetRingManager();
-	URingData *Ring = nullptr;
-
-	if (CharacterData->IsCaster() || CharacterData->IsGeneric())
-	{
-		Ring = RM ? RM->GetPrimaryRing(CurrentActor.Get()) : nullptr;
-	}
-	else if (CharacterData->IsResonator())
-	{
-		Ring = RM ? RM->GetActiveRing(CurrentActor.Get()) : nullptr;
-	}
-
-	return Ring && Ring->IsEvolved();
-}

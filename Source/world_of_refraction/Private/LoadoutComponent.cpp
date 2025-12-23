@@ -1178,6 +1178,106 @@ bool ULoadoutComponent::IsArmed() const
     return Loadout.bUsingPrimary && GetActiveWeapon() != nullptr;
 }
 
+// ==================== LOADOUT ENTRY ACCESSORS ====================
+
+const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+        return nullptr;
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Evolution primary = no weapon
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+        return nullptr;
+
+    // Ring primary - only Generic with secondary weapon
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        if (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+            Loadout.SecondaryWeapon.IsValid())
+        {
+            return &Loadout.SecondaryWeapon;
+        }
+        return nullptr;
+    }
+
+    // Weapon primary - class-specific behavior
+    if (CharacterClass == ECharacterClass::Generic)
+    {
+        if (Loadout.bUsingPrimary)
+            return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
+        else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+            return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
+        return nullptr;
+    }
+
+    // Caster/Resonator: armed state
+    if (Loadout.bUsingPrimary)
+        return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
+
+    return nullptr;
+}
+
+const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+        return nullptr;
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
+        return nullptr;
+
+    return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
+}
+
+const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+        return nullptr;
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (CharacterClass != ECharacterClass::Generic)
+        return nullptr;
+
+    if (Loadout.SecondarySlotType != ESecondarySlotType::Weapon)
+        return nullptr;
+
+    return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
+}
+
+const FRingLoadoutEntry *ULoadoutComponent::GetPrimaryRingLoadout() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+        return nullptr;
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
+        return nullptr;
+
+    return Loadout.PrimaryRing.IsValid() ? &Loadout.PrimaryRing : nullptr;
+}
+
+const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+        return nullptr;
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    if (CharacterClass != ECharacterClass::Resonator)
+        return nullptr;
+
+    if (!Loadout.RingLoadout.IsValidIndex(Loadout.ActiveRingIndex))
+        return nullptr;
+
+    const FRingLoadoutEntry &Entry = Loadout.RingLoadout[Loadout.ActiveRingIndex];
+    return Entry.IsValid() ? &Entry : nullptr;
+}
 #if WITH_EDITOR
 void ULoadoutComponent::DebugLogLoadout()
 {

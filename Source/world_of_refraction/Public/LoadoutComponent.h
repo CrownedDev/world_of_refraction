@@ -24,6 +24,8 @@ class UAbilityData;
 class UItemData;
 class URingData;
 class UItemData;
+struct FWeaponLoadoutEntry;
+struct FRingLoadoutEntry;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
@@ -220,6 +222,23 @@ public:
     /** Check if character is currently armed */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     bool IsArmed() const;
+
+    // ==================== LOADOUT ENTRY ACCESSORS ====================
+
+    /** Get active weapon loadout entry (full access to crystal, abilities, spells) */
+    const FWeaponLoadoutEntry *GetActiveWeaponLoadout() const;
+
+    /** Get primary weapon loadout entry */
+    const FWeaponLoadoutEntry *GetPrimaryWeaponLoadout() const;
+
+    /** Get secondary weapon loadout entry (Generic only) */
+    const FWeaponLoadoutEntry *GetSecondaryWeaponLoadout() const;
+
+    /** Get primary ring loadout entry (Generic/Caster with ring in primary slot) */
+    const FRingLoadoutEntry *GetPrimaryRingLoadout() const;
+
+    /** Get active ring loadout entry (Resonator) */
+    const FRingLoadoutEntry *GetActiveRingLoadout() const;
 
     // ==================== POST-BATTLE ====================
 
