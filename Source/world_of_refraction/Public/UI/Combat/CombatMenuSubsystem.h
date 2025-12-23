@@ -11,6 +11,8 @@
 #include "EInfusionSourceOption.h"
 #include "LoadoutComponent.h"
 #include "CharacterDataComponent.h"
+#include "WeaponManager.h"
+#include "RingManager.h"
 #include "CombatMenuSubsystem.generated.h"
 
 class UCharacterData;
@@ -243,4 +245,10 @@ private:
 
 	/** Get LoadoutComponent from current actor */
 	ULoadoutComponent *GetLoadoutComponent() const;
+
+	/** Get WeaponManager subsystem */
+	UWeaponManager *GetWeaponManager() const;
+
+	/** Get RingManager subsystem */
+	URingManager *GetRingManager() const;
 };

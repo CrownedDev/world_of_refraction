@@ -12,6 +12,8 @@
 #include "EWeaponSlotType.h"
 #include "EInfusionSourceOption.h"
 #include "CrystalType.h"
+#include "WeaponManager.h"
+#include "RingManager.h"
 
 // ==================== SUBSYSTEM LIFECYCLE ====================
 
@@ -468,13 +470,15 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateButton(UCharacterData *Ch
 	if (CharacterData->IsCaster())
 	{
 		// Caster: Check PrimarySlotType
-		if (CharacterData->PrimarySlotType == EPrimarySlotType::Ring && CharacterData->PrimaryRing)
+		URingManager *RM = GetRingManager();
+		URingData *PriRing = RM ? RM->GetPrimaryRing(CurrentActor.Get()) : nullptr;
+		if (PriRing)
 		{
 			// Source is ring
 			bSourceIsRing = true;
-			bHasBreakChance = !CharacterData->PrimaryRing->IsEvolved();
-			SpellCount = CharacterData->PrimaryRing->GetAvailableSpells().Num();
-			TintColor = GetElementColor(static_cast<int32>(CharacterData->PrimaryRing->GetRingElement()));
+			bHasBreakChance = !PriRing->IsEvolved();
+			SpellCount = PriRing->GetAvailableSpells().Num();
+			TintColor = GetElementColor(static_cast<int32>(PriRing->GetRingElement()));
 		}
 		else if (CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
 				 CharacterData->PrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved())
@@ -798,7 +802,9 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetRingsButtons(UCharacterData 
 	SetMenuState(EPieMenuState::RingGrid);
 
 	// Cap at MAX_RINGS
-	int32 Count = FMath::Min(CharacterData->EquippedRings.Num(), MAX_RINGS);
+	URingManager *RM = GetRingManager();
+	TArray<URingData *> Rings = RM ? RM->GetEquippedRings(CurrentActor.Get()) : TArray<URingData *>();
+	int32 Count = FMath::Min(Rings.Num(), MAX_RINGS);
 
 	for (int32 i = 0; i < Count; ++i)
 	{
@@ -924,12 +930,11 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 		}
 	}
 
-	// PrimaryRing (Generic with ring in primary slot)
-	if (CharacterData->IsGeneric() &&
-		CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
-		CharacterData->PrimaryRing != nullptr)
+	// PrimaryRing (Generic/Caster with ring in primary slot)
+	URingManager *RM = GetRingManager();
+	URingData *PriRing = RM ? RM->GetPrimaryRing(CurrentActor.Get()) : nullptr;
+	if (PriRing)
 	{
-		URingData *PriRing = CharacterData->PrimaryRing;
 		FPieMenuButtonData Button;
 		Button.ButtonID = TEXT("Infusion_PrimaryRing");
 		Button.DisplayName = FText::FromString(TEXT("Primary Ring"));
@@ -989,8 +994,12 @@ bool UCombatMenuSubsystem::ExecuteSwitchWeapon(UCharacterData *CharacterData)
 		return false;
 	}
 
-	// Toggle bUsePrimary
-	CharacterData->bUsePrimary = !CharacterData->bUsePrimary;
+	// Toggle via LoadoutComponent
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent();
+	if (LoadoutComp)
+	{
+		LoadoutComp->ToggleEquipment();
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatMenuSubsystem] Switched weapon. Now using %s"),
 		   CharacterData->bUsePrimary ? TEXT("Primary") : TEXT("Secondary"));
@@ -1278,4 +1287,14 @@ void UCombatMenuSubsystem::DebugLogMenuState() const
 	UE_LOG(LogTemp, Log, TEXT("  Class: %s"), *ClassStr);
 	UE_LOG(LogTemp, Log, TEXT("  Selected School: %d"), static_cast<int32>(SelectedSchool));
 	UE_LOG(LogTemp, Log, TEXT("========================================"));
+}
+
+UWeaponManager *UCombatMenuSubsystem::GetWeaponManager() const
+{
+	return GetGameInstance()->GetSubsystem<UWeaponManager>();
+}
+
+URingManager *UCombatMenuSubsystem::GetRingManager() const
+{
+	return GetGameInstance()->GetSubsystem<URingManager>();
 }

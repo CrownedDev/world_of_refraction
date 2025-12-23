@@ -2656,9 +2656,8 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	}
 
 	// Primary Ring (Generic/Caster with ring in primary slot)
-	if ((Data->IsGeneric() || Data->IsCaster()) &&
-		Data->PrimarySlotType == EPrimarySlotType::Ring &&
-		Data->PrimaryRing != nullptr)
+	URingManager *RM = GetRingManager();
+	if (RM && RM->GetPrimaryRing(Actor))
 	{
 		Sources.Add(EInfusionSourceOption::PrimaryRing);
 	}
@@ -2731,9 +2730,14 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 
 	case EInfusionSourceOption::PrimaryRing:
 	{
-		if (Data->PrimaryRing)
+		URingManager *RM = GetRingManager();
+		if (RM)
 		{
-			return Data->PrimaryRing->GetRingElement();
+			URingData *Ring = RM->GetPrimaryRing(Actor);
+			if (Ring)
+			{
+				return Ring->GetRingElement();
+			}
 		}
 		return ESpellElement::Generic;
 	}
