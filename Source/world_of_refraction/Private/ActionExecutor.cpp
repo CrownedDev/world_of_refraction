@@ -2669,7 +2669,8 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	}
 
 	// Evolution (any class, if evolved)
-	if (Data->IsEvolved())
+	ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	if (Loadout && Loadout->IsEvolved())
 	{
 		Sources.Add(EInfusionSourceOption::Evolution);
 	}
@@ -2757,7 +2758,18 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	}
 
 	case EInfusionSourceOption::Evolution:
-		return Data->GetSecondaryElement();
+	{
+		ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+		if (Loadout && Loadout->IsEvolved())
+		{
+			FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
+			if (ActiveLoadout.PrimaryEvolution)
+			{
+				return ActiveLoadout.PrimaryEvolution->GetAssociatedElement();
+			}
+		}
+		return ESpellElement::Generic;
+	}
 
 	default:
 		return ESpellElement::Generic;

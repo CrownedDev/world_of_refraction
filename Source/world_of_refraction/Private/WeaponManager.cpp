@@ -46,7 +46,7 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 
 	// Determine initial state from LoadoutComponent or CharacterData
 	bool bIsGeneric = CharData ? CharData->IsGeneric() : (LoadoutComp && LoadoutComp->CharacterClass == ECharacterClass::Generic);
-	bool bUsingPrimary = LoadoutComp ? LoadoutComp->IsUsingPrimary() : (CharData ? CharData->bUsePrimary : true);
+	bool bUsingPrimary = LoadoutComp ? LoadoutComp->IsUsingPrimary() : true;
 
 	if (bIsGeneric)
 	{
@@ -234,19 +234,6 @@ TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor *Actor) const
 
 		if (LoadoutComp->GetSecondaryWeapon())
 			Slots.Add(EWeaponSlot::Secondary);
-	}
-	else if (CharData)
-	{
-		// Fallback to CharacterData
-		if (CharData->PrimarySlotType == EPrimarySlotType::Weapon && CharData->PrimaryWeapon)
-			Slots.Add(EWeaponSlot::Primary);
-
-		if (CharData->IsGeneric() &&
-			CharData->SecondarySlotType == ESecondarySlotType::Weapon &&
-			CharData->SecondaryWeapon)
-		{
-			Slots.Add(EWeaponSlot::Secondary);
-		}
 	}
 
 	return Slots;
@@ -645,12 +632,6 @@ UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) co
 		{
 			return LoadoutComp->GetPrimaryWeapon();
 		}
-		// Fallback
-		UCharacterData *CharData = GetCharacterData(Actor);
-		if (CharData && CharData->PrimarySlotType == EPrimarySlotType::Weapon)
-		{
-			return CharData->PrimaryWeapon;
-		}
 		return nullptr;
 	}
 
@@ -660,13 +641,6 @@ UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) co
 		if (LoadoutComp)
 		{
 			return LoadoutComp->GetSecondaryWeapon();
-		}
-		// Fallback
-		UCharacterData *CharData = GetCharacterData(Actor);
-		if (CharData && CharData->IsGeneric() &&
-			CharData->SecondarySlotType == ESecondarySlotType::Weapon)
-		{
-			return CharData->SecondaryWeapon;
 		}
 		return nullptr;
 	}
@@ -815,15 +789,10 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 
 URingData *UWeaponManager::GetPrimaryRing(AActor *Actor) const
 {
-	UCharacterData *CharData = GetCharacterData(Actor);
-	if (!CharData)
-		return nullptr;
-
-	// Caster OR Generic with ring primary
-	if ((CharData->IsCaster() || CharData->IsGeneric()) &&
-		CharData->PrimarySlotType == EPrimarySlotType::Ring)
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
+	if (LoadoutComp)
 	{
-		return CharData->PrimaryRing;
+		return LoadoutComp->GetPrimaryRing();
 	}
 	return nullptr;
 }

@@ -128,7 +128,7 @@ void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, T
 		return;
 	}
 
-	bool bCharacterEvolved = CharacterData->IsEvolved();
+	bool bCharacterEvolved = GetLoadoutComponent() && GetLoadoutComponent()->IsEvolved();
 
 	// Equipment state from LoadoutComponent
 	EPrimarySlotType PrimarySlotType = LoadoutComp->GetPrimarySlotType();
@@ -216,15 +216,20 @@ void UCombatMenuSubsystem::BuildCasterMainMenu(UCharacterData *CharacterData, TA
 	 */
 
 	// Check primary slot type
-	bool bHasPrimaryWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
-							 CharacterData->PrimaryWeapon != nullptr;
-	bool bHasPrimaryRing = CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
-						   CharacterData->PrimaryRing != nullptr;
-	bool bHasPrimaryEvolution = CharacterData->PrimarySlotType == EPrimarySlotType::Evolution &&
-								CharacterData->PrimaryEvolution != nullptr;
+	ULoadoutComponent *Loadout = GetLoadoutComponent();
+	FCombatLoadout ActiveLoadout = Loadout ? Loadout->GetActiveLoadout() : FCombatLoadout();
 
-	bool bWeaponEvolved = bHasPrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved();
-	bool bRingEvolved = bHasPrimaryRing && CharacterData->PrimaryRing->IsEvolved();
+	bool bHasPrimaryWeapon = ActiveLoadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+							 ActiveLoadout.PrimaryWeapon.IsValid();
+	bool bHasPrimaryRing = ActiveLoadout.PrimarySlotType == EPrimarySlotType::Ring &&
+						   ActiveLoadout.PrimaryRing.IsValid();
+	bool bHasPrimaryEvolution = ActiveLoadout.PrimarySlotType == EPrimarySlotType::Evolution &&
+								ActiveLoadout.PrimaryEvolution != nullptr;
+
+	bool bWeaponEvolved = bHasPrimaryWeapon && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon &&
+						  ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon->IsEvolved();
+	bool bRingEvolved = bHasPrimaryRing && ActiveLoadout.PrimaryRing.RingEntry.Ring &&
+						ActiveLoadout.PrimaryRing.RingEntry.Ring->IsEvolved();
 
 	// Attack + Abilities (only if primary is weapon)
 	if (bHasPrimaryWeapon)
@@ -283,12 +288,18 @@ void UCombatMenuSubsystem::BuildResonatorMainMenu(UCharacterData *CharacterData,
 	 */
 
 	// Check primary slot type
-	bool bHasPrimaryWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
-							 CharacterData->PrimaryWeapon != nullptr;
-	bool bHasPrimaryEvolution = CharacterData->PrimarySlotType == EPrimarySlotType::Evolution &&
-								CharacterData->PrimaryEvolution != nullptr;
+	ULoadoutComponent *Loadout = GetLoadoutComponent();
+	FCombatLoadout ActiveLoadout = Loadout ? Loadout->GetActiveLoadout() : FCombatLoadout();
 
-	bool bWeaponEvolved = bHasPrimaryWeapon && CharacterData->PrimaryWeapon->IsEvolved();
+	bool bHasPrimaryWeapon = ActiveLoadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+							 ActiveLoadout.PrimaryWeapon.IsValid();
+	bool bHasPrimaryRing = ActiveLoadout.PrimarySlotType == EPrimarySlotType::Ring &&
+						   ActiveLoadout.PrimaryRing.IsValid();
+	bool bHasPrimaryEvolution = ActiveLoadout.PrimarySlotType == EPrimarySlotType::Evolution &&
+								ActiveLoadout.PrimaryEvolution != nullptr;
+
+	bool bWeaponEvolved = bHasPrimaryWeapon && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon &&
+						  ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon->IsEvolved();
 
 	// Check ring loadout
 	bool bHasRings = CharacterData->EquippedRings.Num() > 0;
@@ -353,7 +364,7 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateAttackButton(UCharacterData *Char
 	Button.Category = EPieMenuCategory::Attack;
 
 	// Get current weapon for description
-	UWeaponData *CurrentWeapon = CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : CharacterData->SecondaryWeapon;
+	UWeaponData *CurrentWeapon = GetLoadoutComponent() ? GetLoadoutComponent()->GetActiveWeapon() : nullptr;
 
 	if (CurrentWeapon)
 	{
@@ -560,7 +571,8 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateSwitchWeaponButton(UCharacterData
 
 	// Switch only appears for Generic with dual weapons
 	// Show what we'll switch TO (the other weapon)
-	UWeaponData *OtherWeapon = CharacterData->bUsePrimary ? CharacterData->SecondaryWeapon : CharacterData->PrimaryWeapon;
+	ULoadoutComponent *LC = GetLoadoutComponent();
+	UWeaponData *OtherWeapon = LC ? (LC->IsUsingPrimary() ? LC->GetSecondaryWeapon() : LC->GetPrimaryWeapon()) : nullptr;
 
 	if (OtherWeapon)
 	{
@@ -585,7 +597,7 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateBreakthroughButton(UCharacterData
 	Button.DisplayName = FText::FromString(TEXT("Breakthrough"));
 	Button.Category = EPieMenuCategory::Breakthrough; // Character evolution spells
 	Button.Description = FText::FromString(TEXT("Character Evolution spells (no break chance)"));
-	Button.bEnabled = CharacterData->IsEvolved();
+	Button.bEnabled = GetLoadoutComponent() && GetLoadoutComponent()->IsEvolved();
 
 	// Tint with character's element
 	Button.ButtonTint = GetElementColor(static_cast<int32>(CharacterData->InnateElement));
@@ -606,7 +618,7 @@ FPieMenuButtonData UCombatMenuSubsystem::CreateResonateWeaponButton(UCharacterDa
 	Button.Category = EPieMenuCategory::ResonateWeapon; // Evolved weapon spells
 	Button.Description = FText::FromString(TEXT("Evolved weapon spells (no break chance)"));
 
-	UWeaponData *Weapon = CharacterData->PrimaryWeapon;
+	UWeaponData *Weapon = GetLoadoutComponent() ? GetLoadoutComponent()->GetPrimaryWeapon() : nullptr;
 	if (Weapon && Weapon->IsEvolved())
 	{
 		Button.bEnabled = true;
@@ -958,7 +970,7 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 	}
 
 	// Evolution (any evolved character)
-	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+	ULoadoutComponent *LoadoutComp = CurrentActor.IsValid() ? CurrentActor->FindComponentByClass<ULoadoutComponent>() : nullptr;
 	if (LoadoutComp && LoadoutComp->IsEvolved())
 	{
 		FPieMenuButtonData Button;
@@ -968,7 +980,16 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetInfusionSourceButtons(UChara
 		Button.Category = EPieMenuCategory::InfusionSource;
 		Button.DataIndex = static_cast<int32>(EInfusionSourceOption::Evolution);
 		Button.bEnabled = true;
-		Button.ButtonTint = GetElementColor(static_cast<int32>(CharacterData->GetSecondaryElement()));
+		ESpellElement EvolutionElement = ESpellElement::Generic;
+		if (LoadoutComp && LoadoutComp->IsEvolved())
+		{
+			FCombatLoadout Loadout = LoadoutComp->GetActiveLoadout();
+			if (Loadout.PrimaryEvolution)
+			{
+				EvolutionElement = Loadout.PrimaryEvolution->GetAssociatedElement();
+			}
+		}
+		Button.ButtonTint = GetElementColor(static_cast<int32>(EvolutionElement));
 		Buttons.Add(Button);
 	}
 
@@ -995,7 +1016,7 @@ bool UCombatMenuSubsystem::ExecuteSwitchWeapon(UCharacterData *CharacterData)
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatMenuSubsystem] Switched weapon. Now using %s"),
-		   CharacterData->bUsePrimary ? TEXT("Primary") : TEXT("Secondary"));
+		   GetLoadoutComponent() && GetLoadoutComponent()->IsUsingPrimary() ? TEXT("Primary") : TEXT("Secondary"));
 
 	// Request menu refresh
 	OnMenuRefreshRequested.Broadcast();
@@ -1228,7 +1249,7 @@ bool UCombatMenuSubsystem::CanSwitchWeapon(UCharacterData *CharacterData) const
 	 * - Resonator: NO switch weapon (has Switch Ring instead)
 	 */
 
-	if (!CharacterData->IsGeneric() || CharacterData->IsEvolved())
+	if (!CharacterData->IsGeneric() || GetLoadoutComponent() && GetLoadoutComponent()->IsEvolved())
 	{
 		return false;
 	}

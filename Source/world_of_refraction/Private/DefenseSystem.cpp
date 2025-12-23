@@ -8,6 +8,7 @@
 #include "CombatAnimInstance.h"
 #include "AIDecisionManager.h"
 #include "CharacterData.h"
+#include "LoadoutComponent.h"
 
 void UDefenseSystem::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -400,7 +401,7 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		// Check if should use weapon parry animation
 		if (CharData->bUseWeaponParryAnimation)
 		{
-			ULoadoutComponent *LoadoutComp = DefendingActor->FindComponentByClass<ULoadoutComponent>();
+			ULoadoutComponent *LoadoutComp = Defender->FindComponentByClass<ULoadoutComponent>();
 			UWeaponData *Weapon = LoadoutComp ? LoadoutComp->GetActiveWeapon() : nullptr;
 			if (Weapon && Weapon->ParryMontage)
 			{

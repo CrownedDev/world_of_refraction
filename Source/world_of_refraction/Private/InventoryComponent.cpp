@@ -7,7 +7,7 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "ItemData.h"
-
+#include "LoadoutData.h"
 #include "CrystalType.h"
 #include "CharacterData.h"
 #include "ECrystalCategory.h"
@@ -440,14 +440,13 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
         }
     }
 
-    // Lines 459-471 - Replace entire section with:
     if (DefaultLoadoutAsset && DefaultLoadoutAsset->PrimaryWeapon)
     {
         for (UAbilityData *Ability : DefaultLoadoutAsset->PrimaryWeapon->PresetAbilities)
         {
             if (Ability)
             {
-                AddAbility(Ability);
+                Abilities.LearnAbility(Ability);
             }
         }
     }
@@ -457,7 +456,7 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
         {
             if (Ability)
             {
-                AddAbility(Ability);
+                Abilities.LearnAbility(Ability);
             }
         }
     }

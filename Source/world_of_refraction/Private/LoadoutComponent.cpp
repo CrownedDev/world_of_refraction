@@ -1262,9 +1262,6 @@ bool ULoadoutComponent::HasRingInSecondary() const
     {
         return false;
     }
-
-    // TODO: When secondary ring is added to FCombatLoadout
-    // return Loadout.SecondarySlotType == ESecondarySlotType::Ring && Loadout.SecondaryRing.IsValid();
     return false;
 }
 
@@ -1551,4 +1548,3 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 #if 0
     // ... entire section from line 104-260
 #endif
-Output += TEXT("  [Loadout info temporarily disabled - needs LoadoutComponent]\n");
