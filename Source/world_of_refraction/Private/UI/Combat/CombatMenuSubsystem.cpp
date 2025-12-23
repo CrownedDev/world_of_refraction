@@ -14,6 +14,8 @@
 #include "CrystalType.h"
 #include "WeaponManager.h"
 #include "RingManager.h"
+#include "FWeaponLoadoutEntry.h"
+#include "FRingLoadoutEntry.h"
 
 // ==================== SUBSYSTEM LIFECYCLE ====================
 
@@ -117,44 +119,37 @@ void UCombatMenuSubsystem::BuildGenericMainMenu(UCharacterData *CharacterData, T
 	 * NOTE: "Resonate (W)" and "Resonate (R)" modifiers only shown when both sources present.
 	 */
 
+	// Get LoadoutComponent for equipment state
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent();
+	if (!LoadoutComp)
+	{
+		// Fallback: just show Items
+		OutButtons.Add(CreateItemsButton(CharacterData));
+		return;
+	}
+
 	bool bCharacterEvolved = CharacterData->IsEvolved();
 
-	// Check secondary weapon availability
-	bool bHasSecondaryWeapon = !bCharacterEvolved &&
-							   CharacterData->SecondarySlotType == ESecondarySlotType::Weapon &&
-							   CharacterData->SecondaryWeapon != nullptr;
+	// Equipment state from LoadoutComponent
+	EPrimarySlotType PrimarySlotType = LoadoutComp->GetPrimarySlotType();
+	ESecondarySlotType SecondarySlotType = LoadoutComp->GetSecondarySlotType();
 
-	// Check primary slot type
-	bool bHasPrimaryRing = CharacterData->PrimarySlotType == EPrimarySlotType::Ring &&
-						   CharacterData->PrimaryRing != nullptr;
-	bool bHasPrimaryEvolution = CharacterData->PrimarySlotType == EPrimarySlotType::Evolution &&
-								CharacterData->PrimaryEvolution != nullptr;
-	bool bHasPrimaryWeapon = CharacterData->PrimarySlotType == EPrimarySlotType::Weapon &&
-							 CharacterData->PrimaryWeapon != nullptr;
+	// Get equipment entries (runtime truth)
+	const FWeaponLoadoutEntry *PrimaryWeaponEntry = LoadoutComp->GetPrimaryWeaponLoadout();
+	const FWeaponLoadoutEntry *SecondaryWeaponEntry = LoadoutComp->GetSecondaryWeaponLoadout();
+	const FWeaponLoadoutEntry *ActiveWeaponEntry = LoadoutComp->GetActiveWeaponLoadout();
+	const FRingLoadoutEntry *PrimaryRingEntry = LoadoutComp->GetPrimaryRingLoadout();
+	UItemData *PrimaryEvolution = LoadoutComp->GetPrimaryEvolution();
 
-	// Determine active weapon
-	UWeaponData *ActiveWeapon = nullptr;
-	if (bHasPrimaryWeapon)
-	{
-		// Primary is weapon
-		if (bHasSecondaryWeapon)
-		{
-			// Two weapons - use bUsePrimary to determine active
-			ActiveWeapon = CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : CharacterData->SecondaryWeapon;
-		}
-		else
-		{
-			ActiveWeapon = CharacterData->PrimaryWeapon;
-		}
-	}
-	else if (bHasSecondaryWeapon)
-	{
-		// Primary is Ring/Evolution, weapon comes from secondary
-		ActiveWeapon = CharacterData->SecondaryWeapon;
-	}
-	// else: No weapon access
+	// Derived state
+	bool bHasSecondaryWeapon = !bCharacterEvolved && SecondaryWeaponEntry != nullptr;
+	bool bHasPrimaryRing = PrimarySlotType == EPrimarySlotType::Ring && PrimaryRingEntry != nullptr;
+	bool bHasPrimaryEvolution = PrimarySlotType == EPrimarySlotType::Evolution && PrimaryEvolution != nullptr;
+	bool bHasPrimaryWeapon = PrimarySlotType == EPrimarySlotType::Weapon && PrimaryWeaponEntry != nullptr;
 
-	bool bActiveWeaponEvolved = ActiveWeapon && ActiveWeapon->IsEvolved();
+	// Active weapon data
+	UWeaponData *ActiveWeapon = ActiveWeaponEntry ? ActiveWeaponEntry->WeaponEntry.Weapon : nullptr;
+	bool bActiveWeaponEvolved = ActiveWeaponEntry && ActiveWeaponEntry->WeaponEntry.IsEvolved();
 
 	// Attack + Abilities (if has weapon)
 	if (ActiveWeapon)
@@ -1232,16 +1227,25 @@ bool UCombatMenuSubsystem::CanSwitchWeapon(UCharacterData *CharacterData) const
 	 * - Resonator: NO switch weapon (has Switch Ring instead)
 	 */
 
-	if (CharacterData->IsGeneric() && !CharacterData->IsEvolved())
+	if (!CharacterData->IsGeneric() || CharacterData->IsEvolved())
 	{
-		// Only allow switch when dual wielding WEAPONS (not weapon + ring)
-		return CharacterData->SecondarySlotType == ESecondarySlotType::Weapon &&
-			   CharacterData->PrimaryWeapon != nullptr &&
-			   CharacterData->SecondaryWeapon != nullptr;
+		return false;
 	}
 
-	// Caster and Resonator don't have weapon switching
-	return false;
+	ULoadoutComponent *LoadoutComp = GetLoadoutComponent();
+	if (!LoadoutComp)
+	{
+		return false;
+	}
+
+	// Only allow switch when dual wielding WEAPONS (not weapon + ring)
+	EPrimarySlotType PrimarySlotType = LoadoutComp->GetPrimarySlotType();
+	const FWeaponLoadoutEntry *PrimaryWeaponEntry = LoadoutComp->GetPrimaryWeaponLoadout();
+	const FWeaponLoadoutEntry *SecondaryWeaponEntry = LoadoutComp->GetSecondaryWeaponLoadout();
+
+	return PrimarySlotType == EPrimarySlotType::Weapon &&
+		   PrimaryWeaponEntry != nullptr &&
+		   SecondaryWeaponEntry != nullptr;
 }
 
 FLinearColor UCombatMenuSubsystem::GetElementColor(int32 ElementIndex) const

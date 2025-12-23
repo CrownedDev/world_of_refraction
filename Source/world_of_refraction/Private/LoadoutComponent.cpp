@@ -950,6 +950,13 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     // Evolution primary = no weapon access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
+        // Evolved Generic uses secondary weapon
+        if (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
+        }
+        // Caster/Resonator have no weapon when evolved
         return nullptr;
     }
 
@@ -1141,6 +1148,14 @@ bool ULoadoutComponent::HasWeaponAccess() const
     // Evolution primary = no weapon access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
     {
+        // Evolved Generic can still use secondary weapon
+        if (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+            Loadout.SecondaryWeapon.IsValid())
+        {
+            return true;
+        }
+        // Caster/Resonator lose all weapon access when evolved
         return false;
     }
 
@@ -1189,7 +1204,16 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
 
     // Evolution primary = no weapon
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        // Evolved Generic uses secondary weapon
+        if (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+            Loadout.SecondaryWeapon.IsValid())
+        {
+            return &Loadout.SecondaryWeapon;
+        }
         return nullptr;
+    }
 
     // Ring primary - only Generic with secondary weapon
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)

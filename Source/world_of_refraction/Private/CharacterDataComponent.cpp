@@ -223,7 +223,18 @@ UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
         return nullptr;
     }
 
-    // Generic uses bUsePrimary to determine active weapon
+    // Try LoadoutComponent first (runtime truth)
+    AActor *Owner = GetOwner();
+    if (Owner)
+    {
+        ULoadoutComponent *LoadoutComp = Owner->FindComponentByClass<ULoadoutComponent>();
+        if (LoadoutComp)
+        {
+            return LoadoutComp->GetActiveWeapon();
+        }
+    }
+
+    // Fallback to CharacterData (editor/legacy)
     if (CharacterData->IsGeneric())
     {
         if (CharacterData->bUsePrimary)
@@ -237,7 +248,6 @@ UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
         return nullptr;
     }
 
-    // Caster/Resonator: only primary when armed
     return CharacterData->bUsePrimary ? CharacterData->PrimaryWeapon : nullptr;
 }
 
