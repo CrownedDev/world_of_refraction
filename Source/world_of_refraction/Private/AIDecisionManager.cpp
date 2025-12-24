@@ -7,7 +7,6 @@
 #include "CharacterData.h"
 #include "LoadoutComponent.h"
 #include "WeaponData.h"
-#include "WeaponManager.h"
 #include "WeaponAttackData.h"
 #include "SpellData.h"
 #include "AbilityData.h"
@@ -193,8 +192,7 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
         }
         case EActionType::Attack:
         {
-            UWeaponManager *WeaponManager = GetGameInstance()->GetSubsystem<UWeaponManager>();
-            Action.AttackData = WeaponManager ? WeaponManager->GetActiveAttack(AIActor) : nullptr;
+            Action.AttackData = Loadout->GetCurrentAttack();
             break;
         }
         default:
@@ -218,8 +216,7 @@ EActionType UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutCompon
     // Gather available options
     TArray<EActionType> Options;
 
-    UWeaponManager *WeaponManager = GetGameInstance()->GetSubsystem<UWeaponManager>();
-    if (WeaponManager && WeaponManager->GetActiveAttack(AIActor))
+    if (Loadout->GetAllWeaponAttacks().Num() > 0)
     {
         Options.Add(EActionType::Attack);
     }
@@ -608,28 +605,25 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     }
 
     // Check weapon attack
-    UWeaponManager *WeaponManager = GetGameInstance()->GetSubsystem<UWeaponManager>();
-    if (WeaponManager)
+    UWeaponAttackData *Attack = Loadout->GetCurrentAttack();
+    if (Attack)
     {
-        UWeaponAttackData *Attack = WeaponManager->GetActiveAttack(Attacker);
-        if (Attack)
+        UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
+        if (DamageCalc)
         {
-            UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
-            if (DamageCalc)
-            {
-                FDamageCalculationResult DamageResult = DamageCalc->CalculateAttackDamage(Attacker, Target, Attack, false);
-                int32 AttackDamage = DamageResult.FinalDamage;
-                BestDamage = FMath::Max(BestDamage, AttackDamage);
-            }
-            else
-            {
-                // Fallback if DamageCalculator unavailable
-                BestDamage = FMath::Max(BestDamage, 50);
-            }
+            FDamageCalculationResult DamageResult = DamageCalc->CalculateAttackDamage(Attacker, Target, Attack, false);
+            int32 AttackDamage = DamageResult.FinalDamage;
+            BestDamage = FMath::Max(BestDamage, AttackDamage);
+        }
+        else
+        {
+            // Fallback if DamageCalculator unavailable
+            BestDamage = FMath::Max(BestDamage, 50);
         }
     }
+}
 
-    return BestDamage > 0 ? BestDamage : 50;
+return BestDamage > 0 ? BestDamage : 50;
 }
 
 int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
@@ -972,8 +966,8 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     TMap<EActionType, int32> ActionScores;
 
     // Gather available actions
-    UWeaponManager *WeaponManager = GetGameInstance()->GetSubsystem<UWeaponManager>();
-    if (WeaponManager && WeaponManager->GetActiveAttack(AIActor))
+    TArray<UWeaponAttackData *> AllAttacks = Loadout->GetAllWeaponAttacks();
+    if (AllAttacks.Num() > 0)
     {
         AvailableActions.Add(EActionType::Attack);
     }
@@ -1003,14 +997,17 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
         case EActionType::Attack:
         {
-            UWeaponAttackData *Attack = WeaponManager->GetActiveAttack(AIActor);
-            if (Attack)
+            // Score best attack from all weapons
+            UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
+            if (DamageCalc)
             {
-                UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
-                if (DamageCalc)
+                for (UWeaponAttackData *Attack : AllAttacks)
                 {
-                    FDamageCalculationResult Result = DamageCalc->CalculateAttackDamage(AIActor, BestTarget, Attack, false);
-                    Score = Result.FinalDamage;
+                    if (Attack)
+                    {
+                        FDamageCalculationResult Result = DamageCalc->CalculateAttackDamage(AIActor, BestTarget, Attack, false);
+                        Score = FMath::Max(Score, Result.FinalDamage);
+                    }
                 }
             }
             break;
@@ -1074,7 +1071,29 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     {
     case EActionType::Attack:
     {
-        Action.AttackData = WeaponManager->GetActiveAttack(AIActor);
+        // Pick best attack from all weapons
+        UWeaponAttackData *BestAttack = nullptr;
+        int32 BestAttackDamage = 0;
+        UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
+
+        for (UWeaponAttackData *Attack : Loadout->GetAllWeaponAttacks())
+        {
+            if (Attack && DamageCalc)
+            {
+                FDamageCalculationResult Result = DamageCalc->CalculateAttackDamage(AIActor, Action.Targets[0], Attack, false);
+                if (Result.FinalDamage > BestAttackDamage)
+                {
+                    BestAttackDamage = Result.FinalDamage;
+                    BestAttack = Attack;
+                }
+            }
+            else if (Attack && !BestAttack)
+            {
+                BestAttack = Attack; // Fallback if no DamageCalc
+            }
+        }
+
+        Action.AttackData = BestAttack;
         break;
     }
     case EActionType::Spell:

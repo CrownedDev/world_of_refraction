@@ -165,6 +165,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     int32 GetItemRemainingUses(int32 SlotIndex) const;
 
+    /** Get attacks from ALL equipped weapons (for AI evaluation) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<UWeaponAttackData *> GetAllWeaponAttacks() const;
+
     /** Get all available abilities from active loadout */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<UAbilityData *> GetAvailableAbilities() const;

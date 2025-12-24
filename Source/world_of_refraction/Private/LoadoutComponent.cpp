@@ -617,6 +617,46 @@ int32 ULoadoutComponent::GetItemRemainingUses(int32 SlotIndex) const
     return Loadout.ItemSlots[SlotIndex].GetRemainingUses();
 }
 
+TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
+{
+    TArray<UWeaponAttackData *> Result;
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return Result;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Primary weapon attack
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    {
+        if (UWeaponData *Weapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon)
+        {
+            if (Weapon->WeaponAttack)
+            {
+                Result.Add(Weapon->WeaponAttack);
+            }
+        }
+    }
+
+    // Secondary weapon attack (Generic only)
+    if (CharacterClass == ECharacterClass::Generic &&
+        Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+        Loadout.SecondaryWeapon.IsValid())
+    {
+        if (UWeaponData *Weapon = Loadout.SecondaryWeapon.WeaponEntry.Weapon)
+        {
+            if (Weapon->WeaponAttack)
+            {
+                Result.Add(Weapon->WeaponAttack);
+            }
+        }
+    }
+
+    return Result;
+}
+
 TArray<UAbilityData *> ULoadoutComponent::GetAvailableAbilities() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
