@@ -29,6 +29,7 @@ class UAbilityData;
 class UInventoryComponent;
 class ULoadoutData;
 class UItemData;
+class UStanceData;
 
 /**
  * FCombatLoadout
@@ -54,6 +55,9 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     static FCombatLoadout CreateFromAsset(const ULoadoutData *Asset);
 
     // ==================== PRIMARY EQUIPMENT ====================
+    /** Does this character start combat with weapon drawn? */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
+    bool bUsingPrimary = true;
 
     /** Primary slot type (Weapon/Ring/Evolution) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
@@ -103,11 +107,13 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
     TArray<FItemLoadoutSlot> ItemSlots;
 
-    // ==================== RUNTIME STATE ====================
+    // ==================== COSMETICS ====================
 
-    /** Currently using primary weapon? (vs secondary for Generic) */
-    UPROPERTY(BlueprintReadWrite, Category = "Runtime")
-    bool bUsingPrimary = true;
+    /** Unarmed stance (fallback when no weapon equipped) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
+    UStanceData *UnarmedStance = nullptr;
+
+    // ==================== RUNTIME STATE ====================
 
     /** Active ring index for Resonator */
     UPROPERTY(BlueprintReadWrite, Category = "Runtime")

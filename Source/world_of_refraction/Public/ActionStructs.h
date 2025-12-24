@@ -391,7 +391,7 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	float WindowDuration = 0.3f;
 
 	/** Unique ID for this defense context */
-	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	UPROPERTY(BlueprintReadOnly, Category = "Defense", Meta = (IgnoreForMemberInitializationTest))
 	FGuid ContextId;
 
 	FPendingDefenseContext()
@@ -410,7 +410,7 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	GENERATED_BODY()
 
 	/** Unique ID for this action execution */
-	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	UPROPERTY(BlueprintReadOnly, Category = "Execution", Meta = (IgnoreForMemberInitializationTest))
 	FGuid ExecutionId;
 
 	/** The action being executed */

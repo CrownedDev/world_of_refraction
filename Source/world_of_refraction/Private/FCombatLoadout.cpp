@@ -293,6 +293,7 @@ void FCombatLoadout::Clear()
     RingLoadout.Empty();
     InnateSpells.Empty();
     ItemSlots.Empty();
+    UnarmedStance = nullptr;
 
     bUsingPrimary = true;
     ActiveRingIndex = 0;
@@ -432,6 +433,9 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.ItemSlots[i].ResetForBattle();
         }
     }
+
+    Result.UnarmedStance = Asset->UnarmedStance;
+    Result.bUsingPrimary = Asset->bUsingPrimary;
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s' (PrimarySlotType: %d)"),
            *Asset->LoadoutName, static_cast<int32>(Asset->PrimarySlotType));

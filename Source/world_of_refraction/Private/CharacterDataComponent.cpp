@@ -231,7 +231,7 @@ void UCharacterDataComponent::DebugToggleWeapon()
     ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
     if (Loadout)
     {
-        Loadout->ToggleArmedState();
+        Loadout->ToggleEquipment();
         UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] Toggled weapon via LoadoutComponent"));
     }
     else

@@ -820,16 +820,23 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     }
 
     // Ring primary scenarios:
-    // - Generic: Can have secondary weapon → weapon access via secondary only
-    // - Caster: No secondary slot → NO weapon access (ring-only build)
-    // - Resonator: Cannot have ring primary (N/A)
+    // - bUsingPrimary=true → using ring, no weapon (return nullptr)
+    // - bUsingPrimary=false → using secondary weapon (Generic only)
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
+        // Using primary (ring) = no weapon
+        if (Loadout.bUsingPrimary)
+        {
+            return nullptr;
+        }
+
+        // Using secondary = check for weapon
         if (CharacterClass == ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
             return Loadout.SecondaryWeapon.IsValid() ? Loadout.SecondaryWeapon.WeaponEntry.Weapon : nullptr;
         }
+
         return nullptr;
     }
 
@@ -1135,8 +1142,8 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
         }
     }
 
-    // TODO: Return UnarmedStance from LoadoutData when available
-    return nullptr;
+    // Fallback to unarmed stance
+    return Loadout.UnarmedStance;
 }
 
 UAnimMontage *ULoadoutComponent::GetCurrentIdleMontage() const
@@ -1307,12 +1314,15 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     // Ring primary - only Generic with secondary weapon
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
+        // Using primary (ring) = no weapon
+        if (Loadout.bUsingPrimary)
+            return nullptr;
+
+        // Using secondary = check for weapon
         if (CharacterClass == ECharacterClass::Generic &&
-            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
-            Loadout.SecondaryWeapon.IsValid())
-        {
-            return &Loadout.SecondaryWeapon;
-        }
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+            return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
+
         return nullptr;
     }
 
