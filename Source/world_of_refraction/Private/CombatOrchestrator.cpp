@@ -69,7 +69,9 @@ void ACombatOrchestrator::BeginPlay()
 	// Auto-start combat if enabled (AFTER subsystems are cached)
 	if (bAutoStartCombat)
 	{
-		DebugStartCombatWithLevelActors();
+		// Delay to allow all actors to finish BeginPlay
+		GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
+														  { DebugStartCombatWithLevelActors(); });
 	}
 }
 

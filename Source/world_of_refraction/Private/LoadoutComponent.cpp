@@ -308,7 +308,18 @@ bool ULoadoutComponent::ValidateActiveLoadout(UInventoryComponent *Inventory)
 
 bool ULoadoutComponent::ValidateLoadout(int32 Index, UInventoryComponent *Inventory)
 {
-    if (!SavedLoadouts.IsValidIndex(Index) || !Inventory)
+    if (!SavedLoadouts.IsValidIndex(Index))
+    {
+        return false;
+    }
+
+    // Asset-based loadouts don't require inventory validation
+    if (bInitializedFromAsset)
+    {
+        return true;
+    }
+
+    if (!Inventory)
     {
         return false;
     }
@@ -515,6 +526,29 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 
 bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
 {
+    // Not initialized yet - can't prepare
+    if (SavedLoadouts.Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] PrepareForBattle called before initialization"));
+        return false;
+    }
+
+    // Asset-based loadouts (AI) skip inventory validation - designer configured
+    if (bInitializedFromAsset)
+    {
+        // Reset item uses
+        if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+        {
+            for (FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
+            {
+                Slot.ResetForBattle();
+            }
+        }
+        bIsReadyForBattle = true;
+        return true;
+    }
+
+    // Player loadouts - validate against inventory
     if (!ValidateActiveLoadout(Inventory))
     {
         bIsReadyForBattle = false;
