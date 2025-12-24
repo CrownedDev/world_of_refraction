@@ -173,6 +173,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetAvailableSpells() const;
 
+    /** Get spells from primary slot only (Ring or evolved Weapon) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<USpellData *> GetPrimarySlotSpells() const;
+
+    /** Get spells from secondary slot only (Generic with secondary weapon's crystal) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<USpellData *> GetSecondarySlotSpells() const;
+
+    /** Get spells based on bUsingPrimary state */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    TArray<USpellData *> GetActiveSlotSpells() const;
+
     /** Get usable item slots (C++ only - use GetUsableItemCount for Blueprint) */
     TArray<FItemLoadoutSlot> GetUsableItems() const;
 

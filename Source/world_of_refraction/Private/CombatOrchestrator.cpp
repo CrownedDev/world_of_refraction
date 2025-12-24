@@ -1095,19 +1095,15 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 	AttackAction.ActionType = EActionType::Attack;
 	AttackAction.Targets.Add(Target);
 
-	// Get weapon attack data from LoadoutComponent
+	// Get weapon attack data via GetActiveWeapon (respects bUsingPrimary)
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
-		if (ActiveLoadout.PrimaryWeapon.IsValid() && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon)
+		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
+		if (ActiveWeapon && ActiveWeapon->WeaponAttack)
 		{
-			UWeaponData *Weapon = ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon;
-			if (Weapon->WeaponAttack)
-			{
-				AttackAction.AttackData = Weapon->WeaponAttack;
-				UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
-					   *Weapon->WeaponAttack->AttackName, *Weapon->WeaponName);
-			}
+			AttackAction.AttackData = ActiveWeapon->WeaponAttack;
+			UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
+				   *ActiveWeapon->WeaponAttack->AttackName, *ActiveWeapon->WeaponName);
 		}
 	}
 
@@ -1125,6 +1121,159 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 	if (ActionExecutorRef)
 	{
 		ActionExecutorRef->ExecuteActionAsync(Actor, AttackAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
+}
+void ACombatOrchestrator::DebugTestAbilityMovement()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestAbilityMovement: No actor available"));
+		return;
+	}
+
+	// Find target from opposing team
+	AActor *Target = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestAbilityMovement: No valid target"));
+		return;
+	}
+
+	// Build ability action
+	FAction AbilityAction;
+	AbilityAction.ActionType = EActionType::Ability;
+	AbilityAction.Targets.Add(Target);
+
+	// Get ability from LoadoutComponent
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		TArray<UAbilityData *> AvailableAbilities = Loadout->GetAvailableAbilities();
+		if (AvailableAbilities.Num() > 0)
+		{
+			AbilityAction.AbilityData = AvailableAbilities[0];
+			UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] Using ability: %s"),
+				   *AbilityAction.AbilityData->AbilityName);
+		}
+	}
+
+	// Fallback to test ability
+	if (!AbilityAction.AbilityData)
+	{
+		AbilityAction.AbilityData = LoadObject<UAbilityData>(nullptr,
+															 TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+	}
+
+	if (!AbilityAction.AbilityData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAbilityMovement] No ability available on %s"),
+			   *Actor->GetName());
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] %s using %s on %s"),
+		   *Actor->GetName(), *AbilityAction.AbilityData->AbilityName, *Target->GetName());
+
+	// Execute through ActionExecutor with callback
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, AbilityAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
+}
+
+void ACombatOrchestrator::DebugTestSpellMovement()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestSpellMovement: No actor available"));
+		return;
+	}
+
+	// Find target from opposing team
+	AActor *Target = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugTestSpellMovement: No valid target"));
+		return;
+	}
+
+	// Build spell action
+	FAction SpellAction;
+	SpellAction.ActionType = EActionType::Spell;
+	SpellAction.Targets.Add(Target);
+
+	// Get spell from active slot (respects bUsingPrimary)
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		TArray<USpellData *> ActiveSpells = Loadout->GetActiveSlotSpells();
+		if (ActiveSpells.Num() > 0)
+		{
+			SpellAction.SpellData = ActiveSpells[0];
+			UE_LOG(LogTemp, Log, TEXT("[DebugTestSpellMovement] Using spell: %s (Element: %s)"),
+				   *SpellAction.SpellData->SpellName,
+				   *UEnum::GetValueAsString(SpellAction.SpellData->Element));
+		}
+		else
+		{
+			// Fallback to all available spells
+			TArray<USpellData *> AllSpells = Loadout->GetAvailableSpells();
+			if (AllSpells.Num() > 0)
+			{
+				SpellAction.SpellData = AllSpells[0];
+				UE_LOG(LogTemp, Log, TEXT("[DebugTestSpellMovement] Fallback spell: %s"),
+					   *SpellAction.SpellData->SpellName);
+			}
+		}
+	}
+
+	// Final fallback to test spell
+	if (!SpellAction.SpellData)
+	{
+		SpellAction.SpellData = LoadObject<USpellData>(nullptr,
+													   TEXT("/Game/Data/Spells/Fire/DA_Spell_Fireball.DA_Spell_Fireball"));
+	}
+
+	if (!SpellAction.SpellData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestSpellMovement] No spell available on %s"),
+			   *Actor->GetName());
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugTestSpellMovement] %s casting %s on %s"),
+		   *Actor->GetName(), *SpellAction.SpellData->SpellName, *Target->GetName());
+
+	// Execute through ActionExecutor with callback
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, SpellAction,
 											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }
@@ -1162,17 +1311,16 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 		return;
 	}
 
-	// Get weapon attack data
+	// Get weapon attack data via GetActiveWeapon (respects bUsingPrimary)
 	UWeaponAttackData *AttackData = nullptr;
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
-		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
-		if (ActiveLoadout.PrimaryWeapon.IsValid() && ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon)
+		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
+		if (ActiveWeapon && ActiveWeapon->WeaponAttack)
 		{
-			AttackData = ActiveLoadout.PrimaryWeapon.WeaponEntry.Weapon->WeaponAttack;
+			AttackData = ActiveWeapon->WeaponAttack;
 		}
 	}
-
 	if (!AttackData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncAttack] No weapon attack data on %s"),
@@ -1340,6 +1488,110 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 	if (!bUsingOverride)
 	{
 		OnActionCompleted();
+	}
+}
+
+void ACombatOrchestrator::DebugTestPrimarySpell()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestPrimarySpell] No actor available"));
+		return;
+	}
+
+	AActor *Target = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+		Target = Team1Combatants[0];
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+		Target = Team0Combatants[0];
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestPrimarySpell] No valid target"));
+		return;
+	}
+
+	FAction SpellAction;
+	SpellAction.ActionType = EActionType::Spell;
+	SpellAction.Targets.Add(Target);
+
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		TArray<USpellData *> PrimarySpells = Loadout->GetPrimarySlotSpells();
+		if (PrimarySpells.Num() > 0)
+		{
+			SpellAction.SpellData = PrimarySpells[0];
+			UE_LOG(LogTemp, Log, TEXT("[DebugTestPrimarySpell] Using PRIMARY spell: %s (Element: %s)"),
+				   *SpellAction.SpellData->SpellName,
+				   *UEnum::GetValueAsString(SpellAction.SpellData->Element));
+		}
+	}
+
+	if (!SpellAction.SpellData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestPrimarySpell] No PRIMARY slot spells on %s"), *Actor->GetName());
+		return;
+	}
+
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, SpellAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
+}
+
+void ACombatOrchestrator::DebugTestSecondarySpell()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestSecondarySpell] No actor available"));
+		return;
+	}
+
+	AActor *Target = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+		Target = Team1Combatants[0];
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+		Target = Team0Combatants[0];
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestSecondarySpell] No valid target"));
+		return;
+	}
+
+	FAction SpellAction;
+	SpellAction.ActionType = EActionType::Spell;
+	SpellAction.Targets.Add(Target);
+
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		TArray<USpellData *> SecondarySpells = Loadout->GetSecondarySlotSpells();
+		if (SecondarySpells.Num() > 0)
+		{
+			SpellAction.SpellData = SecondarySpells[0];
+			UE_LOG(LogTemp, Log, TEXT("[DebugTestSecondarySpell] Using SECONDARY spell: %s (Element: %s)"),
+				   *SpellAction.SpellData->SpellName,
+				   *UEnum::GetValueAsString(SpellAction.SpellData->Element));
+		}
+	}
+
+	if (!SpellAction.SpellData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestSecondarySpell] No SECONDARY slot spells on %s (Generic with evolved weapon crystal only)"), *Actor->GetName());
+		return;
+	}
+
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, SpellAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }
 

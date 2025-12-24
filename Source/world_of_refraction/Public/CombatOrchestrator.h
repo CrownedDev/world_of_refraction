@@ -241,6 +241,14 @@ public:
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugTestAttackMovement();
 
+	/** Execute ability with movement - tests full ability pipeline */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestAbilityMovement();
+
+	/** Execute spell with movement - tests full spell pipeline */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestSpellMovement();
+
 	/** Execute sync attack - bypasses movement, tests damage pipeline + animation */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugExecuteSyncAttack();
@@ -248,6 +256,14 @@ public:
 	/** Execute sync spell - tests spell pipeline + VFX */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugExecuteSyncSpell();
+
+	/** Test spell from PRIMARY slot specifically */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestPrimarySpell();
+
+	/** Test spell from SECONDARY slot specifically */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestSecondarySpell();
 
 	/** Execute sync ability - tests ability pipeline */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")

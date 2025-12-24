@@ -640,6 +640,94 @@ TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
     return Result;
 }
 
+TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
+{
+    TArray<USpellData *> Result;
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return Result;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Ring primary
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
+    {
+        Result = Loadout.PrimaryRing.GetAllSpells();
+    }
+    // Evolution primary
+    else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+    {
+        Result = Loadout.EvolutionSpells;
+    }
+    // Weapon primary with crystal
+    else if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    {
+        Result = Loadout.PrimaryWeapon.GetAllSpells();
+    }
+
+    // Caster also has innate spells
+    if (CharacterClass == ECharacterClass::Caster)
+    {
+        Result.Append(Loadout.InnateSpells);
+    }
+
+    return Result;
+}
+
+TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
+{
+    TArray<USpellData *> Result;
+
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return Result;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Only Generic has secondary
+    if (CharacterClass != ECharacterClass::Generic)
+    {
+        return Result;
+    }
+
+    // Secondary weapon with crystal spells
+    if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
+    {
+        Result = Loadout.SecondaryWeapon.GetAllSpells();
+    }
+
+    return Result;
+}
+
+TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return TArray<USpellData *>();
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Resonator uses active ring
+    if (CharacterClass == ECharacterClass::Resonator)
+    {
+        return GetRingResonateSpells();
+    }
+
+    // For Generic and Caster, respect bUsingPrimary
+    if (Loadout.bUsingPrimary)
+    {
+        return GetPrimarySlotSpells();
+    }
+    else
+    {
+        return GetSecondarySlotSpells();
+    }
+}
+
 TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
