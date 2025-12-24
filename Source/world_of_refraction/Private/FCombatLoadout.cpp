@@ -364,7 +364,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.PrimaryWeapon.WeaponEntry.Weapon = Asset->PrimaryWeapon;
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
-            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryWeaponSpells;
+            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryEquipmentSpells;
         }
         break;
 
@@ -373,13 +373,13 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
         {
             Result.PrimaryRing.RingEntry.Ring = Asset->PrimaryRing;
             Result.PrimaryRing.InitializeFromRing();
-            Result.PrimaryRing.AssignedSpells = Asset->PrimaryRingSpells;
+            Result.PrimaryRing.AssignedSpells = Asset->PrimaryEquipmentSpells;
         }
         break;
 
     case EPrimarySlotType::Evolution:
         Result.PrimaryEvolution = Asset->PrimaryEvolution;
-        Result.EvolutionSpells = Asset->EvolutionSpells;
+        Result.EvolutionSpells = Asset->PrimaryEquipmentSpells;
         break;
     }
 

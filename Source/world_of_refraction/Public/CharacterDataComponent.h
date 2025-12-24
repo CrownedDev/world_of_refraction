@@ -127,6 +127,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Equipment")
     UWeaponData *GetActiveWeapon() const;
 
+    // ==================== DEBUG ====================
+    /** Debug: Toggle between primary and secondary weapon */
+    UFUNCTION(BlueprintCallable, Category = "Debug", meta = (CallInEditor = "true"))
+    void DebugToggleWeapon();
+
 private:
     // ========================================
     // REPLICATION CALLBACKS

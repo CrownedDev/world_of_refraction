@@ -225,3 +225,17 @@ UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
     }
     return nullptr;
 }
+
+void UCharacterDataComponent::DebugToggleWeapon()
+{
+    ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    if (Loadout)
+    {
+        Loadout->ToggleArmedState();
+        UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] Toggled weapon via LoadoutComponent"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CharacterDataComponent] No LoadoutComponent found"));
+    }
+}

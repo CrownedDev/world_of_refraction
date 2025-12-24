@@ -54,145 +54,129 @@ public:
     // ==================== IDENTITY ====================
 
     /** Display name for UI */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
     FString LoadoutName = TEXT("Unnamed Loadout");
 
     /** Optional description */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
 
     /** Which character class this loadout is designed for */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
     ECharacterClass RequiredClass = ECharacterClass::Generic;
-
-    // ==================== PRIMARY EQUIPMENT ====================
-
-    /** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary")
-    EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
-
-    /** Primary weapon (when PrimarySlotType == Weapon) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
-              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
-    UWeaponData *PrimaryWeapon = nullptr;
-
-    /** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
-              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
-    URingData *PrimaryRing = nullptr;
-
-    /** Primary evolution crystal (when PrimarySlotType == Evolution) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Primary",
-              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
-    UItemData *PrimaryEvolution = nullptr;
-
-    // ==================== SECONDARY EQUIPMENT (Generic only) ====================
-
-    /** Secondary slot type (Generic only - None or Weapon) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Secondary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic", EditConditionHides))
-    ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
-
-    /** Secondary weapon (Generic only, when SecondarySlotType == Weapon) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Secondary",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
-    UWeaponData *SecondaryWeapon = nullptr;
-
-    // ==================== RESONATOR RINGS ====================
-
-    /** Equipped rings (Resonator only - 5 normal, 3 if evolved) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Equipment|Rings",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
-    TArray<URingData *> EquippedRings;
 
     // ==================== CASTER INNATE SPELLS ====================
 
     /** Innate spells (Caster only - up to 24, must match InnateElement) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells|Innate",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Caster Spells",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
     TArray<USpellData *> InnateSpells;
 
-    // ==================== EVOLUTION CONFIGURATION ====================
+    // ==================== RESONATOR RINGS ====================
 
-    /** Spells selected from evolution crystal (max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Evolution",
+    /** Equipped rings (Resonator only - 5 normal, 3 if evolved) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Resonator Rings",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
+    TArray<URingData *> EquippedRings;
+
+    // ==================== PRIMARY EQUIPMENT ====================
+
+    /** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary")
+    EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
+
+    /** Primary weapon (when PrimarySlotType == Weapon) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+    UWeaponData *PrimaryWeapon = nullptr;
+
+    /** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
+              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
+    URingData *PrimaryRing = nullptr;
+
+    /** Primary evolution crystal (when PrimarySlotType == Evolution) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
-    TArray<USpellData *> EvolutionSpells;
+    UItemData *PrimaryEvolution = nullptr;
 
-    // ==================== PRIMARY WEAPON CONFIGURATION ====================
+    // ==================== PRIMARY EQUIPMENT CONFIGURATION ====================
 
     /** Abilities assigned to primary weapon (max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Primary",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponAbilities;
 
-    /** Spells assigned to primary weapon crystal (max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Primary",
-              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
-    TArray<USpellData *> PrimaryWeaponSpells;
+    /** Spells from primary equipment - weapon crystal / ring / evolution (max 6) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config")
+    TArray<USpellData *> PrimaryEquipmentSpells;
 
     /** Override primary weapon stance (nullptr = use weapon default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Primary",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     UStanceData *PrimaryWeaponStanceOverride = nullptr;
+    // ==================== SECONDARY EQUIPMENT (Generic only) ====================
+
+    /** Secondary slot type (Generic only - None or Weapon) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic", EditConditionHides))
+    ESecondarySlotType SecondarySlotType = ESecondarySlotType::None;
+
+    /** Secondary weapon (Generic only, when SecondarySlotType == Weapon) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+    UWeaponData *SecondaryWeapon = nullptr;
 
     // ==================== SECONDARY WEAPON CONFIGURATION (Generic only) ====================
 
     /** Abilities assigned to secondary weapon (Generic only, max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Secondary",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryWeaponAbilities;
 
-    /** Spells assigned to secondary weapon crystal (Generic only, max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Secondary",
+    /** Spells from secondary weapon crystal (Generic only, max 6) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<USpellData *> SecondaryWeaponSpells;
 
     /** Override secondary weapon stance (Generic only, nullptr = use weapon default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon|Secondary",
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     UStanceData *SecondaryWeaponStanceOverride = nullptr;
-
-    // ==================== PRIMARY RING CONFIGURATION ====================
-
-    /** Spells assigned to primary ring (max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring|Primary",
-              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
-    TArray<USpellData *> PrimaryRingSpells;
 
     // ==================== ITEMS ====================
 
     /** Equipped item crystals (max 6 slots, 3 uses each) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Items")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "5. Items")
     TArray<UItemData *> EquippedItems;
-
-    // ==================== COSMETICS ====================
-
-    /** Unarmed stance (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
-    UStanceData *UnarmedStance = nullptr;
 
     // ==================== DEFENSE ANIMATIONS ====================
 
     /** Dodge left animation (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
     UAnimMontage *DodgeLeftMontage = nullptr;
 
     /** Dodge right animation (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
     UAnimMontage *DodgeRightMontage = nullptr;
 
     /** Block animation (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
     UAnimMontage *BlockMontage = nullptr;
 
     /** Parry animation (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
     UAnimMontage *ParryMontage = nullptr;
 
     /** Use weapon's parry animation instead of character's */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Options")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
     bool bUseWeaponParryAnimation = false;
+
+    // ==================== COSMETICS ====================
+
+    /** Unarmed stance (nullptr = character default) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics")
+    UStanceData *UnarmedStance = nullptr;
 
     // ==================== VALIDATION ====================
 
