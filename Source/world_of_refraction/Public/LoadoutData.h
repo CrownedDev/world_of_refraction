@@ -29,6 +29,7 @@ class UAbilityData;
 class UItemData;
 class UStanceData;
 class UAnimMontage;
+class UInfusionDisplayData;
 
 /**
  * ULoadoutData
@@ -180,6 +181,10 @@ public:
     /** Unarmed stance (nullptr = character default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics")
     UStanceData *UnarmedStance = nullptr;
+
+    /** Infusion visual effect (nullptr = character default) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics")
+    UInfusionDisplayData *InfusionDisplay = nullptr;
 
     // ==================== VALIDATION ====================
 

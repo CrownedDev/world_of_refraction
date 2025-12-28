@@ -30,6 +30,7 @@ class UStanceData;
 class UWeaponAttackData;
 class UAnimMontage;
 class USpellData;
+class UInfusionDisplayData;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
@@ -291,6 +292,16 @@ public:
     /** Get spells from ring (Generic secondary or Caster primary) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetRingResonateSpells() const;
+
+    // ==================== COSMETICS ====================
+
+    /** Get infusion display effect for this loadout */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
+    UInfusionDisplayData *GetInfusionDisplay() const;
+
+    /** Get unarmed stance for this loadout */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
+    UStanceData *GetUnarmedStance() const;
 
     // ==================== LOADOUT ENTRY ACCESSORS ====================
 

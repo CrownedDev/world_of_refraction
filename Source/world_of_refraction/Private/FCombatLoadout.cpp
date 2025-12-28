@@ -437,6 +437,10 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     Result.UnarmedStance = Asset->UnarmedStance;
     Result.bUsingPrimary = Asset->bUsingPrimary;
 
+    // Cosmetics
+    Result.UnarmedStance = Asset->UnarmedStance;
+    Result.InfusionDisplay = Asset->InfusionDisplay;
+
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s' (PrimarySlotType: %d)"),
            *Asset->LoadoutName, static_cast<int32>(Asset->PrimarySlotType));
 

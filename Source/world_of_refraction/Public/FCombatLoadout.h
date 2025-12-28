@@ -112,6 +112,9 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** Unarmed stance (fallback when no weapon equipped) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
     UStanceData *UnarmedStance = nullptr;
+    // In the COSMETICS section, add:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
+    UInfusionDisplayData *InfusionDisplay = nullptr;
 
     // ==================== DEFENSE ANIMATIONS ====================
 

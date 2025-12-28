@@ -1650,3 +1650,21 @@ bool ULoadoutComponent::ShouldUseWeaponParry() const
     }
     return SavedLoadouts[ActiveLoadoutIndex].bUseWeaponParryAnimation;
 }
+
+UInfusionDisplayData *ULoadoutComponent::GetInfusionDisplay() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].InfusionDisplay;
+}
+
+UStanceData *ULoadoutComponent::GetUnarmedStance() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].UnarmedStance;
+}
