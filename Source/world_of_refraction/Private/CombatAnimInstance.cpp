@@ -135,47 +135,32 @@ void UCombatAnimInstance::ResumeStanceMontage()
     PlayStanceMontage();
 }
 
-void UCombatAnimInstance::PlayActionMontage(UAnimMontage *ActionMontage, float PlayRate)
+void UCombatAnimInstance::PlayActionMontage(UAnimMontage *Montage, float PlayRate)
 {
-    if (!ActionMontage)
+    if (!Montage)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] PlayActionMontage - null montage"));
         return;
     }
 
-    // Stop stance montage
-    if (CurrentStanceMontage && Montage_IsPlaying(CurrentStanceMontage))
+    // Stop current action
+    if (CurrentActionMontage)
     {
-        Montage_Stop(0.2f, CurrentStanceMontage);
+        Montage_Stop(0.2f, CurrentActionMontage);
     }
 
-    // Stop any current action
-    if (bIsPlayingAction && CurrentActionMontage)
-    {
-        Montage_Stop(0.1f, CurrentActionMontage);
-    }
-
+    CurrentActionMontage = Montage;
     bIsPlayingAction = true;
-    CurrentActionMontage = ActionMontage;
 
-    float Duration = Montage_Play(ActionMontage, PlayRate);
+    // Calculate duration accounting for play rate
+    float Duration = Montage->GetPlayLength() / FMath::Abs(PlayRate);
 
-    if (Duration > 0.f)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Playing action montage: %s (%.2fs at %.2fx)"),
-               *ActionMontage->GetName(), Duration, PlayRate);
+    // For reverse playback, start at the end
+    float StartPosition = (PlayRate < 0.0f) ? Montage->GetPlayLength() : 0.0f;
 
-        FOnMontageEnded EndDelegate;
-        EndDelegate.BindUObject(this, &UCombatAnimInstance::OnActionMontageEndedInternal);
-        Montage_SetEndDelegate(EndDelegate, ActionMontage);
-    }
-    else
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] Failed to play action montage: %s"),
-               *ActionMontage->GetName());
-        bIsPlayingAction = false;
-        CurrentActionMontage = nullptr;
-    }
+    Montage_Play(Montage, PlayRate, EMontagePlayReturnType::MontageLength, StartPosition);
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Playing action montage: %s (%.2fs at %.2fx)"),
+           *Montage->GetName(), Duration, PlayRate);
 }
 
 void UCombatAnimInstance::OnActionMontageEndedInternal(UAnimMontage *Montage, bool bInterrupted)

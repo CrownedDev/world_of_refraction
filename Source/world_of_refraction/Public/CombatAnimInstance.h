@@ -45,8 +45,8 @@ public:
     // ==================== ACTION MONTAGE (Unified) ====================
 
     /** Play any action montage (attack, ability, spell), auto-resumes stance when done */
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void PlayActionMontage(UAnimMontage *ActionMontage, float PlayRate = 1.0f);
+    UFUNCTION(BlueprintCallable, Category = "Combat Animation")
+    void PlayActionMontage(UAnimMontage *Montage, float PlayRate = 1.0f);
 
     /** Check if currently playing any action */
     UFUNCTION(BlueprintPure, Category = "Combat")

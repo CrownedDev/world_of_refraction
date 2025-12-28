@@ -210,13 +210,9 @@ public:
 
 	// ==================== DEFENSE ANIMATIONS ====================
 
-	/** Animation for dodging left */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
-	UAnimMontage *DodgeLeftMontage = nullptr;
-
-	/** Animation for dodging right */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
-	UAnimMontage *DodgeRightMontage = nullptr;
+	/** Single dodge animation - plays reversed for right dodge */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
+	UAnimMontage *DodgeMontage = nullptr;
 
 	/** Animation for blocking */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")

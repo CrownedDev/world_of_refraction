@@ -113,6 +113,20 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
     UStanceData *UnarmedStance = nullptr;
 
+    // ==================== DEFENSE ANIMATIONS ====================
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
+    UAnimMontage *DodgeMontage = nullptr; // Single dodge - reversed for right
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
+    UAnimMontage *BlockMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
+    UAnimMontage *ParryMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
+    bool bUseWeaponParryAnimation = false;
+
     // ==================== RUNTIME STATE ====================
 
     /** Active ring index for Resonator */

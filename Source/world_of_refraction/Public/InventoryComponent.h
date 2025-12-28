@@ -213,6 +213,20 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Items")
     TArray<UItemData *> GetItemsByTier(EItemTier Tier) const;
 
+    // ==================== DEFENSE ANIMATIONS ====================
+
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetDodgeMontage() const;
+
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetBlockMontage() const;
+
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetParryMontage() const;
+
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    bool ShouldUseWeaponParry() const;
+
     // ==================== EVOLUTION HELPERS ====================
 
     /** Get all evolution crystals from items (Category::Evolution) */

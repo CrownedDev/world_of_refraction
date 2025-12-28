@@ -1601,3 +1601,52 @@ void ULoadoutComponent::DebugLogLoadout()
 
     UE_LOG(LogTemp, Log, TEXT("=============================="));
 }
+
+UAnimMontage *ULoadoutComponent::GetDodgeMontage() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].DodgeMontage;
+}
+
+UAnimMontage *ULoadoutComponent::GetBlockMontage() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].BlockMontage;
+}
+
+UAnimMontage *ULoadoutComponent::GetParryMontage() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Check weapon parry first
+    if (Loadout.bUseWeaponParryAnimation)
+    {
+        const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
+        if (WeaponEntry && WeaponEntry->WeaponEntry.Weapon && WeaponEntry->WeaponEntry.Weapon->ParryMontage)
+        {
+            return WeaponEntry->WeaponEntry.Weapon->ParryMontage;
+        }
+    }
+
+    return Loadout.ParryMontage;
+}
+
+bool ULoadoutComponent::ShouldUseWeaponParry() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return false;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].bUseWeaponParryAnimation;
+}

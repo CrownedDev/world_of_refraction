@@ -379,55 +379,34 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		return;
 	}
 
-	// Get CharacterData for animation references
-	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Defender);
-	if (!CharComp || !CharComp->CharacterData)
+	// Get LoadoutComponent for animation references
+	ULoadoutComponent *LoadoutComp = Defender->FindComponentByClass<ULoadoutComponent>();
+	if (!LoadoutComp)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No CharacterData for %s - cannot play defense animation"),
+		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No LoadoutComponent for %s - cannot play defense animation"),
 			   *Defender->GetName());
 		return;
 	}
 
-	UCharacterData *CharData = CharComp->CharacterData;
 	UAnimMontage *MontageToPlay = nullptr;
+	float PlayRate = 1.0f;
 
 	switch (DefenseType)
 	{
 	case EDefenseType::Block:
-		MontageToPlay = CharData->BlockMontage;
+		MontageToPlay = LoadoutComp->GetBlockMontage();
 		break;
 
 	case EDefenseType::Parry:
-		// Check if should use weapon parry animation
-		if (CharData->bUseWeaponParryAnimation)
-		{
-			ULoadoutComponent *LoadoutComp = Defender->FindComponentByClass<ULoadoutComponent>();
-			UWeaponData *Weapon = LoadoutComp ? LoadoutComp->GetActiveWeapon() : nullptr;
-			if (Weapon && Weapon->ParryMontage)
-			{
-				MontageToPlay = Weapon->ParryMontage;
-			}
-		}
-		// Fallback to character parry
-		if (!MontageToPlay)
-		{
-			MontageToPlay = CharData->ParryMontage;
-		}
+		MontageToPlay = LoadoutComp->GetParryMontage();
 		break;
 
 	case EDefenseType::Dodge:
-		if (Direction == EDefenseDirection::Left)
+		MontageToPlay = LoadoutComp->GetDodgeMontage();
+		// Reverse playback for right dodge
+		if (Direction == EDefenseDirection::Right)
 		{
-			MontageToPlay = CharData->DodgeLeftMontage;
-		}
-		else if (Direction == EDefenseDirection::Right)
-		{
-			MontageToPlay = CharData->DodgeRightMontage;
-		}
-		else
-		{
-			// Default to left if no direction specified
-			MontageToPlay = CharData->DodgeLeftMontage;
+			PlayRate = -1.0f;
 		}
 		break;
 
@@ -442,7 +421,7 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		return;
 	}
 
-	// Get CombatAnimInstance and play through action system (blocks stance updates)
+	// Get CombatAnimInstance and play
 	ACharacter *Character = Cast<ACharacter>(Defender);
 	if (!Character)
 	{
@@ -452,9 +431,10 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 	UCombatAnimInstance *CombatAnim = Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance());
 	if (CombatAnim)
 	{
-		CombatAnim->PlayActionMontage(MontageToPlay);
-		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Playing %s for %s"),
-			   *MontageToPlay->GetName(), *Defender->GetName());
+		// Use PlayRate for direction (negative = reversed)
+		CombatAnim->PlayActionMontage(MontageToPlay, PlayRate);
+		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Playing %s for %s (Rate: %.1f)"),
+			   *MontageToPlay->GetName(), *Defender->GetName(), PlayRate);
 	}
 }
 
