@@ -266,7 +266,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 		UCharacterData *CharData = CharComp->CharacterData;
 
 		// Speed = Body + TurnSpeed substat
-		Combatant.CachedSpeed = CharData->WorldBodyLevel + CharData->WorldTurnSpeedPoints;
+		Combatant.CachedSpeed = CharData->WorldBodyLevel + CharData->TurnSpeed;
 		Combatant.CachedMovementSpeed = CharData->GetTotalMovementSpeed();
 		Combatant.CachedMind = CharData->WorldMindLevel;
 		Combatant.CachedBody = CharData->WorldBodyLevel;

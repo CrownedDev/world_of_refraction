@@ -79,38 +79,37 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 							  Character->DefaultLoadout ? *Character->DefaultLoadout->GetName() : TEXT("None"));
 	Output += TEXT("\n");
 
-	// ==================== INITIAL STAT DISTRIBUTION ====================
-	Output += TEXT("INITIAL DISTRIBUTION:\n");
-	Output += FString::Printf(TEXT("  Budget: %d points\n"), StatConstants::INITIAL_STAT_BUDGET);
-	Output += FString::Printf(TEXT("  Used:   %d %s\n"),
-							  Character->GetInitialSubStatSum(),
-							  Character->IsValidInitialDistribution() ? TEXT("[OK]") : TEXT("[INVALID]"));
-	Output += TEXT("\n");
-
-	Output += TEXT("  Mind Stats:\n");
-	Output += FString::Printf(TEXT("    Efficiency:     %d\n"), Character->InitialEfficiencyPoints);
-	Output += FString::Printf(TEXT("    Effect Damage:  %d\n"), Character->InitialEffectDamagePoints);
-	Output += FString::Printf(TEXT("    Crit Chance:    %d\n"), Character->InitialCritChancePoints);
-	Output += FString::Printf(TEXT("    Spell Speed:    %d\n"), Character->InitialSpellSpeedPoints);
-
-	Output += TEXT("  Body Stats:\n");
-	Output += FString::Printf(TEXT("    Defense:        %d\n"), Character->InitialDefensePoints);
-	Output += FString::Printf(TEXT("    Movement Speed: %d\n"), Character->InitialMovementSpeedPoints);
-	Output += FString::Printf(TEXT("    Raw Damage:     %d\n"), Character->InitialRawDamagePoints);
-
-	Output += TEXT("  Spirit Stats:\n");
-	Output += FString::Printf(TEXT("    Max Energy:     %d\n"), Character->InitialMaxEnergyPoints);
-	Output += FString::Printf(TEXT("    Max Health:     %d\n"), Character->InitialMaxHealthPoints);
-	Output += FString::Printf(TEXT("    Resistance:     %d\n"), Character->InitialResistancePoints);
-	Output += FString::Printf(TEXT("    Turn Speed:     %d\n"), Character->InitialTurnSpeedPoints);
-	Output += TEXT("\n");
-
 	// ==================== WORLD PROGRESSION ====================
 	Output += TEXT("WORLD PROGRESSION:\n");
 	Output += FString::Printf(TEXT("  Mind Level:   %d\n"), Character->WorldMindLevel);
 	Output += FString::Printf(TEXT("  Body Level:   %d\n"), Character->WorldBodyLevel);
 	Output += FString::Printf(TEXT("  Spirit Level: %d\n"), Character->WorldSpiritLevel);
 	Output += TEXT("\n");
+
+	// ==================== INITIAL STAT DISTRIBUTION ====================
+	// Sub-Stats Pool
+	Output += FString::Printf(TEXT("SUB-STATS (Pool: %d, Spent: %d, Remaining: %d) %s\n"),
+							  Character->GetTotalPool(),
+							  Character->GetTotalSpent(),
+							  Character->GetPointsRemaining(),
+							  Character->IsValidDistribution() ? TEXT("[OK]") : TEXT("[INVALID]"));
+
+	Output += TEXT("  Mind:\n");
+	Output += FString::Printf(TEXT("    Efficiency:     %d\n"), Character->Efficiency);
+	Output += FString::Printf(TEXT("    Effect Damage:  %d\n"), Character->EffectDamage);
+	Output += FString::Printf(TEXT("    Crit Chance:    %d\n"), Character->CritChance);
+	Output += FString::Printf(TEXT("    Spell Speed:    %d\n"), Character->SpellSpeed);
+
+	Output += TEXT("  Body:\n");
+	Output += FString::Printf(TEXT("    Defense:        %d\n"), Character->Defense);
+	Output += FString::Printf(TEXT("    Movement Speed: %d\n"), Character->MovementSpeed);
+	Output += FString::Printf(TEXT("    Raw Damage:     %d\n"), Character->RawDamage);
+
+	Output += TEXT("  Spirit:\n");
+	Output += FString::Printf(TEXT("    Max Energy:     %d\n"), Character->MaxEnergy);
+	Output += FString::Printf(TEXT("    Max Health:     %d\n"), Character->MaxHealth);
+	Output += FString::Printf(TEXT("    Resistance:     %d\n"), Character->Resistance);
+	Output += FString::Printf(TEXT("    Turn Speed:     %d\n"), Character->TurnSpeed);
 
 	// ==================== CALCULATED COMBAT STATS ====================
 	Output += TEXT("CALCULATED STATS:\n");

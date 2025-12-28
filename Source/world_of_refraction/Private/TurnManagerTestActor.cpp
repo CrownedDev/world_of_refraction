@@ -151,11 +151,9 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 
 	if (FastComp && FastComp->CharacterData)
 	{
-		int32 FastSpeed = FastComp->CharacterData->WorldBodyLevel + FastComp->CharacterData->WorldTurnSpeedPoints;
+		int32 FastSpeed = FastComp->CharacterData->WorldBodyLevel + FastComp->CharacterData->TurnSpeed;
 		UE_LOG(LogTemp, Display, TEXT("    Fast speed: %d (Body %d + TurnSpeed %d)"),
-			   FastSpeed,
-			   FastComp->CharacterData->WorldBodyLevel,
-			   FastComp->CharacterData->WorldTurnSpeedPoints);
+			   FastSpeed, FastComp->CharacterData->WorldBodyLevel, FastComp->CharacterData->TurnSpeed);
 	}
 	else
 	{
@@ -164,11 +162,9 @@ void ATurnManagerTestActor::Test_SpeedRatio()
 
 	if (SlowComp && SlowComp->CharacterData)
 	{
-		int32 SlowSpeed = SlowComp->CharacterData->WorldBodyLevel + SlowComp->CharacterData->WorldTurnSpeedPoints;
+		int32 SlowSpeed = SlowComp->CharacterData->WorldBodyLevel + SlowComp->CharacterData->TurnSpeed;
 		UE_LOG(LogTemp, Display, TEXT("    Slow speed: %d (Body %d + TurnSpeed %d)"),
-			   SlowSpeed,
-			   SlowComp->CharacterData->WorldBodyLevel,
-			   SlowComp->CharacterData->WorldTurnSpeedPoints);
+			   SlowSpeed, SlowComp->CharacterData->WorldBodyLevel, SlowComp->CharacterData->TurnSpeed);
 	}
 	else
 	{
@@ -279,15 +275,14 @@ void ATurnManagerTestActor::Test_SpeedChanges()
 	if (CharComp && CharComp->CharacterData)
 	{
 		// Simulate speed buff
-		int32 OldSpeed = CharComp->CharacterData->WorldTurnSpeedPoints;
-		CharComp->CharacterData->WorldTurnSpeedPoints += 6;
+		int32 OldSpeed = CharComp->CharacterData->TurnSpeed;
+		CharComp->CharacterData->TurnSpeed += 6;
 
 		// Notify TurnManager of speed change
 		TurnManager->OnActorSpeedChanged(Char1);
 
 		UE_LOG(LogTemp, Display, TEXT("    TurnSpeed changed: %d -> %d"),
-			   OldSpeed, CharComp->CharacterData->WorldTurnSpeedPoints);
-		PrintTestResult("Speed Changes", true);
+			   OldSpeed, CharComp->CharacterData->TurnSpeed);
 	}
 	else
 	{
@@ -391,8 +386,8 @@ AActor *ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	CharData->WorldMindLevel = Mind;
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;
-	CharData->WorldTurnSpeedPoints = TurnSpeed;
-	CharData->WorldMovementSpeedPoints = AttackSpeed;
+	CharData->TurnSpeed = TurnSpeed;
+	CharData->MovementSpeed = AttackSpeed;
 
 	// Step 3: Create CharacterDataComponent
 	UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(Actor, UCharacterDataComponent::StaticClass());
