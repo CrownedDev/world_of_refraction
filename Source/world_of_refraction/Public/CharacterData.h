@@ -19,7 +19,6 @@
 #include "CharacterData.generated.h"
 
 class UWeaponAttackData;
-class UStanceData;
 class UWeaponData;
 class URingData;
 class USpellData;
@@ -197,34 +196,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit|World", meta = (ClampMin = "0"))
 	int32 WorldTurnSpeedPoints = 0;
-
-	// ==================== INFUSION ====================
-	/** Visual effect when infusion is active */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
-	UInfusionDisplayData *InfusionDisplay = nullptr;
-
-	// ==================== STANCE ====================
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Stance")
-	UStanceData *UnarmedStance = nullptr;
-
-	// ==================== DEFENSE ANIMATIONS ====================
-
-	/** Single dodge animation - plays reversed for right dodge */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
-	UAnimMontage *DodgeMontage = nullptr;
-
-	/** Animation for blocking */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
-	UAnimMontage *BlockMontage = nullptr;
-
-	/** Default parry animation (used if bUseWeaponParryAnimation is false) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Animations")
-	UAnimMontage *ParryMontage = nullptr;
-
-	/** If true, use equipped weapon's parry animation instead of character's */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense|Options")
-	bool bUseWeaponParryAnimation = false;
 
 	// ==================== CLASS HELPERS ====================
 

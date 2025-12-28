@@ -16,7 +16,7 @@ class UNiagaraSystem;
 class UCharacterDataComponent;
 class UCharacterData;
 class UWeaponMeshComponent;
-
+class ULoadoutComponent;
 /**
  * Infusion VFX Component
  * Spawns infusion VFX at location specified by weapon's InfusionDisplay asset
@@ -35,6 +35,8 @@ protected:
 
 public:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+    UPROPERTY()
+    ULoadoutComponent *LoadoutComponent;
 
     // ==================== CONFIGURATION ====================
 

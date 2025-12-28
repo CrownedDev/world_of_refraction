@@ -14,6 +14,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/GameInstance.h"
 #include "ActionExecutor.h"
+#include "LoadoutComponent.h"
 #include "InfusionChargeManager.h"
 
 UInfusionVFXComponent::UInfusionVFXComponent()
@@ -37,6 +38,12 @@ void UInfusionVFXComponent::BeginPlay()
     if (!CharacterDataComponent)
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No CharacterDataComponent found"));
+    }
+
+    LoadoutComponent = Owner->FindComponentByClass<ULoadoutComponent>();
+    if (!LoadoutComponent)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No LoadoutComponent found"));
     }
 
     WeaponMeshComponent = Owner->FindComponentByClass<UWeaponMeshComponent>();
@@ -128,7 +135,8 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     }
 
     // Check for infusion display
-    if (!CharacterDataComponent->CharacterData->InfusionDisplay || !CharacterDataComponent->CharacterData->InfusionDisplay->HasVFX())
+    UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
+    if (!InfusionDisplay || !InfusionDisplay->HasVFX())
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No InfusionDisplay or VFX assigned"));
         return;
@@ -144,13 +152,13 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     CurrentElement = GetElementForSource(Source);
 
     // Spawn VFX at location specified by display data
-    SpawnVFX(CharacterDataComponent->CharacterData->InfusionDisplay->VFXSystem, CharacterDataComponent->CharacterData->InfusionDisplay->DisplayLocation);
+    SpawnVFX(InfusionDisplay->VFXSystem, InfusionDisplay->DisplayLocation);
 
     // Apply element color
     FLinearColor Color;
-    if (CharacterDataComponent->CharacterData->InfusionDisplay->bOverrideElementColor)
+    if (InfusionDisplay->bOverrideElementColor)
     {
-        Color = CharacterDataComponent->CharacterData->InfusionDisplay->ColorOverride;
+        Color = InfusionDisplay->ColorOverride;
     }
     else
     {
@@ -380,11 +388,12 @@ void UInfusionVFXComponent::DebugLogVFXState()
 
     if (CharacterDataComponent && CharacterDataComponent->CharacterData)
     {
-        if (CharacterDataComponent->CharacterData->InfusionDisplay)
+        UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
+        if (InfusionDisplay)
         {
-            UE_LOG(LogTemp, Display, TEXT("Display: %s"), *CharacterDataComponent->CharacterData->InfusionDisplay->DisplayName);
-            UE_LOG(LogTemp, Display, TEXT("Location: %d"), (int32)CharacterDataComponent->CharacterData->InfusionDisplay->DisplayLocation);
-            UE_LOG(LogTemp, Display, TEXT("Has VFX: %s"), CharacterDataComponent->CharacterData->InfusionDisplay->HasVFX() ? TEXT("YES") : TEXT("NO"));
+            UE_LOG(LogTemp, Display, TEXT("Display: %s"), *InfusionDisplay->DisplayName);
+            UE_LOG(LogTemp, Display, TEXT("Location: %d"), (int32)InfusionDisplay->DisplayLocation);
+            UE_LOG(LogTemp, Display, TEXT("Has VFX: %s"), InfusionDisplay->HasVFX() ? TEXT("YES") : TEXT("NO"));
         }
         else
         {
@@ -406,7 +415,11 @@ void UInfusionVFXComponent::DebugActivateWithElement(ESpellElement TestElement)
     CurrentSource = EInfusionSourceOption::Innate; // Fake source for debug
     CurrentElement = TestElement;
 
-    SpawnVFX(CharacterDataComponent->CharacterData->InfusionDisplay->VFXSystem, CharacterDataComponent->CharacterData->InfusionDisplay->DisplayLocation);
+    UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
+    if (InfusionDisplay)
+    {
+        SpawnVFX(InfusionDisplay->VFXSystem, InfusionDisplay->DisplayLocation);
+    }
     ApplyColorToVFX(GetElementColor(TestElement));
 
     bIsInfusionActive = true;
