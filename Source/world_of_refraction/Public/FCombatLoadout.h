@@ -30,6 +30,7 @@ class UInventoryComponent;
 class ULoadoutData;
 class UItemData;
 class UStanceData;
+class UInfusionDisplayData;
 
 /**
  * FCombatLoadout

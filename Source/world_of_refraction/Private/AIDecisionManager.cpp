@@ -621,9 +621,8 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
             BestDamage = FMath::Max(BestDamage, 50);
         }
     }
-}
 
-return BestDamage > 0 ? BestDamage : 50;
+    return BestDamage > 0 ? BestDamage : 50;
 }
 
 int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)

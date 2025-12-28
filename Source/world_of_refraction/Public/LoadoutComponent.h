@@ -293,6 +293,24 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetRingResonateSpells() const;
 
+    // ==================== DEFENSE ANIMATIONS ====================
+
+    /** Get dodge montage (single animation, reversed for right) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetDodgeMontage() const;
+
+    /** Get block montage */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetBlockMontage() const;
+
+    /** Get parry montage (checks weapon parry if enabled) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetParryMontage() const;
+
+    /** Check if should use weapon's parry animation */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    bool ShouldUseWeaponParry() const;
+
     // ==================== COSMETICS ====================
 
     /** Get infusion display effect for this loadout */
