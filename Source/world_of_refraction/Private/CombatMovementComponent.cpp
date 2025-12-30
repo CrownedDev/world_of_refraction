@@ -538,7 +538,7 @@ void UCombatMovementComponent::CompleteReturn()
     SetComponentTickEnabled(false);
     CurrentTarget = nullptr;
 
-    OnReturnComplete.Broadcast();
+    OnMovementComplete.Broadcast();
 }
 
 UAnimMontage *UCombatMovementComponent::GetReturnMontage() const

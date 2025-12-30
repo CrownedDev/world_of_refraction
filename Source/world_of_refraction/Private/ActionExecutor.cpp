@@ -1130,25 +1130,24 @@ void UActionExecutor::FinalizeAsyncAction()
 	// Clear context now (action is done, just waiting for return)
 	CurrentExecutionContext.Reset();
 
-	// Signal movement component to start return
+	// Signal movement component to start return FIRST
 	if (Executor)
 	{
+		SignalActionComplete(Executor);
+
+		// NOW check if return movement started
 		UCombatMovementComponent *Movement = GetMovementComponent(Executor);
-		if (Movement && Movement->IsMoving())
+		if (Movement && Movement->GetMovementState() == ECombatMovementState::Returning)
 		{
-			// Bind to return complete
+			// Return is in progress - wait for it
 			bWaitingForReturn = true;
 			Movement->OnMovementComplete.AddDynamic(this, &UActionExecutor::OnReturnComplete);
-			SignalActionComplete(Executor);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Waiting for return movement to complete"));
 			return; // Don't fire callback yet!
-		}
-		else
-		{
-			SignalActionComplete(Executor);
 		}
 	}
 
-	// No return needed - complete immediately
+	// No return needed (or no executor) - complete immediately
 	CompleteAsyncActionFinal(Executor);
 }
 
