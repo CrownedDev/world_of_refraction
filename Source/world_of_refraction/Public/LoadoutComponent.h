@@ -295,9 +295,11 @@ public:
 
     // ==================== DEFENSE ANIMATIONS ====================
 
-    /** Get dodge montage (single animation, reversed for right) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
-    UAnimMontage *GetDodgeMontage() const;
+    UAnimMontage *GetDodgeLeftMontage() const;
+
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetDodgeRightMontage() const;
 
     /** Get block montage */
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")

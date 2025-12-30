@@ -120,7 +120,10 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     // ==================== DEFENSE ANIMATIONS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
-    UAnimMontage *DodgeMontage = nullptr; // Single dodge - reversed for right
+    UAnimMontage *DodgeLeftMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
+    UAnimMontage *DodgeRightMontage = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
     UAnimMontage *BlockMontage = nullptr;

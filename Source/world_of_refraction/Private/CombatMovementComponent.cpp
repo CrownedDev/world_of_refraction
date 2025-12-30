@@ -31,13 +31,41 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+    // Diagnostic state logging
+    static int32 LogCounter = 0;
+    if (++LogCounter % 30 == 0) // Log every 30 ticks (~0.5s at 60fps) to reduce spam
+    {
+        FString StateName;
+        switch (MovementState)
+        {
+        case ECombatMovementState::Idle:
+            StateName = TEXT("Idle");
+            break;
+        case ECombatMovementState::Approaching:
+            StateName = TEXT("Approaching");
+            break;
+        case ECombatMovementState::Executing:
+            StateName = TEXT("Executing");
+            break;
+        case ECombatMovementState::Returning:
+            StateName = TEXT("Returning");
+            break;
+        default:
+            StateName = TEXT("Unknown");
+            break;
+        }
+
+        UE_LOG(LogTemp, Display, TEXT("[CombatMovement] %s: State=%s, Montage=%s"),
+               GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
+               *StateName,
+               CurrentMovementMontage ? *CurrentMovementMontage->GetName() : TEXT("None"));
+    }
+
     switch (MovementState)
     {
     case ECombatMovementState::Approaching:
     {
         float Speed = CalculateMovementSpeed();
-        // UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Tick - Speed: %.1f, Distance: %.1f"),
-        //        Speed, FVector::Dist(GetOwner()->GetActorLocation(), TargetPosition));
         if (MoveToward(TargetPosition, Speed, DeltaTime))
         {
             CompleteApproach();
@@ -47,7 +75,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
     case ECombatMovementState::Returning:
     {
-        float Speed = BaseSpeed * ReturnSpeedMultiplier; // Return is always base speed
+        float Speed = BaseSpeed * ReturnSpeedMultiplier;
         if (MoveToward(GridPosition, Speed, DeltaTime))
         {
             CompleteReturn();
@@ -56,12 +84,10 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     }
 
     default:
-        // Not moving, disable tick
         SetComponentTickEnabled(false);
         break;
     }
 }
-
 // ==================== MOVEMENT CONTROL ====================
 
 void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter)

@@ -402,11 +402,13 @@ void UDefenseSystem::PlayDefenseAnimation(AActor *Defender, EDefenseType Defense
 		break;
 
 	case EDefenseType::Dodge:
-		MontageToPlay = LoadoutComp->GetDodgeMontage();
-		// Reverse playback for right dodge
-		if (Direction == EDefenseDirection::Right)
+		if (Direction == EDefenseDirection::Left)
 		{
-			PlayRate = -1.0f;
+			MontageToPlay = LoadoutComp->GetDodgeLeftMontage();
+		}
+		else
+		{
+			MontageToPlay = LoadoutComp->GetDodgeRightMontage();
 		}
 		break;
 

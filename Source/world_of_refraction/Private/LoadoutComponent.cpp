@@ -1602,13 +1602,22 @@ void ULoadoutComponent::DebugLogLoadout()
     UE_LOG(LogTemp, Log, TEXT("=============================="));
 }
 
-UAnimMontage *ULoadoutComponent::GetDodgeMontage() const
+UAnimMontage *ULoadoutComponent::GetDodgeLeftMontage() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
     {
         return nullptr;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].DodgeMontage;
+    return SavedLoadouts[ActiveLoadoutIndex].DodgeLeftMontage;
+}
+
+UAnimMontage *ULoadoutComponent::GetDodgeRightMontage() const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+    return SavedLoadouts[ActiveLoadoutIndex].DodgeRightMontage;
 }
 
 UAnimMontage *ULoadoutComponent::GetBlockMontage() const

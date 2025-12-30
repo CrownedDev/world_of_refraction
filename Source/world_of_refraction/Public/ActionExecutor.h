@@ -703,6 +703,21 @@ private:
 	 */
 	void ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData);
 
+	// ==================== RETURN MOVEMENT TRACKING ====================
+
+	/** Track if we're waiting for return movement */
+	bool bWaitingForReturn = false;
+
+	/** Cached result to send after return completes */
+	FActionResult PendingFinalResult;
+
+	/** Called when return movement completes */
+	UFUNCTION()
+	void OnReturnComplete();
+
+	/** Final completion after return (or immediate if no return needed) */
+	void CompleteAsyncActionFinal(AActor *Executor);
+
 	/**
 	 * Open defense windows for all targets (does NOT apply damage yet)
 	 * @param Attacker The attacking actor

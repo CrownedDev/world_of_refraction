@@ -1123,32 +1123,78 @@ void UActionExecutor::FinalizeAsyncAction()
 		   FinalResult.TotalDamageDealt,
 		   FinalResult.AffectedTargets.Num());
 
-	// Fire callback
-	if (AsyncActionCallback.IsBound())
-	{
-		AsyncActionCallback.Execute(FinalResult);
-		AsyncActionCallback.Unbind();
-	}
+	// Cache result for after return
+	PendingFinalResult = FinalResult;
+	Executor = CurrentExecutionContext->Executor.Get();
+
+	// Clear context now (action is done, just waiting for return)
+	CurrentExecutionContext.Reset();
 
 	// Signal movement component to start return
 	if (Executor)
 	{
-		SignalActionComplete(Executor);
+		UCombatMovementComponent *Movement = GetMovementComponent(Executor);
+		if (Movement && Movement->IsMoving())
+		{
+			// Bind to return complete
+			bWaitingForReturn = true;
+			Movement->OnMovementComplete.AddDynamic(this, &UActionExecutor::OnReturnComplete);
+			SignalActionComplete(Executor);
+			return; // Don't fire callback yet!
+		}
+		else
+		{
+			SignalActionComplete(Executor);
+		}
+	}
+
+	// No return needed - complete immediately
+	CompleteAsyncActionFinal(Executor);
+}
+
+void UActionExecutor::OnReturnComplete()
+{
+	if (!bWaitingForReturn)
+	{
+		return;
+	}
+
+	bWaitingForReturn = false;
+
+	// Unbind
+	if (PendingExecutionActor)
+	{
+		UCombatMovementComponent *Movement = GetMovementComponent(PendingExecutionActor);
+		if (Movement)
+		{
+			Movement->OnMovementComplete.RemoveDynamic(this, &UActionExecutor::OnReturnComplete);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Return complete - firing completion callback"));
+
+	CompleteAsyncActionFinal(PendingExecutionActor);
+}
+
+void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
+{
+	// Fire callback
+	if (AsyncActionCallback.IsBound())
+	{
+		AsyncActionCallback.Execute(PendingFinalResult);
+		AsyncActionCallback.Unbind();
 	}
 
 	// Broadcast completion
 	if (Executor)
 	{
-		OnAsyncActionCompleted.Broadcast(Executor, FinalResult);
-		OnActionCompleted.Broadcast(Executor, FinalResult);
+		OnAsyncActionCompleted.Broadcast(Executor, PendingFinalResult);
+		OnActionCompleted.Broadcast(Executor, PendingFinalResult);
 	}
 
-	// Clear pending execution state
+	// Clear pending state
 	PendingExecutionActor = nullptr;
 	PendingExecutionCharData = nullptr;
-
-	// Clear context
-	CurrentExecutionContext.Reset();
 }
 
 void UActionExecutor::OnAsyncActionTimeout()

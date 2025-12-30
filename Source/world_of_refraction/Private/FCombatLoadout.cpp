@@ -441,7 +441,8 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     Result.InfusionDisplay = Asset->InfusionDisplay;
 
     // Defense animations
-    Result.DodgeMontage = Asset->DodgeMontage;
+    Result.DodgeLeftMontage = Asset->DodgeLeftMontage;
+    Result.DodgeRightMontage = Asset->DodgeRightMontage;
     Result.BlockMontage = Asset->BlockMontage;
     Result.ParryMontage = Asset->ParryMontage;
     Result.bUseWeaponParryAnimation = Asset->bUseWeaponParryAnimation;
