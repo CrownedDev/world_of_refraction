@@ -3650,6 +3650,8 @@ void UActionExecutor::BindActionAnimationEnd(AActor *Actor)
 	UCombatAnimInstance *CombatAnim = GetCombatAnimInstance(Actor);
 	if (CombatAnim)
 	{
+		// Remove first to prevent duplicate binding error
+		CombatAnim->OnActionMontageEnded.RemoveDynamic(this, &UActionExecutor::OnActionAnimationEnded);
 		CombatAnim->OnActionMontageEnded.AddDynamic(this, &UActionExecutor::OnActionAnimationEnded);
 		bWaitingForAnimationEnd = true;
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Bound to OnActionMontageEnded for %s"), *Actor->GetName());

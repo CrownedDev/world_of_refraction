@@ -434,15 +434,19 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
         }
     }
 
+    // ==================== COSMETICS & DEFENSE ====================
+
     Result.UnarmedStance = Asset->UnarmedStance;
     Result.bUsingPrimary = Asset->bUsingPrimary;
-
-    // Cosmetics
-    Result.UnarmedStance = Asset->UnarmedStance;
     Result.InfusionDisplay = Asset->InfusionDisplay;
+
+    // Defense animations
+    Result.DodgeMontage = Asset->DodgeMontage;
+    Result.BlockMontage = Asset->BlockMontage;
+    Result.ParryMontage = Asset->ParryMontage;
+    Result.bUseWeaponParryAnimation = Asset->bUseWeaponParryAnimation;
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s' (PrimarySlotType: %d)"),
            *Asset->LoadoutName, static_cast<int32>(Asset->PrimarySlotType));
-
     return Result;
 }

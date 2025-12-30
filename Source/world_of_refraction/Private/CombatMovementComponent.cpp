@@ -36,8 +36,8 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     case ECombatMovementState::Approaching:
     {
         float Speed = CalculateMovementSpeed();
-        UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Tick - Speed: %.1f, Distance: %.1f"),
-               Speed, FVector::Dist(GetOwner()->GetActorLocation(), TargetPosition));
+        // UE_LOG(LogTemp, Log, TEXT("[CombatMovement] Tick - Speed: %.1f, Distance: %.1f"),
+        //        Speed, FVector::Dist(GetOwner()->GetActorLocation(), TargetPosition));
         if (MoveToward(TargetPosition, Speed, DeltaTime))
         {
             CompleteApproach();

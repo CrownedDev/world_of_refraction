@@ -7,10 +7,7 @@
 #include "ESpellElement.h"
 #include "ECharacterClass.h"
 #include "StatConstants.h"
-#include "EWeaponSlotType.h"
 #include <CombatConstants.h>
-#include "InfusionDisplayData.h"
-#include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -18,9 +15,6 @@
 
 #include "CharacterData.generated.h"
 
-class UWeaponAttackData;
-class UWeaponData;
-class URingData;
 class USpellData;
 class UItemData;
 class ULoadoutData;
