@@ -412,12 +412,12 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateRawDamage() const
+	float CalculateRawDamage() const
 	{
-		// Flat raw damage value (Body-based)
+		// Raw damage multiplier for physical attacks (Body-based)
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalRawDamage();
-		return FMath::RoundToInt(EffectiveBody * TotalPoints);
+		return 1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")

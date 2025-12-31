@@ -215,8 +215,12 @@ void UCombatAnimInstance::OnActionMontageEndedInternal(UAnimMontage *Montage, bo
         // Broadcast for external listeners (VFX cleanup, damage finalization, etc.)
         OnActionMontageEnded.Broadcast(Montage, bInterrupted);
 
-        // Resume stance
-        ResumeStanceMontage();
+        // Resume stance ONLY if not currently in movement
+        // (Broadcast may have started return movement)
+        if (!bIsPlayingMovement)
+        {
+            ResumeStanceMontage();
+        }
     }
 }
 

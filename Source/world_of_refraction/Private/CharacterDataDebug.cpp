@@ -115,7 +115,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += TEXT("CALCULATED STATS:\n");
 	Output += FString::Printf(TEXT("  Max Health:    %d\n"), Character->CalculateMaxHealth());
 	Output += FString::Printf(TEXT("  Max Energy:    %d\n"), Character->CalculateMaxEnergy());
-	Output += FString::Printf(TEXT("  Raw Damage:    %d\n"), Character->CalculateRawDamage());
+	Output += FString::Printf(TEXT("  Raw Damage:    %.2fx\n"), Character->CalculateRawDamage());
 	Output += FString::Printf(TEXT("  Effect Damage: %d\n"), Character->CalculateEffectDamage());
 	Output += FString::Printf(TEXT("  Resistance:    %.1f%%\n"), Character->CalculateResistance() * 100.0f);
 	Output += FString::Printf(TEXT("  Turn Speed:    %.1f\n"), Character->CalculateTurnSpeed());
