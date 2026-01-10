@@ -293,7 +293,6 @@ void FCombatLoadout::Clear()
     RingLoadout.Empty();
     InnateSpells.Empty();
     ItemSlots.Empty();
-    UnarmedStance = nullptr;
 
     bUsingPrimary = true;
     ActiveRingIndex = 0;
@@ -436,17 +435,9 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
 
     // ==================== COSMETICS & DEFENSE ====================
 
-    Result.UnarmedStance = Asset->UnarmedStance;
     Result.bUsingPrimary = Asset->bUsingPrimary;
-    Result.InfusionDisplay = Asset->InfusionDisplay;
-    Result.ItemUseSelfMontage = Asset->ItemUseSelfMontage;
-    Result.ItemUseTargetMontage = Asset->ItemUseTargetMontage;
 
     // Defense animations
-    Result.DodgeLeftMontage = Asset->DodgeLeftMontage;
-    Result.DodgeRightMontage = Asset->DodgeRightMontage;
-    Result.BlockMontage = Asset->BlockMontage;
-    Result.ParryMontage = Asset->ParryMontage;
     Result.bUseWeaponParryAnimation = Asset->bUseWeaponParryAnimation;
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s' (PrimarySlotType: %d)"),

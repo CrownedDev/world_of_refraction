@@ -18,6 +18,9 @@
 class USpellData;
 class UItemData;
 class ULoadoutData;
+class UStanceData;
+class UInfusionDisplayData;
+class UAnimMontage;
 
 /**
  * Describes what a character loses/gains from evolution
@@ -147,6 +150,51 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 TurnSpeed = 0;
+
+	// ==================== DEFENSE ANIMATIONS ====================
+
+	/** Dodge left animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	UAnimMontage *DodgeLeftMontage = nullptr;
+
+	/** Dodge right animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	UAnimMontage *DodgeRightMontage = nullptr;
+
+	/** Block animation */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	UAnimMontage *BlockMontage = nullptr;
+
+	/** Parry animation (can be overridden by weapon) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	UAnimMontage *ParryMontage = nullptr;
+
+	/** Use active weapon's parry animation instead of character's */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Defense")
+	bool bUseWeaponParryAnimation = false;
+
+	// ==================== COSMETICS ====================
+
+	/** Default unarmed stance */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
+	UStanceData *UnarmedStance = nullptr;
+
+	/** Visual effect for element infusion */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
+	UInfusionDisplayData *InfusionDisplay = nullptr;
+
+	/** Animation for self-targeted item use (healing, energy, cleanse) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Item Use")
+	UAnimMontage *ItemUseSelfMontage = nullptr;
+
+	/** Animation for target-directed item use (damage, ally buffs) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Item Use")
+	UAnimMontage *ItemUseTargetMontage = nullptr;
+
+	/** Animation for Resonator ring switching */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics",
+			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
+	UAnimMontage *RingSwitchMontage = nullptr;
 
 	// ==================== CLASS HELPERS ====================
 

@@ -156,45 +156,9 @@ public:
 
     // ==================== DEFENSE ANIMATIONS ====================
 
-    /** Dodge left animation */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
-    UAnimMontage *DodgeLeftMontage = nullptr;
-
-    /** Dodge right animation */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
-    UAnimMontage *DodgeRightMontage = nullptr;
-
-    /** Block animation (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
-    UAnimMontage *BlockMontage = nullptr;
-
-    /** Parry animation (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
-    UAnimMontage *ParryMontage = nullptr;
-
     /** Use weapon's parry animation instead of character's */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
     bool bUseWeaponParryAnimation = false;
-
-    // ==================== COSMETICS ====================
-
-    /** Unarmed stance (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics")
-    UStanceData *UnarmedStance = nullptr;
-
-    /** Infusion visual effect (nullptr = character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics")
-    UInfusionDisplayData *InfusionDisplay = nullptr;
-
-    // ==================== ITEM USE ANIMATIONS ====================
-
-    /** Animation for self-targeted item use (healing, energy, cleanse) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics|Item Use")
-    UAnimMontage *ItemUseSelfMontage = nullptr;
-
-    /** Animation for target-directed item use (damage, ally buffs) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics|Item Use")
-    UAnimMontage *ItemUseTargetMontage = nullptr;
 
     // ==================== VALIDATION ====================
 

@@ -408,11 +408,13 @@ void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result
 		   Result.TotalDamageDealt,
 		   Result.TotalHealingDone);
 
-	if (Result.Executor && CombatGridRef)
+	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+	if (Result.Executor && Grid)
 	{
-		CombatGridRef->UpdateActorFacing(Result.Executor, ArenaCenter);
+		Grid->UpdateActorFacing(Result.Executor, GetActorLocation());
 	}
-	// Broadcast result for UI
+
+		// Broadcast result for UI
 	if (CurrentActor)
 	{
 		OnActionExecuted.Broadcast(CurrentActor, Result);

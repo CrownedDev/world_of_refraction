@@ -151,6 +151,20 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UStanceData *WeaponStance = nullptr;
 
+    // ==================== EQUIP ANIMATIONS ====================
+
+    /** Animation when drawing this weapon */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
+    UAnimMontage *DrawMontage = nullptr;
+
+    /** Animation when sheathing this weapon */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
+    UAnimMontage *SheatheMontage = nullptr;
+
+    /** Optional parry animation override (used if character has bUseWeaponParryAnimation) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
+    UAnimMontage *ParryMontageOverride = nullptr;
+
     // ==================== DEFENSE ====================
 
     /** Weapon-specific parry animation (used when character's bUseWeaponParryAnimation is true) */

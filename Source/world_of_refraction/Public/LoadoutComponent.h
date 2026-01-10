@@ -16,6 +16,7 @@
 #include "FCombatLoadout.h"
 #include "FItemLoadoutSlot.h"
 #include "LoadoutData.h"
+#include "CharacterDataComponent.h"
 #include "LoadoutComponent.generated.h"
 
 class UInventoryComponent;
@@ -193,6 +194,9 @@ public:
     /** Get usable item slots (C++ only - use GetUsableItemCount for Blueprint) */
     TArray<FItemLoadoutSlot> GetUsableItems() const;
 
+    UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
+    UAnimMontage *GetItemUseAnimation(bool bIsSelfTarget) const;
+
     /** Get count of usable item slots (Blueprint friendly) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     int32 GetUsableItemCount() const;
@@ -293,39 +297,41 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetRingResonateSpells() const;
 
-    // ==================== DEFENSE ANIMATIONS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
-    UAnimMontage *GetDodgeLeftMontage() const;
-
-    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
-    UAnimMontage *GetDodgeRightMontage() const;
-
-    /** Get block montage */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
-    UAnimMontage *GetBlockMontage() const;
-
-    /** Get parry montage (checks weapon parry if enabled) */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
-    UAnimMontage *GetParryMontage() const;
+    // ==================== DEFENSE  ====================
 
     /** Check if should use weapon's parry animation */
     UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
     bool ShouldUseWeaponParry() const;
 
-    // ==================== COSMETICS ====================
+    // ==================== DEFENSE & COSMETICS (from CharacterData) ====================
 
-    /** Get infusion display effect for this loadout */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
-    UInfusionDisplayData *GetInfusionDisplay() const;
+    /** Get dodge left animation */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetDodgeLeftMontage() const;
 
-    /** Get unarmed stance for this loadout */
+    /** Get dodge right animation */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetDodgeRightMontage() const;
+
+    /** Get block animation */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetBlockMontage() const;
+
+    /** Get parry animation (checks weapon override if loadout prefers it) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Defense")
+    UAnimMontage *GetParryMontage() const;
+
+    /** Get unarmed stance */
     UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
     UStanceData *GetUnarmedStance() const;
 
-    /** Get item use animation based on target type */
+    /** Get infusion display */
     UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
-    UAnimMontage *GetItemUseAnimation(bool bIsSelfTarget) const;
+    UInfusionDisplayData *GetInfusionDisplay() const;
+
+    /** Get ring switch animation (Resonator only) */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
+    UAnimMontage *GetRingSwitchMontage() const;
 
     // ==================== LOADOUT ENTRY ACCESSORS ====================
 
@@ -404,6 +410,9 @@ public:
 private:
     /** True if initialized from LoadoutData asset (AI), false if from inventory (Player) */
     bool bInitializedFromAsset = false;
+
+    /** Helper to get CharacterData from sibling component */
+    UCharacterData *GetOwnerCharacterData() const;
 
 protected:
     virtual void BeginPlay() override;

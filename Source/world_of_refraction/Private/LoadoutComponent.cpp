@@ -13,6 +13,7 @@
 #include "RingData.h"
 #include "ItemData.h"
 #include "StanceData.h"
+
 #include "WeaponAttackData.h"
 
 ULoadoutComponent::ULoadoutComponent()
@@ -1305,7 +1306,7 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
     }
 
     // Fallback to unarmed stance
-    return Loadout.UnarmedStance;
+    return GetUnarmedStance();
 }
 
 UAnimMontage *ULoadoutComponent::GetCurrentIdleMontage() const
@@ -1602,55 +1603,6 @@ void ULoadoutComponent::DebugLogLoadout()
     UE_LOG(LogTemp, Log, TEXT("=============================="));
 }
 
-UAnimMontage *ULoadoutComponent::GetDodgeLeftMontage() const
-{
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-    return SavedLoadouts[ActiveLoadoutIndex].DodgeLeftMontage;
-}
-
-UAnimMontage *ULoadoutComponent::GetDodgeRightMontage() const
-{
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-    return SavedLoadouts[ActiveLoadoutIndex].DodgeRightMontage;
-}
-
-UAnimMontage *ULoadoutComponent::GetBlockMontage() const
-{
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-    return SavedLoadouts[ActiveLoadoutIndex].BlockMontage;
-}
-
-UAnimMontage *ULoadoutComponent::GetParryMontage() const
-{
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-    {
-        return nullptr;
-    }
-
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
-
-    // Check weapon parry first
-    if (Loadout.bUseWeaponParryAnimation)
-    {
-        const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
-        if (WeaponEntry && WeaponEntry->WeaponEntry.Weapon && WeaponEntry->WeaponEntry.Weapon->ParryMontage)
-        {
-            return WeaponEntry->WeaponEntry.Weapon->ParryMontage;
-        }
-    }
-
-    return Loadout.ParryMontage;
-}
-
 bool ULoadoutComponent::ShouldUseWeaponParry() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
@@ -1660,31 +1612,106 @@ bool ULoadoutComponent::ShouldUseWeaponParry() const
     return SavedLoadouts[ActiveLoadoutIndex].bUseWeaponParryAnimation;
 }
 
-UInfusionDisplayData *ULoadoutComponent::GetInfusionDisplay() const
+UAnimMontage *ULoadoutComponent::GetDodgeLeftMontage() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    if (UCharacterData *CharData = GetOwnerCharacterData())
     {
-        return nullptr;
+        return CharData->DodgeLeftMontage;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].InfusionDisplay;
+    return nullptr;
+}
+
+UAnimMontage *ULoadoutComponent::GetDodgeRightMontage() const
+{
+    if (UCharacterData *CharData = GetOwnerCharacterData())
+    {
+        return CharData->DodgeRightMontage;
+    }
+    return nullptr;
+}
+
+UAnimMontage *ULoadoutComponent::GetBlockMontage() const
+{
+    if (UCharacterData *CharData = GetOwnerCharacterData())
+    {
+        return CharData->BlockMontage;
+    }
+    return nullptr;
+}
+
+UAnimMontage *ULoadoutComponent::GetParryMontage() const
+{
+    // Check if loadout prefers weapon parry
+    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+        if (Loadout.bUseWeaponParryAnimation)
+        {
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                if (Weapon->ParryMontageOverride)
+                {
+                    return Weapon->ParryMontageOverride;
+                }
+            }
+        }
+    }
+
+    // Fall back to character's parry
+    if (UCharacterData *CharData = GetOwnerCharacterData())
+    {
+        return CharData->ParryMontage;
+    }
+    return nullptr;
 }
 
 UStanceData *ULoadoutComponent::GetUnarmedStance() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    if (UCharacterData *CharData = GetOwnerCharacterData())
     {
-        return nullptr;
+        return CharData->UnarmedStance;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].UnarmedStance;
+    return nullptr;
 }
 
+UInfusionDisplayData *ULoadoutComponent::GetInfusionDisplay() const
+{
+    if (UCharacterData *CharData = GetOwnerCharacterData())
+    {
+        return CharData->InfusionDisplay;
+    }
+    return nullptr;
+}
+
+UAnimMontage *ULoadoutComponent::GetRingSwitchMontage() const
+{
+    if (UCharacterData *CharData = GetOwnerCharacterData())
+    {
+        return CharData->RingSwitchMontage;
+    }
+    return nullptr;
+}
+
+// GetItemUseAnimation() - change from reading FCombatLoadout to CharacterData
 UAnimMontage *ULoadoutComponent::GetItemUseAnimation(bool bIsSelfTarget) const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    if (UCharacterData *CharData = GetOwnerCharacterData())
+    {
+        return bIsSelfTarget ? CharData->ItemUseSelfMontage : CharData->ItemUseTargetMontage;
+    }
+    return nullptr;
+}
+
+UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
+{
+    if (!GetOwner())
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
-    return bIsSelfTarget ? Loadout.ItemUseSelfMontage : Loadout.ItemUseTargetMontage;
+    if (UCharacterDataComponent *CharComp = GetOwner()->FindComponentByClass<UCharacterDataComponent>())
+    {
+        return CharComp->CharacterData;
+    }
+    return nullptr;
 }

@@ -108,35 +108,6 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
     TArray<FItemLoadoutSlot> ItemSlots;
 
-    // ==================== COSMETICS ====================
-
-    /** Unarmed stance (fallback when no weapon equipped) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
-    UStanceData *UnarmedStance = nullptr;
-    // In the COSMETICS section, add:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
-    UInfusionDisplayData *InfusionDisplay = nullptr;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
-    UAnimMontage *ItemUseSelfMontage = nullptr;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
-    UAnimMontage *ItemUseTargetMontage = nullptr;
-
-    // ==================== DEFENSE ANIMATIONS ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
-    UAnimMontage *DodgeLeftMontage = nullptr;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
-    UAnimMontage *DodgeRightMontage = nullptr;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
-    UAnimMontage *BlockMontage = nullptr;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
-    UAnimMontage *ParryMontage = nullptr;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
     bool bUseWeaponParryAnimation = false;
 
