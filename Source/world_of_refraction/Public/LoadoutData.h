@@ -186,6 +186,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics")
     UInfusionDisplayData *InfusionDisplay = nullptr;
 
+    // ==================== ITEM USE ANIMATIONS ====================
+
+    /** Animation for self-targeted item use (healing, energy, cleanse) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics|Item Use")
+    UAnimMontage *ItemUseSelfMontage = nullptr;
+
+    /** Animation for target-directed item use (damage, ally buffs) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "7. Cosmetics|Item Use")
+    UAnimMontage *ItemUseTargetMontage = nullptr;
+
     // ==================== VALIDATION ====================
 
     /** Check if loadout is valid for given class */

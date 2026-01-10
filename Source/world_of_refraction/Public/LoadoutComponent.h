@@ -323,6 +323,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
     UStanceData *GetUnarmedStance() const;
 
+    /** Get item use animation based on target type */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Cosmetics")
+    UAnimMontage *GetItemUseAnimation(bool bIsSelfTarget) const;
+
     // ==================== LOADOUT ENTRY ACCESSORS ====================
 
     /** Get active weapon loadout entry (full access to crystal, abilities, spells) */

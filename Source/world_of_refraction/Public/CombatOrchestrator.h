@@ -277,6 +277,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
 	void DebugStartCombatWithLevelActors();
 
+	/** Test item on enemy (Garnet damage) - tests target facing + animation */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestItemOnEnemy();
+
+	/** Test item on self (Sapphire heal) - tests self animation */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestItemOnSelf();
+
+	/** Test item on ally (Sapphire heal) - tests ally facing + animation */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugTestItemOnAlly();
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

@@ -117,6 +117,12 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
     UInfusionDisplayData *InfusionDisplay = nullptr;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
+    UAnimMontage *ItemUseSelfMontage = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cosmetics")
+    UAnimMontage *ItemUseTargetMontage = nullptr;
+
     // ==================== DEFENSE ANIMATIONS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")

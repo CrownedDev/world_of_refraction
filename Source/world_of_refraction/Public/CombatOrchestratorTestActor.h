@@ -74,6 +74,9 @@ public:
 	/** Test energy is properly deducted from actions */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_EnergyCost();
+	/** Test item execution through full pipeline */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
+	void Test_ItemExecution();
 
 	// ========================================
 	// CONFIGURATION
@@ -96,7 +99,7 @@ protected:
 
 private:
 	UPROPERTY()
-	ACombatOrchestrator* TestOrchestrator;
+	ACombatOrchestrator *TestOrchestrator;
 
 	// Test tracking
 	int32 TestsPassed;
@@ -104,20 +107,20 @@ private:
 	int32 TestActorCounter;
 
 	// Test helpers
-	ACombatOrchestrator* GetOrCreateOrchestrator();
-	AActor* CreateTestCharacter(const FString& Name, int32 Mind, int32 Body, int32 Spirit, int32 TurnSpeed, int32 TeamIndex);
-	void CleanupTestActors(TArray<AActor*>& Actors);
-	void PrintTestResult(const FString& TestName, bool bPassed);
+	ACombatOrchestrator *GetOrCreateOrchestrator();
+	AActor *CreateTestCharacter(const FString &Name, int32 Mind, int32 Body, int32 Spirit, int32 TurnSpeed, int32 TeamIndex);
+	void CleanupTestActors(TArray<AActor *> &Actors);
+	void PrintTestResult(const FString &TestName, bool bPassed);
 
 	// Event handlers for async tests
 	UFUNCTION()
 	void OnTestCombatStateChanged(ECombatState NewState);
 
 	UFUNCTION()
-	void OnTestCombatResultReady(const FCombatResult& Result);
+	void OnTestCombatResultReady(const FCombatResult &Result);
 
 	UFUNCTION()
-	void OnTestActionExecuted(AActor* Actor, const FActionResult& Result);
+	void OnTestActionExecuted(AActor *Actor, const FActionResult &Result);
 
 	// Async test state
 	TArray<ECombatState> RecordedStateTransitions;

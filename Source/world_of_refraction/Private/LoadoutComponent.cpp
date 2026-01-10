@@ -1677,3 +1677,14 @@ UStanceData *ULoadoutComponent::GetUnarmedStance() const
     }
     return SavedLoadouts[ActiveLoadoutIndex].UnarmedStance;
 }
+
+UAnimMontage *ULoadoutComponent::GetItemUseAnimation(bool bIsSelfTarget) const
+{
+    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    return bIsSelfTarget ? Loadout.ItemUseSelfMontage : Loadout.ItemUseTargetMontage;
+}

@@ -1501,6 +1501,37 @@ FActionResult UActionExecutor::ExecuteItem(
 			Result.ErrorMessage = TEXT("Item not in loadout or no uses remaining");
 			return Result;
 		}
+		if (ItemSlotIndex < 0)
+		{
+			Result.bSuccess = false;
+			Result.ErrorMessage = TEXT("Item not in loadout or no uses remaining");
+			return Result;
+		}
+
+		// ADD THIS BLOCK:
+		// === Play item use animation ===
+		if (Loadout)
+		{
+			bool bIsSelfTarget = (Targets.Num() == 0 || Targets[0] == User);
+
+			// Face target if not self-targeting
+			if (!bIsSelfTarget && Targets.Num() > 0)
+			{
+				FVector Direction = Targets[0]->GetActorLocation() - User->GetActorLocation();
+				Direction.Z = 0;
+				if (!Direction.IsNearlyZero())
+				{
+					User->SetActorRotation(Direction.GetSafeNormal().Rotation());
+				}
+			}
+
+			// Play animation
+			UAnimMontage *ItemMontage = Loadout->GetItemUseAnimation(bIsSelfTarget);
+			if (ItemMontage)
+			{
+				PlayActionMontageOnActor(User, ItemMontage, 1.0f);
+			}
+		}
 	}
 
 	// Delegate to ItemExecutor for full item handling

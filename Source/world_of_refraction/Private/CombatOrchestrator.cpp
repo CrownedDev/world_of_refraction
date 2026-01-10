@@ -16,6 +16,8 @@
 #include "AbilityData.h"
 #include "BrokenDarknessManager.h"
 #include "CharacterData.h"
+#include "ItemData.h"
+#include "ItemEffectType.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -406,6 +408,10 @@ void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result
 		   Result.TotalDamageDealt,
 		   Result.TotalHealingDone);
 
+	if (Result.Executor && CombatGridRef)
+	{
+		CombatGridRef->UpdateActorFacing(Result.Executor, ArenaCenter);
+	}
 	// Broadcast result for UI
 	if (CurrentActor)
 	{
@@ -1274,6 +1280,228 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 	{
 		bWaitingForAsyncAction = true;
 		ActionExecutorRef->ExecuteActionAsync(Actor, SpellAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
+}
+
+void ACombatOrchestrator::DebugTestItemOnEnemy()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No actor available"));
+		return;
+	}
+
+	// Find enemy target
+	AActor *Target = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No valid target"));
+		return;
+	}
+
+	// Get loadout and find damage item (Garnet)
+	ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!Loadout)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No LoadoutComponent on %s"), *Actor->GetName());
+		return;
+	}
+
+	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
+	UItemData *DamageItem = nullptr;
+
+	for (const FItemLoadoutSlot &Slot : UsableItems)
+	{
+		if (Slot.Crystal && Slot.Crystal->GetPrimaryEffectType() == EItemEffectType::Damage)
+		{
+			DamageItem = Slot.Crystal;
+			break;
+		}
+	}
+
+	// Fallback: load Garnet directly for testing
+	if (!DamageItem)
+	{
+		DamageItem = LoadObject<UItemData>(nullptr,
+										   TEXT("/Game/Data/Items/Garnet/DA_Items_Garnet_F.DA_Items_Garnet_F"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No damage item in loadout, using fallback Garnet"));
+	}
+
+	if (!DamageItem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DebugTestItemOnEnemy] No damage item available"));
+		return;
+	}
+
+	// Build item action
+	FAction ItemAction;
+	ItemAction.ActionType = EActionType::Item;
+	ItemAction.ItemData = DamageItem;
+	ItemAction.Targets.Add(Target);
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnEnemy] %s using %s on enemy %s"),
+		   *Actor->GetName(), *DamageItem->GetFullItemName(), *Target->GetName());
+
+	// Execute
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, ItemAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
+}
+
+void ACombatOrchestrator::DebugTestItemOnSelf()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No actor available"));
+		return;
+	}
+
+	// Get loadout and find healing item (Sapphire)
+	ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!Loadout)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No LoadoutComponent on %s"), *Actor->GetName());
+		return;
+	}
+
+	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
+	UItemData *HealItem = nullptr;
+
+	for (const FItemLoadoutSlot &Slot : UsableItems)
+	{
+		if (Slot.Crystal && Slot.Crystal->GetPrimaryEffectType() == EItemEffectType::Healing)
+		{
+			HealItem = Slot.Crystal;
+			break;
+		}
+	}
+
+	// Fallback: load Sapphire directly for testing
+	if (!HealItem)
+	{
+		HealItem = LoadObject<UItemData>(nullptr,
+										 TEXT("/Game/Data/Items/Sapphire/DA_Items_Sapphire_F.DA_Items_Sapphire_F"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Sapphire"));
+	}
+
+	if (!HealItem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DebugTestItemOnSelf] No healing item available"));
+		return;
+	}
+
+	// Build item action - target is self
+	FAction ItemAction;
+	ItemAction.ActionType = EActionType::Item;
+	ItemAction.ItemData = HealItem;
+	ItemAction.Targets.Add(Actor); // Self-target
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnSelf] %s using %s on SELF"),
+		   *Actor->GetName(), *HealItem->GetFullItemName());
+
+	// Execute
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, ItemAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
+	}
+}
+
+void ACombatOrchestrator::DebugTestItemOnAlly()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No actor available"));
+		return;
+	}
+
+	// Find ally target (same team, different actor)
+	AActor *Ally = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	TArray<AActor *> &TeamArray = bActorInTeam0 ? Team0Combatants : Team1Combatants;
+
+	for (AActor *Teammate : TeamArray)
+	{
+		if (Teammate != Actor && IsActorAlive(Teammate))
+		{
+			Ally = Teammate;
+			break;
+		}
+	}
+
+	if (!Ally)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No ally available (need 2+ team members)"));
+		return;
+	}
+
+	// Get loadout and find healing item (Sapphire)
+	ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!Loadout)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No LoadoutComponent on %s"), *Actor->GetName());
+		return;
+	}
+
+	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
+	UItemData *HealItem = nullptr;
+
+	for (const FItemLoadoutSlot &Slot : UsableItems)
+	{
+		if (Slot.Crystal && Slot.Crystal->GetPrimaryEffectType() == EItemEffectType::Healing)
+		{
+			HealItem = Slot.Crystal;
+			break;
+		}
+	}
+
+	// Fallback: load Sapphire directly for testing
+	if (!HealItem)
+	{
+		HealItem = LoadObject<UItemData>(nullptr,
+										 TEXT("/Game/Data/Items/Sapphire/DA_Items_Sapphire_F.DA_Items_Sapphire_F"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Sapphire"));
+	}
+
+	if (!HealItem)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[DebugTestItemOnAlly] No healing item available"));
+		return;
+	}
+
+	// Build item action - target is ally
+	FAction ItemAction;
+	ItemAction.ActionType = EActionType::Item;
+	ItemAction.ItemData = HealItem;
+	ItemAction.Targets.Add(Ally);
+
+	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnAlly] %s using %s on ally %s"),
+		   *Actor->GetName(), *HealItem->GetFullItemName(), *Ally->GetName());
+
+	// Execute
+	if (ActionExecutorRef)
+	{
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, ItemAction,
 											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }

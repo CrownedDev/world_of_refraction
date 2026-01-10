@@ -423,7 +423,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
 	int32 CalculateEffectDamage() const
 	{
-		// Flat effect damage value (Mind-based)
+		// Flat effect damage value
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalEffectDamage();
 		return FMath::RoundToInt(EffectiveMind * TotalPoints);

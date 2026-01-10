@@ -439,6 +439,8 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     Result.UnarmedStance = Asset->UnarmedStance;
     Result.bUsingPrimary = Asset->bUsingPrimary;
     Result.InfusionDisplay = Asset->InfusionDisplay;
+    Result.ItemUseSelfMontage = Asset->ItemUseSelfMontage;
+    Result.ItemUseTargetMontage = Asset->ItemUseTargetMontage;
 
     // Defense animations
     Result.DodgeLeftMontage = Asset->DodgeLeftMontage;
