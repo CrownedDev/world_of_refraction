@@ -35,6 +35,7 @@
 #include "LoadoutComponent.h"
 #include "CombatMovementComponent.h"
 #include "CombatAnimInstance.h"
+#include "CombatGridSubsystem.h"
 #include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
@@ -402,13 +403,11 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	PendingExecutionActor = Actor;
 	PendingExecutionCharData = CharData;
 
-	// Handle instant actions (no movement required)
-	if (Action.ActionType == EActionType::Item ||
-		Action.ActionType == EActionType::Defend ||
+	// Handle instant actions (no animation, no movement)
+	if (Action.ActionType == EActionType::Defend ||
 		Action.ActionType == EActionType::SwitchWeapon ||
 		Action.ActionType == EActionType::Flee)
 	{
-		// These don't need movement - execute synchronously
 		FActionResult Result = ExecuteAction(Actor, Action);
 		CurrentExecutionContext.Reset();
 		PendingExecutionActor = nullptr;
@@ -417,6 +416,13 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		{
 			OnComplete.Execute(Result);
 		}
+		return;
+	}
+
+	// Handle Item - has animation but no movement
+	if (Action.ActionType == EActionType::Item)
+	{
+		ExecuteItemAsync(Actor, Action, CharData);
 		return;
 	}
 
@@ -717,6 +723,76 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Attack async - opened %d defense windows"),
 		   ValidTargets.Num());
+}
+
+// ========================================
+// EXECUTION - ITEM ASYNC
+// ========================================
+
+void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCharacterData *CharData)
+{
+	if (!Actor || !Action.ItemData)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ExecuteItemAsync - Invalid actor or item"));
+		FinalizeAsyncAction();
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Executing item async: %s by %s"),
+		   *Action.ItemData->GetFullItemName(), *Actor->GetName());
+
+	// Face target (if not self)
+	AActor *Target = Action.Targets.Num() > 0 ? Action.Targets[0] : Actor;
+	bool bIsSelfTarget = (Target == Actor);
+
+	if (!bIsSelfTarget)
+	{
+		FVector Direction = Target->GetActorLocation() - Actor->GetActorLocation();
+		Direction.Z = 0;
+		if (!Direction.IsNearlyZero())
+		{
+			Actor->SetActorRotation(Direction.GetSafeNormal().Rotation());
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Item user facing toward %s"), *Target->GetName());
+		}
+	}
+
+	// Get and play animation
+	ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+	UAnimMontage *ItemMontage = Loadout ? Loadout->GetItemUseAnimation(bIsSelfTarget) : nullptr;
+
+	if (ItemMontage)
+	{
+		BindActionAnimationEnd(Actor);
+		PlayActionMontageOnActor(Actor, ItemMontage, 1.0f);
+	}
+
+	// Execute item logic (healing, damage, buffs)
+	FActionResult Result = ExecuteItem(Actor, Action.ItemData, Action.Targets);
+
+	// Store result for finalization
+	if (CurrentExecutionContext.IsSet())
+	{
+		CurrentExecutionContext->PartialResult = Result;
+	}
+
+	// Set timeout as failsafe
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			AsyncTimeoutHandle,
+			this,
+			&UActionExecutor::OnAsyncActionTimeout,
+			5.0f,
+			false);
+	}
+
+	// If no animation, finalize now
+	if (!bWaitingForAnimationEnd)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No item animation - finalizing immediately"));
+		FinalizeAsyncAction();
+	}
+	// Otherwise OnActionAnimationEnded will handle finalization
 }
 
 // ========================================
@@ -1500,37 +1576,6 @@ FActionResult UActionExecutor::ExecuteItem(
 			Result.bSuccess = false;
 			Result.ErrorMessage = TEXT("Item not in loadout or no uses remaining");
 			return Result;
-		}
-		if (ItemSlotIndex < 0)
-		{
-			Result.bSuccess = false;
-			Result.ErrorMessage = TEXT("Item not in loadout or no uses remaining");
-			return Result;
-		}
-
-		// ADD THIS BLOCK:
-		// === Play item use animation ===
-		if (Loadout)
-		{
-			bool bIsSelfTarget = (Targets.Num() == 0 || Targets[0] == User);
-
-			// Face target if not self-targeting
-			if (!bIsSelfTarget && Targets.Num() > 0)
-			{
-				FVector Direction = Targets[0]->GetActorLocation() - User->GetActorLocation();
-				Direction.Z = 0;
-				if (!Direction.IsNearlyZero())
-				{
-					User->SetActorRotation(Direction.GetSafeNormal().Rotation());
-				}
-			}
-
-			// Play animation
-			UAnimMontage *ItemMontage = Loadout->GetItemUseAnimation(bIsSelfTarget);
-			if (ItemMontage)
-			{
-				PlayActionMontageOnActor(User, ItemMontage, 1.0f);
-			}
 		}
 	}
 
@@ -3746,6 +3791,11 @@ void UActionExecutor::UnbindActionAnimationEnd(AActor *Actor)
 
 void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted)
 {
+	// ADD THIS BEFORE the bWaitingForAnimationEnd check:
+	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnActionAnimationEnded called - bWaitingForAnimationEnd: %s, PendingActor: %s"),
+		   bWaitingForAnimationEnd ? TEXT("TRUE") : TEXT("FALSE"),
+		   PendingExecutionActor ? *PendingExecutionActor->GetName() : TEXT("NULL"));
+
 	if (!bWaitingForAnimationEnd)
 	{
 		return;
@@ -3755,6 +3805,18 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended%s - finalizing"),
 		   bInterrupted ? TEXT(" (interrupted)") : TEXT(""));
+
+	// Restore facing to enemy after action animation
+	if (Actor)
+	{
+		UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+		if (Grid)
+		{
+			Grid->UpdateActorFacing(Actor, FVector::ZeroVector);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Restored facing for %s after animation"),
+				   *Actor->GetName());
+		}
+	}
 
 	// Unbind action animation
 	if (Actor)

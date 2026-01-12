@@ -407,14 +407,7 @@ void ACombatOrchestrator::HandleAsyncActionCompleted(const FActionResult &Result
 		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
 		   Result.TotalDamageDealt,
 		   Result.TotalHealingDone);
-
-	UCombatGridSubsystem *Grid = GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
-	if (Result.Executor && Grid)
-	{
-		Grid->UpdateActorFacing(Result.Executor, GetActorLocation());
-	}
-
-		// Broadcast result for UI
+	// Broadcast result for UI
 	if (CurrentActor)
 	{
 		OnActionExecuted.Broadcast(CurrentActor, Result);

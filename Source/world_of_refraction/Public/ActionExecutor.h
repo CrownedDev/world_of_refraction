@@ -703,6 +703,9 @@ private:
 	 */
 	void ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData);
 
+	/** Execute item with animation - no movement required */
+	void ExecuteItemAsync(AActor *Actor, const FAction &Action, UCharacterData *CharData);
+
 	// ==================== RETURN MOVEMENT TRACKING ====================
 
 	/** Track if we're waiting for return movement */
