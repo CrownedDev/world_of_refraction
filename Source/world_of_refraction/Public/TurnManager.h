@@ -140,6 +140,18 @@ public:
 	FOnSpeedChanged OnSpeedChanged;
 
 	// ========================================
+	// TEAM HELPERS
+	// ========================================
+
+	/** Get all actors on a specific team */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	TArray<AActor *> GetTeamMembers(int32 TeamIndex) const;
+
+	/** Get the team index for an actor (-1 if not in combat) */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	int32 GetActorTeam(AActor *Actor) const;
+
+	// ========================================
 	// DEBUG TOOLS
 	// ========================================
 

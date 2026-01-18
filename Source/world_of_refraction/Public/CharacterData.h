@@ -65,7 +65,7 @@ public:
 	/** Innate element - only for Casters (locked at creation) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
-	ESpellElement InnateElement = ESpellElement::Fire;
+	ESpellElement InnateElement = ESpellElement::Generic;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Character description...");

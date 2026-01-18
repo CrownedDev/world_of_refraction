@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "AbilityDataDebug.h"
+#include "FAbilityEffect.h"
 #include "Engine/Engine.h"
 
 void UAbilityDataDebug::PrintAbilityStats(UAbilityData *Ability, UCharacterData *Character, float Duration)
@@ -98,40 +99,14 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
     {
         Output += TEXT("INFUSION: Not Available\n\n");
     }
-    // Effects
-    if (Ability->EffectType != EStatusType::None)
+    if (Ability->Effects.Num() > 0)
     {
-        FString EffectTypeName = UEnum::GetValueAsString(Ability->EffectType);
-        EffectTypeName.RemoveFromStart(TEXT("EStatusType::"));
-
         Output += TEXT("EFFECTS:\n");
-        Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
-
-        // Show magnitude for percentage-based effects
-        if (Ability->EffectMagnitude > 0.0f)
+        for (int32 i = 0; i < Ability->Effects.Num(); ++i)
         {
-            Output += FString::Printf(TEXT("  Magnitude: %.0f%%\n"), Ability->EffectMagnitude * 100.0f);
+            const FAbilityEffect &Effect = Ability->Effects[i];
+            Output += FString::Printf(TEXT("  [%d] %s\n"), i + 1, *Effect.GetDescription());
         }
-
-        // Show value for flat effects
-        if (Ability->EffectValue != 0)
-        {
-            Output += FString::Printf(TEXT("  Value: %d\n"), Ability->EffectValue);
-        }
-
-        // Show duration
-        if (Ability->EffectDuration > 0)
-        {
-            Output += FString::Printf(TEXT("  Duration: %d turn%s\n"),
-                                      Ability->EffectDuration,
-                                      Ability->EffectDuration == 1 ? TEXT("") : TEXT("s"));
-        }
-        else if (Ability->EffectType == EStatusType::EnergyRestore ||
-                 Ability->EffectType == EStatusType::HealthRestore)
-        {
-            Output += TEXT("  Duration: Instant\n");
-        }
-
         Output += TEXT("\n");
     }
     else

@@ -1,5 +1,6 @@
-#pragma once
-// Fill out your copyright notice in the Description page of Project Settings.
+// AbilityData.h
+// Ability Data Asset - Universal skills usable by all characters
+// Can be infused with character's innate element for status effects
 
 #pragma once
 
@@ -12,6 +13,9 @@
 #include "EWeaponType.h"
 #include "CombatConstants.h"
 #include "MovementData.h"
+#include "EAbilityExecutionType.h"
+#include "FAbilityEffect.h"
+#include "ESpellDeliveryType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -21,6 +25,9 @@
 
 // Forward declaration
 class UCharacterData;
+
+/** Maximum number of effects an ability can have */
+constexpr int32 MAX_ABILITY_EFFECTS = 5;
 
 /**
  * Ability Data Asset - Universal skills usable by all characters
@@ -39,19 +46,39 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("Ability description...");
-    // Add in Identity section after Description:
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType RequiredWeaponType = EWeaponType::Sword;
 
-    // ==================== MOVEMENT ====================
+    // ==================== EXECUTION ====================
 
-    /** How the user approaches the target (nullptr = use character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-    UMovementData *MovementData = nullptr;
+    /** How this ability executes (determines movement, animation style, delivery) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution")
+    EAbilityExecutionType ExecutionType = EAbilityExecutionType::Melee;
 
-    /** Distance from target to stop and execute ability (units) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
+    // --- Melee Only ---
+
+    /** How the user approaches the target (Melee only, nullptr = use character default) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Melee",
+              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Melee", EditConditionHides))
+    UMovementData *ApproachData = nullptr;
+
+    /** Distance from target to stop and execute ability (Melee only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Melee",
+              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Melee", EditConditionHides, ClampMin = "0.0"))
     float ExecutionRange = 150.0f;
+
+    // --- Ranged Only ---
+
+    /** How the projectile travels (Ranged only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Ranged",
+              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Ranged", EditConditionHides))
+    ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
+
+    /** Projectile travel speed in units/second (Ranged only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Ranged",
+              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Ranged", EditConditionHides, ClampMin = "100.0"))
+    float ProjectileSpeed = 1500.0f;
 
     // ==================== MECHANICS ====================
 
@@ -79,28 +106,33 @@ public:
 
     // ==================== EFFECTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-    EStatusType EffectType = EStatusType::None;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-    float EffectMagnitude = 0.0f; // 0.2 = 20% buff/debuff
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects", meta = (ClampMin = "0"))
-    int32 EffectDuration = 0; // Turns
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-    int32 EffectValue = 0; // For flat values (energy restore, etc.)
+    /**
+     * Effects applied by this ability (max 5)
+     * Each effect can have its own target, condition, and timing
+     * Examples: Self buff on hit, team buff always, debuff on target
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
+              meta = (TitleProperty = "EffectType"))
+    TArray<FAbilityEffect> Effects;
 
     // ==================== VISUALS ====================
 
+    /** Animation to play during ability execution */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UAnimMontage *CastAnimation = nullptr;
+    UAnimMontage *ExecutionMontage = nullptr;
 
+    /** VFX for normal (non-infused) ability */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UNiagaraSystem *NormalEffect = nullptr;
+    UNiagaraSystem *NormalVFX = nullptr;
 
+    /** VFX for infused ability */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UNiagaraSystem *InfusedEffect = nullptr;
+    UNiagaraSystem *InfusedVFX = nullptr;
+
+    /** Projectile VFX (Ranged only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals",
+              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Ranged", EditConditionHides))
+    UNiagaraSystem *ProjectileVFX = nullptr;
 
     // ==================== REQUIREMENT CHECKS ====================
 
@@ -140,7 +172,41 @@ public:
     UFUNCTION(BlueprintPure, Category = "Ability|Status")
     int32 CalculateStatusBuildup(UCharacterData *Character) const;
 
-    // ==================== HELPER FUNCTIONS ====================
+    // ==================== EFFECT HELPERS ====================
+
+    /** Get all effects that trigger on a specific condition */
+    UFUNCTION(BlueprintPure, Category = "Ability|Effects")
+    TArray<FAbilityEffect> GetEffectsForCondition(EPassiveTrigger Condition) const;
+
+    /** Check if ability has any drain effects */
+    UFUNCTION(BlueprintPure, Category = "Ability|Effects")
+    bool HasDrainEffect() const;
+
+    /** Check if ability has any buff effects */
+    UFUNCTION(BlueprintPure, Category = "Ability|Effects")
+    bool HasBuffEffects() const;
+
+    /** Check if ability has any debuff effects */
+    UFUNCTION(BlueprintPure, Category = "Ability|Effects")
+    bool HasDebuffEffects() const;
+
+    // ==================== EXECUTION HELPERS ====================
+
+    /** Is this a ranged ability? */
+    UFUNCTION(BlueprintPure, Category = "Ability|Execution")
+    bool IsRanged() const { return ExecutionType == EAbilityExecutionType::Ranged; }
+
+    /** Is this a melee ability? */
+    UFUNCTION(BlueprintPure, Category = "Ability|Execution")
+    bool IsMelee() const { return ExecutionType == EAbilityExecutionType::Melee; }
+
+    /** Is this a support ability (no damage, has buff effects)? */
+    UFUNCTION(BlueprintPure, Category = "Ability|Execution")
+    bool IsSupportAbility() const { return BaseDamage == 0 && HasBuffEffects(); }
+
+    /** Does this ability require approaching the target? */
+    UFUNCTION(BlueprintPure, Category = "Ability|Execution")
+    bool RequiresApproach() const { return AbilityExecutionTypeHelper::RequiresApproach(ExecutionType); }
 
     // ==================== EDITOR VALIDATION ====================
 

@@ -22,6 +22,8 @@
 #include "LoadoutComponent.h"
 #include "CombatMovementComponent.h"
 #include "MovementData.h"
+#include "EAbilityExecutionType.h"
+#include "FAbilityEffect.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -383,6 +385,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
 	void DebugPrintInfusionInfo(AActor *Actor) const;
 
+	UFUNCTION(Exec)
+	void DebugAsyncState();
+
+	UFUNCTION(Exec)
+	void DebugForceResetAsync();
+
 private:
 	// ==================== SPELL VFX NOTIFY STATE ====================
 
@@ -412,6 +420,39 @@ private:
 
 	/** Clear cached spell data */
 	void ClearPendingSpellData();
+
+	// ==================== ABILITY EFFECT SYSTEM ====================
+
+	/** Apply all effects from ability's Effects array */
+	void ApplyAbilityEffects(
+		AActor *User,
+		const TArray<AActor *> &Targets,
+		UAbilityData *Ability,
+		FActionResult &Result,
+		bool bCausedDeath);
+
+	/** Get targets for an effect based on ETargetType */
+	void GetEffectTargets(
+		AActor *User,
+		const TArray<AActor *> &ActionTargets,
+		ETargetType TargetType,
+		int32 UserTeam,
+		TArray<AActor *> &OutTargets);
+
+	/** Get all enemies for targeting */
+	TArray<AActor *> GetAllEnemies(AActor *User, int32 UserTeam);
+
+	/** Get all allies for targeting */
+	TArray<AActor *> GetAllAllies(AActor *User, int32 UserTeam);
+
+	/** Get all combatants */
+	TArray<AActor *> GetAllCombatants();
+
+	/** Generate unique effect ID for status effects */
+	int32 GetUniqueEffectID();
+
+	/** Unique effect ID counter */
+	int32 EffectIDCounter = 0;
 
 	// ========================================
 	// INTERNAL HELPERS

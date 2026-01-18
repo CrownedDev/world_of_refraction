@@ -15,6 +15,7 @@
 UENUM(BlueprintType)
 enum class ESpellElement : uint8
 {
+    Generic UMETA(DisplayName = "Generic"),
     Fire UMETA(DisplayName = "Fire"),
     Water UMETA(DisplayName = "Water"),
     Earth UMETA(DisplayName = "Earth"),
@@ -24,6 +25,5 @@ enum class ESpellElement : uint8
     Lightning UMETA(DisplayName = "Lightning"),
     Void UMETA(DisplayName = "Void"),
     Reality UMETA(DisplayName = "Reality"),
-    Generic UMETA(DisplayName = "Generic"),
     BrokenDarkness UMETA(DisplayName = "Broken Darkness")
 };

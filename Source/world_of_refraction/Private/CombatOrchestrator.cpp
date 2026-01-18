@@ -299,7 +299,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
 	{
 		// Abilities with movement data need async
-		bRequiresAsync = (Action.AbilityData->MovementData != nullptr);
+		bRequiresAsync = Action.AbilityData->RequiresApproach();
 	}
 
 	if (bRequiresAsync)
@@ -922,6 +922,37 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
 		   *Actor->GetName(), AuraRange, ActorsInRange.Num());
+}
+
+TArray<AActor *> UTurnManager::GetTeamMembers(int32 TeamIndex) const
+{
+	TArray<AActor *> TeamMembers;
+
+	for (const FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.TeamIndex == TeamIndex && Combatant.Actor)
+		{
+			TeamMembers.Add(Combatant.Actor);
+		}
+	}
+
+	return TeamMembers;
+}
+
+int32 UTurnManager::GetActorTeam(AActor *Actor) const
+{
+	if (!Actor)
+		return -1;
+
+	for (const FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			return Combatant.TeamIndex;
+		}
+	}
+
+	return -1; // Not found
 }
 
 // ========================================
