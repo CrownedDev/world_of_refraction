@@ -8,6 +8,7 @@
 #include "BrokenDarknessManager.h"
 #include "EAIDifficulty.h"
 #include "AIDecisionManager.h"
+#include "CombatCameraManager.h"
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
@@ -288,6 +289,32 @@ public:
 	/** Test item on ally (Sapphire heal) - tests ally facing + animation */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugTestItemOnAlly();
+
+	UPROPERTY()
+	ACombatCameraManager *CameraManager;
+
+	// Helper to find camera manager
+	ACombatCameraManager *FindCameraManager();
+
+	/** Manually advance to next turn (debug - use when bAutoAdvanceTurns is false) */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugManualAdvanceTurn();
+
+	/** Toggle auto-advance turns on/off */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugToggleAutoAdvance();
+
+	/** Select target by index and trigger Selection camera (0, 1, 2 for enemies) */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugSelectTarget(int32 EnemyIndex);
+
+	/** Execute attack on selected target with full camera flow */
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugAttackSelectedTarget();
+
+	/** Currently selected target for debug */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
+	int32 DebugSelectedTargetIndex = 0;
 
 protected:
 	virtual void BeginPlay() override;

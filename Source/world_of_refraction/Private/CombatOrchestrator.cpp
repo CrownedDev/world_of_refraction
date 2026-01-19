@@ -18,6 +18,7 @@
 #include "CharacterData.h"
 #include "ItemData.h"
 #include "ItemEffectType.h"
+#include "CombatCameraManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -166,6 +167,13 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	TurnManagerRef->InitializeCombat(Team0, Team1);
 
 	SetCombatState(ECombatState::InProgress);
+
+	// Initialize camera system
+	ACombatCameraManager *CamMgr = FindCameraManager();
+	if (CamMgr)
+	{
+		CamMgr->InitializeForCombat(this);
+	}
 }
 
 void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
@@ -173,7 +181,17 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	if (CombatState == ECombatState::Idle)
 		return;
 
+	if (CameraManager)
+	{
+		CameraManager->EndCombat();
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state %d"), (int32)ForcedState);
+
+	if (CameraManager)
+	{
+		CameraManager->EndCombat();
+	}
 
 	// Clear auto-advance timer
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
@@ -2071,4 +2089,121 @@ AActor *ACombatOrchestrator::GetDebugActor() const
 		return DebugOverrideActor;
 	}
 	return CurrentActor;
+}
+
+#include "CombatCameraManager.h"
+
+ACombatCameraManager *ACombatOrchestrator::FindCameraManager()
+{
+	if (!CameraManager)
+	{
+		TArray<AActor *> FoundActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACombatCameraManager::StaticClass(), FoundActors);
+		if (FoundActors.Num() > 0)
+		{
+			CameraManager = Cast<ACombatCameraManager>(FoundActors[0]);
+		}
+	}
+	return CameraManager;
+}
+
+void ACombatOrchestrator::DebugManualAdvanceTurn()
+{
+	if (!TurnManagerRef || CombatState != ECombatState::InProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Cannot advance - combat not in progress"));
+		return;
+	}
+
+	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Manual turn advance"));
+	TurnManagerRef->AdvanceToNextTurn();
+}
+
+void ACombatOrchestrator::DebugToggleAutoAdvance()
+{
+	bAutoAdvanceTurns = !bAutoAdvanceTurns;
+
+	if (!bAutoAdvanceTurns)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Auto-advance: %s"),
+		   bAutoAdvanceTurns ? TEXT("ON") : TEXT("OFF"));
+}
+
+void ACombatOrchestrator::DebugSelectTarget(int32 EnemyIndex)
+{
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] No current actor"));
+		return;
+	}
+
+	int32 CurrentTeam = Team0Combatants.Contains(CurrentActor) ? 0 : 1;
+	TArray<AActor *> &EnemyTeam = (CurrentTeam == 0) ? Team1Combatants : Team0Combatants;
+
+	if (EnemyIndex < 0 || EnemyIndex >= EnemyTeam.Num())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Invalid enemy index %d (team has %d)"),
+			   EnemyIndex, EnemyTeam.Num());
+		return;
+	}
+
+	DebugSelectedTargetIndex = EnemyIndex;
+	AActor *Target = EnemyTeam[EnemyIndex];
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Selected target: %s (index %d)"),
+		   *Target->GetName(), EnemyIndex);
+
+	if (CameraManager)
+	{
+		CameraManager->TransitionToSelection(Target);
+	}
+}
+
+void ACombatOrchestrator::DebugAttackSelectedTarget()
+{
+	if (!CurrentActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] No current actor"));
+		return;
+	}
+
+	int32 CurrentTeam = Team0Combatants.Contains(CurrentActor) ? 0 : 1;
+	TArray<AActor *> &EnemyTeam = (CurrentTeam == 0) ? Team1Combatants : Team0Combatants;
+
+	if (DebugSelectedTargetIndex >= EnemyTeam.Num())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Invalid target index"));
+		return;
+	}
+
+	AActor *Target = EnemyTeam[DebugSelectedTargetIndex];
+
+	if (CameraManager)
+	{
+		CameraManager->TransitionToAction(CurrentActor, Target);
+	}
+
+	FAction AttackAction;
+	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.Targets.Add(Target);
+
+	// Get weapon attack from loadout
+	ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>();
+	if (Loadout)
+	{
+		TArray<UWeaponAttackData *> Attacks = Loadout->GetAllWeaponAttacks();
+		if (Attacks.Num() > 0)
+		{
+			AttackAction.AttackData = Attacks[0];
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Attacking %s"), *Target->GetName());
+
+	SubmitActionAsync(AttackAction);
 }
