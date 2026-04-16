@@ -32,7 +32,7 @@ UENUM(BlueprintType)
 enum class ECharacterClass : uint8
 {
 	Generic UMETA(DisplayName = "Generic"),
-	Caster UMETA(DisplayName = "Elementalist"),
+	Caster UMETA(DisplayName = "Refractor"),
 	Resonator UMETA(DisplayName = "Resonator")
 };
 
@@ -79,7 +79,7 @@ namespace CharacterClassHelpers
 		case ECharacterClass::Generic:
 			return TEXT("Generic");
 		case ECharacterClass::Caster:
-			return TEXT("Elementalist");
+			return TEXT("Refractor");
 		case ECharacterClass::Resonator:
 			return TEXT("Resonator");
 		default:

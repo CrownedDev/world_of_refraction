@@ -98,6 +98,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1, EAIDifficulty Difficulty = EAIDifficulty::Medium);
 
+	// Blueprint event fired when combat starts - override in BP to create HUD
+	UFUNCTION(BlueprintImplementableEvent, Category = "Combat|UI")
+	void OnCombatStartedUI(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
+
 	/** Force end combat (e.g., flee, cutscene interrupt) */
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void ForceEndCombat(ECombatState ForcedState = ECombatState::Idle);

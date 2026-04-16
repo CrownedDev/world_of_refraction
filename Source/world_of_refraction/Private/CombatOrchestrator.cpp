@@ -93,6 +93,7 @@ void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1, EAIDifficulty Difficulty)
 {
+
 	// Store difficulty
 	CombatDifficulty = Difficulty;
 
@@ -144,6 +145,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned and actors placed"));
 	}
+
+	OnCombatStartedUI(Team0Combatants, Team1Combatants);
 
 	// Set arena center for ActionExecutor movement calculations
 	if (UActionExecutor *Executor = GetGameInstance()->GetSubsystem<UActionExecutor>())
