@@ -146,13 +146,13 @@ public:
 
     // ==================== DEBUG ====================
 
-    UFUNCTION(Exec)
+    UFUNCTION(CallInEditor, Category = "Debug")
     void DebugPrintCameraState();
 
-    UFUNCTION(Exec)
+    UFUNCTION(CallInEditor, Category = "Debug")
     void DebugTransitionToHome();
 
-    UFUNCTION(Exec)
+    UFUNCTION(CallInEditor, Category = "Debug")
     void DebugTransitionToAction();
 
     /** Test Character camera on current turn actor */
