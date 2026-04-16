@@ -29,6 +29,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectStacksChanged, AActor *,
 /** Broadcast when an effect's duration changes */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectDurationChanged, AActor *, Target, const FStatusEffect &, Effect, int32, RemainingTurns);
 
+/** Broadcast when a status buildup changes (for UI feedback) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStatusBuildupChanged, AActor *, Target, float, CurrentBuildup, float, MaxBuildup);
+
 // ========================================
 // ENUMS
 // ========================================
@@ -406,6 +409,11 @@ public:
 	/** Broadcast when duration changes */
 	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
 	FOnEffectDurationChanged OnEffectDurationChanged;
+
+	/** Broadcast when status bar buildup changes */
+
+	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
+	FOnStatusBuildupChanged OnStatusBuildupChanged;
 
 	// ========================================
 	// DEBUG TOOLS

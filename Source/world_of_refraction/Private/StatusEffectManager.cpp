@@ -1466,6 +1466,8 @@ bool UStatusEffectManager::AddStatusBuildup(AActor *Source, AActor *Target, floa
 	float OldBuildup = State.CurrentBuildup;
 	State.CurrentBuildup += Amount;
 
+	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup, CombatConstants::STATUS_EFFECT_THRESHOLD);
+
 	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s status buildup: %.1f → %.1f (+%.1f) - Pending: %s"),
 		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
 		   *UEnum::GetValueAsString(State.PendingStatus));
@@ -1496,6 +1498,7 @@ void UStatusEffectManager::ResetStatusBar(AActor *Target)
 		UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] %s status bar reset"), *Target->GetName());
 
 		State->CurrentBuildup = 0.0f;
+		OnStatusBuildupChanged.Broadcast(Target, 0.0f, CombatConstants::STATUS_EFFECT_THRESHOLD);
 		State->PendingStatus = EStatusType::None;
 		State->PendingElement = ESpellElement::Generic;
 		State->LastSource = nullptr;
@@ -1530,6 +1533,8 @@ void UStatusEffectManager::ProcessStatusBarDecay(AActor *Target)
 	// Decay 25% per turn
 	float OldBuildup = State->CurrentBuildup;
 	State->CurrentBuildup *= (1.0f - CombatConstants::STATUS_DECAY_RATE);
+
+	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup, CombatConstants::STATUS_EFFECT_THRESHOLD);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] %s status bar decayed: %.1f → %.1f (-%d%%, turn %d)"),
 		   *Target->GetName(), OldBuildup, State->CurrentBuildup,
