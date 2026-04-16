@@ -427,34 +427,37 @@ ACameraActor *ACombatCameraManager::GetLocalPlayerHomeCamera() const
 void ACombatCameraManager::OnTurnStarted(AActor *Actor, int32 TurnNumber)
 {
     if (!Actor)
-    {
         return;
-    }
 
-    // Check if this is the local player's team
-    // For now, assume Team 0 is player
+    // Determine which team this actor is on
     UGameInstance *GI = GetGameInstance();
     if (!GI)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCameraManager] No GameInstance"));
         return;
+    }
 
     UTurnManager *TurnMgr = GI->GetSubsystem<UTurnManager>();
     if (!TurnMgr)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCameraManager] No TurnManager"));
         return;
+    }
 
     int32 ActorTeam = TurnMgr->GetActorTeam(Actor);
+    bool bIsPlayerTeam = (ActorTeam == LocalPlayerTeam);
 
-    if (ActorTeam == LocalPlayerTeam)
+    if (bIsPlayerTeam)
     {
-        // Your team's turn - show Character camera
+        // Player's team → Character camera (no Home transition)
         TransitionToCharacter(Actor);
+        UE_LOG(LogTemp, Log, TEXT("[CombatCameraManager] Turn started: %s (Player team) → Character camera"), *Actor->GetName());
     }
     else
     {
-        // Enemy turn - stay on Home (or already on Home)
-        if (CurrentState != ECombatCameraState::Home)
-        {
-            TransitionToHome();
-        }
+        // Enemy team → Home camera
+        TransitionToHome();
+        UE_LOG(LogTemp, Log, TEXT("[CombatCameraManager] Turn started: %s (Enemy team) → Home camera"), *Actor->GetName());
     }
 }
 
@@ -608,4 +611,32 @@ void ACombatCameraManager::DebugCycleSelectionTarget()
 
     UE_LOG(LogTemp, Log, TEXT("[CombatCameraManager] Selection target: %s (%d/%d)"),
            *Enemies[CurrentIndex]->GetName(), CurrentIndex + 1, Enemies.Num());
+}
+
+void ACombatCameraManager::DebugTransitionToTeam0Home()
+{
+    if (Team0HomeCamera)
+    {
+        BlendToCamera(Team0HomeCamera, ActionToHomeBlendTime);
+        CurrentState = ECombatCameraState::Home;
+        UE_LOG(LogTemp, Log, TEXT("[CombatCameraManager] DEBUG: Transitioned to Team 0 Home"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCameraManager] Team0HomeCamera not assigned"));
+    }
+}
+
+void ACombatCameraManager::DebugTransitionToTeam1Home()
+{
+    if (Team1HomeCamera)
+    {
+        BlendToCamera(Team1HomeCamera, ActionToHomeBlendTime);
+        CurrentState = ECombatCameraState::Home;
+        UE_LOG(LogTemp, Log, TEXT("[CombatCameraManager] DEBUG: Transitioned to Team 1 Home"));
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCameraManager] Team1HomeCamera not assigned"));
+    }
 }

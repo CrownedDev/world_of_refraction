@@ -92,6 +92,9 @@ public:
     UPROPERTY(BlueprintReadWrite, Category = "Cameras|State")
     int32 LocalPlayerTeam = 0;
 
+    /** Set which team the local player controls */
+    void SetLocalPlayerTeam(int32 TeamIndex) { LocalPlayerTeam = TeamIndex; }
+
     // ==================== COMBAT INTEGRATION ====================
 
     /** Initialize camera system for combat */
@@ -162,6 +165,14 @@ public:
     /** Cycle through enemies with Selection camera */
     UFUNCTION(CallInEditor, Category = "Debug")
     void DebugCycleSelectionTarget();
+
+    /** Transition to Team 0 Home camera */
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void DebugTransitionToTeam0Home();
+
+    /** Transition to Team 1 Home camera */
+    UFUNCTION(CallInEditor, Category = "Debug")
+    void DebugTransitionToTeam1Home();
 
 protected:
     virtual void BeginPlay() override;
