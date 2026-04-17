@@ -1028,36 +1028,53 @@ void ACombatOrchestrator::DebugPrintCombatState()
 
 	UE_LOG(LogTemp, Display, TEXT("================================="));
 }
-
-void ACombatOrchestrator::DebugDamageTeam0(int32 Amount)
+void ACombatOrchestrator::DebugDamageTeam0()
 {
 	for (AActor *Actor : Team0Combatants)
 	{
 		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
-			Comp->ServerTakeDamage(Amount);
+			Comp->ServerTakeDamage(DebugDamageAmount);
 	}
 }
 
-void ACombatOrchestrator::DebugDamageTeam1(int32 Amount)
+void ACombatOrchestrator::DebugDamageTeam1()
 {
 	for (AActor *Actor : Team1Combatants)
 	{
 		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
-			Comp->ServerTakeDamage(Amount);
+			Comp->ServerTakeDamage(DebugDamageAmount);
 	}
 }
 
-void ACombatOrchestrator::DebugApplyStatusBuildup(float Amount)
+void ACombatOrchestrator::DebugSpendEPTeam0()
+{
+	for (AActor *Actor : Team0Combatants)
+	{
+		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
+			Comp->ServerSpendEnergy(DebugDamageAmount);
+	}
+}
+
+void ACombatOrchestrator::DebugSpendEPTeam1()
+{
+	for (AActor *Actor : Team1Combatants)
+	{
+		if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
+			Comp->ServerSpendEnergy(DebugDamageAmount);
+	}
+}
+
+void ACombatOrchestrator::DebugApplyStatusBuildup()
 {
 	UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
 	if (!StatusManager)
 		return;
 
 	for (AActor *Actor : Team0Combatants)
-		StatusManager->AddStatusBuildup(nullptr, Actor, Amount, EStatusType::DOT, ESpellElement::Fire);
+		StatusManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
 
 	for (AActor *Actor : Team1Combatants)
-		StatusManager->AddStatusBuildup(nullptr, Actor, Amount, EStatusType::DOT, ESpellElement::Fire);
+		StatusManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
 }
 
 void ACombatOrchestrator::DebugKillActor(AActor *Actor)

@@ -232,16 +232,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugPrintCombatState();
 
-	// Debug: Deal flat damage to a specific team
-	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
-	void DebugDamageTeam0(int32 Amount = 50);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
+	int32 DebugDamageAmount = 50;
 
-	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
-	void DebugDamageTeam1(int32 Amount = 50);
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
+	float DebugStatusBuildupAmount = 25.0f;
 
-	// Debug: Apply status buildup to all characters
-	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
-	void DebugApplyStatusBuildup(float Amount = 25.0f);
+	// Change functions to no parameters
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugDamageTeam0();
+
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugDamageTeam1();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Combat|Debug")
+	void DebugSpendEPTeam0();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "Combat|Debug")
+	void DebugSpendEPTeam1();
+
+	UFUNCTION(CallInEditor, Category = "Combat|Debug")
+	void DebugApplyStatusBuildup();
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugKillActor(AActor *Actor);
