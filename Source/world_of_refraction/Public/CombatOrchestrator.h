@@ -232,6 +232,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugPrintCombatState();
 
+	// Debug: Deal flat damage to a specific team
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	void DebugDamageTeam0(int32 Amount = 50);
+
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	void DebugDamageTeam1(int32 Amount = 50);
+
+	// Debug: Apply status buildup to all characters
+	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
+	void DebugApplyStatusBuildup(float Amount = 25.0f);
+
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugKillActor(AActor *Actor);
 
