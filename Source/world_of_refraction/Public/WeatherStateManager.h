@@ -1,0 +1,87 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Subsystems/GameInstanceSubsystem.h"
+#include "ESpellElement.h"
+#include "WeatherStateManager.generated.h"
+
+USTRUCT(BlueprintType)
+struct FLeadershipEntry
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    AActor *Actor = nullptr;
+
+    UPROPERTY()
+    F
+        int32 TotalWorldStats = 0;
+
+    UPROPERTY()
+    ESpellElement Element = ESpellElement::Generic;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged, ESpellElement, Team0Element, ESpellElement, Team1Element, float, BlendValue);
+
+UCLASS()
+class WORLD_OF_REFRACTION_API UWeatherStateManager : public UGameInstanceSubsystem
+{
+    GENERATED_BODY()
+
+public:
+    virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+    virtual void Deinitialize() override;
+
+    // ========================================
+    // COMBAT SETUP
+    // ========================================
+
+    UFUNCTION(BlueprintCallable, Category = "Weather")
+    void InitialiseLeaders(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
+
+    UFUNCTION(BlueprintCallable, Category = "Weather")
+    void EndCombat();
+
+    // ========================================
+    // EVENTS
+    // ========================================
+
+    UPROPERTY(BlueprintAssignable, Category = "Weather")
+    FOnWeatherChanged OnWeatherChanged;
+
+    // ========================================
+    // QUERY
+    // ========================================
+
+    UFUNCTION(BlueprintPure, Category = "Weather")
+    AActor *GetTeam0Leader() const { return Team0Hierarchy.Num() > 0 ? Team0Hierarchy[0].Actor : nullptr; }
+
+    UFUNCTION(BlueprintPure, Category = "Weather")
+    AActor *GetTeam1Leader() const { return Team1Hierarchy.Num() > 0 ? Team1Hierarchy[0].Actor : nullptr; }
+
+private:
+    // Leadership hierarchies (sorted by world stats, highest first)
+    TArray<FLeadershipEntry> Team0Hierarchy;
+    TArray<FLeadershipEntry> Team1Hierarchy;
+
+    // ========================================
+    // INTERNAL
+    // ========================================
+
+    TArray<FLeadershipEntry> BuildHierarchy(const TArray<AActor *> &Team);
+    void BindToLeader(TArray<FLeadershipEntry> &Hierarchy, bool bIsTeam0);
+    void RecalculateWeather();
+
+    UFUNCTION()
+    void OnTeam0LeaderDied(AActor *DeadActor);
+
+    UFUNCTION()
+    void OnTeam1LeaderDied(AActor *DeadActor);
+
+    UFUNCTION()
+    void OnLeaderHPChanged(int32 CurrentHP, int32 MaxHP);
+
+    int32 GetTotalWorldStats(AActor *Actor) const;
+    ESpellElement GetLeaderElement(const TArray<FLeadershipEntry> &Hierarchy) const;
+    AActor *GetCurrentLeader(const TArray<FLeadershipEntry> &Hierarchy) const;
+};
