@@ -179,10 +179,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
 	UStanceData *UnarmedStance = nullptr;
 
-	/** Visual effect for element infusion */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
-	UInfusionDisplayData *InfusionDisplay = nullptr;
-
 	/** Animation for self-targeted item use (healing, energy, cleanse) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Item Use")
 	UAnimMontage *ItemUseSelfMontage = nullptr;
@@ -195,6 +191,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Resonator", EditConditionHides))
 	UAnimMontage *RingSwitchMontage = nullptr;
+
+	/** Visual effect for element infusion */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics")
+	UInfusionDisplayData *InfusionDisplay = nullptr;
+
+	// Weather variant equipped for when this character is team leader
+	// Leave null to use element default
+	// Generic and Resonator classes ignore this
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cosmetics|Weather")
+	UPrimaryDataAsset *EquippedWeatherVariant = nullptr;
 
 	// ==================== CLASS HELPERS ====================
 

@@ -154,13 +154,14 @@ void UWeatherStateManager::RecalculateWeather()
 
     float BlendValue = Team0Dominance - Team1Dominance;
 
-    ESpellElement Team0Element = GetLeaderElement(Team0Hierarchy);
-    ESpellElement Team1Element = GetLeaderElement(Team1Hierarchy);
-    OnWeatherChanged.Broadcast(Team0Element, Team1Element, BlendValue);
+    UPrimaryDataAsset *Team0DA = ResolveWeatherDA(Team0Hierarchy);
+    UPrimaryDataAsset *Team1DA = ResolveWeatherDA(Team1Hierarchy);
+
+    OnWeatherChanged.Broadcast(Team0DA, Team1DA, BlendValue);
 
     UE_LOG(LogTemp, Log, TEXT("[WeatherStateManager] Weather updated - T0: %s, T1: %s, Blend: %.2f"),
-           *UEnum::GetValueAsString(Team0Element),
-           *UEnum::GetValueAsString(Team1Element),
+           Team0DA ? *Team0DA->GetName() : TEXT("None"),
+           Team1DA ? *Team1DA->GetName() : TEXT("None"),
            BlendValue);
 }
 
@@ -219,4 +220,29 @@ AActor *UWeatherStateManager::GetCurrentLeader(const TArray<FLeadershipEntry> &H
     if (Hierarchy.Num() == 0)
         return nullptr;
     return Hierarchy[0].Actor;
+}
+
+UPrimaryDataAsset *UWeatherStateManager::ResolveWeatherDA(const TArray<FLeadershipEntry> &Hierarchy) const
+{
+    AActor *Leader = GetCurrentLeader(Hierarchy);
+    if (!Leader)
+        return nullptr;
+
+    UCharacterDataComponent *Comp = Leader->FindComponentByClass<UCharacterDataComponent>();
+    if (!Comp || !Comp->CharacterData)
+        return nullptr;
+
+    UCharacterData *Data = Comp->CharacterData;
+
+    // Generic and Resonator have no weather influence
+    if (Data->CharacterClass == ECharacterClass::Generic ||
+        Data->CharacterClass == ECharacterClass::Resonator)
+        return nullptr;
+
+    // Return equipped variant if set
+    if (Data->EquippedWeatherVariant)
+        return Data->EquippedWeatherVariant;
+
+    // No equipped variant — return null, sky stays as level default
+    return nullptr;
 }

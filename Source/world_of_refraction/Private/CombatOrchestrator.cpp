@@ -19,6 +19,7 @@
 #include "ItemData.h"
 #include "ItemEffectType.h"
 #include "CombatCameraManager.h"
+#include "WeatherStateManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -148,6 +149,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 
 	OnCombatStartedUI(Team0Combatants, Team1Combatants);
 
+	// Initialise weather leaders
+	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
+	{
+		WeatherManager->InitialiseLeaders(Team0Combatants, Team1Combatants);
+	}
+
 	// Set arena center for ActionExecutor movement calculations
 	if (UActionExecutor *Executor = GetGameInstance()->GetSubsystem<UActionExecutor>())
 	{
@@ -194,6 +201,11 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	if (CameraManager)
 	{
 		CameraManager->EndCombat();
+	}
+
+	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
+	{
+		WeatherManager->EndCombat();
 	}
 
 	// Clear auto-advance timer

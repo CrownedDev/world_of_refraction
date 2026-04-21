@@ -14,14 +14,17 @@ struct FLeadershipEntry
     AActor *Actor = nullptr;
 
     UPROPERTY()
-    F
-        int32 TotalWorldStats = 0;
+
+    int32 TotalWorldStats = 0;
 
     UPROPERTY()
     ESpellElement Element = ESpellElement::Generic;
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged, ESpellElement, Team0Element, ESpellElement, Team1Element, float, BlendValue);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged,
+                                               UPrimaryDataAsset *, Team0WeatherDA,
+                                               UPrimaryDataAsset *, Team1WeatherDA,
+                                               float, BlendValue);
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UWeatherStateManager : public UGameInstanceSubsystem
@@ -80,6 +83,8 @@ private:
 
     UFUNCTION()
     void OnLeaderHPChanged(int32 CurrentHP, int32 MaxHP);
+
+    UPrimaryDataAsset *ResolveWeatherDA(const TArray<FLeadershipEntry> &Hierarchy) const;
 
     int32 GetTotalWorldStats(AActor *Actor) const;
     ESpellElement GetLeaderElement(const TArray<FLeadershipEntry> &Hierarchy) const;
