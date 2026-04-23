@@ -23,11 +23,11 @@ public:
 
     /** Socket name for right hand weapon attachment */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
-    FName RightHandSocket = FName("hand_r_socket");
+    FName RightHandSocket = FName("hand_r_weapon");
 
     /** Socket name for left hand weapon attachment (DualBlades) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
-    FName LeftHandSocket = FName("hand_l_socket");
+    FName LeftHandSocket = FName("hand_l_weapon");
 
     // ==================== FUNCTIONS ====================
 

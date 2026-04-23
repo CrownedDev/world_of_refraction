@@ -55,10 +55,10 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
             break;
         }
 
-        UE_LOG(LogTemp, Display, TEXT("[CombatMovement] %s: State=%s, Montage=%s"),
-               GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
-               *StateName,
-               CurrentMovementMontage ? *CurrentMovementMontage->GetName() : TEXT("None"));
+        //UE_LOG(LogTemp, Display, TEXT("[CombatMovement] %s: State=%s, Montage=%s"),
+        //    GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
+        //    *StateName,
+        //    CurrentMovementMontage ? *CurrentMovementMontage->GetName() : TEXT("None"));
     }
 
     switch (MovementState)

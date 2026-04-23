@@ -432,13 +432,13 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 
 	// Load the attack data asset
 	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
-															  TEXT("/Game/Data/Weapons/Sword/Attacks/DA_Attack_Sword_Slash.DA_Attack_Sword_Slash"));
+															  TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack.DA_Test_Attack"));
 
 	if (!Attack)
 	{
 		// Fallback to spear
 		Attack = LoadObject<UWeaponAttackData>(nullptr,
-											   TEXT("/Game/Data/Weapons/Spear/Attacks/DA_Attack_Spear_Strike.DA_Attack_Spear_Strike"));
+											   TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack2.DA_Test_Attack2"));
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *Attack->AttackName, Attack->HitCount);
@@ -780,22 +780,22 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 
 void ACombatOrchestratorTestActor::Test_AbilityExecution()
 {
-	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Ability Execution (DA_Abilities_HeavyStrike)"));
+	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Ability Execution (DA_Test_Ability)"));
 
 	// Load HeavyStrike ability - located in Fist subfolder
 	UAbilityData *Ability = LoadObject<UAbilityData>(nullptr,
-													 TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+													 TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 
 	if (!Ability)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("    DA_Abilities_HeavyStrike not found, trying DA_Abilities_Focus"));
+		UE_LOG(LogTemp, Warning, TEXT("    DA_Test_Ability not found, trying DA_Abilities_Focus"));
 		Ability = LoadObject<UAbilityData>(nullptr,
-										   TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_Focus.DA_Abilities_Focus"));
+										   TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability2.DA_Test_Ability2"));
 	}
 
 	if (!Ability)
 	{
-		UE_LOG(LogTemp, Error, TEXT("    No ability found - check asset paths in /Game/Data/Weapons/Gauntlets/Abilities/"));
+		UE_LOG(LogTemp, Error, TEXT("    No ability found - check asset paths in /Game/Testing/Weapons/Abilities/"));
 		PrintTestResult("Ability Execution", false);
 		return;
 	}
@@ -999,7 +999,7 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 
 	// Load attack data
 	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
-															  TEXT("/Game/Data/Weapons/Sword/Attacks/DA_Attack_Sword_Slash.DA_Attack_Sword_Slash"));
+															  TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack.DA_Test_Attack"));
 
 	if (!Attack)
 	{

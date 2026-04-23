@@ -147,8 +147,6 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Grid positions assigned and actors placed"));
 	}
 
-	OnCombatStartedUI(Team0Combatants, Team1Combatants);
-
 	// Initialise weather leaders
 	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
 	{
@@ -175,6 +173,8 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 
 	// Initialize TurnManager (this will trigger first OnTurnStarted)
 	TurnManagerRef->InitializeCombat(Team0, Team1);
+
+	OnCombatStartedUI(Team0Combatants, Team1Combatants);
 
 	SetCombatState(ECombatState::InProgress);
 
@@ -307,6 +307,9 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	// Validate action
 	FActionValidationResult Validation = ActionExecutorRef->ValidateAction(CurrentActor, Action);
+	UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Validation: %s - %s"),
+		   Validation.bIsValid ? TEXT("VALID") : TEXT("INVALID"),
+		   *Validation.ErrorMessage);
 	if (!Validation.bIsValid)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Action validation failed: %s"), *Validation.ErrorMessage);
@@ -1286,7 +1289,7 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 	if (!AbilityAction.AbilityData)
 	{
 		AbilityAction.AbilityData = LoadObject<UAbilityData>(nullptr,
-															 TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+															 TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 	}
 
 	if (!AbilityAction.AbilityData)
@@ -1979,7 +1982,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 	if (!AbilityData)
 	{
 		AbilityData = LoadObject<UAbilityData>(nullptr,
-											   TEXT("/Game/Data/Weapons/Gauntlets/Abilities/DA_Abilities_HeavyStrike.DA_Abilities_HeavyStrike"));
+											   TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 	}
 
 	if (!AbilityData)

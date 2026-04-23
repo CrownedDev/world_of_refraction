@@ -385,7 +385,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
 	void DebugPrintInfusionInfo(AActor *Actor) const;
 
-	UFUNCTION(Exec)
+	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
 
 	UFUNCTION(Exec)

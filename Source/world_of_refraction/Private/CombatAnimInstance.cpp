@@ -54,12 +54,12 @@ void UCombatAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
                                               Montage_GetPosition(ActiveMontage));
             }
 
-            UE_LOG(LogTemp, Display, TEXT("[CombatAnimInstance] %s: Action=%s, Movement=%s, Stance=%s, Active=%s"),
-                   *Owner->GetName(),
-                   bIsPlayingAction ? TEXT("Y") : TEXT("N"),
-                   bIsPlayingMovement ? TEXT("Y") : TEXT("N"),
-                   CurrentStanceMontage ? *CurrentStanceMontage->GetName() : TEXT("None"),
-                   *MontageInfo);
+            // UE_LOG(LogTemp, Display, TEXT("[CombatAnimInstance] %s: Action=%s, Movement=%s, Stance=%s, Active=%s"),
+            //        *Owner->GetName(),
+            //        bIsPlayingAction ? TEXT("Y") : TEXT("N"),
+            //        bIsPlayingMovement ? TEXT("Y") : TEXT("N"),
+            //        CurrentStanceMontage ? *CurrentStanceMontage->GetName() : TEXT("None"),
+            //        *MontageInfo);
         }
     }
 }

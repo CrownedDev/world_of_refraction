@@ -426,6 +426,21 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		ExecuteItemAsync(Actor, Action, CharData);
 		return;
 	}
+
+	// Attack / Ability / Spell — bind movement complete and start approach
+	BindMovementComplete(Actor);
+
+	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
+	if (Movement)
+	{
+		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No CombatMovementComponent on %s - executing immediately"),
+			   *Actor->GetName());
+		OnMovementComplete();
+	}
 }
 
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
@@ -4087,10 +4102,10 @@ void UActionExecutor::GetEffectTargets(
 }
 
 void UActionExecutor::ApplyAbilityEffects(
-	AActor* User,
-	const TArray<AActor*>& Targets,
-	UAbilityData* Ability,
-	FActionResult& Result,
+	AActor *User,
+	const TArray<AActor *> &Targets,
+	UAbilityData *Ability,
+	FActionResult &Result,
 	bool bCausedDeath)
 {
 	if (!Ability || Ability->Effects.Num() == 0)
@@ -4098,7 +4113,7 @@ void UActionExecutor::ApplyAbilityEffects(
 		return;
 	}
 
-	UStatusEffectManager* StatusMgr = GetStatusEffectManager();
+	UStatusEffectManager *StatusMgr = GetStatusEffectManager();
 	if (!StatusMgr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ApplyAbilityEffects - No StatusEffectManager"));
@@ -4106,11 +4121,11 @@ void UActionExecutor::ApplyAbilityEffects(
 	}
 
 	// Get user's team for targeting
-	UGameInstance* GI = GetGameInstance();
-	UTurnManager* TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
+	UGameInstance *GI = GetGameInstance();
+	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
-	for (const FAbilityEffect& Effect : Ability->Effects)
+	for (const FAbilityEffect &Effect : Ability->Effects)
 	{
 		if (!Effect.IsValid())
 		{
@@ -4146,18 +4161,18 @@ void UActionExecutor::ApplyAbilityEffects(
 		if (!bConditionMet)
 		{
 			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Effect %s condition not met"),
-				*UEnum::GetValueAsString(Effect.EffectType));
+				   *UEnum::GetValueAsString(Effect.EffectType));
 			continue;
 		}
 
 		// Determine effect targets
-		TArray<AActor*> EffectTargets;
+		TArray<AActor *> EffectTargets;
 		GetEffectTargets(User, Targets, Effect.Target, UserTeam, EffectTargets);
 
 		if (EffectTargets.Num() == 0)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No targets found for effect %s"),
-				*UEnum::GetValueAsString(Effect.EffectType));
+				   *UEnum::GetValueAsString(Effect.EffectType));
 			continue;
 		}
 
@@ -4169,32 +4184,32 @@ void UActionExecutor::ApplyAbilityEffects(
 			if (Effect.EffectType == EStatusType::HealthRestore)
 			{
 				// Heal the user
-				UCharacterDataComponent* CharComp = User->FindComponentByClass<UCharacterDataComponent>();
+				UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>();
 				if (CharComp)
 				{
 					CharComp->ServerHeal(DrainAmount);
 
 					OnHealingDone.Broadcast(User, User, DrainAmount);
 					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-						*User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
+						   *User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
 				}
 			}
 			else if (Effect.EffectType == EStatusType::EnergyRestore)
 			{
 				// Restore energy to user
-				UCharacterDataComponent* CharComp = User->FindComponentByClass<UCharacterDataComponent>();
+				UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>();
 				if (CharComp)
 				{
 					CharComp->ServerGainEnergy(DrainAmount);
 					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain restored %s for %d EP (%.0f%% of %d damage)"),
-						*User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
+						   *User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
 				}
 			}
 			continue;
 		}
 
 		// Apply effect to each target as a status effect
-		for (AActor* EffectTarget : EffectTargets)
+		for (AActor *EffectTarget : EffectTargets)
 		{
 			FStatusEffect StatusEffect = FStatusEffect::CreateFromSpellEffect(
 				Ability->AbilityName + TEXT(" Effect"),
@@ -4210,7 +4225,7 @@ void UActionExecutor::ApplyAbilityEffects(
 			Result.StatusEffectsApplied++;
 
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s to %s"),
-				*Effect.GetDescription(), *EffectTarget->GetName());
+				   *Effect.GetDescription(), *EffectTarget->GetName());
 		}
 	}
 }
@@ -4219,7 +4234,7 @@ void UActionExecutor::DebugAsyncState()
 {
 	if (CurrentExecutionContext.IsSet())
 	{
-		const FActionExecutionContext& Ctx = CurrentExecutionContext.GetValue();
+		const FActionExecutionContext &Ctx = CurrentExecutionContext.GetValue();
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ASYNC STATE:"));
 		UE_LOG(LogTemp, Warning, TEXT("  InProgress: %s"), Ctx.bInProgress ? TEXT("YES") : TEXT("NO"));
 		UE_LOG(LogTemp, Warning, TEXT("  Executor: %s"), Ctx.Executor.IsValid() ? *Ctx.Executor->GetName() : TEXT("NULL"));
