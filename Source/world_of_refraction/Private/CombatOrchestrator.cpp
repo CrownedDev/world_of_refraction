@@ -672,6 +672,10 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 		}
 	}
 
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broadcasting OnActionRequested for: %s"),
+		   Actor ? *Actor->GetName() : TEXT("NULL"));
+	OnActionRequested.Broadcast(Actor);
+
 	// Player turn - broadcast for UI
 	OnActionRequested.Broadcast(Actor);
 

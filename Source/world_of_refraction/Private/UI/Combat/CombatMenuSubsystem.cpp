@@ -770,15 +770,17 @@ TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetSpellsForSchool(UCharacterDa
 TArray<FPieMenuButtonData> UCombatMenuSubsystem::GetAbilitiesButtons(UCharacterData *CharacterData)
 {
 	TArray<FPieMenuButtonData> Buttons;
-
 	if (!CharacterData)
-	{
 		return Buttons;
-	}
 
 	SetMenuState(EPieMenuState::AbilityGrid);
 
-	TArray<UAbilityData *> Abilities = GetCurrentWeaponAbilities(CharacterData);
+	// Use LoadoutComponent — the correct runtime source
+	TArray<UAbilityData *> Abilities;
+	if (ULoadoutComponent *Loadout = GetLoadoutComponent())
+	{
+		Abilities = Loadout->GetAvailableAbilities();
+	}
 
 	for (int32 i = 0; i < Abilities.Num(); ++i)
 	{
