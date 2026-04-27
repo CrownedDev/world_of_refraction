@@ -85,8 +85,9 @@ public:
     bool bUsingPrimary = true;
     // ==================== PRIMARY EQUIPMENT ====================
 
-    /** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary")
+    /** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution only) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
+              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator", EditConditionHides))
     EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
 
     /** Primary weapon (when PrimarySlotType == Weapon) */

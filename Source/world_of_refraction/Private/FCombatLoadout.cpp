@@ -354,6 +354,15 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     Result.LoadoutName = Asset->LoadoutName;
     Result.PrimarySlotType = Asset->PrimarySlotType;
 
+    // Resonator cannot have Ring primary - guard against bad asset data
+    if (Asset->RequiredClass == ECharacterClass::Resonator &&
+        Result.PrimarySlotType == EPrimarySlotType::Ring)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Resonator asset '%s' has invalid Ring primary - forcing Weapon"),
+               *Asset->LoadoutName);
+        Result.PrimarySlotType = EPrimarySlotType::Weapon;
+    }
+
     // ==================== PRIMARY EQUIPMENT ====================
 
     switch (Asset->PrimarySlotType)

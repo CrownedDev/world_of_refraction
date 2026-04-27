@@ -36,7 +36,6 @@ enum class EPieMenuCategory : uint8
 	Abilities UMETA(DisplayName = "Abilities"),			   // Opens ability grid (Generic)
 	Refractions UMETA(DisplayName = "Refractions"),		   // Opens schools list (Caster innate spells)
 	Breakthrough UMETA(DisplayName = "Breakthrough"),	   // Opens schools list (Character evolution spells)
-	Resonate UMETA(DisplayName = "Resonate"),			   // Opens schools list (single source - Caster ring/weapon)
 	ResonateWeapon UMETA(DisplayName = "Resonate Weapon"), // Opens schools list (Evolved weapon spells - "(W)")
 	ResonateRing UMETA(DisplayName = "Resonate Ring"),	   // Opens schools list (Ring spells - "(R)")
 	ChangeRing UMETA(DisplayName = "Change Ring"),		   // Opens ring grid (Resonator)
