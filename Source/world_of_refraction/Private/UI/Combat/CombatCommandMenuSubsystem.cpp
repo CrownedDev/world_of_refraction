@@ -558,3 +558,10 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("ActiveRing:     %s"), *CurrentCapabilities.ActiveRingName);
     UE_LOG(LogTemp, Log, TEXT("BreakChance:    %s"), CurrentCapabilities.bRingHasBreakChance ? TEXT("YES") : TEXT("NO"));
 }
+
+void UCombatCommandMenuSubsystem::RefreshMenu()
+{
+    if (!bIsOpen)
+        return;
+    OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+}

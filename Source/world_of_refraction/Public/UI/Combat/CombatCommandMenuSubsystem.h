@@ -94,6 +94,10 @@ public:
               meta = (DevelopmentOnly))
     void DebugLogCapabilities() const;
 
+    /** Call this to re-broadcast the current main menu buttons — use when a widget binds late */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void RefreshMenu();
+
 private:
     // ==================== STATE ====================
 
