@@ -152,7 +152,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
         {
-            Loadout.PrimaryRing.AssignedSpells.Add(Spell);
+            Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(Spell);
             SpellsAdded++;
             UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to ring"), *Spell->SpellName);
         }

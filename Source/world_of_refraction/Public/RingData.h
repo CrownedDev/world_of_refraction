@@ -57,6 +57,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
 	UItemData *SlottedCrystal = nullptr;
 
+	// ==================== SPELLS ====================
+
+	/** Default spells for this ring - copied to inventory entry when ring obtained
+	 *  Lost if crystal is removed; spell vendor reassigns them */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (TitleProperty = "SpellName"))
+	TArray<USpellData *> DefaultSpells;
+
 	// ==================== DURABILITY ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability", meta = (ClampMin = "1"))

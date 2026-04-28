@@ -45,6 +45,10 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     FCrystalInventoryEntry AttachedCrystal;
 
+    /** Spells assigned to this ring's crystal slots (lost when crystal removed) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
+    TArray<USpellData *> AssignedSpells;
+
     // ==================== FACTORY ====================
 
     /** Create entry from RingData, optionally copying default crystal */
@@ -94,24 +98,17 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get all spells from attached crystal (locked + custom) */
+    /** Get assigned spells (only valid if crystal attached) */
     TArray<USpellData *> GetSpells() const
     {
-        return AttachedCrystal.GetAllSpells();
-    }
-
-    /** Get locked spells only (Evolution crystals) */
-    TArray<USpellData *> GetLockedSpells() const
-    {
-        return AttachedCrystal.GetLockedSpells();
+        return HasCrystal() ? AssignedSpells : TArray<USpellData *>();
     }
 
     /** Get spell count */
     int32 GetSpellCount() const
     {
-        return AttachedCrystal.GetAllSpells().Num();
+        return HasCrystal() ? AssignedSpells.Num() : 0;
     }
-
     // ==================== CRYSTAL OPERATIONS ====================
 
     /** Attach a crystal (creates new FCrystalInventoryEntry) */
@@ -120,10 +117,11 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
         AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }
 
-    /** Remove crystal (clears the entry) */
+    /** Remove crystal (clears spells too - vendor must reassign) */
     void RemoveCrystal()
     {
         AttachedCrystal = FCrystalInventoryEntry();
+        AssignedSpells.Empty();
     }
 
     /** Get direct access to crystal entry for spell customization */

@@ -389,7 +389,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.PrimaryRing.RingEntry = FRingInventoryEntry::CreateFromRing(
                 Asset->PrimaryRing, true); // true = copy SlottedCrystal from RingData
             Result.PrimaryRing.InitializeFromRing();
-            Result.PrimaryRing.AssignedSpells = Asset->PrimaryEquipmentSpells;
+            Result.PrimaryRing.RingEntry.AssignedSpells = Asset->PrimaryEquipmentSpells;
         }
         break;
 

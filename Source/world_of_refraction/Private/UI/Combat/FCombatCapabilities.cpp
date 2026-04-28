@@ -91,7 +91,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                    LC->GetPrimaryRingLoadout() ? TEXT("exists") : TEXT("null"),
                    LC->GetPrimaryRingLoadout() && LC->GetPrimaryRingLoadout()->RingEntry.Ring != nullptr ? TEXT("true") : TEXT("false"),
                    Out.RingSpells.Num());
-            Out.RingSpells = PrimaryRing->AssignedSpells;
+            Out.RingSpells = PrimaryRing->RingEntry.AssignedSpells;
             Out.bRingHasBreakChance = !PrimaryRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
                 static_cast<int32>(PrimaryRing->RingEntry.GetElement()));
@@ -120,7 +120,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         const FRingLoadoutEntry *ActiveRing = LC->GetActiveRingLoadout();
         if (ActiveRing && ActiveRing->IsValid())
         {
-            Out.RingSpells = ActiveRing->AssignedSpells;
+            Out.RingSpells = ActiveRing->RingEntry.AssignedSpells;
             Out.bRingHasBreakChance = !ActiveRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
                 static_cast<int32>(ActiveRing->RingEntry.GetElement()));

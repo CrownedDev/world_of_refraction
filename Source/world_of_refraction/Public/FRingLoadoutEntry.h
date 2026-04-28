@@ -1,11 +1,9 @@
 // FRingLoadoutEntry.h
-// Ring loadout entry - ring equipped for combat with assigned spells
+// Ring loadout entry - ring equipped for combat
 //
 // ARCHITECTURE:
-// FRingInventoryEntry = What you OWN (ring + crystal state)
-// FRingLoadoutEntry = How you USE IT (which spells assigned)
-//
-// Same ring can have different loadout configurations (multiple saved loadouts)
+// FRingInventoryEntry = What you OWN (ring + crystal state + assigned spells)
+// FRingLoadoutEntry = How you USE IT (just wraps the inventory entry for combat)
 
 #pragma once
 
@@ -18,87 +16,58 @@ class USpellData;
 
 /**
  * FRingLoadoutEntry
- * Ring configured for combat with assigned spells
- * 
- * Spell slots: 6 total
- * Evolved rings may have locked spell slots (from EvolutionData)
+ * Ring configured for combat - delegates to inventory entry for spells
  */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FRingLoadoutEntry
 {
     GENERATED_BODY()
 
-    /** The ring from inventory (includes crystal/evolution state) */
+    /** The ring from inventory (includes crystal/evolution state and assigned spells) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     FRingInventoryEntry RingEntry;
 
-    /** Assigned spells (max 6, some may be locked if evolved) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
-    TArray<USpellData*> AssignedSpells;
-
     // ==================== VALIDATION ====================
 
-    /** Check if this loadout entry is valid */
+    /** Check if this loadout entry is valid (has ring) */
     bool IsValid() const
     {
-        return RingEntry.IsValid() && RingEntry.CanBeEquipped();
+        return RingEntry.Ring != nullptr;
     }
 
-    /** Check if ring is evolved (may have locked spells) */
+    /** Check if ring is evolved (grants stat traits) */
     bool IsEvolved() const
     {
         return RingEntry.IsEvolved();
     }
 
-    /** Get number of locked spell slots (from evolution) */
-    int32 GetLockedSpellCount() const;
-
-    /** Get number of customizable spell slots */
-    int32 GetCustomizableSpellCount() const
-    {
-        return LoadoutConstants::MAX_SPELL_SLOTS - GetLockedSpellCount();
-    }
-
     // ==================== SPELL ACCESS ====================
 
-    /** Get all spells (locked + customizable) */
-    TArray<USpellData*> GetAllSpells() const;
-
-    /** Get only the locked/evolution spells */
-    TArray<USpellData*> GetLockedSpells() const;
-
-    /** Get only the customizable spells */
-    TArray<USpellData*> GetCustomizableSpells() const
+    /** Get all assigned spells (delegates to inventory entry) */
+    TArray<USpellData *> GetAllSpells() const
     {
-        return AssignedSpells;
+        return RingEntry.GetSpells();
     }
 
-    /** Check if spell slot is locked */
-    bool IsSpellSlotLocked(int32 SlotIndex) const
-    {
-        return SlotIndex < GetLockedSpellCount();
-    }
-
-    /** Get spell count */
+    /** Get spell count (delegates to inventory entry) */
     int32 GetSpellCount() const
     {
-        return GetAllSpells().Num();
+        return RingEntry.GetSpellCount();
     }
 
     // ==================== VALIDATION HELPERS ====================
 
     /** Validate spells match ring element and are owned */
-    bool ValidateSpells(const struct FSpellCollection& OwnedSpells) const;
+    bool ValidateSpells(const struct FSpellCollection &OwnedSpells) const;
 
     // ==================== INITIALIZATION ====================
 
-    /** Initialize from ring, setting up for evolution if applicable */
+    /** Initialize from ring (no-op now - spells already on inventory entry) */
     void InitializeFromRing();
 
     /** Clear all assignments */
     void Clear()
     {
         RingEntry = FRingInventoryEntry();
-        AssignedSpells.Empty();
     }
 };
