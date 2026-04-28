@@ -9,6 +9,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "RingData.h"
+#include "ItemData.h"
 #include "UI/Combat/PieMenuButtonData.h"
 
 const TArray<USpellData *> FCombatCapabilities::EmptySpells = TArray<USpellData *>();
@@ -73,7 +74,13 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     {
         Out.BreakthroughSpells = Loadout.EvolutionSpells;
         Out.bHasBreakthrough = Out.BreakthroughSpells.Num() > 0;
-        Out.BreakthroughColor = GetElementColorFn(0); // TODO: evolution element
+
+        // Get element from evolution crystal
+        if (Loadout.PrimaryEvolution)
+        {
+            Out.BreakthroughColor = GetElementColorFn(
+                static_cast<int32>(Loadout.PrimaryEvolution->GetAssociatedElement()));
+        }
     }
 
     // ==================== PRIMARY RING (Generic/Caster ring slot) ====================

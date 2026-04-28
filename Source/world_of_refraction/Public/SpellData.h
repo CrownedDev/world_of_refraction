@@ -25,6 +25,7 @@
 
 // Forward declaration
 class UCharacterData;
+class UItemData;
 
 /**
  * Spell Data Asset - Element-locked magical abilities
@@ -56,6 +57,10 @@ public:
     //  Tier for break calculations
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EItemTier Tier = EItemTier::E_Tier;
+
+    /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    UItemData *RequiredEvolutionCrystal = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (EditCondition = "bIsUniversalSpell"))
     bool bPrependElementName = false; // "Elemental" becomes "Fire Elemental"

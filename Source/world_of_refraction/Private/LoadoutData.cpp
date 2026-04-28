@@ -69,11 +69,6 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
                 Errors.Add(FString::Printf(TEXT("Secondary weapon has too many abilities (%d/%d)"),
                                            SecondaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
             }
-            if (SecondaryWeaponSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
-            {
-                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many spells (%d/%d)"),
-                                           SecondaryWeaponSpells.Num(), LoadoutConstants::MAX_SPELL_SLOTS));
-            }
         }
     }
 
@@ -137,10 +132,11 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
     }
 
     // Validate primary equipment spells (applies to weapon/ring/evolution)
-    if (PrimaryEquipmentSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
+    if (PrimarySlotType == EPrimarySlotType::Evolution &&
+        EvolutionSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
     {
-        Errors.Add(FString::Printf(TEXT("Too many primary equipment spells (%d/%d)"),
-                                   PrimaryEquipmentSpells.Num(), LoadoutConstants::MAX_SPELL_SLOTS));
+        Errors.Add(FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
+                                   EvolutionSpells.Num(), LoadoutConstants::MAX_SPELL_SLOTS));
     }
 
     // ==================== ITEM VALIDATION ====================
@@ -183,12 +179,9 @@ TArray<USpellData *> ULoadoutData::GetAllSpells() const
     TArray<USpellData *> Result;
 
     // Primary equipment spells (weapon crystal / ring / evolution)
-    Result.Append(PrimaryEquipmentSpells);
-
-    // Secondary weapon spells (Generic only)
-    if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon)
+    if (PrimarySlotType == EPrimarySlotType::Evolution)
     {
-        Result.Append(SecondaryWeaponSpells);
+        Result.Append(EvolutionSpells);
     }
 
     // Innate spells (Caster only)
@@ -294,7 +287,6 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
             SecondarySlotType = ESecondarySlotType::None;
             SecondaryWeapon = nullptr;
             SecondaryWeaponAbilities.Empty();
-            SecondaryWeaponSpells.Empty();
             SecondaryWeaponStanceOverride = nullptr;
         }
 
@@ -313,7 +305,7 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
         {
             PrimarySlotType = EPrimarySlotType::Weapon;
             PrimaryRing = nullptr;
-                }
+        }
     }
 
     // Clear irrelevant data when primary slot type changes
@@ -347,7 +339,7 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
         {
             SecondaryWeapon = nullptr;
             SecondaryWeaponAbilities.Empty();
-            SecondaryWeaponSpells.Empty();
+
             SecondaryWeaponStanceOverride = nullptr;
         }
     }

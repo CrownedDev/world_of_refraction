@@ -112,9 +112,10 @@ public:
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponAbilities;
 
-    /** Spells from primary equipment - weapon crystal / ring / evolution (max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config")
-    TArray<USpellData *> PrimaryEquipmentSpells;
+    /** Evolution spells (player-found world drops with RequiredEvolutionCrystal validation) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
+    TArray<USpellData *> EvolutionSpells;
 
     /** Override primary weapon stance (nullptr = use weapon default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
@@ -138,11 +139,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryWeaponAbilities;
-
-    /** Spells from secondary weapon crystal (Generic only, max 6) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
-    TArray<USpellData *> SecondaryWeaponSpells;
 
     /** Override secondary weapon stance (Generic only, nullptr = use weapon default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
