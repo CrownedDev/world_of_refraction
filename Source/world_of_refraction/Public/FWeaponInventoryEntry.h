@@ -42,6 +42,10 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FCrystalInventoryEntry AttachedCrystal;
 
+    /** Spells assigned to this weapon's crystal slots (lost when crystal removed) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    TArray<USpellData *> AssignedSpells;
+
     // ==================== FACTORY ====================
 
     /** Create entry from WeaponData, optionally copying default crystal */
@@ -95,22 +99,16 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get all spells from attached crystal (locked + custom) */
+    /** Get assigned spells (only valid if crystal attached) */
     TArray<USpellData *> GetSpells() const
     {
-        return AttachedCrystal.GetAllSpells();
-    }
-
-    /** Get locked spells only (Evolution crystals) */
-    TArray<USpellData *> GetLockedSpells() const
-    {
-        return AttachedCrystal.GetLockedSpells();
+        return HasCrystal() ? AssignedSpells : TArray<USpellData *>();
     }
 
     /** Get spell count */
     int32 GetSpellCount() const
     {
-        return AttachedCrystal.GetAllSpells().Num();
+        return HasCrystal() ? AssignedSpells.Num() : 0;
     }
 
     // ==================== CRYSTAL OPERATIONS ====================
@@ -121,10 +119,11 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
         AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }
 
-    /** Remove crystal (clears the entry) */
+    /** Remove crystal (clears spells too - vendor must reassign) */
     void RemoveCrystal()
     {
         AttachedCrystal = FCrystalInventoryEntry();
+        AssignedSpells.Empty();
     }
 
     /** Get direct access to crystal entry for spell customization */

@@ -22,6 +22,7 @@ class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
 class UItemData;
+class USpellData;
 
 /**
  * Weapon Data Asset
@@ -43,27 +44,6 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
-
-    // ==================== TIER & CRYSTAL ====================
-
-    /** Refined crystal slotted into weapon - determines element */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-    UItemData *SlottedCrystal = nullptr;
-
-    // ==================== CRYSTAL HELPERS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Weapon")
-    bool HasCrystal() const { return SlottedCrystal != nullptr; }
-
-    UFUNCTION(BlueprintPure, Category = "Weapon")
-    bool IsEvolved() const;
-
-    UFUNCTION(BlueprintPure, Category = "Weapon")
-    ESpellElement GetWeaponElement() const;
-
-    /** Check if weapon has Iolite crystal (physical enhancement, no element) */
-    UFUNCTION(BlueprintPure, Category = "Weapon")
-    bool HasIloditeEquipped() const;
 
     // ==================== DURABILITY ====================
 
@@ -113,6 +93,32 @@ public:
     // If true, abilities cannot be customized (used for conjured weapons)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
     bool bAbilitiesLocked = false;
+
+    // ==================== TIER & CRYSTAL ====================
+
+    /** Refined crystal slotted into weapon - determines element */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
+    UItemData *SlottedCrystal = nullptr;
+
+    // ==================== CRYSTAL HELPERS ====================
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasCrystal() const { return SlottedCrystal != nullptr; }
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsEvolved() const;
+
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    ESpellElement GetWeaponElement() const;
+
+    /** Check if weapon has Iolite crystal (physical enhancement, no element) */
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool HasIloditeEquipped() const;
+
+    // Default spells for this weapon - copied to inventory entry when weapon obtained
+    // Lost if crystal is removed; spell vendor reassigns them
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "SpellName"))
+    TArray<USpellData *> DefaultSpells;
 
     // ==================== WORLD STAT REQUIREMENTS ====================
 

@@ -52,7 +52,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         // Crystal spells on active weapon
         if (ActiveWeapon->WeaponEntry.HasCrystal())
         {
-            Out.WeaponCrystalSpells = ActiveWeapon->AssignedSpells;
+            Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.AssignedSpells;
             Out.bHasWeaponCrystal = true;
             Out.WeaponCrystalColor = GetElementColorFn(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
