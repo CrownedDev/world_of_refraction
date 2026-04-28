@@ -19,6 +19,7 @@ const TArray<USpellData *> FCombatCapabilities::EmptySpells = TArray<USpellData 
 FCombatCapabilities FCombatCapabilities::BuildFrom(
     ULoadoutComponent *LC,
     ECharacterClass CharClass,
+    ESpellElement InnateElement,
     TFunction<FLinearColor(int32)> GetElementColorFn)
 {
     FCombatCapabilities Out;
@@ -66,6 +67,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     {
         Out.RefractionSpells = Loadout.InnateSpells;
         Out.bHasRefractions = Out.RefractionSpells.Num() > 0;
+        Out.RefractionColor = GetElementColorFn(static_cast<int32>(InnateElement));
     }
 
     // ==================== BREAKTHROUGH (Evolution) ====================

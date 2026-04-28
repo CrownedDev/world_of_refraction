@@ -54,6 +54,7 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
     CurrentCapabilities = FCombatCapabilities::BuildFrom(
         LC,
         CDC->CharacterData->CharacterClass,
+        CDC->CharacterData->InnateElement,
         [this](int32 ElementIndex)
         { return GetElementColor(ElementIndex); });
 
@@ -464,6 +465,7 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
         CurrentCapabilities = FCombatCapabilities::BuildFrom(
             LC,
             CDC->CharacterData->CharacterClass,
+            CDC->CharacterData->InnateElement,
             [this](int32 ElementIndex)
             { return GetElementColor(ElementIndex); });
     }
@@ -501,6 +503,7 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
         CurrentCapabilities = FCombatCapabilities::BuildFrom(
             LC,
             CDC->CharacterData->CharacterClass,
+            CDC->CharacterData->InnateElement,
             [this](int32 ElementIndex)
             { return GetElementColor(ElementIndex); });
     }

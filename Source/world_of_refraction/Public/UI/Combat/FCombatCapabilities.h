@@ -8,6 +8,7 @@
 #include "CoreMinimal.h"
 #include "ECharacterClass.h"
 #include "UI/Combat/PieMenuButtonData.h"
+#include "ESpellElement.h"
 #include "FCombatCapabilities.generated.h"
 
 class ULoadoutComponent;
@@ -124,6 +125,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     static FCombatCapabilities BuildFrom(
         ULoadoutComponent *LC,
         ECharacterClass CharClass,
+        ESpellElement InnateElement,
         TFunction<FLinearColor(int32)> GetElementColorFn);
 
     // ==================== HELPERS ====================
