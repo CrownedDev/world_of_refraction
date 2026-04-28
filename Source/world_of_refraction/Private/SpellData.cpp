@@ -107,12 +107,6 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
     if (!Character)
         return false;
 
-    // Universal spells can be cast by anyone
-    if (bIsUniversalSpell)
-    {
-        return true;
-    }
-
     // Generic CLASS can cast any spell from their loadout (no element restriction)
     // The loadout system already ensures they only have valid spells
     if (Character->CharacterClass == ECharacterClass::Generic)
@@ -137,12 +131,6 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
 
 FString USpellData::GetDisplayName(UCharacterData *Caster) const
 {
-    if (bIsUniversalSpell && bPrependElementName && Caster)
-    {
-        FString ElementName = UEnum::GetValueAsString(Caster->InnateElement);
-        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
-        return FString::Printf(TEXT("%s %s"), *ElementName, *SpellName);
-    }
     return SpellName;
 }
 // ==================== DEFENSE HELPERS ====================

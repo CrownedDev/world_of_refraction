@@ -190,14 +190,14 @@ TArray<USpellData *> ULoadoutData::GetAllSpells() const
         Result.Append(InnateSpells);
     }
 
-    // Ring loadout spells (Resonator only)
+    // Ring loadout spells (Resonator only) - read from each ring's DefaultSpells
     if (RequiredClass == ECharacterClass::Resonator)
     {
         for (URingData *Ring : EquippedRings)
         {
             if (Ring)
             {
-                Result.Append(Ring->GetAvailableSpells());
+                Result.Append(Ring->DefaultSpells);
             }
         }
     }

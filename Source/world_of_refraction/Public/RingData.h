@@ -75,19 +75,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Durability|Runtime")
 	bool bIsBroken = false;
 
-	// ==================== SPELL ACCESS ====================
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	TArray<USpellData *> GetAvailableSpells() const;
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	bool CanCastSpell(USpellData *Spell) const
-	{
-		if (!Spell || bIsBroken)
-			return false;
-		return GetAvailableSpells().Contains(Spell);
-	}
-
 	// ==================== DURABILITY ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Durability")

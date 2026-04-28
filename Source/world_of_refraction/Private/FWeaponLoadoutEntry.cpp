@@ -128,7 +128,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
             continue;
         if (!OwnedSpells.HasSpell(Spell))
             return false;
-        if (!Spell->bIsUniversalSpell && Spell->Element != WeaponElement)
+        if (Spell->Element != WeaponElement)
             return false;
     }
 

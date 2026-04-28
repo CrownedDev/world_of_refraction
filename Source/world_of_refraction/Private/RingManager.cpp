@@ -96,20 +96,6 @@ TArray<URingData *> URingManager::GetEquippedRings(AActor *Actor) const
 	return Rings ? *Rings : TArray<URingData *>();
 }
 
-// ==================== SPELL ACCESS ====================
-
-TArray<USpellData *> URingManager::GetAvailableSpells(AActor *Actor) const
-{
-	URingData *Ring = GetActiveRing(Actor);
-	return Ring ? Ring->GetAvailableSpells() : TArray<USpellData *>();
-}
-
-bool URingManager::CanCastSpell(AActor *Actor, USpellData *Spell) const
-{
-	URingData *Ring = GetActiveRing(Actor);
-	return Ring ? Ring->CanCastSpell(Spell) : false;
-}
-
 // ==================== RING SWITCHING ====================
 
 bool URingManager::SwitchToRing(AActor *Actor, int32 RingIndex)

@@ -1,15 +1,11 @@
 // FCrystalInventoryEntry.h
-// Runtime crystal inventory entry with custom spell support
+// Runtime crystal inventory entry - metadata wrapper
 //
 // ARCHITECTURE:
-// UItemData = Immutable template (crystal type, tier, locked spells, stat mods)
-// FCrystalInventoryEntry = Runtime state (which crystal + player-assigned custom spells)
+// UItemData = Immutable template (crystal type, tier, evolution data, stat mods)
+// FCrystalInventoryEntry = Runtime state (which crystal is attached)
 //
-// Spell slot layout for Evolution crystals:
-// [0..LockedSpellCount-1] = Locked spells (from ItemData.Spells, unchangeable)
-// [LockedSpellCount..5] = Custom spells (player-assigned, stored in CustomSpells)
-//
-// Refined crystals have no locked spells - all 6 slots are customizable
+// Spells live on FWeaponInventoryEntry/FRingInventoryEntry, NOT here.
 
 #pragma once
 
@@ -19,7 +15,6 @@
 #include "FCrystalInventoryEntry.generated.h"
 
 class UItemData;
-class USpellData;
 
 /**
  * FCrystalInventoryEntry
@@ -34,10 +29,6 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     /** The crystal data asset */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
     UItemData *Crystal = nullptr;
-
-    /** Player-assigned custom spells (fills slots after locked spells) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
-    TArray<USpellData *> CustomSpells;
 
     // ==================== FACTORY ====================
 
@@ -66,37 +57,6 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     /** Get element from crystal */
     ESpellElement GetElement() const;
 
-    // ==================== SPELL ACCESS ====================
-
-    /** Get locked spells from crystal (Evolution only) */
-    TArray<USpellData *> GetLockedSpells() const;
-
-    /** Get all spells (locked + custom) */
-    TArray<USpellData *> GetAllSpells() const;
-
-    /** Get count of locked spell slots */
-    int32 GetLockedSpellCount() const;
-
-    /** Get count of customizable spell slots */
-    int32 GetCustomSlotCount() const;
-
-    /** Get total spell capacity (always 6 for Refined/Evolution) */
-    int32 GetTotalSpellSlots() const;
-
-    // ==================== SPELL MANAGEMENT ====================
-
-    /** Add a custom spell (returns false if at capacity) */
-    bool AddCustomSpell(USpellData *Spell);
-
-    /** Remove a custom spell */
-    bool RemoveCustomSpell(USpellData *Spell);
-
-    /** Clear all custom spells */
-    void ClearCustomSpells();
-
-    /** Set custom spells directly (validates count) */
-    bool SetCustomSpells(const TArray<USpellData *> &Spells);
-
     // ==================== STAT MODIFIERS (Evolution only) ====================
 
     /** Check if crystal has stat modifiers */
@@ -118,7 +78,7 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
 
     bool operator==(const FCrystalInventoryEntry &Other) const
     {
-        return Crystal == Other.Crystal && CustomSpells == Other.CustomSpells;
+        return Crystal == Other.Crystal;
     }
 
     bool operator!=(const FCrystalInventoryEntry &Other) const

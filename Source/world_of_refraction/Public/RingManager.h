@@ -52,16 +52,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Ring Manager")
 	TArray<URingData *> GetEquippedRings(AActor *Actor) const;
 
-	// ==================== SPELL ACCESS ====================
-
-	/** Get available spells from active ring */
-	UFUNCTION(BlueprintPure, Category = "Ring Manager")
-	TArray<USpellData *> GetAvailableSpells(AActor *Actor) const;
-
-	/** Can the active ring cast this spell? */
-	UFUNCTION(BlueprintPure, Category = "Ring Manager")
-	bool CanCastSpell(AActor *Actor, USpellData *Spell) const;
-
 	// ==================== RING SWITCHING ====================
 
 	/** Switch to ring at index */

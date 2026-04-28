@@ -6,15 +6,6 @@
 #include "CrystalType.h"
 #include "ECrystalCategory.h"
 
-TArray<USpellData *> URingData::GetAvailableSpells() const
-{
-    if (SlottedCrystal && SlottedCrystal->CanHaveSpells())
-    {
-        return SlottedCrystal->GetSpells();
-    }
-    return TArray<USpellData *>();
-}
-
 bool URingData::IsEvolved() const
 {
     return SlottedCrystal && SlottedCrystal->Category == ECrystalCategory::Evolution;
@@ -108,12 +99,6 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         {
             Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
             Result = EDataValidationResult::Invalid;
-        }
-
-        // Spell check
-        if (SlottedCrystal->bIsRefined && SlottedCrystal->GetSpells().Num() == 0)
-        {
-            Context.AddWarning(FText::FromString(TEXT("Slotted crystal has no spells")));
         }
     }
 

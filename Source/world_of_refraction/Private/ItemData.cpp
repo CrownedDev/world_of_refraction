@@ -602,38 +602,6 @@ int32 UItemData::GetSecondaryDuration() const
     return 0;
 }
 
-// ==================== SPELL HELPER FUNCTIONS ====================
-
-int32 UItemData::GetLockedSpellCount() const
-{
-    if (Category != ECrystalCategory::Evolution)
-    {
-        return 0; // Only Evolution has locked spells
-    }
-    return FMath::Clamp(LockedSpellCount, 0, CrystalSpellConstants::MAX_SPELL_SLOTS);
-}
-
-int32 UItemData::GetCustomSpellSlots() const
-{
-    if (!CanHaveSpells())
-    {
-        return 0;
-    }
-
-    // Refined: all 6 customizable
-    // Evolution: 6 - locked count
-    return CrystalSpellConstants::MAX_SPELL_SLOTS - GetLockedSpellCount();
-}
-
-int32 UItemData::GetTotalSpellSlots() const
-{
-    if (!CanHaveSpells())
-    {
-        return 0;
-    }
-    return CrystalSpellConstants::MAX_SPELL_SLOTS;
-}
-
 // ==================== STAT MODIFIER FUNCTIONS ====================
 
 bool UItemData::HasStatModifiers() const
@@ -1046,31 +1014,6 @@ FString UItemData::GenerateEvolutionDescription() const
     if (!StatSummary.IsEmpty() && StatSummary != TEXT("No stat changes"))
     {
         Parts.Add(StatSummary);
-    }
-
-    // Spells - list by name
-    if (Spells.Num() > 0)
-    {
-        TArray<FString> SpellNames;
-        int32 LockedCount = GetLockedSpellCount();
-
-        for (int32 i = 0; i < Spells.Num(); ++i)
-        {
-            if (Spells[i])
-            {
-                FString SpellEntry = Spells[i]->SpellName;
-                if (i < LockedCount)
-                {
-                    SpellEntry += TEXT(" [Locked]");
-                }
-                SpellNames.Add(SpellEntry);
-            }
-        }
-
-        if (SpellNames.Num() > 0)
-        {
-            Parts.Add(TEXT("Spells: ") + FString::Join(SpellNames, TEXT(", ")));
-        }
     }
 
     // Passives - names only

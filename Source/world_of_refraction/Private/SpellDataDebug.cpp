@@ -54,19 +54,9 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     Output += TEXT("===================================\n\n");
 
     // Element & School
-    FString ElementName;
-    if (Spell->bIsUniversalSpell)
-    {
-        // Show caster's element for universal spells
-        ElementName = UEnum::GetValueAsString(Character->InnateElement);
-        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
-    }
-    else
-    {
-        // Show spell's element for element-specific spells
-        ElementName = UEnum::GetValueAsString(Spell->Element);
-        ElementName.RemoveFromStart(TEXT("ESpellElement::"));
-    }
+    // Element & School
+    FString ElementName = UEnum::GetValueAsString(Spell->Element);
+    ElementName.RemoveFromStart(TEXT("ESpellElement::"));
 
     FString SchoolName = UEnum::GetValueAsString(Spell->School);
     SchoolName.RemoveFromStart(TEXT("ESpellSchool::"));
@@ -93,12 +83,6 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
         }
         Output += TEXT("===================================\n");
         return Output;
-    }
-
-    // Show if universal
-    if (Spell->bIsUniversalSpell)
-    {
-        Output += TEXT("  🌟 UNIVERSAL SPELL (All elements can cast)\n\n");
     }
 
     // Requirements

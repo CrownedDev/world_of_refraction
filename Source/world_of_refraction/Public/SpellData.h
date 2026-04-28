@@ -51,9 +51,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("Spell description...");
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    bool bIsUniversalSpell = false; // Can be cast by any element (except Generic)
-
     //  Tier for break calculations
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EItemTier Tier = EItemTier::E_Tier;
@@ -61,10 +58,6 @@ public:
     /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     UItemData *RequiredEvolutionCrystal = nullptr;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (EditCondition = "bIsUniversalSpell"))
-    bool bPrependElementName = false; // "Elemental" becomes "Fire Elemental"
-
     // ==================== MODE ====================
 
     /** Raw mode: +10% damage, no status buildup. Elemental mode (default): applies status. */

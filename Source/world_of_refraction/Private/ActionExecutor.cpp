@@ -32,7 +32,8 @@
 #include "EInfusionSourceOption.h"
 #include "RingData.h"
 #include "InfusionVFXComponent.h"
-#include "LoadoutComponent.h"
+
+#include "FRingLoadoutEntry.h"
 #include "CombatMovementComponent.h"
 #include "CombatAnimInstance.h"
 #include "CombatGridSubsystem.h"
@@ -2912,10 +2913,14 @@ EInfusionSource UActionExecutor::GetSpellSource(AActor *Actor, USpellData *Spell
 	UCharacterData *Data = GetCharacterData(Actor);
 	if (Data && Data->IsResonator())
 	{
-		URingManager *RM = GetRingManager();
-		if (RM && RM->GetAvailableSpells(Actor).Contains(Spell))
+		ULoadoutComponent *Loadout = GetLoadoutComponent(Actor);
+		if (Loadout)
 		{
-			return EInfusionSource::Ring;
+			const FRingLoadoutEntry *ActiveRing = Loadout->GetActiveRingLoadout();
+			if (ActiveRing && ActiveRing->RingEntry.AssignedSpells.Contains(Spell))
+			{
+				return EInfusionSource::Ring;
+			}
 		}
 	}
 

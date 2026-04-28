@@ -133,19 +133,6 @@ public:
                           EditConditionHides))
         float SpellSizeModifierPercent = 0.0f;
 
-        // ==================== SPELLS (Refined/Evolution only) ====================
-
-        /** Spells available on this crystal (max 6) - only for Refined/Evolution */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
-                  meta = (EditCondition = "bIsRefined || Category == ECrystalCategory::Evolution", EditConditionHides))
-        TArray<USpellData *> Spells;
-
-        /** Number of locked spells (0-6) - first N spells are unchangeable (Evolution only) */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells",
-                  meta = (ClampMin = "0", ClampMax = "6",
-                          EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
-        int32 LockedSpellCount = CrystalSpellConstants::DEFAULT_LOCKED_SPELLS;
-
         // ==================== STAT MODIFIERS (Evolution only) ====================
 
         /** Mind stat modifier percentage (affects Cost Reduction, Turn Speed, Crit Chance) */
@@ -286,23 +273,6 @@ public:
         /** Check if can be applied to character directly (unrefined Evolution only) */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
         bool CanApplyToCharacter() const { return Category == ECrystalCategory::Evolution && !bIsRefined; }
-        // ==================== SPELL HELPER FUNCTIONS ====================
-
-        /** Get all spells on this crystal */
-        UFUNCTION(BlueprintPure, Category = "Item|Spells")
-        const TArray<USpellData *> &GetSpells() const { return Spells; }
-
-        /** Get locked spell count (0 for non-Evolution) */
-        UFUNCTION(BlueprintPure, Category = "Item|Spells")
-        int32 GetLockedSpellCount() const;
-
-        /** Get customizable spell slot count */
-        UFUNCTION(BlueprintPure, Category = "Item|Spells")
-        int32 GetCustomSpellSlots() const;
-
-        /** Get total spell capacity */
-        UFUNCTION(BlueprintPure, Category = "Item|Spells")
-        int32 GetTotalSpellSlots() const;
 
         // ==================== STAT MODIFIER FUNCTIONS ====================
 

@@ -21,7 +21,7 @@ bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) cons
             continue;
         if (!OwnedSpells.HasSpell(Spell))
             return false;
-        if (!Spell->bIsUniversalSpell && Spell->Element != RingElement)
+        if (Spell->Element != RingElement)
             return false;
     }
 

@@ -1409,12 +1409,11 @@ TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
         return Result;
     }
 
-    // Get spells from evolution crystal
     if (WeaponEntry->WeaponEntry.AttachedCrystal.IsValid())
     {
-        Result = WeaponEntry->WeaponEntry.AttachedCrystal.GetAllSpells();
+        // Get spells from weapon's assigned spells (no longer from crystal)
+        Result = WeaponEntry->WeaponEntry.AssignedSpells;
     }
-
     return Result;
 }
 

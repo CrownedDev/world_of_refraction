@@ -206,8 +206,6 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
         {
             UE_LOG(LogTemp, Display, TEXT("Evolution Name: %s"), *Item->ItemName);
             UE_LOG(LogTemp, Display, TEXT("Evolution Element: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
-            UE_LOG(LogTemp, Display, TEXT("Locked Spells: %d"), Item->GetLockedSpellCount());
-            UE_LOG(LogTemp, Display, TEXT("Total Spells: %d"), Item->GetSpells().Num());
         }
         else
         {
@@ -364,7 +362,6 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
             if (Item->GrantsEvolution())
             {
                 UE_LOG(LogTemp, Display, TEXT("  Evolution: %s"), *Item->ItemName);
-                UE_LOG(LogTemp, Display, TEXT("  Spells: %d (Locked: %d)"), Item->GetSpells().Num(), Item->GetLockedSpellCount());
             }
             else
             {
