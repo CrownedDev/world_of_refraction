@@ -1545,7 +1545,7 @@ const FRingLoadoutEntry *ULoadoutComponent::GetPrimaryRingLoadout() const
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
         return nullptr;
 
-    return Loadout.PrimaryRing.IsValid() ? &Loadout.PrimaryRing : nullptr;
+    return Loadout.PrimaryRing.RingEntry.Ring != nullptr ? &Loadout.PrimaryRing : nullptr;
 }
 
 const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const

@@ -31,6 +31,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     const FCombatLoadout &Loadout = LC->GetActiveLoadout();
 
+    UE_LOG(LogTemp, Warning, TEXT("[FCombatCapabilities] DEBUG PrimarySlotType=%d PrimaryRingPtr=%s"),
+           static_cast<int32>(Loadout.PrimarySlotType),
+           LC->GetPrimaryRingLoadout() ? TEXT("valid") : TEXT("null"));
+
     // ==================== ACTIVE WEAPON ====================
 
     const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
@@ -75,10 +79,18 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     {
         const FRingLoadoutEntry *PrimaryRing = LC->GetPrimaryRingLoadout();
 
-        if (PrimaryRing && PrimaryRing->IsValid())
+        if (PrimaryRing && PrimaryRing->RingEntry.Ring != nullptr)
         {
             Out.bHasPrimaryRing = true;
+
+            UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] PrimarySlot=%d PrimaryRing=%s RingValid=%s RingSpells=%d"),
+                   static_cast<int32>(Loadout.PrimarySlotType),
+                   LC->GetPrimaryRingLoadout() ? TEXT("exists") : TEXT("null"),
+                   LC->GetPrimaryRingLoadout() && LC->GetPrimaryRingLoadout()->RingEntry.Ring != nullptr ? TEXT("true") : TEXT("false"),
+                   Out.RingSpells.Num());
             Out.RingSpells = PrimaryRing->GetAllSpells();
+            if (Out.RingSpells.IsEmpty())
+                Out.RingSpells = PrimaryRing->AssignedSpells;
             Out.bRingHasBreakChance = !PrimaryRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
                 static_cast<int32>(PrimaryRing->RingEntry.GetElement()));

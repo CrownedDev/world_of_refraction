@@ -370,19 +370,19 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     case EPrimarySlotType::Weapon:
         if (Asset->PrimaryWeapon)
         {
-            Result.PrimaryWeapon.WeaponEntry.Weapon = Asset->PrimaryWeapon;
+            Result.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
+                Asset->PrimaryWeapon, true); // true = copy default crystal from asset
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
-            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryEquipmentSpells;
         }
         break;
 
     case EPrimarySlotType::Ring:
         if (Asset->PrimaryRing)
         {
-            Result.PrimaryRing.RingEntry.Ring = Asset->PrimaryRing;
+            Result.PrimaryRing.RingEntry = FRingInventoryEntry::CreateFromRing(
+                Asset->PrimaryRing, true); // true = copy SlottedCrystal from RingData
             Result.PrimaryRing.InitializeFromRing();
-            Result.PrimaryRing.AssignedSpells = Asset->PrimaryEquipmentSpells;
         }
         break;
 
@@ -400,10 +400,10 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
 
         if (Asset->SecondarySlotType == ESecondarySlotType::Weapon && Asset->SecondaryWeapon)
         {
-            Result.SecondaryWeapon.WeaponEntry.Weapon = Asset->SecondaryWeapon;
+            Result.SecondaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
+                Asset->SecondaryWeapon, true);
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = Asset->SecondaryWeaponAbilities;
-            Result.SecondaryWeapon.AssignedSpells = Asset->SecondaryWeaponSpells;
         }
     }
 
@@ -416,7 +416,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             if (Ring)
             {
                 FRingLoadoutEntry RingEntry;
-                RingEntry.RingEntry.Ring = Ring;
+                RingEntry.RingEntry = FRingInventoryEntry::CreateFromRing(Ring, true);
                 RingEntry.InitializeFromRing();
                 Result.RingLoadout.Add(RingEntry);
             }
