@@ -10,6 +10,7 @@
 #include "UI/Combat/FCombatCapabilities.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "ECharacterClass.h"
+#include "ElementColors.h"
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;

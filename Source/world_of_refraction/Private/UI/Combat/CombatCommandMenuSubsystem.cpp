@@ -519,24 +519,7 @@ ULoadoutComponent *UCombatCommandMenuSubsystem::GetLoadoutComponent() const
 
 FLinearColor UCombatCommandMenuSubsystem::GetElementColor(int32 ElementIndex) const
 {
-    // TODO: Replace with element color data asset lookup
-    static const TArray<FLinearColor> ElementColors =
-        {
-            FLinearColor(1.0f, 0.3f, 0.1f, 1.0f), // Fire
-            FLinearColor(0.1f, 0.4f, 1.0f, 1.0f), // Water
-            FLinearColor(0.4f, 0.7f, 0.2f, 1.0f), // Earth
-            FLinearColor(0.7f, 0.9f, 1.0f, 1.0f), // Wind
-            FLinearColor(1.0f, 1.0f, 0.6f, 1.0f), // Light
-            FLinearColor(0.3f, 0.1f, 0.5f, 1.0f), // Darkness
-            FLinearColor(0.8f, 0.8f, 0.1f, 1.0f), // Lightning
-            FLinearColor(0.5f, 0.0f, 0.5f, 1.0f), // Void
-            FLinearColor(0.9f, 0.9f, 0.9f, 1.0f), // Reality
-        };
-
-    if (ElementColors.IsValidIndex(ElementIndex))
-        return ElementColors[ElementIndex];
-
-    return FLinearColor::White;
+    return ElementColors::GetColorForElement(static_cast<ESpellElement>(ElementIndex));
 }
 
 // ==================== DEBUG ====================

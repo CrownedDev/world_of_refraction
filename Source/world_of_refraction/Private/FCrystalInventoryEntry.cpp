@@ -99,7 +99,7 @@ TArray<USpellData *> FCrystalInventoryEntry::GetAllSpells() const
         Result.Append(Locked);
     }
     // Refined: use asset spells as defaults
-    else if (IsRefined())
+    else if (Crystal->CanHaveSpells())
     {
         const TArray<USpellData *> &AssetSpells = Crystal->GetSpells();
         for (USpellData *Spell : AssetSpells)
