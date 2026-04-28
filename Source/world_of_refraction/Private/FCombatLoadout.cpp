@@ -371,9 +371,15 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
         if (Asset->PrimaryWeapon)
         {
             Result.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
-                Asset->PrimaryWeapon, true); // true = copy default crystal from asset
+                Asset->PrimaryWeapon, true);
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
+            Result.PrimaryWeapon.AssignedSpells = Asset->PrimaryEquipmentSpells;
+
+            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
+                   *Asset->PrimaryWeapon->WeaponName,
+                   Result.PrimaryWeapon.WeaponEntry.HasCrystal(),
+                   Result.PrimaryWeapon.WeaponEntry.HasCrystal() ? *Result.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal->ItemName : TEXT("none"));
         }
         break;
 
@@ -383,6 +389,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.PrimaryRing.RingEntry = FRingInventoryEntry::CreateFromRing(
                 Asset->PrimaryRing, true); // true = copy SlottedCrystal from RingData
             Result.PrimaryRing.InitializeFromRing();
+            Result.PrimaryRing.AssignedSpells = Asset->PrimaryEquipmentSpells;
         }
         break;
 
@@ -404,6 +411,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
                 Asset->SecondaryWeapon, true);
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = Asset->SecondaryWeaponAbilities;
+            Result.SecondaryWeapon.AssignedSpells = Asset->SecondaryWeaponSpells;
         }
     }
 
