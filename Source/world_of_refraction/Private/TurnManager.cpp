@@ -101,6 +101,9 @@ void UTurnManager::AdvanceToNextTurn()
 
 	PreviousActor = CurrentActor;
 
+	// // Diagnostic: dump debt state before picking next actor
+	// DebugPrintTurnOrder();
+
 	// Find next actor
 	FCombatantTurnDebt *NextCombatant = GetNextCombatant();
 
