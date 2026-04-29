@@ -11,6 +11,7 @@
 #include "UI/Combat/PieMenuButtonData.h"
 #include "ECharacterClass.h"
 #include "ElementColors.h"
+#include "TargetType.h"
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
@@ -33,7 +34,8 @@ enum class ECombatMenuDepth : uint8
 {
     Closed,
     Main,
-    Submenu
+    Submenu,
+    TargetSelection
 };
 
 // ==================== SUBSYSTEM ====================
@@ -106,6 +108,11 @@ private:
     ECombatMenuDepth CurrentDepth = ECombatMenuDepth::Closed;
     bool bIsOpen = false;
     EPieMenuCategory ActiveSubmenuSource = EPieMenuCategory::None;
+    // Pending action awaiting target selection
+    EPieMenuCategory PendingActionCategory = EPieMenuCategory::None;
+    FString PendingActionID;
+    TWeakObjectPtr<UObject> PendingActionData;
+    ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 
     // ==================== MAIN MENU ====================
@@ -139,6 +146,12 @@ private:
     void OpenSpellSubmenu(EPieMenuCategory Source);
     void ExecuteSwitchWeapon();
     void ExecuteSwitchRing();
+
+    // Target selection
+    void OpenTargetSelection(EPieMenuCategory ActionCategory, const FPieMenuButtonData &ActionButton, ETargetType TargetType);
+    TArray<FPieMenuButtonData> BuildTargetButtons(const TArray<AActor *> &Targets) const;
+    TArray<AActor *> ResolveTargets(ETargetType TargetType) const;
+    void ConfirmActionWithTarget(AActor *SelectedTarget);
 
     // ==================== HELPERS ====================
 

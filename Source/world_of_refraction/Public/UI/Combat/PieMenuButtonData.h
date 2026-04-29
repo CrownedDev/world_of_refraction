@@ -9,6 +9,7 @@
 
 class UTexture2D;
 class UObject;
+class AActor;
 
 /**
  * Spell schools for the Schools sub-menu
@@ -50,6 +51,7 @@ enum class EPieMenuCategory : uint8
 	Ring UMETA(DisplayName = "Ring"),					   // A ring in the grid (max 5)
 	InfusionSource UMETA(DisplayName = "Infusion Source"), // An infusion source option
 	Item UMETA(DisplayName = "Item"),					   // An item in the grid
+	Target UMETA(DisplayName = "Target"),				   // A combat target (actor) in the target selection grid
 
 	// Navigation
 	Back UMETA(DisplayName = "Back") // Navigate back
@@ -115,6 +117,10 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 	/** Reference to underlying data asset (spell, ability, item, ring, weapon) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	UObject *DataReference = nullptr;
+
+	/** Resolved target actor for the action (set after target selection) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
+	AActor *TargetActor = nullptr;
 
 	/** Index in the source array */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")

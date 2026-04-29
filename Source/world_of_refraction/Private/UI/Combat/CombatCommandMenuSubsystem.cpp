@@ -6,6 +6,11 @@
 #include "CharacterDataComponent.h"
 #include "SpellData.h"
 #include "AbilityData.h"
+#include "WeaponAttackData.h"
+#include "ItemData.h"
+#include "TurnManager.h"
+#include "CharacterData.h"
+#include "Engine/GameInstance.h"
 
 // ==================== LIFECYCLE ====================
 
@@ -75,31 +80,49 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         return;
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Selected: %s"), *ButtonData.ButtonID);
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Selected: %s (ID: %s)"),
+           *ButtonData.DisplayName.ToString(),
+           *ButtonData.ButtonID);
 
     switch (ButtonData.Category)
     {
-    // === IMMEDIATE ACTIONS ===
+        // === IMMEDIATE ACTIONS ===
     case EPieMenuCategory::Attack:
-        ExecuteAttack();
+        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, ETargetType::SingleEnemy);
         break;
 
     case EPieMenuCategory::Ability:
-        OnActionSelected.Broadcast(ButtonData);
-        Close();
+    {
+        UAbilityData *Ability = Cast<UAbilityData>(ButtonData.DataReference);
+        ETargetType TT = Ability ? Ability->TargetType : ETargetType::SingleEnemy;
+        OpenTargetSelection(EPieMenuCategory::Ability, ButtonData, TT);
         break;
+    }
 
     case EPieMenuCategory::Spell:
-        OnActionSelected.Broadcast(ButtonData);
-        Close();
+    {
+        USpellData *Spell = Cast<USpellData>(ButtonData.DataReference);
+        ETargetType TT = Spell ? Spell->TargetType : ETargetType::SingleEnemy;
+        OpenTargetSelection(EPieMenuCategory::Spell, ButtonData, TT);
         break;
+    }
 
     case EPieMenuCategory::Item:
-        OnActionSelected.Broadcast(ButtonData);
-        Close();
+    {
+        UItemData *Item = Cast<UItemData>(ButtonData.DataReference);
+        // Items default to SingleAlly (consumables on self/party); override per item if needed later
+        ETargetType TT = ETargetType::SingleAlly;
+        OpenTargetSelection(EPieMenuCategory::Item, ButtonData, TT);
         break;
+    }
 
-    // === OPEN SUBMENUS ===
+    case EPieMenuCategory::Target:
+    {
+        AActor *Target = Cast<AActor>(ButtonData.DataReference);
+        ConfirmActionWithTarget(Target);
+        break;
+    }
+
     case EPieMenuCategory::Abilities:
         OpenAbilitySubmenu();
         break;
@@ -152,6 +175,36 @@ void UCombatCommandMenuSubsystem::HandleBack()
 
     switch (CurrentDepth)
     {
+
+    case ECombatMenuDepth::TargetSelection:
+    {
+        // Cancel pending action and return to whatever depth we came from
+        PendingActionCategory = EPieMenuCategory::None;
+        PendingActionID.Empty();
+        PendingActionData.Reset();
+
+        if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
+        {
+            // Go back to spell/ability submenu
+            CurrentDepth = ECombatMenuDepth::Submenu;
+            if (ActiveSubmenuSource != EPieMenuCategory::None)
+            {
+                const TArray<USpellData *> &Spells = CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
+                OnCommandMenuReady.Broadcast(BuildSchoolButtons(Spells));
+            }
+            else
+            {
+                OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
+            }
+        }
+        else
+        {
+            // Came from main menu (e.g. Attack)
+            CurrentDepth = ECombatMenuDepth::Main;
+            OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+        }
+        break;
+    }
     case ECombatMenuDepth::Submenu:
         // If we were in a spell grid, go back to school list
         // If we were in school list or ability grid, go back to main
@@ -509,6 +562,232 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
     }
 
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+}
+
+// ==================== TARGET SELECTION ====================
+
+void UCombatCommandMenuSubsystem::OpenTargetSelection(
+    EPieMenuCategory ActionCategory,
+    const FPieMenuButtonData &ActionButton,
+    ETargetType TargetType)
+{
+    // Stash the pending action
+    PendingActionCategory = ActionCategory;
+    PendingActionID = ActionButton.ButtonID;
+    PendingActionData = ActionButton.DataReference;
+    DepthBeforeTargetSelection = CurrentDepth;
+
+    // Log target type
+    const UEnum *TargetEnum = StaticEnum<ETargetType>();
+    FString TargetTypeName = TargetEnum
+                                 ? TargetEnum->GetNameStringByValue(static_cast<int64>(TargetType))
+                                 : TEXT("Unknown");
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] OpenTargetSelection: TargetType=%s"),
+           *TargetTypeName);
+
+    // Resolve targets
+    TArray<AActor *> Targets = ResolveTargets(TargetType);
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Resolved %d targets:"), Targets.Num());
+    for (AActor *T : Targets)
+    {
+        if (!T)
+            continue;
+        FString TName = T->GetName();
+        if (UCharacterDataComponent *CDC = T->FindComponentByClass<UCharacterDataComponent>())
+        {
+            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            {
+                TName = CDC->CharacterData->CharacterName;
+            }
+        }
+        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]     - %s"), *TName);
+    }
+
+    // Auto-resolving target types skip selection
+    if (TargetType == ETargetType::Self ||
+        TargetType == ETargetType::AllEnemies ||
+        TargetType == ETargetType::AllAllies ||
+        TargetType == ETargetType::Everyone ||
+        TargetType == ETargetType::SingleAlly)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Auto-resolving (no picker shown)"));
+        AActor *AutoTarget = Targets.Num() > 0 ? Targets[0] : nullptr;
+        ConfirmActionWithTarget(AutoTarget);
+        return;
+    }
+
+    // SingleEnemy - need to pick
+    if (Targets.Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] OpenTargetSelection: no valid targets"));
+        // Fallback: cancel action, return to previous menu
+        PendingActionCategory = EPieMenuCategory::None;
+        PendingActionID.Empty();
+        PendingActionData.Reset();
+        return;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing target picker"));
+
+    // Show target selection
+    CurrentDepth = ECombatMenuDepth::TargetSelection;
+    TArray<FPieMenuButtonData> TargetButtons = BuildTargetButtons(Targets);
+    OnCommandMenuReady.Broadcast(TargetButtons);
+}
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
+    const TArray<AActor *> &Targets) const
+{
+    TArray<FPieMenuButtonData> Buttons;
+
+    for (AActor *Target : Targets)
+    {
+        if (!Target)
+            continue;
+
+        // Pull display name from CharacterData if available
+        FString TargetName = Target->GetName();
+        if (UCharacterDataComponent *CDC = Target->FindComponentByClass<UCharacterDataComponent>())
+        {
+            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            {
+                TargetName = CDC->CharacterData->CharacterName;
+            }
+        }
+
+        FPieMenuButtonData Button;
+        Button.ButtonID = Target->GetName(); // keep internal name for ID uniqueness
+        Button.DisplayName = FText::FromString(TargetName);
+        Button.Category = EPieMenuCategory::Target;
+        Button.DataReference = Target;
+        Button.bEnabled = true;
+        Buttons.Add(Button);
+    }
+
+    // Add back button so player can cancel target selection
+    Buttons.Add(FPieMenuButtonData::MakeBackButton());
+
+    return Buttons;
+}
+
+TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetType) const
+{
+    TArray<AActor *> Result;
+
+    AActor *User = CurrentActor.Get();
+    if (!User)
+        return Result;
+
+    UGameInstance *GI = GetGameInstance();
+    if (!GI)
+        return Result;
+
+    UTurnManager *TM = GI->GetSubsystem<UTurnManager>();
+    if (!TM)
+        return Result;
+
+    int32 UserTeam = TM->GetActorTeam(User);
+    if (UserTeam < 0)
+        return Result;
+
+    // ADD THIS LAMBDA HERE — right before the switch
+    auto IsAlive = [](AActor *Actor) -> bool
+    {
+        if (!Actor)
+            return false;
+        UCharacterDataComponent *CDC = Actor->FindComponentByClass<UCharacterDataComponent>();
+        return CDC && CDC->bIsAlive;
+    };
+
+    switch (TargetType)
+    {
+    case ETargetType::Self:
+        Result.Add(User);
+        break;
+
+    case ETargetType::SingleEnemy:
+    case ETargetType::AllEnemies:
+    {
+        int32 EnemyTeam = (UserTeam == 0) ? 1 : 0;
+        for (AActor *Member : TM->GetTeamMembers(EnemyTeam))
+        {
+            if (IsAlive(Member)) // <-- was: TM->IsActorAlive(Member)
+            {
+                Result.Add(Member);
+            }
+        }
+        break;
+    }
+
+    case ETargetType::SingleAlly:
+    case ETargetType::AllAllies:
+        for (AActor *Member : TM->GetTeamMembers(UserTeam))
+        {
+            if (IsAlive(Member)) // <-- was: TM->IsActorAlive(Member)
+            {
+                Result.Add(Member);
+            }
+        }
+        break;
+
+    case ETargetType::Everyone:
+        for (AActor *Member : TM->GetTeamMembers(0))
+        {
+            if (IsAlive(Member))
+                Result.Add(Member); // <-- was: TM->IsActorAlive(Member)
+        }
+        for (AActor *Member : TM->GetTeamMembers(1))
+        {
+            if (IsAlive(Member))
+                Result.Add(Member); // <-- was: TM->IsActorAlive(Member)
+        }
+        break;
+    }
+
+    return Result;
+}
+
+void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget)
+{
+    // Rebuild the action button with the resolved target attached
+    FPieMenuButtonData ActionButton;
+    ActionButton.ButtonID = PendingActionID;
+    ActionButton.Category = PendingActionCategory;
+    ActionButton.DataReference = PendingActionData.Get();
+    ActionButton.TargetActor = SelectedTarget;
+
+    FString TargetName = TEXT("(no target)");
+    if (SelectedTarget)
+    {
+        if (UCharacterDataComponent *CDC = SelectedTarget->FindComponentByClass<UCharacterDataComponent>())
+        {
+            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            {
+                TargetName = CDC->CharacterData->CharacterName;
+            }
+            else
+            {
+                TargetName = SelectedTarget->GetName();
+            }
+        }
+        else
+        {
+            TargetName = SelectedTarget->GetName();
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %s"),
+           *PendingActionID,
+           *TargetName);
+
+    // Clear pending state
+    PendingActionCategory = EPieMenuCategory::None;
+    PendingActionID.Empty();
+    PendingActionData.Reset();
+
+    OnActionSelected.Broadcast(ActionButton);
+    Close();
 }
 
 // ==================== HELPERS ====================
