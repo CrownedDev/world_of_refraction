@@ -138,6 +138,7 @@ private:
     TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells) const;
     TArray<FPieMenuButtonData> BuildSpellButtons(const TArray<USpellData *> &Spells,
                                                  EPieMenuSpellSchool School) const;
+    TArray<FPieMenuButtonData> BuildItemsSubmenu() const;
 
     // ==================== SELECTION HANDLERS ====================
 
@@ -146,6 +147,7 @@ private:
     void OpenSpellSubmenu(EPieMenuCategory Source);
     void ExecuteSwitchWeapon();
     void ExecuteSwitchRing();
+    void OpenItemsSubmenu();
 
     // Target selection
     void OpenTargetSelection(EPieMenuCategory ActionCategory, const FPieMenuButtonData &ActionButton, ETargetType TargetType);

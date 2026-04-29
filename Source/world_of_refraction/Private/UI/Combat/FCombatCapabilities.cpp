@@ -10,6 +10,7 @@
 #include "AbilityData.h"
 #include "RingData.h"
 #include "ItemData.h"
+#include "FItemLoadoutSlot.h"
 #include "UI/Combat/PieMenuButtonData.h"
 
 const TArray<USpellData *> FCombatCapabilities::EmptySpells = TArray<USpellData *>();
@@ -140,6 +141,17 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             }
         }
     }
+
+    // ==================== ITEMS ====================
+
+    for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+    {
+        if (Slot.CanUse())
+        {
+            Out.AvailableItems.Add(Slot.Crystal);
+        }
+    }
+    Out.bHasItems = Out.AvailableItems.Num() > 0;
 
     // ==================== SWITCH WEAPON ====================
 

@@ -14,5 +14,6 @@ enum class ETargetType : uint8
     AllEnemies UMETA(DisplayName = "All Enemies"),
     SingleAlly UMETA(DisplayName = "Single Ally"),
     AllAllies UMETA(DisplayName = "All Allies"),
+    SingleAnyone UMETA(DisplayName = "Single Anyone"),
     Everyone UMETA(DisplayName = "Everyone")
 };

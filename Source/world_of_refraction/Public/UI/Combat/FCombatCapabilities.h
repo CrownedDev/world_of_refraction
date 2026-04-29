@@ -14,6 +14,7 @@
 class ULoadoutComponent;
 class USpellData;
 class UAbilityData;
+class UItemData;
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FCombatCapabilities
@@ -58,6 +59,10 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bCanSwitchRing = false;
 
+    /** Loadout has at least one usable item - show Items */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
+    bool bHasItems = false;
+
     // ==================== SPELL POOLS ====================
     // Each submenu reads directly from the relevant array.
     // Never re-query LoadoutComponent after BuildFrom() runs.
@@ -83,6 +88,12 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     /** Abilities for Abilities submenu (from active weapon) */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
     TArray<UAbilityData *> WeaponAbilities;
+
+    // ==================== ITEM POOL ====================
+
+    /** Usable items in the active loadout's item slots */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Items")
+    TArray<UItemData *> AvailableItems;
 
     // ==================== DISPLAY DATA ====================
     // Used by Create*Button functions for descriptions and tints.

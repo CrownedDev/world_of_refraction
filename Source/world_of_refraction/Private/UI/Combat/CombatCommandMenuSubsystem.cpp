@@ -10,6 +10,9 @@
 #include "ItemData.h"
 #include "TurnManager.h"
 #include "CharacterData.h"
+#include "FItemLoadoutSlot.h"
+#include "FCombatLoadout.h"
+#include "CrystalType.h"
 #include "Engine/GameInstance.h"
 
 // ==================== LIFECYCLE ====================
@@ -110,8 +113,15 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     case EPieMenuCategory::Item:
     {
         UItemData *Item = Cast<UItemData>(ButtonData.DataReference);
-        // Items default to SingleAlly (consumables on self/party); override per item if needed later
-        ETargetType TT = ETargetType::SingleAlly;
+        ETargetType TT = ETargetType::SingleAnyone;
+        if (Item)
+        {
+            // Quartz transforms the user only — no choice involved
+            if (Item->CrystalType == ECrystalType::Quartz)
+            {
+                TT = ETargetType::Self;
+            }
+        }
         OpenTargetSelection(EPieMenuCategory::Item, ButtonData, TT);
         break;
     }
@@ -125,6 +135,10 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
     case EPieMenuCategory::Abilities:
         OpenAbilitySubmenu();
+        break;
+
+    case EPieMenuCategory::Items:
+        OpenItemsSubmenu();
         break;
 
     case EPieMenuCategory::Refractions:
@@ -251,7 +265,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateBreakthroughButton());
     if (CurrentCapabilities.ShouldShowResonateRing())
         Buttons.Add(CreateResonateRingButton());
-    Buttons.Add(CreateItemsButton());
+    if (CurrentCapabilities.bHasItems)
+        Buttons.Add(CreateItemsButton());
     if (CurrentCapabilities.bCanSwitchWeapon)
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
@@ -393,6 +408,13 @@ void UCombatCommandMenuSubsystem::OpenAbilitySubmenu()
     OnCommandMenuReady.Broadcast(AbilityButtons);
 }
 
+void UCombatCommandMenuSubsystem::OpenItemsSubmenu()
+{
+    CurrentDepth = ECombatMenuDepth::Submenu;
+    TArray<FPieMenuButtonData> ItemButtons = BuildItemsSubmenu();
+    OnCommandMenuReady.Broadcast(ItemButtons);
+}
+
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellSubmenu(
     EPieMenuCategory Source) const
 {
@@ -419,6 +441,43 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilitySubmenu() co
 
         Button.bEnabled = true;
         Buttons.Add(Button);
+    }
+
+    Buttons.Add(FPieMenuButtonData::MakeBackButton());
+    return Buttons;
+}
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() const
+{
+    TArray<FPieMenuButtonData> Buttons;
+
+    // Walk loadout slots so we can display remaining uses alongside the item
+    ULoadoutComponent *LC = GetLoadoutComponent();
+    if (LC)
+    {
+        const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+        int32 ButtonIndex = 0;
+
+        for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+        {
+            if (!Slot.CanUse() || !Slot.Crystal)
+                continue;
+
+            const FString DisplayName = FString::Printf(TEXT("%dx %s"),
+                                                        Slot.RemainingUses,
+                                                        *Slot.Crystal->ItemName);
+
+            FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
+                FString::Printf(TEXT("Item_%d"), ButtonIndex),
+                FText::FromString(DisplayName),
+                EPieMenuCategory::Item,
+                Slot.Crystal,
+                ButtonIndex);
+
+            Button.bEnabled = true;
+            Buttons.Add(Button);
+            ButtonIndex++;
+        }
     }
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
@@ -641,6 +700,22 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
 {
     TArray<FPieMenuButtonData> Buttons;
 
+    // Resolve caster's team for ally/enemy tinting
+    int32 UserTeam = -1;
+    if (AActor *User = CurrentActor.Get())
+    {
+        if (UGameInstance *GI = GetGameInstance())
+        {
+            if (UTurnManager *TM = GI->GetSubsystem<UTurnManager>())
+            {
+                UserTeam = TM->GetActorTeam(User);
+            }
+        }
+    }
+
+    // Tints
+    const FLinearColor EnemyTint(1.0f, 0.3f, 0.3f, 1.0f); // Red
+
     for (AActor *Target : Targets)
     {
         if (!Target)
@@ -656,16 +731,33 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             }
         }
 
+        // Tint enemies only; allies use default
+        FLinearColor Tint = FLinearColor::White;
+        if (UserTeam >= 0)
+        {
+            if (UGameInstance *GI = GetGameInstance())
+            {
+                if (UTurnManager *TM = GI->GetSubsystem<UTurnManager>())
+                {
+                    int32 TargetTeam = TM->GetActorTeam(Target);
+                    if (TargetTeam >= 0 && TargetTeam != UserTeam)
+                    {
+                        Tint = EnemyTint;
+                    }
+                }
+            }
+        }
+
         FPieMenuButtonData Button;
-        Button.ButtonID = Target->GetName(); // keep internal name for ID uniqueness
+        Button.ButtonID = Target->GetName();
         Button.DisplayName = FText::FromString(TargetName);
         Button.Category = EPieMenuCategory::Target;
         Button.DataReference = Target;
+        Button.ButtonTint = Tint;
         Button.bEnabled = true;
         Buttons.Add(Button);
     }
 
-    // Add back button so player can cancel target selection
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
 
     return Buttons;
@@ -730,7 +822,7 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
             }
         }
         break;
-
+    case ETargetType::SingleAnyone:
     case ETargetType::Everyone:
         for (AActor *Member : TM->GetTeamMembers(0))
         {
