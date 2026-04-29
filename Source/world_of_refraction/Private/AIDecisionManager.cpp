@@ -102,9 +102,20 @@ void UAIDecisionManager::ExecuteDecision()
         return;
     }
 
-    // Capture locally BEFORE SubmitAction (which may trigger next turn synchronously)
+    // Capture locally BEFORE any submit (which may trigger next turn synchronously)
     AActor *Actor = PendingActor;
     PendingActor = nullptr; // Clear BEFORE submit
+
+    // Validate turn ownership - turn may have advanced while we were thinking
+    AActor *CurrentTurnActor = CurrentCombat->GetCurrentActor();
+    if (Actor != CurrentTurnActor)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[AIDecisionManager] %s decision dropped - turn moved to %s while thinking"),
+               *Actor->GetName(),
+               CurrentTurnActor ? *CurrentTurnActor->GetName() : TEXT("none"));
+        return;
+    }
 
     FAction Action = BuildAction(Actor);
 

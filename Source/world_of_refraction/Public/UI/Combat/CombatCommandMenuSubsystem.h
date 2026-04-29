@@ -49,6 +49,17 @@ public:
     // ==================== LIFECYCLE ====================
 
     virtual void Initialize(FSubsystemCollectionBase &Collection) override;
+
+    // ==================== COMBAT REGISTRATION ====================
+
+    /** Set the active combat orchestrator. Binds turn lifecycle events. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void SetCombatOrchestrator(class ACombatOrchestrator *Orchestrator);
+
+    /** Clear combat orchestrator. Unbinds events and closes menu. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Command Menu")
+    void ClearCombatOrchestrator();
+
     virtual void Deinitialize() override;
 
     // ==================== BLUEPRINT API ====================
@@ -102,6 +113,17 @@ public:
     void RefreshMenu();
 
 private:
+    // ==================== ORCHESTRATOR BINDING ====================
+
+    UPROPERTY()
+    TWeakObjectPtr<class ACombatOrchestrator> CurrentOrchestrator;
+
+    UFUNCTION()
+    void HandlePlayerActionRequested(AActor *Actor);
+
+    UFUNCTION()
+    void HandleActionExecuted(AActor *Actor, const struct FActionResult &Result);
+
     // ==================== STATE ====================
 
     FCombatCapabilities CurrentCapabilities;

@@ -204,7 +204,7 @@ public:
 
 	/** If true, auto-advances turn after delay (for testing without UI/AI) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
-	bool bAutoAdvanceTurns = true;
+	bool bAutoAdvanceTurns = false;
 
 	/** Automatically start combat on BeginPlay using tagged actors */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")

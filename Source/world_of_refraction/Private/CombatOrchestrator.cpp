@@ -20,6 +20,7 @@
 #include "ItemEffectType.h"
 #include "CombatCameraManager.h"
 #include "WeatherStateManager.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -81,7 +82,19 @@ void ACombatOrchestrator::BeginPlay()
 
 void ACombatOrchestrator::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	// Cleanup
+	// Unregister from systems that hold a back-reference to us
+	if (AIDecisionManagerRef)
+	{
+		AIDecisionManagerRef->ClearCombatOrchestrator();
+	}
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		if (UCombatCommandMenuSubsystem *Menu = GI->GetSubsystem<UCombatCommandMenuSubsystem>())
+		{
+			Menu->ClearCombatOrchestrator();
+		}
+	}
+
 	UnbindTurnManagerEvents();
 	GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 
@@ -102,6 +115,15 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	if (AIDecisionManagerRef)
 	{
 		AIDecisionManagerRef->SetCombatOrchestrator(this);
+	}
+
+	// Register with combat command menu
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		if (UCombatCommandMenuSubsystem *Menu = GI->GetSubsystem<UCombatCommandMenuSubsystem>())
+		{
+			Menu->SetCombatOrchestrator(this);
+		}
 	}
 
 	if (CombatState != ECombatState::Idle)
@@ -269,6 +291,19 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	bWaitingForAsyncAction = false;
 
 	SetCombatState(ECombatState::Idle);
+
+	// Unregister listeners that hold back-references
+	if (AIDecisionManagerRef)
+	{
+		AIDecisionManagerRef->ClearCombatOrchestrator();
+	}
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		if (UCombatCommandMenuSubsystem *Menu = GI->GetSubsystem<UCombatCommandMenuSubsystem>())
+		{
+			Menu->ClearCombatOrchestrator();
+		}
+	}
 }
 
 // ========================================
@@ -283,7 +318,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		return false;
 	}
 
-	AActor *Actor = GetDebugActor();
+	AActor *Actor = CurrentActor;
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitAction called with no current actor"));
@@ -373,13 +408,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 void ACombatOrchestrator::SubmitActionAsync(const FAction &Action)
 {
-	if (CombatState != ECombatState::InProgress)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitActionAsync called but combat not in progress"));
-		return;
-	}
-
-	AActor *Actor = GetDebugActor();
+	AActor *Actor = CurrentActor;
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SubmitActionAsync called with no current actor"));
@@ -426,7 +455,7 @@ FActionValidationResult ACombatOrchestrator::ValidateAction(const FAction &Actio
 		return FActionValidationResult(false, TEXT("ActionExecutor not available"));
 	}
 
-	AActor *Actor = GetDebugActor();
+	AActor *Actor = CurrentActor;
 	if (!Actor)
 	{
 		return FActionValidationResult(false, TEXT("No current actor"));
@@ -654,34 +683,37 @@ void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 
 void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 {
-	// Check if AI-controlled
-	if (IsActorAIControlled(Actor))
+	if (!Actor)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Routing %s to AI decision"), *Actor->GetName());
-
-		if (AIDecisionManagerRef)
-		{
-			// Disable auto-advance - AI will submit action
-			GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
-			AIDecisionManagerRef->RequestDecision(Actor);
-			return;
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] AI actor but no AIDecisionManager - falling back to auto-advance"));
-		}
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] RequestActionFromActor called with null actor"));
+		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broadcasting OnActionRequested for: %s"),
-		   Actor ? *Actor->GetName() : TEXT("NULL"));
+	// === AI-CONTROLLED ACTOR ===
+	if (IsActorAIControlled(Actor))
+	{
+		if (!AIDecisionManagerRef)
+		{
+			UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] %s is AI-controlled but no AIDecisionManager - skipping turn"),
+				   *Actor->GetName());
+			// Don't broadcast player UI events for an AI actor with no AI brain.
+			// Don't auto-advance either; this is a configuration error worth seeing.
+			return;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Routing %s to AI decision"), *Actor->GetName());
+		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
+		AIDecisionManagerRef->RequestDecision(Actor);
+		return;
+	}
+
+	// === PLAYER-CONTROLLED ACTOR ===
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broadcasting OnActionRequested for player actor: %s"),
+		   *Actor->GetName());
 	OnActionRequested.Broadcast(Actor);
 
-	// Player turn - broadcast for UI
-	OnActionRequested.Broadcast(Actor);
-
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Requesting action from %s"), *Actor->GetName());
-
-	// For testing: auto-advance after delay if no UI/AI integration
+	// Auto-advance is a debug fallback for when no UI is wired.
+	// Once the menu is bound to OnActionRequested, this should be off.
 	if (bAutoAdvanceTurns)
 	{
 		GetWorld()->GetTimerManager().SetTimer(

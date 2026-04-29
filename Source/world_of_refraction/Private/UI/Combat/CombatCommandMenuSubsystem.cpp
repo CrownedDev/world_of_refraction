@@ -13,6 +13,8 @@
 #include "FItemLoadoutSlot.h"
 #include "FCombatLoadout.h"
 #include "CrystalType.h"
+#include "CombatOrchestrator.h"
+#include "ActionStructs.h"
 #include "Engine/GameInstance.h"
 
 // ==================== LIFECYCLE ====================
@@ -25,9 +27,81 @@ void UCombatCommandMenuSubsystem::Initialize(FSubsystemCollectionBase &Collectio
 
 void UCombatCommandMenuSubsystem::Deinitialize()
 {
+    ClearCombatOrchestrator();
     CurrentActor.Reset();
     Super::Deinitialize();
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Deinitialized"));
+}
+
+// ==================== COMBAT REGISTRATION ====================
+
+void UCombatCommandMenuSubsystem::SetCombatOrchestrator(ACombatOrchestrator *Orchestrator)
+{
+    // Defensive: clear any prior binding first
+    ClearCombatOrchestrator();
+
+    if (!Orchestrator)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] SetCombatOrchestrator called with null"));
+        return;
+    }
+
+    CurrentOrchestrator = Orchestrator;
+
+    Orchestrator->OnActionRequested.AddDynamic(this, &UCombatCommandMenuSubsystem::HandlePlayerActionRequested);
+    Orchestrator->OnActionExecuted.AddDynamic(this, &UCombatCommandMenuSubsystem::HandleActionExecuted);
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator set"));
+}
+
+void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
+{
+    if (ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get())
+    {
+        Orchestrator->OnActionRequested.RemoveDynamic(this, &UCombatCommandMenuSubsystem::HandlePlayerActionRequested);
+        Orchestrator->OnActionExecuted.RemoveDynamic(this, &UCombatCommandMenuSubsystem::HandleActionExecuted);
+    }
+
+    CurrentOrchestrator.Reset();
+
+    if (bIsOpen)
+    {
+        Close();
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
+}
+
+void UCombatCommandMenuSubsystem::HandlePlayerActionRequested(AActor *Actor)
+{
+    if (!Actor)
+    {
+        return;
+    }
+
+    ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    if (!Orchestrator)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] HandlePlayerActionRequested - no orchestrator"));
+        return;
+    }
+
+    // AI actors handle their own decisions; we only show the menu for player-controlled actors.
+    if (Orchestrator->IsActorAIControlled(Actor))
+    {
+        return;
+    }
+
+    OpenForActor(Actor);
+}
+
+void UCombatCommandMenuSubsystem::HandleActionExecuted(AActor *Actor, const FActionResult &Result)
+{
+    // Action complete - close the menu so it can be re-opened on the next player turn.
+    if (bIsOpen)
+    {
+        Close();
+    }
 }
 
 // ==================== BLUEPRINT API ====================
