@@ -154,8 +154,16 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     Out.bHasItems = Out.AvailableItems.Num() > 0;
 
     // ==================== SWITCH WEAPON ====================
+    // Switch Weapon requires TWO weapons in the loadout (Generic dual-wield).
+    // Evolution + Secondary Weapon has only one weapon, so no switch.
+    // Reading A confirmed in 30/04/2026 session: Generic Secondary is Weapon only,
+    // so we don't need to handle Secondary Ring here.
 
-    Out.bCanSwitchWeapon = LC->HasSecondaryEquipment();
+    Out.bCanSwitchWeapon =
+        Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+        Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+        Loadout.PrimaryWeapon.IsValid() &&
+        Loadout.SecondaryWeapon.IsValid();
 
     UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d"),
            *UEnum::GetValueAsString(CharClass),
