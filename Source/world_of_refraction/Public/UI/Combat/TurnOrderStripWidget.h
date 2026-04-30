@@ -37,31 +37,35 @@ public:
 	void TeardownStrip();
 
 	/** Number of upcoming turns to display after current actor. Total slots = 1 + this. */
-	UPROPERTY(EditDefaultsOnly, Category = "Turn Order")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Turn Order")
 	int32 PreviewCount = 4;
 
-	/** Slot widget class. Set in WBP defaults. */
-	UPROPERTY(EditDefaultsOnly, Category = "Turn Order")
+	/** Slot widget class. Set in WBP defaults (e.g. WBP_TurnOrderSlot_New). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Turn Order")
 	TSubclassOf<UTurnOrderSlotWidget> SlotWidgetClass;
 
 protected:
 	virtual void NativeDestruct() override;
 	virtual void BeginDestroy() override;
 
+	/** Container that holds the slot widgets (typically a Horizontal Box). */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UPanelWidget* SlotContainer;
+	UPanelWidget *SlotContainer;
 
-	UFUNCTION() void HandleTurnStarted(AActor* Actor, int32 TurnNumber);
+	UFUNCTION()
+	void HandleTurnStarted(AActor *Actor, int32 TurnNumber);
 
 private:
 	UPROPERTY()
-	TArray<UTurnOrderSlotWidget*> Slots;
+	TArray<UTurnOrderSlotWidget *> Slots;
 
-	UPROPERTY()
 	TWeakObjectPtr<UTurnManager> CachedTurnManager;
 
 	bool bInitialised = false;
 
+	/** Create PreviewCount+1 slot widgets and add them to SlotContainer. */
 	void SpawnSlots();
+
+	/** Pull current actor + preview from TurnManager and update each slot. */
 	void RefreshSlots();
 };

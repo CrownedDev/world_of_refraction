@@ -44,6 +44,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD Test")
 	TSubclassOf<UCharacterPanelWidget> CharacterPanelClass;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD Test")
+	TSubclassOf<class UTurnOrderStripWidget> TurnOrderStripClass;
+
 	/** Level-placed actor to bind the panel to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HUD Test")
 	TSoftObjectPtr<AActor> TargetActor;
@@ -59,6 +62,9 @@ public:
 	/** Remove all panels spawned by this actor. */
 	UFUNCTION(CallInEditor, BlueprintCallable, Category = "HUD Test|Actions")
 	void ClearAllPanels();
+
+	UFUNCTION(CallInEditor, BlueprintCallable, Category = "HUD Test|Actions")
+	void SpawnTurnOrderStrip();
 
 	// ========================================
 	// State manipulation (verify panel updates)
@@ -91,4 +97,7 @@ public:
 private:
 	UPROPERTY()
 	TArray<UCharacterPanelWidget *> SpawnedPanels;
+
+	UPROPERTY()
+	TArray<class UTurnOrderStripWidget *> SpawnedStrips;
 };

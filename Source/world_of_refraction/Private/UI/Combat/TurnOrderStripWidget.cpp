@@ -10,17 +10,49 @@ void UTurnOrderStripWidget::InitialiseForCombat()
 {
 	if (bInitialised)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[TurnOrderStripWidget] InitialiseForCombat called twice; ignoring"));
+		UE_LOG(LogTemp, Warning, TEXT("[TurnOrderStrip] InitialiseForCombat called twice; ignoring"));
 		return;
 	}
 
-	// TODO Phase 1: cache TurnManager subsystem
-	// TODO Phase 1: SpawnSlots() — pre-create PreviewCount + 1 slot widgets
-	// TODO Phase 1: bind TurnManager::OnTurnStarted -> HandleTurnStarted
-	// TODO Phase 1: initial RefreshSlots() if combat already in progress
+	// Prevent TransBuffer from holding stale refs across PIE end.
+	// Same pattern as UCombatActionMenuBase::StripTransactionalFlags.
+	ClearFlags(RF_Transactional);
+
+	if (!SlotContainer)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TurnOrderStrip] SlotContainer not bound — check WBP layout"));
+		return;
+	}
+
+	if (!SlotWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TurnOrderStrip] SlotWidgetClass not set — assign WBP_TurnOrderSlot_New in WBP defaults"));
+		return;
+	}
+
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		CachedTurnManager = GI->GetSubsystem<UTurnManager>();
+	}
+
+	if (!CachedTurnManager.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TurnOrderStrip] TurnManager subsystem not available"));
+		return;
+	}
+
+	// Pre-spawn slots once
+	SpawnSlots();
+
+	// Bind to turn changes
+	CachedTurnManager->OnTurnStarted.AddDynamic(this, &UTurnOrderStripWidget::HandleTurnStarted);
+
+	// Initial population — handles "spawned mid-combat" case
+	RefreshSlots();
 
 	bInitialised = true;
-	UE_LOG(LogTemp, Log, TEXT("[TurnOrderStripWidget] Initialised (stub)"));
+
+	UE_LOG(LogTemp, Log, TEXT("[TurnOrderStrip] Initialised with %d slots"), Slots.Num());
 }
 
 void UTurnOrderStripWidget::TeardownStrip()
@@ -30,9 +62,15 @@ void UTurnOrderStripWidget::TeardownStrip()
 		return;
 	}
 
-	// TODO Phase 1: unbind TurnManager delegate using Get() not IsValid()
-	// TODO Phase 1: clear Slots array, remove from SlotContainer
+	if (UTurnManager *TurnMgr = CachedTurnManager.Get())
+	{
+		TurnMgr->OnTurnStarted.RemoveDynamic(this, &UTurnOrderStripWidget::HandleTurnStarted);
+	}
 
+	if (SlotContainer)
+	{
+		SlotContainer->ClearChildren();
+	}
 	Slots.Reset();
 	CachedTurnManager.Reset();
 	bInitialised = false;
@@ -56,19 +94,52 @@ void UTurnOrderStripWidget::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UTurnOrderStripWidget::HandleTurnStarted(AActor* Actor, int32 TurnNumber)
+void UTurnOrderStripWidget::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 {
-	// TODO Phase 1: RefreshSlots() — pull PreviewTurnOrder from TurnManager
+	RefreshSlots();
 }
 
 void UTurnOrderStripWidget::SpawnSlots()
 {
-	// TODO Phase 1: create PreviewCount + 1 instances of SlotWidgetClass
-	// TODO Phase 1: add each to SlotContainer
-}
+	const int32 TotalSlots = PreviewCount + 1; // +1 for current actor
 
+	for (int32 i = 0; i < TotalSlots; ++i)
+	{
+		UTurnOrderSlotWidget *SlotWidget = CreateWidget<UTurnOrderSlotWidget>(this, SlotWidgetClass);
+		if (SlotWidget)
+		{
+			SlotContainer->AddChild(SlotWidget);
+			Slots.Add(SlotWidget);
+		}
+	}
+}
 void UTurnOrderStripWidget::RefreshSlots()
 {
-	// TODO Phase 1: get current actor + PreviewTurnOrder(PreviewCount)
-	// TODO Phase 1: call InitialiseSlot on each, mark slot 0 as active
+	UTurnManager *TurnMgr = CachedTurnManager.Get();
+	if (!TurnMgr || Slots.Num() == 0)
+	{
+		return;
+	}
+
+	AActor *CurrentActor = TurnMgr->GetCurrentActor();
+	TArray<AActor *> Upcoming = TurnMgr->PreviewTurnOrder(PreviewCount);
+
+	// Slot 0 = current actor
+	if (Slots[0])
+	{
+		Slots[0]->InitialiseSlot(CurrentActor, /*TurnNumber=*/1, /*bIsActive=*/true);
+	}
+
+	// Slots 1..N = upcoming
+	for (int32 i = 0; i < PreviewCount; ++i)
+	{
+		const int32 SlotIndex = i + 1;
+		if (!Slots.IsValidIndex(SlotIndex) || !Slots[SlotIndex])
+		{
+			continue;
+		}
+
+		AActor *PreviewActor = Upcoming.IsValidIndex(i) ? Upcoming[i] : nullptr;
+		Slots[SlotIndex]->InitialiseSlot(PreviewActor, /*TurnNumber=*/i + 2, /*bIsActive=*/false);
+	}
 }

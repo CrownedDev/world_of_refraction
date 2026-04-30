@@ -2,6 +2,7 @@
 
 #include "Testing/HUDTestActor.h"
 #include "UI/Combat/CharacterPanelWidget.h"
+#include "UI/Combat/TurnOrderStripWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "CharacterDataComponent.h"
 #include "StatusEffectManager.h"
@@ -64,19 +65,62 @@ void AHUDTestActor::SpawnCharacterPanel()
 
 void AHUDTestActor::ClearAllPanels()
 {
-	int32 ClearedCount = 0;
+	int32 Cleared = 0;
 	for (UCharacterPanelWidget *Panel : SpawnedPanels)
 	{
 		if (Panel)
 		{
 			Panel->TeardownPanel();
 			Panel->RemoveFromParent();
-			ClearedCount++;
+			Cleared++;
+		}
+	}
+	for (UTurnOrderStripWidget *Strip : SpawnedStrips)
+	{
+		if (Strip)
+		{
+			Strip->TeardownStrip();
+			Strip->RemoveFromParent();
+			Cleared++;
 		}
 	}
 	SpawnedPanels.Reset();
+	SpawnedStrips.Reset();
+	UE_LOG(LogTemp, Log, TEXT("[HUDTest] Cleared %d widget(s)"), Cleared);
+}
 
-	UE_LOG(LogTemp, Log, TEXT("[HUDTest] Cleared %d panel(s)"), ClearedCount);
+void AHUDTestActor::SpawnTurnOrderStrip()
+{
+	UWorld *World = GetWorld();
+	if (!World || !World->IsGameWorld())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HUDTest] SpawnTurnOrderStrip requires PIE."));
+		return;
+	}
+
+	if (!TurnOrderStripClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[HUDTest] TurnOrderStripClass not set — assign WBP_TurnOrderStrip_New in Details panel."));
+		return;
+	}
+
+	APlayerController *PC = World->GetFirstPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+
+	UTurnOrderStripWidget *Strip = CreateWidget<UTurnOrderStripWidget>(PC, TurnOrderStripClass);
+	if (!Strip)
+	{
+		return;
+	}
+
+	Strip->AddToViewport(100);
+	Strip->InitialiseForCombat();
+	SpawnedStrips.Add(Strip);
+
+	UE_LOG(LogTemp, Log, TEXT("[HUDTest] Spawned turn order strip"));
 }
 
 void AHUDTestActor::ApplyTestDamage()

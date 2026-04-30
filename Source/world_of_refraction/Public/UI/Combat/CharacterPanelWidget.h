@@ -120,13 +120,10 @@ protected:
 	virtual void ApplyStaticText_Implementation();
 
 private:
-	UPROPERTY()
 	TWeakObjectPtr<AActor> BoundActor;
 
-	UPROPERTY()
 	TWeakObjectPtr<UCharacterDataComponent> BoundCharData;
 
-	UPROPERTY()
 	TWeakObjectPtr<UStatusEffectManager> BoundStatusManager;
 
 	bool bBound = false;

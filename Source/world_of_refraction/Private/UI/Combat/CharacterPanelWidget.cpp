@@ -24,6 +24,8 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		return;
 	}
 
+	ClearFlags(RF_Transactional);
+
 	UCharacterDataComponent *CharComp = InActor->FindComponentByClass<UCharacterDataComponent>();
 	if (!CharComp)
 	{
