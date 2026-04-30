@@ -23,12 +23,13 @@ struct FStatusEffect;
  *           buff/debuff text list.
  *
  * State sources:
- *   - HP/EP → UCharacterDataComponent (delegates)
- *   - Status buildup → UStatusEffectManager::OnStatusBuildupChanged
- *   - Buffs/debuffs → UStatusEffectManager (effect delegates)
- *   - Death → UCharacterDataComponent::OnDied
+ *   - HP/EP            -> UCharacterDataComponent::OnHPChanged / OnEPChanged
+ *   - Status buildup   -> UStatusEffectManager::OnStatusBuildupChanged
+ *   - Buffs/debuffs    -> UStatusEffectManager::OnEffectApplied / Removed / DurationChanged
+ *   - Death            -> UCharacterDataComponent::OnDied
  *
- * Lifecycle: Created by UCombatHUDRoot, given an actor via InitialiseForActor.
+ * Lifecycle: Created by UCombatHUDRoot (or by debug spawn), given an actor via
+ * InitialiseForActor.
  */
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UCharacterPanelWidget : public UUserWidget
@@ -38,11 +39,15 @@ class WORLD_OF_REFRACTION_API UCharacterPanelWidget : public UUserWidget
 public:
 	/** Bind to actor's CharacterDataComponent and StatusEffectManager. */
 	UFUNCTION(BlueprintCallable, Category = "Character Panel")
-	void InitialiseForActor(AActor* InActor);
+	void InitialiseForActor(AActor *InActor);
 
 	/** Unbind delegates. Called by HUD root or on destruct. */
 	UFUNCTION(BlueprintCallable, Category = "Character Panel")
 	void TeardownPanel();
+
+	/** Returns the actor this panel represents. Null if torn down. */
+	UFUNCTION(BlueprintPure, Category = "Character Panel")
+	AActor *GetBoundActor() const { return BoundActor.Get(); }
 
 protected:
 	virtual void NativeDestruct() override;
@@ -53,51 +58,66 @@ protected:
 	// ========================================
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* HPBar;
+	UProgressBar *HPBar;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* HPText;
+	UTextBlock *HPText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* EPBar;
+	UProgressBar *EPBar;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* EPText;
+	UTextBlock *EPText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UProgressBar* StatusBar;
+	UProgressBar *StatusBar;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* StatusText;
+	UTextBlock *StatusText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* NameText;
+	UTextBlock *NameText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* ClassElementText;
+	UTextBlock *ClassElementText;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UTextBlock* WorldStatsText;
+	UTextBlock *WorldStatsText;
 
-	/** Container for buff/debuff text rows. BP populates per RebuildBuffDebuffList. */
+	/** Container for buff/debuff text rows. BP populates via RebuildBuffDebuffList. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UVerticalBox* BuffDebuffList;
+	UVerticalBox *BuffDebuffList;
 
 	// ========================================
-	// Delegate handlers (Phase 1 will implement)
+	// Delegate handlers
 	// ========================================
 
-	UFUNCTION() void HandleHPChanged(int32 CurrentHP, int32 MaxHP);
-	UFUNCTION() void HandleEPChanged(int32 CurrentEP, int32 MaxEP);
-	UFUNCTION() void HandleStatusBuildupChanged(AActor* Target, float Current, float Max);
-	UFUNCTION() void HandleEffectApplied(AActor* Target, const FStatusEffect& Effect);
-	UFUNCTION() void HandleEffectRemoved(AActor* Target, const FStatusEffect& Effect);
-	UFUNCTION() void HandleEffectDurationChanged(AActor* Target, const FStatusEffect& Effect, int32 RemainingTurns);
-	UFUNCTION() void HandleDied(AActor* DeadActor);
+	UFUNCTION()
+	void HandleHPChanged(int32 CurrentHP, int32 MaxHP);
+	UFUNCTION()
+	void HandleEPChanged(int32 CurrentEP, int32 MaxEP);
+	UFUNCTION()
+	void HandleStatusBuildupChanged(AActor *Target, float Current, float Max);
+	UFUNCTION()
+	void HandleEffectApplied(AActor *Target, const FStatusEffect &Effect);
+	UFUNCTION()
+	void HandleEffectRemoved(AActor *Target, const FStatusEffect &Effect);
+	UFUNCTION()
+	void HandleEffectDurationChanged(AActor *Target, const FStatusEffect &Effect, int32 RemainingTurns);
+	UFUNCTION()
+	void HandleDied(AActor *DeadActor);
 
 	/** BP fills the BuffDebuffList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
-	void RebuildBuffDebuffList(const TArray<FStatusEffect>& ActiveEffects);
+	void RebuildBuffDebuffList(const TArray<FStatusEffect> &ActiveEffects);
+
+	/**
+	 * Called once during InitialiseForActor to populate name/class/element/world stats.
+	 * BP can override for custom formatting; native fallback fills NameText only.
+	 */
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Character Panel")
+	void ApplyStaticText();
+	virtual void ApplyStaticText_Implementation();
 
 private:
 	UPROPERTY()
@@ -110,4 +130,8 @@ private:
 	TWeakObjectPtr<UStatusEffectManager> BoundStatusManager;
 
 	bool bBound = false;
+
+	void RefreshBuffDebuffList();
+	void SetBarSafe(UProgressBar *Bar, float Percent);
+	void SetTextSafe(UTextBlock *Text, const FString &Value);
 };
