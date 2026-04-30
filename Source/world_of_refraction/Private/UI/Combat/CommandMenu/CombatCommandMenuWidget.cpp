@@ -97,7 +97,7 @@ void UCombatCommandMenuWidget::ShutdownForCombat()
 void UCombatCommandMenuWidget::HandleCommandMenuReady(const TArray<FPieMenuButtonData> &Buttons)
 {
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] HandleCommandMenuReady — received %d buttons"), Buttons.Num());
-    SetVisibility(ESlateVisibility::Hidden);
+    SetVisibility(ESlateVisibility::Visible);
     const int32 ActiveCount = FMath::Min(Buttons.Num(), ButtonPool.Num());
 
     for (int32 i = 0; i < ButtonPool.Num(); ++i)
