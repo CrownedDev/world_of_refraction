@@ -6,6 +6,7 @@
 #include "ActionStructs.h"
 #include "Components/PanelWidget.h"
 #include "Blueprint/UserWidget.h"
+#include "UI/Combat/CharacterPanelWidget.h"
 #include "Engine/GameInstance.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -26,6 +27,7 @@ void UCombatHUDWidget::NativeDestruct()
 {
 	UnbindFromOrchestrator();
 	ClearTurnSlots();
+	ClearTeamPanels();
 	Super::NativeDestruct();
 }
 
@@ -241,4 +243,63 @@ void UCombatHUDWidget::InitialiseSlot(UUserWidget *SlotWidget, AActor *Actor, bo
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] WBP_TurnOrderSlot has no 'InitialiseSlot' function"));
 	}
+}
+
+void UCombatHUDWidget::InitialiseTeamPanels(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1)
+{
+	if (!CharacterPanelWidgetClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] No CharacterPanelWidgetClass set — set it in WBP_CombatHUD defaults"));
+		return;
+	}
+
+	// Clear any existing (defensive — supports re-init on combat restart)
+	ClearTeamPanels();
+
+	auto SpawnPanelsForTeam = [this](const TArray<AActor *> &Team, UPanelWidget *Container)
+	{
+		if (!Container)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[CombatHUD] Team container widget not bound — check WBP widget naming"));
+			return;
+		}
+
+		for (AActor *Member : Team)
+		{
+			if (!Member)
+				continue;
+
+			UCharacterPanelWidget *Panel = CreateWidget<UCharacterPanelWidget>(this, CharacterPanelWidgetClass);
+			if (!Panel)
+				continue;
+
+			Container->AddChild(Panel);
+			Panel->InitialiseForActor(Member);
+			SpawnedPanels.Add(Panel);
+		}
+	};
+
+	SpawnPanelsForTeam(Team0, PlayerTeamContainer);
+	SpawnPanelsForTeam(Team1, EnemyTeamContainer);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatHUD] Initialised team panels — Team0: %d, Team1: %d"),
+		   Team0.Num(), Team1.Num());
+}
+
+void UCombatHUDWidget::ClearTeamPanels()
+{
+	for (UCharacterPanelWidget *Panel : SpawnedPanels)
+	{
+		if (Panel)
+		{
+			Panel->TeardownPanel();
+			Panel->RemoveFromParent();
+		}
+	}
+	SpawnedPanels.Reset();
+
+	if (PlayerTeamContainer)
+		PlayerTeamContainer->ClearChildren();
+	if (EnemyTeamContainer)
+		EnemyTeamContainer->ClearChildren();
 }

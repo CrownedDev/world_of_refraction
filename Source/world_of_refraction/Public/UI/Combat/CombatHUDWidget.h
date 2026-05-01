@@ -11,6 +11,7 @@ class UTurnManager;
 class UPanelWidget;
 class UUserWidget;
 struct FActionResult;
+class UCharacterPanelWidget;
 
 /**
  * CombatHUDWidget
@@ -52,6 +53,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat HUD")
 	TSubclassOf<UUserWidget> TurnSlotWidgetClass;
 
+	/** Character panel widget class spawned per team member. Set in BP defaults. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat HUD")
+	TSubclassOf<class UCharacterPanelWidget> CharacterPanelWidgetClass;
+
 protected:
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
@@ -64,6 +69,14 @@ protected:
 	/** Container that holds the spawned turn order slots. Must exist in WBP_CombatHUD. */
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidget))
 	UPanelWidget *TurnOrderStrip;
+
+	/** Container for player team character panels (Team 0). Must exist in WBP_CombatHUD. */
+	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidget))
+	UPanelWidget *PlayerTeamContainer;
+
+	/** Container for enemy team character panels (Team 1). Must exist in WBP_CombatHUD. */
+	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidget))
+	UPanelWidget *EnemyTeamContainer;
 
 	// ========================================
 	// Turn handling
@@ -89,6 +102,18 @@ protected:
 	/** Calls the BP "Initialise" function on a slot widget with the given parameters. */
 	void InitialiseSlot(UUserWidget *SlotWidget, AActor *Actor, bool bActive, int32 TurnNumber, int32 InTeamIndex);
 
+	// ========================================
+	// Team panel handling
+	// ========================================
+
+	/** Spawns character panels for both teams. Called from BP_CombatOrchestrator. */
+	UFUNCTION(BlueprintCallable, Category = "Combat HUD")
+	void InitialiseTeamPanels(const TArray<AActor *> &Team0, const TArray<AActor *> &Team1);
+
+	/** Removes all spawned character panels. */
+	UFUNCTION(BlueprintCallable, Category = "Combat HUD")
+	void ClearTeamPanels();
+
 private:
 	/** Weak ref to the orchestrator we're bound to. */
 	UPROPERTY()
@@ -101,6 +126,10 @@ private:
 	/** Spawned slot widgets. Index 0 = current actor, 1..N = upcoming. */
 	UPROPERTY()
 	TArray<UUserWidget *> SpawnedSlots;
+
+	/** Spawned character panel widgets. Cleared on combat end. */
+	UPROPERTY()
+	TArray<class UCharacterPanelWidget *> SpawnedPanels;
 
 	/** Tracks the current turn number for display. */
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (AllowPrivateAccess = "true"))
