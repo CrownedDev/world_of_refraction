@@ -36,9 +36,9 @@ class WORLD_OF_REFRACTION_API UCombatHUDRoot : public UUserWidget
 public:
 	/** Called once at combat start. Spawns panels, binds children to subsystems. */
 	UFUNCTION(BlueprintCallable, Category = "Combat HUD")
-	void InitialiseForCombat(ACombatOrchestrator* Orchestrator,
-	                         const TArray<AActor*>& Team0,
-	                         const TArray<AActor*>& Team1);
+	void InitialiseForCombat(ACombatOrchestrator *Orchestrator,
+							 const TArray<AActor *> &Team0,
+							 const TArray<AActor *> &Team1);
 
 	/** Called at combat end. Unbinds, clears panels, prepares for removal. */
 	UFUNCTION(BlueprintCallable, Category = "Combat HUD")
@@ -53,19 +53,19 @@ protected:
 	// ========================================
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidgetOptional))
-	UPanelWidget* Team0Panel;
+	UPanelWidget *PlayerTeamContainer;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidgetOptional))
-	UPanelWidget* Team1Panel;
+	UPanelWidget *EnemyTeamContainer;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidgetOptional))
-	UTurnOrderStripWidget* TurnOrderStrip;
+	UTurnOrderStripWidget *TurnOrderStrip;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidgetOptional))
-	UCombatActionMenuBase* CommandMenu;
+	UCombatActionMenuBase *CommandMenu;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Combat HUD", meta = (BindWidgetOptional))
-	UDefensePromptWidget* DefensePrompt;
+	UDefensePromptWidget *DefensePrompt;
 
 	// ========================================
 	// Configuration
@@ -80,7 +80,7 @@ private:
 	TWeakObjectPtr<ACombatOrchestrator> CurrentOrchestrator;
 
 	UPROPERTY()
-	TArray<UCharacterPanelWidget*> SpawnedPanels;
+	TArray<UCharacterPanelWidget *> SpawnedPanels;
 
 	bool bInitialised = false;
 };
