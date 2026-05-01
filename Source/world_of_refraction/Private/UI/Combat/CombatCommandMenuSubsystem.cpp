@@ -263,41 +263,57 @@ void UCombatCommandMenuSubsystem::HandleBack()
 
     switch (CurrentDepth)
     {
-
     case ECombatMenuDepth::TargetSelection:
     {
-        // Cancel pending action and return to whatever depth we came from
+        // Cancel pending action
         PendingActionCategory = EPieMenuCategory::None;
         PendingActionID.Empty();
         PendingActionData.Reset();
 
         if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
         {
-            // Go back to spell/ability submenu
+            // Restore whichever submenu we came from
             CurrentDepth = ECombatMenuDepth::Submenu;
-            if (ActiveSubmenuSource != EPieMenuCategory::None)
+            switch (ActiveSubmenuType)
             {
-                const TArray<USpellData *> &Spells = CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
-                OnCommandMenuReady.Broadcast(BuildSchoolButtons(Spells));
-            }
-            else
-            {
+            case EPieMenuCategory::Abilities:
                 OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
+                break;
+            case EPieMenuCategory::Items:
+                OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
+                break;
+            case EPieMenuCategory::Refractions:
+            case EPieMenuCategory::Breakthrough:
+            case EPieMenuCategory::ResonateWeapon:
+            case EPieMenuCategory::ResonateRing:
+            {
+                const TArray<USpellData *> &Spells =
+                    CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
+                OnCommandMenuReady.Broadcast(BuildSchoolButtons(Spells));
+                break;
+            }
+            default:
+                // Unknown submenu type, fall back to main
+                CurrentDepth = ECombatMenuDepth::Main;
+                ActiveSubmenuSource = EPieMenuCategory::None;
+                ActiveSubmenuType = EPieMenuCategory::None;
+                OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+                break;
             }
         }
         else
         {
-            // Came from main menu (e.g. Attack)
+            // Came directly from main (e.g. Attack)
             CurrentDepth = ECombatMenuDepth::Main;
             OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
         }
         break;
     }
+
     case ECombatMenuDepth::Submenu:
-        // If we were in a spell grid, go back to school list
-        // If we were in school list or ability grid, go back to main
         CurrentDepth = ECombatMenuDepth::Main;
         ActiveSubmenuSource = EPieMenuCategory::None;
+        ActiveSubmenuType = EPieMenuCategory::None; // NEW
         OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
         break;
 
@@ -465,19 +481,10 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchRingButton() const
 
 // ==================== SUBMENU BUILDERS ====================
 
-void UCombatCommandMenuSubsystem::OpenSpellSubmenu(EPieMenuCategory Source)
-{
-    ActiveSubmenuSource = Source;
-    CurrentDepth = ECombatMenuDepth::Submenu;
-
-    const TArray<USpellData *> &Spells = CurrentCapabilities.GetSpellsForCategory(Source);
-    TArray<FPieMenuButtonData> SchoolButtons = BuildSchoolButtons(Spells);
-    OnCommandMenuReady.Broadcast(SchoolButtons);
-}
-
 void UCombatCommandMenuSubsystem::OpenAbilitySubmenu()
 {
     CurrentDepth = ECombatMenuDepth::Submenu;
+    ActiveSubmenuType = EPieMenuCategory::Abilities; // NEW
     TArray<FPieMenuButtonData> AbilityButtons = BuildAbilitySubmenu();
     OnCommandMenuReady.Broadcast(AbilityButtons);
 }
@@ -485,15 +492,20 @@ void UCombatCommandMenuSubsystem::OpenAbilitySubmenu()
 void UCombatCommandMenuSubsystem::OpenItemsSubmenu()
 {
     CurrentDepth = ECombatMenuDepth::Submenu;
+    ActiveSubmenuType = EPieMenuCategory::Items; // NEW
     TArray<FPieMenuButtonData> ItemButtons = BuildItemsSubmenu();
     OnCommandMenuReady.Broadcast(ItemButtons);
 }
 
-TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellSubmenu(
-    EPieMenuCategory Source) const
+void UCombatCommandMenuSubsystem::OpenSpellSubmenu(EPieMenuCategory Source)
 {
+    ActiveSubmenuSource = Source;
+    ActiveSubmenuType = Source;
+    CurrentDepth = ECombatMenuDepth::Submenu;
+
     const TArray<USpellData *> &Spells = CurrentCapabilities.GetSpellsForCategory(Source);
-    return BuildSchoolButtons(Spells);
+    TArray<FPieMenuButtonData> SchoolButtons = BuildSchoolButtons(Spells);
+    OnCommandMenuReady.Broadcast(SchoolButtons);
 }
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilitySubmenu() const

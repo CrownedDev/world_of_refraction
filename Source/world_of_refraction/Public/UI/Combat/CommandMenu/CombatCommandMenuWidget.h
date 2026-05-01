@@ -49,7 +49,7 @@ protected:
     TSubclassOf<UCombatCommandButtonWidget> ButtonWidgetClass;
 
     /** Maximum buttons across all menu states (largest grid in any class). */
-    static constexpr int32 PoolSize = 6;
+    static constexpr int32 PoolSize = 8; // was 6
 
     /** BP hook for any visual flourish on refresh (animations, sounds, etc.) */
     UFUNCTION(BlueprintImplementableEvent, Category = "Combat Command Menu")

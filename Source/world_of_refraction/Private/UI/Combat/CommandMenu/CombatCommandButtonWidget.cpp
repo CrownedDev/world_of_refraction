@@ -5,6 +5,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
+#include "Styling/SlateColor.h"
 #include "Engine/GameInstance.h"
 
 void UCombatCommandButtonWidget::NativeConstruct()
@@ -41,6 +42,7 @@ void UCombatCommandButtonWidget::SetData(const FPieMenuButtonData &InData)
     if (LabelText)
     {
         LabelText->SetText(InData.DisplayName);
+        LabelText->SetColorAndOpacity(FSlateColor(InData.ButtonTint));
     }
 
     if (CommandButton)

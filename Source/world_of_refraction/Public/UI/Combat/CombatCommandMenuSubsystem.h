@@ -130,6 +130,8 @@ private:
     ECombatMenuDepth CurrentDepth = ECombatMenuDepth::Closed;
     bool bIsOpen = false;
     EPieMenuCategory ActiveSubmenuSource = EPieMenuCategory::None;
+
+    EPieMenuCategory ActiveSubmenuType = EPieMenuCategory::None;
     // Pending action awaiting target selection
     EPieMenuCategory PendingActionCategory = EPieMenuCategory::None;
     FString PendingActionID;
