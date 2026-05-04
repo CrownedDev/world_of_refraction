@@ -4,6 +4,7 @@
 #include "ItemData.h"
 #include "ItemConstants.h"
 #include "SpellData.h"
+#include "DurabilityConstants.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -877,7 +878,105 @@ TArray<FPassiveEffect> UItemData::GetTriggeredPassives() const
 
     return Result;
 }
+// ==================== DURABILITY ====================
 
+void UItemData::PostInitProperties()
+{
+    Super::PostInitProperties();
+
+    // Skip during CDO construction and on unrefined crystals (consumables don't track durability)
+    if (HasAnyFlags(RF_ClassDefaultObject) || !bIsRefined)
+    {
+        return;
+    }
+
+    // Auto-compute MaxDurability from tier if designer left it at 0
+    if (MaxDurability == 0)
+    {
+        MaxDurability = DurabilityConstants::GetMaxDurabilityForTier(Tier);
+    }
+
+    // Evolution crystals are immune to breaking by design
+    if (bIsEvolutionCrystal)
+    {
+        bImmuneToBreaking = true;
+    }
+
+    // Initialise runtime durability to full
+    CurrentDurability = MaxDurability;
+}
+
+float UItemData::GetDurabilityPercent() const
+{
+    if (!bIsRefined || MaxDurability <= 0)
+    {
+        return 0.0f;
+    }
+    return static_cast<float>(CurrentDurability) / static_cast<float>(MaxDurability);
+}
+
+void UItemData::ApplyWear(int32 Amount)
+{
+    if (!bIsRefined)
+    {
+        UE_LOG(LogTemp, Verbose,
+               TEXT("[Crystal] ApplyWear called on unrefined crystal '%s' (no-op)"),
+               *GetFullItemName());
+        return;
+    }
+
+    if (bImmuneToBreaking)
+    {
+        UE_LOG(LogTemp, Verbose,
+               TEXT("[Crystal] ApplyWear called on immune crystal '%s' (no-op)"),
+               *GetFullItemName());
+        return;
+    }
+
+    if (Amount <= 0)
+    {
+        return;
+    }
+
+    const int32 PreviousDurability = CurrentDurability;
+    CurrentDurability = FMath::Max(0, CurrentDurability - Amount);
+
+    UE_LOG(LogTemp, Verbose,
+           TEXT("[Crystal] '%s' wear %d (%d -> %d / %d)"),
+           *GetFullItemName(), Amount, PreviousDurability, CurrentDurability, MaxDurability);
+
+    if (CurrentDurability <= 0 && PreviousDurability > 0)
+    {
+        UE_LOG(LogTemp, Log,
+               TEXT("[Crystal] '%s' BROKEN (durability hit 0)"),
+               *GetFullItemName());
+        OnCrystalBroken.Broadcast(this);
+    }
+}
+
+void UItemData::RepairBetweenCombats(int32 Amount)
+{
+    if (!bIsRefined || Amount <= 0)
+    {
+        return;
+    }
+
+    CurrentDurability = FMath::Min(MaxDurability, CurrentDurability + Amount);
+}
+
+bool UItemData::IsBroken() const
+{
+    return bIsRefined && !bImmuneToBreaking && CurrentDurability <= 0;
+}
+
+void UItemData::ResetDurability()
+{
+    if (!bIsRefined)
+    {
+        return;
+    }
+    CurrentDurability = MaxDurability;
+}
 // ==================== EDITOR FUNCTIONS ====================
 
 #if WITH_EDITOR

@@ -20,7 +20,7 @@
 #include "ItemTier.h"
 #include "ItemEffectType.h"
 #include "ESpellElement.h"
-
+#include "DurabilityConstants.h"
 #include "PassiveEffect.h"
 #include "NiagaraSystem.h"
 #include "EEvolutionType.h"
@@ -36,10 +36,13 @@ namespace CrystalSpellConstants
         constexpr int32 DEFAULT_LOCKED_SPELLS = 2;
 }
 
+/** Broadcast when a refined crystal's durability hits 0. Single-param: the broken crystal. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCrystalBroken, UItemData *, BrokenCrystal);
+
 /**
  * Primary data asset for items (crystals)
- * Each item is defined by crystal type + tier + category combination
- * Category determines usage: Item (consumable), Refined (slottable), Evolution (grants evolution)
+ * Each item is defined by crystal type + tier + refined/evolution flags.
+ * See ItemData.h header comment for crystal state combinations.
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UItemData : public UPrimaryDataAsset
@@ -140,6 +143,58 @@ public:
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float SpellSizeModifierPercent = 0.0f;
+
+        // ==================== DURABILITY ====================
+        // Only meaningful for refined crystals. Unrefined crystals are consumables
+        // and don't track durability. Evolution crystals are immune (set bImmuneToBreaking).
+        // See DurabilityConstants.h for tier defaults and wear values.
+
+        /** Maximum durability. If left at 0, auto-computed from Tier in PostInitProperties.
+         *  Per-tier defaults: F=30 E=40 D=50 C=60 B=70 A=80 S=100 */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
+                  meta = (EditCondition = "bIsRefined", EditConditionHides, ClampMin = "0"))
+        int32 MaxDurability = 0;
+
+        /** Current durability. Transient runtime state — NOT saved on the asset.
+         *  Initialised to MaxDurability in PostInitProperties. */
+        UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Durability",
+                  Transient, meta = (EditCondition = "bIsRefined", EditConditionHides))
+        int32 CurrentDurability = 0;
+
+        /** Crystal cannot break (durability is cosmetic). Auto-set true for Evolution crystals
+         *  in PostInitProperties; can be manually set true for special cases. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
+                  meta = (EditCondition = "bIsRefined", EditConditionHides))
+        bool bImmuneToBreaking = false;
+
+        /** Fired when this crystal's durability reaches 0 from ApplyWear.
+         *  Only fires for refined, non-immune crystals. */
+        UPROPERTY(BlueprintAssignable, Category = "Durability")
+        FOnCrystalBroken OnCrystalBroken;
+
+        // ---- Durability helpers ----
+
+        /** Returns CurrentDurability / MaxDurability. 0.0 if not refined or MaxDurability is 0. */
+        UFUNCTION(BlueprintPure, Category = "Crystal|Durability")
+        float GetDurabilityPercent() const;
+
+        /** Reduce CurrentDurability by Amount, clamped at 0. Fires OnCrystalBroken if it hits 0.
+         *  No-op (with verbose log) for unrefined or immune crystals. */
+        UFUNCTION(BlueprintCallable, Category = "Crystal|Durability")
+        void ApplyWear(int32 Amount);
+
+        /** Restore Amount to CurrentDurability, clamped at MaxDurability.
+         *  Used by combat-end auto-repair (+REPAIR_PER_BATTLE per battle). */
+        UFUNCTION(BlueprintCallable, Category = "Crystal|Durability")
+        void RepairBetweenCombats(int32 Amount);
+
+        /** True if CurrentDurability <= 0 AND crystal is refined AND not immune. */
+        UFUNCTION(BlueprintPure, Category = "Crystal|Durability")
+        bool IsBroken() const;
+
+        /** Reset CurrentDurability to MaxDurability. Called at combat start. */
+        UFUNCTION(BlueprintCallable, Category = "Crystal|Durability")
+        void ResetDurability();
 
         // ==================== STAT MODIFIERS (Evolution only) ====================
 
@@ -469,5 +524,9 @@ public:
         FString GenerateEvolutionDescription() const; // ADD THIS
         virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
         virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+
+        // ==================== LIFECYCLE ====================
+
+        virtual void PostInitProperties() override;
 #endif
 };

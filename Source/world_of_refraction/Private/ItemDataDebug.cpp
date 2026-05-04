@@ -637,3 +637,64 @@ float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
         return 0.0f;
     }
 }
+
+void UItemDataDebug::LogCrystalDurability(const UItemData *Item)
+{
+    if (!Item)
+    {
+        UE_LOG(LogTemp, Error, TEXT("LogCrystalDurability: Null item!"));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display, TEXT(""));
+    UE_LOG(LogTemp, Display, TEXT("===== CRYSTAL DURABILITY: %s ====="), *Item->GetFullItemName());
+    UE_LOG(LogTemp, Display, TEXT("Refined: %s"), Item->bIsRefined ? TEXT("YES") : TEXT("NO"));
+
+    if (!Item->bIsRefined)
+    {
+        UE_LOG(LogTemp, Display, TEXT("(Unrefined consumable - no durability state)"));
+        UE_LOG(LogTemp, Display, TEXT(""));
+        return;
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("Durability: %d / %d (%.0f%%)"),
+           Item->CurrentDurability,
+           Item->MaxDurability,
+           Item->GetDurabilityPercent() * 100.0f);
+    UE_LOG(LogTemp, Display, TEXT("Immune to breaking: %s"),
+           Item->bImmuneToBreaking ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Display, TEXT("Broken: %s"),
+           Item->IsBroken() ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Display, TEXT(""));
+}
+
+FString UItemDataDebug::GetDurabilityString(const UItemData *Item)
+{
+    if (!Item)
+    {
+        return TEXT("[Null crystal]");
+    }
+
+    if (!Item->bIsRefined)
+    {
+        return FString::Printf(TEXT("[%s] Unrefined - no durability"),
+                               *Item->GetFullItemName());
+    }
+
+    FString State = FString::Printf(TEXT("[%s] %d/%d (%.0f%%)"),
+                                    *Item->GetFullItemName(),
+                                    Item->CurrentDurability,
+                                    Item->MaxDurability,
+                                    Item->GetDurabilityPercent() * 100.0f);
+
+    if (Item->bImmuneToBreaking)
+    {
+        State += TEXT(" [Immune]");
+    }
+    if (Item->IsBroken())
+    {
+        State += TEXT(" [BROKEN]");
+    }
+
+    return State;
+}
