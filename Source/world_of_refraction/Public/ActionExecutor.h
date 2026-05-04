@@ -261,7 +261,7 @@ public:
 	 * - Evolution: TBD
 	 * - Item: Consume item
 	 */
-	void ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, bool bWasInfused);
+	void ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, int32 InfusionLevel);
 
 	// ========================================
 	// DAMAGE APPLICATION

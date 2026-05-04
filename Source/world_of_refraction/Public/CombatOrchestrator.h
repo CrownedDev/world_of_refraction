@@ -431,6 +431,12 @@ private:
 	// Result building
 	FCombatResult BuildCombatResult();
 
+	/** Apply +REPAIR_PER_BATTLE to every refined, non-immune, non-broken crystal
+	 *  on every active combatant's equipped rings. Fired in the win-condition cleanup
+	 *  inside OnActionCompleted. NOT called from ForceEndCombat (aborts don't count
+	 *  as completed battles). */
+	void ApplyBetweenCombatRepair();
+
 	// ========================================
 	// BROKEN DARKNESS HELPERS
 	// ========================================

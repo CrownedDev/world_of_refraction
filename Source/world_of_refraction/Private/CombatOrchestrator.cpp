@@ -16,7 +16,10 @@
 #include "AbilityData.h"
 #include "BrokenDarknessManager.h"
 #include "CharacterData.h"
+#include "RingManager.h"
+#include "RingData.h"
 #include "ItemData.h"
+#include "DurabilityConstants.h"
 #include "ItemEffectType.h"
 #include "CombatCameraManager.h"
 #include "WeatherStateManager.h"
@@ -515,6 +518,10 @@ void ACombatOrchestrator::OnActionCompleted()
 		{
 			StatusEffectManagerRef->ClearAllEffects();
 		}
+
+		// Auto-repair crystals between combats. Only fires on completed battles
+		// (ForceEndCombat does NOT repair — abort cases aren't "battles completed").
+		ApplyBetweenCombatRepair();
 
 		TurnManagerRef->EndCombat();
 
@@ -1025,6 +1032,73 @@ int32 UTurnManager::GetActorTeam(AActor *Actor) const
 	}
 
 	return -1; // Not found
+}
+
+// ============================================================
+// CRYSTAL DURABILITY — between-combat auto-repair
+// ============================================================
+
+void ACombatOrchestrator::ApplyBetweenCombatRepair()
+{
+	URingManager *RingMgr = GetGameInstance()->GetSubsystem<URingManager>();
+	if (!RingMgr)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] No RingManager for repair pass"));
+		return;
+	}
+
+	const int32 RepairAmount = DurabilityConstants::REPAIR_PER_BATTLE;
+	int32 CrystalsRepaired = 0;
+
+	auto RepairTeam = [&](const TArray<AActor *> &Team)
+	{
+		for (AActor *Actor : Team)
+		{
+			if (!Actor)
+			{
+				continue;
+			}
+
+			TArray<URingData *> Rings = RingMgr->GetEquippedRings(Actor);
+			for (URingData *Ring : Rings)
+			{
+				if (!Ring || !Ring->SlottedCrystal)
+				{
+					continue;
+				}
+
+				UItemData *Crystal = Ring->SlottedCrystal;
+				if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking || Crystal->IsBroken())
+				{
+					// Skip: unrefined consumables, immune (Evolution), or fully-broken crystals
+					continue;
+				}
+
+				const int32 Before = Crystal->CurrentDurability;
+				Crystal->RepairBetweenCombats(RepairAmount);
+				const int32 After = Crystal->CurrentDurability;
+
+				if (After != Before)
+				{
+					UE_LOG(LogTemp, Verbose,
+						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
+						   *Crystal->GetFullItemName(), *Actor->GetName(),
+						   Before, After, Crystal->MaxDurability);
+					CrystalsRepaired++;
+				}
+			}
+		}
+	};
+
+	RepairTeam(Team0Combatants);
+	RepairTeam(Team1Combatants);
+
+	if (CrystalsRepaired > 0)
+	{
+		UE_LOG(LogTemp, Log,
+			   TEXT("[CombatOrchestrator] Between-combat repair: +%d to %d crystal(s)"),
+			   RepairAmount, CrystalsRepaired);
+	}
 }
 
 // ========================================

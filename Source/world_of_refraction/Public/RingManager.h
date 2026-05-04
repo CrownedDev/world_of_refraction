@@ -12,6 +12,7 @@
 class URingData;
 class USpellData;
 class ULoadoutComponent;
+class UItemData;
 
 /**
  * Simplified Ring Manager
@@ -68,16 +69,32 @@ public:
 
 	// ==================== BREAK SYSTEM ====================
 
-	/** Process break check after casting - returns true if ring broke */
+	/** [DEPRECATED — Phase 2d removal] Process % chance break check.
+	 *  Replaced by ProcessPostCastWear under the durability model.
+	 *  Kept for one phase to avoid breaking BP callers during transition. */
 	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
 	bool ProcessPostCastBreakCheck(AActor *Actor, USpellData *SpellCast, bool bWasInfused);
+
+	/** Apply wear to the slotted crystal of the active ring after a spell cast.
+	 *  Returns the wear amount applied. If wear breaks the crystal, fires
+	 *  OnCrystalBroken (handled internally to auto-switch ring). */
+	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
+	int32 ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, int32 InfusionLevel);
 
 	// ==================== DELEGATES ====================
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRingBroken, AActor *, Actor, URingData *, BrokenRing);
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnRingCrystalBroken, AActor *, Actor, URingData *, Ring, UItemData *, Crystal);
 
+	/** [DEPRECATED — Phase 2d removal] Fires when ring breaks under % chance system.
+	 *  Under durability model, OnRingCrystalBroken is the new event but this is
+	 *  also broadcast for compatibility with existing BP listeners. */
 	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
 	FOnRingBroken OnRingBroken;
+
+	/** Fires when a ring's slotted crystal hits 0 durability and breaks. */
+	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
+	FOnRingCrystalBroken OnRingCrystalBroken;
 
 	/** Initialize rings from LoadoutComponent */
 	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
@@ -93,4 +110,21 @@ private:
 
 	/** Equipped rings per actor */
 	TMap<TWeakObjectPtr<AActor>, TArray<URingData *>> EquippedRings;
+
+	/** Subscribe to OnCrystalBroken for every slotted crystal of an actor's rings. */
+	void SubscribeToActorCrystals(AActor *Actor);
+
+	/** Unsubscribe from OnCrystalBroken for every slotted crystal of an actor's rings. */
+	void UnsubscribeFromActorCrystals(AActor *Actor);
+
+	/** Handler bound to UItemData::OnCrystalBroken delegate. */
+	UFUNCTION()
+	void HandleCrystalBroken(UItemData *BrokenCrystal);
+
+	/** Find which actor and ring own a given crystal (for the broadcast). */
+	bool FindOwnerOfCrystal(UItemData *Crystal, AActor *&OutActor, URingData *&OutRing) const;
+
+	/** Check if any other actor in the EquippedRings map has the same crystal asset.
+	 *  Logs a warning if found. Called from SetEquippedRings. */
+	void WarnIfCrystalSharedAcrossActors(AActor *Actor) const;
 };

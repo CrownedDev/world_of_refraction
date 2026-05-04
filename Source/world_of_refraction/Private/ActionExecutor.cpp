@@ -293,11 +293,10 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets,
 							  Action.SpellInfusionLevel);
 
-		// Post-cast processing (ring break checks, item consumption)
+		// Post-cast processing (durability wear, item consumption)
 		if (Result.bSuccess)
 		{
-			bool bWasInfused = Action.SpellInfusionLevel > 0 || Action.SpellSizeInfusionLevel > 0;
-			ProcessPostCastBySource(Actor, Action.SpellData, Action.SpellSource, bWasInfused);
+			ProcessPostCastBySource(Actor, Action.SpellData, Action.SpellSource, Action.SpellInfusionLevel);
 		}
 		break;
 
@@ -1181,11 +1180,10 @@ void UActionExecutor::FinalizeAsyncAction()
 			}
 		}
 
-		// Process post-cast by source (ring break checks, etc.)
+		// Process post-cast by source (durability wear, etc.)
 		if (Action.ActionType == EActionType::Spell && Action.SpellData)
 		{
-			bool bWasInfused = Action.SpellInfusionLevel > 0 || Action.SpellSizeInfusionLevel > 0;
-			ProcessPostCastBySource(Executor, Action.SpellData, Action.SpellSource, bWasInfused);
+			ProcessPostCastBySource(Executor, Action.SpellData, Action.SpellSource, Action.SpellInfusionLevel);
 		}
 	}
 
@@ -1799,7 +1797,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 // POST-CAST PROCESSING
 // ========================================
 
-void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, bool bWasInfused)
+void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, int32 InfusionLevel)
 {
 	if (!Caster || !Spell)
 		return;
@@ -1811,14 +1809,12 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 		break;
 
 	case ESpellSource::Ring:
-		// Break check for Resonators
+		// Apply durability wear to ring's slotted crystal
 		if (URingManager *RingMgr = GetRingManager())
 		{
-			bool bBroke = RingMgr->ProcessPostCastBreakCheck(Caster, Spell, bWasInfused);
-			if (bBroke)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Ring broke after casting %s"), *Spell->SpellName);
-			}
+			RingMgr->ProcessPostCastWear(Caster, Spell, InfusionLevel);
+			// Crystal break (if any) is broadcast via RingManager::OnRingCrystalBroken delegate;
+			// auto-switch is handled internally by RingManager
 		}
 		break;
 
