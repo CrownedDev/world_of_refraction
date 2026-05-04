@@ -8,7 +8,6 @@
 #include "CharacterData.h"
 #include "ItemData.h"
 #include "CrystalType.h"
-#include "ECrystalCategory.h"
 
 FString UWeaponData::GetWeaponTypeName() const
 {
@@ -122,7 +121,7 @@ bool UWeaponData::IsEvolved() const
     if (!SlottedCrystal)
         return false;
 
-    return SlottedCrystal->Category == ECrystalCategory::Evolution;
+    return SlottedCrystal->bIsEvolutionCrystal;
 }
 
 /** Check if weapon has Iolite crystal (physical enhancement, no element) */

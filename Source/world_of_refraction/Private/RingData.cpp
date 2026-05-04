@@ -4,11 +4,10 @@
 #include "SpellData.h"
 #include "ItemData.h"
 #include "CrystalType.h"
-#include "ECrystalCategory.h"
 
 bool URingData::IsEvolved() const
 {
-    return SlottedCrystal && SlottedCrystal->Category == ECrystalCategory::Evolution;
+    return SlottedCrystal && SlottedCrystal->bIsEvolutionCrystal;
 }
 
 float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const

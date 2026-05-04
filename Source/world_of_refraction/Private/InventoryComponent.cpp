@@ -10,7 +10,6 @@
 #include "LoadoutData.h"
 #include "CrystalType.h"
 #include "CharacterData.h"
-#include "ECrystalCategory.h"
 
 UInventoryComponent::UInventoryComponent()
 {
@@ -356,7 +355,7 @@ TArray<UItemData *> UInventoryComponent::GetItemsByTier(EItemTier Tier) const
 
 TArray<UItemData *> UInventoryComponent::GetEvolutionCrystals() const
 {
-    return Items.GetCrystalsOfCategory(ECrystalCategory::Evolution);
+    return Items.GetEvolutionCrystals();
 }
 
 TArray<UItemData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const

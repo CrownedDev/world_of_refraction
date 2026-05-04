@@ -11,7 +11,6 @@
 
 #include "CoreMinimal.h"
 #include "ESpellElement.h"
-#include "ECrystalCategory.h"
 #include "FCrystalInventoryEntry.generated.h"
 
 class UItemData;

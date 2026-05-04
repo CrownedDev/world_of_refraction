@@ -11,7 +11,6 @@
 #include "InventoryConstants.h"
 #include "ItemTier.h"
 #include "CrystalType.h"
-#include "ECrystalCategory.h"
 #include "FItemCrystalInventory.generated.h"
 
 class UItemData;
@@ -130,8 +129,11 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
     /** Get all crystals of a specific type (across all tiers) */
     TArray<UItemData *> GetCrystalsOfType(ECrystalType Type) const;
 
-    /** Get all crystals of a specific category (across all tiers) */
-    TArray<UItemData *> GetCrystalsOfCategory(ECrystalCategory Category) const;
+    /** Get all evolution crystals across all tiers */
+    TArray<UItemData *> GetEvolutionCrystals() const;
+
+    /** Get all non-evolution (item) crystals across all tiers */
+    TArray<UItemData *> GetItemCrystals() const;
 
     // ==================== CLEAR ====================
 

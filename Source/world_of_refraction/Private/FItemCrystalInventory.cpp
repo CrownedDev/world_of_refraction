@@ -76,7 +76,7 @@ TArray<UItemData *> FItemCrystalInventory::GetCrystalsOfType(ECrystalType Type) 
     return Result;
 }
 
-TArray<UItemData *> FItemCrystalInventory::GetCrystalsOfCategory(ECrystalCategory Category) const
+TArray<UItemData *> FItemCrystalInventory::GetEvolutionCrystals() const
 {
     TArray<UItemData *> Result;
 
@@ -84,7 +84,33 @@ TArray<UItemData *> FItemCrystalInventory::GetCrystalsOfCategory(ECrystalCategor
     {
         for (UItemData *Crystal : Arr)
         {
-            if (Crystal && Crystal->Category == Category)
+            if (Crystal && Crystal->bIsEvolutionCrystal)
+            {
+                Result.Add(Crystal);
+            }
+        }
+    };
+
+    CheckArray(CrystalsF);
+    CheckArray(CrystalsE);
+    CheckArray(CrystalsD);
+    CheckArray(CrystalsC);
+    CheckArray(CrystalsB);
+    CheckArray(CrystalsA);
+    CheckArray(CrystalsS);
+
+    return Result;
+}
+
+TArray<UItemData *> FItemCrystalInventory::GetItemCrystals() const
+{
+    TArray<UItemData *> Result;
+
+    auto CheckArray = [&](const TArray<UItemData *> &Arr)
+    {
+        for (UItemData *Crystal : Arr)
+        {
+            if (Crystal && !Crystal->bIsEvolutionCrystal)
             {
                 Result.Add(Crystal);
             }

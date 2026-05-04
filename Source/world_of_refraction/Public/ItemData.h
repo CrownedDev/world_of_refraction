@@ -2,10 +2,15 @@
 // Primary data asset for items in World of Refraction
 // Defines properties, effects, and mechanics for crystals
 //
-// CRYSTAL CATEGORIES:
-// - Item: Consumable in combat, item effects active
-// - Refined: Slottable on weapons/rings, 6 customizable spell slots, no item effects
-// - Evolution: Slottable on weapons/rings/characters, locked+custom spells, stat modifiers, no item effects
+// CRYSTAL STATES (orthogonal flags — any combination is valid):
+// - bIsRefined:           Whether crystal has been cut for slotting (false = consumable item)
+// - bIsEvolutionCrystal:  Whether crystal grants evolution when slotted/applied
+//
+// Common combinations:
+// - !refined, !evolution: Standard consumable elemental crystal (e.g. unrefined Garnet)
+// -  refined, !evolution: Slottable elemental crystal (slot on weapon/ring for element)
+// -  refined,  evolution: Slottable evolution crystal (grants evolution when slotted)
+// - !refined,  evolution: Evolution crystal in inventory, awaiting refinement
 
 #pragma once
 
@@ -15,7 +20,7 @@
 #include "ItemTier.h"
 #include "ItemEffectType.h"
 #include "ESpellElement.h"
-#include "ECrystalCategory.h"
+
 #include "PassiveEffect.h"
 #include "NiagaraSystem.h"
 #include "EEvolutionType.h"
@@ -56,22 +61,25 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
         FString Description;
 
-        /** Crystal category - determines usage (replaces bIsRefined) */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-        ECrystalCategory Category = ECrystalCategory::Item;
-
-        /** Whether crystal has been refined (cut) for slotting onto equipment */
+        /** Whether crystal has been refined (cut) for slotting onto equipment.
+         *  Unrefined crystals are consumable items; refined crystals slot into weapons/rings. */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
         bool bIsRefined = false;
 
+        /** Whether this is an Evolution crystal (grants evolution status when slotted).
+         *  Independent of bIsRefined: Evolution crystals can be unrefined (in inventory)
+         *  or refined (slotted on weapon/ring/character). */
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
+        bool bIsEvolutionCrystal = false;
+
         /** Evolution type (only for Evolution category crystals) */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
-                  meta = (EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
 
         /** Stat modifier mode - Pillar (Mind/Body/Spirit) or SubStats (9 individual stats) */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
-                  meta = (EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         EStatModifierMode StatModifierMode = EStatModifierMode::Pillar;
 
         // ==================== SUB-STAT MODIFIERS (Evolution only, SubStats mode) ====================
@@ -79,57 +87,57 @@ public:
         /** Mind sub-stats */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float CostReductionModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float TurnSpeedModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float CritChanceModifierPercent = 0.0f;
 
         /** Body sub-stats */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float DefenseModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float AttackSpeedModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float RawDamageModifierPercent = 0.0f;
 
         /** Spirit sub-stats */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float EffectDamageModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float ResistanceModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution && StatModifierMode == EStatModifierMode::SubStats",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
         float SpellSizeModifierPercent = 0.0f;
 
@@ -138,26 +146,26 @@ public:
         /** Mind stat modifier percentage (affects Cost Reduction, Turn Speed, Crit Chance) */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+                          EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         float MindModifierPercent = 0.0f;
 
         /** Body stat modifier percentage (affects Defense, Attack Speed, Raw Damage) */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+                          EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         float BodyModifierPercent = 0.0f;
 
         /** Spirit stat modifier percentage (affects Effect Damage, Resistance, Spell Size) */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+                          EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         float SpiritModifierPercent = 0.0f;
 
         // ==================== PASSIVE EFFECTS (Evolution only) ====================
 
         /** Passive effects granted by this evolution crystal */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passives|Evolution",
-                  meta = (EditCondition = "Category == ECrystalCategory::Evolution", EditConditionHides))
+                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         TArray<FPassiveEffect> PassiveEffects;
 
         // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
@@ -256,23 +264,23 @@ public:
 
         /** Check if crystal grants evolution status */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool GrantsEvolution() const { return Category == ECrystalCategory::Evolution; }
+        bool GrantsEvolution() const { return bIsEvolutionCrystal; }
 
         /** Check if crystal is a refined item crystal (non-evolution slottable) */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool IsRefinedItemCrystal() const { return Category == ECrystalCategory::Item && bIsRefined; }
+        bool IsRefinedItemCrystal() const { return !bIsEvolutionCrystal && bIsRefined; }
 
         /** Check if crystal is a refined evolution crystal (slottable, grants evolution) */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool IsRefinedEvolutionCrystal() const { return Category == ECrystalCategory::Evolution && bIsRefined; }
+        bool IsRefinedEvolutionCrystal() const { return bIsEvolutionCrystal && bIsRefined; }
 
         /** Check if item effects are active (unrefined Item category only) */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool HasItemEffects() const { return Category == ECrystalCategory::Item && !bIsRefined; }
+        bool HasItemEffects() const { return !bIsEvolutionCrystal && !bIsRefined; }
 
         /** Check if can be applied to character directly (unrefined Evolution only) */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool CanApplyToCharacter() const { return Category == ECrystalCategory::Evolution && !bIsRefined; }
+        bool CanApplyToCharacter() const { return bIsEvolutionCrystal && !bIsRefined; }
 
         // ==================== STAT MODIFIER FUNCTIONS ====================
 

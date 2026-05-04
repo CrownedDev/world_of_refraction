@@ -2,7 +2,6 @@
 // Implementation of item system debug utilities
 
 #include "ItemDataDebug.h"
-#include "ECrystalCategory.h"
 
 bool UItemDataDebug::ValidateAllItemCombinations()
 {
@@ -198,7 +197,7 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Category: %s"), Item->GrantsEvolution() ? TEXT("Evolution") : (Item->CanBeSlotted() ? TEXT("Refined") : TEXT("Item")));
 
     // ADD: Evolution details if applicable
-    if (Item->Category == ECrystalCategory::Evolution)
+    if (Item->bIsEvolutionCrystal)
     {
         UE_LOG(LogTemp, Display, TEXT(""));
         UE_LOG(LogTemp, Display, TEXT("--- Evolution Details ---"));
@@ -356,7 +355,7 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
         UE_LOG(LogTemp, Display, TEXT("Usage: Can be slotted into Weapons or Rings"));
         UE_LOG(LogTemp, Display, TEXT("Element Provided: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
 
-        if (Item->Category == ECrystalCategory::Evolution)
+        if (Item->bIsEvolutionCrystal)
         {
             UE_LOG(LogTemp, Display, TEXT("Special: EVOLUTION CRYSTAL"));
             if (Item->GrantsEvolution())

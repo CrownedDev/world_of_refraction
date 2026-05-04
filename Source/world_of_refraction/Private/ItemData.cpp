@@ -3,8 +3,6 @@
 
 #include "ItemData.h"
 #include "ItemConstants.h"
-
-#include "ECrystalCategory.h"
 #include "SpellData.h"
 
 FString UItemData::GetFullItemName() const
@@ -606,7 +604,7 @@ int32 UItemData::GetSecondaryDuration() const
 
 bool UItemData::HasStatModifiers() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return false;
     }
@@ -617,7 +615,7 @@ bool UItemData::HasStatModifiers() const
 
 FString UItemData::GetStatModifierSummary() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return TEXT("");
     }
@@ -650,24 +648,24 @@ FString UItemData::GetStatModifierSummary() const
 
 float UItemData::GetMindModifierPercent() const
 {
-    return (Category == ECrystalCategory::Evolution) ? MindModifierPercent : 0.0f;
+    return (bIsEvolutionCrystal) ? MindModifierPercent : 0.0f;
 }
 
 float UItemData::GetBodyModifierPercent() const
 {
-    return (Category == ECrystalCategory::Evolution) ? BodyModifierPercent : 0.0f;
+    return (bIsEvolutionCrystal) ? BodyModifierPercent : 0.0f;
 }
 
 float UItemData::GetSpiritModifierPercent() const
 {
-    return (Category == ECrystalCategory::Evolution) ? SpiritModifierPercent : 0.0f;
+    return (bIsEvolutionCrystal) ? SpiritModifierPercent : 0.0f;
 }
 
 // ==================== EVOLUTION HELPER FUNCTIONS ====================
 
 FString UItemData::GetEvolutionTypeName() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return TEXT("N/A");
     }
@@ -689,7 +687,7 @@ FString UItemData::GetEvolutionTypeName() const
 
 FString UItemData::GetEvolutionStatSummary() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return TEXT("N/A");
     }
@@ -748,7 +746,7 @@ FString UItemData::GetEvolutionStatSummary() const
 
 float UItemData::CalculateModifiedMind(float BaseMind) const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return BaseMind;
     }
@@ -757,7 +755,7 @@ float UItemData::CalculateModifiedMind(float BaseMind) const
 
 float UItemData::CalculateModifiedBody(float BaseBody) const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return BaseBody;
     }
@@ -766,7 +764,7 @@ float UItemData::CalculateModifiedBody(float BaseBody) const
 
 float UItemData::CalculateModifiedSpirit(float BaseSpirit) const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return BaseSpirit;
     }
@@ -777,63 +775,63 @@ float UItemData::CalculateModifiedSpirit(float BaseSpirit) const
 
 float UItemData::GetCostReductionModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : CostReductionModifierPercent;
 }
 
 float UItemData::GetTurnSpeedModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : TurnSpeedModifierPercent;
 }
 
 float UItemData::GetCritChanceModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : CritChanceModifierPercent;
 }
 
 float UItemData::GetDefenseModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : DefenseModifierPercent;
 }
 
 float UItemData::GetAttackSpeedModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : AttackSpeedModifierPercent;
 }
 
 float UItemData::GetRawDamageModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : RawDamageModifierPercent;
 }
 
 float UItemData::GetEffectDamageModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : EffectDamageModifierPercent;
 }
 
 float UItemData::GetResistanceModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : ResistanceModifierPercent;
 }
 
 float UItemData::GetSpellSizeModifier() const
 {
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
         return 0.0f;
     return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : SpellSizeModifierPercent;
 }
@@ -844,7 +842,7 @@ TArray<FPassiveEffect> UItemData::GetAlwaysActivePassives() const
 {
     TArray<FPassiveEffect> Result;
 
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return Result;
     }
@@ -864,7 +862,7 @@ TArray<FPassiveEffect> UItemData::GetTriggeredPassives() const
 {
     TArray<FPassiveEffect> Result;
 
-    if (Category != ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         return Result;
     }
@@ -1047,7 +1045,7 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     UObject::PostEditChangeProperty(PropertyChangedEvent);
 
     // Evolution crystals: Don't auto-generate name/description (user provides unique values)
-    if (Category == ECrystalCategory::Evolution)
+    if (bIsEvolutionCrystal)
     {
         // Only auto-generate description if empty, based on stats/spells
         if (Description.IsEmpty())
@@ -1058,7 +1056,7 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     }
     else
     {
-        // Item/Refined: Auto-generate name and description
+        // Non-evolution crystals: Auto-generate name and description
         ItemName = GetFullItemName();
         Description = GenerateDescription();
     }
