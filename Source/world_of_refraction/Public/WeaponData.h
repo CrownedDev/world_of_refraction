@@ -45,41 +45,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
 
-    // ==================== DURABILITY ====================
-
-    /** Maximum weapon durability */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability", meta = (ClampMin = "1"))
-    int32 MaxDurability = 100;
-
-    /** Current durability (runtime - not saved on asset) */
-    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Durability", Transient)
-    int32 CurrentDurability = 100;
-
-    /** Is the crystal disabled due to durability loss? */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Durability", Transient)
-    bool bCrystalDisabled = false;
-
-    // ==================== DURABILITY HELPERS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Weapon|Durability")
-    float GetDurabilityPercent() const;
-
-    UFUNCTION(BlueprintPure, Category = "Weapon|Durability")
-    bool IsCrystalFunctional() const;
-
-    UFUNCTION(BlueprintCallable, Category = "Weapon|Durability")
-    void ApplyDurabilityDamage(int32 Damage);
-
-    UFUNCTION(BlueprintCallable, Category = "Weapon|Durability")
-    void RepairDurability(float Percent);
-
-    UFUNCTION(BlueprintCallable, Category = "Weapon|Durability")
-    void ResetDurability();
-
-    /** Get damage weapon takes when slotted crystal breaks */
-    UFUNCTION(BlueprintPure, Category = "Weapon|Durability")
-    static int32 GetCrystalBreakDamage(EItemTier CrystalTier);
-
     // ==================== COMBAT ====================
 
     // Attack used when this weapon is equipped (replaces base attack)

@@ -67,13 +67,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Ring Manager")
 	int32 GetWorkingRingCount(AActor *Actor) const;
 
-	// ==================== BREAK SYSTEM ====================
-
-	/** [DEPRECATED — Phase 2d removal] Process % chance break check.
-	 *  Replaced by ProcessPostCastWear under the durability model.
-	 *  Kept for one phase to avoid breaking BP callers during transition. */
-	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
-	bool ProcessPostCastBreakCheck(AActor *Actor, USpellData *SpellCast, bool bWasInfused);
+	// ==================== DURABILITY ====================
 
 	/** Apply wear to the slotted crystal of the active ring after a spell cast.
 	 *  Returns the wear amount applied. If wear breaks the crystal, fires
@@ -83,14 +77,7 @@ public:
 
 	// ==================== DELEGATES ====================
 
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRingBroken, AActor *, Actor, URingData *, BrokenRing);
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnRingCrystalBroken, AActor *, Actor, URingData *, Ring, UItemData *, Crystal);
-
-	/** [DEPRECATED — Phase 2d removal] Fires when ring breaks under % chance system.
-	 *  Under durability model, OnRingCrystalBroken is the new event but this is
-	 *  also broadcast for compatibility with existing BP listeners. */
-	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
-	FOnRingBroken OnRingBroken;
 
 	/** Fires when a ring's slotted crystal hits 0 durability and breaks. */
 	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")

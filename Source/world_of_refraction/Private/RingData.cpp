@@ -10,56 +10,6 @@ bool URingData::IsEvolved() const
     return SlottedCrystal && SlottedCrystal->bIsEvolutionCrystal;
 }
 
-float URingData::CalculateBreakChance(USpellData *Spell, bool bIsInfused) const
-{
-    using namespace RingBreakConstants;
-
-    // Evolved rings have no break chance
-    if (IsEvolved())
-    {
-        return 0.0f;
-    }
-
-    if (!Spell || bIsBroken)
-    {
-        return 0.0f;
-    }
-
-    float BreakChance = 0.0f;
-
-    EItemTier SpellTier = Spell->Tier;
-    int32 TierGap = TierHelpers::GetTierGap(Tier, SpellTier);
-
-    if (TierGap > 0)
-    {
-        BreakChance = TierGap * BASE_BREAK_CHANCE_PER_TIER;
-    }
-
-    if (bIsInfused)
-    {
-        if (Tier == EItemTier::S_Tier)
-        {
-            BreakChance += S_TIER_INFUSION_BREAK;
-        }
-        else
-        {
-            BreakChance += INFUSION_BREAK_BONUS;
-        }
-    }
-
-    float DurabilityPercent = GetDurabilityPercent();
-    if (DurabilityPercent < LOW_DURABILITY_THRESHOLD)
-    {
-        BreakChance += LOW_DURABILITY_BREAK_BONUS;
-    }
-    else if (DurabilityPercent < MED_DURABILITY_THRESHOLD)
-    {
-        BreakChance += MED_DURABILITY_BREAK_BONUS;
-    }
-
-    return FMath::Clamp(BreakChance, 0.0f, 1.0f);
-}
-
 ESpellElement URingData::GetRingElement() const
 {
     if (SlottedCrystal)

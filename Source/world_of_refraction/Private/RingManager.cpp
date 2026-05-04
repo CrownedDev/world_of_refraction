@@ -36,14 +36,9 @@ void URingManager::SetEquippedRings(AActor *Actor, const TArray<URingData *> &Ri
 	EquippedRings.Add(Actor, Rings);
 	ActiveRingIndex.Add(Actor, 0);
 
-	// Reset all rings
-	for (URingData *Ring : Rings)
-	{
-		if (Ring)
-		{
-			Ring->ResetRingState();
-		}
-	}
+	// (Per-ring runtime state reset removed in Phase 2d — durability now lives
+	//  on the slotted crystal. UItemData::PostInitProperties handles initial
+	//  durability; combat-end repair is handled by CombatOrchestrator.)
 
 	// Find first valid ring (has crystal, crystal not broken)
 	for (int32 i = 0; i < Rings.Num(); ++i)
@@ -120,8 +115,8 @@ bool URingManager::SwitchToRing(AActor *Actor, int32 RingIndex)
 		return false;
 
 	URingData *TargetRing = (*Rings)[RingIndex];
-	// Reject ring if missing, legacy-broken, or has no functional crystal
-	if (!TargetRing || TargetRing->bIsBroken)
+	// Reject ring if missing or has no functional crystal
+	if (!TargetRing)
 		return false;
 	if (!TargetRing->SlottedCrystal || TargetRing->SlottedCrystal->IsBroken())
 		return false;
@@ -154,7 +149,7 @@ bool URingManager::SwitchToNextRing(AActor *Actor)
 		int32 CheckIndex = (StartIndex + i) % Rings->Num();
 		URingData *Ring = (*Rings)[CheckIndex];
 
-		if (Ring && !Ring->bIsBroken && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
+		if (Ring && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
 		{
 			ActiveRingIndex[Actor] = CheckIndex;
 			return true;
@@ -173,7 +168,7 @@ int32 URingManager::GetWorkingRingCount(AActor *Actor) const
 	int32 Count = 0;
 	for (URingData *Ring : *Rings)
 	{
-		if (Ring && !Ring->bIsBroken && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
+		if (Ring && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
 		{
 			Count++;
 		}
@@ -181,30 +176,8 @@ int32 URingManager::GetWorkingRingCount(AActor *Actor) const
 	return Count;
 }
 
-// ==================== BREAK SYSTEM ====================
-
-bool URingManager::ProcessPostCastBreakCheck(AActor *Actor, USpellData *SpellCast, bool bWasInfused)
-{
-	URingData *Ring = GetActiveRing(Actor);
-	if (!Ring || Ring->bIsBroken)
-		return false;
-
-	float BreakChance = Ring->CalculateBreakChance(SpellCast, bWasInfused);
-	bool bBroke = Ring->RollForBreak(BreakChance);
-
-	if (bBroke)
-	{
-		OnRingBroken.Broadcast(Actor, Ring);
-
-		// Auto-switch to next ring
-		SwitchToNextRing(Actor);
-	}
-
-	return bBroke;
-}
-
 // ============================================================
-// DURABILITY WEAR (new model — Phase 2c)
+// DURABILITY WEAR
 // ============================================================
 
 int32 URingManager::ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, int32 InfusionLevel)
@@ -338,12 +311,8 @@ void URingManager::HandleCrystalBroken(UItemData *BrokenCrystal)
 		   *OwnerActor->GetName(),
 		   *OwnerRing->RingName);
 
-	// Broadcast the new event
+	// Broadcast the crystal-broken event
 	OnRingCrystalBroken.Broadcast(OwnerActor, OwnerRing, BrokenCrystal);
-
-	// Also broadcast the legacy event so existing BP listeners still fire
-	// (will be removed in Phase 2d once BPs are migrated)
-	OnRingBroken.Broadcast(OwnerActor, OwnerRing);
 
 	// Auto-switch to next ring with a functional crystal
 	SwitchToNextRing(OwnerActor);
