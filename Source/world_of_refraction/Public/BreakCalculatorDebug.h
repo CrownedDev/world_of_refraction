@@ -40,4 +40,30 @@ public:
     // Get formatted break result string
     UFUNCTION(BlueprintPure, Category = "Debug|Break")
     static FString GetBreakResultString(const FBreakCalculationResult &Result);
+
+    // ==================== DURABILITY WEAR (new model) ====================
+
+    /** Log durability wear calculation for a crystal vs action */
+    UFUNCTION(BlueprintCallable, Category = "Debug|Durability")
+    static void LogDurabilityWear(
+        EItemTier CrystalTier,
+        EItemTier ActionTier,
+        int32 InfusionLevel,
+        bool bIsSpell);
+
+    /** Log detailed wear calculation breakdown */
+    UFUNCTION(BlueprintCallable, Category = "Debug|Durability")
+    static void LogDurabilityWearDetailed(
+        EItemTier CrystalTier,
+        EItemTier ActionTier,
+        int32 InfusionLevel,
+        bool bIsSpell);
+
+    /** Print wear matrix for a given crystal tier (all action tiers x infusion levels) */
+    UFUNCTION(BlueprintCallable, Category = "Debug|Durability")
+    static void PrintWearTable(EItemTier CrystalTier);
+
+    /** Get formatted wear result string */
+    UFUNCTION(BlueprintPure, Category = "Debug|Durability")
+    static FString GetWearResultString(const FDurabilityWearResult &Result);
 };

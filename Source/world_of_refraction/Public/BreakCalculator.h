@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ItemTier.h"
+#include "DurabilityConstants.h"
 #include "BreakCalculator.generated.h"
 
 class URingData;
@@ -51,6 +52,33 @@ struct WORLD_OF_REFRACTION_API FBreakCalculationResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Break")
 	FString RiskLevel;
+};
+
+/**
+ * Detailed breakdown of durability wear calculation.
+ * Parallel to FBreakCalculationResult but for the new durability model.
+ * Replaces % chance with deterministic wear amounts.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDurabilityWearResult
+{
+	GENERATED_BODY()
+
+	/** Total wear to apply to the crystal */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 TotalWear = 0;
+
+	/** Wear from action being higher tier than crystal */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 TierMismatchWear = 0;
+
+	/** Wear from infusion level (L1 or L2, ability or spell) */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 InfusionWear = 0;
+
+	/** Tier difference (action tier - crystal tier). Negative if action is lower tier. */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 TierGap = 0;
 };
 
 /**
@@ -108,4 +136,46 @@ public:
 	{
 		return BreakChance >= 0.25f;
 	}
+
+	// ==================== DURABILITY WEAR (new model) ====================
+
+	/**
+	 * Calculate durability wear from a single action.
+	 * Replaces the % break chance model with deterministic wear amounts.
+	 *
+	 * Wear stacks: tier mismatch + infusion wear.
+	 * Example: D-tier crystal, B-tier L2 spell = 6 (mismatch x2) + 12 (spell L2) = 18 wear.
+	 *
+	 * @param CrystalTier   Tier of the slotted crystal taking the wear
+	 * @param ActionTier    Tier of the spell/ability/attack being cast
+	 * @param InfusionLevel 0 = no infusion, 1 = L1, 2 = L2
+	 * @param bIsSpell      True if the action is a spell, false if ability/attack
+	 * @return Total wear to apply to the crystal
+	 */
+	UFUNCTION(BlueprintPure, Category = "Durability")
+	static int32 CalculateDurabilityWear(
+		EItemTier CrystalTier,
+		EItemTier ActionTier,
+		int32 InfusionLevel,
+		bool bIsSpell);
+
+	/**
+	 * Get detailed breakdown of wear calculation.
+	 * Same calculation as CalculateDurabilityWear but returns each component
+	 * for UI display / debugging.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Durability")
+	static FDurabilityWearResult CalculateDurabilityWearDetailed(
+		EItemTier CrystalTier,
+		EItemTier ActionTier,
+		int32 InfusionLevel,
+		bool bIsSpell);
+
+	/**
+	 * Check if applying wear would break the crystal.
+	 * Useful for UI preview ("this action will break the crystal!") and
+	 * commit-time confirmation prompts.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Durability")
+	static bool WouldBreakCrystal(int32 CurrentDurability, int32 ProposedWear);
 };
