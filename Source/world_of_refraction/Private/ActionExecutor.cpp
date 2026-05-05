@@ -507,9 +507,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		   DamageMultiplier,
 		   StatusMultiplier);
 
-	// Store in result for reference
+	// Store in result for reference. BaseDamageBeforeDefense receives the
+	// infused damage because that is what defense will reduce — "before defense"
+	// refers to the defense pipeline, not "before infusion".
 	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = true;
 
@@ -540,10 +542,12 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Play animation - VFX spawns on SpellRelease notify (NOT here)
 	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
 
-	// Calculate damage per hit
-	int32 DamagePerHit = BaseDamage / FMath::Max(1, Spell->HitCount);
+	// Calculate damage per hit (infused total split across hits)
+	int32 DamagePerHit = FinalDamage / FMath::Max(1, Spell->HitCount);
 
-	// Check for forbidden element self-damage (BD casting Dark Light/Void)
+	// Check for forbidden element self-damage (BD casting Dark Light/Void).
+	// Backlash scales with the spell's intrinsic power, NOT the infused amount —
+	// infusion multiplies output damage, not the metaphysical strain of the cast.
 	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
 
 	// Apply status buildup to each targets status bar
@@ -557,7 +561,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		Caster,
 		ValidTargets,
 		FinalSpellSize,
-		BaseDamage,
+		FinalDamage,
 		DamagePerHit,
 		Spell->HitCount,
 		true, // Spells are elemental
@@ -567,7 +571,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell async - opened %d defense windows (Size: %.1f, Damage: %d)"),
-		   ValidTargets.Num(), FinalSpellSize, BaseDamage);
+		   ValidTargets.Num(), FinalSpellSize, FinalDamage);
 }
 
 void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
