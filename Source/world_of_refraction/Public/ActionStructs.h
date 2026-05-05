@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "EActionType.h"
 #include "ESpellElement.h"
-#include "EInfusionType.h"
-#include "EInfusionSource.h"
 #include "ESpellSource.h"
 #include "EInfusionSourceOption.h"
 #include "EChargeInfusionType.h"
@@ -244,14 +242,6 @@ struct WORLD_OF_REFRACTION_API FActionResult
 
 	// ==================== INFUSION TRACKING ====================
 
-	/** Was any infusion used? */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	bool bWasInfused = false;
-
-	/** Which infusion type was used */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	EInfusionType InfusionTypeUsed = EInfusionType::None;
-
 	/** Which source option was selected */
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Infusion")
 	EInfusionSourceOption SourceOptionUsed = EInfusionSourceOption::None;
@@ -259,30 +249,6 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	/** Whether weapon stats were applied */
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Infusion")
 	bool bWeaponStatsApplied = false;
-
-	/** What charge level was used (1 or 2) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	int32 InfusionLevelUsed = 0;
-
-	/** Where did the element come from */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	EInfusionSource InfusionSourceUsed = EInfusionSource::None;
-
-	/** Status buildup applied to targets */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	int32 StatusBuildupApplied = 0;
-
-	/** HP damage taken by caster (L2 cost) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	int32 SelfDamageTaken = 0;
-
-	/** Self-status buildup applied to caster (Evolution L2) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	int32 SelfStatusBuildupApplied = 0;
-
-	/** Break chance increase applied (Ring/Crystal L2) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Infusion")
-	float BreakChanceIncrease = 0.0f;
 
 	// ==================== DEFENSE SYSTEM DATA ====================
 

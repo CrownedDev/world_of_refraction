@@ -8,8 +8,6 @@
 #include "EActionType.h"
 #include "EStatusType.h"
 #include "ESpellElement.h"
-#include "EInfusionType.h"
-#include "EInfusionSource.h"
 #include "ECharacterClass.h"
 #include "InfusionConstants.h"
 #include "EDefenseType.h"
@@ -69,9 +67,6 @@ DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
 /** Broadcast when defense window should open (for DefenseSystem integration) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor *, Attacker, AActor *, Defender, float, AttackSize, int32, BaseDamage);
-
-/** Broadcast when infusion L2 cost is applied (HP damage, break chance, self-status) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnInfusionCostApplied, AActor *, Actor, EInfusionSource, Source, int32, HPCost, float, BreakChanceIncrease);
 
 /**
  * UActionExecutor
@@ -142,34 +137,6 @@ public:
 
 	// ---- NEW INFUSION TYPE SYSTEM ----
 
-	/** Check if character can use this infusion type */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	bool CanUseInfusionType(AActor *Actor, EInfusionType Type) const;
-
-	/** Get available infusion types for character */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	TArray<EInfusionType> GetAvailableInfusionTypes(AActor *Actor) const;
-
-	/** Get the element source for a character (for determining L2 costs) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	EInfusionSource GetInfusionSource(AActor *Actor) const;
-
-	/** Get the element source for a specific spell (handles evolution weapon spells) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	EInfusionSource GetSpellSource(AActor *Actor, USpellData *Spell) const;
-
-	/** Get element for the character's current infusion source */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	ESpellElement GetInfusionElement(AActor *Actor) const;
-
-	/** Check if character can use element infusion (has an element source) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	bool CanUseElementInfusion(AActor *Actor) const;
-
-	/** Check if character has Iolite crystal equipped (physical enhancement) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	bool HasIoliteEquipped(AActor *Actor) const;
-
 	/** Get energy cost multiplier for infusion level */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	static float GetInfusionEnergyCostMultiplier(int32 InfusionLevel);
@@ -185,14 +152,6 @@ public:
 	/** Get available infusion sources for character based on class and loadout */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	TArray<EInfusionSourceOption> GetAvailableInfusionSources(AActor *Actor) const;
-
-	/** Map source option to infusion source (for L2 cost determination) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	EInfusionSource MapSourceOptionToSource(EInfusionSourceOption Option) const;
-
-	/** Map source option to infusion type (Physical or Element) */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	EInfusionType MapSourceOptionToType(EInfusionSourceOption Option) const;
 
 	/** Get element for selected source option */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
@@ -378,10 +337,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnDefenseWindowRequested OnDefenseWindowRequested;
 
-	/** Broadcast when infusion L2 cost is applied */
-	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
-	FOnInfusionCostApplied OnInfusionCostApplied;
-
 	// ========================================
 	// ANIMATION/VFX STUBS (Override in subclass or bind via events)
 	// ========================================
@@ -404,9 +359,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
 	void DebugPrintActionResult(const FActionResult &Result) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
-	void DebugPrintInfusionInfo(AActor *Actor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
@@ -535,25 +487,6 @@ private:
 	// ========================================
 	// INFUSION INTERNAL HELPERS
 	// ========================================
-
-	/** Apply infusion effects to action result (damage/status boost) */
-	void ApplyInfusionEffects(
-		FActionResult &Result,
-		AActor *Actor,
-		EInfusionType Type,
-		int32 Level);
-
-	/** Apply physical infusion effects (weapon status, damage boost) */
-	void ApplyPhysicalInfusion(FActionResult &Result, AActor *Actor, int32 Level);
-
-	/** Apply element infusion effects (element status, damage boost) */
-	void ApplyElementInfusion(FActionResult &Result, AActor *Actor, int32 Level);
-
-	/** Apply L2 infusion cost based on source (HP, break chance, or self-status) */
-	void ApplyL2InfusionCost(
-		FActionResult &Result,
-		AActor *Actor,
-		EInfusionSource Source);
 
 	/** Apply spell size L2 cost based on source */
 	void ApplySpellSizeL2Cost(

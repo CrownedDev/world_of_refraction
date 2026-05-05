@@ -6,7 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "EInfusionType.h"
+
 #include "EChargeInfusionType.h"
 #include "EInfusionSourceOption.h"
 #include "InfusionConstants.h"
