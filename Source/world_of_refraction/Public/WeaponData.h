@@ -9,6 +9,8 @@
 #include "EWeaponType.h"
 #include "WorldStatRequirements.h"
 #include "CrystalType.h"
+#include "ItemTier.h"
+#include "ItemTier.h"
 #include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
@@ -41,6 +43,13 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType WeaponType = EWeaponType::Sword;
+
+    /** Tier of the weapon. Used as the action tier for abilities/attacks performed
+     *  with this weapon — feeds BreakCalculator when a slotted crystal is used as
+     *  the infusion source (Phase 4d). All abilities and attacks on this weapon
+     *  inherit this tier; per-ability tier overrides are not supported. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EItemTier Tier = EItemTier::E_Tier;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
