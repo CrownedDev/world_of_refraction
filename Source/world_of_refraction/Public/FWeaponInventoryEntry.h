@@ -99,16 +99,18 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get assigned spells (only valid if crystal attached) */
+    /** Get assigned spells (only when crystal can currently provide spells —
+     *  excludes broken crystals). Use AttachedCrystal.HasCrystal() if you need
+     *  "is a crystal physically slotted" regardless of state. */
     TArray<USpellData *> GetSpells() const
     {
-        return HasCrystal() ? AssignedSpells : TArray<USpellData *>();
+        return AttachedCrystal.CanProvideSpells() ? AssignedSpells : TArray<USpellData *>();
     }
 
-    /** Get spell count */
+    /** Get spell count (returns 0 for broken crystals) */
     int32 GetSpellCount() const
     {
-        return HasCrystal() ? AssignedSpells.Num() : 0;
+        return AttachedCrystal.CanProvideSpells() ? AssignedSpells.Num() : 0;
     }
 
     // ==================== CRYSTAL OPERATIONS ====================

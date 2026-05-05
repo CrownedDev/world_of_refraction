@@ -18,6 +18,7 @@
 #include "InventoryConstants.h"
 #include "ESpellElement.h"
 #include "FCrystalInventoryEntry.h"
+
 #include "FRingInventoryEntry.generated.h"
 
 class URingData;
@@ -86,28 +87,27 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
         return InventoryConstants::GetRingSlotCost(IsEvolved());
     }
 
-    /** Get ring's element from attached crystal */
-    ESpellElement GetElement() const
-    {
-        if (HasCrystal())
-        {
-            return AttachedCrystal.GetElement();
-        }
-        return ESpellElement::Generic;
-    }
+    /** Get ring's element from attached crystal. Returns Generic for missing
+     *  OR broken crystals — a broken crystal cannot channel its element.
+     *  Symmetric to UWeaponData::GetWeaponElement which already handles broken state.
+     *  Body in FRingInventoryEntry.cpp because UItemData::IsBroken requires the
+     *  full type, only forward-declared in this header. */
+    ESpellElement GetElement() const;
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get assigned spells (only valid if crystal attached) */
+    /** Get assigned spells (only when crystal can currently provide spells —
+     *  excludes broken crystals). Use AttachedCrystal.HasCrystal() if you need
+     *  "is a crystal physically slotted" regardless of state. */
     TArray<USpellData *> GetSpells() const
     {
-        return HasCrystal() ? AssignedSpells : TArray<USpellData *>();
+        return AttachedCrystal.CanProvideSpells() ? AssignedSpells : TArray<USpellData *>();
     }
 
-    /** Get spell count */
+    /** Get spell count (returns 0 for broken crystals) */
     int32 GetSpellCount() const
     {
-        return HasCrystal() ? AssignedSpells.Num() : 0;
+        return AttachedCrystal.CanProvideSpells() ? AssignedSpells.Num() : 0;
     }
     // ==================== CRYSTAL OPERATIONS ====================
 

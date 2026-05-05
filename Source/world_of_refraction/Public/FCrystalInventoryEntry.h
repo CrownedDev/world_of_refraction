@@ -45,6 +45,13 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     /** Check if crystal can have spells (Refined or Evolution) */
     bool CanHaveSpells() const;
 
+    /** Check if crystal can currently provide spells in combat.
+     *  True when: crystal exists, supports spells, and is not broken.
+     *  Single source of truth for "crystal-gated spell access" — used by
+     *  FWeaponInventoryEntry and FRingInventoryEntry GetSpells() paths.
+     *  Element queries on broken crystals also fall back to Generic. */
+    bool CanProvideSpells() const;
+
     /** Check if crystal is refined (non-evolution slottable) */
     bool IsRefined() const;
 

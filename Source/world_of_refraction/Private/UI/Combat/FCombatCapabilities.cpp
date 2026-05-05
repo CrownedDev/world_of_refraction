@@ -60,8 +60,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.WeaponAbilities = ActiveWeapon->GetAllAbilities();
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
-        // Crystal spells on active weapon
-        if (ActiveWeapon->WeaponEntry.HasCrystal())
+        // Crystal spells on active weapon (gated on CanProvideSpells —
+        // broken crystals stay attached for visual feedback but provide no spells)
+        if (ActiveWeapon->WeaponEntry.AttachedCrystal.CanProvideSpells())
         {
             Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.AssignedSpells;
             Out.bHasWeaponCrystal = true;
@@ -109,7 +110,11 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                    LC->GetPrimaryRingLoadout() ? TEXT("exists") : TEXT("null"),
                    LC->GetPrimaryRingLoadout() && LC->GetPrimaryRingLoadout()->RingEntry.Ring != nullptr ? TEXT("true") : TEXT("false"),
                    Out.RingSpells.Num());
-            Out.RingSpells = PrimaryRing->RingEntry.AssignedSpells;
+            // Spells gated on CanProvideSpells — broken crystals don't provide spells
+            if (PrimaryRing->RingEntry.AttachedCrystal.CanProvideSpells())
+            {
+                Out.RingSpells = PrimaryRing->RingEntry.AssignedSpells;
+            }
             Out.bRingHasBreakChance = !PrimaryRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
                 static_cast<int32>(PrimaryRing->RingEntry.GetElement()));
@@ -138,7 +143,11 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         const FRingLoadoutEntry *ActiveRing = LC->GetActiveRingLoadout();
         if (ActiveRing && ActiveRing->IsValid())
         {
-            Out.RingSpells = ActiveRing->RingEntry.AssignedSpells;
+            // Spells gated on CanProvideSpells — broken crystals don't provide spells
+            if (ActiveRing->RingEntry.AttachedCrystal.CanProvideSpells())
+            {
+                Out.RingSpells = ActiveRing->RingEntry.AssignedSpells;
+            }
             Out.bRingHasBreakChance = !ActiveRing->RingEntry.IsEvolved();
             Out.RingColor = GetElementColorFn(
                 static_cast<int32>(ActiveRing->RingEntry.GetElement()));

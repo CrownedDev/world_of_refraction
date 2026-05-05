@@ -5,6 +5,15 @@
 #include "RingData.h"
 #include "ItemData.h"
 
+ESpellElement FRingInventoryEntry::GetElement() const
+{
+    if (HasCrystal() && !AttachedCrystal.Crystal->IsBroken())
+    {
+        return AttachedCrystal.GetElement();
+    }
+    return ESpellElement::Generic;
+}
+
 FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool bCopyDefaultCrystal)
 {
     FRingInventoryEntry Entry;
