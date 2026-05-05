@@ -137,6 +137,17 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 		}
 	}
 
+	// Infusion consistency: Level > 0 requires a real source.
+	// None means "no infusion at all" — incompatible with Level > 0.
+	// Use Raw for HP-cost infusion without an element.
+	const int32 ChargeLevel = Action.GetChargeLevel();
+	if (ChargeLevel > 0 && Action.SelectedSource == EInfusionSourceOption::None)
+	{
+		return FActionValidationResult(
+			false,
+			TEXT("Infusion level set but no source selected (use Raw for elementless infusion)"));
+	}
+
 	// Calculate energy cost
 	int32 EnergyCost = CalculateActionEnergyCost(Actor, Action);
 
@@ -2853,6 +2864,10 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	switch (Option)
 	{
 	case EInfusionSourceOption::None:
+		return ESpellElement::Generic;
+
+	case EInfusionSourceOption::Raw:
+		// Raw is elementless infusion — pays HP, no channeled element
 		return ESpellElement::Generic;
 
 	case EInfusionSourceOption::Innate:

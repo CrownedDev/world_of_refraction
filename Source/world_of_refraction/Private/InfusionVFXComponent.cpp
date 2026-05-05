@@ -87,11 +87,12 @@ void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
 {
     CurrentInfusionLevel = FMath::Clamp(Level, 0, 2);
 
-    // Level 0 (Raw) = No VFX
+    // Level 0 = no infusion = no VFX. Raw is a *source* choice paying HP cost
+    // at non-zero levels; it is unrelated to Level 0.
     if (CurrentInfusionLevel == 0)
     {
         DeactivateInfusion();
-        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Level 0 (Raw) - VFX disabled"));
+        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Level 0 - VFX disabled"));
         return;
     }
 

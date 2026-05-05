@@ -52,16 +52,26 @@ enum class EInfusionSourceOption : uint8
  */
 namespace InfusionSourceOptionHelpers
 {
-    /** Does this source provide an element? (false = physical only) */
+    /** Does this source provide an element?
+     *  False for None (no infusion) AND Raw (HP-cost infusion without element). */
     inline bool HasElement(EInfusionSourceOption Option)
     {
-        return Option != EInfusionSourceOption::None;
+        return Option != EInfusionSourceOption::None && Option != EInfusionSourceOption::Raw;
     }
 
-    /** Do weapon stats apply with this source? */
+    /** Do weapon stats apply with this source?
+     *  Only None (no infusion) applies weapon stats. Raw is still an infusion
+     *  (pays HP), so weapon stats are bypassed for Raw too. */
     inline bool WeaponStatsApply(EInfusionSourceOption Option)
     {
-        return Option == EInfusionSourceOption::None;
+        return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
+    }
+
+    /** Is this an active infusion (Level > 0 valid)?
+     *  Equivalent to (Option != None). Raw and any element source qualify. */
+    inline bool IsInfused(EInfusionSourceOption Option)
+    {
+        return Option != EInfusionSourceOption::None;
     }
 
     /** Get display name for UI */
@@ -70,13 +80,17 @@ namespace InfusionSourceOptionHelpers
         switch (Option)
         {
         case EInfusionSourceOption::None:
-            return TEXT("Physical");
+            return TEXT("None");
+        case EInfusionSourceOption::Raw:
+            return TEXT("Raw");
         case EInfusionSourceOption::Innate:
             return TEXT("Innate");
         case EInfusionSourceOption::ActiveRing:
-            return TEXT("Ring");
+            return TEXT("Active Ring");
+        case EInfusionSourceOption::PrimaryRing:
+            return TEXT("Primary Ring");
         case EInfusionSourceOption::WeaponCrystal:
-            return TEXT("Crystal");
+            return TEXT("Weapon Crystal");
         case EInfusionSourceOption::Evolution:
             return TEXT("Evolution");
         default:
