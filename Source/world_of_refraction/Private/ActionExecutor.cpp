@@ -220,7 +220,8 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	case EActionType::Ability:
 		if (Action.AbilityData)
 		{
-			int32 BaseCost = Action.AbilityData->CalculateEnergyCost(CharData, Action.bIsElementInfused);
+			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
+			int32 BaseCost = Action.AbilityData->CalculateEnergyCost(CharData, bIsInfused);
 			return BaseCost;
 		}
 		break;
@@ -230,7 +231,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		return 0;
 
 	case EActionType::Attack:
-		if (Action.AttackData && Action.bIsElementInfused)
+		if (Action.AttackData && Action.SelectedSource != EInfusionSourceOption::None)
 		{
 			// Infused attacks cost energy
 			return 5; // TODO: Get from constants or attack data
@@ -310,7 +311,8 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 		break;
 
 	case EActionType::Attack:
-		Result = ExecuteAttack(Actor, Action.AttackData, Action.Targets, Action.bIsElementInfused);
+		Result = ExecuteAttack(Actor, Action.AttackData, Action.Targets,
+							   Action.SelectedSource != EInfusionSourceOption::None);
 		break;
 
 	case EActionType::Defend:
@@ -571,7 +573,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	}
 
 	// Calculate and spend energy
-	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, Action.bIsElementInfused);
+	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
+	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsInfused);
 	int32 FinalEnergyCost = BaseEnergyCost;
 
 	if (!SpendEnergy(User, FinalEnergyCost))
@@ -585,11 +588,11 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Calculate damage with power infusion
 	float DamageMultiplier = UserData->CalculateRawDamage();
-	int32 BaseDamage = Ability->CalculateDamage(UserData, Action.bIsElementInfused);
+	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
 
 	// Element handling
 	ESpellElement Element = ESpellElement::Generic;
-	bool bIsElemental = Action.bIsElementInfused;
+	bool bIsElemental = bIsInfused;
 	if (bIsElemental && UserData->HasInnateElement())
 	{
 		Element = UserData->InnateElement;
@@ -665,7 +668,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	float DamageMultiplier = AttackerData->CalculateRawDamage();
 	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
 
-	bool bIsInfused = Action.bIsElementInfused;
+	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 	if (bIsInfused)
 	{
 		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty

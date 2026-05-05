@@ -76,24 +76,6 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (ClampMin = "0", ClampMax = "2"))
 	int32 AbilityInfusionLevel = 0;
 
-	// ==================== DEPRECATED - REMOVE AFTER MIGRATION ====================
-
-	/** @deprecated Use SpellInfusionLevel or AbilityInfusionLevel instead */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellInfusionLevel or AbilityInfusionLevel"))
-	int32 InfusionLevel = 0;
-
-	/** @deprecated Replaced by AbilityInfusionLevel + SelectedSource */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use AbilityInfusionLevel + SelectedSource"))
-	bool bIsElementInfused = false;
-
-	/** @deprecated Use SpellInfusionLevel instead */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SpellInfusionLevel"))
-	int32 SpellSizeInfusionLevel = 0;
-
-	/** @deprecated Replaced by SelectedSource */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion", meta = (DeprecatedProperty, DeprecationMessage = "Use SelectedSource"))
-	EInfusionType InfusionType = EInfusionType::None;
-
 	// ==================== HELPERS ====================
 
 	bool IsValid() const
@@ -116,18 +98,6 @@ struct WORLD_OF_REFRACTION_API FAction
 		return ActionType != EActionType::Defend &&
 			   ActionType != EActionType::Flee &&
 			   ActionType != EActionType::SwitchWeapon;
-	}
-
-	/** Is any infusion active? */
-	bool IsInfused() const
-	{
-		return InfusionType != EInfusionType::None && InfusionLevel > 0;
-	}
-
-	/** Is spell size infusion active? */
-	bool IsSpellSizeInfused() const
-	{
-		return SpellSizeInfusionLevel > 0;
 	}
 
 	FString GetActionName() const
