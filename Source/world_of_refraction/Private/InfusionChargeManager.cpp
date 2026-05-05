@@ -3,7 +3,6 @@
 
 #include "InfusionChargeManager.h"
 #include "ActionStructs.h"
-#include "CharacterDataComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
@@ -53,18 +52,15 @@ bool UInfusionChargeManager::BeginCharge(AActor *Actor, EChargeInfusionType Char
 		CancelCharge();
 	}
 
-	// Start new charge
+	// Start new charge — pure state-set, no cost. Costs apply at action commit
+	// time in ActionExecutor::ApplyCommitCosts (Phase 4c). Cycling/holding does
+	// not charge anything; only committing the action does.
 	ChargingActor = Actor;
 	ChargingType = ChargeType;
 	ChargingSource = SelectedSource;
 	ChargeTime = 0.0f;
 	CurrentLevel = 0;
-	HPCostPaid = 0.0f;
 	CurrentState = EChargeState::Charging;
-
-	// Deduct L1 HP cost immediately (committed cost)
-	float InitialHPCost = DeductHPCost(Actor, 1);
-	HPCostPaid = InitialHPCost;
 
 	// Start auto-update timer if enabled
 	if (bAutoUpdate)
@@ -83,11 +79,10 @@ bool UInfusionChargeManager::BeginCharge(AActor *Actor, EChargeInfusionType Char
 
 	OnChargeStarted.Broadcast(Actor, ChargeType, SelectedSource, 0);
 
-	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge started - Actor: %s, Type: %s, Source: %d, HP Cost: %.1f"),
+	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge started - Actor: %s, Type: %s, Source: %d (state-only, costs applied at commit)"),
 		   *Actor->GetName(),
 		   *ChargeInfusionTypeHelpers::GetTypeName(ChargeType),
-		   static_cast<int32>(SelectedSource),
-		   InitialHPCost);
+		   static_cast<int32>(SelectedSource));
 
 	return true;
 }
@@ -120,8 +115,8 @@ int32 UInfusionChargeManager::CompleteCharge()
 		OnChargeComplete.Broadcast(Actor, Type, Source, FinalLevel);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge complete - Level: %d, Time: %.2fs, Total HP Cost: %.1f"),
-		   FinalLevel, ChargeTime, HPCostPaid);
+	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge complete - Level: %d, Time: %.2fs"),
+		   FinalLevel, ChargeTime);
 
 	// Reset state
 	ResetState();
@@ -145,18 +140,17 @@ void UInfusionChargeManager::CancelCharge()
 	// Capture state for broadcast
 	AActor *Actor = ChargingActor.Get();
 	int32 LevelAtCancel = CurrentLevel;
-	float TotalHPCost = HPCostPaid;
 
 	CurrentState = EChargeState::Cancelled;
 
-	// Broadcast cancellation (HP cost is NOT refunded)
+	// Broadcast cancellation. No costs to refund — costs only apply at commit.
 	if (Actor)
 	{
-		OnChargeCancelled.Broadcast(Actor, LevelAtCancel, TotalHPCost);
+		OnChargeCancelled.Broadcast(Actor, LevelAtCancel);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge cancelled at Level %d (HP spent: %.1f - NOT refunded)"),
-		   LevelAtCancel, TotalHPCost);
+	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge cancelled at Level %d"),
+		   LevelAtCancel);
 
 	ResetState();
 }
@@ -179,36 +173,14 @@ void UInfusionChargeManager::UpdateCharge(float DeltaTime)
 		int32 OldLevel = CurrentLevel;
 		CurrentLevel = NewLevel;
 
-		// Deduct additional HP cost when reaching L2
-		float AdditionalHPCost = 0.0f;
-		if (NewLevel == 2 && OldLevel == 1)
-		{
-			// Deduct the difference between L2 and L1 cost
-			float L2CostPercent = GetHPCostPercent(2);
-			float L1CostPercent = GetHPCostPercent(1);
-			float DifferencePercent = L2CostPercent - L1CostPercent;
-
-			AActor *Actor = ChargingActor.Get();
-			if (Actor)
-			{
-				UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-				if (CharComp)
-				{
-					AdditionalHPCost = CharComp->CurrentHP * DifferencePercent;
-					CharComp->CurrentHP = FMath::Max(1, CharComp->CurrentHP - FMath::RoundToInt(AdditionalHPCost));
-					HPCostPaid += AdditionalHPCost;
-				}
-			}
-		}
-
-		// Broadcast level change with HP cost info
+		// Broadcast level change — pure state transition, no cost applied
 		if (ChargingActor.IsValid())
 		{
-			OnChargeLevelChanged.Broadcast(ChargingActor.Get(), OldLevel, NewLevel, AdditionalHPCost);
+			OnChargeLevelChanged.Broadcast(ChargingActor.Get(), OldLevel, NewLevel);
 		}
 
-		UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge level changed: %d -> %d (Time: %.2fs, Additional HP: %.1f)"),
-			   OldLevel, NewLevel, ChargeTime, AdditionalHPCost);
+		UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Charge level changed: %d -> %d (Time: %.2fs)"),
+			   OldLevel, NewLevel, ChargeTime);
 	}
 }
 
@@ -226,7 +198,6 @@ FChargeStatus UInfusionChargeManager::GetChargeStatus() const
 	Status.ChargeTime = ChargeTime;
 	Status.ChargingActor = ChargingActor.Get();
 	Status.ProgressToNextLevel = CalculateProgressToNextLevel();
-	Status.HPCostPaid = HPCostPaid;
 
 	// Calculate time to next level
 	if (CurrentLevel == 0)
@@ -265,11 +236,6 @@ EInfusionSourceOption UInfusionChargeManager::GetSelectedSource() const
 	return ChargingSource;
 }
 
-float UInfusionChargeManager::GetHPCostPaid() const
-{
-	return HPCostPaid;
-}
-
 AActor *UInfusionChargeManager::GetChargingActor() const
 {
 	return ChargingActor.Get();
@@ -305,15 +271,11 @@ void UInfusionChargeManager::SetChargeLevel(AActor *Actor, EChargeInfusionType C
 		ChargeTime = Level2Time;
 	}
 
-	// Deduct HP cost for the target level
-	HPCostPaid = DeductHPCost(Actor, Level);
-
-	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Direct set - Actor: %s, Type: %s, Source: %d, Level: %d, HP Cost: %.1f"),
-		   Actor ? *Actor->GetName() : TEXT("None"),
+	UE_LOG(LogTemp, Log, TEXT("[InfusionChargeManager] Direct set - Actor: %s, Type: %s, Source: %d, Level: %d (state-only, costs applied at commit)"),
+		   Actor ? *Actor->GetName() : TEXT("null"),
 		   *ChargeInfusionTypeHelpers::GetTypeName(ChargeType),
 		   static_cast<int32>(Source),
-		   Level,
-		   HPCostPaid);
+		   Level);
 }
 
 void UInfusionChargeManager::ApplyChargeToAction(FAction &Action, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 Level)
@@ -370,7 +332,6 @@ void UInfusionChargeManager::DebugPrintStatus() const
 	UE_LOG(LogTemp, Warning, TEXT("Time: %.2fs"), Status.ChargeTime);
 	UE_LOG(LogTemp, Warning, TEXT("Progress: %.1f%%"), Status.ProgressToNextLevel * 100.0f);
 	UE_LOG(LogTemp, Warning, TEXT("Time to next: %.2fs"), Status.TimeToNextLevel);
-	UE_LOG(LogTemp, Warning, TEXT("HP Cost Paid: %.1f"), Status.HPCostPaid);
 	UE_LOG(LogTemp, Warning, TEXT("Actor: %s"), Status.ChargingActor ? *Status.ChargingActor->GetName() : TEXT("None"));
 	UE_LOG(LogTemp, Warning, TEXT("================================"));
 }
@@ -414,53 +375,10 @@ void UInfusionChargeManager::ResetState()
 	ChargingSource = EInfusionSourceOption::None;
 	CurrentLevel = 0;
 	ChargeTime = 0.0f;
-	HPCostPaid = 0.0f;
 }
 
 void UInfusionChargeManager::OnUpdateTimer()
 {
 	// Fixed timestep update (1/60th second)
 	UpdateCharge(1.0f / 60.0f);
-}
-
-float UInfusionChargeManager::DeductHPCost(AActor *Actor, int32 TargetLevel)
-{
-	if (!Actor || TargetLevel <= 0)
-	{
-		return 0.0f;
-	}
-
-	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-	if (!CharComp)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[InfusionChargeManager] DeductHPCost - No CharacterDataComponent on actor"));
-		return 0.0f;
-	}
-
-	float CostPercent = GetHPCostPercent(TargetLevel);
-	float HPCost = CharComp->CurrentHP * CostPercent;
-
-	// Deduct but never go below 1 HP (can't kill self with infusion)
-	int32 OldHP = CharComp->CurrentHP;
-	int32 NewHP = FMath::Max(1, CharComp->CurrentHP - FMath::RoundToInt(HPCost));
-	float ActualCost = static_cast<float>(OldHP - NewHP);
-	CharComp->CurrentHP = NewHP;
-
-	UE_LOG(LogTemp, Verbose, TEXT("[InfusionChargeManager] Deducted %.1f HP (%.0f%% of %d) for L%d, new HP: %d"),
-		   ActualCost, CostPercent * 100.0f, OldHP, TargetLevel, NewHP);
-
-	return ActualCost;
-}
-
-float UInfusionChargeManager::GetHPCostPercent(int32 TargetLevel) const
-{
-	switch (TargetLevel)
-	{
-	case 1:
-		return InfusionConstants::CHARGE_L1_HP_COST_PERCENT;
-	case 2:
-		return InfusionConstants::CHARGE_L2_HP_COST_PERCENT;
-	default:
-		return 0.0f;
-	}
 }

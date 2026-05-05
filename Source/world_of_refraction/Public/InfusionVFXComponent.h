@@ -113,13 +113,13 @@ public:
 
     // ==================== Spell Infusion ====================
     UFUNCTION()
-    void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel, float HPCostDeducted);
+    void OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel);
 
     UFUNCTION()
     void OnChargeComplete(AActor *Actor, EChargeInfusionType ChargeType, EInfusionSourceOption Source, int32 FinalLevel);
 
     UFUNCTION()
-    void OnChargeCancelled(AActor *Actor, int32 LevelAtCancel, float TotalHPCostPaid);
+    void OnChargeCancelled(AActor *Actor, int32 LevelAtCancel);
 
     // ==================== DEBUG ====================
 

@@ -73,19 +73,15 @@ struct FChargeStatus
 	/** Actor currently charging */
 	UPROPERTY(BlueprintReadOnly, Category = "Charge")
 	AActor *ChargingActor = nullptr;
-
-	/** HP cost paid so far */
-	UPROPERTY(BlueprintReadOnly, Category = "Charge")
-	float HPCostPaid = 0.0f;
 };
 
 /**
  * Delegate signatures
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnChargeStarted, AActor *, Actor, EChargeInfusionType, ChargeType, EInfusionSourceOption, Source, int32, InitialLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnChargeLevelChanged, AActor *, Actor, int32, OldLevel, int32, NewLevel, float, HPCostDeducted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChargeLevelChanged, AActor *, Actor, int32, OldLevel, int32, NewLevel);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnChargeComplete, AActor *, Actor, EChargeInfusionType, ChargeType, EInfusionSourceOption, Source, int32, FinalLevel);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnChargeCancelled, AActor *, Actor, int32, LevelAtCancel, float, TotalHPCostPaid);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnChargeCancelled, AActor *, Actor, int32, LevelAtCancel);
 /**
  * UInfusionChargeManager
  *
@@ -195,11 +191,6 @@ public:
 	EInfusionSourceOption GetSelectedSource() const;
 
 	/**
-	 * Get total HP cost paid during this charge
-	 */
-	UFUNCTION(BlueprintPure, Category = "Infusion Charge")
-	float GetHPCostPaid() const;
-	/**
 	 * Get actor currently charging
 	 */
 	UFUNCTION(BlueprintPure, Category = "Infusion Charge")
@@ -295,9 +286,6 @@ private:
 	/** Time spent charging */
 	float ChargeTime = 0.0f;
 
-	/** Total HP cost paid during this charge */
-	float HPCostPaid = 0.0f;
-
 	/** Timer handle for auto-update */
 	FTimerHandle UpdateTimerHandle;
 
@@ -316,10 +304,4 @@ private:
 
 	/** Timer callback for auto-update */
 	void OnUpdateTimer();
-
-	/** Deduct HP cost for reaching a levesl, returns amount deducted */
-	float DeductHPCost(AActor *Actor, int32 TargetLevel);
-
-	/** Get HP cost percent for a target level */
-	float GetHPCostPercent(int32 TargetLevel) const;
 };

@@ -203,7 +203,7 @@ void UInfusionVFXComponent::RefreshVFX()
 
 // ==================== INTERNAL ====================
 
-void UInfusionVFXComponent::OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel, float HPCostDeducted)
+void UInfusionVFXComponent::OnChargeLevelChanged(AActor *Actor, int32 OldLevel, int32 NewLevel)
 {
     if (Actor != GetOwner())
         return;
@@ -217,7 +217,7 @@ void UInfusionVFXComponent::OnChargeComplete(AActor *Actor, EChargeInfusionType 
     // VFX stays at final level - will be deactivated after spell completes
 }
 
-void UInfusionVFXComponent::OnChargeCancelled(AActor *Actor, int32 LevelAtCancel, float TotalHPCostPaid)
+void UInfusionVFXComponent::OnChargeCancelled(AActor *Actor, int32 LevelAtCancel)
 {
     if (Actor != GetOwner())
         return;
