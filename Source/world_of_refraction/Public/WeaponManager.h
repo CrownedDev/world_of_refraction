@@ -7,6 +7,7 @@
 #include "ActionStructs.h"
 #include "EPhysicalDamageType.h"
 #include "ESpellElement.h"
+#include "ItemTier.h"
 #include "WeaponManager.generated.h"
 
 class UWeaponData;
@@ -241,6 +242,34 @@ public:
 	TArray<EWeaponSlot> GetAvailableSlots(AActor *Actor) const;
 
 	// ========================================
+	// DURABILITY (Phase 4d)
+	// ========================================
+
+	/** Apply wear to the slotted crystal of the active weapon after an action.
+	 *  Returns the wear amount applied. If wear breaks the crystal, fires
+	 *  OnCrystalBroken (handled internally — weapon stays equipped, downgrades
+	 *  to physical-only via WeaponData::GetWeaponElement returning Generic).
+	 *
+	 *  Generic signature taking EItemTier directly so it works for spells,
+	 *  abilities, and attacks (vs RingManager which is spell-only and reads
+	 *  USpellData::Tier directly). Caller extracts ActionTier from the weapon
+	 *  itself (Phase 4d Path A: action tier inherits from weapon tier).
+	 *
+	 *  TODO: Reads Weapon->SlottedCrystal (asset-side), inheriting the same
+	 *  architectural shortcut as URingManager. Should migrate both to runtime
+	 *  inventory entries when inventory persistence is wired. */
+	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
+	int32 ProcessPostCastWear(AActor *Actor, EItemTier ActionTier, int32 InfusionLevel, bool bIsSpell);
+
+	// ==================== DELEGATES (durability) ====================
+
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponCrystalBroken, AActor *, Actor, UWeaponData *, Weapon, UItemData *, Crystal);
+
+	/** Fires when a weapon's slotted crystal hits 0 durability and breaks.
+	 *  No auto-switch — weapon stays equipped, just loses crystal-derived effects. */
+	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
+	FOnWeaponCrystalBroken OnWeaponCrystalBroken;
+	// ========================================
 	// INFUSION (GENERIC ONLY)
 	// ========================================
 
@@ -422,6 +451,22 @@ private:
 	/** Cached StatusEffectManager */
 	UPROPERTY()
 	UStatusEffectManager *StatusEffectManagerRef = nullptr;
+
+	// ==================== CRYSTAL SUBSCRIPTIONS (Phase 4d) ====================
+
+	/** Subscribe to OnCrystalBroken for every slotted crystal of an actor's weapons.
+	 *  Iterates Primary/Secondary/Conjured weapons in the actor's loadout. */
+	void SubscribeToActorWeaponCrystals(AActor *Actor);
+
+	/** Unsubscribe from OnCrystalBroken for every slotted crystal of an actor's weapons. */
+	void UnsubscribeFromActorWeaponCrystals(AActor *Actor);
+
+	/** Handler bound to UItemData::OnCrystalBroken delegate for weapon crystals. */
+	UFUNCTION()
+	void HandleWeaponCrystalBroken(UItemData *BrokenCrystal);
+
+	/** Find which actor and weapon own a given crystal (for the broadcast). */
+	bool FindWeaponOwnerOfCrystal(UItemData *Crystal, AActor *&OutActor, UWeaponData *&OutWeapon) const;
 
 	// ========================================
 	// CONSTANTS
