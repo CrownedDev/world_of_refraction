@@ -24,6 +24,7 @@
 #include "MovementData.h"
 #include "EAbilityExecutionType.h"
 #include "FAbilityEffect.h"
+#include "InfusionCostHelper.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -251,15 +252,37 @@ public:
 	FActionResult ExecuteDefend(AActor *Defender);
 
 	// ========================================
+	// COMMIT-TIME COST APPLICATION
+	// ========================================
+
+	/**
+	 * Apply costs based on the action's infusion source.
+	 * Called early in ExecuteAction / ExecuteActionAsync, after validation but
+	 * before the action actually fires. Source routing:
+	 *   None / Item       → no cost
+	 *   Raw / Innate      → HP cost via UInfusionCostHelper
+	 *   ActiveRing/Secondary → ring crystal wear via URingManager
+	 *   WeaponCrystal     → TODO Phase 4d
+	 *   Evolution         → TODO Phase 6 (HP + self-status)
+	 *
+	 * Mutates actor state directly (HP, crystal durability). Does not return
+	 * success/failure — costs always apply. Modal warnings (Phase 5) intercept
+	 * before ExecuteAction is called, not here.
+	 */
+	void ApplyCommitCosts(AActor *Actor, const FAction &Action);
+
+	/** HP cost deduction helper. Reads cost from UInfusionCostHelper, mutates
+	 *  CharacterDataComponent::CurrentHP. Floored at 1 HP by the helper. */
+	void ApplyHPCostInternal(AActor *Actor, int32 Level);
+
+	// ========================================
 	// POST-CAST PROCESSING
 	// ========================================
 
 	/**
-	 * Process post-cast logic based on spell source
-	 * - Innate: No action
-	 * - Ring: Break check
-	 * - Evolution: TBD
-	 * - Item: Consume item
+	 * Process post-cast logic based on spell source.
+	 * Phase 4c: Ring crystal wear MOVED to ApplyCommitCosts (commit-time).
+	 * This function now handles only post-success consumption (e.g. Item).
 	 */
 	void ProcessPostCastBySource(AActor *Caster, USpellData *Spell, ESpellSource Source, int32 InfusionLevel);
 

@@ -287,6 +287,12 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 			InfusionVFX->SetInfusionLevel(MaxInfusionLevel);
 		}
 	}
+
+	// Apply commit-time costs (HP / crystal wear / etc.) based on infusion source.
+	// Costs are paid at commit, not at cast success — wear/HP loss happens even
+	// if the action subsequently fails to land.
+	ApplyCommitCosts(Actor, Action);
+
 	// Route to appropriate executor (existing code)
 	switch (Action.ActionType)
 	{
@@ -428,6 +434,14 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		ExecuteItemAsync(Actor, Action, CharData);
 		return;
 	}
+
+	// Apply commit-time costs for Attack / Ability / Spell.
+	// Placed AFTER instant-action and Item early-returns so:
+	//   - Defend/SwitchWeapon/Flee path goes through synchronous ExecuteAction,
+	//     which calls ApplyCommitCosts there (avoiding double-charge here).
+	//   - Items have no infusion cost path.
+	//   - Attack/Ability/Spell pay exactly once, here, before movement starts.
+	ApplyCommitCosts(Actor, Action);
 
 	// Attack / Ability / Spell — bind movement complete and start approach
 	BindMovementComplete(Actor);
@@ -1805,25 +1819,21 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 	if (!Caster || !Spell)
 		return;
 
+	// Phase 4c: cost-bearing source paths (Ring crystal wear) MOVED to
+	// ApplyCommitCosts. This function now handles only post-success consumption
+	// (Item) and forward-looking placeholders (Evolution).
 	switch (Source)
 	{
 	case ESpellSource::Innate:
-		// Caster's natural spells - no risk
+		// No post-cast action; HP cost (if any) was paid at commit.
 		break;
 
 	case ESpellSource::Ring:
-		// Apply durability wear to ring's slotted crystal
-		if (URingManager *RingMgr = GetRingManager())
-		{
-			RingMgr->ProcessPostCastWear(Caster, Spell, InfusionLevel);
-			// Crystal break (if any) is broadcast via RingManager::OnRingCrystalBroken delegate;
-			// auto-switch is handled internally by RingManager
-		}
+		// Wear was applied at commit (ApplyCommitCosts). Nothing to do here.
 		break;
 
 	case ESpellSource::Evolution:
-		// TODO: Evolution crystal logic
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Evolution spell cast - no post-cast logic yet"));
+		// TODO Phase 6: Evolution-specific post-cast effects (if any beyond commit-time backlash)
 		break;
 
 	case ESpellSource::Item:
@@ -4232,6 +4242,129 @@ void UActionExecutor::ApplyAbilityEffects(
 				   *Effect.GetDescription(), *EffectTarget->GetName());
 		}
 	}
+}
+
+// ============================================================
+// COMMIT-TIME COST APPLICATION (Phase 4c)
+// ============================================================
+
+void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	// Determine the infusion level for this action type.
+	// Spells use SpellInfusionLevel; abilities/attacks use AbilityInfusionLevel.
+	int32 Level = 0;
+	if (Action.ActionType == EActionType::Spell)
+	{
+		Level = Action.SpellInfusionLevel;
+	}
+	else if (Action.ActionType == EActionType::Ability ||
+			 Action.ActionType == EActionType::Attack)
+	{
+		Level = Action.AbilityInfusionLevel;
+	}
+
+	// Level 0 = no infusion, no commit cost regardless of source
+	if (Level <= 0)
+	{
+		return;
+	}
+
+	// Route by source
+	switch (Action.SelectedSource)
+	{
+	case EInfusionSourceOption::None:
+		// No source means no infusion cost path. Should not normally reach here
+		// with Level > 0 — log to surface inconsistencies.
+		UE_LOG(LogTemp, Verbose,
+			   TEXT("[ActionExecutor] %s: SelectedSource=None but InfusionLevel=%d — no cost applied"),
+			   *Actor->GetName(), Level);
+		break;
+
+	case EInfusionSourceOption::Raw:
+	case EInfusionSourceOption::Innate:
+		// Raw and Innate both pay HP. Same formula via UInfusionCostHelper.
+		ApplyHPCostInternal(Actor, Level);
+		break;
+
+	case EInfusionSourceOption::ActiveRing:
+		// Ring sources pay durability wear on the slotted crystal.
+		// Ring spells route through SpellData; ability/attack ring infusions
+		// also need wear, but ProcessPostCastWear takes a USpellData* parameter.
+		// For now this fires only for spell actions; abilities/attacks via ring
+		// will need a separate path (see TODO).
+		if (Action.ActionType == EActionType::Spell && Action.SpellData)
+		{
+			if (URingManager *RingMgr = GetRingManager())
+			{
+				RingMgr->ProcessPostCastWear(Actor, Action.SpellData, Level);
+			}
+		}
+		else
+		{
+			// TODO Phase 4c-followup: Ring-infused abilities/attacks need a wear path
+			// that doesn't require a USpellData*. Either a generic ProcessPostCastWear
+			// taking tier+level directly, or compute wear here against the action's tier.
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: Ring infusion on non-spell action — wear not yet wired"),
+				   *Actor->GetName());
+		}
+		break;
+
+	case EInfusionSourceOption::WeaponCrystal:
+		// TODO Phase 4d — analogous to ring path but on weapon's slotted crystal
+		UE_LOG(LogTemp, Verbose,
+			   TEXT("[ActionExecutor] %s: WeaponCrystal infusion at L%d — cost path not yet wired (Phase 4d)"),
+			   *Actor->GetName(), Level);
+		break;
+
+	case EInfusionSourceOption::Evolution:
+		// TODO Phase 6 — HP cost + element backlash + self-status build
+		UE_LOG(LogTemp, Verbose,
+			   TEXT("[ActionExecutor] %s: Evolution infusion at L%d — cost path not yet wired (Phase 6)"),
+			   *Actor->GetName(), Level);
+		break;
+
+	default:
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor] %s: Unknown infusion source %d at L%d"),
+			   *Actor->GetName(), static_cast<int32>(Action.SelectedSource), Level);
+		break;
+	}
+}
+
+void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
+{
+	if (!Actor || Level <= 0)
+	{
+		return;
+	}
+
+	const int32 Cost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+	if (Cost <= 0)
+	{
+		return;
+	}
+
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor] %s: HP cost calculation returned %d but no CharacterDataComponent — cost lost"),
+			   *Actor->GetName(), Cost);
+		return;
+	}
+
+	const int32 Before = CharComp->CurrentHP;
+	CharComp->CurrentHP = FMath::Max(1, CharComp->CurrentHP - Cost);
+
+	UE_LOG(LogTemp, Log,
+		   TEXT("[ActionExecutor] %s paid %d HP for L%d infusion (HP: %d -> %d)"),
+		   *Actor->GetName(), Cost, Level, Before, CharComp->CurrentHP);
 }
 
 void UActionExecutor::DebugAsyncState()

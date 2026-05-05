@@ -25,10 +25,13 @@
 UENUM(BlueprintType)
 enum class EInfusionSourceOption : uint8
 {
-    /** No infusion - Physical damage, weapon stats apply */
+    /** No infusion - Physical damage, weapon stats apply, no cost */
     None UMETA(DisplayName = "None (Physical)"),
 
-    /** Caster's innate element - L2 costs HP */
+    /** Raw infusion - character pushes past their own limits, costs HP */
+    Raw UMETA(DisplayName = "Raw"),
+
+    /** Caster's innate element - costs HP */
     Innate UMETA(DisplayName = "Innate Element"),
 
     /** Resonator's currently equipped ring - L2 risks ring break */
