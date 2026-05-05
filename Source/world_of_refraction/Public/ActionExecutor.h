@@ -585,6 +585,8 @@ private:
 
 	/** Get ability charge damage multiplier (L1 = 1.0, L2 = 1.3) */
 	float GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const;
+	/** Get ability charge energy cost multiplier (L1 = 1.0, L2 = 1.5) */
+	float GetAbilityChargeCostMultiplier(int32 Level) const;
 
 	/** Apply ability infusion status buildup to targets */
 	void ApplyAbilityInfusionStatus(

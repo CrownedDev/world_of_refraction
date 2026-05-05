@@ -152,13 +152,13 @@ struct WORLD_OF_REFRACTION_API FAction
 	/** Is using physical source (weapon stats apply)? */
 	bool IsPhysicalSource() const
 	{
-		return SelectedSource == EInfusionSourceOption::None;
+		return SelectedSource == EInfusionSourceOption::Raw;
 	}
 
 	/** Is using elemental source (weapon stats don't apply)? */
 	bool IsElementalSource() const
 	{
-		return SelectedSource != EInfusionSourceOption::None;
+		return SelectedSource != EInfusionSourceOption::Raw && SelectedSource != EInfusionSourceOption::None;
 	}
 };
 

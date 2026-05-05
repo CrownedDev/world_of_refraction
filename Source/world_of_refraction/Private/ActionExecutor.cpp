@@ -593,7 +593,10 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	// Calculate and spend energy
 	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsInfused);
-	int32 FinalEnergyCost = BaseEnergyCost;
+
+	// Apply charge level energy multiplier (L1 = 1.15x, L2 = 1.30x)
+	float CostMultiplier = GetAbilityChargeCostMultiplier(Action.AbilityInfusionLevel);
+	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
@@ -604,8 +607,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	}
 	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
 
-	// Calculate damage with power infusion
-	float DamageMultiplier = UserData->CalculateRawDamage();
+	// Calculate base damage (post element-penalty if applicable)
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
 
 	// Element handling
@@ -617,12 +619,17 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty for element
 	}
 
+	// Apply charge level damage multiplier (L2 = 1.30x, L1 unchanged)
+	float DamageMultiplier = GetAbilityChargeDamageMultiplier(Action.AbilityInfusionLevel);
+	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
+
 	// Spell Size (fixed, no character scaling)
 	float AttackSize = 1.0f;
 
-	// Store in result
+	// Store in result. BaseDamageBeforeDefense receives the post-multiplier damage —
+	// "before defense" refers to the defense pipeline, not "before infusion".
 	CurrentExecutionContext->PartialResult.AttackSize = AttackSize; // remove attack size its pointless for abilities
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsElemental;
 
@@ -640,15 +647,23 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		return;
 	}
 
-	// Calculate damage per hit
-	int32 DamagePerHit = BaseDamage / FMath::Max(1, Ability->HitCount);
+	// Apply charge infusion status buildup (L1 = 1.25x, L2 = 0 — exclusive with damage)
+	float StatusMultiplier = GetAbilityChargeStatusMultiplier(Action.AbilityInfusionLevel);
+	if (StatusMultiplier > 0.0f && ValidTargets.Num() > 0 && bIsInfused)
+	{
+		ApplyAbilityInfusionStatus(User, ValidTargets, Action.SelectedSource,
+								   Ability->HitCount, StatusMultiplier);
+	}
+
+	// Calculate damage per hit (infused total split across hits)
+	int32 DamagePerHit = FinalDamage / FMath::Max(1, Ability->HitCount);
 
 	// Open defense windows
 	OpenDefenseWindowsForTargets(
 		User,
 		ValidTargets,
 		AttackSize,
-		BaseDamage,
+		FinalDamage,
 		DamagePerHit,
 		Ability->HitCount,
 		bIsElemental,
@@ -656,8 +671,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		true, // Can crit
 		0.3f);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async - opened %d defense windows"),
-		   ValidTargets.Num());
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async L%d - %d damage (%.1fx), opened %d defense windows"),
+		   Action.AbilityInfusionLevel, FinalDamage, DamageMultiplier, ValidTargets.Num());
 }
 
 void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
@@ -3466,6 +3481,21 @@ float UActionExecutor::GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLev
 		return 1.0f; // L1 gets status boost, not damage
 	case 2:
 		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
+	default:
+		return 1.0f;
+	}
+}
+
+float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
+{
+	// Energy cost scales with charge level for abilities. Uses the generic
+	// (non-spell) energy multipliers — spells use SPELL_L1/L2_ENERGY_MULT.
+	switch (Level)
+	{
+	case 1:
+		return InfusionConstants::L1_ENERGY_MULT; // 1.15x
+	case 2:
+		return InfusionConstants::L2_ENERGY_MULT; // 1.30x
 	default:
 		return 1.0f;
 	}
