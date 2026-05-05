@@ -1050,6 +1050,35 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 	const int32 RepairAmount = DurabilityConstants::REPAIR_PER_BATTLE;
 	int32 CrystalsRepaired = 0;
 
+	// Single helper that handles repair logic for a candidate crystal.
+	// Returns true if the crystal's durability was actually changed.
+	auto TryRepairCrystal = [&](UItemData *Crystal, AActor *Actor) -> bool
+	{
+		if (!Crystal)
+		{
+			return false;
+		}
+		if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking || Crystal->IsBroken())
+		{
+			// Skip: unrefined consumables, immune (Evolution), or fully-broken crystals
+			return false;
+		}
+
+		const int32 Before = Crystal->CurrentDurability;
+		Crystal->RepairBetweenCombats(RepairAmount);
+		const int32 After = Crystal->CurrentDurability;
+
+		if (After != Before)
+		{
+			UE_LOG(LogTemp, Verbose,
+				   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
+				   *Crystal->GetFullItemName(), *Actor->GetName(),
+				   Before, After, Crystal->MaxDurability);
+			return true;
+		}
+		return false;
+	};
+
 	auto RepairTeam = [&](const TArray<AActor *> &Team)
 	{
 		for (AActor *Actor : Team)
@@ -1059,32 +1088,40 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 				continue;
 			}
 
+			// --- Ring crystals (existing path) ---
 			TArray<URingData *> Rings = RingMgr->GetEquippedRings(Actor);
 			for (URingData *Ring : Rings)
 			{
-				if (!Ring || !Ring->SlottedCrystal)
+				if (!Ring)
 				{
 					continue;
 				}
-
-				UItemData *Crystal = Ring->SlottedCrystal;
-				if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking || Crystal->IsBroken())
+				if (TryRepairCrystal(Ring->SlottedCrystal, Actor))
 				{
-					// Skip: unrefined consumables, immune (Evolution), or fully-broken crystals
-					continue;
-				}
-
-				const int32 Before = Crystal->CurrentDurability;
-				Crystal->RepairBetweenCombats(RepairAmount);
-				const int32 After = Crystal->CurrentDurability;
-
-				if (After != Before)
-				{
-					UE_LOG(LogTemp, Verbose,
-						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
-						   *Crystal->GetFullItemName(), *Actor->GetName(),
-						   Before, After, Crystal->MaxDurability);
 					CrystalsRepaired++;
+				}
+			}
+
+			// --- Weapon crystals (Phase 4d-2) ---
+			// Pull weapons via LoadoutComponent — same pattern as
+			// UWeaponManager's crystal subscription. Asset-side SlottedCrystal
+			// per the architectural shortcut documented in 4d-1.
+			ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+			if (LoadoutComp)
+			{
+				if (UWeaponData *Primary = LoadoutComp->GetPrimaryWeapon())
+				{
+					if (TryRepairCrystal(Primary->SlottedCrystal, Actor))
+					{
+						CrystalsRepaired++;
+					}
+				}
+				if (UWeaponData *Secondary = LoadoutComp->GetSecondaryWeapon())
+				{
+					if (TryRepairCrystal(Secondary->SlottedCrystal, Actor))
+					{
+						CrystalsRepaired++;
+					}
 				}
 			}
 		}

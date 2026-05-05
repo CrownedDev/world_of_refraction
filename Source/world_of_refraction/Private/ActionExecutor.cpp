@@ -4316,11 +4316,32 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		break;
 
 	case EInfusionSourceOption::WeaponCrystal:
-		// TODO Phase 4d — analogous to ring path but on weapon's slotted crystal
-		UE_LOG(LogTemp, Verbose,
-			   TEXT("[ActionExecutor] %s: WeaponCrystal infusion at L%d — cost path not yet wired (Phase 4d)"),
-			   *Actor->GetName(), Level);
+	{
+		// Weapon crystal infusion: durability wear on the slotted crystal.
+		// Path A: action tier inherits from the weapon (UWeaponData::Tier),
+		// uniformly for spells, abilities, and attacks.
+		UWeaponManager *WeaponMgr = GetWeaponManager();
+		if (!WeaponMgr)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: WeaponCrystal infusion but WeaponManager unavailable"),
+				   *Actor->GetName());
+			break;
+		}
+
+		UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor);
+		if (!Weapon)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: WeaponCrystal infusion but no active weapon"),
+				   *Actor->GetName());
+			break;
+		}
+
+		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
+		WeaponMgr->ProcessPostCastWear(Actor, Weapon->Tier, Level, bIsSpell);
 		break;
+	}
 
 	case EInfusionSourceOption::Evolution:
 		// TODO Phase 6 — HP cost + element backlash + self-status build
