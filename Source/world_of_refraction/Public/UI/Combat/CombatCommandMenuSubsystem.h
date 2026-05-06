@@ -136,6 +136,7 @@ private:
     EPieMenuCategory PendingActionCategory = EPieMenuCategory::None;
     FString PendingActionID;
     TWeakObjectPtr<UObject> PendingActionData;
+    ETargetType PendingTargetType = ETargetType::SingleEnemy;
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 

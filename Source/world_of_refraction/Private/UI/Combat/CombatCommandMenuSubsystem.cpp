@@ -243,6 +243,37 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         ExecuteSwitchRing();
         break;
 
+    case EPieMenuCategory::CycleSource:
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            VFX->CycleToNextSource();
+            VFX->ActivateCurrentSource(); // refresh VFX to new source
+        }
+        // Re-broadcast picker with updated label
+        if (CurrentDepth == ECombatMenuDepth::TargetSelection)
+        {
+            const TArray<AActor *> Targets = ResolveTargets(PendingTargetType);
+            OnCommandMenuReady.Broadcast(BuildTargetButtons(Targets));
+        }
+        break;
+    }
+
+    case EPieMenuCategory::CycleLevel:
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            VFX->CycleInfusionLevel();
+        }
+        // Re-broadcast picker with updated label
+        if (CurrentDepth == ECombatMenuDepth::TargetSelection)
+        {
+            const TArray<AActor *> Targets = ResolveTargets(PendingTargetType);
+            OnCommandMenuReady.Broadcast(BuildTargetButtons(Targets));
+        }
+        break;
+    }
+
     // === NAVIGATION ===
     case EPieMenuCategory::Back:
         HandleBack();
@@ -266,12 +297,19 @@ void UCombatCommandMenuSubsystem::HandleBack()
     {
     case ECombatMenuDepth::TargetSelection:
     {
+        // Reset infusion state — picker is closing without commit
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            VFX->SetInfusionLevel(0);
+        }
+
         // Cancel pending action
         PendingActionCategory = EPieMenuCategory::None;
         PendingActionID.Empty();
         PendingActionData.Reset();
+  
 
-        if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
+            if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
         {
             // Restore whichever submenu we came from
             CurrentDepth = ECombatMenuDepth::Submenu;
@@ -721,6 +759,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     PendingActionCategory = ActionCategory;
     PendingActionID = ActionButton.ButtonID;
     PendingActionData = ActionButton.DataReference;
+    PendingTargetType = TargetType;
     DepthBeforeTargetSelection = CurrentDepth;
 
     // Log target type
@@ -733,6 +772,8 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
 
     // Reset infusion state for this picker. Per locked design (p2),
     // every action's picker opens at Level 0 with a fresh source cache.
+    // For spell actions, also lock the VFX source to the spell's intrinsic
+    // source so cycling level activates the correct element.
     // Items skip infusion entirely.
     if (ActionCategory != EPieMenuCategory::Item)
     {
@@ -740,6 +781,46 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         {
             VFX->CacheAvailableSources(); // refresh available sources
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
+
+            // For spells, source is intrinsic and not cyclable. Pre-select
+            // the matching cached source so CycleLevel later activates the
+            // correct element. For Attack/Ability, default to first cached
+            // (None) — player cycles from there.
+            EInfusionSourceOption SpellSource = EInfusionSourceOption::None;
+            bool bIsSpell = true;
+            switch (ActionCategory)
+            {
+            case EPieMenuCategory::Refractions:
+                SpellSource = EInfusionSourceOption::Innate;
+                break;
+            case EPieMenuCategory::ResonateWeapon:
+                SpellSource = EInfusionSourceOption::WeaponCrystal;
+                break;
+            case EPieMenuCategory::ResonateRing:
+                // Resonator uses ActiveRing; Generic/Caster use PrimaryRing.
+                SpellSource = (CurrentCapabilities.CharacterClass == ECharacterClass::Resonator)
+                                  ? EInfusionSourceOption::ActiveRing
+                                  : EInfusionSourceOption::PrimaryRing;
+                break;
+            case EPieMenuCategory::Breakthrough:
+                SpellSource = EInfusionSourceOption::Evolution;
+                break;
+            default:
+                bIsSpell = false;
+                break;
+            }
+
+            if (bIsSpell)
+            {
+                // Find the matching cached source and set the index there
+                const TArray<EInfusionSourceOption> &Cached = VFX->GetCachedSources();
+                int32 Idx = Cached.IndexOfByKey(SpellSource);
+                if (Idx != INDEX_NONE)
+                {
+                    VFX->SetSourceIndex(Idx);
+                }
+            }
+
             UE_LOG(LogTemp, Verbose,
                    TEXT("[CombatCommandMenu] Picker opened — infusion reset to L0"));
         }
@@ -815,27 +896,54 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     }
 
     // ==================== INFUSION CONTROLS ====================
-    // Items skip infusion entirely. Everything else gets a display row plus
-    // Cycle Level. Attacks and Abilities also get Cycle Source (Spells lock
-    // source to intrinsic per locked design Q12).
+    // Below targets, minimal buttons. Items skip infusion entirely.
+    //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
+    //     Pressing it cycles 0 -> 1 -> 2 -> 0.
+    //   - Cycle Source is a separate button, only for Attack / Ability.
+    //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item)
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
-            // Display row — read-only, shows current Source / Level
-            const FString DisplayText = FString::Printf(
-                TEXT("Source: %s  /  Level: %d"),
-                *VFX->GetCurrentSourceName(),
+            // Resolve source label depending on action type.
+            // Attack / Ability: read VFX cycled source.
+            // Spell submenus: source is intrinsic to the action category.
+            FString SourceLabel;
+            switch (PendingActionCategory)
+            {
+            case EPieMenuCategory::Refractions:
+                SourceLabel = TEXT("Innate");
+                break;
+            case EPieMenuCategory::ResonateWeapon:
+                SourceLabel = TEXT("Weapon Crystal");
+                break;
+            case EPieMenuCategory::ResonateRing:
+                SourceLabel = TEXT("Ring");
+                break;
+            case EPieMenuCategory::Breakthrough:
+                SourceLabel = TEXT("Evolution");
+                break;
+            case EPieMenuCategory::Attack:
+            case EPieMenuCategory::Ability:
+            default:
+                SourceLabel = VFX->GetCurrentSourceName();
+                break;
+            }
+
+            // Combined cycle-level + state-display button
+            const FString CycleLvlText = FString::Printf(
+                TEXT("%s: L%d"),
+                *SourceLabel,
                 VFX->GetCurrentInfusionLevel());
 
-            FPieMenuButtonData DisplayButton;
-            DisplayButton.ButtonID = TEXT("InfusionDisplay");
-            DisplayButton.DisplayName = FText::FromString(DisplayText);
-            DisplayButton.Category = EPieMenuCategory::None; // non-actionable
-            DisplayButton.bEnabled = false;
-            Buttons.Add(DisplayButton);
+            FPieMenuButtonData CycleLvl;
+            CycleLvl.ButtonID = TEXT("CycleLevel");
+            CycleLvl.DisplayName = FText::FromString(CycleLvlText);
+            CycleLvl.Category = EPieMenuCategory::CycleLevel;
+            CycleLvl.bEnabled = true;
+            Buttons.Add(CycleLvl);
 
-            // Cycle Source — only for Attack / Ability (Spells use intrinsic source)
+            // Cycle Source — separate button, only for Attack / Ability
             const bool bShowCycleSource =
                 (PendingActionCategory == EPieMenuCategory::Attack) ||
                 (PendingActionCategory == EPieMenuCategory::Ability);
@@ -849,14 +957,6 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
                 CycleSrc.bEnabled = true;
                 Buttons.Add(CycleSrc);
             }
-
-            // Cycle Level — always (except Items, already gated above)
-            FPieMenuButtonData CycleLvl;
-            CycleLvl.ButtonID = TEXT("CycleLevel");
-            CycleLvl.DisplayName = FText::FromString(TEXT("Cycle Level"));
-            CycleLvl.Category = EPieMenuCategory::CycleLevel;
-            CycleLvl.bEnabled = true;
-            Buttons.Add(CycleLvl);
         }
     }
 

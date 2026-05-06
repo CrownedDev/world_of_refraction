@@ -72,6 +72,13 @@ public:
     /** Current infusion level (0/1/2). Read-only accessor for menu/UI. */
     UFUNCTION(BlueprintPure, Category = "Infusion VFX")
     int32 GetCurrentInfusionLevel() const { return CurrentInfusionLevel; }
+    /** Cached available sources (read-only). */
+    UFUNCTION(BlueprintPure, Category = "Infusion VFX")
+    const TArray<EInfusionSourceOption> &GetCachedSources() const { return CachedSources; }
+
+    /** Set source index directly (used when picker pre-selects a spell's intrinsic source). */
+    UFUNCTION(BlueprintCallable, Category = "Infusion VFX")
+    void SetSourceIndex(int32 Index) { CurrentSourceIndex = FMath::Clamp(Index, 0, FMath::Max(0, CachedSources.Num() - 1)); }
 
     /** Current infusion level */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "InfusionVFX")
