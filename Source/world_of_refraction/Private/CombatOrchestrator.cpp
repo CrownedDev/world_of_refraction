@@ -519,6 +519,10 @@ void ACombatOrchestrator::OnActionCompleted()
 			StatusEffectManagerRef->ClearAllEffects();
 		}
 
+		// Phase B: destroy any crystals that broke during combat. Runs BEFORE
+		// repair so destroyed crystals aren't candidates for repair.
+		ApplyBetweenCombatCrystalDestruction();
+
 		// Auto-repair crystals between combats. Only fires on completed battles
 		// (ForceEndCombat does NOT repair — abort cases aren't "battles completed").
 		ApplyBetweenCombatRepair();
@@ -1037,6 +1041,108 @@ int32 UTurnManager::GetActorTeam(AActor *Actor) const
 // ============================================================
 // CRYSTAL DURABILITY — between-combat auto-repair
 // ============================================================
+
+// ============================================================
+// CRYSTAL DURABILITY — between-combat destruction (Phase B)
+// ============================================================
+
+void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
+{
+	URingManager *RingMgr = GetGameInstance()->GetSubsystem<URingManager>();
+	if (!RingMgr)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] No RingManager for destruction pass"));
+		return;
+	}
+
+	int32 CrystalsDestroyed = 0;
+
+	// Single helper: if the crystal is broken, clear the slot.
+	// Returns true if a destruction occurred.
+	auto TryDestroyCrystal = [&](UItemData *&CrystalRef, AActor *Actor, const FString &EquipmentDesc) -> bool
+	{
+		if (!CrystalRef)
+		{
+			return false;
+		}
+		if (!CrystalRef->IsBroken())
+		{
+			return false;
+		}
+		// Evolution crystals are immune to breaking — defensive check, IsBroken()
+		// should already return false for them.
+		if (CrystalRef->bImmuneToBreaking)
+		{
+			return false;
+		}
+
+		const FString CrystalName = CrystalRef->GetFullItemName();
+		CrystalRef = nullptr;
+
+		UE_LOG(LogTemp, Log,
+			   TEXT("[CombatOrchestrator] Destroyed broken crystal '%s' from %s on %s"),
+			   *CrystalName, *EquipmentDesc, *Actor->GetName());
+		return true;
+	};
+
+	auto DestroyTeam = [&](const TArray<AActor *> &Team)
+	{
+		for (AActor *Actor : Team)
+		{
+			if (!Actor)
+			{
+				continue;
+			}
+
+			// --- Ring crystals ---
+			TArray<URingData *> Rings = RingMgr->GetEquippedRings(Actor);
+			for (URingData *Ring : Rings)
+			{
+				if (!Ring)
+				{
+					continue;
+				}
+				if (TryDestroyCrystal(Ring->SlottedCrystal, Actor,
+									  FString::Printf(TEXT("Ring '%s'"), *Ring->RingName)))
+				{
+					CrystalsDestroyed++;
+				}
+			}
+
+			// --- Weapon crystals ---
+			ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+			if (LoadoutComp)
+			{
+				if (UWeaponData *Primary = LoadoutComp->GetPrimaryWeapon())
+				{
+					if (TryDestroyCrystal(Primary->SlottedCrystal, Actor,
+										  FString::Printf(TEXT("Primary Weapon '%s'"), *Primary->WeaponName)))
+					{
+						CrystalsDestroyed++;
+					}
+				}
+				if (UWeaponData *Secondary = LoadoutComp->GetSecondaryWeapon())
+				{
+					if (TryDestroyCrystal(Secondary->SlottedCrystal, Actor,
+										  FString::Printf(TEXT("Secondary Weapon '%s'"), *Secondary->WeaponName)))
+					{
+						CrystalsDestroyed++;
+					}
+				}
+			}
+		}
+	};
+
+	DestroyTeam(Team0Combatants);
+	DestroyTeam(Team1Combatants);
+
+	if (CrystalsDestroyed > 0)
+	{
+		UE_LOG(LogTemp, Log,
+			   TEXT("[CombatOrchestrator] Combat end: destroyed %d broken crystal(s)"),
+			   CrystalsDestroyed);
+	}
+}
 
 void ACombatOrchestrator::ApplyBetweenCombatRepair()
 {

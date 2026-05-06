@@ -437,6 +437,14 @@ private:
 	 *  as completed battles). */
 	void ApplyBetweenCombatRepair();
 
+	/** Phase B — Crystal destruction at combat end.
+	 *  Iterates every active combatant's rings and weapons; for any broken crystal,
+	 *  clears the slotted crystal reference (preserves the ring/weapon, removes the
+	 *  destroyed crystal). Runs BEFORE ApplyBetweenCombatRepair so destroyed crystals
+	 *  aren't candidates for repair.
+	 *  No UI delegate — destruction is silent; player learns via empty crystal slot
+	 *  in next combat's UI (capability queries return no spells / no element). */
+	void ApplyBetweenCombatCrystalDestruction();
 	// ========================================
 	// BROKEN DARKNESS HELPERS
 	// ========================================
