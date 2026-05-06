@@ -63,6 +63,8 @@ private:
 
 	bool bInitialised = false;
 
+	int32 CurrentTurnNumber = 0;
+
 	/** Create PreviewCount+1 slot widgets and add them to SlotContainer. */
 	void SpawnSlots();
 
