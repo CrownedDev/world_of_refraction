@@ -203,8 +203,17 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
     case EPieMenuCategory::Target:
     {
-        AActor *Target = Cast<AActor>(ButtonData.DataReference);
-        ConfirmActionWithTarget(Target);
+        if (ButtonData.Targets.Num() > 0)
+        {
+            // Group target — labelled confirm button carries the full array
+            ConfirmActionWithTargets(ButtonData.Targets);
+        }
+        else
+        {
+            // Per-actor pick — existing single-target path
+            AActor *Selected = Cast<AActor>(ButtonData.DataReference);
+            ConfirmActionWithTarget(Selected);
+        }
         break;
     }
 
@@ -850,24 +859,10 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]     - %s"), *TName);
     }
 
-    // Auto-resolving target types skip selection
-    if (TargetType == ETargetType::Self ||
-        TargetType == ETargetType::AllEnemies ||
-        TargetType == ETargetType::AllAllies ||
-        TargetType == ETargetType::Everyone ||
-        TargetType == ETargetType::SingleAlly)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Auto-resolving (no picker shown)"));
-        AActor *AutoTarget = Targets.Num() > 0 ? Targets[0] : nullptr;
-        ConfirmActionWithTarget(AutoTarget);
-        return;
-    }
-
-    // SingleEnemy - need to pick
+    // Empty-target safety — bail and clear pending state
     if (Targets.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] OpenTargetSelection: no valid targets"));
-        // Fallback: cancel action, return to previous menu
         PendingActionCategory = EPieMenuCategory::None;
         PendingActionID.Empty();
         PendingActionData.Reset();
@@ -876,9 +871,24 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
 
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing target picker"));
 
-    // Show target selection
     CurrentDepth = ECombatMenuDepth::TargetSelection;
-    TArray<FPieMenuButtonData> TargetButtons = BuildTargetButtons(Targets);
+
+    TArray<FPieMenuButtonData> TargetButtons;
+    switch (TargetType)
+    {
+    case ETargetType::Self:
+    case ETargetType::AllEnemies:
+    case ETargetType::AllAllies:
+    case ETargetType::Everyone:
+        TargetButtons = BuildGroupTargetButtons(TargetType, Targets);
+        break;
+
+    default:
+        // SingleEnemy / SingleAlly / SingleAnyone — per-actor picker
+        TargetButtons = BuildTargetButtons(Targets);
+        break;
+    }
+
     OnCommandMenuReady.Broadcast(TargetButtons);
 }
 
@@ -1022,6 +1032,135 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     return Buttons;
 }
 
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
+    ETargetType TargetType,
+    const TArray<AActor *> &Targets) const
+{
+    TArray<FPieMenuButtonData> Buttons;
+
+    // ==================== GROUP CONFIRM BUTTON ====================
+    FPieMenuButtonData ConfirmBtn;
+    ConfirmBtn.Category = EPieMenuCategory::Target;
+    ConfirmBtn.bEnabled = true;
+    ConfirmBtn.Targets = Targets;
+
+    switch (TargetType)
+    {
+    case ETargetType::Self:
+    {
+        // Label with caster's character name
+        FString CasterName = TEXT("Self");
+        if (AActor *User = CurrentActor.Get())
+        {
+            if (UCharacterDataComponent *CDC = User->FindComponentByClass<UCharacterDataComponent>())
+            {
+                if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+                {
+                    CasterName = CDC->CharacterData->CharacterName;
+                }
+                else
+                {
+                    CasterName = User->GetName();
+                }
+            }
+        }
+        ConfirmBtn.ButtonID = TEXT("GroupTarget_Self");
+        ConfirmBtn.DisplayName = FText::FromString(CasterName);
+        break;
+    }
+    case ETargetType::AllEnemies:
+        ConfirmBtn.ButtonID = TEXT("GroupTarget_AllEnemies");
+        ConfirmBtn.DisplayName = FText::FromString(TEXT("All Enemies"));
+        break;
+    case ETargetType::AllAllies:
+        ConfirmBtn.ButtonID = TEXT("GroupTarget_AllAllies");
+        ConfirmBtn.DisplayName = FText::FromString(TEXT("All Allies"));
+        break;
+    case ETargetType::Everyone:
+        ConfirmBtn.ButtonID = TEXT("GroupTarget_Everyone");
+        ConfirmBtn.DisplayName = FText::FromString(TEXT("Everyone"));
+        break;
+    default:
+        // Should never hit this — caller routes only group types here
+        break;
+    }
+    Buttons.Add(ConfirmBtn);
+
+    // ==================== INFUSION CONTROLS ====================
+    // Same block as BuildTargetButtons. Items skip infusion entirely.
+    //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
+    //   - Cycle Source is a separate button, only for Attack / Ability.
+    //   - Spells show their intrinsic source in the label (not cyclable).
+    if (PendingActionCategory != EPieMenuCategory::Item)
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            // Resolve source label depending on action type.
+            // Attack / Ability: read VFX cycled source.
+            // Spell submenus: source is intrinsic to the action category.
+            // For Spell, intrinsic source comes from the originating submenu.
+            // For Attack/Ability, source is what the player has cycled to.
+            const EPieMenuCategory SourceLookup =
+                (PendingActionCategory == EPieMenuCategory::Spell)
+                    ? ActiveSubmenuSource
+                    : PendingActionCategory;
+
+            FString SourceLabel;
+            switch (SourceLookup)
+            {
+            case EPieMenuCategory::Refractions:
+                SourceLabel = TEXT("Innate");
+                break;
+            case EPieMenuCategory::ResonateWeapon:
+                SourceLabel = TEXT("Weapon Crystal");
+                break;
+            case EPieMenuCategory::ResonateRing:
+                SourceLabel = TEXT("Ring");
+                break;
+            case EPieMenuCategory::Breakthrough:
+                SourceLabel = TEXT("Evolution");
+                break;
+            case EPieMenuCategory::Attack:
+            case EPieMenuCategory::Ability:
+            default:
+                SourceLabel = VFX->GetCurrentSourceName();
+                break;
+            }
+
+            // Combined cycle-level + state-display button
+            const FString CycleLvlText = FString::Printf(
+                TEXT("%s: L%d"),
+                *SourceLabel,
+                VFX->GetCurrentInfusionLevel());
+
+            FPieMenuButtonData CycleLvl;
+            CycleLvl.ButtonID = TEXT("CycleLevel");
+            CycleLvl.DisplayName = FText::FromString(CycleLvlText);
+            CycleLvl.Category = EPieMenuCategory::CycleLevel;
+            CycleLvl.bEnabled = true;
+            Buttons.Add(CycleLvl);
+
+            // Cycle Source — separate button, only for Attack / Ability
+            const bool bShowCycleSource =
+                (PendingActionCategory == EPieMenuCategory::Attack) ||
+                (PendingActionCategory == EPieMenuCategory::Ability);
+
+            if (bShowCycleSource)
+            {
+                FPieMenuButtonData CycleSrc;
+                CycleSrc.ButtonID = TEXT("CycleSource");
+                CycleSrc.DisplayName = FText::FromString(TEXT("Cycle Source"));
+                CycleSrc.Category = EPieMenuCategory::CycleSource;
+                CycleSrc.bEnabled = true;
+                Buttons.Add(CycleSrc);
+            }
+        }
+    }
+
+    Buttons.Add(FPieMenuButtonData::MakeBackButton());
+    return Buttons;
+}
+
 TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetType) const
 {
     TArray<AActor *> Result;
@@ -1133,6 +1272,26 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
            *TargetName);
 
     // Clear pending state
+    PendingActionCategory = EPieMenuCategory::None;
+    PendingActionID.Empty();
+    PendingActionData.Reset();
+
+    OnActionSelected.Broadcast(ActionButton);
+    Close();
+}
+
+void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *> &SelectedTargets)
+{
+    FPieMenuButtonData ActionButton;
+    ActionButton.ButtonID = PendingActionID;
+    ActionButton.Category = PendingActionCategory;
+    ActionButton.DataReference = PendingActionData.Get();
+    ActionButton.Targets = SelectedTargets;
+
+    UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
+           *PendingActionID, SelectedTargets.Num());
+
+    // Clear pending state — same pattern as ConfirmActionWithTarget
     PendingActionCategory = EPieMenuCategory::None;
     PendingActionID.Empty();
     PendingActionData.Reset();

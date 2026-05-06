@@ -177,8 +177,10 @@ private:
     // Target selection
     void OpenTargetSelection(EPieMenuCategory ActionCategory, const FPieMenuButtonData &ActionButton, ETargetType TargetType);
     TArray<FPieMenuButtonData> BuildTargetButtons(const TArray<AActor *> &Targets) const;
+    TArray<FPieMenuButtonData> BuildGroupTargetButtons(ETargetType TargetType, const TArray<AActor *> &Targets) const;
     TArray<AActor *> ResolveTargets(ETargetType TargetType) const;
     void ConfirmActionWithTarget(AActor *SelectedTarget);
+    void ConfirmActionWithTargets(const TArray<AActor *> &SelectedTargets);
 
     // ==================== HELPERS ====================
 

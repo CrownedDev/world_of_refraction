@@ -125,6 +125,11 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	AActor *TargetActor = nullptr;
 
+	/** Resolved target array for group-target actions (Self / AllEnemies / AllAllies / Everyone).
+	 *  When this array is populated, the BP consumer should use it; otherwise use TargetActor. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
+	TArray<AActor *> Targets;
+
 	/** Index in the source array */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	int32 DataIndex = -1;
