@@ -1870,6 +1870,10 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 		// TODO: Consume spell item from inventory
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell item used - consumption not yet implemented"));
 		break;
+
+	case ESpellSource::WeaponCrystal:
+		// Wear was applied at commit (ApplyCommitCosts). Nothing to do here.
+		break;
 	}
 }
 

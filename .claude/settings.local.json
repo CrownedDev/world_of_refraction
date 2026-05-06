@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Program Files/Epic Games/UE_5.7/Engine/Build/BatchFiles/**)",
+      "Read(//c/Program Files/Epic Games/UE_5.6/Engine/Build/BatchFiles/**)",
+      "Read(//c/Program Files/Epic Games/UE_5.5/Engine/Build/BatchFiles/**)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\(x86\\)/Epic Games//**)",
+      "Read(//c//**)"
+    ]
+  }
+}

@@ -23,5 +23,8 @@ enum class ESpellSource : uint8
 	Evolution UMETA(DisplayName = "Evolution"),
 
 	/** One-time use spell item - consumed after cast */
-	Item UMETA(DisplayName = "Item")
+	Item UMETA(DisplayName = "Item"),
+
+	/** Spell from weapon crystal - wear applied at commit */
+	WeaponCrystal UMETA(DisplayName = "Weapon Crystal")
 };

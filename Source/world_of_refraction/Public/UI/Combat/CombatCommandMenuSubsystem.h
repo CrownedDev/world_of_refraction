@@ -12,6 +12,8 @@
 #include "ECharacterClass.h"
 #include "ElementColors.h"
 #include "TargetType.h"
+#include "ActionStructs.h"
+#include "ESpellSource.h"
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
@@ -22,9 +24,6 @@ class USpellData;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCommandMenuReady,
                                             const TArray<FPieMenuButtonData> &, Buttons);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionSelected,
-                                            const FPieMenuButtonData &, ButtonData);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnCommandMenuClosed);
 
@@ -84,9 +83,6 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
     FOnCommandMenuReady OnCommandMenuReady;
-
-    UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
-    FOnActionSelected OnActionSelected;
 
     UPROPERTY(BlueprintAssignable, Category = "Combat Command Menu|Events")
     FOnCommandMenuClosed OnCommandMenuClosed;
@@ -167,7 +163,6 @@ private:
 
     // ==================== SELECTION HANDLERS ====================
 
-    void ExecuteAttack();
     void OpenAbilitySubmenu();
     void OpenSpellSubmenu(EPieMenuCategory Source);
     void ExecuteSwitchWeapon();
@@ -181,6 +176,12 @@ private:
     TArray<AActor *> ResolveTargets(ETargetType TargetType) const;
     void ConfirmActionWithTarget(AActor *SelectedTarget);
     void ConfirmActionWithTargets(const TArray<AActor *> &SelectedTargets);
+
+    // ==================== ACTION SUBMISSION ====================
+
+    FAction BuildActionFromButton(const FPieMenuButtonData &ButtonData) const;
+    ESpellSource MapCategoryToSpellSource(EPieMenuCategory SubmenuCategory) const;
+    void SubmitConfirmedAction(const FPieMenuButtonData &ButtonData);
 
     // ==================== HELPERS ====================
 

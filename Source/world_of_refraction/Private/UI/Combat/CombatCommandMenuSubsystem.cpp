@@ -685,15 +685,6 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
 
 // ==================== SELECTION HANDLERS ====================
 
-void UCombatCommandMenuSubsystem::ExecuteAttack()
-{
-    FPieMenuButtonData AttackButton;
-    AttackButton.ButtonID = TEXT("Attack");
-    AttackButton.Category = EPieMenuCategory::Attack;
-    OnActionSelected.Broadcast(AttackButton);
-    Close();
-}
-
 void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
 {
     if (!CurrentActor.IsValid())
@@ -1276,7 +1267,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     PendingActionID.Empty();
     PendingActionData.Reset();
 
-    OnActionSelected.Broadcast(ActionButton);
+    SubmitConfirmedAction(ActionButton);
     Close();
 }
 
@@ -1296,8 +1287,135 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     PendingActionID.Empty();
     PendingActionData.Reset();
 
-    OnActionSelected.Broadcast(ActionButton);
+    SubmitConfirmedAction(ActionButton);
     Close();
+}
+
+// ==================== ACTION SUBMISSION ====================
+
+ESpellSource UCombatCommandMenuSubsystem::MapCategoryToSpellSource(
+    EPieMenuCategory SubmenuCategory) const
+{
+    switch (SubmenuCategory)
+    {
+    case EPieMenuCategory::Refractions:    return ESpellSource::Innate;
+    case EPieMenuCategory::ResonateRing:   return ESpellSource::Ring;
+    case EPieMenuCategory::ResonateWeapon: return ESpellSource::WeaponCrystal;
+    case EPieMenuCategory::Breakthrough:   return ESpellSource::Evolution;
+    default:                               return ESpellSource::Innate;
+    }
+}
+
+FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
+    const FPieMenuButtonData &ButtonData) const
+{
+    FAction Action;
+
+    // Determine action type + data ref. For per-actor target buttons (Category=Target,
+    // single-target), or group confirm buttons (Category=Target, Targets populated),
+    // the actual action type lives in PendingActionCategory.
+    const EPieMenuCategory ResolvedCategory =
+        (ButtonData.Category == EPieMenuCategory::Target)
+            ? PendingActionCategory
+            : ButtonData.Category;
+
+    UObject *DataRef = (ButtonData.Category == EPieMenuCategory::Target)
+                           ? PendingActionData.Get()
+                           : ButtonData.DataReference;
+
+    switch (ResolvedCategory)
+    {
+    case EPieMenuCategory::Attack:
+        Action.ActionType = EActionType::Attack;
+        Action.AttackData = Cast<UWeaponAttackData>(DataRef);
+        break;
+    case EPieMenuCategory::Ability:
+        Action.ActionType = EActionType::Ability;
+        Action.AbilityData = Cast<UAbilityData>(DataRef);
+        break;
+    case EPieMenuCategory::Spell:
+        Action.ActionType = EActionType::Spell;
+        Action.SpellData = Cast<USpellData>(DataRef);
+        Action.SpellSource = MapCategoryToSpellSource(ActiveSubmenuSource);
+        break;
+    case EPieMenuCategory::Item:
+        Action.ActionType = EActionType::Item;
+        Action.ItemData = Cast<UItemData>(DataRef);
+        break;
+    default:
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] BuildActionFromButton: unhandled category %d"),
+               static_cast<int32>(ResolvedCategory));
+        break;
+    }
+
+    // Targets — group buttons carry array; per-actor buttons carry single TargetActor;
+    // legacy fallback to DataReference (for older Target buttons that stuffed the actor there).
+    if (ButtonData.Targets.Num() > 0)
+    {
+        Action.Targets = ButtonData.Targets;
+    }
+    else if (ButtonData.TargetActor)
+    {
+        Action.Targets.Add(ButtonData.TargetActor);
+    }
+    else if (AActor *Single = Cast<AActor>(ButtonData.DataReference))
+    {
+        Action.Targets.Add(Single);
+    }
+
+    // Infusion stamp — items skip entirely
+    if (Action.ActionType != EActionType::Item)
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            const int32 Level = VFX->GetCurrentInfusionLevel();
+            if (Level > 0)
+            {
+                const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
+                const int32 Idx = VFX->GetCurrentSourceIndex();
+                Action.SelectedSource = Sources.IsValidIndex(Idx)
+                                            ? Sources[Idx]
+                                            : EInfusionSourceOption::None;
+
+                // Route level by action type
+                if (Action.ActionType == EActionType::Spell)
+                {
+                    Action.SpellInfusionLevel = Level;
+                }
+                else if (Action.ActionType == EActionType::Ability ||
+                         Action.ActionType == EActionType::Attack)
+                {
+                    Action.AbilityInfusionLevel = Level;
+                }
+            }
+        }
+    }
+
+    return Action;
+}
+
+void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
+    const FPieMenuButtonData &ButtonData)
+{
+    FAction Action = BuildActionFromButton(ButtonData);
+
+    UE_LOG(LogTemp, Log,
+           TEXT("[CombatCommandMenu] Submitting action: type=%d targets=%d level(spell/ab)=%d/%d source=%d spellSource=%d"),
+           static_cast<int32>(Action.ActionType),
+           Action.Targets.Num(),
+           Action.SpellInfusionLevel,
+           Action.AbilityInfusionLevel,
+           static_cast<int32>(Action.SelectedSource),
+           static_cast<int32>(Action.SpellSource));
+
+    ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    if (!Orchestrator)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] SubmitConfirmedAction: no orchestrator bound"));
+        return;
+    }
+
+    Orchestrator->SubmitActionAsync(Action);
 }
 
 // ==================== HELPERS ====================
