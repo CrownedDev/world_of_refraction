@@ -47,6 +47,10 @@ void UTurnOrderStripWidget::InitialiseForCombat()
 	// Bind to turn changes
 	CachedTurnManager->OnTurnStarted.AddDynamic(this, &UTurnOrderStripWidget::HandleTurnStarted);
 
+	// Seed turn number before first RefreshSlots — combat always starts on turn 1.
+	// HandleTurnStarted will overwrite this on every subsequent turn.
+	CurrentTurnNumber = 1;
+
 	// Initial population — handles "spawned mid-combat" case
 	RefreshSlots();
 
@@ -96,6 +100,7 @@ void UTurnOrderStripWidget::BeginDestroy()
 
 void UTurnOrderStripWidget::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 {
+	CurrentTurnNumber = TurnNumber;
 	RefreshSlots();
 }
 
@@ -127,7 +132,7 @@ void UTurnOrderStripWidget::RefreshSlots()
 	// Slot 0 = current actor
 	if (Slots[0])
 	{
-		Slots[0]->InitialiseSlot(CurrentActor, /*TurnNumber=*/1, /*bIsActive=*/true);
+		Slots[0]->InitialiseSlot(CurrentActor, CurrentTurnNumber, /*bIsActive=*/true);
 	}
 
 	// Slots 1..N = upcoming
@@ -140,6 +145,6 @@ void UTurnOrderStripWidget::RefreshSlots()
 		}
 
 		AActor *PreviewActor = Upcoming.IsValidIndex(i) ? Upcoming[i] : nullptr;
-		Slots[SlotIndex]->InitialiseSlot(PreviewActor, /*TurnNumber=*/i + 2, /*bIsActive=*/false);
+		Slots[SlotIndex]->InitialiseSlot(PreviewActor, CurrentTurnNumber + i + 1, /*bIsActive=*/false);
 	}
 }
