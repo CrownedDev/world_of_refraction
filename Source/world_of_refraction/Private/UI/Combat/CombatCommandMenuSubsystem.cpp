@@ -248,7 +248,10 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
             VFX->CycleToNextSource();
-            VFX->ActivateCurrentSource(); // refresh VFX to new source
+            if (VFX->GetCurrentInfusionLevel() > 0)
+            {
+                VFX->ActivateCurrentSource();
+            }
         }
         // Re-broadcast picker with updated label
         if (CurrentDepth == ECombatMenuDepth::TargetSelection)
@@ -897,6 +900,51 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         }
     }
 
+    // Tints
+    const FLinearColor EnemyTint(1.0f, 0.3f, 0.3f, 1.0f); // Red
+
+    for (AActor *Target : Targets)
+    {
+        if (!Target)
+            continue;
+
+        // Pull display name from CharacterData if available
+        FString TargetName = Target->GetName();
+        if (UCharacterDataComponent *CDC = Target->FindComponentByClass<UCharacterDataComponent>())
+        {
+            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            {
+                TargetName = CDC->CharacterData->CharacterName;
+            }
+        }
+
+        // Tint enemies only; allies use default
+        FLinearColor Tint = FLinearColor::White;
+        if (UserTeam >= 0)
+        {
+            if (UGameInstance *GI = GetGameInstance())
+            {
+                if (UTurnManager *TM = GI->GetSubsystem<UTurnManager>())
+                {
+                    int32 TargetTeam = TM->GetActorTeam(Target);
+                    if (TargetTeam >= 0 && TargetTeam != UserTeam)
+                    {
+                        Tint = EnemyTint;
+                    }
+                }
+            }
+        }
+
+        FPieMenuButtonData Button;
+        Button.ButtonID = Target->GetName();
+        Button.DisplayName = FText::FromString(TargetName);
+        Button.Category = EPieMenuCategory::Target;
+        Button.DataReference = Target;
+        Button.ButtonTint = Tint;
+        Button.bEnabled = true;
+        Buttons.Add(Button);
+    }
+
     // ==================== INFUSION CONTROLS ====================
     // Below targets, minimal buttons. Items skip infusion entirely.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
@@ -967,51 +1015,6 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
                 Buttons.Add(CycleSrc);
             }
         }
-    }
-
-    // Tints
-    const FLinearColor EnemyTint(1.0f, 0.3f, 0.3f, 1.0f); // Red
-
-    for (AActor *Target : Targets)
-    {
-        if (!Target)
-            continue;
-
-        // Pull display name from CharacterData if available
-        FString TargetName = Target->GetName();
-        if (UCharacterDataComponent *CDC = Target->FindComponentByClass<UCharacterDataComponent>())
-        {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
-            {
-                TargetName = CDC->CharacterData->CharacterName;
-            }
-        }
-
-        // Tint enemies only; allies use default
-        FLinearColor Tint = FLinearColor::White;
-        if (UserTeam >= 0)
-        {
-            if (UGameInstance *GI = GetGameInstance())
-            {
-                if (UTurnManager *TM = GI->GetSubsystem<UTurnManager>())
-                {
-                    int32 TargetTeam = TM->GetActorTeam(Target);
-                    if (TargetTeam >= 0 && TargetTeam != UserTeam)
-                    {
-                        Tint = EnemyTint;
-                    }
-                }
-            }
-        }
-
-        FPieMenuButtonData Button;
-        Button.ButtonID = Target->GetName();
-        Button.DisplayName = FText::FromString(TargetName);
-        Button.Category = EPieMenuCategory::Target;
-        Button.DataReference = Target;
-        Button.ButtonTint = Tint;
-        Button.bEnabled = true;
-        Buttons.Add(Button);
     }
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
