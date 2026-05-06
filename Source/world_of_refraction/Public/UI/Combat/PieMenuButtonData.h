@@ -42,7 +42,6 @@ enum class EPieMenuCategory : uint8
 	ChangeRing UMETA(DisplayName = "Change Ring"),		   // Opens ring grid (Resonator)
 	Items UMETA(DisplayName = "Items"),					   // Opens item grid (All)
 	SwitchWeapon UMETA(DisplayName = "Switch Weapon"),	   // Toggles bUsePrimary (Generic dual-wield only)
-	Infuse UMETA(DisplayName = "Infuse"),				   // Opens infusion submenu
 	CycleSource UMETA(DisplayName = "Cycle Source"),	   // Infusion submenu: cycle through sources
 	CycleLevel UMETA(DisplayName = "Cycle Level"),		   // Infusion submenu: cycle through levels (0/1/2)
 
