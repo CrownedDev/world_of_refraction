@@ -3872,10 +3872,11 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		break;
 
 	case EInfusionSourceOption::ActiveRing:
+	{
 		// Ring sources pay durability wear on the slotted crystal.
 		// Ring spells route through SpellData; ability/attack ring infusions
 		// also need wear, but ProcessPostCastWear takes a USpellData* parameter.
-		// For now this fires only for spell actions; abilities/attacks via ring
+		// For now wear fires only for spell actions; abilities/attacks via ring
 		// will need a separate path (see TODO).
 		if (Action.ActionType == EActionType::Spell && Action.SpellData)
 		{
@@ -3893,7 +3894,24 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 				   TEXT("[ActionExecutor] %s: Ring infusion on non-spell action — wear not yet wired"),
 				   *Actor->GetName());
 		}
+
+		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
+		// Applies regardless of action type — the buff is the source's signature, not tied to wear path.
+		if (Level == 2)
+		{
+			if (URingManager *RingMgr = GetRingManager())
+			{
+				if (URingData *Ring = RingMgr->GetActiveRing(Actor))
+				{
+					if (Ring->SlottedCrystal && Ring->SlottedCrystal->CrystalType == ECrystalType::Iolite)
+					{
+						ApplyIoliteL2StatBuff(Actor);
+					}
+				}
+			}
+		}
 		break;
+	}
 
 	case EInfusionSourceOption::WeaponCrystal:
 	{
@@ -3920,6 +3938,12 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
 		WeaponMgr->ProcessPostCastWear(Actor, Weapon->Tier, Level, bIsSpell);
+
+		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
+		if (Level == 2 && Weapon->HasIloditeEquipped())
+		{
+			ApplyIoliteL2StatBuff(Actor);
+		}
 		break;
 	}
 
@@ -4005,6 +4029,25 @@ void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ActionExecutor] %s paid %d HP for L%d infusion (HP: %d -> %d)"),
 		   *Actor->GetName(), Cost, Level, Before, CharComp->CurrentHP);
+}
+void UActionExecutor::ApplyIoliteL2StatBuff(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	const float BuffPercent = InfusionConstants::IOLITE_L2_STAT_BUFF;
+
+	// Implementation pending — design questions to resolve:
+	//   1. Which sub-stats are "relevant" per action type (Mind for spells,
+	//      Body for attacks, etc.)
+	//   2. How the boost flows into DamageCalculator (transient flag vs
+	//      per-action input field)
+	// One-shot: applies to THIS action only, no turn duration.
+	UE_LOG(LogTemp, Log,
+		   TEXT("[ActionExecutor] %s Iolite L2 buff: would apply +%.0f%% to relevant sub-stats for this action (pending design)"),
+		   *Actor->GetName(), BuffPercent * 100.0f);
 }
 
 void UActionExecutor::DebugAsyncState()

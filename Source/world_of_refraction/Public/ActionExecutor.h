@@ -234,6 +234,14 @@ public:
 	 *  CharacterDataComponent::CurrentHP. Floored at 1 HP by the helper. */
 	void ApplyHPCostInternal(AActor *Actor, int32 Level);
 
+	/** Iolite (Reality crystal) L2 infusion: applies a one-shot sub-stat boost
+	 *  to the action being executed. Sub-stats affected depend on action type
+	 *  (design pending). Applies for Iolite slotted in WeaponCrystal, ActiveRing,
+	 *  or PrimaryRing source.
+	 *  Currently logs intent — implementation pending design call on which sub-stats
+	 *  are relevant per action and how the boost flows into DamageCalculator. */
+	void ApplyIoliteL2StatBuff(AActor *Actor) const;
+
 	// ========================================
 	// POST-CAST PROCESSING
 	// ========================================

@@ -34,35 +34,7 @@ namespace InfusionConstants
 	/** Time to hold for Level 2 charge (seconds) */
 	constexpr float LEVEL_2_CHARGE_TIME = 1.5f;
 
-	// ==================== PHYSICAL INFUSION ====================
-
-	/** L2 Physical: Damage multiplier (+30%) */
-	constexpr float PHYSICAL_L2_DAMAGE_MULT = 1.30f;
-
-	// ==================== ELEMENT INFUSION ====================
-
-	/** L1 Element: Status buildup multiplier (+50%) */
-	constexpr float ELEMENT_L1_STATUS_MULT = 1.50f;
-
-	/** L2 Element: Status buildup multiplier (+100%) */
-	constexpr float ELEMENT_L2_STATUS_MULT = 2.00f;
-
-	/** L2 Element: Damage multiplier (+30%) */
-	constexpr float ELEMENT_L2_DAMAGE_MULT = 1.30f;
-
 	// ==================== L2 COSTS (SOURCE-BASED) ====================
-
-	/** Innate source: HP cost as percent of max (5%) */
-	constexpr float INNATE_L2_HP_COST_PERCENT = 0.05f;
-
-	/** Ring source: Break chance increase for abilities (+15%) */
-	constexpr float RING_L2_BREAK_INCREASE = 0.15f;
-
-	/** Ring source: Break chance increase for spells (+20%) */
-	constexpr float RING_L2_SPELL_BREAK_INCREASE = 0.20f;
-
-	/** Crystal source: Break chance increase (+15%) */
-	constexpr float CRYSTAL_L2_BREAK_INCREASE = 0.15f;
 
 	/** Evolution L1 backlash: HP cost as percent of max (5%) */
 	constexpr float EVOLUTION_L1_HP_COST_PERCENT = 0.05f;
