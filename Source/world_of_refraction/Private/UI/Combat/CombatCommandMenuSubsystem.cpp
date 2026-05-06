@@ -307,9 +307,8 @@ void UCombatCommandMenuSubsystem::HandleBack()
         PendingActionCategory = EPieMenuCategory::None;
         PendingActionID.Empty();
         PendingActionData.Reset();
-  
 
-            if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
+        if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
         {
             // Restore whichever submenu we came from
             CurrentDepth = ECombatMenuDepth::Submenu;
@@ -782,13 +781,17 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
             VFX->CacheAvailableSources(); // refresh available sources
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
 
-            // For spells, source is intrinsic and not cyclable. Pre-select
-            // the matching cached source so CycleLevel later activates the
-            // correct element. For Attack/Ability, default to first cached
-            // (None) — player cycles from there.
+            // For Spell action category, source is intrinsic — read from
+            // ActiveSubmenuSource (set by OpenSpellSubmenu) to know which
+            // spell submenu the player navigated through.
+            const EPieMenuCategory SourceLookup =
+                (ActionCategory == EPieMenuCategory::Spell)
+                    ? ActiveSubmenuSource
+                    : ActionCategory;
             EInfusionSourceOption SpellSource = EInfusionSourceOption::None;
             bool bIsSpell = true;
-            switch (ActionCategory)
+
+            switch (SourceLookup)
             {
             case EPieMenuCategory::Refractions:
                 SpellSource = EInfusionSourceOption::Innate;
@@ -797,7 +800,6 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 SpellSource = EInfusionSourceOption::WeaponCrystal;
                 break;
             case EPieMenuCategory::ResonateRing:
-                // Resonator uses ActiveRing; Generic/Caster use PrimaryRing.
                 SpellSource = (CurrentCapabilities.CharacterClass == ECharacterClass::Resonator)
                                   ? EInfusionSourceOption::ActiveRing
                                   : EInfusionSourceOption::PrimaryRing;
@@ -908,8 +910,15 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             // Resolve source label depending on action type.
             // Attack / Ability: read VFX cycled source.
             // Spell submenus: source is intrinsic to the action category.
+            // For Spell, intrinsic source comes from the originating submenu.
+            // For Attack/Ability, source is what the player has cycled to.
+            const EPieMenuCategory SourceLookup =
+                (PendingActionCategory == EPieMenuCategory::Spell)
+                    ? ActiveSubmenuSource
+                    : PendingActionCategory;
+
             FString SourceLabel;
-            switch (PendingActionCategory)
+            switch (SourceLookup)
             {
             case EPieMenuCategory::Refractions:
                 SourceLabel = TEXT("Innate");
