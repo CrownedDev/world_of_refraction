@@ -183,4 +183,5 @@ private:
 
     ULoadoutComponent *GetLoadoutComponent() const;
     FLinearColor GetElementColor(int32 ElementIndex) const;
+    class UInfusionVFXComponent *GetInfusionVFXComponent() const;
 };

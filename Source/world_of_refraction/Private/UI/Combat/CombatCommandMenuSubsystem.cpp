@@ -15,6 +15,7 @@
 #include "CrystalType.h"
 #include "CombatOrchestrator.h"
 #include "ActionStructs.h"
+#include "InfusionVFXComponent.h"
 #include "Engine/GameInstance.h"
 
 // ==================== LIFECYCLE ====================
@@ -730,6 +731,20 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] OpenTargetSelection: TargetType=%s"),
            *TargetTypeName);
 
+    // Reset infusion state for this picker. Per locked design (p2),
+    // every action's picker opens at Level 0 with a fresh source cache.
+    // Items skip infusion entirely.
+    if (ActionCategory != EPieMenuCategory::Item)
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            VFX->CacheAvailableSources(); // refresh available sources
+            VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
+            UE_LOG(LogTemp, Verbose,
+                   TEXT("[CombatCommandMenu] Picker opened — infusion reset to L0"));
+        }
+    }
+
     // Resolve targets
     TArray<AActor *> Targets = ResolveTargets(TargetType);
 
@@ -796,6 +811,52 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             {
                 UserTeam = TM->GetActorTeam(User);
             }
+        }
+    }
+
+    // ==================== INFUSION CONTROLS ====================
+    // Items skip infusion entirely. Everything else gets a display row plus
+    // Cycle Level. Attacks and Abilities also get Cycle Source (Spells lock
+    // source to intrinsic per locked design Q12).
+    if (PendingActionCategory != EPieMenuCategory::Item)
+    {
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        {
+            // Display row — read-only, shows current Source / Level
+            const FString DisplayText = FString::Printf(
+                TEXT("Source: %s  /  Level: %d"),
+                *VFX->GetCurrentSourceName(),
+                VFX->GetCurrentInfusionLevel());
+
+            FPieMenuButtonData DisplayButton;
+            DisplayButton.ButtonID = TEXT("InfusionDisplay");
+            DisplayButton.DisplayName = FText::FromString(DisplayText);
+            DisplayButton.Category = EPieMenuCategory::None; // non-actionable
+            DisplayButton.bEnabled = false;
+            Buttons.Add(DisplayButton);
+
+            // Cycle Source — only for Attack / Ability (Spells use intrinsic source)
+            const bool bShowCycleSource =
+                (PendingActionCategory == EPieMenuCategory::Attack) ||
+                (PendingActionCategory == EPieMenuCategory::Ability);
+
+            if (bShowCycleSource)
+            {
+                FPieMenuButtonData CycleSrc;
+                CycleSrc.ButtonID = TEXT("CycleSource");
+                CycleSrc.DisplayName = FText::FromString(TEXT("Cycle Source"));
+                CycleSrc.Category = EPieMenuCategory::CycleSource;
+                CycleSrc.bEnabled = true;
+                Buttons.Add(CycleSrc);
+            }
+
+            // Cycle Level — always (except Items, already gated above)
+            FPieMenuButtonData CycleLvl;
+            CycleLvl.ButtonID = TEXT("CycleLevel");
+            CycleLvl.DisplayName = FText::FromString(TEXT("Cycle Level"));
+            CycleLvl.Category = EPieMenuCategory::CycleLevel;
+            CycleLvl.bEnabled = true;
+            Buttons.Add(CycleLvl);
         }
     }
 
@@ -975,6 +1036,13 @@ ULoadoutComponent *UCombatCommandMenuSubsystem::GetLoadoutComponent() const
     if (!CurrentActor.IsValid())
         return nullptr;
     return CurrentActor->FindComponentByClass<ULoadoutComponent>();
+}
+
+UInfusionVFXComponent *UCombatCommandMenuSubsystem::GetInfusionVFXComponent() const
+{
+    if (!CurrentActor.IsValid())
+        return nullptr;
+    return CurrentActor->FindComponentByClass<UInfusionVFXComponent>();
 }
 
 FLinearColor UCombatCommandMenuSubsystem::GetElementColor(int32 ElementIndex) const

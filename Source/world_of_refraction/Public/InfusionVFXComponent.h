@@ -69,6 +69,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InfusionVFX")
     void SetInfusionLevel(int32 Level);
 
+    /** Current infusion level (0/1/2). Read-only accessor for menu/UI. */
+    UFUNCTION(BlueprintPure, Category = "Infusion VFX")
+    int32 GetCurrentInfusionLevel() const { return CurrentInfusionLevel; }
+
     /** Current infusion level */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "InfusionVFX")
     int32 CurrentInfusionLevel = 0;
