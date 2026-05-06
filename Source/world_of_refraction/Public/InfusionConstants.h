@@ -64,12 +64,17 @@ namespace InfusionConstants
 	/** Crystal source: Break chance increase (+15%) */
 	constexpr float CRYSTAL_L2_BREAK_INCREASE = 0.15f;
 
-	/** Evolution source: HP cost as percent of max (3%) */
-	constexpr float EVOLUTION_L2_HP_COST_PERCENT = 0.03f;
+	/** Evolution L1 backlash: HP cost as percent of max (5%) */
+	constexpr float EVOLUTION_L1_HP_COST_PERCENT = 0.05f;
 
-	/** Evolution source: Self-status buildup multiplier (50% of spell's base) */
-	constexpr float EVOLUTION_L2_SELF_STATUS_MULT = 0.50f;
+	/** Evolution L2 backlash: HP cost as percent of max (10%) */
+	constexpr float EVOLUTION_L2_HP_COST_PERCENT = 0.10f;
 
+	/** Evolution L1 backlash: Self-status build (flat amount) — pending status mapping */
+	constexpr float EVOLUTION_L1_SELF_STATUS_BUILD = 15.0f;
+
+	/** Evolution L2 backlash: Self-status build (flat amount) — pending status mapping */
+	constexpr float EVOLUTION_L2_SELF_STATUS_BUILD = 25.0f;
 	// ==================== Iolite SPECIAL ====================
 
 	/** Iolite L2: All stats buff (+5%) */

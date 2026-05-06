@@ -3924,11 +3924,50 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	}
 
 	case EInfusionSourceOption::Evolution:
-		// TODO Phase 6 — HP cost + element backlash + self-status build
-		UE_LOG(LogTemp, Verbose,
-			   TEXT("[ActionExecutor] %s: Evolution infusion at L%d — cost path not yet wired (Phase 6)"),
-			   *Actor->GetName(), Level);
+	{
+		// Phase 6 — Evolution backlash:
+		//   L1: 5% HP + 15 self-status build (using evolution element)
+		//   L2: 10% HP + 25 self-status build
+		// HP percentages match Innate/Raw, so ApplyHPCostInternal works unchanged.
+		// Self-status build is logged as intent — actual application pending the
+		// element-to-status mapping system (separate workstream).
+
+		// 1. Resolve evolution element from active weapon's slotted crystal
+		//    for logging; needed by the future status-build wiring.
+		UWeaponManager *WeaponMgr = GetWeaponManager();
+		if (!WeaponMgr)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: Evolution infusion but WeaponManager unavailable"),
+				   *Actor->GetName());
+			break;
+		}
+
+		UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor);
+		if (!Weapon || !Weapon->IsEvolved() || !Weapon->SlottedCrystal)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: Evolution infusion but weapon is not evolved or no slotted crystal"),
+				   *Actor->GetName());
+			break;
+		}
+
+		const ESpellElement EvolutionElement = Weapon->SlottedCrystal->GetAssociatedElement();
+
+		// 2. HP cost — same percentages as Innate/Raw (5% L1, 10% L2).
+		ApplyHPCostInternal(Actor, Level);
+
+		// 3. Self-status build (logged intent, not yet applied — pending element-to-status mapping)
+		const float SelfStatusAmount = (Level == 1)
+										   ? InfusionConstants::EVOLUTION_L1_SELF_STATUS_BUILD
+										   : InfusionConstants::EVOLUTION_L2_SELF_STATUS_BUILD;
+		UE_LOG(LogTemp, Log,
+			   TEXT("[ActionExecutor] %s Evolution L%d backlash: HP cost applied. Would apply %.0f %s self-status build (pending mapping system)"),
+			   *Actor->GetName(), Level, SelfStatusAmount,
+			   *UEnum::GetValueAsString(EvolutionElement));
+
 		break;
+	}
 
 	default:
 		UE_LOG(LogTemp, Warning,
