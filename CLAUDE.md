@@ -107,3 +107,8 @@ At the start of a session, the user will state:
 - Today's target system
 
 If they don't, ask — don't guess. Session-specific state is not stored in this file.
+## Session state
+
+Per-session state lives in `docs/sessions/YYYY-MM-DD.md`. At session start, the user will reference the latest one or paste its contents. If they don't, ask which session doc to read before assuming current state.
+
+The `_TEMPLATE.md` in that folder is the format. Don't read it as state.
