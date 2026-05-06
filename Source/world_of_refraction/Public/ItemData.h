@@ -528,5 +528,9 @@ public:
         // ==================== LIFECYCLE ====================
 
         virtual void PostInitProperties() override;
+
+        /** Migration hook: initialise durability from tier for assets saved before Phase 2a.
+         *  Old assets loaded with MaxDurability == 0 get auto-fixed here. */
+        virtual void PostLoad() override;
 #endif
 };

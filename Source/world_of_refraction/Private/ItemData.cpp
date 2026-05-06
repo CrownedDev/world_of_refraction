@@ -906,6 +906,24 @@ void UItemData::PostInitProperties()
     CurrentDurability = MaxDurability;
 }
 
+void UItemData::PostLoad()
+{
+    Super::PostLoad();
+
+    // Migration for assets saved before Phase 2a (durability auto-init):
+    // initialise durability from tier if loaded with MaxDurability == 0.
+    // Skip evolution and immune crystals (they don't use durability).
+    if (MaxDurability == 0 && !bIsEvolutionCrystal && !bImmuneToBreaking)
+    {
+        const int32 TierMax = DurabilityConstants::GetMaxDurabilityForTier(Tier);
+        if (TierMax > 0)
+        {
+            MaxDurability = TierMax;
+            CurrentDurability = TierMax;
+        }
+    }
+}
+
 float UItemData::GetDurabilityPercent() const
 {
     if (!bIsRefined || MaxDurability <= 0)
@@ -1182,6 +1200,34 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     DisplayGenericResistance = GetGenericResistanceBonus();
     DisplayGenericDuration = GetGenericResistanceDuration();
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
+
+    // Re-init durability when designer changes Tier (or evolution/immune flags
+    // that determine whether the crystal uses durability at all).
+    const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+    static const FName TierProperty = GET_MEMBER_NAME_CHECKED(UItemData, Tier);
+    static const FName EvolutionProperty = GET_MEMBER_NAME_CHECKED(UItemData, bIsEvolutionCrystal);
+    static const FName ImmuneProperty = GET_MEMBER_NAME_CHECKED(UItemData, bImmuneToBreaking);
+
+    if (PropertyName == TierProperty ||
+        PropertyName == EvolutionProperty ||
+        PropertyName == ImmuneProperty)
+    {
+        if (!bIsEvolutionCrystal && !bImmuneToBreaking)
+        {
+            const int32 TierMax = DurabilityConstants::GetMaxDurabilityForTier(Tier);
+            if (TierMax > 0)
+            {
+                MaxDurability = TierMax;
+                CurrentDurability = TierMax;
+            }
+        }
+        else
+        {
+            // Evolution / immune: durability is meaningless
+            MaxDurability = 0;
+            CurrentDurability = 0;
+        }
+    }
 }
 
 EDataValidationResult UItemData::IsDataValid(FDataValidationContext &Context) const
