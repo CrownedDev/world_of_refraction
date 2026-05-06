@@ -357,8 +357,6 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateResonateRingButton());
     if (CurrentCapabilities.bHasItems)
         Buttons.Add(CreateItemsButton());
-    if (CurrentCapabilities.bCanInfuse)
-        Buttons.Add(CreateInfuseButton());
     if (CurrentCapabilities.bCanSwitchWeapon)
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
@@ -366,7 +364,6 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
 
     return Buttons;
 }
-
 
 // ==================== BUTTON CREATORS ====================
 
@@ -458,16 +455,6 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateItemsButton() const
     Button.ButtonID = TEXT("Items");
     Button.DisplayName = FText::FromString(TEXT("Items"));
     Button.Category = EPieMenuCategory::Items;
-    Button.bEnabled = true;
-    return Button;
-}
-
-FPieMenuButtonData UCombatCommandMenuSubsystem::CreateInfuseButton() const
-{
-    FPieMenuButtonData Button;
-    Button.ButtonID = TEXT("Infuse");
-    Button.DisplayName = FText::FromString(TEXT("Infuse"));
-    Button.Category = EPieMenuCategory::Infuse;
     Button.bEnabled = true;
     return Button;
 }
