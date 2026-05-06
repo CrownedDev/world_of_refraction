@@ -182,12 +182,15 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Loadout.PrimaryWeapon.IsValid() &&
         Loadout.SecondaryWeapon.IsValid();
 
-    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d"),
+    // Infuse — always available (every actor has at minimum None + Raw) can be used in silence
+    Out.bCanInfuse = true;
+
+    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d Infuse=%d"),
            *UEnum::GetValueAsString(CharClass),
            Out.bCanAttack, Out.bCanUseAbilities, Out.bHasWeaponCrystal,
            Out.bHasRefractions, Out.bHasBreakthrough,
            Out.bHasPrimaryRing, Out.bHasRingLoadout,
-           Out.bCanSwitchWeapon, Out.bCanSwitchRing);
+           Out.bCanSwitchWeapon, Out.bCanSwitchRing, Out.bCanInfuse);
 
     return Out;
 }

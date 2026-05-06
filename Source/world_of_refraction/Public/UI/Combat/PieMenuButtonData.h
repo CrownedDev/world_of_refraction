@@ -40,9 +40,13 @@ enum class EPieMenuCategory : uint8
 	ResonateWeapon UMETA(DisplayName = "Resonate Weapon"), // Opens schools list (Evolved weapon spells - "(W)")
 	ResonateRing UMETA(DisplayName = "Resonate Ring"),	   // Opens schools list (Ring spells - "(R)")
 	ChangeRing UMETA(DisplayName = "Change Ring"),		   // Opens ring grid (Resonator)
-	Infuse UMETA(DisplayName = "Infuse"),				   // Opens infusion source grid
 	Items UMETA(DisplayName = "Items"),					   // Opens item grid (All)
 	SwitchWeapon UMETA(DisplayName = "Switch Weapon"),	   // Toggles bUsePrimary (Generic dual-wield only)
+	Infuse UMETA(DisplayName = "Infuse"),				   // Opens infusion submenu
+	CycleSource UMETA(DisplayName = "Cycle Source"),	   // Infusion submenu: cycle through sources
+	CycleLevel UMETA(DisplayName = "Cycle Level"),		   // Infusion submenu: cycle through levels (0/1/2)
+
+	// Sub-menu categories
 
 	// Sub-menu categories
 	School UMETA(DisplayName = "School"),				   // A spell school button

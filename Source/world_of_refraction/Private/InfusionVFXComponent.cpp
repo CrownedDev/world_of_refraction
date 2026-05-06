@@ -515,23 +515,7 @@ FString UInfusionVFXComponent::GetCurrentSourceName() const
         return TEXT("None");
     }
 
-    EInfusionSourceOption Source = CachedSources[CurrentSourceIndex];
-
-    switch (Source)
-    {
-    case EInfusionSourceOption::None:
-        return TEXT("Physical");
-    case EInfusionSourceOption::Innate:
-        return TEXT("Innate");
-    case EInfusionSourceOption::ActiveRing:
-        return TEXT("Active Ring");
-    case EInfusionSourceOption::WeaponCrystal:
-        return TEXT("Weapon Crystal");
-    case EInfusionSourceOption::Evolution:
-        return TEXT("Evolution");
-    default:
-        return TEXT("Unknown");
-    }
+    return InfusionSourceOptionHelpers::GetDisplayName(CachedSources[CurrentSourceIndex]);
 }
 
 void UInfusionVFXComponent::ToggleInfusion()

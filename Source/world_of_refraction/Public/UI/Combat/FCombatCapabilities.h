@@ -63,6 +63,10 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bHasItems = false;
 
+    /** Show Infuse button. Always true — every actor can Raw-infuse at minimum. */
+        UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions") 
+    bool bCanInfuse = true;
+
     // ==================== SPELL POOLS ====================
     // Each submenu reads directly from the relevant array.
     // Never re-query LoadoutComponent after BuildFrom() runs.

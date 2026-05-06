@@ -2698,6 +2698,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 {
 	TArray<EInfusionSourceOption> Sources;
 	Sources.Add(EInfusionSourceOption::None); // Always available
+	Sources.Add(EInfusionSourceOption::Raw);  // Always available — HP-cost elementless infusion
 
 	UCharacterData *Data = GetCharacterData(Actor);
 	if (!Data)

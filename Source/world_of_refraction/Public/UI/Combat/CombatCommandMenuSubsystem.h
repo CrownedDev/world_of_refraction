@@ -152,6 +152,7 @@ private:
     FPieMenuButtonData CreateBreakthroughButton() const;
     FPieMenuButtonData CreateResonateRingButton() const;
     FPieMenuButtonData CreateItemsButton() const;
+    FPieMenuButtonData CreateInfuseButton() const;
     FPieMenuButtonData CreateSwitchWeaponButton() const;
     FPieMenuButtonData CreateSwitchRingButton() const;
 
