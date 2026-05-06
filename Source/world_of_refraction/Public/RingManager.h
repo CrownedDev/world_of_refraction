@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ESpellElement.h"
+#include "ItemTier.h"
 #include "RingManager.generated.h"
 
 class URingData;
@@ -69,11 +70,14 @@ public:
 
 	// ==================== DURABILITY ====================
 
-	/** Apply wear to the slotted crystal of the active ring after a spell cast.
+	/** Apply wear to the slotted crystal of the specified ring after an action.
+	 *  Generalised across spells/abilities/attacks: caller resolves ring
+	 *  (e.g. via GetActiveRing or GetPrimaryRing) and supplies the action tier
+	 *  and infusion level directly.
 	 *  Returns the wear amount applied. If wear breaks the crystal, fires
-	 *  OnCrystalBroken (handled internally to auto-switch ring). */
+	 *  OnCrystalBroken (handled internally to auto-switch active ring). */
 	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
-	int32 ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, int32 InfusionLevel);
+	int32 ProcessPostCastWear(AActor *Actor, URingData *RingToWear, EItemTier ActionTier, int32 InfusionLevel, bool bIsSpell);
 
 	// ==================== DELEGATES ====================
 

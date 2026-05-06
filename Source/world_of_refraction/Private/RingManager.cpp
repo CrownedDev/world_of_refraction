@@ -180,20 +180,14 @@ int32 URingManager::GetWorkingRingCount(AActor *Actor) const
 // DURABILITY WEAR
 // ============================================================
 
-int32 URingManager::ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, int32 InfusionLevel)
+int32 URingManager::ProcessPostCastWear(AActor *Actor, URingData *RingToWear, EItemTier ActionTier, int32 InfusionLevel, bool bIsSpell)
 {
-	if (!Actor || !SpellCast)
+	if (!Actor || !RingToWear)
 	{
 		return 0;
 	}
 
-	URingData *Ring = GetActiveRing(Actor);
-	if (!Ring)
-	{
-		return 0;
-	}
-
-	UItemData *Crystal = Ring->SlottedCrystal;
+	UItemData *Crystal = RingToWear->SlottedCrystal;
 	if (!Crystal || !Crystal->bIsRefined || Crystal->bImmuneToBreaking)
 	{
 		// Evolution crystals or unrefined crystals: no wear, nothing to do
@@ -202,8 +196,8 @@ int32 URingManager::ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, in
 
 	if (Crystal->IsBroken())
 	{
-		// Already broken — should never reach here (ring should've been auto-switched)
-		// but defensive: don't double-process
+		// Already broken — should never reach here (commit-time gate should have
+		// excluded broken crystal from the source options). Defensive: don't double-process.
 		UE_LOG(LogTemp, Warning,
 			   TEXT("[RingManager] ProcessPostCastWear called on already-broken crystal '%s' for %s"),
 			   *Crystal->GetFullItemName(), *Actor->GetName());
@@ -212,9 +206,9 @@ int32 URingManager::ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, in
 
 	const int32 Wear = UBreakCalculator::CalculateDurabilityWear(
 		Crystal->Tier,
-		SpellCast->Tier,
+		ActionTier,
 		InfusionLevel,
-		/*bIsSpell=*/true);
+		bIsSpell);
 
 	if (Wear <= 0)
 	{
@@ -222,10 +216,11 @@ int32 URingManager::ProcessPostCastWear(AActor *Actor, USpellData *SpellCast, in
 	}
 
 	UE_LOG(LogTemp, Verbose,
-		   TEXT("[RingManager] %s casting %s applies %d wear to crystal '%s' (%d/%d)"),
-		   *Actor->GetName(), *SpellCast->SpellName, Wear,
+		   TEXT("[RingManager] %s applies %d wear to ring crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
+		   *Actor->GetName(), Wear,
 		   *Crystal->GetFullItemName(),
-		   Crystal->CurrentDurability, Crystal->MaxDurability);
+		   Crystal->CurrentDurability, Crystal->MaxDurability,
+		   static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
 	Crystal->ApplyWear(Wear);
 	// Note: ApplyWear fires OnCrystalBroken if it hits 0; we handle that in HandleCrystalBroken

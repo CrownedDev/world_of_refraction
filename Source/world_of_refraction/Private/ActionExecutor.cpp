@@ -3873,42 +3873,99 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 	case EInfusionSourceOption::ActiveRing:
 	{
-		// Ring sources pay durability wear on the slotted crystal.
-		// Ring spells route through SpellData; ability/attack ring infusions
-		// also need wear, but ProcessPostCastWear takes a USpellData* parameter.
-		// For now wear fires only for spell actions; abilities/attacks via ring
-		// will need a separate path (see TODO).
-		if (Action.ActionType == EActionType::Spell && Action.SpellData)
+		// Ring sources pay durability wear on the active ring's slotted crystal.
+		// Action tier resolution per Phase 4d Path A:
+		//   - Spell: SpellData->Tier (the spell's own tier)
+		//   - Ability/Attack: Weapon->Tier (action tier inherits from weapon)
+		URingManager *RingMgr = GetRingManager();
+		if (!RingMgr)
 		{
-			if (URingManager *RingMgr = GetRingManager())
-			{
-				RingMgr->ProcessPostCastWear(Actor, Action.SpellData, Level);
-			}
+			break;
+		}
+
+		URingData *Ring = RingMgr->GetActiveRing(Actor);
+		if (!Ring)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: ActiveRing infusion but no active ring resolved"),
+				   *Actor->GetName());
+			break;
+		}
+
+		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
+		EItemTier ActionTier = EItemTier::F_Tier; // sensible default
+
+		if (bIsSpell && Action.SpellData)
+		{
+			ActionTier = Action.SpellData->Tier;
 		}
 		else
 		{
-			// TODO Phase 4c-followup: Ring-infused abilities/attacks need a wear path
-			// that doesn't require a USpellData*. Either a generic ProcessPostCastWear
-			// taking tier+level directly, or compute wear here against the action's tier.
-			UE_LOG(LogTemp, Warning,
-				   TEXT("[ActionExecutor] %s: Ring infusion on non-spell action — wear not yet wired"),
-				   *Actor->GetName());
-		}
-
-		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
-		// Applies regardless of action type — the buff is the source's signature, not tied to wear path.
-		if (Level == 2)
-		{
-			if (URingManager *RingMgr = GetRingManager())
+			// Ability or attack: action tier inherits from active weapon.
+			if (UWeaponManager *WeaponMgr = GetWeaponManager())
 			{
-				if (URingData *Ring = RingMgr->GetActiveRing(Actor))
+				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
 				{
-					if (Ring->SlottedCrystal && Ring->SlottedCrystal->CrystalType == ECrystalType::Iolite)
-					{
-						ApplyIoliteL2StatBuff(Actor);
-					}
+					ActionTier = Weapon->Tier;
 				}
 			}
+		}
+
+		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
+
+		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
+		if (Level == 2 && Ring->SlottedCrystal &&
+			Ring->SlottedCrystal->CrystalType == ECrystalType::Iolite)
+		{
+			ApplyIoliteL2StatBuff(Actor);
+		}
+		break;
+	}
+	case EInfusionSourceOption::PrimaryRing:
+	{
+		// Primary Ring source: Generic/Caster with a ring in their primary slot.
+		// Mirrors ActiveRing structure — same wear path, same Iolite check,
+		// just resolves the primary ring instead of active.
+		URingManager *RingMgr = GetRingManager();
+		if (!RingMgr)
+		{
+			break;
+		}
+
+		URingData *Ring = RingMgr->GetPrimaryRing(Actor);
+		if (!Ring)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: PrimaryRing infusion but no primary ring resolved"),
+				   *Actor->GetName());
+			break;
+		}
+
+		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
+		EItemTier ActionTier = EItemTier::F_Tier;
+
+		if (bIsSpell && Action.SpellData)
+		{
+			ActionTier = Action.SpellData->Tier;
+		}
+		else
+		{
+			if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			{
+				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+				{
+					ActionTier = Weapon->Tier;
+				}
+			}
+		}
+
+		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
+
+		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
+		if (Level == 2 && Ring->SlottedCrystal &&
+			Ring->SlottedCrystal->CrystalType == ECrystalType::Iolite)
+		{
+			ApplyIoliteL2StatBuff(Actor);
 		}
 		break;
 	}
