@@ -1328,6 +1328,14 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     case EPieMenuCategory::Attack:
         Action.ActionType = EActionType::Attack;
         Action.AttackData = Cast<UWeaponAttackData>(DataRef);
+        if (!Action.AttackData)
+        {
+            // Attack main-menu button doesn't carry AttackData — pull from active weapon.
+            if (ULoadoutComponent *LC = GetLoadoutComponent())
+            {
+                Action.AttackData = LC->GetCurrentAttack();
+            }
+        }
         break;
     case EPieMenuCategory::Ability:
         Action.ActionType = EActionType::Ability;
