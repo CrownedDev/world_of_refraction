@@ -9,6 +9,8 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "CharacterData.h"
+#include "CharacterDataComponent.h"
+#include "ElementHelpers.h"
 #include "LoadoutData.h"
 #include "RingData.h"
 #include "ItemData.h"
@@ -496,11 +498,37 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     // Validate innate spells (Caster)
     if (CharacterClass == ECharacterClass::Caster)
     {
+        // Need CharacterData for the innate-element check. Pull it from the
+        // owning actor's CharacterDataComponent. If unavailable, skip the
+        // element check (ownership check still runs).
+        UCharacterData *CharData = nullptr;
+        if (AActor *OwnerActor = GetOwner())
+        {
+            if (UCharacterDataComponent *CDC = OwnerActor->FindComponentByClass<UCharacterDataComponent>())
+            {
+                CharData = CDC->CharacterData;
+            }
+        }
+
+        const bool bAnyElement = CharData && ElementHelpers::IsAnySpellSource(CharData->InnateElement);
+
         for (USpellData *Spell : Loadout.InnateSpells)
         {
-            if (Spell && !Inventory->HasSpell(Spell))
+            if (!Spell)
+                continue;
+
+            if (!Inventory->HasSpell(Spell))
             {
                 Errors.Add(FString::Printf(TEXT("Innate spell '%s' not learned"), *Spell->SpellName));
+                continue;
+            }
+
+            // Element-match check (only if we resolved CharData; otherwise skip)
+            if (CharData && !bAnyElement && Spell->Element != CharData->InnateElement)
+            {
+                Errors.Add(FString::Printf(
+                    TEXT("Innate spell '%s' element does not match Caster's innate element"),
+                    *Spell->SpellName));
             }
         }
     }

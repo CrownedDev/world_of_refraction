@@ -7,6 +7,7 @@
 #include "SpellData.h"
 #include "FAbilityCollection.h"
 #include "FSpellCollection.h"
+#include "ElementHelpers.h"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -120,7 +121,8 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
         return WeaponEntry.AssignedSpells.Num() == 0;
     }
 
-    ESpellElement WeaponElement = WeaponEntry.GetElement();
+    const ESpellElement WeaponElement = WeaponEntry.GetElement();
+    const bool bAnyElement = ElementHelpers::IsAnySpellSource(WeaponElement);
 
     for (USpellData *Spell : WeaponEntry.AssignedSpells)
     {
@@ -128,7 +130,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
             continue;
         if (!OwnedSpells.HasSpell(Spell))
             return false;
-        if (Spell->Element != WeaponElement)
+        if (!bAnyElement && Spell->Element != WeaponElement)
             return false;
     }
 

@@ -5,6 +5,7 @@
 #include "RingData.h"
 #include "SpellData.h"
 #include "FSpellCollection.h"
+#include "ElementHelpers.h"
 
 bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) const
 {
@@ -13,7 +14,8 @@ bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) cons
         return true; // Invalid ring = nothing to validate
     }
 
-    ESpellElement RingElement = RingEntry.GetElement();
+    const ESpellElement RingElement = RingEntry.GetElement();
+    const bool bAnyElement = ElementHelpers::IsAnySpellSource(RingElement);
 
     for (USpellData *Spell : RingEntry.AssignedSpells)
     {
@@ -21,7 +23,7 @@ bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) cons
             continue;
         if (!OwnedSpells.HasSpell(Spell))
             return false;
-        if (Spell->Element != RingElement)
+        if (!bAnyElement && Spell->Element != RingElement)
             return false;
     }
 

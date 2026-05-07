@@ -3,6 +3,7 @@
 #include "ActionExecutor.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
+#include "ElementHelpers.h"
 #include "StatusEffectManager.h"
 #include "StatusEffect.h"
 #include "SpellData.h"
@@ -171,14 +172,15 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 				// Allow with penalty, but could warn
 				// return FActionValidationResult(false, TEXT("Requirements not met"));
 			}
-			// Element gate (Caster-only): Reality source unlocks any-spell access
-			// per locked design. Generic and Resonator have no element gate.
+			// Element gate (Caster-only): Reality and BrokenDarkness sources unlock
+			// any-spell access per locked design. Generic and Resonator have no
+			// element gate.
 			if (Action.SpellData && CharData->CharacterClass == ECharacterClass::Caster)
 			{
 				const ESpellElement SourceElement =
 					GetElementForSourceOption(Actor, Action.SelectedSource);
-				const bool bRealityBypass = (SourceElement == ESpellElement::Reality);
-				if (!bRealityBypass && CharData->InnateElement != Action.SpellData->Element)
+				const bool bAnyElement = ElementHelpers::IsAnySpellSource(SourceElement);
+				if (!bAnyElement && CharData->InnateElement != Action.SpellData->Element)
 				{
 					return FActionValidationResult(false, TEXT("Element restricted"));
 				}
