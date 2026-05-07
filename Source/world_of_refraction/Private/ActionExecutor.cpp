@@ -1883,7 +1883,7 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 		// No post-cast action; HP cost (if any) was paid at commit.
 		break;
 
-	case ESpellSource::Ring:
+	case ESpellSource::RingCrystal:
 		// Wear was applied at commit (ApplyCommitCosts). Nothing to do here.
 		break;
 

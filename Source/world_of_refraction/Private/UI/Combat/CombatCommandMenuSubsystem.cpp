@@ -1298,11 +1298,16 @@ ESpellSource UCombatCommandMenuSubsystem::MapCategoryToSpellSource(
 {
     switch (SubmenuCategory)
     {
-    case EPieMenuCategory::Refractions:    return ESpellSource::Innate;
-    case EPieMenuCategory::ResonateRing:   return ESpellSource::Ring;
-    case EPieMenuCategory::ResonateWeapon: return ESpellSource::WeaponCrystal;
-    case EPieMenuCategory::Breakthrough:   return ESpellSource::Evolution;
-    default:                               return ESpellSource::Innate;
+    case EPieMenuCategory::Refractions:
+        return ESpellSource::Innate;
+    case EPieMenuCategory::ResonateRing:
+        return ESpellSource::RingCrystal;
+    case EPieMenuCategory::ResonateWeapon:
+        return ESpellSource::WeaponCrystal;
+    case EPieMenuCategory::Breakthrough:
+        return ESpellSource::Evolution;
+    default:
+        return ESpellSource::Innate;
     }
 }
 
