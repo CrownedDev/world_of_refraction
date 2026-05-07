@@ -38,6 +38,7 @@
 #include "CombatAnimInstance.h"
 #include "CombatGridSubsystem.h"
 #include "TurnManager.h"
+#include "RealityBoost.h"
 #include "GameFramework/Character.h"
 
 class UCharacterDataComponent;
@@ -468,13 +469,21 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	//   - Attack/Ability/Spell pay exactly once, here, before movement starts.
 	ApplyCommitCosts(Actor, Action);
 
+	// Reality L2 boost detection. Stash on context so ApplyDamage and downstream
+	// sites see it across the whole async lifecycle (movement → animation → defense → return).
+	const bool bRealityL2Boost = IsRealityL2Active(Action, Actor);
+	if (CurrentExecutionContext.IsSet())
+	{
+		CurrentExecutionContext->bRealityL2Boost = bRealityL2Boost;
+	}
+
 	// Attack / Ability / Spell — bind movement complete and start approach
 	BindMovementComplete(Actor);
 
 	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
 	if (Movement)
 	{
-		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter);
+		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter, bRealityL2Boost);
 	}
 	else
 	{
@@ -517,8 +526,13 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
 	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
+	// Reality L2 boost flag (stashed on context by ExecuteActionAsync).
+	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
+									 ? CurrentExecutionContext->bRealityL2Boost
+									 : false;
+
 	// Calculate damage with charge infusion multiplier
-	int32 BaseDamage = Spell->CalculateDamage(CasterData);
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, bRealityL2Boost);
 	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
@@ -565,7 +579,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	BindSpellNotify(Caster);
 
 	// Play animation - VFX spawns on SpellRelease notify (NOT here)
-	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
+	PlaySpellAnimation(Caster, Spell, FinalSpellSize, bRealityL2Boost);
 
 	// Calculate damage per hit (infused total split across hits)
 	int32 DamagePerHit = FinalDamage / FMath::Max(1, Spell->HitCount);
@@ -658,8 +672,13 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsElemental;
 
+	// Reality L2 boost (stashed on context by ExecuteActionAsync).
+	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
+									 ? CurrentExecutionContext->bRealityL2Boost
+									 : false;
+
 	// Play animation
-	PlayAbilityAnimation(User, Ability);
+	PlayAbilityAnimation(User, Ability, bRealityL2Boost);
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
@@ -749,8 +768,13 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsInfused;
 
+	// Reality L2 boost (stashed on context by ExecuteActionAsync).
+	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
+									 ? CurrentExecutionContext->bRealityL2Boost
+									 : false;
+
 	// Play animation
-	PlayAttackAnimation(Attacker, Attack);
+	PlayAttackAnimation(Attacker, Attack, bRealityL2Boost);
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
@@ -1965,6 +1989,13 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 		Input.bIsElemental = bIsElemental;
 		Input.Element = Element;
 		Input.bCanCrit = bCanCrit;
+		// Reality L2 boost is stashed on the async context at action start.
+		// Reading here fans the flag out to every ApplyDamage call site (defense
+		// resolution, beam ticks, projectile impacts, support spells) without
+		// threading a parameter through every caller.
+		Input.bRealityL2Boost = CurrentExecutionContext.IsSet()
+									? CurrentExecutionContext->bRealityL2Boost
+									: false;
 
 		FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
@@ -2229,7 +2260,7 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 // ANIMATION/VFX STUBS
 // ========================================
 
-void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize)
+void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize, bool bRealityL2Boost)
 {
 	if (!Caster || !Spell)
 	{
@@ -2244,13 +2275,14 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	// Could adjust play rate based on character's spell speed stat
+	// Play rate = SpellSpeed × Reality L2 boost.
 	float PlayRate = 1.0f;
 	UCharacterData *CharData = GetCharacterData(Caster);
 	if (CharData)
 	{
 		PlayRate = CharData->CalculateSpellSpeed();
 	}
+	PlayRate = RealityBoost::ApplyTo(PlayRate, bRealityL2Boost);
 
 	PlayActionMontageOnActor(Caster, Spell->CastAnimation, PlayRate);
 
@@ -2655,7 +2687,7 @@ void UActionExecutor::OnBeamTick(AActor *Target, float DeltaTime, bool bTargetIn
 	ApplyDamage(nullptr, Target, TickDamage, true, ESpellElement::Generic, false);
 }
 
-void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
+void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, bool bRealityL2Boost)
 {
 	if (!User || !Ability)
 	{
@@ -2670,13 +2702,23 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability)
 		return;
 	}
 
-	PlayActionMontageOnActor(User, Ability->ExecutionMontage, 1.0f);
+	// Play rate = 1.0 × CalculateAnimationSpeed() × Reality L2 boost.
+	// At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
+	float PlayRate = 1.0f;
+	UCharacterData *CharData = GetCharacterData(User);
+	if (CharData)
+	{
+		PlayRate *= CharData->CalculateAnimationSpeed();
+	}
+	PlayRate = RealityBoost::ApplyTo(PlayRate, bRealityL2Boost);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s"),
-		   *Ability->ExecutionMontage->GetName(), *Ability->AbilityName);
+	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
+		   *Ability->ExecutionMontage->GetName(), *Ability->AbilityName, PlayRate);
 }
 
-void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack)
+void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, bool bRealityL2Boost)
 {
 	if (!Attacker || !Attack)
 	{
@@ -2691,10 +2733,20 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		return;
 	}
 
-	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, Attack->BaseAnimSpeed);
+	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × Reality L2 boost.
+	// Preserves designer-tuned per-attack pacing; layers stat scaling on top.
+	float PlayRate = Attack->BaseAnimSpeed;
+	UCharacterData *CharData = GetCharacterData(Attacker);
+	if (CharData)
+	{
+		PlayRate *= CharData->CalculateAnimationSpeed();
+	}
+	PlayRate = RealityBoost::ApplyTo(PlayRate, bRealityL2Boost);
+
+	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
-		   *Attack->AttackMontage->GetName(), Attack->BaseAnimSpeed);
+		   *Attack->AttackMontage->GetName(), PlayRate);
 }
 
 // ========================================
@@ -3973,12 +4025,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
 
-		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
-		if (Level == 2 && Ring->SlottedCrystal &&
-			Ring->SlottedCrystal->CrystalType == ECrystalType::Iolite)
-		{
-			ApplyIoliteL2StatBuff(Actor);
-		}
+		// Reality L2 boost is now detected by IsRealityL2Active at action start
+		// (ExecuteSpellAsync / ExecuteAbilityAsync / ExecuteAttackAsync) and stashed
+		// on FActionExecutionContext. No commit-time call needed here.
 		break;
 	}
 	case EInfusionSourceOption::PrimaryRing:
@@ -4021,12 +4070,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
 
-		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
-		if (Level == 2 && Ring->SlottedCrystal &&
-			Ring->SlottedCrystal->CrystalType == ECrystalType::Iolite)
-		{
-			ApplyIoliteL2StatBuff(Actor);
-		}
+		// Reality L2 boost detection lives in IsRealityL2Active (action-start), not here.
 		break;
 	}
 
@@ -4056,11 +4100,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
 		WeaponMgr->ProcessPostCastWear(Actor, Weapon->Tier, Level, bIsSpell);
 
-		// Iolite (Reality crystal) L2 special: one-shot sub-stat boost on this action.
-		if (Level == 2 && Weapon->HasIloditeEquipped())
-		{
-			ApplyIoliteL2StatBuff(Actor);
-		}
+		// Reality L2 boost detection lives in IsRealityL2Active (action-start), not here.
 		break;
 	}
 
@@ -4155,24 +4195,50 @@ void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
 		   TEXT("[ActionExecutor] %s paid %d HP for L%d infusion (HP: %d -> %d)"),
 		   *Actor->GetName(), SafeCost, Level, Before, CharComp->CurrentHP);
 }
-void UActionExecutor::ApplyIoliteL2StatBuff(AActor *Actor) const
+bool UActionExecutor::IsRealityL2Active(const FAction &Action, AActor *Actor) const
 {
-	if (!Actor)
+	// Items and Defend can't trigger Reality L2.
+	if (Action.ActionType == EActionType::Item ||
+		Action.ActionType == EActionType::Defend)
 	{
-		return;
+		return false;
 	}
 
-	const float BuffPercent = InfusionConstants::IOLITE_L2_STAT_BUFF;
+	// Determine the action's infusion level. Spells use SpellInfusionLevel;
+	// abilities/attacks share AbilityInfusionLevel (matches ApplyCommitCosts routing).
+	int32 Level = 0;
+	switch (Action.ActionType)
+	{
+	case EActionType::Spell:
+		Level = Action.SpellInfusionLevel;
+		break;
+	case EActionType::Ability:
+	case EActionType::Attack:
+		Level = Action.AbilityInfusionLevel;
+		break;
+	default:
+		return false;
+	}
 
-	// Implementation pending — design questions to resolve:
-	//   1. Which sub-stats are "relevant" per action type (Mind for spells,
-	//      Body for attacks, etc.)
-	//   2. How the boost flows into DamageCalculator (transient flag vs
-	//      per-action input field)
-	// One-shot: applies to THIS action only, no turn duration.
+	if (Level != 2)
+	{
+		return false;
+	}
+
+	// Resolve the active source's element. GetElementForSourceOption already
+	// handles all five real sources (Innate / Raw / WeaponCrystal / ActiveRing
+	// / PrimaryRing / Evolution) — covers Iolite-via-crystal AND Refractor-innate.
+	const ESpellElement DeliveredElement = GetElementForSourceOption(Actor, Action.SelectedSource);
+	if (DeliveredElement != ESpellElement::Reality)
+	{
+		return false;
+	}
+
 	UE_LOG(LogTemp, Log,
-		   TEXT("[ActionExecutor] %s Iolite L2 buff: would apply +%.0f%% to relevant sub-stats for this action (pending design)"),
-		   *Actor->GetName(), BuffPercent * 100.0f);
+		   TEXT("[ActionExecutor] Reality L2 boost ACTIVE for %s by %s"),
+		   *UEnum::GetValueAsString(Action.ActionType),
+		   Actor ? *Actor->GetName() : TEXT("Unknown"));
+	return true;
 }
 
 void UActionExecutor::DebugAsyncState()

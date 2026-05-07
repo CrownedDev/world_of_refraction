@@ -2,6 +2,7 @@
 
 #include "SpellData.h"
 #include "CharacterData.h"
+#include "RealityBoost.h"
 
 // ==================== REQUIREMENT CHECKS ====================
 
@@ -34,7 +35,7 @@ float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) c
 
 // ==================== DAMAGE CALCULATIONS ====================
 
-int32 USpellData::CalculateDamage(UCharacterData *Character) const
+int32 USpellData::CalculateDamage(UCharacterData *Character, bool bRealityL2Boost) const
 {
     if (!Character)
         return 0;
@@ -53,12 +54,13 @@ int32 USpellData::CalculateDamage(UCharacterData *Character) const
 
     // Apply character's effect damage multiplier (Spirit-based)
     float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
+    EffectMultiplier = RealityBoost::ApplyTo(EffectMultiplier, bRealityL2Boost);
     FinalDamage *= EffectMultiplier;
 
     return FMath::RoundToInt(FinalDamage);
 }
 
-int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
+int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, bool bRealityL2Boost) const
 {
     if (!Character)
         return 0;
@@ -76,6 +78,7 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character) const
 
     // Scale with character's Effect Damage multiplier (Spirit stat)
     float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
+    EffectMultiplier = RealityBoost::ApplyTo(EffectMultiplier, bRealityL2Boost);
     BuildupPerHit *= EffectMultiplier;
 
     // Multiply by hit count

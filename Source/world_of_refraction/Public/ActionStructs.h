@@ -374,6 +374,10 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	/** Time execution started */
 	double StartTime = 0.0;
 
+	/** True if Reality L2 boost is active for this action. Read by ApplyDamage and
+	 *  any deep call-graph site that needs the boost without parameter threading. */
+	bool bRealityL2Boost = false;
+
 	FActionExecutionContext()
 	{
 		ExecutionId = FGuid::NewGuid();

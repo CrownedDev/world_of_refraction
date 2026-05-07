@@ -13,6 +13,7 @@
 #include "WeaponData.h"
 #include "WeaponManager.h"
 #include "CombatGridSubsystem.h"
+#include "RealityBoost.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -38,7 +39,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float RunningDamage = static_cast<float>(Input.BaseDamage);
 
 	// Step 1: Attacker's damage multiplier (Effect Damage or Raw Damage)
+	// Reality L2 boost wraps the multiplier — boosts whichever stat applies (Effect or Raw).
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.bIsElemental);
+	AttackerMult = RealityBoost::ApplyTo(AttackerMult, Input.bRealityL2Boost);
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
@@ -69,6 +72,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	if (Input.bCanCrit)
 	{
 		float CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
+		CritChance = RealityBoost::ApplyTo(CritChance, Input.bRealityL2Boost);
 		Result.bWasCritical = FMath::FRand() < CritChance;
 
 		if (Result.bWasCritical)

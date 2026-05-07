@@ -234,13 +234,10 @@ public:
 	 *  CharacterDataComponent::CurrentHP. Floored at 1 HP by the helper. */
 	void ApplyHPCostInternal(AActor *Actor, int32 Level);
 
-	/** Iolite (Reality crystal) L2 infusion: applies a one-shot sub-stat boost
-	 *  to the action being executed. Sub-stats affected depend on action type
-	 *  (design pending). Applies for Iolite slotted in WeaponCrystal, ActiveRing,
-	 *  or PrimaryRing source.
-	 *  Currently logs intent — implementation pending design call on which sub-stats
-	 *  are relevant per action and how the boost flows into DamageCalculator. */
-	void ApplyIoliteL2StatBuff(AActor *Actor) const;
+	/** Returns true if the action's active infusion source resolves to the Reality
+	 *  element at infusion Level 2. Element-keyed: handles Iolite-via-crystal AND
+	 *  Refractor-via-innate paths. Items and Defend always return false. */
+	bool IsRealityL2Active(const FAction &Action, AActor *Actor) const;
 
 	// ========================================
 	// POST-CAST PROCESSING
@@ -349,17 +346,20 @@ public:
 	// ANIMATION/VFX STUBS (Override in subclass or bind via events)
 	// ========================================
 
-	/** Called when spell animation should play. Override or bind OnActionStarted for custom handling. */
-	virtual void PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize);
+	/** Called when spell animation should play. Override or bind OnActionStarted for custom handling.
+	 *  Play rate = CalculateSpellSpeed() × Reality L2 boost (if active). */
+	virtual void PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize, bool bRealityL2Boost = false);
 
 	/** Called when spell VFX should spawn. Override or bind OnActionStarted for custom handling. */
 	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage = 0);
 
-	/** Called when ability animation should play */
-	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability);
+	/** Called when ability animation should play.
+	 *  Play rate = 1.0 × CalculateAnimationSpeed() × Reality L2 boost (if active). */
+	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability, bool bRealityL2Boost = false);
 
-	/** Called when attack animation should play */
-	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack);
+	/** Called when attack animation should play.
+	 *  Play rate = Attack->BaseAnimSpeed × CalculateAnimationSpeed() × Reality L2 boost (if active). */
+	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, bool bRealityL2Boost = false);
 
 	// ========================================
 	// DEBUG

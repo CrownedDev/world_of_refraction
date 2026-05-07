@@ -62,9 +62,10 @@ public:
      * @param Approach Approach data asset (nullptr = no movement)
      * @param ExecutionRange Distance from target to stop
      * @param ArenaCenter Center of arena for grid calculations
+     * @param bRealityL2Boost True if Reality L2 boost is active for this action (boosts approach + return speed)
      */
     UFUNCTION(BlueprintCallable, Category = "Combat Movement")
-    void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter);
+    void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, bool bRealityL2Boost = false);
 
     /**
      * Start return movement back to grid position
@@ -154,6 +155,11 @@ private:
 
     UPROPERTY()
     AActor *CurrentTarget = nullptr;
+
+    /** Reality L2 boost active for the current approach/return. Set by StartApproach,
+     *  read by approach + return speed reads, cleared on return completion. */
+    UPROPERTY()
+    bool bRealityL2Boost = false;
 
     /** Currently playing movement montage */
     UPROPERTY()

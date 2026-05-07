@@ -208,7 +208,7 @@ public:
     // ==================== DAMAGE CALCULATIONS ====================
 
     UFUNCTION(BlueprintPure, Category = "Spell|Damage")
-    int32 CalculateDamage(UCharacterData *Character) const;
+    int32 CalculateDamage(UCharacterData *Character, bool bRealityL2Boost = false) const;
 
     // ==================== ENERGY CALCULATIONS ====================
 
@@ -218,7 +218,7 @@ public:
     // ==================== STATUS BUILDUP ====================
 
     UFUNCTION(BlueprintPure, Category = "Spell|Status")
-    int32 CalculateStatusBuildup(UCharacterData *Character) const;
+    int32 CalculateStatusBuildup(UCharacterData *Character, bool bRealityL2Boost = false) const;
 
     // ==================== HELPER FUNCTIONS ====================
 

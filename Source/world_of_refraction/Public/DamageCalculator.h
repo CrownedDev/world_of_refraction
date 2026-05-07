@@ -74,6 +74,10 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	int32 InfusionLevel = 0;
 
+	/** True if Reality L2 boost is active for this action. Adds +5% to attacker stats. */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	bool bRealityL2Boost = false;
+
 	/** Is this Raw (physical) mode for spell? */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIsRawMode = false;
