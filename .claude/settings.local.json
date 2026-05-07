@@ -9,7 +9,9 @@
       "Read(//c//**)",
       "Bash(git checkout *)",
       "PowerShell(Get-Process *)",
-      "PowerShell(Test-Path *)"
+      "PowerShell(Test-Path *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

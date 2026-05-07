@@ -19,3 +19,6 @@ Content/CombatMasterAnimBundle
 !Build/BatchFiles/
 !Build/Scripts/
 build.log
+
+# Claude Code
+.claude/scheduled_tasks.lock
