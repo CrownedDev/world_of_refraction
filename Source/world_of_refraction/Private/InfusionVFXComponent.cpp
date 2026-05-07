@@ -465,6 +465,15 @@ void UInfusionVFXComponent::CacheAvailableSources()
     CachedSources = Executor->GetAvailableInfusionSources(Owner);
 
     UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
+
+    // DIAGNOSTIC — for triaging Generic/WeaponCrystal cycling bug
+    UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] CACHE DUMP for %s: %d sources"),
+        Owner ? *Owner->GetName() : TEXT("NULL"), CachedSources.Num());
+    for (int32 i = 0; i < CachedSources.Num(); ++i)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("  [%d] %s"), i,
+            *UEnum::GetValueAsString(CachedSources[i]));
+    }
 }
 
 void UInfusionVFXComponent::CycleToNextSource()

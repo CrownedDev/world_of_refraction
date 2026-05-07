@@ -110,25 +110,11 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
     if (!Character)
         return false;
 
-    // Generic CLASS can cast any spell from their loadout (no element restriction)
-    // The loadout system already ensures they only have valid spells
-    if (Character->CharacterClass == ECharacterClass::Generic)
-    {
-        return true; // Loadout validation handles restrictions
-    }
-
-    // Resonator CLASS can cast any spell from rings (no innate element)
-    if (Character->CharacterClass == ECharacterClass::Resonator)
-    {
-        return true; // Ring system handles element availability
-    }
-
-    // Caster CLASS: check element match
-    if (Character->InnateElement != Element)
-    {
-        return false; // Element locked for Casters
-    }
-
+    // The element-match gate (formerly here, Caster-only) now lives in
+    // UActionExecutor::ValidateAction where the active infusion source is
+    // available — Reality source bypasses the gate per locked design.
+    // This function now answers "is this character of a class that can cast
+    // spells at all" — true for all current classes (Generic / Caster / Resonator).
     return true;
 }
 

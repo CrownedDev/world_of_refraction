@@ -24,14 +24,6 @@ bool UCharacterData::CanApplyEvolution(UItemData *EvolutionCrystal) const
         return false;
     }
 
-    ESpellElement EvolutionElement = EvolutionCrystal->GetAssociatedElement();
-
-    // Special elements may have restrictions
-    if (EvolutionElement == ESpellElement::BrokenDarkness || EvolutionElement == ESpellElement::Reality)
-    {
-        return false;
-    }
-
     switch (CharacterClass)
     {
     case ECharacterClass::Generic:

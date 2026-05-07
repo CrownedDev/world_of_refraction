@@ -171,10 +171,17 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 				// Allow with penalty, but could warn
 				// return FActionValidationResult(false, TEXT("Requirements not met"));
 			}
-			// Check element restriction
-			if (Action.SpellData && !Action.SpellData->CanCharacterCast(CharData))
+			// Element gate (Caster-only): Reality source unlocks any-spell access
+			// per locked design. Generic and Resonator have no element gate.
+			if (Action.SpellData && CharData->CharacterClass == ECharacterClass::Caster)
 			{
-				return FActionValidationResult(false, TEXT("Element restricted"));
+				const ESpellElement SourceElement =
+					GetElementForSourceOption(Actor, Action.SelectedSource);
+				const bool bRealityBypass = (SourceElement == ESpellElement::Reality);
+				if (!bRealityBypass && CharData->InnateElement != Action.SpellData->Element)
+				{
+					return FActionValidationResult(false, TEXT("Element restricted"));
+				}
 			}
 			break;
 
@@ -2839,13 +2846,15 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 		Sources.Add(EInfusionSourceOption::PrimaryRing);
 	}
 
-	// Weapon Crystal (any class, with a non-Iolite functional crystal slotted)
-	// Direct query — replaces legacy GetInfusionSource() / HasIoliteEquipped() bridge.
-	if (UWeaponManager *WM = GetWeaponManager())
+	// Weapon Crystal — read runtime entry, not data asset.
+	// Aligns with FCombatCapabilities::BuildFrom path; the data-asset
+	// SlottedCrystal field is the legacy path that diverges from runtime
+	// when crystals are slotted/changed at runtime.
+	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	if (LC)
 	{
-		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
-		if (Weapon && !Weapon->HasIloditeEquipped() &&
-			Weapon->SlottedCrystal && !Weapon->SlottedCrystal->IsBroken())
+		const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
+		if (ActiveWeapon && ActiveWeapon->WeaponEntry.AttachedCrystal.CanProvideSpells())
 		{
 			Sources.Add(EInfusionSourceOption::WeaponCrystal);
 		}

@@ -66,21 +66,13 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     Output += FString::Printf(TEXT("  School:  %s\n"), *SchoolName);
 
     // Check if character can cast
+    // NOTE: As of Reality element unlock, CanCharacterCast always returns
+    // true for valid characters. This branch is effectively unreachable —
+    // kept for historical reference / future per-spell gates.
     bool bCanCast = Spell->CanCharacterCast(Character);
     if (!bCanCast)
     {
-        FString CharElementName = UEnum::GetValueAsString(Character->InnateElement);
-        CharElementName.RemoveFromStart(TEXT("ESpellElement::"));
-
-        if (Character->InnateElement == ESpellElement::Generic)
-        {
-            Output += TEXT("❌ CANNOT CAST: Generic element characters cannot cast spells\n");
-        }
-        else
-        {
-            Output += FString::Printf(TEXT("❌ CANNOT CAST: Character is %s, spell requires %s\n"),
-                                      *CharElementName, *ElementName);
-        }
+        Output += TEXT("⚠️  CANNOT CAST (legacy check unreachable)\n");
         Output += TEXT("===================================\n");
         return Output;
     }
@@ -207,7 +199,7 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
     }
     else
     {
-        Output += TEXT("  Cannot cast (wrong element)\n");
+        Output += TEXT("  Cannot cast (legacy check unreachable)\n");
     }
     Output += TEXT("\n");
 
@@ -220,7 +212,7 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
     }
     else
     {
-        Output += TEXT("  Cannot cast (wrong element)\n");
+        Output += TEXT("  Cannot cast (legacy check unreachable)\n");
     }
 
     Output += TEXT("===================================\n");
