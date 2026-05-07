@@ -758,8 +758,8 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
         return GetRingResonateSpells();
     }
 
-    // For Generic and Caster, respect bUsingPrimary
-    if (Loadout.bUsingPrimary)
+    // For Generic and Caster, respect bShowPrimary
+    if (Loadout.bShowPrimary)
     {
         return GetPrimarySlotSpells();
     }
@@ -983,12 +983,12 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     }
 
     // Ring primary scenarios:
-    // - bUsingPrimary=true → using ring, no weapon (return nullptr)
-    // - bUsingPrimary=false → using secondary weapon (Generic only)
+    // - bShowPrimary=true → using ring, no weapon (return nullptr)
+    // - bShowPrimary=false → using secondary weapon (Generic only)
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
         // Using primary (ring) = no weapon
-        if (Loadout.bUsingPrimary)
+        if (Loadout.bShowPrimary)
         {
             return nullptr;
         }
@@ -1006,8 +1006,8 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     // Weapon primary - class-specific behavior
     if (CharacterClass == ECharacterClass::Generic)
     {
-        // Generic: bUsingPrimary toggles between primary/secondary weapons
-        if (Loadout.bUsingPrimary)
+        // Generic: bShowPrimary toggles between primary/secondary weapons
+        if (Loadout.bShowPrimary)
         {
             return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
         }
@@ -1018,8 +1018,8 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
         return nullptr;
     }
 
-    // Caster/Resonator: bUsingPrimary = armed/unarmed state
-    if (Loadout.bUsingPrimary)
+    // Caster/Resonator: bShowPrimary = armed/unarmed state
+    if (Loadout.bShowPrimary)
     {
         return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
     }
@@ -1142,13 +1142,13 @@ ESecondarySlotType ULoadoutComponent::GetSecondarySlotType() const
     return SavedLoadouts[ActiveLoadoutIndex].SecondarySlotType;
 }
 
-bool ULoadoutComponent::IsUsingPrimary() const
+bool ULoadoutComponent::IsShowingPrimary() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
     {
         return true;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].bUsingPrimary;
+    return SavedLoadouts[ActiveLoadoutIndex].bShowPrimary;
 }
 
 void ULoadoutComponent::ToggleEquipment()
@@ -1159,10 +1159,10 @@ void ULoadoutComponent::ToggleEquipment()
     }
 
     FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
-    Loadout.bUsingPrimary = !Loadout.bUsingPrimary;
+    Loadout.bShowPrimary = !Loadout.bShowPrimary;
 
-    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bUsingPrimary = %s"),
-           Loadout.bUsingPrimary ? TEXT("true") : TEXT("false"));
+    UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
+           Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
 }
 
 bool ULoadoutComponent::HasWeaponAccess() const
@@ -1218,8 +1218,8 @@ bool ULoadoutComponent::IsArmed() const
         return GetActiveWeapon() != nullptr;
     }
 
-    // Caster/Resonator: armed when bUsingPrimary AND has weapon
-    return Loadout.bUsingPrimary && GetActiveWeapon() != nullptr;
+    // Caster/Resonator: armed when bShowPrimary AND has weapon
+    return Loadout.bShowPrimary && GetActiveWeapon() != nullptr;
 }
 bool ULoadoutComponent::IsEvolved() const
 {
@@ -1477,7 +1477,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
         // Using primary (ring) = no weapon
-        if (Loadout.bUsingPrimary)
+        if (Loadout.bShowPrimary)
             return nullptr;
 
         // Using secondary = check for weapon
@@ -1491,7 +1491,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     // Weapon primary - class-specific behavior
     if (CharacterClass == ECharacterClass::Generic)
     {
-        if (Loadout.bUsingPrimary)
+        if (Loadout.bShowPrimary)
             return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
         else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
             return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
@@ -1499,7 +1499,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     }
 
     // Caster/Resonator: armed state
-    if (Loadout.bUsingPrimary)
+    if (Loadout.bShowPrimary)
         return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
 
     return nullptr;
@@ -1596,7 +1596,7 @@ void ULoadoutComponent::DebugLogLoadout()
         const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
         UE_LOG(LogTemp, Log, TEXT("Active Loadout: %s"), *Loadout.LoadoutName);
         UE_LOG(LogTemp, Log, TEXT("  PrimarySlotType: %s"), *UEnum::GetValueAsString(Loadout.PrimarySlotType));
-        UE_LOG(LogTemp, Log, TEXT("  bUsingPrimary: %s"), Loadout.bUsingPrimary ? TEXT("true") : TEXT("false"));
+        UE_LOG(LogTemp, Log, TEXT("  bShowPrimary: %s"), Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
     }
 
     UE_LOG(LogTemp, Log, TEXT("=============================="));

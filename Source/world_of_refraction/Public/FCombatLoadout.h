@@ -58,7 +58,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     // ==================== PRIMARY EQUIPMENT ====================
     /** Does this character start combat with weapon drawn? */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
-    bool bUsingPrimary = true;
+    bool bShowPrimary = true;
 
     /** Primary slot type (Weapon/Ring/Evolution) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")

@@ -1464,7 +1464,7 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 	AttackAction.ActionType = EActionType::Attack;
 	AttackAction.Targets.Add(Target);
 
-	// Get weapon attack data via GetActiveWeapon (respects bUsingPrimary)
+	// Get weapon attack data via GetActiveWeapon (respects bShowPrimary)
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
@@ -1597,7 +1597,7 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 	SpellAction.ActionType = EActionType::Spell;
 	SpellAction.Targets.Add(Target);
 
-	// Get spell from active slot (respects bUsingPrimary)
+	// Get spell from active slot (respects bShowPrimary)
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		TArray<USpellData *> ActiveSpells = Loadout->GetActiveSlotSpells();
@@ -1902,7 +1902,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 		return;
 	}
 
-	// Get weapon attack data via GetActiveWeapon (respects bUsingPrimary)
+	// Get weapon attack data via GetActiveWeapon (respects bShowPrimary)
 	UWeaponAttackData *AttackData = nullptr;
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{

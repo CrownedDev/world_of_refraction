@@ -17,7 +17,7 @@ enum class ESpellSource : uint8
 	Innate UMETA(DisplayName = "Innate"),
 
 	/** From equipped ring - break check after cast */
-	Ring UMETA(DisplayName = "Ring"),
+	RingCrystal UMETA(DisplayName = "Ring"),
 
 	/** From evolution crystal on weapon - TBD */
 	Evolution UMETA(DisplayName = "Evolution"),

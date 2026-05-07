@@ -187,7 +187,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetSecondarySlotSpells() const;
 
-    /** Get spells based on bUsingPrimary state */
+    /** Get spells based on bShowPrimary state */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetActiveSlotSpells() const;
 
@@ -203,7 +203,7 @@ public:
 
     // ==================== COMBAT ACCESSORS ====================
 
-    /** Get active weapon based on current loadout and bUsingPrimary state */
+    /** Get active weapon based on current loadout and bShowPrimary state */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     UWeaponData *GetActiveWeapon() const;
 
@@ -237,7 +237,7 @@ public:
 
     /** Is currently using primary equipment? */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
-    bool IsUsingPrimary() const;
+    bool IsShowingPrimary() const;
 
     /** Switch between primary/secondary (Generic) or armed/unarmed (Caster/Resonator) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Combat")

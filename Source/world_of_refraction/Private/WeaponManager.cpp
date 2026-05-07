@@ -48,16 +48,16 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 
 	// Determine initial state from LoadoutComponent or CharacterData
 	bool bIsGeneric = CharData ? CharData->IsGeneric() : (LoadoutComp && LoadoutComp->CharacterClass == ECharacterClass::Generic);
-	bool bUsingPrimary = LoadoutComp ? LoadoutComp->IsUsingPrimary() : true;
+	bool bShowPrimary = LoadoutComp ? LoadoutComp->IsShowingPrimary() : true;
 
 	if (bIsGeneric)
 	{
-		State.ActiveSlot = bUsingPrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
+		State.ActiveSlot = bShowPrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
 		State.bInfusionActive = false;
 	}
 	else
 	{
-		State.ActiveSlot = bUsingPrimary ? EWeaponSlot::Primary : EWeaponSlot::Unarmed;
+		State.ActiveSlot = bShowPrimary ? EWeaponSlot::Primary : EWeaponSlot::Unarmed;
 	}
 
 	State.ConjuredWeapon = nullptr;
