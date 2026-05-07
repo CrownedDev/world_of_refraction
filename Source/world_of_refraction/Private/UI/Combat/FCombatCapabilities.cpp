@@ -43,11 +43,11 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     const FWeaponLoadoutEntry *ActiveWeapon = nullptr;
     if (CharClass == ECharacterClass::Generic)
     {
-        ActiveWeapon = LC->GetActiveWeaponLoadout(); // respects bUsingPrimary toggle
+        ActiveWeapon = LC->GetActiveWeaponLoadout(); // respects bShowPrimary toggle
     }
     else
     {
-        ActiveWeapon = LC->GetPrimaryWeaponLoadout(); // ignores bUsingPrimary
+        ActiveWeapon = LC->GetPrimaryWeaponLoadout(); // ignores bShowPrimary
     }
 
     if (ActiveWeapon && ActiveWeapon->WeaponEntry.Weapon)

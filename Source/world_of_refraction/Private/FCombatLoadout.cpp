@@ -294,7 +294,7 @@ void FCombatLoadout::Clear()
     InnateSpells.Empty();
     ItemSlots.Empty();
 
-    bUsingPrimary = true;
+    bShowPrimary = true;
     ActiveRingIndex = 0;
 }
 
@@ -449,7 +449,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
 
     // ==================== COSMETICS & DEFENSE ====================
 
-    Result.bUsingPrimary = Asset->bUsingPrimary;
+    Result.bShowPrimary = Asset->bShowPrimary;
 
     // Defense animations
     Result.bUseWeaponParryAnimation = Asset->bUseWeaponParryAnimation;
