@@ -14,7 +14,7 @@
 - UBT auto-includes subdirectories within the module — `#include` statements don't need updating after file moves *within* the module.
 
 ## Working principles
--  **Create a new branch for every new feature or significant refactor** — never build directly on `main` or an unrelated working branch. Use descriptive prefixes (`feature/`, `refactor/`, `chore/`, `fix/`).
+-  **always Create a new branch for every new feature or significant refactor** — never build directly on `main` or an unrelated working branch. Use descriptive prefixes (`feature/`, `refactor/`, `chore/`, `fix/`).
 - **Production-grade, not over-engineered.** Working game > perfect architecture. Push back on over-engineering. Prefer the simplest working solution.
 - **Incremental.** Build new alongside old. Verify behaviour. Wrap old paths during transition. Remove old code only after the new path is proven in PIE.
 - **Self-documenting code.** Names carry the meaning. Minimal comments. Use named constants — no magic numbers. Mark unresolved values with `// TODO:`.

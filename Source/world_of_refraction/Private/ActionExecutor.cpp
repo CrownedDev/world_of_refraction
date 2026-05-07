@@ -409,6 +409,12 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	CurrentExecutionContext = Context;
 	AsyncActionCallback = OnComplete;
 
+	// Reset coordination flags. FinalizeAsyncAction fires only when both flip true:
+	// bAllDefensesResolved (set by CheckAndFinalizeAsyncAction) and !bWaitingForAnimationEnd
+	// (cleared by UnbindActionAnimationEnd in OnActionAnimationEnded).
+	bWaitingForAnimationEnd = false;
+	bAllDefensesResolved = false;
+
 	// Broadcast start
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
 
@@ -838,11 +844,16 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 			false);
 	}
 
-	// If no animation, finalize now
+	// If no animation, gate on defenses via TryFinalize.
+	// Items typically don't open defense windows; if none pending, mark resolved.
 	if (!bWaitingForAnimationEnd)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No item animation - finalizing immediately"));
-		FinalizeAsyncAction();
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No item animation"));
+		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
+		{
+			bAllDefensesResolved = true;
+		}
+		TryFinalizeAsyncAction();
 	}
 	// Otherwise OnActionAnimationEnded will handle finalization
 }
@@ -1190,8 +1201,26 @@ void UActionExecutor::CheckAndFinalizeAsyncAction()
 
 	if (CurrentExecutionContext->AreAllDefensesResolved())
 	{
-		FinalizeAsyncAction();
+		bAllDefensesResolved = true;
+		TryFinalizeAsyncAction();
 	}
+}
+
+void UActionExecutor::TryFinalizeAsyncAction()
+{
+	if (bWaitingForAnimationEnd)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] TryFinalize: waiting for animation"));
+		return;
+	}
+
+	if (!bAllDefensesResolved)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] TryFinalize: waiting for defenses"));
+		return;
+	}
+
+	FinalizeAsyncAction();
 }
 
 void UActionExecutor::FinalizeAsyncAction()
@@ -3339,17 +3368,18 @@ void UActionExecutor::OnMovementComplete()
 			false);
 	}
 
-	// Check if animation was actually played
-	// If not waiting for animation (no montage), finalize now
+	// Check if animation was actually played.
+	// If not waiting for animation (no montage), gate on defenses via TryFinalize.
 	if (!bWaitingForAnimationEnd)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No animation to wait for - finalizing immediately"));
-		if (!CurrentExecutionContext.IsSet() || CurrentExecutionContext->AreAllDefensesResolved())
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] No animation to wait for"));
+		if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->AreAllDefensesResolved())
 		{
-			FinalizeAsyncAction();
+			bAllDefensesResolved = true;
 		}
+		TryFinalizeAsyncAction();
 	}
-	// Otherwise, OnActionAnimationEnded will call FinalizeAsyncAction
+	// Otherwise, OnActionAnimationEnded will call TryFinalizeAsyncAction
 }
 
 UCombatAnimInstance *UActionExecutor::GetCombatAnimInstance(AActor *Actor) const
@@ -3450,8 +3480,8 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 		ClearPendingSpellData();
 	}
 
-	// NOW finalize and trigger return
-	FinalizeAsyncAction();
+	// Animation done — gate on defenses too. TryFinalize fires only if defenses already resolved.
+	TryFinalizeAsyncAction();
 }
 
 void UActionExecutor::BindSpellNotify(AActor *Actor)

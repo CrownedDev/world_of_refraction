@@ -662,6 +662,13 @@ private:
 	/** Track whether we're waiting for animation */
 	bool bWaitingForAnimationEnd = false;
 
+	/** True when all defense windows have resolved. Coordinated with bWaitingForAnimationEnd
+	 *  via TryFinalizeAsyncAction — finalize only when both are done. */
+	bool bAllDefensesResolved = false;
+
+	/** Finalize iff both defenses resolved AND animation finished (or no animation). */
+	void TryFinalizeAsyncAction();
+
 	// ========================================
 	// ASYNC EXECUTION - INTERNAL METHODS
 	// ========================================
