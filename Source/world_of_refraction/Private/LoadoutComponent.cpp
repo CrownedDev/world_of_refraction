@@ -758,15 +758,17 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
         return GetRingResonateSpells();
     }
 
-    // For Generic and Caster, respect bShowPrimary
-    if (Loadout.bShowPrimary)
+    // Generic dual-weapon: bShowPrimary IS a real gameplay toggle —
+    // only the shown weapon's spells are available.
+    if (CharacterClass == ECharacterClass::Generic &&
+        Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+        Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
     {
-        return GetPrimarySlotSpells();
+        return Loadout.bShowPrimary ? GetPrimarySlotSpells() : GetSecondarySlotSpells();
     }
-    else
-    {
-        return GetSecondarySlotSpells();
-    }
+
+    // All other configurations: bShowPrimary is display-only, so all spells are available.
+    return GetAvailableSpells();
 }
 
 TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
@@ -982,18 +984,10 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
         return nullptr;
     }
 
-    // Ring primary scenarios:
-    // - bShowPrimary=true → using ring, no weapon (return nullptr)
-    // - bShowPrimary=false → using secondary weapon (Generic only)
+    // Ring primary - bShowPrimary controls stance display only, not combat capability.
+    // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        // Using primary (ring) = no weapon
-        if (Loadout.bShowPrimary)
-        {
-            return nullptr;
-        }
-
-        // Using secondary = check for weapon
         if (CharacterClass == ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
         {
@@ -1006,7 +1000,7 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
     // Weapon primary - class-specific behavior
     if (CharacterClass == ECharacterClass::Generic)
     {
-        // Generic: bShowPrimary toggles between primary/secondary weapons
+        // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
         if (Loadout.bShowPrimary)
         {
             return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
@@ -1018,13 +1012,9 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
         return nullptr;
     }
 
-    // Caster/Resonator: bShowPrimary = armed/unarmed state
-    if (Loadout.bShowPrimary)
-    {
-        return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
-    }
-
-    return nullptr; // Unarmed
+    // Caster/Resonator: weapon equipped iff primary slot has weapon.
+    // bShowPrimary controls stance display only, not combat capability.
+    return Loadout.PrimaryWeapon.IsValid() ? Loadout.PrimaryWeapon.WeaponEntry.Weapon : nullptr;
 }
 
 UWeaponData *ULoadoutComponent::GetPrimaryWeapon() const
@@ -1205,21 +1195,8 @@ bool ULoadoutComponent::HasWeaponAccess() const
 
 bool ULoadoutComponent::IsArmed() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-    {
-        return false;
-    }
-
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
-
-    // Generic is always armed if they have any weapon
-    if (CharacterClass == ECharacterClass::Generic)
-    {
-        return GetActiveWeapon() != nullptr;
-    }
-
-    // Caster/Resonator: armed when bShowPrimary AND has weapon
-    return Loadout.bShowPrimary && GetActiveWeapon() != nullptr;
+    // Armed iff combat layer has a weapon. bShowPrimary controls stance display only.
+    return GetActiveWeapon() != nullptr;
 }
 bool ULoadoutComponent::IsEvolved() const
 {
@@ -1293,19 +1270,35 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
 
     const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
 
-    // Get active weapon entry
-    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
+    // Stance is a visual concern, decoupled from combat capability:
+    // bShowPrimary picks which slot is currently DISPLAYED, regardless of
+    // whether the other slot's weapon is also available for combat actions.
+    const FWeaponLoadoutEntry *ShownWeapon = nullptr;
 
-    if (WeaponEntry && WeaponEntry->WeaponEntry.Weapon)
+    if (Loadout.bShowPrimary)
     {
-        UWeaponData *Weapon = WeaponEntry->WeaponEntry.Weapon;
-        if (Weapon->WeaponStance)
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
         {
-            return Weapon->WeaponStance;
+            ShownWeapon = Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
+        }
+        // Ring/Evolution primary while showing primary => no weapon stance, fall through to unarmed.
+    }
+    else
+    {
+        // Showing secondary. Only Generic has secondary slots that can hold a weapon.
+        if (CharacterClass == ECharacterClass::Generic &&
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
+        {
+            ShownWeapon = Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
         }
     }
 
-    // Fallback to unarmed stance
+    if (ShownWeapon && ShownWeapon->WeaponEntry.Weapon &&
+        ShownWeapon->WeaponEntry.Weapon->WeaponStance)
+    {
+        return ShownWeapon->WeaponEntry.Weapon->WeaponStance;
+    }
+
     return GetUnarmedStance();
 }
 
@@ -1473,14 +1466,10 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
         return nullptr;
     }
 
-    // Ring primary - only Generic with secondary weapon
+    // Ring primary - bShowPrimary controls stance display only, not combat capability.
+    // Generic with weapon-secondary always has weapon access; Caster/Resonator have none.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        // Using primary (ring) = no weapon
-        if (Loadout.bShowPrimary)
-            return nullptr;
-
-        // Using secondary = check for weapon
         if (CharacterClass == ECharacterClass::Generic &&
             Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
             return Loadout.SecondaryWeapon.IsValid() ? &Loadout.SecondaryWeapon : nullptr;
@@ -1491,6 +1480,7 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     // Weapon primary - class-specific behavior
     if (CharacterClass == ECharacterClass::Generic)
     {
+        // Generic dual-weapon: bShowPrimary IS a real gameplay toggle.
         if (Loadout.bShowPrimary)
             return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
         else if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon)
@@ -1498,11 +1488,9 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
         return nullptr;
     }
 
-    // Caster/Resonator: armed state
-    if (Loadout.bShowPrimary)
-        return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
-
-    return nullptr;
+    // Caster/Resonator: weapon equipped iff primary slot has weapon.
+    // bShowPrimary controls stance display only, not combat capability.
+    return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
 }
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const

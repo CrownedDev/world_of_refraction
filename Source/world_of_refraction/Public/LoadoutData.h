@@ -80,8 +80,8 @@ public:
               meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
     TArray<URingData *> EquippedRings;
 
-    /** If true, character starts combat using primary equipment. If false, starts unarmed (Caster/Resonator) or with secondary (Generic). */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity", meta = (DisplayName = "Starts Using Primary"))
+    /** If true, character starts combat showing primary equipment stance. If false, starts showing secondary (Generic) or unarmed (Caster/Resonator). Visual/stance flag — does not gate combat capability. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity", meta = (DisplayName = "Starts Showing Primary"))
     bool bShowPrimary = true;
     // ==================== PRIMARY EQUIPMENT ====================
 
