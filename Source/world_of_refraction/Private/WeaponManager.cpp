@@ -48,16 +48,20 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 
 	// Determine initial state from LoadoutComponent or CharacterData
 	bool bIsGeneric = CharData ? CharData->IsGeneric() : (LoadoutComp && LoadoutComp->CharacterClass == ECharacterClass::Generic);
-	bool bShowPrimary = LoadoutComp ? LoadoutComp->IsShowingPrimary() : true;
 
 	if (bIsGeneric)
 	{
+		// Generic: bShowPrimary is the gameplay toggle between equipped weapons.
+		bool bShowPrimary = LoadoutComp ? LoadoutComp->IsShowingPrimary() : true;
 		State.ActiveSlot = bShowPrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
 		State.bInfusionActive = false;
 	}
 	else
 	{
-		State.ActiveSlot = bShowPrimary ? EWeaponSlot::Primary : EWeaponSlot::Unarmed;
+		// Caster/Resonator: combat layer ignores bShowPrimary. Active iff primary weapon slotted.
+		State.ActiveSlot = (LoadoutComp && LoadoutComp->GetPrimaryWeapon())
+			? EWeaponSlot::Primary
+			: EWeaponSlot::Unarmed;
 	}
 
 	State.ConjuredWeapon = nullptr;

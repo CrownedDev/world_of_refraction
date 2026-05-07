@@ -39,16 +39,12 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
            LC->GetPrimaryRingLoadout() ? TEXT("valid") : TEXT("null"));
 
     // ==================== ACTIVE WEAPON ====================
+    // GetActiveWeaponLoadout returns the combat-active weapon for all classes:
+    // - Generic dual-weapon: respects bShowPrimary toggle
+    // - Generic with ring-primary + weapon-secondary: returns secondary (always available)
+    // - Caster/Resonator: returns primary weapon iff slotted (bShowPrimary is stance-only)
 
-    const FWeaponLoadoutEntry *ActiveWeapon = nullptr;
-    if (CharClass == ECharacterClass::Generic)
-    {
-        ActiveWeapon = LC->GetActiveWeaponLoadout(); // respects bShowPrimary toggle
-    }
-    else
-    {
-        ActiveWeapon = LC->GetPrimaryWeaponLoadout(); // ignores bShowPrimary
-    }
+    const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
 
     if (ActiveWeapon && ActiveWeapon->WeaponEntry.Weapon)
     {
