@@ -3082,21 +3082,6 @@ URingManager *UActionExecutor::GetRingManager() const
 // HELPER IMPLEMENTATIONS
 // ========================================
 
-void UActionExecutor::ApplyIoliteStatBuff(AActor *Actor)
-{
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (!StatusManager)
-	{
-		return;
-	}
-
-	// Apply +5% to all stats for 1 turn
-	// TODO: Create a proper status effect for this or use existing buff system
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Iolite L2 stat buff applied to %s (+%d%% all stats)"),
-		   Actor ? *Actor->GetName() : TEXT("None"),
-		   FMath::RoundToInt(InfusionConstants::IOLITE_L2_STAT_BUFF * 100.0f));
-}
-
 void UActionExecutor::ApplySelfDamage(AActor *Actor, int32 Amount)
 {
 	if (!Actor || Amount <= 0)

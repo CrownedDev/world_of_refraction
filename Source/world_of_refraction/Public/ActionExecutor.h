@@ -502,9 +502,6 @@ private:
 		AActor *Actor,
 		USpellData *Spell);
 
-	/** Apply Iolite L2 stat buff */
-	void ApplyIoliteStatBuff(AActor *Actor);
-
 	/** Apply self-damage for HP costs */
 	void ApplySelfDamage(AActor *Actor, int32 Amount);
 

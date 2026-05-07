@@ -466,12 +466,13 @@ void UInfusionVFXComponent::CacheAvailableSources()
 
     UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
 
-    // DIAGNOSTIC — for triaging Generic/WeaponCrystal cycling bug
-    UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] CACHE DUMP for %s: %d sources"),
+    // Diagnostic source dump — Verbose level so it's available for triage
+    // without cluttering default output. Enable with `Log LogTemp Verbose`.
+    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] CACHE DUMP for %s: %d sources"),
         Owner ? *Owner->GetName() : TEXT("NULL"), CachedSources.Num());
     for (int32 i = 0; i < CachedSources.Num(); ++i)
     {
-        UE_LOG(LogTemp, Warning, TEXT("  [%d] %s"), i,
+        UE_LOG(LogTemp, Verbose, TEXT("  [%d] %s"), i,
             *UEnum::GetValueAsString(CachedSources[i]));
     }
 }
