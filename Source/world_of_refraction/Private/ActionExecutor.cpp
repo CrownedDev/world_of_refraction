@@ -353,6 +353,14 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 // ========================================
 void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
 {
+	// Lazy-bind to DefenseSystem on first use. Subsystem init order is alphabetical, so
+	// ActionExecutor::Initialize runs before DefenseSystem exists; binding there silently no-ops.
+	// By the time any action runs, DefenseSystem exists. Idempotent — bDefenseEventsBound guards re-binding.
+	if (!bDefenseEventsBound)
+	{
+		BindDefenseSystemEvents();
+	}
+
 	// Check for existing async action
 	if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress)
 	{
@@ -1040,6 +1048,9 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 
 void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResult &DefenseResult)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnDefenseWindowClosed CALLBACK FIRED for %s"),
+		   Defender ? *Defender->GetName() : TEXT("null"));
+
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Defense window closed but no async action in progress"));
@@ -1424,13 +1435,26 @@ UDefenseSystem *UActionExecutor::GetDefenseSystem() const
 
 void UActionExecutor::BindDefenseSystemEvents()
 {
+	if (bDefenseEventsBound)
+	{
+		return;
+	}
+
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] BindDefenseSystemEvents called - DefenseSys: %s"),
+		   DefenseSys ? TEXT("VALID") : TEXT("NULL"));
+
 	if (DefenseSys)
 	{
-		// Dynamic delegates use AddDynamic macro
 		DefenseSys->OnDefenseWindowClosed.AddDynamic(this, &UActionExecutor::OnDefenseWindowClosed);
+		bDefenseEventsBound = true;
 
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Bound to DefenseSystem events"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Bound to DefenseSystem events - IsBound: %s"),
+			   DefenseSys->OnDefenseWindowClosed.IsBound() ? TEXT("TRUE") : TEXT("FALSE"));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DefenseSystem not yet available - will retry on first action"));
 	}
 }
 
@@ -1443,6 +1467,7 @@ void UActionExecutor::UnbindDefenseSystemEvents()
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Unbound from DefenseSystem events"));
 	}
+	bDefenseEventsBound = false;
 }
 
 // ========================================
@@ -4086,11 +4111,19 @@ void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
 	}
 
 	const int32 Before = CharComp->CurrentHP;
-	CharComp->CurrentHP = FMath::Max(1, CharComp->CurrentHP - Cost);
+
+	// Clamp cost to leave at least 1 HP — infusion cannot directly kill the caster.
+	// CalculateHPCost already enforces this, but we re-clamp here as defence in depth.
+	const int32 SafeCost = FMath::Min(Cost, FMath::Max(0, CharComp->CurrentHP - 1));
+
+	// Route through ServerTakeDamage so OnHPChanged broadcasts and the
+	// CharacterPanelWidget HP bar refreshes. Direct CurrentHP mutation bypasses
+	// the delegate and leaves the UI stale.
+	CharComp->ServerTakeDamage(SafeCost);
 
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ActionExecutor] %s paid %d HP for L%d infusion (HP: %d -> %d)"),
-		   *Actor->GetName(), Cost, Level, Before, CharComp->CurrentHP);
+		   *Actor->GetName(), SafeCost, Level, Before, CharComp->CurrentHP);
 }
 void UActionExecutor::ApplyIoliteL2StatBuff(AActor *Actor) const
 {

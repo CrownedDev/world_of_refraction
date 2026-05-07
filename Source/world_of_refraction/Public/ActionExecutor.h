@@ -613,6 +613,9 @@ private:
 	UPROPERTY()
 	UDefenseSystem *DefenseSystemRef = nullptr;
 
+	/** True once OnDefenseWindowClosed has been bound to DefenseSystem. Idempotent guard. */
+	bool bDefenseEventsBound = false;
+
 	/** Handle for timeout timer */
 	FTimerHandle AsyncTimeoutHandle;
 
