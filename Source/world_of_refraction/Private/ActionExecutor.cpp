@@ -510,7 +510,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
 	if (Movement)
 	{
-		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter, bRealityL2Boost);
+		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter, ActionMods);
 	}
 	else
 	{
