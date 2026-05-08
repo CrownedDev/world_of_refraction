@@ -127,7 +127,7 @@ public:
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float MovementSpeedModifierPercent = 0.0f;
+        float ActionSpeedModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
                   meta = (ClampMin = "-50", ClampMax = "50",

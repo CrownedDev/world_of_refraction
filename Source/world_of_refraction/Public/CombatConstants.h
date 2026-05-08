@@ -41,12 +41,12 @@ namespace CombatConstants
     constexpr float SPELL_SPEED_PER_POINT = 0.01f; // 1% per point
 
     // ==================== BODY STATS (4) ====================
-    // Defense, MovementSpeed, RawDamage, MaxHealth
+    // Defense, ActionSpeed, RawDamage, MaxHealth
 
     // Defense - Flat damage reduction per hit
     constexpr float DEFENSE_PER_POINT = 0.06f; // Flat defense per point
 
-    // Movement Speed - Approach speed & animation speed (RENAMED from AttackSpeed)
+    // Action Speed - Approach speed & animation speed (RENAMED from AttackSpeed)
     constexpr float MOVEMENT_SPEED_BASE = 400.0f;       // Base units per second (approach)
     constexpr float MOVEMENT_SPEED_PER_POINT = 0.01f;   // 1% per point
     constexpr float ANIMATION_SPEED_BASE = 1.0f;        // Base animation multiplier
@@ -75,15 +75,15 @@ namespace CombatConstants
     constexpr float TURN_SPEED_PER_POINT = 0.08f; // 0.08 per point
 
     // Luck - Multi-system fortune stat (drop chance/quality, crit bonus, dodge, break skip)
-    constexpr float LUCK_PER_POINT = 0.0015f;          // Same shape as Resistance
-    constexpr float LUCK_RAW_MAX = 0.50f;              // Raw multiplier ceiling
+    constexpr float LUCK_PER_POINT = 0.0015f; // Same shape as Resistance
+    constexpr float LUCK_RAW_MAX = 0.50f;     // Raw multiplier ceiling
 
     // Consumer-specific caps - applied at the consumer site
-    constexpr float LUCK_CRIT_BONUS_MAX = 0.20f;       // +20% crit chance bonus
-    constexpr float LUCK_DODGE_MAX = 0.25f;            // 25% per-hit dodge chance
-    constexpr float LUCK_BREAK_SKIP_MAX = 0.50f;       // 50% chance to skip crystal wear
-    constexpr float LUCK_DROP_CHANCE_MAX = 1.00f;      // 100% extra drop chance (out-of-combat)
-    constexpr float LUCK_DROP_QUALITY_MAX = 1.00f;     // 100% tier upgrade chance (out-of-combat)
+    constexpr float LUCK_CRIT_BONUS_MAX = 0.20f;   // +20% crit chance bonus
+    constexpr float LUCK_DODGE_MAX = 0.25f;        // 25% per-hit dodge chance
+    constexpr float LUCK_BREAK_SKIP_MAX = 0.50f;   // 50% chance to skip crystal wear
+    constexpr float LUCK_DROP_CHANCE_MAX = 1.00f;  // 100% extra drop chance (out-of-combat)
+    constexpr float LUCK_DROP_QUALITY_MAX = 1.00f; // 100% tier upgrade chance (out-of-combat)
 
     // ==================== TURN SYSTEM ====================
 

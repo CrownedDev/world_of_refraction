@@ -24,7 +24,7 @@ namespace StatConstants
 
     constexpr int32 INITIAL_STAT_BUDGET = 30;
 
-    // ==================== MOVEMENT SPEED SCALING ====================
+    // ==================== ACTION SPEED SCALING ====================
 
     constexpr float MOVEMENT_SPEED_MIN_MULTIPLIER = 1.0f; // 0 points
     constexpr float MOVEMENT_SPEED_MAX_MULTIPLIER = 2.1f; // Max points

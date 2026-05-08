@@ -729,7 +729,7 @@ FString UItemData::GetEvolutionStatSummary() const
         AddMod(TEXT("Crit Chance"), CritChanceModifierPercent);
         AddMod(TEXT("Spell Speed"), SpellSpeedModifierPercent);
         AddMod(TEXT("Defense"), DefenseModifierPercent);
-        AddMod(TEXT("Movement Speed"), MovementSpeedModifierPercent);
+        AddMod(TEXT("Action Speed"), ActionSpeedModifierPercent);
         AddMod(TEXT("Raw Damage"), RawDamageModifierPercent);
         AddMod(TEXT("Resistance"), ResistanceModifierPercent);
         AddMod(TEXT("Turn Speed"), TurnSpeedModifierPercent);
@@ -785,8 +785,8 @@ FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
     if (StatModifierMode == EStatModifierMode::Pillar)
     {
         Out.AddPillarPercent(
-            MindModifierPercent   * Multiplier,
-            BodyModifierPercent   * Multiplier,
+            MindModifierPercent * Multiplier,
+            BodyModifierPercent * Multiplier,
             SpiritModifierPercent * Multiplier);
     }
     else
@@ -796,16 +796,16 @@ FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
         // re-mapping is needed. Pool stats (MaxHealth, MaxEnergy) deliberately
         // not authored here — they belong to the future Traits system as
         // conditional/triggered effects rather than always-on UItemData fields.
-        Out.Efficiency    = EfficiencyModifierPercent    * Multiplier;
-        Out.EffectDamage  = EffectDamageModifierPercent  * Multiplier;
-        Out.CritChance    = CritChanceModifierPercent    * Multiplier;
-        Out.SpellSpeed    = SpellSpeedModifierPercent    * Multiplier;
-        Out.Defense       = DefenseModifierPercent       * Multiplier;
-        Out.MovementSpeed = MovementSpeedModifierPercent * Multiplier;
-        Out.RawDamage     = RawDamageModifierPercent     * Multiplier;
-        Out.Resistance    = ResistanceModifierPercent    * Multiplier;
-        Out.TurnSpeed     = TurnSpeedModifierPercent     * Multiplier;
-        Out.Luck          = LuckModifierPercent          * Multiplier;
+        Out.Efficiency = EfficiencyModifierPercent * Multiplier;
+        Out.EffectDamage = EffectDamageModifierPercent * Multiplier;
+        Out.CritChance = CritChanceModifierPercent * Multiplier;
+        Out.SpellSpeed = SpellSpeedModifierPercent * Multiplier;
+        Out.Defense = DefenseModifierPercent * Multiplier;
+        Out.ActionSpeed = ActionSpeedModifierPercent * Multiplier;
+        Out.RawDamage = RawDamageModifierPercent * Multiplier;
+        Out.Resistance = ResistanceModifierPercent * Multiplier;
+        Out.TurnSpeed = TurnSpeedModifierPercent * Multiplier;
+        Out.Luck = LuckModifierPercent * Multiplier;
     }
 
     return Out;

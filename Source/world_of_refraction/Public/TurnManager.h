@@ -37,7 +37,7 @@ struct FCombatantTurnDebt
 	int32 CachedSpeed = 0;
 
 	UPROPERTY()
-	int32 CachedMovementSpeed = 0;
+	int32 CachedActionSpeed = 0;
 
 	UPROPERTY()
 	int32 CachedMind = 0;

@@ -12,18 +12,18 @@ UENUM(BlueprintType)
 enum class ESubStat : uint8
 {
 	// Mind
-	Efficiency      UMETA(DisplayName = "Efficiency"),
-	EffectDamage    UMETA(DisplayName = "Effect Damage"),
-	CritChance      UMETA(DisplayName = "Crit Chance"),
-	SpellSpeed      UMETA(DisplayName = "Spell Speed"),
+	Efficiency UMETA(DisplayName = "Efficiency"),
+	EffectDamage UMETA(DisplayName = "Effect Damage"),
+	CritChance UMETA(DisplayName = "Crit Chance"),
+	SpellSpeed UMETA(DisplayName = "Spell Speed"),
 	// Body
-	Defense         UMETA(DisplayName = "Defense"),
-	MovementSpeed   UMETA(DisplayName = "Movement Speed"),
-	RawDamage       UMETA(DisplayName = "Raw Damage"),
+	Defense UMETA(DisplayName = "Defense"),
+	ActionSpeed UMETA(DisplayName = "Action Speed"),
+	RawDamage UMETA(DisplayName = "Raw Damage"),
 	// Spirit
-	Resistance      UMETA(DisplayName = "Resistance"),
-	TurnSpeed       UMETA(DisplayName = "Turn Speed"),
-	Luck            UMETA(DisplayName = "Luck")
+	Resistance UMETA(DisplayName = "Resistance"),
+	TurnSpeed UMETA(DisplayName = "Turn Speed"),
+	Luck UMETA(DisplayName = "Luck")
 };
 
 /** Per-action stat modifier accumulator. Values are percentages (5.0f = +5%).
@@ -49,7 +49,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	float Defense = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
-	float MovementSpeed = 0.0f;
+	float ActionSpeed = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
 	float RawDamage = 0.0f;
@@ -64,33 +64,33 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	float Luck = 0.0f;
 
 	/** Add another modifier set into this one (additive accumulation). */
-	void Accumulate(const FActionStatModifiers& Other)
+	void Accumulate(const FActionStatModifiers &Other)
 	{
-		Efficiency    += Other.Efficiency;
-		EffectDamage  += Other.EffectDamage;
-		CritChance    += Other.CritChance;
-		SpellSpeed    += Other.SpellSpeed;
-		Defense       += Other.Defense;
-		MovementSpeed += Other.MovementSpeed;
-		RawDamage     += Other.RawDamage;
-		Resistance    += Other.Resistance;
-		TurnSpeed     += Other.TurnSpeed;
-		Luck          += Other.Luck;
+		Efficiency += Other.Efficiency;
+		EffectDamage += Other.EffectDamage;
+		CritChance += Other.CritChance;
+		SpellSpeed += Other.SpellSpeed;
+		Defense += Other.Defense;
+		ActionSpeed += Other.ActionSpeed;
+		RawDamage += Other.RawDamage;
+		Resistance += Other.Resistance;
+		TurnSpeed += Other.TurnSpeed;
+		Luck += Other.Luck;
 	}
 
 	/** Add a flat percentage to all sub-stats. Used by Reality contributions. */
 	void AddFlatPercent(float Percent)
 	{
-		Efficiency    += Percent;
-		EffectDamage  += Percent;
-		CritChance    += Percent;
-		SpellSpeed    += Percent;
-		Defense       += Percent;
-		MovementSpeed += Percent;
-		RawDamage     += Percent;
-		Resistance    += Percent;
-		TurnSpeed     += Percent;
-		Luck          += Percent;
+		Efficiency += Percent;
+		EffectDamage += Percent;
+		CritChance += Percent;
+		SpellSpeed += Percent;
+		Defense += Percent;
+		ActionSpeed += Percent;
+		RawDamage += Percent;
+		Resistance += Percent;
+		TurnSpeed += Percent;
+		Luck += Percent;
 	}
 
 	/** Add a flat percentage to all sub-stats in a specific pillar.
@@ -100,18 +100,18 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	void AddPillarPercent(float MindPct, float BodyPct, float SpiritPct)
 	{
 		// Mind sub-stats
-		Efficiency    += MindPct;
-		EffectDamage  += MindPct;
-		CritChance    += MindPct;
-		SpellSpeed    += MindPct;
+		Efficiency += MindPct;
+		EffectDamage += MindPct;
+		CritChance += MindPct;
+		SpellSpeed += MindPct;
 		// Body sub-stats — MaxHealth is a pool stat, not represented here.
-		Defense       += BodyPct;
-		MovementSpeed += BodyPct;
-		RawDamage     += BodyPct;
+		Defense += BodyPct;
+		ActionSpeed += BodyPct;
+		RawDamage += BodyPct;
 		// Spirit sub-stats — MaxEnergy is a pool stat, not represented here.
-		Resistance    += SpiritPct;
-		TurnSpeed     += SpiritPct;
-		Luck          += SpiritPct;
+		Resistance += SpiritPct;
+		TurnSpeed += SpiritPct;
+		Luck += SpiritPct;
 	}
 
 	/** Read the modifier for a specific sub-stat. */
@@ -119,17 +119,28 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	{
 		switch (Stat)
 		{
-		case ESubStat::Efficiency:    return Efficiency;
-		case ESubStat::EffectDamage:  return EffectDamage;
-		case ESubStat::CritChance:    return CritChance;
-		case ESubStat::SpellSpeed:    return SpellSpeed;
-		case ESubStat::Defense:       return Defense;
-		case ESubStat::MovementSpeed: return MovementSpeed;
-		case ESubStat::RawDamage:     return RawDamage;
-		case ESubStat::Resistance:    return Resistance;
-		case ESubStat::TurnSpeed:     return TurnSpeed;
-		case ESubStat::Luck:          return Luck;
-		default:                      return 0.0f;
+		case ESubStat::Efficiency:
+			return Efficiency;
+		case ESubStat::EffectDamage:
+			return EffectDamage;
+		case ESubStat::CritChance:
+			return CritChance;
+		case ESubStat::SpellSpeed:
+			return SpellSpeed;
+		case ESubStat::Defense:
+			return Defense;
+		case ESubStat::ActionSpeed:
+			return ActionSpeed;
+		case ESubStat::RawDamage:
+			return RawDamage;
+		case ESubStat::Resistance:
+			return Resistance;
+		case ESubStat::TurnSpeed:
+			return TurnSpeed;
+		case ESubStat::Luck:
+			return Luck;
+		default:
+			return 0.0f;
 		}
 	}
 
@@ -144,16 +155,14 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	int32 ApplyTo(int32 StatValue, ESubStat Stat) const
 	{
 		const float Mod = GetModifier(Stat);
-		if (Mod == 0.0f) return StatValue;
+		if (Mod == 0.0f)
+			return StatValue;
 		return FMath::RoundToInt(StatValue * (1.0f + Mod / 100.0f));
 	}
 
 	/** Has any non-zero contribution. */
 	bool IsActive() const
 	{
-		return Efficiency != 0.0f || EffectDamage != 0.0f || CritChance != 0.0f
-			|| SpellSpeed != 0.0f || Defense != 0.0f || MovementSpeed != 0.0f
-			|| RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f
-			|| Luck != 0.0f;
+		return Efficiency != 0.0f || EffectDamage != 0.0f || CritChance != 0.0f || SpellSpeed != 0.0f || Defense != 0.0f || ActionSpeed != 0.0f || RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f || Luck != 0.0f;
 	}
 };

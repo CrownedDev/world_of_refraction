@@ -387,7 +387,7 @@ AActor *ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;
 	CharData->TurnSpeed = TurnSpeed;
-	CharData->MovementSpeed = AttackSpeed;
+	CharData->ActionSpeed = AttackSpeed;
 
 	// Step 3: Create CharacterDataComponent
 	UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(Actor, UCharacterDataComponent::StaticClass());

@@ -589,7 +589,7 @@ AActor *ACombatOrchestratorTestActor::CreateTestCharacter(const FString &Name, i
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;
 	CharData->TurnSpeed = TurnSpeed;
-	CharData->MovementSpeed = 0;
+	CharData->ActionSpeed = 0;
 
 	// Create and setup component (CRITICAL: assign data BEFORE register)
 	UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(TestActor);

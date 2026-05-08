@@ -38,7 +38,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior")
     ECombatMovementType MovementType = ECombatMovementType::Direct;
 
-    /** Extra speed multiplier on top of character's MovementSpeed stat */
+    /** Extra speed multiplier on top of character's ActionSpeed stat */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Behavior", meta = (ClampMin = "0.1", ClampMax = "5.0"))
     float SpeedMultiplier = 1.0f;
 

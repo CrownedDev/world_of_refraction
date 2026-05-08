@@ -55,17 +55,17 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
             break;
         }
 
-        //UE_LOG(LogTemp, Display, TEXT("[CombatMovement] %s: State=%s, Montage=%s"),
-        //    GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
-        //    *StateName,
-        //    CurrentMovementMontage ? *CurrentMovementMontage->GetName() : TEXT("None"));
+        // UE_LOG(LogTemp, Display, TEXT("[CombatMovement] %s: State=%s, Montage=%s"),
+        //     GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"),
+        //     *StateName,
+        //     CurrentMovementMontage ? *CurrentMovementMontage->GetName() : TEXT("None"));
     }
 
     switch (MovementState)
     {
     case ECombatMovementState::Approaching:
     {
-        float Speed = ActiveActionMods.ApplyTo(CalculateMovementSpeed(), ESubStat::MovementSpeed);
+        float Speed = ActiveActionMods.ApplyTo(CalculateActionSpeed(), ESubStat::ActionSpeed);
         if (MoveToward(TargetPosition, Speed, DeltaTime))
         {
             CompleteApproach();
@@ -75,7 +75,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
     case ECombatMovementState::Returning:
     {
-        float Speed = ActiveActionMods.ApplyTo(BaseSpeed * ReturnSpeedMultiplier, ESubStat::MovementSpeed);
+        float Speed = ActiveActionMods.ApplyTo(BaseSpeed * ReturnSpeedMultiplier, ESubStat::ActionSpeed);
         if (MoveToward(GridPosition, Speed, DeltaTime))
         {
             CompleteReturn();
@@ -401,13 +401,13 @@ void UCombatMovementComponent::FaceCurrentTarget()
 
 #include "StatConstants.h"
 
-float UCombatMovementComponent::CalculateMovementSpeed() const
+float UCombatMovementComponent::CalculateActionSpeed() const
 {
     float StatMultiplier = StatConstants::MOVEMENT_SPEED_MIN_MULTIPLIER;
 
     if (CharacterDataComp && CharacterDataComp->CharacterData)
     {
-        int32 MovementPoints = CharacterDataComp->CharacterData->GetTotalMovementSpeed();
+        int32 MovementPoints = CharacterDataComp->CharacterData->GetTotalActionSpeed();
         float PointRatio = FMath::Clamp(
             (float)MovementPoints / (float)StatConstants::MAX_SUBSTAT_POINTS_PER_PILLAR,
             0.0f,

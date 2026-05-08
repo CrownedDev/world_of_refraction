@@ -232,8 +232,8 @@ bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCom
 		return A.CachedSpeed > B.CachedSpeed;
 
 	// Level 2: AttackSpeed (higher wins)
-	if (A.CachedMovementSpeed != B.CachedMovementSpeed)
-		return A.CachedMovementSpeed > B.CachedMovementSpeed;
+	if (A.CachedActionSpeed != B.CachedActionSpeed)
+		return A.CachedActionSpeed > B.CachedActionSpeed;
 
 	// Level 3: Underdog (LOWER total stats wins - rewards glass cannon builds)
 	int32 TotalA = A.CachedMind + A.CachedBody + A.CachedSpirit;
@@ -270,7 +270,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 
 		// Speed = Body + TurnSpeed substat
 		Combatant.CachedSpeed = CharData->WorldBodyLevel + CharData->TurnSpeed;
-		Combatant.CachedMovementSpeed = CharData->GetTotalMovementSpeed();
+		Combatant.CachedActionSpeed = CharData->GetTotalActionSpeed();
 		Combatant.CachedMind = CharData->WorldMindLevel;
 		Combatant.CachedBody = CharData->WorldBodyLevel;
 		Combatant.CachedSpirit = CharData->WorldSpiritLevel;
@@ -279,7 +279,7 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	{
 		// Fallback defaults for testing
 		Combatant.CachedSpeed = 5;
-		Combatant.CachedMovementSpeed = 5;
+		Combatant.CachedActionSpeed = 5;
 		Combatant.CachedMind = 3;
 		Combatant.CachedBody = 3;
 		Combatant.CachedSpirit = 3;

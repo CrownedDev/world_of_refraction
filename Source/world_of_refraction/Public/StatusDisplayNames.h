@@ -202,7 +202,7 @@ namespace StatusDisplayNames
             Info.Description = FString::Printf(TEXT("%s damage each turn"), *Info.Name);
             break;
         case EStatusType::SpeedDebuff:
-            Info.Description = TEXT("Reduced movement speed");
+            Info.Description = TEXT("Reduced action speed");
             break;
         case EStatusType::DefenseDebuff:
             Info.Description = TEXT("Reduced defense");

@@ -133,7 +133,7 @@ public:
 	int32 Defense = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
-	int32 MovementSpeed = 0;
+	int32 ActionSpeed = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 RawDamage = 0;
@@ -256,7 +256,7 @@ public:
 	int32 GetTotalSpent() const
 	{
 		return Efficiency + EffectDamage + CritChance + SpellSpeed +
-			   Defense + MovementSpeed + RawDamage + MaxHealth +
+			   Defense + ActionSpeed + RawDamage + MaxHealth +
 			   MaxEnergy + Resistance + TurnSpeed + Luck;
 	}
 
@@ -287,7 +287,7 @@ public:
 	int32 GetTotalDefense() const { return Defense; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
-	int32 GetTotalMovementSpeed() const { return MovementSpeed; }
+	int32 GetTotalActionSpeed() const { return ActionSpeed; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalRawDamage() const { return RawDamage; }
@@ -320,8 +320,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseBody() const
 	{
-		// Body (4): Defense, MovementSpeed, RawDamage, MaxHealth
-		return GetTotalDefense() + GetTotalMovementSpeed() + GetTotalRawDamage() + GetTotalMaxHealth();
+		// Body (4): Defense, ActionSpeed, RawDamage, MaxHealth
+		return GetTotalDefense() + GetTotalActionSpeed() + GetTotalRawDamage() + GetTotalMaxHealth();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -412,7 +412,7 @@ public:
 	}
 
 	// ==================== BODY CALCULATIONS ====================
-	// Body (3): Defense, MovementSpeed, RawDamage
+	// Body (3): Defense, ActionSpeed, RawDamage
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	int32 CalculateFlatDefense() const
@@ -423,19 +423,19 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	float CalculateMovementSpeed() const
+	float CalculateActionSpeed() const
 	{
 		float EffectiveBody = GetEffectiveBody();
-		int32 TotalPoints = GetTotalMovementSpeed();
+		int32 TotalPoints = GetTotalActionSpeed();
 		return CombatConstants::MOVEMENT_SPEED_BASE * (1.0f + EffectiveBody * TotalPoints * CombatConstants::MOVEMENT_SPEED_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateAnimationSpeed() const
 	{
-		// Uses same stat as MovementSpeed
+		// Uses same stat as ActionSpeed
 		float EffectiveBody = GetEffectiveBody();
-		int32 TotalPoints = GetTotalMovementSpeed();
+		int32 TotalPoints = GetTotalActionSpeed();
 		return CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT);
 	}
 

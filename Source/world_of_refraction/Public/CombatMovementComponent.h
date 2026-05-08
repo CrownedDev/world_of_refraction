@@ -63,7 +63,7 @@ public:
      * @param Approach Approach data asset (nullptr = no movement)
      * @param ExecutionRange Distance from target to stop
      * @param ArenaCenter Center of arena for grid calculations
-     * @param InActionMods Per-action stat modifiers; MovementSpeed contribution
+     * @param InActionMods Per-action stat modifiers; ActionSpeed contribution
      *                     scales approach + return speed for this action lifecycle.
      */
     void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, const FActionStatModifiers &InActionMods = FActionStatModifiers());
@@ -118,7 +118,7 @@ public:
 
     // ==================== CONFIGURATION ====================
 
-    /** Base movement speed (multiplied by character's MovementSpeed stat) */
+    /** Base action speed (multiplied by character's ActionSpeed stat) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Movement|Config")
     float BaseSpeed = 400.0f;
 
@@ -159,7 +159,7 @@ private:
 
     /** Per-action stat modifiers active for the current approach/return.
      *  Set by StartApproach, read by approach + return speed reads,
-     *  cleared on return completion or cancellation. MovementSpeed sub-stat
+     *  cleared on return completion or cancellation. ActionSpeed sub-stat
      *  scales both speed reads. */
     UPROPERTY()
     FActionStatModifiers ActiveActionMods;
@@ -193,8 +193,8 @@ private:
 
     // ==================== MOVEMENT HELPERS ====================
 
-    /** Calculate final movement speed based on approach type and stats */
-    float CalculateMovementSpeed() const;
+    /** Calculate final action speed based on approach type and stats */
+    float CalculateActionSpeed() const;
 
     /** Move toward destination, returns true if arrived */
     bool MoveToward(const FVector &Destination, float Speed, float DeltaTime);

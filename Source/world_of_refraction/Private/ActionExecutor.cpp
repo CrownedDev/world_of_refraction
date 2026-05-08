@@ -494,7 +494,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 			   TEXT("[ActionExecutor] %s ActionMods active — Crit:%.1f%% RawDmg:%.1f%% EffDmg:%.1f%% MovSpd:%.1f%%"),
 			   *Actor->GetName(),
 			   ActionMods.CritChance, ActionMods.RawDamage,
-			   ActionMods.EffectDamage, ActionMods.MovementSpeed);
+			   ActionMods.EffectDamage, ActionMods.ActionSpeed);
 	}
 
 	// Attack / Ability / Spell — bind movement complete and start approach
@@ -2724,8 +2724,8 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		return;
 	}
 
-	// Play rate = 1.0 × CalculateAnimationSpeed() × ActionMods.MovementSpeed contribution.
-	// CalculateAnimationSpeed derives from the MovementSpeed sub-stat — same scaling channel
+	// Play rate = 1.0 × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
+	// CalculateAnimationSpeed derives from the ActionSpeed sub-stat — same scaling channel
 	// as character movement. At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
 	float PlayRate = 1.0f;
 	UCharacterData *CharData = GetCharacterData(User);
@@ -2733,7 +2733,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 	{
 		PlayRate *= CharData->CalculateAnimationSpeed();
 	}
-	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::MovementSpeed);
+	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
 
 	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
 
@@ -2756,7 +2756,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.MovementSpeed contribution.
+	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
 	// Preserves designer-tuned per-attack pacing; layers stat scaling on top.
 	float PlayRate = Attack->BaseAnimSpeed;
 	UCharacterData *CharData = GetCharacterData(Attacker);
@@ -2764,7 +2764,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 	{
 		PlayRate *= CharData->CalculateAnimationSpeed();
 	}
-	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::MovementSpeed);
+	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
 
 	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, PlayRate);
 
@@ -3053,8 +3053,8 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		if (UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData))
 		{
 			TriggerReason = bInfused
-				? FString::Printf(TEXT("Underpowered spell cast (L%d)"), InfusionLevel)
-				: TEXT("Underpowered spell cast");
+								? FString::Printf(TEXT("Underpowered spell cast (L%d)"), InfusionLevel)
+								: TEXT("Underpowered spell cast");
 		}
 		else if (bInfused)
 		{
@@ -3074,8 +3074,8 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		if (UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
 		{
 			TriggerReason = bInfused
-				? FString::Printf(TEXT("Underpowered ability use (L%d)"), InfusionLevel)
-				: TEXT("Underpowered ability use");
+								? FString::Printf(TEXT("Underpowered ability use (L%d)"), InfusionLevel)
+								: TEXT("Underpowered ability use");
 		}
 		else if (bInfused)
 		{

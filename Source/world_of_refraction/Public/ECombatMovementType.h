@@ -16,10 +16,10 @@ enum class ECombatMovementType : uint8
     /** No movement - stay at grid position (ranged attacks, most spells) */
     None UMETA(DisplayName = "None (Ranged)"),
 
-    /** Walk/run directly to target at MovementSpeed */
+    /** Walk/run directly to target at ActionSpeed */
     Direct UMETA(DisplayName = "Direct"),
 
-    /** Fast dash to target at 2x MovementSpeed */
+    /** Fast dash to target at 2x ActionSpeed */
     Dash UMETA(DisplayName = "Dash"),
 
     /** Instant teleport - no travel time */
