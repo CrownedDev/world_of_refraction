@@ -14,9 +14,6 @@ class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
 class UBrokenDarknessManager;
-class URingManager;
-class URingData;
-class UItemData;
 struct FStatusEffect;
 
 /**
@@ -120,14 +117,6 @@ protected:
 	UFUNCTION()
 	void HandleBDOverloadStateChanged(AActor *Actor, bool bIsOverloaded);
 
-	/** Called when a ring crystal breaks (Resonator durability display) */
-	UFUNCTION()
-	void HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal);
-
-	/** Called when ring crystal durability changes per-cast (Resonator bar update) */
-	UFUNCTION()
-	void HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability);
-
 	/** BP fills the BuffDebuffList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
 	void RebuildBuffDebuffList(const TArray<FStatusEffect> &ActiveEffects);
@@ -149,9 +138,6 @@ private:
 
 	/** Bound BD manager for absorption-energy display (when applicable) */
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
-
-	/** Bound ring manager for Resonator durability display (when applicable) */
-	TWeakObjectPtr<URingManager> BoundRingManager;
 
 	bool bBound = false;
 

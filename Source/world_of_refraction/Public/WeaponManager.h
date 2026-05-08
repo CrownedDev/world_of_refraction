@@ -263,6 +263,14 @@ public:
 
 	// ==================== DELEGATES (durability) ====================
 
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnWeaponDurabilityChanged, AActor *, Actor, UWeaponData *, Weapon, int32, NewDurability, int32, MaxDurability);
+
+	/** Fires every time a weapon crystal's durability changes (per-cast wear).
+	 *  Use this for real-time UI updates of the weapon durability bar.
+	 *  Differs from OnWeaponCrystalBroken which fires once at zero. */
+	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
+	FOnWeaponDurabilityChanged OnWeaponDurabilityChanged;
+
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponCrystalBroken, AActor *, Actor, UWeaponData *, Weapon, UItemData *, Crystal);
 
 	/** Fires when a weapon's slotted crystal hits 0 durability and breaks.

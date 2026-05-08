@@ -98,6 +98,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
     const FCombatCapabilities &GetCurrentCapabilities() const { return CurrentCapabilities; }
 
+    /** Get the actor whose menu is currently open (or null if closed). */
+    UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
+    AActor *GetCurrentActor() const { return CurrentActor.Get(); }
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu|Debug",

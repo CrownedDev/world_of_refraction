@@ -15,6 +15,7 @@
 class UPanelWidget;
 class UCombatCommandButtonWidget;
 class UCombatCommandMenuSubsystem;
+class UDurabilityHeaderWidget;
 struct FPieMenuButtonData;
 
 UCLASS(Abstract)
@@ -43,6 +44,12 @@ protected:
     /** BP-side panel that holds the button pool. VerticalBox in the BP child. */
     UPROPERTY(meta = (BindWidget))
     UPanelWidget *ButtonContainer = nullptr;
+
+    /** Optional durability header at the top of the menu. Read-only display
+     *  of ring/weapon durability for the current character. BP-side: an
+     *  instance of UDurabilityHeaderWidget named "DurabilityHeader". */
+    UPROPERTY(meta = (BindWidgetOptional))
+    UDurabilityHeaderWidget *DurabilityHeader = nullptr;
 
     /** BP-side class used to spawn the pre-spawned buttons. Set in the BP child Defaults. */
     UPROPERTY(EditDefaultsOnly, Category = "Combat Command Menu")

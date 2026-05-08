@@ -6,9 +6,6 @@
 #include "StatusEffectManager.h"
 #include "StatusEffect.h"
 #include "BrokenDarknessManager.h"
-#include "RingManager.h"
-#include "RingData.h"
-#include "ItemData.h"
 #include "ElementColors.h"
 #include "HybridSpellColors.h"
 #include "Components/ProgressBar.h"
@@ -83,18 +80,18 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		BDManager->OnOverloadStateChanged.AddDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
 	}
 
-	// Ring manager binding (for Resonator durability display)
+	// Resonator without weapon: hide the EP bar entirely (they have no usable EP).
+	// Once Item 32 lands, this rule extends to "Resonator with weapon" → show as normal EP.
 	if (CharComp->CharacterData &&
 		CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator)
 	{
-		if (UGameInstance *GI = GetGameInstance())
+		if (EPBar)
 		{
-			if (URingManager *RingMgr = GI->GetSubsystem<URingManager>())
-			{
-				BoundRingManager = RingMgr;
-				RingMgr->OnRingCrystalBroken.AddDynamic(this, &UCharacterPanelWidget::HandleRingCrystalBroken);
-				RingMgr->OnRingDurabilityChanged.AddDynamic(this, &UCharacterPanelWidget::HandleRingDurabilityChanged);
-			}
+			EPBar->SetVisibility(ESlateVisibility::Collapsed);
+		}
+		if (EPText)
+		{
+			EPText->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
 
@@ -105,7 +102,7 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 
 	// Initial snapshot
 	HandleHPChanged(CharComp->CurrentHP, CharComp->MaxHP);
-	RefreshEnergyBar();   // dispatches to BD / Resonator / default based on character state
+	RefreshEnergyBar();   // dispatches to BD / default EP based on character state
 	ApplyEnergyBarTint();
 
 	// Status starts at 0 — broadcast doesn't fire until first hit, so seed it
@@ -147,17 +144,10 @@ void UCharacterPanelWidget::TeardownPanel()
 		BDManager->OnOverloadStateChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
 	}
 
-	if (URingManager *RingMgr = BoundRingManager.Get())
-	{
-		RingMgr->OnRingCrystalBroken.RemoveDynamic(this, &UCharacterPanelWidget::HandleRingCrystalBroken);
-		RingMgr->OnRingDurabilityChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleRingDurabilityChanged);
-	}
-
 	BoundActor.Reset();
 	BoundCharData.Reset();
 	BoundStatusManager.Reset();
 	BoundBDManager.Reset();
-	BoundRingManager.Reset();
 	bBound = false;
 }
 
@@ -226,24 +216,6 @@ void UCharacterPanelWidget::HandleBDOverloadStateChanged(AActor *Actor, bool bIs
 {
 	if (Actor != BoundActor.Get())
 		return;
-	RefreshEnergyBar();
-}
-
-void UCharacterPanelWidget::HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal)
-{
-	if (Actor != BoundActor.Get())
-		return;
-	// Ring may have auto-switched; re-read durability from active ring.
-	RefreshEnergyBar();
-	ApplyEnergyBarTint();  // active ring's element may have changed
-}
-
-void UCharacterPanelWidget::HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability)
-{
-	if (Actor != BoundActor.Get())
-		return;
-	// Per-cast durability tick — update the bar without re-applying tint
-	// (active ring's element didn't change, only its durability did).
 	RefreshEnergyBar();
 }
 
@@ -366,32 +338,6 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 		return;
 	}
 
-	// --- Resonator ring durability path ---
-	if (CharComp->CharacterData &&
-		CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator)
-	{
-		URingManager *RingMgr = BoundRingManager.Get();
-		AActor *Owner = BoundActor.Get();
-		if (RingMgr && Owner)
-		{
-			URingData *ActiveRing = RingMgr->GetActiveRing(Owner);
-			if (ActiveRing && ActiveRing->SlottedCrystal)
-			{
-				const int32 Current = ActiveRing->SlottedCrystal->CurrentDurability;
-				const int32 Max = ActiveRing->SlottedCrystal->MaxDurability;
-				const float Percent = (Max > 0) ? (static_cast<float>(Current) / static_cast<float>(Max)) : 0.0f;
-
-				SetBarSafe(EPBar, Percent);
-				SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::RingDur, Current, Max));
-				return;
-			}
-		}
-		// Resonator with no active ring — empty
-		SetBarSafe(EPBar, 0.0f);
-		SetTextSafe(EPText, FString::Printf(TEXT("%s:0/0"), PanelLabels::RingDur));
-		return;
-	}
-
 	// --- Default: regular EP ---
 	{
 		const int32 Current = CharComp->CurrentEP;
@@ -438,24 +384,6 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 		else
 		{
 			BarColour = ElementColors::BrokenDarkness;
-		}
-		EPBar->SetFillColorAndOpacity(BarColour);
-		return;
-	}
-
-	// --- Resonator: active ring's element ---
-	if (CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator)
-	{
-		URingManager *RingMgr = BoundRingManager.Get();
-		AActor *Owner = BoundActor.Get();
-		if (RingMgr && Owner)
-		{
-			URingData *ActiveRing = RingMgr->GetActiveRing(Owner);
-			if (ActiveRing)
-			{
-				const ESpellElement RingElement = ActiveRing->GetRingElement();
-				BarColour = ElementColors::GetColorForElement(RingElement);
-			}
 		}
 		EPBar->SetFillColorAndOpacity(BarColour);
 		return;

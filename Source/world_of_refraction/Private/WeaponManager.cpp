@@ -1001,6 +1001,10 @@ int32 UWeaponManager::ProcessPostCastWear(AActor *Actor, EItemTier ActionTier, i
 	Crystal->ApplyWear(Wear);
 	// Note: ApplyWear fires OnCrystalBroken if it hits 0; we handle that in HandleWeaponCrystalBroken
 
+	// Broadcast post-wear durability for real-time UI updates. Fires whether
+	// the crystal survived or just broke — UI updates either way.
+	OnWeaponDurabilityChanged.Broadcast(Actor, Weapon, Crystal->CurrentDurability, Crystal->MaxDurability);
+
 	return Wear;
 }
 

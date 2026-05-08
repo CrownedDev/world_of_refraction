@@ -3,6 +3,7 @@
 
 #include "UI/Combat/CommandMenu/CombatCommandMenuWidget.h"
 #include "UI/Combat/CommandMenu/CombatCommandButtonWidget.h"
+#include "UI/Combat/CommandMenu/DurabilityHeaderWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Components/PanelWidget.h"
@@ -98,6 +99,20 @@ void UCombatCommandMenuWidget::HandleCommandMenuReady(const TArray<FPieMenuButto
 {
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] HandleCommandMenuReady — received %d buttons"), Buttons.Num());
     SetVisibility(ESlateVisibility::Visible);
+
+    // ADD THESE TWO LINES:
+    UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] DurabilityHeader pointer: %s"),
+           DurabilityHeader ? TEXT("VALID") : TEXT("NULL"));
+
+    // Refresh durability header for the current actor (header decides which lines to show)
+    if (DurabilityHeader)
+    {
+        if (UCombatCommandMenuSubsystem *Subsystem = CachedSubsystem.Get())
+        {
+            DurabilityHeader->RefreshForActor(Subsystem->GetCurrentActor());
+        }
+    }
+
     const int32 ActiveCount = FMath::Min(Buttons.Num(), ButtonPool.Num());
 
     for (int32 i = 0; i < ButtonPool.Num(); ++i)
@@ -137,6 +152,11 @@ void UCombatCommandMenuWidget::HandleCommandMenuClosed()
         {
             Button->Hide();
         }
+    }
+
+    if (DurabilityHeader)
+    {
+        DurabilityHeader->Hide();
     }
 
     OnButtonsRefreshed(0);
