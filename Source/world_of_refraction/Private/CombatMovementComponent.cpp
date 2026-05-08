@@ -9,7 +9,6 @@
 #include "GameFramework/Character.h"
 #include "CombatAnimInstance.h"
 #include "StatConstants.h"
-#include "RealityBoost.h"
 
 UCombatMovementComponent::UCombatMovementComponent()
 {
@@ -66,7 +65,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     {
     case ECombatMovementState::Approaching:
     {
-        float Speed = RealityBoost::ApplyTo(CalculateMovementSpeed(), bRealityL2Boost);
+        float Speed = ActiveActionMods.ApplyTo(CalculateMovementSpeed(), ESubStat::MovementSpeed);
         if (MoveToward(TargetPosition, Speed, DeltaTime))
         {
             CompleteApproach();
@@ -76,7 +75,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 
     case ECombatMovementState::Returning:
     {
-        float Speed = RealityBoost::ApplyTo(BaseSpeed * ReturnSpeedMultiplier, bRealityL2Boost);
+        float Speed = ActiveActionMods.ApplyTo(BaseSpeed * ReturnSpeedMultiplier, ESubStat::MovementSpeed);
         if (MoveToward(GridPosition, Speed, DeltaTime))
         {
             CompleteReturn();
@@ -91,7 +90,7 @@ void UCombatMovementComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 }
 // ==================== MOVEMENT CONTROL ====================
 
-void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, bool bInRealityL2Boost)
+void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, const FActionStatModifiers &InActionMods)
 {
     if (!GetOwner())
     {
@@ -107,9 +106,9 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Appr
     CurrentTarget = Target;
     CurrentMovementData = Approach;
 
-    // Reality L2 boost — held for both approach and return halves of this action's lifecycle.
-    // Cleared in CompleteReturn / CancelMovement.
-    bRealityL2Boost = bInRealityL2Boost;
+    // Per-action stat modifiers — held for both approach and return halves of
+    // this action's lifecycle. Cleared in CompleteReturn / CancelMovement.
+    ActiveActionMods = InActionMods;
 
     // Handle no approach data (ranged) - no movement needed
     if (!Approach)
@@ -297,7 +296,7 @@ void UCombatMovementComponent::CancelMovement()
     MovementState = ECombatMovementState::Idle;
     SetComponentTickEnabled(false);
     CurrentTarget = nullptr;
-    bRealityL2Boost = false;
+    ActiveActionMods = FActionStatModifiers();
 
     OnMovementCancelled.Broadcast();
 }
@@ -543,7 +542,7 @@ void UCombatMovementComponent::CompleteReturn()
     MovementState = ECombatMovementState::Idle;
     SetComponentTickEnabled(false);
     CurrentTarget = nullptr;
-    bRealityL2Boost = false;
+    ActiveActionMods = FActionStatModifiers();
 
     OnMovementComplete.Broadcast();
 }

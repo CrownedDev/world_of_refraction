@@ -7,6 +7,7 @@
 #include "Components/ActorComponent.h"
 #include "ECombatMovementType.h"
 #include "MovementData.h"
+#include "ActionStatModifiers.h"
 #include "CombatMovementComponent.generated.h"
 
 class UCombatGridSubsystem;
@@ -62,10 +63,10 @@ public:
      * @param Approach Approach data asset (nullptr = no movement)
      * @param ExecutionRange Distance from target to stop
      * @param ArenaCenter Center of arena for grid calculations
-     * @param bRealityL2Boost True if Reality L2 boost is active for this action (boosts approach + return speed)
+     * @param InActionMods Per-action stat modifiers; MovementSpeed contribution
+     *                     scales approach + return speed for this action lifecycle.
      */
-    UFUNCTION(BlueprintCallable, Category = "Combat Movement")
-    void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, bool bRealityL2Boost = false);
+    void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, const FActionStatModifiers &InActionMods = FActionStatModifiers());
 
     /**
      * Start return movement back to grid position
@@ -156,10 +157,12 @@ private:
     UPROPERTY()
     AActor *CurrentTarget = nullptr;
 
-    /** Reality L2 boost active for the current approach/return. Set by StartApproach,
-     *  read by approach + return speed reads, cleared on return completion. */
+    /** Per-action stat modifiers active for the current approach/return.
+     *  Set by StartApproach, read by approach + return speed reads,
+     *  cleared on return completion or cancellation. MovementSpeed sub-stat
+     *  scales both speed reads. */
     UPROPERTY()
-    bool bRealityL2Boost = false;
+    FActionStatModifiers ActiveActionMods;
 
     /** Currently playing movement montage */
     UPROPERTY()
