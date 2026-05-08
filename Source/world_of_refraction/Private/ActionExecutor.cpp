@@ -2303,7 +2303,7 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 // ANIMATION/VFX STUBS
 // ========================================
 
-void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize, bool bRealityL2Boost)
+void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize, const FActionStatModifiers &ActionMods)
 {
 	if (!Caster || !Spell)
 	{
@@ -2318,14 +2318,14 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	// Play rate = SpellSpeed × Reality L2 boost.
+	// Play rate = CalculateSpellSpeed() × ActionMods.SpellSpeed contribution.
 	float PlayRate = 1.0f;
 	UCharacterData *CharData = GetCharacterData(Caster);
 	if (CharData)
 	{
 		PlayRate = CharData->CalculateSpellSpeed();
 	}
-	PlayRate = RealityBoost::ApplyTo(PlayRate, bRealityL2Boost);
+	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::SpellSpeed);
 
 	PlayActionMontageOnActor(Caster, Spell->CastAnimation, PlayRate);
 
@@ -2730,7 +2730,7 @@ void UActionExecutor::OnBeamTick(AActor *Target, float DeltaTime, bool bTargetIn
 	ApplyDamage(nullptr, Target, TickDamage, true, ESpellElement::Generic, false);
 }
 
-void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, bool bRealityL2Boost)
+void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods)
 {
 	if (!User || !Ability)
 	{
@@ -2745,15 +2745,16 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		return;
 	}
 
-	// Play rate = 1.0 × CalculateAnimationSpeed() × Reality L2 boost.
-	// At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
+	// Play rate = 1.0 × CalculateAnimationSpeed() × ActionMods.MovementSpeed contribution.
+	// CalculateAnimationSpeed derives from the MovementSpeed sub-stat — same scaling channel
+	// as character movement. At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
 	float PlayRate = 1.0f;
 	UCharacterData *CharData = GetCharacterData(User);
 	if (CharData)
 	{
 		PlayRate *= CharData->CalculateAnimationSpeed();
 	}
-	PlayRate = RealityBoost::ApplyTo(PlayRate, bRealityL2Boost);
+	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::MovementSpeed);
 
 	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
 
@@ -2761,7 +2762,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		   *Ability->ExecutionMontage->GetName(), *Ability->AbilityName, PlayRate);
 }
 
-void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, bool bRealityL2Boost)
+void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
 {
 	if (!Attacker || !Attack)
 	{
@@ -2776,7 +2777,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × Reality L2 boost.
+	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.MovementSpeed contribution.
 	// Preserves designer-tuned per-attack pacing; layers stat scaling on top.
 	float PlayRate = Attack->BaseAnimSpeed;
 	UCharacterData *CharData = GetCharacterData(Attacker);
@@ -2784,7 +2785,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 	{
 		PlayRate *= CharData->CalculateAnimationSpeed();
 	}
-	PlayRate = RealityBoost::ApplyTo(PlayRate, bRealityL2Boost);
+	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::MovementSpeed);
 
 	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, PlayRate);
 

@@ -23,6 +23,7 @@
 #include "EAbilityExecutionType.h"
 #include "FAbilityEffect.h"
 #include "InfusionCostHelper.h"
+#include "ActionStatModifiers.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -352,19 +353,21 @@ public:
 	// ========================================
 
 	/** Called when spell animation should play. Override or bind OnActionStarted for custom handling.
-	 *  Play rate = CalculateSpellSpeed() × Reality L2 boost (if active). */
-	virtual void PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize, bool bRealityL2Boost = false);
+	 *  Play rate = CalculateSpellSpeed() × ActionMods.SpellSpeed contribution. */
+	virtual void PlaySpellAnimation(AActor *Caster, USpellData *Spell, float SpellSize, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
 	/** Called when spell VFX should spawn. Override or bind OnActionStarted for custom handling. */
 	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage = 0);
 
 	/** Called when ability animation should play.
-	 *  Play rate = 1.0 × CalculateAnimationSpeed() × Reality L2 boost (if active). */
-	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability, bool bRealityL2Boost = false);
+	 *  Play rate = 1.0 × CalculateAnimationSpeed() × ActionMods.MovementSpeed contribution.
+	 *  (CalculateAnimationSpeed derives from the MovementSpeed sub-stat.) */
+	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
 	/** Called when attack animation should play.
-	 *  Play rate = Attack->BaseAnimSpeed × CalculateAnimationSpeed() × Reality L2 boost (if active). */
-	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, bool bRealityL2Boost = false);
+	 *  Play rate = Attack->BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.MovementSpeed contribution.
+	 *  Preserves designer-tuned per-attack pacing; layers stat scaling on top. */
+	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
 	// ========================================
 	// DEBUG
