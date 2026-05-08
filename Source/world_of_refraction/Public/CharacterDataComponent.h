@@ -142,6 +142,16 @@ public:
     UFUNCTION(BlueprintPure, Category = "Equipment")
     UWeaponData *GetActiveWeapon() const;
 
+    /** True if this character has a usable EP-spend target.
+     *  Resonator-specific in spirit; for other classes EP is always usable so
+     *  this is moot. Returns true when:
+     *   - Active weapon present (weapon attacks cost EP), OR
+     *   - Primary slot is Evolution (Evolution spells cost EP per locked design).
+     *  Used by ServerGainEnergy / ServerSetEP suppression and the panel
+     *  EP-bar visibility rule. */
+    UFUNCTION(BlueprintPure, Category = "Equipment")
+    bool HasUsableEPTarget() const;
+
     // ==================== DEBUG ====================
     /** Debug: Toggle between primary and secondary weapon */
     UFUNCTION(BlueprintCallable, Category = "Debug", meta = (CallInEditor = "true"))

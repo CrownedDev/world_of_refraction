@@ -151,13 +151,13 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
     if (bIsBrokenDarkness)
         return;
 
-    // Resonators only accumulate EP when armed. Without a weapon they have
-    // nothing to spend EP on, so EP gain is suppressed to keep the pool clean.
-    // Equipping a weapon mid-combat unlocks normal EP behaviour — the pool
-    // was preserved at BeginPlay.
+    // Resonators only accumulate EP when they have a usable EP-spend target.
+    // That's either an active weapon (weapon attacks cost EP) or an Evolution
+    // primary (Evolution spells cost EP per locked design). Without either,
+    // EP gain is suppressed — the pool exists but is dormant.
     if (CharacterData &&
         CharacterData->CharacterClass == ECharacterClass::Resonator &&
-        GetActiveWeapon() == nullptr)
+        !HasUsableEPTarget())
     {
         return;
     }
@@ -176,11 +176,12 @@ void UCharacterDataComponent::ServerSetEP(int32 NewEP)
     if (bIsBrokenDarkness && NewEP > 0)
         return;
 
-    // Resonators without a weapon: only allow setting to 0. EP exists but
-    // is dormant until they're armed — symmetric to ServerGainEnergy.
+    // Resonators without a usable EP-spend target: only allow setting to 0.
+    // Symmetric to ServerGainEnergy — pool is dormant until armed or
+    // Evolution-primary.
     if (CharacterData &&
         CharacterData->CharacterClass == ECharacterClass::Resonator &&
-        GetActiveWeapon() == nullptr &&
+        !HasUsableEPTarget() &&
         NewEP > 0)
     {
         return;
@@ -312,6 +313,27 @@ UWeaponData *UCharacterDataComponent::GetActiveWeapon() const
         return Loadout->GetActiveWeapon();
     }
     return nullptr;
+}
+
+bool UCharacterDataComponent::HasUsableEPTarget() const
+{
+    ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;
+    if (!Loadout)
+    {
+        return false;
+    }
+
+    if (Loadout->GetActiveWeapon() != nullptr)
+    {
+        return true;
+    }
+
+    if (Loadout->GetPrimarySlotType() == EPrimarySlotType::Evolution)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()
