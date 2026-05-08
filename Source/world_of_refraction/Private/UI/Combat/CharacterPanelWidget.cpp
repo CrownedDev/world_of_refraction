@@ -16,6 +16,17 @@
 #include "Components/VerticalBox.h"
 #include "Engine/GameInstance.h"
 
+namespace PanelLabels
+{
+	// Bar prefix labels — change these in one place to update the whole panel
+	constexpr const TCHAR* HP        = TEXT("HP");
+	constexpr const TCHAR* EP        = TEXT("EP");
+	constexpr const TCHAR* RingDur   = TEXT("RD");   // Ring Durability (Resonator)
+	constexpr const TCHAR* WeaponDur = TEXT("WD");   // Weapon Durability — reserved for Item 32
+	constexpr const TCHAR* Absorb    = TEXT("Abs");  // BD Absorption
+	constexpr const TCHAR* Status    = TEXT("SB");   // Status Buildup
+}
+
 void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 {
 	if (bBound)
@@ -82,6 +93,7 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 			{
 				BoundRingManager = RingMgr;
 				RingMgr->OnRingCrystalBroken.AddDynamic(this, &UCharacterPanelWidget::HandleRingCrystalBroken);
+				RingMgr->OnRingDurabilityChanged.AddDynamic(this, &UCharacterPanelWidget::HandleRingDurabilityChanged);
 			}
 		}
 	}
@@ -98,7 +110,7 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 
 	// Status starts at 0 — broadcast doesn't fire until first hit, so seed it
 	SetBarSafe(StatusBar, 0.0f);
-	SetTextSafe(StatusText, TEXT("0/100"));
+	SetTextSafe(StatusText, FString::Printf(TEXT("%s:0/100"), PanelLabels::Status));
 
 	// Initial buff/debuff list (usually empty at combat start)
 	RefreshBuffDebuffList();
@@ -138,6 +150,7 @@ void UCharacterPanelWidget::TeardownPanel()
 	if (URingManager *RingMgr = BoundRingManager.Get())
 	{
 		RingMgr->OnRingCrystalBroken.RemoveDynamic(this, &UCharacterPanelWidget::HandleRingCrystalBroken);
+		RingMgr->OnRingDurabilityChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleRingDurabilityChanged);
 	}
 
 	BoundActor.Reset();
@@ -191,7 +204,7 @@ void UCharacterPanelWidget::HandleHPChanged(int32 CurrentHP, int32 MaxHP)
 {
 	const float Percent = (MaxHP > 0) ? (static_cast<float>(CurrentHP) / static_cast<float>(MaxHP)) : 0.0f;
 	SetBarSafe(HPBar, Percent);
-	SetTextSafe(HPText, FString::Printf(TEXT("%d/%d"), CurrentHP, MaxHP));
+	SetTextSafe(HPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::HP, CurrentHP, MaxHP));
 }
 
 void UCharacterPanelWidget::HandleEPChanged(int32 CurrentEP, int32 MaxEP)
@@ -225,6 +238,15 @@ void UCharacterPanelWidget::HandleRingCrystalBroken(AActor *Actor, URingData *Ri
 	ApplyEnergyBarTint();  // active ring's element may have changed
 }
 
+void UCharacterPanelWidget::HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability)
+{
+	if (Actor != BoundActor.Get())
+		return;
+	// Per-cast durability tick — update the bar without re-applying tint
+	// (active ring's element didn't change, only its durability did).
+	RefreshEnergyBar();
+}
+
 void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max)
 {
 	if (Target != BoundActor.Get())
@@ -233,7 +255,7 @@ void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Cur
 	}
 	const float Percent = (Max > 0.0f) ? (Current / Max) : 0.0f;
 	SetBarSafe(StatusBar, Percent);
-	SetTextSafe(StatusText, FString::Printf(TEXT("%d/%d"), FMath::TruncToInt(Current), FMath::TruncToInt(Max)));
+	SetTextSafe(StatusText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::Status, FMath::TruncToInt(Current), FMath::TruncToInt(Max)));
 }
 
 void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FStatusEffect &Effect)
@@ -317,7 +339,7 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 	if (!CharComp)
 	{
 		SetBarSafe(EPBar, 0.0f);
-		SetTextSafe(EPText, TEXT("--/--"));
+		SetTextSafe(EPText, FString::Printf(TEXT("%s:--/--"), PanelLabels::EP));
 		return;
 	}
 
@@ -332,14 +354,15 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 			const float Percent = (Max > 0.0f) ? FMath::Min(Current / Max, 1.0f) : 0.0f;
 
 			SetBarSafe(EPBar, Percent);
-			SetTextSafe(EPText, FString::Printf(TEXT("%d/%d"),
+			SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"),
+				PanelLabels::Absorb,
 				FMath::TruncToInt(Current),
 				FMath::TruncToInt(Max)));
 			return;
 		}
 		// BD without manager — empty
 		SetBarSafe(EPBar, 0.0f);
-		SetTextSafe(EPText, TEXT("--/--"));
+		SetTextSafe(EPText, FString::Printf(TEXT("%s:--/--"), PanelLabels::Absorb));
 		return;
 	}
 
@@ -359,13 +382,13 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 				const float Percent = (Max > 0) ? (static_cast<float>(Current) / static_cast<float>(Max)) : 0.0f;
 
 				SetBarSafe(EPBar, Percent);
-				SetTextSafe(EPText, FString::Printf(TEXT("%d/%d"), Current, Max));
+				SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::RingDur, Current, Max));
 				return;
 			}
 		}
 		// Resonator with no active ring — empty
 		SetBarSafe(EPBar, 0.0f);
-		SetTextSafe(EPText, TEXT("0/0"));
+		SetTextSafe(EPText, FString::Printf(TEXT("%s:0/0"), PanelLabels::RingDur));
 		return;
 	}
 
@@ -376,7 +399,7 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 		const float Percent = (Max > 0) ? (static_cast<float>(Current) / static_cast<float>(Max)) : 0.0f;
 
 		SetBarSafe(EPBar, Percent);
-		SetTextSafe(EPText, FString::Printf(TEXT("%d/%d"), Current, Max));
+		SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::EP, Current, Max));
 	}
 }
 

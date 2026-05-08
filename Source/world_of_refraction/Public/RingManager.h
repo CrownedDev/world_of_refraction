@@ -87,6 +87,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
 	FOnRingCrystalBroken OnRingCrystalBroken;
 
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnRingDurabilityChanged, AActor *, Actor, URingData *, Ring, int32, NewDurability, int32, MaxDurability);
+
+	/** Fires every time a ring crystal's durability changes (per-cast wear).
+	 *  Use this for real-time UI updates of the durability bar. Differs from
+	 *  OnRingCrystalBroken which fires once at zero. */
+	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
+	FOnRingDurabilityChanged OnRingDurabilityChanged;
+
 	/** Initialize rings from LoadoutComponent */
 	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
 	void InitializeFromLoadout(AActor *Actor, ULoadoutComponent *LoadoutComp);

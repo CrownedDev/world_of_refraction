@@ -72,7 +72,7 @@ public:
      * SaveGame-tagged for future persistence wiring; no save system exists yet,
      * so the flag is session-only as of this commit.
      */
-    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_bIsBrokenDarkness, BlueprintReadOnly, Category = "Combat|BrokenDarkness")
+    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_bIsBrokenDarkness, VisibleAnywhere, BlueprintReadOnly, Category = "Combat|BrokenDarkness")
     bool bIsBrokenDarkness = false;
 
     // ========================================

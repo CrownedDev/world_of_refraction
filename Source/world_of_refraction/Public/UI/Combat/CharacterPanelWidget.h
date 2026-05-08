@@ -124,6 +124,10 @@ protected:
 	UFUNCTION()
 	void HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal);
 
+	/** Called when ring crystal durability changes per-cast (Resonator bar update) */
+	UFUNCTION()
+	void HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability);
+
 	/** BP fills the BuffDebuffList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
 	void RebuildBuffDebuffList(const TArray<FStatusEffect> &ActiveEffects);
