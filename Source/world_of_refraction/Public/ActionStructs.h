@@ -8,6 +8,7 @@
 #include "ESpellSource.h"
 #include "EInfusionSourceOption.h"
 #include "EChargeInfusionType.h"
+#include "ActionStatModifiers.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
@@ -377,6 +378,13 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	/** True if Reality L2 boost is active for this action. Read by ApplyDamage and
 	 *  any deep call-graph site that needs the boost without parameter threading. */
 	bool bRealityL2Boost = false;
+
+	/** Per-action stat modifiers accumulated from all active sources
+	 *  (Reality innate, Reality slotted, Reality infused, Evolution slotted,
+	 *  Evolution infused). Read by damage/status/animation/movement consumers.
+	 *  Coexists with bRealityL2Boost during migration; new consumers should
+	 *  read from this. */
+	FActionStatModifiers ActionMods;
 
 	FActionExecutionContext()
 	{

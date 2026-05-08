@@ -486,6 +486,24 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		CurrentExecutionContext->bRealityL2Boost = bRealityL2Boost;
 	}
 
+	// New accumulator path — Reality + Evolution contributions.
+	// Coexists with bRealityL2Boost during migration; existing bool consumers
+	// keep working unchanged, new consumers read ActionMods.
+	const FActionStatModifiers ActionMods = ComputeActionStatModifiers(Action, Actor);
+	if (CurrentExecutionContext.IsSet())
+	{
+		CurrentExecutionContext->ActionMods = ActionMods;
+	}
+
+	if (ActionMods.IsActive())
+	{
+		UE_LOG(LogTemp, Log,
+			   TEXT("[ActionExecutor] %s ActionMods active — Crit:%.1f%% RawDmg:%.1f%% EffDmg:%.1f%% MovSpd:%.1f%%"),
+			   *Actor->GetName(),
+			   ActionMods.CritChance, ActionMods.RawDamage,
+			   ActionMods.EffectDamage, ActionMods.MovementSpeed);
+	}
+
 	// Attack / Ability / Spell — bind movement complete and start approach
 	BindMovementComplete(Actor);
 
@@ -4282,6 +4300,81 @@ bool UActionExecutor::IsRealityL2Active(const FAction &Action, AActor *Actor) co
 		   *UEnum::GetValueAsString(Action.ActionType),
 		   Actor ? *Actor->GetName() : TEXT("Unknown"));
 	return true;
+}
+
+FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &Action, AActor *Actor) const
+{
+	FActionStatModifiers Result;
+
+	if (!Actor)
+		return Result;
+
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp || !CharComp->CharacterData)
+		return Result;
+
+	// 1. Reality innate — Refractor (Caster + InnateElement = Reality)
+	if (CharComp->CharacterData->CharacterClass == ECharacterClass::Caster &&
+		CharComp->CharacterData->InnateElement == ESpellElement::Reality)
+	{
+		Result.AddFlatPercent(RealityBoost::INNATE_PERCENT);
+	}
+
+	// 2. Evolution crystal slotted as primary
+	UItemData *PrimaryEvolutionCrystal = nullptr;
+	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
+		{
+			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution;
+		}
+	}
+
+	if (PrimaryEvolutionCrystal && PrimaryEvolutionCrystal->bIsEvolutionCrystal)
+	{
+		// Authored stats apply at full magnitude.
+		Result.Accumulate(PrimaryEvolutionCrystal->GetActionModifiers(1.0f));
+
+		// If the slotted Evolution crystal is Reality-element, add the slotted bonus.
+		if (PrimaryEvolutionCrystal->GetAssociatedElement() == ESpellElement::Reality)
+		{
+			Result.AddFlatPercent(RealityBoost::SLOTTED_PERCENT);
+		}
+	}
+
+	// 3. Infusion contributions — only when an infusion is active on this action.
+	const int32 InfusionLevel = (Action.ActionType == EActionType::Spell)
+									? Action.SpellInfusionLevel
+									: Action.AbilityInfusionLevel;
+
+	if (InfusionLevel > 0 && Action.SelectedSource != EInfusionSourceOption::None)
+	{
+		const ESpellElement SourceElement = GetElementForSourceOption(Actor, Action.SelectedSource);
+
+		// Reality crystal infused — flat percent, scaled by infusion level.
+		if (SourceElement == ESpellElement::Reality)
+		{
+			const float Pct = (InfusionLevel == 1)
+								  ? RealityBoost::L1_PERCENT
+								  : RealityBoost::L2_PERCENT;
+			Result.AddFlatPercent(Pct);
+		}
+
+		// TODO: Evolution-infused authored stats. Needs source-crystal resolution
+		// (WeaponCrystal → WeaponManager active weapon's slotted crystal,
+		//  ActiveRing/PrimaryRing → ring's slotted crystal). Stubbed pending the
+		//  source-crystal lookup helper. Reality flat-bump above already covers
+		//  the most common Reality-via-infusion case.
+		// UItemData *InfusionCrystal = ResolveInfusionCrystal(Actor, Action);
+		// if (InfusionCrystal && InfusionCrystal->bIsEvolutionCrystal)
+		// {
+		//     const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
+		//     Result.Accumulate(InfusionCrystal->GetActionModifiers(InfusionMultiplier));
+		// }
+	}
+
+	return Result;
 }
 
 void UActionExecutor::DebugAsyncState()

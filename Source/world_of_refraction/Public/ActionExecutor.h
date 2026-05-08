@@ -239,6 +239,11 @@ public:
 	 *  Refractor-via-innate paths. Items and Defend always return false. */
 	bool IsRealityL2Active(const FAction &Action, AActor *Actor) const;
 
+	/** Compute the full per-action stat modifier accumulator for an action.
+	 *  Walks Reality innate, Reality slotted, Reality infused, Evolution slotted,
+	 *  and Evolution-infused (stub). Returns a populated FActionStatModifiers. */
+	FActionStatModifiers ComputeActionStatModifiers(const FAction &Action, AActor *Actor) const;
+
 	// ========================================
 	// POST-CAST PROCESSING
 	// ========================================
