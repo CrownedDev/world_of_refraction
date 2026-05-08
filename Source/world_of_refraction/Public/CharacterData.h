@@ -128,7 +128,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 SpellSpeed = 0;
 
-	// ==================== BODY SUB-STATS (3) ====================
+	// ==================== BODY SUB-STATS (4) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 Defense = 0;
 
@@ -138,18 +138,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 RawDamage = 0;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
+	int32 MaxHealth = 0;
+
 	// ==================== SPIRIT SUB-STATS (4) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 MaxEnergy = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
-	int32 MaxHealth = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 Resistance = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 TurnSpeed = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
+	int32 Luck = 0;
 
 	// ==================== DEFENSE ANIMATIONS ====================
 
@@ -253,8 +256,8 @@ public:
 	int32 GetTotalSpent() const
 	{
 		return Efficiency + EffectDamage + CritChance + SpellSpeed +
-			   Defense + MovementSpeed + RawDamage +
-			   MaxEnergy + MaxHealth + Resistance + TurnSpeed;
+			   Defense + MovementSpeed + RawDamage + MaxHealth +
+			   MaxEnergy + Resistance + TurnSpeed + Luck;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
@@ -279,7 +282,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalSpellSpeed() const { return SpellSpeed; }
 
-	// ----- BODY (3 stats) -----
+	// ----- BODY (4 stats) -----
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalDefense() const { return Defense; }
 
@@ -289,18 +292,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalRawDamage() const { return RawDamage; }
 
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalMaxHealth() const { return MaxHealth; }
+
 	// ----- SPIRIT (4 stats) -----
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalMaxEnergy() const { return MaxEnergy; }
-
-	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
-	int32 GetTotalMaxHealth() const { return MaxHealth; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalResistance() const { return Resistance; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalTurnSpeed() const { return TurnSpeed; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
+	int32 GetTotalLuck() const { return Luck; }
 
 	// ==================== BASE STATS (DERIVED FROM TOTALS) ====================
 	// Sum of sub-stat points per category (before world level scaling)
@@ -314,15 +320,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseBody() const
 	{
-		// Body (3): Defense, MovementSpeed, RawDamage
-		return GetTotalDefense() + GetTotalMovementSpeed() + GetTotalRawDamage();
+		// Body (4): Defense, MovementSpeed, RawDamage, MaxHealth
+		return GetTotalDefense() + GetTotalMovementSpeed() + GetTotalRawDamage() + GetTotalMaxHealth();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseSpirit() const
 	{
-		// Spirit (4): MaxEnergy, MaxHealth, Resistance, TurnSpeed
-		return GetTotalMaxEnergy() + GetTotalMaxHealth() + GetTotalResistance() + GetTotalTurnSpeed();
+		// Spirit (4): MaxEnergy, Resistance, TurnSpeed, Luck
+		return GetTotalMaxEnergy() + GetTotalResistance() + GetTotalTurnSpeed() + GetTotalLuck();
 	}
 
 	// ==================== EFFECTIVE STATS (WITH SCALING) ====================
@@ -445,15 +451,31 @@ public:
 		return CombatConstants::TURN_SPEED_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::TURN_SPEED_PER_POINT);
 	}
 
+	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
+	float CalculateLuck() const
+	{
+		// Multi-system fortune stat. Returns raw 0.0-LUCK_RAW_MAX multiplier.
+		// Consumers apply their own per-system caps (LUCK_CRIT_BONUS_MAX,
+		// LUCK_DODGE_MAX, LUCK_BREAK_SKIP_MAX, LUCK_DROP_CHANCE_MAX,
+		// LUCK_DROP_QUALITY_MAX) at their respective sites.
+		// Same shape as Resistance.
+		float EffectiveSpirit = GetEffectiveSpirit();
+		int32 TotalPoints = GetTotalLuck();
+		return FMath::Clamp(
+			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT,
+			0.0f,
+			CombatConstants::LUCK_RAW_MAX);
+	}
+
 	// ==================== HELPER FUNCTIONS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
 	int32 CalculateMaxHealth() const
 	{
-		// Now uses explicit MaxHealth stat (Spirit-based)
-		float EffectiveSpirit = GetEffectiveSpirit();
+		// NOTE: Moved from Spirit to Body. HP is a physical pool stat.
+		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalMaxHealth();
-		return FMath::RoundToInt(CombatConstants::MAX_HEALTH_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_HEALTH_PER_POINT));
+		return FMath::RoundToInt(CombatConstants::MAX_HEALTH_BASE + (EffectiveBody * TotalPoints * CombatConstants::MAX_HEALTH_PER_POINT));
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")

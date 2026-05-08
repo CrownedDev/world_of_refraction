@@ -14,7 +14,7 @@ namespace CombatConstants
     constexpr float WORLD_STAT_SCALING_BONUS = 0.03f; // 3% per level
 
     // ==================== STAT SCALING ====================
-    // 11 Stats: Mind(4), Body(3), Spirit(4)
+    // 12 Stats: Mind(4), Body(4), Spirit(4)
     // Formula: Base + (EffectiveStat × TotalPoints × PER_POINT)
 
     // ==================== MIND STATS (4) ====================
@@ -40,8 +40,8 @@ namespace CombatConstants
     constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier
     constexpr float SPELL_SPEED_PER_POINT = 0.01f; // 1% per point
 
-    // ==================== BODY STATS (3) ====================
-    // Defense, MovementSpeed, RawDamage
+    // ==================== BODY STATS (4) ====================
+    // Defense, MovementSpeed, RawDamage, MaxHealth
 
     // Defense - Flat damage reduction per hit
     constexpr float DEFENSE_PER_POINT = 0.06f; // Flat defense per point
@@ -55,16 +55,16 @@ namespace CombatConstants
     // Raw Damage - Physical/non-elemental damage multiplier
     constexpr float RAW_DAMAGE_PER_POINT = 0.0008f; // 0.08% per point
 
+    // Max Health - HP pool size (NOW BODY, was Spirit)
+    constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
+    constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
+
     // ==================== SPIRIT STATS (4) ====================
-    // MaxEnergy, MaxHealth, Resistance, TurnSpeed
+    // MaxEnergy, Resistance, TurnSpeed, Luck
 
     // Max Energy - EP pool size (NEW explicit stat)
     constexpr float MAX_ENERGY_BASE = 50.0f;     // Base EP
     constexpr float MAX_ENERGY_PER_POINT = 2.0f; // +2 EP per point
-
-    // Max Health - HP pool size (NEW explicit stat)
-    constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
-    constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
 
     // Resistance - Reduces status effect damage & buildup (NOT elemental damage)
     constexpr float RESISTANCE_PER_POINT = 0.0015f; // 0.15% per point
@@ -73,6 +73,17 @@ namespace CombatConstants
     // Turn Speed - Turn order priority (NOW SPIRIT, was Mind, no longer uses WorldBody)
     constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed
     constexpr float TURN_SPEED_PER_POINT = 0.08f; // 0.08 per point
+
+    // Luck - Multi-system fortune stat (drop chance/quality, crit bonus, dodge, break skip)
+    constexpr float LUCK_PER_POINT = 0.0015f;          // Same shape as Resistance
+    constexpr float LUCK_RAW_MAX = 0.50f;              // Raw multiplier ceiling
+
+    // Consumer-specific caps - applied at the consumer site
+    constexpr float LUCK_CRIT_BONUS_MAX = 0.20f;       // +20% crit chance bonus
+    constexpr float LUCK_DODGE_MAX = 0.25f;            // 25% per-hit dodge chance
+    constexpr float LUCK_BREAK_SKIP_MAX = 0.50f;       // 50% chance to skip crystal wear
+    constexpr float LUCK_DROP_CHANCE_MAX = 1.00f;      // 100% extra drop chance (out-of-combat)
+    constexpr float LUCK_DROP_QUALITY_MAX = 1.00f;     // 100% tier upgrade chance (out-of-combat)
 
     // ==================== TURN SYSTEM ====================
 

@@ -104,12 +104,13 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("    Defense:        %d\n"), Character->Defense);
 	Output += FString::Printf(TEXT("    Movement Speed: %d\n"), Character->MovementSpeed);
 	Output += FString::Printf(TEXT("    Raw Damage:     %d\n"), Character->RawDamage);
+	Output += FString::Printf(TEXT("    Max Health:     %d\n"), Character->MaxHealth);
 
 	Output += TEXT("  Spirit:\n");
 	Output += FString::Printf(TEXT("    Max Energy:     %d\n"), Character->MaxEnergy);
-	Output += FString::Printf(TEXT("    Max Health:     %d\n"), Character->MaxHealth);
 	Output += FString::Printf(TEXT("    Resistance:     %d\n"), Character->Resistance);
 	Output += FString::Printf(TEXT("    Turn Speed:     %d\n"), Character->TurnSpeed);
+	Output += FString::Printf(TEXT("    Luck:           %d\n"), Character->Luck);
 
 	// ==================== CALCULATED COMBAT STATS ====================
 	Output += TEXT("CALCULATED STATS:\n");
