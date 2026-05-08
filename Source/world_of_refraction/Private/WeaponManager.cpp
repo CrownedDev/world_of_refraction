@@ -991,6 +991,25 @@ int32 UWeaponManager::ProcessPostCastWear(AActor *Actor, EItemTier ActionTier, i
 		return 0;
 	}
 
+	// Luck-driven break skip. Roll the wielder's Luck before applying wear.
+	// On success, skip the wear entirely (durability unchanged, no broadcast,
+	// no break check). Linearly scaled from raw Luck to LUCK_BREAK_SKIP_MAX.
+	if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
+	{
+		if (UCharacterData *CharData = CharComp->CharacterData)
+		{
+			const float RawLuck = CharData->CalculateLuck();
+			const float SkipChance = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_BREAK_SKIP_MAX;
+			if (FMath::FRand() < SkipChance)
+			{
+				UE_LOG(LogTemp, Log,
+					   TEXT("[WeaponManager] %s LUCKY break skip on weapon crystal '%s' (would have applied %d wear, skip chance %.2f)"),
+					   *Actor->GetName(), *Crystal->GetFullItemName(), Wear, SkipChance);
+				return 0;
+			}
+		}
+	}
+
 	UE_LOG(LogTemp, Verbose,
 		   TEXT("[WeaponManager] %s applies %d wear to weapon crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
 		   *Actor->GetName(), Wear,
