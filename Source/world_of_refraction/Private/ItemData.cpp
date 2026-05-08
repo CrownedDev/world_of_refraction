@@ -724,15 +724,16 @@ FString UItemData::GetEvolutionStatSummary() const
             }
         };
 
-        AddMod(TEXT("Cost Reduction"), CostReductionModifierPercent);
-        AddMod(TEXT("Turn Speed"), TurnSpeedModifierPercent);
-        AddMod(TEXT("Crit Chance"), CritChanceModifierPercent);
-        AddMod(TEXT("Defense"), DefenseModifierPercent);
-        AddMod(TEXT("Attack Speed"), AttackSpeedModifierPercent);
-        AddMod(TEXT("Raw Damage"), RawDamageModifierPercent);
+        AddMod(TEXT("Efficiency"), EfficiencyModifierPercent);
         AddMod(TEXT("Effect Damage"), EffectDamageModifierPercent);
+        AddMod(TEXT("Crit Chance"), CritChanceModifierPercent);
+        AddMod(TEXT("Spell Speed"), SpellSpeedModifierPercent);
+        AddMod(TEXT("Defense"), DefenseModifierPercent);
+        AddMod(TEXT("Movement Speed"), MovementSpeedModifierPercent);
+        AddMod(TEXT("Raw Damage"), RawDamageModifierPercent);
         AddMod(TEXT("Resistance"), ResistanceModifierPercent);
-        AddMod(TEXT("Spell Size"), SpellSizeModifierPercent);
+        AddMod(TEXT("Turn Speed"), TurnSpeedModifierPercent);
+        AddMod(TEXT("Luck"), LuckModifierPercent);
     }
 
     if (Modifiers.Num() == 0)
@@ -772,71 +773,6 @@ float UItemData::CalculateModifiedSpirit(float BaseSpirit) const
     return BaseSpirit * (1.0f + SpiritModifierPercent / 100.0f);
 }
 
-// ==================== SUB-STAT GETTERS ====================
-
-float UItemData::GetCostReductionModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : CostReductionModifierPercent;
-}
-
-float UItemData::GetTurnSpeedModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : TurnSpeedModifierPercent;
-}
-
-float UItemData::GetCritChanceModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? MindModifierPercent : CritChanceModifierPercent;
-}
-
-float UItemData::GetDefenseModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : DefenseModifierPercent;
-}
-
-float UItemData::GetAttackSpeedModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : AttackSpeedModifierPercent;
-}
-
-float UItemData::GetRawDamageModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? BodyModifierPercent : RawDamageModifierPercent;
-}
-
-float UItemData::GetEffectDamageModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : EffectDamageModifierPercent;
-}
-
-float UItemData::GetResistanceModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : ResistanceModifierPercent;
-}
-
-float UItemData::GetSpellSizeModifier() const
-{
-    if (bIsEvolutionCrystal)
-        return 0.0f;
-    return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : SpellSizeModifierPercent;
-}
-
 FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
 {
     FActionStatModifiers Out;
@@ -855,21 +791,21 @@ FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
     }
     else
     {
-        // SubStats mode — UItemData stores 9 explicit fields; map field-by-field
-        // into the 9 sub-stats on FActionStatModifiers. The pillar grouping on
-        // FActionStatModifiers is independent of UItemData's own pillar grouping
-        // (TurnSpeed sits under Mind in UItemData but Spirit on the new struct;
-        // SpellSize is renamed to SpellSpeed; AttackSpeed maps to MovementSpeed —
-        // these are intentional, see header).
-        Out.Efficiency    = CostReductionModifierPercent * Multiplier;
+        // SubStats mode — 10 explicit fields map 1:1 to FActionStatModifiers.
+        // Field names match between UItemData and FActionStatModifiers, so no
+        // re-mapping is needed. Pool stats (MaxHealth, MaxEnergy) deliberately
+        // not authored here — they belong to the future Traits system as
+        // conditional/triggered effects rather than always-on UItemData fields.
+        Out.Efficiency    = EfficiencyModifierPercent    * Multiplier;
         Out.EffectDamage  = EffectDamageModifierPercent  * Multiplier;
         Out.CritChance    = CritChanceModifierPercent    * Multiplier;
-        Out.SpellSpeed    = SpellSizeModifierPercent     * Multiplier;
+        Out.SpellSpeed    = SpellSpeedModifierPercent    * Multiplier;
         Out.Defense       = DefenseModifierPercent       * Multiplier;
-        Out.MovementSpeed = AttackSpeedModifierPercent   * Multiplier;
+        Out.MovementSpeed = MovementSpeedModifierPercent * Multiplier;
         Out.RawDamage     = RawDamageModifierPercent     * Multiplier;
         Out.Resistance    = ResistanceModifierPercent    * Multiplier;
         Out.TurnSpeed     = TurnSpeedModifierPercent     * Multiplier;
+        Out.Luck          = LuckModifierPercent          * Multiplier;
     }
 
     return Out;

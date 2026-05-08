@@ -87,19 +87,22 @@ public:
         EStatModifierMode StatModifierMode = EStatModifierMode::Pillar;
 
         // ==================== SUB-STAT MODIFIERS (Evolution only, SubStats mode) ====================
+        // Field names match FActionStatModifiers / CharacterData 1:1. Pool stats
+        // (MaxHealth, MaxEnergy) deliberately not authored here — they belong to
+        // the future Traits system as conditional/triggered effects.
 
-        /** Mind sub-stats */
+        /** Mind sub-stats (4) */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float CostReductionModifierPercent = 0.0f;
+        float EfficiencyModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float TurnSpeedModifierPercent = 0.0f;
+        float EffectDamageModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
@@ -107,7 +110,13 @@ public:
                           EditConditionHides))
         float CritChanceModifierPercent = 0.0f;
 
-        /** Body sub-stats */
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
+                  meta = (ClampMin = "-50", ClampMax = "50",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
+                          EditConditionHides))
+        float SpellSpeedModifierPercent = 0.0f;
+
+        /** Body sub-stats (3) — MaxHealth excluded (pool stat) */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
@@ -118,7 +127,7 @@ public:
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float AttackSpeedModifierPercent = 0.0f;
+        float MovementSpeedModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
                   meta = (ClampMin = "-50", ClampMax = "50",
@@ -126,13 +135,7 @@ public:
                           EditConditionHides))
         float RawDamageModifierPercent = 0.0f;
 
-        /** Spirit sub-stats */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float EffectDamageModifierPercent = 0.0f;
-
+        /** Spirit sub-stats (3) — MaxEnergy excluded (pool stat) */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
@@ -143,7 +146,13 @@ public:
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float SpellSizeModifierPercent = 0.0f;
+        float TurnSpeedModifierPercent = 0.0f;
+
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
+                  meta = (ClampMin = "-50", ClampMax = "50",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
+                          EditConditionHides))
+        float LuckModifierPercent = 0.0f;
 
         // ==================== DURABILITY ====================
         // Only meaningful for refined crystals. Unrefined crystals are consumables
@@ -397,44 +406,6 @@ public:
         /** Calculate modified Spirit stat */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
         float CalculateModifiedSpirit(float BaseSpirit) const;
-
-        // ==================== SUB-STAT GETTERS (Evolution only) ====================
-
-        /** Get cost reduction modifier (uses Mind in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetCostReductionModifier() const;
-
-        /** Get turn speed modifier (uses Mind in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetTurnSpeedModifier() const;
-
-        /** Get crit chance modifier (uses Mind in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetCritChanceModifier() const;
-
-        /** Get defense modifier (uses Body in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetDefenseModifier() const;
-
-        /** Get attack speed modifier (uses Body in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetAttackSpeedModifier() const;
-
-        /** Get raw damage modifier (uses Body in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetRawDamageModifier() const;
-
-        /** Get effect damage modifier (uses Spirit in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetEffectDamageModifier() const;
-
-        /** Get resistance modifier (uses Spirit in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetResistanceModifier() const;
-
-        /** Get Spell Size modifier (uses Spirit in Pillar mode) */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
-        float GetSpellSizeModifier() const;
 
         /** Compute per-action stat modifiers contributed by this Evolution crystal,
          *  scaled by Multiplier. Use 1.0f for full (slotted-as-primary, L2 infusion)
