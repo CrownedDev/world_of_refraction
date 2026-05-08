@@ -13,7 +13,6 @@
 #include "WeaponData.h"
 #include "WeaponManager.h"
 #include "CombatGridSubsystem.h"
-#include "RealityBoost.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -39,9 +38,12 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float RunningDamage = static_cast<float>(Input.BaseDamage);
 
 	// Step 1: Attacker's damage multiplier (Effect Damage or Raw Damage)
-	// Reality L2 boost wraps the multiplier — boosts whichever stat applies (Effect or Raw).
+	// Per-action ActionMods boost the matching sub-stat: EffectDamage for
+	// elemental, RawDamage for physical. ActionMods carries Reality + Evolution
+	// + any future per-action stat modifier sources.
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.bIsElemental);
-	AttackerMult = RealityBoost::ApplyTo(AttackerMult, Input.bRealityL2Boost);
+	const ESubStat AttackerStat = Input.bIsElemental ? ESubStat::EffectDamage : ESubStat::RawDamage;
+	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
@@ -72,7 +74,10 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	if (Input.bCanCrit)
 	{
 		float CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
-		CritChance = RealityBoost::ApplyTo(CritChance, Input.bRealityL2Boost);
+		// ActionMods.CritChance applies whether crit chance came from override
+		// or computed default. No re-clamp here — preserves prior bool-path
+		// behaviour (Reality boost was deliberately uncapped at this site).
+		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::CritChance);
 		Result.bWasCritical = FMath::FRand() < CritChance;
 
 		if (Result.bWasCritical)

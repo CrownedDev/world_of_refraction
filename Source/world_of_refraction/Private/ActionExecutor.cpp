@@ -2024,6 +2024,15 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 									? CurrentExecutionContext->bRealityL2Boost
 									: false;
 
+		// ActionMods is the canonical per-action stat modifier path for
+		// DamageCalculator (Reality + Evolution + future buffs). bRealityL2Boost
+		// remains for consumers not yet migrated; DamageCalculator itself reads
+		// from ActionMods now and ignores the bool.
+		if (CurrentExecutionContext.IsSet())
+		{
+			Input.ActionMods = CurrentExecutionContext->ActionMods;
+		}
+
 		FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
 		Result.bWasCritical = CalcResult.bWasCritical;
