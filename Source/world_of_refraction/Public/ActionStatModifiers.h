@@ -22,7 +22,8 @@ enum class ESubStat : uint8
 	RawDamage       UMETA(DisplayName = "Raw Damage"),
 	// Spirit
 	Resistance      UMETA(DisplayName = "Resistance"),
-	TurnSpeed       UMETA(DisplayName = "Turn Speed")
+	TurnSpeed       UMETA(DisplayName = "Turn Speed"),
+	Luck            UMETA(DisplayName = "Luck")
 };
 
 /** Per-action stat modifier accumulator. Values are percentages (5.0f = +5%).
@@ -59,6 +60,9 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
 	float TurnSpeed = 0.0f;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
+	float Luck = 0.0f;
+
 	/** Add another modifier set into this one (additive accumulation). */
 	void Accumulate(const FActionStatModifiers& Other)
 	{
@@ -71,9 +75,10 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		RawDamage     += Other.RawDamage;
 		Resistance    += Other.Resistance;
 		TurnSpeed     += Other.TurnSpeed;
+		Luck          += Other.Luck;
 	}
 
-	/** Add a flat percentage to all 9 sub-stats. Used by Reality contributions. */
+	/** Add a flat percentage to all sub-stats. Used by Reality contributions. */
 	void AddFlatPercent(float Percent)
 	{
 		Efficiency    += Percent;
@@ -85,22 +90,28 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		RawDamage     += Percent;
 		Resistance    += Percent;
 		TurnSpeed     += Percent;
+		Luck          += Percent;
 	}
 
 	/** Add a flat percentage to all sub-stats in a specific pillar.
-	 *  Used by Evolution Pillar-mode crystals.
-	 *  Mind=4 stats, Body=3 stats, Spirit=2 stats — see header for the partition. */
+	 *  Used by Evolution Pillar-mode crystals. Mind=4, Body=3, Spirit=3
+	 *  represented here. Pool stats (MaxHealth in Body, MaxEnergy in Spirit)
+	 *  are not action-time modifiers and are intentionally not represented. */
 	void AddPillarPercent(float MindPct, float BodyPct, float SpiritPct)
 	{
+		// Mind sub-stats
 		Efficiency    += MindPct;
 		EffectDamage  += MindPct;
 		CritChance    += MindPct;
 		SpellSpeed    += MindPct;
+		// Body sub-stats — MaxHealth is a pool stat, not represented here.
 		Defense       += BodyPct;
 		MovementSpeed += BodyPct;
 		RawDamage     += BodyPct;
+		// Spirit sub-stats — MaxEnergy is a pool stat, not represented here.
 		Resistance    += SpiritPct;
 		TurnSpeed     += SpiritPct;
+		Luck          += SpiritPct;
 	}
 
 	/** Read the modifier for a specific sub-stat. */
@@ -117,6 +128,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		case ESubStat::RawDamage:     return RawDamage;
 		case ESubStat::Resistance:    return Resistance;
 		case ESubStat::TurnSpeed:     return TurnSpeed;
+		case ESubStat::Luck:          return Luck;
 		default:                      return 0.0f;
 		}
 	}
@@ -141,6 +153,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	{
 		return Efficiency != 0.0f || EffectDamage != 0.0f || CritChance != 0.0f
 			|| SpellSpeed != 0.0f || Defense != 0.0f || MovementSpeed != 0.0f
-			|| RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f;
+			|| RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f
+			|| Luck != 0.0f;
 	}
 };
