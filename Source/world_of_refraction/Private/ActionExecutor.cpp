@@ -478,17 +478,10 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	//   - Attack/Ability/Spell pay exactly once, here, before movement starts.
 	ApplyCommitCosts(Actor, Action);
 
-	// Reality L2 boost detection. Stash on context so ApplyDamage and downstream
-	// sites see it across the whole async lifecycle (movement → animation → defense → return).
-	const bool bRealityL2Boost = IsRealityL2Active(Action, Actor);
-	if (CurrentExecutionContext.IsSet())
-	{
-		CurrentExecutionContext->bRealityL2Boost = bRealityL2Boost;
-	}
-
-	// New accumulator path — Reality + Evolution contributions.
-	// Coexists with bRealityL2Boost during migration; existing bool consumers
-	// keep working unchanged, new consumers read ActionMods.
+	// Per-action stat modifiers accumulated from all active sources
+	// (Reality innate/slotted/infused, Evolution slotted/infused).
+	// Stashed on context so all consumers across the async lifecycle
+	// (movement → animation → damage → defense) read the same snapshot.
 	const FActionStatModifiers ActionMods = ComputeActionStatModifiers(Action, Actor);
 	if (CurrentExecutionContext.IsSet())
 	{
@@ -558,12 +551,6 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
-
-	// bRealityL2Boost is still used downstream for movement/animation paths
-	// not yet migrated; keep it alive until those consumers also move to ActionMods.
-	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
-									 ? CurrentExecutionContext->bRealityL2Boost
-									 : false;
 
 	// Calculate damage with charge infusion multiplier
 	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
@@ -2023,18 +2010,10 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 		Input.bIsElemental = bIsElemental;
 		Input.Element = Element;
 		Input.bCanCrit = bCanCrit;
-		// Reality L2 boost is stashed on the async context at action start.
-		// Reading here fans the flag out to every ApplyDamage call site (defense
-		// resolution, beam ticks, projectile impacts, support spells) without
-		// threading a parameter through every caller.
-		Input.bRealityL2Boost = CurrentExecutionContext.IsSet()
-									? CurrentExecutionContext->bRealityL2Boost
-									: false;
-
-		// ActionMods is the canonical per-action stat modifier path for
-		// DamageCalculator (Reality + Evolution + future buffs). bRealityL2Boost
-		// remains for consumers not yet migrated; DamageCalculator itself reads
-		// from ActionMods now and ignores the bool.
+		// ActionMods is the canonical per-action stat modifier path
+		// (Reality + Evolution + future buffs). Stashed on context at action start
+		// so every ApplyDamage call site (defense resolution, beam ticks, projectile
+		// impacts, support spells) reads the same snapshot.
 		if (CurrentExecutionContext.IsSet())
 		{
 			Input.ActionMods = CurrentExecutionContext->ActionMods;
@@ -4103,9 +4082,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
 
-		// Reality L2 boost is now detected by IsRealityL2Active at action start
-		// (ExecuteSpellAsync / ExecuteAbilityAsync / ExecuteAttackAsync) and stashed
-		// on FActionExecutionContext. No commit-time call needed here.
+		// Per-action stat modifiers are computed by ComputeActionStatModifiers
+		// at action start (ExecuteActionAsync) and stashed on
+		// FActionExecutionContext::ActionMods. No commit-time call needed here.
 		break;
 	}
 	case EInfusionSourceOption::PrimaryRing:
@@ -4148,7 +4127,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
 
-		// Reality L2 boost detection lives in IsRealityL2Active (action-start), not here.
+		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;
 	}
 
@@ -4178,7 +4157,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
 		WeaponMgr->ProcessPostCastWear(Actor, Weapon->Tier, Level, bIsSpell);
 
-		// Reality L2 boost detection lives in IsRealityL2Active (action-start), not here.
+		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;
 	}
 
@@ -4273,52 +4252,6 @@ void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
 		   TEXT("[ActionExecutor] %s paid %d HP for L%d infusion (HP: %d -> %d)"),
 		   *Actor->GetName(), SafeCost, Level, Before, CharComp->CurrentHP);
 }
-bool UActionExecutor::IsRealityL2Active(const FAction &Action, AActor *Actor) const
-{
-	// Items and Defend can't trigger Reality L2.
-	if (Action.ActionType == EActionType::Item ||
-		Action.ActionType == EActionType::Defend)
-	{
-		return false;
-	}
-
-	// Determine the action's infusion level. Spells use SpellInfusionLevel;
-	// abilities/attacks share AbilityInfusionLevel (matches ApplyCommitCosts routing).
-	int32 Level = 0;
-	switch (Action.ActionType)
-	{
-	case EActionType::Spell:
-		Level = Action.SpellInfusionLevel;
-		break;
-	case EActionType::Ability:
-	case EActionType::Attack:
-		Level = Action.AbilityInfusionLevel;
-		break;
-	default:
-		return false;
-	}
-
-	if (Level != 2)
-	{
-		return false;
-	}
-
-	// Resolve the active source's element. GetElementForSourceOption already
-	// handles all five real sources (Innate / Raw / WeaponCrystal / ActiveRing
-	// / PrimaryRing / Evolution) — covers Iolite-via-crystal AND Refractor-innate.
-	const ESpellElement DeliveredElement = GetElementForSourceOption(Actor, Action.SelectedSource);
-	if (DeliveredElement != ESpellElement::Reality)
-	{
-		return false;
-	}
-
-	UE_LOG(LogTemp, Log,
-		   TEXT("[ActionExecutor] Reality L2 boost ACTIVE for %s by %s"),
-		   *UEnum::GetValueAsString(Action.ActionType),
-		   Actor ? *Actor->GetName() : TEXT("Unknown"));
-	return true;
-}
-
 FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &Action, AActor *Actor) const
 {
 	FActionStatModifiers Result;

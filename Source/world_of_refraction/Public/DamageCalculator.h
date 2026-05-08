@@ -75,13 +75,6 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	int32 InfusionLevel = 0;
 
-	/** True if Reality L2 boost is active for this action. Adds +5% to attacker stats.
-	 *  DEPRECATED for DamageCalculator (which reads ActionMods instead) — preserved
-	 *  for consumers not yet migrated (SpellData, CombatMovementComponent, animation
-	 *  play rate). Retire once all consumers move to ActionMods. */
-	UPROPERTY(BlueprintReadWrite, Category = "Damage")
-	bool bRealityL2Boost = false;
-
 	/** Per-action stat modifiers accumulated from all active sources
 	 *  (Reality innate/slotted/infused, Evolution slotted/infused, future buffs).
 	 *  DamageCalculator consumes EffectDamage / RawDamage / CritChance from this. */

@@ -235,11 +235,6 @@ public:
 	 *  CharacterDataComponent::CurrentHP. Floored at 1 HP by the helper. */
 	void ApplyHPCostInternal(AActor *Actor, int32 Level);
 
-	/** Returns true if the action's active infusion source resolves to the Reality
-	 *  element at infusion Level 2. Element-keyed: handles Iolite-via-crystal AND
-	 *  Refractor-via-innate paths. Items and Defend always return false. */
-	bool IsRealityL2Active(const FAction &Action, AActor *Actor) const;
-
 	/** Compute the full per-action stat modifier accumulator for an action.
 	 *  Walks Reality innate, Reality slotted, Reality infused, Evolution slotted,
 	 *  and Evolution-infused (stub). Returns a populated FActionStatModifiers. */
