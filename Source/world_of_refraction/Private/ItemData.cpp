@@ -837,6 +837,44 @@ float UItemData::GetSpellSizeModifier() const
     return (StatModifierMode == EStatModifierMode::Pillar) ? SpiritModifierPercent : SpellSizeModifierPercent;
 }
 
+FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
+{
+    FActionStatModifiers Out;
+
+    if (!bIsEvolutionCrystal)
+    {
+        return Out;
+    }
+
+    if (StatModifierMode == EStatModifierMode::Pillar)
+    {
+        Out.AddPillarPercent(
+            MindModifierPercent   * Multiplier,
+            BodyModifierPercent   * Multiplier,
+            SpiritModifierPercent * Multiplier);
+    }
+    else
+    {
+        // SubStats mode — UItemData stores 9 explicit fields; map field-by-field
+        // into the 9 sub-stats on FActionStatModifiers. The pillar grouping on
+        // FActionStatModifiers is independent of UItemData's own pillar grouping
+        // (TurnSpeed sits under Mind in UItemData but Spirit on the new struct;
+        // SpellSize is renamed to SpellSpeed; AttackSpeed maps to MovementSpeed —
+        // these are intentional, see header).
+        Out.Efficiency    = CostReductionModifierPercent * Multiplier;
+        Out.EffectDamage  = EffectDamageModifierPercent  * Multiplier;
+        Out.CritChance    = CritChanceModifierPercent    * Multiplier;
+        Out.SpellSpeed    = SpellSizeModifierPercent     * Multiplier;
+        Out.Defense       = DefenseModifierPercent       * Multiplier;
+        Out.MovementSpeed = AttackSpeedModifierPercent   * Multiplier;
+        Out.RawDamage     = RawDamageModifierPercent     * Multiplier;
+        Out.Resistance    = ResistanceModifierPercent    * Multiplier;
+        Out.TurnSpeed     = TurnSpeedModifierPercent     * Multiplier;
+    }
+
+    return Out;
+}
+
 // ==================== PASSIVE HELPER FUNCTIONS ====================
 
 TArray<FPassiveEffect> UItemData::GetAlwaysActivePassives() const

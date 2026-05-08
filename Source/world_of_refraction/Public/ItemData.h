@@ -25,6 +25,7 @@
 #include "NiagaraSystem.h"
 #include "EEvolutionType.h"
 #include "EStatModifierMode.h"
+#include "ActionStatModifiers.h"
 #include "ItemData.generated.h"
 
 class USpellData;
@@ -434,6 +435,13 @@ public:
         /** Get Spell Size modifier (uses Spirit in Pillar mode) */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|SubStats")
         float GetSpellSizeModifier() const;
+
+        /** Compute per-action stat modifiers contributed by this Evolution crystal,
+         *  scaled by Multiplier. Use 1.0f for full (slotted-as-primary, L2 infusion)
+         *  or 0.5f for half (L1 infusion). Returns zeroed struct if not an Evolution
+         *  crystal. Handles Pillar / SubStats mode internally. */
+        UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
+        FActionStatModifiers GetActionModifiers(float Multiplier = 1.0f) const;
 
         // ==================== EXISTING UTILITY FUNCTIONS ====================
 
