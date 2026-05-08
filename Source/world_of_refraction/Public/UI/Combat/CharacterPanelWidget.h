@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "ESpellElement.h"
 #include "CharacterPanelWidget.generated.h"
 
 class AActor;
@@ -12,6 +13,10 @@ class UStatusEffectManager;
 class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
+class UBrokenDarknessManager;
+class URingManager;
+class URingData;
+class UItemData;
 struct FStatusEffect;
 
 /**
@@ -107,6 +112,18 @@ protected:
 	UFUNCTION()
 	void HandleDied(AActor *DeadActor);
 
+	/** Called when BD absorption energy changes */
+	UFUNCTION()
+	void HandleBDEnergyAbsorbed(AActor *Actor, float AmountAbsorbed, ESpellElement AbsorbedElement);
+
+	/** Called when BD enters/exits overload state */
+	UFUNCTION()
+	void HandleBDOverloadStateChanged(AActor *Actor, bool bIsOverloaded);
+
+	/** Called when a ring crystal breaks (Resonator durability display) */
+	UFUNCTION()
+	void HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal);
+
 	/** BP fills the BuffDebuffList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
 	void RebuildBuffDebuffList(const TArray<FStatusEffect> &ActiveEffects);
@@ -126,9 +143,22 @@ private:
 
 	TWeakObjectPtr<UStatusEffectManager> BoundStatusManager;
 
+	/** Bound BD manager for absorption-energy display (when applicable) */
+	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
+
+	/** Bound ring manager for Resonator durability display (when applicable) */
+	TWeakObjectPtr<URingManager> BoundRingManager;
+
 	bool bBound = false;
 
 	void RefreshBuffDebuffList();
 	void SetBarSafe(UProgressBar *Bar, float Percent);
 	void SetTextSafe(UTextBlock *Text, const FString &Value);
+
+	/** Refresh the energy bar — picks the correct source based on character class/state */
+	void RefreshEnergyBar();
+
+	/** Apply element-coloured tint to the energy bar based on the character's
+	 *  currently-displayed energy source */
+	void ApplyEnergyBarTint();
 };

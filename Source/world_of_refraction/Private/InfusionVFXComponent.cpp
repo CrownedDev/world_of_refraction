@@ -465,16 +465,6 @@ void UInfusionVFXComponent::CacheAvailableSources()
     CachedSources = Executor->GetAvailableInfusionSources(Owner);
 
     UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
-
-    // Diagnostic source dump — Verbose level so it's available for triage
-    // without cluttering default output. Enable with `Log LogTemp Verbose`.
-    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] CACHE DUMP for %s: %d sources"),
-        Owner ? *Owner->GetName() : TEXT("NULL"), CachedSources.Num());
-    for (int32 i = 0; i < CachedSources.Num(); ++i)
-    {
-        UE_LOG(LogTemp, Verbose, TEXT("  [%d] %s"), i,
-            *UEnum::GetValueAsString(CachedSources[i]));
-    }
 }
 
 void UInfusionVFXComponent::CycleToNextSource()

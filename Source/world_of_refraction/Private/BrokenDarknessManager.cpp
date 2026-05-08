@@ -86,6 +86,24 @@ void UBrokenDarknessManager::BeginPlay()
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
+
+	// Character-created BD path: align manager's internal flag with the
+	// CharacterDataComponent::IsBrokenDarkness() helper. Without this,
+	// character-created BDs silently short-circuit absorption methods
+	// (OnSuccessfulParry, OnSuccessfulBlock, ProcessForbiddenCast, etc.)
+	// because they all check bIsTransformed.
+	if (AActor *Owner = GetOwner())
+	{
+		if (UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
+		{
+			if (CharComp->IsBrokenDarkness())
+			{
+				bIsTransformed = true;
+				UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsTransformed for character-created BD"),
+					   *Owner->GetName());
+			}
+		}
+	}
 }
 
 // ==================== BREAK SYSTEM ====================

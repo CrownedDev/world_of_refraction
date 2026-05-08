@@ -48,6 +48,17 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
+        // Resonator: no regular EP. Their resource is ring crystal durability,
+        // managed by RingManager + BreakCalculator. MaxEP=0 makes any future
+        // EP-related calculation evaluate to 0 cleanly. MVP scope —
+        // Resonator-with-weapon (which would need an energy bar back) is Item 32.
+        if (HasServerAuthority() &&
+            CharacterData->CharacterClass == ECharacterClass::Resonator)
+        {
+            MaxEP = 0;
+            CurrentEP = 0;
+        }
+
         // Character-created BD: auto-flip the runtime flag and zero EP so
         // they start in the correct state without needing a transform event.
         if (HasServerAuthority() &&
@@ -146,9 +157,14 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
     if (!HasServerAuthority() || Amount <= 0)
         return;
 
-    // BD characters do not gain regular EP. Their energy comes from
-    // BrokenDarknessManager::AddAbsorptionEnergy (defense, crystals).
+    // BD characters do not gain regular EP — their energy lives on
+    // BrokenDarknessManager::AbsorptionEnergy.
     if (bIsBrokenDarkness)
+        return;
+
+    // Resonators do not gain regular EP — their resource is ring durability.
+    // MVP scope, weapon-equipped variant (Item 32) deferred.
+    if (CharacterData && CharacterData->CharacterClass == ECharacterClass::Resonator)
         return;
 
     CurrentEP = FMath::Min(MaxEP, CurrentEP + Amount);
@@ -163,6 +179,10 @@ void UCharacterDataComponent::ServerSetEP(int32 NewEP)
     // BD characters: only allow setting to 0. Non-zero sets are silently
     // ignored — BD energy lives on BrokenDarknessManager::AbsorptionEnergy.
     if (bIsBrokenDarkness && NewEP > 0)
+        return;
+
+    // Resonators: only allow setting to 0 (no EP allowed in MVP).
+    if (CharacterData && CharacterData->CharacterClass == ECharacterClass::Resonator && NewEP > 0)
         return;
 
     CurrentEP = FMath::Clamp(NewEP, 0, MaxEP);

@@ -138,6 +138,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Absorption")
 	float GetAbsorptionEnergy() const { return AbsorptionEnergy; }
 
+	/** Get maximum absorption energy */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Absorption")
+	float GetMaxAbsorptionEnergy() const { return MaxAbsorptionEnergy; }
+
 	/** Spend absorption energy for spell cast */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
 	bool SpendAbsorptionEnergy(float Amount);
