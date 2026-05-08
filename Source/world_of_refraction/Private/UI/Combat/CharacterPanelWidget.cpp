@@ -6,6 +6,7 @@
 #include "StatusEffectManager.h"
 #include "StatusEffect.h"
 #include "BrokenDarknessManager.h"
+#include "WeaponManager.h"
 #include "ElementColors.h"
 #include "HybridSpellColors.h"
 #include "Components/ProgressBar.h"
@@ -16,12 +17,12 @@
 namespace PanelLabels
 {
 	// Bar prefix labels — change these in one place to update the whole panel
-	constexpr const TCHAR* HP        = TEXT("HP");
-	constexpr const TCHAR* EP        = TEXT("EP");
-	constexpr const TCHAR* RingDur   = TEXT("RD");   // Ring Durability (Resonator)
-	constexpr const TCHAR* WeaponDur = TEXT("WD");   // Weapon Durability — reserved for Item 32
-	constexpr const TCHAR* Absorb    = TEXT("Abs");  // BD Absorption
-	constexpr const TCHAR* Status    = TEXT("SB");   // Status Buildup
+	constexpr const TCHAR *HP = TEXT("HP");
+	constexpr const TCHAR *EP = TEXT("EP");
+	constexpr const TCHAR *RingDur = TEXT("RD");   // Ring Durability (Resonator)
+	constexpr const TCHAR *WeaponDur = TEXT("WD"); // Weapon Durability
+	constexpr const TCHAR *Absorb = TEXT("Abs");   // BD Absorption
+	constexpr const TCHAR *Status = TEXT("SB");	   // Status Buildup
 }
 
 void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
@@ -80,20 +81,22 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		BDManager->OnOverloadStateChanged.AddDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
 	}
 
-	// Resonator without weapon: hide the EP bar entirely (they have no usable EP).
-	// Once Item 32 lands, this rule extends to "Resonator with weapon" → show as normal EP.
-	if (CharComp->CharacterData &&
-		CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator)
+	// Weapon manager — used to refresh EP-bar visibility on weapon swap.
+	// Bound for all characters; the handler is a no-op for non-Resonators
+	// since their EP-bar visibility doesn't depend on weapon state.
+	if (UGameInstance *GI = GetGameInstance())
 	{
-		if (EPBar)
+		if (UWeaponManager *WeaponMgr = GI->GetSubsystem<UWeaponManager>())
 		{
-			EPBar->SetVisibility(ESlateVisibility::Collapsed);
-		}
-		if (EPText)
-		{
-			EPText->SetVisibility(ESlateVisibility::Collapsed);
+			BoundWeaponManager = WeaponMgr;
+			WeaponMgr->OnWeaponSwitched.AddDynamic(this, &UCharacterPanelWidget::HandleWeaponSwitched);
 		}
 	}
+
+	// Resonator EP-bar visibility: hidden when unarmed (pool is dormant),
+	// visible when armed. Re-evaluated on every weapon switch via
+	// HandleWeaponSwitched. Centralised in RefreshEPBarVisibility.
+	RefreshEPBarVisibility();
 
 	bBound = true;
 
@@ -102,7 +105,7 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 
 	// Initial snapshot
 	HandleHPChanged(CharComp->CurrentHP, CharComp->MaxHP);
-	RefreshEnergyBar();   // dispatches to BD / default EP based on character state
+	RefreshEnergyBar(); // dispatches to BD / default EP based on character state
 	ApplyEnergyBarTint();
 
 	// Status starts at 0 — broadcast doesn't fire until first hit, so seed it
@@ -144,10 +147,16 @@ void UCharacterPanelWidget::TeardownPanel()
 		BDManager->OnOverloadStateChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
 	}
 
+	if (UWeaponManager *WeaponMgr = BoundWeaponManager.Get())
+	{
+		WeaponMgr->OnWeaponSwitched.RemoveDynamic(this, &UCharacterPanelWidget::HandleWeaponSwitched);
+	}
+
 	BoundActor.Reset();
 	BoundCharData.Reset();
 	BoundStatusManager.Reset();
 	BoundBDManager.Reset();
+	BoundWeaponManager.Reset();
 	bBound = false;
 }
 
@@ -209,7 +218,7 @@ void UCharacterPanelWidget::HandleBDEnergyAbsorbed(AActor *Actor, float AmountAb
 	if (Actor != BoundActor.Get())
 		return;
 	RefreshEnergyBar();
-	ApplyEnergyBarTint();  // absorbed element may have changed
+	ApplyEnergyBarTint(); // absorbed element may have changed
 }
 
 void UCharacterPanelWidget::HandleBDOverloadStateChanged(AActor *Actor, bool bIsOverloaded)
@@ -217,6 +226,19 @@ void UCharacterPanelWidget::HandleBDOverloadStateChanged(AActor *Actor, bool bIs
 	if (Actor != BoundActor.Get())
 		return;
 	RefreshEnergyBar();
+}
+
+void UCharacterPanelWidget::HandleWeaponSwitched(AActor *Actor, EWeaponSlot OldSlot, EWeaponSlot NewSlot)
+{
+	if (Actor != BoundActor.Get())
+		return;
+
+	// Weapon state changed for this character — Resonator EP-bar visibility
+	// depends on whether they're armed. Re-evaluate. Also refresh the bar
+	// value/tint in case the bar just became visible or changed source.
+	RefreshEPBarVisibility();
+	RefreshEnergyBar();
+	ApplyEnergyBarTint();
 }
 
 void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max)
@@ -327,9 +349,9 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 
 			SetBarSafe(EPBar, Percent);
 			SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"),
-				PanelLabels::Absorb,
-				FMath::TruncToInt(Current),
-				FMath::TruncToInt(Max)));
+												PanelLabels::Absorb,
+												FMath::TruncToInt(Current),
+												FMath::TruncToInt(Max)));
 			return;
 		}
 		// BD without manager — empty
@@ -393,4 +415,33 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 	const ESpellElement Element = CharComp->CharacterData->InnateElement;
 	BarColour = ElementColors::GetColorForElement(Element);
 	EPBar->SetFillColorAndOpacity(BarColour);
+}
+
+void UCharacterPanelWidget::RefreshEPBarVisibility()
+{
+	UCharacterDataComponent *CharComp = BoundCharData.Get();
+	if (!CharComp || !CharComp->CharacterData)
+		return;
+
+	// Rule: Resonator without an active weapon → hide EP bar+text.
+	// Their pool exists but is dormant (no usable spend target).
+	// All other states (any non-Resonator class, OR Resonator-with-weapon)
+	// → show. BD characters are handled by their own absorption-energy
+	// path inside RefreshEnergyBar; visibility stays on for them.
+	const bool bIsResonatorUnarmed =
+		CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator &&
+		CharComp->GetActiveWeapon() == nullptr;
+
+	const ESlateVisibility V = bIsResonatorUnarmed
+								   ? ESlateVisibility::Collapsed
+								   : ESlateVisibility::Visible;
+
+	if (EPBar)
+	{
+		EPBar->SetVisibility(V);
+	}
+	if (EPText)
+	{
+		EPText->SetVisibility(V);
+	}
 }

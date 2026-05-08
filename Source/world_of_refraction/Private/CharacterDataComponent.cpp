@@ -48,17 +48,6 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
-        // Resonator: no regular EP. Their resource is ring crystal durability,
-        // managed by RingManager + BreakCalculator. MaxEP=0 makes any future
-        // EP-related calculation evaluate to 0 cleanly. MVP scope —
-        // Resonator-with-weapon (which would need an energy bar back) is Item 32.
-        if (HasServerAuthority() &&
-            CharacterData->CharacterClass == ECharacterClass::Resonator)
-        {
-            MaxEP = 0;
-            CurrentEP = 0;
-        }
-
         // Character-created BD: auto-flip the runtime flag and zero EP so
         // they start in the correct state without needing a transform event.
         if (HasServerAuthority() &&
@@ -162,10 +151,16 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
     if (bIsBrokenDarkness)
         return;
 
-    // Resonators do not gain regular EP — their resource is ring durability.
-    // MVP scope, weapon-equipped variant (Item 32) deferred.
-    if (CharacterData && CharacterData->CharacterClass == ECharacterClass::Resonator)
+    // Resonators only accumulate EP when armed. Without a weapon they have
+    // nothing to spend EP on, so EP gain is suppressed to keep the pool clean.
+    // Equipping a weapon mid-combat unlocks normal EP behaviour — the pool
+    // was preserved at BeginPlay.
+    if (CharacterData &&
+        CharacterData->CharacterClass == ECharacterClass::Resonator &&
+        GetActiveWeapon() == nullptr)
+    {
         return;
+    }
 
     CurrentEP = FMath::Min(MaxEP, CurrentEP + Amount);
     OnEPChanged.Broadcast(CurrentEP, MaxEP);
@@ -181,9 +176,15 @@ void UCharacterDataComponent::ServerSetEP(int32 NewEP)
     if (bIsBrokenDarkness && NewEP > 0)
         return;
 
-    // Resonators: only allow setting to 0 (no EP allowed in MVP).
-    if (CharacterData && CharacterData->CharacterClass == ECharacterClass::Resonator && NewEP > 0)
+    // Resonators without a weapon: only allow setting to 0. EP exists but
+    // is dormant until they're armed — symmetric to ServerGainEnergy.
+    if (CharacterData &&
+        CharacterData->CharacterClass == ECharacterClass::Resonator &&
+        GetActiveWeapon() == nullptr &&
+        NewEP > 0)
+    {
         return;
+    }
 
     CurrentEP = FMath::Clamp(NewEP, 0, MaxEP);
     OnEPChanged.Broadcast(CurrentEP, MaxEP);

@@ -14,6 +14,8 @@ class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
 class UBrokenDarknessManager;
+class UWeaponManager;
+enum class EWeaponSlot : uint8;
 struct FStatusEffect;
 
 /**
@@ -117,6 +119,11 @@ protected:
 	UFUNCTION()
 	void HandleBDOverloadStateChanged(AActor *Actor, bool bIsOverloaded);
 
+	/** Delegate handler for WeaponManager::OnWeaponSwitched.
+	 *  Re-evaluates EP-bar visibility for Resonators (dormant ↔ active). */
+	UFUNCTION()
+	void HandleWeaponSwitched(AActor *Actor, EWeaponSlot OldSlot, EWeaponSlot NewSlot);
+
 	/** BP fills the BuffDebuffList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
 	void RebuildBuffDebuffList(const TArray<FStatusEffect> &ActiveEffects);
@@ -139,6 +146,10 @@ private:
 	/** Bound BD manager for absorption-energy display (when applicable) */
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
 
+	/** Weapon manager binding — used to refresh EP-bar visibility when a
+	 *  Resonator arms or disarms mid-combat. */
+	TWeakObjectPtr<UWeaponManager> BoundWeaponManager;
+
 	bool bBound = false;
 
 	void RefreshBuffDebuffList();
@@ -151,4 +162,9 @@ private:
 	/** Apply element-coloured tint to the energy bar based on the character's
 	 *  currently-displayed energy source */
 	void ApplyEnergyBarTint();
+
+	/** Apply EP-bar visibility rule for the currently bound character.
+	 *  Hides bar+text for Resonator-without-weapon; shows otherwise.
+	 *  Called from InitialiseForActor and from HandleWeaponSwitched. */
+	void RefreshEPBarVisibility();
 };
