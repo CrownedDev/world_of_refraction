@@ -78,6 +78,18 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		// or computed default. No re-clamp here — preserves prior bool-path
 		// behaviour (Reality boost was deliberately uncapped at this site).
 		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::CritChance);
+
+		// Luck-driven crit bonus. Linearly scaled from raw Luck (0.0-LUCK_RAW_MAX)
+		// to consumer cap LUCK_CRIT_BONUS_MAX. Additive on top — matches locked
+		// design where Luck grants extra crit chance ON TOP OF CritChance.
+		UCharacterData *AttackerData = GetCharacterData(Attacker);
+		if (AttackerData)
+		{
+			const float RawLuck = AttackerData->CalculateLuck();
+			const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
+			CritChance += LuckCritBonus;
+		}
+
 		Result.bWasCritical = FMath::FRand() < CritChance;
 
 		if (Result.bWasCritical)
