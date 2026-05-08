@@ -553,13 +553,20 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
 	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
-	// Reality L2 boost flag (stashed on context by ExecuteActionAsync).
+	// Per-action stat modifiers (Reality, Evolution, future buffs) — populated
+	// on the execution context by ExecuteActionAsync via ComputeActionStatModifiers.
+	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
+												? CurrentExecutionContext->ActionMods
+												: FActionStatModifiers();
+
+	// bRealityL2Boost is still used downstream for movement/animation paths
+	// not yet migrated; keep it alive until those consumers also move to ActionMods.
 	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
 									 ? CurrentExecutionContext->bRealityL2Boost
 									 : false;
 
 	// Calculate damage with charge infusion multiplier
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, bRealityL2Boost);
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
 	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
