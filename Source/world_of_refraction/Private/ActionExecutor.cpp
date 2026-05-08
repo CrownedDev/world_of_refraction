@@ -667,7 +667,9 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	}
 	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
 
-	// Calculate base damage (post element-penalty if applicable)
+	// Calculate base damage. Element-infusion damage penalty was removed per
+	// the locked cost matrix — infusion now pays its tax via durability wear /
+	// HP backlash / status build / energy multipliers, not flat damage tax.
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
 
 	// Element handling
@@ -676,7 +678,6 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	if (bIsElemental && UserData->HasInnateElement())
 	{
 		Element = UserData->InnateElement;
-		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty for element
 	}
 
 	// Apply charge level damage multiplier (L2 = 1.30x, L1 unchanged)
@@ -769,7 +770,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 	if (bIsInfused)
 	{
-		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f); // 30% penalty
+		// Element-infusion damage penalty removed; energy multiplier + source-
+		// specific costs (durability/HP/status) cover the infusion tax.
 
 		// Spend energy for infused attack
 		int32 InfusionCost = 5; // TODO: from constants
@@ -1842,14 +1844,10 @@ FActionResult UActionExecutor::ExecuteAttack(
 	}
 
 	// Calculate damage - attacks use character's RawDamageMultiplier
-	// Base damage is 100, scaled by the attack's damage distribution and character stats
+	// Base damage is 100, scaled by the attack's damage distribution and character stats.
+	// Element-infusion damage penalty removed per locked cost matrix.
 	float DamageMultiplier = AttackerData->CalculateRawDamage();
 	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
-	if (bIsInfused)
-	{
-		// Infusion damage penalty (30%)
-		BaseDamage = FMath::RoundToInt(BaseDamage * 0.7f);
-	}
 
 	// Determine element
 	ESpellElement Element = ESpellElement::Generic;

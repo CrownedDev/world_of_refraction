@@ -84,9 +84,8 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
         ElementName.RemoveFromStart(TEXT("ESpellElement::"));
 
         Output += FString::Printf(TEXT("INFUSED USE (%s):\n"), *ElementName);
-        Output += FString::Printf(TEXT("  Damage: %d (%.0f%% penalty)\n"),
-                                  Ability->CalculateInfusedDamage(Character),
-                                  CombatConstants::INFUSION_DAMAGE_PENALTY * 100.0f);
+        Output += FString::Printf(TEXT("  Damage: %d\n"),
+                                  Ability->CalculateInfusedDamage(Character));
         Output += FString::Printf(TEXT("  Energy: %d (%.0f%% more)\n"),
                                   Ability->CalculateInfusedEnergyCost(Character),
                                   (CombatConstants::INFUSION_ENERGY_MULTIPLIER - 1.0f) * 100.0f);

@@ -442,15 +442,10 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, 
 	}
 
 	// Calculate base damage - attacks use character's RawDamageMultiplier
-	// Base damage is 100, scaled by character stats
+	// Base damage is 100, scaled by character stats.
+	// Element-infusion damage penalty removed per locked cost matrix.
 	float DamageMultiplier = AttackerData->CalculateRawDamage();
 	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
-
-	// Infusion penalty
-	if (bUseInfusion)
-	{
-		BaseDamage = FMath::RoundToInt(BaseDamage * (1.0f - INFUSION_DAMAGE_PENALTY));
-	}
 
 	// Get physical damage type if weapon attack
 	if (WeaponAttack)

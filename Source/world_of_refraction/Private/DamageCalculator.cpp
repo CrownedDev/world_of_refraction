@@ -222,12 +222,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	Input.InfusionLevel = 0;
 	Input.HitCount = Ability->HitCount;
 
-	// Apply element infusion penalty (casters pay 30% damage for adding element)
-	if (bIsInfused)
-	{
-		Input.BaseDamage = FMath::RoundToInt(Input.BaseDamage * DamageConstants::ELEMENT_INFUSION_PENALTY);
-	}
-
+	// Element-infusion damage penalty removed per locked cost matrix.
 	// Calculate with main function
 	Result = CalculateDamage(User, Target, Input);
 
@@ -285,11 +280,8 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 			}
 		}
 	}
-	else
-	{
-		// Infusion penalty (30% damage reduction)
-		Input.BaseDamage = FMath::RoundToInt(Input.BaseDamage * 0.7f);
-	}
+	// Infused branch no longer applies a flat damage penalty (removed per locked
+	// cost matrix; cost is paid via durability/HP/status/energy mechanics).
 
 	// Calculate with main function
 	Result = CalculateDamage(Attacker, Target, Input);

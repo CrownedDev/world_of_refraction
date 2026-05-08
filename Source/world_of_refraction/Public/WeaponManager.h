@@ -485,5 +485,5 @@ private:
 	static constexpr float STATUS_THRESHOLD_STUN = 100.0f;		  // Impact → Stun
 
 	static constexpr int32 INFUSED_ATTACK_ENERGY_COST = 5;
-	static constexpr float INFUSION_DAMAGE_PENALTY = 0.3f; // 30% damage reduction when infused
+	// INFUSION_DAMAGE_PENALTY removed per locked cost matrix — see commit message.
 };

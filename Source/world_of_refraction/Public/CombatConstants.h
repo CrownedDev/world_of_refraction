@@ -97,7 +97,7 @@ namespace CombatConstants
     constexpr float REQUIREMENT_PENALTY_MAX = 0.6f;    // 60% max penalty
 
     // Infusion System
-    constexpr float INFUSION_DAMAGE_PENALTY = 0.30f;   // 30% damage reduction when infused
+    // INFUSION_DAMAGE_PENALTY removed per locked cost matrix — see commit message.
     constexpr float INFUSION_ENERGY_MULTIPLIER = 1.5f; // 50% more energy cost when infused
     constexpr int32 BASE_STATUS_BUILDUP_PER_HIT = 5;   // Base buildup before Spirit scaling
 

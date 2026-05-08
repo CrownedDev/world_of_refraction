@@ -38,7 +38,7 @@ namespace DamageConstants
 	constexpr float NEUTRAL_MULTIPLIER = 1.0f;
 
 	// Infusion
-	constexpr float ELEMENT_INFUSION_PENALTY = 0.7f; // 30% damage penalty for casters
+	// ELEMENT_INFUSION_PENALTY removed per locked cost matrix — see commit message.
 	constexpr float POWER_INFUSION_L1_MULT = 1.3f;
 	constexpr float POWER_INFUSION_L2_MULT = 1.6f;
 }

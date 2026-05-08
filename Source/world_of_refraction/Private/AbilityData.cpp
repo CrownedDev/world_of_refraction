@@ -67,8 +67,7 @@ int32 UAbilityData::CalculateInfusedDamage(UCharacterData* Character) const
     float RequirementPenalty = CalculateRequirementPenalty(Character);
     Damage *= (1.0f - RequirementPenalty);
 
-    // Apply infusion damage penalty (global constant)
-    Damage *= (1.0f - CombatConstants::INFUSION_DAMAGE_PENALTY);
+    // Element-infusion damage penalty removed per locked cost matrix.
 
     // Apply character's raw damage multiplier
     float RawDamageMultiplier = Character->CalculateRawDamage();
