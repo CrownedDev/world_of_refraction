@@ -12,8 +12,18 @@
 
 namespace BrokenDarknessConstants
 {
-	// Break System
-	constexpr float BREAK_CHANCE = 0.03f; // 3% chance to transform
+	// Break System — tier-keyed, doubled on L2 infusion
+	// Per locked design (May 2026):
+	// S=1.5%, A=1.0%, B=0.6%, C=0.3%, D=0.1%, E/F=0%.
+	constexpr float BREAK_CHANCE_S_TIER = 0.015f;
+	constexpr float BREAK_CHANCE_A_TIER = 0.010f;
+	constexpr float BREAK_CHANCE_B_TIER = 0.006f;
+	constexpr float BREAK_CHANCE_C_TIER = 0.003f;
+	constexpr float BREAK_CHANCE_D_TIER = 0.001f;
+	constexpr float BREAK_CHANCE_E_TIER = 0.0f;
+	constexpr float BREAK_CHANCE_F_TIER = 0.0f;
+	constexpr float BREAK_CHANCE_L1_MULTIPLIER = 2.0f;
+	constexpr float BREAK_CHANCE_L2_MULTIPLIER = 3.0f;
 
 	// Absorption
 	constexpr float PARRY_ABSORPTION_MULT = 0.30f; // 30% of spell cost on parry
@@ -28,6 +38,36 @@ namespace BrokenDarknessConstants
 	// Aura Range (scales with MaxEnergy points)
 	constexpr float AURA_RANGE_MIN = 2.0f; // 0 points - no coverage
 	constexpr float AURA_RANGE_MAX = 4.5f; // 21 points - full 3x3 coverage
+}
+
+namespace
+{
+	/** Look up base break chance for a tier. Returns 0 for E/F. */
+	float GetBaseBreakChance(EItemTier Tier)
+	{
+		switch (Tier)
+		{
+		case EItemTier::S_Tier: return BrokenDarknessConstants::BREAK_CHANCE_S_TIER;
+		case EItemTier::A_Tier: return BrokenDarknessConstants::BREAK_CHANCE_A_TIER;
+		case EItemTier::B_Tier: return BrokenDarknessConstants::BREAK_CHANCE_B_TIER;
+		case EItemTier::C_Tier: return BrokenDarknessConstants::BREAK_CHANCE_C_TIER;
+		case EItemTier::D_Tier: return BrokenDarknessConstants::BREAK_CHANCE_D_TIER;
+		case EItemTier::E_Tier: return BrokenDarknessConstants::BREAK_CHANCE_E_TIER;
+		case EItemTier::F_Tier: return BrokenDarknessConstants::BREAK_CHANCE_F_TIER;
+		default: return 0.0f;
+		}
+	}
+
+	/** Look up infusion-level multiplier. L0 = no multiplier, L1 = 2x, L2 = 3x. */
+	float GetInfusionMultiplier(int32 InfusionLevel)
+	{
+		switch (InfusionLevel)
+		{
+		case 1: return BrokenDarknessConstants::BREAK_CHANCE_L1_MULTIPLIER;
+		case 2: return BrokenDarknessConstants::BREAK_CHANCE_L2_MULTIPLIER;
+		default: return 1.0f;
+		}
+	}
 }
 
 UBrokenDarknessManager::UBrokenDarknessManager()
@@ -50,36 +90,53 @@ void UBrokenDarknessManager::BeginPlay()
 
 // ==================== BREAK SYSTEM ====================
 
-bool UBrokenDarknessManager::RollForBreak(const FString &TriggerReason)
+bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason)
 {
 	if (bIsTransformed)
 	{
 		return false; // Already transformed
 	}
 
-	float Roll = FMath::FRand();
-	bool bBreaks = Roll < BrokenDarknessConstants::BREAK_CHANCE;
+	const float BaseChance = GetBaseBreakChance(Tier);
+	const float Multiplier = GetInfusionMultiplier(InfusionLevel);
+	const float Chance = BaseChance * Multiplier;
 
 	AActor *Owner = GetOwner();
 
+	// E/F tier (or any unmapped tier) — chance is 0, skip the roll entirely
+	if (Chance <= 0.0f)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: %s skipped break check (Tier too low, Reason: %s)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   *TriggerReason);
+		return false;
+	}
+
+	const float Roll = FMath::FRand();
+	const bool bBreaks = Roll < Chance;
+
 	if (bBreaks)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s BROKE! (Trigger: %s, Roll: %.3f < %.3f)"),
+		UE_LOG(LogTemp, Warning,
+			   TEXT("BrokenDarkness: %s BROKE! (Reason: %s, Tier: %s, Level: L%d, Roll: %.4f < %.4f)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   *TriggerReason,
-			   Roll,
-			   BrokenDarknessConstants::BREAK_CHANCE);
+			   *UEnum::GetValueAsString(Tier),
+			   InfusionLevel,
+			   Roll, Chance);
 
 		TriggerTransformation();
 		return true;
 	}
 	else
 	{
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: %s survived break check (Trigger: %s, Roll: %.3f >= %.3f)"),
+		UE_LOG(LogTemp, Display,
+			   TEXT("BrokenDarkness: %s survived break check (Reason: %s, Tier: %s, Level: L%d, Roll: %.4f >= %.4f)"),
 			   Owner ? *Owner->GetName() : TEXT("Unknown"),
 			   *TriggerReason,
-			   Roll,
-			   BrokenDarknessConstants::BREAK_CHANCE);
+			   *UEnum::GetValueAsString(Tier),
+			   InfusionLevel,
+			   Roll, Chance);
 
 		return false;
 	}

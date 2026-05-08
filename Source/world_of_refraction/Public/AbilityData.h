@@ -16,6 +16,7 @@
 #include "EAbilityExecutionType.h"
 #include "FAbilityEffect.h"
 #include "ESpellDeliveryType.h"
+#include "ItemTier.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -49,6 +50,10 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType RequiredWeaponType = EWeaponType::Sword;
+
+    /** Tier for break calculations (mirrors USpellData::Tier) */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EItemTier Tier = EItemTier::E_Tier;
 
     // ==================== EXECUTION ====================
 

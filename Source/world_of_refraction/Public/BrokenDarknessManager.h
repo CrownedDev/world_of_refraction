@@ -8,6 +8,7 @@
 #include "ESpellElement.h"
 #include "EDefenseType.h"
 #include "DefenseSystem.h"
+#include "ItemTier.h"
 #include "BrokenDarknessManager.generated.h"
 
 class USpellData;
@@ -53,13 +54,18 @@ public:
 	// ==================== BREAK SYSTEM ====================
 
 	/**
-	 * Roll for Broken Darkness transformation (3% chance)
-	 * Called when casting above requirements or using L2 infusion
+	 * Roll for Broken Darkness transformation. Chance is tier-keyed and
+	 * infusion-multiplied:
+	 *   Tier base: S=1.5%, A=1.0%, B=0.6%, C=0.3%, D=0.1%, E/F=0%
+	 *   L0 = base, L1 = base × 2, L2 = base × 3
+	 * Called when casting above requirements or using L1/L2 infusion.
+	 * @param Tier The tier of the spell/ability that triggered the roll
+	 * @param InfusionLevel The infusion level of the cast (0/1/2)
 	 * @param TriggerReason Debug string for logging what triggered the roll
 	 * @return True if transformation occurred
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
-	bool RollForBreak(const FString &TriggerReason);
+	bool RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason);
 
 	/**
 	 * Check if spell exceeds character's stat requirements

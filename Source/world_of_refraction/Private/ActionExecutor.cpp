@@ -3023,29 +3023,63 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		return;
 	}
 
-	// Check 1: Spell below stat requirements
+	// Determine tier and infused state from the action's source data.
+	// Spells: use SpellData->Tier. Abilities: use AbilityData->Tier.
+	// Other action types (Attack, Defend, Item, etc.) don't trigger break.
+	EItemTier Tier = EItemTier::F_Tier;
+	int32 InfusionLevel = 0;
+	FString TriggerReason;
+
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
+		Tier = Action.SpellData->Tier;
+		InfusionLevel = Action.SpellInfusionLevel;
+		const bool bInfused = (InfusionLevel >= 1);
+
 		if (UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData))
 		{
-			BDManager->RollForBreak(TEXT("Underpowered spell cast"));
+			TriggerReason = bInfused
+				? FString::Printf(TEXT("Underpowered spell cast (L%d)"), InfusionLevel)
+				: TEXT("Underpowered spell cast");
+		}
+		else if (bInfused)
+		{
+			TriggerReason = FString::Printf(TEXT("L%d Infusion overcharge (spell)"), InfusionLevel);
+		}
+		else
+		{
+			return; // Spell within stats and not infused — no roll
 		}
 	}
-
-	// Check 2: Ability below stat requirements
-	if (Action.ActionType == EActionType::Ability && Action.AbilityData)
+	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
 	{
+		Tier = Action.AbilityData->Tier;
+		InfusionLevel = Action.AbilityInfusionLevel;
+		const bool bInfused = (InfusionLevel >= 1);
+
 		if (UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
 		{
-			BDManager->RollForBreak(TEXT("Underpowered ability use"));
+			TriggerReason = bInfused
+				? FString::Printf(TEXT("Underpowered ability use (L%d)"), InfusionLevel)
+				: TEXT("Underpowered ability use");
+		}
+		else if (bInfused)
+		{
+			TriggerReason = FString::Printf(TEXT("L%d Infusion overcharge (ability)"), InfusionLevel);
+		}
+		else
+		{
+			return; // Ability within stats and not infused — no roll
 		}
 	}
-
-	// Check 3: L2 Infusion (any action type)
-	if (Action.SpellInfusionLevel >= 2 || Action.AbilityInfusionLevel >= 2)
+	else
 	{
-		BDManager->RollForBreak(TEXT("L2 Infusion overcharge"));
+		// Other action types don't trigger break
+		return;
 	}
+
+	// One roll per cast with the correct tier and infusion level.
+	BDManager->RollForBreak(Tier, InfusionLevel, TriggerReason);
 }
 
 // ============================================================
