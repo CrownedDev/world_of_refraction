@@ -423,16 +423,16 @@ void UCharacterPanelWidget::RefreshEPBarVisibility()
 	if (!CharComp || !CharComp->CharacterData)
 		return;
 
-	// Rule: Resonator without an active weapon → hide EP bar+text.
-	// Their pool exists but is dormant (no usable spend target).
-	// All other states (any non-Resonator class, OR Resonator-with-weapon)
-	// → show. BD characters are handled by their own absorption-energy
-	// path inside RefreshEnergyBar; visibility stays on for them.
-	const bool bIsResonatorUnarmed =
+	// Rule: Resonator without a usable EP-spend target → hide EP bar+text.
+	// Their pool exists but is dormant. Usable target = active weapon
+	// (weapon attacks cost EP) OR Evolution primary (Evolution spells cost
+	// EP per locked design). Other classes always show. BD characters are
+	// handled by their own absorption-energy path inside RefreshEnergyBar.
+	const bool bIsResonatorDormant =
 		CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator &&
-		CharComp->GetActiveWeapon() == nullptr;
+		!CharComp->HasUsableEPTarget();
 
-	const ESlateVisibility V = bIsResonatorUnarmed
+	const ESlateVisibility V = bIsResonatorDormant
 								   ? ESlateVisibility::Collapsed
 								   : ESlateVisibility::Visible;
 
