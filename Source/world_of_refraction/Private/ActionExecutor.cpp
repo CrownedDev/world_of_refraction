@@ -613,7 +613,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	BindSpellNotify(Caster);
 
 	// Play animation - VFX spawns on SpellRelease notify (NOT here)
-	PlaySpellAnimation(Caster, Spell, FinalSpellSize, bRealityL2Boost);
+	PlaySpellAnimation(Caster, Spell, FinalSpellSize, ActionMods);
 
 	// Calculate damage per hit (infused total split across hits)
 	int32 DamagePerHit = FinalDamage / FMath::Max(1, Spell->HitCount);
@@ -706,13 +706,13 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsElemental;
 
-	// Reality L2 boost (stashed on context by ExecuteActionAsync).
-	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
-									 ? CurrentExecutionContext->bRealityL2Boost
-									 : false;
+	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
+	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
+												? CurrentExecutionContext->ActionMods
+												: FActionStatModifiers();
 
 	// Play animation
-	PlayAbilityAnimation(User, Ability, bRealityL2Boost);
+	PlayAbilityAnimation(User, Ability, ActionMods);
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
@@ -802,13 +802,13 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
 	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsInfused;
 
-	// Reality L2 boost (stashed on context by ExecuteActionAsync).
-	const bool bRealityL2Boost = CurrentExecutionContext.IsSet()
-									 ? CurrentExecutionContext->bRealityL2Boost
-									 : false;
+	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
+	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
+												? CurrentExecutionContext->ActionMods
+												: FActionStatModifiers();
 
 	// Play animation
-	PlayAttackAnimation(Attacker, Attack, bRealityL2Boost);
+	PlayAttackAnimation(Attacker, Attack, ActionMods);
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
