@@ -16,6 +16,7 @@
 #include "NiagaraSystem.h"
 #include "ESpellDeliveryType.h"
 #include "EDefenseType.h"
+#include "ActionStatModifiers.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -207,8 +208,11 @@ public:
 
     // ==================== DAMAGE CALCULATIONS ====================
 
-    UFUNCTION(BlueprintPure, Category = "Spell|Damage")
-    int32 CalculateDamage(UCharacterData *Character, bool bRealityL2Boost = false) const;
+    /** Calculate spell damage. Per-action stat modifiers (Reality, Evolution,
+     *  future buffs) come in via ActionMods — populated by ActionExecutor at
+     *  spell execution time. AI preview / non-execution callers can omit the
+     *  parameter to use the default (no boost), preserving prior behaviour. */
+    int32 CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers()) const;
 
     // ==================== ENERGY CALCULATIONS ====================
 
@@ -217,8 +221,11 @@ public:
 
     // ==================== STATUS BUILDUP ====================
 
-    UFUNCTION(BlueprintPure, Category = "Spell|Status")
-    int32 CalculateStatusBuildup(UCharacterData *Character, bool bRealityL2Boost = false) const;
+    /** Calculate spell status buildup per-hit. Per-action stat modifiers come
+     *  in via ActionMods. Pre-existing: DamageCalculator::CalculateSpellDamage
+     *  calls this without modifiers — that path doesn't get per-action buffs.
+     *  Documented, not changed by this commit. */
+    int32 CalculateStatusBuildup(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers()) const;
 
     // ==================== HELPER FUNCTIONS ====================
 

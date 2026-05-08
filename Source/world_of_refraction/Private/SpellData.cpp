@@ -2,7 +2,6 @@
 
 #include "SpellData.h"
 #include "CharacterData.h"
-#include "RealityBoost.h"
 
 // ==================== REQUIREMENT CHECKS ====================
 
@@ -35,7 +34,7 @@ float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) c
 
 // ==================== DAMAGE CALCULATIONS ====================
 
-int32 USpellData::CalculateDamage(UCharacterData *Character, bool bRealityL2Boost) const
+int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods) const
 {
     if (!Character)
         return 0;
@@ -52,15 +51,16 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, bool bRealityL2Boos
     float RequirementPenalty = CalculateRequirementPenalty(Character);
     FinalDamage *= (1.0f - RequirementPenalty);
 
-    // Apply character's effect damage multiplier (Spirit-based)
+    // Apply character's effect damage multiplier (Mind-based per CharacterData layout).
+    // ActionMods.EffectDamage stacks Reality + Evolution + future per-action buffs.
     float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    EffectMultiplier = RealityBoost::ApplyTo(EffectMultiplier, bRealityL2Boost);
+    EffectMultiplier = ActionMods.ApplyTo(EffectMultiplier, ESubStat::EffectDamage);
     FinalDamage *= EffectMultiplier;
 
     return FMath::RoundToInt(FinalDamage);
 }
 
-int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, bool bRealityL2Boost) const
+int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActionStatModifiers &ActionMods) const
 {
     if (!Character)
         return 0;
@@ -76,9 +76,10 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, bool bRealit
     // Base buildup per hit
     float BuildupPerHit = StatusBuildup;
 
-    // Scale with character's Effect Damage multiplier (Spirit stat)
+    // Scale with character's Effect Damage multiplier (Mind-based per CharacterData layout).
+    // ActionMods.EffectDamage stacks per-action stat buffs onto the multiplier.
     float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    EffectMultiplier = RealityBoost::ApplyTo(EffectMultiplier, bRealityL2Boost);
+    EffectMultiplier = ActionMods.ApplyTo(EffectMultiplier, ESubStat::EffectDamage);
     BuildupPerHit *= EffectMultiplier;
 
     // Multiply by hit count
