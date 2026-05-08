@@ -54,25 +54,21 @@ void UElementColorDebugComponent::ApplyElementColor()
     ESpellElement Element = CharDataComp->CharacterData->InnateElement;
     FLinearColor CharacterColor;
 
-    // Handle Broken Darkness separately
-    if (Element == ESpellElement::BrokenDarkness)
+    // Use IsBrokenDarkness() helper to handle both runtime-transformed and
+    // character-created BD characters uniformly. Runtime-transformed
+    // characters retain their asset's InnateElement (Darkness, etc.) but the
+    // helper returns true via the bIsBrokenDarkness flag.
+    if (CharDataComp->IsBrokenDarkness())
     {
         UBrokenDarknessManager* BDManager = Owner->FindComponentByClass<UBrokenDarknessManager>();
-        if (BDManager && BDManager->IsTransformed())
+        ESpellElement AbsorbedElement = BDManager ? BDManager->GetHybridElement() : ESpellElement::Generic;
+
+        if (AbsorbedElement != ESpellElement::Generic && AbsorbedElement != ESpellElement::BrokenDarkness)
         {
-            ESpellElement AbsorbedElement = BDManager->GetHybridElement();
-            if (AbsorbedElement != ESpellElement::Generic && AbsorbedElement != ESpellElement::BrokenDarkness)
-            {
-                FHybridSpellColorData Colors = UHybridSpellColors::GetHybridSpellColors(AbsorbedElement);
-                CharacterColor = Colors.BlendedColor;
-                UE_LOG(LogTemp, Log, TEXT("[ElementColorDebug] %s: BD with absorbed %s -> Blended color"), 
-                    *Owner->GetName(), *UEnum::GetValueAsString(AbsorbedElement));
-            }
-            else
-            {
-                CharacterColor = ElementColors::BrokenDarkness;
-                UE_LOG(LogTemp, Log, TEXT("[ElementColorDebug] %s: BD no absorption -> Black"), *Owner->GetName());
-            }
+            FHybridSpellColorData Colors = UHybridSpellColors::GetHybridSpellColors(AbsorbedElement);
+            CharacterColor = Colors.BlendedColor;
+            UE_LOG(LogTemp, Log, TEXT("[ElementColorDebug] %s: BD with absorbed %s -> Blended color"),
+                *Owner->GetName(), *UEnum::GetValueAsString(AbsorbedElement));
         }
         else
         {

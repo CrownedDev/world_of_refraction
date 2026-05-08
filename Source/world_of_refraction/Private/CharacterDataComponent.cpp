@@ -47,6 +47,15 @@ void UCharacterDataComponent::BeginPlay()
                 Loadout->InitializeFromCharacterData(CharacterData, Inventory);
             }
         }
+
+        // Character-created BD: auto-flip the runtime flag and zero EP so
+        // they start in the correct state without needing a transform event.
+        if (HasServerAuthority() &&
+            CharacterData->InnateElement == ESpellElement::BrokenDarkness)
+        {
+            bIsBrokenDarkness = true;
+            CurrentEP = 0;
+        }
     }
 }
 
@@ -57,6 +66,7 @@ void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimePropert
     DOREPLIFETIME(UCharacterDataComponent, CurrentHP);
     DOREPLIFETIME(UCharacterDataComponent, CurrentEP);
     DOREPLIFETIME(UCharacterDataComponent, bIsAlive);
+    DOREPLIFETIME(UCharacterDataComponent, bIsBrokenDarkness);
 }
 
 void UCharacterDataComponent::InitializeFromTemplate()
@@ -136,6 +146,11 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
     if (!HasServerAuthority() || Amount <= 0)
         return;
 
+    // BD characters do not gain regular EP. Their energy comes from
+    // BrokenDarknessManager::AddAbsorptionEnergy (defense, crystals).
+    if (bIsBrokenDarkness)
+        return;
+
     CurrentEP = FMath::Min(MaxEP, CurrentEP + Amount);
     OnEPChanged.Broadcast(CurrentEP, MaxEP);
 }
@@ -143,6 +158,11 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
 void UCharacterDataComponent::ServerSetEP(int32 NewEP)
 {
     if (!HasServerAuthority())
+        return;
+
+    // BD characters: only allow setting to 0. Non-zero sets are silently
+    // ignored — BD energy lives on BrokenDarknessManager::AbsorptionEnergy.
+    if (bIsBrokenDarkness && NewEP > 0)
         return;
 
     CurrentEP = FMath::Clamp(NewEP, 0, MaxEP);
@@ -196,6 +216,53 @@ void UCharacterDataComponent::OnRep_bIsAlive()
         OnResurrected.Broadcast(GetOwner());
     else
         OnDied.Broadcast(GetOwner());
+}
+
+// ========================================
+// BROKEN DARKNESS STATE
+// ========================================
+
+bool UCharacterDataComponent::IsBrokenDarkness() const
+{
+    if (bIsBrokenDarkness)
+    {
+        return true;
+    }
+    if (CharacterData && CharacterData->InnateElement == ESpellElement::BrokenDarkness)
+    {
+        return true;
+    }
+    return false;
+}
+
+void UCharacterDataComponent::ServerSetBrokenDarkness(bool bNewState)
+{
+    if (!HasServerAuthority())
+        return;
+
+    if (bIsBrokenDarkness == bNewState)
+        return;
+
+    bIsBrokenDarkness = bNewState;
+
+    // Zero EP on transition to BD — they use BrokenDarknessManager
+    // absorption energy, not regular EP, going forward.
+    if (bIsBrokenDarkness)
+    {
+        CurrentEP = 0;
+        OnEPChanged.Broadcast(CurrentEP, MaxEP);
+    }
+}
+
+void UCharacterDataComponent::OnRep_bIsBrokenDarkness()
+{
+    // Client-side: when the flag flips, ensure EP UI shows 0.
+    // No state mutation here — server already cleared CurrentEP, replication
+    // delivers it. Just broadcast so the panel re-paints.
+    if (bIsBrokenDarkness)
+    {
+        OnEPChanged.Broadcast(CurrentEP, MaxEP);
+    }
 }
 
 int32 UCharacterDataComponent::CalculateMaxHealth() const

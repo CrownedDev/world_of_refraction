@@ -191,6 +191,18 @@ void UBrokenDarknessManager::TriggerTransformation()
 	ConsecutiveAbsorptions = 0;
 
 	AActor *Owner = GetOwner();
+
+	// Update the runtime flag on CharacterDataComponent. This zeros regular
+	// EP and is the canonical "this character is now BD" signal that
+	// IsBrokenDarkness() reads.
+	if (Owner)
+	{
+		if (UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
+		{
+			CharComp->ServerSetBrokenDarkness(true);
+		}
+	}
+
 	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has TRANSFORMED into Broken Darkness!"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"));
 

@@ -60,6 +60,21 @@ public:
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
     bool bIsAlive;
 
+    /**
+     * Runtime BD transformation state. True if the character is behaviourally
+     * Broken Darkness — either via runtime transformation (RollForBreak success
+     * → TriggerTransformation) or via being constructed with InnateElement =
+     * BrokenDarkness at character creation.
+     *
+     * IMPORTANT: Read via IsBrokenDarkness() — never read this field directly.
+     * The helper handles the "or character-created" case uniformly.
+     *
+     * SaveGame-tagged for future persistence wiring; no save system exists yet,
+     * so the flag is session-only as of this commit.
+     */
+    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_bIsBrokenDarkness, BlueprintReadOnly, Category = "Combat|BrokenDarkness")
+    bool bIsBrokenDarkness = false;
+
     // ========================================
     // INITIALIZATION
     // ========================================
@@ -132,6 +147,32 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Debug", meta = (CallInEditor = "true"))
     void DebugToggleWeapon();
 
+    // ========================================
+    // BROKEN DARKNESS STATE
+    // ========================================
+
+    /**
+     * Returns true if this character is behaviourally Broken Darkness — either
+     * via runtime transformation (bIsBrokenDarkness flag) OR via being a
+     * character-created BD (InnateElement = BrokenDarkness on the asset).
+     *
+     * All BD-aware code should call this helper rather than checking
+     * InnateElement or bIsBrokenDarkness directly. The helper unifies the
+     * two paths so character-created BDs and runtime-transformed BDs are
+     * treated identically.
+     */
+    UFUNCTION(BlueprintPure, Category = "BrokenDarkness")
+    bool IsBrokenDarkness() const;
+
+    /**
+     * Server-only: set the runtime BD flag. Called by
+     * BrokenDarknessManager::TriggerTransformation on a successful break roll.
+     * Also clears CurrentEP — BDs use BrokenDarknessManager::AbsorptionEnergy,
+     * not regular EP.
+     */
+    UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
+    void ServerSetBrokenDarkness(bool bNewState);
+
 private:
     // ========================================
     // REPLICATION CALLBACKS
@@ -145,6 +186,9 @@ private:
 
     UFUNCTION()
     void OnRep_bIsAlive();
+
+    UFUNCTION()
+    void OnRep_bIsBrokenDarkness();
 
     // ========================================
     // INTERNAL HELPERS

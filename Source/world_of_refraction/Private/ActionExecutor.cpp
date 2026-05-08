@@ -3087,10 +3087,23 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 // ============================================================
 void UActionExecutor::ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage)
 {
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
-	if (!BDManager || !BDManager->IsTransformed())
+	if (!Actor)
+		return;
+
+	// Use IsBrokenDarkness() helper to cover both runtime-transformed
+	// and character-created BD characters. Forbidden-element self-damage
+	// applies whenever the character is behaviourally BD, regardless of
+	// how they got there.
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!CharComp || !CharComp->IsBrokenDarkness())
 	{
 		return;
+	}
+
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor);
+	if (!BDManager)
+	{
+		return; // Defensive — character-created BDs should have a manager but verify
 	}
 
 	// ProcessForbiddenCast checks if element is forbidden internally
