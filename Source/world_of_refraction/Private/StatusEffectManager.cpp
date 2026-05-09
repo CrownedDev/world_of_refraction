@@ -1111,12 +1111,6 @@ bool UStatusEffectManager::IsSilenced(AActor *Actor) const
 	return false;
 }
 
-bool UStatusEffectManager::IsRooted(AActor *Actor) const
-{
-	// TODO: Add root effect type when implemented
-	return false;
-}
-
 bool UStatusEffectManager::HasActiveDOT(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
@@ -1317,24 +1311,6 @@ UCharacterDataComponent *UStatusEffectManager::GetCharacterDataComponent(AActor 
 	}
 
 	return Actor->FindComponentByClass<UCharacterDataComponent>();
-}
-
-void UStatusEffectManager::CleanupInvalidActors()
-{
-	TArray<TWeakObjectPtr<AActor>> ToRemove;
-
-	for (const auto &Pair : ActiveEffects)
-	{
-		if (!Pair.Key.IsValid())
-		{
-			ToRemove.Add(Pair.Key);
-		}
-	}
-
-	for (const auto &Key : ToRemove)
-	{
-		ActiveEffects.Remove(Key);
-	}
 }
 
 void UStatusEffectManager::ResetTurnFlags(AActor *Actor)

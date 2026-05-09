@@ -344,10 +344,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
 	bool IsSilenced(AActor *Actor) const;
 
-	/** Check if actor is rooted (cannot move/dodge) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
-	bool IsRooted(AActor *Actor) const;
-
 	/** Check if actor has any DOT effects */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
 	bool HasActiveDOT(AActor *Actor) const;
@@ -469,9 +465,6 @@ private:
 
 	/** Get CharacterDataComponent from actor */
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
-
-	/** Clean up null actor references */
-	void CleanupInvalidActors();
 
 	/** Reset turn flags for all effects on actor */
 	void ResetTurnFlags(AActor *Actor);

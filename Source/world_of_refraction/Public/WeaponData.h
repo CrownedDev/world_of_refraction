@@ -85,10 +85,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon")
     ESpellElement GetWeaponElement() const;
 
-    /** Check if weapon has Iolite crystal (physical enhancement, no element) */
-    UFUNCTION(BlueprintPure, Category = "Weapon")
-    bool HasIloditeEquipped() const;
-
     // Default spells for this weapon - copied to inventory entry when weapon obtained
     // Lost if crystal is removed; spell vendor reassigns them
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "SpellName"))

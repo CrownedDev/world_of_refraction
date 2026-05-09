@@ -63,9 +63,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
 	bool IsEvolved() const;
 
-	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
-	static int32 GetEvolutionMaxSpells() { return 6; }
-
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
 	int32 GetMaxSpells() const { return 6; }
 #if WITH_EDITOR
