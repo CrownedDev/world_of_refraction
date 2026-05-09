@@ -11,8 +11,16 @@
       "PowerShell(Get-Process *)",
       "PowerShell(Test-Path *)",
       "Bash(git add *)",
-      "Bash(git commit *)",
-      "Bash(git merge *)"
+      "Bash(awk -F: '{print $1}' /tmp/co_lines.txt)",
+      "Bash(awk 'NR>1{printf \"%4d starts@%d\\\\n\", $1-prev-1, prev; prev=$1; next} {prev=$1}' /tmp/co_starts.txt)",
+      "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/co_paired.txt)",
+      "Bash(awk -F: '{print $1}' /tmp/dc_lines.txt)",
+      "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/dc_paired.txt)",
+      "Bash(awk -F: '{print $1}' /tmp/ds_lines.txt)",
+      "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/ds_paired.txt)",
+      "Bash(awk -F: '{print $1}' /tmp/bd_lines.txt)",
+      "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/bd_paired.txt)",
+      "Bash(git branch *)"
     ]
   }
 }

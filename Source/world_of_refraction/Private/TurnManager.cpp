@@ -231,7 +231,7 @@ bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCom
 	if (A.CachedSpeed != B.CachedSpeed)
 		return A.CachedSpeed > B.CachedSpeed;
 
-	// Level 2: AttackSpeed (higher wins)
+	// Level 2: Action speed (higher wins)
 	if (A.CachedActionSpeed != B.CachedActionSpeed)
 		return A.CachedActionSpeed > B.CachedActionSpeed;
 

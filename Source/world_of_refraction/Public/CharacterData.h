@@ -86,20 +86,6 @@ public:
 			  meta = (DisplayName = "Default Loadout"))
 	ULoadoutData *DefaultLoadout = nullptr;
 
-	// ==================== EVOLUTION COST FUNCTIONS ====================
-
-	/** Check if character can apply this evolution crystal */
-	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
-	bool CanApplyEvolution(UItemData *EvolutionCrystal) const;
-
-	/** Calculate evolution cost for this crystal */
-	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
-	FEvolutionCostResult CalculateEvolutionCost(UItemData *EvolutionCrystal) const;
-
-	/** Get user-friendly cost description */
-	UFUNCTION(BlueprintPure, Category = "Evolution|Cost")
-	FString GetEvolutionCostDescription(UItemData *EvolutionCrystal) const;
-
 	// ==================== WORLD STAT LEVELS ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stats|World Bonuses",
