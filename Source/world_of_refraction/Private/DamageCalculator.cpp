@@ -342,29 +342,6 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	return BaseDefense;
 }
 
-float UDamageCalculator::GetDefenderResistance(AActor *Defender) const
-{
-	UCharacterData *Data = GetCharacterData(Defender);
-	if (!Data)
-	{
-		return 0.0f;
-	}
-
-	float BaseResistance = Data->CalculateResistance();
-
-	// Apply status effect modifiers
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (StatusManager)
-	{
-		float ResBuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::ResistanceBuff);
-		float ResDebuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::ResistanceDebuff);
-
-		BaseResistance += (ResBuff - ResDebuff) / 100.0f;
-	}
-
-	return FMath::Clamp(BaseResistance, 0.0f, DamageConstants::MAX_RESISTANCE);
-}
-
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 {
 	UCharacterData *Data = GetCharacterData(Attacker);
@@ -480,19 +457,6 @@ int32 UDamageCalculator::CalculateHealing(
 
 // ==================== UTILITY ====================
 
-int32 UDamageCalculator::ApplyDefenseToValue(
-	int32 Damage,
-	int32 FlatDefense) const
-{
-	float Result = static_cast<float>(Damage);
-
-	// Flat defense (subtraction)
-	Result -= FlatDefense;
-	Result = FMath::Max(0.0f, Result);
-
-	return FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(Result));
-}
-
 float UDamageCalculator::GetInfusionDamageMultiplier(int32 InfusionLevel)
 {
 	switch (InfusionLevel)
@@ -528,7 +492,6 @@ void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult &Re
 	UE_LOG(LogTemp, Display, TEXT("Element Multiplier: %.2fx"), Result.ElementMultiplier);
 	UE_LOG(LogTemp, Display, TEXT("Critical: %s (%.2fx)"), Result.bWasCritical ? TEXT("YES") : TEXT("NO"), Result.CritMultiplier);
 	UE_LOG(LogTemp, Display, TEXT("Flat Defense: %d (blocked %d)"), Result.DefenderFlatDefense, Result.DamageBlockedByDefense);
-	UE_LOG(LogTemp, Display, TEXT("Resistance: %.1f%% (reduced %d)"), Result.DefenderResistance * 100.0f, Result.DamageReducedByResistance);
 	UE_LOG(LogTemp, Display, TEXT("FINAL DAMAGE: %d"), Result.FinalDamage);
 	UE_LOG(LogTemp, Display, TEXT("Status Buildup: %d"), Result.StatusBuildup);
 	UE_LOG(LogTemp, Display, TEXT("=========================="));

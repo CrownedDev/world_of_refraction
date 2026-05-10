@@ -269,10 +269,6 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
 	ESpellElement AttackElement = ESpellElement::Generic;
 
-	/** Is this attack elemental? (affects defense type effectiveness) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
-	bool bIsElementalAttack = false;
-
 	// Per-target damage breakdown (for UI/logging)
 	TMap<AActor *, int32> DamagePerTarget;
 };

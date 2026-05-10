@@ -128,10 +128,6 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	int32 DamageBlockedByDefense = 0;
 
-	/** Damage reduced by resistance (percentage) */
-	UPROPERTY(BlueprintReadOnly, Category = "Result")
-	int32 DamageReducedByResistance = 0;
-
 	/** Element multiplier applied (weakness/resistance) */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	float ElementMultiplier = 1.0f;
@@ -150,9 +146,6 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
 	float CritMultiplier = 1.0f;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
-	float DefenderResistance = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
 	int32 DefenderFlatDefense = 0;
@@ -235,12 +228,6 @@ public:
 	int32 GetDefenderFlatDefense(AActor *Defender) const;
 
 	/**
-	 * Get defender's elemental resistance
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	float GetDefenderResistance(AActor *Defender) const;
-
-	/**
 	 * Get critical hit chance for attacker
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
@@ -291,16 +278,6 @@ public:
 		int32 BaseHealing);
 
 	// ==================== UTILITY ====================
-
-	/**
-	 * Apply defense to damage (flat subtraction). Resistance no longer participates
-	 * in damage math after the Phase 2b defense/resistance role split — it only
-	 * reduces status buildup now.
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Utility")
-	int32 ApplyDefenseToValue(
-		int32 Damage,
-		int32 FlatDefense) const;
 
 	/**
 	 * Get infusion damage multiplier

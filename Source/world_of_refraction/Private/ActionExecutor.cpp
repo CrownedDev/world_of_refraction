@@ -573,7 +573,6 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
-	CurrentExecutionContext->PartialResult.bIsElementalAttack = true;
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
@@ -691,7 +690,6 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackSize = AttackSize; // remove attack size its pointless for abilities
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
-	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsInfused;
 
 	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
 	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
@@ -787,7 +785,6 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
-	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsInfused;
 
 	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
 	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
@@ -952,7 +949,6 @@ FActionResult UActionExecutor::ExecuteSpell(
 	// Store size in result for defense system
 	Result.AttackSize = FinalSpellSize;
 	Result.AttackElement = Spell->Element;
-	Result.bIsElementalAttack = true;
 
 	// Calculate damage (NOT affected by spell infusion - that's Generic's thing)
 	int32 BaseDamage = Spell->CalculateDamage(CasterData);
@@ -1604,7 +1600,6 @@ FActionResult UActionExecutor::ExecuteAbility(
 
 	// Store defense info
 	Result.AttackElement = Element;
-	Result.bIsElementalAttack = bIsElementInfused;
 	Result.BaseDamageBeforeDefense = FinalDamage;
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability charge L%d - Source: %d, Damage: %d (%.1fx)"),
@@ -1786,7 +1781,6 @@ FActionResult UActionExecutor::ExecuteAttack(
 			Result.EnergySpent = WeaponResult.EnergySpent;
 			Result.bWasCritical = WeaponResult.bWasCritical;
 			Result.bCausedDeath = WeaponResult.bCausedDeath;
-			Result.bIsElementalAttack = WeaponResult.bWasInfused;
 			Result.AttackElement = WeaponResult.InfusedElement;
 
 			for (const auto &Pair : WeaponResult.DamagePerTarget)
@@ -1849,7 +1843,6 @@ FActionResult UActionExecutor::ExecuteAttack(
 
 	// Store defense info
 	Result.AttackElement = Element;
-	Result.bIsElementalAttack = bIsInfused;
 	Result.BaseDamageBeforeDefense = BaseDamage;
 
 	// Play animation
