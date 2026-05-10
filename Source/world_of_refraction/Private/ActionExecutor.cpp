@@ -843,6 +843,27 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	// Calculate damage per hit
 	int32 DamagePerHit = BaseDamage / FMath::Max(1, Attack->HitCount);
 
+	// Phase C3: Compute weapon physical-status buildup. Mirrors C1's spell pattern —
+	// data asset declares its own buildup type (Attack->GetBuildupStatusType() parallels
+	// Spell->PrimaryEffect), amount comes from Attack->StatusBuildup, Element is the
+	// same `Element` local already used for damage (single source of truth per attack).
+	//
+	// Closes audit risk #4 (async attack buildup leak): bleed/armor-break previously
+	// never triggered from async attacks because this orchestrator never called the
+	// status manager. ApplyImmediateStatus on-hit weak status stays gone (locked
+	// design from C1: buildup-bar threshold is the single path for "becoming statused").
+	int32 AttackBaseBuildup = 0;
+	const EStatusType AttackStatusType = Attack->GetBuildupStatusType();
+	if (Attack->StatusBuildup > 0 && AttackStatusType != EStatusType::None)
+	{
+		float Buildup = static_cast<float>(Attack->StatusBuildup);
+		// Weapons don't carry L1/L2 charge levels yet — matches WeaponManager.cpp:493
+		// where InfusionLevel is hardcoded 0 for the sync ExecuteAttackWithInfusion path.
+		// When attack charge levels exist, apply CombatConstants::SPELL_L1_BUILDUP_MULT
+		// here in parallel to the spell path's `if (Action.SpellInfusionLevel == 1)` block.
+		AttackBaseBuildup = FMath::RoundToInt(Buildup);
+	}
+
 	// Open defense windows
 	OpenDefenseWindowsForTargets(
 		Attacker,
@@ -856,8 +877,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		EActionType::Attack,   // ActionType
 		0,					   // InfusionLevel — attacks have no L1/L2 concept
 		Action.SelectedSource, // SelectedSource
-		0,					   // BaseStatusBuildup — Phase C3 (async attack buildup leak)
-		EStatusType::None,	   // StatusToBuild — Phase C3
+		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
+		AttackStatusType,	   // StatusToBuild (Phase C3)
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Attack async - opened %d defense windows"),
