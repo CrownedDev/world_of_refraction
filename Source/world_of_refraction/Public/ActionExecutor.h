@@ -761,6 +761,9 @@ private:
 	 * @param HitCount Number of hits
 	 * @param Element Element type
 	 * @param bCanCrit Can hits critically strike?
+	 * @param ActionType Spell/Ability/Attack — drives ApplyHit stat selection post-defense
+	 * @param InfusionLevel 0–2; spells/abilities carry their charge level, attacks pass 0
+	 * @param SelectedSource Infusion source for future buildup routing (Phase C)
 	 * @param WindowDuration Defense window duration
 	 */
 	void OpenDefenseWindowsForTargets(
@@ -772,6 +775,9 @@ private:
 		int32 HitCount,
 		ESpellElement Element,
 		bool bCanCrit,
+		EActionType ActionType,
+		int32 InfusionLevel,
+		EInfusionSourceOption SelectedSource,
 		float WindowDuration = 0.3f);
 
 	// == == == == == == == == == == == == == == == == == == == ==

@@ -624,8 +624,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		DamagePerHit,
 		Spell->HitCount,
 		Spell->Element,
-		true, // Can crit
-		0.3f  // Default window duration - TODO: get from spell data
+		true,					   // Can crit
+		EActionType::Spell,		   // ActionType — drives post-defense stat selection
+		Action.SpellInfusionLevel, // InfusionLevel
+		Action.SelectedSource,	   // SelectedSource
+		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell async - opened %d defense windows (Size: %.1f, Damage: %d)"),
@@ -730,7 +733,10 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		DamagePerHit,
 		Ability->HitCount,
 		Element,
-		true, // Can crit
+		true,						 // Can crit
+		EActionType::Ability,		 // ActionType
+		Action.AbilityInfusionLevel, // InfusionLevel
+		Action.SelectedSource,		 // SelectedSource
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async L%d - %d damage (%.1fx), opened %d defense windows"),
@@ -817,7 +823,10 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		DamagePerHit,
 		Attack->HitCount,
 		Element,
-		true,
+		true,				   // Can crit
+		EActionType::Attack,   // ActionType
+		0,					   // InfusionLevel — attacks have no L1/L2 concept
+		Action.SelectedSource, // SelectedSource
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Attack async - opened %d defense windows"),
@@ -1037,6 +1046,9 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	int32 HitCount,
 	ESpellElement Element,
 	bool bCanCrit,
+	EActionType ActionType,
+	int32 InfusionLevel,
+	EInfusionSourceOption SelectedSource,
 	float WindowDuration)
 {
 	if (!CurrentExecutionContext.IsSet())
@@ -1077,6 +1089,9 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.HitCount = HitCount;
 		DefenseContext.bCanCrit = bCanCrit;
 		DefenseContext.WindowDuration = WindowDuration;
+		DefenseContext.ActionType = ActionType;
+		DefenseContext.InfusionLevel = InfusionLevel;
+		DefenseContext.SelectedSource = SelectedSource;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -1174,52 +1189,80 @@ void UActionExecutor::ApplyDamageAfterDefense(
 		return;
 	}
 
-	int32 FinalDamage = 0;
+	int32 TotalDamage = 0;
+	bool bAnyCrit = false;
 
 	if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Dodge)
 	{
-		// Dodge successful - no damage
-		FinalDamage = 0;
+		// Dodge cancels damage entirely. Multi-hit loop is skipped — a successful
+		// dodge applies to the whole attack, not just the first hit.
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s dodged attack - 0 damage"), *Target->GetName());
 	}
 	else
 	{
-		// Apply damage based on defense result
-		// DefenseResult.FinalDamage already has reduction applied
-		int32 DamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
+		// DefenseResult.FinalDamage already has block/parry reduction applied.
+		// Split across hits and apply per-hit via ApplyHit.
+		const int32 DamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
 
-		FinalDamage = ProcessMultiHit(
-			Attacker,
-			Target,
-			DamagePerHit,
-			Context.HitCount,
-			Context.Element,
-			Context.bCanCrit,
-			CurrentExecutionContext->PartialResult);
+		for (int32 i = 0; i < Context.HitCount; ++i)
+		{
+			FActionHitInput Input;
+			Input.Attacker = Attacker;
+			Input.Target = Target;
+			Input.ActionType = Context.ActionType;
+			Input.BaseDamage = DamagePerHit;
+			Input.bCanCrit = Context.bCanCrit;
+			Input.Element = Context.Element;
+			Input.InfusionLevel = Context.InfusionLevel;
+			Input.SelectedSource = Context.SelectedSource;
+			// Phase B is damage-only — buildup migration lands in Phase C, where the
+			// existing ApplySpellStatusBuildup / ApplyWeaponStatusBuildup paths get
+			// folded into ApplyHit as well. Until then, buildup keeps using its own
+			// applicators and never flows through ApplyHit.
+			Input.BaseStatusBuildup = 0;
+			Input.StatusToBuild = EStatusType::None;
+			Input.ActionMods = CurrentExecutionContext.IsSet()
+								   ? CurrentExecutionContext->ActionMods
+								   : FActionStatModifiers();
+
+			const FCombatHitResult HitResult = ApplyHit(Input);
+
+			TotalDamage += HitResult.DamageDealt;
+			bAnyCrit = bAnyCrit || HitResult.bWasCritical;
+
+			// Early-out on death — preserves existing ProcessMultiHit behaviour.
+			if (HitResult.bTargetDied)
+			{
+				break;
+			}
+		}
 	}
 
-	// Update result
-	CurrentExecutionContext->PartialResult.TotalDamageDealt += FinalDamage;
-	CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, FinalDamage);
-	CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+	// Aggregate into the running PartialResult.
+	CurrentExecutionContext->PartialResult.TotalDamageDealt += TotalDamage;
+	CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, TotalDamage);
+	CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
+	if (bAnyCrit)
+	{
+		CurrentExecutionContext->PartialResult.bWasCritical = true;
+	}
 
-	// Check for kills
+	// Death broadcast — once per killed target, after the multi-hit loop completes.
 	if (!IsTargetAlive(Target))
 	{
 		CurrentExecutionContext->PartialResult.bCausedDeath = true;
 		OnTargetKilled.Broadcast(Attacker, Target);
 	}
 
-	// Track defense type used
+	// Defense-outcome telemetry. FActionResult doesn't carry per-target Block/Parry/Dodge
+	// flags today; logging in Verbose preserves audit-risk-#10 signal until UI is wired.
 	if (DefenseResult.bSuccess)
 	{
-		FCombatHitResult HitResult;
-		HitResult.Target = Target;
-		HitResult.DamageDealt = FinalDamage;
-		HitResult.bWasBlocked = (DefenseResult.DefenseType == EDefenseType::Block);
-		HitResult.bWasParried = (DefenseResult.DefenseType == EDefenseType::Parry);
-		HitResult.bWasDodged = (DefenseResult.DefenseType == EDefenseType::Dodge);
-		// Could store these in PartialResult if needed
+		UE_LOG(LogTemp, Verbose,
+			   TEXT("[ApplyDamageAfterDefense] %s defended via %s — TotalDamage=%d"),
+			   *Target->GetName(),
+			   *UEnum::GetValueAsString(DefenseResult.DefenseType),
+			   TotalDamage);
 	}
 }
 
@@ -2021,6 +2064,11 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		{
 			Result.bTargetDied = true;
 		}
+
+		// OnDamageDealt fires per-hit. ProcessMultiHit→ApplyDamage did this today;
+		// ApplyHit preserves the per-hit broadcast so floating-number widgets,
+		// hit-flash VFX, and any other listener see one event per hit landed.
+		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
 	}
 
 	// Buildup path — UStatusEffectManager::AddStatusBuildup runs the Phase 2a

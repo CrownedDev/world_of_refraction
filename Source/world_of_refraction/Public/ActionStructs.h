@@ -320,6 +320,21 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	float WindowDuration = 0.3f;
 
+	/** Action category — drives ApplyHit damage-stat selection in ApplyDamageAfterDefense.
+	 *  Plumbed through from the window-opening orchestrator so the post-defense applicator
+	 *  knows whether to read SpellDamage (Spell) or RawDamage (Ability/Attack). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EActionType ActionType = EActionType::None;
+
+	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
+	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 InfusionLevel = 0;
+
+	/** Selected infusion source. Plumbed through for future buildup routing (Phase C). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
+
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense", Meta = (IgnoreForMemberInitializationTest))
 	FGuid ContextId;
