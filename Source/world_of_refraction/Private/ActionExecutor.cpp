@@ -1960,6 +1960,88 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 // ========================================
 // DAMAGE APPLICATION
 // ========================================
+
+FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
+{
+	FCombatHitResult Result;
+	Result.Target = Input.Target;
+
+	if (!Input.Target)
+	{
+		return Result;
+	}
+
+	UE_LOG(LogTemp, Verbose,
+		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Element=%s Dmg=%d Buildup=%d Status=%s Inf=L%d"),
+		   Input.Attacker ? *Input.Attacker->GetName() : TEXT("null"),
+		   *Input.Target->GetName(),
+		   *UEnum::GetValueAsString(Input.ActionType),
+		   *UEnum::GetValueAsString(Input.Element),
+		   Input.BaseDamage,
+		   Input.BaseStatusBuildup,
+		   *UEnum::GetValueAsString(Input.StatusToBuild),
+		   Input.InfusionLevel);
+
+	UCharacterDataComponent *TargetComp = Input.Target->FindComponentByClass<UCharacterDataComponent>();
+
+	// Damage path — routes through UDamageCalculator so all Phase 1/2/2b math
+	// (EActionType-driven stat selection, ActionMods, element interaction,
+	// flat defense, grid modifiers, crit, BD multipliers) runs unchanged.
+	if (Input.BaseDamage > 0 && TargetComp)
+	{
+		if (UDamageCalculator *DamageCalc = GetDamageCalculator())
+		{
+			FDamageCalculationInput DmgInput;
+			DmgInput.BaseDamage = Input.BaseDamage;
+			DmgInput.ActionType = Input.ActionType;
+			DmgInput.Element = Input.Element;
+			DmgInput.bCanCrit = Input.bCanCrit;
+			DmgInput.bWasInfused = Input.InfusionLevel > 0;
+			DmgInput.InfusionLevel = Input.InfusionLevel;
+			DmgInput.ActionMods = Input.ActionMods;
+
+			const FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Input.Attacker, Input.Target, DmgInput);
+
+			Result.bWasCritical = CalcResult.bWasCritical;
+
+			const int32 HPBefore = TargetComp->CurrentHP;
+			TargetComp->ServerTakeDamage(CalcResult.FinalDamage);
+			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+		}
+		else
+		{
+			// Fallback if DamageCalculator subsystem is unavailable — preserves
+			// the existing ApplyDamage degradation path (deal min 1, no math).
+			const int32 HPBefore = TargetComp->CurrentHP;
+			TargetComp->ServerTakeDamage(FMath::Max(1, Input.BaseDamage));
+			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
+		}
+
+		if (!TargetComp->bIsAlive)
+		{
+			Result.bTargetDied = true;
+		}
+	}
+
+	// Buildup path — UStatusEffectManager::AddStatusBuildup runs the Phase 2a
+	// attacker StatusMultiplier amplifier and the Phase 2b per-element resistance
+	// reduction internally. ApplyHit gets both for free.
+	if (Input.BaseStatusBuildup > 0 && Input.StatusToBuild != EStatusType::None)
+	{
+		if (UStatusEffectManager *StatusManager = GetStatusEffectManager())
+		{
+			StatusManager->AddStatusBuildup(
+				Input.Attacker,
+				Input.Target,
+				static_cast<float>(Input.BaseStatusBuildup),
+				Input.StatusToBuild,
+				Input.Element);
+		}
+	}
+
+	return Result;
+}
+
 FCombatHitResult UActionExecutor::ApplyDamage(
 	AActor *Attacker,
 	AActor *Target,
