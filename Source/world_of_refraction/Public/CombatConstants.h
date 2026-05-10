@@ -114,4 +114,9 @@ namespace CombatConstants
 
     constexpr float STATUS_DECAY_RATE = 0.25f; // 25% per turn
     constexpr int32 STATUS_DECAY_FULL_RESET_TURNS = 3;
+
+    // ==================== STAT-FORMULA HELPERS ====================
+    // Final = Base * (1 + StatValue / STAT_PERCENT_DIVISOR). Used wherever
+    // a raw sub-stat point value drives a percentage-style multiplier.
+    constexpr float STAT_PERCENT_DIVISOR = 100.0f;
 }

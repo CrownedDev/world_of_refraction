@@ -6,6 +6,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "EActionType.h"
 #include "ESpellElement.h"
 #include "EInfusionSourceOption.h"
 #include "ActionStatModifiers.h"
@@ -55,7 +56,12 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	int32 BaseDamage = 0;
 
-	/** Is this elemental damage? */
+	/** Action category — drives damage-stat selection.
+	 *  Spell → SpellDamage, Ability/Attack → RawDamage. None defaults to RawDamage branch. */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	EActionType ActionType = EActionType::None;
+
+	/** Is this elemental damage? Phase 2b removes this in favour of (Element != Generic). */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIsElemental = false;
 
@@ -224,7 +230,7 @@ public:
 	 * Includes Effect Damage (elemental) or Raw Damage (physical)
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	float GetAttackerDamageMultiplier(AActor *Attacker, bool bIsElemental) const;
+	float GetAttackerDamageMultiplier(AActor *Attacker, EActionType ActionType) const;
 
 	/**
 	 * Get defender's flat defense value

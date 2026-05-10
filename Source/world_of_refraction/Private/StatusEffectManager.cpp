@@ -1424,7 +1424,18 @@ bool UStatusEffectManager::AddStatusBuildup(AActor *Source, AActor *Target, floa
 	// Get or create state
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 
-	// Apply resistance reduction
+	// Apply attacker StatusMultiplier amplification: Final = Base * (1 + StatValue / 100)
+	if (Source)
+	{
+		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
+		if (SourceComp && SourceComp->CharacterData)
+		{
+			const int32 StatusMultiplier = SourceComp->CharacterData->StatusMultiplier;
+			Amount *= (1.0f + StatusMultiplier / CombatConstants::STAT_PERCENT_DIVISOR);
+		}
+	}
+
+	// Apply target's resistance reduction
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	if (TargetComp && TargetComp->CharacterData)
 	{

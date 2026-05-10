@@ -2008,13 +2008,14 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 		Input.bIsElemental = bIsElemental;
 		Input.Element = Element;
 		Input.bCanCrit = bCanCrit;
-		// ActionMods is the canonical per-action stat modifier path
+		// ActionMods + ActionType are the canonical per-action signal path
 		// (Reality + Evolution + future buffs). Stashed on context at action start
 		// so every ApplyDamage call site (defense resolution, beam ticks, projectile
 		// impacts, support spells) reads the same snapshot.
 		if (CurrentExecutionContext.IsSet())
 		{
 			Input.ActionMods = CurrentExecutionContext->ActionMods;
+			Input.ActionType = CurrentExecutionContext->Action.ActionType;
 		}
 
 		FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Attacker, Target, Input);

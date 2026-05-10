@@ -37,12 +37,12 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	float RunningDamage = static_cast<float>(Input.BaseDamage);
 
-	// Step 1: Attacker's damage multiplier (StatusMultiplier or Raw Damage in Phase 1).
-	// Phase 2b will switch the elemental branch to read SpellDamage instead.
-	// Per-action ActionMods boost the matching sub-stat. ActionMods carries Reality
-	// + Evolution + any future per-action stat modifier sources.
-	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.bIsElemental);
-	const ESubStat AttackerStat = Input.bIsElemental ? ESubStat::StatusMultiplier : ESubStat::RawDamage;
+	// Step 1: Attacker's damage multiplier — branched on EActionType.
+	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
+	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
+	// future per-action stat modifier sources.
+	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
+	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
@@ -164,6 +164,7 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 	// Build input
 	FDamageCalculationInput Input;
 	Input.BaseDamage = Spell->Damage;
+	Input.ActionType = EActionType::Spell;
 	Input.bIsElemental = !Spell->bIsRawMode;
 	Input.Element = Spell->Element;
 	Input.bCanCrit = true;
@@ -212,8 +213,10 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	// Build input
 	FDamageCalculationInput Input;
 	Input.BaseDamage = Ability->BaseDamage;
+	Input.ActionType = EActionType::Ability;
 
-	// Abilities are physical unless infused
+	// Abilities are physical unless infused. Per locked design, infused abilities
+	// still scale by RawDamage — the element only affects resistance/status routing.
 	Input.bIsElemental = bIsInfused;
 	Input.Element = bIsInfused ? UserData->InnateElement : ESpellElement::Generic;
 
@@ -253,8 +256,10 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 	// Base damage
 	Input.BaseDamage = 100;
+	Input.ActionType = EActionType::Attack;
 
-	// Attacks are physical unless infused
+	// Attacks are physical unless infused. Per locked design, infused attacks
+	// still scale by RawDamage — the element only affects resistance/status routing.
 	Input.bIsElemental = bIsInfused;
 	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
 
@@ -306,7 +311,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 // ==================== COMPONENT CALCULATIONS ====================
 
-float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, bool bIsElemental) const
+float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionType ActionType) const
 {
 	UCharacterData *Data = GetCharacterData(Attacker);
 	if (!Data)
@@ -314,9 +319,9 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, bool bIsE
 		return 1.0f;
 	}
 
-	if (bIsElemental)
+	if (ActionType == EActionType::Spell)
 	{
-		return Data->CalculateStatusMultiplier();
+		return Data->CalculateSpellDamage();
 	}
 	else
 	{
@@ -471,11 +476,12 @@ int32 UDamageCalculator::CalculateHealing(
 
 	float Healing = static_cast<float>(BaseHealing);
 
-	// Apply healer's StatusMultiplier (healing scales with spell power in Phase 1; Phase 2b will switch to SpellDamage).
+	// Apply healer's SpellDamage multiplier. Healing is a spell-class effect — it
+	// scales with the caster's spell power (Mind), not status-buildup amplification.
 	UCharacterData *HealerData = GetCharacterData(Healer);
 	if (HealerData)
 	{
-		Healing *= HealerData->CalculateStatusMultiplier();
+		Healing *= HealerData->CalculateSpellDamage();
 	}
 
 	// TODO: Add HealingReceivedBuff/Debuff to EStatusType when needed
