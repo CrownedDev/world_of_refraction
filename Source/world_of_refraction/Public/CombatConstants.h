@@ -14,11 +14,11 @@ namespace CombatConstants
     constexpr float WORLD_STAT_SCALING_BONUS = 0.03f; // 3% per level
 
     // ==================== STAT SCALING ====================
-    // 12 Stats: Mind(4), Body(4), Spirit(4)
+    // 13 Stats: Mind(5), Body(4), Spirit(4) — Phase 2b moves StatusMultiplier to Spirit (4/4/5)
     // Formula: Base + (EffectiveStat × TotalPoints × PER_POINT)
 
-    // ==================== MIND STATS (4) ====================
-    // Efficiency, EffectDamage, CritChance, SpellSpeed
+    // ==================== MIND STATS (5) ====================
+    // Efficiency, StatusMultiplier, SpellDamage, CritChance, SpellSpeed
 
     // Efficiency - Reduces EP cost of Spells & Abilities (not Attacks)
     // Resonators: Also reduces ring break chance
@@ -27,8 +27,11 @@ namespace CombatConstants
     constexpr float EFFICIENCY_RING_BREAK_PER_POINT = 0.003f; // 0.3% ring break reduction (Resonator only)
     constexpr float EFFICIENCY_RING_BREAK_MAX = 0.50f;        // 50% max ring break reduction
 
-    // Effect Damage - Spell damage & status effect potency (NOW MIND, was Spirit)
-    constexpr float EFFECT_DAMAGE_PER_POINT = 0.002f; // 0.2% per point
+    // Status Multiplier - Status buildup amplification (renamed from EffectDamage; moves to Spirit in Phase 2b)
+    constexpr float STATUS_MULTIPLIER_PER_POINT = 0.002f; // 0.2% per point
+
+    // Spell Damage - Spell damage multiplier (NEW; unused until Phase 2b wires it into DamageCalculator)
+    constexpr float SPELL_DAMAGE_PER_POINT = 0.002f; // 0.2% per point — TBD final tuning
 
     // Crit Chance - Critical hit probability (all actions)
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base

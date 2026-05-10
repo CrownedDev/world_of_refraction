@@ -725,7 +725,8 @@ FString UItemData::GetEvolutionStatSummary() const
         };
 
         AddMod(TEXT("Efficiency"), EfficiencyModifierPercent);
-        AddMod(TEXT("Effect Damage"), EffectDamageModifierPercent);
+        AddMod(TEXT("Spell Damage"), SpellDamageModifierPercent);
+        AddMod(TEXT("Status Multiplier"), StatusMultiplierModifierPercent);
         AddMod(TEXT("Crit Chance"), CritChanceModifierPercent);
         AddMod(TEXT("Spell Speed"), SpellSpeedModifierPercent);
         AddMod(TEXT("Defense"), DefenseModifierPercent);
@@ -797,7 +798,8 @@ FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
         // not authored here — they belong to the future Traits system as
         // conditional/triggered effects rather than always-on UItemData fields.
         Out.Efficiency = EfficiencyModifierPercent * Multiplier;
-        Out.EffectDamage = EffectDamageModifierPercent * Multiplier;
+        Out.SpellDamage = SpellDamageModifierPercent * Multiplier;
+        Out.StatusMultiplier = StatusMultiplierModifierPercent * Multiplier;
         Out.CritChance = CritChanceModifierPercent * Multiplier;
         Out.SpellSpeed = SpellSpeedModifierPercent * Multiplier;
         Out.Defense = DefenseModifierPercent * Multiplier;

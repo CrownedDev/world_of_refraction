@@ -650,11 +650,11 @@ int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
     // Raw damage stat points
     Threat += FMath::RoundToInt(Data->GetTotalRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
 
-    // Effect damage stat points
-    Threat += FMath::RoundToInt(Data->GetTotalEffectDamage() * AIConstants::EFFECT_DAMAGE_THREAT_MULT);
+    // StatusMultiplier stat points
+    Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
 
-    // Spell power (same as effect damage)
-    Threat += FMath::RoundToInt(Data->GetTotalEffectDamage() * AIConstants::SPELL_POWER_THREAT_MULT);
+    // Spell power — currently routed through StatusMultiplier; Phase 2b will switch to GetTotalSpellDamage().
+    Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::SPELL_POWER_THREAT_MULT);
 
     return Threat;
 }

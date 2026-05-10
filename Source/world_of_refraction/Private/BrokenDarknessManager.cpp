@@ -451,7 +451,7 @@ void UBrokenDarknessManager::ExitOverload()
 }
 
 void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies,
-												 float EffectDamageMultiplier, float EfficiencyPercent)
+												 float StatusMultiplierBonus, float EfficiencyPercent)
 {
 	if (!bIsOverloaded || !bIsTransformed)
 	{
@@ -461,7 +461,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	AActor *Owner = GetOwner();
 
 	// 1. Apply aura damage to nearby enemies
-	float AuraDamage = BaseOverloadAuraDamage * EffectDamageMultiplier;
+	float AuraDamage = BaseOverloadAuraDamage * StatusMultiplierBonus;
 	for (AActor *Enemy : NearbyEnemies)
 	{
 		if (Enemy && Enemy != Owner)
@@ -475,7 +475,7 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	}
 
 	// 2. Apply self-damage
-	float SelfDamage = BaseOverloadSelfDamage * EffectDamageMultiplier;
+	float SelfDamage = BaseOverloadSelfDamage * StatusMultiplierBonus;
 	ApplyDamageToActor(Owner, SelfDamage);
 	OnOverloadDamage.Broadcast(Owner, Owner, SelfDamage);
 

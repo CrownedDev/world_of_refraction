@@ -7,13 +7,14 @@
 #include "CoreMinimal.h"
 #include "ActionStatModifiers.generated.h"
 
-/** All 9 sub-stats. Used for indexed reads from FActionStatModifiers. */
+/** Action-time sub-stats (11). Pool stats (MaxHealth, MaxEnergy) are intentionally not represented. */
 UENUM(BlueprintType)
 enum class ESubStat : uint8
 {
 	// Mind
 	Efficiency UMETA(DisplayName = "Efficiency"),
-	EffectDamage UMETA(DisplayName = "Effect Damage"),
+	SpellDamage UMETA(DisplayName = "Spell Damage"),
+	StatusMultiplier UMETA(DisplayName = "Status Multiplier"),
 	CritChance UMETA(DisplayName = "Crit Chance"),
 	SpellSpeed UMETA(DisplayName = "Spell Speed"),
 	// Body
@@ -37,7 +38,10 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	float Efficiency = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
-	float EffectDamage = 0.0f;
+	float SpellDamage = 0.0f;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
+	float StatusMultiplier = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
 	float CritChance = 0.0f;
@@ -67,7 +71,8 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	void Accumulate(const FActionStatModifiers &Other)
 	{
 		Efficiency += Other.Efficiency;
-		EffectDamage += Other.EffectDamage;
+		SpellDamage += Other.SpellDamage;
+		StatusMultiplier += Other.StatusMultiplier;
 		CritChance += Other.CritChance;
 		SpellSpeed += Other.SpellSpeed;
 		Defense += Other.Defense;
@@ -82,7 +87,8 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	void AddFlatPercent(float Percent)
 	{
 		Efficiency += Percent;
-		EffectDamage += Percent;
+		SpellDamage += Percent;
+		StatusMultiplier += Percent;
 		CritChance += Percent;
 		SpellSpeed += Percent;
 		Defense += Percent;
@@ -101,7 +107,8 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	{
 		// Mind sub-stats
 		Efficiency += MindPct;
-		EffectDamage += MindPct;
+		SpellDamage += MindPct;
+		StatusMultiplier += MindPct;
 		CritChance += MindPct;
 		SpellSpeed += MindPct;
 		// Body sub-stats — MaxHealth is a pool stat, not represented here.
@@ -121,8 +128,10 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		{
 		case ESubStat::Efficiency:
 			return Efficiency;
-		case ESubStat::EffectDamage:
-			return EffectDamage;
+		case ESubStat::SpellDamage:
+			return SpellDamage;
+		case ESubStat::StatusMultiplier:
+			return StatusMultiplier;
 		case ESubStat::CritChance:
 			return CritChance;
 		case ESubStat::SpellSpeed:
@@ -163,6 +172,6 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	/** Has any non-zero contribution. */
 	bool IsActive() const
 	{
-		return Efficiency != 0.0f || EffectDamage != 0.0f || CritChance != 0.0f || SpellSpeed != 0.0f || Defense != 0.0f || ActionSpeed != 0.0f || RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f || Luck != 0.0f;
+		return Efficiency != 0.0f || SpellDamage != 0.0f || StatusMultiplier != 0.0f || CritChance != 0.0f || SpellSpeed != 0.0f || Defense != 0.0f || ActionSpeed != 0.0f || RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f || Luck != 0.0f;
 	}
 };

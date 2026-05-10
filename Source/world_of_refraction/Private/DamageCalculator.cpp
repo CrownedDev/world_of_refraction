@@ -37,12 +37,12 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	float RunningDamage = static_cast<float>(Input.BaseDamage);
 
-	// Step 1: Attacker's damage multiplier (Effect Damage or Raw Damage)
-	// Per-action ActionMods boost the matching sub-stat: EffectDamage for
-	// elemental, RawDamage for physical. ActionMods carries Reality + Evolution
-	// + any future per-action stat modifier sources.
+	// Step 1: Attacker's damage multiplier (StatusMultiplier or Raw Damage in Phase 1).
+	// Phase 2b will switch the elemental branch to read SpellDamage instead.
+	// Per-action ActionMods boost the matching sub-stat. ActionMods carries Reality
+	// + Evolution + any future per-action stat modifier sources.
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.bIsElemental);
-	const ESubStat AttackerStat = Input.bIsElemental ? ESubStat::EffectDamage : ESubStat::RawDamage;
+	const ESubStat AttackerStat = Input.bIsElemental ? ESubStat::StatusMultiplier : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
@@ -316,7 +316,7 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, bool bIsE
 
 	if (bIsElemental)
 	{
-		return Data->CalculateEffectDamageMultiplier();
+		return Data->CalculateStatusMultiplier();
 	}
 	else
 	{
@@ -471,11 +471,11 @@ int32 UDamageCalculator::CalculateHealing(
 
 	float Healing = static_cast<float>(BaseHealing);
 
-	// Apply healer's Effect Damage multiplier (healing scales with spell power)
+	// Apply healer's StatusMultiplier (healing scales with spell power in Phase 1; Phase 2b will switch to SpellDamage).
 	UCharacterData *HealerData = GetCharacterData(Healer);
 	if (HealerData)
 	{
-		Healing *= HealerData->CalculateEffectDamageMultiplier();
+		Healing *= HealerData->CalculateStatusMultiplier();
 	}
 
 	// TODO: Add HealingReceivedBuff/Debuff to EStatusType when needed

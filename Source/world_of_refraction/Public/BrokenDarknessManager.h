@@ -169,7 +169,7 @@ public:
 	 * Applies aura damage to enemies, self-damage, energy drain
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Overload")
-	void ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies, float EffectDamageMultiplier, float EfficiencyPercent);
+	void ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies, float StatusMultiplierBonus, float EfficiencyPercent);
 
 	// ==================== ABSORPTION STACKS ====================
 

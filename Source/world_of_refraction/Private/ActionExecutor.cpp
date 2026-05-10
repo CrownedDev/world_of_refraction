@@ -491,10 +491,10 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	if (ActionMods.IsActive())
 	{
 		UE_LOG(LogTemp, Log,
-			   TEXT("[ActionExecutor] %s ActionMods active — Crit:%.1f%% RawDmg:%.1f%% EffDmg:%.1f%% MovSpd:%.1f%%"),
+			   TEXT("[ActionExecutor] %s ActionMods active — Crit:%.1f%% RawDmg:%.1f%% SpellDmg:%.1f%% StatusMult:%.1f%% ActSpd:%.1f%%"),
 			   *Actor->GetName(),
 			   ActionMods.CritChance, ActionMods.RawDamage,
-			   ActionMods.EffectDamage, ActionMods.ActionSpeed);
+			   ActionMods.SpellDamage, ActionMods.StatusMultiplier, ActionMods.ActionSpeed);
 	}
 
 	// Attack / Ability / Spell — bind movement complete and start approach

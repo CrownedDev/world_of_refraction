@@ -106,7 +106,10 @@ public:
 	int32 Efficiency = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 EffectDamage = 0;
+	int32 SpellDamage = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
+	int32 StatusMultiplier = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 CritChance = 0;
@@ -241,7 +244,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
 	int32 GetTotalSpent() const
 	{
-		return Efficiency + EffectDamage + CritChance + SpellSpeed +
+		return Efficiency + SpellDamage + StatusMultiplier + CritChance + SpellSpeed +
 			   Defense + ActionSpeed + RawDamage + MaxHealth +
 			   MaxEnergy + Resistance + TurnSpeed + Luck;
 	}
@@ -260,7 +263,10 @@ public:
 	int32 GetTotalEfficiency() const { return Efficiency; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
-	int32 GetTotalEffectDamage() const { return EffectDamage; }
+	int32 GetTotalSpellDamage() const { return SpellDamage; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
+	int32 GetTotalStatusMultiplier() const { return StatusMultiplier; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalCritChance() const { return CritChance; }
@@ -300,7 +306,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseMind() const
 	{
-		return GetTotalEfficiency() + GetTotalEffectDamage() + GetTotalCritChance() + GetTotalSpellSpeed();
+		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalStatusMultiplier() + GetTotalCritChance() + GetTotalSpellSpeed();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -341,7 +347,8 @@ public:
 	}
 
 	// ==================== MIND CALCULATIONS ====================
-	// Mind (4): Efficiency, EffectDamage, CritChance, SpellSpeed
+	// Mind (5): Efficiency, SpellDamage, StatusMultiplier, CritChance, SpellSpeed
+	// Phase 2b moves StatusMultiplier to Spirit (target: Mind 4, Spirit 5).
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateEfficiencyMultiplier() const
@@ -370,12 +377,22 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
-	float CalculateEffectDamageMultiplier() const
+	float CalculateStatusMultiplier() const
 	{
-		// NOTE: Moved from Spirit to Mind
+		// Renamed from CalculateEffectDamageMultiplier. Still scales by Mind in Phase 1;
+		// moves to Spirit (EffectiveSpirit) in Phase 2b alongside the pillar move.
 		float EffectiveMind = GetEffectiveMind();
-		int32 TotalPoints = GetTotalEffectDamage();
-		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::EFFECT_DAMAGE_PER_POINT);
+		int32 TotalPoints = GetTotalStatusMultiplier();
+		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
+	float CalculateSpellDamage() const
+	{
+		// New in Phase 1 — unused until Phase 2b wires it into DamageCalculator.
+		float EffectiveMind = GetEffectiveMind();
+		int32 TotalPoints = GetTotalSpellDamage();
+		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -483,11 +500,11 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
-	int32 CalculateEffectDamage() const
+	int32 CalculateStatusMultiplierFlat() const
 	{
-		// Flat effect damage value
+		// Flat StatusMultiplier point value (debug-only as of Phase 1).
 		float EffectiveMind = GetEffectiveMind();
-		int32 TotalPoints = GetTotalEffectDamage();
+		int32 TotalPoints = GetTotalStatusMultiplier();
 		return FMath::RoundToInt(EffectiveMind * TotalPoints);
 	}
 

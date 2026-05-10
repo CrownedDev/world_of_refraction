@@ -990,18 +990,18 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	TArray<AActor *> ActorsInRange = GetCombatantsInRange(Actor, AuraRange);
 
 	// Get character stats for damage/efficiency calculations
-	float EffectDamageMult = 1.0f;
+	float StatusMultiplierBonus = 1.0f;
 	float EfficiencyPercent = 0.0f;
 
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		EffectDamageMult = CharComp->CharacterData->CalculateEffectDamageMultiplier();
+		StatusMultiplierBonus = CharComp->CharacterData->CalculateStatusMultiplier();
 		EfficiencyPercent = CharComp->CharacterData->CalculateEfficiencyMultiplier() * 100.0f;
 	}
 
 	// Process the overflow tick (aura damage, self-damage, energy drain)
-	BDManager->ProcessOverloadTick(ActorsInRange, EffectDamageMult, EfficiencyPercent);
+	BDManager->ProcessOverloadTick(ActorsInRange, StatusMultiplierBonus, EfficiencyPercent);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
 		   *Actor->GetName(), AuraRange, ActorsInRange.Num());

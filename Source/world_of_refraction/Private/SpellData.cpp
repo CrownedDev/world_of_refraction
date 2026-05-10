@@ -51,11 +51,11 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     float RequirementPenalty = CalculateRequirementPenalty(Character);
     FinalDamage *= (1.0f - RequirementPenalty);
 
-    // Apply character's effect damage multiplier (Mind-based per CharacterData layout).
-    // ActionMods.EffectDamage stacks Reality + Evolution + future per-action buffs.
-    float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    EffectMultiplier = ActionMods.ApplyTo(EffectMultiplier, ESubStat::EffectDamage);
-    FinalDamage *= EffectMultiplier;
+    // Apply character's StatusMultiplier (Mind-based in Phase 1; Phase 2b switches spells to SpellDamage).
+    // ActionMods.StatusMultiplier stacks Reality + Evolution + future per-action buffs.
+    float Multiplier = Character->CalculateStatusMultiplier();
+    Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
+    FinalDamage *= Multiplier;
 
     return FMath::RoundToInt(FinalDamage);
 }
@@ -76,11 +76,11 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
     // Base buildup per hit
     float BuildupPerHit = StatusBuildup;
 
-    // Scale with character's Effect Damage multiplier (Mind-based per CharacterData layout).
-    // ActionMods.EffectDamage stacks per-action stat buffs onto the multiplier.
-    float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    EffectMultiplier = ActionMods.ApplyTo(EffectMultiplier, ESubStat::EffectDamage);
-    BuildupPerHit *= EffectMultiplier;
+    // Scale with character's StatusMultiplier (Mind-based in Phase 1; pillar moves in Phase 2b).
+    // ActionMods.StatusMultiplier stacks per-action stat buffs onto the multiplier.
+    float Multiplier = Character->CalculateStatusMultiplier();
+    Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
+    BuildupPerHit *= Multiplier;
 
     // Multiply by hit count
     float TotalBuildup = BuildupPerHit * HitCount;

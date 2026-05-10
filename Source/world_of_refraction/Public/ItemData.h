@@ -91,7 +91,7 @@ public:
         // (MaxHealth, MaxEnergy) deliberately not authored here — they belong to
         // the future Traits system as conditional/triggered effects.
 
-        /** Mind sub-stats (4) */
+        /** Mind sub-stats (5) — matches CharacterData order: Efficiency, SpellDamage, StatusMultiplier, CritChance, SpellSpeed */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
@@ -102,7 +102,13 @@ public:
                   meta = (ClampMin = "-50", ClampMax = "50",
                           EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
                           EditConditionHides))
-        float EffectDamageModifierPercent = 0.0f;
+        float SpellDamageModifierPercent = 0.0f;
+
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
+                  meta = (ClampMin = "-50", ClampMax = "50",
+                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
+                          EditConditionHides))
+        float StatusMultiplierModifierPercent = 0.0f;
 
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
                   meta = (ClampMin = "-50", ClampMax = "50",

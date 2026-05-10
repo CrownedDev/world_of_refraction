@@ -15,7 +15,7 @@ namespace AIConstants
 
     // Threat calculation weights
     constexpr float RAW_DAMAGE_THREAT_MULT = 2.0f;
-    constexpr float EFFECT_DAMAGE_THREAT_MULT = 1.5f;
+    constexpr float STATUS_MULTIPLIER_THREAT_MULT = 1.5f;
     constexpr float SPELL_POWER_THREAT_MULT = 2.0f;
 
     // ==================== THINKING DELAYS ====================

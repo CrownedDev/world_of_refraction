@@ -124,9 +124,9 @@ int32 UAbilityData::CalculateStatusBuildup(UCharacterData* Character) const
     // Base buildup per hit
     float BuildupPerHit = CombatConstants::BASE_STATUS_BUILDUP_PER_HIT;
 
-    // Scale with character's Effect Damage multiplier (Spirit stat)
-    float EffectMultiplier = Character->CalculateEffectDamageMultiplier();
-    BuildupPerHit *= EffectMultiplier;
+    // Scale with character's StatusMultiplier (Mind stat in Phase 1; moves to Spirit in Phase 2b).
+    float Multiplier = Character->CalculateStatusMultiplier();
+    BuildupPerHit *= Multiplier;
 
     // Multiply by hit count
     float TotalBuildup = BuildupPerHit * HitCount;
