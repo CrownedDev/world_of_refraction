@@ -1047,6 +1047,35 @@ float UStatusEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType Modi
 	return Total;
 }
 
+float UStatusEffectManager::GetTotalElementResistance(AActor *Target, ESpellElement Element) const
+{
+	if (!Target || !ActiveEffects.Contains(Target))
+	{
+		return 0.0f;
+	}
+
+	float BuffSum = 0.0f;
+	float DebuffSum = 0.0f;
+
+	for (const FStatusEffect &Effect : ActiveEffects[Target])
+	{
+		if (Effect.Element != Element)
+		{
+			continue;
+		}
+		if (Effect.EffectType == EStatusType::ResistanceBuff)
+		{
+			BuffSum += Effect.GetStackedValue();
+		}
+		else if (Effect.EffectType == EStatusType::ResistanceDebuff)
+		{
+			DebuffSum += Effect.GetStackedValue();
+		}
+	}
+
+	return (BuffSum - DebuffSum) / CombatConstants::STAT_PERCENT_DIVISOR;
+}
+
 int32 UStatusEffectManager::GetEffectCount(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
@@ -1435,11 +1464,16 @@ bool UStatusEffectManager::AddStatusBuildup(AActor *Source, AActor *Target, floa
 		}
 	}
 
-	// Apply target's resistance reduction
+	// Apply target's resistance reduction. Effective = base Spirit-Resistance plus
+	// element-matching ResistanceBuff/Debuff stack (so a Fire Resistance item buff
+	// reduces Fire buildup only). Re-clamped after addition since base CalculateResistance
+	// is already clamped to RESISTANCE_MAX.
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 	if (TargetComp && TargetComp->CharacterData)
 	{
 		float Resistance = TargetComp->CharacterData->CalculateResistance();
+		Resistance += GetTotalElementResistance(Target, Element);
+		Resistance = FMath::Clamp(Resistance, 0.0f, CombatConstants::RESISTANCE_MAX);
 		Amount *= (1.0f - Resistance);
 	}
 

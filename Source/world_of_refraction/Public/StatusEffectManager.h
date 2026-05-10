@@ -320,6 +320,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
 	float GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const;
 
+	/** Net element-matching resistance fraction from active ResistanceBuff − ResistanceDebuff
+	 *  effects. Returns 0.0–0.5+ (caller clamps). Used by AddStatusBuildup so per-element
+	 *  resistance buffs (e.g., Fire Resistance from items) reduce Fire buildup only, not
+	 *  Lightning buildup. Effects with mismatched Element contribute zero. */
+	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	float GetTotalElementResistance(AActor *Target, ESpellElement Element) const;
+
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
 	int32 GetEffectCount(AActor *Actor) const;
