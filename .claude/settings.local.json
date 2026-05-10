@@ -20,7 +20,9 @@
       "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/ds_paired.txt)",
       "Bash(awk -F: '{print $1}' /tmp/bd_lines.txt)",
       "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/bd_paired.txt)",
-      "Bash(git branch *)"
+      "Bash(git branch *)",
+      "Bash(git lfs *)",
+      "Bash(xargs -I {} wc -c {})"
     ]
   }
 }
