@@ -764,6 +764,8 @@ private:
 	 * @param ActionType Spell/Ability/Attack — drives ApplyHit stat selection post-defense
 	 * @param InfusionLevel 0–2; spells/abilities carry their charge level, attacks pass 0
 	 * @param SelectedSource Infusion source for future buildup routing (Phase C)
+	 * @param BaseStatusBuildup Per-target buildup amount (defense modifies this) — Phase C1
+	 * @param StatusToBuild Status type for the buildup (None = no buildup)
 	 * @param WindowDuration Defense window duration
 	 */
 	void OpenDefenseWindowsForTargets(
@@ -778,6 +780,8 @@ private:
 		EActionType ActionType,
 		int32 InfusionLevel,
 		EInfusionSourceOption SelectedSource,
+		int32 BaseStatusBuildup,
+		EStatusType StatusToBuild,
 		float WindowDuration = 0.3f);
 
 	// == == == == == == == == == == == == == == == == == == == ==

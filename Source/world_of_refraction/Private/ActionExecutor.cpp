@@ -609,13 +609,37 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// infusion multiplies output damage, not the metaphysical strain of the cast.
 	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
 
-	// Apply status buildup to each targets status bar
-	for (AActor *Target : ValidTargets)
+	// Phase C1: Spell buildup now flows through the defense pipeline.
+	// Compute base buildup + status type here; ApplyDamageAfterDefense applies
+	// the defense-outcome reduction and ApplyHit calls AddStatusBuildup.
+	int32 SpellBaseBuildup = 0;
+	EStatusType SpellStatusType = EStatusType::None;
+	if (Spell->StatusBuildup > 0)
 	{
-		ApplySpellStatusBuildup(Caster, Target, Spell, Action.SpellInfusionLevel);
+		float Buildup = static_cast<float>(Spell->StatusBuildup);
+		if (Action.SpellInfusionLevel == 1)
+		{
+			Buildup *= CombatConstants::SPELL_L1_BUILDUP_MULT;
+		}
+		SpellBaseBuildup = FMath::RoundToInt(Buildup);
+
+		if (Spell->bIsRawMode)
+		{
+			SpellStatusType = EStatusType::BurstDamage;
+		}
+		else if (Spell->PrimaryEffect != EStatusType::None)
+		{
+			SpellStatusType = Spell->PrimaryEffect;
+		}
+		else
+		{
+			// Fallback: elemental spells without explicit PrimaryEffect default to DOT,
+			// matching the legacy ApplySpellStatusBuildup behaviour.
+			SpellStatusType = EStatusType::DOT;
+		}
 	}
 
-	// Open defense windows for all targets (damage applied after defense resolves)
+	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
 		Caster,
 		ValidTargets,
@@ -628,6 +652,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		EActionType::Spell,		   // ActionType — drives post-defense stat selection
 		Action.SpellInfusionLevel, // InfusionLevel
 		Action.SelectedSource,	   // SelectedSource
+		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
+		SpellStatusType,		   // StatusToBuild (Phase C1)
 		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
@@ -724,7 +750,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	// Calculate damage per hit (infused total split across hits)
 	int32 DamagePerHit = FinalDamage / FMath::Max(1, Ability->HitCount);
 
-	// Open defense windows
+	// Open defense windows. Ability buildup still leaks the async path today
+	// (Phase C3 backlog); Phase C1 passes 0/None to keep behaviour identical.
 	OpenDefenseWindowsForTargets(
 		User,
 		ValidTargets,
@@ -737,6 +764,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		EActionType::Ability,		 // ActionType
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
+		0,							 // BaseStatusBuildup — Phase C3
+		EStatusType::None,			 // StatusToBuild — Phase C3
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async L%d - %d damage (%.1fx), opened %d defense windows"),
@@ -827,6 +856,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		EActionType::Attack,   // ActionType
 		0,					   // InfusionLevel — attacks have no L1/L2 concept
 		Action.SelectedSource, // SelectedSource
+		0,					   // BaseStatusBuildup — Phase C3 (async attack buildup leak)
+		EStatusType::None,	   // StatusToBuild — Phase C3
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Attack async - opened %d defense windows"),
@@ -1049,6 +1080,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	EActionType ActionType,
 	int32 InfusionLevel,
 	EInfusionSourceOption SelectedSource,
+	int32 BaseStatusBuildup,
+	EStatusType StatusToBuild,
 	float WindowDuration)
 {
 	if (!CurrentExecutionContext.IsSet())
@@ -1092,6 +1125,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.ActionType = ActionType;
 		DefenseContext.InfusionLevel = InfusionLevel;
 		DefenseContext.SelectedSource = SelectedSource;
+		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
+		DefenseContext.StatusToBuild = StatusToBuild;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -1194,15 +1229,28 @@ void UActionExecutor::ApplyDamageAfterDefense(
 
 	if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Dodge)
 	{
-		// Dodge cancels damage entirely. Multi-hit loop is skipped — a successful
-		// dodge applies to the whole attack, not just the first hit.
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s dodged attack - 0 damage"), *Target->GetName());
+		// Dodge cancels damage entirely AND cancels buildup (Phase C1 — applies to
+		// spells only today; ability/attack buildup don't reach this path yet).
+		// The multi-hit loop is skipped — no ApplyHit calls = no damage + no buildup.
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s dodged attack - 0 damage, 0 buildup"), *Target->GetName());
 	}
 	else
 	{
 		// DefenseResult.FinalDamage already has block/parry reduction applied.
-		// Split across hits and apply per-hit via ApplyHit.
+		// Buildup reduction by block/parry happens here — multipliers parallel
+		// DefenseSystem's hardcoded damage multipliers. Dodge already short-circuited
+		// above; "no defense" / failed defense → EffectiveBuildup = base.
 		const int32 DamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
+
+		int32 EffectiveBuildup = Context.BaseStatusBuildup;
+		if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Block)
+		{
+			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
+		}
+		else if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Parry)
+		{
+			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
+		}
 
 		for (int32 i = 0; i < Context.HitCount; ++i)
 		{
@@ -1215,12 +1263,11 @@ void UActionExecutor::ApplyDamageAfterDefense(
 			Input.Element = Context.Element;
 			Input.InfusionLevel = Context.InfusionLevel;
 			Input.SelectedSource = Context.SelectedSource;
-			// Phase B is damage-only — buildup migration lands in Phase C, where the
-			// existing ApplySpellStatusBuildup / ApplyWeaponStatusBuildup paths get
-			// folded into ApplyHit as well. Until then, buildup keeps using its own
-			// applicators and never flows through ApplyHit.
-			Input.BaseStatusBuildup = 0;
-			Input.StatusToBuild = EStatusType::None;
+			// Buildup applies once per spell-per-target, not per-hit. First hit
+			// carries the buildup; subsequent hits carry zero. Audit's quirks table
+			// treats buildup as per-target, not per-hit.
+			Input.BaseStatusBuildup = (i == 0) ? EffectiveBuildup : 0;
+			Input.StatusToBuild = (i == 0) ? Context.StatusToBuild : EStatusType::None;
 			Input.ActionMods = CurrentExecutionContext.IsSet()
 								   ? CurrentExecutionContext->ActionMods
 								   : FActionStatModifiers();

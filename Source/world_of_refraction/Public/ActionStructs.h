@@ -335,6 +335,15 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 
+	/** Base per-target buildup carried into ApplyDamageAfterDefense. Defense outcome
+	 *  modifies this before it reaches ApplyHit (Phase C1 — spells only). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 BaseStatusBuildup = 0;
+
+	/** Status type to build (None when this attack carries no buildup). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EStatusType StatusToBuild = EStatusType::None;
+
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense", Meta = (IgnoreForMemberInitializationTest))
 	FGuid ContextId;
