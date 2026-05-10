@@ -20,7 +20,7 @@ namespace InfusionConstants
 	// ==================== CHARGE EFFECT MULTIPLIERS (NEW) ====================
 	// Exclusive bonuses - L1 OR L2, not both
 
-	/** L1 Charge: Status buildup multiplier (+50%) - spells and abilities */
+	/** L1 Charge: Status buildup multiplier (+25%) - spells and abilities */
 	constexpr float CHARGE_L1_STATUS_MULT = 1.25f;
 
 	/** L2 Charge: Damage multiplier (+30%) - spells and abilities */
