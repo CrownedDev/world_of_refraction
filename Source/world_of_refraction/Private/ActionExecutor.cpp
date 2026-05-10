@@ -624,7 +624,6 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		FinalDamage,
 		DamagePerHit,
 		Spell->HitCount,
-		true, // Spells are elemental
 		Spell->Element,
 		true, // Can crit
 		0.3f  // Default window duration - TODO: get from spell data
@@ -672,10 +671,10 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	// HP backlash / status build / energy multipliers, not flat damage tax.
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
 
-	// Element handling
+	// Element handling. Infusion routes the user's innate element through;
+	// non-infused abilities stay Generic.
 	ESpellElement Element = ESpellElement::Generic;
-	bool bIsElemental = bIsInfused;
-	if (bIsElemental && UserData->HasInnateElement())
+	if (bIsInfused && UserData->HasInnateElement())
 	{
 		Element = UserData->InnateElement;
 	}
@@ -692,7 +691,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	CurrentExecutionContext->PartialResult.AttackSize = AttackSize; // remove attack size its pointless for abilities
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 	CurrentExecutionContext->PartialResult.AttackElement = Element;
-	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsElemental;
+	CurrentExecutionContext->PartialResult.bIsElementalAttack = bIsInfused;
 
 	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
 	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
@@ -732,7 +731,6 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		FinalDamage,
 		DamagePerHit,
 		Ability->HitCount,
-		bIsElemental,
 		Element,
 		true, // Can crit
 		0.3f);
@@ -821,7 +819,6 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		BaseDamage,
 		DamagePerHit,
 		Attack->HitCount,
-		bIsInfused,
 		Element,
 		true,
 		0.3f);
@@ -982,7 +979,6 @@ FActionResult UActionExecutor::ExecuteSpell(
 			Caster, Target,
 			BaseDamage / FMath::Max(1, Spell->HitCount),
 			Spell->HitCount,
-			true, // Spells are elemental
 			Spell->Element,
 			true, // Can crit
 			Result);
@@ -1043,7 +1039,6 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	int32 BaseDamage,
 	int32 DamagePerHit,
 	int32 HitCount,
-	bool bIsElemental,
 	ESpellElement Element,
 	bool bCanCrit,
 	float WindowDuration)
@@ -1063,7 +1058,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		for (AActor *Target : Targets)
 		{
 			int32 TotalDamage = ProcessMultiHit(
-				Attacker, Target, DamagePerHit, HitCount, bIsElemental, Element, bCanCrit,
+				Attacker, Target, DamagePerHit, HitCount, Element, bCanCrit,
 				CurrentExecutionContext->PartialResult);
 
 			CurrentExecutionContext->PartialResult.TotalDamageDealt += TotalDamage;
@@ -1082,7 +1077,6 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.BaseDamage = BaseDamage;
 		DefenseContext.DamagePerHit = DamagePerHit;
 		DefenseContext.AttackSize = AttackSize;
-		DefenseContext.bIsElemental = bIsElemental;
 		DefenseContext.Element = Element;
 		DefenseContext.HitCount = HitCount;
 		DefenseContext.bCanCrit = bCanCrit;
@@ -1096,8 +1090,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 			Target,
 			AttackSize,
 			BaseDamage,
-			WindowDuration,
-			bIsElemental);
+			WindowDuration);
 
 		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Opened defense window for %s (Size: %.1f, Damage: %d)"),
 			   *Target->GetName(), AttackSize, BaseDamage);
@@ -1204,7 +1197,6 @@ void UActionExecutor::ApplyDamageAfterDefense(
 			Target,
 			DamagePerHit,
 			Context.HitCount,
-			Context.bIsElemental,
 			Context.Element,
 			Context.bCanCrit,
 			CurrentExecutionContext->PartialResult);
@@ -1638,7 +1630,6 @@ FActionResult UActionExecutor::ExecuteAbility(
 			User, Target,
 			FinalDamage / FMath::Max(1, Ability->HitCount),
 			Ability->HitCount,
-			bIsElementInfused,
 			Element,
 			true,
 			Result);
@@ -1872,7 +1863,6 @@ FActionResult UActionExecutor::ExecuteAttack(
 			Attacker, Target,
 			BaseDamage / FMath::Max(1, Attack->HitCount),
 			Attack->HitCount,
-			bIsInfused,
 			Element,
 			true,
 			Result);
@@ -1981,7 +1971,6 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	AActor *Attacker,
 	AActor *Target,
 	int32 BaseDamage,
-	bool bIsElemental,
 	ESpellElement Element,
 	bool bCanCrit)
 {
@@ -2005,7 +1994,6 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	{
 		FDamageCalculationInput Input;
 		Input.BaseDamage = BaseDamage;
-		Input.bIsElemental = bIsElemental;
 		Input.Element = Element;
 		Input.bCanCrit = bCanCrit;
 		// ActionMods + ActionType are the canonical per-action signal path
@@ -2231,7 +2219,6 @@ int32 UActionExecutor::ProcessMultiHit(
 	AActor *Target,
 	int32 DamagePerHit,
 	int32 HitCount,
-	bool bIsElemental,
 	ESpellElement Element,
 	bool bCanCrit,
 	FActionResult &OutResult)
@@ -2242,7 +2229,7 @@ int32 UActionExecutor::ProcessMultiHit(
 	{
 		// Each hit can independently crit
 		FCombatHitResult HitResult = ApplyDamage(
-			Attacker, Target, DamagePerHit, bIsElemental, Element, bCanCrit);
+			Attacker, Target, DamagePerHit, Element, bCanCrit);
 
 		TotalDamage += HitResult.DamageDealt;
 
@@ -2563,9 +2550,7 @@ void UActionExecutor::SpawnAOEEffect(
 			Target,
 			FinalImpactRadius,
 			FinalDamage,
-			WindowDuration,
-			true // bIsElemental
-		);
+			WindowDuration);
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE opened defense window for %s (Block only)"),
 			   *Target->GetName());
@@ -2574,7 +2559,7 @@ void UActionExecutor::SpawnAOEEffect(
 	{
 		// Fallback: Apply damage directly if no defense system
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying AOE damage directly"));
-		ApplyDamage(Caster, Target, FinalDamage, true, Spell->Element, false);
+		ApplyDamage(Caster, Target, FinalDamage, Spell->Element, false);
 	}
 }
 
@@ -2618,7 +2603,7 @@ void UActionExecutor::ResolveInstantSpell(
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant spell hit %s - unavoidable, applying damage"),
 		   *Target->GetName());
 
-	FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, true, Spell->Element, true);
+	FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, Spell->Element, true);
 
 	// Update execution context
 	if (CurrentExecutionContext.IsSet())
@@ -2664,15 +2649,13 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 			Target,
 			ImpactRadius,
 			Damage,
-			WindowDuration,
-			true // bIsElemental (assume true for spells)
-		);
+			WindowDuration);
 	}
 	else
 	{
 		// Fallback: Apply damage directly
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying projectile damage directly"));
-		ApplyDamage(nullptr, Target, Damage, true, ESpellElement::Generic, true);
+		ApplyDamage(nullptr, Target, Damage, ESpellElement::Generic, true);
 	}
 }
 
@@ -2705,7 +2688,7 @@ void UActionExecutor::OnBeamTick(AActor *Target, float DeltaTime, bool bTargetIn
 	int32 TickDamage = 5; // Placeholder
 
 	// Apply damage without defense window (beam is continuous)
-	ApplyDamage(nullptr, Target, TickDamage, true, ESpellElement::Generic, false);
+	ApplyDamage(nullptr, Target, TickDamage, ESpellElement::Generic, false);
 }
 
 void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods)

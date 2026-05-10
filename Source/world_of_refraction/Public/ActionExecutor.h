@@ -264,18 +264,16 @@ public:
 		AActor *Attacker,
 		AActor *Target,
 		int32 BaseDamage,
-		bool bIsElemental,
 		ESpellElement Element,
 		bool bCanCrit);
 
-	/** Apply damage with defaults (non-elemental, can crit) */
+	/** Apply damage with defaults (Generic element, can crit) */
 	FCombatHitResult ApplyDamage(
 		AActor *Attacker,
 		AActor *Target,
-		int32 BaseDamage,
-		bool bIsElemental)
+		int32 BaseDamage)
 	{
-		return ApplyDamage(Attacker, Target, BaseDamage, bIsElemental, ESpellElement::Generic, true);
+		return ApplyDamage(Attacker, Target, BaseDamage, ESpellElement::Generic, true);
 	}
 
 	/**
@@ -487,7 +485,6 @@ private:
 		AActor *Target,
 		int32 DamagePerHit,
 		int32 HitCount,
-		bool bIsElemental,
 		ESpellElement Element,
 		bool bCanCrit,
 		FActionResult &OutResult);
@@ -746,7 +743,6 @@ private:
 	 * @param BaseDamage Base damage before defense
 	 * @param DamagePerHit Damage per hit (for multi-hit)
 	 * @param HitCount Number of hits
-	 * @param bIsElemental Is this elemental damage?
 	 * @param Element Element type
 	 * @param bCanCrit Can hits critically strike?
 	 * @param WindowDuration Defense window duration
@@ -758,7 +754,6 @@ private:
 		int32 BaseDamage,
 		int32 DamagePerHit,
 		int32 HitCount,
-		bool bIsElemental,
 		ESpellElement Element,
 		bool bCanCrit,
 		float WindowDuration = 0.3f);

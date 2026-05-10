@@ -153,10 +153,6 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     float VisualScale;
 
-    /** Is this an elemental attack? (affects defense/absorption) */
-    UPROPERTY(BlueprintReadOnly, Category = "Config")
-    bool bIsElemental;
-
 public:
     // ==================== INITIALIZATION ====================
 
@@ -230,9 +226,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "SpellProjectile")
     FORCEINLINE bool HasImpacted() const { return bHasImpacted; }
-
-    UFUNCTION(BlueprintPure, Category = "SpellProjectile")
-    FORCEINLINE bool IsElemental() const { return bIsElemental; }
 
 protected:
     // ==================== LIFECYCLE ====================

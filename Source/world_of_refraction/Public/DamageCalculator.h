@@ -61,10 +61,6 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	EActionType ActionType = EActionType::None;
 
-	/** Is this elemental damage? Phase 2b removes this in favour of (Element != Generic). */
-	UPROPERTY(BlueprintReadWrite, Category = "Damage")
-	bool bIsElemental = false;
-
 	/** Element type (if elemental) */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	ESpellElement Element = ESpellElement::Generic;
@@ -297,14 +293,14 @@ public:
 	// ==================== UTILITY ====================
 
 	/**
-	 * Apply defense to damage (flat + resistance)
+	 * Apply defense to damage (flat subtraction). Resistance no longer participates
+	 * in damage math after the Phase 2b defense/resistance role split — it only
+	 * reduces status buildup now.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Utility")
 	int32 ApplyDefenseToValue(
 		int32 Damage,
-		int32 FlatDefense,
-		float Resistance,
-		bool bIsElemental) const;
+		int32 FlatDefense) const;
 
 	/**
 	 * Get infusion damage multiplier
@@ -342,7 +338,7 @@ private:
 	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
 
 	/** Apply status effect modifiers to damage */
-	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, bool bIsElemental) const;
+	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender) const;
 
 	/** Get CombatGridSubsystem */
 	UCombatGridSubsystem *GetCombatGridSubsystem() const;

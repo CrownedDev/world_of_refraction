@@ -56,11 +56,11 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	}
 
 	// Step 2: Status effect modifiers (buffs/debuffs)
-	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.bIsElemental);
+	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender);
 	RunningDamage *= StatusMod;
 
 	// Step 3: Element interaction (weakness/resistance)
-	if (Input.bIsElemental && Defender)
+	if (Input.Element != ESpellElement::Generic && Defender)
 	{
 		UCharacterData *DefenderData = GetCharacterData(Defender);
 		if (DefenderData)
@@ -111,15 +111,6 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		RunningDamage -= Blocked;
 	}
 
-	// Step 6: Defender's elemental resistance (only for elemental damage)
-	if (!Input.bIgnoreResistance && Input.bIsElemental && Defender)
-	{
-		Result.DefenderResistance = GetDefenderResistance(Defender);
-		int32 BeforeResist = FMath::RoundToInt(RunningDamage);
-		RunningDamage *= (1.0f - Result.DefenderResistance);
-		Result.DamageReducedByResistance = BeforeResist - FMath::RoundToInt(RunningDamage);
-	}
-
 	// Step 6.5: Grid position defense modifier (defender)
 	if (Grid && Defender)
 	{
@@ -165,7 +156,6 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 	FDamageCalculationInput Input;
 	Input.BaseDamage = Spell->Damage;
 	Input.ActionType = EActionType::Spell;
-	Input.bIsElemental = !Spell->bIsRawMode;
 	Input.Element = Spell->Element;
 	Input.bCanCrit = true;
 	Input.bWasInfused = InfusionLevel > 0;
@@ -216,8 +206,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
 	Input.ActionType = EActionType::Ability;
 
 	// Abilities are physical unless infused. Per locked design, infused abilities
-	// still scale by RawDamage — the element only affects resistance/status routing.
-	Input.bIsElemental = bIsInfused;
+	// still scale by RawDamage — the element only affects status routing.
 	Input.Element = bIsInfused ? UserData->InnateElement : ESpellElement::Generic;
 
 	Input.bCanCrit = true;
@@ -259,8 +248,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.ActionType = EActionType::Attack;
 
 	// Attacks are physical unless infused. Per locked design, infused attacks
-	// still scale by RawDamage — the element only affects resistance/status routing.
-	Input.bIsElemental = bIsInfused;
+	// still scale by RawDamage — the element only affects status routing.
 	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
 
 	Input.bCanCrit = true;
@@ -494,21 +482,13 @@ int32 UDamageCalculator::CalculateHealing(
 
 int32 UDamageCalculator::ApplyDefenseToValue(
 	int32 Damage,
-	int32 FlatDefense,
-	float Resistance,
-	bool bIsElemental) const
+	int32 FlatDefense) const
 {
 	float Result = static_cast<float>(Damage);
 
 	// Flat defense (subtraction)
 	Result -= FlatDefense;
 	Result = FMath::Max(0.0f, Result);
-
-	// Resistance (percentage, only for elemental)
-	if (bIsElemental)
-	{
-		Result *= (1.0f - FMath::Clamp(Resistance, 0.0f, DamageConstants::MAX_RESISTANCE));
-	}
 
 	return FMath::Max(DamageConstants::MIN_DAMAGE, FMath::RoundToInt(Result));
 }
@@ -589,7 +569,7 @@ UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Acto
 	return Actor->FindComponentByClass<UBrokenDarknessManager>();
 }
 
-float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, bool bIsElemental) const
+float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender) const
 {
 	float Modifier = 1.0f;
 

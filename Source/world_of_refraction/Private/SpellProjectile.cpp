@@ -86,7 +86,6 @@ ASpellProjectile::ASpellProjectile()
     Damage = 0;
     BeamDuration = SpellProjectileConstants::DEFAULT_BEAM_DURATION;
     VisualScale = 1.0f;
-    bIsElemental = true;
     bHasImpacted = false;
     BeamTimeRemaining = 0.f;
     bTargetInBeam = false;
@@ -166,7 +165,6 @@ void ASpellProjectile::InitializeProjectile(
         Speed = Spell->ProjectileSpeed;
         HomingStrength = Spell->HomingStrength;
         BeamDuration = Spell->BeamDuration;
-        bIsElemental = (Element != ESpellElement::Generic);
     }
     else
     {
@@ -176,7 +174,6 @@ void ASpellProjectile::InitializeProjectile(
         Speed = SpellProjectileConstants::DEFAULT_SPEED;
         HomingStrength = SpellProjectileConstants::DEFAULT_HOMING_STRENGTH;
         BeamDuration = SpellProjectileConstants::DEFAULT_BEAM_DURATION;
-        bIsElemental = false;
     }
 
     // Capture target location at cast time (for Projectile type)

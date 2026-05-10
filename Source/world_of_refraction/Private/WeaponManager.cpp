@@ -469,7 +469,7 @@ FWeaponAttackResult UWeaponManager::ExecuteAttackWithInfusion(AActor *Attacker, 
 		{
 			int32 HitDamage = ApplyWeaponDamage(
 				Attacker, Target, DamagePerHit,
-				bUseInfusion, bUseInfusion ? AttackerData->InnateElement : ESpellElement::Generic,
+				bUseInfusion ? AttackerData->InnateElement : ESpellElement::Generic,
 				true, Result);
 
 			TotalDamageToTarget += HitDamage;
@@ -717,7 +717,7 @@ void UWeaponManager::TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPh
 }
 
 int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 BaseDamage,
-										bool bIsElemental, ESpellElement Element, bool bCanCrit, FWeaponAttackResult &OutResult)
+										ESpellElement Element, bool bCanCrit, FWeaponAttackResult &OutResult)
 {
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
@@ -745,14 +745,6 @@ int32 UWeaponManager::ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 
 		}
 
 		FinalDamage = FMath::Max(0, FinalDamage - FlatDefense);
-
-		// Step 2: Apply resistance (percentage) - elemental damage only
-		if (bIsElemental && FinalDamage > 0)
-		{
-			float Resistance = TargetData->CalculateResistance(); // Returns 0.0-1.0
-			Resistance = FMath::Clamp(Resistance, 0.0f, 0.8f);	  // Cap at 80%
-			FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Resistance));
-		}
 	}
 
 	// Critical hit check

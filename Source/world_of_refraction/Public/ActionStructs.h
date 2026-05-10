@@ -303,10 +303,6 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	float AttackSize = 1.0f;
 
-	/** Is this an elemental attack? */
-	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	bool bIsElemental = false;
-
 	/** Element of the attack */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	ESpellElement Element = ESpellElement::Generic;

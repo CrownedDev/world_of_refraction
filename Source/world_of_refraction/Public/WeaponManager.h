@@ -447,7 +447,7 @@ private:
 
 	/** Apply damage using ActionExecutor's damage system */
 	int32 ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 BaseDamage,
-							bool bIsElemental, ESpellElement Element, bool bCanCrit, FWeaponAttackResult &OutResult);
+							ESpellElement Element, bool bCanCrit, FWeaponAttackResult &OutResult);
 
 	// ========================================
 	// STATE

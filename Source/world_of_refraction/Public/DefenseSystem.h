@@ -79,10 +79,6 @@ struct WORLD_OF_REFRACTION_API FDefenseState
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 BaseDamage = 0;
 
-	/** Is this an elemental attack? */
-	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	bool bIsElemental = false;
-
 	/** Defense chosen by player (None until input) */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EDefenseType DefenseChosen = EDefenseType::None;
@@ -183,7 +179,6 @@ public:
 	 * @param AttackSize Size of attack (affects dodge viability)
 	 * @param BaseDamage Damage before defense reduction
 	 * @param WindowDuration How long window stays open
-	 * @param bIsElemental Is this an elemental attack?
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
 	void OpenDefenseWindow(
@@ -191,8 +186,7 @@ public:
 		AActor *Defender,
 		float AttackSize,
 		int32 BaseDamage,
-		float WindowDuration = 0.3f,
-		bool bIsElemental = false);
+		float WindowDuration = 0.3f);
 
 	/**
 	 * Close defense window and calculate result

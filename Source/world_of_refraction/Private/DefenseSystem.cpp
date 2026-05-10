@@ -41,8 +41,7 @@ void UDefenseSystem::OpenDefenseWindow(
 	AActor *Defender,
 	float AttackSize,
 	int32 BaseDamage,
-	float WindowDuration,
-	bool bIsElemental)
+	float WindowDuration)
 {
 	if (!Defender)
 	{
@@ -63,7 +62,6 @@ void UDefenseSystem::OpenDefenseWindow(
 	State.bWindowOpen = true;
 	State.AttackSize = AttackSize;
 	State.BaseDamage = BaseDamage;
-	State.bIsElemental = bIsElemental;
 	State.DefenseChosen = EDefenseType::None;
 	State.DodgeDirection = EDefenseDirection::None;
 	State.WindowOpenTime = FPlatformTime::Seconds();
