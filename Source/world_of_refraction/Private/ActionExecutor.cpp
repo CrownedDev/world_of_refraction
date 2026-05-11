@@ -314,36 +314,29 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	// if the action subsequently fails to land.
 	ApplyCommitCosts(Actor, Action);
 
-	// Route to appropriate executor (existing code)
+	// Route to appropriate executor.
+	// Phase D: Spell/Ability/Attack sync paths retired — async + ApplyHit is the only path
+	// for those action types. Sync ExecuteAction now only handles instant-resolution actions
+	// (Item, Defend). Spell/Ability/Attack callers must use ExecuteActionAsync; reaching this
+	// switch with one of those types is a caller bug.
 	switch (Action.ActionType)
 	{
-	case EActionType::Spell:
-		Result = ExecuteSpell(Actor, Action.SpellData, Action.Targets,
-							  Action.SpellInfusionLevel);
-
-		// Post-cast processing (durability wear, item consumption)
-		if (Result.bSuccess)
-		{
-			ProcessPostCastBySource(Actor, Action.SpellData, Action.SpellSource, Action.SpellInfusionLevel);
-		}
-		break;
-
-	case EActionType::Ability:
-		Result = ExecuteAbility(Actor, Action.AbilityData, Action.Targets,
-								Action.AbilityInfusionLevel, Action.SelectedSource);
-		break;
-
 	case EActionType::Item:
 		Result = ExecuteItem(Actor, Action.ItemData, Action.Targets);
 		break;
 
-	case EActionType::Attack:
-		Result = ExecuteAttack(Actor, Action.AttackData, Action.Targets,
-							   Action.SelectedSource != EInfusionSourceOption::None);
-		break;
-
 	case EActionType::Defend:
 		Result = ExecuteDefend(Actor);
+		break;
+
+	case EActionType::Spell:
+	case EActionType::Ability:
+	case EActionType::Attack:
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor::ExecuteAction] %s called sync for action type %d — Spell/Ability/Attack must go through ExecuteActionAsync (Phase D)"),
+			   *Actor->GetName(), static_cast<int32>(Action.ActionType));
+		Result.bSuccess = false;
+		Result.ErrorMessage = TEXT("Spell/Ability/Attack must use ExecuteActionAsync");
 		break;
 
 	default:
@@ -633,8 +626,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		}
 		else
 		{
-			// Fallback: elemental spells without explicit PrimaryEffect default to DOT,
-			// matching the legacy ApplySpellStatusBuildup behaviour.
+			// Elemental spells without an explicit PrimaryEffect default to DOT.
 			SpellStatusType = EStatusType::DOT;
 		}
 	}
@@ -958,131 +950,6 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 		TryFinalizeAsyncAction();
 	}
 	// Otherwise OnActionAnimationEnded will handle finalization
-}
-
-// ========================================
-// EXECUTION - SPELL
-// ========================================
-
-FActionResult UActionExecutor::ExecuteSpell(
-	AActor *Caster,
-	USpellData *Spell,
-	const TArray<AActor *> &Targets,
-	int32 InfusionLevel)
-{
-	FActionResult Result;
-	Result.Executor = Caster;
-	Result.ActionType = EActionType::Spell;
-
-	if (!Caster || !Spell)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Invalid caster or spell");
-		return Result;
-	}
-
-	UCharacterData *CasterData = GetCharacterData(Caster);
-	UCharacterDataComponent *CasterComp = GetCharacterDataComponent(Caster);
-
-	if (!CasterData || !CasterComp)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Caster missing character data");
-		return Result;
-	}
-
-	// Calculate energy cost with infusion multiplier
-	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData);
-	float CostMultiplier = GetSpellInfusionCostMultiplier(InfusionLevel);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
-
-	if (!SpendEnergy(Caster, FinalEnergyCost))
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Failed to spend energy");
-		return Result;
-	}
-	Result.EnergySpent = FinalEnergyCost;
-
-	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
-	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(InfusionLevel);
-
-	// Store size in result for defense system
-	Result.AttackSize = FinalSpellSize;
-	Result.AttackElement = Spell->Element;
-
-	// Calculate damage (NOT affected by spell infusion - that's Generic's thing)
-	int32 BaseDamage = Spell->CalculateDamage(CasterData);
-	Result.BaseDamageBeforeDefense = BaseDamage;
-
-	// Get valid targets FIRST
-	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
-
-	// Play animation and VFX with explicit targets
-	PlaySpellAnimation(Caster, Spell, FinalSpellSize);
-	SpawnSpellVFX(Caster, Spell, FinalSpellSize, ValidTargets, BaseDamage);
-
-	// Process each target (remove duplicate FilterValidTargets call below if exists)
-
-	for (AActor *Target : ValidTargets)
-	{
-		// Broadcast defense window request
-		// DefenseSystem should bind to this and handle Block/Parry/Dodge
-		OnDefenseWindowRequested.Broadcast(Caster, Target, FinalSpellSize, BaseDamage);
-
-		// For now, apply damage directly (defense system will intercept via events when implemented)
-		// Multi-hit processing
-		int32 TotalDamage = ProcessMultiHit(
-			Caster, Target,
-			BaseDamage / FMath::Max(1, Spell->HitCount),
-			Spell->HitCount,
-			Spell->Element,
-			true, // Can crit
-			Result);
-
-		Result.TotalDamageDealt += TotalDamage;
-		Result.DamagePerTarget.Add(Target, TotalDamage);
-		Result.AffectedTargets.Add(Target);
-
-		// Check for kills
-		if (!IsTargetAlive(Target))
-		{
-			Result.bCausedDeath = true;
-			OnTargetKilled.Broadcast(Caster, Target);
-		}
-	}
-
-	// Apply status buildup to unified status bar
-	for (AActor *Target : ValidTargets)
-	{
-		ApplySpellStatusBuildup(Caster, Target, Spell, InfusionLevel);
-	}
-
-	// Apply status effects from spell (existing system)
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (StatusManager && Spell->PrimaryEffect != EStatusType::None)
-	{
-		for (AActor *Target : ValidTargets)
-		{
-			ApplyStatusEffects(
-				Caster, Target,
-				Spell->PrimaryEffect,
-				Spell->PrimaryEffectMagnitude * 100.0f,
-				Spell->PrimaryEffectDuration,
-				Spell->SecondaryEffect,
-				Spell->SecondaryEffectMagnitude * 100.0f,
-				Spell->SecondaryEffectDuration,
-				Spell->Element);
-			Result.StatusEffectsApplied++;
-		}
-	}
-
-	Result.bSuccess = true;
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s cast %s (Size: %.1f, Infusion: %d) - %d damage to %d targets"),
-		   *Caster->GetName(), *Spell->GetName(), FinalSpellSize, InfusionLevel,
-		   Result.TotalDamageDealt, ValidTargets.Num());
-
-	return Result;
 }
 
 // ============================================================
@@ -1646,124 +1513,6 @@ void UActionExecutor::UnbindDefenseSystemEvents()
 }
 
 // ========================================
-// EXECUTION - ABILITY
-// ========================================
-
-FActionResult UActionExecutor::ExecuteAbility(
-	AActor *User,
-	UAbilityData *Ability,
-	const TArray<AActor *> &Targets,
-	int32 AbilityInfusionLevel,
-	EInfusionSourceOption SelectedSource)
-{
-	FActionResult Result;
-	Result.Executor = User;
-	Result.ActionType = EActionType::Ability;
-
-	if (!User || !Ability)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Invalid user or ability");
-		return Result;
-	}
-
-	UCharacterData *UserData = GetCharacterData(User);
-	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
-
-	if (!UserData || !UserComp)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("User missing character data");
-		return Result;
-	}
-
-	// Determine if using elemental source
-	// If charging (L1/L2): use SelectedSource
-	// If not charging (L0): fall back to toggle (passed via SelectedSource::Innate if toggled on)
-	bool bIsElementInfused = (SelectedSource != EInfusionSourceOption::None);
-
-	// Calculate energy cost
-	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsElementInfused);
-	int32 FinalEnergyCost = BaseEnergyCost;
-
-	if (!SpendEnergy(User, FinalEnergyCost))
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Failed to spend energy");
-		return Result;
-	}
-	Result.EnergySpent = FinalEnergyCost;
-
-	// Calculate base damage
-	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsElementInfused);
-
-	// Apply charge infusion damage multiplier
-	// L1 = base damage, L2 = +30% damage
-	float DamageMultiplier = GetAbilityChargeDamageMultiplier(AbilityInfusionLevel);
-	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
-
-	// Determine element
-	ESpellElement Element = ESpellElement::Generic;
-	if (bIsElementInfused && Ability->bCanBeInfused)
-	{
-		Element = GetElementForSourceOption(User, SelectedSource);
-	}
-
-	// Store defense info
-	Result.AttackElement = Element;
-	Result.BaseDamageBeforeDefense = FinalDamage;
-
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability charge L%d - Source: %d, Damage: %d (%.1fx)"),
-		   AbilityInfusionLevel, static_cast<int32>(SelectedSource), FinalDamage, DamageMultiplier);
-
-	// Play animation
-	PlayAbilityAnimation(User, Ability);
-
-	// Process each target
-	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
-
-	// Apply charge infusion status buildup (L1 only)
-	float StatusMultiplier = GetAbilityChargeStatusMultiplier(AbilityInfusionLevel);
-	if (StatusMultiplier > 0.0f && ValidTargets.Num() > 0)
-	{
-		ApplyAbilityInfusionStatus(User, ValidTargets, SelectedSource, Ability->HitCount, StatusMultiplier);
-	}
-
-	for (AActor *Target : ValidTargets)
-	{
-		// Multi-hit processing
-		int32 TotalDamage = ProcessMultiHit(
-			User, Target,
-			FinalDamage / FMath::Max(1, Ability->HitCount),
-			Ability->HitCount,
-			Element,
-			true,
-			Result);
-
-		Result.TotalDamageDealt += TotalDamage;
-		Result.DamagePerTarget.Add(Target, TotalDamage);
-		Result.AffectedTargets.Add(Target);
-
-		if (!IsTargetAlive(Target))
-		{
-			Result.bCausedDeath = true;
-			OnTargetKilled.Broadcast(User, Target);
-		}
-	}
-
-	// Apply effects from ability's Effects array (new system)
-	bool bAnyCausedDeath = Result.bCausedDeath;
-	ApplyAbilityEffects(User, ValidTargets, Ability, Result, bAnyCausedDeath);
-
-	Result.bSuccess = true;
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used %s (L%d) - %d damage to %d targets"),
-		   *User->GetName(), *Ability->GetName(),
-		   AbilityInfusionLevel,
-		   Result.TotalDamageDealt, ValidTargets.Num());
-	return Result;
-}
-
-// ========================================
 // EXECUTION - ITEM
 // ========================================
 
@@ -1860,118 +1609,6 @@ FActionResult UActionExecutor::ExecuteItem(
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
 		   *User->GetName(), *Item->GetFullItemName());
-
-	return Result;
-}
-
-// ========================================
-// EXECUTION - ATTACK
-// ========================================
-
-FActionResult UActionExecutor::ExecuteAttack(
-	AActor *Attacker,
-	UWeaponAttackData *Attack,
-	const TArray<AActor *> &Targets,
-	bool bIsInfused)
-{
-	FActionResult Result;
-	Result.Executor = Attacker;
-	Result.ActionType = EActionType::Attack;
-
-	// No explicit attack provided. Pre-C2 this delegated to
-	// UWeaponManager::ExecuteAttackWithInfusion; that path was removed in C2
-	// because it had zero in-source callers passing Attack=nullptr (sync
-	// ExecuteAttack is only reached from CombatPlayerController::OnConfirmAction
-	// with Action.AttackData populated, and from CombatOrchestrator's
-	// DebugExecuteSyncAttack with AttackData loaded from the active weapon).
-	// Treat nullptr as a caller bug: warn and fail the action.
-	if (!Attack)
-	{
-		UE_LOG(LogTemp, Warning,
-			   TEXT("[ActionExecutor::ExecuteAttack] Called with null AttackData on %s — failing action"),
-			   Attacker ? *Attacker->GetName() : TEXT("null attacker"));
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("ExecuteAttack called with null AttackData");
-		return Result;
-	}
-
-	// Direct attack execution (explicit attack data provided)
-	if (!Attacker)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Invalid attacker");
-		return Result;
-	}
-
-	UCharacterData *AttackerData = GetCharacterData(Attacker);
-	if (!AttackerData)
-	{
-		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Attacker missing character data");
-		return Result;
-	}
-
-	// Infused attacks cost energy
-	if (bIsInfused)
-	{
-		int32 EnergyCost = 5; // TODO: Get from constants
-		if (!SpendEnergy(Attacker, EnergyCost))
-		{
-			Result.bSuccess = false;
-			Result.ErrorMessage = TEXT("Not enough energy for infused attack");
-			return Result;
-		}
-		Result.EnergySpent = EnergyCost;
-	}
-
-	// Calculate damage - attacks use character's RawDamageMultiplier
-	// Base damage is 100, scaled by the attack's damage distribution and character stats.
-	// Element-infusion damage penalty removed per locked cost matrix.
-	float DamageMultiplier = AttackerData->CalculateRawDamage();
-	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
-
-	// Determine element
-	ESpellElement Element = ESpellElement::Generic;
-	if (bIsInfused)
-	{
-		Element = AttackerData->InnateElement;
-	}
-
-	// Store defense info
-	Result.AttackElement = Element;
-	Result.BaseDamageBeforeDefense = BaseDamage;
-
-	// Play animation
-	PlayAttackAnimation(Attacker, Attack);
-
-	// Process each target
-	TArray<AActor *> ValidTargets = FilterValidTargets(Targets);
-	for (AActor *Target : ValidTargets)
-	{
-		int32 TotalDamage = ProcessMultiHit(
-			Attacker, Target,
-			BaseDamage / FMath::Max(1, Attack->HitCount),
-			Attack->HitCount,
-			Element,
-			true,
-			Result);
-
-		Result.TotalDamageDealt += TotalDamage;
-		Result.DamagePerTarget.Add(Target, TotalDamage);
-		Result.AffectedTargets.Add(Target);
-
-		if (!IsTargetAlive(Target))
-		{
-			Result.bCausedDeath = true;
-			OnTargetKilled.Broadcast(Attacker, Target);
-		}
-	}
-
-	Result.bSuccess = true;
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s attacked%s - %d damage"),
-		   *Attacker->GetName(),
-		   bIsInfused ? TEXT(" (Infused)") : TEXT(""),
-		   Result.TotalDamageDealt);
 
 	return Result;
 }
@@ -3820,94 +3457,6 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 					  PendingSpellTargets, PendingSpellDamage);
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned"));
-	}
-}
-
-void UActionExecutor::ApplySpellStatusBuildup(AActor *Caster, AActor *Target, USpellData *Spell, int32 InfusionLevel)
-{
-	if (!Caster || !Target || !Spell)
-	{
-		return;
-	}
-
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
-	if (!StatusManager)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] StatusEffectManager not available for spell buildup"));
-		return;
-	}
-
-	// Raw mode spells build up RawDamage type
-	if (Spell->bIsRawMode)
-	{
-		float Buildup = Spell->StatusBuildup;
-
-		// L1 infusion boosts buildup by 50%
-		if (InfusionLevel == 1)
-		{
-			Buildup *= 1.5f;
-		}
-
-		bool bTriggered = StatusManager->AddStatusBuildup(
-			Caster,
-			Target,
-			Buildup,
-			EStatusType::BurstDamage,
-			Spell->Element);
-
-		if (bTriggered)
-		{
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s triggered RawDamage on %s"),
-				   *Spell->SpellName, *Target->GetName());
-		}
-		return;
-	}
-
-	// Elemental mode: determine status type
-	EStatusType StatusType = EStatusType::None;
-
-	// Use PrimaryEffect if specified to determine status type
-	if (Spell->PrimaryEffect != EStatusType::None)
-	{
-		StatusType = Spell->PrimaryEffect;
-	}
-
-	// Fallback to element default if no valid status from PrimaryEffect
-	if (StatusType == EStatusType::None)
-	{
-		// If spell doesn't specify effect, default to DOT for elemental damage
-		StatusType = EStatusType::DOT;
-	}
-
-	// Calculate buildup
-	float Buildup = Spell->StatusBuildup;
-
-	// L1 infusion: +50% buildup
-	if (InfusionLevel == 1)
-	{
-		Buildup *= 1.5f;
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] L1 infusion boosted buildup: %d → %.1f"),
-			   Spell->StatusBuildup, Buildup);
-	}
-
-	// Add to status bar
-	bool bTriggered = StatusManager->AddStatusBuildup(
-		Caster,
-		Target,
-		Buildup,
-		StatusType,
-		Spell->Element);
-
-	if (bTriggered)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s triggered status %s on %s"),
-			   *Spell->SpellName, *UEnum::GetValueAsString(StatusType), *Target->GetName());
-	}
-
-	// Apply immediate status effect (on-hit, weaker version)
-	if (StatusType != EStatusType::None && StatusType != EStatusType::BurstDamage)
-	{
-		StatusManager->ApplyImmediateStatus(Caster, Target, StatusType, Spell->Element);
 	}
 }
 

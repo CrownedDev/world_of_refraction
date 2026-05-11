@@ -175,37 +175,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spell Delivery")
 	TSubclassOf<ASpellProjectile> DefaultProjectileClass;
 
-	/** Execute a spell */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteSpell(
-		AActor *Caster,
-		USpellData *Spell,
-		const TArray<AActor *> &Targets,
-		int32 InfusionLevel = 0);
-
-	/** Execute an ability */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteAbility(
-		AActor *User,
-		UAbilityData *Ability,
-		const TArray<AActor *> &Targets,
-		int32 AbilityInfusionLevel = 0,
-		EInfusionSourceOption SelectedSource = EInfusionSourceOption::None);
-
 	/** Execute an item */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteItem(
 		AActor *User,
 		UItemData *Item,
 		const TArray<AActor *> &Targets);
-
-	/** Execute a basic attack */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteAttack(
-		AActor *Attacker,
-		UWeaponAttackData *Attack,
-		const TArray<AActor *> &Targets,
-		bool bIsInfused = false);
 
 	/** Execute defend action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
@@ -291,11 +266,9 @@ public:
 	 * Section 8 for the migration plan.
 	 *
 	 * Status: production applicator for all async damage (Phase B) and for spell
-	 * + async-attack buildup (Phase C1, C3). Legacy weapon-side applicators
-	 * (ApplyWeaponDamage, ApplyWeaponStatusBuildup, ExecuteAttackWithInfusion)
-	 * were removed in Phase C2. Remaining legacy: ApplyDamage, ProcessMultiHit,
-	 * ApplyDamageAfterDefense, ApplySpellStatusBuildup — kept alive for sync
-	 * paths until Phase D retires them.
+	 * + async-attack buildup (Phase C1, C3). Sync Spell/Ability/Attack paths and
+	 * ApplySpellStatusBuildup were removed in Phase D. Remaining legacy slated for
+	 * Phase E review: ApplyDamage, ProcessMultiHit, ApplyDamageAfterDefense.
 	 *
 	 * Single-hit by contract — multi-hit looping stays in ProcessMultiHit / the
 	 * orchestrators. Routes damage through UDamageCalculator and buildup through
@@ -660,8 +633,6 @@ private:
 	void OnMovementComplete();
 
 private:
-	/** Apply status buildup from spell hit */
-	void ApplySpellStatusBuildup(AActor *Caster, AActor *Target, USpellData *Spell, int32 InfusionLevel);
 	// ==================== ACTION ANIMATION BINDING ====================
 
 	/** Bind to CombatAnimInstance for action completion */

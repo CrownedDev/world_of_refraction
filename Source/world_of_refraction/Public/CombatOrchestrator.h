@@ -276,13 +276,13 @@ public:
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugTestSpellMovement();
 
-	/** Execute sync attack - bypasses movement, tests damage pipeline + animation */
+	/** Trigger an async attack via ExecuteActionAsync (active weapon's WeaponAttack vs opposing team[0]) */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
-	void DebugExecuteSyncAttack();
+	void DebugExecuteAsyncAttack();
 
-	/** Execute sync spell - tests spell pipeline + VFX */
+	/** Trigger an async spell via ExecuteActionAsync (first available spell vs opposing team[0]) */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
-	void DebugExecuteSyncSpell();
+	void DebugExecuteAsyncSpell();
 
 	/** Test spell from PRIMARY slot specifically */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
@@ -292,9 +292,9 @@ public:
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugTestSecondarySpell();
 
-	/** Execute sync ability - tests ability pipeline */
+	/** Trigger an async ability via ExecuteActionAsync (first available ability vs opposing team[0]) */
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
-	void DebugExecuteSyncAbility();
+	void DebugExecuteAsyncAbility();
 
 	/** Draw grid visualization with actor positions */
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug", meta = (CallInEditor = "true"))
