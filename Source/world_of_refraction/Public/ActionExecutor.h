@@ -21,7 +21,7 @@
 #include "CombatMovementComponent.h"
 #include "MovementData.h"
 #include "EAbilityExecutionType.h"
-#include "FAbilityEffect.h"
+#include "FSkillEffect.h"
 #include "InfusionCostHelper.h"
 #include "ActionStatModifiers.h"
 #include "ActionExecutor.generated.h"

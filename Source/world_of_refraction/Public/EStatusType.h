@@ -61,7 +61,7 @@ enum class EStatusType : uint8
     SpellCostDebuff UMETA(DisplayName = "Spell Cost Debuff"),
     // TODO: Rename EffectDamageBuff/Debuff -> StatusMultiplierBuff/Debuff to match the
     // sub-stat rename (CharacterData::EffectDamage -> StatusMultiplier). Deferred to a
-    // separate commit; touches StatusEffect.h, FAbilityEffect.h, SkillEffectManager.cpp
+    // separate commit; touches StatusEffect.h, FSkillEffect.h, SkillEffectManager.cpp
     // case statements. Crown waived save migration so Core Redirects are not required.
     EffectDamageBuff UMETA(DisplayName = "Effect Damage Buff"),
     EffectDamageDebuff UMETA(DisplayName = "Effect Damage Debuff"),

@@ -14,7 +14,7 @@
 #include "CombatConstants.h"
 #include "MovementData.h"
 #include "EAbilityExecutionType.h"
-#include "FAbilityEffect.h"
+#include "FSkillEffect.h"
 #include "ESpellDeliveryType.h"
 #include "ItemTier.h"
 
@@ -131,7 +131,7 @@ public:
      */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
               meta = (TitleProperty = "EffectType"))
-    TArray<FAbilityEffect> Effects;
+    TArray<FSkillEffect> Effects;
 
     // ==================== VISUALS ====================
 
@@ -194,7 +194,7 @@ public:
 
     /** Get all effects that trigger on a specific condition */
     UFUNCTION(BlueprintPure, Category = "Ability|Effects")
-    TArray<FAbilityEffect> GetEffectsForCondition(EPassiveTrigger Condition) const;
+    TArray<FSkillEffect> GetEffectsForCondition(EPassiveTrigger Condition) const;
 
     /** Check if ability has any drain effects */
     UFUNCTION(BlueprintPure, Category = "Ability|Effects")

@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 #include "AbilityDataDebug.h"
-#include "FAbilityEffect.h"
+#include "FSkillEffect.h"
 #include "Engine/Engine.h"
 
 void UAbilityDataDebug::PrintAbilityStats(UAbilityData *Ability, UCharacterData *Character, float Duration)
@@ -103,7 +103,7 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
         Output += TEXT("EFFECTS:\n");
         for (int32 i = 0; i < Ability->Effects.Num(); ++i)
         {
-            const FAbilityEffect &Effect = Ability->Effects[i];
+            const FSkillEffect &Effect = Ability->Effects[i];
             Output += FString::Printf(TEXT("  [%d] %s\n"), i + 1, *Effect.GetDescription());
         }
         Output += TEXT("\n");

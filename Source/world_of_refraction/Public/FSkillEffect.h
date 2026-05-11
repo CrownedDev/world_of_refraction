@@ -1,5 +1,5 @@
-// FAbilityEffect.h
-// Struct defining a single effect applied by an ability
+// FSkillEffect.h
+// Struct defining a single effect applied by abilities, spells, and weapon attacks
 // Reuses existing enums: EStatusType, ETargetType, EPassiveTrigger
 
 #pragma once
@@ -8,12 +8,12 @@
 #include "EStatusType.h"
 #include "TargetType.h"
 #include "EPassiveTrigger.h"
-#include "FAbilityEffect.generated.h"
+#include "FSkillEffect.generated.h"
 
 /**
- * FAbilityEffect
- * Defines a single effect that an ability can apply.
- * Abilities can have multiple effects (max 5).
+ * FSkillEffect
+ * Defines a single effect that an ability, spell, or weapon attack can apply.
+ * Skills can have multiple effects (max 5).
  *
  * Examples:
  * - Power Strike: RawDamageBuff to Self OnHit
@@ -22,7 +22,7 @@
  * - Intimidate: RawDamageDebuff to SingleEnemy Always
  */
 USTRUCT(BlueprintType)
-struct WORLD_OF_REFRACTION_API FAbilityEffect
+struct WORLD_OF_REFRACTION_API FSkillEffect
 {
     GENERATED_BODY()
 
@@ -34,7 +34,7 @@ struct WORLD_OF_REFRACTION_API FAbilityEffect
 
     // ==================== MAGNITUDE ====================
 
-    /** 
+    /**
      * Effect strength:
      * - For buffs/debuffs: Percentage as decimal (0.2 = 20%)
      * - For restore/drain: Flat value OR use DrainPercent
@@ -42,6 +42,15 @@ struct WORLD_OF_REFRACTION_API FAbilityEffect
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",
               meta = (ClampMin = "0.0"))
     float Magnitude = 0.0f;
+
+    /**
+     * Flat value, used for absolute amounts (e.g. 30 = 30 HP per turn for DOT).
+     * Distinct from Magnitude, which is decimal percent (0.2 = 20%).
+     * Authors: use Value for flat amounts (DOT damage, heal HP), use Magnitude
+     * for percentages (buff/debuff %). Don't set both on the same effect.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect", meta = (ClampMin = "0"))
+    int32 Value = 0;
 
     /** Duration in turns (0 = instant effect like heal/damage) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",
@@ -62,7 +71,7 @@ struct WORLD_OF_REFRACTION_API FAbilityEffect
 
     // ==================== DRAIN ====================
 
-    /** 
+    /**
      * For drain effects (HealthRestore/EnergyRestore with OnHit):
      * Percentage of damage dealt that converts to restore (0.3 = 30%)
      * Only used when Condition is OnHit and EffectType is a restore type
@@ -74,14 +83,15 @@ struct WORLD_OF_REFRACTION_API FAbilityEffect
 
     // ==================== CONSTRUCTORS ====================
 
-    FAbilityEffect()
+    FSkillEffect()
     {
     }
 
-    FAbilityEffect(EStatusType InType, float InMagnitude, int32 InDuration,
-                   ETargetType InTarget, EPassiveTrigger InCondition)
+    FSkillEffect(EStatusType InType, float InMagnitude, int32 InValue, int32 InDuration,
+                 ETargetType InTarget, EPassiveTrigger InCondition)
         : EffectType(InType)
         , Magnitude(InMagnitude)
+        , Value(InValue)
         , Duration(InDuration)
         , Target(InTarget)
         , Condition(InCondition)
@@ -213,6 +223,13 @@ struct WORLD_OF_REFRACTION_API FAbilityEffect
             Desc = FString::Printf(TEXT("%.0f%% of damage as %s"),
                                    DrainPercent * 100.0f,
                                    *TypeName);
+        }
+        else if (Value != 0)
+        {
+            // Flat amount (DOT damage, heal HP, etc.)
+            Desc = FString::Printf(TEXT("%s %d"),
+                                   *TypeName,
+                                   Value);
         }
         else if (Magnitude != 0.0f)
         {

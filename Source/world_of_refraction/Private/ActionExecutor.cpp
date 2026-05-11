@@ -3694,7 +3694,7 @@ void UActionExecutor::ApplyAbilityEffects(
 	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
-	for (const FAbilityEffect &Effect : Ability->Effects)
+	for (const FSkillEffect &Effect : Ability->Effects)
 	{
 		if (!Effect.IsValid())
 		{

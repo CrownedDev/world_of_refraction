@@ -136,11 +136,11 @@ int32 UAbilityData::CalculateStatusBuildup(UCharacterData* Character) const
 
 // ==================== EFFECT HELPERS ====================
 
-TArray<FAbilityEffect> UAbilityData::GetEffectsForCondition(EPassiveTrigger Condition) const
+TArray<FSkillEffect> UAbilityData::GetEffectsForCondition(EPassiveTrigger Condition) const
 {
-    TArray<FAbilityEffect> Result;
+    TArray<FSkillEffect> Result;
 
-    for (const FAbilityEffect& Effect : Effects)
+    for (const FSkillEffect& Effect : Effects)
     {
         if (Effect.Condition == Condition && Effect.IsValid())
         {
@@ -153,7 +153,7 @@ TArray<FAbilityEffect> UAbilityData::GetEffectsForCondition(EPassiveTrigger Cond
 
 bool UAbilityData::HasDrainEffect() const
 {
-    for (const FAbilityEffect& Effect : Effects)
+    for (const FSkillEffect& Effect : Effects)
     {
         if (Effect.IsDrain())
         {
@@ -165,7 +165,7 @@ bool UAbilityData::HasDrainEffect() const
 
 bool UAbilityData::HasBuffEffects() const
 {
-    for (const FAbilityEffect& Effect : Effects)
+    for (const FSkillEffect& Effect : Effects)
     {
         if (Effect.IsBuff())
         {
@@ -177,7 +177,7 @@ bool UAbilityData::HasBuffEffects() const
 
 bool UAbilityData::HasDebuffEffects() const
 {
-    for (const FAbilityEffect& Effect : Effects)
+    for (const FSkillEffect& Effect : Effects)
     {
         if (Effect.IsDebuff())
         {
@@ -232,7 +232,7 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext& Context)
     // Validate each effect
     for (int32 i = 0; i < Effects.Num(); ++i)
     {
-        const FAbilityEffect& Effect = Effects[i];
+        const FSkillEffect& Effect = Effects[i];
 
         if (Effect.EffectType == EStatusType::None)
         {
