@@ -37,7 +37,7 @@ void USkillEffectManager::Deinitialize()
 // ========================================
 
 EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatusEffect Effect,
-														   AActor *Source, const FString &SourceAbility, int32 SourceTeam)
+														  AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
 	if (!Target)
 	{
@@ -137,7 +137,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 }
 
 void USkillEffectManager::ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
-										AActor *Source, const FString &SourceAbility, int32 SourceTeam)
+									   AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
 	for (const FStatusEffect &Effect : Effects)
 	{
@@ -917,6 +917,19 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	case EStatusType::RemoveDefenseDebuff:
 		RemoveEffectsByType(Actor, EStatusType::DefenseDebuff);
 		break;
+		// In Source/world_of_refraction/Private/SkillEffectManager.cpp
+		// Inside ApplyEffectLogic's switch statement, BEFORE the default case
+
+		// TODO: SelfDamage handler missing. Effects with EffectType=SelfDamage apply
+		// to the actor cleanly via ApplyAbilityEffects, but ApplyEffectLogic has no
+		// case to process them per-turn — they sit on the actor and tick down their
+		// duration without dealing damage. Mirror the DOT case:
+		//   case EStatusType::SelfDamage:
+		//       CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
+		//       break;
+		// Also verify ProcessTiming is set to EndOfOwnTurn (or whichever timing
+		// makes sense for the design) when FSkillEffect → FStatusEffect conversion
+		// happens. Confirmed unwired during Job 2 Commit B PIE testing (May 2026).
 
 	default:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
