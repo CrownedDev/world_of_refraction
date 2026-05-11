@@ -78,6 +78,12 @@ public:
               meta = (EditCondition = "!bIsRawMode", EditConditionHides))
     int32 StatusBuildup = 15;
 
+    // ==================== INFUSION ====================
+
+    /** If false, the orchestrator rejects this spell when an infusion source is selected. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
+    bool bCanBeInfused = true;
+
     // ==================== COMMON STATS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")

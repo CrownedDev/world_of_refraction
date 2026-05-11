@@ -58,9 +58,20 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage Type")
     EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
 
+    // Raw mode: folds StatusBuildup into BaseDamage at the orchestrator boundary; status bar doesn't move.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage Type")
+    bool bIsRawMode = false;
+
     // Status buildup per hit (fills status bar)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage Type", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage Type",
+              meta = (EditCondition = "!bIsRawMode", EditConditionHides, ClampMin = "0"))
     int32 StatusBuildup = 10;
+
+    // ==================== INFUSION ====================
+
+    // If false, the orchestrator rejects this attack when bIsInfused (or an infusion source) is set.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
+    bool bCanBeInfused = true;
 
     // ==================== ANIMATION ====================
 
