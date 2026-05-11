@@ -133,7 +133,7 @@ public:
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
 	/** Get spell infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY, use GetSpellSizeEnergyCostMultiplier */
-	UFUNCTION(BlueprintCallable, Category = "Action Execfutor|Infusion")
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
 	// ---- NEW INFUSION TYPE SYSTEM ----

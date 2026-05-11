@@ -76,4 +76,9 @@ namespace InfusionConstants
 
 	/** L2 Spell Size: Energy cost multiplier (1.60x) */
 	constexpr float SPELL_L2_ENERGY_MULT = 1.60f;
+
+	// ==================== ATTACK INFUSION ====================
+
+	/** Flat energy cost paid by an infused basic attack (no charge-level concept). */
+	constexpr int32 ATTACK_INFUSION_ENERGY_COST = 5;
 }
