@@ -29,7 +29,10 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tafad\\\\Documents\\\\github\\\\world_of_refraction\\\\Source\\\\world_of_refraction\\\\Public\" -Filter \"*.h\")",
       "Bash(Select-Object Name)",
       "Bash(Sort-Object Name)",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(git commit *)",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }
