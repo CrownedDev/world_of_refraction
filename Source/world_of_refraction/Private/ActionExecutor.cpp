@@ -1349,6 +1349,24 @@ void UActionExecutor::FinalizeAsyncAction()
 			}
 		}
 
+		// Apply ability effects (buffs, debuffs, drain) from Ability->Effects[].
+		// Mirrors the sync path's call site that was removed in Phase D. Runs at
+		// the same lifecycle point as spell Primary/Secondary effects — post-defense,
+		// post-damage — so Result.TotalDamageDealt / bWasCritical / bCausedDeath
+		// are populated for condition checks (OnHit / OnCrit / OnKill).
+		if (Action.ActionType == EActionType::Ability &&
+			Action.AbilityData &&
+			Action.AbilityData->Effects.Num() > 0 &&
+			Executor)
+		{
+			ApplyAbilityEffects(
+				Executor,
+				FinalResult.AffectedTargets,
+				Action.AbilityData,
+				FinalResult,
+				FinalResult.bCausedDeath);
+		}
+
 		// Process post-cast by source (durability wear, etc.)
 		if (Action.ActionType == EActionType::Spell && Action.SpellData)
 		{
