@@ -145,38 +145,6 @@ void USkillEffectManager::ApplyEffects(AActor *Target, const TArray<FStatusEffec
 	}
 }
 
-void USkillEffectManager::ApplySpellEffects(
-	AActor *Target,
-	const FString &SpellName,
-	int32 SpellID,
-	EStatusType PrimaryType,
-	float PrimaryMagnitude,
-	int32 PrimaryValue,
-	int32 PrimaryDuration,
-	EStatusType SecondaryType,
-	float SecondaryMagnitude,
-	int32 SecondaryValue,
-	int32 SecondaryDuration,
-	ESpellElement Element,
-	AActor *Source,
-	int32 SourceTeam)
-{
-	TArray<FStatusEffect> Effects = FStatusEffect::CreateFromSpellData(
-		SpellName,
-		SpellID,
-		PrimaryType,
-		PrimaryMagnitude,
-		PrimaryValue,
-		PrimaryDuration,
-		SecondaryType,
-		SecondaryMagnitude,
-		SecondaryValue,
-		SecondaryDuration,
-		Element);
-
-	ApplyEffects(Target, Effects, Source, SpellName, SourceTeam);
-}
-
 void USkillEffectManager::ApplyInfusionDOT(
 	AActor *Target,
 	const FString &AbilityName,

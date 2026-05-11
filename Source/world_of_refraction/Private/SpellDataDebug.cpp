@@ -114,58 +114,19 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     }
 
     // Effects
-    if (Spell->PrimaryEffect != EStatusType::None)
+    if (Spell->Effects.Num() > 0)
     {
-        FString EffectTypeName = UEnum::GetValueAsString(Spell->PrimaryEffect);
-        EffectTypeName.RemoveFromStart(TEXT("EStatusType::"));
-
-        Output += TEXT("PRIMARY EFFECT:\n");
-        Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
-
-        if (Spell->PrimaryEffectMagnitude > 0.0f)
+        Output += TEXT("EFFECTS:\n");
+        for (int32 i = 0; i < Spell->Effects.Num(); ++i)
         {
-            Output += FString::Printf(TEXT("  Magnitude: %.0f%%\n"), Spell->PrimaryEffectMagnitude * 100.0f);
-        }
-
-        if (Spell->PrimaryEffectValue != 0)
-        {
-            Output += FString::Printf(TEXT("  Value: %d\n"), Spell->PrimaryEffectValue);
-        }
-
-        if (Spell->PrimaryEffectDuration > 0)
-        {
-            Output += FString::Printf(TEXT("  Duration: %d turn%s\n"),
-                                      Spell->PrimaryEffectDuration,
-                                      Spell->PrimaryEffectDuration == 1 ? TEXT("") : TEXT("s"));
+            const FSkillEffect &Effect = Spell->Effects[i];
+            Output += FString::Printf(TEXT("  [%d] %s\n"), i + 1, *Effect.GetDescription());
         }
         Output += TEXT("\n");
     }
-
-    if (Spell->SecondaryEffect != EStatusType::None)
+    else
     {
-        FString EffectTypeName = UEnum::GetValueAsString(Spell->SecondaryEffect);
-        EffectTypeName.RemoveFromStart(TEXT("EStatusType::"));
-
-        Output += TEXT("SECONDARY EFFECT (Cross-School!):\n");
-        Output += FString::Printf(TEXT("  Type: %s\n"), *EffectTypeName);
-
-        if (Spell->SecondaryEffectMagnitude > 0.0f)
-        {
-            Output += FString::Printf(TEXT("  Magnitude: %.0f%%\n"), Spell->SecondaryEffectMagnitude * 100.0f);
-        }
-
-        if (Spell->SecondaryEffectValue != 0)
-        {
-            Output += FString::Printf(TEXT("  Value: %d\n"), Spell->SecondaryEffectValue);
-        }
-
-        if (Spell->SecondaryEffectDuration > 0)
-        {
-            Output += FString::Printf(TEXT("  Duration: %d turn%s\n"),
-                                      Spell->SecondaryEffectDuration,
-                                      Spell->SecondaryEffectDuration == 1 ? TEXT("") : TEXT("s"));
-        }
-        Output += TEXT("\n");
+        Output += TEXT("EFFECTS: None\n\n");
     }
 
     Output += TEXT("===================================\n");

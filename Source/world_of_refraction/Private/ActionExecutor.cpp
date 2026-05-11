@@ -671,13 +671,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 			// bIsRawMode gate.
 			SpellStatusType = EStatusType::BurstDamage;
 		}
-		else if (Spell->PrimaryEffect != EStatusType::None)
-		{
-			SpellStatusType = Spell->PrimaryEffect;
-		}
 		else
 		{
-			// Elemental spells without an explicit PrimaryEffect default to DOT.
+			// Effects[]-driven status type wiring lands in Commit C; until then,
+			// elemental spells default to DOT (matches prior PrimaryEffect-None
+			// path, which was universal — no spell asset had PrimaryEffect set).
 			SpellStatusType = EStatusType::DOT;
 		}
 	}
@@ -808,8 +806,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	// TriggerSkillEffectFromBuildup early-returns and nothing fires.
 	// TODO: SetPendingTrigger when status buildup is maxed — add detailed
 	// effect to take place. UAbilityData will need a way to declare which
-	// EStatusType fires on cap (mirroring USpellData::PrimaryEffect, or via
-	// the Effects[] array once that wiring is in place).
+	// EStatusType fires on cap (e.g. via Ability->Effects[] once that
+	// wiring lands).
 	int32 AbilityBaseBuildup = 0;
 	if (Ability->StatusBuildup > 0)
 	{
@@ -1337,34 +1335,11 @@ void UActionExecutor::FinalizeAsyncAction()
 	// Apply post-action effects (status effects, etc.)
 	if (FinalResult.bSuccess && Executor)
 	{
-		// Apply status effects from spell/ability
-		USkillEffectManager *StatusManager = GetSkillEffectManager();
-
-		if (Action.ActionType == EActionType::Spell && Action.SpellData && StatusManager)
-		{
-			if (Action.SpellData->PrimaryEffect != EStatusType::None)
-			{
-				for (AActor *Target : FinalResult.AffectedTargets)
-				{
-					ApplyStatusEffects(
-						Executor, Target,
-						Action.SpellData->PrimaryEffect,
-						Action.SpellData->PrimaryEffectMagnitude * 100.0f,
-						Action.SpellData->PrimaryEffectDuration,
-						Action.SpellData->SecondaryEffect,
-						Action.SpellData->SecondaryEffectMagnitude * 100.0f,
-						Action.SpellData->SecondaryEffectDuration,
-						Action.SpellData->Element);
-					FinalResult.StatusEffectsApplied++;
-				}
-			}
-		}
-
 		// Apply ability effects (buffs, debuffs, drain) from Ability->Effects[].
-		// Mirrors the sync path's call site that was removed in Phase D. Runs at
-		// the same lifecycle point as spell Primary/Secondary effects — post-defense,
-		// post-damage — so Result.TotalDamageDealt / bWasCritical / bCausedDeath
-		// are populated for condition checks (OnHit / OnCrit / OnKill).
+		// Mirrors the sync path's call site that was removed in Phase D.
+		// Runs post-defense, post-damage — so Result.TotalDamageDealt /
+		// bWasCritical / bCausedDeath are populated for condition checks
+		// (OnHit / OnCrit / OnKill). Spell Effects[] wiring lands in Commit C.
 		if (Action.ActionType == EActionType::Ability &&
 			Action.AbilityData &&
 			Action.AbilityData->Effects.Num() > 0 &&
@@ -2080,50 +2055,6 @@ bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 	CritChance = FMath::Clamp(CritChance, 0.0f, 100.0f);
 
 	return FMath::FRand() * 100.0f < CritChance;
-}
-
-void UActionExecutor::ApplyStatusEffects(
-	AActor *Source,
-	AActor *Target,
-	EStatusType PrimaryEffect,
-	float PrimaryValue,
-	int32 PrimaryDuration,
-	EStatusType SecondaryEffect,
-	float SecondaryValue,
-	int32 SecondaryDuration,
-	ESpellElement Element)
-{
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
-		return;
-
-	// Apply primary effect
-	if (PrimaryEffect != EStatusType::None && PrimaryDuration > 0)
-	{
-		FStatusEffect Primary = FStatusEffect::CreateBuff(
-			TEXT("Primary Effect"),
-			FMath::Rand(),
-			PrimaryEffect,
-			PrimaryValue,
-			PrimaryDuration);
-		Primary.Element = Element;
-
-		StatusManager->ApplyEffect(Target, Primary, Source, TEXT("Action"), -1);
-	}
-
-	// Apply secondary effect
-	if (SecondaryEffect != EStatusType::None && SecondaryDuration > 0)
-	{
-		FStatusEffect Secondary = FStatusEffect::CreateBuff(
-			TEXT("Secondary Effect"),
-			FMath::Rand(),
-			SecondaryEffect,
-			SecondaryValue,
-			SecondaryDuration);
-		Secondary.Element = Element;
-
-		StatusManager->ApplyEffect(Target, Secondary, Source, TEXT("Action"), -1);
-	}
 }
 
 int32 UActionExecutor::ProcessMultiHit(

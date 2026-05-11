@@ -100,42 +100,6 @@ public:
 					  AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
 	/**
-	 * Apply effects from a spell (Primary + Secondary)
-	 * Convenience wrapper for ActionExecutor integration
-	 *
-	 * @param Target Actor to apply effects to
-	 * @param SpellName Name for display/tracking
-	 * @param SpellID Unique spell identifier
-	 * @param PrimaryType Primary effect type
-	 * @param PrimaryMagnitude Primary magnitude (0.0-1.0)
-	 * @param PrimaryValue Primary flat value
-	 * @param PrimaryDuration Primary duration in turns
-	 * @param SecondaryType Secondary effect type (None to skip)
-	 * @param SecondaryMagnitude Secondary magnitude
-	 * @param SecondaryValue Secondary flat value
-	 * @param SecondaryDuration Secondary duration
-	 * @param Element Spell element for DOT typing
-	 * @param Source Caster actor
-	 * @param SourceTeam Caster team index
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
-	void ApplySpellEffects(
-		AActor *Target,
-		const FString &SpellName,
-		int32 SpellID,
-		EStatusType PrimaryType,
-		float PrimaryMagnitude,
-		int32 PrimaryValue,
-		int32 PrimaryDuration,
-		EStatusType SecondaryType,
-		float SecondaryMagnitude,
-		int32 SecondaryValue,
-		int32 SecondaryDuration,
-		ESpellElement InElement,
-		AActor *Source = nullptr,
-		int32 SourceTeam = -1);
-
-	/**
 	 * Apply infusion DOT from ability
 	 * Call when an infused ability hits a target
 	 */

@@ -458,18 +458,6 @@ private:
 		const FPendingDefenseContext &Context,
 		const FDefenseResult &DefenseResult);
 
-	/** Apply status effects from spell/ability */
-	void ApplyStatusEffects(
-		AActor *Source,
-		AActor *Target,
-		EStatusType PrimaryEffect,
-		float PrimaryValue,
-		int32 PrimaryDuration,
-		EStatusType SecondaryEffect = EStatusType::None,
-		float SecondaryValue = 0.0f,
-		int32 SecondaryDuration = 0,
-		ESpellElement Element = ESpellElement::Generic);
-
 	/** Handle multi-hit abilities */
 	int32 ProcessMultiHit(
 		AActor *Attacker,

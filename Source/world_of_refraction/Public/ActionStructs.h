@@ -464,7 +464,7 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
  *     - ActionType = Spell
  *     - Element = Spell->Element
  *     - BaseStatusBuildup = Spell->CalculateStatusBuildup(...) (if non-raw)
- *     - StatusToBuild = Spell->PrimaryEffect (raw → BurstDamage)
+ *     - StatusToBuild = DOT (raw → BurstDamage); Effects[]-driven typing lands in a follow-up commit
  *
  *   ExecuteAbilityAsync:
  *     - ActionType = Ability

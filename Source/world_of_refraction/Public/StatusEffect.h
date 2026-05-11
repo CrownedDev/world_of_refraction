@@ -209,68 +209,6 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	}
 
 	/**
-	 * Create array of effects from a spell with Primary + Secondary effects
-	 * Use this in ActionExecutor when executing spells
-	 *
-	 * @param SpellName Name for display
-	 * @param SpellID Unique spell ID (effects get SpellID*10+0, SpellID*10+1)
-	 * @param PrimaryType Primary effect type
-	 * @param PrimaryMagnitude Primary magnitude
-	 * @param PrimaryValue Primary flat value
-	 * @param PrimaryDuration Primary duration
-	 * @param SecondaryType Secondary effect type (None to skip)
-	 * @param SecondaryMagnitude Secondary magnitude
-	 * @param SecondaryValue Secondary flat value
-	 * @param SecondaryDuration Secondary duration
-	 * @param InElement Spell element
-	 */
-	static TArray<FStatusEffect> CreateFromSpellData(
-		const FString &SpellName,
-		int32 SpellID,
-		EStatusType PrimaryType,
-		float PrimaryMagnitude,
-		int32 PrimaryValue,
-		int32 PrimaryDuration,
-		EStatusType SecondaryType,
-		float SecondaryMagnitude,
-		int32 SecondaryValue,
-		int32 SecondaryDuration,
-		ESpellElement InElement)
-	{
-		TArray<FStatusEffect> Effects;
-
-		// Primary effect
-		if (PrimaryType != EStatusType::None)
-		{
-			FStatusEffect Primary = CreateFromSpellEffect(
-				SpellName + TEXT(" (Primary)"),
-				SpellID * 10,
-				PrimaryType,
-				PrimaryMagnitude,
-				PrimaryValue,
-				PrimaryDuration,
-				InElement);
-			Effects.Add(Primary);
-		}
-
-		// Secondary effect (cross-school)
-		if (SecondaryType != EStatusType::None)
-		{
-			FStatusEffect Secondary = CreateFromSpellEffect(
-				SpellName + TEXT(" (Secondary)"),
-				SpellID * 10 + 1,
-				SecondaryType,
-				SecondaryMagnitude,
-				SecondaryValue,
-				SecondaryDuration,
-				InElement);
-			Effects.Add(Secondary);
-		}
-
-		return Effects;
-	}
-
-	/**
 	 * Create effects from Evolution passive (TArray<FPassiveEffect>)
 	 * For permanent stat modifiers from evolutions
 	 *

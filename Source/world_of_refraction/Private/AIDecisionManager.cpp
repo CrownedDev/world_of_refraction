@@ -1215,14 +1215,15 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
     TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
     for (USpellData *Spell : Spells)
     {
-        if (Spell && Spell->School == ESpellSchool::Restoration)
+        if (!Spell || Spell->School != ESpellSchool::Restoration)
         {
-            // Check if it's a healing spell (has positive HP modifier)
-            // This is a simplified check - you might need more sophisticated logic
-            if (Spell->PrimaryEffect == EStatusType::Heal ||
-                Spell->PrimaryEffect == EStatusType::HealthRestore ||
-                Spell->SecondaryEffect == EStatusType::Heal ||
-                Spell->SecondaryEffect == EStatusType::HealthRestore)
+            continue;
+        }
+
+        for (const FSkillEffect &Effect : Spell->Effects)
+        {
+            if (Effect.EffectType == EStatusType::Heal ||
+                Effect.EffectType == EStatusType::HealthRestore)
             {
                 return Spell;
             }
@@ -1242,10 +1243,17 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
     TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
     for (USpellData *Spell : Spells)
     {
-        if (Spell && (Spell->PrimaryEffect == EStatusType::Cleanse ||
-                      Spell->SecondaryEffect == EStatusType::Cleanse))
+        if (!Spell)
         {
-            return Spell;
+            continue;
+        }
+
+        for (const FSkillEffect &Effect : Spell->Effects)
+        {
+            if (Effect.EffectType == EStatusType::Cleanse)
+            {
+                return Spell;
+            }
         }
     }
 

@@ -17,6 +17,7 @@
 #include "ESpellDeliveryType.h"
 #include "EDefenseType.h"
 #include "ActionStatModifiers.h"
+#include "FSkillEffect.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -100,33 +101,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     FWorldStatRequirements Requirements;
 
-    // ==================== PRIMARY EFFECTS ====================
+    // ==================== EFFECTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Primary")
-    EStatusType PrimaryEffect = EStatusType::None;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Primary", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-    float PrimaryEffectMagnitude = 0.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Primary", meta = (ClampMin = "0"))
-    int32 PrimaryEffectDuration = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Primary")
-    int32 PrimaryEffectValue = 0;
-
-    // ==================== SECONDARY EFFECTS (CROSS-SCHOOL) ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Secondary")
-    EStatusType SecondaryEffect = EStatusType::None;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Secondary", meta = (ClampMin = "0.0", ClampMax = "1.0"))
-    float SecondaryEffectMagnitude = 0.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Secondary", meta = (ClampMin = "0"))
-    int32 SecondaryEffectDuration = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Secondary")
-    int32 SecondaryEffectValue = 0;
+    /**
+     * Effects applied by this spell (max 5).
+     * Each effect can have its own target, condition, and timing.
+     * Replaces the previous PrimaryEffect/SecondaryEffect flat fields —
+     * spells now use the same array shape as abilities and attacks.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
+              meta = (TitleProperty = "EffectType"))
+    TArray<FSkillEffect> Effects;
 
     // ==================== VISUALS ====================
 

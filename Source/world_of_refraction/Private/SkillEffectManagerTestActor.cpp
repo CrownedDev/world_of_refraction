@@ -62,7 +62,6 @@ void ASkillEffectManagerTestActor::RunAllTests()
 	Test_PermanentEffects();
 	Test_StatModifierQuery();
 	Test_SourceTracking();
-	Test_MultipleSpellEffects();
 	Test_WeaponBonuses();
 	Test_PhysicalDamageEffects();
 	Test_SpeedBuffTurnManagerNotification();
@@ -679,76 +678,6 @@ void ASkillEffectManagerTestActor::Test_SourceTracking()
 	bPassed &= AssertEqual(0, Manager->GetEffectCount(Target), TEXT("Target has no effects"));
 
 	LogTestResult(TEXT("Source Tracking"), bPassed);
-
-	Manager->RemoveAllEffects(Target);
-}
-
-void ASkillEffectManagerTestActor::Test_MultipleSpellEffects()
-{
-	UE_LOG(LogTemp, Display, TEXT("[TEST] Multiple Spell Effects (Primary + Secondary)"));
-
-	USkillEffectManager *Manager = GetSkillEffectManager();
-	if (!Manager)
-		return;
-
-	AActor *Caster = CreateTestActor(TEXT("SpellCaster"));
-	AActor *Target = CreateTestActor(TEXT("SpellTarget"), 100, 100);
-	if (!Caster || !Target)
-		return;
-
-	UCharacterDataComponent *CharComp = Target->FindComponentByClass<UCharacterDataComponent>();
-	if (!CharComp)
-		return;
-
-	// Simulate a spell like "Dehydration" that has:
-	// Primary: EnergyRestore (self - but we'll apply to target for testing)
-	// Secondary: EnergyDrain (enemy)
-	// This tests the ApplySpellEffects convenience function
-
-	Manager->ApplySpellEffects(
-		Target,
-		TEXT("Dehydration"),	  // SpellName
-		5001,					  // SpellID
-		EStatusType::EnergyDrain, // PrimaryType (drain enemy)
-		0.0f,					  // PrimaryMagnitude
-		15,						  // PrimaryValue (15 energy drain)
-		2,						  // PrimaryDuration
-		EStatusType::SpeedDebuff, // SecondaryType (slow)
-		0.20f,					  // SecondaryMagnitude (20% slow)
-		0,						  // SecondaryValue
-		3,						  // SecondaryDuration
-		ESpellElement::Water,	  // Element
-		Caster,					  // Source
-		0);						  // SourceTeam
-
-	bool bPassed = true;
-
-	// Should have 2 effects from one spell
-	bPassed &= AssertEqual(2, Manager->GetEffectCount(Target), TEXT("Target has 2 effects from single spell"));
-
-	// Verify both effects exist
-	bPassed &= AssertTrue(Manager->HasEffectOfType(Target, EStatusType::EnergyDrain), TEXT("Has primary effect (EnergyDrain)"));
-	bPassed &= AssertTrue(Manager->HasEffectOfType(Target, EStatusType::SpeedDebuff), TEXT("Has secondary effect (SpeedDebuff)"));
-
-	// Process end of turn to apply effects
-	int32 EPBefore = CharComp->CurrentEP;
-	Manager->ProcessEndOfTurnEffects(Target);
-	int32 EPAfter = CharComp->CurrentEP;
-
-	bPassed &= AssertEqual(85, EPAfter, TEXT("Energy drained by 15 (100 -> 85)"));
-
-	// Check stat modifier from speed debuff
-	float SpeedMod = Manager->GetTotalStatModifier(Target, EStatusType::SpeedDebuff);
-	bPassed &= AssertEqualFloat(20.0f, SpeedMod, TEXT("Speed debuff modifier is 20%"));
-
-	// Verify source tracking on both effects
-	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(Target);
-	for (const FStatusEffect &Effect : Effects)
-	{
-		bPassed &= AssertTrue(Effect.SourceActor == Caster, TEXT("Effect has correct source actor"));
-	}
-
-	LogTestResult(TEXT("Multiple Spell Effects (Primary + Secondary)"), bPassed);
 
 	Manager->RemoveAllEffects(Target);
 }

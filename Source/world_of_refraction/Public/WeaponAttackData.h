@@ -10,6 +10,7 @@
 #include "EPhysicalDamageType.h"
 #include "EStatusType.h"
 #include "MovementData.h"
+#include "FSkillEffect.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -73,6 +74,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
     bool bCanBeInfused = true;
 
+    // ==================== EFFECTS ====================
+
+    /**
+     * Effects applied by this attack (max 5).
+     * Empty by default — most physical attacks have no triggered effects.
+     * Future attack designs (e.g. weapon with built-in bleed buff) populate here.
+     */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
+              meta = (TitleProperty = "EffectType"))
+    TArray<FSkillEffect> Effects;
+
     // ==================== ANIMATION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
@@ -120,9 +132,9 @@ public:
     UFUNCTION(BlueprintPure, Category = "Attack")
     FString GetDamageTypeName() const;
 
-    /** What status type this attack's buildup represents. Mirrors USpellData::PrimaryEffect
-     *  for the spell path — orchestrators read this directly rather than encoding the
-     *  PhysicalDamageType -> StatusType mapping at the call site. */
+    /** What status type this attack's buildup represents. Orchestrators read this
+     *  directly rather than encoding the PhysicalDamageType -> StatusType mapping
+     *  at the call site. */
     UFUNCTION(BlueprintPure, Category = "Attack")
     EStatusType GetBuildupStatusType() const
     {
