@@ -666,7 +666,7 @@ float UItemData::GetSpiritModifierPercent() const
 
 FString UItemData::GetEvolutionTypeName() const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return TEXT("N/A");
     }
@@ -688,7 +688,7 @@ FString UItemData::GetEvolutionTypeName() const
 
 FString UItemData::GetEvolutionStatSummary() const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return TEXT("N/A");
     }
