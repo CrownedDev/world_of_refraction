@@ -6,6 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "CharacterDataComponent.h"
 #include "StatusEffectManager.h"
+#include "StatusBuildupManager.h"
 #include "ESpellElement.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -193,18 +194,18 @@ void AHUDTestActor::AddTestStatusBuildup()
 		return;
 	}
 
-	UStatusEffectManager *StatusMgr = nullptr;
+	UStatusBuildupManager *BuildupMgr = nullptr;
 	if (UGameInstance *GI = World->GetGameInstance())
 	{
-		StatusMgr = GI->GetSubsystem<UStatusEffectManager>();
+		BuildupMgr = GI->GetSubsystem<UStatusBuildupManager>();
 	}
 
-	if (!StatusMgr)
+	if (!BuildupMgr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[HUDTest] StatusEffectManager subsystem not available."));
+		UE_LOG(LogTemp, Warning, TEXT("[HUDTest] StatusBuildupManager subsystem not available."));
 		return;
 	}
 
-	StatusMgr->AddStatusBuildup(ResolvedTarget, ResolvedTarget, TestStatusBuildup, EStatusType::DOT, ESpellElement::Generic);
+	BuildupMgr->AddStatusBuildup(ResolvedTarget, ResolvedTarget, TestStatusBuildup, EStatusType::DOT, ESpellElement::Generic);
 	UE_LOG(LogTemp, Log, TEXT("[HUDTest] Added %.1f status buildup to %s"), TestStatusBuildup, *ResolvedTarget->GetName());
 }

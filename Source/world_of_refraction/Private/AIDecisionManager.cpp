@@ -15,6 +15,7 @@
 #include "EDefenseType.h"
 #include "EDefenseDirection.h"
 #include "StatusEffectManager.h"
+#include "StatusBuildupManager.h"
 #include "DamageCalculator.h"
 #include "FItemLoadoutSlot.h"
 #include "ItemData.h"
@@ -1260,14 +1261,14 @@ bool UAIDecisionManager::IsStatusBarNearTrigger(AActor *Target, float Threshold)
         return false;
     }
 
-    UStatusEffectManager *StatusManager = GetStatusEffectManager();
-    if (!StatusManager)
+    UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
+    if (!BuildupManager)
     {
         return false;
     }
 
     // Get current bar percentage (0.0 - 1.0)
-    float BarPercent = StatusManager->GetStatusBarPercent(Target);
+    float BarPercent = BuildupManager->GetStatusBarPercent(Target);
 
     // Check if bar is near trigger threshold
     return BarPercent >= Threshold; // Default threshold is 0.70 (70%)
@@ -1280,14 +1281,14 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
         return false;
     }
 
-    UStatusEffectManager *StatusManager = GetStatusEffectManager();
-    if (!StatusManager)
+    UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
+    if (!BuildupManager)
     {
         return false;
     }
 
     // Get remaining buildup needed to trigger
-    float RemainingBuildup = StatusManager->GetBuildupToTrigger(Target);
+    float RemainingBuildup = BuildupManager->GetBuildupToTrigger(Target);
 
     // Check if this hit would trigger the bar
     return BuildupAmount >= RemainingBuildup;
@@ -1367,8 +1368,8 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     }
 
     // Priority 3: Status bar considerations (Medium+)
-    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
-    if (StatusManager)
+    UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+    if (BuildupManager)
     {
         // Calculate L1 buildup
         float BaseBuildup = Spell->StatusBuildup;
@@ -1379,7 +1380,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
         // Get pending status type (abilities apply physical status, not specific types)
-        EStatusType PendingStatus = StatusManager->GetPendingStatus(Target);
+        EStatusType PendingStatus = BuildupManager->GetPendingStatus(Target);
         if (PendingStatus == EStatusType::None)
         {
             // Default to DOT for abilities (they apply status via infusion)
@@ -1454,8 +1455,8 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     }
 
     // Priority 3: Status bar considerations (Medium+)
-    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
-    if (StatusManager && Difficulty >= EAIDifficulty::Medium)
+    UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+    if (BuildupManager && Difficulty >= EAIDifficulty::Medium)
     {
         // Calculate L1 status buildup
         int32 BaseBuildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
@@ -1466,7 +1467,7 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
         // Get pending status type
-        EStatusType PendingStatus = StatusManager->GetPendingStatus(Target);
+        EStatusType PendingStatus = BuildupManager->GetPendingStatus(Target);
         if (PendingStatus == EStatusType::None)
         {
             PendingStatus = EStatusType::DOT;

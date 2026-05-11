@@ -10,6 +10,7 @@
 class AActor;
 class UCharacterDataComponent;
 class UStatusEffectManager;
+class UStatusBuildupManager;
 class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
@@ -28,7 +29,7 @@ struct FStatusEffect;
  *
  * State sources:
  *   - HP/EP            -> UCharacterDataComponent::OnHPChanged / OnEPChanged
- *   - Status buildup   -> UStatusEffectManager::OnStatusBuildupChanged
+ *   - Status buildup   -> UStatusBuildupManager::OnStatusBuildupChanged
  *   - Buffs/debuffs    -> UStatusEffectManager::OnEffectApplied / Removed / DurationChanged
  *   - Death            -> UCharacterDataComponent::OnDied
  *
@@ -142,6 +143,9 @@ private:
 	TWeakObjectPtr<UCharacterDataComponent> BoundCharData;
 
 	TWeakObjectPtr<UStatusEffectManager> BoundStatusManager;
+
+	/** Bound buildup manager — owns OnStatusBuildupChanged post-split. */
+	TWeakObjectPtr<UStatusBuildupManager> BoundBuildupManager;
 
 	/** Bound BD manager for absorption-energy display (when applicable) */
 	TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;

@@ -4,6 +4,7 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "StatusEffectManager.h"
+#include "StatusBuildupManager.h"
 #include "StatusEffect.h"
 #include "BrokenDarknessManager.h"
 #include "WeaponManager.h"
@@ -50,14 +51,17 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	}
 
 	UStatusEffectManager *StatusMgr = nullptr;
+	UStatusBuildupManager *BuildupMgr = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
 		StatusMgr = GI->GetSubsystem<UStatusEffectManager>();
+		BuildupMgr = GI->GetSubsystem<UStatusBuildupManager>();
 	}
 
 	BoundActor = InActor;
 	BoundCharData = CharComp;
 	BoundStatusManager = StatusMgr;
+	BoundBuildupManager = BuildupMgr;
 
 	// Bind component delegates
 	CharComp->OnHPChanged.AddDynamic(this, &UCharacterPanelWidget::HandleHPChanged);
@@ -67,10 +71,13 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	// Bind global subsystem delegates (filtered per-actor inside the handlers)
 	if (StatusMgr)
 	{
-		StatusMgr->OnStatusBuildupChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 		StatusMgr->OnEffectApplied.AddDynamic(this, &UCharacterPanelWidget::HandleEffectApplied);
 		StatusMgr->OnEffectRemoved.AddDynamic(this, &UCharacterPanelWidget::HandleEffectRemoved);
 		StatusMgr->OnEffectDurationChanged.AddDynamic(this, &UCharacterPanelWidget::HandleEffectDurationChanged);
+	}
+	if (BuildupMgr)
+	{
+		BuildupMgr->OnStatusBuildupChanged.AddDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 	}
 
 	// BD manager binding (for character-created or runtime-transformed BDs)
@@ -135,10 +142,13 @@ void UCharacterPanelWidget::TeardownPanel()
 
 	if (UStatusEffectManager *StatusMgr = BoundStatusManager.Get())
 	{
-		StatusMgr->OnStatusBuildupChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 		StatusMgr->OnEffectApplied.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectApplied);
 		StatusMgr->OnEffectRemoved.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectRemoved);
 		StatusMgr->OnEffectDurationChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectDurationChanged);
+	}
+	if (UStatusBuildupManager *BuildupMgr = BoundBuildupManager.Get())
+	{
+		BuildupMgr->OnStatusBuildupChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleStatusBuildupChanged);
 	}
 
 	if (UBrokenDarknessManager *BDManager = BoundBDManager.Get())

@@ -3,6 +3,7 @@
 #include "CombatOrchestrator.h"
 #include "TurnManager.h"
 #include "StatusEffectManager.h"
+#include "StatusBuildupManager.h"
 #include "ActionExecutor.h"
 #include "CharacterDataComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -242,20 +243,23 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	if (StatusEffectManagerRef)
 	{
 		StatusEffectManagerRef->ClearAllEffects();
+	}
 
-		// NEW: Reset all status bars
+	// Reset all status bars — split out of StatusEffectManager into a dedicated subsystem.
+	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
+	{
 		for (AActor *Actor : Team0Combatants)
 		{
 			if (Actor)
 			{
-				StatusEffectManagerRef->ResetStatusBar(Actor);
+				BuildupManager->ResetStatusBar(Actor);
 			}
 		}
 		for (AActor *Actor : Team1Combatants)
 		{
 			if (Actor)
 			{
-				StatusEffectManagerRef->ResetStatusBar(Actor);
+				BuildupManager->ResetStatusBar(Actor);
 			}
 		}
 	}
@@ -670,8 +674,11 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 	// Delegate to StatusEffectManager - processes buffs, regen, etc.
 	StatusEffectManagerRef->ProcessStartOfTurnEffects(Actor);
 
-	// Process status bar decay
-	StatusEffectManagerRef->ProcessStatusBarDecay(Actor);
+	// Process status bar decay (buildup lives in its own subsystem post-split).
+	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
+	{
+		BuildupManager->ProcessStatusBarDecay(Actor);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed start-of-turn effects for %s"),
 		   *Actor->GetName());
@@ -1334,15 +1341,15 @@ void ACombatOrchestrator::DebugSpendEPTeam1()
 
 void ACombatOrchestrator::DebugApplyStatusBuildup()
 {
-	UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
-	if (!StatusManager)
+	UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	if (!BuildupManager)
 		return;
 
 	for (AActor *Actor : Team0Combatants)
-		StatusManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
+		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
 
 	for (AActor *Actor : Team1Combatants)
-		StatusManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
+		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
 }
 
 void ACombatOrchestrator::DebugKillActor(AActor *Actor)

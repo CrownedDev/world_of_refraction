@@ -29,9 +29,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectStacksChanged, AActor *,
 /** Broadcast when an effect's duration changes */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectDurationChanged, AActor *, Target, const FStatusEffect &, Effect, int32, RemainingTurns);
 
-/** Broadcast when a status buildup changes (for UI feedback) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStatusBuildupChanged, AActor *, Target, float, CurrentBuildup, float, MaxBuildup);
-
 // ========================================
 // ENUMS
 // ========================================
@@ -320,13 +317,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
 	float GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const;
 
-	/** Net element-matching resistance fraction from active ResistanceBuff − ResistanceDebuff
-	 *  effects. Returns 0.0–0.5+ (caller clamps). Used by AddStatusBuildup so per-element
-	 *  resistance buffs (e.g., Fire Resistance from items) reduce Fire buildup only, not
-	 *  Lightning buildup. Effects with mismatched Element contribute zero. */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
-	float GetTotalElementResistance(AActor *Target, ESpellElement Element) const;
-
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
 	int32 GetEffectCount(AActor *Actor) const;
@@ -359,36 +349,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
 	bool IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const;
 
-	// ==================== STATUS BAR SYSTEM ====================
-
-	/** Get current status bar percentage for a target (0.0 - 1.0) */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	float GetStatusBarPercent(AActor *Target) const;
-
-	/** Get current status bar buildup value */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	float GetStatusBarBuildup(AActor *Target) const;
-
-	/** Get remaining buildup needed to trigger status */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	float GetBuildupToTrigger(AActor *Target) const;
-
-	/** Get the pending status type (what will trigger when bar fills) */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	EStatusType GetPendingStatus(AActor *Target) const;
-
-	/** Add buildup to target's status bar, returns true if triggered */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount, EStatusType StatusType, ESpellElement Element);
-
-	/** Reset status bar for target */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	void ResetStatusBar(AActor *Target);
-
-	/** Process status bar decay at turn start */
-	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	void ProcessStatusBarDecay(AActor *Target);
-
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -413,11 +373,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
 	FOnEffectDurationChanged OnEffectDurationChanged;
 
-	/** Broadcast when status bar buildup changes */
-
-	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
-	FOnStatusBuildupChanged OnStatusBuildupChanged;
-
 	// ========================================
 	// DEBUG TOOLS
 	// ========================================
@@ -436,6 +391,19 @@ public:
 
 	/** Apply immediate (on-hit) status effect */
 	void ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+
+	/** Apply triggered (bar-full) status effect.
+	 *
+	 *  CONNECTION POINT: this is the single buildup → effect entry point.
+	 *  UStatusBuildupManager::TriggerStatusEffect calls here when a target's
+	 *  buildup bar caps; this function creates the matching FStatusEffect and
+	 *  applies it at full power via ApplyEffect.
+	 *
+	 *  Public (not private) so the buildup manager — a separate subsystem
+	 *  post-split — can invoke it across the boundary. Do not call from inside
+	 *  UStatusEffectManager itself; effect-side internals should use ApplyEffect
+	 *  directly. */
+	void ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 
 private:
 	// ========================================
@@ -482,24 +450,4 @@ private:
 	/** Notify TurnManager that an actor's speed has changed */
 	void NotifySpeedChanged(AActor *Actor);
 
-	// ==================== STATUS BAR STATE ====================
-
-	/** Status bar state per actor */
-	struct FStatusBarState
-	{
-		float CurrentBuildup = 0.0f;
-		EStatusType PendingStatus = EStatusType::None;
-		ESpellElement PendingElement = ESpellElement::Generic;
-		TWeakObjectPtr<AActor> LastSource;
-		int32 TurnsSinceLastHit = 0;
-	};
-
-	/** Status bar state tracking */
-	TMap<TWeakObjectPtr<AActor>, FStatusBarState> StatusBarStates;
-
-	/** Trigger the status effect when bar fills */
-	void TriggerStatusEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
-
-	/** Apply triggered (bar-full) status effect */
-	void ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 };

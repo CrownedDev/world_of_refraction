@@ -5,6 +5,7 @@
 #include "CharacterData.h"
 #include "ElementHelpers.h"
 #include "StatusEffectManager.h"
+#include "StatusBuildupManager.h"
 #include "StatusEffect.h"
 #include "SpellData.h"
 #include "AbilityData.h"
@@ -1828,14 +1829,15 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
 	}
 
-	// Buildup path — UStatusEffectManager::AddStatusBuildup runs the Phase 2a
+	// Buildup path — UStatusBuildupManager::AddStatusBuildup runs the Phase 2a
 	// attacker StatusMultiplier amplifier and the Phase 2b per-element resistance
 	// reduction internally. ApplyHit gets both for free.
 	if (Input.BaseStatusBuildup > 0 && Input.StatusToBuild != EStatusType::None)
 	{
-		if (UStatusEffectManager *StatusManager = GetStatusEffectManager())
+		UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
+		if (BuildupManager)
 		{
-			StatusManager->AddStatusBuildup(
+			BuildupManager->AddStatusBuildup(
 				Input.Attacker,
 				Input.Target,
 				static_cast<float>(Input.BaseStatusBuildup),
