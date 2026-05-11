@@ -533,6 +533,20 @@ void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, in
 	OutDamagePerHit = FinalDamage / FMath::Max(1, HitCount);
 }
 
+void UActionExecutor::LogActionDispatch(
+	EActionType ActionType,
+	int32 InfusionLevel,
+	int32 FinalDamage,
+	int32 NumTargets) const
+{
+	UE_LOG(LogTemp, Log,
+		TEXT("[ActionExecutor] %s async L%d - %d damage, opened %d defense windows"),
+		*UEnum::GetValueAsString(ActionType),
+		InfusionLevel,
+		FinalDamage,
+		NumTargets);
+}
+
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
 {
 	USpellData *Spell = Action.SpellData;
@@ -693,8 +707,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell async - opened %d defense windows (Size: %.1f, Damage: %d)"),
-		   ValidTargets.Num(), FinalSpellSize, FinalDamage);
+	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
 void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
@@ -825,8 +838,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		AbilityStatusType,			 // StatusToBuild — None until effect-on-cap is designed
 		0.3f);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async L%d - %d damage (%.1fx), opened %d defense windows"),
-		   Action.AbilityInfusionLevel, FinalDamage, DamageMultiplier, ValidTargets.Num());
+	LogActionDispatch(EActionType::Ability, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
 void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
@@ -942,8 +954,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		AttackStatusType,	   // StatusToBuild (Phase C3)
 		0.3f);
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Attack async - opened %d defense windows"),
-		   ValidTargets.Num());
+	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());
 }
 
 // ========================================

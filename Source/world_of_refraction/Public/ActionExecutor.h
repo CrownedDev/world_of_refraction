@@ -723,6 +723,15 @@ private:
 	 *  Assumes CurrentExecutionContext.IsSet(). */
 	void FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit);
 
+	/** Unified log line for async action dispatch. Replaces three near-identical
+	 *  trailing UE_LOG calls in the async executors. Spell size is dropped from
+	 *  the unified log — was diagnostic noise, not behavioural. */
+	void LogActionDispatch(
+		EActionType ActionType,
+		int32 InfusionLevel,
+		int32 FinalDamage,
+		int32 NumTargets) const;
+
 	// ==================== RETURN MOVEMENT TRACKING ====================
 
 	/** Track if we're waiting for return movement */
