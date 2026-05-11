@@ -104,6 +104,19 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     FWorldStatRequirements Requirements;
 
+    // ==================== STATUS ====================
+
+    /** Raw mode: folds StatusBuildup into BaseDamage at the orchestrator boundary; status bar doesn't move. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Status")
+    bool bIsRawMode = false;
+
+    /** Per-hit status buildup amount. Read by the orchestrator when wiring ability buildup
+     *  through OpenDefenseWindowsForTargets. Defaults to 0 — existing assets continue to
+     *  not build status until designers populate this value. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Status",
+              meta = (EditCondition = "!bIsRawMode", EditConditionHides, ClampMin = "0"))
+    int32 StatusBuildup = 0;
+
     // ==================== INFUSION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
