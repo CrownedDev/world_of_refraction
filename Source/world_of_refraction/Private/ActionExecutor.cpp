@@ -780,11 +780,19 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 								   Ability->HitCount, StatusMultiplier);
 	}
 
-	// Commit 2: ability raw-mode redirect.
-	// Phase C3 backlog: non-raw ability buildup is not yet wired through the defense
-	// pipeline — orchestrator continues to pass 0/None for that path. Raw mode pulls
-	// Ability->StatusBuildup into the redirect helper so it folds into FinalDamage.
-	int32 AbilityBaseBuildup = Ability->bIsRawMode ? Ability->StatusBuildup : 0;
+	// Buildup amount only — read unconditionally, mirrors ExecuteSpellAsync.
+	// Trigger type intentionally None: when the bar caps,
+	// TriggerSkillEffectFromBuildup early-returns and nothing fires.
+	// TODO: SetPendingTrigger when status buildup is maxed — add detailed
+	// effect to take place. UAbilityData will need a way to declare which
+	// EStatusType fires on cap (mirroring USpellData::PrimaryEffect, or via
+	// the Effects[] array once that wiring is in place).
+	int32 AbilityBaseBuildup = 0;
+	if (Ability->StatusBuildup > 0)
+	{
+		AbilityBaseBuildup = Ability->StatusBuildup;
+	}
+
 	EStatusType AbilityStatusType = EStatusType::None;
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup, AbilityStatusType);
 
@@ -806,8 +814,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		EActionType::Ability,		 // ActionType
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
-		AbilityBaseBuildup,			 // BaseStatusBuildup — raw mode only (Phase C3 deferred for non-raw)
-		AbilityStatusType,			 // StatusToBuild — None post-redirect or non-raw
+		AbilityBaseBuildup,			 // BaseStatusBuildup
+		AbilityStatusType,			 // StatusToBuild — None until effect-on-cap is designed
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async L%d - %d damage (%.1fx), opened %d defense windows"),
@@ -894,26 +902,19 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		return;
 	}
 
-	// Phase C3: Compute weapon physical-status buildup. Mirrors C1's spell pattern —
-	// data asset declares its own buildup type (Attack->GetBuildupStatusType() parallels
-	// Spell->PrimaryEffect), amount comes from Attack->StatusBuildup, Element is the
-	// same `Element` local already used for damage (single source of truth per attack).
-	//
-	// Closes audit risk #4 (async attack buildup leak): bleed/armor-break previously
-	// never triggered from async attacks because this orchestrator never called the
-	// status manager. ApplyImmediateSkillEffect on-hit weak status stays gone (locked
-	// design from C1: buildup-bar threshold is the single path for "becoming statused").
+	// Buildup amount only. Trigger type intentionally None — when the bar caps,
+	// TriggerSkillEffectFromBuildup early-returns and nothing fires.
+	// TODO: SetPendingTrigger when status buildup is maxed — add detailed
+	// effect to take place. UWeaponAttackData::GetBuildupStatusType() already
+	// maps PhysicalDamageType -> EStatusType; wire it here when effect-on-cap
+	// is designed.
 	int32 AttackBaseBuildup = 0;
-	EStatusType AttackStatusType = Attack->GetBuildupStatusType();
-	if (Attack->StatusBuildup > 0 && AttackStatusType != EStatusType::None)
+	if (Attack->StatusBuildup > 0)
 	{
-		float Buildup = static_cast<float>(Attack->StatusBuildup);
-		// Weapons don't carry L1/L2 charge levels yet — no infusion buildup multiplier
-		// applied here. When attack charge levels exist, apply
-		// CombatConstants::SPELL_L1_BUILDUP_MULT in parallel to the spell path's
-		// `if (Action.SpellInfusionLevel == 1)` block.
-		AttackBaseBuildup = FMath::RoundToInt(Buildup);
+		AttackBaseBuildup = Attack->StatusBuildup;
 	}
+
+	EStatusType AttackStatusType = EStatusType::None;
 
 	// Commit 2: if bIsRawMode, fold AttackBaseBuildup into BaseDamage at the
 	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
@@ -1832,7 +1833,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 	// Buildup path — UStatusBuildupManager::AddStatusBuildup runs the Phase 2a
 	// attacker StatusMultiplier amplifier and the Phase 2b per-element resistance
 	// reduction internally. ApplyHit gets both for free.
-	if (Input.BaseStatusBuildup > 0 && Input.StatusToBuild != EStatusType::None)
+	if (Input.BaseStatusBuildup > 0)
 	{
 		UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
 		if (BuildupManager)
