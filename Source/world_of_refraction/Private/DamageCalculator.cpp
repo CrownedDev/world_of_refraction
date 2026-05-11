@@ -7,7 +7,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "WeaponAttackData.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
 #include "WeaponData.h"
@@ -328,7 +328,7 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	int32 BaseDefense = Data->CalculateFlatDefense();
 
 	// Apply status effect modifiers
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::DefenseBuff);
@@ -353,7 +353,7 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	float BaseCrit = Data->CalculateCritChance();
 
 	// Apply status effect modifiers
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
@@ -510,14 +510,14 @@ UCharacterData *UDamageCalculator::GetCharacterData(AActor *Actor) const
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-UStatusEffectManager *UDamageCalculator::GetStatusEffectManager() const
+USkillEffectManager *UDamageCalculator::GetStatusEffectManager() const
 {
 	if (!CachedStatusManager)
 	{
 		// StatusEffectManager is a GameInstanceSubsystem like DamageCalculator
 		if (UGameInstance *GI = GetGameInstance())
 		{
-			CachedStatusManager = GI->GetSubsystem<UStatusEffectManager>();
+			CachedStatusManager = GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
 	return CachedStatusManager;
@@ -536,7 +536,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 {
 	float Modifier = 1.0f;
 
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 	{
 		return Modifier;

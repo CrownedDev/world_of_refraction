@@ -9,7 +9,7 @@
 
 class AActor;
 class UCharacterDataComponent;
-class UStatusEffectManager;
+class USkillEffectManager;
 class UStatusBuildupManager;
 class UProgressBar;
 class UTextBlock;
@@ -30,7 +30,7 @@ struct FStatusEffect;
  * State sources:
  *   - HP/EP            -> UCharacterDataComponent::OnHPChanged / OnEPChanged
  *   - Status buildup   -> UStatusBuildupManager::OnStatusBuildupChanged
- *   - Buffs/debuffs    -> UStatusEffectManager::OnEffectApplied / Removed / DurationChanged
+ *   - Buffs/debuffs    -> USkillEffectManager::OnEffectApplied / Removed / DurationChanged
  *   - Death            -> UCharacterDataComponent::OnDied
  *
  * Lifecycle: Created by UCombatHUDRoot (or by debug spawn), given an actor via
@@ -142,7 +142,7 @@ private:
 
 	TWeakObjectPtr<UCharacterDataComponent> BoundCharData;
 
-	TWeakObjectPtr<UStatusEffectManager> BoundStatusManager;
+	TWeakObjectPtr<USkillEffectManager> BoundStatusManager;
 
 	/** Bound buildup manager — owns OnStatusBuildupChanged post-split. */
 	TWeakObjectPtr<UStatusBuildupManager> BoundBuildupManager;

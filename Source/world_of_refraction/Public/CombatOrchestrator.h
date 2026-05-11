@@ -13,7 +13,7 @@
 
 class UTurnManager;
 class UCharacterDataComponent;
-class UStatusEffectManager;
+class USkillEffectManager;
 class UActionExecutor;
 
 /**
@@ -370,7 +370,7 @@ private:
 	UTurnManager *TurnManagerRef;
 
 	UPROPERTY()
-	UStatusEffectManager *StatusEffectManagerRef;
+	USkillEffectManager *StatusEffectManagerRef;
 
 	UPROPERTY()
 	UActionExecutor *ActionExecutorRef;

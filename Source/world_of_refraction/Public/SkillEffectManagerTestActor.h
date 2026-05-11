@@ -4,13 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "StatusEffectManagerTestActor.generated.h"
+#include "SkillEffectManagerTestActor.generated.h"
 
-class UStatusEffectManager;
+class USkillEffectManager;
 class UCharacterDataComponent;
 
 /**
- * AStatusEffectManagerTestActor
+ * ASkillEffectManagerTestActor
  *
  * Automated test suite for StatusEffectManager.
  * Place in level and use context menu to run tests.
@@ -24,12 +24,12 @@ class UCharacterDataComponent;
  * - Query functions (counts, has effect, stat totals)
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API AStatusEffectManagerTestActor : public AActor
+class WORLD_OF_REFRACTION_API ASkillEffectManagerTestActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	AStatusEffectManagerTestActor();
+	ASkillEffectManagerTestActor();
 
 	virtual void BeginPlay() override;
 
@@ -112,7 +112,7 @@ private:
 	// ========================================
 
 	/** Get or create StatusEffectManager */
-	UStatusEffectManager *GetStatusEffectManager();
+	USkillEffectManager *GetStatusEffectManager();
 
 	/** Create a test actor with CharacterDataComponent */
 	AActor *CreateTestActor(const FString &Name, int32 HP = 100, int32 EP = 50);

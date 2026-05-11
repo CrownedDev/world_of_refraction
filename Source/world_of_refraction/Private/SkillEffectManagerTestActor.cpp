@@ -1,19 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "StatusEffectManagerTestActor.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManagerTestActor.h"
+#include "SkillEffectManager.h"
 #include "StatusEffect.h"
 #include "CharacterDataComponent.h"
 #include "TurnManager.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 
-AStatusEffectManagerTestActor::AStatusEffectManagerTestActor()
+ASkillEffectManagerTestActor::ASkillEffectManagerTestActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void AStatusEffectManagerTestActor::BeginPlay()
+void ASkillEffectManagerTestActor::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -21,7 +21,7 @@ void AStatusEffectManagerTestActor::BeginPlay()
 	{
 		// Delay to ensure subsystems are ready
 		FTimerHandle TimerHandle;
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &AStatusEffectManagerTestActor::RunAllTests, 0.5f, false);
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &ASkillEffectManagerTestActor::RunAllTests, 0.5f, false);
 	}
 }
 
@@ -29,7 +29,7 @@ void AStatusEffectManagerTestActor::BeginPlay()
 // TEST EXECUTION
 // ========================================
 
-void AStatusEffectManagerTestActor::RunAllTests()
+void ASkillEffectManagerTestActor::RunAllTests()
 {
 	TestsPassed = 0;
 	TestsFailed = 0;
@@ -75,7 +75,7 @@ void AStatusEffectManagerTestActor::RunAllTests()
 	// Final cleanup
 	CleanupTestActors();
 
-	if (UStatusEffectManager *Manager = GetStatusEffectManager())
+	if (USkillEffectManager *Manager = GetStatusEffectManager())
 	{
 		Manager->ClearAllEffects();
 	}
@@ -85,11 +85,11 @@ void AStatusEffectManagerTestActor::RunAllTests()
 // INDIVIDUAL TESTS
 // ========================================
 
-void AStatusEffectManagerTestActor::Test_ApplyEffect()
+void ASkillEffectManagerTestActor::Test_ApplyEffect()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Apply Effect"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!AssertTrue(Manager != nullptr, TEXT("Manager exists")))
 		return;
 
@@ -112,11 +112,11 @@ void AStatusEffectManagerTestActor::Test_ApplyEffect()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_StackingBehavior()
+void ASkillEffectManagerTestActor::Test_StackingBehavior()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Stacking Behavior"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -160,11 +160,11 @@ void AStatusEffectManagerTestActor::Test_StackingBehavior()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_DurationRefresh()
+void ASkillEffectManagerTestActor::Test_DurationRefresh()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Duration Refresh"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -208,11 +208,11 @@ void AStatusEffectManagerTestActor::Test_DurationRefresh()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_RemoveByID()
+void ASkillEffectManagerTestActor::Test_RemoveByID()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove By ID"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -243,11 +243,11 @@ void AStatusEffectManagerTestActor::Test_RemoveByID()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_RemoveByType()
+void ASkillEffectManagerTestActor::Test_RemoveByType()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove By Type"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -275,11 +275,11 @@ void AStatusEffectManagerTestActor::Test_RemoveByType()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_RemoveAllBuffs()
+void ASkillEffectManagerTestActor::Test_RemoveAllBuffs()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove All Buffs"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -318,11 +318,11 @@ void AStatusEffectManagerTestActor::Test_RemoveAllBuffs()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_RemoveAllDebuffs()
+void ASkillEffectManagerTestActor::Test_RemoveAllDebuffs()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove All Debuffs"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -366,11 +366,11 @@ void AStatusEffectManagerTestActor::Test_RemoveAllDebuffs()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_StartOfTurnProcessing()
+void ASkillEffectManagerTestActor::Test_StartOfTurnProcessing()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Start Of Turn Processing"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -413,11 +413,11 @@ void AStatusEffectManagerTestActor::Test_StartOfTurnProcessing()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_EndOfTurnProcessing()
+void ASkillEffectManagerTestActor::Test_EndOfTurnProcessing()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] End Of Turn Processing"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -458,11 +458,11 @@ void AStatusEffectManagerTestActor::Test_EndOfTurnProcessing()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_DOTDamage()
+void ASkillEffectManagerTestActor::Test_DOTDamage()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] DOT Damage"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -494,11 +494,11 @@ void AStatusEffectManagerTestActor::Test_DOTDamage()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_DurationExpiration()
+void ASkillEffectManagerTestActor::Test_DurationExpiration()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Duration Expiration"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -529,11 +529,11 @@ void AStatusEffectManagerTestActor::Test_DurationExpiration()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_ConditionalTrigger()
+void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Conditional Trigger"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -578,11 +578,11 @@ void AStatusEffectManagerTestActor::Test_ConditionalTrigger()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_PermanentEffects()
+void ASkillEffectManagerTestActor::Test_PermanentEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Permanent Effects"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -611,11 +611,11 @@ void AStatusEffectManagerTestActor::Test_PermanentEffects()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_StatModifierQuery()
+void ASkillEffectManagerTestActor::Test_StatModifierQuery()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Stat Modifier Query"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -642,11 +642,11 @@ void AStatusEffectManagerTestActor::Test_StatModifierQuery()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_SourceTracking()
+void ASkillEffectManagerTestActor::Test_SourceTracking()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Source Tracking"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -683,11 +683,11 @@ void AStatusEffectManagerTestActor::Test_SourceTracking()
 	Manager->RemoveAllEffects(Target);
 }
 
-void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
+void ASkillEffectManagerTestActor::Test_MultipleSpellEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Multiple Spell Effects (Primary + Secondary)"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -753,11 +753,11 @@ void AStatusEffectManagerTestActor::Test_MultipleSpellEffects()
 	Manager->RemoveAllEffects(Target);
 }
 
-void AStatusEffectManagerTestActor::Test_WeaponBonuses()
+void ASkillEffectManagerTestActor::Test_WeaponBonuses()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Weapon Bonuses"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -808,11 +808,11 @@ void AStatusEffectManagerTestActor::Test_WeaponBonuses()
 	Manager->RemoveAllEffects(TestActor);
 }
 
-void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
+void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Physical Damage Effects (Slash/Pierce/Impact)"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -894,11 +894,11 @@ void AStatusEffectManagerTestActor::Test_PhysicalDamageEffects()
 	Manager->RemoveAllEffects(Target);
 }
 
-void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
+void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Speed Buff → TurnManager Notification"));
 
-	UStatusEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetStatusEffectManager();
 	if (!Manager)
 		return;
 
@@ -1004,7 +1004,7 @@ void AStatusEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 // TEST INFRASTRUCTURE
 // ========================================
 
-UStatusEffectManager *AStatusEffectManagerTestActor::GetStatusEffectManager()
+USkillEffectManager *ASkillEffectManagerTestActor::GetStatusEffectManager()
 {
 	UGameInstance *GI = GetGameInstance();
 	if (!GI)
@@ -1013,10 +1013,10 @@ UStatusEffectManager *AStatusEffectManagerTestActor::GetStatusEffectManager()
 		return nullptr;
 	}
 
-	return GI->GetSubsystem<UStatusEffectManager>();
+	return GI->GetSubsystem<USkillEffectManager>();
 }
 
-AActor *AStatusEffectManagerTestActor::CreateTestActor(const FString &Name, int32 HP, int32 EP)
+AActor *ASkillEffectManagerTestActor::CreateTestActor(const FString &Name, int32 HP, int32 EP)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = FName(*FString::Printf(TEXT("%s_%d"), *Name, TestActorCounter++));
@@ -1043,7 +1043,7 @@ AActor *AStatusEffectManagerTestActor::CreateTestActor(const FString &Name, int3
 	return TestActor;
 }
 
-void AStatusEffectManagerTestActor::CleanupTestActors()
+void ASkillEffectManagerTestActor::CleanupTestActors()
 {
 	for (AActor *Actor : SpawnedTestActors)
 	{
@@ -1055,7 +1055,7 @@ void AStatusEffectManagerTestActor::CleanupTestActors()
 	SpawnedTestActors.Empty();
 }
 
-void AStatusEffectManagerTestActor::LogTestResult(const FString &TestName, bool bPassed, const FString &Details)
+void ASkillEffectManagerTestActor::LogTestResult(const FString &TestName, bool bPassed, const FString &Details)
 {
 	if (bPassed)
 	{
@@ -1076,7 +1076,7 @@ void AStatusEffectManagerTestActor::LogTestResult(const FString &TestName, bool 
 	}
 }
 
-bool AStatusEffectManagerTestActor::AssertTrue(bool Condition, const FString &Message)
+bool ASkillEffectManagerTestActor::AssertTrue(bool Condition, const FString &Message)
 {
 	if (!Condition)
 	{
@@ -1085,7 +1085,7 @@ bool AStatusEffectManagerTestActor::AssertTrue(bool Condition, const FString &Me
 	return Condition;
 }
 
-bool AStatusEffectManagerTestActor::AssertEqual(int32 Expected, int32 Actual, const FString &Message)
+bool ASkillEffectManagerTestActor::AssertEqual(int32 Expected, int32 Actual, const FString &Message)
 {
 	if (Expected != Actual)
 	{
@@ -1095,7 +1095,7 @@ bool AStatusEffectManagerTestActor::AssertEqual(int32 Expected, int32 Actual, co
 	return true;
 }
 
-bool AStatusEffectManagerTestActor::AssertEqualFloat(float Expected, float Actual, const FString &Message, float Tolerance)
+bool ASkillEffectManagerTestActor::AssertEqualFloat(float Expected, float Actual, const FString &Message, float Tolerance)
 {
 	if (FMath::Abs(Expected - Actual) > Tolerance)
 	{

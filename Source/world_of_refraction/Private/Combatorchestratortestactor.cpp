@@ -8,7 +8,7 @@
 #include "WeaponAttackData.h"
 #include "SpellData.h"
 #include "AbilityData.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "EStatusType.h"
 #include "ItemData.h"
 #include "LoadoutComponent.h"
@@ -934,7 +934,7 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 
 	// Get StatusEffectManager
 	UGameInstance *GameInstance = GetWorld()->GetGameInstance();
-	UStatusEffectManager *StatusManager = GameInstance ? GameInstance->GetSubsystem<UStatusEffectManager>() : nullptr;
+	USkillEffectManager *StatusManager = GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
 
 	if (!StatusManager)
 	{

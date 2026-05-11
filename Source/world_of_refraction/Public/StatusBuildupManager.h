@@ -8,7 +8,7 @@
 #include "ESpellElement.h"
 #include "StatusBuildupManager.generated.h"
 
-class UStatusEffectManager;
+class USkillEffectManager;
 
 // ========================================
 // DELEGATE DECLARATIONS
@@ -22,17 +22,17 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStatusBuildupChanged, AActor *
  *
  * GameInstanceSubsystem that owns the per-actor status-buildup bar.
  * Buildup accumulates from attacks (spell + ability + weapon); when the bar
- * caps, the appropriate skill effect fires via UStatusEffectManager.
+ * caps, the appropriate skill effect fires via USkillEffectManager.
  *
- * Split out of UStatusEffectManager in 2026-05. The effect manager retains
+ * Split out of USkillEffectManager in 2026-05. The effect manager retains
  * effect tracking (durations, stacks, removal helpers, immediate / triggered
  * application). This manager owns the bar — the two systems talk via a
  * cached pointer:
  *   Buildup bar fills  →  UStatusBuildupManager::TriggerStatusEffect
- *                      →  UStatusEffectManager::ApplyTriggeredStatus (lands the effect)
+ *                      →  USkillEffectManager::ApplyTriggeredStatus (lands the effect)
  *
  * Per-element resistance — although the underlying ResistanceBuff / Debuff
- * effects live in UStatusEffectManager::ActiveEffects (the effect manager's
+ * effects live in USkillEffectManager::ActiveEffects (the effect manager's
  * storage is the plumbing), the public query GetTotalElementResistance lives
  * on this manager: element resistance is a buildup-side concept (it reduces
  * buildup, not damage). The query reaches over to the effect manager via the
@@ -102,7 +102,7 @@ public:
 	 *  (e.g., Fire Resistance from items) reduce Fire buildup only, not
 	 *  Lightning buildup. Effects with mismatched Element contribute zero.
 	 *
-	 *  Implementation queries UStatusEffectManager::GetEffectsByType for
+	 *  Implementation queries USkillEffectManager::GetEffectsByType for
 	 *  ResistanceBuff and ResistanceDebuff — element filtering and aggregation
 	 *  happen here. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
@@ -144,9 +144,9 @@ private:
 
 	/** Cached effect manager reference. Lazy-initialised on first GetEffectManager call. */
 	UPROPERTY()
-	UStatusEffectManager *EffectManagerRef = nullptr;
+	USkillEffectManager *EffectManagerRef = nullptr;
 
-	/** Get UStatusEffectManager via cached pointer; lazy-acquire on first call.
+	/** Get USkillEffectManager via cached pointer; lazy-acquire on first call.
 	 *  Matches the const_cast pattern used by UActionExecutor::GetStatusEffectManager. */
-	UStatusEffectManager *GetEffectManager() const;
+	USkillEffectManager *GetEffectManager() const;
 };

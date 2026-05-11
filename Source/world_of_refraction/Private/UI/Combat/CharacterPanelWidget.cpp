@@ -3,7 +3,7 @@
 #include "UI/Combat/CharacterPanelWidget.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "StatusEffect.h"
 #include "BrokenDarknessManager.h"
@@ -50,11 +50,11 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		return;
 	}
 
-	UStatusEffectManager *StatusMgr = nullptr;
+	USkillEffectManager *StatusMgr = nullptr;
 	UStatusBuildupManager *BuildupMgr = nullptr;
 	if (UGameInstance *GI = GetGameInstance())
 	{
-		StatusMgr = GI->GetSubsystem<UStatusEffectManager>();
+		StatusMgr = GI->GetSubsystem<USkillEffectManager>();
 		BuildupMgr = GI->GetSubsystem<UStatusBuildupManager>();
 	}
 
@@ -140,7 +140,7 @@ void UCharacterPanelWidget::TeardownPanel()
 		CharComp->OnDied.RemoveDynamic(this, &UCharacterPanelWidget::HandleDied);
 	}
 
-	if (UStatusEffectManager *StatusMgr = BoundStatusManager.Get())
+	if (USkillEffectManager *StatusMgr = BoundStatusManager.Get())
 	{
 		StatusMgr->OnEffectApplied.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectApplied);
 		StatusMgr->OnEffectRemoved.RemoveDynamic(this, &UCharacterPanelWidget::HandleEffectRemoved);
@@ -305,7 +305,7 @@ void UCharacterPanelWidget::HandleDied(AActor *DeadActor)
 
 void UCharacterPanelWidget::RefreshBuffDebuffList()
 {
-	UStatusEffectManager *StatusMgr = BoundStatusManager.Get();
+	USkillEffectManager *StatusMgr = BoundStatusManager.Get();
 	AActor *Actor = BoundActor.Get();
 
 	if (!StatusMgr || !Actor)

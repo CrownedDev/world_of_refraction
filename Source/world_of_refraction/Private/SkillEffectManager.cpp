@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "CharacterDataComponent.h"
 #include "TurnManager.h"
 #include "EStatusType.h"
@@ -13,7 +13,7 @@
 // SUBSYSTEM LIFECYCLE
 // ========================================
 
-void UStatusEffectManager::Initialize(FSubsystemCollectionBase &Collection)
+void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
 
@@ -23,7 +23,7 @@ void UStatusEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Initialized"));
 }
 
-void UStatusEffectManager::Deinitialize()
+void USkillEffectManager::Deinitialize()
 {
 	ClearAllEffects();
 
@@ -36,7 +36,7 @@ void UStatusEffectManager::Deinitialize()
 // EFFECT APPLICATION
 // ========================================
 
-EEffectApplicationResult UStatusEffectManager::ApplyEffect(AActor *Target, FStatusEffect Effect,
+EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatusEffect Effect,
 														   AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
 	if (!Target)
@@ -136,7 +136,7 @@ EEffectApplicationResult UStatusEffectManager::ApplyEffect(AActor *Target, FStat
 	return EEffectApplicationResult::Applied;
 }
 
-void UStatusEffectManager::ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
+void USkillEffectManager::ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
 										AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
 	for (const FStatusEffect &Effect : Effects)
@@ -145,7 +145,7 @@ void UStatusEffectManager::ApplyEffects(AActor *Target, const TArray<FStatusEffe
 	}
 }
 
-void UStatusEffectManager::ApplySpellEffects(
+void USkillEffectManager::ApplySpellEffects(
 	AActor *Target,
 	const FString &SpellName,
 	int32 SpellID,
@@ -177,7 +177,7 @@ void UStatusEffectManager::ApplySpellEffects(
 	ApplyEffects(Target, Effects, Source, SpellName, SourceTeam);
 }
 
-void UStatusEffectManager::ApplyInfusionDOT(
+void USkillEffectManager::ApplyInfusionDOT(
 	AActor *Target,
 	const FString &AbilityName,
 	int32 AbilityID,
@@ -197,7 +197,7 @@ void UStatusEffectManager::ApplyInfusionDOT(
 	ApplyEffect(Target, InfusionEffect, Source, AbilityName + TEXT(" (Infused)"), SourceTeam);
 }
 
-void UStatusEffectManager::ApplyEvolutionPassives(
+void USkillEffectManager::ApplyEvolutionPassives(
 	AActor *Target,
 	const FString &EvolutionName,
 	int32 EvolutionID,
@@ -230,7 +230,7 @@ void UStatusEffectManager::ApplyEvolutionPassives(
 // WEAPON EFFECT APPLICATION
 // ========================================
 
-void UStatusEffectManager::ApplyWeaponBonuses(
+void USkillEffectManager::ApplyWeaponBonuses(
 	AActor *Target,
 	const FString &WeaponName,
 	int32 WeaponID,
@@ -260,7 +260,7 @@ void UStatusEffectManager::ApplyWeaponBonuses(
 	ApplyEffects(Target, Bonuses, nullptr, WeaponName + TEXT(" (Equipped)"), -1);
 }
 
-void UStatusEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
+void USkillEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -291,7 +291,7 @@ void UStatusEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
 	}
 }
 
-void UStatusEffectManager::ApplyPhysicalDamageEffect(
+void USkillEffectManager::ApplyPhysicalDamageEffect(
 	AActor *Target,
 	const FString &WeaponName,
 	int32 WeaponID,
@@ -334,7 +334,7 @@ void UStatusEffectManager::ApplyPhysicalDamageEffect(
 	ApplyEffect(Target, Effect, Source, WeaponName, SourceTeam);
 }
 
-void UStatusEffectManager::ApplyWeaponInfusionDOT(
+void USkillEffectManager::ApplyWeaponInfusionDOT(
 	AActor *Target,
 	const FString &AbilityName,
 	const FString &WeaponName,
@@ -365,7 +365,7 @@ void UStatusEffectManager::ApplyWeaponInfusionDOT(
 // EFFECT REMOVAL
 // ========================================
 
-bool UStatusEffectManager::RemoveEffectByID(AActor *Target, int32 EffectID)
+bool USkillEffectManager::RemoveEffectByID(AActor *Target, int32 EffectID)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -401,7 +401,7 @@ bool UStatusEffectManager::RemoveEffectByID(AActor *Target, int32 EffectID)
 	return false;
 }
 
-int32 UStatusEffectManager::RemoveEffectsByName(AActor *Target, const FString &EffectName)
+int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &EffectName)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -432,7 +432,7 @@ int32 UStatusEffectManager::RemoveEffectsByName(AActor *Target, const FString &E
 	return RemovedCount;
 }
 
-int32 UStatusEffectManager::RemoveEffectsByType(AActor *Target, EStatusType EffectType)
+int32 USkillEffectManager::RemoveEffectsByType(AActor *Target, EStatusType EffectType)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -464,7 +464,7 @@ int32 UStatusEffectManager::RemoveEffectsByType(AActor *Target, EStatusType Effe
 	return RemovedCount;
 }
 
-int32 UStatusEffectManager::RemoveAllBuffs(AActor *Target)
+int32 USkillEffectManager::RemoveAllBuffs(AActor *Target)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -505,7 +505,7 @@ int32 UStatusEffectManager::RemoveAllBuffs(AActor *Target)
 	return RemovedCount;
 }
 
-int32 UStatusEffectManager::RemoveAllDebuffs(AActor *Target)
+int32 USkillEffectManager::RemoveAllDebuffs(AActor *Target)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -546,7 +546,7 @@ int32 UStatusEffectManager::RemoveAllDebuffs(AActor *Target)
 	return RemovedCount;
 }
 
-int32 UStatusEffectManager::RemoveAllDOTs(AActor *Target)
+int32 USkillEffectManager::RemoveAllDOTs(AActor *Target)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -574,7 +574,7 @@ int32 UStatusEffectManager::RemoveAllDOTs(AActor *Target)
 	return RemovedCount;
 }
 
-void UStatusEffectManager::RemoveAllEffects(AActor *Target)
+void USkillEffectManager::RemoveAllEffects(AActor *Target)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -608,7 +608,7 @@ void UStatusEffectManager::RemoveAllEffects(AActor *Target)
 	}
 }
 
-void UStatusEffectManager::ClearAllEffects()
+void USkillEffectManager::ClearAllEffects()
 {
 	for (auto &Pair : ActiveEffects)
 	{
@@ -632,7 +632,7 @@ void UStatusEffectManager::ClearAllEffects()
 	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Cleared all effects (%d total)"), TotalCount);
 }
 
-int32 UStatusEffectManager::RemoveEffectsBySource(AActor *Source)
+int32 USkillEffectManager::RemoveEffectsBySource(AActor *Source)
 {
 	if (!Source)
 	{
@@ -693,7 +693,7 @@ int32 UStatusEffectManager::RemoveEffectsBySource(AActor *Source)
 // TURN PROCESSING
 // ========================================
 
-void UStatusEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
+void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 {
 	if (!Actor)
 	{
@@ -715,7 +715,7 @@ void UStatusEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnStart);
 }
 
-void UStatusEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
+void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 {
 	if (!Actor)
 	{
@@ -751,7 +751,7 @@ void UStatusEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	}
 }
 
-void UStatusEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue)
+void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue)
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -784,7 +784,7 @@ void UStatusEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger 
 	}
 }
 
-void UStatusEffectManager::ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing)
+void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing)
 {
 	if (!ActiveEffects.Contains(Actor))
 	{
@@ -805,7 +805,7 @@ void UStatusEffectManager::ProcessEffectsWithTiming(AActor *Actor, EStatusEffect
 	}
 }
 
-void UStatusEffectManager::TickDurations(AActor *Actor)
+void USkillEffectManager::TickDurations(AActor *Actor)
 {
 	if (!ActiveEffects.Contains(Actor))
 	{
@@ -861,7 +861,7 @@ void UStatusEffectManager::TickDurations(AActor *Actor)
 	}
 }
 
-void UStatusEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
+void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 {
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
 
@@ -961,7 +961,7 @@ void UStatusEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect
 // QUERIES
 // ========================================
 
-TArray<FStatusEffect> UStatusEffectManager::GetActiveEffects(AActor *Actor) const
+TArray<FStatusEffect> USkillEffectManager::GetActiveEffects(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -971,7 +971,7 @@ TArray<FStatusEffect> UStatusEffectManager::GetActiveEffects(AActor *Actor) cons
 	return ActiveEffects[Actor];
 }
 
-TArray<FStatusEffect> UStatusEffectManager::GetEffectsByType(AActor *Actor, EStatusType EffectType) const
+TArray<FStatusEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, EStatusType EffectType) const
 {
 	TArray<FStatusEffect> Result;
 
@@ -991,7 +991,7 @@ TArray<FStatusEffect> UStatusEffectManager::GetEffectsByType(AActor *Actor, ESta
 	return Result;
 }
 
-bool UStatusEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
+bool USkillEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1009,7 +1009,7 @@ bool UStatusEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 	return false;
 }
 
-bool UStatusEffectManager::HasEffectOfType(AActor *Actor, EStatusType EffectType) const
+bool USkillEffectManager::HasEffectOfType(AActor *Actor, EStatusType EffectType) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1027,7 +1027,7 @@ bool UStatusEffectManager::HasEffectOfType(AActor *Actor, EStatusType EffectType
 	return false;
 }
 
-float UStatusEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const
+float USkillEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1047,7 +1047,7 @@ float UStatusEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType Modi
 	return Total;
 }
 
-int32 UStatusEffectManager::GetEffectCount(AActor *Actor) const
+int32 USkillEffectManager::GetEffectCount(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1057,7 +1057,7 @@ int32 UStatusEffectManager::GetEffectCount(AActor *Actor) const
 	return ActiveEffects[Actor].Num();
 }
 
-int32 UStatusEffectManager::GetBuffCount(AActor *Actor) const
+int32 USkillEffectManager::GetBuffCount(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1076,7 +1076,7 @@ int32 UStatusEffectManager::GetBuffCount(AActor *Actor) const
 	return Count;
 }
 
-int32 UStatusEffectManager::GetDebuffCount(AActor *Actor) const
+int32 USkillEffectManager::GetDebuffCount(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1099,19 +1099,19 @@ int32 UStatusEffectManager::GetDebuffCount(AActor *Actor) const
 // STATUS CHECKS
 // ========================================
 
-bool UStatusEffectManager::IsStunned(AActor *Actor) const
+bool USkillEffectManager::IsStunned(AActor *Actor) const
 {
 	// TODO: Add stun effect type when implemented
 	return false;
 }
 
-bool UStatusEffectManager::IsSilenced(AActor *Actor) const
+bool USkillEffectManager::IsSilenced(AActor *Actor) const
 {
 	// TODO: Add silence effect type when implemented
 	return false;
 }
 
-bool UStatusEffectManager::HasActiveDOT(AActor *Actor) const
+bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1129,7 +1129,7 @@ bool UStatusEffectManager::HasActiveDOT(AActor *Actor) const
 	return false;
 }
 
-bool UStatusEffectManager::IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const
+bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const
 {
 	// TODO: Implement immunity system via ResistanceBuff at 100%+
 	return false;
@@ -1139,7 +1139,7 @@ bool UStatusEffectManager::IsImmuneToEffectType(AActor *Actor, EStatusType Effec
 // DEBUG TOOLS
 // ========================================
 
-void UStatusEffectManager::DebugPrintEffects(AActor *Actor) const
+void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 {
 	if (!Actor)
 	{
@@ -1169,7 +1169,7 @@ void UStatusEffectManager::DebugPrintEffects(AActor *Actor) const
 	}
 }
 
-void UStatusEffectManager::DebugPrintAllEffects() const
+void USkillEffectManager::DebugPrintAllEffects() const
 {
 	UE_LOG(LogTemp, Display, TEXT("[StatusEffectManager] DEBUG: === ALL ACTIVE EFFECTS ==="));
 
@@ -1188,7 +1188,7 @@ void UStatusEffectManager::DebugPrintAllEffects() const
 		   TotalEffects, ActiveEffects.Num());
 }
 
-FString UStatusEffectManager::GetEffectsSummary(AActor *Actor) const
+FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1219,7 +1219,7 @@ FString UStatusEffectManager::GetEffectsSummary(AActor *Actor) const
 // INTERNAL HELPERS
 // ========================================
 
-bool UStatusEffectManager::IsTriggerConditionMet(AActor *Actor, const FStatusEffect &Effect, float TriggerValue) const
+bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FStatusEffect &Effect, float TriggerValue) const
 {
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
 	if (!CharComp)
@@ -1285,7 +1285,7 @@ bool UStatusEffectManager::IsTriggerConditionMet(AActor *Actor, const FStatusEff
 	}
 }
 
-FStatusEffect *UStatusEffectManager::FindEffectByID(AActor *Actor, int32 EffectID)
+FStatusEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 EffectID)
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1303,7 +1303,7 @@ FStatusEffect *UStatusEffectManager::FindEffectByID(AActor *Actor, int32 EffectI
 	return nullptr;
 }
 
-UCharacterDataComponent *UStatusEffectManager::GetCharacterDataComponent(AActor *Actor) const
+UCharacterDataComponent *USkillEffectManager::GetCharacterDataComponent(AActor *Actor) const
 {
 	if (!Actor)
 	{
@@ -1313,7 +1313,7 @@ UCharacterDataComponent *UStatusEffectManager::GetCharacterDataComponent(AActor 
 	return Actor->FindComponentByClass<UCharacterDataComponent>();
 }
 
-void UStatusEffectManager::ResetTurnFlags(AActor *Actor)
+void USkillEffectManager::ResetTurnFlags(AActor *Actor)
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1326,7 +1326,7 @@ void UStatusEffectManager::ResetTurnFlags(AActor *Actor)
 	}
 }
 
-bool UStatusEffectManager::IsSpeedEffect(EStatusType EffectType) const
+bool USkillEffectManager::IsSpeedEffect(EStatusType EffectType) const
 {
 	switch (EffectType)
 	{
@@ -1340,7 +1340,7 @@ bool UStatusEffectManager::IsSpeedEffect(EStatusType EffectType) const
 	}
 }
 
-void UStatusEffectManager::NotifySpeedChanged(AActor *Actor)
+void USkillEffectManager::NotifySpeedChanged(AActor *Actor)
 {
 	if (!Actor)
 	{
@@ -1362,7 +1362,7 @@ void UStatusEffectManager::NotifySpeedChanged(AActor *Actor)
 	}
 }
 
-void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void USkillEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
 {
 	if (!Target || StatusType == EStatusType::None)
 	{
@@ -1441,7 +1441,7 @@ void UStatusEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, 
 		   *Effect.EffectName, *Target->GetName());
 }
 
-void UStatusEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void USkillEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
 {
 	if (!Target || StatusType == EStatusType::None)
 	{

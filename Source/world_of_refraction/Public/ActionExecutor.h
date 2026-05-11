@@ -28,7 +28,7 @@
 
 class UCharacterDataComponent;
 class UCharacterData;
-class UStatusEffectManager;
+class USkillEffectManager;
 class USpellData;
 class UAbilityData;
 class UItemData;
@@ -272,7 +272,7 @@ public:
 	 *
 	 * Single-hit by contract — multi-hit looping stays in ProcessMultiHit / the
 	 * orchestrators. Routes damage through UDamageCalculator and buildup through
-	 * UStatusEffectManager::AddStatusBuildup; both are unchanged primitives.
+	 * USkillEffectManager::AddStatusBuildup; both are unchanged primitives.
 	 */
 	FCombatHitResult ApplyHit(const FActionHitInput &Input);
 
@@ -282,7 +282,7 @@ public:
 
 	/** Get the StatusEffectManager */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
-	UStatusEffectManager *GetStatusEffectManager() const;
+	USkillEffectManager *GetStatusEffectManager() const;
 
 	/** Get the RingManager */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
@@ -531,7 +531,7 @@ private:
 
 	/** Cached reference to StatusEffectManager */
 	UPROPERTY()
-	UStatusEffectManager *StatusEffectManagerRef = nullptr;
+	USkillEffectManager *StatusEffectManagerRef = nullptr;
 
 	/** Cached reference to ItemExecutor */
 	UPROPERTY()

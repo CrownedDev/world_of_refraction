@@ -6,7 +6,7 @@
 #include "AbilityData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusEffect.h"
 #include "LoadoutComponent.h"
 #include "ItemData.h"
@@ -467,14 +467,14 @@ ULoadoutComponent *UWeaponManager::GetLoadoutComponent(AActor *Actor) const
 	return Actor->FindComponentByClass<ULoadoutComponent>();
 }
 
-UStatusEffectManager *UWeaponManager::GetStatusEffectManager() const
+USkillEffectManager *UWeaponManager::GetStatusEffectManager() const
 {
 	if (!StatusEffectManagerRef)
 	{
 		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
 			const_cast<UWeaponManager *>(this)->StatusEffectManagerRef =
-				GI->GetSubsystem<UStatusEffectManager>();
+				GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
 	return StatusEffectManagerRef;

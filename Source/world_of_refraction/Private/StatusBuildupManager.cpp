@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StatusBuildupManager.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusEffect.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
@@ -35,14 +35,14 @@ void UStatusBuildupManager::Deinitialize()
 // CACHED CROSS-SUBSYSTEM REFERENCE
 // ========================================
 
-UStatusEffectManager *UStatusBuildupManager::GetEffectManager() const
+USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 {
 	if (!EffectManagerRef)
 	{
 		if (UGameInstance *GI = GetGameInstance())
 		{
 			const_cast<UStatusBuildupManager *>(this)->EffectManagerRef =
-				GI->GetSubsystem<UStatusEffectManager>();
+				GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
 	return EffectManagerRef;
@@ -113,7 +113,7 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 		return 0.0f;
 	}
 
-	UStatusEffectManager *EffectMgr = GetEffectManager();
+	USkillEffectManager *EffectMgr = GetEffectManager();
 	if (!EffectMgr)
 	{
 		return 0.0f;
@@ -277,10 +277,10 @@ void UStatusBuildupManager::TriggerStatusEffect(AActor *Source, AActor *Target, 
 		return;
 	}
 
-	UStatusEffectManager *EffectMgr = GetEffectManager();
+	USkillEffectManager *EffectMgr = GetEffectManager();
 	if (!EffectMgr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StatusBuildupManager] TriggerStatusEffect: UStatusEffectManager unavailable; cannot apply triggered status"));
+		UE_LOG(LogTemp, Warning, TEXT("[StatusBuildupManager] TriggerStatusEffect: USkillEffectManager unavailable; cannot apply triggered status"));
 		return;
 	}
 

@@ -6,7 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "StatusEffect.h"
 #include "EStatusType.h"
-#include "StatusEffectManager.generated.h"
+#include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
 
@@ -44,7 +44,7 @@ enum class EEffectApplicationResult : uint8
 };
 
 /**
- * UStatusEffectManager
+ * USkillEffectManager
  *
  * GameInstanceSubsystem that manages all status effects on all actors.
  * Central authority for buff/debuff/DOT tracking during combat.
@@ -61,7 +61,7 @@ enum class EEffectApplicationResult : uint8
  * - UI binds to events for visual feedback
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API UStatusEffectManager : public UGameInstanceSubsystem
+class WORLD_OF_REFRACTION_API USkillEffectManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
@@ -401,7 +401,7 @@ public:
 	 *
 	 *  Public (not private) so the buildup manager — a separate subsystem
 	 *  post-split — can invoke it across the boundary. Do not call from inside
-	 *  UStatusEffectManager itself; effect-side internals should use ApplyEffect
+	 *  USkillEffectManager itself; effect-side internals should use ApplyEffect
 	 *  directly. */
 	void ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 

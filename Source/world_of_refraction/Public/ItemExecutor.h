@@ -12,7 +12,7 @@
 class UItemData;
 class UCharacterDataComponent;
 class UCharacterData;
-class UStatusEffectManager;
+class USkillEffectManager;
 
 // ========================================
 // QUARTZ TRANSFORM TRACKING
@@ -311,7 +311,7 @@ private:
 
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
 	UCharacterData *GetCharacterData(AActor *Actor) const;
-	UStatusEffectManager *GetStatusEffectManager() const;
+	USkillEffectManager *GetStatusEffectManager() const;
 	bool IsGenericCharacter(AActor *Actor) const;
 	bool IsBrokenDarknessCharacter(AActor *Actor) const;
 
@@ -327,5 +327,5 @@ private:
 
 	/** Cached StatusEffectManager */
 	UPROPERTY()
-	UStatusEffectManager *StatusEffectManagerRef = nullptr;
+	USkillEffectManager *StatusEffectManagerRef = nullptr;
 };

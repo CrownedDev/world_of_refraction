@@ -16,7 +16,7 @@ class UWeaponAttackData;
 class UAbilityData;
 class UCharacterDataComponent;
 class UCharacterData;
-class UStatusEffectManager;
+class USkillEffectManager;
 class URingData;
 class ULoadoutComponent;
 // ========================================
@@ -409,7 +409,7 @@ private:
 	/** Get LoadoutComponent from actor */
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 	UCharacterData *GetCharacterData(AActor *Actor) const;
-	UStatusEffectManager *GetStatusEffectManager() const;
+	USkillEffectManager *GetStatusEffectManager() const;
 	URingData *GetPrimaryRing(AActor *Actor) const;
 
 	/** Check if actor is Generic class (dual-wield, secondary slot) */
@@ -438,7 +438,7 @@ private:
 
 	/** Cached StatusEffectManager */
 	UPROPERTY()
-	UStatusEffectManager *StatusEffectManagerRef = nullptr;
+	USkillEffectManager *StatusEffectManagerRef = nullptr;
 
 	// ==================== CRYSTAL SUBSCRIPTIONS (Phase 4d) ====================
 

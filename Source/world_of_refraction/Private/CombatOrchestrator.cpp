@@ -2,7 +2,7 @@
 
 #include "CombatOrchestrator.h"
 #include "TurnManager.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "ActionExecutor.h"
 #include "CharacterDataComponent.h"
@@ -49,7 +49,7 @@ void ACombatOrchestrator::BeginPlay()
 	if (GI)
 	{
 		TurnManagerRef = GI->GetSubsystem<UTurnManager>();
-		StatusEffectManagerRef = GI->GetSubsystem<UStatusEffectManager>();
+		StatusEffectManagerRef = GI->GetSubsystem<USkillEffectManager>();
 		ActionExecutorRef = GI->GetSubsystem<UActionExecutor>();
 	}
 

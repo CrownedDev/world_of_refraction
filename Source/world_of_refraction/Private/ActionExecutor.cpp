@@ -4,7 +4,7 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "ElementHelpers.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "StatusEffect.h"
 #include "SpellData.h"
@@ -46,7 +46,7 @@
 
 class UCharacterDataComponent;
 class UCharacterData;
-class UStatusEffectManager;
+class USkillEffectManager;
 class USpellData;
 class UAbilityData;
 class UItemData;
@@ -206,7 +206,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 
 bool UActionExecutor::CanActorAct(AActor *Actor) const
 {
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager && StatusManager->IsStunned(Actor))
 	{
 		return false;
@@ -216,7 +216,7 @@ bool UActionExecutor::CanActorAct(AActor *Actor) const
 
 bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 {
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager && StatusManager->IsSilenced(Actor))
 	{
 		return false;
@@ -1326,7 +1326,7 @@ void UActionExecutor::FinalizeAsyncAction()
 	if (FinalResult.bSuccess && Executor)
 	{
 		// Apply status effects from spell/ability
-		UStatusEffectManager *StatusManager = GetStatusEffectManager();
+		USkillEffectManager *StatusManager = GetStatusEffectManager();
 
 		if (Action.ActionType == EActionType::Spell && Action.SpellData && StatusManager)
 		{
@@ -1700,7 +1700,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 	}
 
 	// Apply defense buff
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		FStatusEffect DefendBuff = FStatusEffect::CreateBuff(
@@ -1970,14 +1970,14 @@ FCombatHitResult UActionExecutor::ApplyHealing(
 // UTILITY
 // ========================================
 
-UStatusEffectManager *UActionExecutor::GetStatusEffectManager() const
+USkillEffectManager *UActionExecutor::GetStatusEffectManager() const
 {
 	if (!StatusEffectManagerRef)
 	{
 		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
 			const_cast<UActionExecutor *>(this)->StatusEffectManagerRef =
-				GI->GetSubsystem<UStatusEffectManager>();
+				GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
 	return StatusEffectManagerRef;
@@ -2040,7 +2040,7 @@ bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 	float CritChance = Data->CalculateCritChance() * 100.0f; // Returns 0-1, need 0-100
 
 	// Add crit chance buffs from status effects
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		CritChance += StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
@@ -2063,7 +2063,7 @@ void UActionExecutor::ApplyStatusEffects(
 	int32 SecondaryDuration,
 	ESpellElement Element)
 {
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (!StatusManager)
 		return;
 
@@ -3033,7 +3033,7 @@ void UActionExecutor::ApplySelfStatusBuildup(AActor *Actor, ESpellElement Elemen
 		return;
 	}
 
-	UStatusEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetStatusEffectManager();
 	if (StatusManager)
 	{
 		// Apply element status to self
@@ -3652,7 +3652,7 @@ void UActionExecutor::ApplyAbilityEffects(
 		return;
 	}
 
-	UStatusEffectManager *StatusMgr = GetStatusEffectManager();
+	USkillEffectManager *StatusMgr = GetStatusEffectManager();
 	if (!StatusMgr)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ApplyAbilityEffects - No StatusEffectManager"));

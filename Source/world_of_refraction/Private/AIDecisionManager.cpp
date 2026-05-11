@@ -14,18 +14,18 @@
 #include "DefenseSystem.h"
 #include "EDefenseType.h"
 #include "EDefenseDirection.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "DamageCalculator.h"
 #include "FItemLoadoutSlot.h"
 #include "ItemData.h"
 #include "CrystalType.h"
 
-UStatusEffectManager *
+USkillEffectManager *
 UAIDecisionManager::GetStatusEffectManager() const
 {
     UGameInstance *GameInstance = GetGameInstance();
-    return GameInstance ? GameInstance->GetSubsystem<UStatusEffectManager>() : nullptr;
+    return GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
 }
 
 void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
@@ -1177,7 +1177,7 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
         return false;
     }
 
-    UStatusEffectManager *StatusManager = GetStatusEffectManager();
+    USkillEffectManager *StatusManager = GetStatusEffectManager();
     if (!StatusManager)
     {
         return false;
@@ -1302,7 +1302,7 @@ bool UAIDecisionManager::IsValuableStatus(EStatusType StatusType, AActor *Target
         return true;
     }
 
-    UStatusEffectManager *StatusManager = GetGameInstance()->GetSubsystem<UStatusEffectManager>();
+    USkillEffectManager *StatusManager = GetGameInstance()->GetSubsystem<USkillEffectManager>();
     if (!StatusManager)
     {
         return true; // Assume valuable if we can't check

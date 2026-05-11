@@ -5,7 +5,7 @@
 #include "UI/Combat/TurnOrderStripWidget.h"
 #include "Blueprint/UserWidget.h"
 #include "CharacterDataComponent.h"
-#include "StatusEffectManager.h"
+#include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "ESpellElement.h"
 #include "Engine/GameInstance.h"
