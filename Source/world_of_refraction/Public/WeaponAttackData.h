@@ -8,6 +8,7 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/Texture2D.h"
 #include "EPhysicalDamageType.h"
+#include "EStatusType.h"
 #include "MovementData.h"
 
 #if WITH_EDITOR
@@ -107,6 +108,24 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     FString GetDamageTypeName() const;
+
+    /** What status type this attack's buildup represents. Mirrors USpellData::PrimaryEffect
+     *  for the spell path — orchestrators read this directly rather than encoding the
+     *  PhysicalDamageType -> StatusType mapping at the call site. */
+    UFUNCTION(BlueprintPure, Category = "Attack")
+    EStatusType GetBuildupStatusType() const
+    {
+        switch (PhysicalDamageType)
+        {
+        case EPhysicalDamageType::Slash:
+        case EPhysicalDamageType::Pierce:
+            return EStatusType::DOT; // Bleed
+        case EPhysicalDamageType::Impact:
+            return EStatusType::DefenseDebuff; // Armor break
+        default:
+            return EStatusType::None;
+        }
+    }
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;

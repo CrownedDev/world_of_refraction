@@ -1869,18 +1869,13 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 	}
 }
 
-void ACombatOrchestrator::DebugExecuteSyncAttack()
+void ACombatOrchestrator::DebugExecuteAsyncAttack()
 {
 	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No actor available"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteAsyncAttack: No actor available"));
 		return;
-	}
-	bool bUsingOverride = (DebugOverrideActor != nullptr);
-	if (bUsingOverride)
-	{
-		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 	}
 
 	// Find target from opposing team
@@ -1898,7 +1893,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 
 	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAttack: No valid target"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteAsyncAttack: No valid target"));
 		return;
 	}
 
@@ -1914,7 +1909,7 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 	}
 	if (!AttackData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncAttack] No weapon attack data on %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteAsyncAttack] No weapon attack data on %s"),
 			   *Actor->GetName());
 		return;
 	}
@@ -1925,66 +1920,24 @@ void ACombatOrchestrator::DebugExecuteSyncAttack()
 	AttackAction.AttackData = AttackData;
 	AttackAction.Targets.Add(Target);
 
-	// Get target HP before
-	int32 TargetHPBefore = 0;
-	if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-	{
-		TargetHPBefore = TargetComp->CurrentHP;
-	}
+	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAttack] %s attacking %s with %s"),
+		   *Actor->GetName(), *Target->GetName(), *AttackData->AttackName);
 
-	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAttack] %s attacking %s with %s (Target HP: %d)"),
-		   *Actor->GetName(), *Target->GetName(), *AttackData->AttackName, TargetHPBefore);
-
-	// Execute SYNCHRONOUSLY - bypasses movement entirely
 	if (ActionExecutorRef)
 	{
-		TArray<AActor *> Targets;
-		Targets.Add(Target);
-
-		FActionResult Result = ActionExecutorRef->ExecuteAttack(
-			Actor,
-			AttackData,
-			Targets,
-			false // bIsInfused
-		);
-
-		// Get target HP after
-		int32 TargetHPAfter = 0;
-		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-		{
-			TargetHPAfter = TargetComp->CurrentHP;
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAttack] Result: %s | Damage: %d | Target HP: %d -> %d | Crit: %s"),
-			   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-			   Result.TotalDamageDealt,
-			   TargetHPBefore, TargetHPAfter,
-			   Result.bWasCritical ? TEXT("YES") : TEXT("NO"));
-
-		// Broadcast for UI
-		OnActionExecuted.Broadcast(Actor, Result);
-	}
-
-	if (!bUsingOverride)
-	{
-		OnActionCompleted();
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, AttackAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }
 
-void ACombatOrchestrator::DebugExecuteSyncSpell()
+void ACombatOrchestrator::DebugExecuteAsyncSpell()
 {
 	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncSpell: No actor available"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteAsyncSpell: No actor available"));
 		return;
-	}
-
-	bool bUsingOverride = (DebugOverrideActor != nullptr);
-	// Clear auto-advance timer when using debug
-	if (bUsingOverride)
-	{
-		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 	}
 
 	// Find target from opposing team
@@ -2002,7 +1955,7 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 
 	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncSpell: No valid target"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteAsyncSpell: No valid target"));
 		return;
 	}
 
@@ -2026,19 +1979,17 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 
 	if (!SpellData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncSpell] No spell available"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteAsyncSpell] No spell available"));
 		return;
 	}
 
-	// Get target HP before
-	int32 TargetHPBefore = 0;
-	if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-	{
-		TargetHPBefore = TargetComp->CurrentHP;
-	}
+	FAction SpellAction;
+	SpellAction.ActionType = EActionType::Spell;
+	SpellAction.SpellData = SpellData;
+	SpellAction.Targets.Add(Target);
 
-	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncSpell] %s casting %s on %s (Target HP: %d)"),
-		   *Actor->GetName(), *SpellData->SpellName, *Target->GetName(), TargetHPBefore);
+	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncSpell] %s casting %s on %s"),
+		   *Actor->GetName(), *SpellData->SpellName, *Target->GetName());
 
 	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] Spell: %s | TargetType: %d | DeliveryType: %d | CastAnim: %s"),
 		   *SpellData->SpellName,
@@ -2046,39 +1997,11 @@ void ACombatOrchestrator::DebugExecuteSyncSpell()
 		   (int32)SpellData->DeliveryType,
 		   SpellData->CastAnimation ? *SpellData->CastAnimation->GetName() : TEXT("NONE"));
 
-	// Execute SYNCHRONOUSLY
 	if (ActionExecutorRef)
 	{
-		TArray<AActor *> Targets;
-		Targets.Add(Target);
-
-		FActionResult Result = ActionExecutorRef->ExecuteSpell(
-			Actor,
-			SpellData,
-			Targets,
-			0 // InfusionLevel
-		);
-
-		// Get target HP after
-		int32 TargetHPAfter = 0;
-		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-		{
-			TargetHPAfter = TargetComp->CurrentHP;
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncSpell] Result: %s | Damage: %d | EP Spent: %d | Target HP: %d -> %d"),
-			   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-			   Result.TotalDamageDealt,
-			   Result.EnergySpent,
-			   TargetHPBefore, TargetHPAfter);
-
-		// Broadcast for UI
-		OnActionExecuted.Broadcast(Actor, Result);
-	}
-
-	if (!bUsingOverride)
-	{
-		OnActionCompleted();
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, SpellAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }
 
@@ -2186,19 +2109,13 @@ void ACombatOrchestrator::DebugTestSecondarySpell()
 	}
 }
 
-void ACombatOrchestrator::DebugExecuteSyncAbility()
+void ACombatOrchestrator::DebugExecuteAsyncAbility()
 {
 	AActor *Actor = GetDebugActor();
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No actor available"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteAsyncAbility: No actor available"));
 		return;
-	}
-	bool bUsingOverride = (DebugOverrideActor != nullptr);
-
-	if (bUsingOverride)
-	{
-		GetWorld()->GetTimerManager().ClearTimer(AutoAdvanceTimerHandle);
 	}
 
 	// Find target from opposing team
@@ -2216,7 +2133,7 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 
 	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteSyncAbility: No valid target"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugExecuteAsyncAbility: No valid target"));
 		return;
 	}
 
@@ -2240,53 +2157,23 @@ void ACombatOrchestrator::DebugExecuteSyncAbility()
 
 	if (!AbilityData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteSyncAbility] No ability available"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugExecuteAsyncAbility] No ability available"));
 		return;
 	}
 
-	// Get target HP before
-	int32 TargetHPBefore = 0;
-	if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-	{
-		TargetHPBefore = TargetComp->CurrentHP;
-	}
+	FAction AbilityAction;
+	AbilityAction.ActionType = EActionType::Ability;
+	AbilityAction.AbilityData = AbilityData;
+	AbilityAction.Targets.Add(Target);
 
-	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAbility] %s using %s on %s (Target HP: %d)"),
-		   *Actor->GetName(), *AbilityData->AbilityName, *Target->GetName(), TargetHPBefore);
+	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAbility] %s using %s on %s"),
+		   *Actor->GetName(), *AbilityData->AbilityName, *Target->GetName());
 
-	// Execute SYNCHRONOUSLY
 	if (ActionExecutorRef)
 	{
-		TArray<AActor *> Targets;
-		Targets.Add(Target);
-
-		FActionResult Result = ActionExecutorRef->ExecuteAbility(
-			Actor,
-			AbilityData,
-			Targets,
-			false // bIsElementInfused
-		);
-
-		// Get target HP after
-		int32 TargetHPAfter = 0;
-		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
-		{
-			TargetHPAfter = TargetComp->CurrentHP;
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("[DebugExecuteSyncAbility] Result: %s | Damage: %d | EP Spent: %d | Target HP: %d -> %d"),
-			   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-			   Result.TotalDamageDealt,
-			   Result.EnergySpent,
-			   TargetHPBefore, TargetHPAfter);
-
-		// Broadcast for UI
-		OnActionExecuted.Broadcast(Actor, Result);
-	}
-
-	if (!bUsingOverride)
-	{
-		OnActionCompleted();
+		bWaitingForAsyncAction = true;
+		ActionExecutorRef->ExecuteActionAsync(Actor, AbilityAction,
+											  FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleAsyncActionCompleted));
 	}
 }
 

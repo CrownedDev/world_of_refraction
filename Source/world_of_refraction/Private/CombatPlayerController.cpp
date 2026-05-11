@@ -218,13 +218,19 @@ void ACombatPlayerController::OnConfirmAction(const FInputActionValue &Value)
         return;
     }
 
-    // Execute!
-    FActionResult Result = Executor->ExecuteAction(ControlledActor, Action);
-
-    UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Action Result: %s - Damage: %d, Energy: %d"),
-           Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-           Result.TotalDamageDealt,
-           Result.EnergySpent);
+    // Execute! Async path (defense windows, multi-hit, status buildup, ApplyHit).
+    // Fire-and-forget — the result is logged via the completion lambda for
+    // parity with the pre-D-prep sync-result log; no controller state depends
+    // on the action having completed. DebugPrintState() and the StoredChargeLevel
+    // reset below describe controller input state, not action outcome.
+    Executor->ExecuteActionAsync(ControlledActor, Action,
+        FOnActionComplete::CreateLambda([](const FActionResult &Result)
+        {
+            UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Action Result: %s - Damage: %d, Energy: %d"),
+                   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
+                   Result.TotalDamageDealt,
+                   Result.EnergySpent);
+        }));
 
     DebugPrintState();
 

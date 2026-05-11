@@ -175,37 +175,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spell Delivery")
 	TSubclassOf<ASpellProjectile> DefaultProjectileClass;
 
-	/** Execute a spell */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteSpell(
-		AActor *Caster,
-		USpellData *Spell,
-		const TArray<AActor *> &Targets,
-		int32 InfusionLevel = 0);
-
-	/** Execute an ability */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteAbility(
-		AActor *User,
-		UAbilityData *Ability,
-		const TArray<AActor *> &Targets,
-		int32 AbilityInfusionLevel = 0,
-		EInfusionSourceOption SelectedSource = EInfusionSourceOption::None);
-
 	/** Execute an item */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteItem(
 		AActor *User,
 		UItemData *Item,
 		const TArray<AActor *> &Targets);
-
-	/** Execute a basic attack */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
-	FActionResult ExecuteAttack(
-		AActor *Attacker,
-		UWeaponAttackData *Attack,
-		const TArray<AActor *> &Targets,
-		bool bIsInfused = false);
 
 	/** Execute defend action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
@@ -284,6 +259,22 @@ public:
 		AActor *Healer,
 		AActor *Target,
 		int32 BaseHealing);
+
+	/**
+	 * ApplyHit — unified single-hit applicator. Phase A of the ApplyHit
+	 * consolidation; see docs/analysis/Codebase_Analysis_Pass2_ApplyConsolidation.md
+	 * Section 8 for the migration plan.
+	 *
+	 * Status: production applicator for all async damage (Phase B) and for spell
+	 * + async-attack buildup (Phase C1, C3). Sync Spell/Ability/Attack paths and
+	 * ApplySpellStatusBuildup were removed in Phase D. Remaining legacy slated for
+	 * Phase E review: ApplyDamage, ProcessMultiHit, ApplyDamageAfterDefense.
+	 *
+	 * Single-hit by contract — multi-hit looping stays in ProcessMultiHit / the
+	 * orchestrators. Routes damage through UDamageCalculator and buildup through
+	 * UStatusEffectManager::AddStatusBuildup; both are unchanged primitives.
+	 */
+	FCombatHitResult ApplyHit(const FActionHitInput &Input);
 
 	// ========================================
 	// UTILITY
@@ -642,8 +633,6 @@ private:
 	void OnMovementComplete();
 
 private:
-	/** Apply status buildup from spell hit */
-	void ApplySpellStatusBuildup(AActor *Caster, AActor *Target, USpellData *Spell, int32 InfusionLevel);
 	// ==================== ACTION ANIMATION BINDING ====================
 
 	/** Bind to CombatAnimInstance for action completion */
@@ -745,6 +734,11 @@ private:
 	 * @param HitCount Number of hits
 	 * @param Element Element type
 	 * @param bCanCrit Can hits critically strike?
+	 * @param ActionType Spell/Ability/Attack — drives ApplyHit stat selection post-defense
+	 * @param InfusionLevel 0–2; spells/abilities carry their charge level, attacks pass 0
+	 * @param SelectedSource Infusion source for future buildup routing (Phase C)
+	 * @param BaseStatusBuildup Per-target buildup amount (defense modifies this) — Phase C1
+	 * @param StatusToBuild Status type for the buildup (None = no buildup)
 	 * @param WindowDuration Defense window duration
 	 */
 	void OpenDefenseWindowsForTargets(
@@ -756,6 +750,11 @@ private:
 		int32 HitCount,
 		ESpellElement Element,
 		bool bCanCrit,
+		EActionType ActionType,
+		int32 InfusionLevel,
+		EInfusionSourceOption SelectedSource,
+		int32 BaseStatusBuildup,
+		EStatusType StatusToBuild,
 		float WindowDuration = 0.3f);
 
 	// == == == == == == == == == == == == == == == == == == == ==

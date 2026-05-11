@@ -6,6 +6,7 @@
 #include "EActionType.h"
 #include "ESpellElement.h"
 #include "ESpellSource.h"
+#include "EStatusType.h"
 #include "EInfusionSourceOption.h"
 #include "EChargeInfusionType.h"
 #include "ActionStatModifiers.h"
@@ -319,6 +320,30 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	float WindowDuration = 0.3f;
 
+	/** Action category — drives ApplyHit damage-stat selection in ApplyDamageAfterDefense.
+	 *  Plumbed through from the window-opening orchestrator so the post-defense applicator
+	 *  knows whether to read SpellDamage (Spell) or RawDamage (Ability/Attack). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EActionType ActionType = EActionType::None;
+
+	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
+	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 InfusionLevel = 0;
+
+	/** Selected infusion source. Plumbed through for future buildup routing (Phase C). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
+
+	/** Base per-target buildup carried into ApplyDamageAfterDefense. Defense outcome
+	 *  modifies this before it reaches ApplyHit (Phase C1 — spells only). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 BaseStatusBuildup = 0;
+
+	/** Status type to build (None when this attack carries no buildup). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EStatusType StatusToBuild = EStatusType::None;
+
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense", Meta = (IgnoreForMemberInitializationTest))
 	FGuid ContextId;
@@ -421,4 +446,85 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
 	bool bTargetDied = false;
+};
+
+/**
+ * FActionHitInput — describes one hit applied to one target. The unified
+ * input shape consumed by UActionExecutor::ApplyHit (added in Phase A of the
+ * ApplyHit consolidation; see docs/analysis/Codebase_Analysis_Pass2_ApplyConsolidation.md).
+ *
+ * Single-hit by contract. For multi-hit attacks, BaseDamage is the already-split
+ * per-hit value; the orchestrator's ProcessMultiHit loop calls ApplyHit N times
+ * with the same input. Per-hit-independent crit and death-break semantics live
+ * in the loop.
+ *
+ * Population rules per orchestrator (filled in as Phase B/C migrate sites):
+ *
+ *   ExecuteSpellAsync:
+ *     - ActionType = Spell
+ *     - Element = Spell->Element
+ *     - BaseStatusBuildup = Spell->CalculateStatusBuildup(...) (if non-raw)
+ *     - StatusToBuild = Spell->PrimaryEffect (raw → BurstDamage)
+ *
+ *   ExecuteAbilityAsync:
+ *     - ActionType = Ability
+ *     - Element = bIsInfused ? Attacker.InnateElement : Generic
+ *     - BaseStatusBuildup / StatusToBuild = TBD (async leaks this — Phase C closes the gap)
+ *
+ *   ExecuteAttackAsync (Phase C3 — buildup wired):
+ *     - ActionType = Attack
+ *     - Element = bIsInfused ? Attacker.InnateElement : Generic
+ *     - BaseStatusBuildup = Attack->StatusBuildup
+ *     - StatusToBuild = Attack->GetBuildupStatusType()
+ *
+ *   (ExecuteAttackWithInfusion on UWeaponManager was deleted in Phase C2 —
+ *    its only in-source caller had zero live triggers; sync attacks now warn
+ *    and fail-result on nullptr AttackData instead of delegating.)
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FActionHitInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	AActor *Attacker = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	AActor *Target = nullptr;
+
+	/** Drives damage-stat selection (Spell → SpellDamage; Ability/Attack → RawDamage). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	EActionType ActionType = EActionType::None;
+
+	/** Pre-calculation per-hit damage value. 0 if this hit deals no damage. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")
+	int32 BaseDamage = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")
+	bool bCanCrit = true;
+
+	/** Generic when the hit carries no element. Drives element-interaction and
+	 *  per-element resistance routing on the buildup side. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	ESpellElement Element = ESpellElement::Generic;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Infusion")
+	int32 InfusionLevel = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Infusion")
+	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
+
+	/** Pre-calculation per-hit buildup value. 0 if this hit applies no buildup. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Buildup")
+	int32 BaseStatusBuildup = 0;
+
+	/** None when this hit applies no buildup. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Buildup")
+	EStatusType StatusToBuild = EStatusType::None;
+
+	/** Per-action stat modifiers (Reality + Evolution + future per-action buffs).
+	 *  Explicit on the input rather than implicit via CurrentExecutionContext —
+	 *  closes audit risk #7 from the Phase 2 Apply-Consolidation map. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	FActionStatModifiers ActionMods;
 };

@@ -166,7 +166,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnConjurationEnded, AActor *, Actor
  * Usage:
  *   UWeaponManager* WeaponMgr = GetGameInstance()->GetSubsystem<UWeaponManager>();
  *   WeaponMgr->SwitchWeapon(Actor, EWeaponSlot::Primary);
- *   FWeaponAttackResult Result = WeaponMgr->ExecuteAttack(Actor, Targets);
+ *   // Attack execution flows through UActionExecutor / ApplyHit, not this subsystem.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UWeaponManager : public UGameInstanceSubsystem
@@ -340,18 +340,6 @@ public:
 	// ATTACK EXECUTION
 	// ========================================
 
-	/**
-	 * Execute attack with current weapon/state
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
-	FWeaponAttackResult ExecuteAttack(AActor *Attacker, const TArray<AActor *> &Targets);
-
-	/**
-	 * Execute attack with explicit infusion setting
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
-	FWeaponAttackResult ExecuteAttackWithInfusion(AActor *Attacker, const TArray<AActor *> &Targets, bool bUseInfusion);
-
 	// ========================================
 	// PHYSICAL STATUS
 	// ========================================
@@ -413,9 +401,6 @@ public:
 	void DebugPrintActorWeaponState(AActor *Actor) const;
 
 private:
-	/** Apply status buildup from weapon attack */
-	void ApplyWeaponStatusBuildup(AActor *Attacker, AActor *Target, UWeaponData *Weapon, UWeaponAttackData *Attack, int32 InfusionLevel);
-
 	// ========================================
 	// HELPERS
 	// ========================================
@@ -442,12 +427,7 @@ private:
 	/** Calculate status buildup for an attack */
 	float CalculateStatusBuildup(UWeaponData *Weapon, UWeaponAttackData *Attack, int32 HitCount) const;
 
-	/** Apply physical status effect when threshold reached */
-	void TriggerPhysicalStatus(AActor *Attacker, AActor *Target, EPhysicalDamageType DamageType);
 
-	/** Apply damage using ActionExecutor's damage system */
-	int32 ApplyWeaponDamage(AActor *Attacker, AActor *Target, int32 BaseDamage,
-							ESpellElement Element, bool bCanCrit, FWeaponAttackResult &OutResult);
 
 	// ========================================
 	// STATE
