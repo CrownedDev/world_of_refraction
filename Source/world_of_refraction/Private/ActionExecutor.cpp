@@ -523,6 +523,19 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		return;
 	}
 
+	// Commit 3: reject early when bCanBeInfused is false but the action carries
+	// infusion (source selection OR charge level). No energy spent, no damage dealt.
+	const bool bWantsInfusion =
+		(Action.SelectedSource != EInfusionSourceOption::None) ||
+		(Action.SpellInfusionLevel > 0);
+	if (bWantsInfusion && !Spell->bCanBeInfused)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
+		FinalizeAsyncAction();
+		return;
+	}
+
 	// Calculate and spend energy
 	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData);
 	float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
@@ -683,6 +696,19 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		return;
 	}
 
+	// Commit 3: reject early when bCanBeInfused is false but the action carries
+	// infusion (source selection OR charge level). No energy spent, no damage dealt.
+	const bool bWantsInfusion =
+		(Action.SelectedSource != EInfusionSourceOption::None) ||
+		(Action.AbilityInfusionLevel > 0);
+	if (bWantsInfusion && !Ability->bCanBeInfused)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
+		FinalizeAsyncAction();
+		return;
+	}
+
 	// Calculate and spend energy
 	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsInfused);
@@ -805,6 +831,18 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No attack available");
+		FinalizeAsyncAction();
+		return;
+	}
+
+	// Commit 3: reject early when bCanBeInfused is false but the action carries
+	// infusion (source selection). Attacks have no charge level concept. No energy
+	// spent, no damage dealt.
+	const bool bWantsInfusion = (Action.SelectedSource != EInfusionSourceOption::None);
+	if (bWantsInfusion && !Attack->bCanBeInfused)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
 		FinalizeAsyncAction();
 		return;
 	}
