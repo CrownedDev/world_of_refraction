@@ -471,15 +471,15 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
  *     - Element = bIsInfused ? Attacker.InnateElement : Generic
  *     - BaseStatusBuildup / StatusToBuild = TBD (async leaks this — Phase C closes the gap)
  *
- *   ExecuteAttackAsync:
+ *   ExecuteAttackAsync (Phase C3 — buildup wired):
  *     - ActionType = Attack
  *     - Element = bIsInfused ? Attacker.InnateElement : Generic
- *     - BaseStatusBuildup = Attack->StatusBuildup (Phase C closes async leak)
- *     - StatusToBuild = derived from PhysicalDamageType
+ *     - BaseStatusBuildup = Attack->StatusBuildup
+ *     - StatusToBuild = Attack->GetBuildupStatusType()
  *
- *   ExecuteAttackWithInfusion (WeaponManager):
- *     - ActionType = Attack
- *     - Currently the only path that fully populates buildup correctly today.
+ *   (ExecuteAttackWithInfusion on UWeaponManager was deleted in Phase C2 —
+ *    its only in-source caller had zero live triggers; sync attacks now warn
+ *    and fail-result on nullptr AttackData instead of delegating.)
  */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FActionHitInput

@@ -857,10 +857,10 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	if (Attack->StatusBuildup > 0 && AttackStatusType != EStatusType::None)
 	{
 		float Buildup = static_cast<float>(Attack->StatusBuildup);
-		// Weapons don't carry L1/L2 charge levels yet — matches WeaponManager.cpp:493
-		// where InfusionLevel is hardcoded 0 for the sync ExecuteAttackWithInfusion path.
-		// When attack charge levels exist, apply CombatConstants::SPELL_L1_BUILDUP_MULT
-		// here in parallel to the spell path's `if (Action.SpellInfusionLevel == 1)` block.
+		// Weapons don't carry L1/L2 charge levels yet — no infusion buildup multiplier
+		// applied here. When attack charge levels exist, apply
+		// CombatConstants::SPELL_L1_BUILDUP_MULT in parallel to the spell path's
+		// `if (Action.SpellInfusionLevel == 1)` block.
 		AttackBaseBuildup = FMath::RoundToInt(Buildup);
 	}
 
@@ -1878,36 +1878,21 @@ FActionResult UActionExecutor::ExecuteAttack(
 	Result.Executor = Attacker;
 	Result.ActionType = EActionType::Attack;
 
-	// If no explicit attack provided, delegate to WeaponManager for equipped weapon
+	// No explicit attack provided. Pre-C2 this delegated to
+	// UWeaponManager::ExecuteAttackWithInfusion; that path was removed in C2
+	// because it had zero in-source callers passing Attack=nullptr (sync
+	// ExecuteAttack is only reached from CombatPlayerController::OnConfirmAction
+	// with Action.AttackData populated, and from CombatOrchestrator's
+	// DebugExecuteSyncAttack with AttackData loaded from the active weapon).
+	// Treat nullptr as a caller bug: warn and fail the action.
 	if (!Attack)
 	{
-		UWeaponManager *WeaponMgr = GetWeaponManager();
-		if (WeaponMgr)
-		{
-			FWeaponAttackResult WeaponResult = WeaponMgr->ExecuteAttackWithInfusion(Attacker, Targets, bIsInfused);
-
-			Result.bSuccess = WeaponResult.bSuccess;
-			Result.ErrorMessage = WeaponResult.ErrorMessage;
-			Result.TotalDamageDealt = WeaponResult.TotalDamageDealt;
-			Result.EnergySpent = WeaponResult.EnergySpent;
-			Result.bWasCritical = WeaponResult.bWasCritical;
-			Result.bCausedDeath = WeaponResult.bCausedDeath;
-			Result.AttackElement = WeaponResult.InfusedElement;
-
-			for (const auto &Pair : WeaponResult.DamagePerTarget)
-			{
-				Result.AffectedTargets.Add(Pair.Key);
-				Result.DamagePerTarget.Add(Pair.Key, Pair.Value);
-			}
-
-			return Result;
-		}
-		else
-		{
-			Result.bSuccess = false;
-			Result.ErrorMessage = TEXT("No attack specified and WeaponManager unavailable");
-			return Result;
-		}
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor::ExecuteAttack] Called with null AttackData on %s — failing action"),
+			   Attacker ? *Attacker->GetName() : TEXT("null attacker"));
+		Result.bSuccess = false;
+		Result.ErrorMessage = TEXT("ExecuteAttack called with null AttackData");
+		return Result;
 	}
 
 	// Direct attack execution (explicit attack data provided)

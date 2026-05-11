@@ -290,10 +290,12 @@ public:
 	 * consolidation; see docs/analysis/Codebase_Analysis_Pass2_ApplyConsolidation.md
 	 * Section 8 for the migration plan.
 	 *
-	 * Phase A status: declared and implemented but NOT YET CALLED. ApplyDamage,
-	 * ApplyDamageAfterDefense, ProcessMultiHit, ApplyWeaponDamage,
-	 * ApplySpellStatusBuildup, and ApplyWeaponStatusBuildup remain authoritative.
-	 * Phase B onward migrates orchestrators to ApplyHit.
+	 * Status: production applicator for all async damage (Phase B) and for spell
+	 * + async-attack buildup (Phase C1, C3). Legacy weapon-side applicators
+	 * (ApplyWeaponDamage, ApplyWeaponStatusBuildup, ExecuteAttackWithInfusion)
+	 * were removed in Phase C2. Remaining legacy: ApplyDamage, ProcessMultiHit,
+	 * ApplyDamageAfterDefense, ApplySpellStatusBuildup — kept alive for sync
+	 * paths until Phase D retires them.
 	 *
 	 * Single-hit by contract — multi-hit looping stays in ProcessMultiHit / the
 	 * orchestrators. Routes damage through UDamageCalculator and buildup through
