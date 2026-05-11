@@ -396,13 +396,24 @@ private:
 	/** Clear cached spell data */
 	void ClearPendingSpellData();
 
-	// ==================== ABILITY EFFECT SYSTEM ====================
+	// ==================== SKILL EFFECT APPLICATION ====================
 
-	/** Apply all effects from ability's Effects array */
-	void ApplyAbilityEffects(
+	/** Apply all effects from an action's Effects[] array.
+	 *  Walks the array, gates each effect on its Condition, routes to
+	 *  SkillEffectManager. Drain effects heal/restore the User (attacker),
+	 *  not the target. Called from FinalizeAsyncAction post-defense for
+	 *  abilities, spells, and weapon attacks.
+	 *
+	 *  SourceName is the display string used for effect log lines and
+	 *  the FStatusEffect.EffectName ("<SourceName> Effect"). Passed as
+	 *  FString so the caller picks the right name from whichever data
+	 *  asset it's iterating (Ability->AbilityName, Spell->SpellName, etc).
+	 */
+	void ApplySkillEffects(
 		AActor *User,
 		const TArray<AActor *> &Targets,
-		UAbilityData *Ability,
+		const TArray<FSkillEffect> &Effects,
+		const FString &SourceName,
 		FActionResult &Result,
 		bool bCausedDeath);
 

@@ -921,7 +921,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 		// Inside ApplyEffectLogic's switch statement, BEFORE the default case
 
 		// TODO: SelfDamage handler missing. Effects with EffectType=SelfDamage apply
-		// to the actor cleanly via ApplyAbilityEffects, but ApplyEffectLogic has no
+		// to the actor cleanly via ApplySkillEffects, but ApplyEffectLogic has no
 		// case to process them per-turn — they sit on the actor and tick down their
 		// duration without dealing damage. Mirror the DOT case:
 		//   case EStatusType::SelfDamage:

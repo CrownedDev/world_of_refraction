@@ -1335,20 +1335,51 @@ void UActionExecutor::FinalizeAsyncAction()
 	// Apply post-action effects (status effects, etc.)
 	if (FinalResult.bSuccess && Executor)
 	{
-		// Apply ability effects (buffs, debuffs, drain) from Ability->Effects[].
-		// Mirrors the sync path's call site that was removed in Phase D.
-		// Runs post-defense, post-damage — so Result.TotalDamageDealt /
-		// bWasCritical / bCausedDeath are populated for condition checks
-		// (OnHit / OnCrit / OnKill). Spell Effects[] wiring lands in Commit C.
-		if (Action.ActionType == EActionType::Ability &&
-			Action.AbilityData &&
-			Action.AbilityData->Effects.Num() > 0 &&
-			Executor)
+		// Apply Effects[] for any action type that carries them.
+		// All three data assets (UAbilityData, USpellData, UWeaponAttackData)
+		// expose Effects[] in the same shape after Job 2. Runs post-defense,
+		// post-damage so Result.TotalDamageDealt / bWasCritical / bCausedDeath
+		// are populated for OnHit / OnCrit / OnKill condition checks.
+		const TArray<FSkillEffect> *EffectsToApply = nullptr;
+		FString SourceName;
+
+		switch (Action.ActionType)
 		{
-			ApplyAbilityEffects(
+		case EActionType::Ability:
+			if (Action.AbilityData)
+			{
+				EffectsToApply = &Action.AbilityData->Effects;
+				SourceName = Action.AbilityData->AbilityName;
+			}
+			break;
+
+		case EActionType::Spell:
+			if (Action.SpellData)
+			{
+				EffectsToApply = &Action.SpellData->Effects;
+				SourceName = Action.SpellData->SpellName;
+			}
+			break;
+
+		case EActionType::Attack:
+			if (Action.AttackData)
+			{
+				EffectsToApply = &Action.AttackData->Effects;
+				SourceName = Action.AttackData->AttackName;
+			}
+			break;
+
+		default:
+			break;
+		}
+
+		if (EffectsToApply && EffectsToApply->Num() > 0)
+		{
+			ApplySkillEffects(
 				Executor,
 				FinalResult.AffectedTargets,
-				Action.AbilityData,
+				*EffectsToApply,
+				SourceName,
 				FinalResult,
 				FinalResult.bCausedDeath);
 		}
@@ -3601,14 +3632,15 @@ void UActionExecutor::GetEffectTargets(
 	}
 }
 
-void UActionExecutor::ApplyAbilityEffects(
+void UActionExecutor::ApplySkillEffects(
 	AActor *User,
 	const TArray<AActor *> &Targets,
-	UAbilityData *Ability,
+	const TArray<FSkillEffect> &Effects,
+	const FString &SourceName,
 	FActionResult &Result,
 	bool bCausedDeath)
 {
-	if (!Ability || Ability->Effects.Num() == 0)
+	if (Effects.Num() == 0)
 	{
 		return;
 	}
@@ -3616,7 +3648,7 @@ void UActionExecutor::ApplyAbilityEffects(
 	USkillEffectManager *StatusMgr = GetSkillEffectManager();
 	if (!StatusMgr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ApplyAbilityEffects - No SkillEffectManager"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ApplySkillEffects - No SkillEffectManager"));
 		return;
 	}
 
@@ -3625,7 +3657,7 @@ void UActionExecutor::ApplyAbilityEffects(
 	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
-	for (const FSkillEffect &Effect : Ability->Effects)
+	for (const FSkillEffect &Effect : Effects)
 	{
 		if (!Effect.IsValid())
 		{
@@ -3712,7 +3744,7 @@ void UActionExecutor::ApplyAbilityEffects(
 		for (AActor *EffectTarget : EffectTargets)
 		{
 			FStatusEffect StatusEffect = FStatusEffect::CreateFromSpellEffect(
-				Ability->AbilityName + TEXT(" Effect"),
+				SourceName + TEXT(" Effect"),
 				GetUniqueEffectID(),
 				Effect.EffectType,
 				Effect.Magnitude,
@@ -3721,7 +3753,7 @@ void UActionExecutor::ApplyAbilityEffects(
 				ESpellElement::Generic, // Abilities don't have inherent element
 				EStatusEffectTiming::StartOfOwnTurn);
 
-			StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, Ability->AbilityName, UserTeam);
+			StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 			Result.StatusEffectsApplied++;
 
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s to %s"),
