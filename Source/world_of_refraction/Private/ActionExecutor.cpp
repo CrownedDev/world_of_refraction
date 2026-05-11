@@ -508,6 +508,25 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	}
 }
 
+// ========================================
+// ASYNC EXECUTOR SHARED HELPERS
+// ========================================
+
+bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bCanBeInfused, int32 InfusionLevel)
+{
+	const bool bWantsInfusion =
+		(Action.SelectedSource != EInfusionSourceOption::None) ||
+		(InfusionLevel > 0);
+	if (bWantsInfusion && !bCanBeInfused)
+	{
+		CurrentExecutionContext->PartialResult.bSuccess = false;
+		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
+		FinalizeAsyncAction();
+		return false;
+	}
+	return true;
+}
+
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
 {
 	USpellData *Spell = Action.SpellData;
@@ -526,14 +545,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// Commit 3: reject early when bCanBeInfused is false but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	const bool bWantsInfusion =
-		(Action.SelectedSource != EInfusionSourceOption::None) ||
-		(Action.SpellInfusionLevel > 0);
-	if (bWantsInfusion && !Spell->bCanBeInfused)
+	if (!ValidateInfusionGate(Action, Spell->bCanBeInfused, Action.SpellInfusionLevel))
 	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
-		FinalizeAsyncAction();
 		return;
 	}
 
@@ -699,14 +712,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Commit 3: reject early when bCanBeInfused is false but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	const bool bWantsInfusion =
-		(Action.SelectedSource != EInfusionSourceOption::None) ||
-		(Action.AbilityInfusionLevel > 0);
-	if (bWantsInfusion && !Ability->bCanBeInfused)
+	if (!ValidateInfusionGate(Action, Ability->bCanBeInfused, Action.AbilityInfusionLevel))
 	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
-		FinalizeAsyncAction();
 		return;
 	}
 
@@ -847,12 +854,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	// Commit 3: reject early when bCanBeInfused is false but the action carries
 	// infusion (source selection). Attacks have no charge level concept. No energy
 	// spent, no damage dealt.
-	const bool bWantsInfusion = (Action.SelectedSource != EInfusionSourceOption::None);
-	if (bWantsInfusion && !Attack->bCanBeInfused)
+	if (!ValidateInfusionGate(Action, Attack->bCanBeInfused, /*InfusionLevel=*/0))
 	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
-		FinalizeAsyncAction();
 		return;
 	}
 

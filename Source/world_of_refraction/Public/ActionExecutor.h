@@ -709,6 +709,14 @@ private:
 	/** Execute item with animation - no movement required */
 	void ExecuteItemAsync(AActor *Actor, const FAction &Action, UCharacterData *CharData);
 
+	// ==================== ASYNC EXECUTOR SHARED HELPERS ====================
+
+	/** Reject early when an action carries infusion intent but the data asset
+	 *  refuses it. Returns true if the action should proceed, false if rejected
+	 *  (sets PartialResult error and calls FinalizeAsyncAction). Shared by all
+	 *  three async executors. Pass InfusionLevel=0 for attacks (no charge concept). */
+	bool ValidateInfusionGate(const FAction &Action, bool bCanBeInfused, int32 InfusionLevel);
+
 	// ==================== RETURN MOVEMENT TRACKING ====================
 
 	/** Track if we're waiting for return movement */
