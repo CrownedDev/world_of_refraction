@@ -108,5 +108,20 @@ enum class EStatusType : uint8
     Cleanse UMETA(DisplayName = "Cleanse (Remove All Debuffs)"),
     RemoveSpeedDebuff UMETA(DisplayName = "Remove Speed Debuff"),
     RemoveDamageDebuff UMETA(DisplayName = "Remove Damage Debuff"),
-    RemoveDefenseDebuff UMETA(DisplayName = "Remove Defense Debuff")
+    RemoveDefenseDebuff UMETA(DisplayName = "Remove Defense Debuff"),
+
+    // ==================== BAR-CAP GATE EFFECTS (Session X) ====================
+    // Appended (not mid-inserted) to preserve .uasset enum-by-value stamping.
+
+    /** Stun - target can only Attack or Defend, blocks Ability/Spell/Item */
+    Stun UMETA(DisplayName = "Stun (Attack/Defend Only)"),
+
+    /** Block all healing - any heal source returns 0 */
+    HealBlock UMETA(DisplayName = "Heal Block"),
+
+    /** Cannot pay EP costs - blocks Spells, Abilities, infusion charge */
+    Silenced UMETA(DisplayName = "Silenced (No EP Spend)"),
+
+    /** Forces target to use a random skill from their loadout on a random enemy */
+    RandomSkill UMETA(DisplayName = "Random Skill (Loss of Control)")
 };

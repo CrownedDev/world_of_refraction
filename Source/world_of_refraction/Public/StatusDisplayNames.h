@@ -76,7 +76,7 @@ namespace StatusDisplayNames
             case ESpellElement::Fire:
                 return TEXT("Scorched");
             case ESpellElement::Earth:
-                return TEXT("Corroded");
+                return TEXT("Softened");
             case ESpellElement::Darkness:
                 return TEXT("Cursed");
             case ESpellElement::Lightning:
@@ -140,6 +140,17 @@ namespace StatusDisplayNames
             default:
                 return TEXT("Confused");
             }
+
+        // ==================== BAR-CAP GATE EFFECTS (Session X) ====================
+        // Element-specific flavour names can be added later; defaults for now.
+        case EStatusType::Stun:
+            return TEXT("Stunned");
+        case EStatusType::HealBlock:
+            return TEXT("Frozen");
+        case EStatusType::Silenced:
+            return TEXT("Silenced");
+        case EStatusType::RandomSkill:
+            return TEXT("Voided");
 
         // All other status types use their enum display name
         default:

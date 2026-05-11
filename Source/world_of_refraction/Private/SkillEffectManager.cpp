@@ -846,10 +846,20 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	{
 	// ==================== DOT EFFECTS ====================
 	case EStatusType::DOT:
-		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s"),
-			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
+	{
+		// Locked design: DOTs can't kill - clamped to leave 1 HP minimum
+		int32 DamageToApply = FMath::RoundToInt(Value);
+		int32 MaxAllowed = FMath::Max(0, CharComp->CurrentHP - 1);
+		DamageToApply = FMath::Min(DamageToApply, MaxAllowed);
+
+		if (DamageToApply > 0)
+		{
+			CharComp->ServerTakeDamage(DamageToApply);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (clamped, can't kill)"),
+				   *Actor->GetName(), DamageToApply, *Effect.EffectName);
+		}
 		break;
+	}
 
 		// ==================== HEALING ====================
 	case EStatusType::HealthRestore:
@@ -917,19 +927,35 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	case EStatusType::RemoveDefenseDebuff:
 		RemoveEffectsByType(Actor, EStatusType::DefenseDebuff);
 		break;
-		// In Source/world_of_refraction/Private/SkillEffectManager.cpp
-		// Inside ApplyEffectLogic's switch statement, BEFORE the default case
 
-		// TODO: SelfDamage handler missing. Effects with EffectType=SelfDamage apply
-		// to the actor cleanly via ApplySkillEffects, but ApplyEffectLogic has no
-		// case to process them per-turn — they sit on the actor and tick down their
-		// duration without dealing damage. Mirror the DOT case:
-		//   case EStatusType::SelfDamage:
-		//       CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
-		//       break;
-		// Also verify ProcessTiming is set to EndOfOwnTurn (or whichever timing
-		// makes sense for the design) when FSkillEffect → FStatusEffect conversion
-		// happens. Confirmed unwired during Job 2 Commit B PIE testing (May 2026).
+	// ==================== SELF DAMAGE ====================
+	// Wired Session X. Lunge's self-damage effect applied cleanly but had no
+	// handler here, so it sat on the actor without ticking (May 2026 PIE).
+	case EStatusType::SelfDamage:
+		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d self-damage from %s"),
+			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
+		break;
+
+	// ==================== BAR-CAP GATE EFFECTS ====================
+	// Presence on the actor is what gates actions; ApplyEffectLogic is a no-op.
+	// Gate enforcement (Session Z):
+	//   Stun      -> ActionExecutor::ValidateAction blocks non-Attack/Defend
+	//   HealBlock -> CharacterDataComponent::ServerHeal early-returns 0
+	//   Silenced  -> EP-cost gates check for active Silenced effect
+	case EStatusType::Stun:
+	case EStatusType::HealBlock:
+	case EStatusType::Silenced:
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] %s active on %s (gate effect)"),
+			   *Effect.EffectName, *Actor->GetName());
+		break;
+
+	// RandomSkill: full implementation pending Session Y/Z (LoadoutComponent
+	// random pick + ActionExecutor forced-action injection).
+	case EStatusType::RandomSkill:
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s has RandomSkill active - implementation pending"),
+			   *Actor->GetName());
+		break;
 
 	default:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
@@ -1429,13 +1455,9 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		return;
 	}
 
-	// Get source data for scaling
-	UCharacterData *SourceData = nullptr;
-	if (Source)
-	{
-		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
-		SourceData = SourceComp ? SourceComp->CharacterData : nullptr;
-	}
+	// Source no longer used for scaling - bar-cap design scales effects off the
+	// target (e.g. DOT and Burst use Target MaxHP). Source still passed to
+	// ApplyEffect below for attribution.
 
 	FStatusEffect Effect;
 	Effect.Element = Element;
@@ -1444,26 +1466,39 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// Generate element-aware display name
 	Effect.EffectName = StatusDisplayNames::GetDisplayName(StatusType, Element);
 
-	// Triggered effects: Full power, shorter duration
+	// Triggered effects: bar-cap design magnitudes (Session X)
 	switch (StatusType)
 	{
 	case EStatusType::DOT:
-		Effect.EffectType = EStatusType::DOT; // Generic DOT type
-		Effect.EffectValue = 30.0f;
+	{
+		Effect.EffectType = EStatusType::DOT;
+		// 8% MaxHP per tick - scaled at apply time via target's MaxHP.
+		// TODO: long-term, change DOT processing to interpret Value as % of MaxHP
+		// directly; for now we resolve to flat damage here for compatibility with
+		// ApplyEffectLogic's int-damage handler.
+		if (UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>())
+		{
+			Effect.EffectValue = TargetComp->MaxHP * 0.08f;
+		}
+		else
+		{
+			Effect.EffectValue = 30.0f; // fallback
+		}
 		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 		break;
+	}
 
 	case EStatusType::DefenseDebuff:
 		Effect.EffectType = EStatusType::DefenseDebuff;
-		Effect.EffectValue = 40.0f; // 40%
-		Effect.RemainingTurns = 1;
+		Effect.EffectValue = 30.0f; // 30% defence reduction
+		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
 	case EStatusType::SkipTurn:
 		Effect.EffectType = EStatusType::SkipTurn;
-		Effect.EffectValue = 1.0f;
+		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
 		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
 		break;
@@ -1477,8 +1512,8 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case EStatusType::CritDebuff:
 		Effect.EffectType = EStatusType::CritChanceDebuff;
-		Effect.EffectValue = 50.0f; // 50%
-		Effect.RemainingTurns = 1;
+		Effect.EffectValue = 100.0f; // -100% crit chance
+		Effect.RemainingTurns = 2;
 		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
 		break;
 
@@ -1491,6 +1526,8 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case EStatusType::RandomDebuff:
 	{
+		// Superseded by RandomSkill below in the new bar-cap design; left wired
+		// so any pre-existing trigger mappings still resolve until Session Y.
 		TArray<EStatusType> Debuffs = {
 			EStatusType::DamageDebuff,
 			EStatusType::DefenseDebuff,
@@ -1503,22 +1540,54 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	}
 	break;
 
-	case EStatusType::BurstDamage:
-		// Apply burst damage scaled by source's RawDamage stat
-		if (SourceData)
-		{
-			int32 BurstDamage = FMath::RoundToInt(SourceData->CalculateRawDamage() * 2.0f);
+	// ==================== BAR-CAP GATE EFFECTS (Session X) ====================
+	case EStatusType::Stun:
+		Effect.EffectType = EStatusType::Stun;
+		Effect.EffectValue = 1.0f; // gate
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		break;
 
-			UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
-			if (TargetComp)
+	case EStatusType::HealBlock:
+		Effect.EffectType = EStatusType::HealBlock;
+		Effect.EffectValue = 1.0f; // gate
+		Effect.RemainingTurns = 2;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::Silenced:
+		Effect.EffectType = EStatusType::Silenced;
+		Effect.EffectValue = 1.0f; // gate
+		Effect.RemainingTurns = 2;
+		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		break;
+
+	case EStatusType::RandomSkill:
+		Effect.EffectType = EStatusType::RandomSkill;
+		Effect.EffectValue = 1.0f; // gate
+		Effect.RemainingTurns = 1;
+		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		break;
+
+	case EStatusType::BurstDamage:
+	{
+		// Locked design: 25% MaxHP target-scaled, clamped can't-kill (leaves >=1 HP)
+		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+		if (TargetComp)
+		{
+			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * 0.25f);
+			int32 MaxAllowed = FMath::Max(0, TargetComp->CurrentHP - 1);
+			BurstDamage = FMath::Min(BurstDamage, MaxAllowed);
+
+			if (BurstDamage > 0)
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
-
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied %d raw burst damage to %s"),
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, clamped) to %s"),
 					   BurstDamage, *Target->GetName());
 			}
 		}
-		return;
+		return; // one-shot, no FStatusEffect applied
+	}
 
 	default:
 		return;

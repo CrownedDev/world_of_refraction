@@ -537,6 +537,10 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		case EStatusType::DOT:
 		case EStatusType::SkipTurn:
 		case EStatusType::RandomDebuff:
+		case EStatusType::Stun:
+		case EStatusType::HealBlock:
+		case EStatusType::Silenced:
+		case EStatusType::RandomSkill:
 			return true;
 		default:
 			return false;
