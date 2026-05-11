@@ -409,7 +409,7 @@ private:
 	/** Get LoadoutComponent from actor */
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 	UCharacterData *GetCharacterData(AActor *Actor) const;
-	USkillEffectManager *GetStatusEffectManager() const;
+	USkillEffectManager *GetSkillEffectManager() const;
 	URingData *GetPrimaryRing(AActor *Actor) const;
 
 	/** Check if actor is Generic class (dual-wield, secondary slot) */
@@ -436,9 +436,9 @@ private:
 	/** Weapon state per actor */
 	TMap<TWeakObjectPtr<AActor>, FWeaponState> WeaponStates;
 
-	/** Cached StatusEffectManager */
+	/** Cached SkillEffectManager */
 	UPROPERTY()
-	USkillEffectManager *StatusEffectManagerRef = nullptr;
+	USkillEffectManager *SkillEffectManagerRef = nullptr;
 
 	// ==================== CRYSTAL SUBSCRIPTIONS (Phase 4d) ====================
 

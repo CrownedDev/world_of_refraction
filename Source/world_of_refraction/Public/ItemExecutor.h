@@ -311,7 +311,7 @@ private:
 
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
 	UCharacterData *GetCharacterData(AActor *Actor) const;
-	USkillEffectManager *GetStatusEffectManager() const;
+	USkillEffectManager *GetSkillEffectManager() const;
 	bool IsGenericCharacter(AActor *Actor) const;
 	bool IsBrokenDarknessCharacter(AActor *Actor) const;
 
@@ -325,7 +325,7 @@ private:
 	/** Quartz item references */
 	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UItemData>> QuartzItems;
 
-	/** Cached StatusEffectManager */
+	/** Cached SkillEffectManager */
 	UPROPERTY()
-	USkillEffectManager *StatusEffectManagerRef = nullptr;
+	USkillEffectManager *SkillEffectManagerRef = nullptr;
 };

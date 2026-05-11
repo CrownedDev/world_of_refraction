@@ -37,7 +37,7 @@ void ASkillEffectManagerTestActor::RunAllTests()
 
 	UE_LOG(LogTemp, Display, TEXT(""));
 	UE_LOG(LogTemp, Display, TEXT("========================================"));
-	UE_LOG(LogTemp, Display, TEXT("STATUS EFFECT MANAGER TEST SUITE"));
+	UE_LOG(LogTemp, Display, TEXT("SKILL EFFECT MANAGER TEST SUITE"));
 	UE_LOG(LogTemp, Display, TEXT("========================================"));
 
 	// Application Tests
@@ -75,7 +75,7 @@ void ASkillEffectManagerTestActor::RunAllTests()
 	// Final cleanup
 	CleanupTestActors();
 
-	if (USkillEffectManager *Manager = GetStatusEffectManager())
+	if (USkillEffectManager *Manager = GetSkillEffectManager())
 	{
 		Manager->ClearAllEffects();
 	}
@@ -89,7 +89,7 @@ void ASkillEffectManagerTestActor::Test_ApplyEffect()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Apply Effect"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!AssertTrue(Manager != nullptr, TEXT("Manager exists")))
 		return;
 
@@ -116,7 +116,7 @@ void ASkillEffectManagerTestActor::Test_StackingBehavior()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Stacking Behavior"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -164,7 +164,7 @@ void ASkillEffectManagerTestActor::Test_DurationRefresh()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Duration Refresh"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -212,7 +212,7 @@ void ASkillEffectManagerTestActor::Test_RemoveByID()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove By ID"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -247,7 +247,7 @@ void ASkillEffectManagerTestActor::Test_RemoveByType()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove By Type"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -279,7 +279,7 @@ void ASkillEffectManagerTestActor::Test_RemoveAllBuffs()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove All Buffs"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -322,7 +322,7 @@ void ASkillEffectManagerTestActor::Test_RemoveAllDebuffs()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Remove All Debuffs"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -370,7 +370,7 @@ void ASkillEffectManagerTestActor::Test_StartOfTurnProcessing()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Start Of Turn Processing"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -417,7 +417,7 @@ void ASkillEffectManagerTestActor::Test_EndOfTurnProcessing()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] End Of Turn Processing"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -462,7 +462,7 @@ void ASkillEffectManagerTestActor::Test_DOTDamage()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] DOT Damage"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -498,7 +498,7 @@ void ASkillEffectManagerTestActor::Test_DurationExpiration()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Duration Expiration"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -533,7 +533,7 @@ void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Conditional Trigger"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -582,7 +582,7 @@ void ASkillEffectManagerTestActor::Test_PermanentEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Permanent Effects"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -615,7 +615,7 @@ void ASkillEffectManagerTestActor::Test_StatModifierQuery()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Stat Modifier Query"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -646,7 +646,7 @@ void ASkillEffectManagerTestActor::Test_SourceTracking()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Source Tracking"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -687,7 +687,7 @@ void ASkillEffectManagerTestActor::Test_MultipleSpellEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Multiple Spell Effects (Primary + Secondary)"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -757,7 +757,7 @@ void ASkillEffectManagerTestActor::Test_WeaponBonuses()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Weapon Bonuses"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -812,7 +812,7 @@ void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Physical Damage Effects (Slash/Pierce/Impact)"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -898,7 +898,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 {
 	UE_LOG(LogTemp, Display, TEXT("[TEST] Speed Buff → TurnManager Notification"));
 
-	USkillEffectManager *Manager = GetStatusEffectManager();
+	USkillEffectManager *Manager = GetSkillEffectManager();
 	if (!Manager)
 		return;
 
@@ -1004,7 +1004,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 // TEST INFRASTRUCTURE
 // ========================================
 
-USkillEffectManager *ASkillEffectManagerTestActor::GetStatusEffectManager()
+USkillEffectManager *ASkillEffectManagerTestActor::GetSkillEffectManager()
 {
 	UGameInstance *GI = GetGameInstance();
 	if (!GI)

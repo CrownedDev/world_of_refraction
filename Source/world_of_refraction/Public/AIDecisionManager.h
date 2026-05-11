@@ -63,7 +63,7 @@ public:
 private:
     // ==================== INTERNAL ====================
 
-    USkillEffectManager *GetStatusEffectManager() const;
+    USkillEffectManager *GetSkillEffectManager() const;
 
     /** Active combat reference */
     UPROPERTY()

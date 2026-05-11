@@ -69,13 +69,13 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, AActor *, Actor,
  * Responsibilities:
  * - Initialize/end combat via TurnManager
  * - Listen to turn events and coordinate responses
- * - Process status effects at turn boundaries (via StatusEffectManager)
+ * - Process status effects at turn boundaries (via SkillEffectManager)
  * - Accept and execute actions from UI/AI (via ActionExecutor)
  * - Check win conditions
  *
  * Integrated Systems:
  * - TurnManager (turn order, speed changes)
- * - StatusEffectManager (start/end of turn processing)
+ * - SkillEffectManager (start/end of turn processing)
  * - ActionExecutor (validate and execute actions)
  *
  * Future integrations:
@@ -370,7 +370,7 @@ private:
 	UTurnManager *TurnManagerRef;
 
 	UPROPERTY()
-	USkillEffectManager *StatusEffectManagerRef;
+	USkillEffectManager *SkillEffectManagerRef;
 
 	UPROPERTY()
 	UActionExecutor *ActionExecutorRef;
@@ -409,7 +409,7 @@ private:
 	void BindTurnManagerEvents();
 	void UnbindTurnManagerEvents();
 
-	// Status effect processing (delegates to StatusEffectManager)
+	// Status effect processing (delegates to SkillEffectManager)
 	void ProcessStartOfTurnEffects(AActor *Actor);
 	void ProcessEndOfTurnEffects(AActor *Actor);
 

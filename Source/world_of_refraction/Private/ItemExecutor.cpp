@@ -17,7 +17,7 @@ void UItemExecutor::Deinitialize()
 {
 	QuartzStates.Empty();
 	QuartzItems.Empty();
-	StatusEffectManagerRef = nullptr;
+	SkillEffectManagerRef = nullptr;
 	Super::Deinitialize();
 }
 
@@ -221,10 +221,10 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, UItemData *Item, FI
 void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Emerald - Wind speed buff
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
-		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
@@ -249,10 +249,10 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemDa
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Amber - Earth defense buff
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
-		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
@@ -277,10 +277,10 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItem
 void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Opal - Light crit buff (+ S-tier reveals enemy stats)
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
-		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
@@ -314,10 +314,10 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemDat
 void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Onyx - Darkness silence (prevents spell casting)
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
-		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
@@ -343,10 +343,10 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData
 void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Amethyst - Void gamble (random buff or debuff)
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
-		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
@@ -405,10 +405,10 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData 
 void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
 	// Iolite - Reality cleanse (tiered removal + immunity)
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
-		OutResult.ErrorMessage = TEXT("StatusEffectManager not available");
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
@@ -496,7 +496,7 @@ void UItemExecutor::ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseRes
 	if (!IsGenericCharacter(User))
 		return;
 
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 		return;
 
@@ -551,7 +551,7 @@ void UItemExecutor::ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor
 	if (!Item->HasSecondaryEffect())
 		return;
 
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 		return;
 
@@ -676,17 +676,17 @@ UCharacterData *UItemExecutor::GetCharacterData(AActor *Actor) const
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-USkillEffectManager *UItemExecutor::GetStatusEffectManager() const
+USkillEffectManager *UItemExecutor::GetSkillEffectManager() const
 {
-	if (!StatusEffectManagerRef)
+	if (!SkillEffectManagerRef)
 	{
 		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UItemExecutor *>(this)->StatusEffectManagerRef =
+			const_cast<UItemExecutor *>(this)->SkillEffectManagerRef =
 				GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
-	return StatusEffectManagerRef;
+	return SkillEffectManagerRef;
 }
 
 bool UItemExecutor::IsGenericCharacter(AActor *Actor) const

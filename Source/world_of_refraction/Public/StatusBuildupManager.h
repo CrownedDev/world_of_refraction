@@ -28,8 +28,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStatusBuildupChanged, AActor *
  * effect tracking (durations, stacks, removal helpers, immediate / triggered
  * application). This manager owns the bar — the two systems talk via a
  * cached pointer:
- *   Buildup bar fills  →  UStatusBuildupManager::TriggerStatusEffect
- *                      →  USkillEffectManager::ApplyTriggeredStatus (lands the effect)
+ *   Buildup bar fills  →  UStatusBuildupManager::TriggerSkillEffectFromBuildup
+ *                      →  USkillEffectManager::ApplyTriggeredSkillEffect (lands the effect)
  *
  * Per-element resistance — although the underlying ResistanceBuff / Debuff
  * effects live in USkillEffectManager::ActiveEffects (the effect manager's
@@ -78,7 +78,7 @@ public:
 	/** Add buildup to target's status bar, returns true if triggered.
 	 *  Source's StatusMultiplier amplifies the amount; target's base resistance
 	 *  and element-matching ResistanceBuff/Debuff effects reduce it. When the
-	 *  bar caps, TriggerStatusEffect fires the pending effect via the effect
+	 *  bar caps, TriggerSkillEffectFromBuildup fires the pending effect via the effect
 	 *  manager. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount, EStatusType StatusType, ESpellElement Element);
@@ -135,8 +135,8 @@ private:
 	TMap<TWeakObjectPtr<AActor>, FStatusBarState> StatusBarStates;
 
 	/** Trigger the status effect when bar fills. Looks up the effect manager
-	 *  and calls ApplyTriggeredStatus on it. */
-	void TriggerStatusEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+	 *  and calls ApplyTriggeredSkillEffect on it. */
+	void TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 
 	// ========================================
 	// CACHED CROSS-SUBSYSTEM REFERENCE
@@ -147,6 +147,6 @@ private:
 	USkillEffectManager *EffectManagerRef = nullptr;
 
 	/** Get USkillEffectManager via cached pointer; lazy-acquire on first call.
-	 *  Matches the const_cast pattern used by UActionExecutor::GetStatusEffectManager. */
+	 *  Matches the const_cast pattern used by UActionExecutor::GetSkillEffectManager. */
 	USkillEffectManager *GetEffectManager() const;
 };

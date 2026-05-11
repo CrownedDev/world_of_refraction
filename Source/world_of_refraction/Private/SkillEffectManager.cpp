@@ -20,14 +20,14 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 	ActiveEffects.Empty();
 	NextInstanceID = 1;
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Initialized"));
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Initialized"));
 }
 
 void USkillEffectManager::Deinitialize()
 {
 	ClearAllEffects();
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Deinitialized"));
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Deinitialized"));
 
 	Super::Deinitialize();
 }
@@ -41,14 +41,14 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 {
 	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StatusEffectManager] ApplyEffect: Target is null"));
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ApplyEffect: Target is null"));
 		return EEffectApplicationResult::Rejected;
 	}
 
 	// Check immunity
 	if (IsImmuneToEffectType(Target, Effect.EffectType))
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s is immune to %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s is immune to %s"),
 			   *Target->GetName(), *Effect.EffectName);
 		return EEffectApplicationResult::Rejected;
 	}
@@ -77,7 +77,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 				ExistingEffect->RemainingTurns = Effect.InitialDuration;
 			}
 
-			UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s: %s stacked to %d on %s"),
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s stacked to %d on %s"),
 				   *Target->GetName(), *Effect.EffectName, ExistingEffect->CurrentStacks, *Target->GetName());
 
 			OnEffectStacksChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->CurrentStacks);
@@ -94,7 +94,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 		{
 			ExistingEffect->RemainingTurns = Effect.InitialDuration;
 
-			UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s: %s duration refreshed to %d turns"),
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s duration refreshed to %d turns"),
 				   *Target->GetName(), *Effect.EffectName, ExistingEffect->RemainingTurns);
 
 			OnEffectDurationChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->RemainingTurns);
@@ -102,7 +102,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s: %s rejected (already at max stacks)"),
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s rejected (already at max stacks)"),
 				   *Target->GetName(), *Effect.EffectName);
 			return EEffectApplicationResult::Rejected;
 		}
@@ -111,7 +111,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 	// New effect - apply it
 	Effects.Add(Effect);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied %s to %s (ID: %d, Duration: %d, Value: %.1f)"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied %s to %s (ID: %d, Duration: %d, Value: %.1f)"),
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
 
 	// Process immediate effects right away
@@ -206,7 +206,7 @@ void USkillEffectManager::ApplyEvolutionPassives(
 {
 	if (PassiveTypes.Num() != PassiveValues.Num())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StatusEffectManager] ApplyEvolutionPassives: Mismatched array sizes"));
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ApplyEvolutionPassives: Mismatched array sizes"));
 		return;
 	}
 
@@ -253,7 +253,7 @@ void USkillEffectManager::ApplyWeaponBonuses(
 
 	if (Bonuses.Num() > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applying %d weapon bonuses from %s to %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applying %d weapon bonuses from %s to %s"),
 			   Bonuses.Num(), *WeaponName, *Target->GetName());
 	}
 
@@ -286,7 +286,7 @@ void USkillEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
 
 	if (RemovedCount > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %d weapon bonuses (WeaponID: %d) from %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d weapon bonuses (WeaponID: %d) from %s"),
 			   RemovedCount, WeaponID, *Target->GetName());
 	}
 }
@@ -328,7 +328,7 @@ void USkillEffectManager::ApplyPhysicalDamageEffect(
 		break;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applying %s from %s (Buildup: %d × %.1f × %d hits)"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applying %s from %s (Buildup: %d × %.1f × %d hits)"),
 		   *TypeName, *WeaponName, StatusBuildup, InfusionMultiplier, HitCount);
 
 	ApplyEffect(Target, Effect, Source, WeaponName, SourceTeam);
@@ -355,7 +355,7 @@ void USkillEffectManager::ApplyWeaponInfusionDOT(
 		Duration,
 		WeaponInfusionMultiplier);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applying weapon-infused DOT: %s (%.1f damage × %.1f multiplier)"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applying weapon-infused DOT: %s (%.1f damage × %.1f multiplier)"),
 		   *Effect.EffectName, BaseDOTDamage, WeaponInfusionMultiplier);
 
 	ApplyEffect(Target, Effect, Source, AbilityName + TEXT(" (Weapon Infused)"), SourceTeam);
@@ -383,7 +383,7 @@ bool USkillEffectManager::RemoveEffectByID(AActor *Target, int32 EffectID)
 
 			Effects.RemoveAt(i);
 
-			UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %s from %s (by ID)"),
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %s from %s (by ID)"),
 				   *RemovedEffect.EffectName, *Target->GetName());
 
 			OnEffectRemoved.Broadcast(Target, RemovedEffect);
@@ -425,7 +425,7 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 
 	if (RemovedCount > 0)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %d effects named '%s' from %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d effects named '%s' from %s"),
 			   RemovedCount, *EffectName, *Target->GetName());
 	}
 
@@ -493,7 +493,7 @@ int32 USkillEffectManager::RemoveAllBuffs(AActor *Target)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %d buffs from %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d buffs from %s"),
 		   RemovedCount, *Target->GetName());
 
 	// Notify TurnManager if any speed buffs were removed
@@ -534,7 +534,7 @@ int32 USkillEffectManager::RemoveAllDebuffs(AActor *Target)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %d debuffs from %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d debuffs from %s"),
 		   RemovedCount, *Target->GetName());
 
 	// Notify TurnManager if any speed debuffs were removed
@@ -568,7 +568,7 @@ int32 USkillEffectManager::RemoveAllDOTs(AActor *Target)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %d DOTs from %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d DOTs from %s"),
 		   RemovedCount, *Target->GetName());
 
 	return RemovedCount;
@@ -598,7 +598,7 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 	Effects.Empty();
 	ActiveEffects.Remove(Target);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed all %d effects from %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed all %d effects from %s"),
 		   Count, *Target->GetName());
 
 	// Notify TurnManager if any speed effects were removed
@@ -629,7 +629,7 @@ void USkillEffectManager::ClearAllEffects()
 
 	ActiveEffects.Empty();
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Cleared all effects (%d total)"), TotalCount);
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Cleared all effects (%d total)"), TotalCount);
 }
 
 int32 USkillEffectManager::RemoveEffectsBySource(AActor *Source)
@@ -674,7 +674,7 @@ int32 USkillEffectManager::RemoveEffectsBySource(AActor *Source)
 		}
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Removed %d effects from source %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d effects from source %s"),
 		   TotalRemoved, *Source->GetName());
 
 	// Notify TurnManager for all affected actors
@@ -702,7 +702,7 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 
 	ResetTurnFlags(Actor);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Processing start-of-turn effects for %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Processing start-of-turn effects for %s"),
 		   *Actor->GetName());
 
 	// Process start-of-turn effects
@@ -722,7 +722,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Processing end-of-turn effects for %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Processing end-of-turn effects for %s"),
 		   *Actor->GetName());
 
 	// Process end-of-turn effects (DOTs, etc.)
@@ -772,7 +772,7 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger T
 					Effect.bTriggerActive = true;
 					ApplyEffectLogic(Actor, Effect);
 
-					UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Trigger activated: %s on %s"),
+					UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
 						   *Effect.EffectName, *Actor->GetName());
 				}
 			}
@@ -838,7 +838,7 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 
 		if (Effect.RemainingTurns <= 0)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s expired on %s"),
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s expired on %s"),
 				   *Effect.EffectName, *Actor->GetName());
 
 			// Track if speed effect expired
@@ -867,7 +867,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 
 	if (!CharComp)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StatusEffectManager] No CharacterDataComponent on %s"),
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] No CharacterDataComponent on %s"),
 			   *Actor->GetName());
 		return;
 	}
@@ -879,27 +879,27 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	// ==================== DOT EFFECTS ====================
 	case EStatusType::DOT:
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s took %d DOT damage from %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 		// ==================== HEALING ====================
 	case EStatusType::HealthRestore:
 		CharComp->ServerHeal(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s healed %d from %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	// ==================== ENERGY ====================
 	case EStatusType::EnergyRestore:
 		CharComp->ServerGainEnergy(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s gained %d energy from %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s gained %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	case EStatusType::EnergyDrain:
 		CharComp->ServerSpendEnergy(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] %s lost %d energy from %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s lost %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
@@ -934,7 +934,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	case EStatusType::MaxEnergyBuff:
 	case EStatusType::MaxEnergyDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
-		UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] Stat modifier %s active on %s (%.1f%%)"),
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
@@ -951,7 +951,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 		break;
 
 	default:
-		UE_LOG(LogTemp, Verbose, TEXT("[StatusEffectManager] Unhandled effect type for %s"),
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
 			   *Effect.EffectName);
 		break;
 	}
@@ -1143,20 +1143,20 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 {
 	if (!Actor)
 	{
-		UE_LOG(LogTemp, Display, TEXT("[StatusEffectManager] DEBUG: Actor is null"));
+		UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: Actor is null"));
 		return;
 	}
 
 	if (!ActiveEffects.Contains(Actor))
 	{
-		UE_LOG(LogTemp, Display, TEXT("[StatusEffectManager] DEBUG: %s has no active effects"),
+		UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: %s has no active effects"),
 			   *Actor->GetName());
 		return;
 	}
 
 	const TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
 
-	UE_LOG(LogTemp, Display, TEXT("[StatusEffectManager] DEBUG: %s has %d effects:"),
+	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: %s has %d effects:"),
 		   *Actor->GetName(), Effects.Num());
 
 	for (int32 i = 0; i < Effects.Num(); ++i)
@@ -1171,7 +1171,7 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 
 void USkillEffectManager::DebugPrintAllEffects() const
 {
-	UE_LOG(LogTemp, Display, TEXT("[StatusEffectManager] DEBUG: === ALL ACTIVE EFFECTS ==="));
+	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: === ALL ACTIVE EFFECTS ==="));
 
 	int32 TotalEffects = 0;
 
@@ -1184,7 +1184,7 @@ void USkillEffectManager::DebugPrintAllEffects() const
 		}
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("[StatusEffectManager] DEBUG: Total: %d effects on %d actors"),
+	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: Total: %d effects on %d actors"),
 		   TotalEffects, ActiveEffects.Num());
 }
 
@@ -1357,12 +1357,12 @@ void USkillEffectManager::NotifySpeedChanged(AActor *Actor)
 	if (TurnManager)
 	{
 		TurnManager->OnActorSpeedChanged(Actor);
-		UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Notified TurnManager of speed change for %s"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Notified TurnManager of speed change for %s"),
 			   *Actor->GetName());
 	}
 }
 
-void USkillEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
 {
 	if (!Target || StatusType == EStatusType::None)
 	{
@@ -1437,11 +1437,11 @@ void USkillEffectManager::ApplyImmediateStatus(AActor *Source, AActor *Target, E
 	Effect.InitialDuration = Effect.RemainingTurns;
 	ApplyEffect(Target, Effect, Source, TEXT("Immediate Status"), -1);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied immediate %s to %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied immediate %s to %s"),
 		   *Effect.EffectName, *Target->GetName());
 }
 
-void USkillEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
 {
 	if (!Target || StatusType == EStatusType::None)
 	{
@@ -1533,7 +1533,7 @@ void USkillEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, E
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
 
-				UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied %d raw burst damage to %s"),
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied %d raw burst damage to %s"),
 					   BurstDamage, *Target->GetName());
 			}
 		}
@@ -1546,6 +1546,6 @@ void USkillEffectManager::ApplyTriggeredStatus(AActor *Source, AActor *Target, E
 	Effect.InitialDuration = Effect.RemainingTurns;
 	ApplyEffect(Target, Effect, Source, TEXT("Status Bar Trigger"), -1);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusEffectManager] Applied triggered %s to %s"),
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied triggered %s to %s"),
 		   *Effect.EffectName, *Target->GetName());
 }

@@ -932,13 +932,13 @@ void ACombatOrchestratorTestActor::Test_StatusEffectFromAction()
 		return;
 	}
 
-	// Get StatusEffectManager
+	// Get SkillEffectManager
 	UGameInstance *GameInstance = GetWorld()->GetGameInstance();
 	USkillEffectManager *StatusManager = GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
 
 	if (!StatusManager)
 	{
-		UE_LOG(LogTemp, Error, TEXT("    StatusEffectManager not found"));
+		UE_LOG(LogTemp, Error, TEXT("    SkillEffectManager not found"));
 		PrintTestResult("Status Effect From Action", false);
 		Orchestrator->ForceEndCombat();
 		CleanupTestActors(Team0);

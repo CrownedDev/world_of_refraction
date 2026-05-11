@@ -82,7 +82,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor 
  *       FActionResult Result = Executor->ExecuteAction(Actor, Action);
  *
  * Integrations:
- *   - StatusEffectManager: Apply status effects, check stun/silence
+ *   - SkillEffectManager: Apply status effects, check stun/silence
  *   - CharacterDataComponent: HP/EP changes
  *   - Data Assets: SpellData, AbilityData, etc.
  */
@@ -280,9 +280,9 @@ public:
 	// UTILITY
 	// ========================================
 
-	/** Get the StatusEffectManager */
+	/** Get the SkillEffectManager */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
-	USkillEffectManager *GetStatusEffectManager() const;
+	USkillEffectManager *GetSkillEffectManager() const;
 
 	/** Get the RingManager */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
@@ -529,9 +529,9 @@ private:
 	// CACHED REFERENCES
 	// ========================================
 
-	/** Cached reference to StatusEffectManager */
+	/** Cached reference to SkillEffectManager */
 	UPROPERTY()
-	USkillEffectManager *StatusEffectManagerRef = nullptr;
+	USkillEffectManager *SkillEffectManagerRef = nullptr;
 
 	/** Cached reference to ItemExecutor */
 	UPROPERTY()

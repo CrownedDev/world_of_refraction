@@ -42,7 +42,7 @@ class WORLD_OF_REFRACTION_API UCharacterPanelWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	/** Bind to actor's CharacterDataComponent and StatusEffectManager. */
+	/** Bind to actor's CharacterDataComponent and SkillEffectManager. */
 	UFUNCTION(BlueprintCallable, Category = "Character Panel")
 	void InitialiseForActor(AActor *InActor);
 

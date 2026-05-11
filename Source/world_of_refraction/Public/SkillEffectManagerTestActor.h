@@ -12,7 +12,7 @@ class UCharacterDataComponent;
 /**
  * ASkillEffectManagerTestActor
  *
- * Automated test suite for StatusEffectManager.
+ * Automated test suite for SkillEffectManager.
  * Place in level and use context menu to run tests.
  *
  * Test Coverage:
@@ -38,72 +38,72 @@ public:
 	// ========================================
 
 	/** Run all tests */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests")
 	void RunAllTests();
 
 	/** Auto-run tests on BeginPlay */
-	UPROPERTY(EditAnywhere, Category = "Status Effect Tests")
+	UPROPERTY(EditAnywhere, Category = "Skill Effect Tests")
 	bool bAutoRunTests = false;
 
 	// ========================================
 	// INDIVIDUAL TESTS
 	// ========================================
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_ApplyEffect();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_StackingBehavior();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_DurationRefresh();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_RemoveByID();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_RemoveByType();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_RemoveAllBuffs();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_RemoveAllDebuffs();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_StartOfTurnProcessing();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_EndOfTurnProcessing();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_DOTDamage();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_DurationExpiration();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_ConditionalTrigger();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_PermanentEffects();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_StatModifierQuery();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_SourceTracking();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_MultipleSpellEffects();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_WeaponBonuses();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_PhysicalDamageEffects();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Status Effect Tests|Individual")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_SpeedBuffTurnManagerNotification();
 
 private:
@@ -111,8 +111,8 @@ private:
 	// TEST INFRASTRUCTURE
 	// ========================================
 
-	/** Get or create StatusEffectManager */
-	USkillEffectManager *GetStatusEffectManager();
+	/** Get or create SkillEffectManager */
+	USkillEffectManager *GetSkillEffectManager();
 
 	/** Create a test actor with CharacterDataComponent */
 	AActor *CreateTestActor(const FString &Name, int32 HP = 100, int32 EP = 50);

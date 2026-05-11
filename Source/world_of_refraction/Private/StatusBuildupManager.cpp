@@ -206,7 +206,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
 			   *Target->GetName(), *UEnum::GetValueAsString(State.PendingStatus));
 
-		TriggerStatusEffect(Source, Target, State.PendingStatus, State.PendingElement);
+		TriggerSkillEffectFromBuildup(Source, Target, State.PendingStatus, State.PendingElement);
 		ResetStatusBar(Target);
 		return true;
 	}
@@ -270,7 +270,7 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 		   State->TurnsSinceLastHit);
 }
 
-void UStatusBuildupManager::TriggerStatusEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void UStatusBuildupManager::TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
 {
 	if (!Target || StatusType == EStatusType::None)
 	{
@@ -280,9 +280,9 @@ void UStatusBuildupManager::TriggerStatusEffect(AActor *Source, AActor *Target, 
 	USkillEffectManager *EffectMgr = GetEffectManager();
 	if (!EffectMgr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[StatusBuildupManager] TriggerStatusEffect: USkillEffectManager unavailable; cannot apply triggered status"));
+		UE_LOG(LogTemp, Warning, TEXT("[StatusBuildupManager] TriggerSkillEffectFromBuildup: USkillEffectManager unavailable; cannot apply triggered status"));
 		return;
 	}
 
-	EffectMgr->ApplyTriggeredStatus(Source, Target, StatusType, Element);
+	EffectMgr->ApplyTriggeredSkillEffect(Source, Target, StatusType, Element);
 }

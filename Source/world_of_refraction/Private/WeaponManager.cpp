@@ -21,7 +21,7 @@ void UWeaponManager::Initialize(FSubsystemCollectionBase &Collection)
 void UWeaponManager::Deinitialize()
 {
 	WeaponStates.Empty();
-	StatusEffectManagerRef = nullptr;
+	SkillEffectManagerRef = nullptr;
 	Super::Deinitialize();
 }
 
@@ -467,17 +467,17 @@ ULoadoutComponent *UWeaponManager::GetLoadoutComponent(AActor *Actor) const
 	return Actor->FindComponentByClass<ULoadoutComponent>();
 }
 
-USkillEffectManager *UWeaponManager::GetStatusEffectManager() const
+USkillEffectManager *UWeaponManager::GetSkillEffectManager() const
 {
-	if (!StatusEffectManagerRef)
+	if (!SkillEffectManagerRef)
 	{
 		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UWeaponManager *>(this)->StatusEffectManagerRef =
+			const_cast<UWeaponManager *>(this)->SkillEffectManagerRef =
 				GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
-	return StatusEffectManagerRef;
+	return SkillEffectManagerRef;
 }
 
 bool UWeaponManager::IsGenericCharacter(AActor *Actor) const

@@ -328,7 +328,7 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	int32 BaseDefense = Data->CalculateFlatDefense();
 
 	// Apply status effect modifiers
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::DefenseBuff);
@@ -353,7 +353,7 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	float BaseCrit = Data->CalculateCritChance();
 
 	// Apply status effect modifiers
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
@@ -510,17 +510,17 @@ UCharacterData *UDamageCalculator::GetCharacterData(AActor *Actor) const
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-USkillEffectManager *UDamageCalculator::GetStatusEffectManager() const
+USkillEffectManager *UDamageCalculator::GetSkillEffectManager() const
 {
-	if (!CachedStatusManager)
+	if (!CachedSkillEffectManager)
 	{
-		// StatusEffectManager is a GameInstanceSubsystem like DamageCalculator
+		// SkillEffectManager is a GameInstanceSubsystem like DamageCalculator
 		if (UGameInstance *GI = GetGameInstance())
 		{
-			CachedStatusManager = GI->GetSubsystem<USkillEffectManager>();
+			CachedSkillEffectManager = GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
-	return CachedStatusManager;
+	return CachedSkillEffectManager;
 }
 
 UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Actor) const
@@ -536,7 +536,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 {
 	float Modifier = 1.0f;
 
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 	{
 		return Modifier;

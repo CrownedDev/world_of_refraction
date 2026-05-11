@@ -22,7 +22,7 @@
 #include "CrystalType.h"
 
 USkillEffectManager *
-UAIDecisionManager::GetStatusEffectManager() const
+UAIDecisionManager::GetSkillEffectManager() const
 {
     UGameInstance *GameInstance = GetGameInstance();
     return GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
@@ -1177,7 +1177,7 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
         return false;
     }
 
-    USkillEffectManager *StatusManager = GetStatusEffectManager();
+    USkillEffectManager *StatusManager = GetSkillEffectManager();
     if (!StatusManager)
     {
         return false;

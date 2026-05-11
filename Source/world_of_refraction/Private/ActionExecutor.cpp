@@ -61,7 +61,7 @@ void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 
 void UActionExecutor::Deinitialize()
 {
-	StatusEffectManagerRef = nullptr;
+	SkillEffectManagerRef = nullptr;
 	UnbindDefenseSystemEvents();
 	CancelAsyncAction(); // Clean up any pending action
 
@@ -206,7 +206,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 
 bool UActionExecutor::CanActorAct(AActor *Actor) const
 {
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager && StatusManager->IsStunned(Actor))
 	{
 		return false;
@@ -216,7 +216,7 @@ bool UActionExecutor::CanActorAct(AActor *Actor) const
 
 bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 {
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager && StatusManager->IsSilenced(Actor))
 	{
 		return false;
@@ -901,7 +901,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	//
 	// Closes audit risk #4 (async attack buildup leak): bleed/armor-break previously
 	// never triggered from async attacks because this orchestrator never called the
-	// status manager. ApplyImmediateStatus on-hit weak status stays gone (locked
+	// status manager. ApplyImmediateSkillEffect on-hit weak status stays gone (locked
 	// design from C1: buildup-bar threshold is the single path for "becoming statused").
 	int32 AttackBaseBuildup = 0;
 	EStatusType AttackStatusType = Attack->GetBuildupStatusType();
@@ -1326,7 +1326,7 @@ void UActionExecutor::FinalizeAsyncAction()
 	if (FinalResult.bSuccess && Executor)
 	{
 		// Apply status effects from spell/ability
-		USkillEffectManager *StatusManager = GetStatusEffectManager();
+		USkillEffectManager *StatusManager = GetSkillEffectManager();
 
 		if (Action.ActionType == EActionType::Spell && Action.SpellData && StatusManager)
 		{
@@ -1700,7 +1700,7 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 	}
 
 	// Apply defense buff
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		FStatusEffect DefendBuff = FStatusEffect::CreateBuff(
@@ -1970,17 +1970,17 @@ FCombatHitResult UActionExecutor::ApplyHealing(
 // UTILITY
 // ========================================
 
-USkillEffectManager *UActionExecutor::GetStatusEffectManager() const
+USkillEffectManager *UActionExecutor::GetSkillEffectManager() const
 {
-	if (!StatusEffectManagerRef)
+	if (!SkillEffectManagerRef)
 	{
 		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
 		{
-			const_cast<UActionExecutor *>(this)->StatusEffectManagerRef =
+			const_cast<UActionExecutor *>(this)->SkillEffectManagerRef =
 				GI->GetSubsystem<USkillEffectManager>();
 		}
 	}
-	return StatusEffectManagerRef;
+	return SkillEffectManagerRef;
 }
 
 UDamageCalculator *UActionExecutor::GetDamageCalculator() const
@@ -2040,7 +2040,7 @@ bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
 	float CritChance = Data->CalculateCritChance() * 100.0f; // Returns 0-1, need 0-100
 
 	// Add crit chance buffs from status effects
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		CritChance += StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
@@ -2063,7 +2063,7 @@ void UActionExecutor::ApplyStatusEffects(
 	int32 SecondaryDuration,
 	ESpellElement Element)
 {
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (!StatusManager)
 		return;
 
@@ -3033,7 +3033,7 @@ void UActionExecutor::ApplySelfStatusBuildup(AActor *Actor, ESpellElement Elemen
 		return;
 	}
 
-	USkillEffectManager *StatusManager = GetStatusEffectManager();
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		// Apply element status to self
@@ -3142,7 +3142,7 @@ void UActionExecutor::ApplyAbilityInfusionStatus(
 			int32 BaseBuildup = 10 * HitCount; // TODO: Get from CombatConstants
 			int32 FinalBuildup = FMath::RoundToInt(BaseBuildup * StatusMultiplier);
 
-			// TODO: Integrate with StatusEffectManager when API is available
+			// TODO: Integrate with SkillEffectManager when API is available
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply %d %s status buildup to %d targets"),
 				   FinalBuildup, *UEnum::GetValueAsString(Element), Targets.Num());
 		}
@@ -3652,10 +3652,10 @@ void UActionExecutor::ApplyAbilityEffects(
 		return;
 	}
 
-	USkillEffectManager *StatusMgr = GetStatusEffectManager();
+	USkillEffectManager *StatusMgr = GetSkillEffectManager();
 	if (!StatusMgr)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ApplyAbilityEffects - No StatusEffectManager"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ApplyAbilityEffects - No SkillEffectManager"));
 		return;
 	}
 

@@ -308,8 +308,8 @@ private:
 	/** Get CharacterData from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 
-	/** Get StatusEffectManager */
-	USkillEffectManager *GetStatusEffectManager() const;
+	/** Get SkillEffectManager */
+	USkillEffectManager *GetSkillEffectManager() const;
 
 	/** Get BrokenDarknessManager from actor */
 	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
@@ -322,7 +322,7 @@ private:
 
 	/** Cached references */
 	UPROPERTY()
-	mutable USkillEffectManager *CachedStatusManager = nullptr;
+	mutable USkillEffectManager *CachedSkillEffectManager = nullptr;
 
 	UPROPERTY()
 	mutable UCombatGridSubsystem *CachedCombatGridSubsystem = nullptr;

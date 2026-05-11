@@ -35,7 +35,7 @@ ACombatOrchestrator::ACombatOrchestrator()
 	CurrentTurnNumber = 0;
 
 	TurnManagerRef = nullptr;
-	StatusEffectManagerRef = nullptr;
+	SkillEffectManagerRef = nullptr;
 	ActionExecutorRef = nullptr;
 	bWaitingForAsyncAction = false;
 }
@@ -49,7 +49,7 @@ void ACombatOrchestrator::BeginPlay()
 	if (GI)
 	{
 		TurnManagerRef = GI->GetSubsystem<UTurnManager>();
-		StatusEffectManagerRef = GI->GetSubsystem<USkillEffectManager>();
+		SkillEffectManagerRef = GI->GetSubsystem<USkillEffectManager>();
 		ActionExecutorRef = GI->GetSubsystem<UActionExecutor>();
 	}
 
@@ -58,9 +58,9 @@ void ACombatOrchestrator::BeginPlay()
 		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get TurnManager subsystem!"));
 	}
 
-	if (!StatusEffectManagerRef)
+	if (!SkillEffectManagerRef)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get StatusEffectManager subsystem!"));
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Failed to get SkillEffectManager subsystem!"));
 	}
 
 	if (!ActionExecutorRef)
@@ -240,12 +240,12 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 	UnbindTurnManagerEvents();
 
 	// Clear all status effects from combat
-	if (StatusEffectManagerRef)
+	if (SkillEffectManagerRef)
 	{
-		StatusEffectManagerRef->ClearAllEffects();
+		SkillEffectManagerRef->ClearAllEffects();
 	}
 
-	// Reset all status bars — split out of StatusEffectManager into a dedicated subsystem.
+	// Reset all status bars — split out of SkillEffectManager into a dedicated subsystem.
 	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
 	{
 		for (AActor *Actor : Team0Combatants)
@@ -518,9 +518,9 @@ void ACombatOrchestrator::OnActionCompleted()
 		UnbindTurnManagerEvents();
 
 		// Clear all status effects from combat
-		if (StatusEffectManagerRef)
+		if (SkillEffectManagerRef)
 		{
-			StatusEffectManagerRef->ClearAllEffects();
+			SkillEffectManagerRef->ClearAllEffects();
 		}
 
 		// Phase B: destroy any crystals that broke during combat. Runs BEFORE
@@ -601,9 +601,9 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 	if (CombatState == ECombatState::InProgress)
 	{
 		// Clear all status effects from combat
-		if (StatusEffectManagerRef)
+		if (SkillEffectManagerRef)
 		{
-			StatusEffectManagerRef->ClearAllEffects();
+			SkillEffectManagerRef->ClearAllEffects();
 		}
 
 		// Determine winner if we haven't already
@@ -665,14 +665,14 @@ void ACombatOrchestrator::UnbindTurnManagerEvents()
 
 void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 {
-	if (!StatusEffectManagerRef)
+	if (!SkillEffectManagerRef)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StatusEffectManager not available for start-of-turn processing"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SkillEffectManager not available for start-of-turn processing"));
 		return;
 	}
 
-	// Delegate to StatusEffectManager - processes buffs, regen, etc.
-	StatusEffectManagerRef->ProcessStartOfTurnEffects(Actor);
+	// Delegate to SkillEffectManager - processes buffs, regen, etc.
+	SkillEffectManagerRef->ProcessStartOfTurnEffects(Actor);
 
 	// Process status bar decay (buildup lives in its own subsystem post-split).
 	if (UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
@@ -686,14 +686,14 @@ void ACombatOrchestrator::ProcessStartOfTurnEffects(AActor *Actor)
 
 void ACombatOrchestrator::ProcessEndOfTurnEffects(AActor *Actor)
 {
-	if (!StatusEffectManagerRef)
+	if (!SkillEffectManagerRef)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] StatusEffectManager not available for end-of-turn processing"));
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] SkillEffectManager not available for end-of-turn processing"));
 		return;
 	}
 
-	// Delegate to StatusEffectManager - processes DOTs, ticks durations, expires effects
-	StatusEffectManagerRef->ProcessEndOfTurnEffects(Actor);
+	// Delegate to SkillEffectManager - processes DOTs, ticks durations, expires effects
+	SkillEffectManagerRef->ProcessEndOfTurnEffects(Actor);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Processed end-of-turn effects for %s"),
 		   *Actor->GetName());

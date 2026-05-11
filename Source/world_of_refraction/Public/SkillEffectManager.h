@@ -46,7 +46,7 @@ enum class EEffectApplicationResult : uint8
 /**
  * USkillEffectManager
  *
- * GameInstanceSubsystem that manages all status effects on all actors.
+ * GameInstanceSubsystem that manages all skill effects on all actors.
  * Central authority for buff/debuff/DOT tracking during combat.
  *
  * Design Principles:
@@ -78,7 +78,7 @@ public:
 	// ========================================
 
 	/**
-	 * Apply a status effect to a target actor
+	 * Apply a skill effect to a target actor
 	 * Handles stacking, duration refresh, and immunity checks
 	 *
 	 * @param Target Actor to apply effect to
@@ -88,14 +88,14 @@ public:
 	 * @param SourceTeam Team index of source (-1 if unknown)
 	 * @return Result indicating how the effect was handled
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	EEffectApplicationResult ApplyEffect(AActor *Target, FStatusEffect Effect,
 										 AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
 	/**
 	 * Apply multiple effects at once (for abilities with multiple effects)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
 					  AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
@@ -118,7 +118,7 @@ public:
 	 * @param Source Caster actor
 	 * @param SourceTeam Caster team index
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ApplySpellEffects(
 		AActor *Target,
 		const FString &SpellName,
@@ -139,7 +139,7 @@ public:
 	 * Apply infusion DOT from ability
 	 * Call when an infused ability hits a target
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ApplyInfusionDOT(
 		AActor *Target,
 		const FString &AbilityName,
@@ -154,7 +154,7 @@ public:
 	 * Apply all passive effects from an evolution
 	 * Call when evolution is activated on a character
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ApplyEvolutionPassives(
 		AActor *Target,
 		const FString &EvolutionName,
@@ -170,7 +170,7 @@ public:
 	 * Apply weapon stat bonuses as permanent effects
 	 * Call when weapon is equipped
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
 	void ApplyWeaponBonuses(
 		AActor *Target,
 		const FString &WeaponName,
@@ -185,14 +185,14 @@ public:
 	/**
 	 * Remove weapon bonuses when weapon is unequipped
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
 	void RemoveWeaponBonuses(AActor *Target, int32 WeaponID);
 
 	/**
-	 * Apply physical damage type status effect (Generic character weapon attacks)
+	 * Apply physical damage type skill effect (Generic character weapon attacks)
 	 * Slash → Bleed, Pierce → Armor Break, Impact → Stun
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
 	void ApplyPhysicalDamageEffect(
 		AActor *Target,
 		const FString &WeaponName,
@@ -207,7 +207,7 @@ public:
 	/**
 	 * Apply infusion DOT through weapon (with weapon's InfusionStatusMultiplier)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Weapons")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
 	void ApplyWeaponInfusionDOT(
 		AActor *Target,
 		const FString &AbilityName,
@@ -225,39 +225,39 @@ public:
 	// ========================================
 
 	/** Remove a specific effect by ID */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	bool RemoveEffectByID(AActor *Target, int32 EffectID);
 
 	/** Remove all effects with a specific name */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsByName(AActor *Target, const FString &EffectName);
 
 	/** Remove all effects of a specific type */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsByType(AActor *Target, EStatusType EffectType);
 
 	/** Remove all buffs from target */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveAllBuffs(AActor *Target);
 
 	/** Remove all debuffs from target */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveAllDebuffs(AActor *Target);
 
 	/** Remove all DOTs from target */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveAllDOTs(AActor *Target);
 
 	/** Remove ALL effects from target (cleanse, death, combat end) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void RemoveAllEffects(AActor *Target);
 
 	/** Remove all effects from ALL actors (combat end cleanup) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ClearAllEffects();
 
 	/** Remove effects applied by a specific source (when source dies, etc.) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsBySource(AActor *Source);
 
 	// ========================================
@@ -270,7 +270,7 @@ public:
 	 *
 	 * @param Actor The actor whose turn is starting
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Turn Processing")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Turn Processing")
 	void ProcessStartOfTurnEffects(AActor *Actor);
 
 	/**
@@ -279,7 +279,7 @@ public:
 	 *
 	 * @param Actor The actor whose turn is ending
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Turn Processing")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Turn Processing")
 	void ProcessEndOfTurnEffects(AActor *Actor);
 
 	/**
@@ -290,7 +290,7 @@ public:
 	 * @param Trigger The trigger that occurred
 	 * @param TriggerValue Optional value for threshold checks (HP%, etc.)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Turn Processing")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Turn Processing")
 	void ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue = 0.0f);
 
 	// ========================================
@@ -298,35 +298,35 @@ public:
 	// ========================================
 
 	/** Get all active effects on an actor */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FStatusEffect> GetActiveEffects(AActor *Actor) const;
 
 	/** Get all effects of a specific type on actor */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	TArray<FStatusEffect> GetEffectsByType(AActor *Actor, EStatusType EffectType) const;
 
 	/** Check if actor has a specific effect by ID */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	bool HasEffectByID(AActor *Actor, int32 EffectID) const;
 
 	/** Check if actor has any effect of a specific type */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	bool HasEffectOfType(AActor *Actor, EStatusType EffectType) const;
 
 	/** Get total stat modifier from all effects of a category */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	float GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const;
 
 	/** Count active effects on actor */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	int32 GetEffectCount(AActor *Actor) const;
 
 	/** Count buffs on actor */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	int32 GetBuffCount(AActor *Actor) const;
 
 	/** Count debuffs on actor */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Query")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	int32 GetDebuffCount(AActor *Actor) const;
 
 	// ========================================
@@ -334,19 +334,19 @@ public:
 	// ========================================
 
 	/** Check if actor is stunned (cannot act) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool IsStunned(AActor *Actor) const;
 
 	/** Check if actor is silenced (cannot cast spells) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool IsSilenced(AActor *Actor) const;
 
 	/** Check if actor has any DOT effects */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool HasActiveDOT(AActor *Actor) const;
 
 	/** Check if actor is immune to a specific effect type */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Status Checks")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
 	bool IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const;
 
 	// ========================================
@@ -354,23 +354,23 @@ public:
 	// ========================================
 
 	/** Broadcast when effect applied */
-	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
+	UPROPERTY(BlueprintAssignable, Category = "Skill Effects|Events")
 	FOnEffectApplied OnEffectApplied;
 
 	/** Broadcast when effect removed */
-	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
+	UPROPERTY(BlueprintAssignable, Category = "Skill Effects|Events")
 	FOnEffectRemoved OnEffectRemoved;
 
 	/** Broadcast when effect processes (deals damage, applies buff, etc.) */
-	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
+	UPROPERTY(BlueprintAssignable, Category = "Skill Effects|Events")
 	FOnEffectTriggered OnEffectTriggered;
 
 	/** Broadcast when stacks change */
-	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
+	UPROPERTY(BlueprintAssignable, Category = "Skill Effects|Events")
 	FOnEffectStacksChanged OnEffectStacksChanged;
 
 	/** Broadcast when duration changes */
-	UPROPERTY(BlueprintAssignable, Category = "Status Effects|Events")
+	UPROPERTY(BlueprintAssignable, Category = "Skill Effects|Events")
 	FOnEffectDurationChanged OnEffectDurationChanged;
 
 	// ========================================
@@ -378,24 +378,24 @@ public:
 	// ========================================
 
 	/** Print all active effects for an actor to log */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug", CallInEditor)
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug", CallInEditor)
 	void DebugPrintEffects(AActor *Actor) const;
 
 	/** Print all effects for all tracked actors */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug", CallInEditor)
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug", CallInEditor)
 	void DebugPrintAllEffects() const;
 
 	/** Get formatted string of all effects on actor (for UI) */
-	UFUNCTION(BlueprintCallable, Category = "Status Effects|Debug")
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	FString GetEffectsSummary(AActor *Actor) const;
 
-	/** Apply immediate (on-hit) status effect */
-	void ApplyImmediateStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+	/** Apply immediate (on-hit) skill effect */
+	void ApplyImmediateSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 
-	/** Apply triggered (bar-full) status effect.
+	/** Apply triggered (bar-full) skill effect.
 	 *
 	 *  CONNECTION POINT: this is the single buildup → effect entry point.
-	 *  UStatusBuildupManager::TriggerStatusEffect calls here when a target's
+	 *  UStatusBuildupManager::TriggerSkillEffectFromBuildup calls here when a target's
 	 *  buildup bar caps; this function creates the matching FStatusEffect and
 	 *  applies it at full power via ApplyEffect.
 	 *
@@ -403,7 +403,7 @@ public:
 	 *  post-split — can invoke it across the boundary. Do not call from inside
 	 *  USkillEffectManager itself; effect-side internals should use ApplyEffect
 	 *  directly. */
-	void ApplyTriggeredStatus(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+	void ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
 
 private:
 	// ========================================
