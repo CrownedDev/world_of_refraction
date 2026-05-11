@@ -527,6 +527,12 @@ bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bCanBeInf
 	return true;
 }
 
+void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit)
+{
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
+	OutDamagePerHit = FinalDamage / FMath::Max(1, HitCount);
+}
+
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
 {
 	USpellData *Spell = Action.SpellData;
@@ -666,11 +672,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
 	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup, SpellStatusType);
 
-	// Sync PartialResult and DamagePerHit to the post-redirect FinalDamage.
-	// OnSpellAnimNotify reads BaseDamageBeforeDefense for the VFX-fallback path.
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
-	DamagePerHit = FinalDamage / FMath::Max(1, Spell->HitCount);
-	PendingSpellDamage = FinalDamage;
+	FinalizeDamageInputs(FinalDamage, Spell->HitCount, DamagePerHit);
+	PendingSpellDamage = FinalDamage;  // Spell-specific: cached for VFX notify
 
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -803,11 +806,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	EStatusType AbilityStatusType = EStatusType::None;
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup, AbilityStatusType);
 
-	// Sync PartialResult to the post-redirect FinalDamage.
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
-
-	// Calculate damage per hit (infused total split across hits), post-redirect.
-	int32 DamagePerHit = FinalDamage / FMath::Max(1, Ability->HitCount);
+	int32 DamagePerHit = 0;
+	FinalizeDamageInputs(FinalDamage, Ability->HitCount, DamagePerHit);
 
 	OpenDefenseWindowsForTargets(
 		User,
@@ -923,11 +923,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
 	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup, AttackStatusType);
 
-	// Sync PartialResult to the post-redirect BaseDamage.
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
-
-	// Calculate damage per hit, post-redirect
-	int32 DamagePerHit = BaseDamage / FMath::Max(1, Attack->HitCount);
+	int32 DamagePerHit = 0;
+	FinalizeDamageInputs(BaseDamage, Attack->HitCount, DamagePerHit);
 
 	OpenDefenseWindowsForTargets(
 		Attacker,

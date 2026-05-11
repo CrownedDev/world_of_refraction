@@ -717,6 +717,12 @@ private:
 	 *  three async executors. Pass InfusionLevel=0 for attacks (no charge concept). */
 	bool ValidateInfusionGate(const FAction &Action, bool bCanBeInfused, int32 InfusionLevel);
 
+	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit after
+	 *  raw-mode redirect has folded any buildup into damage. Shared post-redirect
+	 *  cleanup across all three async paths.
+	 *  Assumes CurrentExecutionContext.IsSet(). */
+	void FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit);
+
 	// ==================== RETURN MOVEMENT TRACKING ====================
 
 	/** Track if we're waiting for return movement */
