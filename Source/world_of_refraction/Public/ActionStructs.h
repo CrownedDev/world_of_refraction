@@ -7,6 +7,7 @@
 #include "ESpellElement.h"
 #include "ESpellSource.h"
 #include "EStatusType.h"
+#include "EPhysicalDamageType.h"
 #include "EInfusionSourceOption.h"
 #include "EChargeInfusionType.h"
 #include "ActionStatModifiers.h"
@@ -340,9 +341,11 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 BaseStatusBuildup = 0;
 
-	/** Status type to build (None when this attack carries no buildup). */
+	/** Physical damage type carried through the defense pipeline. Drives bar-cap
+	 *  trigger resolution when Element is Generic (Session Y). None for spells
+	 *  and abilities. */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	EStatusType StatusToBuild = EStatusType::None;
+	EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::None;
 
 	/** Unique ID for this defense context */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense", Meta = (IgnoreForMemberInitializationTest))
@@ -458,24 +461,26 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
  * with the same input. Per-hit-independent crit and death-break semantics live
  * in the loop.
  *
- * Population rules per orchestrator (filled in as Phase B/C migrate sites):
+ * Population rules per orchestrator (Session Y: trigger type resolves in
+ * UStatusBuildupManager from Element + PhysicalDamageType — no StatusType is
+ * plumbed through the pipeline anymore):
  *
  *   ExecuteSpellAsync:
  *     - ActionType = Spell
  *     - Element = Spell->Element
  *     - BaseStatusBuildup = Spell->CalculateStatusBuildup(...) (if non-raw)
- *     - StatusToBuild = DOT (raw → BurstDamage); Effects[]-driven typing lands in a follow-up commit
+ *     - PhysicalDamageType = None (spells have no physical type)
  *
  *   ExecuteAbilityAsync:
  *     - ActionType = Ability
  *     - Element = bIsInfused ? Attacker.InnateElement : Generic
- *     - BaseStatusBuildup / StatusToBuild = TBD (async leaks this — Phase C closes the gap)
+ *     - PhysicalDamageType = None (abilities have no physical type)
  *
- *   ExecuteAttackAsync (Phase C3 — buildup wired):
+ *   ExecuteAttackAsync:
  *     - ActionType = Attack
  *     - Element = bIsInfused ? Attacker.InnateElement : Generic
  *     - BaseStatusBuildup = Attack->StatusBuildup
- *     - StatusToBuild = Attack->GetBuildupStatusType()
+ *     - PhysicalDamageType = Attack->PhysicalDamageType
  *
  *   (ExecuteAttackWithInfusion on UWeaponManager was deleted in Phase C2 —
  *    its only in-source caller had zero live triggers; sync attacks now warn
@@ -518,9 +523,10 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Buildup")
 	int32 BaseStatusBuildup = 0;
 
-	/** None when this hit applies no buildup. */
+	/** Physical damage type. Drives bar-cap trigger when Element is Generic
+	 *  (Session Y). None for spells/abilities; populated for weapon attacks. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Buildup")
-	EStatusType StatusToBuild = EStatusType::None;
+	EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::None;
 
 	/** Per-action stat modifiers (Reality + Evolution + future per-action buffs).
 	 *  Explicit on the input rather than implicit via CurrentExecutionContext —

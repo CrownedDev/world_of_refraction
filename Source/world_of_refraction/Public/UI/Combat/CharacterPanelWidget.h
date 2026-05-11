@@ -102,7 +102,7 @@ protected:
 	UFUNCTION()
 	void HandleEPChanged(int32 CurrentEP, int32 MaxEP);
 	UFUNCTION()
-	void HandleStatusBuildupChanged(AActor *Target, float Current, float Max);
+	void HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement);
 	UFUNCTION()
 	void HandleEffectApplied(AActor *Target, const FStatusEffect &Effect);
 	UFUNCTION()

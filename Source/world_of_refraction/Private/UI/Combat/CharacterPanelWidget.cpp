@@ -251,7 +251,7 @@ void UCharacterPanelWidget::HandleWeaponSwitched(AActor *Actor, EWeaponSlot OldS
 	ApplyEnergyBarTint();
 }
 
-void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max)
+void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement)
 {
 	if (Target != BoundActor.Get())
 	{
@@ -260,6 +260,10 @@ void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Cur
 	const float Percent = (Max > 0.0f) ? (Current / Max) : 0.0f;
 	SetBarSafe(StatusBar, Percent);
 	SetTextSafe(StatusText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::Status, FMath::TruncToInt(Current), FMath::TruncToInt(Max)));
+	// Session Y: PendingElement is plumbed through so the bar can tint per
+	// most-recent-hit element. UI-side tinting is a follow-up; param is wired
+	// here so the C++ binding compiles against the new 4-param delegate.
+	(void)PendingElement;
 }
 
 void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FStatusEffect &Effect)

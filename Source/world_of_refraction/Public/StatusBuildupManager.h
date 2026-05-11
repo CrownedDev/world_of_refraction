@@ -6,6 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "EStatusType.h"
 #include "ESpellElement.h"
+#include "EPhysicalDamageType.h"
 #include "StatusBuildupManager.generated.h"
 
 class USkillEffectManager;
@@ -14,8 +15,15 @@ class USkillEffectManager;
 // DELEGATE DECLARATIONS
 // ========================================
 
-/** Broadcast when a status buildup changes (for UI feedback) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnStatusBuildupChanged, AActor *, Target, float, CurrentBuildup, float, MaxBuildup);
+/** Broadcast when a status buildup changes (for UI feedback).
+ *  PendingElement parameter lets UI re-tint the bar on every hit per the
+ *  locked design (bar colour follows most-recent-hit element). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+    FOnStatusBuildupChanged,
+    AActor *, Target,
+    float, CurrentBuildup,
+    float, MaxBuildup,
+    ESpellElement, PendingElement);
 
 /**
  * UStatusBuildupManager
@@ -67,9 +75,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	float GetBuildupToTrigger(AActor *Target) const;
 
-	/** Get the pending status type (what will trigger when bar fills) */
+	/** Get the trigger type that will fire if the bar caps now.
+	 *  Resolved live from PendingElement + PendingPhysicalType via
+	 *  BarCapTriggerResolver - no cached trigger state. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	EStatusType GetPendingStatus(AActor *Target) const;
+	EStatusType GetPendingTrigger(AActor *Target) const;
+
+	/** Get the element of the last hit that built the bar.
+	 *  Used by UI for bar tinting. */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	ESpellElement GetPendingElement(AActor *Target) const;
 
 	// ========================================
 	// STATUS BAR MUTATION
@@ -78,10 +93,12 @@ public:
 	/** Add buildup to target's status bar, returns true if triggered.
 	 *  Source's StatusMultiplier amplifies the amount; target's base resistance
 	 *  and element-matching ResistanceBuff/Debuff effects reduce it. When the
-	 *  bar caps, TriggerSkillEffectFromBuildup fires the pending effect via the effect
-	 *  manager. */
+	 *  bar caps, the trigger type is resolved internally via BarCapTriggerResolver
+	 *  (Element wins over PhysicalType when non-Generic) and fired through the
+	 *  effect manager. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount, EStatusType StatusType, ESpellElement Element);
+	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
+	                      ESpellElement Element, EPhysicalDamageType PhysicalType);
 
 	/** Reset status bar for target */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
@@ -125,8 +142,8 @@ private:
 	struct FStatusBarState
 	{
 		float CurrentBuildup = 0.0f;
-		EStatusType PendingStatus = EStatusType::None;
 		ESpellElement PendingElement = ESpellElement::Generic;
+		EPhysicalDamageType PendingPhysicalType = EPhysicalDamageType::None;
 		TWeakObjectPtr<AActor> LastSource;
 		int32 TurnsSinceLastHit = 0;
 	};

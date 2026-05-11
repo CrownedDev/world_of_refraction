@@ -650,11 +650,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// infusion multiplies output damage, not the metaphysical strain of the cast.
 	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
 
-	// Phase C1: Spell buildup now flows through the defense pipeline.
-	// Compute base buildup + status type here; ApplyDamageAfterDefense applies
-	// the defense-outcome reduction and ApplyHit calls AddStatusBuildup.
+	// Phase C1: Spell buildup flows through the defense pipeline. Session Y
+	// moved trigger resolution into UStatusBuildupManager (resolves from Element
+	// + PhysicalType), so no StatusType is plumbed through the pipeline anymore.
+	// Spells have no physical type - PhysicalDamageType::None.
 	int32 SpellBaseBuildup = 0;
-	EStatusType SpellStatusType = EStatusType::None;
 	if (Spell->StatusBuildup > 0)
 	{
 		float Buildup = static_cast<float>(Spell->StatusBuildup);
@@ -663,26 +663,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 			Buildup *= CombatConstants::SPELL_L1_BUILDUP_MULT;
 		}
 		SpellBaseBuildup = FMath::RoundToInt(Buildup);
-
-		if (Spell->bIsRawMode)
-		{
-			// Dead-after-redirect: ApplyRawModeRedirect overwrites this to None
-			// below. Flagged for Phase E sweep alongside DamageCalculator's
-			// bIsRawMode gate.
-			SpellStatusType = EStatusType::BurstDamage;
-		}
-		else
-		{
-			// Effects[]-driven status type wiring lands in Commit C; until then,
-			// elemental spells default to DOT (matches prior PrimaryEffect-None
-			// path, which was universal — no spell asset had PrimaryEffect set).
-			SpellStatusType = EStatusType::DOT;
-		}
 	}
 
 	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
 	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
-	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup, SpellStatusType);
+	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup);
 
 	FinalizeDamageInputs(FinalDamage, Spell->HitCount, DamagePerHit);
 	PendingSpellDamage = FinalDamage;  // Spell-specific: cached for VFX notify
@@ -696,13 +681,13 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		DamagePerHit,
 		Spell->HitCount,
 		Spell->Element,
-		true,					   // Can crit
-		EActionType::Spell,		   // ActionType — drives post-defense stat selection
-		Action.SpellInfusionLevel, // InfusionLevel
-		Action.SelectedSource,	   // SelectedSource
-		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
-		SpellStatusType,		   // StatusToBuild (Phase C1)
-		0.3f					   // Default window duration - TODO: get from spell data
+		true,						   // Can crit
+		EActionType::Spell,			   // ActionType — drives post-defense stat selection
+		Action.SpellInfusionLevel,	   // InfusionLevel
+		Action.SelectedSource,		   // SelectedSource
+		SpellBaseBuildup,			   // BaseStatusBuildup (Phase C1)
+		EPhysicalDamageType::None,	   // PhysicalDamageType - spells have none (Session Y)
+		0.3f						   // Default window duration - TODO: get from spell data
 	);
 
 	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
@@ -801,24 +786,46 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 								   Ability->HitCount, StatusMultiplier);
 	}
 
-	// Buildup amount only — read unconditionally, mirrors ExecuteSpellAsync.
-	// Trigger type intentionally None: when the bar caps,
-	// TriggerSkillEffectFromBuildup early-returns and nothing fires.
-	// TODO: SetPendingTrigger when status buildup is maxed — add detailed
-	// effect to take place. UAbilityData will need a way to declare which
-	// EStatusType fires on cap (e.g. via Ability->Effects[] once that
-	// wiring lands).
+	// Buildup amount only. Session Y: trigger type resolves in the manager from
+	// (Element, PhysicalType). Abilities have no physical type - if the action
+	// is non-infused (Element=Generic, Physical=None) the resolver returns None
+	// and nothing fires on cap; if infused, Element drives the trigger.
+	// TODO: a future ability-specific override (via Effects[]) could route a
+	// different trigger when uninfused — wire when the design lands.
 	int32 AbilityBaseBuildup = 0;
 	if (Ability->StatusBuildup > 0)
 	{
 		AbilityBaseBuildup = Ability->StatusBuildup;
 	}
 
-	EStatusType AbilityStatusType = EStatusType::None;
-	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup, AbilityStatusType);
+	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
 
 	int32 DamagePerHit = 0;
 	FinalizeDamageInputs(FinalDamage, Ability->HitCount, DamagePerHit);
+
+	// Abilities inherit the user's active weapon for buildup-bar resolution:
+	//   - PhysicalDamageType from the active weapon's attack data
+	//   - Element from the user's InnateElement IF infusion is active on
+	//     the weapon (locked design 2b — Fire-infused sword + Lunge means
+	//     ability builds toward Burn, not Bleed).
+	// All classes wield primary-slot weapons (Resonator, Caster, Generic),
+	// so this lookup applies universally. If no active weapon, falls
+	// through to Generic/None and the resolver returns None trigger.
+	ESpellElement AbilityElement = ESpellElement::Generic;
+	EPhysicalDamageType AbilityPhysicalType = EPhysicalDamageType::None;
+
+	if (UWeaponManager *WeaponMgr = GetWeaponManager())
+	{
+		if (UWeaponAttackData *ActiveAttack = WeaponMgr->GetActiveAttack(User))
+		{
+			AbilityPhysicalType = ActiveAttack->PhysicalDamageType;
+		}
+
+		if (WeaponMgr->IsInfusionActive(User))
+		{
+			AbilityElement = UserData->InnateElement;
+		}
+	}
 
 	OpenDefenseWindowsForTargets(
 		User,
@@ -827,13 +834,13 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		FinalDamage,
 		DamagePerHit,
 		Ability->HitCount,
-		Element,
+		AbilityElement,
 		true,						 // Can crit
 		EActionType::Ability,		 // ActionType
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
-		AbilityStatusType,			 // StatusToBuild — None until effect-on-cap is designed
+		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
 		0.3f);
 
 	LogActionDispatch(EActionType::Ability, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
@@ -915,23 +922,19 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		return;
 	}
 
-	// Buildup amount only. Trigger type intentionally None — when the bar caps,
-	// TriggerSkillEffectFromBuildup early-returns and nothing fires.
-	// TODO: SetPendingTrigger when status buildup is maxed — add detailed
-	// effect to take place. UWeaponAttackData::GetBuildupStatusType() already
-	// maps PhysicalDamageType -> EStatusType; wire it here when effect-on-cap
-	// is designed.
+	// Buildup amount only. Session Y: trigger type resolves in the manager from
+	// (Element, PhysicalType). Attacks pass the weapon attack's PhysicalDamageType;
+	// the resolver falls through to Slash->DOT / Pierce->DefDebuff / Impact->Stun
+	// when Element is Generic, and Element wins when infused.
 	int32 AttackBaseBuildup = 0;
 	if (Attack->StatusBuildup > 0)
 	{
 		AttackBaseBuildup = Attack->StatusBuildup;
 	}
 
-	EStatusType AttackStatusType = EStatusType::None;
-
 	// Commit 2: if bIsRawMode, fold AttackBaseBuildup into BaseDamage at the
 	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
-	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup, AttackStatusType);
+	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup);
 
 	int32 DamagePerHit = 0;
 	FinalizeDamageInputs(BaseDamage, Attack->HitCount, DamagePerHit);
@@ -944,12 +947,12 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		DamagePerHit,
 		Attack->HitCount,
 		Element,
-		true,				   // Can crit
-		EActionType::Attack,   // ActionType
-		0,					   // InfusionLevel — attacks have no L1/L2 concept
-		Action.SelectedSource, // SelectedSource
-		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
-		AttackStatusType,	   // StatusToBuild (Phase C3)
+		true,						 // Can crit
+		EActionType::Attack,		 // ActionType
+		0,							 // InfusionLevel — attacks have no L1/L2 concept
+		Action.SelectedSource,		 // SelectedSource
+		AttackBaseBuildup,			 // BaseStatusBuildup (Phase C3)
+		Attack->PhysicalDamageType,	 // PhysicalDamageType (Session Y) - drives trigger when Generic
 		0.3f);
 
 	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());
@@ -1047,7 +1050,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	int32 InfusionLevel,
 	EInfusionSourceOption SelectedSource,
 	int32 BaseStatusBuildup,
-	EStatusType StatusToBuild,
+	EPhysicalDamageType PhysicalDamageType,
 	float WindowDuration)
 {
 	if (!CurrentExecutionContext.IsSet())
@@ -1092,7 +1095,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.InfusionLevel = InfusionLevel;
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
-		DefenseContext.StatusToBuild = StatusToBuild;
+		DefenseContext.PhysicalDamageType = PhysicalDamageType;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -1233,7 +1236,7 @@ void UActionExecutor::ApplyDamageAfterDefense(
 			// carries the buildup; subsequent hits carry zero. Audit's quirks table
 			// treats buildup as per-target, not per-hit.
 			Input.BaseStatusBuildup = (i == 0) ? EffectiveBuildup : 0;
-			Input.StatusToBuild = (i == 0) ? Context.StatusToBuild : EStatusType::None;
+			Input.PhysicalDamageType = (i == 0) ? Context.PhysicalDamageType : EPhysicalDamageType::None;
 			Input.ActionMods = CurrentExecutionContext.IsSet()
 								   ? CurrentExecutionContext->ActionMods
 								   : FActionStatModifiers();
@@ -1809,14 +1812,14 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 	}
 
 	UE_LOG(LogTemp, Verbose,
-		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Element=%s Dmg=%d Buildup=%d Status=%s Inf=L%d"),
+		   TEXT("[ApplyHit] %s -> %s | ActionType=%s Element=%s Dmg=%d Buildup=%d Physical=%s Inf=L%d"),
 		   Input.Attacker ? *Input.Attacker->GetName() : TEXT("null"),
 		   *Input.Target->GetName(),
 		   *UEnum::GetValueAsString(Input.ActionType),
 		   *UEnum::GetValueAsString(Input.Element),
 		   Input.BaseDamage,
 		   Input.BaseStatusBuildup,
-		   *UEnum::GetValueAsString(Input.StatusToBuild),
+		   *UEnum::GetValueAsString(Input.PhysicalDamageType),
 		   Input.InfusionLevel);
 
 	UCharacterDataComponent *TargetComp = Input.Target->FindComponentByClass<UCharacterDataComponent>();
@@ -1865,9 +1868,10 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
 	}
 
-	// Buildup path — UStatusBuildupManager::AddStatusBuildup runs the Phase 2a
-	// attacker StatusMultiplier amplifier and the Phase 2b per-element resistance
-	// reduction internally. ApplyHit gets both for free.
+	// Buildup path — manager resolves the trigger type internally from
+	// (Element, PhysicalType) via BarCapTriggerResolver. Manager also runs the
+	// Phase 2a attacker StatusMultiplier amplifier and the Phase 2b per-element
+	// resistance reduction.
 	if (Input.BaseStatusBuildup > 0)
 	{
 		UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
@@ -1877,8 +1881,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 				Input.Attacker,
 				Input.Target,
 				static_cast<float>(Input.BaseStatusBuildup),
-				Input.StatusToBuild,
-				Input.Element);
+				Input.Element,
+				Input.PhysicalDamageType);
 		}
 	}
 

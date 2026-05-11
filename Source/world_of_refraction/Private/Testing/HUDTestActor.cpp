@@ -206,6 +206,7 @@ void AHUDTestActor::AddTestStatusBuildup()
 		return;
 	}
 
-	BuildupMgr->AddStatusBuildup(ResolvedTarget, ResolvedTarget, TestStatusBuildup, EStatusType::DOT, ESpellElement::Generic);
+	// Session Y: Fire + None resolves to DOT trigger (preserves prior test intent).
+	BuildupMgr->AddStatusBuildup(ResolvedTarget, ResolvedTarget, TestStatusBuildup, ESpellElement::Fire, EPhysicalDamageType::None);
 	UE_LOG(LogTemp, Log, TEXT("[HUDTest] Added %.1f status buildup to %s"), TestStatusBuildup, *ResolvedTarget->GetName());
 }

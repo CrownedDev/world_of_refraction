@@ -11,5 +11,6 @@ enum class EPhysicalDamageType : uint8
 {
     Slash,  // → Bleed
     Pierce, // → Armor Break
-    Impact  // → Stun
+    Impact, // → Stun
+    None    // Spells/abilities pass this; appended last to preserve serialized indices
 };

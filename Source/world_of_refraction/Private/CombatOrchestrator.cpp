@@ -1345,11 +1345,13 @@ void ACombatOrchestrator::DebugApplyStatusBuildup()
 	if (!BuildupManager)
 		return;
 
+	// Session Y: manager resolves trigger from (Element, PhysicalType).
+	// Fire + None → DOT (same trigger this debug menu used pre-Y).
 	for (AActor *Actor : Team0Combatants)
-		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
+		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, ESpellElement::Fire, EPhysicalDamageType::None);
 
 	for (AActor *Actor : Team1Combatants)
-		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, EStatusType::DOT, ESpellElement::Fire);
+		BuildupManager->AddStatusBuildup(nullptr, Actor, DebugStatusBuildupAmount, ESpellElement::Fire, EPhysicalDamageType::None);
 }
 
 void ACombatOrchestrator::DebugKillActor(AActor *Actor)

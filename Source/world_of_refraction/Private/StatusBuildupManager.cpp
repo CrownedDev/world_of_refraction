@@ -6,6 +6,7 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "CombatConstants.h"
+#include "BarCapTriggerResolver.h"
 #include "Engine/GameInstance.h"
 
 // ========================================
@@ -91,7 +92,7 @@ float UStatusBuildupManager::GetBuildupToTrigger(AActor *Target) const
 	return FMath::Max(0.0f, CombatConstants::STATUS_EFFECT_THRESHOLD - Current);
 }
 
-EStatusType UStatusBuildupManager::GetPendingStatus(AActor *Target) const
+EStatusType UStatusBuildupManager::GetPendingTrigger(AActor *Target) const
 {
 	if (!Target)
 	{
@@ -99,7 +100,22 @@ EStatusType UStatusBuildupManager::GetPendingStatus(AActor *Target) const
 	}
 
 	const FStatusBarState *State = StatusBarStates.Find(Target);
-	return State ? State->PendingStatus : EStatusType::None;
+	if (!State)
+	{
+		return EStatusType::None;
+	}
+	return BarCapTriggerResolver::ResolveTrigger(State->PendingElement, State->PendingPhysicalType);
+}
+
+ESpellElement UStatusBuildupManager::GetPendingElement(AActor *Target) const
+{
+	if (!Target)
+	{
+		return ESpellElement::Generic;
+	}
+
+	const FStatusBarState *State = StatusBarStates.Find(Target);
+	return State ? State->PendingElement : ESpellElement::Generic;
 }
 
 // ========================================
@@ -150,7 +166,8 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 // STATUS BAR MUTATION
 // ========================================
 
-bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount, EStatusType StatusType, ESpellElement Element)
+bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
+											 ESpellElement Element, EPhysicalDamageType PhysicalType)
 {
 	if (!Target || Amount <= 0.0f)
 	{
@@ -184,9 +201,9 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		Amount *= (1.0f - Resistance);
 	}
 
-	// Update pending trigger (last hit wins)
-	State.PendingStatus = StatusType;
+	// Update bar state - most recent hit wins on element + physical type
 	State.PendingElement = Element;
+	State.PendingPhysicalType = PhysicalType;
 	State.LastSource = Source;
 	State.TurnsSinceLastHit = 0; // Reset decay counter
 
@@ -194,21 +211,37 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	float OldBuildup = State.CurrentBuildup;
 	State.CurrentBuildup += Amount;
 
-	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup, CombatConstants::STATUS_EFFECT_THRESHOLD);
+	// Resolve the trigger that WOULD fire if bar caps right now.
+	const EStatusType ResolvedTrigger = BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType);
 
-	UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status buildup: %.1f → %.1f (+%.1f) - Pending: %s"),
+	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
+		CombatConstants::STATUS_EFFECT_THRESHOLD, Element);
+
+	UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
 		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
-		   *UEnum::GetValueAsString(State.PendingStatus));
+		   *UEnum::GetValueAsString(Element),
+		   *UEnum::GetValueAsString(PhysicalType),
+		   *UEnum::GetValueAsString(ResolvedTrigger));
 
 	// Check if triggered
 	if (State.CurrentBuildup >= CombatConstants::STATUS_EFFECT_THRESHOLD)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
-			   *Target->GetName(), *UEnum::GetValueAsString(State.PendingStatus));
+		// Only fire + reset if we have a real trigger. Otherwise the bar
+		// stays at/above cap, waiting for a hit with a real trigger to
+		// consume it. Prevents "phantom cap" where the bar fills,
+		// immediately empties, and nothing visible happens.
+		if (ResolvedTrigger != EStatusType::None)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
+				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
 
-		TriggerSkillEffectFromBuildup(Source, Target, State.PendingStatus, State.PendingElement);
-		ResetStatusBar(Target);
-		return true;
+			TriggerSkillEffectFromBuildup(Source, Target, ResolvedTrigger, Element);
+			ResetStatusBar(Target);
+			return true;
+		}
+
+		UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar at cap but trigger is None — bar held"),
+			   *Target->GetName());
 	}
 
 	return false;
@@ -226,11 +259,13 @@ void UStatusBuildupManager::ResetStatusBar(AActor *Target)
 		UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar reset"), *Target->GetName());
 
 		State->CurrentBuildup = 0.0f;
-		OnStatusBuildupChanged.Broadcast(Target, 0.0f, CombatConstants::STATUS_EFFECT_THRESHOLD);
-		State->PendingStatus = EStatusType::None;
 		State->PendingElement = ESpellElement::Generic;
+		State->PendingPhysicalType = EPhysicalDamageType::None;
 		State->LastSource = nullptr;
 		State->TurnsSinceLastHit = 0;
+
+		OnStatusBuildupChanged.Broadcast(Target, 0.0f,
+			CombatConstants::STATUS_EFFECT_THRESHOLD, ESpellElement::Generic);
 	}
 }
 
@@ -262,7 +297,9 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 	float OldBuildup = State->CurrentBuildup;
 	State->CurrentBuildup *= (1.0f - CombatConstants::STATUS_DECAY_RATE);
 
-	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup, CombatConstants::STATUS_EFFECT_THRESHOLD);
+	// Element passthrough on decay - UI keeps current tint while bar drops.
+	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar decayed: %.1f → %.1f (-%d%%, turn %d)"),
 		   *Target->GetName(), OldBuildup, State->CurrentBuildup,

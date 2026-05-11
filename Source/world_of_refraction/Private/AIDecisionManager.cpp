@@ -1388,15 +1388,15 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
         // Get pending status type (abilities apply physical status, not specific types)
-        EStatusType PendingStatus = BuildupManager->GetPendingStatus(Target);
-        if (PendingStatus == EStatusType::None)
+        EStatusType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
+        if (PendingTrigger == EStatusType::None)
         {
             // Default to DOT for abilities (they apply status via infusion)
-            PendingStatus = EStatusType::DOT;
+            PendingTrigger = EStatusType::DOT;
         }
 
         // Use L1 if it triggers valuable status and L0 wouldn't
-        if (bL1WouldTrigger && !bL0WouldTrigger && IsValuableStatus(PendingStatus, Target))
+        if (bL1WouldTrigger && !bL0WouldTrigger && IsValuableStatus(PendingTrigger, Target))
         {
             return 1;
         }
@@ -1405,7 +1405,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         if (Difficulty >= EAIDifficulty::Hard &&
             IsStatusBarNearTrigger(Target, 0.70f) &&
             EnergyPercent > AIConstants::ENERGY_ABUNDANT_THRESHOLD &&
-            IsValuableStatus(PendingStatus, Target))
+            IsValuableStatus(PendingTrigger, Target))
         {
             return 1;
         }
@@ -1475,14 +1475,14 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
         // Get pending status type
-        EStatusType PendingStatus = BuildupManager->GetPendingStatus(Target);
-        if (PendingStatus == EStatusType::None)
+        EStatusType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
+        if (PendingTrigger == EStatusType::None)
         {
-            PendingStatus = EStatusType::DOT;
+            PendingTrigger = EStatusType::DOT;
         }
 
         // Use L1 if it triggers valuable status and L0 wouldn't
-        if (bL1WouldTrigger && !bL0WouldTrigger && IsValuableStatus(PendingStatus, Target))
+        if (bL1WouldTrigger && !bL0WouldTrigger && IsValuableStatus(PendingTrigger, Target))
         {
             return 1;
         }
@@ -1491,7 +1491,7 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         if (Difficulty >= EAIDifficulty::Hard &&
             IsStatusBarNearTrigger(Target, 0.70f) &&
             EnergyPercent > AIConstants::ENERGY_ABUNDANT_THRESHOLD &&
-            IsValuableStatus(PendingStatus, Target))
+            IsValuableStatus(PendingTrigger, Target))
         {
             return 1;
         }

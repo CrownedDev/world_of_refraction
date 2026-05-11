@@ -760,7 +760,8 @@ private:
 	 * @param InfusionLevel 0–2; spells/abilities carry their charge level, attacks pass 0
 	 * @param SelectedSource Infusion source for future buildup routing (Phase C)
 	 * @param BaseStatusBuildup Per-target buildup amount (defense modifies this) — Phase C1
-	 * @param StatusToBuild Status type for the buildup (None = no buildup)
+	 * @param PhysicalDamageType Physical type (Session Y) — drives bar-cap trigger
+	 *                           when Element is Generic. None for spells/abilities.
 	 * @param WindowDuration Defense window duration
 	 */
 	void OpenDefenseWindowsForTargets(
@@ -776,7 +777,7 @@ private:
 		int32 InfusionLevel,
 		EInfusionSourceOption SelectedSource,
 		int32 BaseStatusBuildup,
-		EStatusType StatusToBuild,
+		EPhysicalDamageType PhysicalDamageType,
 		float WindowDuration = 0.3f);
 
 	// == == == == == == == == == == == == == == == == == == == ==
