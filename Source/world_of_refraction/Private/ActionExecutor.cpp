@@ -11,6 +11,7 @@
 #include "ItemData.h"
 #include "WeaponAttackData.h"
 #include "ESpellSource.h"
+#include "ActionUtils.h"
 #include "CombatConstants.h"
 #include "ItemExecutor.h"
 #include "WeaponManager.h"
@@ -618,6 +619,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 		if (Spell->bIsRawMode)
 		{
+			// Dead-after-redirect: ApplyRawModeRedirect overwrites this to None
+			// below. Flagged for Phase E sweep alongside DamageCalculator's
+			// bIsRawMode gate.
 			SpellStatusType = EStatusType::BurstDamage;
 		}
 		else if (Spell->PrimaryEffect != EStatusType::None)
@@ -630,6 +634,16 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 			SpellStatusType = EStatusType::DOT;
 		}
 	}
+
+	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
+	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
+	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup, SpellStatusType);
+
+	// Sync PartialResult and DamagePerHit to the post-redirect FinalDamage.
+	// OnSpellAnimNotify reads BaseDamageBeforeDefense for the VFX-fallback path.
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
+	DamagePerHit = FinalDamage / FMath::Max(1, Spell->HitCount);
+	PendingSpellDamage = FinalDamage;
 
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -739,11 +753,20 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 								   Ability->HitCount, StatusMultiplier);
 	}
 
-	// Calculate damage per hit (infused total split across hits)
+	// Commit 2: ability raw-mode redirect.
+	// Phase C3 backlog: non-raw ability buildup is not yet wired through the defense
+	// pipeline — orchestrator continues to pass 0/None for that path. Raw mode pulls
+	// Ability->StatusBuildup into the redirect helper so it folds into FinalDamage.
+	int32 AbilityBaseBuildup = Ability->bIsRawMode ? Ability->StatusBuildup : 0;
+	EStatusType AbilityStatusType = EStatusType::None;
+	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup, AbilityStatusType);
+
+	// Sync PartialResult to the post-redirect FinalDamage.
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
+
+	// Calculate damage per hit (infused total split across hits), post-redirect.
 	int32 DamagePerHit = FinalDamage / FMath::Max(1, Ability->HitCount);
 
-	// Open defense windows. Ability buildup still leaks the async path today
-	// (Phase C3 backlog); Phase C1 passes 0/None to keep behaviour identical.
 	OpenDefenseWindowsForTargets(
 		User,
 		ValidTargets,
@@ -756,8 +779,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		EActionType::Ability,		 // ActionType
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
-		0,							 // BaseStatusBuildup — Phase C3
-		EStatusType::None,			 // StatusToBuild — Phase C3
+		AbilityBaseBuildup,			 // BaseStatusBuildup — raw mode only (Phase C3 deferred for non-raw)
+		AbilityStatusType,			 // StatusToBuild — None post-redirect or non-raw
 		0.3f);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ability async L%d - %d damage (%.1fx), opened %d defense windows"),
@@ -832,9 +855,6 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		return;
 	}
 
-	// Calculate damage per hit
-	int32 DamagePerHit = BaseDamage / FMath::Max(1, Attack->HitCount);
-
 	// Phase C3: Compute weapon physical-status buildup. Mirrors C1's spell pattern —
 	// data asset declares its own buildup type (Attack->GetBuildupStatusType() parallels
 	// Spell->PrimaryEffect), amount comes from Attack->StatusBuildup, Element is the
@@ -845,7 +865,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	// status manager. ApplyImmediateStatus on-hit weak status stays gone (locked
 	// design from C1: buildup-bar threshold is the single path for "becoming statused").
 	int32 AttackBaseBuildup = 0;
-	const EStatusType AttackStatusType = Attack->GetBuildupStatusType();
+	EStatusType AttackStatusType = Attack->GetBuildupStatusType();
 	if (Attack->StatusBuildup > 0 && AttackStatusType != EStatusType::None)
 	{
 		float Buildup = static_cast<float>(Attack->StatusBuildup);
@@ -856,7 +876,16 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		AttackBaseBuildup = FMath::RoundToInt(Buildup);
 	}
 
-	// Open defense windows
+	// Commit 2: if bIsRawMode, fold AttackBaseBuildup into BaseDamage at the
+	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
+	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup, AttackStatusType);
+
+	// Sync PartialResult to the post-redirect BaseDamage.
+	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
+
+	// Calculate damage per hit, post-redirect
+	int32 DamagePerHit = BaseDamage / FMath::Max(1, Attack->HitCount);
+
 	OpenDefenseWindowsForTargets(
 		Attacker,
 		ValidTargets,
