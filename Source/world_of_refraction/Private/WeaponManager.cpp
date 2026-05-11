@@ -395,56 +395,6 @@ bool UWeaponManager::AreSpellsSealed(AActor *Actor) const
 // -> ApplyHit) handles all production weapon attacks.
 
 // ========================================
-// PHYSICAL STATUS
-// ========================================
-
-float UWeaponManager::GetStatusBuildup(AActor *Attacker, AActor *Target) const
-{
-	const FWeaponState *State = WeaponStates.Find(Attacker);
-	return State ? State->GetBuildup(Target) : 0.0f;
-}
-
-float UWeaponManager::GetStatusThreshold(EPhysicalDamageType DamageType) const
-{
-	switch (DamageType)
-	{
-	case EPhysicalDamageType::Slash:
-		return STATUS_THRESHOLD_BLEED;
-	case EPhysicalDamageType::Pierce:
-		return STATUS_THRESHOLD_ARMOR_BREAK;
-	case EPhysicalDamageType::Impact:
-		return STATUS_THRESHOLD_STUN;
-	default:
-		return 100.0f;
-	}
-}
-
-bool UWeaponManager::WouldTriggerStatus(AActor *Attacker, AActor *Target, float AdditionalBuildup) const
-{
-	const FWeaponState *State = WeaponStates.Find(Attacker);
-	if (!State)
-		return false;
-
-	UWeaponAttackData *WeaponAttack = Cast<UWeaponAttackData>(GetActiveAttack(Attacker));
-	if (!WeaponAttack)
-		return false;
-
-	float CurrentBuildup = State->GetBuildup(Target);
-	float Threshold = GetStatusThreshold(WeaponAttack->PhysicalDamageType);
-
-	return (CurrentBuildup + AdditionalBuildup) >= Threshold;
-}
-
-void UWeaponManager::ResetStatusBuildup(AActor *Attacker, AActor *Target)
-{
-	FWeaponState *State = WeaponStates.Find(Attacker);
-	if (State)
-	{
-		State->ResetBuildup(Target);
-	}
-}
-
-// ========================================
 // HELPERS
 // ========================================
 

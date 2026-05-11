@@ -64,26 +64,6 @@ struct WORLD_OF_REFRACTION_API FWeaponState
 	/** Previous slot before conjuration (for dispel) */
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon State")
 	EWeaponSlot PreConjuredSlot = EWeaponSlot::Unarmed;
-
-	// Physical status buildup tracking per target
-	TMap<TWeakObjectPtr<AActor>, float> StatusBuildupPerTarget;
-
-	void ResetBuildup(AActor *Target)
-	{
-		StatusBuildupPerTarget.Remove(Target);
-	}
-
-	void AddBuildup(AActor *Target, float Amount)
-	{
-		float &Current = StatusBuildupPerTarget.FindOrAdd(Target);
-		Current += Amount;
-	}
-
-	float GetBuildup(AActor *Target) const
-	{
-		const float *Current = StatusBuildupPerTarget.Find(Target);
-		return Current ? *Current : 0.0f;
-	}
 };
 
 /**
@@ -341,34 +321,6 @@ public:
 	// ========================================
 
 	// ========================================
-	// PHYSICAL STATUS
-	// ========================================
-
-	/**
-	 * Get current status buildup for a target from attacker
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Status")
-	float GetStatusBuildup(AActor *Attacker, AActor *Target) const;
-
-	/**
-	 * Get threshold to trigger physical status
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Status")
-	float GetStatusThreshold(EPhysicalDamageType DamageType) const;
-
-	/**
-	 * Check if target would trigger status on next buildup
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Status")
-	bool WouldTriggerStatus(AActor *Attacker, AActor *Target, float AdditionalBuildup) const;
-
-	/**
-	 * Reset status buildup for target (after trigger or combat end)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Status")
-	void ResetStatusBuildup(AActor *Attacker, AActor *Target);
-
-	// ========================================
 	// EVENTS
 	// ========================================
 
@@ -459,10 +411,6 @@ private:
 	// ========================================
 	// CONSTANTS
 	// ========================================
-
-	static constexpr float STATUS_THRESHOLD_BLEED = 100.0f;		  // Slash → Bleed
-	static constexpr float STATUS_THRESHOLD_ARMOR_BREAK = 100.0f; // Pierce → ArmorBreak
-	static constexpr float STATUS_THRESHOLD_STUN = 100.0f;		  // Impact → Stun
 
 	static constexpr int32 INFUSED_ATTACK_ENERGY_COST = 5;
 	// INFUSION_DAMAGE_PENALTY removed per locked cost matrix — see commit message.
