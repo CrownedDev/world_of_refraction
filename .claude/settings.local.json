@@ -22,7 +22,14 @@
       "Bash(awk -F'|' 'NR>1 { sz=$1-prev_l-1; printf \"%4d l%d %s\\\\n\", sz, prev_l, prev_n; prev_l=$1; prev_n=$2; next } { prev_l=$1; prev_n=$2 }' /tmp/bd_paired.txt)",
       "Bash(git branch *)",
       "Bash(git lfs *)",
-      "Bash(xargs -I {} wc -c {})"
+      "Bash(xargs -I {} wc -c {})",
+      "Bash(git commit -m ' *)",
+      "Bash(\"/d/Epic Games/UE_5.7/Engine/Build/BatchFiles/Build.bat\" world_of_refractionEditor Win64 Development -Project=\"C:/Users/tafad/Documents/github/world_of_refraction/world_of_refraction.uproject\" -WaitMutex)",
+      "Bash(git merge *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\tafad\\\\Documents\\\\github\\\\world_of_refraction\\\\Source\\\\world_of_refraction\\\\Public\" -Filter \"*.h\")",
+      "Bash(Select-Object Name)",
+      "Bash(Sort-Object Name)",
+      "Bash(grep -v \"//\")"
     ]
   }
 }
