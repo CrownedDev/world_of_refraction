@@ -459,9 +459,6 @@ private:
 	/** Get CharacterData template from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 
-	/** Calculate critical hit */
-	bool RollCriticalHit(AActor *Attacker) const;
-
 	/** Apply damage after defense resolution */
 	void ApplyDamageAfterDefense(
 		AActor *Attacker,
@@ -485,12 +482,6 @@ private:
 	// ========================================
 	// INFUSION INTERNAL HELPERS
 	// ========================================
-
-	/** Apply spell size L2 cost based on source */
-	void ApplySpellSizeL2Cost(
-		FActionResult &Result,
-		AActor *Actor,
-		USpellData *Spell);
 
 	/** Apply self-damage for HP costs */
 	void ApplySelfDamage(AActor *Actor, int32 Amount);
