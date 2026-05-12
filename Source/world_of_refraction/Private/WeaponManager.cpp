@@ -97,16 +97,10 @@ UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 
 UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 {
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
-		return nullptr;
-
-	UWeaponData *Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
-	if (Weapon && Weapon->WeaponAttack)
+	if (ULoadoutComponent *Loadout = GetLoadoutComponent(Actor))
 	{
-		return Weapon->WeaponAttack;
+		return Loadout->GetCurrentAttack();
 	}
-
 	return nullptr;
 }
 

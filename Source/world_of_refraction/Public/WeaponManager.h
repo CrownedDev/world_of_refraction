@@ -158,10 +158,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
 	UWeaponData *GetActiveWeapon(AActor *Actor) const;
 
-	/**
-	 * Get current attack data (weapon or base attack)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
+	/** Get the active attack for the actor. Thin delegate to
+	 *  ULoadoutComponent::GetCurrentAttack — the LoadoutComponent
+	 *  is the source of truth for "which weapon is wielded right now."
+	 *  Kept on UWeaponManager for caller convenience until UWeaponManager
+	 *  is itself absorbed into LoadoutComponent (potential follow-up). */
+	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Query")
 	UWeaponAttackData *GetActiveAttack(AActor *Actor) const;
 
 	/**
