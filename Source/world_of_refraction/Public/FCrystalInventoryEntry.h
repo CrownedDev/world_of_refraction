@@ -11,6 +11,7 @@
 
 #include "CoreMinimal.h"
 #include "ESpellElement.h"
+#include "Misc/Guid.h"
 #include "FCrystalInventoryEntry.generated.h"
 
 class UItemData;
@@ -28,6 +29,23 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     /** The crystal data asset */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
     UItemData *Crystal = nullptr;
+
+    /** Current durability of this specific crystal instance. Initialized
+     *  from Crystal->MaxDurability at CreateFromCrystal time. Per-instance
+     *  state — wear/repair/break operations write here, not to the asset.
+     *
+     *  Defaults to 0; CreateFromCrystal seeds it from the asset's MaxDurability.
+     *  A 0 here on a crystal with non-zero MaxDurability indicates either
+     *  "broken" or "uninitialized" — IsBroken() returns true in both cases. */
+    UPROPERTY(BlueprintReadWrite, Category = "Crystal")
+    int32 CurrentDurability = 0;
+
+    /** Unique identifier for this specific crystal instance. Generated
+     *  at CreateFromCrystal time. Persists across saves, inventory
+     *  transfers, and return-to-world operations. Anchors future systems
+     *  that need to track specific crystals (trading, drops, scarcity). */
+    UPROPERTY(BlueprintReadWrite, Category = "Crystal")
+    FGuid InstanceID;
 
     // ==================== FACTORY ====================
 

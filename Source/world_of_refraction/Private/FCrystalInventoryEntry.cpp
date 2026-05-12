@@ -8,6 +8,13 @@ FCrystalInventoryEntry FCrystalInventoryEntry::CreateFromCrystal(UItemData *InCr
 {
     FCrystalInventoryEntry Entry;
     Entry.Crystal = InCrystal;
+
+    if (InCrystal)
+    {
+        Entry.CurrentDurability = InCrystal->MaxDurability;
+        Entry.InstanceID = FGuid::NewGuid();
+    }
+
     return Entry;
 }
 
