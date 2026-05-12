@@ -38,6 +38,22 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadout
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutItemUsed, int32, SlotIndex, UItemData *, Item);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FString &, Reason);
 
+/** A single crystal-bearing slot — the crystal and its holder (the
+ *  UWeaponData or URingData that the crystal is slotted on).
+ *  Holder is UObject* because UWeaponData and URingData don't share
+ *  a base beyond UPrimaryDataAsset; consumers cast as needed. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    UItemData *Crystal = nullptr;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    UObject *Holder = nullptr;
+};
+
 /**
  * ULoadoutComponent
  * Manages active combat loadout and runtime battle state
@@ -226,6 +242,19 @@ public:
     /** Get primary evolution crystal */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     UItemData *GetPrimaryEvolution() const;
+
+    /** Enumerate every crystal-bearing slot currently equipped on this actor.
+     *  Iterates: Primary weapon, Secondary weapon (Generic only), Primary ring
+     *  (Generic/Caster), every ring in RingLoadout (Resonator), and the primary
+     *  evolution crystal slot (if any).
+     *
+     *  Empty slots are skipped — only slots with a non-null SlottedCrystal
+     *  appear in the result.
+     *
+     *  Used by UCrystalManager for combat-init enumeration and by any code
+     *  that needs to walk all equipped crystals (e.g. between-combat repair). */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystals")
+    TArray<FEquippedCrystalSlot> GetEquippedCrystals() const;
 
     /** Get primary slot type */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")

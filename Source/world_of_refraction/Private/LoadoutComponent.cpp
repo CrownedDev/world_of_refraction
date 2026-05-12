@@ -1142,6 +1142,56 @@ UItemData *ULoadoutComponent::GetPrimaryEvolution() const
     return Loadout.PrimaryEvolution;
 }
 
+TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
+{
+    TArray<FEquippedCrystalSlot> Result;
+
+    auto AddIfCrystal = [&Result](UItemData *Crystal, UObject *Holder)
+    {
+        if (Crystal && Holder)
+        {
+            FEquippedCrystalSlot Slot;
+            Slot.Crystal = Crystal;
+            Slot.Holder = Holder;
+            Result.Add(Slot);
+        }
+    };
+
+    // Weapons — primary and secondary
+    if (UWeaponData *Primary = GetPrimaryWeapon())
+    {
+        AddIfCrystal(Primary->SlottedCrystal, Primary);
+    }
+    if (UWeaponData *Secondary = GetSecondaryWeapon())
+    {
+        AddIfCrystal(Secondary->SlottedCrystal, Secondary);
+    }
+
+    // Primary ring (Generic / Caster)
+    if (URingData *PrimaryRing = GetPrimaryRing())
+    {
+        AddIfCrystal(PrimaryRing->SlottedCrystal, PrimaryRing);
+    }
+
+    // Resonator ring loadout — every ring in the loadout array
+    const FCombatLoadout ActiveLoadout = GetActiveLoadout();
+    for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
+    {
+        if (URingData *Ring = Entry.RingEntry.Ring)
+        {
+            AddIfCrystal(Ring->SlottedCrystal, Ring);
+        }
+    }
+
+    // Evolution crystal slot — holder is the crystal itself (no separate holder asset).
+    if (UItemData *Evolution = GetPrimaryEvolution())
+    {
+        AddIfCrystal(Evolution, Evolution);
+    }
+
+    return Result;
+}
+
 EPrimarySlotType ULoadoutComponent::GetPrimarySlotType() const
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
