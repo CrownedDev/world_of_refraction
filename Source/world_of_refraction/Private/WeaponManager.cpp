@@ -524,7 +524,7 @@ void UWeaponManager::HandleWeaponCrystalBroken(UItemData *BrokenCrystal)
 
 	AActor *OwnerActor = nullptr;
 	UWeaponData *OwnerWeapon = nullptr;
-	if (!FindWeaponOwnerOfCrystal(BrokenCrystal, OwnerActor, OwnerWeapon))
+	if (!ULoadoutComponent::FindOwnerOfWeaponCrystal(BrokenCrystal, OwnerActor, OwnerWeapon))
 	{
 		// Crystal isn't on any weapon we're tracking — could be from a ring
 		// (which has its own handler in URingManager) or an unrelated event
@@ -545,51 +545,3 @@ void UWeaponManager::HandleWeaponCrystalBroken(UItemData *BrokenCrystal)
 	// WeaponData::GetWeaponElement already returns Generic when crystal IsBroken.
 }
 
-bool UWeaponManager::FindWeaponOwnerOfCrystal(UItemData *Crystal, AActor *&OutActor, UWeaponData *&OutWeapon) const
-{
-	OutActor = nullptr;
-	OutWeapon = nullptr;
-
-	if (!Crystal)
-	{
-		return false;
-	}
-
-	// Iterate every actor we have weapon state for; check their loadout's weapons.
-	for (const auto &Pair : WeaponStates)
-	{
-		AActor *Actor = Pair.Key.Get();
-		if (!Actor)
-		{
-			continue;
-		}
-
-		ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-		if (!LoadoutComp)
-		{
-			continue;
-		}
-
-		auto CheckWeapon = [&](UWeaponData *Weapon) -> bool
-		{
-			if (Weapon && Weapon->SlottedCrystal == Crystal)
-			{
-				OutActor = Actor;
-				OutWeapon = Weapon;
-				return true;
-			}
-			return false;
-		};
-
-		if (CheckWeapon(LoadoutComp->GetPrimaryWeapon()))
-		{
-			return true;
-		}
-		if (CheckWeapon(LoadoutComp->GetSecondaryWeapon()))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}

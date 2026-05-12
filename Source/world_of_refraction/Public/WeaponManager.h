@@ -292,6 +292,4 @@ private:
 	UFUNCTION()
 	void HandleWeaponCrystalBroken(UItemData *BrokenCrystal);
 
-	/** Find which actor and weapon own a given crystal (for the broadcast). */
-	bool FindWeaponOwnerOfCrystal(UItemData *Crystal, AActor *&OutActor, UWeaponData *&OutWeapon) const;
 };

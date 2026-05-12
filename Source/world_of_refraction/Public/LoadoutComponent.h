@@ -407,6 +407,23 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void DebugLogLoadout();
 
+    // ==================== STATIC HELPERS ====================
+
+    /** Walks every ULoadoutComponent in memory to find which actor owns
+     *  a given weapon-slotted crystal. Used by UWeaponManager when a crystal's
+     *  OnCrystalBroken fires — the manager has the crystal pointer but needs
+     *  to identify its owner for the broadcast.
+     *
+     *  Replaces UWeaponManager's per-actor registry. Iteration is over
+     *  TObjectIterator<ULoadoutComponent> — no World param needed, no
+     *  per-actor FindComponentByClass call.
+     *
+     *  Returns true if found; OutActor and OutWeapon are populated. */
+    static bool FindOwnerOfWeaponCrystal(
+        UItemData *Crystal,
+        AActor *&OutActor,
+        UWeaponData *&OutWeapon);
+
 private:
     /** True if initialized from LoadoutData asset (AI), false if from inventory (Player) */
     bool bInitializedFromAsset = false;
