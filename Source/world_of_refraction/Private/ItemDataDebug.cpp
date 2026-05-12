@@ -657,18 +657,12 @@ void UItemDataDebug::LogCrystalDurability(const UItemData *Item)
         return;
     }
 
-    // TODO(Phase B commit 5): Item->CurrentDurability and Item->IsBroken() read
-    // asset-side state, which is stale post-commit-2. Debug output shows the
-    // initial MaxDurability seed, not live combat state. Rewrite to take an
-    // FCrystalInventoryEntry* when UItemData::CurrentDurability is deleted.
-    UE_LOG(LogTemp, Display, TEXT("Durability: %d / %d (%.0f%%) [asset-side, stale post Phase B]"),
-           Item->CurrentDurability,
-           Item->MaxDurability,
-           Item->GetDurabilityPercent() * 100.0f);
+    // Design-time inspection only: this asset has no runtime durability state.
+    // Live per-instance state lives on FCrystalInventoryEntry — query the
+    // actor's LoadoutComponent for that.
+    UE_LOG(LogTemp, Display, TEXT("Max Durability: %d"), Item->MaxDurability);
     UE_LOG(LogTemp, Display, TEXT("Immune to breaking: %s"),
            Item->bImmuneToBreaking ? TEXT("YES") : TEXT("NO"));
-    UE_LOG(LogTemp, Display, TEXT("Broken: %s [asset-side, stale post Phase B]"),
-           Item->IsBroken() ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
@@ -685,21 +679,15 @@ FString UItemDataDebug::GetDurabilityString(const UItemData *Item)
                                *Item->GetFullItemName());
     }
 
-    // TODO(Phase B commit 5): same caveat as PrintDurabilityState — asset-side
-    // reads, stale post-commit-2. Rewrite to take an FCrystalInventoryEntry*.
-    FString State = FString::Printf(TEXT("[%s] %d/%d (%.0f%%) [asset-side, stale post Phase B]"),
+    // Design-time inspection only: this asset has no runtime durability state.
+    // Live per-instance state lives on FCrystalInventoryEntry.
+    FString State = FString::Printf(TEXT("[%s] Max %d"),
                                     *Item->GetFullItemName(),
-                                    Item->CurrentDurability,
-                                    Item->MaxDurability,
-                                    Item->GetDurabilityPercent() * 100.0f);
+                                    Item->MaxDurability);
 
     if (Item->bImmuneToBreaking)
     {
         State += TEXT(" [Immune]");
-    }
-    if (Item->IsBroken())
-    {
-        State += TEXT(" [BROKEN]");
     }
 
     return State;

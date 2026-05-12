@@ -54,9 +54,9 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
 
     // ==================== DURABILITY ====================
 
-    /** True if this crystal instance is broken. Replicates UItemData::IsBroken
-     *  semantics: requires the asset to be refined and not immune, plus
-     *  per-instance CurrentDurability <= 0. */
+    /** True if this crystal instance is broken. Requires the asset to be
+     *  refined and not immune, plus per-instance CurrentDurability <= 0.
+     *  Sole source of truth for crystal break state. */
     bool IsBroken() const;
 
     /** Apply wear to this crystal instance. Reduces CurrentDurability by

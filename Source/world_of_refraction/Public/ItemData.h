@@ -37,9 +37,6 @@ namespace CrystalSpellConstants
         constexpr int32 DEFAULT_LOCKED_SPELLS = 2;
 }
 
-/** Broadcast when a refined crystal's durability hits 0. Single-param: the broken crystal. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCrystalBroken, UItemData *, BrokenCrystal);
-
 /**
  * Primary data asset for items (crystals)
  * Each item is defined by crystal type + tier + refined/evolution flags.
@@ -171,46 +168,11 @@ public:
                   meta = (EditCondition = "bIsRefined", EditConditionHides, ClampMin = "0"))
         int32 MaxDurability = 0;
 
-        /** Current durability. Transient runtime state — NOT saved on the asset.
-         *  Initialised to MaxDurability in PostInitProperties. */
-        UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Durability",
-                  Transient, meta = (EditCondition = "bIsRefined", EditConditionHides))
-        int32 CurrentDurability = 0;
-
         /** Crystal cannot break (durability is cosmetic). Auto-set true for Evolution crystals
          *  in PostInitProperties; can be manually set true for special cases. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
                   meta = (EditCondition = "bIsRefined", EditConditionHides))
         bool bImmuneToBreaking = false;
-
-        /** Fired when this crystal's durability reaches 0 from ApplyWear.
-         *  Only fires for refined, non-immune crystals. */
-        UPROPERTY(BlueprintAssignable, Category = "Durability")
-        FOnCrystalBroken OnCrystalBroken;
-
-        // ---- Durability helpers ----
-
-        /** Returns CurrentDurability / MaxDurability. 0.0 if not refined or MaxDurability is 0. */
-        UFUNCTION(BlueprintPure, Category = "Crystal|Durability")
-        float GetDurabilityPercent() const;
-
-        /** Reduce CurrentDurability by Amount, clamped at 0. Fires OnCrystalBroken if it hits 0.
-         *  No-op (with verbose log) for unrefined or immune crystals. */
-        UFUNCTION(BlueprintCallable, Category = "Crystal|Durability")
-        void ApplyWear(int32 Amount);
-
-        /** Restore Amount to CurrentDurability, clamped at MaxDurability.
-         *  Used by combat-end auto-repair (+REPAIR_PER_BATTLE per battle). */
-        UFUNCTION(BlueprintCallable, Category = "Crystal|Durability")
-        void RepairBetweenCombats(int32 Amount);
-
-        /** True if CurrentDurability <= 0 AND crystal is refined AND not immune. */
-        UFUNCTION(BlueprintPure, Category = "Crystal|Durability")
-        bool IsBroken() const;
-
-        /** Reset CurrentDurability to MaxDurability. Called at combat start. */
-        UFUNCTION(BlueprintCallable, Category = "Crystal|Durability")
-        void ResetDurability();
 
         // ==================== STAT MODIFIERS (Evolution only) ====================
 

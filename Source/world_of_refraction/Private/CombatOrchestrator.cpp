@@ -19,7 +19,6 @@
 #include "CharacterData.h"
 #include "RingData.h"
 #include "ItemData.h"
-#include "CrystalManager.h"
 #include "FCrystalInventoryEntry.h"
 #include "DurabilityConstants.h"
 #include "ItemEffectType.h"
@@ -291,28 +290,6 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 		AIDecisionManagerRef->ClearCombatOrchestrator();
 	}
 
-	// Unregister combatants from UCrystalManager — detaches all crystal
-	// subscriptions. Must run before Team0/Team1 are emptied.
-	if (UCrystalManager *CrystalMgr = GetGameInstance()
-			? GetGameInstance()->GetSubsystem<UCrystalManager>()
-			: nullptr)
-	{
-		for (AActor *Combatant : Team0Combatants)
-		{
-			if (Combatant)
-			{
-				CrystalMgr->UnregisterCombatant(Combatant);
-			}
-		}
-		for (AActor *Combatant : Team1Combatants)
-		{
-			if (Combatant)
-			{
-				CrystalMgr->UnregisterCombatant(Combatant);
-			}
-		}
-	}
-
 	// Reset for next combat
 	Team0Combatants.Empty();
 	Team1Combatants.Empty();
@@ -561,28 +538,6 @@ void ACombatOrchestrator::OnActionCompleted()
 		FCombatResult Result = BuildCombatResult();
 		OnCombatResultReady.Broadcast(Result);
 
-		// Unregister combatants from UCrystalManager — detaches all crystal
-		// subscriptions. Must run before Team0/Team1 are emptied.
-		if (UCrystalManager *CrystalMgr = GetGameInstance()
-				? GetGameInstance()->GetSubsystem<UCrystalManager>()
-				: nullptr)
-		{
-			for (AActor *Combatant : Team0Combatants)
-			{
-				if (Combatant)
-				{
-					CrystalMgr->UnregisterCombatant(Combatant);
-				}
-			}
-			for (AActor *Combatant : Team1Combatants)
-			{
-				if (Combatant)
-				{
-					CrystalMgr->UnregisterCombatant(Combatant);
-				}
-			}
-		}
-
 		// Reset for next combat
 		Team0Combatants.Empty();
 		Team1Combatants.Empty();
@@ -662,28 +617,6 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 
 		FCombatResult Result = BuildCombatResult();
 		OnCombatResultReady.Broadcast(Result);
-
-		// Unregister combatants from UCrystalManager — detaches all crystal
-		// subscriptions. Must run before Team0/Team1 are emptied.
-		if (UCrystalManager *CrystalMgr = GetGameInstance()
-				? GetGameInstance()->GetSubsystem<UCrystalManager>()
-				: nullptr)
-		{
-			for (AActor *Combatant : Team0Combatants)
-			{
-				if (Combatant)
-				{
-					CrystalMgr->UnregisterCombatant(Combatant);
-				}
-			}
-			for (AActor *Combatant : Team1Combatants)
-			{
-				if (Combatant)
-				{
-					CrystalMgr->UnregisterCombatant(Combatant);
-				}
-			}
-		}
 
 		Team0Combatants.Empty();
 		Team1Combatants.Empty();
@@ -943,30 +876,6 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 	for (AActor *Actor : Team1Combatants)
 	{
 		PrepareActor(Actor);
-	}
-
-	// Register each combatant with UCrystalManager so the crystal subscription
-	// pipeline is live for this combat. Pairs with UnregisterCombatant at
-	// each combat-end path (ForceEndCombat, win-condition branch in
-	// OnActionCompleted, HandleCombatEnded).
-	if (UCrystalManager *CrystalMgr = GetGameInstance()
-			? GetGameInstance()->GetSubsystem<UCrystalManager>()
-			: nullptr)
-	{
-		for (AActor *Combatant : Team0Combatants)
-		{
-			if (Combatant)
-			{
-				CrystalMgr->RegisterCombatant(Combatant);
-			}
-		}
-		for (AActor *Combatant : Team1Combatants)
-		{
-			if (Combatant)
-			{
-				CrystalMgr->RegisterCombatant(Combatant);
-			}
-		}
 	}
 }
 

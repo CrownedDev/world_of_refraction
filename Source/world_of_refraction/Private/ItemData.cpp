@@ -866,25 +866,19 @@ void UItemData::PostInitProperties()
         return;
     }
 
-    // Evolution crystals are immune to breaking by design. Set this BEFORE
-    // the MaxDurability auto-init so immune crystals still get a tier-derived
-    // value (immunity is enforced in ApplyWear, not via MaxDurability == 0).
-    // Without a positive MaxDurability the UI shows 0/0 and any percent
-    // calculation would divide by zero.
+    // Evolution crystals are immune to breaking by design. Per-instance
+    // durability lives on FCrystalInventoryEntry; this asset only carries
+    // the design-time MaxDurability seed.
     if (bIsEvolutionCrystal)
     {
         bImmuneToBreaking = true;
     }
 
     // Auto-compute MaxDurability from tier if designer left it at 0.
-    // Runs unconditionally on refined crystals (immune or not).
     if (MaxDurability == 0)
     {
         MaxDurability = DurabilityConstants::GetMaxDurabilityForTier(Tier);
     }
-
-    // Initialise runtime durability to full
-    CurrentDurability = MaxDurability;
 }
 
 void UItemData::PostLoad()
@@ -892,92 +886,19 @@ void UItemData::PostLoad()
     Super::PostLoad();
 
     // Migration for assets saved before Phase 2a (durability auto-init):
-    // initialise durability from tier if loaded with MaxDurability == 0.
-    // Immune and evolution crystals also need a positive MaxDurability
-    // (immunity is enforced in ApplyWear, not by MaxDurability == 0); leaving
-    // them at 0 causes 0/0 display and divide-by-zero risk in any UI scaling.
+    // initialise MaxDurability from tier if loaded with MaxDurability == 0.
+    // Immune and evolution crystals also need a positive MaxDurability so
+    // UI scaling does not divide by zero.
     if (bIsRefined && MaxDurability == 0)
     {
         const int32 TierMax = DurabilityConstants::GetMaxDurabilityForTier(Tier);
         if (TierMax > 0)
         {
             MaxDurability = TierMax;
-            CurrentDurability = TierMax;
         }
     }
 }
 
-float UItemData::GetDurabilityPercent() const
-{
-    if (!bIsRefined || MaxDurability <= 0)
-    {
-        return 0.0f;
-    }
-    return static_cast<float>(CurrentDurability) / static_cast<float>(MaxDurability);
-}
-
-void UItemData::ApplyWear(int32 Amount)
-{
-    if (!bIsRefined)
-    {
-        UE_LOG(LogTemp, Verbose,
-               TEXT("[Crystal] ApplyWear called on unrefined crystal '%s' (no-op)"),
-               *GetFullItemName());
-        return;
-    }
-
-    if (bImmuneToBreaking)
-    {
-        UE_LOG(LogTemp, Verbose,
-               TEXT("[Crystal] ApplyWear called on immune crystal '%s' (no-op)"),
-               *GetFullItemName());
-        return;
-    }
-
-    if (Amount <= 0)
-    {
-        return;
-    }
-
-    const int32 PreviousDurability = CurrentDurability;
-    CurrentDurability = FMath::Max(0, CurrentDurability - Amount);
-
-    UE_LOG(LogTemp, Verbose,
-           TEXT("[Crystal] '%s' wear %d (%d -> %d / %d)"),
-           *GetFullItemName(), Amount, PreviousDurability, CurrentDurability, MaxDurability);
-
-    if (CurrentDurability <= 0 && PreviousDurability > 0)
-    {
-        UE_LOG(LogTemp, Log,
-               TEXT("[Crystal] '%s' BROKEN (durability hit 0)"),
-               *GetFullItemName());
-        OnCrystalBroken.Broadcast(this);
-    }
-}
-
-void UItemData::RepairBetweenCombats(int32 Amount)
-{
-    if (!bIsRefined || Amount <= 0)
-    {
-        return;
-    }
-
-    CurrentDurability = FMath::Min(MaxDurability, CurrentDurability + Amount);
-}
-
-bool UItemData::IsBroken() const
-{
-    return bIsRefined && !bImmuneToBreaking && CurrentDurability <= 0;
-}
-
-void UItemData::ResetDurability()
-{
-    if (!bIsRefined)
-    {
-        return;
-    }
-    CurrentDurability = MaxDurability;
-}
 // ==================== EDITOR FUNCTIONS ====================
 
 #if WITH_EDITOR
@@ -1202,13 +1123,11 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
         }
 
         // Always derive MaxDurability from tier — including for immune/evolution
-        // crystals. Immunity is enforced in ApplyWear; MaxDurability is still
-        // needed for non-zero UI display and to avoid divide-by-zero.
+        // crystals. Needed for non-zero UI display and to avoid divide-by-zero.
         const int32 TierMax = DurabilityConstants::GetMaxDurabilityForTier(Tier);
         if (TierMax > 0)
         {
             MaxDurability = TierMax;
-            CurrentDurability = TierMax;
         }
     }
 }

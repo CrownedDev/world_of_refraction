@@ -89,9 +89,8 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     /** Get ring's element from attached crystal. Returns Generic for missing
      *  OR broken crystals — a broken crystal cannot channel its element.
-     *  Symmetric to UWeaponData::GetWeaponElement which already handles broken state.
-     *  Body in FRingInventoryEntry.cpp because UItemData::IsBroken requires the
-     *  full type, only forward-declared in this header. */
+     *  Body in FRingInventoryEntry.cpp because it reads UItemData fields
+     *  via the attached crystal entry (full type only forward-declared here). */
     ESpellElement GetElement() const;
 
     // ==================== SPELL ACCESS ====================

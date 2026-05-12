@@ -13,23 +13,13 @@ class ULoadoutComponent;
  * UCrystalManager
  *
  * Unified crystal lifecycle and event broker. Owns:
- *  - Per-combatant crystal subscription pipeline (replaces the per-manager
- *    pipelines previously split between UWeaponManager and URingManager)
  *  - Post-cast durability wear (replaces UWeaponManager::ProcessPostCastWear
  *    and URingManager::ProcessPostCastWear)
  *  - Unified broadcasts: OnCrystalBroken, OnCrystalDurabilityChanged
  *
- * Phase A note: durability lives on shared UItemData::CurrentDurability.
- * Two actors slotting the same UItemData asset share wear — this matches
- * the pre-existing legacy behaviour. Phase B will migrate durability to
- * FCrystalInventoryEntry::CurrentDurability for per-instance state.
- *
- * Lifecycle:
- *   Combat start: CombatOrchestrator → RegisterCombatant(Actor)
- *   During combat: ProcessPostCastWear called from ActionExecutor
- *   Crystal break: UItemData::OnCrystalBroken → UCrystalManager
- *                  rebroadcasts as unified OnCrystalBroken
- *   Combat end: CombatOrchestrator → UnregisterCombatant(Actor)
+ * Per-instance durability state lives on FCrystalInventoryEntry; this
+ * manager resolves the entry via LoadoutComponent at wear time and
+ * broadcasts breaks directly on the entry's transition to 0.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UCrystalManager : public UGameInstanceSubsystem
@@ -39,21 +29,6 @@ class WORLD_OF_REFRACTION_API UCrystalManager : public UGameInstanceSubsystem
 public:
     virtual void Initialize(FSubsystemCollectionBase &Collection) override;
     virtual void Deinitialize() override;
-
-    // ========================================
-    // LIFECYCLE
-    // ========================================
-
-    /** Register an actor with the crystal subscription pipeline. Called at
-     *  combat start. Walks the actor's LoadoutComponent for equipped weapons
-     *  and rings, subscribes to each slotted crystal's OnCrystalBroken. */
-    UFUNCTION(BlueprintCallable, Category = "Crystal Manager")
-    void RegisterCombatant(AActor *Actor);
-
-    /** Unregister an actor from the crystal subscription pipeline. Called at
-     *  combat end. Unsubscribes from all tracked crystals for this actor. */
-    UFUNCTION(BlueprintCallable, Category = "Crystal Manager")
-    void UnregisterCombatant(AActor *Actor);
 
     // ========================================
     // WEAR
@@ -108,20 +83,6 @@ public:
     FOnCrystalDurabilityChanged OnCrystalDurabilityChanged;
 
 private:
-    // ========================================
-    // SUBSCRIPTION TRACKING
-    // ========================================
-
-    /** Crystals currently subscribed to, keyed by actor. Used at
-     *  UnregisterCombatant time to know which crystals to detach from. */
-    TMap<TWeakObjectPtr<AActor>, TArray<TWeakObjectPtr<UItemData>>> TrackedCrystals;
-
-    /** Bound to UItemData::OnCrystalBroken for every subscribed crystal.
-     *  Resolves owner via TObjectIterator<ULoadoutComponent>, then
-     *  rebroadcasts as unified OnCrystalBroken. */
-    UFUNCTION()
-    void HandleCrystalBroken(UItemData *BrokenCrystal);
-
     // ========================================
     // HELPERS
     // ========================================

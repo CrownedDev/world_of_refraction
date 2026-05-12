@@ -73,15 +73,19 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
     static void LogCrystalState(const UItemData *Item);
     /**
-     * Logs crystal durability state (current/max/percent/refined/immune/broken)
-     * @param Item The crystal to check
+     * Logs a crystal asset's design-time durability properties (MaxDurability,
+     * refined, immune). Per-instance runtime state lives on
+     * FCrystalInventoryEntry — query the actor's LoadoutComponent for that.
+     * @param Item The crystal asset to inspect
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
     static void LogCrystalDurability(const UItemData *Item);
 
     /**
-     * Returns a single-line formatted durability string for UI / inspection.
-     * Format: "[Refined Crystal Name] 23/40 (58%) [Immune]" or "[Unrefined - no durability]"
+     * Returns a single-line formatted design-time durability string for asset
+     * inspection. Format: "[Refined Crystal Name] Max 40 [Immune]" or
+     * "[Unrefined - no durability]". For live per-instance state use
+     * FCrystalInventoryEntry via LoadoutComponent.
      */
     UFUNCTION(BlueprintPure, Category = "Item Debug")
     static FString GetDurabilityString(const UItemData *Item);
