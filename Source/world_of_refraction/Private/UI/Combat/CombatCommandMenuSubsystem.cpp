@@ -979,11 +979,13 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
 
     // ==================== INFUSION CONTROLS ====================
     // Below targets, minimal buttons. Items skip infusion entirely.
+    // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
     //     Pressing it cycles 0 -> 1 -> 2 -> 0.
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
-    if (PendingActionCategory != EPieMenuCategory::Item)
+    if (PendingActionCategory != EPieMenuCategory::Item &&
+        !ResolveImmuneFlag(PendingActionData.Get()))
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1110,10 +1112,12 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
 
     // ==================== INFUSION CONTROLS ====================
     // Same block as BuildTargetButtons. Items skip infusion entirely.
+    // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
-    if (PendingActionCategory != EPieMenuCategory::Item)
+    if (PendingActionCategory != EPieMenuCategory::Item &&
+        !ResolveImmuneFlag(PendingActionData.Get()))
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
