@@ -1,11 +1,11 @@
 // RingManager.cpp
-// Simplified ring manager implementation
+// All ring state lives in ULoadoutComponent (single source of truth);
+// URingManager is a stateless query/switching surface plus a
+// crystal-break consumer.
 
 #include "RingManager.h"
 #include "RingData.h"
 #include "ItemData.h"
-#include "ElementColorDebugComponent.h"
-#include "ElementColors.h"
 #include "LoadoutComponent.h"
 #include "FCombatLoadout.h"
 #include "FRingLoadoutEntry.h"
@@ -33,63 +33,18 @@ void URingManager::Deinitialize()
 		}
 	}
 
-	ActiveRingIndex.Empty();
-	EquippedRings.Empty();
 	Super::Deinitialize();
 }
 
-// ==================== RING STATE ====================
-
-void URingManager::SetEquippedRings(AActor *Actor, const TArray<URingData *> &Rings)
-{
-	if (!Actor)
-		return;
-
-	EquippedRings.Add(Actor, Rings);
-	ActiveRingIndex.Add(Actor, 0);
-
-	// Find first valid ring (has crystal, crystal not broken)
-	for (int32 i = 0; i < Rings.Num(); ++i)
-	{
-		URingData *Ring = Rings[i];
-		if (Ring && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
-		{
-			ActiveRingIndex[Actor] = i;
-			break;
-		}
-	}
-}
-
-void URingManager::ClearRingState(AActor *Actor)
-{
-	if (!Actor)
-		return;
-	ActiveRingIndex.Remove(Actor);
-	EquippedRings.Remove(Actor);
-}
+// ==================== RING QUERIES ====================
 
 URingData *URingManager::GetActiveRing(AActor *Actor) const
 {
 	if (!Actor)
 		return nullptr;
 
-	// Check local state first (runtime tracking with break state)
-	const int32 *Index = ActiveRingIndex.Find(Actor);
-	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
-
-	if (Index && Rings && Rings->IsValidIndex(*Index))
-	{
-		return (*Rings)[*Index];
-	}
-
-	// Fallback to LoadoutComponent (if not yet initialized locally)
 	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
-	if (LoadoutComp)
-	{
-		return LoadoutComp->GetActiveRing();
-	}
-
-	return nullptr;
+	return LoadoutComp ? LoadoutComp->GetActiveRing() : nullptr;
 }
 
 ESpellElement URingManager::GetActiveElement(AActor *Actor) const
@@ -98,83 +53,48 @@ ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 	return Ring ? Ring->GetRingElement() : ESpellElement::Generic;
 }
 
-TArray<URingData *> URingManager::GetEquippedRings(AActor *Actor) const
+URingData *URingManager::GetPrimaryRing(AActor *Actor) const
 {
-	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
-	return Rings ? *Rings : TArray<URingData *>();
+	if (!Actor)
+		return nullptr;
+
+	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+	return LoadoutComp ? LoadoutComp->GetPrimaryRing() : nullptr;
 }
 
 // ==================== RING SWITCHING ====================
-
-bool URingManager::SwitchToRing(AActor *Actor, int32 RingIndex)
-{
-	if (!Actor)
-		return false;
-
-	TArray<URingData *> *Rings = EquippedRings.Find(Actor);
-	if (!Rings || !Rings->IsValidIndex(RingIndex))
-		return false;
-
-	URingData *TargetRing = (*Rings)[RingIndex];
-	// Reject ring if missing or has no functional crystal
-	if (!TargetRing)
-		return false;
-	if (!TargetRing->SlottedCrystal || TargetRing->SlottedCrystal->IsBroken())
-		return false;
-
-	ActiveRingIndex[Actor] = RingIndex;
-	if (UElementColorDebugComponent *ColorComp = Actor->FindComponentByClass<UElementColorDebugComponent>())
-	{
-		ESpellElement NewElement = TargetRing->GetRingElement(); // or from inventory entry
-		FLinearColor ElementColor = ElementColors::GetColorForElement(NewElement);
-		ColorComp->SetColorDirect(ElementColor);
-	}
-	return true;
-}
 
 bool URingManager::SwitchToNextRing(AActor *Actor)
 {
 	if (!Actor)
 		return false;
 
-	const int32 *CurrentIndex = ActiveRingIndex.Find(Actor);
-	TArray<URingData *> *Rings = EquippedRings.Find(Actor);
-
-	if (!CurrentIndex || !Rings)
+	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!LoadoutComp)
 		return false;
 
-	// Find next valid ring (has functional crystal)
-	int32 StartIndex = *CurrentIndex;
-	for (int32 i = 1; i <= Rings->Num(); ++i)
-	{
-		int32 CheckIndex = (StartIndex + i) % Rings->Num();
-		URingData *Ring = (*Rings)[CheckIndex];
+	const FCombatLoadout Loadout = LoadoutComp->GetActiveLoadout();
+	const int32 RingCount = Loadout.RingLoadout.Num();
+	if (RingCount == 0)
+		return false;
 
+	const int32 StartIndex = Loadout.ActiveRingIndex;
+
+	// Find next valid ring (has functional crystal). Wrap around; skip current.
+	for (int32 i = 1; i <= RingCount; ++i)
+	{
+		const int32 CheckIndex = (StartIndex + i) % RingCount;
+		const FRingLoadoutEntry &Entry = Loadout.RingLoadout[CheckIndex];
+
+		URingData *Ring = Entry.RingEntry.Ring;
 		if (Ring && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
 		{
-			ActiveRingIndex[Actor] = CheckIndex;
+			LoadoutComp->SetActiveRingIndex(CheckIndex);
 			return true;
 		}
 	}
 
 	return false;
-}
-
-int32 URingManager::GetWorkingRingCount(AActor *Actor) const
-{
-	const TArray<URingData *> *Rings = EquippedRings.Find(Actor);
-	if (!Rings)
-		return 0;
-
-	int32 Count = 0;
-	for (URingData *Ring : *Rings)
-	{
-		if (Ring && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
-		{
-			Count++;
-		}
-	}
-	return Count;
 }
 
 // ==================== CRYSTAL BREAK CONSUMER ====================
@@ -193,59 +113,4 @@ void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData
 		   *Crystal->GetFullItemName(), *Actor->GetName());
 
 	SwitchToNextRing(Actor);
-}
-
-void URingManager::InitializeFromLoadout(AActor *Actor, ULoadoutComponent *LoadoutComp)
-{
-	if (!Actor || !LoadoutComp)
-		return;
-
-	// Only Resonators use ring loadout
-	if (LoadoutComp->CharacterClass != ECharacterClass::Resonator)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[RingManager] %s is not a Resonator, skipping ring init"),
-			   *Actor->GetName());
-		return;
-	}
-
-	FCombatLoadout Loadout = LoadoutComp->GetActiveLoadout();
-
-	// Extract rings from ring loadout
-	TArray<URingData *> Rings;
-	for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
-	{
-		if (Entry.IsValid())
-		{
-			Rings.Add(Entry.RingEntry.Ring);
-		}
-	}
-
-	if (Rings.Num() > 0)
-	{
-		SetEquippedRings(Actor, Rings);
-
-		// Sync active index
-		if (ActiveRingIndex.Contains(Actor))
-		{
-			ActiveRingIndex[Actor] = Loadout.ActiveRingIndex;
-		}
-
-		UE_LOG(LogTemp, Log, TEXT("[RingManager] Initialized %d rings for %s from LoadoutComponent"),
-			   Rings.Num(), *Actor->GetName());
-	}
-}
-
-URingData *URingManager::GetPrimaryRing(AActor *Actor) const
-{
-	if (!Actor)
-		return nullptr;
-
-	// Primary ring is LoadoutComponent only
-	ULoadoutComponent *LoadoutComp = Actor->FindComponentByClass<ULoadoutComponent>();
-	if (LoadoutComp)
-	{
-		return LoadoutComp->GetPrimaryRing();
-	}
-
-	return nullptr;
 }

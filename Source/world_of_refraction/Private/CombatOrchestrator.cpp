@@ -17,7 +17,6 @@
 #include "AbilityData.h"
 #include "BrokenDarknessManager.h"
 #include "CharacterData.h"
-#include "RingManager.h"
 #include "RingData.h"
 #include "ItemData.h"
 #include "CrystalManager.h"
