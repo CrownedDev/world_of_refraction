@@ -155,6 +155,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "InfusionVFX")
     void CycleInfusionLevel();
 
+    /** Suppress all activation paths when the pending action is immune to infusion. */
+    UFUNCTION(BlueprintCallable, Category = "InfusionVFX")
+    void SetImmuneToInfusion(bool bImmune);
+
+    UFUNCTION(BlueprintPure, Category = "InfusionVFX")
+    bool IsImmuneToInfusion() const { return bSuppressForImmuneAction; }
+
 protected:
     // ==================== CACHED REFERENCES ====================
 
@@ -186,6 +193,9 @@ protected:
 
     UPROPERTY()
     int32 CurrentSourceIndex = 0;
+
+    UPROPERTY()
+    bool bSuppressForImmuneAction = false;
 
     // ==================== INTERNAL ====================
 

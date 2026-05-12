@@ -85,6 +85,14 @@ void UInfusionVFXComponent::TickComponent(float DeltaTime, ELevelTick TickType, 
 
 void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
 {
+    if (bSuppressForImmuneAction)
+    {
+        CurrentInfusionLevel = 0;
+        DeactivateInfusion();
+        UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Suppressed - action is immune to infusion"));
+        return;
+    }
+
     CurrentInfusionLevel = FMath::Clamp(Level, 0, 2);
 
     // Level 0 = no infusion = no VFX. Raw is a *source* choice paying HP cost
@@ -118,9 +126,33 @@ void UInfusionVFXComponent::CycleInfusionLevel()
     SetInfusionLevel(NextLevel);
 }
 
+void UInfusionVFXComponent::SetImmuneToInfusion(bool bImmune)
+{
+    if (bSuppressForImmuneAction == bImmune)
+    {
+        return;
+    }
+
+    bSuppressForImmuneAction = bImmune;
+
+    if (bImmune && bIsInfusionActive)
+    {
+        DeactivateInfusion();
+    }
+
+    UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Immunity flag set: %s"),
+           bImmune ? TEXT("true") : TEXT("false"));
+}
+
 // ==================== PUBLIC API ====================
 void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
 {
+    if (bSuppressForImmuneAction)
+    {
+        DeactivateInfusion();
+        return;
+    }
+
     // None = no infusion VFX
     if (Source == EInfusionSourceOption::None)
     {
@@ -491,6 +523,12 @@ void UInfusionVFXComponent::CycleToNextSource()
 
 void UInfusionVFXComponent::ActivateCurrentSource()
 {
+    if (bSuppressForImmuneAction)
+    {
+        DeactivateInfusion();
+        return;
+    }
+
     if (CachedSources.Num() == 0)
     {
         CacheAvailableSources();

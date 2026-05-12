@@ -18,6 +18,26 @@
 #include "InfusionVFXComponent.h"
 #include "Engine/GameInstance.h"
 
+namespace
+{
+    bool ResolveImmuneFlag(UObject *ActionData)
+    {
+        if (const USpellData *Spell = Cast<USpellData>(ActionData))
+        {
+            return Spell->bImmuneToInfusion;
+        }
+        if (const UAbilityData *Ability = Cast<UAbilityData>(ActionData))
+        {
+            return Ability->bImmuneToInfusion;
+        }
+        if (const UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ActionData))
+        {
+            return Attack->bImmuneToInfusion;
+        }
+        return false;
+    }
+}
+
 // ==================== LIFECYCLE ====================
 
 void UCombatCommandMenuSubsystem::Initialize(FSubsystemCollectionBase &Collection)
@@ -313,6 +333,7 @@ void UCombatCommandMenuSubsystem::HandleBack()
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
             VFX->SetInfusionLevel(0);
+            VFX->SetImmuneToInfusion(false);
         }
 
         // Cancel pending action
@@ -757,6 +778,13 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     const FPieMenuButtonData &ActionButton,
     ETargetType TargetType)
 {
+    // Reset immunity on every entry — guarantees a clean VFX state regardless
+    // of how the previous interaction exited (back, commit, combat end, death).
+    if (UInfusionVFXComponent *EntryVFX = GetInfusionVFXComponent())
+    {
+        EntryVFX->SetImmuneToInfusion(false);
+    }
+
     // Stash the pending action
     PendingActionCategory = ActionCategory;
     PendingActionID = ActionButton.ButtonID;
@@ -781,6 +809,9 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
+            const bool bImmune = ResolveImmuneFlag(PendingActionData.Get());
+            VFX->SetImmuneToInfusion(bImmune);
+
             VFX->CacheAvailableSources(); // refresh available sources
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
 
@@ -1426,6 +1457,11 @@ void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] SubmitConfirmedAction: no orchestrator bound"));
         return;
+    }
+
+    if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+    {
+        VFX->SetImmuneToInfusion(false);
     }
 
     Orchestrator->SubmitActionAsync(Action);
