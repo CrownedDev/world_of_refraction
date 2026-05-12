@@ -20,6 +20,7 @@
 #include "RingData.h"
 #include "ItemData.h"
 #include "CrystalManager.h"
+#include "FCrystalInventoryEntry.h"
 #include "DurabilityConstants.h"
 #include "ItemEffectType.h"
 #include "CombatCameraManager.h"
@@ -1165,7 +1166,15 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
 				UItemData *Crystal = Slot.Crystal;
-				if (!Crystal || !Crystal->IsBroken() || Crystal->bImmuneToBreaking)
+				if (!Crystal)
+				{
+					continue;
+				}
+
+				// Resolve per-instance entry; Entry->IsBroken() filters refined +
+				// non-immune + durability <= 0, matching the old triple-check.
+				FCrystalInventoryEntry *Entry = LoadoutComp->FindCrystalEntryByHolder(Slot.Holder);
+				if (!Entry || !Entry->IsBroken())
 				{
 					continue;
 				}

@@ -66,7 +66,7 @@ bool FCrystalInventoryEntry::CanHaveSpells() const
 
 bool FCrystalInventoryEntry::CanProvideSpells() const
 {
-    return Crystal && Crystal->CanHaveSpells() && !Crystal->IsBroken();
+    return Crystal && Crystal->CanHaveSpells() && !IsBroken();
 }
 
 bool FCrystalInventoryEntry::IsRefined() const

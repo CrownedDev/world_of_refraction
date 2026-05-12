@@ -86,8 +86,8 @@ bool URingManager::SwitchToNextRing(AActor *Actor)
 		const int32 CheckIndex = (StartIndex + i) % RingCount;
 		const FRingLoadoutEntry &Entry = Loadout.RingLoadout[CheckIndex];
 
-		URingData *Ring = Entry.RingEntry.Ring;
-		if (Ring && Ring->SlottedCrystal && !Ring->SlottedCrystal->IsBroken())
+		const FCrystalInventoryEntry &CrystalEntry = Entry.RingEntry.AttachedCrystal;
+		if (CrystalEntry.Crystal && !CrystalEntry.IsBroken())
 		{
 			LoadoutComp->SetActiveRingIndex(CheckIndex);
 			return true;

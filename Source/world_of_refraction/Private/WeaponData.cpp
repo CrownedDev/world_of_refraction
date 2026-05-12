@@ -44,7 +44,12 @@ FString UWeaponData::GetWeaponTypeName() const
 
 ESpellElement UWeaponData::GetWeaponElement() const
 {
-    // No crystal or crystal broken = no element
+    // No crystal or crystal broken = no element.
+    // TODO(Phase B commit 5): the SlottedCrystal->IsBroken() check is stale
+    // post-commit-2 — asset-side CurrentDurability is no longer written.
+    // Callers pre-filter broken crystals via FCrystalInventoryEntry::CanProvideSpells
+    // before reaching this path, so the dead check is invariant-protected.
+    // Remove this check when UItemData::IsBroken / CurrentDurability are deleted.
     if (!SlottedCrystal || SlottedCrystal->IsBroken())
     {
         return ESpellElement::Generic;

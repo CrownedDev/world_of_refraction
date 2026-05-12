@@ -134,15 +134,8 @@ int32 UCrystalManager::ProcessPostCastWear(
         return 0;
     }
 
-    if (Crystal->IsBroken())
-    {
-        // Commit-time gate should have excluded this from infusion options.
-        // Defensive: don't double-process.
-        UE_LOG(LogTemp, Warning,
-               TEXT("[CrystalManager] ProcessPostCastWear called on already-broken crystal '%s' for %s"),
-               *Crystal->GetFullItemName(), *Actor->GetName());
-        return 0;
-    }
+    // Defensive broken-check moved post-entry-resolution below — the entry
+    // (not the asset) is the per-instance source of truth post-Phase-B 2/5.
 
     const int32 Wear = UBreakCalculator::CalculateDurabilityWear(
         Crystal->Tier,
@@ -182,6 +175,16 @@ int32 UCrystalManager::ProcessPostCastWear(
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[CrystalManager] ProcessPostCastWear: could not resolve crystal entry for %s on %s"),
+               *Crystal->GetFullItemName(), *Actor->GetName());
+        return 0;
+    }
+
+    // Defensive: don't double-process an already-broken entry. Commit-time
+    // gate should have excluded broken crystals from infusion options.
+    if (Entry->IsBroken())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[CrystalManager] ProcessPostCastWear called on already-broken crystal '%s' for %s"),
                *Crystal->GetFullItemName(), *Actor->GetName());
         return 0;
     }

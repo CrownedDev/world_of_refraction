@@ -7,7 +7,7 @@
 
 ESpellElement FRingInventoryEntry::GetElement() const
 {
-    if (HasCrystal() && !AttachedCrystal.Crystal->IsBroken())
+    if (HasCrystal() && !AttachedCrystal.IsBroken())
     {
         return AttachedCrystal.GetElement();
     }
