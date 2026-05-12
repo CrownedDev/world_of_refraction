@@ -18,7 +18,6 @@ void UWeaponManager::Initialize(FSubsystemCollectionBase &Collection)
 
 void UWeaponManager::Deinitialize()
 {
-	WeaponStates.Empty();
 	Super::Deinitialize();
 }
 
@@ -31,58 +30,17 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 	if (!Actor)
 		return;
 
-	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-	UCharacterData *CharData = GetCharacterData(Actor);
-
-	if (!LoadoutComp && !CharData)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Cannot initialize - no LoadoutComponent or CharacterData for %s"),
-			   *Actor->GetName());
-		return;
-	}
-
-	FWeaponState State;
-
-	// Determine initial state from LoadoutComponent or CharacterData
-	bool bIsGeneric = CharData ? CharData->IsGeneric() : (LoadoutComp && LoadoutComp->CharacterClass == ECharacterClass::Generic);
-
-	if (bIsGeneric)
-	{
-		// Generic: bShowPrimary is the gameplay toggle between equipped weapons.
-		bool bShowPrimary = LoadoutComp ? LoadoutComp->IsShowingPrimary() : true;
-		State.ActiveSlot = bShowPrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
-	}
-	else
-	{
-		// Caster/Resonator: combat layer ignores bShowPrimary. Active iff primary weapon slotted.
-		State.ActiveSlot = (LoadoutComp && LoadoutComp->GetPrimaryWeapon())
-			? EWeaponSlot::Primary
-			: EWeaponSlot::Unarmed;
-	}
-
-	WeaponStates.Add(Actor, State);
-
-	// Subscribe to OnCrystalBroken for every slotted crystal on the actor's weapons
 	SubscribeToActorWeaponCrystals(Actor);
 
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Initialized weapon state for %s: Slot=%d"),
-		   *Actor->GetName(), static_cast<int32>(State.ActiveSlot));
+	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Registered crystal subscriptions for %s"),
+		   *Actor->GetName());
 }
 
 void UWeaponManager::ClearWeaponState(AActor *Actor)
 {
-	// Unsubscribe BEFORE removing state so the helper can iterate the loadout
 	UnsubscribeFromActorWeaponCrystals(Actor);
-
-	WeaponStates.Remove(Actor);
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Cleared weapon state for %s"),
+	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Cleared crystal subscriptions for %s"),
 		   Actor ? *Actor->GetName() : TEXT("Unknown"));
-}
-
-FWeaponState UWeaponManager::GetWeaponState(AActor *Actor) const
-{
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	return State ? *State : FWeaponState();
 }
 
 UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
@@ -103,118 +61,6 @@ UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 	}
 	return nullptr;
 }
-
-TArray<UAbilityData *> UWeaponManager::GetActiveAbilities(AActor *Actor) const
-{
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
-	{
-		return TArray<UAbilityData *>();
-	}
-
-	UWeaponData *Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
-	if (Weapon)
-	{
-		return Weapon->PresetAbilities;
-	}
-
-	return TArray<UAbilityData *>();
-}
-
-// ========================================
-// WEAPON SWITCHING
-// ========================================
-
-bool UWeaponManager::SwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot)
-{
-	if (!CanSwitchWeapon(Actor, TargetSlot))
-	{
-		return false;
-	}
-
-	FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] No weapon state for %s"),
-			   *Actor->GetName());
-		return false;
-	}
-
-	EWeaponSlot OldSlot = State->ActiveSlot;
-	State->ActiveSlot = TargetSlot;
-
-	OnWeaponSwitched.Broadcast(Actor, OldSlot, TargetSlot);
-
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s switched from %d to %d"),
-		   *Actor->GetName(), static_cast<int32>(OldSlot), static_cast<int32>(TargetSlot));
-
-	return true;
-}
-
-bool UWeaponManager::CanSwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot) const
-{
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
-		return false;
-
-	// Can't switch while conjured (must dispel first)
-	if (State->ActiveSlot == EWeaponSlot::Conjured)
-	{
-		return false;
-	}
-
-	// Conjured slot is reserved enum-side; no caller can switch into it
-	// directly (the conjuration runtime was removed in WeaponManager teardown).
-	if (TargetSlot == EWeaponSlot::Conjured)
-	{
-		return false;
-	}
-
-	// Already in target slot
-	if (State->ActiveSlot == TargetSlot)
-	{
-		return false;
-	}
-
-	TArray<EWeaponSlot> Available = GetAvailableSlots(Actor);
-	return Available.Contains(TargetSlot);
-}
-
-TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor *Actor) const
-{
-	TArray<EWeaponSlot> Slots;
-
-	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-	UCharacterData *CharData = GetCharacterData(Actor);
-
-	if (!LoadoutComp && !CharData)
-		return Slots;
-
-	Slots.Add(EWeaponSlot::Unarmed);
-
-	// Check primary weapon availability
-	if (LoadoutComp)
-	{
-		if (LoadoutComp->GetPrimaryWeapon())
-			Slots.Add(EWeaponSlot::Primary);
-
-		if (LoadoutComp->GetSecondaryWeapon())
-			Slots.Add(EWeaponSlot::Secondary);
-	}
-
-	return Slots;
-}
-
-// ========================================
-// ATTACK EXECUTION
-// ========================================
-// UWeaponManager::ExecuteAttack and ExecuteAttackWithInfusion deleted in C2.
-// Their only in-source caller (UActionExecutor::ExecuteAttack's nullptr-fallback
-// branch) was unreachable in production — fallback never fired in any
-// orchestrator, AI, or input flow. BP audit confirmed zero Blueprint references
-// for both functions before deletion. The async attack path
-// (ExecuteAttackAsync -> OpenDefenseWindowsForTargets -> ApplyDamageAfterDefense
-// -> ApplyHit) handles all production weapon attacks.
 
 // ========================================
 // HELPERS
@@ -237,108 +83,6 @@ ULoadoutComponent *UWeaponManager::GetLoadoutComponent(AActor *Actor) const
 	if (!Actor)
 		return nullptr;
 	return Actor->FindComponentByClass<ULoadoutComponent>();
-}
-
-UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const
-{
-	switch (Slot)
-	{
-	case EWeaponSlot::Unarmed:
-		return nullptr;
-
-	case EWeaponSlot::Primary:
-	{
-		ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-		if (LoadoutComp)
-		{
-			return LoadoutComp->GetPrimaryWeapon();
-		}
-		return nullptr;
-	}
-
-	case EWeaponSlot::Secondary:
-	{
-		ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-		if (LoadoutComp)
-		{
-			return LoadoutComp->GetSecondaryWeapon();
-		}
-		return nullptr;
-	}
-
-	case EWeaponSlot::Conjured:
-	default:
-		return nullptr;
-	}
-}
-
-// ========================================
-// DEBUG
-// ========================================
-
-void UWeaponManager::DebugPrintWeaponStates() const
-{
-	UE_LOG(LogTemp, Display, TEXT("=== WEAPON STATES ==="));
-
-	for (const auto &Pair : WeaponStates)
-	{
-		AActor *Actor = Pair.Key.Get();
-		const FWeaponState &State = Pair.Value;
-
-		UE_LOG(LogTemp, Display, TEXT("Actor: %s"),
-			   Actor ? *Actor->GetName() : TEXT("Invalid"));
-		UE_LOG(LogTemp, Display, TEXT("  Slot: %d"),
-			   static_cast<int32>(State.ActiveSlot));
-	}
-
-	UE_LOG(LogTemp, Display, TEXT("====================="));
-}
-
-void UWeaponManager::DebugPrintActorWeaponState(AActor *Actor) const
-{
-	if (!Actor)
-	{
-		UE_LOG(LogTemp, Display, TEXT("Invalid actor"));
-		return;
-	}
-
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
-	{
-		UE_LOG(LogTemp, Display, TEXT("No weapon state for %s"), *Actor->GetName());
-		return;
-	}
-
-	UE_LOG(LogTemp, Display, TEXT("=== WEAPON STATE: %s ==="), *Actor->GetName());
-	UE_LOG(LogTemp, Display, TEXT("Active Slot: %d"), static_cast<int32>(State->ActiveSlot));
-
-	UWeaponData *ActiveWeapon = GetActiveWeapon(Actor);
-	if (ActiveWeapon)
-	{
-		UE_LOG(LogTemp, Display, TEXT("Active Weapon: %s"), *ActiveWeapon->WeaponName);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Display, TEXT("Active Weapon: Unarmed"));
-	}
-
-	UWeaponAttackData *Attack = GetActiveAttack(Actor);
-	if (Attack)
-	{
-		UE_LOG(LogTemp, Display, TEXT("Active Attack: %s"), *Attack->AttackName);
-	}
-
-	TArray<UAbilityData *> Abilities = GetActiveAbilities(Actor);
-	UE_LOG(LogTemp, Display, TEXT("Active Abilities: %d"), Abilities.Num());
-	for (UAbilityData *Ability : Abilities)
-	{
-		if (Ability)
-		{
-			UE_LOG(LogTemp, Display, TEXT("  - %s"), *Ability->AbilityName);
-		}
-	}
-
-	UE_LOG(LogTemp, Display, TEXT("================================"));
 }
 
 // ============================================================

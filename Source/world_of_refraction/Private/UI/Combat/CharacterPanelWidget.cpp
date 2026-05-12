@@ -7,7 +7,6 @@
 #include "StatusBuildupManager.h"
 #include "StatusEffect.h"
 #include "BrokenDarknessManager.h"
-#include "WeaponManager.h"
 #include "ElementColors.h"
 #include "HybridSpellColors.h"
 #include "Components/ProgressBar.h"
@@ -88,21 +87,9 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		BDManager->OnOverloadStateChanged.AddDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
 	}
 
-	// Weapon manager — used to refresh EP-bar visibility on weapon swap.
-	// Bound for all characters; the handler is a no-op for non-Resonators
-	// since their EP-bar visibility doesn't depend on weapon state.
-	if (UGameInstance *GI = GetGameInstance())
-	{
-		if (UWeaponManager *WeaponMgr = GI->GetSubsystem<UWeaponManager>())
-		{
-			BoundWeaponManager = WeaponMgr;
-			WeaponMgr->OnWeaponSwitched.AddDynamic(this, &UCharacterPanelWidget::HandleWeaponSwitched);
-		}
-	}
-
 	// Resonator EP-bar visibility: hidden when unarmed (pool is dormant),
-	// visible when armed. Re-evaluated on every weapon switch via
-	// HandleWeaponSwitched. Centralised in RefreshEPBarVisibility.
+	// visible when armed. Initial evaluation only — runtime weapon-swap
+	// refresh is not currently wired.
 	RefreshEPBarVisibility();
 
 	bBound = true;
@@ -157,16 +144,10 @@ void UCharacterPanelWidget::TeardownPanel()
 		BDManager->OnOverloadStateChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
 	}
 
-	if (UWeaponManager *WeaponMgr = BoundWeaponManager.Get())
-	{
-		WeaponMgr->OnWeaponSwitched.RemoveDynamic(this, &UCharacterPanelWidget::HandleWeaponSwitched);
-	}
-
 	BoundActor.Reset();
 	BoundCharData.Reset();
 	BoundStatusManager.Reset();
 	BoundBDManager.Reset();
-	BoundWeaponManager.Reset();
 	bBound = false;
 }
 
@@ -236,19 +217,6 @@ void UCharacterPanelWidget::HandleBDOverloadStateChanged(AActor *Actor, bool bIs
 	if (Actor != BoundActor.Get())
 		return;
 	RefreshEnergyBar();
-}
-
-void UCharacterPanelWidget::HandleWeaponSwitched(AActor *Actor, EWeaponSlot OldSlot, EWeaponSlot NewSlot)
-{
-	if (Actor != BoundActor.Get())
-		return;
-
-	// Weapon state changed for this character — Resonator EP-bar visibility
-	// depends on whether they're armed. Re-evaluate. Also refresh the bar
-	// value/tint in case the bar just became visible or changed source.
-	RefreshEPBarVisibility();
-	RefreshEnergyBar();
-	ApplyEnergyBarTint();
 }
 
 void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement)
