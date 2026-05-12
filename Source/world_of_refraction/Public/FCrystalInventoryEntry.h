@@ -52,6 +52,29 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     /** Create entry from crystal */
     static FCrystalInventoryEntry CreateFromCrystal(UItemData *InCrystal);
 
+    // ==================== DURABILITY ====================
+
+    /** True if this crystal instance is broken. Replicates UItemData::IsBroken
+     *  semantics: requires the asset to be refined and not immune, plus
+     *  per-instance CurrentDurability <= 0. */
+    bool IsBroken() const;
+
+    /** Apply wear to this crystal instance. Reduces CurrentDurability by
+     *  Amount, clamped to zero. Returns true if this wear broke the crystal
+     *  (durability transitioned from non-zero to zero this call). Caller
+     *  (UCrystalManager) uses the return value to broadcast the unified
+     *  OnCrystalBroken event.
+     *
+     *  Does NOT broadcast any delegate itself — the entry is data, not events.
+     *  Does NOT check bImmuneToBreaking or bIsRefined — caller filters those. */
+    bool ApplyWear(int32 Amount);
+
+    /** Repair this crystal between combats. Increases CurrentDurability by
+     *  Amount, clamped to Crystal->MaxDurability. No-op if Crystal is null
+     *  or Amount <= 0. Returns the actual amount repaired (may be less than
+     *  Amount if clamped). */
+    int32 RepairBetweenCombats(int32 Amount);
+
     // ==================== VALIDATION ====================
 
     /** Check if entry has a valid crystal */

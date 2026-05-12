@@ -18,6 +18,40 @@ FCrystalInventoryEntry FCrystalInventoryEntry::CreateFromCrystal(UItemData *InCr
     return Entry;
 }
 
+// ==================== DURABILITY ====================
+
+bool FCrystalInventoryEntry::IsBroken() const
+{
+    return Crystal && Crystal->bIsRefined && !Crystal->bImmuneToBreaking && CurrentDurability <= 0;
+}
+
+bool FCrystalInventoryEntry::ApplyWear(int32 Amount)
+{
+    if (Amount <= 0 || CurrentDurability <= 0)
+    {
+        return false;
+    }
+
+    const int32 Before = CurrentDurability;
+    CurrentDurability = FMath::Max(0, CurrentDurability - Amount);
+
+    return Before > 0 && CurrentDurability == 0;
+}
+
+int32 FCrystalInventoryEntry::RepairBetweenCombats(int32 Amount)
+{
+    if (!Crystal || Amount <= 0)
+    {
+        return 0;
+    }
+
+    const int32 MaxDur = Crystal->MaxDurability;
+    const int32 Before = CurrentDurability;
+    CurrentDurability = FMath::Min(MaxDur, CurrentDurability + Amount);
+
+    return CurrentDurability - Before;
+}
+
 // ==================== VALIDATION ====================
 
 bool FCrystalInventoryEntry::GrantsEvolution() const

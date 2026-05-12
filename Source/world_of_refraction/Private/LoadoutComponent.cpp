@@ -1635,6 +1635,51 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     return Entry.IsValid() ? &Entry : nullptr;
 }
 
+FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolder(UObject *Holder)
+{
+    if (!Holder || !SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+
+    // Weapon holder — match by Weapon pointer across primary/secondary slots,
+    // regardless of PrimarySlotType. A holder lookup is by identity, not slot.
+    if (UWeaponData *Weapon = Cast<UWeaponData>(Holder))
+    {
+        if (Loadout.PrimaryWeapon.WeaponEntry.Weapon == Weapon)
+        {
+            return &Loadout.PrimaryWeapon.WeaponEntry.AttachedCrystal;
+        }
+        if (Loadout.SecondaryWeapon.WeaponEntry.Weapon == Weapon)
+        {
+            return &Loadout.SecondaryWeapon.WeaponEntry.AttachedCrystal;
+        }
+        return nullptr;
+    }
+
+    // Ring holder — primary ring slot (Generic/Caster), then Resonator
+    // RingLoadout array.
+    if (URingData *Ring = Cast<URingData>(Holder))
+    {
+        if (Loadout.PrimaryRing.RingEntry.Ring == Ring)
+        {
+            return &Loadout.PrimaryRing.RingEntry.AttachedCrystal;
+        }
+        for (FRingLoadoutEntry &Entry : Loadout.RingLoadout)
+        {
+            if (Entry.RingEntry.Ring == Ring)
+            {
+                return &Entry.RingEntry.AttachedCrystal;
+            }
+        }
+        return nullptr;
+    }
+
+    return nullptr;
+}
+
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
     if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))

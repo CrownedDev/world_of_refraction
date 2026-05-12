@@ -27,6 +27,7 @@ class URingData;
 class UItemData;
 struct FWeaponLoadoutEntry;
 struct FRingLoadoutEntry;
+struct FCrystalInventoryEntry;
 class UStanceData;
 class UWeaponAttackData;
 class UAnimMontage;
@@ -378,6 +379,15 @@ public:
 
     /** Get active ring loadout entry (Resonator) */
     const FRingLoadoutEntry *GetActiveRingLoadout() const;
+
+    /** Find the per-instance crystal entry matching the given holder asset.
+     *  Searches primary/secondary weapon entries, primary ring entry, and
+     *  the Resonator RingLoadout array. Returns nullptr if no match.
+     *
+     *  Mutable: callers mutate the entry's per-instance state (durability,
+     *  InstanceID, etc.). Single resolution point — used by UCrystalManager
+     *  for wear/repair/break writes. */
+    FCrystalInventoryEntry *FindCrystalEntryByHolder(UObject *Holder);
 
     // ==================== POST-BATTLE ====================
 

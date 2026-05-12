@@ -3,6 +3,7 @@
 
 #include "ItemData.h"
 #include "LoadoutComponent.h"
+#include "FCrystalInventoryEntry.h"
 #include "BreakCalculator.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
@@ -172,21 +173,46 @@ int32 UCrystalManager::ProcessPostCastWear(
         }
     }
 
+    // Resolve the per-instance entry from the holder. The Crystal* parameter is
+    // the template (UItemData); the FCrystalInventoryEntry is the per-instance
+    // state we want to mutate. Phase B 2/5 routes all wear through the entry.
+    ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
+    FCrystalInventoryEntry *Entry = LoadoutComp ? LoadoutComp->FindCrystalEntryByHolder(Holder) : nullptr;
+    if (!Entry)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[CrystalManager] ProcessPostCastWear: could not resolve crystal entry for %s on %s"),
+               *Crystal->GetFullItemName(), *Actor->GetName());
+        return 0;
+    }
+
+    const bool bBroke = Entry->ApplyWear(Wear);
+
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d wear to crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
            *Actor->GetName(), Wear,
            *Crystal->GetFullItemName(),
-           Crystal->CurrentDurability, Crystal->MaxDurability,
+           Entry->CurrentDurability, Crystal->MaxDurability,
            static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
-    Crystal->ApplyWear(Wear);
-    // ApplyWear fires UItemData::OnCrystalBroken if durability hits 0.
-    // Subscription pipeline (Commit 4) will register UCrystalManager as a
-    // listener and rebroadcast as unified OnCrystalBroken.
+    // Broadcast post-wear durability for real-time UI updates.
+    OnCrystalDurabilityChanged.Broadcast(Actor, Holder, Entry->CurrentDurability, Crystal->MaxDurability);
 
-    // Broadcast durability change for real-time UI updates. Fires whether
-    // the crystal survived or just broke — UI updates either way.
-    OnCrystalDurabilityChanged.Broadcast(Actor, Holder, Crystal->CurrentDurability, Crystal->MaxDurability);
+    // If the wear broke the crystal, broadcast unified OnCrystalBroken directly.
+    // The asset-side Crystal->ApplyWear path (and its UItemData::OnCrystalBroken
+    // delegate, plus the RegisterCombatant subscription that listens for it)
+    // is no longer invoked. Both delegate and subscription become dead-code
+    // after this commit and are removed in commit 5.
+    if (bBroke)
+    {
+        UE_LOG(LogTemp, Log,
+               TEXT("[CrystalManager] Crystal '%s' broke on %s (holder: %s)"),
+               *Crystal->GetFullItemName(),
+               *Actor->GetName(),
+               Holder ? *Holder->GetName() : TEXT("Unknown"));
+
+        OnCrystalBroken.Broadcast(Actor, Holder, Crystal);
+    }
 
     return Wear;
 }
