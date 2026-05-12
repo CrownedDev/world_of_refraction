@@ -17,7 +17,6 @@
 #include "StanceData.h"
 
 #include "WeaponAttackData.h"
-#include "UObject/UObjectIterator.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {
@@ -1730,59 +1729,4 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
         return CharComp->CharacterData;
     }
     return nullptr;
-}
-
-// ========================================
-// STATIC HELPERS
-// ========================================
-
-bool ULoadoutComponent::FindOwnerOfWeaponCrystal(
-    UItemData *Crystal,
-    AActor *&OutActor,
-    UWeaponData *&OutWeapon)
-{
-    OutActor = nullptr;
-    OutWeapon = nullptr;
-
-    if (!Crystal)
-    {
-        return false;
-    }
-
-    for (TObjectIterator<ULoadoutComponent> It; It; ++It)
-    {
-        ULoadoutComponent *Loadout = *It;
-        if (!Loadout || !IsValid(Loadout))
-        {
-            continue;
-        }
-
-        AActor *Owner = Loadout->GetOwner();
-        if (!Owner)
-        {
-            continue;
-        }
-
-        auto CheckWeapon = [&](UWeaponData *Weapon) -> bool
-        {
-            if (Weapon && Weapon->SlottedCrystal == Crystal)
-            {
-                OutActor = Owner;
-                OutWeapon = Weapon;
-                return true;
-            }
-            return false;
-        };
-
-        if (CheckWeapon(Loadout->GetPrimaryWeapon()))
-        {
-            return true;
-        }
-        if (CheckWeapon(Loadout->GetSecondaryWeapon()))
-        {
-            return true;
-        }
-    }
-
-    return false;
 }

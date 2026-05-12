@@ -12,15 +12,13 @@
 
 class UWeaponData;
 class UWeaponAttackData;
-class UCharacterDataComponent;
-class UCharacterData;
 class ULoadoutComponent;
 
 /**
  * UWeaponManager
  *
  * Thin façade over LoadoutComponent for weapon-side queries, plus the
- * weapon-crystal durability/break pipeline.
+ * weapon-crystal durability wear path.
  *
  * Usage:
  *   UWeaponManager* WeaponMgr = GetGameInstance()->GetSubsystem<UWeaponManager>();
@@ -37,20 +35,8 @@ public:
 	virtual void Deinitialize() override;
 
 	// ========================================
-	// STATE MANAGEMENT
+	// QUERIES
 	// ========================================
-
-	/** Register an actor with the weapon-crystal subscription pipeline.
-	 *  Called at combat start. Body delegates to
-	 *  SubscribeToActorWeaponCrystals — no longer maintains per-actor state. */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
-	void InitializeWeaponState(AActor *Actor);
-
-	/** Unregister an actor from the weapon-crystal subscription pipeline.
-	 *  Called at combat end. Body delegates to
-	 *  UnsubscribeFromActorWeaponCrystals. */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager")
-	void ClearWeaponState(AActor *Actor);
 
 	/**
 	 * Get currently active weapon (or nullptr if unarmed)
@@ -71,9 +57,7 @@ public:
 	// ========================================
 
 	/** Apply wear to the slotted crystal of the active weapon after an action.
-	 *  Returns the wear amount applied. If wear breaks the crystal, fires
-	 *  OnCrystalBroken (handled internally — weapon stays equipped, downgrades
-	 *  to physical-only via WeaponData::GetWeaponElement returning Generic).
+	 *  Returns the wear amount applied.
 	 *
 	 *  Generic signature taking EItemTier directly so it works for spells,
 	 *  abilities, and attacks (vs RingManager which is spell-only and reads
@@ -91,38 +75,15 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnWeaponDurabilityChanged, AActor *, Actor, UWeaponData *, Weapon, int32, NewDurability, int32, MaxDurability);
 
 	/** Fires every time a weapon crystal's durability changes (per-cast wear).
-	 *  Use this for real-time UI updates of the weapon durability bar.
-	 *  Differs from OnWeaponCrystalBroken which fires once at zero. */
+	 *  Use this for real-time UI updates of the weapon durability bar. */
 	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
 	FOnWeaponDurabilityChanged OnWeaponDurabilityChanged;
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponCrystalBroken, AActor *, Actor, UWeaponData *, Weapon, UItemData *, Crystal);
-
-	/** Fires when a weapon's slotted crystal hits 0 durability and breaks.
-	 *  No auto-switch — weapon stays equipped, just loses crystal-derived effects. */
-	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
-	FOnWeaponCrystalBroken OnWeaponCrystalBroken;
 
 private:
 	// ========================================
 	// HELPERS
 	// ========================================
 
-	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
 	/** Get LoadoutComponent from actor */
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
-	UCharacterData *GetCharacterData(AActor *Actor) const;
-
-	// ==================== CRYSTAL SUBSCRIPTIONS (Phase 4d) ====================
-
-	/** Subscribe to OnCrystalBroken for every slotted crystal of an actor's weapons.
-	 *  Iterates Primary and Secondary weapons in the actor's loadout. */
-	void SubscribeToActorWeaponCrystals(AActor *Actor);
-
-	/** Unsubscribe from OnCrystalBroken for every slotted crystal of an actor's weapons. */
-	void UnsubscribeFromActorWeaponCrystals(AActor *Actor);
-
-	/** Handler bound to UItemData::OnCrystalBroken delegate for weapon crystals. */
-	UFUNCTION()
-	void HandleWeaponCrystalBroken(UItemData *BrokenCrystal);
 };

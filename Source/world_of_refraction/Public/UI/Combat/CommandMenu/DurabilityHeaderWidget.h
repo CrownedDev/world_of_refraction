@@ -102,9 +102,5 @@ private:
 	UFUNCTION()
 	void HandleWeaponDurabilityChanged(AActor *Actor, UWeaponData *Weapon, int32 NewDurability, int32 MaxDurability);
 
-	/** Delegate handler for OnWeaponCrystalBroken (re-read after break) */
-	UFUNCTION()
-	void HandleWeaponCrystalBroken(AActor *Actor, UWeaponData *Weapon, UItemData *Crystal);
-
 	bool bIsBound = false;
 };

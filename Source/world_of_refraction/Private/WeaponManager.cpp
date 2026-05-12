@@ -2,8 +2,6 @@
 
 #include "WeaponManager.h"
 #include "WeaponData.h"
-#include "WeaponAttackData.h"
-#include "AbilityData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "LoadoutComponent.h"
@@ -22,31 +20,12 @@ void UWeaponManager::Deinitialize()
 }
 
 // ========================================
-// STATE MANAGEMENT
+// QUERIES
 // ========================================
-
-void UWeaponManager::InitializeWeaponState(AActor *Actor)
-{
-	if (!Actor)
-		return;
-
-	SubscribeToActorWeaponCrystals(Actor);
-
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Registered crystal subscriptions for %s"),
-		   *Actor->GetName());
-}
-
-void UWeaponManager::ClearWeaponState(AActor *Actor)
-{
-	UnsubscribeFromActorWeaponCrystals(Actor);
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] Cleared crystal subscriptions for %s"),
-		   Actor ? *Actor->GetName() : TEXT("Unknown"));
-}
 
 UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 {
-	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-	if (LoadoutComp)
+	if (ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor))
 	{
 		return LoadoutComp->GetActiveWeapon();
 	}
@@ -66,18 +45,6 @@ UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 // HELPERS
 // ========================================
 
-UCharacterDataComponent *UWeaponManager::GetCharacterDataComponent(AActor *Actor) const
-{
-	if (!Actor)
-		return nullptr;
-	return Actor->FindComponentByClass<UCharacterDataComponent>();
-}
-
-UCharacterData *UWeaponManager::GetCharacterData(AActor *Actor) const
-{
-	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
-	return Comp ? Comp->CharacterData : nullptr;
-}
 ULoadoutComponent *UWeaponManager::GetLoadoutComponent(AActor *Actor) const
 {
 	if (!Actor)
@@ -157,7 +124,10 @@ int32 UWeaponManager::ProcessPostCastWear(AActor *Actor, EItemTier ActionTier, i
 		   static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
 	Crystal->ApplyWear(Wear);
-	// Note: ApplyWear fires OnCrystalBroken if it hits 0; we handle that in HandleWeaponCrystalBroken
+	// Crystal->ApplyWear fires UItemData::OnCrystalBroken if durability hits 0.
+	// UWeaponManager no longer subscribes to that event — broken weapon crystals
+	// downgrade lazily via UWeaponData::GetWeaponElement returning Generic when
+	// IsBroken(). URingManager still subscribes for ring-side auto-switch.
 
 	// Broadcast post-wear durability for real-time UI updates. Fires whether
 	// the crystal survived or just broke — UI updates either way.
@@ -165,127 +135,3 @@ int32 UWeaponManager::ProcessPostCastWear(AActor *Actor, EItemTier ActionTier, i
 
 	return Wear;
 }
-
-// ============================================================
-// CRYSTAL SUBSCRIPTION & BREAK HANDLING
-// ============================================================
-
-void UWeaponManager::SubscribeToActorWeaponCrystals(AActor *Actor)
-{
-	if (!Actor)
-	{
-		return;
-	}
-
-	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-	if (!LoadoutComp)
-	{
-		return;
-	}
-
-	// Iterate every weapon in the loadout — subscribe to crystals on each.
-	// Currently uses UWeaponData::SlottedCrystal (asset-side); see TODO note in header.
-	auto SubscribeToWeapon = [this](UWeaponData *Weapon)
-	{
-		if (!Weapon || !Weapon->SlottedCrystal)
-		{
-			return;
-		}
-
-		UItemData *Crystal = Weapon->SlottedCrystal;
-		if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking)
-		{
-			return;
-		}
-
-		if (!Crystal->OnCrystalBroken.IsAlreadyBound(this, &UWeaponManager::HandleWeaponCrystalBroken))
-		{
-			Crystal->OnCrystalBroken.AddDynamic(this, &UWeaponManager::HandleWeaponCrystalBroken);
-		}
-	};
-
-	// Primary, Secondary, and conjured weapons all need monitoring.
-	// LoadoutComponent's accessors are the source of truth.
-	if (UWeaponData *Primary = LoadoutComp->GetPrimaryWeapon())
-	{
-		SubscribeToWeapon(Primary);
-	}
-	if (UWeaponData *Secondary = LoadoutComp->GetSecondaryWeapon())
-	{
-		SubscribeToWeapon(Secondary);
-	}
-
-	// Conjured weapon is runtime-spawned during combat; if a Caster has one
-	// active we'd subscribe to it then. For now, conjured-time subscription
-	// is a TODO when the conjure pipeline lands.
-}
-
-void UWeaponManager::UnsubscribeFromActorWeaponCrystals(AActor *Actor)
-{
-	if (!Actor)
-	{
-		return;
-	}
-
-	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-	if (!LoadoutComp)
-	{
-		return;
-	}
-
-	auto UnsubscribeFromWeapon = [this](UWeaponData *Weapon)
-	{
-		if (!Weapon || !Weapon->SlottedCrystal)
-		{
-			return;
-		}
-
-		UItemData *Crystal = Weapon->SlottedCrystal;
-		if (Crystal->OnCrystalBroken.IsAlreadyBound(this, &UWeaponManager::HandleWeaponCrystalBroken))
-		{
-			Crystal->OnCrystalBroken.RemoveDynamic(this, &UWeaponManager::HandleWeaponCrystalBroken);
-		}
-	};
-
-	if (UWeaponData *Primary = LoadoutComp->GetPrimaryWeapon())
-	{
-		UnsubscribeFromWeapon(Primary);
-	}
-	if (UWeaponData *Secondary = LoadoutComp->GetSecondaryWeapon())
-	{
-		UnsubscribeFromWeapon(Secondary);
-	}
-
-	// Conjured: same TODO as in subscribe.
-}
-
-void UWeaponManager::HandleWeaponCrystalBroken(UItemData *BrokenCrystal)
-{
-	if (!BrokenCrystal)
-	{
-		return;
-	}
-
-	AActor *OwnerActor = nullptr;
-	UWeaponData *OwnerWeapon = nullptr;
-	if (!ULoadoutComponent::FindOwnerOfWeaponCrystal(BrokenCrystal, OwnerActor, OwnerWeapon))
-	{
-		// Crystal isn't on any weapon we're tracking — could be from a ring
-		// (which has its own handler in URingManager) or an unrelated event
-		return;
-	}
-
-	UE_LOG(LogTemp, Log,
-		   TEXT("[WeaponManager] Crystal '%s' broke on %s's weapon '%s' — weapon stays equipped, downgrades to physical"),
-		   *BrokenCrystal->GetFullItemName(),
-		   *OwnerActor->GetName(),
-		   *OwnerWeapon->WeaponName);
-
-	// Broadcast the crystal-broken event for any listener (UI, VFX, audio)
-	OnWeaponCrystalBroken.Broadcast(OwnerActor, OwnerWeapon, BrokenCrystal);
-
-	// Per locked design: NO auto-switch. Weapon stays equipped, just loses
-	// crystal-derived effects (element, Iolite enhancement, Quartz absorption).
-	// WeaponData::GetWeaponElement already returns Generic when crystal IsBroken.
-}
-

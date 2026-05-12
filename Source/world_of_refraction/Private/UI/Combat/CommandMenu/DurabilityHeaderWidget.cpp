@@ -318,7 +318,6 @@ void UDurabilityHeaderWidget::BindWeaponManager(UWeaponManager *WeaponMgr)
 
 	BoundWeaponManager = WeaponMgr;
 	WeaponMgr->OnWeaponDurabilityChanged.AddDynamic(this, &UDurabilityHeaderWidget::HandleWeaponDurabilityChanged);
-	WeaponMgr->OnWeaponCrystalBroken.AddDynamic(this, &UDurabilityHeaderWidget::HandleWeaponCrystalBroken);
 }
 
 void UDurabilityHeaderWidget::UnbindWeaponManager()
@@ -326,7 +325,6 @@ void UDurabilityHeaderWidget::UnbindWeaponManager()
 	if (UWeaponManager *WeaponMgr = BoundWeaponManager.Get())
 	{
 		WeaponMgr->OnWeaponDurabilityChanged.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleWeaponDurabilityChanged);
-		WeaponMgr->OnWeaponCrystalBroken.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleWeaponCrystalBroken);
 	}
 
 	BoundWeaponManager.Reset();
@@ -393,10 +391,3 @@ void UDurabilityHeaderWidget::HandleWeaponDurabilityChanged(AActor *Actor, UWeap
 	}
 }
 
-void UDurabilityHeaderWidget::HandleWeaponCrystalBroken(AActor *Actor, UWeaponData *Weapon, UItemData *Crystal)
-{
-	if (Actor != BoundActor.Get())
-		return;
-	// Crystal broke — weapon is no longer a resource. Re-detect everything.
-	RefreshForActor(Actor);
-}
