@@ -16,6 +16,7 @@
 #include "CombatConstants.h"
 #include "ItemExecutor.h"
 #include "WeaponManager.h"
+#include "CrystalManager.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "RingManager.h"
@@ -3934,8 +3935,26 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			break;
 		}
 
+		UItemData *WeaponCrystal = Weapon->SlottedCrystal;
+		if (!WeaponCrystal)
+		{
+			break;
+		}
+
+		UCrystalManager *CrystalMgr = GetGameInstance()
+			? GetGameInstance()->GetSubsystem<UCrystalManager>()
+			: nullptr;
+		if (!CrystalMgr)
+		{
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[ActionExecutor] %s: WeaponCrystal infusion but CrystalManager unavailable"),
+				   *Actor->GetName());
+			break;
+		}
+
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
-		WeaponMgr->ProcessPostCastWear(Actor, Weapon->Tier, Level, bIsSpell);
+		CrystalMgr->ProcessPostCastWear(
+			Actor, WeaponCrystal, Weapon, Weapon->Tier, Level, bIsSpell);
 
 		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;

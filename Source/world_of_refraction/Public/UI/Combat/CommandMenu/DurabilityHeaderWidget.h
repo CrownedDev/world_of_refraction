@@ -13,7 +13,7 @@ class UTextBlock;
 class URingManager;
 class URingData;
 class UItemData;
-class UWeaponManager;
+class UCrystalManager;
 class UWeaponData;
 
 UCLASS(Abstract)
@@ -62,8 +62,10 @@ private:
 	/** Ring manager binding for per-cast durability updates */
 	TWeakObjectPtr<URingManager> BoundRingManager;
 
-	/** Weapon manager binding for per-cast weapon durability updates */
-	TWeakObjectPtr<UWeaponManager> BoundWeaponManager;
+	/** Crystal manager binding for unified per-cast durability updates.
+	 *  Replaces the per-WeaponManager binding (Phase A commit 3). Ring
+	 *  durability still flows via URingManager until commit 4. */
+	TWeakObjectPtr<UCrystalManager> BoundCrystalManager;
 
 	/** Update slot 1 with ring durability. Called when character has a ring source. */
 	void UpdateSlot1FromRing();
@@ -86,9 +88,9 @@ private:
 	void BindRingManager(URingManager *RingMgr);
 	void UnbindRingManager();
 
-	/** Bind/unbind weapon manager delegates safely. */
-	void BindWeaponManager(UWeaponManager *WeaponMgr);
-	void UnbindWeaponManager();
+	/** Bind/unbind crystal manager delegates safely. */
+	void BindCrystalManager(UCrystalManager *CrystalMgr);
+	void UnbindCrystalManager();
 
 	/** Delegate handler for OnRingDurabilityChanged */
 	UFUNCTION()
@@ -98,9 +100,11 @@ private:
 	UFUNCTION()
 	void HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal);
 
-	/** Delegate handler for OnWeaponDurabilityChanged */
+	/** Delegate handler for UCrystalManager::OnCrystalDurabilityChanged.
+	 *  Filters Holder by Cast<UWeaponData> — ring crystals still flow via
+	 *  OnRingDurabilityChanged (URingManager) until commit 4. */
 	UFUNCTION()
-	void HandleWeaponDurabilityChanged(AActor *Actor, UWeaponData *Weapon, int32 NewDurability, int32 MaxDurability);
+	void HandleCrystalDurabilityChanged(AActor *Actor, UObject *Holder, int32 NewDurability, int32 MaxDurability);
 
 	bool bIsBound = false;
 };

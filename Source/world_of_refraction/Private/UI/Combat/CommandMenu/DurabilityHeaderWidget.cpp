@@ -8,6 +8,7 @@
 #include "CharacterData.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
+#include "CrystalManager.h"
 #include "WeaponManager.h"
 #include "WeaponData.h"
 #include "LoadoutComponent.h"
@@ -34,7 +35,7 @@ void UDurabilityHeaderWidget::NativeConstruct()
 void UDurabilityHeaderWidget::BeginDestroy()
 {
 	UnbindRingManager();
-	UnbindWeaponManager();
+	UnbindCrystalManager();
 	Super::BeginDestroy();
 }
 
@@ -51,7 +52,7 @@ void UDurabilityHeaderWidget::Hide()
 void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 {
 	UnbindRingManager();
-	UnbindWeaponManager();
+	UnbindCrystalManager();
 
 	if (!InActor)
 	{
@@ -139,9 +140,9 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 	{
 		if (UGameInstance *GI = GetGameInstance())
 		{
-			if (UWeaponManager *WM = GI->GetSubsystem<UWeaponManager>())
+			if (UCrystalManager *CrystalMgr = GI->GetSubsystem<UCrystalManager>())
 			{
-				BindWeaponManager(WM);
+				BindCrystalManager(CrystalMgr);
 			}
 		}
 	}
@@ -218,7 +219,7 @@ void UDurabilityHeaderWidget::UpdateSlot1FromWeapon()
 		return;
 
 	AActor *Actor = BoundActor.Get();
-	UWeaponManager *WM = BoundWeaponManager.Get();
+	UWeaponManager *WM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWeaponManager>() : nullptr;
 	if (!Actor || !WM)
 	{
 		Slot1DurText->SetVisibility(ESlateVisibility::Collapsed);
@@ -246,7 +247,7 @@ void UDurabilityHeaderWidget::UpdateSlot2FromWeapon()
 		return;
 
 	AActor *Actor = BoundActor.Get();
-	UWeaponManager *WM = BoundWeaponManager.Get();
+	UWeaponManager *WM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UWeaponManager>() : nullptr;
 	if (!Actor || !WM)
 	{
 		Slot2DurText->SetVisibility(ESlateVisibility::Collapsed);
@@ -311,23 +312,23 @@ void UDurabilityHeaderWidget::UnbindRingManager()
 	bIsBound = false;
 }
 
-void UDurabilityHeaderWidget::BindWeaponManager(UWeaponManager *WeaponMgr)
+void UDurabilityHeaderWidget::BindCrystalManager(UCrystalManager *CrystalMgr)
 {
-	if (!WeaponMgr)
+	if (!CrystalMgr)
 		return;
 
-	BoundWeaponManager = WeaponMgr;
-	WeaponMgr->OnWeaponDurabilityChanged.AddDynamic(this, &UDurabilityHeaderWidget::HandleWeaponDurabilityChanged);
+	BoundCrystalManager = CrystalMgr;
+	CrystalMgr->OnCrystalDurabilityChanged.AddDynamic(this, &UDurabilityHeaderWidget::HandleCrystalDurabilityChanged);
 }
 
-void UDurabilityHeaderWidget::UnbindWeaponManager()
+void UDurabilityHeaderWidget::UnbindCrystalManager()
 {
-	if (UWeaponManager *WeaponMgr = BoundWeaponManager.Get())
+	if (UCrystalManager *CrystalMgr = BoundCrystalManager.Get())
 	{
-		WeaponMgr->OnWeaponDurabilityChanged.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleWeaponDurabilityChanged);
+		CrystalMgr->OnCrystalDurabilityChanged.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleCrystalDurabilityChanged);
 	}
 
-	BoundWeaponManager.Reset();
+	BoundCrystalManager.Reset();
 }
 
 void UDurabilityHeaderWidget::HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability)
@@ -345,9 +346,15 @@ void UDurabilityHeaderWidget::HandleRingCrystalBroken(AActor *Actor, URingData *
 	UpdateSlot1FromRing();
 }
 
-void UDurabilityHeaderWidget::HandleWeaponDurabilityChanged(AActor *Actor, UWeaponData *Weapon, int32 NewDurability, int32 MaxDurability)
+void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObject *Holder, int32 NewDurability, int32 MaxDurability)
 {
 	if (Actor != BoundActor.Get())
+		return;
+
+	// Filter for weapon — ring crystal durability still flows via
+	// URingManager::OnRingDurabilityChanged until Phase A commit 4
+	// migrates the ring side onto the unified delegate.
+	if (!Cast<UWeaponData>(Holder))
 		return;
 
 	// Determine which slot the weapon line is in. If the character has a ring
