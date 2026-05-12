@@ -1246,21 +1246,26 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 				{
 					continue;
 				}
-				if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking || Crystal->IsBroken())
+				if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking)
 				{
 					continue;
 				}
 
-				const int32 Before = Crystal->CurrentDurability;
-				Crystal->RepairBetweenCombats(RepairAmount);
-				const int32 After = Crystal->CurrentDurability;
+				FCrystalInventoryEntry *Entry = LoadoutComp->FindCrystalEntryByHolder(Slot.Holder);
+				if (!Entry || Entry->IsBroken())
+				{
+					continue;
+				}
 
-				if (After != Before)
+				const int32 Before = Entry->CurrentDurability;
+				const int32 Repaired = Entry->RepairBetweenCombats(RepairAmount);
+
+				if (Repaired > 0)
 				{
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
 						   *Crystal->GetFullItemName(), *Actor->GetName(),
-						   Before, After, Crystal->MaxDurability);
+						   Before, Entry->CurrentDurability, Crystal->MaxDurability);
 					CrystalsRepaired++;
 				}
 			}
