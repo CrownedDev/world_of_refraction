@@ -10,7 +10,6 @@
 #include "DurabilityHeaderWidget.generated.h"
 
 class UTextBlock;
-class URingManager;
 class URingData;
 class UItemData;
 class UCrystalManager;
@@ -59,12 +58,9 @@ private:
 	/** Currently bound actor. Header refreshes when this character's resources change. */
 	TWeakObjectPtr<AActor> BoundActor;
 
-	/** Ring manager binding for per-cast durability updates */
-	TWeakObjectPtr<URingManager> BoundRingManager;
-
-	/** Crystal manager binding for unified per-cast durability updates.
-	 *  Replaces the per-WeaponManager binding (Phase A commit 3). Ring
-	 *  durability still flows via URingManager until commit 4. */
+	/** Crystal manager binding for unified per-cast durability and break
+	 *  events. Replaces the per-WeaponManager and per-RingManager bindings
+	 *  the widget used to hold. */
 	TWeakObjectPtr<UCrystalManager> BoundCrystalManager;
 
 	/** Update slot 1 with ring durability. Called when character has a ring source. */
@@ -84,27 +80,18 @@ private:
 	/** Hide slot 2 (used when character has only one durability resource). */
 	void HideSlot2();
 
-	/** Bind/unbind ring manager delegates safely. */
-	void BindRingManager(URingManager *RingMgr);
-	void UnbindRingManager();
-
 	/** Bind/unbind crystal manager delegates safely. */
 	void BindCrystalManager(UCrystalManager *CrystalMgr);
 	void UnbindCrystalManager();
 
-	/** Delegate handler for OnRingDurabilityChanged */
-	UFUNCTION()
-	void HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability);
-
-	/** Delegate handler for OnRingCrystalBroken (re-read active ring after auto-switch) */
-	UFUNCTION()
-	void HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal);
-
 	/** Delegate handler for UCrystalManager::OnCrystalDurabilityChanged.
-	 *  Filters Holder by Cast<UWeaponData> — ring crystals still flow via
-	 *  OnRingDurabilityChanged (URingManager) until commit 4. */
+	 *  Routes weapon vs ring crystal updates to the right slot by holder type. */
 	UFUNCTION()
 	void HandleCrystalDurabilityChanged(AActor *Actor, UObject *Holder, int32 NewDurability, int32 MaxDurability);
 
-	bool bIsBound = false;
+	/** Delegate handler for UCrystalManager::OnCrystalBroken.
+	 *  Re-detects resources after a break — auto-switch may change which
+	 *  slot displays what. */
+	UFUNCTION()
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal);
 };

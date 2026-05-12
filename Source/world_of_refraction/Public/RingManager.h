@@ -1,25 +1,26 @@
 // RingManager.h
 // Simplified ring management for Resonators
-// Tracks active ring, provides spell list, handles break checks
+// Tracks active ring, provides spell list, performs auto-switch on break
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ESpellElement.h"
-#include "ItemTier.h"
 #include "RingManager.generated.h"
 
 class URingData;
 class USpellData;
 class ULoadoutComponent;
 class UItemData;
+class UCrystalManager;
 
 /**
  * Simplified Ring Manager
  * - Tracks which ring is active per actor
  * - Provides spell list from active ring
- * - Handles post-cast break checks
+ * - Consumes UCrystalManager::OnCrystalBroken, performs auto-switch
+ *   when the broken crystal is on a ring this manager tracks
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API URingManager : public UGameInstanceSubsystem
@@ -68,33 +69,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Ring Manager")
 	int32 GetWorkingRingCount(AActor *Actor) const;
 
-	// ==================== DURABILITY ====================
-
-	/** Apply wear to the slotted crystal of the specified ring after an action.
-	 *  Generalised across spells/abilities/attacks: caller resolves ring
-	 *  (e.g. via GetActiveRing or GetPrimaryRing) and supplies the action tier
-	 *  and infusion level directly.
-	 *  Returns the wear amount applied. If wear breaks the crystal, fires
-	 *  OnCrystalBroken (handled internally to auto-switch active ring). */
-	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
-	int32 ProcessPostCastWear(AActor *Actor, URingData *RingToWear, EItemTier ActionTier, int32 InfusionLevel, bool bIsSpell);
-
-	// ==================== DELEGATES ====================
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnRingCrystalBroken, AActor *, Actor, URingData *, Ring, UItemData *, Crystal);
-
-	/** Fires when a ring's slotted crystal hits 0 durability and breaks. */
-	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
-	FOnRingCrystalBroken OnRingCrystalBroken;
-
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnRingDurabilityChanged, AActor *, Actor, URingData *, Ring, int32, NewDurability, int32, MaxDurability);
-
-	/** Fires every time a ring crystal's durability changes (per-cast wear).
-	 *  Use this for real-time UI updates of the durability bar. Differs from
-	 *  OnRingCrystalBroken which fires once at zero. */
-	UPROPERTY(BlueprintAssignable, Category = "Ring Manager|Events")
-	FOnRingDurabilityChanged OnRingDurabilityChanged;
-
 	/** Initialize rings from LoadoutComponent */
 	UFUNCTION(BlueprintCallable, Category = "Ring Manager")
 	void InitializeFromLoadout(AActor *Actor, ULoadoutComponent *LoadoutComp);
@@ -110,20 +84,8 @@ private:
 	/** Equipped rings per actor */
 	TMap<TWeakObjectPtr<AActor>, TArray<URingData *>> EquippedRings;
 
-	/** Subscribe to OnCrystalBroken for every slotted crystal of an actor's rings. */
-	void SubscribeToActorCrystals(AActor *Actor);
-
-	/** Unsubscribe from OnCrystalBroken for every slotted crystal of an actor's rings. */
-	void UnsubscribeFromActorCrystals(AActor *Actor);
-
-	/** Handler bound to UItemData::OnCrystalBroken delegate. */
+	/** Consumer of UCrystalManager::OnCrystalBroken. Filters by
+	 *  Cast<URingData>(Holder); performs SwitchToNextRing on match. */
 	UFUNCTION()
-	void HandleCrystalBroken(UItemData *BrokenCrystal);
-
-	/** Find which actor and ring own a given crystal (for the broadcast). */
-	bool FindOwnerOfCrystal(UItemData *Crystal, AActor *&OutActor, URingData *&OutRing) const;
-
-	/** Check if any other actor in the EquippedRings map has the same crystal asset.
-	 *  Logs a warning if found. Called from SetEquippedRings. */
-	void WarnIfCrystalSharedAcrossActors(AActor *Actor) const;
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal);
 };

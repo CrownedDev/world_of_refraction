@@ -3861,7 +3861,16 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			}
 		}
 
-		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
+		if (UItemData *RingCrystal = Ring->SlottedCrystal)
+		{
+			if (UCrystalManager *CrystalMgr = GetGameInstance()
+					? GetGameInstance()->GetSubsystem<UCrystalManager>()
+					: nullptr)
+			{
+				CrystalMgr->ProcessPostCastWear(
+					Actor, RingCrystal, Ring, ActionTier, Level, bIsSpell);
+			}
+		}
 
 		// Per-action stat modifiers are computed by ComputeActionStatModifiers
 		// at action start (ExecuteActionAsync) and stashed on
@@ -3906,7 +3915,16 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			}
 		}
 
-		RingMgr->ProcessPostCastWear(Actor, Ring, ActionTier, Level, bIsSpell);
+		if (UItemData *RingCrystal = Ring->SlottedCrystal)
+		{
+			if (UCrystalManager *CrystalMgr = GetGameInstance()
+					? GetGameInstance()->GetSubsystem<UCrystalManager>()
+					: nullptr)
+			{
+				CrystalMgr->ProcessPostCastWear(
+					Actor, RingCrystal, Ring, ActionTier, Level, bIsSpell);
+			}
+		}
 
 		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;

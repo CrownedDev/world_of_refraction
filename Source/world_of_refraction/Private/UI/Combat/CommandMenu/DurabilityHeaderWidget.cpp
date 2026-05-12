@@ -34,7 +34,6 @@ void UDurabilityHeaderWidget::NativeConstruct()
 
 void UDurabilityHeaderWidget::BeginDestroy()
 {
-	UnbindRingManager();
 	UnbindCrystalManager();
 	Super::BeginDestroy();
 }
@@ -51,7 +50,6 @@ void UDurabilityHeaderWidget::Hide()
 
 void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 {
-	UnbindRingManager();
 	UnbindCrystalManager();
 
 	if (!InActor)
@@ -124,19 +122,8 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 		}
 	}
 
-	// === Bind manager delegates for resources we have ===
-	if (bHasRingResource)
-	{
-		if (UGameInstance *GI = GetGameInstance())
-		{
-			if (URingManager *RingMgr = GI->GetSubsystem<URingManager>())
-			{
-				BindRingManager(RingMgr);
-			}
-		}
-	}
-
-	if (bHasWeaponResource)
+	// === Bind unified crystal manager if any durability resource exists ===
+	if (bHasRingResource || bHasWeaponResource)
 	{
 		if (UGameInstance *GI = GetGameInstance())
 		{
@@ -191,7 +178,7 @@ void UDurabilityHeaderWidget::UpdateSlot1FromRing()
 		return;
 
 	AActor *Actor = BoundActor.Get();
-	URingManager *RingMgr = BoundRingManager.Get();
+	URingManager *RingMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<URingManager>() : nullptr;
 	if (!Actor || !RingMgr)
 	{
 		Slot1DurText->SetVisibility(ESlateVisibility::Collapsed);
@@ -285,33 +272,6 @@ void UDurabilityHeaderWidget::HideSlot2()
 	}
 }
 
-void UDurabilityHeaderWidget::BindRingManager(URingManager *RingMgr)
-{
-	if (!RingMgr || bIsBound)
-		return;
-
-	BoundRingManager = RingMgr;
-	RingMgr->OnRingDurabilityChanged.AddDynamic(this, &UDurabilityHeaderWidget::HandleRingDurabilityChanged);
-	RingMgr->OnRingCrystalBroken.AddDynamic(this, &UDurabilityHeaderWidget::HandleRingCrystalBroken);
-	bIsBound = true;
-}
-
-void UDurabilityHeaderWidget::UnbindRingManager()
-{
-	if (!bIsBound)
-		return;
-
-	if (URingManager *RingMgr = BoundRingManager.Get())
-	{
-		RingMgr->OnRingDurabilityChanged.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleRingDurabilityChanged);
-		RingMgr->OnRingCrystalBroken.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleRingCrystalBroken);
-	}
-
-	BoundRingManager.Reset();
-	BoundActor.Reset();
-	bIsBound = false;
-}
-
 void UDurabilityHeaderWidget::BindCrystalManager(UCrystalManager *CrystalMgr)
 {
 	if (!CrystalMgr)
@@ -319,6 +279,7 @@ void UDurabilityHeaderWidget::BindCrystalManager(UCrystalManager *CrystalMgr)
 
 	BoundCrystalManager = CrystalMgr;
 	CrystalMgr->OnCrystalDurabilityChanged.AddDynamic(this, &UDurabilityHeaderWidget::HandleCrystalDurabilityChanged);
+	CrystalMgr->OnCrystalBroken.AddDynamic(this, &UDurabilityHeaderWidget::HandleCrystalBroken);
 }
 
 void UDurabilityHeaderWidget::UnbindCrystalManager()
@@ -326,24 +287,11 @@ void UDurabilityHeaderWidget::UnbindCrystalManager()
 	if (UCrystalManager *CrystalMgr = BoundCrystalManager.Get())
 	{
 		CrystalMgr->OnCrystalDurabilityChanged.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleCrystalDurabilityChanged);
+		CrystalMgr->OnCrystalBroken.RemoveDynamic(this, &UDurabilityHeaderWidget::HandleCrystalBroken);
 	}
 
 	BoundCrystalManager.Reset();
-}
-
-void UDurabilityHeaderWidget::HandleRingDurabilityChanged(AActor *Actor, URingData *Ring, int32 NewDurability, int32 MaxDurability)
-{
-	if (Actor != BoundActor.Get())
-		return;
-	UpdateSlot1FromRing();
-}
-
-void UDurabilityHeaderWidget::HandleRingCrystalBroken(AActor *Actor, URingData *Ring, UItemData *Crystal)
-{
-	if (Actor != BoundActor.Get())
-		return;
-	// Active ring may have auto-switched — re-read.
-	UpdateSlot1FromRing();
+	BoundActor.Reset();
 }
 
 void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObject *Holder, int32 NewDurability, int32 MaxDurability)
@@ -351,15 +299,20 @@ void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObj
 	if (Actor != BoundActor.Get())
 		return;
 
-	// Filter for weapon — ring crystal durability still flows via
-	// URingManager::OnRingDurabilityChanged until Phase A commit 4
-	// migrates the ring side onto the unified delegate.
-	if (!Cast<UWeaponData>(Holder))
+	// Ring crystal: always updates slot 1 (ring is the primary durability resource).
+	if (Cast<URingData>(Holder))
+	{
+		UpdateSlot1FromRing();
 		return;
+	}
 
-	// Determine which slot the weapon line is in. If the character has a ring
-	// too, weapon is in slot 2. Otherwise slot 1.
-	// Re-detect to be safe (loadout may have changed mid-turn — defensive).
+	// Weapon crystal: slot 2 if the character has a ring resource, slot 1 otherwise.
+	if (!Cast<UWeaponData>(Holder))
+	{
+		return;
+	}
+
+	// Re-detect ring presence (loadout may have changed mid-turn — defensive).
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
 	bool bHasRingResource = false;
 	if (LC)
@@ -396,5 +349,16 @@ void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObj
 	{
 		UpdateSlot1FromWeapon();
 	}
+}
+
+void UDurabilityHeaderWidget::HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal)
+{
+	if (Actor != BoundActor.Get())
+		return;
+
+	// A break may have triggered a ring auto-switch, which can change which
+	// slot displays which resource. Cheapest correct response: re-detect
+	// resources and re-bind from scratch.
+	RefreshForActor(Actor);
 }
 
