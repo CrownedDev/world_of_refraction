@@ -159,7 +159,7 @@ public:
 
     // Status buildup multiplier when abilities are infused (higher = faster status)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",
-              meta = (EditCondition = "bCanBeInfused", ClampMin = "0.0", ClampMax = "2.0"))
+              meta = (EditCondition = "!bImmuneToInfusion", ClampMin = "0.0", ClampMax = "2.0"))
     float InfusionStatusMultiplier = 1.0f;
 
     // ==================== MESH ====================

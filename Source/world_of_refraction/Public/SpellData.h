@@ -81,9 +81,9 @@ public:
 
     // ==================== INFUSION ====================
 
-    /** If false, the orchestrator rejects this spell when an infusion source is selected. */
+    /** If true, the orchestrator rejects this spell when an infusion source is selected. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
-    bool bCanBeInfused = true;
+    bool bImmuneToInfusion = false;
 
     // ==================== COMMON STATS ====================
 

@@ -118,7 +118,7 @@ int32 UAbilityData::CalculateInfusedEnergyCost(UCharacterData* Character) const
 
 int32 UAbilityData::CalculateStatusBuildup(UCharacterData* Character) const
 {
-    if (!Character || !bCanBeInfused)
+    if (!Character || bImmuneToInfusion)
         return 0;
 
     // Base buildup per hit

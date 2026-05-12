@@ -120,7 +120,7 @@ public:
     // ==================== INFUSION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
-    bool bCanBeInfused = true;
+    bool bImmuneToInfusion = false;
 
     // ==================== EFFECTS ====================
 

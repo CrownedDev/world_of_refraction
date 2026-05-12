@@ -714,7 +714,7 @@ private:
 	 *  refuses it. Returns true if the action should proceed, false if rejected
 	 *  (sets PartialResult error and calls FinalizeAsyncAction). Shared by all
 	 *  three async executors. Pass InfusionLevel=0 for attacks (no charge concept). */
-	bool ValidateInfusionGate(const FAction &Action, bool bCanBeInfused, int32 InfusionLevel);
+	bool ValidateInfusionGate(const FAction &Action, bool bImmuneToInfusion, int32 InfusionLevel);
 
 	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit after
 	 *  raw-mode redirect has folded any buildup into damage. Shared post-redirect

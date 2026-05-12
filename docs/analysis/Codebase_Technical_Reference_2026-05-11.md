@@ -431,7 +431,7 @@ See entry above.
 
 ## Data assets — USpellData / UAbilityData / UWeaponAttackData
 
-**What.** Designer-tunable immutable data. Each describes one "thing you can do" — a spell, an ability, an attack. Stat formulas live on `UCharacterData`; these assets carry per-action constants (base damage, hit count, energy cost, element, raw mode, status buildup, can-be-infused). All three now carry parity fields for `bIsRawMode`, `StatusBuildup`, and `bCanBeInfused` post Action Data Parity Commits 1–3.
+**What.** Designer-tunable immutable data. Each describes one "thing you can do" — a spell, an ability, an attack. Stat formulas live on `UCharacterData`; these assets carry per-action constants (base damage, hit count, energy cost, element, raw mode, status buildup, immune-to-infusion). All three now carry parity fields for `bIsRawMode`, `StatusBuildup`, and `bImmuneToInfusion` post Action Data Parity Commits 1–3.
 
 **Where.** `Public/SpellData.h` (~269 LOC), `Public/AbilityData.h` (~221 LOC + new fields), `Public/WeaponAttackData.h` (~113 LOC + new fields). All `UPrimaryDataAsset`.
 

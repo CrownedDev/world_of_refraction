@@ -58,7 +58,7 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
     Output += FString::Printf(TEXT("  Base Damage: %d\n"), Ability->BaseDamage);
     Output += FString::Printf(TEXT("  Base Energy: %d\n"), Ability->BaseEnergyCost);
     Output += FString::Printf(TEXT("  Hit Count:   %d\n"), Ability->HitCount);
-    Output += FString::Printf(TEXT("  Can Infuse:  %s\n\n"), Ability->bCanBeInfused ? TEXT("Yes") : TEXT("No"));
+    Output += FString::Printf(TEXT("  Immune To Infusion:  %s\n\n"), Ability->bImmuneToInfusion ? TEXT("Yes") : TEXT("No"));
 
     // Requirements
     Output += TEXT("REQUIREMENTS:\n");
@@ -77,7 +77,7 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
     Output += FString::Printf(TEXT("  Energy: %d\n\n"), Ability->CalculateNormalEnergyCost(Character));
 
     // Infused Use
-    if (Ability->bCanBeInfused)
+    if (!Ability->bImmuneToInfusion)
 
     {
         FString ElementName = UEnum::GetValueAsString(Character->InnateElement);
@@ -138,7 +138,7 @@ void UAbilityDataDebug::CompareAbilityEffectiveness(UAbilityData *Ability, UChar
     Output += FString::Printf(TEXT("%s:\n"), *Character1->CharacterName);
     Output += FString::Printf(TEXT("  Normal Damage: %d\n"), Ability->CalculateNormalDamage(Character1));
     Output += FString::Printf(TEXT("  Normal Energy: %d\n"), Ability->CalculateNormalEnergyCost(Character1));
-    if (Ability->bCanBeInfused)
+    if (!Ability->bImmuneToInfusion)
     {
         Output += FString::Printf(TEXT("  Infused Damage: %d\n"), Ability->CalculateInfusedDamage(Character1));
         Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Ability->CalculateStatusBuildup(Character1));
@@ -149,7 +149,7 @@ void UAbilityDataDebug::CompareAbilityEffectiveness(UAbilityData *Ability, UChar
     Output += FString::Printf(TEXT("%s:\n"), *Character2->CharacterName);
     Output += FString::Printf(TEXT("  Normal Damage: %d\n"), Ability->CalculateNormalDamage(Character2));
     Output += FString::Printf(TEXT("  Normal Energy: %d\n"), Ability->CalculateNormalEnergyCost(Character2));
-    if (Ability->bCanBeInfused)
+    if (!Ability->bImmuneToInfusion)
     {
         Output += FString::Printf(TEXT("  Infused Damage: %d\n"), Ability->CalculateInfusedDamage(Character2));
         Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Ability->CalculateStatusBuildup(Character2));

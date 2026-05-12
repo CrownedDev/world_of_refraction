@@ -66,9 +66,9 @@ public:
 
     // ==================== INFUSION ====================
 
-    // If false, the orchestrator rejects this attack when bIsInfused (or an infusion source) is set.
+    // If true, the orchestrator rejects this attack when bIsInfused (or an infusion source) is set.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
-    bool bCanBeInfused = true;
+    bool bImmuneToInfusion = false;
 
     // ==================== EFFECTS ====================
 

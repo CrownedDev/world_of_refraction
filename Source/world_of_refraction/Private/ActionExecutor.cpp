@@ -513,12 +513,12 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 // ASYNC EXECUTOR SHARED HELPERS
 // ========================================
 
-bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bCanBeInfused, int32 InfusionLevel)
+bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bImmuneToInfusion, int32 InfusionLevel)
 {
 	const bool bWantsInfusion =
 		(Action.SelectedSource != EInfusionSourceOption::None) ||
 		(InfusionLevel > 0);
-	if (bWantsInfusion && !bCanBeInfused)
+	if (bWantsInfusion && bImmuneToInfusion)
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
@@ -564,9 +564,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		return;
 	}
 
-	// Commit 3: reject early when bCanBeInfused is false but the action carries
+	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Spell->bCanBeInfused, Action.SpellInfusionLevel))
+	if (!ValidateInfusionGate(Action, Spell->bImmuneToInfusion, Action.SpellInfusionLevel))
 	{
 		return;
 	}
@@ -710,9 +710,9 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		return;
 	}
 
-	// Commit 3: reject early when bCanBeInfused is false but the action carries
+	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Ability->bCanBeInfused, Action.AbilityInfusionLevel))
+	if (!ValidateInfusionGate(Action, Ability->bImmuneToInfusion, Action.AbilityInfusionLevel))
 	{
 		return;
 	}
@@ -876,10 +876,10 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		? Weapon->PhysicalDamageType
 		: EPhysicalDamageType::None;
 
-	// Commit 3: reject early when bCanBeInfused is false but the action carries
+	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection). Attacks have no charge level concept. No energy
 	// spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Attack->bCanBeInfused, /*InfusionLevel=*/0))
+	if (!ValidateInfusionGate(Action, Attack->bImmuneToInfusion, /*InfusionLevel=*/0))
 	{
 		return;
 	}
