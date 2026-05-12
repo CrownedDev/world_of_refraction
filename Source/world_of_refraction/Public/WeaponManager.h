@@ -12,12 +12,9 @@
 
 class UWeaponData;
 class UWeaponAttackData;
-class UWeaponAttackData;
 class UAbilityData;
 class UCharacterDataComponent;
 class UCharacterData;
-class USkillEffectManager;
-class URingData;
 class ULoadoutComponent;
 // ========================================
 // WEAPON STATE
@@ -48,22 +45,6 @@ struct WORLD_OF_REFRACTION_API FWeaponState
 	/** Current active weapon slot */
 	UPROPERTY(BlueprintReadOnly, Category = "Weapon State")
 	EWeaponSlot ActiveSlot = EWeaponSlot::Unarmed;
-
-	/** Is infusion toggled on? (Generic only) */
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon State")
-	bool bInfusionActive = false;
-
-	/** Conjured weapon reference (if any) */
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon State")
-	UWeaponData *ConjuredWeapon = nullptr;
-
-	/** Are spells sealed? (true when conjured weapon active) */
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon State")
-	bool bSpellsSealed = false;
-
-	/** Previous slot before conjuration (for dispel) */
-	UPROPERTY(BlueprintReadOnly, Category = "Weapon State")
-	EWeaponSlot PreConjuredSlot = EWeaponSlot::Unarmed;
 };
 
 /**
@@ -122,11 +103,8 @@ struct WORLD_OF_REFRACTION_API FWeaponAttackResult
 // ========================================
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponSwitched, AActor *, Actor, EWeaponSlot, OldSlot, EWeaponSlot, NewSlot);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInfusionToggled, AActor *, Actor, bool, bIsActive);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeaponAttackExecuted, AActor *, Attacker, const FWeaponAttackResult &, Result, UWeaponData *, Weapon);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPhysicalStatusTriggered, AActor *, Target, EPhysicalDamageType, DamageType, AActor *, Attacker);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnConjurationStarted, AActor *, Actor, UWeaponData *, ConjuredWeapon);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnConjurationEnded, AActor *, Actor);
 
 /**
  * UWeaponManager
@@ -136,12 +114,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnConjurationEnded, AActor *, Actor
  * - Weapon switching
  * - Attack execution with physical damage types
  * - Physical status buildup (Slash→Bleed, Pierce→ArmorBreak, Impact→Stun)
- * - Infusion toggle for Generic characters
- * - Conjured weapon management for Elemental characters
- *
- * Character Type Differences:
- * - Generic: Primary/Secondary weapons, infusion toggle, no conjuration
- * - Elemental: Single weapon OR unarmed, can conjure weapons (seals spells)
  *
  * Usage:
  *   UWeaponManager* WeaponMgr = GetGameInstance()->GetSubsystem<UWeaponManager>();
@@ -257,64 +229,6 @@ public:
 	 *  No auto-switch — weapon stays equipped, just loses crystal-derived effects. */
 	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
 	FOnWeaponCrystalBroken OnWeaponCrystalBroken;
-	// ========================================
-	// INFUSION (GENERIC ONLY)
-	// ========================================
-
-	/**
-	 * Toggle infusion on/off
-	 * Only works for Generic characters
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Infusion")
-	bool ToggleInfusion(AActor *Actor);
-
-	/**
-	 * Set infusion state directly
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Infusion")
-	bool SetInfusion(AActor *Actor, bool bEnabled);
-
-	/**
-	 * Check if infusion is currently active
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Infusion")
-	bool IsInfusionActive(AActor *Actor) const;
-
-	/**
-	 * Check if actor can use infusion
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Infusion")
-	bool CanUseInfusion(AActor *Actor) const;
-
-	// ========================================
-	// CONJURATION (ELEMENTAL ONLY)
-	// ========================================
-
-	/**
-	 * Conjure a weapon (from conjuration spell)
-	 * Seals all spells until dispelled
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Conjuration")
-	bool ConjureWeapon(AActor *Actor, UWeaponData *WeaponToConjure);
-
-	/**
-	 * Dispel conjured weapon (free action at turn start)
-	 * Returns to previous state, unseals spells
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Conjuration")
-	bool DispelConjuredWeapon(AActor *Actor);
-
-	/**
-	 * Check if actor has active conjured weapon
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Conjuration")
-	bool HasConjuredWeapon(AActor *Actor) const;
-
-	/**
-	 * Check if spells are sealed (during conjuration)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Conjuration")
-	bool AreSpellsSealed(AActor *Actor) const;
 
 	// ========================================
 	// ATTACK EXECUTION
@@ -328,19 +242,10 @@ public:
 	FOnWeaponSwitched OnWeaponSwitched;
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
-	FOnInfusionToggled OnInfusionToggled;
-
-	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
 	FOnWeaponAttackExecuted OnWeaponAttackExecuted;
 
 	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
 	FOnPhysicalStatusTriggered OnPhysicalStatusTriggered;
-
-	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
-	FOnConjurationStarted OnConjurationStarted;
-
-	UPROPERTY(BlueprintAssignable, Category = "Weapon Manager|Events")
-	FOnConjurationEnded OnConjurationEnded;
 
 	// ========================================
 	// DEBUG
@@ -361,25 +266,9 @@ private:
 	/** Get LoadoutComponent from actor */
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 	UCharacterData *GetCharacterData(AActor *Actor) const;
-	USkillEffectManager *GetSkillEffectManager() const;
-	URingData *GetPrimaryRing(AActor *Actor) const;
-
-	/** Check if actor is Generic class (dual-wield, secondary slot) */
-	bool IsGenericCharacter(AActor *Actor) const;
-
-	/** Check if actor is Caster class (innate element, primary slot type) */
-	bool IsCasterCharacter(AActor *Actor) const;
-
-	/** Check if actor is Resonator class (ring loadout) */
-	bool IsResonatorCharacter(AActor *Actor) const;
 
 	/** Get weapon from specific slot */
 	UWeaponData *GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const;
-
-	/** Calculate status buildup for an attack */
-	float CalculateStatusBuildup(UWeaponData *Weapon, UWeaponAttackData *Attack, int32 HitCount) const;
-
-
 
 	// ========================================
 	// STATE
@@ -387,10 +276,6 @@ private:
 
 	/** Weapon state per actor */
 	TMap<TWeakObjectPtr<AActor>, FWeaponState> WeaponStates;
-
-	/** Cached SkillEffectManager */
-	UPROPERTY()
-	USkillEffectManager *SkillEffectManagerRef = nullptr;
 
 	// ==================== CRYSTAL SUBSCRIPTIONS (Phase 4d) ====================
 
@@ -407,11 +292,4 @@ private:
 
 	/** Find which actor and weapon own a given crystal (for the broadcast). */
 	bool FindWeaponOwnerOfCrystal(UItemData *Crystal, AActor *&OutActor, UWeaponData *&OutWeapon) const;
-
-	// ========================================
-	// CONSTANTS
-	// ========================================
-
-	static constexpr int32 INFUSED_ATTACK_ENERGY_COST = 5;
-	// INFUSION_DAMAGE_PENALTY removed per locked cost matrix — see commit message.
 };

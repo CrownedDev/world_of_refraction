@@ -6,8 +6,6 @@
 #include "AbilityData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
-#include "SkillEffectManager.h"
-#include "StatusEffect.h"
 #include "LoadoutComponent.h"
 #include "ItemData.h"
 #include "BreakCalculator.h"
@@ -21,7 +19,6 @@ void UWeaponManager::Initialize(FSubsystemCollectionBase &Collection)
 void UWeaponManager::Deinitialize()
 {
 	WeaponStates.Empty();
-	SkillEffectManagerRef = nullptr;
 	Super::Deinitialize();
 }
 
@@ -54,7 +51,6 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 		// Generic: bShowPrimary is the gameplay toggle between equipped weapons.
 		bool bShowPrimary = LoadoutComp ? LoadoutComp->IsShowingPrimary() : true;
 		State.ActiveSlot = bShowPrimary ? EWeaponSlot::Primary : EWeaponSlot::Secondary;
-		State.bInfusionActive = false;
 	}
 	else
 	{
@@ -63,9 +59,6 @@ void UWeaponManager::InitializeWeaponState(AActor *Actor)
 			? EWeaponSlot::Primary
 			: EWeaponSlot::Unarmed;
 	}
-
-	State.ConjuredWeapon = nullptr;
-	State.bSpellsSealed = false;
 
 	WeaponStates.Add(Actor, State);
 
@@ -108,20 +101,12 @@ UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
 	if (!State)
 		return nullptr;
 
-	// If conjured, use conjured weapon attack
-	if (State->ActiveSlot == EWeaponSlot::Conjured && State->ConjuredWeapon)
-	{
-		return State->ConjuredWeapon->WeaponAttack;
-	}
-
-	// If armed, use weapon attack
 	UWeaponData *Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
 	if (Weapon && Weapon->WeaponAttack)
 	{
 		return Weapon->WeaponAttack;
 	}
 
-	// Unarmed - no base attack (attacks come from weapons only)
 	return nullptr;
 }
 
@@ -133,22 +118,12 @@ TArray<UAbilityData *> UWeaponManager::GetActiveAbilities(AActor *Actor) const
 		return TArray<UAbilityData *>();
 	}
 
-	// Conjured weapon abilities (includes Dispel in slot)
-	if (State->ActiveSlot == EWeaponSlot::Conjured && State->ConjuredWeapon)
-	{
-		return State->ConjuredWeapon->PresetAbilities;
-	}
-
-	// Armed - weapon abilities
 	UWeaponData *Weapon = GetWeaponInSlot(Actor, State->ActiveSlot);
 	if (Weapon)
 	{
 		return Weapon->PresetAbilities;
 	}
 
-	// Unarmed - no base abilities on CharacterData
-	// TODO: Implement base ability lookup - CharacterData doesn't store abilities directly
-	// For now, return empty array - abilities come from weapon loadout
 	return TArray<UAbilityData *>();
 }
 
@@ -174,13 +149,6 @@ bool UWeaponManager::SwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot)
 	EWeaponSlot OldSlot = State->ActiveSlot;
 	State->ActiveSlot = TargetSlot;
 
-	// Turn off infusion when switching (must re-enable)
-	if (State->bInfusionActive)
-	{
-		State->bInfusionActive = false;
-		OnInfusionToggled.Broadcast(Actor, false);
-	}
-
 	OnWeaponSwitched.Broadcast(Actor, OldSlot, TargetSlot);
 
 	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s switched from %d to %d"),
@@ -201,7 +169,8 @@ bool UWeaponManager::CanSwitchWeapon(AActor *Actor, EWeaponSlot TargetSlot) cons
 		return false;
 	}
 
-	// Can't switch to conjured directly (must use ConjureWeapon)
+	// Conjured slot is reserved enum-side; no caller can switch into it
+	// directly (the conjuration runtime was removed in WeaponManager teardown).
 	if (TargetSlot == EWeaponSlot::Conjured)
 	{
 		return false;
@@ -243,147 +212,6 @@ TArray<EWeaponSlot> UWeaponManager::GetAvailableSlots(AActor *Actor) const
 }
 
 // ========================================
-// INFUSION (GENERIC ONLY)
-// ========================================
-
-bool UWeaponManager::ToggleInfusion(AActor *Actor)
-{
-	FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State || !CanUseInfusion(Actor))
-	{
-		return false;
-	}
-
-	State->bInfusionActive = !State->bInfusionActive;
-	OnInfusionToggled.Broadcast(Actor, State->bInfusionActive);
-
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s infusion: %s"),
-		   *Actor->GetName(), State->bInfusionActive ? TEXT("ON") : TEXT("OFF"));
-
-	return true;
-}
-
-bool UWeaponManager::SetInfusion(AActor *Actor, bool bEnabled)
-{
-	FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State || !CanUseInfusion(Actor))
-	{
-		return false;
-	}
-
-	if (State->bInfusionActive != bEnabled)
-	{
-		State->bInfusionActive = bEnabled;
-		OnInfusionToggled.Broadcast(Actor, bEnabled);
-	}
-
-	return true;
-}
-
-bool UWeaponManager::IsInfusionActive(AActor *Actor) const
-{
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	return State && State->bInfusionActive;
-}
-
-bool UWeaponManager::CanUseInfusion(AActor *Actor) const
-{
-	// Only Generic characters can use infusion
-	if (!IsGenericCharacter(Actor))
-	{
-		return false;
-	}
-
-	// Must have a weapon equipped
-	UWeaponData *Weapon = GetActiveWeapon(Actor);
-	if (!Weapon)
-	{
-		return false;
-	}
-
-	// Weapon must support infusion
-	return true; // All weapons can be infused //return Weapon->bCanBeInfused;
-}
-
-// ========================================
-// CONJURATION (ELEMENTAL ONLY)
-// ========================================
-
-bool UWeaponManager::ConjureWeapon(AActor *Actor, UWeaponData *WeaponToConjure)
-{
-	if (!Actor || !WeaponToConjure)
-	{
-		return false;
-	}
-
-	// Only Elemental characters can conjure
-	if (!IsCasterCharacter(Actor))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Only Elemental characters can conjure weapons"));
-		return false;
-	}
-
-	FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State)
-	{
-		return false;
-	}
-
-	// Already conjured
-	if (State->ActiveSlot == EWeaponSlot::Conjured)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[WeaponManager] Already has conjured weapon"));
-		return false;
-	}
-
-	// Store previous state for dispel
-	State->PreConjuredSlot = State->ActiveSlot;
-	State->ConjuredWeapon = WeaponToConjure;
-	State->ActiveSlot = EWeaponSlot::Conjured;
-	State->bSpellsSealed = true;
-
-	OnConjurationStarted.Broadcast(Actor, WeaponToConjure);
-
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s conjured %s - spells SEALED"),
-		   *Actor->GetName(), *WeaponToConjure->WeaponName);
-
-	return true;
-}
-
-bool UWeaponManager::DispelConjuredWeapon(AActor *Actor)
-{
-	FWeaponState *State = WeaponStates.Find(Actor);
-	if (!State || State->ActiveSlot != EWeaponSlot::Conjured)
-	{
-		return false;
-	}
-
-	// Return to previous state
-	State->ActiveSlot = State->PreConjuredSlot;
-	State->ConjuredWeapon = nullptr;
-	State->bSpellsSealed = false;
-
-	OnConjurationEnded.Broadcast(Actor);
-
-	UE_LOG(LogTemp, Log, TEXT("[WeaponManager] %s dispelled conjured weapon - spells UNSEALED"),
-		   *Actor->GetName());
-
-	return true;
-}
-
-bool UWeaponManager::HasConjuredWeapon(AActor *Actor) const
-{
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	return State && State->ActiveSlot == EWeaponSlot::Conjured && State->ConjuredWeapon != nullptr;
-}
-
-bool UWeaponManager::AreSpellsSealed(AActor *Actor) const
-{
-	const FWeaponState *State = WeaponStates.Find(Actor);
-	return State && State->bSpellsSealed;
-}
-
-// ========================================
 // ATTACK EXECUTION
 // ========================================
 // UWeaponManager::ExecuteAttack and ExecuteAttackWithInfusion deleted in C2.
@@ -417,41 +245,8 @@ ULoadoutComponent *UWeaponManager::GetLoadoutComponent(AActor *Actor) const
 	return Actor->FindComponentByClass<ULoadoutComponent>();
 }
 
-USkillEffectManager *UWeaponManager::GetSkillEffectManager() const
-{
-	if (!SkillEffectManagerRef)
-	{
-		if (UGameInstance *GI = Cast<UGameInstance>(GetGameInstance()))
-		{
-			const_cast<UWeaponManager *>(this)->SkillEffectManagerRef =
-				GI->GetSubsystem<USkillEffectManager>();
-		}
-	}
-	return SkillEffectManagerRef;
-}
-
-bool UWeaponManager::IsGenericCharacter(AActor *Actor) const
-{
-	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->IsGeneric();
-}
-
-bool UWeaponManager::IsCasterCharacter(AActor *Actor) const
-{
-	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->IsCaster();
-}
-
-bool UWeaponManager::IsResonatorCharacter(AActor *Actor) const
-{
-	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->IsResonator();
-}
-
 UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) const
 {
-	const FWeaponState *State = WeaponStates.Find(Actor);
-
 	switch (Slot)
 	{
 	case EWeaponSlot::Unarmed:
@@ -478,32 +273,9 @@ UWeaponData *UWeaponManager::GetWeaponInSlot(AActor *Actor, EWeaponSlot Slot) co
 	}
 
 	case EWeaponSlot::Conjured:
-		return State ? State->ConjuredWeapon : nullptr;
-
 	default:
 		return nullptr;
 	}
-}
-
-float UWeaponManager::CalculateStatusBuildup(UWeaponData *Weapon, UWeaponAttackData *Attack, int32 HitCount) const
-{
-	if (!Attack)
-		return 0.0f;
-
-	float BaseBuildup = Attack->StatusBuildup;
-	float Multiplier = Weapon ? Weapon->InfusionStatusMultiplier : 1.0f;
-
-	return BaseBuildup * Multiplier * HitCount;
-}
-
-URingData *UWeaponManager::GetPrimaryRing(AActor *Actor) const
-{
-	ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-	if (LoadoutComp)
-	{
-		return LoadoutComp->GetPrimaryRing();
-	}
-	return nullptr;
 }
 
 // ========================================
@@ -521,16 +293,8 @@ void UWeaponManager::DebugPrintWeaponStates() const
 
 		UE_LOG(LogTemp, Display, TEXT("Actor: %s"),
 			   Actor ? *Actor->GetName() : TEXT("Invalid"));
-		UE_LOG(LogTemp, Display, TEXT("  Slot: %d, Infusion: %s, Spells Sealed: %s"),
-			   static_cast<int32>(State.ActiveSlot),
-			   State.bInfusionActive ? TEXT("ON") : TEXT("OFF"),
-			   State.bSpellsSealed ? TEXT("Yes") : TEXT("No"));
-
-		if (State.ConjuredWeapon)
-		{
-			UE_LOG(LogTemp, Display, TEXT("  Conjured: %s"),
-				   *State.ConjuredWeapon->WeaponName);
-		}
+		UE_LOG(LogTemp, Display, TEXT("  Slot: %d"),
+			   static_cast<int32>(State.ActiveSlot));
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("====================="));
@@ -553,8 +317,6 @@ void UWeaponManager::DebugPrintActorWeaponState(AActor *Actor) const
 
 	UE_LOG(LogTemp, Display, TEXT("=== WEAPON STATE: %s ==="), *Actor->GetName());
 	UE_LOG(LogTemp, Display, TEXT("Active Slot: %d"), static_cast<int32>(State->ActiveSlot));
-	UE_LOG(LogTemp, Display, TEXT("Infusion Active: %s"), State->bInfusionActive ? TEXT("Yes") : TEXT("No"));
-	UE_LOG(LogTemp, Display, TEXT("Spells Sealed: %s"), State->bSpellsSealed ? TEXT("Yes") : TEXT("No"));
 
 	UWeaponData *ActiveWeapon = GetActiveWeapon(Actor);
 	if (ActiveWeapon)
