@@ -7,6 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "Engine/Texture2D.h"
 #include "EWeaponType.h"
+#include "EPhysicalDamageType.h"
 #include "WorldStatRequirements.h"
 #include "CrystalType.h"
 #include "ItemTier.h"
@@ -43,6 +44,13 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType WeaponType = EWeaponType::Sword;
+
+    /** What physical damage this weapon delivers. Drives the bar-cap
+     *  trigger when no elemental infusion is active. Every weapon must
+     *  declare one — None is rejected by validation. A staff = Impact,
+     *  a dagger = Pierce, a sword = Slash. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
 
     /** Tier of the weapon. Used as the action tier for abilities/attacks performed
      *  with this weapon — feeds BreakCalculator when a slotted crystal is used as

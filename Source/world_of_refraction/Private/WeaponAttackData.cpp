@@ -49,27 +49,11 @@ FString UWeaponAttackData::GetAttackSummary() const
         Summary = FString::Printf(TEXT("Double Hit (%.0f%% + %.0f%%)"), FirstHitPercent, SecondHitPercent);
     }
 
-    Summary += FString::Printf(TEXT(" | %s"), *GetDamageTypeName());
     Summary += FString::Printf(TEXT(" | Buildup: %d"), StatusBuildup);
     Summary += FString::Printf(TEXT(" | Infusion Cost: %.0f"), InfusionEnergyCost);
     Summary += FString::Printf(TEXT(" | Speed: %.2fx"), BaseAnimSpeed);
 
     return Summary;
-}
-
-FString UWeaponAttackData::GetDamageTypeName() const
-{
-    switch (PhysicalDamageType)
-    {
-    case EPhysicalDamageType::Slash:
-        return TEXT("Slash");
-    case EPhysicalDamageType::Pierce:
-        return TEXT("Pierce");
-    case EPhysicalDamageType::Impact:
-        return TEXT("Impact");
-    default:
-        return TEXT("Unknown");
-    }
 }
 
 #if WITH_EDITOR

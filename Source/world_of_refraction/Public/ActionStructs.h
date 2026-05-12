@@ -474,13 +474,14 @@ struct WORLD_OF_REFRACTION_API FCombatHitResult
  *   ExecuteAbilityAsync:
  *     - ActionType = Ability
  *     - Element = bIsInfused ? Attacker.InnateElement : Generic
- *     - PhysicalDamageType = None (abilities have no physical type)
+ *     - PhysicalDamageType = Weapon->PhysicalDamageType (inherits the
+ *       wielded weapon's physical type for buildup-bar trigger)
  *
  *   ExecuteAttackAsync:
  *     - ActionType = Attack
  *     - Element = bIsInfused ? Attacker.InnateElement : Generic
  *     - BaseStatusBuildup = Attack->StatusBuildup
- *     - PhysicalDamageType = Attack->PhysicalDamageType
+ *     - PhysicalDamageType = Weapon->PhysicalDamageType
  *
  *   (ExecuteAttackWithInfusion on UWeaponManager was deleted in Phase C2 —
  *    its only in-source caller had zero live triggers; sync attacks now warn

@@ -803,28 +803,29 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	int32 DamagePerHit = 0;
 	FinalizeDamageInputs(FinalDamage, Ability->HitCount, DamagePerHit);
 
-	// Abilities inherit the user's active weapon for buildup-bar resolution:
-	//   - PhysicalDamageType from the active weapon's attack data
-	//   - Element from the user's InnateElement IF infusion is active on
-	//     the weapon (locked design 2b — Fire-infused sword + Lunge means
-	//     ability builds toward Burn, not Bleed).
-	// All classes wield primary-slot weapons (Resonator, Caster, Generic),
-	// so this lookup applies universally. If no active weapon, falls
-	// through to Generic/None and the resolver returns None trigger.
+	// Ability buildup-bar source resolution (per locked design):
+	//   - PhysicalDamageType: from active weapon (matches the weapon being
+	//     wielded, not the per-attack data which no longer owns the field)
+	//   - Element: from Action.SelectedSource — per-action infusion choice.
+	//     Only resolves to the user's InnateElement when an elemental source
+	//     is selected (Generic/Resonator default to Generic; Caster picks
+	//     elemental source to push their innate element)
 	ESpellElement AbilityElement = ESpellElement::Generic;
 	EPhysicalDamageType AbilityPhysicalType = EPhysicalDamageType::None;
 
 	if (UWeaponManager *WeaponMgr = GetWeaponManager())
 	{
-		if (UWeaponAttackData *ActiveAttack = WeaponMgr->GetActiveAttack(User))
+		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(User))
 		{
-			AbilityPhysicalType = ActiveAttack->PhysicalDamageType;
+			AbilityPhysicalType = Weapon->PhysicalDamageType;
 		}
+	}
 
-		if (WeaponMgr->IsInfusionActive(User))
-		{
-			AbilityElement = UserData->InnateElement;
-		}
+	// bIsInfused was already computed at the top of the function from
+	// Action.SelectedSource — reuse it here for the buildup-bar element.
+	if (bIsInfused && UserData && UserData->HasInnateElement())
+	{
+		AbilityElement = UserData->InnateElement;
 	}
 
 	OpenDefenseWindowsForTargets(
@@ -850,14 +851,16 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 {
 	UWeaponAttackData *Attack = Action.AttackData;
 
+	// Resolve the wielded weapon up-front. We need it for both the no-Attack
+	// fallback and the PhysicalDamageType lookup (which now lives on the
+	// weapon, not the attack). Goes through GetActiveWeapon → LoadoutComponent.
+	UWeaponManager *WeaponMgr = GetWeaponManager();
+	UWeaponData *Weapon = WeaponMgr ? WeaponMgr->GetActiveWeapon(Attacker) : nullptr;
+
 	// If no attack specified, try to get from weapon
-	if (!Attack)
+	if (!Attack && WeaponMgr)
 	{
-		UWeaponManager *WeaponMgr = GetWeaponManager();
-		if (WeaponMgr)
-		{
-			Attack = WeaponMgr->GetActiveAttack(Attacker);
-		}
+		Attack = WeaponMgr->GetActiveAttack(Attacker);
 	}
 
 	if (!Attack || !AttackerData)
@@ -867,6 +870,10 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		FinalizeAsyncAction();
 		return;
 	}
+
+	const EPhysicalDamageType AttackPhysicalType = Weapon
+		? Weapon->PhysicalDamageType
+		: EPhysicalDamageType::None;
 
 	// Commit 3: reject early when bCanBeInfused is false but the action carries
 	// infusion (source selection). Attacks have no charge level concept. No energy
@@ -923,7 +930,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	}
 
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
-	// (Element, PhysicalType). Attacks pass the weapon attack's PhysicalDamageType;
+	// (Element, PhysicalType). Attacks pass the active weapon's PhysicalDamageType;
 	// the resolver falls through to Slash->DOT / Pierce->DefDebuff / Impact->Stun
 	// when Element is Generic, and Element wins when infused.
 	int32 AttackBaseBuildup = 0;
@@ -952,7 +959,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		0,							 // InfusionLevel — attacks have no L1/L2 concept
 		Action.SelectedSource,		 // SelectedSource
 		AttackBaseBuildup,			 // BaseStatusBuildup (Phase C3)
-		Attack->PhysicalDamageType,	 // PhysicalDamageType (Session Y) - drives trigger when Generic
+		AttackPhysicalType,			 // PhysicalDamageType (from active weapon) - drives trigger when Generic
 		0.3f);
 
 	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());

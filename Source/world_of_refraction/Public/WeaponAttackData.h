@@ -55,10 +55,6 @@ public:
 
     // ==================== PHYSICAL DAMAGE TYPE ====================
 
-    // Physical damage type - determines status effect (Bleed/Stun/ArmorBreak)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage Type")
-    EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
-
     // Raw mode: folds StatusBuildup into BaseDamage at the orchestrator boundary; status bar doesn't move.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Damage Type")
     bool bIsRawMode = false;
@@ -128,27 +124,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     FString GetAttackSummary() const;
-
-    UFUNCTION(BlueprintPure, Category = "Attack")
-    FString GetDamageTypeName() const;
-
-    /** What status type this attack's buildup represents. Orchestrators read this
-     *  directly rather than encoding the PhysicalDamageType -> StatusType mapping
-     *  at the call site. */
-    UFUNCTION(BlueprintPure, Category = "Attack")
-    EStatusType GetBuildupStatusType() const
-    {
-        switch (PhysicalDamageType)
-        {
-        case EPhysicalDamageType::Slash:
-        case EPhysicalDamageType::Pierce:
-            return EStatusType::DOT; // Bleed
-        case EPhysicalDamageType::Impact:
-            return EStatusType::DefenseDebuff; // Armor break
-        default:
-            return EStatusType::None;
-        }
-    }
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;

@@ -68,7 +68,6 @@ FString UWeaponAttackDataDebug::GetAttackStatsString(UWeaponAttackData *Attack)
                                   Attack->SecondHitPercent,
                                   Attack->GetTotalDamagePercent());
     }
-    Output += FString::Printf(TEXT("  Damage Type: %s\n"), *Attack->GetDamageTypeName());
     Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Attack->StatusBuildup);
     Output += FString::Printf(TEXT("  Infusion Cost: %.0f Energy\n"), Attack->InfusionEnergyCost);
 
@@ -97,7 +96,6 @@ void UWeaponAttackDataDebug::CompareAttacks(UWeaponAttackData *Attack1, UWeaponA
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20s | %-20s"), TEXT("Property"), *Attack1->AttackName, *Attack2->AttackName);
     UE_LOG(LogTemp, Display, TEXT("--------------------------------------------------------------"));
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Hit Count"), Attack1->HitCount, Attack2->HitCount);
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20s | %-20s"), TEXT("Damage Type"), *Attack1->GetDamageTypeName(), *Attack2->GetDamageTypeName());
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Status Buildup"), Attack1->StatusBuildup, Attack2->StatusBuildup);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.0f%% | %-20.0f%%"), TEXT("Total Damage"), Attack1->GetTotalDamagePercent(), Attack2->GetTotalDamagePercent());
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.0f | %-20.0f"), TEXT("Infusion Cost"), Attack1->InfusionEnergyCost, Attack2->InfusionEnergyCost);
