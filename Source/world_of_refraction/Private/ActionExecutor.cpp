@@ -3933,8 +3933,11 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	case EInfusionSourceOption::WeaponCrystal:
 	{
 		// Weapon crystal infusion: durability wear on the slotted crystal.
-		// Path A: action tier inherits from the weapon (UWeaponData::Tier),
-		// uniformly for spells, abilities, and attacks.
+		// ActionTier dispatch:
+		//   Spell: SpellData->Tier (the spell's own tier — symmetric with Ring path)
+		//   Ability/Attack: Weapon->Tier (action tier inherits from weapon)
+		// Spells wear based on their own tier regardless of catalyst (weapon vs
+		// ring), so an S-Tier spell stresses any catalyst's crystal equally.
 		UWeaponManager *WeaponMgr = GetWeaponManager();
 		if (!WeaponMgr)
 		{
@@ -3971,8 +3974,14 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
+		EItemTier ActionTier = Weapon->Tier;
+		if (bIsSpell && Action.SpellData)
+		{
+			ActionTier = Action.SpellData->Tier;
+		}
+
 		CrystalMgr->ProcessPostCastWear(
-			Actor, WeaponCrystal, Weapon, Weapon->Tier, Level, bIsSpell);
+			Actor, WeaponCrystal, Weapon, ActionTier, Level, bIsSpell);
 
 		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;
