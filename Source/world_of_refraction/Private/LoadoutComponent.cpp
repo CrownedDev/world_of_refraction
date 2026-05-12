@@ -1157,33 +1157,38 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
         }
     };
 
-    // Weapons — primary and secondary
-    if (UWeaponData *Primary = GetPrimaryWeapon())
+    // Weapons — read crystal from the runtime inventory entry, not the asset.
+    // FCombatCapabilities uses the same pattern (WeaponEntry.AttachedCrystal).
+    // The asset-side UWeaponData::SlottedCrystal field gets nulled by
+    // CombatOrchestrator's combat-end broken-crystal cleanup; the runtime
+    // entry preserves the crystal across combats and is the actual source
+    // of truth for "what crystal is on this weapon right now."
+    if (const FWeaponLoadoutEntry *PrimaryLoadout = GetPrimaryWeaponLoadout())
     {
-        AddIfCrystal(Primary->SlottedCrystal, Primary);
+        AddIfCrystal(PrimaryLoadout->WeaponEntry.AttachedCrystal.Crystal,
+                     PrimaryLoadout->WeaponEntry.Weapon);
     }
-    if (UWeaponData *Secondary = GetSecondaryWeapon())
+    if (const FWeaponLoadoutEntry *SecondaryLoadout = GetSecondaryWeaponLoadout())
     {
-        AddIfCrystal(Secondary->SlottedCrystal, Secondary);
+        AddIfCrystal(SecondaryLoadout->WeaponEntry.AttachedCrystal.Crystal,
+                     SecondaryLoadout->WeaponEntry.Weapon);
     }
 
-    // Primary ring (Generic / Caster)
-    if (URingData *PrimaryRing = GetPrimaryRing())
+    // Primary ring (Generic / Caster) — runtime entry
+    if (const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout())
     {
-        AddIfCrystal(PrimaryRing->SlottedCrystal, PrimaryRing);
+        AddIfCrystal(PrimaryRingLoadout->RingEntry.AttachedCrystal.Crystal,
+                     PrimaryRingLoadout->RingEntry.Ring);
     }
 
-    // Resonator ring loadout — every ring in the loadout array
+    // Resonator ring loadout — every ring in the array, runtime entry
     const FCombatLoadout ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
-        if (URingData *Ring = Entry.RingEntry.Ring)
-        {
-            AddIfCrystal(Ring->SlottedCrystal, Ring);
-        }
+        AddIfCrystal(Entry.RingEntry.AttachedCrystal.Crystal, Entry.RingEntry.Ring);
     }
 
-    // Evolution crystal slot — holder is the crystal itself (no separate holder asset).
+    // Evolution crystal slot — no inventory entry, evolution IS the crystal.
     if (UItemData *Evolution = GetPrimaryEvolution())
     {
         AddIfCrystal(Evolution, Evolution);
