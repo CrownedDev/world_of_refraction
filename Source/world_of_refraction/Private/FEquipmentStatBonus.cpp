@@ -30,6 +30,9 @@ int32 FEquipmentStatBonus::GetBudget(EItemTier Tier)
 int32 FEquipmentStatBonus::GetTotalSpent() const
 {
     // BonusCritChance is float — rounded for the capacity-point sum.
+    // BonusMindModifierPercent / BodyModifierPercent / SpiritModifierPercent are
+    // intentionally EXCLUDED — they're designer-tuned per-asset, not point-distributed
+    // by SpendPendingPoints, so they sit outside the tier capacity budget.
     return BonusRawDamage +
            BonusSpellDamage +
            BonusEfficiency +

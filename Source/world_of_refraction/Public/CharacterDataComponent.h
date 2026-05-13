@@ -167,19 +167,24 @@ public:
 
     // ==================== CRYSTAL-AWARE PILLAR VALUES ====================
 
-    /** Base EffectiveMind from the asset, modified by the slotted primary
-     *  evolution crystal's Pillar/SubStats contribution. Falls back to the
-     *  raw asset value if no crystal is slotted or no LoadoutComponent is
-     *  present. Use this in place of CharacterData->GetEffectiveMind() for
-     *  any system that needs to see crystal-driven pillar adjustments. */
+    /** Base EffectiveMind from the asset, modified by TWO pillar-modifier
+     *  sources layered in order:
+     *   1. The slotted primary evolution crystal's Pillar/SubStats contribution.
+     *   2. The active loadout's BonusMindModifierPercent (multiplicative on top).
+     *  Either layer is independently optional. Falls back to the raw asset
+     *  value if no LoadoutComponent is present.
+     *  Use in place of CharacterData->GetEffectiveMind() for any system that
+     *  needs to see crystal- and equipment-driven pillar adjustments. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedMind() const;
 
-    /** Body equivalent of GetCrystalModifiedMind — see comment there. */
+    /** Body equivalent of GetCrystalModifiedMind — see comment there.
+     *  Equipment layer uses BonusBodyModifierPercent. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedBody() const;
 
-    /** Spirit equivalent of GetCrystalModifiedMind — see comment there. */
+    /** Spirit equivalent of GetCrystalModifiedMind — see comment there.
+     *  Equipment layer uses BonusSpiritModifierPercent. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedSpirit() const;
 
