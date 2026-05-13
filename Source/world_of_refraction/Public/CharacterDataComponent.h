@@ -218,6 +218,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedSpellDamageForHealing() const;
 
+    /** Crystal-aware Efficiency multiplier — mirrors
+     *  UCharacterData::CalculateEfficiencyMultiplier but uses
+     *  GetCrystalModifiedMind() in place of GetEffectiveMind() so the
+     *  slotted primary evolution crystal's Mind pillar modifier feeds the
+     *  cost-reduction curve. Same clamp shape as the asset formula. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedEfficiencyMultiplier() const;
+
     // ========================================
     // BROKEN DARKNESS STATE
     // ========================================
