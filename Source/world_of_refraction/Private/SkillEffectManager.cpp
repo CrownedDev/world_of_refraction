@@ -116,7 +116,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
 
 	// Process immediate effects right away
-	if (Effect.ProcessTiming == EStatusEffectTiming::Immediate)
+	if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
 	{
 		ApplyEffectLogic(Target, Effects.Last());
 
@@ -734,10 +734,10 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 		   *Actor->GetName());
 
 	// Process start-of-turn effects
-	ProcessEffectsWithTiming(Actor, EStatusEffectTiming::StartOfOwnTurn);
+	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::StartOfOwnTurn);
 
 	// Process persistent effects (always active, but we re-apply stat mods)
-	ProcessEffectsWithTiming(Actor, EStatusEffectTiming::Persistent);
+	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::Persistent);
 
 	// Check conditional triggers with current state
 	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnStart);
@@ -754,7 +754,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 		   *Actor->GetName());
 
 	// Process end-of-turn effects (DOTs, etc.)
-	ProcessEffectsWithTiming(Actor, EStatusEffectTiming::EndOfOwnTurn);
+	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::EndOfOwnTurn);
 
 	// Check conditional triggers
 	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnEnd);
@@ -790,7 +790,7 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger T
 
 	for (FStatusEffect &Effect : Effects)
 	{
-		if (Effect.ProcessTiming == EStatusEffectTiming::OnTrigger &&
+		if (Effect.ProcessTiming == ESkillEffectTiming::OnTrigger &&
 			Effect.TriggerCondition == Trigger)
 		{
 			if (IsTriggerConditionMet(Actor, Effect, TriggerValue))
@@ -812,7 +812,7 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger T
 	}
 }
 
-void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing)
+void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTiming Timing)
 {
 	if (!ActiveEffects.Contains(Actor))
 	{
@@ -854,7 +854,7 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 		}
 
 		// Skip immediate effects (already handled)
-		if (Effect.ProcessTiming == EStatusEffectTiming::Immediate)
+		if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
 		{
 			continue;
 		}
@@ -1450,31 +1450,31 @@ void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Targ
 	case EStatusType::DOT:
 		Effect.EffectValue = 10.0f;
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		break;
 
 	case EStatusType::DefenseDebuff:
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::SpeedDebuff:
 		Effect.EffectValue = 25.0f; // 25%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::CritDebuff:
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::EnergyDebuff:
 		Effect.EffectValue = 25.0f; // 25% locked
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::RandomDebuff:
@@ -1488,7 +1488,7 @@ void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Targ
 		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 	}
 	break;
 
@@ -1545,7 +1545,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 			Effect.EffectValue = 30.0f; // fallback
 		}
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		break;
 	}
 
@@ -1553,35 +1553,35 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		Effect.EffectType = EStatusType::DefenseDebuff;
 		Effect.EffectValue = 30.0f; // 30% defence reduction
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::SkipTurn:
 		Effect.EffectType = EStatusType::SkipTurn;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
 	case EStatusType::SpeedDebuff:
 		Effect.EffectType = EStatusType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::CritDebuff:
 		Effect.EffectType = EStatusType::CritChanceDebuff;
 		Effect.EffectValue = 100.0f; // -100% crit chance
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::EnergyDebuff:
 		Effect.EffectType = EStatusType::EnergyDrain;
 		Effect.EffectValue = 100.0f; // 100% locked
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::RandomDebuff:
@@ -1596,7 +1596,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 30.0f; // 30%
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 	}
 	break;
 
@@ -1605,28 +1605,28 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 		Effect.EffectType = EStatusType::Stun;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
 	case EStatusType::HealBlock:
 		Effect.EffectType = EStatusType::HealBlock;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::Silenced:
 		Effect.EffectType = EStatusType::Silenced;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
 	case EStatusType::RandomSkill:
 		Effect.EffectType = EStatusType::RandomSkill;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
 	case EStatusType::BurstDamage:

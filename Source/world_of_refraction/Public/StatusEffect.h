@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EStatusEffectTiming.h"
+#include "ESkillEffectTiming.h"
 #include "EPassiveTrigger.h"
 #include "EStatusType.h"
 #include "ESpellElement.h"
@@ -47,17 +47,17 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 	/** When this effect processes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
-	EStatusEffectTiming ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+	ESkillEffectTiming ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 
 	/** If ProcessTiming = OnTrigger, what condition activates it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
-			  meta = (EditCondition = "ProcessTiming == EStatusEffectTiming::OnTrigger"))
+			  meta = (EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
 	EPassiveTrigger TriggerCondition = EPassiveTrigger::None;
 
 	/** Threshold for HP/Energy percentage triggers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
 			  meta = (ClampMin = "0", ClampMax = "100",
-					  EditCondition = "ProcessTiming == EStatusEffectTiming::OnTrigger"))
+					  EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
 	float TriggerThreshold = 30.0f;
 
 	/** Whether this trigger condition is currently active (for conditional effects) */
@@ -179,7 +179,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		int32 Value,
 		int32 Duration,
 		ESpellElement InElement,
-		EStatusEffectTiming Timing = EStatusEffectTiming::StartOfOwnTurn)
+		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
 	{
 		FStatusEffect Effect;
 		Effect.EffectName = SpellName;
@@ -194,16 +194,16 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		// Auto-detect timing based on effect type
 		if (Effect.IsDOT())
 		{
-			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
 		else if (Effect.EffectType == EStatusType::HealthRestore ||
 				 Effect.EffectType == EStatusType::EnergyRestore)
 		{
-			Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		}
 		else if (Effect.EffectType == EStatusType::EnergyDrain)
 		{
-			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
 		return Effect;
 	}
@@ -231,7 +231,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		Effect.EffectType = PassiveType;
 		Effect.EffectValue = Value;
 		Effect.bPermanent = true;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		return Effect;
 	}
 
@@ -452,7 +452,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			Effect.Element = ESpellElement::Generic;  // Physical damage
 			Effect.EffectValue = TotalBuildup * 0.5f; // DOT damage = half of buildup
 			Effect.RemainingTurns = 3;
-			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 			Effect.bCanStack = true;
 			break;
 
@@ -461,7 +461,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			Effect.EffectType = EStatusType::DefenseDebuff;
 			Effect.EffectValue = TotalBuildup * 0.3f; // Defense reduction
 			Effect.RemainingTurns = 2;
-			Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 			Effect.bCanStack = true;
 			Effect.MaxStacks = 3;
 			break;
@@ -471,7 +471,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			Effect.EffectType = EStatusType::None; // TODO: Add Stun effect type
 			Effect.EffectValue = 1.0f;			   // Stun duration multiplier
 			Effect.RemainingTurns = 1;
-			Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 			Effect.bCanStack = false; // Stun doesn't stack, refreshes
 			Effect.bRefreshDurationOnReapply = true;
 			break;
@@ -519,7 +519,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		Effect.EffectValue = Value;
 		Effect.RemainingTurns = Duration;
 		Effect.InitialDuration = Duration;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		return Effect;
 	}
 
@@ -534,7 +534,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		Effect.RemainingTurns = Duration;
 		Effect.InitialDuration = Duration;
 		Effect.Element = InElement;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 
 		// No element-specific switch needed - display name handled by StatusDisplayNames
 
@@ -550,7 +550,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		Effect.EffectType = Type;
 		Effect.EffectValue = Value;
 		Effect.bPermanent = true;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		return Effect;
 	}
 

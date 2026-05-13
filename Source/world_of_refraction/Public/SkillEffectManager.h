@@ -417,7 +417,7 @@ private:
 	// ========================================
 
 	/** Process effects with a specific timing */
-	void ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing);
+	void ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTiming Timing);
 
 	/** Tick durations for actor's effects (called at end of turn) */
 	void TickDurations(AActor *Actor);

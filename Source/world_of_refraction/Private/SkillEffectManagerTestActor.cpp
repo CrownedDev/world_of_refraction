@@ -132,7 +132,7 @@ void ASkillEffectManagerTestActor::Test_StackingBehavior()
 	StackableBuff.RemainingTurns = 3;
 	StackableBuff.bCanStack = true;
 	StackableBuff.MaxStacks = 3;
-	StackableBuff.ProcessTiming = EStatusEffectTiming::Persistent;
+	StackableBuff.ProcessTiming = ESkillEffectTiming::Persistent;
 
 	// Apply 4 times (should cap at 3)
 	Manager->ApplyEffect(TestActor, StackableBuff);
@@ -180,7 +180,7 @@ void ASkillEffectManagerTestActor::Test_DurationRefresh()
 	Buff.RemainingTurns = 3;
 	Buff.bCanStack = false;
 	Buff.bRefreshDurationOnReapply = true;
-	Buff.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+	Buff.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, Buff);
 
@@ -296,7 +296,7 @@ void ASkillEffectManagerTestActor::Test_RemoveAllBuffs()
 	Debuff.EffectType = EStatusType::SpeedDebuff;
 	Debuff.EffectValue = -10.0f;
 	Debuff.RemainingTurns = 3;
-	Debuff.ProcessTiming = EStatusEffectTiming::Persistent;
+	Debuff.ProcessTiming = ESkillEffectTiming::Persistent;
 	Manager->ApplyEffect(TestActor, Debuff);
 
 	bool bPassed = true;
@@ -338,7 +338,7 @@ void ASkillEffectManagerTestActor::Test_RemoveAllDebuffs()
 	Debuff1.EffectType = EStatusType::SpeedDebuff;
 	Debuff1.EffectValue = -10.0f;
 	Debuff1.RemainingTurns = 3;
-	Debuff1.ProcessTiming = EStatusEffectTiming::Persistent;
+	Debuff1.ProcessTiming = ESkillEffectTiming::Persistent;
 	Manager->ApplyEffect(TestActor, Debuff1);
 
 	FStatusEffect Debuff2;
@@ -347,7 +347,7 @@ void ASkillEffectManagerTestActor::Test_RemoveAllDebuffs()
 	Debuff2.EffectType = EStatusType::DefenseDebuff;
 	Debuff2.EffectValue = -15.0f;
 	Debuff2.RemainingTurns = 3;
-	Debuff2.ProcessTiming = EStatusEffectTiming::Persistent;
+	Debuff2.ProcessTiming = ESkillEffectTiming::Persistent;
 	Manager->ApplyEffect(TestActor, Debuff2);
 
 	bool bPassed = true;
@@ -392,7 +392,7 @@ void ASkillEffectManagerTestActor::Test_StartOfTurnProcessing()
 	HoT.EffectValue = 10.0f;
 	HoT.RemainingTurns = 3;
 	HoT.InitialDuration = 3;
-	HoT.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+	HoT.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, HoT);
 
@@ -431,7 +431,7 @@ void ASkillEffectManagerTestActor::Test_EndOfTurnProcessing()
 	EnergyDrain.EffectType = EStatusType::EnergyDrain;
 	EnergyDrain.EffectValue = 5.0f;
 	EnergyDrain.RemainingTurns = 2;
-	EnergyDrain.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+	EnergyDrain.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, EnergyDrain);
 
@@ -507,7 +507,7 @@ void ASkillEffectManagerTestActor::Test_DurationExpiration()
 
 	// Apply 2-turn buff
 	FStatusEffect ShortBuff = FStatusEffect::CreateBuff(TEXT("Short Buff"), 11001, EStatusType::DamageBuff, 10.0f, 2);
-	ShortBuff.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+	ShortBuff.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, ShortBuff);
 
@@ -548,7 +548,7 @@ void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 	AdrenalineRush.EffectID = 12001;
 	AdrenalineRush.EffectType = EStatusType::DamageBuff;
 	AdrenalineRush.EffectValue = 25.0f;
-	AdrenalineRush.ProcessTiming = EStatusEffectTiming::OnTrigger;
+	AdrenalineRush.ProcessTiming = ESkillEffectTiming::OnTrigger;
 	AdrenalineRush.TriggerCondition = EPassiveTrigger::OnHPBelowThreshold;
 	AdrenalineRush.TriggerThreshold = 30.0f;
 	AdrenalineRush.bPermanent = true;
@@ -813,7 +813,7 @@ void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects()
 	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(Target);
 	if (Effects.Num() > 0)
 	{
-		bPassed &= AssertTrue(Effects[0].ProcessTiming == EStatusEffectTiming::StartOfOwnTurn,
+		bPassed &= AssertTrue(Effects[0].ProcessTiming == ESkillEffectTiming::StartOfOwnTurn,
 							  TEXT("Stun processes at start of turn"));
 	}
 
@@ -860,7 +860,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	HasteEffect.EffectValue = 10.0f;
 	HasteEffect.RemainingTurns = 3;
 	HasteEffect.InitialDuration = 3;
-	HasteEffect.ProcessTiming = EStatusEffectTiming::Persistent;
+	HasteEffect.ProcessTiming = ESkillEffectTiming::Persistent;
 
 	Manager->ApplyEffect(FastChar, HasteEffect, nullptr, TEXT("Haste Spell"), -1);
 
@@ -882,7 +882,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	SlowEffect.EffectValue = 5.0f;
 	SlowEffect.RemainingTurns = 2;
 	SlowEffect.InitialDuration = 2;
-	SlowEffect.ProcessTiming = EStatusEffectTiming::Persistent;
+	SlowEffect.ProcessTiming = ESkillEffectTiming::Persistent;
 
 	Manager->ApplyEffect(SlowChar, SlowEffect, nullptr, TEXT("Slow Spell"), -1);
 
@@ -908,7 +908,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	ShortHaste.EffectValue = 8.0f;
 	ShortHaste.RemainingTurns = 1;
 	ShortHaste.InitialDuration = 1;
-	ShortHaste.ProcessTiming = EStatusEffectTiming::Persistent;
+	ShortHaste.ProcessTiming = ESkillEffectTiming::Persistent;
 
 	Manager->ApplyEffect(FastChar, ShortHaste, nullptr, TEXT("Quick Haste"), -1);
 	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),

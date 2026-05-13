@@ -3791,7 +3791,7 @@ void UActionExecutor::ApplySkillEffects(
 				FMath::RoundToInt(Effect.Magnitude * 100.0f), // Convert to percentage value
 				Effect.Duration,
 				ESpellElement::Generic, // Abilities don't have inherent element
-				EStatusEffectTiming::StartOfOwnTurn);
+				ESkillEffectTiming::StartOfOwnTurn);
 
 			StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 			Result.StatusEffectsApplied++;
