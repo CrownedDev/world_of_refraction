@@ -689,6 +689,8 @@ int32 UAIDecisionManager::GetMaxHP(AActor *Actor)
     UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
     if (CharComp && CharComp->CharacterData)
     {
+        // TODO: reads asset directly — misses equipment BonusMaxHP bonus.
+        // Should read CharacterDataComponent::MaxHP instead.
         return CharComp->CharacterData->CalculateMaxHealth();
     }
     return 100;
@@ -736,6 +738,8 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         return false;
     }
 
+    // TODO: reads asset directly — misses equipment BonusMaxHP/BonusMaxEnergy.
+    // Should read CharacterDataComponent::MaxHP / MaxEP instead.
     float HPPercent = static_cast<float>(CharComp->CurrentHP) / CharComp->CharacterData->CalculateMaxHealth();
     int32 CurrentEnergy = CharComp->CurrentEP;
     int32 MaxEnergy = CharComp->CharacterData->CalculateMaxEnergy();
@@ -1355,6 +1359,8 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     }
 
     // Get energy state
+    // TODO: reads asset directly — misses equipment BonusMaxEnergy.
+    // Should read CharacterDataComponent::MaxEP instead.
     int32 CurrentEnergy = AttackerComp->CurrentEP;
     int32 MaxEnergy = AttackerComp->CharacterData->CalculateMaxEnergy();
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
@@ -1443,6 +1449,8 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         return 0;
     }
 
+    // TODO: reads asset directly — misses equipment BonusMaxEnergy.
+    // Should read CharacterDataComponent::MaxEP instead.
     int32 CurrentEnergy = AttackerComp->CurrentEP;
     int32 MaxEnergy = AttackerComp->CharacterData->CalculateMaxEnergy();
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
@@ -1537,6 +1545,8 @@ int32 UAIDecisionManager::GetMaxEP(AActor *Actor) const
     UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
     if (CharComp && CharComp->CharacterData)
     {
+        // TODO: reads asset directly — misses equipment BonusMaxEnergy.
+        // Should read CharacterDataComponent::MaxEP instead.
         return CharComp->CharacterData->CalculateMaxEnergy();
     }
 

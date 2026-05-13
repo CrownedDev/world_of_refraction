@@ -87,6 +87,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Character")
     void ResetToMax();
 
+    /** Recompute MaxHP / MaxEP using the crystal-modified Body/Spirit pillars
+     *  plus the active loadout's BonusMaxHP / BonusMaxEnergy contribution.
+     *  Called from BeginPlay; safe to call again when equipment changes
+     *  mid-combat. Does NOT clamp CurrentHP/CurrentEP or broadcast change
+     *  events — caller decides clamp/refill/notify policy. */
+    UFUNCTION(BlueprintCallable, Category = "Character")
+    void RecomputeMaxPools();
+
     // ========================================
     // HP MANAGEMENT (SERVER ONLY)
     // ========================================

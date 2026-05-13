@@ -47,19 +47,11 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
-        // HP/EP init — crystal-aware path. Inlines UCharacterData::CalculateMaxHealth
-        // / CalculateMaxEnergy formulas against GetCrystalModifiedBody/Spirit so a
-        // slotted primary evolution crystal feeds pool sizes.
-        const float ModifiedBody = GetCrystalModifiedBody();
-        MaxHP = FMath::RoundToInt(
-            CombatConstants::MAX_HEALTH_BASE +
-            (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT));
+        // HP/EP init — crystal-aware path with equipment bonus folded in.
+        // Formula lives in RecomputeMaxPools so equipment-swap code can re-run
+        // it without duplicating the math.
+        RecomputeMaxPools();
         CurrentHP = MaxHP;
-
-        const float ModifiedSpirit = GetCrystalModifiedSpirit();
-        MaxEP = FMath::RoundToInt(
-            CombatConstants::MAX_ENERGY_BASE +
-            (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT));
         CurrentEP = MaxEP;
 
         // Character-created BD: auto-flip the runtime flag and zero EP so
@@ -410,6 +402,38 @@ float UCharacterDataComponent::GetCrystalModifiedSpirit() const
         return 0.0f;
     }
     return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
+}
+
+void UCharacterDataComponent::RecomputeMaxPools()
+{
+    if (!CharacterData)
+    {
+        return;
+    }
+
+    int32 BonusMaxHP = 0;
+    int32 BonusMaxEnergy = 0;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+            BonusMaxHP = Bonus.BonusMaxHP;
+            BonusMaxEnergy = Bonus.BonusMaxEnergy;
+        }
+    }
+
+    const float ModifiedBody = GetCrystalModifiedBody();
+    MaxHP = FMath::RoundToInt(
+        CombatConstants::MAX_HEALTH_BASE +
+        (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT))
+        + BonusMaxHP;
+
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    MaxEP = FMath::RoundToInt(
+        CombatConstants::MAX_ENERGY_BASE +
+        (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT))
+        + BonusMaxEnergy;
 }
 
 float UCharacterDataComponent::GetEquipmentModifiedLuck() const
