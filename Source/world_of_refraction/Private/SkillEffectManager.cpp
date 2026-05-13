@@ -957,12 +957,16 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::SpiritDebuff:
 	case ESkillEffectType::CritChanceBuff:
 	case ESkillEffectType::CritChanceDebuff:
-	case ESkillEffectType::AttackSpeedBuff:
-	case ESkillEffectType::AttackSpeedDebuff:
+	case ESkillEffectType::SpellSpeedBuff:
+	case ESkillEffectType::SpellSpeedDebuff:
+	case ESkillEffectType::ActionSpeedBuff:
+	case ESkillEffectType::ActionSpeedDebuff:
 	case ESkillEffectType::RawDamageBuff:
 	case ESkillEffectType::RawDamageDebuff:
-	case ESkillEffectType::EffectDamageBuff:
-	case ESkillEffectType::EffectDamageDebuff:
+	case ESkillEffectType::SpellDamageBuff:
+	case ESkillEffectType::SpellDamageDebuff:
+	case ESkillEffectType::StatusMultiplierBuff:
+	case ESkillEffectType::StatusMultiplierDebuff:
 	case ESkillEffectType::SpellCostBuff:
 	case ESkillEffectType::SpellCostDebuff:
 	case ESkillEffectType::ResistanceBuff:
@@ -971,6 +975,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::SpellSizeDebuff:
 	case ESkillEffectType::MaxEnergyBuff:
 	case ESkillEffectType::MaxEnergyDebuff:
+	case ESkillEffectType::TurnSpeedBuff:
+	case ESkillEffectType::TurnSpeedDebuff:
+	case ESkillEffectType::LuckBuff:
+	case ESkillEffectType::LuckDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
@@ -1399,8 +1407,10 @@ bool USkillEffectManager::IsSpeedEffect(ESkillEffectType EffectType) const
 	{
 	case ESkillEffectType::SpeedBuff:
 	case ESkillEffectType::SpeedDebuff:
-	case ESkillEffectType::AttackSpeedBuff:
-	case ESkillEffectType::AttackSpeedDebuff:
+	case ESkillEffectType::ActionSpeedBuff:
+	case ESkillEffectType::ActionSpeedDebuff:
+	case ESkillEffectType::TurnSpeedBuff:
+	case ESkillEffectType::TurnSpeedDebuff:
 		return true;
 	default:
 		return false;

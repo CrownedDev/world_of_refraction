@@ -46,7 +46,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 
 	// Equipment stat bonus — direct read from the attacker's active loadout.
-	// Replaces the prior RawDamageBuff/EffectDamageBuff status-effect path
+	// Replaces the prior RawDamageBuff/StatusMultiplierBuff status-effect path
 	// (which depended on ApplyWeaponBonuses, never wired in production).
 	// Folded into AttackerMult so each rolled point contributes a small
 	// fractional multiplier rather than flat damage.

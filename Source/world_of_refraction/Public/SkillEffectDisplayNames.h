@@ -152,6 +152,25 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::RandomSkill:
             return TEXT("Voided");
 
+        // ==================== NEW SUB-STAT BUFFS / DEBUFFS ====================
+        // Plain defaults; element-flavour overrides can be added later if desired.
+        case ESkillEffectType::SpellDamageBuff:
+            return TEXT("Empowered");
+        case ESkillEffectType::SpellDamageDebuff:
+            return TEXT("Weakened Magic");
+        case ESkillEffectType::SpellSpeedBuff:
+            return TEXT("Quickened Casting");
+        case ESkillEffectType::SpellSpeedDebuff:
+            return TEXT("Slowed Casting");
+        case ESkillEffectType::TurnSpeedBuff:
+            return TEXT("Hastened");
+        case ESkillEffectType::TurnSpeedDebuff:
+            return TEXT("Lagging");
+        case ESkillEffectType::LuckBuff:
+            return TEXT("Fortunate");
+        case ESkillEffectType::LuckDebuff:
+            return TEXT("Misfortune");
+
         // All other status types use their enum display name
         default:
         {
