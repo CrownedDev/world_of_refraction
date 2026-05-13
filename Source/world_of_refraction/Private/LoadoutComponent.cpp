@@ -15,6 +15,8 @@
 #include "RingData.h"
 #include "ItemData.h"
 #include "StanceData.h"
+#include "TurnManager.h"
+#include "Engine/GameInstance.h"
 
 #include "WeaponAttackData.h"
 
@@ -1232,6 +1234,20 @@ void ULoadoutComponent::ToggleEquipment()
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
            Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
+
+    // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
+    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
+    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
+    if (UWorld *World = GetWorld())
+    {
+        if (UGameInstance *GI = World->GetGameInstance())
+        {
+            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+            {
+                TurnManager->OnActorSpeedChanged(GetOwner());
+            }
+        }
+    }
 }
 
 bool ULoadoutComponent::HasWeaponAccess() const
@@ -1693,6 +1709,20 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
     Loadout.ActiveRingIndex = NewIndex;
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Set ActiveRingIndex to %d"), NewIndex);
+
+    // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
+    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
+    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
+    if (UWorld *World = GetWorld())
+    {
+        if (UGameInstance *GI = World->GetGameInstance())
+        {
+            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+            {
+                TurnManager->OnActorSpeedChanged(GetOwner());
+            }
+        }
+    }
 }
 
 void ULoadoutComponent::DebugLogLoadout()

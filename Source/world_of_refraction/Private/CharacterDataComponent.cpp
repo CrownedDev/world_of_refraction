@@ -7,6 +7,7 @@
 #include "StanceData.h"
 #include "InventoryComponent.h"
 #include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 #include "ItemData.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
@@ -46,19 +47,11 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
-        // HP/EP init — crystal-aware path. Inlines UCharacterData::CalculateMaxHealth
-        // / CalculateMaxEnergy formulas against GetCrystalModifiedBody/Spirit so a
-        // slotted primary evolution crystal feeds pool sizes.
-        const float ModifiedBody = GetCrystalModifiedBody();
-        MaxHP = FMath::RoundToInt(
-            CombatConstants::MAX_HEALTH_BASE +
-            (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT));
+        // HP/EP init — crystal-aware path with equipment bonus folded in.
+        // Formula lives in RecomputeMaxPools so equipment-swap code can re-run
+        // it without duplicating the math.
+        RecomputeMaxPools();
         CurrentHP = MaxHP;
-
-        const float ModifiedSpirit = GetCrystalModifiedSpirit();
-        MaxEP = FMath::RoundToInt(
-            CombatConstants::MAX_ENERGY_BASE +
-            (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT));
         CurrentEP = MaxEP;
 
         // Character-created BD: auto-flip the runtime flag and zero EP so
@@ -409,6 +402,117 @@ float UCharacterDataComponent::GetCrystalModifiedSpirit() const
         return 0.0f;
     }
     return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
+}
+
+void UCharacterDataComponent::RecomputeMaxPools()
+{
+    if (!CharacterData)
+    {
+        return;
+    }
+
+    int32 BonusMaxHP = 0;
+    int32 BonusMaxEnergy = 0;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+            BonusMaxHP = Bonus.BonusMaxHP;
+            BonusMaxEnergy = Bonus.BonusMaxEnergy;
+        }
+    }
+
+    const float ModifiedBody = GetCrystalModifiedBody();
+    MaxHP = FMath::RoundToInt(
+        CombatConstants::MAX_HEALTH_BASE +
+        (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT))
+        + BonusMaxHP;
+
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    MaxEP = FMath::RoundToInt(
+        CombatConstants::MAX_ENERGY_BASE +
+        (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT))
+        + BonusMaxEnergy;
+}
+
+float UCharacterDataComponent::GetEquipmentModifiedLuck() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+
+    // Crystal-aware Luck: pillar-scaled against GetCrystalModifiedSpirit
+    // instead of the raw asset's GetEffectiveSpirit. Mirrors the asset's
+    // CalculateLuck formula shape (no LUCK_BASE constant — bare per-point).
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const int32 LuckPoints = CharacterData->GetTotalLuck();
+    float Luck = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
+
+    // Equipment stat bonus — additive per-point on top of the pillar term.
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+            Luck += Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT;
+        }
+    }
+
+    return FMath::Min(Luck, CombatConstants::LUCK_RAW_MAX);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedSpellDamage() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const float ModifiedMind = GetCrystalModifiedMind();
+    const int32 TotalPoints = CharacterData->GetTotalSpellDamage();
+    return 1.0f + (ModifiedMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedRawDamage() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const float ModifiedBody = GetCrystalModifiedBody();
+    const int32 TotalPoints = CharacterData->GetTotalRawDamage();
+    return 1.0f + (ModifiedBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedCritChance() const
+{
+    if (!CharacterData)
+    {
+        return CombatConstants::CRIT_CHANCE_BASE;
+    }
+    const float ModifiedMind = GetCrystalModifiedMind();
+    const int32 TotalPoints = CharacterData->GetTotalCritChance();
+    return FMath::Clamp(
+        CombatConstants::CRIT_CHANCE_BASE + (ModifiedMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
+        CombatConstants::CRIT_CHANCE_BASE,
+        CombatConstants::CRIT_CHANCE_MAX);
+}
+
+int32 UCharacterDataComponent::GetCrystalModifiedFlatDefense() const
+{
+    if (!CharacterData)
+    {
+        return 0;
+    }
+    const float ModifiedBody = GetCrystalModifiedBody();
+    const int32 TotalPoints = CharacterData->GetTotalDefense();
+    return FMath::RoundToInt(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedSpellDamageForHealing() const
+{
+    return GetCrystalModifiedSpellDamage();
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()

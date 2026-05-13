@@ -104,15 +104,16 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		// Luck-driven crit bonus. Linearly scaled from raw Luck (0.0-LUCK_RAW_MAX)
 		// to consumer cap LUCK_CRIT_BONUS_MAX. Additive on top — matches locked
 		// design where Luck grants extra crit chance ON TOP OF CritChance.
-		// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedSpirit.
-		// CalculateLuck reads the raw asset and ignores the slotted primary
-		// evolution crystal's Spirit pillar modifier.
-		UCharacterData *AttackerData = GetCharacterData(Attacker);
-		if (AttackerData)
+		// GetEquipmentModifiedLuck folds in crystal Spirit modifier and
+		// active-loadout BonusLuck.
+		if (Attacker)
 		{
-			const float RawLuck = AttackerData->CalculateLuck();
-			const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
-			CritChance += LuckCritBonus;
+			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+			{
+				const float RawLuck = AttackerComp->GetEquipmentModifiedLuck();
+				const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
+				CritChance += LuckCritBonus;
+			}
 		}
 
 		Result.bWasCritical = FMath::FRand() < CritChance;
@@ -216,37 +217,45 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionType ActionType) const
 {
-	UCharacterData *Data = GetCharacterData(Attacker);
-	if (!Data)
+	if (!Attacker)
 	{
 		return 1.0f;
 	}
 
-	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedMind/Body
-	// once the formula is inlinable here. Calls below read raw asset values that
-	// don't reflect the slotted primary evolution crystal's pillar modifier.
+	UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+	if (!AttackerComp || !AttackerComp->CharacterData)
+	{
+		return 1.0f;
+	}
+
+	// Crystal-aware Spell/Raw damage multiplier — uses GetCrystalModifiedMind/Body
+	// so the slotted primary evolution crystal's pillar modifier feeds the curve.
 	if (ActionType == EActionType::Spell)
 	{
-		return Data->CalculateSpellDamage();
+		return AttackerComp->GetCrystalModifiedSpellDamage();
 	}
 	else
 	{
-		return Data->CalculateRawDamage();
+		return AttackerComp->GetCrystalModifiedRawDamage();
 	}
 }
 
 int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 {
-	UCharacterData *Data = GetCharacterData(Defender);
-	if (!Data)
+	if (!Defender)
 	{
 		return 0;
 	}
 
-	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedBody.
-	// CalculateFlatDefense reads the raw asset and ignores the slotted primary
-	// evolution crystal's Body pillar modifier.
-	int32 BaseDefense = Data->CalculateFlatDefense();
+	UCharacterDataComponent *DefenderComp = Defender->FindComponentByClass<UCharacterDataComponent>();
+	if (!DefenderComp || !DefenderComp->CharacterData)
+	{
+		return 0;
+	}
+
+	// Crystal-aware flat defense — uses GetCrystalModifiedBody so the slotted
+	// primary evolution crystal's Body pillar modifier feeds the curve.
+	int32 BaseDefense = DefenderComp->GetCrystalModifiedFlatDefense();
 
 	// Equipment stat bonus — flat additive to defense. Direct read from the
 	// defender's active loadout (the bonus is an int rolled per-instance).
@@ -278,16 +287,20 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 {
-	UCharacterData *Data = GetCharacterData(Attacker);
-	if (!Data)
+	if (!Attacker)
 	{
 		return DamageConstants::BASE_CRIT_CHANCE;
 	}
 
-	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedMind.
-	// CalculateCritChance reads the raw asset and ignores the slotted primary
-	// evolution crystal's Mind pillar modifier.
-	float BaseCrit = Data->CalculateCritChance();
+	UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+	if (!AttackerComp || !AttackerComp->CharacterData)
+	{
+		return DamageConstants::BASE_CRIT_CHANCE;
+	}
+
+	// Crystal-aware crit chance — uses GetCrystalModifiedMind so the slotted
+	// primary evolution crystal's Mind pillar modifier feeds the curve.
+	float BaseCrit = AttackerComp->GetCrystalModifiedCritChance();
 
 	// Equipment stat bonus — BonusCritChance is already a float percentage,
 	// so divide by 100 to convert to the 0-1 crit-chance space.
@@ -391,13 +404,15 @@ int32 UDamageCalculator::CalculateHealing(
 
 	// Apply healer's SpellDamage multiplier. Healing is a spell-class effect — it
 	// scales with the caster's spell power (Mind), not status-buildup amplification.
-	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedMind.
-	// CalculateSpellDamage reads the raw asset and ignores the slotted primary
-	// evolution crystal's Mind pillar modifier.
-	UCharacterData *HealerData = GetCharacterData(Healer);
-	if (HealerData)
+	// Crystal-aware: GetCrystalModifiedSpellDamageForHealing reads
+	// GetCrystalModifiedMind, so the slotted primary evolution crystal's Mind
+	// pillar modifier feeds the curve.
+	if (Healer)
 	{
-		Healing *= HealerData->CalculateSpellDamage();
+		if (UCharacterDataComponent *HealerComp = Healer->FindComponentByClass<UCharacterDataComponent>())
+		{
+			Healing *= HealerComp->GetCrystalModifiedSpellDamageForHealing();
+		}
 	}
 
 	// TODO: Add HealingReceivedBuff/Debuff to ESkillEffectType when needed
