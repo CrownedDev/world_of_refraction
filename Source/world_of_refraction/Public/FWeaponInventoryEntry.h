@@ -15,6 +15,7 @@
 #include "InventoryConstants.h"
 #include "ESpellElement.h"
 #include "FCrystalInventoryEntry.h"
+#include "FEquipmentStatBonus.h"
 #include "FWeaponInventoryEntry.generated.h"
 
 class UWeaponData;
@@ -38,6 +39,18 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     UWeaponData *Weapon = nullptr;
 
+    /** Stable per-instance identifier. Generated at CreateFromWeapon time
+     *  via a static atomic counter (see FWeaponInventoryEntry.cpp). Two
+     *  entries referencing the same UWeaponData asset get distinct IDs.
+     *
+     *  Callers of USkillEffectManager::ApplyWeaponBonuses must pass this
+     *  field as WeaponID — never a fabricated literal, and never a hash
+     *  of the asset name (would collide across duplicate-asset entries).
+     *  RemoveWeaponBonuses must be paired with the same value used at
+     *  apply time. */
+    UPROPERTY(BlueprintReadOnly, Category = "Identity")
+    int32 InstanceID = 0;
+
     /** Attached crystal with runtime spell customization */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     FCrystalInventoryEntry AttachedCrystal;
@@ -45,6 +58,14 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     /** Spells assigned to this weapon's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
+
+    /** Per-instance stat bonus state. Seeded from
+     *  UWeaponData::DefaultStatBonus at CreateFromWeapon time; bLocked is
+     *  driven by UWeaponData::bStatBonusLocked. Mutated at runtime by
+     *  SpendPendingPoints / AddPendingPoints. This is what runtime damage
+     *  and stat queries should read — not the asset's DefaultStatBonus. */
+    UPROPERTY(BlueprintReadWrite, Category = "Mastery")
+    FEquipmentStatBonus StatBonus;
 
     // ==================== FACTORY ====================
 

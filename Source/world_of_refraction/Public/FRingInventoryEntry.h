@@ -18,6 +18,7 @@
 #include "InventoryConstants.h"
 #include "ESpellElement.h"
 #include "FCrystalInventoryEntry.h"
+#include "FEquipmentStatBonus.h"
 
 #include "FRingInventoryEntry.generated.h"
 
@@ -42,6 +43,18 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     URingData *Ring = nullptr;
 
+    /** Stable per-instance identifier. Generated at CreateFromRing time
+     *  via a static atomic counter (see FRingInventoryEntry.cpp). Two
+     *  entries referencing the same URingData asset get distinct IDs.
+     *
+     *  Callers of USkillEffectManager::ApplyRingBonuses must pass this
+     *  field as RingInstanceID — never a fabricated literal, and never a
+     *  hash of the asset name (would collide across duplicate-asset
+     *  entries). RemoveRingBonuses must be paired with the same value
+     *  used at apply time. */
+    UPROPERTY(BlueprintReadOnly, Category = "Identity")
+    int32 InstanceID = 0;
+
     /** Attached crystal with runtime spell customization */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     FCrystalInventoryEntry AttachedCrystal;
@@ -49,6 +62,14 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     /** Spells assigned to this ring's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     TArray<USpellData *> AssignedSpells;
+
+    /** Per-instance stat bonus state. Seeded from URingData::DefaultStatBonus
+     *  at CreateFromRing time; bLocked is driven by URingData::bStatBonusLocked.
+     *  Mutated at runtime by SpendPendingPoints / AddPendingPoints. This is
+     *  what runtime damage and stat queries should read — not the asset's
+     *  DefaultStatBonus. */
+    UPROPERTY(BlueprintReadWrite, Category = "Engravings")
+    FEquipmentStatBonus StatBonus;
 
     // ==================== FACTORY ====================
 

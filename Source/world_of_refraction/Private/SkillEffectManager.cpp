@@ -8,6 +8,7 @@
 #include "InfusionConstants.h"
 #include "CharacterDataComponent.h"
 #include "StatusDisplayNames.h"
+#include "RingData.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -254,6 +255,67 @@ void USkillEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d weapon bonuses (WeaponID: %d) from %s"),
 			   RemovedCount, WeaponID, *Target->GetName());
+	}
+}
+
+// ========================================
+// RING EFFECT APPLICATION
+// ========================================
+
+void USkillEffectManager::ApplyRingBonuses(AActor *Target, const FEquipmentStatBonus &StatBonus, const FString &RingName, int32 RingInstanceID)
+{
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ApplyRingBonuses: null Target"));
+		return;
+	}
+
+	TArray<FStatusEffect> Bonuses = FStatusEffect::CreateFromRingBonuses(
+		RingName,
+		RingInstanceID,
+		StatBonus.BonusRawDamage,
+		StatBonus.BonusDefense,
+		StatBonus.BonusSpellDamage,
+		StatBonus.BonusActionSpeed,
+		StatBonus.BonusCritChance);
+
+	if (Bonuses.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applying %d ring bonuses from %s (InstanceID %d) to %s"),
+			   Bonuses.Num(), *RingName, RingInstanceID, *Target->GetName());
+	}
+
+	ApplyEffects(Target, Bonuses, nullptr, RingName + TEXT(" (Equipped)"), -1);
+}
+
+void USkillEffectManager::RemoveRingBonuses(AActor *Target, int32 RingInstanceID)
+{
+	if (!Target || !ActiveEffects.Contains(Target))
+	{
+		return;
+	}
+
+	const int32 BaseID = RingInstanceID * 100 + 50;
+	int32 RemovedCount = 0;
+	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+
+	// Mirror RemoveWeaponBonuses: clear BaseID+1 through BaseID+6
+	for (int32 i = Effects.Num() - 1; i >= 0; --i)
+	{
+		int32 EffectID = Effects[i].EffectID;
+		if (EffectID >= BaseID + 1 && EffectID <= BaseID + 6)
+		{
+			FStatusEffect RemovedEffect = Effects[i];
+			Effects.RemoveAt(i);
+			RemovedCount++;
+			OnEffectRemoved.Broadcast(Target, RemovedEffect);
+		}
+	}
+
+	if (RemovedCount > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d ring bonuses (InstanceID: %d) from %s"),
+			   RemovedCount, RingInstanceID, *Target->GetName());
 	}
 }
 

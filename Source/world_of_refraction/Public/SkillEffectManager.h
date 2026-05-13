@@ -6,9 +6,11 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "StatusEffect.h"
 #include "EStatusType.h"
+#include "FEquipmentStatBonus.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
+class URingData;
 
 // ========================================
 // DELEGATE DECLARATIONS
@@ -150,6 +152,34 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
 	void RemoveWeaponBonuses(AActor *Target, int32 WeaponID);
+
+	// ========================================
+	// RING EFFECT APPLICATION
+	// ========================================
+
+	/**
+	 * Apply ring stat bonuses as permanent effects (mirrors ApplyWeaponBonuses).
+	 * Reads bonus values directly from the supplied StatBonus — pass the
+	 * per-instance FRingInventoryEntry::StatBonus so equipped bonuses reflect
+	 * runtime rolls rather than the asset's DefaultStatBonus.
+	 * Call when ring is equipped.
+	 *
+	 * @param Target Actor to apply bonuses to
+	 * @param StatBonus Per-instance bonus values — pass Entry.StatBonus
+	 * @param RingName Display name for the bonus effects — pass Entry.Ring->Name
+	 * @param RingInstanceID Stable per-instance identifier — pass
+	 *        FRingInventoryEntry::InstanceID. Must match the value passed
+	 *        to RemoveRingBonuses on unequip.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Rings")
+	void ApplyRingBonuses(AActor *Target, const FEquipmentStatBonus &StatBonus, const FString &RingName, int32 RingInstanceID);
+
+	/**
+	 * Remove ring bonuses when ring is unequipped. RingInstanceID must
+	 * match the value passed to ApplyRingBonuses at equip time.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Rings")
+	void RemoveRingBonuses(AActor *Target, int32 RingInstanceID);
 
 	/**
 	 * Apply physical damage type skill effect (Generic character weapon attacks)

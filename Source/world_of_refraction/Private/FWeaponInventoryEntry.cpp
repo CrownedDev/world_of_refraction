@@ -5,10 +5,21 @@
 #include "WeaponData.h"
 #include "ItemData.h"
 
+#include <atomic>
+
+// Process-local monotonic counter for stable per-instance IDs. Self-contained
+// to this TU — not routed through SkillEffectManager so inventory code can
+// generate IDs without depending on the subsystem being initialized.
+namespace
+{
+    static std::atomic<int32> GWeaponInstanceCounter{1};
+}
+
 FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWeapon, bool bCopyDefaultCrystal)
 {
     FWeaponInventoryEntry Entry;
     Entry.Weapon = InWeapon;
+    Entry.InstanceID = GWeaponInstanceCounter.fetch_add(1);
 
     if (bCopyDefaultCrystal && InWeapon && InWeapon->SlottedCrystal)
     {
@@ -17,6 +28,12 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
 
         // Copy default spells from weapon asset
         Entry.AssignedSpells = InWeapon->DefaultSpells;
+    }
+
+    if (InWeapon)
+    {
+        Entry.StatBonus = InWeapon->DefaultStatBonus;
+        Entry.StatBonus.bLocked = InWeapon->bStatBonusLocked;
     }
 
     return Entry;

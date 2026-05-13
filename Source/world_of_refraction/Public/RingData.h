@@ -5,9 +5,12 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Engine/Texture2D.h"
 #include "ItemTier.h"
 #include "ESpellElement.h"
 #include "LoadoutConstants.h"
+#include "WorldStatRequirements.h"
+#include "FEquipmentStatBonus.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -17,6 +20,7 @@
 
 class USpellData;
 class UItemData;
+class UCharacterData;
 
 /**
  * Ring Data Asset - Resonator's primary spell source
@@ -53,6 +57,47 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (TitleProperty = "Name"))
 	TArray<USpellData *> DefaultSpells;
 
+	// If true, spells cannot be customized (conjured-ring equivalent of bAbilitiesLocked)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells")
+	bool bSpellsLocked = false;
+
+	// ==================== WORLD STAT REQUIREMENTS ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+	FWorldStatRequirements Requirements;
+
+	// ==================== ENGRAVINGS (STAT BONUSES) ====================
+
+	/** Roll template for this ring's per-instance stat bonuses. Copied into
+	 *  FRingInventoryEntry::StatBonus at CreateFromRing time. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Engravings")
+	FEquipmentStatBonus DefaultStatBonus;
+
+	/** When true, FRingInventoryEntry::StatBonus.bLocked is set on instance
+	 *  creation — engravings cannot be re-rolled via SpendPendingPoints. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Engravings")
+	bool bStatBonusLocked = false;
+
+	// ==================== INFUSION ====================
+
+	/** Status buildup multiplier when a Resonator's ring is the infusion source */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",
+			  meta = (ClampMin = "0.0", ClampMax = "2.0"))
+	float InfusionStatusMultiplier = 1.0f;
+
+	// ==================== MESH ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	UStaticMesh *RingStaticMesh = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	FRotator MeshRotation = FRotator::ZeroRotator;
+
+	// ==================== PRESENTATION ====================
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+	UTexture2D *Icon = nullptr;
+
 	// ==================== CRYSTAL HELPERS ====================
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
@@ -66,6 +111,24 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
 	int32 GetMaxSpells() const { return LoadoutConstants::MAX_RING_SPELLS; }
+
+	// ==================== UTILITY ====================
+
+	UFUNCTION(BlueprintPure, Category = "Ring")
+	bool MeetsRequirements(const UCharacterData *Character) const
+	{
+		return Requirements.MeetsRequirements(Character);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Ring")
+	FString GetRequirementsSummary(const UCharacterData *Character) const
+	{
+		return Requirements.GetRequirementsSummary(Character);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Ring")
+	FString GetDisplayName() const { return Name; }
+
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif

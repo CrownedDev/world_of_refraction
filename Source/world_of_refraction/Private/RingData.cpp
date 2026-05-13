@@ -4,6 +4,7 @@
 #include "SpellData.h"
 #include "ItemData.h"
 #include "CrystalType.h"
+#include "LoadoutConstants.h"
 
 bool URingData::IsEvolved() const
 {
@@ -27,8 +28,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
     // Name validation
     if (Name.IsEmpty() || Name == TEXT("Unnamed Ring"))
     {
-        Context.AddError(FText::FromString(TEXT("Ring must have a unique name")));
-        Result = EDataValidationResult::Invalid;
+        Context.AddWarning(FText::FromString(TEXT("Ring must have a unique name")));
     }
 
     // Crystal validation
@@ -49,6 +49,23 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
             Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
             Result = EDataValidationResult::Invalid;
         }
+
+        // Ring tier is informational only; warn on SlottedCrystal tier mismatch.
+        if (SlottedCrystal->Tier != Tier)
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("Ring tier (%s) does not match SlottedCrystal tier (%s) — ring tier is informational only"),
+                *UEnum::GetValueAsString(Tier),
+                *UEnum::GetValueAsString(SlottedCrystal->Tier))));
+        }
+    }
+
+    // Spell-count cap (warn, not error — designers may iterate over the cap)
+    if (DefaultSpells.Num() > LoadoutConstants::MAX_RING_SPELLS)
+    {
+        Context.AddWarning(FText::FromString(FString::Printf(
+            TEXT("DefaultSpells (%d) exceeds MAX_RING_SPELLS (%d)"),
+            DefaultSpells.Num(), LoadoutConstants::MAX_RING_SPELLS)));
     }
 
     return Result;

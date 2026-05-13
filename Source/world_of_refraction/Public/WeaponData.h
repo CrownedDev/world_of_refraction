@@ -11,6 +11,7 @@
 #include "WorldStatRequirements.h"
 #include "CrystalType.h"
 #include "ItemTier.h"
+#include "FEquipmentStatBonus.h"
 #include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
@@ -104,26 +105,15 @@ public:
 
     // ==================== STAT BONUSES (APPLIED WHILE EQUIPPED) ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
-    int32 BonusRawDamage = 0;
+    /** Roll template for this weapon's per-instance stat bonuses. Copied into
+     *  FWeaponInventoryEntry::StatBonus at CreateFromWeapon time. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mastery")
+    FEquipmentStatBonus DefaultStatBonus;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
-    int32 BonusDefense = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
-    int32 BonusSpellDamage = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
-    int32 BonusActionSpeed = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0.0"))
-    float BonusCritChance = 0.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
-    int32 BonusMaxHP = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
-    int32 BonusMaxEnergy = 0;
+    /** When true, FWeaponInventoryEntry::StatBonus.bLocked is set on instance
+     *  creation — bonuses cannot be re-rolled via SpendPendingPoints. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mastery")
+    bool bStatBonusLocked = false;
 
     // ==================== ANIMATION ====================
 

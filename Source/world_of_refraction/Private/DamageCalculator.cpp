@@ -12,6 +12,8 @@
 #include "Engine/GameInstance.h"
 #include "WeaponData.h"
 #include "WeaponManager.h"
+#include "LoadoutComponent.h"
+#include "FWeaponLoadoutEntry.h"
 #include "CombatGridSubsystem.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
@@ -255,21 +257,19 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.bWasInfused = bIsInfused;
 	Input.HitCount = Attack->HitCount;
 
-	// Apply weapon stats only if not infused (None = weapon stats apply)
+	// Apply weapon stats only if not infused (None = weapon stats apply).
+	// Reads the per-instance FWeaponInventoryEntry::StatBonus (post-refactor),
+	// not the UWeaponData asset — runtime damage must honor the equipped
+	// instance's rolled bonuses, not the asset defaults.
 	if (!bIsInfused)
 	{
-		// Get active weapon
-		UWeaponManager *WM = Cast<UWeaponManager>(GetGameInstance()->GetSubsystem<UWeaponManager>());
-		if (WM)
+		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
 		{
-			UWeaponData *Weapon = WM->GetActiveWeapon(Attacker);
-			if (Weapon)
+			if (const FWeaponLoadoutEntry *ActiveLoadout = Loadout->GetActiveWeaponLoadout())
 			{
-				// Apply weapon damage bonus
-				Input.BaseDamage += Weapon->BonusRawDamage;
-
-				// Store crit bonuses for later application
-				Input.OverrideCritChance = GetCriticalChance(Attacker) + (Weapon->BonusCritChance / 100.0f);
+				const FEquipmentStatBonus &StatBonus = ActiveLoadout->WeaponEntry.StatBonus;
+				Input.BaseDamage += StatBonus.BonusRawDamage;
+				Input.OverrideCritChance = GetCriticalChance(Attacker) + (StatBonus.BonusCritChance / 100.0f);
 			}
 		}
 	}

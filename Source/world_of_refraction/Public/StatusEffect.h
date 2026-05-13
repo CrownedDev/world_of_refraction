@@ -336,6 +336,88 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		return Effects;
 	}
 
+	// ========================================
+	// FACTORY METHODS - RING SYSTEM
+	// ========================================
+
+	/**
+	 * Create permanent stat bonuses from equipped ring
+	 * Mirrors CreateFromWeaponBonuses; namespaced ID range (+50 offset within
+	 * the RingID*100 block) to avoid collision with weapon-bonus IDs.
+	 *
+	 * @param RingName Name of ring for display
+	 * @param RingID Unique ring identifier
+	 * @param BonusRawDamage Raw damage bonus from ring
+	 * @param BonusDefense Defense bonus from ring
+	 * @param BonusSpellDamage Spell damage bonus
+	 * @param BonusActionSpeed Action speed bonus
+	 * @param BonusCritChance Crit chance bonus (percentage)
+	 */
+	static TArray<FStatusEffect> CreateFromRingBonuses(
+		const FString &RingName,
+		int32 RingID,
+		int32 BonusRawDamage,
+		int32 BonusDefense,
+		int32 BonusSpellDamage,
+		int32 BonusActionSpeed,
+		float BonusCritChance)
+	{
+		TArray<FStatusEffect> Effects;
+		int32 BaseID = RingID * 100 + 50; // +50 offset isolates ring-bonus IDs from weapon-bonus IDs (+1..+6) in the same RingID*100 block
+
+		if (BonusRawDamage != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				RingName + TEXT(" (Raw Damage)"),
+				BaseID + 1,
+				BonusRawDamage > 0 ? EStatusType::RawDamageBuff : EStatusType::RawDamageDebuff,
+				static_cast<float>(FMath::Abs(BonusRawDamage)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusDefense != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				RingName + TEXT(" (Defense)"),
+				BaseID + 2,
+				BonusDefense > 0 ? EStatusType::DefenseBuff : EStatusType::DefenseDebuff,
+				static_cast<float>(FMath::Abs(BonusDefense)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusSpellDamage != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				RingName + TEXT(" (Spell Damage)"),
+				BaseID + 3,
+				BonusSpellDamage > 0 ? EStatusType::EffectDamageBuff : EStatusType::EffectDamageDebuff,
+				static_cast<float>(FMath::Abs(BonusSpellDamage)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusActionSpeed != 0)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				RingName + TEXT(" (Action Speed)"),
+				BaseID + 4,
+				BonusActionSpeed > 0 ? EStatusType::SpeedBuff : EStatusType::SpeedDebuff,
+				static_cast<float>(FMath::Abs(BonusActionSpeed)));
+			Effects.Add(Bonus);
+		}
+
+		if (BonusCritChance != 0.0f)
+		{
+			FStatusEffect Bonus = CreatePersistent(
+				RingName + TEXT(" (Crit Chance)"),
+				BaseID + 5,
+				BonusCritChance > 0 ? EStatusType::CritChanceBuff : EStatusType::CritChanceDebuff,
+				FMath::Abs(BonusCritChance));
+			Effects.Add(Bonus);
+		}
+
+		return Effects;
+	}
+
 	/**
 	 * Create status effect from physical damage type (Generic character weapon attacks)
 	 * Slash → Bleed DOT, Pierce → Armor Break, Impact → Stun
