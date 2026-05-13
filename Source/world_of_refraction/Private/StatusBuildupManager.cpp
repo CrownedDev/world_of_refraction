@@ -177,16 +177,20 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// Get or create state
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 
-	// Apply attacker StatusMultiplier amplification via the pillar-scaled
-	// CalculateStatusMultiplier (Spirit-driven post pillar move). Single source
-	// of truth for buildup scaling — matches the helpers on USpellData /
-	// UAbilityData / debug paths.
+	// Apply attacker StatusMultiplier amplification — crystal-aware path.
+	// Inlines the StatusMultiplier formula (1 + EffectiveSpirit × points × per-point)
+	// against the component's GetCrystalModifiedSpirit so a slotted primary
+	// evolution crystal's pillar modifier feeds the buildup curve.
+	// Mirrors UCharacterData::CalculateStatusMultiplier shape; if that formula
+	// changes, update here too.
 	if (Source)
 	{
 		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
 		if (SourceComp && SourceComp->CharacterData)
 		{
-			Amount *= SourceComp->CharacterData->CalculateStatusMultiplier();
+			const float ModifiedSpirit = SourceComp->GetCrystalModifiedSpirit();
+			const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
+			Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 		}
 	}
 

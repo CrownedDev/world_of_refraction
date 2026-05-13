@@ -749,7 +749,7 @@ FString UItemData::GetEvolutionStatSummary() const
 
 float UItemData::CalculateModifiedMind(float BaseMind) const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return BaseMind;
     }
@@ -758,7 +758,7 @@ float UItemData::CalculateModifiedMind(float BaseMind) const
 
 float UItemData::CalculateModifiedBody(float BaseBody) const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return BaseBody;
     }
@@ -767,7 +767,7 @@ float UItemData::CalculateModifiedBody(float BaseBody) const
 
 float UItemData::CalculateModifiedSpirit(float BaseSpirit) const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return BaseSpirit;
     }
@@ -792,7 +792,7 @@ FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
     }
     else
     {
-        // SubStats mode — 10 explicit fields map 1:1 to FActionStatModifiers.
+        // SubStats mode — 11 explicit fields map 1:1 to FActionStatModifiers.
         // Field names match between UItemData and FActionStatModifiers, so no
         // re-mapping is needed. Pool stats (MaxHealth, MaxEnergy) deliberately
         // not authored here — they belong to the future Traits system as

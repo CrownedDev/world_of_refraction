@@ -1826,3 +1826,133 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
     }
     return nullptr;
 }
+
+// ==================== EQUIPMENT STAT QUERIES ====================
+
+namespace
+{
+    /** Field-wise accumulator for FEquipmentStatBonus. Mastery/roll state
+     *  (PendingPoints, bLocked) is intentionally NOT summed — the result is a
+     *  read-only snapshot consumed by stat queries, not a roll target. */
+    void AccumulateBonus(FEquipmentStatBonus &Out, const FEquipmentStatBonus &In)
+    {
+        Out.BonusRawDamage        += In.BonusRawDamage;
+        Out.BonusSpellDamage      += In.BonusSpellDamage;
+        Out.BonusEfficiency       += In.BonusEfficiency;
+        Out.BonusStatusMultiplier += In.BonusStatusMultiplier;
+        Out.BonusCritChance       += In.BonusCritChance;
+        Out.BonusSpellSpeed       += In.BonusSpellSpeed;
+        Out.BonusDefense          += In.BonusDefense;
+        Out.BonusActionSpeed      += In.BonusActionSpeed;
+        Out.BonusMaxHP            += In.BonusMaxHP;
+        Out.BonusMaxEnergy        += In.BonusMaxEnergy;
+        Out.BonusResistance       += In.BonusResistance;
+        Out.BonusTurnSpeed        += In.BonusTurnSpeed;
+        Out.BonusLuck             += In.BonusLuck;
+    }
+}
+
+FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
+{
+    (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
+
+    FEquipmentStatBonus Combined;
+
+    const FCombatLoadout Loadout = GetActiveLoadout();
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+    {
+        const bool bHasSecondaryWeapon =
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+            Loadout.SecondaryWeapon.IsValid();
+
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (bHasSecondaryWeapon)
+            {
+                // Dual weapon — bShowPrimary picks which one is active.
+                if (const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout())
+                {
+                    Combined = Active->WeaponEntry.StatBonus;
+                }
+            }
+            else if (Loadout.PrimaryWeapon.IsValid())
+            {
+                Combined = Loadout.PrimaryWeapon.WeaponEntry.StatBonus;
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            // Ring primary; weapon-secondary (if any) sums in.
+            if (Loadout.PrimaryRing.IsValid())
+            {
+                AccumulateBonus(Combined, Loadout.PrimaryRing.RingEntry.StatBonus);
+            }
+            if (bHasSecondaryWeapon)
+            {
+                AccumulateBonus(Combined, Loadout.SecondaryWeapon.WeaponEntry.StatBonus);
+            }
+        }
+        // Evolution primary slots have no StatBonus on the crystal itself —
+        // their contribution flows through GetActivePrimaryEvolutionCrystal.
+        break;
+    }
+
+    case ECharacterClass::Resonator:
+    {
+        // Active ring (from RingLoadout) + primary weapon (if equipped).
+        if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
+        {
+            AccumulateBonus(Combined, ActiveRing->RingEntry.StatBonus);
+        }
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+            Loadout.PrimaryWeapon.IsValid())
+        {
+            AccumulateBonus(Combined, Loadout.PrimaryWeapon.WeaponEntry.StatBonus);
+        }
+        break;
+    }
+
+    case ECharacterClass::Caster:
+    default:
+    {
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+            Loadout.PrimaryWeapon.IsValid())
+        {
+            Combined = Loadout.PrimaryWeapon.WeaponEntry.StatBonus;
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
+                 Loadout.PrimaryRing.IsValid())
+        {
+            Combined = Loadout.PrimaryRing.RingEntry.StatBonus;
+        }
+        break;
+    }
+    }
+
+    return Combined;
+}
+
+UItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
+{
+    (void)Actor;
+
+    const FCombatLoadout Loadout = GetActiveLoadout();
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
+    {
+        return nullptr;
+    }
+    if (!Loadout.PrimaryWeapon.IsValid())
+    {
+        return nullptr;
+    }
+
+    UItemData *Crystal = Loadout.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal;
+    if (!Crystal || !Crystal->bIsEvolutionCrystal)
+    {
+        return nullptr;
+    }
+    return Crystal;
+}

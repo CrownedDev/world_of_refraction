@@ -32,7 +32,9 @@
       "Bash(grep -v \"//\")",
       "Bash(git commit *)",
       "Bash(git check-ignore *)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(git cherry-pick *)",
+      "Bash(git *)"
     ]
   }
 }

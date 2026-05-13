@@ -1003,8 +1003,22 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		StatusMultiplierBonus = CharComp->CharacterData->CalculateStatusMultiplier();
-		EfficiencyPercent = CharComp->CharacterData->CalculateEfficiencyMultiplier() * 100.0f;
+		// Crystal-aware StatusMultiplier — inlined formula against
+		// GetCrystalModifiedSpirit (Spirit-driven post pillar move).
+		const float ModifiedSpirit = CharComp->GetCrystalModifiedSpirit();
+		const int32 StatusMultPoints = CharComp->CharacterData->GetTotalStatusMultiplier();
+		StatusMultiplierBonus = 1.0f + (ModifiedSpirit * StatusMultPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+
+		// Crystal-aware EfficiencyMultiplier — inlined formula against
+		// GetCrystalModifiedMind. Clamp shape preserved from
+		// UCharacterData::CalculateEfficiencyMultiplier.
+		const float ModifiedMind = CharComp->GetCrystalModifiedMind();
+		const int32 EfficiencyPoints = CharComp->CharacterData->GetTotalEfficiency();
+		const float EfficiencyMult = FMath::Clamp(
+			1.0f - (ModifiedMind * EfficiencyPoints * CombatConstants::EFFICIENCY_PER_POINT),
+			1.0f - CombatConstants::EFFICIENCY_MAX,
+			1.0f);
+		EfficiencyPercent = EfficiencyMult * 100.0f;
 	}
 
 	// Process the overflow tick (aura damage, self-damage, energy drain)

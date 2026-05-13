@@ -157,6 +157,24 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Debug", meta = (CallInEditor = "true"))
     void DebugToggleWeapon();
 
+    // ==================== CRYSTAL-AWARE PILLAR VALUES ====================
+
+    /** Base EffectiveMind from the asset, modified by the slotted primary
+     *  evolution crystal's Pillar/SubStats contribution. Falls back to the
+     *  raw asset value if no crystal is slotted or no LoadoutComponent is
+     *  present. Use this in place of CharacterData->GetEffectiveMind() for
+     *  any system that needs to see crystal-driven pillar adjustments. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedMind() const;
+
+    /** Body equivalent of GetCrystalModifiedMind — see comment there. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedBody() const;
+
+    /** Spirit equivalent of GetCrystalModifiedMind — see comment there. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedSpirit() const;
+
     // ========================================
     // BROKEN DARKNESS STATE
     // ========================================

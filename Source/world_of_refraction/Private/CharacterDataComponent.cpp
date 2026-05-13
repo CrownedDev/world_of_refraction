@@ -7,6 +7,7 @@
 #include "StanceData.h"
 #include "InventoryComponent.h"
 #include "LoadoutComponent.h"
+#include "ItemData.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
 {
@@ -26,12 +27,9 @@ void UCharacterDataComponent::BeginPlay()
     // Initialize HP/EP from CharacterData
     if (CharacterData)
     {
-        MaxHP = CharacterData->CalculateMaxHealth();
-        CurrentHP = MaxHP;
-        MaxEP = CharacterData->CalculateMaxEnergy();
-        CurrentEP = MaxEP;
-
-        // Auto-initialize Inventory and Loadout if present
+        // Auto-initialize Inventory and Loadout BEFORE computing HP/EP so the
+        // crystal-aware pillar reads in GetCrystalModifiedBody/Spirit can see
+        // the slotted primary evolution crystal.
         AActor *Owner = GetOwner();
         if (Owner)
         {
@@ -47,6 +45,21 @@ void UCharacterDataComponent::BeginPlay()
                 Loadout->InitializeFromCharacterData(CharacterData, Inventory);
             }
         }
+
+        // HP/EP init — crystal-aware path. Inlines UCharacterData::CalculateMaxHealth
+        // / CalculateMaxEnergy formulas against GetCrystalModifiedBody/Spirit so a
+        // slotted primary evolution crystal feeds pool sizes.
+        const float ModifiedBody = GetCrystalModifiedBody();
+        MaxHP = FMath::RoundToInt(
+            CombatConstants::MAX_HEALTH_BASE +
+            (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT));
+        CurrentHP = MaxHP;
+
+        const float ModifiedSpirit = GetCrystalModifiedSpirit();
+        MaxEP = FMath::RoundToInt(
+            CombatConstants::MAX_ENERGY_BASE +
+            (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT));
+        CurrentEP = MaxEP;
 
         // Character-created BD: auto-flip the runtime flag and zero EP so
         // they start in the correct state without needing a transform event.
@@ -334,6 +347,68 @@ bool UCharacterDataComponent::HasUsableEPTarget() const
     }
 
     return false;
+}
+
+// ==================== CRYSTAL-AWARE PILLAR VALUES ====================
+
+namespace
+{
+    /** Shared body for the three GetCrystalModifiedX helpers. Looks up the
+     *  primary-weapon-slot evolution crystal via the loadout, then applies
+     *  UItemData's Pillar/SubStats modifier to the supplied base value. */
+    enum class ECrystalPillar : uint8 { Mind, Body, Spirit };
+
+    float ApplyCrystalPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
+    {
+        if (!Owner)
+        {
+            return BaseValue;
+        }
+        ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>();
+        if (!Loadout)
+        {
+            return BaseValue;
+        }
+        UItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner);
+        if (!Crystal || !Crystal->bIsEvolutionCrystal)
+        {
+            return BaseValue;
+        }
+        switch (Pillar)
+        {
+        case ECrystalPillar::Mind:   return Crystal->CalculateModifiedMind(BaseValue);
+        case ECrystalPillar::Body:   return Crystal->CalculateModifiedBody(BaseValue);
+        case ECrystalPillar::Spirit: return Crystal->CalculateModifiedSpirit(BaseValue);
+        }
+        return BaseValue;
+    }
+}
+
+float UCharacterDataComponent::GetCrystalModifiedMind() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveMind(), ECrystalPillar::Mind);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedBody() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveBody(), ECrystalPillar::Body);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedSpirit() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()
