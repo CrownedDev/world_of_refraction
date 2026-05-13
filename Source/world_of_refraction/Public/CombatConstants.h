@@ -10,8 +10,13 @@
 namespace CombatConstants
 {
     // ==================== WORLD STAT BONUSES ====================
-
-    constexpr float WORLD_STAT_SCALING_BONUS = 0.01f; // 1% per level
+    // Per-pillar scaling rates — applied by GetEffectiveMind/Body/Spirit as
+    // BasePillar × (1 + WorldLevel × <PillarScalingBonus>). Split out of the
+    // single WORLD_STAT_SCALING_BONUS so each pillar can be tuned independently.
+    // Current values are identical (1% per level) for behaviour parity.
+    constexpr float WORLD_MIND_SCALING_BONUS = 0.01f;   // 1% per WorldMindLevel
+    constexpr float WORLD_BODY_SCALING_BONUS = 0.01f;   // 1% per WorldBodyLevel
+    constexpr float WORLD_SPIRIT_SCALING_BONUS = 0.01f; // 1% per WorldSpiritLevel
 
     // ==================== STAT SCALING ====================
     // 13 Stats: Mind(4), Body(4), Spirit(5)
