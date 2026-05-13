@@ -1,35 +1,18 @@
 // RingData.cpp
 
 #include "RingData.h"
-#include "SpellData.h"
 #include "ItemData.h"
-#include "CrystalType.h"
 #include "LoadoutConstants.h"
 
-bool URingData::IsEvolved() const
+int32 URingData::GetMaxSpells() const
 {
-    return SlottedCrystal && SlottedCrystal->bIsEvolutionCrystal;
-}
-
-ESpellElement URingData::GetRingElement() const
-{
-    if (SlottedCrystal)
-    {
-        return SlottedCrystal->GetAssociatedElement();
-    }
-    return ESpellElement::Generic;
+    return LoadoutConstants::MAX_RING_SPELLS;
 }
 
 #if WITH_EDITOR
 EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
-
-    // Name validation
-    if (Name.IsEmpty() || Name == TEXT("Unnamed Ring"))
-    {
-        Context.AddWarning(FText::FromString(TEXT("Ring must have a unique name")));
-    }
 
     // Crystal validation
     if (!SlottedCrystal)
@@ -58,14 +41,6 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
                 *UEnum::GetValueAsString(Tier),
                 *UEnum::GetValueAsString(SlottedCrystal->Tier))));
         }
-    }
-
-    // Spell-count cap (warn, not error — designers may iterate over the cap)
-    if (DefaultSpells.Num() > LoadoutConstants::MAX_RING_SPELLS)
-    {
-        Context.AddWarning(FText::FromString(FString::Printf(
-            TEXT("DefaultSpells (%d) exceeds MAX_RING_SPELLS (%d)"),
-            DefaultSpells.Num(), LoadoutConstants::MAX_RING_SPELLS)));
     }
 
     return Result;

@@ -528,6 +528,39 @@ bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bImmuneTo
 	return true;
 }
 
+bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
+{
+	if (bActionImmune)
+	{
+		return true;
+	}
+	if (!User)
+	{
+		return false;
+	}
+	if (UWeaponManager *WM = GetWeaponManager())
+	{
+		if (UWeaponData *Weapon = WM->GetActiveWeapon(User))
+		{
+			if (Weapon->bImmuneToInfusion)
+			{
+				return true;
+			}
+		}
+	}
+	if (URingManager *RM = GetRingManager())
+	{
+		if (URingData *Ring = RM->GetActiveRing(User))
+		{
+			if (Ring->bImmuneToInfusion)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit)
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
@@ -566,7 +599,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Spell->bImmuneToInfusion, Action.SpellInfusionLevel))
+	// Equipment-level immunity (active weapon / ring) ORs in via IsInfusionImmune.
+	if (!ValidateInfusionGate(Action, IsInfusionImmune(Caster, Spell->bImmuneToInfusion), Action.SpellInfusionLevel))
 	{
 		return;
 	}
@@ -712,7 +746,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Ability->bImmuneToInfusion, Action.AbilityInfusionLevel))
+	// Equipment-level immunity (active weapon / ring) ORs in via IsInfusionImmune.
+	if (!ValidateInfusionGate(Action, IsInfusionImmune(User, Ability->bImmuneToInfusion), Action.AbilityInfusionLevel))
 	{
 		return;
 	}
@@ -878,8 +913,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection). Attacks have no charge level concept. No energy
-	// spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Attack->bImmuneToInfusion, /*InfusionLevel=*/0))
+	// spent, no damage dealt. Equipment-level immunity ORs in via IsInfusionImmune.
+	if (!ValidateInfusionGate(Action, IsInfusionImmune(Attacker, Attack->bImmuneToInfusion), /*InfusionLevel=*/0))
 	{
 		return;
 	}
@@ -2788,7 +2823,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 			URingData *Ring = RM->GetPrimaryRing(Actor);
 			if (Ring)
 			{
-				return Ring->GetRingElement();
+				return Ring->GetCrystalElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -2802,7 +2837,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 			UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
 			if (Weapon)
 			{
-				return Weapon->GetWeaponElement();
+				return Weapon->GetCrystalElement();
 			}
 		}
 		return ESpellElement::Generic;

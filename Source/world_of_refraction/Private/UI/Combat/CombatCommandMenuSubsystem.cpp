@@ -7,6 +7,8 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "WeaponAttackData.h"
+#include "WeaponData.h"
+#include "RingData.h"
 #include "ItemData.h"
 #include "TurnManager.h"
 #include "CharacterData.h"
@@ -20,19 +22,39 @@
 
 namespace
 {
-    bool ResolveImmuneFlag(UObject *ActionData)
+    bool ResolveImmuneFlag(UObject *ActionData, AActor *Actor)
     {
+        // Action-level immunity
         if (const USpellData *Spell = Cast<USpellData>(ActionData))
         {
-            return Spell->bImmuneToInfusion;
+            if (Spell->bImmuneToInfusion) return true;
         }
-        if (const UAbilityData *Ability = Cast<UAbilityData>(ActionData))
+        else if (const UAbilityData *Ability = Cast<UAbilityData>(ActionData))
         {
-            return Ability->bImmuneToInfusion;
+            if (Ability->bImmuneToInfusion) return true;
         }
-        if (const UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ActionData))
+        else if (const UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ActionData))
         {
-            return Attack->bImmuneToInfusion;
+            if (Attack->bImmuneToInfusion) return true;
+        }
+
+        // Equipment-level immunity (active weapon / active ring on the wielder)
+        if (!Actor)
+        {
+            return false;
+        }
+        ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
+        if (!LC)
+        {
+            return false;
+        }
+        if (UWeaponData *Weapon = LC->GetActiveWeapon())
+        {
+            if (Weapon->bImmuneToInfusion) return true;
+        }
+        if (URingData *Ring = LC->GetActiveRing())
+        {
+            if (Ring->bImmuneToInfusion) return true;
         }
         return false;
     }
@@ -809,7 +831,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
-            const bool bImmune = ResolveImmuneFlag(PendingActionData.Get());
+            const bool bImmune = ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get());
             VFX->SetImmuneToInfusion(bImmune);
 
             VFX->CacheAvailableSources(); // refresh available sources
@@ -980,12 +1002,13 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     // ==================== INFUSION CONTROLS ====================
     // Below targets, minimal buttons. Items skip infusion entirely.
     // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
+    // Equipment-level immunity (active weapon / ring on the wielder) ORs in.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
     //     Pressing it cycles 0 -> 1 -> 2 -> 0.
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
-        !ResolveImmuneFlag(PendingActionData.Get()))
+        !ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get()))
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1113,11 +1136,12 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
     // ==================== INFUSION CONTROLS ====================
     // Same block as BuildTargetButtons. Items skip infusion entirely.
     // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
+    // Equipment-level immunity (active weapon / ring on the wielder) ORs in.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
-        !ResolveImmuneFlag(PendingActionData.Get()))
+        !ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get()))
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {

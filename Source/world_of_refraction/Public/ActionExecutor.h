@@ -716,6 +716,11 @@ private:
 	 *  three async executors. Pass InfusionLevel=0 for attacks (no charge concept). */
 	bool ValidateInfusionGate(const FAction &Action, bool bImmuneToInfusion, int32 InfusionLevel);
 
+	/** Combined immunity: true if the action itself is immune OR the wielder's
+	 *  active weapon / active ring is immune. Equipment immunity blocks infusion
+	 *  only — status buildup is unaffected (bIsRawMode is the only buildup gate). */
+	bool IsInfusionImmune(AActor *User, bool bActionImmune) const;
+
 	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit after
 	 *  raw-mode redirect has folded any buildup into damage. Shared post-redirect
 	 *  cleanup across all three async paths.

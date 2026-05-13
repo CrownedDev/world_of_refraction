@@ -50,7 +50,7 @@ URingData *URingManager::GetActiveRing(AActor *Actor) const
 ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 {
 	URingData *Ring = GetActiveRing(Actor);
-	return Ring ? Ring->GetRingElement() : ESpellElement::Generic;
+	return Ring ? Ring->GetCrystalElement() : ESpellElement::Generic;
 }
 
 URingData *URingManager::GetPrimaryRing(AActor *Actor) const

@@ -5,9 +5,6 @@
 #include "StanceData.h"
 #include "LoadoutConstants.h"
 #include "WeaponAttackData.h"
-#include "CharacterData.h"
-#include "ItemData.h"
-#include "CrystalType.h"
 
 FString UWeaponData::GetWeaponTypeName() const
 {
@@ -42,38 +39,15 @@ FString UWeaponData::GetWeaponTypeName() const
     }
 }
 
-ESpellElement UWeaponData::GetWeaponElement() const
+int32 UWeaponData::GetMaxSpells() const
 {
-    // Per-instance broken state lives on FCrystalInventoryEntry; callers
-    // pre-filter via FCrystalInventoryEntry::CanProvideSpells before reaching
-    // this path. Here we only need the asset-side identity check.
-    if (!SlottedCrystal)
-    {
-        return ESpellElement::Generic;
-    }
-    return SlottedCrystal->GetAssociatedElement();
-}
-
-bool UWeaponData::IsEvolved() const
-{
-    // Evolution crystals don't get disabled
-    if (!SlottedCrystal)
-        return false;
-
-    return SlottedCrystal->bIsEvolutionCrystal;
+    return LoadoutConstants::MAX_WEAPON_ABILITIES;
 }
 
 #if WITH_EDITOR
 EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
-
-    // Name validation
-    if (Name.IsEmpty() || Name == TEXT("Unnamed Weapon"))
-    {
-        Context.AddError(FText::FromString(TEXT("Weapon must have a unique name")));
-        Result = EDataValidationResult::Invalid;
-    }
 
     // Attack validation
     if (WeaponAttack == nullptr)
