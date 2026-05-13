@@ -45,7 +45,7 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
     // Base buildup per hit
     float BuildupPerHit = StatusBuildup;
 
-    // Scale with character's StatusMultiplier (Mind-based in Phase 1; pillar moves in Phase 2b).
+    // Scale with character's StatusMultiplier (Spirit-driven post pillar move).
     // ActionMods.StatusMultiplier stacks per-action stat buffs onto the multiplier.
     float Multiplier = Character->CalculateStatusMultiplier();
     Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);

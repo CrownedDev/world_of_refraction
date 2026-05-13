@@ -14,11 +14,11 @@ namespace CombatConstants
     constexpr float WORLD_STAT_SCALING_BONUS = 0.01f; // 1% per level
 
     // ==================== STAT SCALING ====================
-    // 13 Stats: Mind(5), Body(4), Spirit(4) — Phase 2b moves StatusMultiplier to Spirit (4/4/5)
+    // 13 Stats: Mind(4), Body(4), Spirit(5)
     // Formula: Base + (EffectiveStat × TotalPoints × PER_POINT)
 
-    // ==================== MIND STATS (5) ====================
-    // Efficiency, StatusMultiplier, SpellDamage, CritChance, SpellSpeed
+    // ==================== MIND STATS (4) ====================
+    // Efficiency, SpellDamage, CritChance, SpellSpeed
 
     // Efficiency - Reduces EP cost of Spells & Abilities (not Attacks)
     // Resonators: Also reduces ring break chance
@@ -27,8 +27,12 @@ namespace CombatConstants
     constexpr float EFFICIENCY_RING_BREAK_PER_POINT = 0.003f; // 0.3% ring break reduction (Resonator only)
     constexpr float EFFICIENCY_RING_BREAK_MAX = 0.50f;        // 50% max ring break reduction
 
-    // Status Multiplier - Status buildup amplification (renamed from EffectDamage; moves to Spirit in Phase 2b)
-    constexpr float STATUS_MULTIPLIER_PER_POINT = 0.002f; // 0.2% per point
+    // Status Multiplier — Status buildup amplification (Spirit-driven; substat
+    // moved off Mind). Consumed by StatusBuildupManager::AddStatusBuildup and
+    // the per-skill CalculateStatusBuildup helpers.
+    // Halved from 0.002 → 0.001 to absorb the swap from the old
+    // (1 + raw/100) shape to the pillar-scaled CalculateStatusMultiplier shape.
+    constexpr float STATUS_MULTIPLIER_PER_POINT = 0.001f; // 0.1% per point
 
     // Spell Damage - Spell damage multiplier (applied once via DamageCalculator::GetAttackerDamageMultiplier for Spell ActionType)
     constexpr float SPELL_DAMAGE_PER_POINT = 0.004f; // 0.4% per point — doubled to compensate for the removal of the duplicate StatusMultiplier mult on spell damage
@@ -62,8 +66,10 @@ namespace CombatConstants
     constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
     constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
 
-    // ==================== SPIRIT STATS (4) ====================
-    // MaxEnergy, Resistance, TurnSpeed, Luck
+    // ==================== SPIRIT STATS (5) ====================
+    // MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
+    // (STATUS_MULTIPLIER_PER_POINT lives in the Mind block above for layout reasons —
+    //  the substat itself is on the Spirit pillar.)
 
     // Max Energy - EP pool size (NEW explicit stat)
     constexpr float MAX_ENERGY_BASE = 50.0f;     // Base EP

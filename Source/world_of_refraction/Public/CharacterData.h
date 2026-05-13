@@ -109,9 +109,6 @@ public:
 	int32 SpellDamage = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 StatusMultiplier = 0;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 CritChance = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
@@ -130,7 +127,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 MaxHealth = 0;
 
-	// ==================== SPIRIT SUB-STATS (4) ====================
+	// ==================== SPIRIT SUB-STATS (5) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 MaxEnergy = 0;
 
@@ -142,6 +139,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
 	int32 Luck = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
+	int32 StatusMultiplier = 0;
 
 	// ==================== DEFENSE ANIMATIONS ====================
 
@@ -244,9 +244,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
 	int32 GetTotalSpent() const
 	{
-		return Efficiency + SpellDamage + StatusMultiplier + CritChance + SpellSpeed +
+		return Efficiency + SpellDamage + CritChance + SpellSpeed +
 			   Defense + ActionSpeed + RawDamage + MaxHealth +
-			   MaxEnergy + Resistance + TurnSpeed + Luck;
+			   MaxEnergy + Resistance + TurnSpeed + Luck + StatusMultiplier;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
@@ -264,9 +264,6 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalSpellDamage() const { return SpellDamage; }
-
-	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
-	int32 GetTotalStatusMultiplier() const { return StatusMultiplier; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalCritChance() const { return CritChance; }
@@ -300,13 +297,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalLuck() const { return Luck; }
 
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
+	int32 GetTotalStatusMultiplier() const { return StatusMultiplier; }
+
 	// ==================== BASE STATS (DERIVED FROM TOTALS) ====================
 	// Sum of sub-stat points per category (before world level scaling)
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseMind() const
 	{
-		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalStatusMultiplier() + GetTotalCritChance() + GetTotalSpellSpeed();
+		// Mind (4): Efficiency, SpellDamage, CritChance, SpellSpeed
+		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalCritChance() + GetTotalSpellSpeed();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -319,8 +320,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseSpirit() const
 	{
-		// Spirit (4): MaxEnergy, Resistance, TurnSpeed, Luck
-		return GetTotalMaxEnergy() + GetTotalResistance() + GetTotalTurnSpeed() + GetTotalLuck();
+		// Spirit (5): MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
+		return GetTotalMaxEnergy() + GetTotalResistance() + GetTotalTurnSpeed() + GetTotalLuck() + GetTotalStatusMultiplier();
 	}
 
 	// ==================== EFFECTIVE STATS (WITH SCALING) ====================
@@ -347,8 +348,7 @@ public:
 	}
 
 	// ==================== MIND CALCULATIONS ====================
-	// Mind (5): Efficiency, SpellDamage, StatusMultiplier, CritChance, SpellSpeed
-	// Phase 2b moves StatusMultiplier to Spirit (target: Mind 4, Spirit 5).
+	// Mind (4): Efficiency, SpellDamage, CritChance, SpellSpeed
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateEfficiencyMultiplier() const
@@ -376,20 +376,22 @@ public:
 			CombatConstants::EFFICIENCY_RING_BREAK_MAX);
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
+	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateStatusMultiplier() const
 	{
-		// Renamed from CalculateEffectDamageMultiplier. Still scales by Mind in Phase 1;
-		// moves to Spirit (EffectiveSpirit) in Phase 2b alongside the pillar move.
-		float EffectiveMind = GetEffectiveMind();
+		// Drives status buildup scaling (consumed by StatusBuildupManager and
+		// the per-skill CalculateStatusBuildup helpers). Spirit-driven — moved
+		// off Mind alongside the StatusMultiplier substat pillar move.
+		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalStatusMultiplier();
-		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+		return 1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateSpellDamage() const
 	{
-		// New in Phase 1 — unused until Phase 2b wires it into DamageCalculator.
+		// Spell damage multiplier — applied once via
+		// DamageCalculator::GetAttackerDamageMultiplier for EActionType::Spell.
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalSpellDamage();
 		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT);
@@ -443,7 +445,7 @@ public:
 	}
 
 	// ==================== SPIRIT CALCULATIONS ====================
-	// Spirit (4): MaxEnergy, MaxHealth, Resistance, TurnSpeed
+	// Spirit (5): MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateTurnSpeed() const
@@ -499,13 +501,14 @@ public:
 		return 1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
+	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	int32 CalculateStatusMultiplierFlat() const
 	{
-		// Flat StatusMultiplier point value (debug-only as of Phase 1).
-		float EffectiveMind = GetEffectiveMind();
+		// Flat StatusMultiplier point value (debug inspection). Spirit-driven
+		// after the pillar move from Mind.
+		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalStatusMultiplier();
-		return FMath::RoundToInt(EffectiveMind * TotalPoints);
+		return FMath::RoundToInt(EffectiveSpirit * TotalPoints);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")

@@ -1927,8 +1927,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 	// Buildup path — manager resolves the trigger type internally from
 	// (Element, PhysicalType) via BarCapTriggerResolver. Manager also runs the
-	// Phase 2a attacker StatusMultiplier amplifier and the Phase 2b per-element
-	// resistance reduction.
+	// attacker StatusMultiplier amplification (Spirit-driven via
+	// CalculateStatusMultiplier) and the per-element resistance reduction.
 	if (Input.BaseStatusBuildup > 0)
 	{
 		UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;

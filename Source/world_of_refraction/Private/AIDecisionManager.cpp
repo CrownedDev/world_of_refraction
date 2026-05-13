@@ -654,7 +654,9 @@ int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
     // StatusMultiplier stat points
     Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
 
-    // Spell power — currently routed through StatusMultiplier; Phase 2b will switch to GetTotalSpellDamage().
+    // Spell power — historical heuristic uses StatusMultiplier as a Mind proxy.
+    // TODO: switch to GetTotalSpellDamage() now that SpellDamage drives spell scaling
+    // (StatusMultiplier is Spirit-side and only affects buildup post pillar move).
     Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::SPELL_POWER_THREAT_MULT);
 
     return Threat;
