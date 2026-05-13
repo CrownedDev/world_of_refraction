@@ -7,6 +7,7 @@
 #include "Engine/DataAsset.h"
 #include "ItemTier.h"
 #include "ESpellElement.h"
+#include "LoadoutConstants.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -29,7 +30,7 @@ public:
 	// ==================== IDENTITY ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	FString RingName = TEXT("Unnamed Ring");
+	FString Name = TEXT("Unnamed Ring");
 
 	/** Ring tier - reference value for the slotted crystal's wear calculations.
 	 *  The crystal's tier determines actual wear; ring tier is informational. */
@@ -49,7 +50,7 @@ public:
 
 	/** Default spells for this ring - copied to inventory entry when ring obtained
 	 *  Lost if crystal is removed; spell vendor reassigns them */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (TitleProperty = "SpellName"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (TitleProperty = "Name"))
 	TArray<USpellData *> DefaultSpells;
 
 	// ==================== CRYSTAL HELPERS ====================
@@ -64,7 +65,7 @@ public:
 	bool IsEvolved() const;
 
 	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	int32 GetMaxSpells() const { return 6; }
+	int32 GetMaxSpells() const { return LoadoutConstants::MAX_RING_SPELLS; }
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif

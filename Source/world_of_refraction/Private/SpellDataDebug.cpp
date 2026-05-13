@@ -50,7 +50,7 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     FString Output = TEXT("");
     Output += TEXT("===================================\n");
     Output += FString::Printf(TEXT("SPELL: %s\n"), *Spell->GetDisplayName(Character));
-    Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->CharacterName);
+    Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->Name);
     Output += TEXT("===================================\n\n");
 
     // Element & School
@@ -147,12 +147,12 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
 
     FString Output = TEXT("");
     Output += TEXT("===================================\n");
-    Output += FString::Printf(TEXT("SPELL COMPARISON: %s\n"), *Spell->SpellName);
+    Output += FString::Printf(TEXT("SPELL COMPARISON: %s\n"), *Spell->Name);
     Output += FString::Printf(TEXT("MODE: %s\n"), Spell->bIsRawMode ? TEXT("Raw") : TEXT("Elemental"));
     Output += TEXT("===================================\n\n");
 
     // Character 1
-    Output += FString::Printf(TEXT("%s:\n"), *Character1->CharacterName);
+    Output += FString::Printf(TEXT("%s:\n"), *Character1->Name);
     if (Spell->CanCharacterCast(Character1))
     {
         Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character1));
@@ -165,7 +165,7 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
     Output += TEXT("\n");
 
     // Character 2
-    Output += FString::Printf(TEXT("%s:\n"), *Character2->CharacterName);
+    Output += FString::Printf(TEXT("%s:\n"), *Character2->Name);
     if (Spell->CanCharacterCast(Character2))
     {
         Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character2));

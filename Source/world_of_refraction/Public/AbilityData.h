@@ -17,6 +17,7 @@
 #include "FSkillEffect.h"
 #include "ESpellDeliveryType.h"
 #include "ItemTier.h"
+#include "LoadoutConstants.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -26,9 +27,6 @@
 
 // Forward declaration
 class UCharacterData;
-
-/** Maximum number of effects an ability can have */
-constexpr int32 MAX_ABILITY_EFFECTS = 5;
 
 /**
  * Ability Data Asset - Universal skills usable by all characters
@@ -43,7 +41,7 @@ public:
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString AbilityName = TEXT("Unnamed Ability");
+    FString Name = TEXT("Unnamed Ability");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("Ability description...");

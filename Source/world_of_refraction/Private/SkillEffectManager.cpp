@@ -202,22 +202,20 @@ void USkillEffectManager::ApplyWeaponBonuses(
 	AActor *Target,
 	const FString &WeaponName,
 	int32 WeaponID,
-	int32 BonusAttack,
+	int32 BonusRawDamage,
 	int32 BonusDefense,
-	int32 BonusMagicPower,
-	int32 BonusSpeed,
-	float BonusCritChance,
-	float BonusCritDamage)
+	int32 BonusSpellDamage,
+	int32 BonusActionSpeed,
+	float BonusCritChance)
 {
 	TArray<FStatusEffect> Bonuses = FStatusEffect::CreateFromWeaponBonuses(
 		WeaponName,
 		WeaponID,
-		BonusAttack,
+		BonusRawDamage,
 		BonusDefense,
-		BonusMagicPower,
-		BonusSpeed,
-		BonusCritChance,
-		BonusCritDamage);
+		BonusSpellDamage,
+		BonusActionSpeed,
+		BonusCritChance);
 
 	if (Bonuses.Num() > 0)
 	{

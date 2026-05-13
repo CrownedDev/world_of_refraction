@@ -46,7 +46,7 @@ FString UWeaponAttackDataDebug::GetAttackStatsString(UWeaponAttackData *Attack)
     FString Output;
 
     Output += TEXT("==========================================\n");
-    Output += FString::Printf(TEXT("ATTACK: %s\n"), *Attack->AttackName);
+    Output += FString::Printf(TEXT("ATTACK: %s\n"), *Attack->Name);
     Output += TEXT("==========================================\n");
 
     if (!Attack->Description.IsEmpty())
@@ -93,7 +93,7 @@ void UWeaponAttackDataDebug::CompareAttacks(UWeaponAttackData *Attack1, UWeaponA
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("========== ATTACK COMPARISON =========="));
     UE_LOG(LogTemp, Display, TEXT(""));
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20s | %-20s"), TEXT("Property"), *Attack1->AttackName, *Attack2->AttackName);
+    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20s | %-20s"), TEXT("Property"), *Attack1->Name, *Attack2->Name);
     UE_LOG(LogTemp, Display, TEXT("--------------------------------------------------------------"));
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Hit Count"), Attack1->HitCount, Attack2->HitCount);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Status Buildup"), Attack1->StatusBuildup, Attack2->StatusBuildup);

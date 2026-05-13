@@ -376,7 +376,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
             Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
 
             UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
-                   *Asset->PrimaryWeapon->WeaponName,
+                   *Asset->PrimaryWeapon->Name,
                    Result.PrimaryWeapon.WeaponEntry.HasCrystal(),
                    Result.PrimaryWeapon.WeaponEntry.HasCrystal() ? *Result.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal->ItemName : TEXT("none"));
         }

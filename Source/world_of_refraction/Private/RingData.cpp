@@ -25,7 +25,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
-    if (RingName.IsEmpty() || RingName == TEXT("Unnamed Ring"))
+    if (Name.IsEmpty() || Name == TEXT("Unnamed Ring"))
     {
         Context.AddError(FText::FromString(TEXT("Ring must have a unique name")));
         Result = EDataValidationResult::Invalid;

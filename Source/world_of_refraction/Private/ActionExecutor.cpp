@@ -1162,7 +1162,7 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 				float EnergyCost = 0.0f;
 				if (CurrentExecutionContext->Action.SpellData)
 				{
-					EnergyCost = CurrentExecutionContext->Action.SpellData->EnergyCost;
+					EnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
 				}
 				else if (CurrentExecutionContext->Action.AbilityData)
 				{
@@ -1360,7 +1360,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			if (Action.AbilityData)
 			{
 				EffectsToApply = &Action.AbilityData->Effects;
-				SourceName = Action.AbilityData->AbilityName;
+				SourceName = Action.AbilityData->Name;
 			}
 			break;
 
@@ -1368,7 +1368,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			if (Action.SpellData)
 			{
 				EffectsToApply = &Action.SpellData->Effects;
-				SourceName = Action.SpellData->SpellName;
+				SourceName = Action.SpellData->Name;
 			}
 			break;
 
@@ -1376,7 +1376,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			if (Action.AttackData)
 			{
 				EffectsToApply = &Action.AttackData->Effects;
-				SourceName = Action.AttackData->AttackName;
+				SourceName = Action.AttackData->Name;
 			}
 			break;
 
@@ -2165,7 +2165,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 	if (!Spell->CastAnimation)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlaySpellAnimation - No CastAnimation on %s"),
-			   *Spell->SpellName);
+			   *Spell->Name);
 		return;
 	}
 
@@ -2588,7 +2588,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 	if (!Ability->ExecutionMontage)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlayAbilityAnimation - No ExecutionMontage on %s"),
-			   *Ability->AbilityName);
+			   *Ability->Name);
 		return;
 	}
 
@@ -2606,7 +2606,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
-		   *Ability->ExecutionMontage->GetName(), *Ability->AbilityName, PlayRate);
+		   *Ability->ExecutionMontage->GetName(), *Ability->Name, PlayRate);
 }
 
 void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
@@ -2620,7 +2620,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 	if (!Attack->AttackMontage)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - No montage on %s"),
-			   *Attack->AttackName);
+			   *Attack->Name);
 		return;
 	}
 
@@ -3208,7 +3208,7 @@ UMovementData *UActionExecutor::GetMovementData(const FAction &Action) const
 	switch (Action.ActionType)
 	{
 	case EActionType::Attack:
-		return Action.AttackData ? Action.AttackData->MovementData : nullptr;
+		return Action.AttackData ? Action.AttackData->ApproachData : nullptr;
 
 	case EActionType::Ability:
 		// Only return movement data for Melee abilities

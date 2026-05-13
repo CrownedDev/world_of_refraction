@@ -141,7 +141,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         if (!Inventory->HasSpell(Spell))
         {
             UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Spell '%s' not in inventory - skipping"),
-                   *Spell->SpellName);
+                   *Spell->Name);
             continue;
         }
 
@@ -150,13 +150,13 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         {
             Loadout.PrimaryWeapon.AssignedSpells.Add(Spell);
             SpellsAdded++;
-            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to weapon"), *Spell->SpellName);
+            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to weapon"), *Spell->Name);
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
         {
             Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(Spell);
             SpellsAdded++;
-            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to ring"), *Spell->SpellName);
+            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to ring"), *Spell->Name);
         }
         else
         {
@@ -177,7 +177,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         if (!Inventory->HasAbility(Ability))
         {
             UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Ability '%s' not in inventory - skipping"),
-                   *Ability->AbilityName);
+                   *Ability->Name);
             continue;
         }
 
@@ -186,7 +186,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         {
             Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
             AbilitiesAdded++;
-            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added ability '%s'"), *Ability->AbilityName);
+            UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added ability '%s'"), *Ability->Name);
         }
         else
         {
@@ -382,7 +382,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         {
             if (Ability && !Inventory->HasAbility(Ability))
             {
-                Errors.Add(FString::Printf(TEXT("Ability '%s' not learned"), *Ability->AbilityName));
+                Errors.Add(FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name));
             }
         }
 
@@ -391,7 +391,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         {
             if (Spell && !Inventory->HasSpell(Spell))
             {
-                Errors.Add(FString::Printf(TEXT("Spell '%s' not learned"), *Spell->SpellName));
+                Errors.Add(FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name));
             }
         }
     }
@@ -519,7 +519,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 
             if (!Inventory->HasSpell(Spell))
             {
-                Errors.Add(FString::Printf(TEXT("Innate spell '%s' not learned"), *Spell->SpellName));
+                Errors.Add(FString::Printf(TEXT("Innate spell '%s' not learned"), *Spell->Name));
                 continue;
             }
 
@@ -528,7 +528,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             {
                 Errors.Add(FString::Printf(
                     TEXT("Innate spell '%s' element does not match Caster's innate element"),
-                    *Spell->SpellName));
+                    *Spell->Name));
             }
         }
     }
@@ -930,7 +930,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         if (Inventory)
         {
             UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] %s: Initialized from DefaultLoadout (inventory available for future validation)"),
-                   *CharacterData->CharacterName);
+                   *CharacterData->Name);
         }
         return;
     }
@@ -946,7 +946,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     bIsReadyForBattle = false;
 
     UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no DefaultLoadout - created empty loadout. Assign equipment via UI or set DefaultLoadout in CharacterData."),
-           *CharacterData->CharacterName);
+           *CharacterData->Name);
 }
 
 void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
@@ -1764,9 +1764,9 @@ UAnimMontage *ULoadoutComponent::GetParryMontage() const
         {
             if (UWeaponData *Weapon = GetActiveWeapon())
             {
-                if (Weapon->ParryMontageOverride)
+                if (Weapon->ParryMontage)
                 {
-                    return Weapon->ParryMontageOverride;
+                    return Weapon->ParryMontage;
                 }
             }
         }

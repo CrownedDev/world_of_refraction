@@ -591,7 +591,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilitySubmenu() co
 
         FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
             FString::Printf(TEXT("Ability_%d"), i),
-            FText::FromString(Ability->AbilityName),
+            FText::FromString(Ability->Name),
             EPieMenuCategory::Ability,
             Ability,
             i);
@@ -688,7 +688,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
 
         FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
             FString::Printf(TEXT("Spell_%d"), Index),
-            FText::FromString(Spell->SpellName),
+            FText::FromString(Spell->Name),
             EPieMenuCategory::Spell,
             Spell,
             Index);
@@ -873,9 +873,9 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         FString TName = T->GetName();
         if (UCharacterDataComponent *CDC = T->FindComponentByClass<UCharacterDataComponent>())
         {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
-                TName = CDC->CharacterData->CharacterName;
+                TName = CDC->CharacterData->Name;
             }
         }
         UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]     - %s"), *TName);
@@ -944,9 +944,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         FString TargetName = Target->GetName();
         if (UCharacterDataComponent *CDC = Target->FindComponentByClass<UCharacterDataComponent>())
         {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
-                TargetName = CDC->CharacterData->CharacterName;
+                TargetName = CDC->CharacterData->Name;
             }
         }
 
@@ -1078,9 +1078,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
         {
             if (UCharacterDataComponent *CDC = User->FindComponentByClass<UCharacterDataComponent>())
             {
-                if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+                if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
                 {
-                    CasterName = CDC->CharacterData->CharacterName;
+                    CasterName = CDC->CharacterData->Name;
                 }
                 else
                 {
@@ -1278,9 +1278,9 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     {
         if (UCharacterDataComponent *CDC = SelectedTarget->FindComponentByClass<UCharacterDataComponent>())
         {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
-                TargetName = CDC->CharacterData->CharacterName;
+                TargetName = CDC->CharacterData->Name;
             }
             else
             {

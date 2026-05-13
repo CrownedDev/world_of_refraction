@@ -182,7 +182,7 @@ void UCharacterPanelWidget::ApplyStaticText_Implementation()
 	}
 
 	UCharacterData *Data = CharComp->CharacterData;
-	SetTextSafe(NameText, Data->CharacterName);
+	SetTextSafe(NameText, Data->Name);
 	// ClassElementText, WorldStatsText left to BP override (enum formatting)
 }
 

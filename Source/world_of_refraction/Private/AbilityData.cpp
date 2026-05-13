@@ -221,11 +221,11 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext& Context)
     }
 
     // Validate effects count
-    if (Effects.Num() > MAX_ABILITY_EFFECTS)
+    if (Effects.Num() > LoadoutConstants::MAX_SKILL_EFFECTS)
     {
         Context.AddError(FText::FromString(
             FString::Printf(TEXT("Too many effects (%d). Maximum is %d"),
-                            Effects.Num(), MAX_ABILITY_EFFECTS)));
+                            Effects.Num(), LoadoutConstants::MAX_SKILL_EFFECTS)));
         Result = EDataValidationResult::Invalid;
     }
 

@@ -11,7 +11,6 @@
 #include "WorldStatRequirements.h"
 #include "CrystalType.h"
 #include "ItemTier.h"
-#include "ItemTier.h"
 #include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
@@ -40,7 +39,7 @@ public:
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString WeaponName = TEXT("Unnamed Weapon");
+    FString Name = TEXT("Unnamed Weapon");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType WeaponType = EWeaponType::Sword;
@@ -69,7 +68,7 @@ public:
     UWeaponAttackData *WeaponAttack = nullptr;
 
     // Default abilities for this weapon (can be customized unless locked)
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "AbilityName"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "Name"))
     TArray<UAbilityData *> PresetAbilities;
 
     // If true, abilities cannot be customized (used for conjured weapons)
@@ -95,7 +94,7 @@ public:
 
     // Default spells for this weapon - copied to inventory entry when weapon obtained
     // Lost if crystal is removed; spell vendor reassigns them
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "SpellName"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "Name"))
     TArray<USpellData *> DefaultSpells;
 
     // ==================== WORLD STAT REQUIREMENTS ====================
@@ -105,29 +104,26 @@ public:
 
     // ==================== STAT BONUSES (APPLIED WHILE EQUIPPED) ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
-    int32 BonusAttack = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
+    int32 BonusRawDamage = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
     int32 BonusDefense = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
-    int32 BonusMagicPower = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
+    int32 BonusSpellDamage = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
-    int32 BonusSpeed = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
-    float BonusCritChance = 0.0f;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
+    int32 BonusActionSpeed = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0.0"))
-    float BonusCritDamage = 0.0f;
+    float BonusCritChance = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
     int32 BonusMaxHP = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses")
-    int32 BonusMaxMP = 0;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stat Bonuses", meta = (ClampMin = "0"))
+    int32 BonusMaxEnergy = 0;
 
     // ==================== ANIMATION ====================
 
@@ -144,10 +140,6 @@ public:
     /** Animation when sheathing this weapon */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage *SheatheMontage = nullptr;
-
-    /** Optional parry animation override (used if character has bUseWeaponParryAnimation) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
-    UAnimMontage *ParryMontageOverride = nullptr;
 
     // ==================== DEFENSE ====================
 
@@ -190,7 +182,7 @@ public:
     }
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
-    FString GetDisplayName() const { return WeaponName; }
+    FString GetDisplayName() const { return Name; }
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     FString GetWeaponTypeName() const;

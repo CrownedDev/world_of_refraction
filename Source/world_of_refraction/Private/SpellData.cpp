@@ -10,12 +10,7 @@ int32 USpellData::GetTotalDeficit(const UCharacterData *Character) const
     if (!Character)
         return 0;
 
-    // Calculate world stat deficits
-    int32 MindDeficit = FMath::Max(0, Requirements.RequiredWorldMind - Character->WorldMindLevel);
-    int32 BodyDeficit = FMath::Max(0, Requirements.RequiredWorldBody - Character->WorldBodyLevel);
-    int32 SpiritDeficit = FMath::Max(0, Requirements.RequiredWorldSpirit - Character->WorldSpiritLevel);
-
-    return MindDeficit + BodyDeficit + SpiritDeficit;
+    return Requirements.GetTotalDeficit(Character);
 }
 
 float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) const
@@ -23,13 +18,7 @@ float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) c
     if (!Character)
         return 0.0f;
 
-    int32 TotalDeficit = GetTotalDeficit(Character);
-    if (TotalDeficit == 0)
-        return 0.0f;
-
-    // Same penalty formula, applied to world stat deficit
-    float Penalty = FMath::Sqrt(static_cast<float>(TotalDeficit)) * 0.10f;
-    return FMath::Min(Penalty, 0.60f); // Cap at 60%
+    return Requirements.CalculatePenalty(Character);
 }
 
 // ==================== DAMAGE CALCULATIONS ====================
@@ -39,7 +28,7 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     if (!Character)
         return 0;
 
-    float FinalDamage = Damage;
+    float FinalDamage = BaseDamage;
 
     // Raw mode: +10% damage bonus
     if (bIsRawMode)
@@ -93,9 +82,9 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
 int32 USpellData::CalculateEnergyCost(UCharacterData *Character) const
 {
     if (!Character)
-        return EnergyCost;
+        return BaseEnergyCost;
 
-    float Cost = EnergyCost;
+    float Cost = BaseEnergyCost;
 
     // Requirement penalty increases cost
     float RequirementPenalty = CalculateRequirementPenalty(Character);
@@ -121,7 +110,7 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
 
 FString USpellData::GetDisplayName(UCharacterData *Caster) const
 {
-    return SpellName;
+    return Name;
 }
 // ==================== DEFENSE HELPERS ====================
 
@@ -180,14 +169,14 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Validate damage
-    if (Damage < 0)
+    if (BaseDamage < 0)
     {
         Context.AddError(FText::FromString(TEXT("Damage cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 
     // Validate energy cost
-    if (EnergyCost < 0)
+    if (BaseEnergyCost < 0)
     {
         Context.AddError(FText::FromString(TEXT("Energy Cost cannot be negative")));
         Result = EDataValidationResult::Invalid;

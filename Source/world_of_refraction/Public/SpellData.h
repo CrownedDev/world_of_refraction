@@ -42,7 +42,7 @@ public:
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString SpellName = TEXT("Unnamed Spell");
+    FString Name = TEXT("Unnamed Spell");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellElement Element = ESpellElement::Fire;
@@ -69,10 +69,10 @@ public:
     // ==================== STATS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    int32 Damage = 0;
+    int32 BaseDamage = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    int32 EnergyCost = 0;
+    int32 BaseEnergyCost = 0;
 
     /** Status buildup per hit (Elemental mode only) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats",
@@ -226,15 +226,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell|Display")
     FString GetDisplayName(UCharacterData *Caster) const;
 
+    // Source/world_of_refraction/Public/SpellData.h
+    // GetElementName() inline function — rename local variable to avoid shadowing
+
     UFUNCTION(BlueprintPure, Category = "Spell")
     FString GetElementName() const
     {
         const UEnum *EnumPtr = StaticEnum<ESpellElement>();
         if (EnumPtr)
         {
-            FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
-            Name.RemoveFromStart(TEXT("ESpellElement::"));
-            return Name;
+            FString ElementName = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
+            ElementName.RemoveFromStart(TEXT("ESpellElement::"));
+            return ElementName;
         }
         return TEXT("Unknown");
     }

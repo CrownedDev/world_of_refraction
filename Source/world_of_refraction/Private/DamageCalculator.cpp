@@ -154,7 +154,7 @@ FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
 
 	// Build input
 	FDamageCalculationInput Input;
-	Input.BaseDamage = Spell->Damage;
+	Input.BaseDamage = Spell->BaseDamage;
 	Input.ActionType = EActionType::Spell;
 	Input.Element = Spell->Element;
 	Input.bCanCrit = true;
@@ -266,7 +266,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 			if (Weapon)
 			{
 				// Apply weapon damage bonus
-				Input.BaseDamage += Weapon->BonusAttack;
+				Input.BaseDamage += Weapon->BonusRawDamage;
 
 				// Store crit bonuses for later application
 				Input.OverrideCritChance = GetCriticalChance(Attacker) + (Weapon->BonusCritChance / 100.0f);
@@ -278,21 +278,6 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 	// Calculate with main function
 	Result = CalculateDamage(Attacker, Target, Input);
-
-	// Apply weapon crit damage bonus if not infused and was critical
-	if (!bIsInfused && Result.bWasCritical)
-	{
-		UWeaponManager *WM = Cast<UWeaponManager>(GetGameInstance()->GetSubsystem<UWeaponManager>());
-		if (WM)
-		{
-			UWeaponData *Weapon = WM->GetActiveWeapon(Attacker);
-			if (Weapon && Weapon->BonusCritDamage != 0.0f)
-			{
-				float BonusCritMult = Weapon->BonusCritDamage / 100.0f;
-				Result.FinalDamage = FMath::RoundToInt(Result.FinalDamage * (1.0f + BonusCritMult));
-			}
-		}
-	}
 
 	return Result;
 }

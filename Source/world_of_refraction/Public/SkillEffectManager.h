@@ -139,12 +139,11 @@ public:
 		AActor *Target,
 		const FString &WeaponName,
 		int32 WeaponID,
-		int32 BonusAttack,
+		int32 BonusRawDamage,
 		int32 BonusDefense,
-		int32 BonusMagicPower,
-		int32 BonusSpeed,
-		float BonusCritChance,
-		float BonusCritDamage);
+		int32 BonusSpellDamage,
+		int32 BonusActionSpeed,
+		float BonusCritChance);
 
 	/**
 	 * Remove weapon bonuses when weapon is unequipped

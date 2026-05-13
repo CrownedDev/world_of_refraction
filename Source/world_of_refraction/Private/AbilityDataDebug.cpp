@@ -49,8 +49,8 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
 
     FString Output = TEXT("");
     Output += TEXT("===================================\n");
-    Output += FString::Printf(TEXT("ABILITY: %s\n"), *Ability->AbilityName);
-    Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->CharacterName);
+    Output += FString::Printf(TEXT("ABILITY: %s\n"), *Ability->Name);
+    Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->Name);
     Output += TEXT("===================================\n\n");
 
     // Base Stats
@@ -131,11 +131,11 @@ void UAbilityDataDebug::CompareAbilityEffectiveness(UAbilityData *Ability, UChar
 
     FString Output = TEXT("");
     Output += TEXT("===================================\n");
-    Output += FString::Printf(TEXT("ABILITY COMPARISON: %s\n"), *Ability->AbilityName);
+    Output += FString::Printf(TEXT("ABILITY COMPARISON: %s\n"), *Ability->Name);
     Output += TEXT("===================================\n\n");
 
     // Character 1
-    Output += FString::Printf(TEXT("%s:\n"), *Character1->CharacterName);
+    Output += FString::Printf(TEXT("%s:\n"), *Character1->Name);
     Output += FString::Printf(TEXT("  Normal Damage: %d\n"), Ability->CalculateNormalDamage(Character1));
     Output += FString::Printf(TEXT("  Normal Energy: %d\n"), Ability->CalculateNormalEnergyCost(Character1));
     if (!Ability->bImmuneToInfusion)
@@ -146,7 +146,7 @@ void UAbilityDataDebug::CompareAbilityEffectiveness(UAbilityData *Ability, UChar
     Output += TEXT("\n");
 
     // Character 2
-    Output += FString::Printf(TEXT("%s:\n"), *Character2->CharacterName);
+    Output += FString::Printf(TEXT("%s:\n"), *Character2->Name);
     Output += FString::Printf(TEXT("  Normal Damage: %d\n"), Ability->CalculateNormalDamage(Character2));
     Output += FString::Printf(TEXT("  Normal Energy: %d\n"), Ability->CalculateNormalEnergyCost(Character2));
     if (!Ability->bImmuneToInfusion)

@@ -407,7 +407,7 @@ private:
 	 *  SourceName is the display string used for effect log lines and
 	 *  the FStatusEffect.EffectName ("<SourceName> Effect"). Passed as
 	 *  FString so the caller picks the right name from whichever data
-	 *  asset it's iterating (Ability->AbilityName, Spell->SpellName, etc).
+	 *  asset it's iterating (Ability->Name, Spell->Name, etc).
 	 */
 	void ApplySkillEffects(
 		AActor *User,

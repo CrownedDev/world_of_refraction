@@ -69,7 +69,7 @@ EDataValidationResult UWeaponData::IsDataValid(FDataValidationContext &Context) 
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
-    if (WeaponName.IsEmpty() || WeaponName == TEXT("Unnamed Weapon"))
+    if (Name.IsEmpty() || Name == TEXT("Unnamed Weapon"))
     {
         Context.AddError(FText::FromString(TEXT("Weapon must have a unique name")));
         Result = EDataValidationResult::Invalid;

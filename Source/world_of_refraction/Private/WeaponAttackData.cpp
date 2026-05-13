@@ -62,7 +62,7 @@ EDataValidationResult UWeaponAttackData::IsDataValid(FDataValidationContext &Con
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Name validation
-    if (AttackName.IsEmpty() || AttackName == TEXT("Unnamed Attack"))
+    if (Name.IsEmpty() || Name == TEXT("Unnamed Attack"))
     {
         Context.AddError(FText::FromString(TEXT("Attack must have a unique name")));
         Result = EDataValidationResult::Invalid;

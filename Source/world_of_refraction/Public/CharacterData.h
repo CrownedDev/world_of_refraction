@@ -56,7 +56,7 @@ public:
 	// ==================== IDENTITY ====================
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	FString CharacterName = TEXT("Unnamed Character");
+	FString Name = TEXT("Unnamed Character");
 
 	/** Character class - determines combat style and equipment options */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
@@ -522,7 +522,5 @@ public:
 
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-
 #endif
 };

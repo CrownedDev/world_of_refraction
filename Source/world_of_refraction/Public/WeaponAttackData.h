@@ -31,7 +31,7 @@ public:
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString AttackName = TEXT("Unnamed Attack");
+    FString Name = TEXT("Unnamed Attack");
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
@@ -94,7 +94,7 @@ public:
 
     /** How the attacker approaches the target (nullptr = use character default) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-    UMovementData *MovementData = nullptr;
+    UMovementData *ApproachData = nullptr;
 
     /** Distance from target to stop and execute attack (units) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
@@ -108,7 +108,7 @@ public:
     // ==================== UTILITY FUNCTIONS ====================
 
     UFUNCTION(BlueprintPure, Category = "Attack")
-    FString GetDisplayName() const { return AttackName; }
+    FString GetDisplayName() const { return Name; }
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     bool IsMultiHit() const { return HitCount > 1; }
