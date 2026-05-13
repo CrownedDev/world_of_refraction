@@ -15,7 +15,7 @@ class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
 class UBrokenDarknessManager;
-struct FStatusEffect;
+struct FActiveSkillEffect;
 
 /**
  * UCharacterPanelWidget
@@ -102,11 +102,11 @@ protected:
 	UFUNCTION()
 	void HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement);
 	UFUNCTION()
-	void HandleEffectApplied(AActor *Target, const FStatusEffect &Effect);
+	void HandleEffectApplied(AActor *Target, const FActiveSkillEffect &Effect);
 	UFUNCTION()
-	void HandleEffectRemoved(AActor *Target, const FStatusEffect &Effect);
+	void HandleEffectRemoved(AActor *Target, const FActiveSkillEffect &Effect);
 	UFUNCTION()
-	void HandleEffectDurationChanged(AActor *Target, const FStatusEffect &Effect, int32 RemainingTurns);
+	void HandleEffectDurationChanged(AActor *Target, const FActiveSkillEffect &Effect, int32 RemainingTurns);
 	UFUNCTION()
 	void HandleDied(AActor *DeadActor);
 
@@ -120,7 +120,7 @@ protected:
 
 	/** BP fills the BuffDebuffList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
-	void RebuildBuffDebuffList(const TArray<FStatusEffect> &ActiveEffects);
+	void RebuildBuffDebuffList(const TArray<FActiveSkillEffect> &ActiveEffects);
 
 	/**
 	 * Called once during InitialiseForActor to populate name/class/element/world stats.

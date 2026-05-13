@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EStatusEffectTiming.generated.h"
+#include "ESkillEffectTiming.generated.h"
 
 /**
- * EStatusEffectTiming
- * Defines WHEN a status effect processes/activates
+ * ESkillEffectTiming
+ * Defines WHEN a skill effect processes/activates
  *
  * Processing Rules:
  * - Immediate: Once when applied (instant damage, cleanse, dispel)
@@ -17,7 +17,7 @@
  * - Persistent: Always active, never removed unless explicitly cleared
  */
 UENUM(BlueprintType)
-enum class EStatusEffectTiming : uint8
+enum class ESkillEffectTiming : uint8
 {
 	/** One-shot effect, processes once when applied */
 	Immediate UMETA(DisplayName = "Immediate (One-Shot)"),

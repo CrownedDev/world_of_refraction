@@ -1,5 +1,5 @@
 // BarCapTriggerResolver.h
-// Maps action source (Element + PhysicalDamageType) to the EStatusType
+// Maps action source (Element + PhysicalDamageType) to the ESkillEffectType
 // trigger that fires when a target's status bar caps.
 //
 // Locked design (May 2026 session). Element takes priority - Fire-infused
@@ -13,28 +13,28 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "ESpellElement.h"
 #include "EPhysicalDamageType.h"
 
 namespace BarCapTriggerResolver
 {
-    /** Resolve which EStatusType trigger fires when the bar caps.
-     *  Returns EStatusType::None when neither element nor physical type
+    /** Resolve which ESkillEffectType trigger fires when the bar caps.
+     *  Returns ESkillEffectType::None when neither element nor physical type
      *  carry a mapping (Generic + None). */
-    inline EStatusType ResolveTrigger(ESpellElement Element, EPhysicalDamageType PhysicalType)
+    inline ESkillEffectType ResolveTrigger(ESpellElement Element, EPhysicalDamageType PhysicalType)
     {
         switch (Element)
         {
-        case ESpellElement::Fire:      return EStatusType::DOT;
-        case ESpellElement::Water:     return EStatusType::HealBlock;
-        case ESpellElement::Earth:     return EStatusType::DefenseDebuff;
-        case ESpellElement::Wind:      return EStatusType::SkipTurn;
-        case ESpellElement::Lightning: return EStatusType::Stun;
-        case ESpellElement::Light:     return EStatusType::CritChanceDebuff;
-        case ESpellElement::Darkness:  return EStatusType::Silenced;
-        case ESpellElement::Void:      return EStatusType::RandomSkill;
-        case ESpellElement::Reality:   return EStatusType::BurstDamage;
+        case ESpellElement::Fire:      return ESkillEffectType::DOT;
+        case ESpellElement::Water:     return ESkillEffectType::HealBlock;
+        case ESpellElement::Earth:     return ESkillEffectType::DefenseDebuff;
+        case ESpellElement::Wind:      return ESkillEffectType::SkipTurn;
+        case ESpellElement::Lightning: return ESkillEffectType::Stun;
+        case ESpellElement::Light:     return ESkillEffectType::CritChanceDebuff;
+        case ESpellElement::Darkness:  return ESkillEffectType::Silenced;
+        case ESpellElement::Void:      return ESkillEffectType::RandomSkill;
+        case ESpellElement::Reality:   return ESkillEffectType::BurstDamage;
         case ESpellElement::Generic:
         case ESpellElement::BrokenDarkness:
         default:
@@ -43,12 +43,12 @@ namespace BarCapTriggerResolver
 
         switch (PhysicalType)
         {
-        case EPhysicalDamageType::Slash:   return EStatusType::DOT;
-        case EPhysicalDamageType::Pierce:  return EStatusType::DefenseDebuff;
-        case EPhysicalDamageType::Impact:  return EStatusType::Stun;
+        case EPhysicalDamageType::Slash:   return ESkillEffectType::DOT;
+        case EPhysicalDamageType::Pierce:  return ESkillEffectType::DefenseDebuff;
+        case EPhysicalDamageType::Impact:  return ESkillEffectType::Stun;
         case EPhysicalDamageType::None:
         default:
-            return EStatusType::None;
+            return ESkillEffectType::None;
         }
     }
 }

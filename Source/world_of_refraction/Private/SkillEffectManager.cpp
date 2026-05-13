@@ -3,11 +3,11 @@
 #include "SkillEffectManager.h"
 #include "CharacterDataComponent.h"
 #include "TurnManager.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "CombatConstants.h"
 #include "InfusionConstants.h"
 #include "CharacterDataComponent.h"
-#include "StatusDisplayNames.h"
+#include "SkillEffectDisplayNames.h"
 #include "RingData.h"
 
 // ========================================
@@ -37,7 +37,7 @@ void USkillEffectManager::Deinitialize()
 // EFFECT APPLICATION
 // ========================================
 
-EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatusEffect Effect,
+EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiveSkillEffect Effect,
 														  AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
 	if (!Target)
@@ -61,10 +61,10 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 	Effect.InitialDuration = Effect.RemainingTurns;
 
 	// Get or create effect array for this actor
-	TArray<FStatusEffect> &Effects = ActiveEffects.FindOrAdd(Target);
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects.FindOrAdd(Target);
 
 	// Check for existing effect with same ID
-	FStatusEffect *ExistingEffect = FindEffectByID(Target, Effect.EffectID);
+	FActiveSkillEffect *ExistingEffect = FindEffectByID(Target, Effect.EffectID);
 
 	if (ExistingEffect)
 	{
@@ -116,7 +116,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
 
 	// Process immediate effects right away
-	if (Effect.ProcessTiming == EStatusEffectTiming::Immediate)
+	if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
 	{
 		ApplyEffectLogic(Target, Effects.Last());
 
@@ -137,10 +137,10 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FStatu
 	return EEffectApplicationResult::Applied;
 }
 
-void USkillEffectManager::ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
+void USkillEffectManager::ApplyEffects(AActor *Target, const TArray<FActiveSkillEffect> &Effects,
 									   AActor *Source, const FString &SourceAbility, int32 SourceTeam)
 {
-	for (const FStatusEffect &Effect : Effects)
+	for (const FActiveSkillEffect &Effect : Effects)
 	{
 		ApplyEffect(Target, Effect, Source, SourceAbility, SourceTeam);
 	}
@@ -156,7 +156,7 @@ void USkillEffectManager::ApplyInfusionDOT(
 	AActor *Source,
 	int32 SourceTeam)
 {
-	FStatusEffect InfusionEffect = FStatusEffect::CreateFromInfusion(
+	FActiveSkillEffect InfusionEffect = FActiveSkillEffect::CreateFromInfusion(
 		AbilityName,
 		AbilityID,
 		InfusedElement,
@@ -170,7 +170,7 @@ void USkillEffectManager::ApplyEvolutionPassives(
 	AActor *Target,
 	const FString &EvolutionName,
 	int32 EvolutionID,
-	const TArray<EStatusType> &PassiveTypes,
+	const TArray<ESkillEffectType> &PassiveTypes,
 	const TArray<float> &PassiveValues)
 {
 	if (PassiveTypes.Num() != PassiveValues.Num())
@@ -181,9 +181,9 @@ void USkillEffectManager::ApplyEvolutionPassives(
 
 	for (int32 i = 0; i < PassiveTypes.Num(); ++i)
 	{
-		if (PassiveTypes[i] != EStatusType::None)
+		if (PassiveTypes[i] != ESkillEffectType::None)
 		{
-			FStatusEffect Passive = FStatusEffect::CreateFromEvolutionPassive(
+			FActiveSkillEffect Passive = FActiveSkillEffect::CreateFromEvolutionPassive(
 				EvolutionName,
 				EvolutionID,
 				PassiveTypes[i],
@@ -209,7 +209,7 @@ void USkillEffectManager::ApplyWeaponBonuses(
 	int32 BonusActionSpeed,
 	float BonusCritChance)
 {
-	TArray<FStatusEffect> Bonuses = FStatusEffect::CreateFromWeaponBonuses(
+	TArray<FActiveSkillEffect> Bonuses = FActiveSkillEffect::CreateFromWeaponBonuses(
 		WeaponName,
 		WeaponID,
 		BonusRawDamage,
@@ -236,7 +236,7 @@ void USkillEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
 
 	int32 BaseID = WeaponID * 100;
 	int32 RemovedCount = 0;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	// Remove effects with IDs in the weapon bonus range (BaseID+1 through BaseID+6)
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
@@ -244,7 +244,7 @@ void USkillEffectManager::RemoveWeaponBonuses(AActor *Target, int32 WeaponID)
 		int32 EffectID = Effects[i].EffectID;
 		if (EffectID >= BaseID + 1 && EffectID <= BaseID + 6)
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 			Effects.RemoveAt(i);
 			RemovedCount++;
 			OnEffectRemoved.Broadcast(Target, RemovedEffect);
@@ -270,7 +270,7 @@ void USkillEffectManager::ApplyRingBonuses(AActor *Target, const FEquipmentStatB
 		return;
 	}
 
-	TArray<FStatusEffect> Bonuses = FStatusEffect::CreateFromRingBonuses(
+	TArray<FActiveSkillEffect> Bonuses = FActiveSkillEffect::CreateFromRingBonuses(
 		RingName,
 		RingInstanceID,
 		StatBonus.BonusRawDamage,
@@ -297,7 +297,7 @@ void USkillEffectManager::RemoveRingBonuses(AActor *Target, int32 RingInstanceID
 
 	const int32 BaseID = RingInstanceID * 100 + 50;
 	int32 RemovedCount = 0;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	// Mirror RemoveWeaponBonuses: clear BaseID+1 through BaseID+6
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
@@ -305,7 +305,7 @@ void USkillEffectManager::RemoveRingBonuses(AActor *Target, int32 RingInstanceID
 		int32 EffectID = Effects[i].EffectID;
 		if (EffectID >= BaseID + 1 && EffectID <= BaseID + 6)
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 			Effects.RemoveAt(i);
 			RemovedCount++;
 			OnEffectRemoved.Broadcast(Target, RemovedEffect);
@@ -330,7 +330,7 @@ void USkillEffectManager::ApplyPhysicalDamageEffect(
 	AActor *Source,
 	int32 SourceTeam)
 {
-	FStatusEffect Effect = FStatusEffect::CreateFromPhysicalDamageType(
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateFromPhysicalDamageType(
 		WeaponName,
 		WeaponID,
 		PhysicalType,
@@ -374,7 +374,7 @@ void USkillEffectManager::ApplyWeaponInfusionDOT(
 	AActor *Source,
 	int32 SourceTeam)
 {
-	FStatusEffect Effect = FStatusEffect::CreateFromWeaponInfusion(
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateFromWeaponInfusion(
 		AbilityName,
 		WeaponName,
 		AbilityID,
@@ -400,13 +400,13 @@ bool USkillEffectManager::RemoveEffectByID(AActor *Target, int32 EffectID)
 		return false;
 	}
 
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
 		if (Effects[i].EffectID == EffectID)
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 			bool bWasSpeedEffect = IsSpeedEffect(RemovedEffect.EffectType);
 
 			Effects.RemoveAt(i);
@@ -437,13 +437,13 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 	}
 
 	int32 RemovedCount = 0;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
 		if (Effects[i].EffectName == EffectName)
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 			Effects.RemoveAt(i);
 			RemovedCount++;
 
@@ -460,7 +460,7 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 	return RemovedCount;
 }
 
-int32 USkillEffectManager::RemoveEffectsByType(AActor *Target, EStatusType EffectType)
+int32 USkillEffectManager::RemoveEffectsByType(AActor *Target, ESkillEffectType EffectType)
 {
 	if (!Target || !ActiveEffects.Contains(Target))
 	{
@@ -469,13 +469,13 @@ int32 USkillEffectManager::RemoveEffectsByType(AActor *Target, EStatusType Effec
 
 	bool bWasSpeedEffect = IsSpeedEffect(EffectType);
 	int32 RemovedCount = 0;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
 		if (Effects[i].EffectType == EffectType)
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 			Effects.RemoveAt(i);
 			RemovedCount++;
 
@@ -501,13 +501,13 @@ int32 USkillEffectManager::RemoveAllBuffs(AActor *Target)
 
 	int32 RemovedCount = 0;
 	bool bSpeedChanged = false;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
 		if (Effects[i].IsBuff())
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 
 			if (IsSpeedEffect(RemovedEffect.EffectType))
 			{
@@ -542,13 +542,13 @@ int32 USkillEffectManager::RemoveAllDebuffs(AActor *Target)
 
 	int32 RemovedCount = 0;
 	bool bSpeedChanged = false;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
 		if (Effects[i].IsDebuff())
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 
 			if (IsSpeedEffect(RemovedEffect.EffectType))
 			{
@@ -582,13 +582,13 @@ int32 USkillEffectManager::RemoveAllDOTs(AActor *Target)
 	}
 
 	int32 RemovedCount = 0;
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
 		if (Effects[i].IsDOT())
 		{
-			FStatusEffect RemovedEffect = Effects[i];
+			FActiveSkillEffect RemovedEffect = Effects[i];
 			Effects.RemoveAt(i);
 			RemovedCount++;
 
@@ -609,11 +609,11 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 		return;
 	}
 
-	TArray<FStatusEffect> &Effects = ActiveEffects[Target];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 	bool bSpeedChanged = false;
 
 	// Check for speed effects and broadcast removal for each effect
-	for (const FStatusEffect &Effect : Effects)
+	for (const FActiveSkillEffect &Effect : Effects)
 	{
 		if (IsSpeedEffect(Effect.EffectType))
 		{
@@ -642,7 +642,7 @@ void USkillEffectManager::ClearAllEffects()
 	{
 		if (Pair.Key.IsValid())
 		{
-			for (const FStatusEffect &Effect : Pair.Value)
+			for (const FActiveSkillEffect &Effect : Pair.Value)
 			{
 				OnEffectRemoved.Broadcast(Pair.Key.Get(), Effect);
 			}
@@ -675,14 +675,14 @@ int32 USkillEffectManager::RemoveEffectsBySource(AActor *Source)
 		if (!Pair.Key.IsValid())
 			continue;
 
-		TArray<FStatusEffect> &Effects = Pair.Value;
+		TArray<FActiveSkillEffect> &Effects = Pair.Value;
 		bool bSpeedChangedForActor = false;
 
 		for (int32 i = Effects.Num() - 1; i >= 0; --i)
 		{
 			if (Effects[i].SourceActor == Source)
 			{
-				FStatusEffect RemovedEffect = Effects[i];
+				FActiveSkillEffect RemovedEffect = Effects[i];
 
 				if (IsSpeedEffect(RemovedEffect.EffectType))
 				{
@@ -734,10 +734,10 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 		   *Actor->GetName());
 
 	// Process start-of-turn effects
-	ProcessEffectsWithTiming(Actor, EStatusEffectTiming::StartOfOwnTurn);
+	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::StartOfOwnTurn);
 
 	// Process persistent effects (always active, but we re-apply stat mods)
-	ProcessEffectsWithTiming(Actor, EStatusEffectTiming::Persistent);
+	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::Persistent);
 
 	// Check conditional triggers with current state
 	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnStart);
@@ -754,7 +754,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 		   *Actor->GetName());
 
 	// Process end-of-turn effects (DOTs, etc.)
-	ProcessEffectsWithTiming(Actor, EStatusEffectTiming::EndOfOwnTurn);
+	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::EndOfOwnTurn);
 
 	// Check conditional triggers
 	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnEnd);
@@ -765,13 +765,13 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	// Clean up effects marked for removal
 	if (ActiveEffects.Contains(Actor))
 	{
-		TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
+		TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
 		for (int32 i = Effects.Num() - 1; i >= 0; --i)
 		{
 			if (Effects[i].bPendingRemoval)
 			{
-				FStatusEffect RemovedEffect = Effects[i];
+				FActiveSkillEffect RemovedEffect = Effects[i];
 				Effects.RemoveAt(i);
 				OnEffectRemoved.Broadcast(Actor, RemovedEffect);
 			}
@@ -786,11 +786,11 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger T
 		return;
 	}
 
-	TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
-	for (FStatusEffect &Effect : Effects)
+	for (FActiveSkillEffect &Effect : Effects)
 	{
-		if (Effect.ProcessTiming == EStatusEffectTiming::OnTrigger &&
+		if (Effect.ProcessTiming == ESkillEffectTiming::OnTrigger &&
 			Effect.TriggerCondition == Trigger)
 		{
 			if (IsTriggerConditionMet(Actor, Effect, TriggerValue))
@@ -812,16 +812,16 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger T
 	}
 }
 
-void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing)
+void USkillEffectManager::ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTiming Timing)
 {
 	if (!ActiveEffects.Contains(Actor))
 	{
 		return;
 	}
 
-	TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
-	for (FStatusEffect &Effect : Effects)
+	for (FActiveSkillEffect &Effect : Effects)
 	{
 		if (Effect.ProcessTiming == Timing && !Effect.bProcessedThisTurn)
 		{
@@ -840,12 +840,12 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 		return;
 	}
 
-	TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 	bool bSpeedChanged = false;
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
 	{
-		FStatusEffect &Effect = Effects[i];
+		FActiveSkillEffect &Effect = Effects[i];
 
 		// Skip permanent effects
 		if (Effect.bPermanent)
@@ -854,7 +854,7 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 		}
 
 		// Skip immediate effects (already handled)
-		if (Effect.ProcessTiming == EStatusEffectTiming::Immediate)
+		if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
 		{
 			continue;
 		}
@@ -875,7 +875,7 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 				bSpeedChanged = true;
 			}
 
-			FStatusEffect ExpiredEffect = Effect;
+			FActiveSkillEffect ExpiredEffect = Effect;
 			Effects.RemoveAt(i);
 
 			OnEffectRemoved.Broadcast(Actor, ExpiredEffect);
@@ -889,7 +889,7 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 	}
 }
 
-void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
+void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect)
 {
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
 
@@ -905,7 +905,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	switch (Effect.EffectType)
 	{
 	// ==================== DOT EFFECTS ====================
-	case EStatusType::DOT:
+	case ESkillEffectType::DOT:
 	{
 		// Locked design: DOTs can't kill - clamped to leave 1 HP minimum
 		int32 DamageToApply = FMath::RoundToInt(Value);
@@ -922,20 +922,20 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	}
 
 		// ==================== HEALING ====================
-	case EStatusType::HealthRestore:
+	case ESkillEffectType::HealthRestore:
 		CharComp->ServerHeal(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
 	// ==================== ENERGY ====================
-	case EStatusType::EnergyRestore:
+	case ESkillEffectType::EnergyRestore:
 		CharComp->ServerGainEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s gained %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
 		break;
 
-	case EStatusType::EnergyDrain:
+	case ESkillEffectType::EnergyDrain:
 		CharComp->ServerSpendEnergy(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s lost %d energy from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -943,55 +943,55 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 
 	// ==================== STAT MODIFIERS ====================
 	// These don't apply immediate changes - they're queried via GetTotalStatModifier
-	case EStatusType::DamageBuff:
-	case EStatusType::DamageDebuff:
-	case EStatusType::DefenseBuff:
-	case EStatusType::DefenseDebuff:
-	case EStatusType::SpeedBuff:
-	case EStatusType::SpeedDebuff:
-	case EStatusType::MindBuff:
-	case EStatusType::MindDebuff:
-	case EStatusType::BodyBuff:
-	case EStatusType::BodyDebuff:
-	case EStatusType::SpiritBuff:
-	case EStatusType::SpiritDebuff:
-	case EStatusType::CritChanceBuff:
-	case EStatusType::CritChanceDebuff:
-	case EStatusType::AttackSpeedBuff:
-	case EStatusType::AttackSpeedDebuff:
-	case EStatusType::RawDamageBuff:
-	case EStatusType::RawDamageDebuff:
-	case EStatusType::EffectDamageBuff:
-	case EStatusType::EffectDamageDebuff:
-	case EStatusType::SpellCostBuff:
-	case EStatusType::SpellCostDebuff:
-	case EStatusType::ResistanceBuff:
-	case EStatusType::ResistanceDebuff:
-	case EStatusType::SpellSizeBuff:
-	case EStatusType::SpellSizeDebuff:
-	case EStatusType::MaxEnergyBuff:
-	case EStatusType::MaxEnergyDebuff:
+	case ESkillEffectType::DamageBuff:
+	case ESkillEffectType::DamageDebuff:
+	case ESkillEffectType::DefenseBuff:
+	case ESkillEffectType::DefenseDebuff:
+	case ESkillEffectType::SpeedBuff:
+	case ESkillEffectType::SpeedDebuff:
+	case ESkillEffectType::MindBuff:
+	case ESkillEffectType::MindDebuff:
+	case ESkillEffectType::BodyBuff:
+	case ESkillEffectType::BodyDebuff:
+	case ESkillEffectType::SpiritBuff:
+	case ESkillEffectType::SpiritDebuff:
+	case ESkillEffectType::CritChanceBuff:
+	case ESkillEffectType::CritChanceDebuff:
+	case ESkillEffectType::AttackSpeedBuff:
+	case ESkillEffectType::AttackSpeedDebuff:
+	case ESkillEffectType::RawDamageBuff:
+	case ESkillEffectType::RawDamageDebuff:
+	case ESkillEffectType::EffectDamageBuff:
+	case ESkillEffectType::EffectDamageDebuff:
+	case ESkillEffectType::SpellCostBuff:
+	case ESkillEffectType::SpellCostDebuff:
+	case ESkillEffectType::ResistanceBuff:
+	case ESkillEffectType::ResistanceDebuff:
+	case ESkillEffectType::SpellSizeBuff:
+	case ESkillEffectType::SpellSizeDebuff:
+	case ESkillEffectType::MaxEnergyBuff:
+	case ESkillEffectType::MaxEnergyDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
-	case EStatusType::RemoveSpeedDebuff:
-		RemoveEffectsByType(Actor, EStatusType::SpeedDebuff);
+	case ESkillEffectType::RemoveSpeedDebuff:
+		RemoveEffectsByType(Actor, ESkillEffectType::SpeedDebuff);
 		break;
 
-	case EStatusType::RemoveDamageDebuff:
-		RemoveEffectsByType(Actor, EStatusType::DamageDebuff);
+	case ESkillEffectType::RemoveDamageDebuff:
+		RemoveEffectsByType(Actor, ESkillEffectType::DamageDebuff);
 		break;
 
-	case EStatusType::RemoveDefenseDebuff:
-		RemoveEffectsByType(Actor, EStatusType::DefenseDebuff);
+	case ESkillEffectType::RemoveDefenseDebuff:
+		RemoveEffectsByType(Actor, ESkillEffectType::DefenseDebuff);
 		break;
 
 	// ==================== SELF DAMAGE ====================
 	// Wired Session X. Lunge's self-damage effect applied cleanly but had no
 	// handler here, so it sat on the actor without ticking (May 2026 PIE).
-	case EStatusType::SelfDamage:
+	case ESkillEffectType::SelfDamage:
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Value));
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d self-damage from %s"),
 			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
@@ -1003,16 +1003,16 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 	//   Stun      -> ActionExecutor::ValidateAction blocks non-Attack/Defend
 	//   HealBlock -> CharacterDataComponent::ServerHeal early-returns 0
 	//   Silenced  -> EP-cost gates check for active Silenced effect
-	case EStatusType::Stun:
-	case EStatusType::HealBlock:
-	case EStatusType::Silenced:
+	case ESkillEffectType::Stun:
+	case ESkillEffectType::HealBlock:
+	case ESkillEffectType::Silenced:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] %s active on %s (gate effect)"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
 	// RandomSkill: full implementation pending Session Y/Z (LoadoutComponent
 	// random pick + ActionExecutor forced-action injection).
-	case EStatusType::RandomSkill:
+	case ESkillEffectType::RandomSkill:
 		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s has RandomSkill active - implementation pending"),
 			   *Actor->GetName());
 		break;
@@ -1028,26 +1028,26 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect)
 // QUERIES
 // ========================================
 
-TArray<FStatusEffect> USkillEffectManager::GetActiveEffects(AActor *Actor) const
+TArray<FActiveSkillEffect> USkillEffectManager::GetActiveEffects(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
-		return TArray<FStatusEffect>();
+		return TArray<FActiveSkillEffect>();
 	}
 
 	return ActiveEffects[Actor];
 }
 
-TArray<FStatusEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, EStatusType EffectType) const
+TArray<FActiveSkillEffect> USkillEffectManager::GetEffectsByType(AActor *Actor, ESkillEffectType EffectType) const
 {
-	TArray<FStatusEffect> Result;
+	TArray<FActiveSkillEffect> Result;
 
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return Result;
 	}
 
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.EffectType == EffectType)
 		{
@@ -1065,7 +1065,7 @@ bool USkillEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 		return false;
 	}
 
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.EffectID == EffectID)
 		{
@@ -1076,14 +1076,14 @@ bool USkillEffectManager::HasEffectByID(AActor *Actor, int32 EffectID) const
 	return false;
 }
 
-bool USkillEffectManager::HasEffectOfType(AActor *Actor, EStatusType EffectType) const
+bool USkillEffectManager::HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return false;
 	}
 
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.EffectType == EffectType)
 		{
@@ -1094,7 +1094,7 @@ bool USkillEffectManager::HasEffectOfType(AActor *Actor, EStatusType EffectType)
 	return false;
 }
 
-float USkillEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const
+float USkillEffectManager::GetTotalStatModifier(AActor *Actor, ESkillEffectType ModifierType) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1103,7 +1103,7 @@ float USkillEffectManager::GetTotalStatModifier(AActor *Actor, EStatusType Modif
 
 	float Total = 0.0f;
 
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.EffectType == ModifierType)
 		{
@@ -1132,7 +1132,7 @@ int32 USkillEffectManager::GetBuffCount(AActor *Actor) const
 	}
 
 	int32 Count = 0;
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.IsBuff())
 		{
@@ -1151,7 +1151,7 @@ int32 USkillEffectManager::GetDebuffCount(AActor *Actor) const
 	}
 
 	int32 Count = 0;
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.IsDebuff())
 		{
@@ -1185,7 +1185,7 @@ bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 		return false;
 	}
 
-	for (const FStatusEffect &Effect : ActiveEffects[Actor])
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.IsDOT())
 		{
@@ -1196,7 +1196,7 @@ bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 	return false;
 }
 
-bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const
+bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const
 {
 	// TODO: Implement immunity system via ResistanceBuff at 100%+
 	return false;
@@ -1221,14 +1221,14 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 		return;
 	}
 
-	const TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
+	const TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
 	UE_LOG(LogTemp, Display, TEXT("[SkillEffectManager] DEBUG: %s has %d effects:"),
 		   *Actor->GetName(), Effects.Num());
 
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
-		const FStatusEffect &Effect = Effects[i];
+		const FActiveSkillEffect &Effect = Effects[i];
 		UE_LOG(LogTemp, Display, TEXT("  [%d] %s (ID:%d) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
 			   i, *Effect.EffectName, Effect.EffectID,
 			   *UEnum::GetValueAsString(Effect.EffectType),
@@ -1262,7 +1262,7 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 		return TEXT("No effects");
 	}
 
-	const TArray<FStatusEffect> &Effects = ActiveEffects[Actor];
+	const TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
 	if (Effects.Num() == 0)
 	{
@@ -1272,7 +1272,7 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 	FString Summary;
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
-		const FStatusEffect &Effect = Effects[i];
+		const FActiveSkillEffect &Effect = Effects[i];
 		if (i > 0)
 			Summary += TEXT("\n");
 		Summary += FString::Printf(TEXT("%s %s (%s)"),
@@ -1286,7 +1286,7 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 // INTERNAL HELPERS
 // ========================================
 
-bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FStatusEffect &Effect, float TriggerValue) const
+bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue) const
 {
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
 	if (!CharComp)
@@ -1352,14 +1352,14 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FStatusEffe
 	}
 }
 
-FStatusEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 EffectID)
+FActiveSkillEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 EffectID)
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
 		return nullptr;
 	}
 
-	for (FStatusEffect &Effect : ActiveEffects[Actor])
+	for (FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		if (Effect.EffectID == EffectID)
 		{
@@ -1387,20 +1387,20 @@ void USkillEffectManager::ResetTurnFlags(AActor *Actor)
 		return;
 	}
 
-	for (FStatusEffect &Effect : ActiveEffects[Actor])
+	for (FActiveSkillEffect &Effect : ActiveEffects[Actor])
 	{
 		Effect.ResetTurnFlags();
 	}
 }
 
-bool USkillEffectManager::IsSpeedEffect(EStatusType EffectType) const
+bool USkillEffectManager::IsSpeedEffect(ESkillEffectType EffectType) const
 {
 	switch (EffectType)
 	{
-	case EStatusType::SpeedBuff:
-	case EStatusType::SpeedDebuff:
-	case EStatusType::AttackSpeedBuff:
-	case EStatusType::AttackSpeedDebuff:
+	case ESkillEffectType::SpeedBuff:
+	case ESkillEffectType::SpeedDebuff:
+	case ESkillEffectType::AttackSpeedBuff:
+	case ESkillEffectType::AttackSpeedDebuff:
 		return true;
 	default:
 		return false;
@@ -1429,71 +1429,71 @@ void USkillEffectManager::NotifySpeedChanged(AActor *Actor)
 	}
 }
 
-void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element)
 {
-	if (!Target || StatusType == EStatusType::None)
+	if (!Target || StatusType == ESkillEffectType::None)
 	{
 		return;
 	}
 
-	FStatusEffect Effect;
+	FActiveSkillEffect Effect;
 	Effect.Element = Element;
 	Effect.EffectID = FMath::Rand();
 	Effect.EffectType = StatusType; // Set directly to the generic type
 
 	// Generate element-aware display name
-	Effect.EffectName = StatusDisplayNames::GetDisplayName(StatusType, Element);
+	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
 
 	// Immediate effects: Weak, longer duration
 	switch (StatusType)
 	{
-	case EStatusType::DOT:
+	case ESkillEffectType::DOT:
 		Effect.EffectValue = 10.0f;
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		break;
 
-	case EStatusType::DefenseDebuff:
+	case ESkillEffectType::DefenseDebuff:
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::SpeedDebuff:
+	case ESkillEffectType::SpeedDebuff:
 		Effect.EffectValue = 25.0f; // 25%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::CritDebuff:
+	case ESkillEffectType::CritDebuff:
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::EnergyDebuff:
+	case ESkillEffectType::EnergyDebuff:
 		Effect.EffectValue = 25.0f; // 25% locked
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::RandomDebuff:
+	case ESkillEffectType::RandomDebuff:
 	{
 		// Pick a random debuff type
-		TArray<EStatusType> Debuffs = {
-			EStatusType::DamageDebuff,
-			EStatusType::DefenseDebuff,
-			EStatusType::SpeedDebuff,
-			EStatusType::CritDebuff};
+		TArray<ESkillEffectType> Debuffs = {
+			ESkillEffectType::DamageDebuff,
+			ESkillEffectType::DefenseDebuff,
+			ESkillEffectType::SpeedDebuff,
+			ESkillEffectType::CritDebuff};
 		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 15.0f; // 15%
 		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 	}
 	break;
 
-	case EStatusType::SkipTurn:
-	case EStatusType::BurstDamage:
+	case ESkillEffectType::SkipTurn:
+	case ESkillEffectType::BurstDamage:
 		// These have no immediate effect
 		return;
 
@@ -1508,9 +1508,9 @@ void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Targ
 		   *Effect.EffectName, *Target->GetName());
 }
 
-void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element)
 {
-	if (!Target || StatusType == EStatusType::None)
+	if (!Target || StatusType == ESkillEffectType::None)
 	{
 		return;
 	}
@@ -1519,19 +1519,19 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 	// target (e.g. DOT and Burst use Target MaxHP). Source still passed to
 	// ApplyEffect below for attribution.
 
-	FStatusEffect Effect;
+	FActiveSkillEffect Effect;
 	Effect.Element = Element;
 	Effect.EffectID = FMath::Rand();
 
 	// Generate element-aware display name
-	Effect.EffectName = StatusDisplayNames::GetDisplayName(StatusType, Element);
+	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
 
 	// Triggered effects: bar-cap design magnitudes (Session X)
 	switch (StatusType)
 	{
-	case EStatusType::DOT:
+	case ESkillEffectType::DOT:
 	{
-		Effect.EffectType = EStatusType::DOT;
+		Effect.EffectType = ESkillEffectType::DOT;
 		// 8% MaxHP per tick - scaled at apply time via target's MaxHP.
 		// TODO: long-term, change DOT processing to interpret Value as % of MaxHP
 		// directly; for now we resolve to flat damage here for compatibility with
@@ -1545,91 +1545,91 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 			Effect.EffectValue = 30.0f; // fallback
 		}
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		break;
 	}
 
-	case EStatusType::DefenseDebuff:
-		Effect.EffectType = EStatusType::DefenseDebuff;
+	case ESkillEffectType::DefenseDebuff:
+		Effect.EffectType = ESkillEffectType::DefenseDebuff;
 		Effect.EffectValue = 30.0f; // 30% defence reduction
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::SkipTurn:
-		Effect.EffectType = EStatusType::SkipTurn;
+	case ESkillEffectType::SkipTurn:
+		Effect.EffectType = ESkillEffectType::SkipTurn;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
-	case EStatusType::SpeedDebuff:
-		Effect.EffectType = EStatusType::SpeedDebuff;
+	case ESkillEffectType::SpeedDebuff:
+		Effect.EffectType = ESkillEffectType::SpeedDebuff;
 		Effect.EffectValue = 50.0f; // 50%
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::CritDebuff:
-		Effect.EffectType = EStatusType::CritChanceDebuff;
+	case ESkillEffectType::CritDebuff:
+		Effect.EffectType = ESkillEffectType::CritChanceDebuff;
 		Effect.EffectValue = 100.0f; // -100% crit chance
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::EnergyDebuff:
-		Effect.EffectType = EStatusType::EnergyDrain;
+	case ESkillEffectType::EnergyDebuff:
+		Effect.EffectType = ESkillEffectType::EnergyDrain;
 		Effect.EffectValue = 100.0f; // 100% locked
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::RandomDebuff:
+	case ESkillEffectType::RandomDebuff:
 	{
 		// Superseded by RandomSkill below in the new bar-cap design; left wired
 		// so any pre-existing trigger mappings still resolve until Session Y.
-		TArray<EStatusType> Debuffs = {
-			EStatusType::DamageDebuff,
-			EStatusType::DefenseDebuff,
-			EStatusType::SpeedDebuff,
-			EStatusType::CritChanceDebuff};
+		TArray<ESkillEffectType> Debuffs = {
+			ESkillEffectType::DamageDebuff,
+			ESkillEffectType::DefenseDebuff,
+			ESkillEffectType::SpeedDebuff,
+			ESkillEffectType::CritChanceDebuff};
 		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
 		Effect.EffectValue = 30.0f; // 30%
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 	}
 	break;
 
 	// ==================== BAR-CAP GATE EFFECTS (Session X) ====================
-	case EStatusType::Stun:
-		Effect.EffectType = EStatusType::Stun;
+	case ESkillEffectType::Stun:
+		Effect.EffectType = ESkillEffectType::Stun;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
-	case EStatusType::HealBlock:
-		Effect.EffectType = EStatusType::HealBlock;
+	case ESkillEffectType::HealBlock:
+		Effect.EffectType = ESkillEffectType::HealBlock;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::Silenced:
-		Effect.EffectType = EStatusType::Silenced;
+	case ESkillEffectType::Silenced:
+		Effect.EffectType = ESkillEffectType::Silenced;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 2;
-		Effect.ProcessTiming = EStatusEffectTiming::Persistent;
+		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 		break;
 
-	case EStatusType::RandomSkill:
-		Effect.EffectType = EStatusType::RandomSkill;
+	case ESkillEffectType::RandomSkill:
+		Effect.EffectType = ESkillEffectType::RandomSkill;
 		Effect.EffectValue = 1.0f; // gate
 		Effect.RemainingTurns = 1;
-		Effect.ProcessTiming = EStatusEffectTiming::StartOfOwnTurn;
+		Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		break;
 
-	case EStatusType::BurstDamage:
+	case ESkillEffectType::BurstDamage:
 	{
 		// Locked design: 25% MaxHP target-scaled, clamped can't-kill (leaves >=1 HP)
 		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
@@ -1646,7 +1646,7 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 					   BurstDamage, *Target->GetName());
 			}
 		}
-		return; // one-shot, no FStatusEffect applied
+		return; // one-shot, no FActiveSkillEffect applied
 	}
 
 	default:

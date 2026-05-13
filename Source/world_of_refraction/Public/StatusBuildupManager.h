@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "ESpellElement.h"
 #include "EPhysicalDamageType.h"
 #include "StatusBuildupManager.generated.h"
@@ -79,7 +79,7 @@ public:
 	 *  Resolved live from PendingElement + PendingPhysicalType via
 	 *  BarCapTriggerResolver - no cached trigger state. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	EStatusType GetPendingTrigger(AActor *Target) const;
+	ESkillEffectType GetPendingTrigger(AActor *Target) const;
 
 	/** Get the element of the last hit that built the bar.
 	 *  Used by UI for bar tinting. */
@@ -153,7 +153,7 @@ private:
 
 	/** Trigger the status effect when bar fills. Looks up the effect manager
 	 *  and calls ApplyTriggeredSkillEffect on it. */
-	void TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+	void TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element);
 
 	// ========================================
 	// CACHED CROSS-SUBSYSTEM REFERENCE

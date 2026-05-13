@@ -106,7 +106,7 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
     {
         const FSkillEffect &Effect = Effects[i];
 
-        if (Effect.EffectType == EStatusType::None)
+        if (Effect.EffectType == ESkillEffectType::None)
         {
             Context.AddWarning(FText::FromString(
                 FString::Printf(TEXT("Effect %d has no type set"), i + 1)));

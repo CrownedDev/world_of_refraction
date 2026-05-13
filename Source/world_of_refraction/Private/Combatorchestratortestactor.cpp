@@ -9,7 +9,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "SkillEffectManager.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "ItemData.h"
 #include "LoadoutComponent.h"
 #include "InventoryComponent.h"

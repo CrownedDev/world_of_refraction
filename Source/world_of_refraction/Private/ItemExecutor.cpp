@@ -5,7 +5,7 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "SkillEffectManager.h"
-#include "StatusEffect.h"
+#include "ActiveSkillEffect.h"
 
 void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -231,10 +231,10 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemDa
 	float BuffPercent = Item->GetBuffPercentage();
 	int32 Duration = Item->GetBuffDuration();
 
-	FStatusEffect SpeedBuff = FStatusEffect::CreateBuff(
+	FActiveSkillEffect SpeedBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Speed"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EStatusType::SpeedBuff,
+		ESkillEffectType::SpeedBuff,
 		BuffPercent,
 		Duration);
 	SpeedBuff.Element = Item->GetAssociatedElement();
@@ -259,10 +259,10 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItem
 	float BuffPercent = Item->GetBuffPercentage();
 	int32 Duration = Item->GetBuffDuration();
 
-	FStatusEffect DefenseBuff = FStatusEffect::CreateBuff(
+	FActiveSkillEffect DefenseBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Defense"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EStatusType::DefenseBuff,
+		ESkillEffectType::DefenseBuff,
 		BuffPercent,
 		Duration);
 	DefenseBuff.Element = Item->GetAssociatedElement();
@@ -287,10 +287,10 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemDat
 	float BuffPercent = Item->GetBuffPercentage();
 	int32 Duration = Item->GetBuffDuration();
 
-	FStatusEffect CritBuff = FStatusEffect::CreateBuff(
+	FActiveSkillEffect CritBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Crit"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EStatusType::CritChanceBuff,
+		ESkillEffectType::CritChanceBuff,
 		BuffPercent,
 		Duration);
 	CritBuff.Element = Item->GetAssociatedElement();
@@ -325,10 +325,10 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData
 
 	// NOTE: Silence effect type not yet in enum - using EnergyDrain as placeholder
 	// This prevents energy gain which effectively limits spell casting
-	FStatusEffect Silence = FStatusEffect::CreateBuff(
+	FActiveSkillEffect Silence = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
 		Item->GetUniqueID(),
-		EStatusType::EnergyDrain, // TODO: Add proper Silence type
+		ESkillEffectType::EnergyDrain, // TODO: Add proper Silence type
 		1.0f,							 // Binary effect
 		Duration);
 	Silence.Element = Item->GetAssociatedElement();
@@ -357,19 +357,19 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData 
 	OutResult.bGambleWon = bIsPositive;
 
 	// Random effect type
-	TArray<EStatusType> BuffTypes = {
-		EStatusType::DamageBuff,
-		EStatusType::DefenseBuff,
-		EStatusType::SpeedBuff,
-		EStatusType::CritChanceBuff};
+	TArray<ESkillEffectType> BuffTypes = {
+		ESkillEffectType::DamageBuff,
+		ESkillEffectType::DefenseBuff,
+		ESkillEffectType::SpeedBuff,
+		ESkillEffectType::CritChanceBuff};
 
-	TArray<EStatusType> DebuffTypes = {
-		EStatusType::DamageDebuff,
-		EStatusType::DefenseDebuff,
-		EStatusType::SpeedDebuff,
-		EStatusType::CritChanceDebuff};
+	TArray<ESkillEffectType> DebuffTypes = {
+		ESkillEffectType::DamageDebuff,
+		ESkillEffectType::DefenseDebuff,
+		ESkillEffectType::SpeedDebuff,
+		ESkillEffectType::CritChanceDebuff};
 
-	EStatusType ChosenType;
+	ESkillEffectType ChosenType;
 	if (bIsPositive)
 	{
 		ChosenType = BuffTypes[FMath::RandRange(0, BuffTypes.Num() - 1)];
@@ -385,7 +385,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData 
 	int32 Duration = FMath::RandRange(2, 5);
 
 	// CreateBuff works for both - EffectType determines if it's buff or debuff
-	FStatusEffect GambleEffect = FStatusEffect::CreateBuff(
+	FActiveSkillEffect GambleEffect = FActiveSkillEffect::CreateBuff(
 		TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration);
 	GambleEffect.Element = ESpellElement::Void;
 
@@ -426,10 +426,10 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData
 	else
 	{
 		// Remove specific number of debuffs (oldest first)
-		TArray<FStatusEffect> Debuffs = StatusManager->GetActiveEffects(Target);
+		TArray<FActiveSkillEffect> Debuffs = StatusManager->GetActiveEffects(Target);
 		int32 Removed = 0;
 
-		for (const FStatusEffect &Effect : Debuffs)
+		for (const FActiveSkillEffect &Effect : Debuffs)
 		{
 			if (Removed >= DebuffsToRemove)
 				break;
@@ -449,10 +449,10 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData
 	// NOTE: Using high ResistanceBuff as pseudo-immunity since DebuffImmunity doesn't exist
 	if (bGrantsImmunity && ImmunityDuration > 0)
 	{
-		FStatusEffect Immunity = FStatusEffect::CreateBuff(
+		FActiveSkillEffect Immunity = FActiveSkillEffect::CreateBuff(
 			TEXT("Cleanse Immunity"),
 			Item->GetUniqueID(),
-			EStatusType::ResistanceBuff, // 100% = immunity
+			ESkillEffectType::ResistanceBuff, // 100% = immunity
 			100.0f,
 			ImmunityDuration);
 		Immunity.Element = ESpellElement::Reality;
@@ -508,10 +508,10 @@ void UItemExecutor::ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseRes
 		return;
 
 	// Apply resistance buff (element-specific via Element field)
-	FStatusEffect ResistBuff = FStatusEffect::CreateBuff(
+	FActiveSkillEffect ResistBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Resistance"), *UEnum::GetValueAsString(Element)),
 		Item->GetUniqueID() + 1000, // Offset to avoid ID collision
-		EStatusType::ResistanceBuff,
+		ESkillEffectType::ResistanceBuff,
 		Resistance,
 		Duration);
 	ResistBuff.Element = Element;
@@ -562,7 +562,7 @@ void UItemExecutor::ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor
 		return;
 
 	ESpellElement ItemElement = Item->GetAssociatedElement();
-	FStatusEffect DOT = FStatusEffect::CreateDOT(
+	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
 		FString::Printf(TEXT("%s Burn"), *Item->GetFullItemName()),
 		Item->GetUniqueID() + 2000,
 		static_cast<float>(DamagePerTurn),

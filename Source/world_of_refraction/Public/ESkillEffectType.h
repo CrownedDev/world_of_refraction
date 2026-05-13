@@ -1,22 +1,22 @@
-// EStatusType.h
+// ESkillEffectType.h
 // Unified status types for both physical and elemental attacks
-// Element-agnostic: Display names generated via StatusDisplayNames helper
+// Element-agnostic: Display names generated via SkillEffectDisplayNames helper
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "ESpellElement.h"
-#include "EStatusType.generated.h"
+#include "ESkillEffectType.generated.h"
 
 /**
  * Unified status effect types - ELEMENT AGNOSTIC
  * Effects are generic mechanics, elements provide display names
  * Example: DOT + Fire = "Burn", DOT + Lightning = "Shocked"
  *
- * MIGRATION NOTE: Replaces both old EStatusType (13 values) and EStatusType (55+ values)
+ * MIGRATION NOTE: Replaces both old ESkillEffectType (13 values) and ESkillEffectType (55+ values)
  */
 UENUM(BlueprintType)
-enum class EStatusType : uint8
+enum class ESkillEffectType : uint8
 {
     None UMETA(DisplayName = "None"),
 

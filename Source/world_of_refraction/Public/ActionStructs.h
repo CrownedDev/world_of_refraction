@@ -6,7 +6,7 @@
 #include "EActionType.h"
 #include "ESpellElement.h"
 #include "ESpellSource.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "EPhysicalDamageType.h"
 #include "EInfusionSourceOption.h"
 #include "EChargeInfusionType.h"

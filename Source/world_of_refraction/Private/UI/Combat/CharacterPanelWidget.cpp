@@ -5,7 +5,7 @@
 #include "CharacterData.h"
 #include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
-#include "StatusEffect.h"
+#include "ActiveSkillEffect.h"
 #include "BrokenDarknessManager.h"
 #include "ElementColors.h"
 #include "HybridSpellColors.h"
@@ -234,7 +234,7 @@ void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Cur
 	(void)PendingElement;
 }
 
-void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FStatusEffect &Effect)
+void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FActiveSkillEffect &Effect)
 {
 	if (Target != BoundActor.Get())
 	{
@@ -243,7 +243,7 @@ void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FStatusEff
 	RefreshBuffDebuffList();
 }
 
-void UCharacterPanelWidget::HandleEffectRemoved(AActor *Target, const FStatusEffect &Effect)
+void UCharacterPanelWidget::HandleEffectRemoved(AActor *Target, const FActiveSkillEffect &Effect)
 {
 	if (Target != BoundActor.Get())
 	{
@@ -252,7 +252,7 @@ void UCharacterPanelWidget::HandleEffectRemoved(AActor *Target, const FStatusEff
 	RefreshBuffDebuffList();
 }
 
-void UCharacterPanelWidget::HandleEffectDurationChanged(AActor *Target, const FStatusEffect &Effect, int32 RemainingTurns)
+void UCharacterPanelWidget::HandleEffectDurationChanged(AActor *Target, const FActiveSkillEffect &Effect, int32 RemainingTurns)
 {
 	if (Target != BoundActor.Get())
 	{
@@ -282,7 +282,7 @@ void UCharacterPanelWidget::RefreshBuffDebuffList()
 
 	if (!StatusMgr || !Actor)
 	{
-		RebuildBuffDebuffList(TArray<FStatusEffect>());
+		RebuildBuffDebuffList(TArray<FActiveSkillEffect>());
 		return;
 	}
 

@@ -6,7 +6,7 @@
 #include "ElementHelpers.h"
 #include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
-#include "StatusEffect.h"
+#include "ActiveSkillEffect.h"
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "ItemData.h"
@@ -1799,10 +1799,10 @@ FActionResult UActionExecutor::ExecuteDefend(AActor *Defender)
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
-		FStatusEffect DefendBuff = FStatusEffect::CreateBuff(
+		FActiveSkillEffect DefendBuff = FActiveSkillEffect::CreateBuff(
 			TEXT("Defending"),
 			9999, // Special ID for defend
-			EStatusType::DefenseBuff,
+			ESkillEffectType::DefenseBuff,
 			50.0f, // 50% defense boost
 			1);	   // Lasts until next turn
 
@@ -3753,7 +3753,7 @@ void UActionExecutor::ApplySkillEffects(
 		{
 			int32 DrainAmount = FMath::RoundToInt(Result.TotalDamageDealt * Effect.DrainPercent);
 
-			if (Effect.EffectType == EStatusType::HealthRestore)
+			if (Effect.EffectType == ESkillEffectType::HealthRestore)
 			{
 				// Heal the user
 				UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>();
@@ -3766,7 +3766,7 @@ void UActionExecutor::ApplySkillEffects(
 						   *User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
 				}
 			}
-			else if (Effect.EffectType == EStatusType::EnergyRestore)
+			else if (Effect.EffectType == ESkillEffectType::EnergyRestore)
 			{
 				// Restore energy to user
 				UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>();
@@ -3783,7 +3783,7 @@ void UActionExecutor::ApplySkillEffects(
 		// Apply effect to each target as a status effect
 		for (AActor *EffectTarget : EffectTargets)
 		{
-			FStatusEffect StatusEffect = FStatusEffect::CreateFromSpellEffect(
+			FActiveSkillEffect StatusEffect = FActiveSkillEffect::CreateFromSpellEffect(
 				SourceName + TEXT(" Effect"),
 				GetUniqueEffectID(),
 				Effect.EffectType,
@@ -3791,7 +3791,7 @@ void UActionExecutor::ApplySkillEffects(
 				FMath::RoundToInt(Effect.Magnitude * 100.0f), // Convert to percentage value
 				Effect.Duration,
 				ESpellElement::Generic, // Abilities don't have inherent element
-				EStatusEffectTiming::StartOfOwnTurn);
+				ESkillEffectTiming::StartOfOwnTurn);
 
 			StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 			Result.StatusEffectsApplied++;

@@ -44,14 +44,14 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	{
 		if (Input.ActionType != EActionType::Spell)
 		{
-			const float RawBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::RawDamageBuff);
-			const float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::RawDamageDebuff);
+			const float RawBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageBuff);
+			const float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageDebuff);
 			RunningDamage += (RawBuff - RawDebuff);
 		}
 		else
 		{
-			const float EffectBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::EffectDamageBuff);
-			const float EffectDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::EffectDamageDebuff);
+			const float EffectBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::EffectDamageBuff);
+			const float EffectDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::EffectDamageDebuff);
 			RunningDamage += (EffectBuff - EffectDebuff);
 		}
 	}
@@ -240,8 +240,8 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
-		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::DefenseBuff);
-		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, EStatusType::DefenseDebuff);
+		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
+		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
 
 		// Buffs/debuffs are percentage modifiers
 		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / 100.0f;
@@ -265,8 +265,8 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
-		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
-		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceDebuff);
+		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceBuff);
+		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceDebuff);
 
 		BaseCrit += (CritBuff - CritDebuff) / 100.0f;
 	}
@@ -358,7 +358,7 @@ int32 UDamageCalculator::CalculateHealing(
 		Healing *= HealerData->CalculateSpellDamage();
 	}
 
-	// TODO: Add HealingReceivedBuff/Debuff to EStatusType when needed
+	// TODO: Add HealingReceivedBuff/Debuff to ESkillEffectType when needed
 	// Currently no healing modifiers in status effect system
 
 	return FMath::Max(0, FMath::RoundToInt(Healing));
@@ -454,14 +454,14 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	// Attacker damage buffs/debuffs
 	if (Attacker)
 	{
-		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::DamageBuff);
-		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::DamageDebuff);
+		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageBuff);
+		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageDebuff);
 		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / 100.0f);
 	}
 
 	// Defender defense modifiers affect incoming damage indirectly
 	// (handled separately in defense calculations)
-	// TODO: Add DamageTakenBuff/Debuff to EStatusType if needed
+	// TODO: Add DamageTakenBuff/Debuff to ESkillEffectType if needed
 
 	return FMath::Max(0.0f, Modifier);
 }

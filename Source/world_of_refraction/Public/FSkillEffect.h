@@ -1,11 +1,11 @@
 // FSkillEffect.h
 // Struct defining a single effect applied by abilities, spells, and weapon attacks
-// Reuses existing enums: EStatusType, ETargetType, EPassiveTrigger
+// Reuses existing enums: ESkillEffectType, ETargetType, EPassiveTrigger
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "TargetType.h"
 #include "EPassiveTrigger.h"
 #include "FSkillEffect.generated.h"
@@ -30,7 +30,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     /** What effect to apply (buff, debuff, restore, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    EStatusType EffectType = EStatusType::None;
+    ESkillEffectType EffectType = ESkillEffectType::None;
 
     // ==================== MAGNITUDE ====================
 
@@ -87,7 +87,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
     }
 
-    FSkillEffect(EStatusType InType, float InMagnitude, int32 InValue, int32 InDuration,
+    FSkillEffect(ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration,
                  ETargetType InTarget, EPassiveTrigger InCondition)
         : EffectType(InType)
         , Magnitude(InMagnitude)
@@ -104,7 +104,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** Is this effect valid (has a type set)? */
     bool IsValid() const
     {
-        return EffectType != EStatusType::None;
+        return EffectType != ESkillEffectType::None;
     }
 
     /** Is this a buff effect? */
@@ -112,20 +112,20 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
         switch (EffectType)
         {
-        case EStatusType::MindBuff:
-        case EStatusType::BodyBuff:
-        case EStatusType::SpiritBuff:
-        case EStatusType::SpellCostBuff:
-        case EStatusType::EffectDamageBuff:
-        case EStatusType::CritChanceBuff:
-        case EStatusType::DefenseBuff:
-        case EStatusType::AttackSpeedBuff:
-        case EStatusType::RawDamageBuff:
-        case EStatusType::MaxEnergyBuff:
-        case EStatusType::ResistanceBuff:
-        case EStatusType::SpellSizeBuff:
-        case EStatusType::DamageBuff:
-        case EStatusType::SpeedBuff:
+        case ESkillEffectType::MindBuff:
+        case ESkillEffectType::BodyBuff:
+        case ESkillEffectType::SpiritBuff:
+        case ESkillEffectType::SpellCostBuff:
+        case ESkillEffectType::EffectDamageBuff:
+        case ESkillEffectType::CritChanceBuff:
+        case ESkillEffectType::DefenseBuff:
+        case ESkillEffectType::AttackSpeedBuff:
+        case ESkillEffectType::RawDamageBuff:
+        case ESkillEffectType::MaxEnergyBuff:
+        case ESkillEffectType::ResistanceBuff:
+        case ESkillEffectType::SpellSizeBuff:
+        case ESkillEffectType::DamageBuff:
+        case ESkillEffectType::SpeedBuff:
             return true;
         default:
             return false;
@@ -137,20 +137,20 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
         switch (EffectType)
         {
-        case EStatusType::MindDebuff:
-        case EStatusType::BodyDebuff:
-        case EStatusType::SpiritDebuff:
-        case EStatusType::SpellCostDebuff:
-        case EStatusType::EffectDamageDebuff:
-        case EStatusType::CritChanceDebuff:
-        case EStatusType::DefenseDebuff:
-        case EStatusType::AttackSpeedDebuff:
-        case EStatusType::RawDamageDebuff:
-        case EStatusType::MaxEnergyDebuff:
-        case EStatusType::ResistanceDebuff:
-        case EStatusType::SpellSizeDebuff:
-        case EStatusType::DamageDebuff:
-        case EStatusType::SpeedDebuff:
+        case ESkillEffectType::MindDebuff:
+        case ESkillEffectType::BodyDebuff:
+        case ESkillEffectType::SpiritDebuff:
+        case ESkillEffectType::SpellCostDebuff:
+        case ESkillEffectType::EffectDamageDebuff:
+        case ESkillEffectType::CritChanceDebuff:
+        case ESkillEffectType::DefenseDebuff:
+        case ESkillEffectType::AttackSpeedDebuff:
+        case ESkillEffectType::RawDamageDebuff:
+        case ESkillEffectType::MaxEnergyDebuff:
+        case ESkillEffectType::ResistanceDebuff:
+        case ESkillEffectType::SpellSizeDebuff:
+        case ESkillEffectType::DamageDebuff:
+        case ESkillEffectType::SpeedDebuff:
             return true;
         default:
             return false;
@@ -160,8 +160,8 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** Is this a restore effect? */
     bool IsRestore() const
     {
-        return EffectType == EStatusType::HealthRestore ||
-               EffectType == EStatusType::EnergyRestore;
+        return EffectType == ESkillEffectType::HealthRestore ||
+               EffectType == ESkillEffectType::EnergyRestore;
     }
 
     /** Is this a drain effect (restore that scales with damage dealt)? */
@@ -215,7 +215,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         FString Desc;
 
         // Effect type and magnitude
-        const UEnum* StatusEnum = StaticEnum<EStatusType>();
+        const UEnum* StatusEnum = StaticEnum<ESkillEffectType>();
         FString TypeName = StatusEnum ? StatusEnum->GetDisplayNameTextByValue(static_cast<int64>(EffectType)).ToString() : TEXT("Unknown");
 
         if (IsDrain())

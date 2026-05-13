@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-#include "StatusEffect.h"
-#include "EStatusType.h"
+#include "ActiveSkillEffect.h"
+#include "ESkillEffectType.h"
 #include "FEquipmentStatBonus.h"
 #include "SkillEffectManager.generated.h"
 
@@ -17,19 +17,19 @@ class URingData;
 // ========================================
 
 /** Broadcast when an effect is applied to an actor */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectApplied, AActor *, Target, const FStatusEffect &, Effect);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectApplied, AActor *, Target, const FActiveSkillEffect &, Effect);
 
 /** Broadcast when an effect is removed from an actor */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectRemoved, AActor *, Target, const FStatusEffect &, Effect);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectRemoved, AActor *, Target, const FActiveSkillEffect &, Effect);
 
 /** Broadcast when an effect triggers/processes */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectTriggered, AActor *, Target, const FStatusEffect &, Effect);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEffectTriggered, AActor *, Target, const FActiveSkillEffect &, Effect);
 
 /** Broadcast when effect stacks change */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectStacksChanged, AActor *, Target, const FStatusEffect &, Effect, int32, NewStacks);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectStacksChanged, AActor *, Target, const FActiveSkillEffect &, Effect, int32, NewStacks);
 
 /** Broadcast when an effect's duration changes */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectDurationChanged, AActor *, Target, const FStatusEffect &, Effect, int32, RemainingTurns);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnEffectDurationChanged, AActor *, Target, const FActiveSkillEffect &, Effect, int32, RemainingTurns);
 
 // ========================================
 // ENUMS
@@ -91,14 +91,14 @@ public:
 	 * @return Result indicating how the effect was handled
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
-	EEffectApplicationResult ApplyEffect(AActor *Target, FStatusEffect Effect,
+	EEffectApplicationResult ApplyEffect(AActor *Target, FActiveSkillEffect Effect,
 										 AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
 	/**
 	 * Apply multiple effects at once (for abilities with multiple effects)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
-	void ApplyEffects(AActor *Target, const TArray<FStatusEffect> &Effects,
+	void ApplyEffects(AActor *Target, const TArray<FActiveSkillEffect> &Effects,
 					  AActor *Source = nullptr, const FString &SourceAbility = TEXT(""), int32 SourceTeam = -1);
 
 	/**
@@ -125,7 +125,7 @@ public:
 		AActor *Target,
 		const FString &EvolutionName,
 		int32 EvolutionID,
-		const TArray<EStatusType> &PassiveTypes,
+		const TArray<ESkillEffectType> &PassiveTypes,
 		const TArray<float> &PassiveValues);
 
 	// ========================================
@@ -227,7 +227,7 @@ public:
 
 	/** Remove all effects of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
-	int32 RemoveEffectsByType(AActor *Target, EStatusType EffectType);
+	int32 RemoveEffectsByType(AActor *Target, ESkillEffectType EffectType);
 
 	/** Remove all buffs from target */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
@@ -292,11 +292,11 @@ public:
 
 	/** Get all active effects on an actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
-	TArray<FStatusEffect> GetActiveEffects(AActor *Actor) const;
+	TArray<FActiveSkillEffect> GetActiveEffects(AActor *Actor) const;
 
 	/** Get all effects of a specific type on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
-	TArray<FStatusEffect> GetEffectsByType(AActor *Actor, EStatusType EffectType) const;
+	TArray<FActiveSkillEffect> GetEffectsByType(AActor *Actor, ESkillEffectType EffectType) const;
 
 	/** Check if actor has a specific effect by ID */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
@@ -304,11 +304,11 @@ public:
 
 	/** Check if actor has any effect of a specific type */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
-	bool HasEffectOfType(AActor *Actor, EStatusType EffectType) const;
+	bool HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const;
 
 	/** Get total stat modifier from all effects of a category */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
-	float GetTotalStatModifier(AActor *Actor, EStatusType ModifierType) const;
+	float GetTotalStatModifier(AActor *Actor, ESkillEffectType ModifierType) const;
 
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
@@ -340,7 +340,7 @@ public:
 
 	/** Check if actor is immune to a specific effect type */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Status Checks")
-	bool IsImmuneToEffectType(AActor *Actor, EStatusType EffectType) const;
+	bool IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const;
 
 	// ========================================
 	// EVENTS
@@ -383,20 +383,20 @@ public:
 	FString GetEffectsSummary(AActor *Actor) const;
 
 	/** Apply immediate (on-hit) skill effect */
-	void ApplyImmediateSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+	void ApplyImmediateSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element);
 
 	/** Apply triggered (bar-full) skill effect.
 	 *
 	 *  CONNECTION POINT: this is the single buildup → effect entry point.
 	 *  UStatusBuildupManager::TriggerSkillEffectFromBuildup calls here when a target's
-	 *  buildup bar caps; this function creates the matching FStatusEffect and
+	 *  buildup bar caps; this function creates the matching FActiveSkillEffect and
 	 *  applies it at full power via ApplyEffect.
 	 *
 	 *  Public (not private) so the buildup manager — a separate subsystem
 	 *  post-split — can invoke it across the boundary. Do not call from inside
 	 *  USkillEffectManager itself; effect-side internals should use ApplyEffect
 	 *  directly. */
-	void ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element);
+	void ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element);
 
 private:
 	// ========================================
@@ -404,7 +404,7 @@ private:
 	// ========================================
 
 	/** Map of all active effects per actor (not exposed to reflection - TArray in TMap not supported) */
-	TMap<TWeakObjectPtr<AActor>, TArray<FStatusEffect>> ActiveEffects;
+	TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects;
 
 	/** Next unique effect instance ID (for distinguishing same-type effects) */
 	int32 NextInstanceID = 1;
@@ -417,19 +417,19 @@ private:
 	// ========================================
 
 	/** Process effects with a specific timing */
-	void ProcessEffectsWithTiming(AActor *Actor, EStatusEffectTiming Timing);
+	void ProcessEffectsWithTiming(AActor *Actor, ESkillEffectTiming Timing);
 
 	/** Tick durations for actor's effects (called at end of turn) */
 	void TickDurations(AActor *Actor);
 
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
-	void ApplyEffectLogic(AActor *Actor, FStatusEffect &Effect);
+	void ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect);
 
 	/** Check if a trigger condition is met */
-	bool IsTriggerConditionMet(AActor *Actor, const FStatusEffect &Effect, float TriggerValue = 0.0f) const;
+	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f) const;
 
 	/** Find existing effect by ID on actor */
-	FStatusEffect *FindEffectByID(AActor *Actor, int32 EffectID);
+	FActiveSkillEffect *FindEffectByID(AActor *Actor, int32 EffectID);
 
 	/** Get CharacterDataComponent from actor */
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
@@ -438,7 +438,7 @@ private:
 	void ResetTurnFlags(AActor *Actor);
 
 	/** Check if effect type affects speed (requires TurnManager notification) */
-	bool IsSpeedEffect(EStatusType EffectType) const;
+	bool IsSpeedEffect(ESkillEffectType EffectType) const;
 
 	/** Notify TurnManager that an actor's speed has changed */
 	void NotifySpeedChanged(AActor *Actor);

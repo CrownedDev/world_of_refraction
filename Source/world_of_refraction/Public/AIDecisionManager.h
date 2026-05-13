@@ -8,7 +8,7 @@
 #include "EAIDifficulty.h"
 #include "ActionStructs.h"
 #include "EDefenseType.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "AIDecisionManager.generated.h"
 
 class ACombatOrchestrator;
@@ -191,7 +191,7 @@ private:
     bool WouldTriggerStatusBar(AActor *Attacker, AActor *Target, float BuildupAmount) const;
 
     /** Is the pending status valuable for this situation? */
-    bool IsValuableStatus(EStatusType StatusType, AActor *Target) const;
+    bool IsValuableStatus(ESkillEffectType StatusType, AActor *Target) const;
 
     // ==================== INFUSION DECISIONS ====================
 
