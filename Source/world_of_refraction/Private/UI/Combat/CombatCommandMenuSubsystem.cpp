@@ -4,6 +4,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "LoadoutComponent.h"
 #include "CharacterDataComponent.h"
+#include "SkillDataBase.h"
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "WeaponAttackData.h"
@@ -24,39 +25,30 @@ namespace
 {
     bool ResolveImmuneFlag(UObject *ActionData, AActor *Actor)
     {
-        // Action-level immunity
-        if (const USpellData *Spell = Cast<USpellData>(ActionData))
+        // Equipment-level immunity (active weapon / active ring on the wielder)
+        bool bEquipmentImmune = false;
+        if (Actor)
         {
-            if (Spell->bImmuneToInfusion) return true;
-        }
-        else if (const UAbilityData *Ability = Cast<UAbilityData>(ActionData))
-        {
-            if (Ability->bImmuneToInfusion) return true;
-        }
-        else if (const UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ActionData))
-        {
-            if (Attack->bImmuneToInfusion) return true;
+            if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
+            {
+                if (UWeaponData *Weapon = LC->GetActiveWeapon())
+                {
+                    if (Weapon->bImmuneToInfusion) bEquipmentImmune = true;
+                }
+                if (URingData *Ring = LC->GetActiveRing())
+                {
+                    if (Ring->bImmuneToInfusion) bEquipmentImmune = true;
+                }
+            }
         }
 
-        // Equipment-level immunity (active weapon / active ring on the wielder)
-        if (!Actor)
+        // Action-level immunity — single cast to base is sufficient
+        if (const USkillDataBase *Skill = Cast<USkillDataBase>(ActionData))
         {
-            return false;
+            return bEquipmentImmune || Skill->bImmuneToInfusion;
         }
-        ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-        if (!LC)
-        {
-            return false;
-        }
-        if (UWeaponData *Weapon = LC->GetActiveWeapon())
-        {
-            if (Weapon->bImmuneToInfusion) return true;
-        }
-        if (URingData *Ring = LC->GetActiveRing())
-        {
-            if (Ring->bImmuneToInfusion) return true;
-        }
-        return false;
+
+        return bEquipmentImmune;
     }
 }
 

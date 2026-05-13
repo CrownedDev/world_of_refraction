@@ -131,9 +131,7 @@ public:
     // ==================== STATUS BUILDUP ====================
 
     /** Calculate spell status buildup per-hit. Per-action stat modifiers come
-     *  in via ActionMods. Pre-existing: DamageCalculator::CalculateSpellDamage
-     *  calls this without modifiers — that path doesn't get per-action buffs.
-     *  Documented, not changed by this commit. */
+     *  in via ActionMods. */
     int32 CalculateStatusBuildup(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers()) const;
 
     // ==================== HELPER FUNCTIONS ====================
