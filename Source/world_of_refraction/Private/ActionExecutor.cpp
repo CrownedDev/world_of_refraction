@@ -2644,6 +2644,17 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
 
+	// Equipment stat bonus — additive to play rate using the same per-point
+	// shape as the asset-side CalculateAnimationSpeed formula.
+	if (User)
+	{
+		if (ULoadoutComponent *Loadout = User->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(User);
+			PlayRate += Bonus.BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
+		}
+	}
+
 	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
@@ -2674,6 +2685,17 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		PlayRate *= CharData->CalculateAnimationSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
+
+	// Equipment stat bonus — additive to play rate using the same per-point
+	// shape as the asset-side CalculateAnimationSpeed formula.
+	if (Attacker)
+	{
+		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
+			PlayRate += Bonus.BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
+		}
+	}
 
 	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, PlayRate);
 

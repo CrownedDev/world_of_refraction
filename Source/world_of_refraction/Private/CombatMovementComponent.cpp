@@ -9,6 +9,8 @@
 #include "GameFramework/Character.h"
 #include "CombatAnimInstance.h"
 #include "StatConstants.h"
+#include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 
 UCombatMovementComponent::UCombatMovementComponent()
 {
@@ -408,6 +410,17 @@ float UCombatMovementComponent::CalculateActionSpeed() const
     if (CharacterDataComp && CharacterDataComp->CharacterData)
     {
         int32 MovementPoints = CharacterDataComp->CharacterData->GetTotalActionSpeed();
+
+        // Equipment stat bonus — flat additive to substat points, riding the
+        // same MIN→MAX ratio interpolation. Capped implicitly at 1.0 ratio.
+        if (AActor *Owner = GetOwner())
+        {
+            if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+            {
+                MovementPoints += Loadout->GetActiveStatBonus(Owner).BonusActionSpeed;
+            }
+        }
+
         float PointRatio = FMath::Clamp(
             (float)MovementPoints / (float)StatConstants::MAX_SUBSTAT_POINTS_PER_PILLAR,
             0.0f,
