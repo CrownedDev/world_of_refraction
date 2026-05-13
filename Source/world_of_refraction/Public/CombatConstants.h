@@ -11,7 +11,7 @@ namespace CombatConstants
 {
     // ==================== WORLD STAT BONUSES ====================
 
-    constexpr float WORLD_STAT_SCALING_BONUS = 0.03f; // 3% per level
+    constexpr float WORLD_STAT_SCALING_BONUS = 0.01f; // 1% per level
 
     // ==================== STAT SCALING ====================
     // 13 Stats: Mind(5), Body(4), Spirit(4) — Phase 2b moves StatusMultiplier to Spirit (4/4/5)
@@ -30,8 +30,8 @@ namespace CombatConstants
     // Status Multiplier - Status buildup amplification (renamed from EffectDamage; moves to Spirit in Phase 2b)
     constexpr float STATUS_MULTIPLIER_PER_POINT = 0.002f; // 0.2% per point
 
-    // Spell Damage - Spell damage multiplier (NEW; unused until Phase 2b wires it into DamageCalculator)
-    constexpr float SPELL_DAMAGE_PER_POINT = 0.002f; // 0.2% per point — TBD final tuning
+    // Spell Damage - Spell damage multiplier (applied once via DamageCalculator::GetAttackerDamageMultiplier for Spell ActionType)
+    constexpr float SPELL_DAMAGE_PER_POINT = 0.004f; // 0.4% per point — doubled to compensate for the removal of the duplicate StatusMultiplier mult on spell damage
 
     // Crit Chance - Critical hit probability (all actions)
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base

@@ -8,41 +8,31 @@
 
 int32 UAbilityData::CalculateDamage(UCharacterData *Character, bool bIsInfused) const
 {
-    return bIsInfused ? CalculateInfusedDamage(Character) : CalculateNormalDamage(Character);
-}
-
-int32 UAbilityData::CalculateNormalDamage(UCharacterData *Character) const
-{
     if (!Character)
         return 0;
 
+    // Attacker-side base only. RawDamage multiplier is applied once downstream
+    // by DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier;
+    // applying it here as well caused RawDamage² scaling at high Body stats.
+    // Infused branch removed — the element-infusion damage penalty was deleted
+    // per the locked cost matrix, so bIsInfused no longer affects damage.
     float Damage = BaseDamage;
-
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
+    const float RequirementPenalty = CalculateRequirementPenalty(Character);
     Damage *= (1.0f - RequirementPenalty);
 
-    float RawDamageMultiplier = Character->CalculateRawDamage();
-    Damage *= RawDamageMultiplier;
-
     return FMath::RoundToInt(Damage);
+}
+
+// Deprecated Blueprint forwarders — return the same value as CalculateDamage.
+// Retained so existing BP graphs continue to resolve. Remove once graphs migrate.
+int32 UAbilityData::CalculateNormalDamage(UCharacterData *Character) const
+{
+    return CalculateDamage(Character, /*bIsInfused=*/false);
 }
 
 int32 UAbilityData::CalculateInfusedDamage(UCharacterData *Character) const
 {
-    if (!Character)
-        return 0;
-
-    float Damage = BaseDamage;
-
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Damage *= (1.0f - RequirementPenalty);
-
-    // Element-infusion damage penalty removed per locked cost matrix.
-
-    float RawDamageMultiplier = Character->CalculateRawDamage();
-    Damage *= RawDamageMultiplier;
-
-    return FMath::RoundToInt(Damage);
+    return CalculateDamage(Character, /*bIsInfused=*/true);
 }
 
 // ==================== ENERGY CALCULATIONS ====================

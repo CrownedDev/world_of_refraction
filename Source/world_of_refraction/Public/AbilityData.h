@@ -79,13 +79,23 @@ public:
 
     // ==================== DAMAGE CALCULATIONS ====================
 
+    /** Attacker-side ability damage: BaseDamage * (1 - requirement penalty).
+     *  RawDamage multiplier is applied once downstream by DamageCalculator;
+     *  bIsInfused no longer affects the damage value (the element-infusion
+     *  damage penalty was removed per the locked cost matrix). */
     UFUNCTION(BlueprintPure, Category = "Ability|Damage")
     int32 CalculateDamage(UCharacterData *Character, bool bIsInfused) const;
 
-    UFUNCTION(BlueprintPure, Category = "Ability|Damage")
+    /** @deprecated Use CalculateDamage(Character, false). Kept as a Blueprint
+     *  forwarder so existing BP graphs continue to resolve; remove once those
+     *  graphs are repointed. */
+    UFUNCTION(BlueprintPure, Category = "Ability|Damage", meta=(DeprecatedFunction, DeprecationMessage="Use CalculateDamage(Character, false) instead."))
     int32 CalculateNormalDamage(UCharacterData *Character) const;
 
-    UFUNCTION(BlueprintPure, Category = "Ability|Damage")
+    /** @deprecated Use CalculateDamage(Character, true). Kept as a Blueprint
+     *  forwarder so existing BP graphs continue to resolve; remove once those
+     *  graphs are repointed. */
+    UFUNCTION(BlueprintPure, Category = "Ability|Damage", meta=(DeprecatedFunction, DeprecationMessage="Use CalculateDamage(Character, true) instead."))
     int32 CalculateInfusedDamage(UCharacterData *Character) const;
 
     // ==================== ENERGY CALCULATIONS ====================

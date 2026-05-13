@@ -927,13 +927,13 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		return;
 	}
 
-	// Calculate damage — strict replace per Phase 4 design: BaseDamage sources
-	// from the attack asset, with the requirement penalty applied before the
-	// character's raw damage multiplier.
+	// Attacker-side base: asset BaseDamage minus the requirement penalty.
+	// RawDamage multiplier is applied exactly once downstream by
+	// ApplyHit → DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier;
+	// applying it here as well caused RawDamage² scaling at high Body stats.
 	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
-	float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
-	float DamageMultiplier = AttackerData->CalculateRawDamage();
-	int32 BaseDamage = FMath::RoundToInt(AttackBase * DamageMultiplier);
+	const float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
+	int32 BaseDamage = FMath::RoundToInt(AttackBase);
 
 	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 

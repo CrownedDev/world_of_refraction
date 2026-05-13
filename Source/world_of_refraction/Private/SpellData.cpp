@@ -11,23 +11,20 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     if (!Character)
         return 0;
 
+    // Attacker-side base only. SpellDamage multiplier is applied once downstream
+    // by DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier; the
+    // ActionMods.SpellDamage modifier is applied there too. StatusMultiplier is
+    // no longer multiplied into damage — it drives status buildup exclusively
+    // (StatusBuildupManager::AddStatusBuildup + CalculateStatusBuildup).
     float FinalDamage = BaseDamage;
 
-    // Raw mode: +10% damage bonus
     if (bIsRawMode)
     {
         FinalDamage *= CombatConstants::RAW_MODE_DAMAGE_MULTIPLIER;
     }
 
-    // Apply requirement penalty
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
+    const float RequirementPenalty = CalculateRequirementPenalty(Character);
     FinalDamage *= (1.0f - RequirementPenalty);
-
-    // Apply character's StatusMultiplier (Mind-based in Phase 1; Phase 2b switches spells to SpellDamage).
-    // ActionMods.StatusMultiplier stacks Reality + Evolution + future per-action buffs.
-    float Multiplier = Character->CalculateStatusMultiplier();
-    Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
-    FinalDamage *= Multiplier;
 
     return FMath::RoundToInt(FinalDamage);
 }
