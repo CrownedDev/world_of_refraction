@@ -308,7 +308,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			FActiveSkillEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Spell Damage)"),
 				BaseID + 3,
-				BonusSpellDamage > 0 ? ESkillEffectType::EffectDamageBuff : ESkillEffectType::EffectDamageDebuff,
+				BonusSpellDamage > 0 ? ESkillEffectType::SpellDamageBuff : ESkillEffectType::SpellDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusSpellDamage)));
 			Effects.Add(Bonus);
 		}
@@ -390,7 +390,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			FActiveSkillEffect Bonus = CreatePersistent(
 				RingName + TEXT(" (Spell Damage)"),
 				BaseID + 3,
-				BonusSpellDamage > 0 ? ESkillEffectType::EffectDamageBuff : ESkillEffectType::EffectDamageDebuff,
+				BonusSpellDamage > 0 ? ESkillEffectType::SpellDamageBuff : ESkillEffectType::SpellDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusSpellDamage)));
 			Effects.Add(Bonus);
 		}
@@ -570,13 +570,17 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::DefenseBuff:
 		case ESkillEffectType::SpeedBuff:
 		case ESkillEffectType::CritChanceBuff:
-		case ESkillEffectType::AttackSpeedBuff:
+		case ESkillEffectType::SpellSpeedBuff:
+		case ESkillEffectType::ActionSpeedBuff:
 		case ESkillEffectType::RawDamageBuff:
-		case ESkillEffectType::EffectDamageBuff:
+		case ESkillEffectType::SpellDamageBuff:
+		case ESkillEffectType::StatusMultiplierBuff:
 		case ESkillEffectType::SpellCostBuff:
 		case ESkillEffectType::ResistanceBuff:
 		case ESkillEffectType::SpellSizeBuff:
 		case ESkillEffectType::MaxEnergyBuff:
+		case ESkillEffectType::TurnSpeedBuff:
+		case ESkillEffectType::LuckBuff:
 		case ESkillEffectType::HealthRestore:
 		case ESkillEffectType::EnergyRestore:
 			return true;
@@ -597,14 +601,19 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::DefenseDebuff:
 		case ESkillEffectType::SpeedDebuff:
 		case ESkillEffectType::CritDebuff:
+		case ESkillEffectType::CritChanceDebuff:
+		case ESkillEffectType::SpellSpeedDebuff:
 		case ESkillEffectType::EnergyDebuff:
-		case ESkillEffectType::AttackSpeedDebuff:
+		case ESkillEffectType::ActionSpeedDebuff:
 		case ESkillEffectType::RawDamageDebuff:
-		case ESkillEffectType::EffectDamageDebuff:
+		case ESkillEffectType::SpellDamageDebuff:
+		case ESkillEffectType::StatusMultiplierDebuff:
 		case ESkillEffectType::SpellCostDebuff:
 		case ESkillEffectType::ResistanceDebuff:
 		case ESkillEffectType::SpellSizeDebuff:
 		case ESkillEffectType::MaxEnergyDebuff:
+		case ESkillEffectType::TurnSpeedDebuff:
+		case ESkillEffectType::LuckDebuff:
 		case ESkillEffectType::DOT:
 		case ESkillEffectType::SkipTurn:
 		case ESkillEffectType::RandomDebuff:

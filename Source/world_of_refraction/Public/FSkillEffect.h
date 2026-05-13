@@ -116,14 +116,18 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::BodyBuff:
         case ESkillEffectType::SpiritBuff:
         case ESkillEffectType::SpellCostBuff:
-        case ESkillEffectType::EffectDamageBuff:
+        case ESkillEffectType::SpellDamageBuff:
+        case ESkillEffectType::StatusMultiplierBuff:
         case ESkillEffectType::CritChanceBuff:
+        case ESkillEffectType::SpellSpeedBuff:
         case ESkillEffectType::DefenseBuff:
-        case ESkillEffectType::AttackSpeedBuff:
+        case ESkillEffectType::ActionSpeedBuff:
         case ESkillEffectType::RawDamageBuff:
         case ESkillEffectType::MaxEnergyBuff:
         case ESkillEffectType::ResistanceBuff:
         case ESkillEffectType::SpellSizeBuff:
+        case ESkillEffectType::TurnSpeedBuff:
+        case ESkillEffectType::LuckBuff:
         case ESkillEffectType::DamageBuff:
         case ESkillEffectType::SpeedBuff:
             return true;
@@ -141,14 +145,18 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::BodyDebuff:
         case ESkillEffectType::SpiritDebuff:
         case ESkillEffectType::SpellCostDebuff:
-        case ESkillEffectType::EffectDamageDebuff:
+        case ESkillEffectType::SpellDamageDebuff:
+        case ESkillEffectType::StatusMultiplierDebuff:
         case ESkillEffectType::CritChanceDebuff:
+        case ESkillEffectType::SpellSpeedDebuff:
         case ESkillEffectType::DefenseDebuff:
-        case ESkillEffectType::AttackSpeedDebuff:
+        case ESkillEffectType::ActionSpeedDebuff:
         case ESkillEffectType::RawDamageDebuff:
         case ESkillEffectType::MaxEnergyDebuff:
         case ESkillEffectType::ResistanceDebuff:
         case ESkillEffectType::SpellSizeDebuff:
+        case ESkillEffectType::TurnSpeedDebuff:
+        case ESkillEffectType::LuckDebuff:
         case ESkillEffectType::DamageDebuff:
         case ESkillEffectType::SpeedDebuff:
             return true;

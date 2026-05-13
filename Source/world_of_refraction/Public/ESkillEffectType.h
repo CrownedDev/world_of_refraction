@@ -59,20 +59,20 @@ enum class ESkillEffectType : uint8
 
     SpellCostBuff UMETA(DisplayName = "Spell Cost Buff"),
     SpellCostDebuff UMETA(DisplayName = "Spell Cost Debuff"),
-    // TODO: Rename EffectDamageBuff/Debuff -> StatusMultiplierBuff/Debuff to match the
-    // sub-stat rename (CharacterData::EffectDamage -> StatusMultiplier). Deferred to a
-    // separate commit; touches StatusEffect.h, FSkillEffect.h, SkillEffectManager.cpp
-    // case statements. Crown waived save migration so Core Redirects are not required.
-    EffectDamageBuff UMETA(DisplayName = "Effect Damage Buff"),
-    EffectDamageDebuff UMETA(DisplayName = "Effect Damage Debuff"),
+    SpellDamageBuff UMETA(DisplayName = "Spell Damage Buff"),
+    SpellDamageDebuff UMETA(DisplayName = "Spell Damage Debuff"),
+    StatusMultiplierBuff UMETA(DisplayName = "Status Multiplier Buff"),
+    StatusMultiplierDebuff UMETA(DisplayName = "Status Multiplier Debuff"),
     CritChanceBuff UMETA(DisplayName = "Crit Chance Buff"),
     CritChanceDebuff UMETA(DisplayName = "Crit Chance Debuff"),
+    SpellSpeedBuff UMETA(DisplayName = "Spell Speed Buff"),
+    SpellSpeedDebuff UMETA(DisplayName = "Spell Speed Debuff"),
 
     // ==================== BODY SUB-STATS ====================
 
     DefenseBuff UMETA(DisplayName = "Defense Buff"),
-    AttackSpeedBuff UMETA(DisplayName = "Attack Speed Buff"),
-    AttackSpeedDebuff UMETA(DisplayName = "Attack Speed Debuff"),
+    ActionSpeedBuff UMETA(DisplayName = "Action Speed Buff"),
+    ActionSpeedDebuff UMETA(DisplayName = "Action Speed Debuff"),
     RawDamageBuff UMETA(DisplayName = "Raw Damage Buff"),
     RawDamageDebuff UMETA(DisplayName = "Raw Damage Debuff"),
 
@@ -84,6 +84,10 @@ enum class ESkillEffectType : uint8
     ResistanceDebuff UMETA(DisplayName = "Resistance Debuff"),
     SpellSizeBuff UMETA(DisplayName = "Spell Size Buff"),
     SpellSizeDebuff UMETA(DisplayName = "Spell Size Debuff"),
+    TurnSpeedBuff UMETA(DisplayName = "Turn Speed Buff"),
+    TurnSpeedDebuff UMETA(DisplayName = "Turn Speed Debuff"),
+    LuckBuff UMETA(DisplayName = "Luck Buff"),
+    LuckDebuff UMETA(DisplayName = "Luck Debuff"),
 
     // ==================== LEGACY GENERIC ====================
 
