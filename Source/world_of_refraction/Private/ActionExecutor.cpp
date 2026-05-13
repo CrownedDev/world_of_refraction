@@ -36,6 +36,8 @@
 #include "EInfusionSourceOption.h"
 #include "RingData.h"
 #include "InfusionVFXComponent.h"
+#include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 
 #include "FRingLoadoutEntry.h"
 #include "CombatMovementComponent.h"
@@ -2205,6 +2207,17 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		PlayRate = CharData->CalculateSpellSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::SpellSpeed);
+
+	// Equipment stat bonus — additive to play rate using the same per-point
+	// shape as the asset-side CalculateSpellSpeed formula. Purely visual.
+	if (Caster)
+	{
+		if (ULoadoutComponent *Loadout = Caster->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Caster);
+			PlayRate += Bonus.BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
+		}
+	}
 
 	PlayActionMontageOnActor(Caster, Spell->CastAnimation, PlayRate);
 

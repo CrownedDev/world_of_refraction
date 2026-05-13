@@ -7,6 +7,8 @@
 #include "CharacterData.h"
 #include "CombatConstants.h"
 #include "BarCapTriggerResolver.h"
+#include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 #include "Engine/GameInstance.h"
 
 // ========================================
@@ -190,7 +192,18 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		{
 			const float ModifiedSpirit = SourceComp->GetCrystalModifiedSpirit();
 			const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
-			Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+
+			// Equipment stat bonus — additive to the asset-driven per-point
+			// amplification. Read from the source actor's active loadout.
+			int32 BonusPoints = 0;
+			if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
+			{
+				const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
+				BonusPoints = Bonus.BonusStatusMultiplier;
+			}
+
+			Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
+			              + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 		}
 	}
 
@@ -202,6 +215,16 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	if (TargetComp && TargetComp->CharacterData)
 	{
 		float Resistance = TargetComp->CharacterData->CalculateResistance();
+
+		// Equipment stat bonus — flat additive to resistance using the same
+		// per-point shape as the asset-side CalculateResistance formula.
+		// Layered before the element-buff stack and re-clamped together.
+		if (ULoadoutComponent *TargetLoadout = Target->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus TargetBonus = TargetLoadout->GetActiveStatBonus(Target);
+			Resistance += TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
+		}
+
 		Resistance += GetTotalElementResistance(Target, Element);
 		Resistance = FMath::Clamp(Resistance, 0.0f, CombatConstants::RESISTANCE_MAX);
 		Amount *= (1.0f - Resistance);
