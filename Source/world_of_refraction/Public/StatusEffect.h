@@ -454,6 +454,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 			Effect.RemainingTurns = 3;
 			Effect.ProcessTiming = EStatusEffectTiming::EndOfOwnTurn;
 			Effect.bCanStack = true;
+			break;
 
 		case 1: // Pierce → Armor Break (defense debuff)
 			Effect.EffectName = WeaponName + TEXT(" Armor Break");

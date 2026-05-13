@@ -52,16 +52,6 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Weather")
     FOnWeatherChanged OnWeatherChanged;
 
-    // ========================================
-    // QUERY
-    // ========================================
-
-    UFUNCTION(BlueprintPure, Category = "Weather")
-    AActor *GetTeam0Leader() const { return Team0Hierarchy.Num() > 0 ? Team0Hierarchy[0].Actor : nullptr; }
-
-    UFUNCTION(BlueprintPure, Category = "Weather")
-    AActor *GetTeam1Leader() const { return Team1Hierarchy.Num() > 0 ? Team1Hierarchy[0].Actor : nullptr; }
-
 private:
     // Leadership hierarchies (sorted by world stats, highest first)
     TArray<FLeadershipEntry> Team0Hierarchy;
@@ -87,6 +77,5 @@ private:
     UPrimaryDataAsset *ResolveWeatherDA(const TArray<FLeadershipEntry> &Hierarchy) const;
 
     int32 GetTotalWorldStats(AActor *Actor) const;
-    ESpellElement GetLeaderElement(const TArray<FLeadershipEntry> &Hierarchy) const;
     AActor *GetCurrentLeader(const TArray<FLeadershipEntry> &Hierarchy) const;
 };

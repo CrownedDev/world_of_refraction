@@ -133,7 +133,7 @@ public:
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
 	/** Get spell infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY, use GetSpellSizeEnergyCostMultiplier */
-	UFUNCTION(BlueprintCallable, Category = "Action Execfutor|Infusion")
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
 
 	// ---- NEW INFUSION TYPE SYSTEM ----
@@ -459,9 +459,6 @@ private:
 	/** Get CharacterData template from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 
-	/** Calculate critical hit */
-	bool RollCriticalHit(AActor *Attacker) const;
-
 	/** Apply damage after defense resolution */
 	void ApplyDamageAfterDefense(
 		AActor *Attacker,
@@ -485,12 +482,6 @@ private:
 	// ========================================
 	// INFUSION INTERNAL HELPERS
 	// ========================================
-
-	/** Apply spell size L2 cost based on source */
-	void ApplySpellSizeL2Cost(
-		FActionResult &Result,
-		AActor *Actor,
-		USpellData *Spell);
 
 	/** Apply self-damage for HP costs */
 	void ApplySelfDamage(AActor *Actor, int32 Amount);

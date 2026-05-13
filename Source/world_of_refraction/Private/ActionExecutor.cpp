@@ -2128,27 +2128,6 @@ UCharacterData *UActionExecutor::GetCharacterData(AActor *Actor) const
 	return Comp ? Comp->CharacterData : nullptr;
 }
 
-bool UActionExecutor::RollCriticalHit(AActor *Attacker) const
-{
-	UCharacterData *Data = GetCharacterData(Attacker);
-	if (!Data)
-		return false;
-
-	float CritChance = Data->CalculateCritChance() * 100.0f; // Returns 0-1, need 0-100
-
-	// Add crit chance buffs from status effects
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (StatusManager)
-	{
-		CritChance += StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceBuff);
-		CritChance -= StatusManager->GetTotalStatModifier(Attacker, EStatusType::CritChanceDebuff);
-	}
-
-	CritChance = FMath::Clamp(CritChance, 0.0f, 100.0f);
-
-	return FMath::FRand() * 100.0f < CritChance;
-}
-
 int32 UActionExecutor::ProcessMultiHit(
 	AActor *Attacker,
 	AActor *Target,

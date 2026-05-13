@@ -208,13 +208,6 @@ int32 UWeatherStateManager::GetTotalWorldStats(AActor *Actor) const
            Comp->CharacterData->WorldSpiritLevel;
 }
 
-ESpellElement UWeatherStateManager::GetLeaderElement(const TArray<FLeadershipEntry> &Hierarchy) const
-{
-    if (Hierarchy.Num() == 0)
-        return ESpellElement::Generic;
-    return Hierarchy[0].Element;
-}
-
 AActor *UWeatherStateManager::GetCurrentLeader(const TArray<FLeadershipEntry> &Hierarchy) const
 {
     if (Hierarchy.Num() == 0)

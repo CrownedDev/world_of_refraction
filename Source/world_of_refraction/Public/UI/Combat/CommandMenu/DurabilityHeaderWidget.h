@@ -67,11 +67,13 @@ private:
 	void UpdateSlot1FromRing();
 
 	/** Update slot 1 with weapon durability. Called when character has a weapon
-	 *  source but no ring source. Reserved for Item 32 — currently always hides. */
+	 *  source but no ring source. Populates the slot with the active weapon's
+	 *  slotted-crystal durability and makes the line visible. */
 	void UpdateSlot1FromWeapon();
 
 	/** Update slot 2 with weapon durability. Called when character has both a ring
-	 *  AND a weapon source. Reserved for Item 32 — currently always hides. */
+	 *  AND a weapon source. Populates the slot with the active weapon's
+	 *  slotted-crystal durability and makes the line visible. */
 	void UpdateSlot2FromWeapon();
 
 	/** Hide slot 1 (used when character has no durability resources). */
