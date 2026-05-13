@@ -13,6 +13,7 @@
 #include "RingData.generated.h"
 
 class UStaticMesh;
+class USpellData;
 
 /**
  * Ring Data Asset - Resonator's primary spell source
@@ -28,6 +29,17 @@ public:
 	// If true, spells cannot be customized (conjured-ring equivalent of bAbilitiesLocked)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
 	bool bSpellsLocked = false;
+
+	/** Preset spells. When bSpellsLocked is true these are the locked spells
+	 *  (all-or-nothing — mirrors UWeaponData::PresetAbilities). When false,
+	 *  they act as customisable defaults copied into the loadout entry on
+	 *  InitializeFromRing. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring",
+	          meta = (EditCondition = "bSpellsLocked"))
+	TArray<USpellData *> PresetSpells;
+
+	UFUNCTION(BlueprintPure, Category = "Ring")
+	bool IsConjuredRing() const { return bSpellsLocked; }
 
 	// ==================== MESH ====================
 
