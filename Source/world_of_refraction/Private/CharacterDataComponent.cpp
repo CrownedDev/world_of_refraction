@@ -7,6 +7,7 @@
 #include "StanceData.h"
 #include "InventoryComponent.h"
 #include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 #include "ItemData.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
@@ -409,6 +410,33 @@ float UCharacterDataComponent::GetCrystalModifiedSpirit() const
         return 0.0f;
     }
     return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
+}
+
+float UCharacterDataComponent::GetEquipmentModifiedLuck() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+
+    const float BaseLuck = CharacterData->CalculateLuck();
+
+    AActor *Owner = GetOwner();
+    if (!Owner)
+    {
+        return BaseLuck;
+    }
+
+    ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>();
+    if (!Loadout)
+    {
+        return BaseLuck;
+    }
+
+    const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+    return FMath::Min(
+        BaseLuck + Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT,
+        CombatConstants::LUCK_RAW_MAX);
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()

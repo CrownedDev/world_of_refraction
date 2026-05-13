@@ -59,19 +59,18 @@ int32 UCrystalManager::ProcessPostCastWear(
 
     // Luck-driven break skip. Roll the wielder's Luck before applying wear.
     // On success, skip the wear entirely (durability unchanged, no broadcast).
+    // GetEquipmentModifiedLuck folds in active-loadout BonusLuck and null-guards
+    // the CharacterData asset internally.
     if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
     {
-        if (UCharacterData *CharData = CharComp->CharacterData)
+        const float RawLuck = CharComp->GetEquipmentModifiedLuck();
+        const float SkipChance = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_BREAK_SKIP_MAX;
+        if (FMath::FRand() < SkipChance)
         {
-            const float RawLuck = CharData->CalculateLuck();
-            const float SkipChance = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_BREAK_SKIP_MAX;
-            if (FMath::FRand() < SkipChance)
-            {
-                UE_LOG(LogTemp, Log,
-                       TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
-                       *Actor->GetName(), *Crystal->GetFullItemName(), Wear, SkipChance);
-                return 0;
-            }
+            UE_LOG(LogTemp, Log,
+                   TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
+                   *Actor->GetName(), *Crystal->GetFullItemName(), Wear, SkipChance);
+            return 0;
         }
     }
 

@@ -104,15 +104,17 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		// Luck-driven crit bonus. Linearly scaled from raw Luck (0.0-LUCK_RAW_MAX)
 		// to consumer cap LUCK_CRIT_BONUS_MAX. Additive on top — matches locked
 		// design where Luck grants extra crit chance ON TOP OF CritChance.
-		// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedSpirit.
-		// CalculateLuck reads the raw asset and ignores the slotted primary
-		// evolution crystal's Spirit pillar modifier.
-		UCharacterData *AttackerData = GetCharacterData(Attacker);
-		if (AttackerData)
+		// GetEquipmentModifiedLuck folds in active-loadout BonusLuck.
+		// TODO: extend the helper for the slotted primary evolution crystal's
+		// Spirit pillar modifier (still reads the raw asset for that contribution).
+		if (Attacker)
 		{
-			const float RawLuck = AttackerData->CalculateLuck();
-			const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
-			CritChance += LuckCritBonus;
+			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+			{
+				const float RawLuck = AttackerComp->GetEquipmentModifiedLuck();
+				const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
+				CritChance += LuckCritBonus;
+			}
 		}
 
 		Result.bWasCritical = FMath::FRand() < CritChance;

@@ -175,6 +175,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedSpirit() const;
 
+    /** UCharacterData::CalculateLuck() plus the active loadout's BonusLuck
+     *  contribution, clamped to LUCK_RAW_MAX. Use this in place of
+     *  CharacterData->CalculateLuck() for any consumer that should respect
+     *  equipment-driven Luck bonuses (crit bonus, break skip, dodge, drops).
+     *  Does NOT yet apply crystal pillar modification — that remains a TODO. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEquipmentModifiedLuck() const;
+
     // ========================================
     // BROKEN DARKNESS STATE
     // ========================================
