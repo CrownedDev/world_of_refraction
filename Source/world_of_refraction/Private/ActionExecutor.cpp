@@ -2895,6 +2895,70 @@ bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
 	return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
 }
 
+UItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+
+	switch (Action.SelectedSource)
+	{
+	case EInfusionSourceOption::None:
+	case EInfusionSourceOption::Raw:
+	case EInfusionSourceOption::Innate:
+		// Not crystal-sourced — Raw/Innate pay HP, None means no infusion.
+		return nullptr;
+
+	case EInfusionSourceOption::ActiveRing:
+	{
+		URingManager *RM = GetRingManager();
+		if (!RM)
+		{
+			return nullptr;
+		}
+		URingData *Ring = RM->GetActiveRing(Actor);
+		return Ring ? Ring->SlottedCrystal : nullptr;
+	}
+
+	case EInfusionSourceOption::PrimaryRing:
+	{
+		URingManager *RM = GetRingManager();
+		if (!RM)
+		{
+			return nullptr;
+		}
+		URingData *Ring = RM->GetPrimaryRing(Actor);
+		return Ring ? Ring->SlottedCrystal : nullptr;
+	}
+
+	case EInfusionSourceOption::WeaponCrystal:
+	{
+		UWeaponManager *WM = GetWeaponManager();
+		if (!WM)
+		{
+			return nullptr;
+		}
+		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
+		return Weapon ? Weapon->SlottedCrystal : nullptr;
+	}
+
+	case EInfusionSourceOption::Evolution:
+	{
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		if (!LC)
+		{
+			return nullptr;
+		}
+		const FCombatLoadout Loadout = LC->GetActiveLoadout();
+		return Loadout.PrimaryEvolution;
+	}
+
+	default:
+		return nullptr;
+	}
+}
+
 // ========================================
 // INFUSION MULTIPLIERS
 // ========================================
@@ -4204,17 +4268,19 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 			Result.AddFlatPercent(Pct);
 		}
 
-		// TODO: Evolution-infused authored stats. Needs source-crystal resolution
-		// (WeaponCrystal → WeaponManager active weapon's slotted crystal,
-		//  ActiveRing/PrimaryRing → ring's slotted crystal). Stubbed pending the
-		//  source-crystal lookup helper. Reality flat-bump above already covers
-		//  the most common Reality-via-infusion case.
-		// UItemData *InfusionCrystal = ResolveInfusionCrystal(Actor, Action);
-		// if (InfusionCrystal && InfusionCrystal->bIsEvolutionCrystal)
-		// {
-		//     const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
-		//     Result.Accumulate(InfusionCrystal->GetInfusionStatModifiers(InfusionMultiplier));
-		// }
+		// Evolution-infused authored stats. Source crystal resolves via
+		// ResolveInfusionCrystal (WeaponCrystal/ActiveRing/PrimaryRing/Evolution
+		// → the appropriate slotted/equipped UItemData). InfusionMultiplier
+		// follows the locked design: L1 = 0.5, L2 = 1.0. Reality flat-bump
+		// above still applies independently for Reality-element infusion.
+		if (UItemData *InfusionCrystal = ResolveInfusionCrystal(Actor, Action))
+		{
+			if (InfusionCrystal->bIsEvolutionCrystal)
+			{
+				const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
+				Result.Accumulate(InfusionCrystal->GetInfusionStatModifiers(InfusionMultiplier));
+			}
+		}
 	}
 
 	return Result;
