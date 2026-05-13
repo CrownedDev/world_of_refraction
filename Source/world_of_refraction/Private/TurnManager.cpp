@@ -4,6 +4,8 @@
 #include "TurnManager.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
+#include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 
 UTurnManager::UTurnManager()
 {
@@ -268,8 +270,20 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	{
 		UCharacterData *CharData = CharComp->CharacterData;
 
-		// Speed = Body + TurnSpeed substat
-		Combatant.CachedSpeed = CharData->WorldBodyLevel + CharData->TurnSpeed;
+		// Pillar-scaled turn speed (TURN_SPEED_BASE + EffectiveSpirit × points × per-point),
+		// rounded for int storage. Replaces the earlier raw WorldBodyLevel + TurnSpeed
+		// sum which ignored both world scaling and the pillar move from Mind to Spirit.
+		Combatant.CachedSpeed = FMath::RoundToInt(CharData->CalculateTurnSpeed());
+
+		// Equipment stat bonus — flat additive to cached turn speed. Read from
+		// the actor's active loadout. Hot-swap re-cache is driven by
+		// LoadoutComponent calling OnActorSpeedChanged on weapon/ring switch.
+		if (ULoadoutComponent *LoadoutComp = Combatant.Actor->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = LoadoutComp->GetActiveStatBonus(Combatant.Actor);
+			Combatant.CachedSpeed += Bonus.BonusTurnSpeed;
+		}
+
 		Combatant.CachedActionSpeed = CharData->GetTotalActionSpeed();
 		Combatant.CachedMind = CharData->WorldMindLevel;
 		Combatant.CachedBody = CharData->WorldBodyLevel;
