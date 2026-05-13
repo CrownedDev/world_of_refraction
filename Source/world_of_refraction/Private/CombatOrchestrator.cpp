@@ -372,7 +372,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 	else if (Action.ActionType == EActionType::Attack && Action.AttackData)
 	{
 		// Attacks with movement data need async
-		bRequiresAsync = (Action.AttackData->MovementData != nullptr);
+		bRequiresAsync = (Action.AttackData->ApproachData != nullptr);
 	}
 	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
 	{
@@ -1095,13 +1095,13 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 				if (UWeaponData *Weapon = Cast<UWeaponData>(Slot.Holder))
 				{
 					Weapon->SlottedCrystal = nullptr;
-					HolderDesc = FString::Printf(TEXT("Weapon '%s'"), *Weapon->WeaponName);
+					HolderDesc = FString::Printf(TEXT("Weapon '%s'"), *Weapon->Name);
 					bCleared = true;
 				}
 				else if (URingData *Ring = Cast<URingData>(Slot.Holder))
 				{
 					Ring->SlottedCrystal = nullptr;
-					HolderDesc = FString::Printf(TEXT("Ring '%s'"), *Ring->RingName);
+					HolderDesc = FString::Printf(TEXT("Ring '%s'"), *Ring->Name);
 					bCleared = true;
 				}
 				// Evolution holder is the crystal itself (immune); won't reach here.
@@ -1422,7 +1422,7 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 		{
 			AttackAction.AttackData = ActiveWeapon->WeaponAttack;
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
-				   *ActiveWeapon->WeaponAttack->AttackName, *ActiveWeapon->WeaponName);
+				   *ActiveWeapon->WeaponAttack->Name, *ActiveWeapon->Name);
 		}
 	}
 
@@ -1484,7 +1484,7 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 		{
 			AbilityAction.AbilityData = AvailableAbilities[0];
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] Using ability: %s"),
-				   *AbilityAction.AbilityData->AbilityName);
+				   *AbilityAction.AbilityData->Name);
 		}
 	}
 
@@ -1503,7 +1503,7 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] %s using %s on %s"),
-		   *Actor->GetName(), *AbilityAction.AbilityData->AbilityName, *Target->GetName());
+		   *Actor->GetName(), *AbilityAction.AbilityData->Name, *Target->GetName());
 
 	// Execute through ActionExecutor with callback
 	if (ActionExecutorRef)
@@ -1555,7 +1555,7 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 		{
 			SpellAction.SpellData = ActiveSpells[0];
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestSpellMovement] Using spell: %s (Element: %s)"),
-				   *SpellAction.SpellData->SpellName,
+				   *SpellAction.SpellData->Name,
 				   *UEnum::GetValueAsString(SpellAction.SpellData->Element));
 		}
 		else
@@ -1566,7 +1566,7 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 			{
 				SpellAction.SpellData = AllSpells[0];
 				UE_LOG(LogTemp, Log, TEXT("[DebugTestSpellMovement] Fallback spell: %s"),
-					   *SpellAction.SpellData->SpellName);
+					   *SpellAction.SpellData->Name);
 			}
 		}
 	}
@@ -1586,7 +1586,7 @@ void ACombatOrchestrator::DebugTestSpellMovement()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestSpellMovement] %s casting %s on %s"),
-		   *Actor->GetName(), *SpellAction.SpellData->SpellName, *Target->GetName());
+		   *Actor->GetName(), *SpellAction.SpellData->Name, *Target->GetName());
 
 	// Execute through ActionExecutor with callback
 	if (ActionExecutorRef)
@@ -1871,7 +1871,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 	AttackAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAttack] %s attacking %s with %s"),
-		   *Actor->GetName(), *Target->GetName(), *AttackData->AttackName);
+		   *Actor->GetName(), *Target->GetName(), *AttackData->Name);
 
 	if (ActionExecutorRef)
 	{
@@ -1939,10 +1939,10 @@ void ACombatOrchestrator::DebugExecuteAsyncSpell()
 	SpellAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncSpell] %s casting %s on %s"),
-		   *Actor->GetName(), *SpellData->SpellName, *Target->GetName());
+		   *Actor->GetName(), *SpellData->Name, *Target->GetName());
 
 	UE_LOG(LogTemp, Warning, TEXT("[DEBUG] Spell: %s | TargetType: %d | DeliveryType: %d | CastAnim: %s"),
-		   *SpellData->SpellName,
+		   *SpellData->Name,
 		   (int32)SpellData->TargetType,
 		   (int32)SpellData->DeliveryType,
 		   SpellData->CastAnimation ? *SpellData->CastAnimation->GetName() : TEXT("NONE"));
@@ -1988,7 +1988,7 @@ void ACombatOrchestrator::DebugTestPrimarySpell()
 		{
 			SpellAction.SpellData = PrimarySpells[0];
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestPrimarySpell] Using PRIMARY spell: %s (Element: %s)"),
-				   *SpellAction.SpellData->SpellName,
+				   *SpellAction.SpellData->Name,
 				   *UEnum::GetValueAsString(SpellAction.SpellData->Element));
 		}
 	}
@@ -2040,7 +2040,7 @@ void ACombatOrchestrator::DebugTestSecondarySpell()
 		{
 			SpellAction.SpellData = SecondarySpells[0];
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestSecondarySpell] Using SECONDARY spell: %s (Element: %s)"),
-				   *SpellAction.SpellData->SpellName,
+				   *SpellAction.SpellData->Name,
 				   *UEnum::GetValueAsString(SpellAction.SpellData->Element));
 		}
 	}
@@ -2117,7 +2117,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 	AbilityAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAbility] %s using %s on %s"),
-		   *Actor->GetName(), *AbilityData->AbilityName, *Target->GetName());
+		   *Actor->GetName(), *AbilityData->Name, *Target->GetName());
 
 	if (ActionExecutorRef)
 	{

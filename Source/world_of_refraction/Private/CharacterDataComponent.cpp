@@ -86,7 +86,7 @@ void UCharacterDataComponent::InitializeFromTemplate()
 
     UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s: Initialized (%s) - HP: %d, EP: %d"),
            *GetOwner()->GetName(),
-           *CharacterData->CharacterName,
+           *CharacterData->Name,
            MaxHP,
            MaxEP);
 }

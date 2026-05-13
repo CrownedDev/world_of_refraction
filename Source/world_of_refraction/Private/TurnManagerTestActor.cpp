@@ -382,7 +382,7 @@ AActor *ATurnManagerTestActor::CreateTestCharacter(FString Name, int32 Mind, int
 	}
 
 	// Step 2: Set all the stats
-	CharData->CharacterName = Name;
+	CharData->Name = Name;
 	CharData->WorldMindLevel = Mind;
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;

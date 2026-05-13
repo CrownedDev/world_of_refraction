@@ -197,6 +197,14 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			}
 			break;
 
+		case EActionType::Attack:
+			if (Action.AttackData && !Action.AttackData->MeetsRequirements(CharData))
+			{
+				// Allow with penalty (consistent with Ability/Spell — penalty
+				// is applied inside the damage / energy paths).
+			}
+			break;
+
 		default:
 			break;
 		}
@@ -528,6 +536,39 @@ bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bImmuneTo
 	return true;
 }
 
+bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
+{
+	if (bActionImmune)
+	{
+		return true;
+	}
+	if (!User)
+	{
+		return false;
+	}
+	if (UWeaponManager *WM = GetWeaponManager())
+	{
+		if (UWeaponData *Weapon = WM->GetActiveWeapon(User))
+		{
+			if (Weapon->bImmuneToInfusion)
+			{
+				return true;
+			}
+		}
+	}
+	if (URingManager *RM = GetRingManager())
+	{
+		if (URingData *Ring = RM->GetActiveRing(User))
+		{
+			if (Ring->bImmuneToInfusion)
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit)
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
@@ -566,7 +607,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Spell->bImmuneToInfusion, Action.SpellInfusionLevel))
+	// Equipment-level immunity (active weapon / ring) ORs in via IsInfusionImmune.
+	if (!ValidateInfusionGate(Action, IsInfusionImmune(Caster, Spell->bImmuneToInfusion), Action.SpellInfusionLevel))
 	{
 		return;
 	}
@@ -712,7 +754,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection OR charge level). No energy spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Ability->bImmuneToInfusion, Action.AbilityInfusionLevel))
+	// Equipment-level immunity (active weapon / ring) ORs in via IsInfusionImmune.
+	if (!ValidateInfusionGate(Action, IsInfusionImmune(User, Ability->bImmuneToInfusion), Action.AbilityInfusionLevel))
 	{
 		return;
 	}
@@ -878,26 +921,32 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection). Attacks have no charge level concept. No energy
-	// spent, no damage dealt.
-	if (!ValidateInfusionGate(Action, Attack->bImmuneToInfusion, /*InfusionLevel=*/0))
+	// spent, no damage dealt. Equipment-level immunity ORs in via IsInfusionImmune.
+	if (!ValidateInfusionGate(Action, IsInfusionImmune(Attacker, Attack->bImmuneToInfusion), /*InfusionLevel=*/0))
 	{
 		return;
 	}
 
-	// Calculate damage
-	float DamageMultiplier = AttackerData->CalculateRawDamage();
-	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
+	// Attacker-side base: asset BaseDamage minus the requirement penalty.
+	// RawDamage multiplier is applied exactly once downstream by
+	// ApplyHit → DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier;
+	// applying it here as well caused RawDamage² scaling at high Body stats.
+	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
+	const float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
+	int32 BaseDamage = FMath::RoundToInt(AttackBase);
 
 	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-	if (bIsInfused)
-	{
-		// Element-infusion damage penalty removed; energy multiplier + source-
-		// specific costs (durability/HP/status) cover the infusion tax.
 
-		// Spend energy for infused attack
-		int32 InfusionCost = 5; // TODO: from constants
-		SpendEnergy(Attacker, InfusionCost);
-		CurrentExecutionContext->PartialResult.EnergySpent = InfusionCost;
+	// Spend BaseEnergyCost for every attack. The requirement-penalty term raises
+	// the cost the same way it does for abilities. InfusionEnergyCost was
+	// removed in Phase 4 — existing assets whose authors relied on the legacy
+	// 10-energy infusion cost will need BaseEnergyCost set explicitly.
+	if (Attack->BaseEnergyCost > 0)
+	{
+		const float CostF = static_cast<float>(Attack->BaseEnergyCost) * (1.0f + RequirementPenalty);
+		const int32 EnergySpend = FMath::RoundToInt(CostF);
+		SpendEnergy(Attacker, EnergySpend);
+		CurrentExecutionContext->PartialResult.EnergySpent = EnergySpend;
 	}
 
 	// Element
@@ -1162,7 +1211,7 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 				float EnergyCost = 0.0f;
 				if (CurrentExecutionContext->Action.SpellData)
 				{
-					EnergyCost = CurrentExecutionContext->Action.SpellData->EnergyCost;
+					EnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
 				}
 				else if (CurrentExecutionContext->Action.AbilityData)
 				{
@@ -1360,7 +1409,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			if (Action.AbilityData)
 			{
 				EffectsToApply = &Action.AbilityData->Effects;
-				SourceName = Action.AbilityData->AbilityName;
+				SourceName = Action.AbilityData->Name;
 			}
 			break;
 
@@ -1368,7 +1417,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			if (Action.SpellData)
 			{
 				EffectsToApply = &Action.SpellData->Effects;
-				SourceName = Action.SpellData->SpellName;
+				SourceName = Action.SpellData->Name;
 			}
 			break;
 
@@ -1376,7 +1425,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			if (Action.AttackData)
 			{
 				EffectsToApply = &Action.AttackData->Effects;
-				SourceName = Action.AttackData->AttackName;
+				SourceName = Action.AttackData->Name;
 			}
 			break;
 
@@ -1878,8 +1927,8 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 	// Buildup path — manager resolves the trigger type internally from
 	// (Element, PhysicalType) via BarCapTriggerResolver. Manager also runs the
-	// Phase 2a attacker StatusMultiplier amplifier and the Phase 2b per-element
-	// resistance reduction.
+	// attacker StatusMultiplier amplification (Spirit-driven via
+	// CalculateStatusMultiplier) and the per-element resistance reduction.
 	if (Input.BaseStatusBuildup > 0)
 	{
 		UStatusBuildupManager *BuildupManager = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr;
@@ -2165,7 +2214,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 	if (!Spell->CastAnimation)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlaySpellAnimation - No CastAnimation on %s"),
-			   *Spell->SpellName);
+			   *Spell->Name);
 		return;
 	}
 
@@ -2588,7 +2637,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 	if (!Ability->ExecutionMontage)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlayAbilityAnimation - No ExecutionMontage on %s"),
-			   *Ability->AbilityName);
+			   *Ability->Name);
 		return;
 	}
 
@@ -2606,7 +2655,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
-		   *Ability->ExecutionMontage->GetName(), *Ability->AbilityName, PlayRate);
+		   *Ability->ExecutionMontage->GetName(), *Ability->Name, PlayRate);
 }
 
 void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
@@ -2620,7 +2669,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 	if (!Attack->AttackMontage)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - No montage on %s"),
-			   *Attack->AttackName);
+			   *Attack->Name);
 		return;
 	}
 
@@ -2788,7 +2837,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 			URingData *Ring = RM->GetPrimaryRing(Actor);
 			if (Ring)
 			{
-				return Ring->GetRingElement();
+				return Ring->GetCrystalElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -2802,7 +2851,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 			UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
 			if (Weapon)
 			{
-				return Weapon->GetWeaponElement();
+				return Weapon->GetCrystalElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -3208,7 +3257,7 @@ UMovementData *UActionExecutor::GetMovementData(const FAction &Action) const
 	switch (Action.ActionType)
 	{
 	case EActionType::Attack:
-		return Action.AttackData ? Action.AttackData->MovementData : nullptr;
+		return Action.AttackData ? Action.AttackData->ApproachData : nullptr;
 
 	case EActionType::Ability:
 		// Only return movement data for Melee abilities

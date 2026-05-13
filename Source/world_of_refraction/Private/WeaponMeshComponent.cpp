@@ -96,7 +96,7 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
     CachedWeapon = ActiveWeapon;
 
     UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Updated weapon mesh: %s"),
-           ActiveWeapon ? *ActiveWeapon->WeaponName : TEXT("None"));
+           ActiveWeapon ? *ActiveWeapon->Name : TEXT("None"));
 }
 
 void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
@@ -121,7 +121,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
         PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
 
         UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned skeletal mesh '%s' at socket '%s'"),
-               *Weapon->WeaponName, *RightHandSocket.ToString());
+               *Weapon->Name, *RightHandSocket.ToString());
     }
     else if (Weapon->WeaponStaticMesh)
     {
@@ -137,7 +137,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
         PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
 
         UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned static mesh '%s' at socket '%s'"),
-               *Weapon->WeaponName, *RightHandSocket.ToString());
+               *Weapon->Name, *RightHandSocket.ToString());
     }
 }
 
@@ -174,7 +174,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         SecondarySkeletalMeshComp->SetWorldScale3D(FVector(-1.0f, 1.0f, 1.0f));
 
         UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned dual skeletal weapon s '%s'"),
-               *Weapon->WeaponName);
+               *Weapon->Name);
     }
     else if (Weapon->WeaponStaticMesh)
     {
@@ -198,7 +198,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         SecondaryStaticMeshComp->SetWorldScale3D(FVector(-1.0f, 1.0f, 1.0f));
 
         UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned dual static weapon  '%s'"),
-               *Weapon->WeaponName);
+               *Weapon->Name);
     }
 }
 
@@ -235,7 +235,7 @@ void UWeaponMeshComponent::DebugLogMeshState()
 {
     UE_LOG(LogTemp, Display, TEXT("=== WEAPON MESH STATE ==="));
     UE_LOG(LogTemp, Display, TEXT("Cached Weapon: %s"),
-           CachedWeapon ? *CachedWeapon->WeaponName : TEXT("None"));
+           CachedWeapon ? *CachedWeapon->Name : TEXT("None"));
     UE_LOG(LogTemp, Display, TEXT("Primary Static: %s"),
            PrimaryStaticMeshComp ? TEXT("Spawned") : TEXT("None"));
     UE_LOG(LogTemp, Display, TEXT("Secondary Static: %s"),

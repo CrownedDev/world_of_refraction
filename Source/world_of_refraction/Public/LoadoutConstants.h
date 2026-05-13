@@ -11,6 +11,10 @@ namespace LoadoutConstants
 
     // Spells
     constexpr int32 MAX_SPELL_SLOTS = 6;
+    constexpr int32 MAX_RING_SPELLS = 6;
+
+    // Skills (abilities/spells/attacks all share this cap on Effects array)
+    constexpr int32 MAX_SKILL_EFFECTS = 5;
 
     // Weapons
     constexpr int32 MAX_WEAPONS_GENERIC = 2;

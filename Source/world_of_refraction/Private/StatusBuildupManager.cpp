@@ -177,14 +177,16 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// Get or create state
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 
-	// Apply attacker StatusMultiplier amplification: Final = Base * (1 + StatValue / 100)
+	// Apply attacker StatusMultiplier amplification via the pillar-scaled
+	// CalculateStatusMultiplier (Spirit-driven post pillar move). Single source
+	// of truth for buildup scaling — matches the helpers on USpellData /
+	// UAbilityData / debug paths.
 	if (Source)
 	{
 		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
 		if (SourceComp && SourceComp->CharacterData)
 		{
-			const int32 StatusMultiplier = SourceComp->CharacterData->StatusMultiplier;
-			Amount *= (1.0f + StatusMultiplier / CombatConstants::STAT_PERCENT_DIVISOR);
+			Amount *= SourceComp->CharacterData->CalculateStatusMultiplier();
 		}
 	}
 

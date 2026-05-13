@@ -1,35 +1,18 @@
 // RingData.cpp
 
 #include "RingData.h"
-#include "SpellData.h"
 #include "ItemData.h"
-#include "CrystalType.h"
+#include "LoadoutConstants.h"
 
-bool URingData::IsEvolved() const
+int32 URingData::GetMaxSpells() const
 {
-    return SlottedCrystal && SlottedCrystal->bIsEvolutionCrystal;
-}
-
-ESpellElement URingData::GetRingElement() const
-{
-    if (SlottedCrystal)
-    {
-        return SlottedCrystal->GetAssociatedElement();
-    }
-    return ESpellElement::Generic;
+    return LoadoutConstants::MAX_RING_SPELLS;
 }
 
 #if WITH_EDITOR
 EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
-
-    // Name validation
-    if (RingName.IsEmpty() || RingName == TEXT("Unnamed Ring"))
-    {
-        Context.AddError(FText::FromString(TEXT("Ring must have a unique name")));
-        Result = EDataValidationResult::Invalid;
-    }
 
     // Crystal validation
     if (!SlottedCrystal)
@@ -48,6 +31,15 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         {
             Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
             Result = EDataValidationResult::Invalid;
+        }
+
+        // Ring tier is informational only; warn on SlottedCrystal tier mismatch.
+        if (SlottedCrystal->Tier != Tier)
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("Ring tier (%s) does not match SlottedCrystal tier (%s) — ring tier is informational only"),
+                *UEnum::GetValueAsString(Tier),
+                *UEnum::GetValueAsString(SlottedCrystal->Tier))));
         }
     }
 

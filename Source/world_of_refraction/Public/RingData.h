@@ -4,9 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataAsset.h"
-#include "ItemTier.h"
-#include "ESpellElement.h"
+#include "EquipmentDataBase.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -14,57 +12,35 @@
 
 #include "RingData.generated.h"
 
-class USpellData;
-class UItemData;
+class UStaticMesh;
 
 /**
  * Ring Data Asset - Resonator's primary spell source
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API URingData : public UPrimaryDataAsset
+class WORLD_OF_REFRACTION_API URingData : public UEquipmentDataBase
 {
 	GENERATED_BODY()
 
 public:
-	// ==================== IDENTITY ====================
+	// ==================== RING ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	FString RingName = TEXT("Unnamed Ring");
+	// If true, spells cannot be customized (conjured-ring equivalent of bAbilitiesLocked)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
+	bool bSpellsLocked = false;
 
-	/** Ring tier - reference value for the slotted crystal's wear calculations.
-	 *  The crystal's tier determines actual wear; ring tier is informational. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-	EItemTier Tier = EItemTier::E_Tier;
+	// ==================== MESH ====================
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
-	FString Description = TEXT("Ring description...");
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	UStaticMesh *RingStaticMesh = nullptr;
 
-	// ==================== CRYSTAL SLOT ====================
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+	FRotator MeshRotation = FRotator::ZeroRotator;
 
-	/** Refined crystal that defines ring's element */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-	UItemData *SlottedCrystal = nullptr;
+	// ==================== UTILITY ====================
 
-	// ==================== SPELLS ====================
+	virtual int32 GetMaxSpells() const override;
 
-	/** Default spells for this ring - copied to inventory entry when ring obtained
-	 *  Lost if crystal is removed; spell vendor reassigns them */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Spells", meta = (TitleProperty = "SpellName"))
-	TArray<USpellData *> DefaultSpells;
-
-	// ==================== CRYSTAL HELPERS ====================
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
-	bool HasCrystal() const { return SlottedCrystal != nullptr; }
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
-	ESpellElement GetRingElement() const;
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Crystal")
-	bool IsEvolved() const;
-
-	UFUNCTION(BlueprintPure, Category = "Ring|Spells")
-	int32 GetMaxSpells() const { return 6; }
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif

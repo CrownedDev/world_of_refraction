@@ -1,23 +1,18 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// SpellData.h
+// Spell Data Asset - Element-locked magical abilities.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/DataAsset.h"
+#include "CastableSkillDataBase.h"
 #include "ESpellElement.h"
 #include "EStatusType.h"
 #include "SpellSchool.h"
-#include "TargetType.h"
-#include "ItemTier.h"
-#include "AbilityData.h"
 #include "WeaponData.h"
-#include "WorldStatRequirements.h"
 #include "CombatConstants.h"
 #include "NiagaraSystem.h"
-#include "ESpellDeliveryType.h"
 #include "EDefenseType.h"
 #include "ActionStatModifiers.h"
-#include "FSkillEffect.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -31,10 +26,14 @@ class UItemData;
 
 /**
  * Spell Data Asset - Element-locked magical abilities
- * Supports mode toggle system (Elemental vs Raw/Construct)
+ * Supports mode toggle system (Elemental vs Raw/Construct).
+ *
+ * Inherits shared skill shape from USkillDataBase and cast shape
+ * (Tier, BaseDamage, BaseEnergyCost, Requirements, DeliveryType, ProjectileSpeed)
+ * from UCastableSkillDataBase.
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API USpellData : public UPrimaryDataAsset
+class WORLD_OF_REFRACTION_API USpellData : public UCastableSkillDataBase
 {
     GENERATED_BODY()
 
@@ -42,76 +41,19 @@ public:
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    FString SpellName = TEXT("Unnamed Spell");
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellElement Element = ESpellElement::Fire;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     ESpellSchool School = ESpellSchool::Destruction;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
-    FString Description = TEXT("Spell description...");
-
-    //  Tier for break calculations
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    EItemTier Tier = EItemTier::E_Tier;
-
     /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     UItemData *RequiredEvolutionCrystal = nullptr;
-    // ==================== MODE ====================
-
-    /** Raw mode: +10% damage, no status buildup. Elemental mode (default): applies status. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mode")
-    bool bIsRawMode = false;
 
     // ==================== STATS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    int32 Damage = 0;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    int32 EnergyCost = 0;
-
-    /** Status buildup per hit (Elemental mode only) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats",
-              meta = (EditCondition = "!bIsRawMode", EditConditionHides))
-    int32 StatusBuildup = 15;
-
-    // ==================== INFUSION ====================
-
-    /** If true, the orchestrator rejects this spell when an infusion source is selected. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
-    bool bImmuneToInfusion = false;
-
-    // ==================== COMMON STATS ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    int32 HitCount = 1;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    ETargetType TargetType = ETargetType::SingleEnemy;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
     int32 TurnCost = 1; // Future: multi-turn casting
-
-    // ==================== REQUIREMENTS ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
-    FWorldStatRequirements Requirements;
-
-    // ==================== EFFECTS ====================
-
-    /**
-     * Effects applied by this spell (max 5).
-     * Each effect can have its own target, condition, and timing.
-     * Replaces the previous PrimaryEffect/SecondaryEffect flat fields —
-     * spells now use the same array shape as abilities and attacks.
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
-              meta = (TitleProperty = "EffectType"))
-    TArray<FSkillEffect> Effects;
 
     // ==================== VISUALS ====================
 
@@ -130,17 +72,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UNiagaraSystem *MuzzleVFX = nullptr;
 
-    // ==================== DELIVERY ====================
-
-    /** How the spell travels from caster to target */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery")
-    ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
-
-    /** Travel speed in units per second (Projectile/Homing only) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing",
-                      EditConditionHides, ClampMin = "100.0"))
-    float ProjectileSpeed = 1500.f;
+    // ==================== DELIVERY (spell-specific extensions) ====================
 
     /** Homing tracking strength: 0 = no tracking, 1 = instant turn (Homing only) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
@@ -183,20 +115,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Delivery|Defense")
     TArray<EDefenseType> GetAvailableDefenses() const;
 
-    // ==================== REQUIREMENT CHECKS ====================
-
-    UFUNCTION(BlueprintPure, Category = "Spell")
-    bool MeetsRequirements(const UCharacterData *Character) const
-    {
-        return Requirements.MeetsRequirements(Character);
-    }
-
-    UFUNCTION(BlueprintPure, Category = "Spell")
-    int32 GetTotalDeficit(const UCharacterData *Character) const;
-
-    UFUNCTION(BlueprintPure, Category = "Spell")
-    float CalculateRequirementPenalty(const UCharacterData *Character) const;
-
     // ==================== DAMAGE CALCULATIONS ====================
 
     /** Calculate spell damage. Per-action stat modifiers (Reality, Evolution,
@@ -213,9 +131,7 @@ public:
     // ==================== STATUS BUILDUP ====================
 
     /** Calculate spell status buildup per-hit. Per-action stat modifiers come
-     *  in via ActionMods. Pre-existing: DamageCalculator::CalculateSpellDamage
-     *  calls this without modifiers — that path doesn't get per-action buffs.
-     *  Documented, not changed by this commit. */
+     *  in via ActionMods. */
     int32 CalculateStatusBuildup(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers()) const;
 
     // ==================== HELPER FUNCTIONS ====================
@@ -232,15 +148,12 @@ public:
         const UEnum *EnumPtr = StaticEnum<ESpellElement>();
         if (EnumPtr)
         {
-            FString Name = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
-            Name.RemoveFromStart(TEXT("ESpellElement::"));
-            return Name;
+            FString ElementName = EnumPtr->GetNameStringByValue(static_cast<int64>(Element));
+            ElementName.RemoveFromStart(TEXT("ESpellElement::"));
+            return ElementName;
         }
         return TEXT("Unknown");
     }
-
-    UFUNCTION(BlueprintPure, Category = "Spell")
-    FString GetTierString() const { return TierHelpers::GetTierDisplayString(Tier); }
 
     // ==================== CONSTRUCT ====================
 

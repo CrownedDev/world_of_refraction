@@ -21,7 +21,7 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
     EDataValidationResult Result = Super::IsDataValid(Context);
 
     // Validate name
-    if (CharacterName.IsEmpty())
+    if (Name.IsEmpty())
     {
         Context.AddError(FText::FromString(TEXT("Character must have a name")));
         Result = EDataValidationResult::Invalid;
@@ -40,12 +40,5 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
     }
 
     return Result;
-}
-
-void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeProperty(PropertyChangedEvent);
-
-    // Add any property change handling here if needed
 }
 #endif

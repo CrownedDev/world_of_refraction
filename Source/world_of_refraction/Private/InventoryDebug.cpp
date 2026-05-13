@@ -51,7 +51,7 @@ void UInventoryDebug::LogSpells(UInventoryComponent *Inventory)
         if (Spell)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [%s] (School: %d, Tier: %d)"),
-                   *Spell->SpellName,
+                   *Spell->Name,
                    *UEnum::GetValueAsString(Spell->Element),
                    static_cast<int32>(Spell->School),
                    static_cast<int32>(Spell->Tier));
@@ -74,7 +74,7 @@ void UInventoryDebug::LogAbilities(UInventoryComponent *Inventory)
         if (Ability)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [Weapon: %d]"),
-                   *Ability->AbilityName,
+                   *Ability->Name,
                    static_cast<int32>(Ability->RequiredWeaponType));
         }
     }
@@ -101,7 +101,7 @@ void UInventoryDebug::LogWeapons(UInventoryComponent *Inventory)
 
             UE_LOG(LogTemp, Display, TEXT("  [%d] %s (Type: %d, %s%s) Cost: %d"),
                    i,
-                   *Entry.Weapon->WeaponName,
+                   *Entry.Weapon->Name,
                    static_cast<int32>(Entry.Weapon->WeaponType),
                    *CrystalStr,
                    *EvoStr,
@@ -132,7 +132,7 @@ void UInventoryDebug::LogRings(UInventoryComponent *Inventory)
 
             UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%s%s) Cost: %d%s"),
                    i,
-                   *Entry.Ring->RingName,
+                   *Entry.Ring->Name,
                    *CrystalStr,
                    *EvoStr,
                    Entry.GetSlotCost(),
@@ -213,7 +213,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         if (Active.PrimaryWeapon.IsValid())
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Weapon: %s"),
-                   *Active.PrimaryWeapon.WeaponEntry.Weapon->WeaponName);
+                   *Active.PrimaryWeapon.WeaponEntry.Weapon->Name);
             UE_LOG(LogTemp, Display, TEXT("  Abilities: %d"),
                    Active.PrimaryWeapon.GetAllAbilities().Num());
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
@@ -229,7 +229,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         if (Active.PrimaryRing.IsValid())
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Ring: %s"),
-                   *Active.PrimaryRing.RingEntry.Ring->RingName);
+                   *Active.PrimaryRing.RingEntry.Ring->Name);
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
                    Active.PrimaryRing.GetAllSpells().Num());
         }
@@ -258,7 +258,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
     if (Active.SecondarySlotType == ESecondarySlotType::Weapon && Active.SecondaryWeapon.IsValid())
     {
         UE_LOG(LogTemp, Display, TEXT("Secondary Weapon: %s"),
-               *Active.SecondaryWeapon.WeaponEntry.Weapon->WeaponName);
+               *Active.SecondaryWeapon.WeaponEntry.Weapon->Name);
     }
 
     // Ring loadout (Resonator)
@@ -271,7 +271,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             if (R.IsValid())
             {
                 UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%d spells)"),
-                       i, *R.RingEntry.Ring->RingName, R.GetSpellCount());
+                       i, *R.RingEntry.Ring->Name, R.GetSpellCount());
             }
         }
     }

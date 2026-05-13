@@ -64,7 +64,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 
 	FString Output = TEXT("");
 	Output += TEXT("===================================\n");
-	Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->CharacterName);
+	Output += FString::Printf(TEXT("CHARACTER: %s\n"), *Character->Name);
 	Output += TEXT("===================================\n\n");
 
 	// ==================== IDENTITY ====================

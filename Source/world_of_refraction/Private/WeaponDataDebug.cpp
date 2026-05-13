@@ -29,7 +29,7 @@ FString UWeaponDataDebug::GetWeaponStatsString(UWeaponData *Weapon)
     FString Output;
 
     Output += TEXT("==========================================\n");
-    Output += FString::Printf(TEXT("WEAPON: %s\n"), *Weapon->WeaponName);
+    Output += FString::Printf(TEXT("WEAPON: %s\n"), *Weapon->Name);
     Output += TEXT("==========================================\n");
 
     // Identity
@@ -44,7 +44,7 @@ FString UWeaponDataDebug::GetWeaponStatsString(UWeaponData *Weapon)
     if (Weapon->WeaponAttack)
     {
         Output += FString::Printf(TEXT("  %s (%s)\n"),
-                                  *Weapon->WeaponAttack->AttackName,
+                                  *Weapon->WeaponAttack->Name,
                                   *Weapon->WeaponAttack->GetAttackSummary());
     }
     else
@@ -60,7 +60,7 @@ FString UWeaponDataDebug::GetWeaponStatsString(UWeaponData *Weapon)
         {
             if (Weapon->PresetAbilities[i])
             {
-                Output += FString::Printf(TEXT("  %d. %s\n"), i + 1, *Weapon->PresetAbilities[i]->AbilityName);
+                Output += FString::Printf(TEXT("  %d. %s\n"), i + 1, *Weapon->PresetAbilities[i]->Name);
             }
             else
             {
@@ -100,12 +100,12 @@ void UWeaponDataDebug::CompareWeapons(UWeaponData *Weapon1, UWeaponData *Weapon2
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("========== WEAPON COMPARISON =========="));
     UE_LOG(LogTemp, Display, TEXT(""));
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Property"), *Weapon1->WeaponName, *Weapon2->WeaponName);
+    UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Property"), *Weapon1->Name, *Weapon2->Name);
     UE_LOG(LogTemp, Display, TEXT("----------------------------------------------------------------------"));
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Type"), *Weapon1->GetWeaponTypeName(), *Weapon2->GetWeaponTypeName());
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Attack"),
-           Weapon1->WeaponAttack ? *Weapon1->WeaponAttack->AttackName : TEXT("None"),
-           Weapon2->WeaponAttack ? *Weapon2->WeaponAttack->AttackName : TEXT("None"));
+           Weapon1->WeaponAttack ? *Weapon1->WeaponAttack->Name : TEXT("None"),
+           Weapon2->WeaponAttack ? *Weapon2->WeaponAttack->Name : TEXT("None"));
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25d | %-25d"), TEXT("Abilities"), Weapon1->GetAbilityCount(), Weapon2->GetAbilityCount());
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-25s | %-25s"), TEXT("Stance"),
            Weapon1->WeaponStance ? *Weapon1->WeaponStance->StanceName : TEXT("None"),

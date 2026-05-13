@@ -441,7 +441,7 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 											   TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack2.DA_Test_Attack2"));
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *Attack->AttackName, Attack->HitCount);
+	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Hits: %d)"), *Attack->Name, Attack->HitCount);
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
@@ -584,7 +584,7 @@ AActor *ACombatOrchestratorTestActor::CreateTestCharacter(const FString &Name, i
 
 	// Create CharacterData asset - use display name for logs
 	UCharacterData *CharData = NewObject<UCharacterData>(TestActor);
-	CharData->CharacterName = Name; // Display name stays readable
+	CharData->Name = Name; // Display name stays readable
 	CharData->WorldMindLevel = Mind;
 	CharData->WorldBodyLevel = Body;
 	CharData->WorldSpiritLevel = Spirit;
@@ -678,7 +678,7 @@ void ACombatOrchestratorTestActor::Test_SpellExecution()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Element: %d)"),
-		   *Spell->SpellName, (int32)Spell->Element);
+		   *Spell->Name, (int32)Spell->Element);
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)
@@ -801,7 +801,7 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Damage: %d)"),
-		   *Ability->AbilityName, Ability->BaseDamage);
+		   *Ability->Name, Ability->BaseDamage);
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)

@@ -4,8 +4,6 @@
 #include "DamageCalculator.h"
 #include "CharacterData.h"
 #include "CharacterDataComponent.h"
-#include "SpellData.h"
-#include "AbilityData.h"
 #include "WeaponAttackData.h"
 #include "SkillEffectManager.h"
 #include "BrokenDarknessManager.h"
@@ -36,6 +34,27 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	}
 
 	float RunningDamage = static_cast<float>(Input.BaseDamage);
+
+	// Equipment-side flat damage bonus (persistent stat-mod statuses applied at
+	// equip time by SkillEffectManager::ApplyWeaponBonuses / ApplyRingBonuses).
+	// Added pre-multiplier so it scales with the matching attacker stat.
+	//   Non-Spell → RawDamageBuff/Debuff (from BonusRawDamage)
+	//   Spell     → EffectDamageBuff/Debuff (from BonusSpellDamage)
+	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
+	{
+		if (Input.ActionType != EActionType::Spell)
+		{
+			const float RawBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::RawDamageBuff);
+			const float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::RawDamageDebuff);
+			RunningDamage += (RawBuff - RawDebuff);
+		}
+		else
+		{
+			const float EffectBuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::EffectDamageBuff);
+			const float EffectDebuff = StatusManager->GetTotalStatModifier(Attacker, EStatusType::EffectDamageDebuff);
+			RunningDamage += (EffectBuff - EffectDebuff);
+		}
+	}
 
 	// Step 1: Attacker's damage multiplier — branched on EActionType.
 	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
@@ -133,94 +152,6 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	return Result;
 }
 
-FDamageCalculationResult UDamageCalculator::CalculateSpellDamage(
-	AActor *Caster,
-	AActor *Target,
-	USpellData *Spell,
-	int32 InfusionLevel)
-{
-	FDamageCalculationResult Result;
-
-	if (!Spell)
-	{
-		return Result;
-	}
-
-	UCharacterData *CasterData = GetCharacterData(Caster);
-	if (!CasterData)
-	{
-		return Result;
-	}
-
-	// Build input
-	FDamageCalculationInput Input;
-	Input.BaseDamage = Spell->Damage;
-	Input.ActionType = EActionType::Spell;
-	Input.Element = Spell->Element;
-	Input.bCanCrit = true;
-	Input.bWasInfused = InfusionLevel > 0;
-	Input.InfusionLevel = InfusionLevel;
-	Input.bIsRawMode = Spell->bIsRawMode;
-
-	// Apply spell size infusion (not damage, but tracking)
-	// Actual size handled elsewhere
-
-	// Calculate with main function
-	Result = CalculateDamage(Caster, Target, Input);
-
-	// Calculate status buildup (SpellData has a method, not a property)
-	if (!Spell->bIsRawMode && CasterData)
-	{
-		int32 BaseBuildup = Spell->CalculateStatusBuildup(CasterData);
-		if (BaseBuildup > 0)
-		{
-			Result.StatusBuildup = CalculateStatusBuildup(Caster, Target, BaseBuildup, Spell->Element);
-		}
-	}
-
-	return Result;
-}
-
-FDamageCalculationResult UDamageCalculator::CalculateAbilityDamage(
-	AActor *User,
-	AActor *Target,
-	UAbilityData *Ability,
-	bool bIsInfused)
-{
-	FDamageCalculationResult Result;
-
-	if (!Ability)
-	{
-		return Result;
-	}
-
-	UCharacterData *UserData = GetCharacterData(User);
-	if (!UserData)
-	{
-		return Result;
-	}
-
-	// Build input
-	FDamageCalculationInput Input;
-	Input.BaseDamage = Ability->BaseDamage;
-	Input.ActionType = EActionType::Ability;
-
-	// Abilities are physical unless infused. Per locked design, infused abilities
-	// still scale by RawDamage — the element only affects status routing.
-	Input.Element = bIsInfused ? UserData->InnateElement : ESpellElement::Generic;
-
-	Input.bCanCrit = true;
-	Input.bWasInfused = bIsInfused;
-	Input.InfusionLevel = 0;
-	Input.HitCount = Ability->HitCount;
-
-	// Element-infusion damage penalty removed per locked cost matrix.
-	// Calculate with main function
-	Result = CalculateDamage(User, Target, Input);
-
-	return Result;
-}
-
 FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	AActor *Attacker,
 	AActor *Target,
@@ -243,9 +174,18 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// Build input
 	FDamageCalculationInput Input;
 
-	// Base damage
-	Input.BaseDamage = 100;
+	// Base damage — sourced from the attack asset. Strict replace per Phase 4 design:
+	// no implicit fallback. Attack assets with BaseDamage == 0 deal 0 damage before
+	// weapon-stat bonuses and multipliers.
+	Input.BaseDamage = Attack->BaseDamage;
 	Input.ActionType = EActionType::Attack;
+
+	// Apply requirement penalty (matches Ability/Spell pattern — multiplicative reduction).
+	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
+	if (RequirementPenalty > 0.0f)
+	{
+		Input.BaseDamage = FMath::RoundToInt(static_cast<float>(Input.BaseDamage) * (1.0f - RequirementPenalty));
+	}
 
 	// Attacks are physical unless infused. Per locked design, infused attacks
 	// still scale by RawDamage — the element only affects status routing.
@@ -255,44 +195,13 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.bWasInfused = bIsInfused;
 	Input.HitCount = Attack->HitCount;
 
-	// Apply weapon stats only if not infused (None = weapon stats apply)
-	if (!bIsInfused)
-	{
-		// Get active weapon
-		UWeaponManager *WM = Cast<UWeaponManager>(GetGameInstance()->GetSubsystem<UWeaponManager>());
-		if (WM)
-		{
-			UWeaponData *Weapon = WM->GetActiveWeapon(Attacker);
-			if (Weapon)
-			{
-				// Apply weapon damage bonus
-				Input.BaseDamage += Weapon->BonusAttack;
-
-				// Store crit bonuses for later application
-				Input.OverrideCritChance = GetCriticalChance(Attacker) + (Weapon->BonusCritChance / 100.0f);
-			}
-		}
-	}
-	// Infused branch no longer applies a flat damage penalty (removed per locked
-	// cost matrix; cost is paid via durability/HP/status/energy mechanics).
+	// Per-instance weapon StatBonus (BonusRawDamage / BonusCritChance) is no longer
+	// read directly here. It's applied as persistent status effects at equip time
+	// (RawDamageBuff via CalculateDamage; CritChanceBuff via GetCriticalChance), so
+	// reading it again would double-count.
 
 	// Calculate with main function
 	Result = CalculateDamage(Attacker, Target, Input);
-
-	// Apply weapon crit damage bonus if not infused and was critical
-	if (!bIsInfused && Result.bWasCritical)
-	{
-		UWeaponManager *WM = Cast<UWeaponManager>(GetGameInstance()->GetSubsystem<UWeaponManager>());
-		if (WM)
-		{
-			UWeaponData *Weapon = WM->GetActiveWeapon(Attacker);
-			if (Weapon && Weapon->BonusCritDamage != 0.0f)
-			{
-				float BonusCritMult = Weapon->BonusCritDamage / 100.0f;
-				Result.FinalDamage = FMath::RoundToInt(Result.FinalDamage * (1.0f + BonusCritMult));
-			}
-		}
-	}
 
 	return Result;
 }

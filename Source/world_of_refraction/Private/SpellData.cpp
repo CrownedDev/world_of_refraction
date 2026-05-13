@@ -1,36 +1,8 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// SpellData.cpp
+// Spell Data Asset implementation.
 
 #include "SpellData.h"
 #include "CharacterData.h"
-
-// ==================== REQUIREMENT CHECKS ====================
-
-int32 USpellData::GetTotalDeficit(const UCharacterData *Character) const
-{
-    if (!Character)
-        return 0;
-
-    // Calculate world stat deficits
-    int32 MindDeficit = FMath::Max(0, Requirements.RequiredWorldMind - Character->WorldMindLevel);
-    int32 BodyDeficit = FMath::Max(0, Requirements.RequiredWorldBody - Character->WorldBodyLevel);
-    int32 SpiritDeficit = FMath::Max(0, Requirements.RequiredWorldSpirit - Character->WorldSpiritLevel);
-
-    return MindDeficit + BodyDeficit + SpiritDeficit;
-}
-
-float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) const
-{
-    if (!Character)
-        return 0.0f;
-
-    int32 TotalDeficit = GetTotalDeficit(Character);
-    if (TotalDeficit == 0)
-        return 0.0f;
-
-    // Same penalty formula, applied to world stat deficit
-    float Penalty = FMath::Sqrt(static_cast<float>(TotalDeficit)) * 0.10f;
-    return FMath::Min(Penalty, 0.60f); // Cap at 60%
-}
 
 // ==================== DAMAGE CALCULATIONS ====================
 
@@ -39,23 +11,20 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     if (!Character)
         return 0;
 
-    float FinalDamage = Damage;
+    // Attacker-side base only. SpellDamage multiplier is applied once downstream
+    // by DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier; the
+    // ActionMods.SpellDamage modifier is applied there too. StatusMultiplier is
+    // no longer multiplied into damage — it drives status buildup exclusively
+    // (StatusBuildupManager::AddStatusBuildup + CalculateStatusBuildup).
+    float FinalDamage = BaseDamage;
 
-    // Raw mode: +10% damage bonus
     if (bIsRawMode)
     {
         FinalDamage *= CombatConstants::RAW_MODE_DAMAGE_MULTIPLIER;
     }
 
-    // Apply requirement penalty
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
+    const float RequirementPenalty = CalculateRequirementPenalty(Character);
     FinalDamage *= (1.0f - RequirementPenalty);
-
-    // Apply character's StatusMultiplier (Mind-based in Phase 1; Phase 2b switches spells to SpellDamage).
-    // ActionMods.StatusMultiplier stacks Reality + Evolution + future per-action buffs.
-    float Multiplier = Character->CalculateStatusMultiplier();
-    Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
-    FinalDamage *= Multiplier;
 
     return FMath::RoundToInt(FinalDamage);
 }
@@ -76,7 +45,7 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
     // Base buildup per hit
     float BuildupPerHit = StatusBuildup;
 
-    // Scale with character's StatusMultiplier (Mind-based in Phase 1; pillar moves in Phase 2b).
+    // Scale with character's StatusMultiplier (Spirit-driven post pillar move).
     // ActionMods.StatusMultiplier stacks per-action stat buffs onto the multiplier.
     float Multiplier = Character->CalculateStatusMultiplier();
     Multiplier = ActionMods.ApplyTo(Multiplier, ESubStat::StatusMultiplier);
@@ -93,9 +62,9 @@ int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActio
 int32 USpellData::CalculateEnergyCost(UCharacterData *Character) const
 {
     if (!Character)
-        return EnergyCost;
+        return BaseEnergyCost;
 
-    float Cost = EnergyCost;
+    float Cost = BaseEnergyCost;
 
     // Requirement penalty increases cost
     float RequirementPenalty = CalculateRequirementPenalty(Character);
@@ -121,8 +90,9 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
 
 FString USpellData::GetDisplayName(UCharacterData *Caster) const
 {
-    return SpellName;
+    return Name;
 }
+
 // ==================== DEFENSE HELPERS ====================
 
 bool USpellData::CanBeBlocked() const
@@ -179,31 +149,10 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    // Validate damage
-    if (Damage < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Damage cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate energy cost
-    if (EnergyCost < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Energy Cost cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate status buildup (only relevant for elemental mode)
+    // Validate status buildup (only relevant for elemental mode; sign handled by ClampMin on base)
     if (!bIsRawMode && StatusBuildup < 0)
     {
         Context.AddError(FText::FromString(TEXT("Status Buildup cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate hit count
-    if (HitCount < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Hit Count cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 

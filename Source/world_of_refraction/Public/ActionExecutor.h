@@ -407,7 +407,7 @@ private:
 	 *  SourceName is the display string used for effect log lines and
 	 *  the FStatusEffect.EffectName ("<SourceName> Effect"). Passed as
 	 *  FString so the caller picks the right name from whichever data
-	 *  asset it's iterating (Ability->AbilityName, Spell->SpellName, etc).
+	 *  asset it's iterating (Ability->Name, Spell->Name, etc).
 	 */
 	void ApplySkillEffects(
 		AActor *User,
@@ -715,6 +715,11 @@ private:
 	 *  (sets PartialResult error and calls FinalizeAsyncAction). Shared by all
 	 *  three async executors. Pass InfusionLevel=0 for attacks (no charge concept). */
 	bool ValidateInfusionGate(const FAction &Action, bool bImmuneToInfusion, int32 InfusionLevel);
+
+	/** Combined immunity: true if the action itself is immune OR the wielder's
+	 *  active weapon / active ring is immune. Equipment immunity blocks infusion
+	 *  only — status buildup is unaffected (bIsRawMode is the only buildup gate). */
+	bool IsInfusionImmune(AActor *User, bool bActionImmune) const;
 
 	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit after
 	 *  raw-mode redirect has folded any buildup into damage. Shared post-redirect

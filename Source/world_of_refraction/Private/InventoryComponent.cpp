@@ -461,7 +461,7 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     }
 
     UE_LOG(LogTemp, Display, TEXT("Initialized inventory from %s: %d weapons, %d rings, %d spells, %d abilities"),
-           *CharacterData->CharacterName,
+           *CharacterData->Name,
            Weapons.Num(),
            Rings.Num(),
            Spells.GetCount(),
@@ -478,7 +478,7 @@ void UInventoryComponent::DebugLogInventory()
     for (int32 i = 0; i < Weapons.Num(); ++i)
     {
         const FWeaponInventoryEntry &W = Weapons[i];
-        FString WeaponName = W.Weapon ? W.Weapon->WeaponName : TEXT("NULL");
+        FString WeaponName = W.Weapon ? W.Weapon->Name : TEXT("NULL");
         FString CrystalStr = W.HasCrystal() ? TEXT("Crystal") : TEXT("None");
         FString EvoStr = W.IsEvolved() ? TEXT("Evolved") : TEXT("");
         UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%s %s) Cost:%d"),
@@ -490,7 +490,7 @@ void UInventoryComponent::DebugLogInventory()
     for (int32 i = 0; i < Rings.Num(); ++i)
     {
         const FRingInventoryEntry &R = Rings[i];
-        FString RingName = R.Ring ? R.Ring->RingName : TEXT("NULL");
+        FString RingName = R.Ring ? R.Ring->Name : TEXT("NULL");
         FString CrystalStr = R.HasCrystal() ? TEXT("Crystal") : TEXT("None");
         FString EvoStr = R.IsEvolved() ? TEXT("Evolved") : TEXT("");
         UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%s %s) Cost:%d"),

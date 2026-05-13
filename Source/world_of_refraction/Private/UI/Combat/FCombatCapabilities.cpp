@@ -49,10 +49,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
     if (ActiveWeapon && ActiveWeapon->WeaponEntry.Weapon)
     {
         UE_LOG(LogTemp, Warning, TEXT("[FCombatCapabilities] ActiveWeapon='%s' HasCrystal=%d"),
-               *ActiveWeapon->WeaponEntry.Weapon->WeaponName,
+               *ActiveWeapon->WeaponEntry.Weapon->Name,
                ActiveWeapon->WeaponEntry.HasCrystal());
         Out.bCanAttack = true;
-        Out.ActiveWeaponName = ActiveWeapon->WeaponEntry.Weapon->WeaponName;
+        Out.ActiveWeaponName = ActiveWeapon->WeaponEntry.Weapon->Name;
         Out.WeaponAbilities = ActiveWeapon->GetAllAbilities();
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
@@ -117,7 +117,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
             if (PrimaryRing->RingEntry.Ring)
             {
-                Out.ActiveRingName = PrimaryRing->RingEntry.Ring->RingName;
+                Out.ActiveRingName = PrimaryRing->RingEntry.Ring->Name;
             }
         }
     }
@@ -150,7 +150,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
             if (ActiveRing->RingEntry.Ring)
             {
-                Out.ActiveRingName = ActiveRing->RingEntry.Ring->RingName;
+                Out.ActiveRingName = ActiveRing->RingEntry.Ring->Name;
             }
         }
     }

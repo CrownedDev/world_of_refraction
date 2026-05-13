@@ -700,12 +700,11 @@ void ASkillEffectManagerTestActor::Test_WeaponBonuses()
 		TestActor,
 		TEXT("Iron Sword"),
 		1001,  // WeaponID
-		5,	   // BonusAttack
+		5,	   // BonusRawDamage
 		0,	   // BonusDefense
-		0,	   // BonusMagicPower
-		2,	   // BonusSpeed
-		3.0f,  // BonusCritChance
-		0.0f); // BonusCritDamage
+		0,	   // BonusSpellDamage
+		2,	   // BonusActionSpeed
+		3.0f); // BonusCritChance
 
 	bool bPassed = true;
 
@@ -957,7 +956,7 @@ AActor *ASkillEffectManagerTestActor::CreateTestActor(const FString &Name, int32
 	if (TestActor)
 	{
 		UCharacterDataComponent *CharComp = NewObject<UCharacterDataComponent>(TestActor);
-		// Note: CharacterName comes from CharacterData template, not needed for tests
+		// Note: Name comes from CharacterData template, not needed for tests
 		CharComp->MaxHP = HP;
 		CharComp->CurrentHP = HP;
 		CharComp->MaxEP = EP;

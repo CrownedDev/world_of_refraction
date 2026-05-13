@@ -4,9 +4,12 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "LoadoutComponent.h"
 #include "CharacterDataComponent.h"
+#include "SkillDataBase.h"
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "WeaponAttackData.h"
+#include "WeaponData.h"
+#include "RingData.h"
 #include "ItemData.h"
 #include "TurnManager.h"
 #include "CharacterData.h"
@@ -20,21 +23,32 @@
 
 namespace
 {
-    bool ResolveImmuneFlag(UObject *ActionData)
+    bool ResolveImmuneFlag(UObject *ActionData, AActor *Actor)
     {
-        if (const USpellData *Spell = Cast<USpellData>(ActionData))
+        // Equipment-level immunity (active weapon / active ring on the wielder)
+        bool bEquipmentImmune = false;
+        if (Actor)
         {
-            return Spell->bImmuneToInfusion;
+            if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
+            {
+                if (UWeaponData *Weapon = LC->GetActiveWeapon())
+                {
+                    if (Weapon->bImmuneToInfusion) bEquipmentImmune = true;
+                }
+                if (URingData *Ring = LC->GetActiveRing())
+                {
+                    if (Ring->bImmuneToInfusion) bEquipmentImmune = true;
+                }
+            }
         }
-        if (const UAbilityData *Ability = Cast<UAbilityData>(ActionData))
+
+        // Action-level immunity — single cast to base is sufficient
+        if (const USkillDataBase *Skill = Cast<USkillDataBase>(ActionData))
         {
-            return Ability->bImmuneToInfusion;
+            return bEquipmentImmune || Skill->bImmuneToInfusion;
         }
-        if (const UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ActionData))
-        {
-            return Attack->bImmuneToInfusion;
-        }
-        return false;
+
+        return bEquipmentImmune;
     }
 }
 
@@ -186,8 +200,19 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     {
         // === IMMEDIATE ACTIONS ===
     case EPieMenuCategory::Attack:
-        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, ETargetType::SingleEnemy);
+    {
+        UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ButtonData.DataReference);
+        if (!Attack)
+        {
+            if (ULoadoutComponent *LC = GetLoadoutComponent())
+            {
+                Attack = LC->GetCurrentAttack();
+            }
+        }
+        const ETargetType TT = Attack ? Attack->TargetType : ETargetType::SingleEnemy;
+        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, TT);
         break;
+    }
 
     case EPieMenuCategory::Ability:
     {
@@ -591,7 +616,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilitySubmenu() co
 
         FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
             FString::Printf(TEXT("Ability_%d"), i),
-            FText::FromString(Ability->AbilityName),
+            FText::FromString(Ability->Name),
             EPieMenuCategory::Ability,
             Ability,
             i);
@@ -688,7 +713,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
 
         FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
             FString::Printf(TEXT("Spell_%d"), Index),
-            FText::FromString(Spell->SpellName),
+            FText::FromString(Spell->Name),
             EPieMenuCategory::Spell,
             Spell,
             Index);
@@ -809,7 +834,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
-            const bool bImmune = ResolveImmuneFlag(PendingActionData.Get());
+            const bool bImmune = ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get());
             VFX->SetImmuneToInfusion(bImmune);
 
             VFX->CacheAvailableSources(); // refresh available sources
@@ -873,9 +898,9 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         FString TName = T->GetName();
         if (UCharacterDataComponent *CDC = T->FindComponentByClass<UCharacterDataComponent>())
         {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
-                TName = CDC->CharacterData->CharacterName;
+                TName = CDC->CharacterData->Name;
             }
         }
         UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]     - %s"), *TName);
@@ -944,9 +969,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         FString TargetName = Target->GetName();
         if (UCharacterDataComponent *CDC = Target->FindComponentByClass<UCharacterDataComponent>())
         {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
-                TargetName = CDC->CharacterData->CharacterName;
+                TargetName = CDC->CharacterData->Name;
             }
         }
 
@@ -980,12 +1005,13 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
     // ==================== INFUSION CONTROLS ====================
     // Below targets, minimal buttons. Items skip infusion entirely.
     // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
+    // Equipment-level immunity (active weapon / ring on the wielder) ORs in.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
     //     Pressing it cycles 0 -> 1 -> 2 -> 0.
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
-        !ResolveImmuneFlag(PendingActionData.Get()))
+        !ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get()))
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1078,9 +1104,9 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
         {
             if (UCharacterDataComponent *CDC = User->FindComponentByClass<UCharacterDataComponent>())
             {
-                if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+                if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
                 {
-                    CasterName = CDC->CharacterData->CharacterName;
+                    CasterName = CDC->CharacterData->Name;
                 }
                 else
                 {
@@ -1113,11 +1139,12 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
     // ==================== INFUSION CONTROLS ====================
     // Same block as BuildTargetButtons. Items skip infusion entirely.
     // Actions flagged bImmuneToInfusion also skip — the controls would be inert.
+    // Equipment-level immunity (active weapon / ring on the wielder) ORs in.
     //   - Cycle Level button doubles as the state readout: "<source>: L<n>"
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
     if (PendingActionCategory != EPieMenuCategory::Item &&
-        !ResolveImmuneFlag(PendingActionData.Get()))
+        !ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get()))
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -1278,9 +1305,9 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     {
         if (UCharacterDataComponent *CDC = SelectedTarget->FindComponentByClass<UCharacterDataComponent>())
         {
-            if (CDC->CharacterData && !CDC->CharacterData->CharacterName.IsEmpty())
+            if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
-                TargetName = CDC->CharacterData->CharacterName;
+                TargetName = CDC->CharacterData->Name;
             }
             else
             {

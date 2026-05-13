@@ -104,7 +104,7 @@ void ASpellProjectileTestActor::SpawnWithSpellData()
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Spawning projectile with spell: %s"), *TestSpell->SpellName);
+	UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Spawning projectile with spell: %s"), *TestSpell->Name);
 
 	// Spawn projectile
 	FActorSpawnParameters SpawnParams;

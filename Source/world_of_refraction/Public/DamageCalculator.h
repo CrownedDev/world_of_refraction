@@ -13,8 +13,6 @@
 #include "DamageCalculator.generated.h"
 
 class UCharacterData;
-class USpellData;
-class UAbilityData;
 class UWeaponAttackData;
 class USkillEffectManager;
 class UBrokenDarknessManager;
@@ -178,28 +176,6 @@ public:
 		AActor *Attacker,
 		AActor *Defender,
 		const FDamageCalculationInput &Input);
-
-	/**
-	 * Calculate spell damage
-	 * Convenience wrapper for spell attacks
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Spell")
-	FDamageCalculationResult CalculateSpellDamage(
-		AActor *Caster,
-		AActor *Target,
-		USpellData *Spell,
-		int32 InfusionLevel);
-
-	/**
-	 * Calculate ability damage
-	 * Convenience wrapper for ability attacks
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Ability")
-	FDamageCalculationResult CalculateAbilityDamage(
-		AActor *User,
-		AActor *Target,
-		UAbilityData *Ability,
-		bool bIsInfused);
 
 	/**
 	 * Calculate weapon attack damage
