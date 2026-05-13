@@ -15,6 +15,7 @@
 #include "ECharacterClass.h"
 #include "FCombatLoadout.h"
 #include "FItemLoadoutSlot.h"
+#include "FEquipmentStatBonus.h"
 #include "LoadoutData.h"
 #include "CharacterDataComponent.h"
 #include "LoadoutComponent.generated.h"
@@ -379,6 +380,26 @@ public:
 
     /** Get active ring loadout entry (Resonator) */
     const FRingLoadoutEntry *GetActiveRingLoadout() const;
+
+    // ==================== EQUIPMENT STAT QUERIES ====================
+
+    /** Combined FEquipmentStatBonus for the actor's currently active equipment.
+     *  Per-class resolution:
+     *   - Generic dual weapon: active weapon StatBonus (which is which is gated by bShowPrimary)
+     *   - Generic ring + weapon (primary ring + secondary weapon): both StatBonuses summed
+     *   - Generic weapon-only / ring-only: that one slot only
+     *   - Caster: primary-slot StatBonus only (weapon or ring)
+     *   - Resonator: active-ring StatBonus + primary-weapon StatBonus (if a weapon is equipped)
+     *  Returns a zero-initialized FEquipmentStatBonus if no equipment matches.
+     *  Actor parameter is for caller clarity (always == GetOwner()). */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
+    FEquipmentStatBonus GetActiveStatBonus(AActor *Actor) const;
+
+    /** Evolution crystal slotted in the PRIMARY WEAPON slot only.
+     *  Returns nullptr for: secondary weapon crystal, ring crystal, non-evolution
+     *  crystal in primary weapon, no weapon equipped, or non-Weapon primary slot. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
+    UItemData *GetActivePrimaryEvolutionCrystal(AActor *Actor) const;
 
     /** Find the per-instance crystal entry matching the given holder asset.
      *  Searches primary/secondary weapon entries, primary ring entry, and

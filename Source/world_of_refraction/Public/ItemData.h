@@ -78,7 +78,7 @@ public:
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
 
-        /** Stat modifier mode - Pillar (Mind/Body/Spirit) or SubStats (9 individual stats) */
+        /** Stat modifier mode - Pillar (Mind/Body/Spirit) or SubStats (11 individual stats) */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         EStatModifierMode StatModifierMode = EStatModifierMode::Pillar;

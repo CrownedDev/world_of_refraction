@@ -11,6 +11,8 @@
 #include "WeaponData.h"
 #include "WeaponManager.h"
 #include "CombatGridSubsystem.h"
+#include "LoadoutComponent.h"
+#include "FEquipmentStatBonus.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -35,27 +37,6 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	float RunningDamage = static_cast<float>(Input.BaseDamage);
 
-	// Equipment-side flat damage bonus (persistent stat-mod statuses applied at
-	// equip time by SkillEffectManager::ApplyWeaponBonuses / ApplyRingBonuses).
-	// Added pre-multiplier so it scales with the matching attacker stat.
-	//   Non-Spell → RawDamageBuff/Debuff (from BonusRawDamage)
-	//   Spell     → EffectDamageBuff/Debuff (from BonusSpellDamage)
-	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
-	{
-		if (Input.ActionType != EActionType::Spell)
-		{
-			const float RawBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageBuff);
-			const float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageDebuff);
-			RunningDamage += (RawBuff - RawDebuff);
-		}
-		else
-		{
-			const float EffectBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::EffectDamageBuff);
-			const float EffectDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::EffectDamageDebuff);
-			RunningDamage += (EffectBuff - EffectDebuff);
-		}
-	}
-
 	// Step 1: Attacker's damage multiplier — branched on EActionType.
 	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
 	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
@@ -63,6 +44,28 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
 	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
+
+	// Equipment stat bonus — direct read from the attacker's active loadout.
+	// Replaces the prior RawDamageBuff/EffectDamageBuff status-effect path
+	// (which depended on ApplyWeaponBonuses, never wired in production).
+	// Folded into AttackerMult so each rolled point contributes a small
+	// fractional multiplier rather than flat damage.
+	if (Attacker)
+	{
+		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
+			if (Input.ActionType != EActionType::Spell)
+			{
+				AttackerMult += Bonus.BonusRawDamage * CombatConstants::RAW_DAMAGE_PER_POINT;
+			}
+			else
+			{
+				AttackerMult += Bonus.BonusSpellDamage * CombatConstants::SPELL_DAMAGE_PER_POINT;
+			}
+		}
+	}
+
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
@@ -101,6 +104,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		// Luck-driven crit bonus. Linearly scaled from raw Luck (0.0-LUCK_RAW_MAX)
 		// to consumer cap LUCK_CRIT_BONUS_MAX. Additive on top — matches locked
 		// design where Luck grants extra crit chance ON TOP OF CritChance.
+		// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedSpirit.
+		// CalculateLuck reads the raw asset and ignores the slotted primary
+		// evolution crystal's Spirit pillar modifier.
 		UCharacterData *AttackerData = GetCharacterData(Attacker);
 		if (AttackerData)
 		{
@@ -216,6 +222,9 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionTy
 		return 1.0f;
 	}
 
+	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedMind/Body
+	// once the formula is inlinable here. Calls below read raw asset values that
+	// don't reflect the slotted primary evolution crystal's pillar modifier.
 	if (ActionType == EActionType::Spell)
 	{
 		return Data->CalculateSpellDamage();
@@ -234,9 +243,25 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		return 0;
 	}
 
+	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedBody.
+	// CalculateFlatDefense reads the raw asset and ignores the slotted primary
+	// evolution crystal's Body pillar modifier.
 	int32 BaseDefense = Data->CalculateFlatDefense();
 
-	// Apply status effect modifiers
+	// Equipment stat bonus — flat additive to defense. Direct read from the
+	// defender's active loadout (the bonus is an int rolled per-instance).
+	if (Defender)
+	{
+		if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Defender);
+			BaseDefense += Bonus.BonusDefense;
+		}
+	}
+
+	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin). Kept
+	// separate from the equipment-bonus path above — these are percentage
+	// modifiers applied multiplicatively, while equipment is flat additive.
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
@@ -259,9 +284,23 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 		return DamageConstants::BASE_CRIT_CHANCE;
 	}
 
+	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedMind.
+	// CalculateCritChance reads the raw asset and ignores the slotted primary
+	// evolution crystal's Mind pillar modifier.
 	float BaseCrit = Data->CalculateCritChance();
 
-	// Apply status effect modifiers
+	// Equipment stat bonus — BonusCritChance is already a float percentage,
+	// so divide by 100 to convert to the 0-1 crit-chance space.
+	if (Attacker)
+	{
+		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		{
+			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
+			BaseCrit += Bonus.BonusCritChance / 100.0f;
+		}
+	}
+
+	// Combat-buff/debuff modifiers (from skill casts).
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
@@ -352,6 +391,9 @@ int32 UDamageCalculator::CalculateHealing(
 
 	// Apply healer's SpellDamage multiplier. Healing is a spell-class effect — it
 	// scales with the caster's spell power (Mind), not status-buildup amplification.
+	// TODO: switch to crystal-aware path via UCharacterDataComponent::GetCrystalModifiedMind.
+	// CalculateSpellDamage reads the raw asset and ignores the slotted primary
+	// evolution crystal's Mind pillar modifier.
 	UCharacterData *HealerData = GetCharacterData(Healer);
 	if (HealerData)
 	{
