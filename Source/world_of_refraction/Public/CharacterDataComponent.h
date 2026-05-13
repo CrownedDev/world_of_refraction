@@ -183,13 +183,35 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedSpirit() const;
 
-    /** UCharacterData::CalculateLuck() plus the active loadout's BonusLuck
-     *  contribution, clamped to LUCK_RAW_MAX. Use this in place of
-     *  CharacterData->CalculateLuck() for any consumer that should respect
-     *  equipment-driven Luck bonuses (crit bonus, break skip, dodge, drops).
-     *  Does NOT yet apply crystal pillar modification — that remains a TODO. */
+    /** Crystal-aware Luck: pillar-scaled against GetCrystalModifiedSpirit plus
+     *  the active loadout's BonusLuck contribution, clamped to LUCK_RAW_MAX.
+     *  Use in place of CharacterData->CalculateLuck() for any consumer that
+     *  should respect crystal Spirit modifier AND equipment-driven bonuses
+     *  (crit bonus, break skip, dodge, drops). */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEquipmentModifiedLuck() const;
+
+    /** Crystal-aware derived-stat helpers. Each mirrors the asset's matching
+     *  Calculate* formula shape, but reads GetCrystalModified{Mind,Body,Spirit}
+     *  as the EffectivePillar input. Use these in place of the raw asset
+     *  Calculate* calls anywhere the slotted primary evolution crystal's
+     *  pillar modifier should apply. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedSpellDamage() const;
+
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedRawDamage() const;
+
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedCritChance() const;
+
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    int32 GetCrystalModifiedFlatDefense() const;
+
+    /** Same formula as GetCrystalModifiedSpellDamage — separate entry point
+     *  for clarity at healing call sites (healing scales with spell power). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedSpellDamageForHealing() const;
 
     // ========================================
     // BROKEN DARKNESS STATE
