@@ -197,6 +197,14 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			}
 			break;
 
+		case EActionType::Attack:
+			if (Action.AttackData && !Action.AttackData->MeetsRequirements(CharData))
+			{
+				// Allow with penalty (consistent with Ability/Spell — penalty
+				// is applied inside the damage / energy paths).
+			}
+			break;
+
 		default:
 			break;
 		}
@@ -919,20 +927,26 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		return;
 	}
 
-	// Calculate damage
+	// Calculate damage — strict replace per Phase 4 design: BaseDamage sources
+	// from the attack asset, with the requirement penalty applied before the
+	// character's raw damage multiplier.
+	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
+	float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
 	float DamageMultiplier = AttackerData->CalculateRawDamage();
-	int32 BaseDamage = FMath::RoundToInt(100.0f * DamageMultiplier);
+	int32 BaseDamage = FMath::RoundToInt(AttackBase * DamageMultiplier);
 
 	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-	if (bIsInfused)
-	{
-		// Element-infusion damage penalty removed; energy multiplier + source-
-		// specific costs (durability/HP/status) cover the infusion tax.
 
-		// Spend energy for infused attack
-		int32 InfusionCost = 5; // TODO: from constants
-		SpendEnergy(Attacker, InfusionCost);
-		CurrentExecutionContext->PartialResult.EnergySpent = InfusionCost;
+	// Spend BaseEnergyCost for every attack. The requirement-penalty term raises
+	// the cost the same way it does for abilities. InfusionEnergyCost was
+	// removed in Phase 4 — existing assets whose authors relied on the legacy
+	// 10-energy infusion cost will need BaseEnergyCost set explicitly.
+	if (Attack->BaseEnergyCost > 0)
+	{
+		const float CostF = static_cast<float>(Attack->BaseEnergyCost) * (1.0f + RequirementPenalty);
+		const int32 EnergySpend = FMath::RoundToInt(CostF);
+		SpendEnergy(Attacker, EnergySpend);
+		CurrentExecutionContext->PartialResult.EnergySpent = EnergySpend;
 	}
 
 	// Element

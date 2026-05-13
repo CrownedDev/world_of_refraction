@@ -208,8 +208,19 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     {
         // === IMMEDIATE ACTIONS ===
     case EPieMenuCategory::Attack:
-        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, ETargetType::SingleEnemy);
+    {
+        UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ButtonData.DataReference);
+        if (!Attack)
+        {
+            if (ULoadoutComponent *LC = GetLoadoutComponent())
+            {
+                Attack = LC->GetCurrentAttack();
+            }
+        }
+        const ETargetType TT = Attack ? Attack->TargetType : ETargetType::SingleEnemy;
+        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, TT);
         break;
+    }
 
     case EPieMenuCategory::Ability:
     {

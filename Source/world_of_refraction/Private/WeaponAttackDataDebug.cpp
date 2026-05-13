@@ -46,7 +46,7 @@ FString UWeaponAttackDataDebug::GetAttackStatsString(UWeaponAttackData *Attack)
     FString Output;
 
     Output += TEXT("==========================================\n");
-    Output += FString::Printf(TEXT("ATTACK: %s\n"), *Attack->Name);
+    Output += FString::Printf(TEXT("ATTACK: %s [%s]\n"), *Attack->Name, *Attack->GetTierString());
     Output += TEXT("==========================================\n");
 
     if (!Attack->Description.IsEmpty())
@@ -54,8 +54,17 @@ FString UWeaponAttackDataDebug::GetAttackStatsString(UWeaponAttackData *Attack)
         Output += FString::Printf(TEXT("Description: %s\n"), *Attack->Description);
     }
 
+    // Targeting
+    const UEnum *TargetEnum = StaticEnum<ETargetType>();
+    const FString TargetTypeName = TargetEnum
+                                       ? TargetEnum->GetNameStringByValue(static_cast<int64>(Attack->TargetType))
+                                       : TEXT("Unknown");
+    Output += FString::Printf(TEXT("Target: %s\n"), *TargetTypeName);
+
     // Combat
     Output += TEXT("\nCOMBAT:\n");
+    Output += FString::Printf(TEXT("  Base Damage:    %d\n"), Attack->BaseDamage);
+    Output += FString::Printf(TEXT("  Energy Cost:    %d\n"), Attack->BaseEnergyCost);
     if (Attack->HitCount == 1)
     {
         Output += TEXT("  Hits: 1 (100%)\n");
@@ -69,7 +78,20 @@ FString UWeaponAttackDataDebug::GetAttackStatsString(UWeaponAttackData *Attack)
                                   Attack->GetTotalDamagePercent());
     }
     Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Attack->StatusBuildup);
-    Output += FString::Printf(TEXT("  Infusion Cost: %.0f Energy\n"), Attack->InfusionEnergyCost);
+    Output += FString::Printf(TEXT("  Raw Mode:       %s\n"), Attack->bIsRawMode ? TEXT("Yes") : TEXT("No"));
+    Output += FString::Printf(TEXT("  Immune Infuse:  %s\n"), Attack->bImmuneToInfusion ? TEXT("Yes") : TEXT("No"));
+
+    // Requirements
+    Output += TEXT("\nREQUIREMENTS:\n");
+    if (Attack->Requirements.HasRequirements())
+    {
+        Output += Attack->Requirements.GetSimpleString();
+        Output += TEXT("\n");
+    }
+    else
+    {
+        Output += TEXT("  None\n");
+    }
 
     // Animation
     Output += TEXT("\nANIMATION:\n");
@@ -95,10 +117,12 @@ void UWeaponAttackDataDebug::CompareAttacks(UWeaponAttackData *Attack1, UWeaponA
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20s | %-20s"), TEXT("Property"), *Attack1->Name, *Attack2->Name);
     UE_LOG(LogTemp, Display, TEXT("--------------------------------------------------------------"));
+    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20s | %-20s"), TEXT("Tier"), *Attack1->GetTierString(), *Attack2->GetTierString());
+    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Base Damage"), Attack1->BaseDamage, Attack2->BaseDamage);
+    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Energy Cost"), Attack1->BaseEnergyCost, Attack2->BaseEnergyCost);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Hit Count"), Attack1->HitCount, Attack2->HitCount);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Status Buildup"), Attack1->StatusBuildup, Attack2->StatusBuildup);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.0f%% | %-20.0f%%"), TEXT("Total Damage"), Attack1->GetTotalDamagePercent(), Attack2->GetTotalDamagePercent());
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.0f | %-20.0f"), TEXT("Infusion Cost"), Attack1->InfusionEnergyCost, Attack2->InfusionEnergyCost);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.2fx | %-20.2fx"), TEXT("Anim Speed"), Attack1->BaseAnimSpeed, Attack2->BaseAnimSpeed);
     UE_LOG(LogTemp, Display, TEXT("=========================================="));
 }

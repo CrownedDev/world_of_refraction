@@ -1,25 +1,8 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// SpellData.cpp
+// Spell Data Asset implementation.
 
 #include "SpellData.h"
 #include "CharacterData.h"
-
-// ==================== REQUIREMENT CHECKS ====================
-
-int32 USpellData::GetTotalDeficit(const UCharacterData *Character) const
-{
-    if (!Character)
-        return 0;
-
-    return Requirements.GetTotalDeficit(Character);
-}
-
-float USpellData::CalculateRequirementPenalty(const UCharacterData *Character) const
-{
-    if (!Character)
-        return 0.0f;
-
-    return Requirements.CalculatePenalty(Character);
-}
 
 // ==================== DAMAGE CALCULATIONS ====================
 
@@ -112,6 +95,7 @@ FString USpellData::GetDisplayName(UCharacterData *Caster) const
 {
     return Name;
 }
+
 // ==================== DEFENSE HELPERS ====================
 
 bool USpellData::CanBeBlocked() const
@@ -168,31 +152,10 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    // Validate damage
-    if (BaseDamage < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Damage cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate energy cost
-    if (BaseEnergyCost < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Energy Cost cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate status buildup (only relevant for elemental mode)
+    // Validate status buildup (only relevant for elemental mode; sign handled by ClampMin on base)
     if (!bIsRawMode && StatusBuildup < 0)
     {
         Context.AddError(FText::FromString(TEXT("Status Buildup cannot be negative")));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Validate hit count
-    if (HitCount < 0)
-    {
-        Context.AddError(FText::FromString(TEXT("Hit Count cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 

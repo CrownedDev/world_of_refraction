@@ -245,9 +245,18 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// Build input
 	FDamageCalculationInput Input;
 
-	// Base damage
-	Input.BaseDamage = 100;
+	// Base damage — sourced from the attack asset. Strict replace per Phase 4 design:
+	// no implicit fallback. Attack assets with BaseDamage == 0 deal 0 damage before
+	// weapon-stat bonuses and multipliers.
+	Input.BaseDamage = Attack->BaseDamage;
 	Input.ActionType = EActionType::Attack;
+
+	// Apply requirement penalty (matches Ability/Spell pattern — multiplicative reduction).
+	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
+	if (RequirementPenalty > 0.0f)
+	{
+		Input.BaseDamage = FMath::RoundToInt(static_cast<float>(Input.BaseDamage) * (1.0f - RequirementPenalty));
+	}
 
 	// Attacks are physical unless infused. Per locked design, infused attacks
 	// still scale by RawDamage — the element only affects status routing.
