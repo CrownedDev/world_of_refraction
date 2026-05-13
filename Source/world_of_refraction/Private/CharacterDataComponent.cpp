@@ -541,6 +541,20 @@ float UCharacterDataComponent::GetCrystalModifiedSpellDamageForHealing() const
     return GetCrystalModifiedSpellDamage();
 }
 
+float UCharacterDataComponent::GetCrystalModifiedEfficiencyMultiplier() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const float ModifiedMind = GetCrystalModifiedMind();
+    const int32 TotalPoints = CharacterData->GetTotalEfficiency();
+    return FMath::Clamp(
+        1.0f - (ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT),
+        1.0f - CombatConstants::EFFICIENCY_MAX,
+        1.0f);
+}
+
 void UCharacterDataComponent::DebugToggleWeapon()
 {
     ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;

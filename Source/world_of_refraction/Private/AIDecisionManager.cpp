@@ -754,6 +754,9 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     {
         // Try healing spell first (if we have energy)
         USpellData *HealSpell = FindHealingSpell(Loadout);
+        // TODO: Does not apply CalculateEfficiencyMultiplier or BonusEfficiency —
+        // AI will overestimate energy costs and may skip spells it can actually afford.
+        // Route through ActionExecutor::CalculateActionEnergyCost instead.
         if (HealSpell && CurrentEnergy >= HealSpell->CalculateEnergyCost(CharComp->CharacterData))
         {
             OutAction.ActionType = EActionType::Spell;
@@ -826,6 +829,9 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
     USpellData *CleanseSpell = FindCleanseSpell(Loadout);
     if (CleanseSpell)
     {
+        // TODO: Does not apply CalculateEfficiencyMultiplier or BonusEfficiency —
+        // AI will overestimate energy costs and may skip spells it can actually afford.
+        // Route through ActionExecutor::CalculateActionEnergyCost instead.
         int32 Cost = CleanseSpell->CalculateEnergyCost(CharComp->CharacterData);
         if (CurrentEnergy >= Cost)
         {

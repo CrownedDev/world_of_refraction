@@ -247,7 +247,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
 			// Spell infusion: 1.0x / 1.3x / 1.6x cost
 			float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
-			return FMath::RoundToInt(BaseCost * CostMultiplier);
+			// Efficiency reduction — character substat + equipment BonusEfficiency.
+			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
 		}
 		break;
 
@@ -256,7 +258,11 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		{
 			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 			int32 BaseCost = Action.AbilityData->CalculateEnergyCost(CharData, bIsInfused);
-			return BaseCost;
+			// Efficiency reduction — character substat + equipment BonusEfficiency.
+			// (Pre-existing divergence: this branch still doesn't apply
+			// GetAbilityChargeCostMultiplier — the spend site does. Unchanged here.)
+			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
+			return FMath::RoundToInt(BaseCost * EfficiencyMult);
 		}
 		break;
 
@@ -618,7 +624,10 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Calculate and spend energy
 	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData);
 	float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
+	// Efficiency reduction — character substat + equipment BonusEfficiency.
+	// Mirrors CalculateActionEnergyCost so validation and spend agree.
+	const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Caster);
+	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
 
 	if (!SpendEnergy(Caster, FinalEnergyCost))
 	{
@@ -768,7 +777,10 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 
 	// Apply charge level energy multiplier (L1 = 1.15x, L2 = 1.30x)
 	float CostMultiplier = GetAbilityChargeCostMultiplier(Action.AbilityInfusionLevel);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier);
+	// Efficiency reduction — character substat + equipment BonusEfficiency.
+	// Mirrors CalculateActionEnergyCost so validation and spend agree.
+	const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
+	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
@@ -2893,6 +2905,47 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
 {
 	return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
+}
+
+float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return 1.0f;
+	}
+
+	UCharacterData *CharData = GetCharacterData(Actor);
+	if (!CharData)
+	{
+		return 1.0f;
+	}
+
+	// Character-side multiplier — already clamped to [1 - EFFICIENCY_MAX, 1.0].
+	// Prefers the crystal-aware path on UCharacterDataComponent so the slotted
+	// primary evolution crystal's Mind pillar modifier feeds the curve. Falls
+	// back to the raw asset formula if no component is resolvable (defensive —
+	// shouldn't happen in practice since GetCharacterData already requires it).
+	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	const float CharMult = CharComp
+		? CharComp->GetCrystalModifiedEfficiencyMultiplier()
+		: CharData->CalculateEfficiencyMultiplier();
+
+	// Equipment-side multiplier — mirrors the asset formula shape but reads
+	// BonusEfficiency (capacity points from active loadout) instead of the
+	// character substat. No EffectiveMind multiplication (asset path is
+	// quadratic in points; this is linear). Separately clamped so the two
+	// caps stack multiplicatively rather than fight each other.
+	float EquipmentMult = 1.0f;
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Actor);
+		EquipmentMult = FMath::Clamp(
+			1.0f - (Bonus.BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT),
+			1.0f - CombatConstants::EFFICIENCY_MAX,
+			1.0f);
+	}
+
+	return CharMult * EquipmentMult;
 }
 
 UItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const

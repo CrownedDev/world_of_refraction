@@ -455,6 +455,13 @@ private:
 	 *  (None/Raw/Innate) or when the resolver lookup fails (no equipped ring etc.). */
 	UItemData *ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const;
 
+	/** Combined efficiency multiplier for spell/ability energy costs — character
+	 *  CalculateEfficiencyMultiplier × an equipment BonusEfficiency multiplier
+	 *  (same clamp shape). Returns 1.0f (no reduction) when CharData / Loadout
+	 *  resolution fails. Does NOT apply to attacks (Efficiency explicitly excludes
+	 *  attacks per CombatConstants comment). */
+	float GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor) const;
+
 	// New validation method
 	bool CanUseAbility(AActor *Actor, UAbilityData *Ability) const;
 	bool CanUseSpell(AActor *Actor, USpellData *Spell) const;
