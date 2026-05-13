@@ -307,11 +307,11 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
                 VFX->ActivateCurrentSource();
             }
         }
-        // Re-broadcast picker with updated label
+        // Re-broadcast picker with updated label — preserve original shape
+        // (group confirm vs per-actor) via RebuildCurrentPicker.
         if (CurrentDepth == ECombatMenuDepth::TargetSelection)
         {
-            const TArray<AActor *> Targets = ResolveTargets(PendingTargetType);
-            OnCommandMenuReady.Broadcast(BuildTargetButtons(Targets));
+            OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
         }
         break;
     }
@@ -322,11 +322,11 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         {
             VFX->CycleInfusionLevel();
         }
-        // Re-broadcast picker with updated label
+        // Re-broadcast picker with updated label — preserve original shape
+        // (group confirm vs per-actor) via RebuildCurrentPicker.
         if (CurrentDepth == ECombatMenuDepth::TargetSelection)
         {
-            const TArray<AActor *> Targets = ResolveTargets(PendingTargetType);
-            OnCommandMenuReady.Broadcast(BuildTargetButtons(Targets));
+            OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
         }
         break;
     }
@@ -1212,6 +1212,21 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
 
     Buttons.Add(FPieMenuButtonData::MakeBackButton());
     return Buttons;
+}
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::RebuildCurrentPicker() const
+{
+    const TArray<AActor *> Targets = ResolveTargets(PendingTargetType);
+    switch (PendingTargetType)
+    {
+    case ETargetType::Self:
+    case ETargetType::AllEnemies:
+    case ETargetType::AllAllies:
+    case ETargetType::Everyone:
+        return BuildGroupTargetButtons(PendingTargetType, Targets);
+    default:
+        return BuildTargetButtons(Targets);
+    }
 }
 
 TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetType) const

@@ -177,6 +177,12 @@ private:
     void OpenTargetSelection(EPieMenuCategory ActionCategory, const FPieMenuButtonData &ActionButton, ETargetType TargetType);
     TArray<FPieMenuButtonData> BuildTargetButtons(const TArray<AActor *> &Targets) const;
     TArray<FPieMenuButtonData> BuildGroupTargetButtons(ETargetType TargetType, const TArray<AActor *> &Targets) const;
+    /** Rebuild the active target picker using PendingTargetType to pick between
+     *  the per-actor picker (single targets) and the group confirm picker
+     *  (auto-resolve targets: Self / AllEnemies / AllAllies / Everyone).
+     *  Called when an infusion control mutates state and the picker needs to
+     *  re-broadcast with the same shape it was opened with. */
+    TArray<FPieMenuButtonData> RebuildCurrentPicker() const;
     TArray<AActor *> ResolveTargets(ETargetType TargetType) const;
     void ConfirmActionWithTarget(AActor *SelectedTarget);
     void ConfirmActionWithTargets(const TArray<AActor *> &SelectedTargets);
