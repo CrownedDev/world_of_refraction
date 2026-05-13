@@ -32,7 +32,10 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
 {
     GENERATED_BODY()
 
-    // ==================== BONUS FIELDS (13) ====================
+    // ==================== BONUS FIELDS (16) ====================
+    // 13 capacity-point fields (counted by GetTotalSpent against tier budget)
+    // plus 3 pillar percent fields (designer-tuned, NOT counted in tier budget;
+    // see GetTotalSpent comment).
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
     int32 BonusRawDamage = 0;
@@ -72,6 +75,24 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
     int32 BonusLuck = 0;
+
+    // ==================== PILLAR PERCENT BONUSES (3) ====================
+    // Multiplicative percent layered on top of crystal pillar modifiers via
+    // UCharacterDataComponent::GetCrystalModified{Mind,Body,Spirit}.
+    // Per-slot range: -15% to +15%. Negative values supported (cursed gear /
+    // set-bonus tradeoffs). Multi-slot summing applies — see
+    // ULoadoutComponent::GetActiveStatBonus for class-specific stacking rules.
+    // NOT counted toward tier capacity-spent points — designer-tuned per-asset.
+    // See CombatConstants::PILLAR_MODIFIER_MIN/MAX (literals must mirror).
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Pillar", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
+    float BonusMindModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Pillar", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
+    float BonusBodyModifierPercent = 0.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Pillar", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
+    float BonusSpiritModifierPercent = 0.0f;
 
     // ==================== MASTERY / ROLL STATE ====================
 

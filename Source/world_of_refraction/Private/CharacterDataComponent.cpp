@@ -346,9 +346,15 @@ bool UCharacterDataComponent::HasUsableEPTarget() const
 
 namespace
 {
-    /** Shared body for the three GetCrystalModifiedX helpers. Looks up the
-     *  primary-weapon-slot evolution crystal via the loadout, then applies
-     *  UItemData's Pillar/SubStats modifier to the supplied base value. */
+    /** Shared body for the three GetCrystalModifiedX helpers. Layers TWO
+     *  pillar-modifier sources on top of the supplied base value:
+     *   1. Crystal — primary-weapon-slot evolution crystal's Pillar/SubStats
+     *      modifier via UItemData::CalculateModified{Mind,Body,Spirit}.
+     *   2. Equipment — active loadout's BonusMindModifierPercent /
+     *      BonusBodyModifierPercent / BonusSpiritModifierPercent, applied
+     *      multiplicatively after the crystal layer.
+     *  Either layer is independently optional; if no crystal is slotted the
+     *  equipment percent still applies. */
     enum class ECrystalPillar : uint8 { Mind, Body, Spirit };
 
     float ApplyCrystalPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
@@ -362,18 +368,38 @@ namespace
         {
             return BaseValue;
         }
-        UItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner);
-        if (!Crystal || !Crystal->bIsEvolutionCrystal)
+
+        // Crystal layer — read pillar percent directly from the crystal's
+        // StatBonus (the new canonical authoring surface; old CalculateModified*
+        // helpers were removed in the StatBonus migration).
+        float Result = BaseValue;
+        if (UItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
         {
-            return BaseValue;
+            if (Crystal->bIsEvolutionCrystal)
+            {
+                float CrystalPercent = 0.0f;
+                switch (Pillar)
+                {
+                case ECrystalPillar::Mind:   CrystalPercent = Crystal->StatBonus.BonusMindModifierPercent;   break;
+                case ECrystalPillar::Body:   CrystalPercent = Crystal->StatBonus.BonusBodyModifierPercent;   break;
+                case ECrystalPillar::Spirit: CrystalPercent = Crystal->StatBonus.BonusSpiritModifierPercent; break;
+                }
+                Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
         }
+
+        // Equipment layer — multiplicative percent on top of the crystal layer.
+        const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+        float EquipmentPercent = 0.0f;
         switch (Pillar)
         {
-        case ECrystalPillar::Mind:   return Crystal->CalculateModifiedMind(BaseValue);
-        case ECrystalPillar::Body:   return Crystal->CalculateModifiedBody(BaseValue);
-        case ECrystalPillar::Spirit: return Crystal->CalculateModifiedSpirit(BaseValue);
+        case ECrystalPillar::Mind:   EquipmentPercent = Bonus.BonusMindModifierPercent;   break;
+        case ECrystalPillar::Body:   EquipmentPercent = Bonus.BonusBodyModifierPercent;   break;
+        case ECrystalPillar::Spirit: EquipmentPercent = Bonus.BonusSpiritModifierPercent; break;
         }
-        return BaseValue;
+        Result *= (1.0f + EquipmentPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+
+        return Result;
     }
 }
 

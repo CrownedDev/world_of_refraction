@@ -1866,19 +1866,22 @@ namespace
      *  read-only snapshot consumed by stat queries, not a roll target. */
     void AccumulateBonus(FEquipmentStatBonus &Out, const FEquipmentStatBonus &In)
     {
-        Out.BonusRawDamage        += In.BonusRawDamage;
-        Out.BonusSpellDamage      += In.BonusSpellDamage;
-        Out.BonusEfficiency       += In.BonusEfficiency;
-        Out.BonusStatusMultiplier += In.BonusStatusMultiplier;
-        Out.BonusCritChance       += In.BonusCritChance;
-        Out.BonusSpellSpeed       += In.BonusSpellSpeed;
-        Out.BonusDefense          += In.BonusDefense;
-        Out.BonusActionSpeed      += In.BonusActionSpeed;
-        Out.BonusMaxHP            += In.BonusMaxHP;
-        Out.BonusMaxEnergy        += In.BonusMaxEnergy;
-        Out.BonusResistance       += In.BonusResistance;
-        Out.BonusTurnSpeed        += In.BonusTurnSpeed;
-        Out.BonusLuck             += In.BonusLuck;
+        Out.BonusRawDamage             += In.BonusRawDamage;
+        Out.BonusSpellDamage           += In.BonusSpellDamage;
+        Out.BonusEfficiency            += In.BonusEfficiency;
+        Out.BonusStatusMultiplier      += In.BonusStatusMultiplier;
+        Out.BonusCritChance            += In.BonusCritChance;
+        Out.BonusSpellSpeed            += In.BonusSpellSpeed;
+        Out.BonusDefense               += In.BonusDefense;
+        Out.BonusActionSpeed           += In.BonusActionSpeed;
+        Out.BonusMaxHP                 += In.BonusMaxHP;
+        Out.BonusMaxEnergy             += In.BonusMaxEnergy;
+        Out.BonusResistance            += In.BonusResistance;
+        Out.BonusTurnSpeed             += In.BonusTurnSpeed;
+        Out.BonusLuck                  += In.BonusLuck;
+        Out.BonusMindModifierPercent   += In.BonusMindModifierPercent;
+        Out.BonusBodyModifierPercent   += In.BonusBodyModifierPercent;
+        Out.BonusSpiritModifierPercent += In.BonusSpiritModifierPercent;
     }
 }
 

@@ -330,21 +330,21 @@ public:
 	float GetEffectiveMind() const
 	{
 		int32 BaseMind = GetBaseMind();
-		return BaseMind * (1.0f + WorldMindLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
+		return BaseMind * (1.0f + WorldMindLevel * CombatConstants::WORLD_MIND_SCALING_BONUS);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveBody() const
 	{
 		int32 BaseBody = GetBaseBody();
-		return BaseBody * (1.0f + WorldBodyLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
+		return BaseBody * (1.0f + WorldBodyLevel * CombatConstants::WORLD_BODY_SCALING_BONUS);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveSpirit() const
 	{
 		int32 BaseSpirit = GetBaseSpirit();
-		return BaseSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_STAT_SCALING_BONUS);
+		return BaseSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_SPIRIT_SCALING_BONUS);
 	}
 
 	// ==================== MIND CALCULATIONS ====================

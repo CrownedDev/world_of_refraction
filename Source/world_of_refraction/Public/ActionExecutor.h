@@ -449,6 +449,12 @@ private:
 
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 
+	/** Resolve the source crystal UItemData* for the given action's infusion source.
+	 *  Mirrors GetElementForSourceOption's dispatch shape — returns the crystal
+	 *  rather than its element. Returns nullptr for non-crystal sources
+	 *  (None/Raw/Innate) or when the resolver lookup fails (no equipped ring etc.). */
+	UItemData *ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const;
+
 	// New validation method
 	bool CanUseAbility(AActor *Actor, UAbilityData *Ability) const;
 	bool CanUseSpell(AActor *Actor, USpellData *Spell) const;
