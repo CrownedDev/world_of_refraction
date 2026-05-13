@@ -4172,8 +4172,12 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 
 	if (PrimaryEvolutionCrystal && PrimaryEvolutionCrystal->bIsEvolutionCrystal)
 	{
-		// Authored stats apply at full magnitude.
-		Result.Accumulate(PrimaryEvolutionCrystal->GetActionModifiers(1.0f));
+		// TODO: Apply Crystal->StatBonus persistent bonuses via the equipment-bonus
+		// channel (ApplyCrystalPillarModifier for the pillar percent fields;
+		// per-action substat flow for primary-slotted crystals is GONE in the
+		// StatBonus migration — substat values now apply via infusion only,
+		// see GetInfusionStatModifiers below). This block previously called
+		// GetActionModifiers(1.0f) which mixed both channels.
 
 		// If the slotted Evolution crystal is Reality-element, add the slotted bonus.
 		if (PrimaryEvolutionCrystal->GetAssociatedElement() == ESpellElement::Reality)
@@ -4209,7 +4213,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		// if (InfusionCrystal && InfusionCrystal->bIsEvolutionCrystal)
 		// {
 		//     const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
-		//     Result.Accumulate(InfusionCrystal->GetActionModifiers(InfusionMultiplier));
+		//     Result.Accumulate(InfusionCrystal->GetInfusionStatModifiers(InfusionMultiplier));
 		// }
 	}
 

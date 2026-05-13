@@ -5,6 +5,7 @@
 #include "ItemConstants.h"
 #include "SpellData.h"
 #include "DurabilityConstants.h"
+#include "CombatConstants.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -602,41 +603,46 @@ int32 UItemData::GetSecondaryDuration() const
 }
 
 // ==================== STAT MODIFIER FUNCTIONS ====================
+// All read from StatBonus (the new canonical authoring surface). The prior
+// inverted bIsEvolutionCrystal guards have been corrected — these are
+// evolution-only concepts and now return non-empty results when the crystal
+// is an evolution crystal with non-zero modifiers.
 
 bool UItemData::HasStatModifiers() const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return false;
     }
-    return MindModifierPercent != 0.0f ||
-           BodyModifierPercent != 0.0f ||
-           SpiritModifierPercent != 0.0f;
+    return StatBonus.BonusMindModifierPercent != 0.0f ||
+           StatBonus.BonusBodyModifierPercent != 0.0f ||
+           StatBonus.BonusSpiritModifierPercent != 0.0f ||
+           StatBonus.GetTotalSpent() != 0;
 }
 
 FString UItemData::GetStatModifierSummary() const
 {
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return TEXT("");
     }
 
     TArray<FString> Modifiers;
 
-    if (MindModifierPercent != 0.0f)
+    if (StatBonus.BonusMindModifierPercent != 0.0f)
     {
-        FString Sign = MindModifierPercent > 0 ? TEXT("+") : TEXT("");
-        Modifiers.Add(FString::Printf(TEXT("Mind %s%.0f%%"), *Sign, MindModifierPercent));
+        const FString Sign = StatBonus.BonusMindModifierPercent > 0 ? TEXT("+") : TEXT("");
+        Modifiers.Add(FString::Printf(TEXT("Mind %s%.0f%%"), *Sign, StatBonus.BonusMindModifierPercent));
     }
-    if (BodyModifierPercent != 0.0f)
+    if (StatBonus.BonusBodyModifierPercent != 0.0f)
     {
-        FString Sign = BodyModifierPercent > 0 ? TEXT("+") : TEXT("");
-        Modifiers.Add(FString::Printf(TEXT("Body %s%.0f%%"), *Sign, BodyModifierPercent));
+        const FString Sign = StatBonus.BonusBodyModifierPercent > 0 ? TEXT("+") : TEXT("");
+        Modifiers.Add(FString::Printf(TEXT("Body %s%.0f%%"), *Sign, StatBonus.BonusBodyModifierPercent));
     }
-    if (SpiritModifierPercent != 0.0f)
+    if (StatBonus.BonusSpiritModifierPercent != 0.0f)
     {
-        FString Sign = SpiritModifierPercent > 0 ? TEXT("+") : TEXT("");
-        Modifiers.Add(FString::Printf(TEXT("Spirit %s%.0f%%"), *Sign, SpiritModifierPercent));
+        const FString Sign = StatBonus.BonusSpiritModifierPercent > 0 ? TEXT("+") : TEXT("");
+        Modifiers.Add(FString::Printf(TEXT("Spirit %s%.0f%%"), *Sign, StatBonus.BonusSpiritModifierPercent));
     }
 
     if (Modifiers.Num() == 0)
@@ -649,17 +655,17 @@ FString UItemData::GetStatModifierSummary() const
 
 float UItemData::GetMindModifierPercent() const
 {
-    return (bIsEvolutionCrystal) ? MindModifierPercent : 0.0f;
+    return bIsEvolutionCrystal ? StatBonus.BonusMindModifierPercent : 0.0f;
 }
 
 float UItemData::GetBodyModifierPercent() const
 {
-    return (bIsEvolutionCrystal) ? BodyModifierPercent : 0.0f;
+    return bIsEvolutionCrystal ? StatBonus.BonusBodyModifierPercent : 0.0f;
 }
 
 float UItemData::GetSpiritModifierPercent() const
 {
-    return (bIsEvolutionCrystal) ? SpiritModifierPercent : 0.0f;
+    return bIsEvolutionCrystal ? StatBonus.BonusSpiritModifierPercent : 0.0f;
 }
 
 // ==================== EVOLUTION HELPER FUNCTIONS ====================
@@ -693,88 +699,15 @@ FString UItemData::GetEvolutionStatSummary() const
         return TEXT("N/A");
     }
 
-    TArray<FString> Modifiers;
-
-    if (StatModifierMode == EStatModifierMode::Pillar)
-    {
-        if (MindModifierPercent != 0.0f)
-        {
-            FString Sign = MindModifierPercent > 0 ? TEXT("+") : TEXT("");
-            Modifiers.Add(FString::Printf(TEXT("Mind %s%.0f%%"), *Sign, MindModifierPercent));
-        }
-        if (BodyModifierPercent != 0.0f)
-        {
-            FString Sign = BodyModifierPercent > 0 ? TEXT("+") : TEXT("");
-            Modifiers.Add(FString::Printf(TEXT("Body %s%.0f%%"), *Sign, BodyModifierPercent));
-        }
-        if (SpiritModifierPercent != 0.0f)
-        {
-            FString Sign = SpiritModifierPercent > 0 ? TEXT("+") : TEXT("");
-            Modifiers.Add(FString::Printf(TEXT("Spirit %s%.0f%%"), *Sign, SpiritModifierPercent));
-        }
-    }
-    else
-    {
-        auto AddMod = [&](const TCHAR *Name, float Value)
-        {
-            if (Value != 0.0f)
-            {
-                FString Sign = Value > 0 ? TEXT("+") : TEXT("");
-                Modifiers.Add(FString::Printf(TEXT("%s %s%.0f%%"), Name, *Sign, Value));
-            }
-        };
-
-        AddMod(TEXT("Efficiency"), EfficiencyModifierPercent);
-        AddMod(TEXT("Spell Damage"), SpellDamageModifierPercent);
-        AddMod(TEXT("Status Multiplier"), StatusMultiplierModifierPercent);
-        AddMod(TEXT("Crit Chance"), CritChanceModifierPercent);
-        AddMod(TEXT("Spell Speed"), SpellSpeedModifierPercent);
-        AddMod(TEXT("Defense"), DefenseModifierPercent);
-        AddMod(TEXT("Action Speed"), ActionSpeedModifierPercent);
-        AddMod(TEXT("Raw Damage"), RawDamageModifierPercent);
-        AddMod(TEXT("Resistance"), ResistanceModifierPercent);
-        AddMod(TEXT("Turn Speed"), TurnSpeedModifierPercent);
-        AddMod(TEXT("Luck"), LuckModifierPercent);
-    }
-
-    if (Modifiers.Num() == 0)
-    {
-        return TEXT("No stat changes");
-    }
-
-    return FString::Join(Modifiers, TEXT(", "));
+    // SubStats authoring mode has been removed — the 11 substat percent fields
+    // were dropped in the StatBonus migration. Only the three pillar percent
+    // fields remain, sourced from StatBonus.
+    return GetStatModifierSummary();
 }
 
 // ==================== STAT CALCULATION ====================
 
-float UItemData::CalculateModifiedMind(float BaseMind) const
-{
-    if (!bIsEvolutionCrystal)
-    {
-        return BaseMind;
-    }
-    return BaseMind * (1.0f + MindModifierPercent / 100.0f);
-}
-
-float UItemData::CalculateModifiedBody(float BaseBody) const
-{
-    if (!bIsEvolutionCrystal)
-    {
-        return BaseBody;
-    }
-    return BaseBody * (1.0f + BodyModifierPercent / 100.0f);
-}
-
-float UItemData::CalculateModifiedSpirit(float BaseSpirit) const
-{
-    if (!bIsEvolutionCrystal)
-    {
-        return BaseSpirit;
-    }
-    return BaseSpirit * (1.0f + SpiritModifierPercent / 100.0f);
-}
-
-FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
+FActionStatModifiers UItemData::GetInfusionStatModifiers(float InfusionMultiplier) const
 {
     FActionStatModifiers Out;
 
@@ -783,32 +716,26 @@ FActionStatModifiers UItemData::GetActionModifiers(float Multiplier) const
         return Out;
     }
 
-    if (StatModifierMode == EStatModifierMode::Pillar)
-    {
-        Out.AddPillarPercent(
-            MindModifierPercent * Multiplier,
-            BodyModifierPercent * Multiplier,
-            SpiritModifierPercent * Multiplier);
-    }
-    else
-    {
-        // SubStats mode — 11 explicit fields map 1:1 to FActionStatModifiers.
-        // Field names match between UItemData and FActionStatModifiers, so no
-        // re-mapping is needed. Pool stats (MaxHealth, MaxEnergy) deliberately
-        // not authored here — they belong to the future Traits system as
-        // conditional/triggered effects rather than always-on UItemData fields.
-        Out.Efficiency = EfficiencyModifierPercent * Multiplier;
-        Out.SpellDamage = SpellDamageModifierPercent * Multiplier;
-        Out.StatusMultiplier = StatusMultiplierModifierPercent * Multiplier;
-        Out.CritChance = CritChanceModifierPercent * Multiplier;
-        Out.SpellSpeed = SpellSpeedModifierPercent * Multiplier;
-        Out.Defense = DefenseModifierPercent * Multiplier;
-        Out.ActionSpeed = ActionSpeedModifierPercent * Multiplier;
-        Out.RawDamage = RawDamageModifierPercent * Multiplier;
-        Out.Resistance = ResistanceModifierPercent * Multiplier;
-        Out.TurnSpeed = TurnSpeedModifierPercent * Multiplier;
-        Out.Luck = LuckModifierPercent * Multiplier;
-    }
+    // Map StatBonus int fields 1:1 onto FActionStatModifiers, scaled by the
+    // infusion magnitude (L1 = 0.5, L2 = 1.0). Int values are interpreted as
+    // percentages at this boundary — numerically equivalent to the old SubStats
+    // authoring path, just integer-typed.
+    //
+    // NOT applied here:
+    //  - Pillar percent (BonusMind/Body/SpiritModifierPercent) — character-
+    //    persistent via UCharacterDataComponent::ApplyCrystalPillarModifier.
+    //  - PassiveEffects — character-only via a separate system.
+    Out.Efficiency       = StatBonus.BonusEfficiency        * InfusionMultiplier;
+    Out.SpellDamage      = StatBonus.BonusSpellDamage       * InfusionMultiplier;
+    Out.StatusMultiplier = StatBonus.BonusStatusMultiplier  * InfusionMultiplier;
+    Out.CritChance       = StatBonus.BonusCritChance        * InfusionMultiplier;
+    Out.SpellSpeed       = StatBonus.BonusSpellSpeed        * InfusionMultiplier;
+    Out.Defense          = StatBonus.BonusDefense           * InfusionMultiplier;
+    Out.ActionSpeed      = StatBonus.BonusActionSpeed       * InfusionMultiplier;
+    Out.RawDamage        = StatBonus.BonusRawDamage         * InfusionMultiplier;
+    Out.Resistance       = StatBonus.BonusResistance        * InfusionMultiplier;
+    Out.TurnSpeed        = StatBonus.BonusTurnSpeed         * InfusionMultiplier;
+    Out.Luck             = StatBonus.BonusLuck              * InfusionMultiplier;
 
     return Out;
 }
@@ -819,7 +746,10 @@ TArray<FPassiveEffect> UItemData::GetAlwaysActivePassives() const
 {
     TArray<FPassiveEffect> Result;
 
-    if (bIsEvolutionCrystal)
+    // PassiveEffects is authored only on evolution crystals (EditCondition gated
+    // in the header). The guard now correctly returns the filtered list for
+    // evolution crystals and empty for anything else.
+    if (!bIsEvolutionCrystal)
     {
         return Result;
     }
@@ -839,7 +769,7 @@ TArray<FPassiveEffect> UItemData::GetTriggeredPassives() const
 {
     TArray<FPassiveEffect> Result;
 
-    if (bIsEvolutionCrystal)
+    if (!bIsEvolutionCrystal)
     {
         return Result;
     }
@@ -895,6 +825,27 @@ void UItemData::PostLoad()
         if (TierMax > 0)
         {
             MaxDurability = TierMax;
+        }
+    }
+
+    // Migration: copy legacy pillar percent fields into StatBonus.
+    // Triggered only when StatBonus is still default-zero — once an asset is
+    // re-saved through the new authoring surface, legacy values are no longer
+    // the source of truth. Legacy fields are scheduled for removal after the
+    // content team confirms every crystal has been re-saved.
+    if (bIsEvolutionCrystal)
+    {
+        if (StatBonus.BonusMindModifierPercent == 0.0f && MindModifierPercent != 0.0f)
+        {
+            StatBonus.BonusMindModifierPercent = MindModifierPercent;
+        }
+        if (StatBonus.BonusBodyModifierPercent == 0.0f && BodyModifierPercent != 0.0f)
+        {
+            StatBonus.BonusBodyModifierPercent = BodyModifierPercent;
+        }
+        if (StatBonus.BonusSpiritModifierPercent == 0.0f && SpiritModifierPercent != 0.0f)
+        {
+            StatBonus.BonusSpiritModifierPercent = SpiritModifierPercent;
         }
     }
 }
@@ -1141,6 +1092,61 @@ EDataValidationResult UItemData::IsDataValid(FDataValidationContext &Context) co
     {
         Context.AddError(FText::FromString(TEXT("Computed damage value is negative")));
         Result = EDataValidationResult::Invalid;
+    }
+
+    // Evolution crystal StatBonus range warnings — the embedded FEquipmentStatBonus
+    // struct's UPROPERTY meta clamps are baked at ClampMin=0 (intended for
+    // weapons/rings) and can't be overridden at the embedding site. Crystals
+    // permit negative values down to CRYSTAL_BONUS_MIN; we surface out-of-range
+    // authoring here as warnings rather than enforcing in the editor UI.
+    if (bIsEvolutionCrystal)
+    {
+        auto WarnIntOutOfRange = [&](const TCHAR *FieldName, int32 Value)
+        {
+            if (Value < CombatConstants::CRYSTAL_BONUS_MIN || Value > CombatConstants::CRYSTAL_BONUS_MAX)
+            {
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("StatBonus.%s = %d is outside [%d, %d] — clamp not enforced for crystals; please correct manually."),
+                    FieldName, Value,
+                    CombatConstants::CRYSTAL_BONUS_MIN, CombatConstants::CRYSTAL_BONUS_MAX)));
+            }
+        };
+        WarnIntOutOfRange(TEXT("BonusRawDamage"),        StatBonus.BonusRawDamage);
+        WarnIntOutOfRange(TEXT("BonusSpellDamage"),      StatBonus.BonusSpellDamage);
+        WarnIntOutOfRange(TEXT("BonusEfficiency"),       StatBonus.BonusEfficiency);
+        WarnIntOutOfRange(TEXT("BonusStatusMultiplier"), StatBonus.BonusStatusMultiplier);
+        WarnIntOutOfRange(TEXT("BonusSpellSpeed"),       StatBonus.BonusSpellSpeed);
+        WarnIntOutOfRange(TEXT("BonusDefense"),          StatBonus.BonusDefense);
+        WarnIntOutOfRange(TEXT("BonusActionSpeed"),      StatBonus.BonusActionSpeed);
+        WarnIntOutOfRange(TEXT("BonusMaxHP"),            StatBonus.BonusMaxHP);
+        WarnIntOutOfRange(TEXT("BonusMaxEnergy"),        StatBonus.BonusMaxEnergy);
+        WarnIntOutOfRange(TEXT("BonusResistance"),       StatBonus.BonusResistance);
+        WarnIntOutOfRange(TEXT("BonusTurnSpeed"),        StatBonus.BonusTurnSpeed);
+        WarnIntOutOfRange(TEXT("BonusLuck"),             StatBonus.BonusLuck);
+
+        // BonusCritChance is float; cast for the int-domain comparison.
+        if (StatBonus.BonusCritChance < CombatConstants::CRYSTAL_BONUS_MIN ||
+            StatBonus.BonusCritChance > CombatConstants::CRYSTAL_BONUS_MAX)
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("StatBonus.BonusCritChance = %.2f is outside [%d, %d]."),
+                StatBonus.BonusCritChance,
+                CombatConstants::CRYSTAL_BONUS_MIN, CombatConstants::CRYSTAL_BONUS_MAX)));
+        }
+
+        auto WarnPillarOutOfRange = [&](const TCHAR *FieldName, float Value)
+        {
+            if (Value < CombatConstants::PILLAR_MODIFIER_MIN || Value > CombatConstants::PILLAR_MODIFIER_MAX)
+            {
+                Context.AddWarning(FText::FromString(FString::Printf(
+                    TEXT("StatBonus.%s = %.2f is outside [%.1f, %.1f]."),
+                    FieldName, Value,
+                    CombatConstants::PILLAR_MODIFIER_MIN, CombatConstants::PILLAR_MODIFIER_MAX)));
+            }
+        };
+        WarnPillarOutOfRange(TEXT("BonusMindModifierPercent"),   StatBonus.BonusMindModifierPercent);
+        WarnPillarOutOfRange(TEXT("BonusBodyModifierPercent"),   StatBonus.BonusBodyModifierPercent);
+        WarnPillarOutOfRange(TEXT("BonusSpiritModifierPercent"), StatBonus.BonusSpiritModifierPercent);
     }
 
     return Result;

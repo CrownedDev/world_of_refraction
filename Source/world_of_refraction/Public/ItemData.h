@@ -24,8 +24,8 @@
 #include "PassiveEffect.h"
 #include "NiagaraSystem.h"
 #include "EEvolutionType.h"
-#include "EStatModifierMode.h"
 #include "ActionStatModifiers.h"
+#include "FEquipmentStatBonus.h"
 #include "ItemData.generated.h"
 
 class USpellData;
@@ -78,85 +78,6 @@ public:
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
 
-        /** Stat modifier mode - Pillar (Mind/Body/Spirit) or SubStats (11 individual stats) */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
-                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
-        EStatModifierMode StatModifierMode = EStatModifierMode::Pillar;
-
-        // ==================== SUB-STAT MODIFIERS (Evolution only, SubStats mode) ====================
-        // Field names match FActionStatModifiers / CharacterData 1:1. Pool stats
-        // (MaxHealth, MaxEnergy) deliberately not authored here — they belong to
-        // the future Traits system as conditional/triggered effects.
-
-        /** Mind sub-stats (5) — matches CharacterData order: Efficiency, SpellDamage, StatusMultiplier, CritChance, SpellSpeed */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float EfficiencyModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float SpellDamageModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float StatusMultiplierModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float CritChanceModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Mind",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float SpellSpeedModifierPercent = 0.0f;
-
-        /** Body sub-stats (3) — MaxHealth excluded (pool stat) */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float DefenseModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float ActionSpeedModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Body",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float RawDamageModifierPercent = 0.0f;
-
-        /** Spirit sub-stats (3) — MaxEnergy excluded (pool stat) */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float ResistanceModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float TurnSpeedModifierPercent = 0.0f;
-
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System|SubStats|Spirit",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal && StatModifierMode == EStatModifierMode::SubStats",
-                          EditConditionHides))
-        float LuckModifierPercent = 0.0f;
-
         // ==================== DURABILITY ====================
         // Only meaningful for refined crystals. Unrefined crystals are consumables
         // and don't track durability. Evolution crystals are immune (set bImmuneToBreaking).
@@ -174,24 +95,41 @@ public:
                   meta = (EditCondition = "bIsRefined", EditConditionHides))
         bool bImmuneToBreaking = false;
 
-        // ==================== STAT MODIFIERS (Evolution only) ====================
-
-        /** Mind stat modifier percentage (affects Cost Reduction, Turn Speed, Crit Chance) */
+        // ==================== STAT BONUS (Evolution only) ====================
+        // Authoring surface for evolution crystal stat modifiers. Replaces the
+        // legacy MindModifierPercent / BodyModifierPercent / SpiritModifierPercent
+        // pillar percent fields and the entire SubStats authoring mode.
+        //
+        // READ PATHS:
+        //  - Pillar percent (BonusMindModifierPercent etc.): consumed directly by
+        //    UCharacterDataComponent::ApplyCrystalPillarModifier — NOT aggregated
+        //    by ULoadoutComponent::GetActiveStatBonus.
+        //  - Int substat fields (BonusRawDamage etc.): consumed by
+        //    UItemData::GetInfusionStatModifiers when the crystal is infusing,
+        //    scaled by the infusion magnitude (L1=0.5, L2=1.0).
+        //
+        // CLAMP NOTE: The struct's int fields have UPROPERTY meta ClampMin=0
+        // (designed for weapons/rings). Crystals support negative values down
+        // to CombatConstants::CRYSTAL_BONUS_MIN; the UI clamp can't be
+        // overridden at the embedding site, so out-of-range values are caught
+        // by UItemData::IsDataValid warnings rather than UI enforcement.
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+        FEquipmentStatBonus StatBonus;
+
+        // ==================== LEGACY PILLAR FIELDS (Deprecated) ====================
+        // Kept for one transition release to support PostLoad migration of
+        // existing crystal assets. Values are copied into StatBonus on load.
+        // Scheduled for removal in a follow-up commit after content team
+        // confirms all assets have been re-saved.
+
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusMindModifierPercent instead — PostLoad migrates legacy values."))
         float MindModifierPercent = 0.0f;
 
-        /** Body stat modifier percentage (affects Defense, Attack Speed, Raw Damage) */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusBodyModifierPercent instead — PostLoad migrates legacy values."))
         float BodyModifierPercent = 0.0f;
 
-        /** Spirit stat modifier percentage (affects Effect Damage, Resistance, Spell Size) */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
-                  meta = (ClampMin = "-50", ClampMax = "50",
-                          EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusSpiritModifierPercent instead — PostLoad migrates legacy values."))
         float SpiritModifierPercent = 0.0f;
 
         // ==================== PASSIVE EFFECTS (Evolution only) ====================
@@ -363,24 +301,19 @@ public:
 
         // ==================== STAT CALCULATION (Evolution only) ====================
 
-        /** Calculate modified Mind stat */
+        /** Compute per-action stat modifiers when this Evolution crystal is INFUSING.
+         *  Maps StatBonus int fields 1:1 onto FActionStatModifiers, scaled by
+         *  InfusionMultiplier (L1 = 0.5f, L2 = 1.0f).
+         *
+         *  DOES NOT apply:
+         *   - Pillar percent fields (BonusMind/Body/SpiritModifierPercent) — these
+         *     flow through UCharacterDataComponent::ApplyCrystalPillarModifier as
+         *     character-persistent modifiers, not per-action.
+         *   - PassiveEffects — character-only via a separate system.
+         *
+         *  Returns a zeroed struct when bIsEvolutionCrystal is false. */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
-        float CalculateModifiedMind(float BaseMind) const;
-
-        /** Calculate modified Body stat */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
-        float CalculateModifiedBody(float BaseBody) const;
-
-        /** Calculate modified Spirit stat */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
-        float CalculateModifiedSpirit(float BaseSpirit) const;
-
-        /** Compute per-action stat modifiers contributed by this Evolution crystal,
-         *  scaled by Multiplier. Use 1.0f for full (slotted-as-primary, L2 infusion)
-         *  or 0.5f for half (L1 infusion). Returns zeroed struct if not an Evolution
-         *  crystal. Handles Pillar / SubStats mode internally. */
-        UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
-        FActionStatModifiers GetActionModifiers(float Multiplier = 1.0f) const;
+        FActionStatModifiers GetInfusionStatModifiers(float InfusionMultiplier) const;
 
         // ==================== EXISTING UTILITY FUNCTIONS ====================
 

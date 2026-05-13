@@ -18,6 +18,16 @@ namespace CombatConstants
     constexpr float WORLD_BODY_SCALING_BONUS = 0.01f;   // 1% per WorldBodyLevel
     constexpr float WORLD_SPIRIT_SCALING_BONUS = 0.01f; // 1% per WorldSpiritLevel
 
+    // ==================== EQUIPMENT STAT BONUS LIMITS ====================
+    // Reference bounds for FEquipmentStatBonus authoring. UPROPERTY meta clamps
+    // accept only string literals, so these constants are the source of truth
+    // for IsDataValid range checks; field-level clamps must mirror the values.
+    constexpr int32 EQUIPMENT_BONUS_MAX = 21;   // Weapon/ring int field ceiling (ClampMin=0 baked in)
+    constexpr int32 CRYSTAL_BONUS_MIN   = -21;  // Crystal int fields permit negatives (cursed gear)
+    constexpr int32 CRYSTAL_BONUS_MAX   = 21;
+    constexpr float PILLAR_MODIFIER_MIN = -15.0f; // Pillar percent floor (Mind/Body/Spirit)
+    constexpr float PILLAR_MODIFIER_MAX = 15.0f;
+
     // ==================== STAT SCALING ====================
     // 13 Stats: Mind(4), Body(4), Spirit(5)
     // Formula: Base + (EffectiveStat × TotalPoints × PER_POINT)
