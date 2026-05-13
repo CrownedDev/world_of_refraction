@@ -6,7 +6,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ActionStructs.h"
 #include "EActionType.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "ESpellElement.h"
 #include "ECharacterClass.h"
 #include "InfusionConstants.h"
@@ -405,7 +405,7 @@ private:
 	 *  abilities, spells, and weapon attacks.
 	 *
 	 *  SourceName is the display string used for effect log lines and
-	 *  the FStatusEffect.EffectName ("<SourceName> Effect"). Passed as
+	 *  the FActiveSkillEffect.EffectName ("<SourceName> Effect"). Passed as
 	 *  FString so the caller picks the right name from whichever data
 	 *  asset it's iterating (Ability->Name, Spell->Name, etc).
 	 */

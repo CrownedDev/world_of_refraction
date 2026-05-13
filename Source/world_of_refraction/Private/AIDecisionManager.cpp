@@ -1185,14 +1185,14 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
         return false;
     }
 
-    TArray<FStatusEffect> Effects = StatusManager->GetActiveEffects(Actor);
-    for (const FStatusEffect &Effect : Effects)
+    TArray<FActiveSkillEffect> Effects = StatusManager->GetActiveEffects(Actor);
+    for (const FActiveSkillEffect &Effect : Effects)
     {
         switch (Effect.EffectType)
         {
-        case EStatusType::SkipTurn: // Stun
+        case ESkillEffectType::SkipTurn: // Stun
             return true;
-        case EStatusType::DOT:
+        case ESkillEffectType::DOT:
             // Check if DOT will kill us
             if (Effect.EffectValue * Effect.RemainingTurns >= GetCurrentHP(Actor))
             {
@@ -1224,8 +1224,8 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
 
         for (const FSkillEffect &Effect : Spell->Effects)
         {
-            if (Effect.EffectType == EStatusType::Heal ||
-                Effect.EffectType == EStatusType::HealthRestore)
+            if (Effect.EffectType == ESkillEffectType::Heal ||
+                Effect.EffectType == ESkillEffectType::HealthRestore)
             {
                 return Spell;
             }
@@ -1252,7 +1252,7 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
 
         for (const FSkillEffect &Effect : Spell->Effects)
         {
-            if (Effect.EffectType == EStatusType::Cleanse)
+            if (Effect.EffectType == ESkillEffectType::Cleanse)
             {
                 return Spell;
             }
@@ -1304,10 +1304,10 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
     return BuildupAmount >= RemainingBuildup;
 }
 
-bool UAIDecisionManager::IsValuableStatus(EStatusType StatusType, AActor *Target) const
+bool UAIDecisionManager::IsValuableStatus(ESkillEffectType StatusType, AActor *Target) const
 {
     // Skip turn statuses are always valuable
-    if (StatusType == EStatusType::SkipTurn)
+    if (StatusType == ESkillEffectType::SkipTurn)
     {
         return true;
     }
@@ -1319,7 +1319,7 @@ bool UAIDecisionManager::IsValuableStatus(EStatusType StatusType, AActor *Target
     }
 
     // DOTs are valuable if target doesn't already have one
-    if (StatusType == EStatusType::DOT)
+    if (StatusType == ESkillEffectType::DOT)
     {
         return !StatusManager->HasActiveDOT(Target);
     }
@@ -1390,11 +1390,11 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
         // Get pending status type (abilities apply physical status, not specific types)
-        EStatusType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
-        if (PendingTrigger == EStatusType::None)
+        ESkillEffectType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
+        if (PendingTrigger == ESkillEffectType::None)
         {
             // Default to DOT for abilities (they apply status via infusion)
-            PendingTrigger = EStatusType::DOT;
+            PendingTrigger = ESkillEffectType::DOT;
         }
 
         // Use L1 if it triggers valuable status and L0 wouldn't
@@ -1477,10 +1477,10 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         bool bL0WouldTrigger = WouldTriggerStatusBar(Attacker, Target, BaseBuildup);
 
         // Get pending status type
-        EStatusType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
-        if (PendingTrigger == EStatusType::None)
+        ESkillEffectType PendingTrigger = BuildupManager->GetPendingTrigger(Target);
+        if (PendingTrigger == ESkillEffectType::None)
         {
-            PendingTrigger = EStatusType::DOT;
+            PendingTrigger = ESkillEffectType::DOT;
         }
 
         // Use L1 if it triggers valuable status and L0 wouldn't

@@ -2,7 +2,7 @@
 
 #include "SkillEffectManagerTestActor.h"
 #include "SkillEffectManager.h"
-#include "StatusEffect.h"
+#include "ActiveSkillEffect.h"
 #include "CharacterDataComponent.h"
 #include "TurnManager.h"
 #include "Engine/World.h"
@@ -97,7 +97,7 @@ void ASkillEffectManagerTestActor::Test_ApplyEffect()
 		return;
 
 	// Create and apply a simple buff
-	FStatusEffect Buff = FStatusEffect::CreateBuff(TEXT("Test Buff"), 1001, EStatusType::DamageBuff, 10.0f, 3);
+	FActiveSkillEffect Buff = FActiveSkillEffect::CreateBuff(TEXT("Test Buff"), 1001, ESkillEffectType::DamageBuff, 10.0f, 3);
 
 	EEffectApplicationResult Result = Manager->ApplyEffect(TestActor, Buff);
 
@@ -124,10 +124,10 @@ void ASkillEffectManagerTestActor::Test_StackingBehavior()
 		return;
 
 	// Create stackable effect
-	FStatusEffect StackableBuff;
+	FActiveSkillEffect StackableBuff;
 	StackableBuff.EffectName = TEXT("Stackable Buff");
 	StackableBuff.EffectID = 2001;
-	StackableBuff.EffectType = EStatusType::DamageBuff;
+	StackableBuff.EffectType = ESkillEffectType::DamageBuff;
 	StackableBuff.EffectValue = 5.0f;
 	StackableBuff.RemainingTurns = 3;
 	StackableBuff.bCanStack = true;
@@ -140,7 +140,7 @@ void ASkillEffectManagerTestActor::Test_StackingBehavior()
 	EEffectApplicationResult R3 = Manager->ApplyEffect(TestActor, StackableBuff);
 	EEffectApplicationResult R4 = Manager->ApplyEffect(TestActor, StackableBuff);
 
-	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(TestActor);
+	TArray<FActiveSkillEffect> Effects = Manager->GetActiveEffects(TestActor);
 
 	bool bPassed = true;
 	bPassed &= AssertEqual(1, Effects.Num(), TEXT("Only 1 effect entry (stacked)"));
@@ -172,10 +172,10 @@ void ASkillEffectManagerTestActor::Test_DurationRefresh()
 		return;
 
 	// Create non-stackable effect with refresh
-	FStatusEffect Buff;
+	FActiveSkillEffect Buff;
 	Buff.EffectName = TEXT("Refresh Buff");
 	Buff.EffectID = 3001;
-	Buff.EffectType = EStatusType::SpeedBuff;
+	Buff.EffectType = ESkillEffectType::SpeedBuff;
 	Buff.EffectValue = 10.0f;
 	Buff.RemainingTurns = 3;
 	Buff.bCanStack = false;
@@ -188,13 +188,13 @@ void ASkillEffectManagerTestActor::Test_DurationRefresh()
 	Manager->ProcessEndOfTurnEffects(TestActor);
 	Manager->ProcessEndOfTurnEffects(TestActor);
 
-	TArray<FStatusEffect> EffectsBefore = Manager->GetActiveEffects(TestActor);
+	TArray<FActiveSkillEffect> EffectsBefore = Manager->GetActiveEffects(TestActor);
 	int32 DurationBefore = (EffectsBefore.Num() > 0) ? EffectsBefore[0].RemainingTurns : -1;
 
 	// Reapply - should refresh duration
 	EEffectApplicationResult Result = Manager->ApplyEffect(TestActor, Buff);
 
-	TArray<FStatusEffect> EffectsAfter = Manager->GetActiveEffects(TestActor);
+	TArray<FActiveSkillEffect> EffectsAfter = Manager->GetActiveEffects(TestActor);
 	int32 DurationAfter = (EffectsAfter.Num() > 0) ? EffectsAfter[0].RemainingTurns : -1;
 
 	bool bPassed = true;
@@ -220,8 +220,8 @@ void ASkillEffectManagerTestActor::Test_RemoveByID()
 		return;
 
 	// Apply two different effects
-	FStatusEffect Buff1 = FStatusEffect::CreateBuff(TEXT("Buff 1"), 4001, EStatusType::DamageBuff, 10.0f, 3);
-	FStatusEffect Buff2 = FStatusEffect::CreateBuff(TEXT("Buff 2"), 4002, EStatusType::SpeedBuff, 5.0f, 3);
+	FActiveSkillEffect Buff1 = FActiveSkillEffect::CreateBuff(TEXT("Buff 1"), 4001, ESkillEffectType::DamageBuff, 10.0f, 3);
+	FActiveSkillEffect Buff2 = FActiveSkillEffect::CreateBuff(TEXT("Buff 2"), 4002, ESkillEffectType::SpeedBuff, 5.0f, 3);
 
 	Manager->ApplyEffect(TestActor, Buff1);
 	Manager->ApplyEffect(TestActor, Buff2);
@@ -255,19 +255,19 @@ void ASkillEffectManagerTestActor::Test_RemoveByType()
 		return;
 
 	// Apply mixed effects
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 1"), 5001, EStatusType::DamageBuff, 10.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage 2"), 5002, EStatusType::DamageBuff, 5.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed"), 5003, EStatusType::SpeedBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Damage 1"), 5001, ESkillEffectType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Damage 2"), 5002, ESkillEffectType::DamageBuff, 5.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Speed"), 5003, ESkillEffectType::SpeedBuff, 10.0f, 3));
 
 	bool bPassed = true;
 	bPassed &= AssertEqual(3, Manager->GetEffectCount(TestActor), TEXT("Has 3 effects"));
 
 	// Remove all damage buffs
-	int32 Removed = Manager->RemoveEffectsByType(TestActor, EStatusType::DamageBuff);
+	int32 Removed = Manager->RemoveEffectsByType(TestActor, ESkillEffectType::DamageBuff);
 
 	bPassed &= AssertEqual(2, Removed, TEXT("Removed 2 damage buffs"));
 	bPassed &= AssertEqual(1, Manager->GetEffectCount(TestActor), TEXT("Has 1 effect remaining"));
-	bPassed &= AssertTrue(Manager->HasEffectOfType(TestActor, EStatusType::SpeedBuff), TEXT("Speed buff remains"));
+	bPassed &= AssertTrue(Manager->HasEffectOfType(TestActor, ESkillEffectType::SpeedBuff), TEXT("Speed buff remains"));
 
 	LogTestResult(TEXT("Remove By Type"), bPassed);
 
@@ -287,13 +287,13 @@ void ASkillEffectManagerTestActor::Test_RemoveAllBuffs()
 		return;
 
 	// Apply buffs and debuffs
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 6001, EStatusType::DamageBuff, 10.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed Buff"), 6002, EStatusType::SpeedBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Damage Buff"), 6001, ESkillEffectType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Speed Buff"), 6002, ESkillEffectType::SpeedBuff, 10.0f, 3));
 
-	FStatusEffect Debuff;
+	FActiveSkillEffect Debuff;
 	Debuff.EffectName = TEXT("Speed Debuff");
 	Debuff.EffectID = 6003;
-	Debuff.EffectType = EStatusType::SpeedDebuff;
+	Debuff.EffectType = ESkillEffectType::SpeedDebuff;
 	Debuff.EffectValue = -10.0f;
 	Debuff.RemainingTurns = 3;
 	Debuff.ProcessTiming = ESkillEffectTiming::Persistent;
@@ -330,21 +330,21 @@ void ASkillEffectManagerTestActor::Test_RemoveAllDebuffs()
 		return;
 
 	// Apply buffs and debuffs
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Damage Buff"), 7001, EStatusType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Damage Buff"), 7001, ESkillEffectType::DamageBuff, 10.0f, 3));
 
-	FStatusEffect Debuff1;
+	FActiveSkillEffect Debuff1;
 	Debuff1.EffectName = TEXT("Speed Debuff");
 	Debuff1.EffectID = 7002;
-	Debuff1.EffectType = EStatusType::SpeedDebuff;
+	Debuff1.EffectType = ESkillEffectType::SpeedDebuff;
 	Debuff1.EffectValue = -10.0f;
 	Debuff1.RemainingTurns = 3;
 	Debuff1.ProcessTiming = ESkillEffectTiming::Persistent;
 	Manager->ApplyEffect(TestActor, Debuff1);
 
-	FStatusEffect Debuff2;
+	FActiveSkillEffect Debuff2;
 	Debuff2.EffectName = TEXT("Defense Debuff");
 	Debuff2.EffectID = 7003;
-	Debuff2.EffectType = EStatusType::DefenseDebuff;
+	Debuff2.EffectType = ESkillEffectType::DefenseDebuff;
 	Debuff2.EffectValue = -15.0f;
 	Debuff2.RemainingTurns = 3;
 	Debuff2.ProcessTiming = ESkillEffectTiming::Persistent;
@@ -385,10 +385,10 @@ void ASkillEffectManagerTestActor::Test_StartOfTurnProcessing()
 	CharComp->CurrentHP = 50;
 
 	// Apply a heal-over-time at start of turn
-	FStatusEffect HoT;
+	FActiveSkillEffect HoT;
 	HoT.EffectName = TEXT("Regeneration");
 	HoT.EffectID = 8001;
-	HoT.EffectType = EStatusType::HealthRestore;
+	HoT.EffectType = ESkillEffectType::HealthRestore;
 	HoT.EffectValue = 10.0f;
 	HoT.RemainingTurns = 3;
 	HoT.InitialDuration = 3;
@@ -425,10 +425,10 @@ void ASkillEffectManagerTestActor::Test_EndOfTurnProcessing()
 		return;
 
 	// Apply end-of-turn effect
-	FStatusEffect EnergyDrain;
+	FActiveSkillEffect EnergyDrain;
 	EnergyDrain.EffectName = TEXT("Energy Drain");
 	EnergyDrain.EffectID = 9001;
-	EnergyDrain.EffectType = EStatusType::EnergyDrain;
+	EnergyDrain.EffectType = ESkillEffectType::EnergyDrain;
 	EnergyDrain.EffectValue = 5.0f;
 	EnergyDrain.RemainingTurns = 2;
 	EnergyDrain.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
@@ -444,7 +444,7 @@ void ASkillEffectManagerTestActor::Test_EndOfTurnProcessing()
 	int32 EPAfter = CharComp->CurrentEP;
 
 	// Check duration ticked
-	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(TestActor);
+	TArray<FActiveSkillEffect> Effects = Manager->GetActiveEffects(TestActor);
 	int32 RemainingTurns = (Effects.Num() > 0) ? Effects[0].RemainingTurns : -1;
 
 	bool bPassed = true;
@@ -472,7 +472,7 @@ void ASkillEffectManagerTestActor::Test_DOTDamage()
 	UCharacterDataComponent *CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
 
 	// Apply poison DOT
-	FStatusEffect Poison = FStatusEffect::CreateDOT(TEXT("Poison"), 10001, 15.0f, 3, ESpellElement::Earth);
+	FActiveSkillEffect Poison = FActiveSkillEffect::CreateDOT(TEXT("Poison"), 10001, 15.0f, 3, ESpellElement::Earth);
 
 	Manager->ApplyEffect(TestActor, Poison);
 
@@ -506,7 +506,7 @@ void ASkillEffectManagerTestActor::Test_DurationExpiration()
 		return;
 
 	// Apply 2-turn buff
-	FStatusEffect ShortBuff = FStatusEffect::CreateBuff(TEXT("Short Buff"), 11001, EStatusType::DamageBuff, 10.0f, 2);
+	FActiveSkillEffect ShortBuff = FActiveSkillEffect::CreateBuff(TEXT("Short Buff"), 11001, ESkillEffectType::DamageBuff, 10.0f, 2);
 	ShortBuff.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 
 	Manager->ApplyEffect(TestActor, ShortBuff);
@@ -543,10 +543,10 @@ void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 	UCharacterDataComponent *CharComp = TestActor->FindComponentByClass<UCharacterDataComponent>();
 
 	// Apply HP threshold effect (activates below 30%)
-	FStatusEffect AdrenalineRush;
+	FActiveSkillEffect AdrenalineRush;
 	AdrenalineRush.EffectName = TEXT("Adrenaline Rush");
 	AdrenalineRush.EffectID = 12001;
-	AdrenalineRush.EffectType = EStatusType::DamageBuff;
+	AdrenalineRush.EffectType = ESkillEffectType::DamageBuff;
 	AdrenalineRush.EffectValue = 25.0f;
 	AdrenalineRush.ProcessTiming = ESkillEffectTiming::OnTrigger;
 	AdrenalineRush.TriggerCondition = EPassiveTrigger::OnHPBelowThreshold;
@@ -557,7 +557,7 @@ void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 
 	// At 100 HP (100%), should not trigger
 	Manager->ProcessTriggerEffects(TestActor, EPassiveTrigger::OnHPBelowThreshold);
-	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(TestActor);
+	TArray<FActiveSkillEffect> Effects = Manager->GetActiveEffects(TestActor);
 	bool bTriggeredAtFull = (Effects.Num() > 0) ? Effects[0].bTriggerActive : false;
 
 	// Drop HP to 25 (25%)
@@ -590,7 +590,7 @@ void ASkillEffectManagerTestActor::Test_PermanentEffects()
 		return;
 
 	// Apply permanent effect
-	FStatusEffect Permanent = FStatusEffect::CreatePersistent(TEXT("Equipment Bonus"), 13001, EStatusType::DamageBuff, 15.0f);
+	FActiveSkillEffect Permanent = FActiveSkillEffect::CreatePersistent(TEXT("Equipment Bonus"), 13001, ESkillEffectType::DamageBuff, 15.0f);
 
 	Manager->ApplyEffect(TestActor, Permanent);
 
@@ -623,13 +623,13 @@ void ASkillEffectManagerTestActor::Test_StatModifierQuery()
 		return;
 
 	// Apply multiple damage buffs
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 1"), 14001, EStatusType::DamageBuff, 10.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Buff 2"), 14002, EStatusType::DamageBuff, 15.0f, 3));
-	Manager->ApplyEffect(TestActor, FStatusEffect::CreateBuff(TEXT("Speed"), 14003, EStatusType::SpeedBuff, 5.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Buff 1"), 14001, ESkillEffectType::DamageBuff, 10.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Buff 2"), 14002, ESkillEffectType::DamageBuff, 15.0f, 3));
+	Manager->ApplyEffect(TestActor, FActiveSkillEffect::CreateBuff(TEXT("Speed"), 14003, ESkillEffectType::SpeedBuff, 5.0f, 3));
 
-	float TotalDamageBuff = Manager->GetTotalStatModifier(TestActor, EStatusType::DamageBuff);
-	float TotalSpeedBuff = Manager->GetTotalStatModifier(TestActor, EStatusType::SpeedBuff);
-	float TotalDefense = Manager->GetTotalStatModifier(TestActor, EStatusType::DefenseBuff);
+	float TotalDamageBuff = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::DamageBuff);
+	float TotalSpeedBuff = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::SpeedBuff);
+	float TotalDefense = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::DefenseBuff);
 
 	bool bPassed = true;
 	bPassed &= AssertEqualFloat(25.0f, TotalDamageBuff, TEXT("Total damage buff is 25 (10+15)"));
@@ -655,11 +655,11 @@ void ASkillEffectManagerTestActor::Test_SourceTracking()
 		return;
 
 	// Apply effect with source tracking
-	FStatusEffect Curse = FStatusEffect::CreateBuff(TEXT("Curse"), 15001, EStatusType::DamageDebuff, -20.0f, 3);
+	FActiveSkillEffect Curse = FActiveSkillEffect::CreateBuff(TEXT("Curse"), 15001, ESkillEffectType::DamageDebuff, -20.0f, 3);
 
 	Manager->ApplyEffect(Target, Curse, Caster, TEXT("Dark Curse"), 1);
 
-	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(Target);
+	TArray<FActiveSkillEffect> Effects = Manager->GetActiveEffects(Target);
 
 	bool bPassed = true;
 	bPassed &= AssertEqual(1, Effects.Num(), TEXT("Target has 1 effect"));
@@ -712,9 +712,9 @@ void ASkillEffectManagerTestActor::Test_WeaponBonuses()
 	bPassed &= AssertEqual(3, Manager->GetEffectCount(TestActor), TEXT("Has 3 weapon bonus effects"));
 
 	// Check stat modifiers are queryable
-	float AttackMod = Manager->GetTotalStatModifier(TestActor, EStatusType::RawDamageBuff);
-	float SpeedMod = Manager->GetTotalStatModifier(TestActor, EStatusType::SpeedBuff);
-	float CritMod = Manager->GetTotalStatModifier(TestActor, EStatusType::CritChanceBuff);
+	float AttackMod = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::RawDamageBuff);
+	float SpeedMod = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::SpeedBuff);
+	float CritMod = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::CritChanceBuff);
 
 	bPassed &= AssertEqualFloat(5.0f, AttackMod, TEXT("Attack bonus is +5"));
 	bPassed &= AssertEqualFloat(2.0f, SpeedMod, TEXT("Speed bonus is +2"));
@@ -789,7 +789,7 @@ void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects()
 		Attacker,
 		0);
 
-	float DefenseDebuff = Manager->GetTotalStatModifier(Target, EStatusType::DefenseDebuff);
+	float DefenseDebuff = Manager->GetTotalStatModifier(Target, ESkillEffectType::DefenseDebuff);
 	bPassed &= AssertTrue(DefenseDebuff > 0.0f, TEXT("Pierce applied Armor Break (defense debuff)"));
 	bPassed &= AssertTrue(Manager->GetDebuffCount(Target) > 0, TEXT("Target has debuff from Pierce"));
 
@@ -810,7 +810,7 @@ void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects()
 	bPassed &= AssertEqual(1, Manager->GetEffectCount(Target), TEXT("Impact applied Stun effect"));
 
 	// Stun should process at start of turn
-	TArray<FStatusEffect> Effects = Manager->GetActiveEffects(Target);
+	TArray<FActiveSkillEffect> Effects = Manager->GetActiveEffects(Target);
 	if (Effects.Num() > 0)
 	{
 		bPassed &= AssertTrue(Effects[0].ProcessTiming == ESkillEffectTiming::StartOfOwnTurn,
@@ -853,10 +853,10 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	bool bPassed = true;
 
 	// Test 1: Apply speed buff - should notify TurnManager
-	FStatusEffect HasteEffect;
+	FActiveSkillEffect HasteEffect;
 	HasteEffect.EffectName = TEXT("Haste");
 	HasteEffect.EffectID = 9001;
-	HasteEffect.EffectType = EStatusType::SpeedBuff;
+	HasteEffect.EffectType = ESkillEffectType::SpeedBuff;
 	HasteEffect.EffectValue = 10.0f;
 	HasteEffect.RemainingTurns = 3;
 	HasteEffect.InitialDuration = 3;
@@ -865,20 +865,20 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	Manager->ApplyEffect(FastChar, HasteEffect, nullptr, TEXT("Haste Spell"), -1);
 
 	// Verify effect was applied
-	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),
+	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, ESkillEffectType::SpeedBuff),
 						  TEXT("Speed buff applied"));
 
 	// Query the speed modifier
-	float SpeedMod = Manager->GetTotalStatModifier(FastChar, EStatusType::SpeedBuff);
+	float SpeedMod = Manager->GetTotalStatModifier(FastChar, ESkillEffectType::SpeedBuff);
 	bPassed &= AssertEqualFloat(10.0f, SpeedMod, TEXT("Speed modifier queryable (+10)"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff applied - TurnManager should have been notified"));
 
 	// Test 2: Apply speed debuff - should also notify
-	FStatusEffect SlowEffect;
+	FActiveSkillEffect SlowEffect;
 	SlowEffect.EffectName = TEXT("Slow");
 	SlowEffect.EffectID = 9002;
-	SlowEffect.EffectType = EStatusType::SpeedDebuff;
+	SlowEffect.EffectType = ESkillEffectType::SpeedDebuff;
 	SlowEffect.EffectValue = 5.0f;
 	SlowEffect.RemainingTurns = 2;
 	SlowEffect.InitialDuration = 2;
@@ -886,7 +886,7 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 
 	Manager->ApplyEffect(SlowChar, SlowEffect, nullptr, TEXT("Slow Spell"), -1);
 
-	float SlowMod = Manager->GetTotalStatModifier(SlowChar, EStatusType::SpeedDebuff);
+	float SlowMod = Manager->GetTotalStatModifier(SlowChar, ESkillEffectType::SpeedDebuff);
 	bPassed &= AssertEqualFloat(5.0f, SlowMod, TEXT("Speed debuff queryable (-5)"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed debuff applied - TurnManager should have been notified"));
@@ -894,30 +894,30 @@ void ASkillEffectManagerTestActor::Test_SpeedBuffTurnManagerNotification()
 	// Test 3: Remove speed effect - should notify TurnManager
 	Manager->RemoveEffectByID(FastChar, 9001);
 
-	float SpeedModAfterRemove = Manager->GetTotalStatModifier(FastChar, EStatusType::SpeedBuff);
+	float SpeedModAfterRemove = Manager->GetTotalStatModifier(FastChar, ESkillEffectType::SpeedBuff);
 	bPassed &= AssertEqualFloat(0.0f, SpeedModAfterRemove, TEXT("Speed buff removed, modifier is 0"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff removed - TurnManager should have been notified"));
 
 	// Test 4: Speed effect expiration - should notify TurnManager
 	// Apply new buff with 1 turn duration
-	FStatusEffect ShortHaste;
+	FActiveSkillEffect ShortHaste;
 	ShortHaste.EffectName = TEXT("Quick Haste");
 	ShortHaste.EffectID = 9003;
-	ShortHaste.EffectType = EStatusType::SpeedBuff;
+	ShortHaste.EffectType = ESkillEffectType::SpeedBuff;
 	ShortHaste.EffectValue = 8.0f;
 	ShortHaste.RemainingTurns = 1;
 	ShortHaste.InitialDuration = 1;
 	ShortHaste.ProcessTiming = ESkillEffectTiming::Persistent;
 
 	Manager->ApplyEffect(FastChar, ShortHaste, nullptr, TEXT("Quick Haste"), -1);
-	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),
+	bPassed &= AssertTrue(Manager->HasEffectOfType(FastChar, ESkillEffectType::SpeedBuff),
 						  TEXT("Short haste applied"));
 
 	// Process end of turn - should expire and notify
 	Manager->ProcessEndOfTurnEffects(FastChar);
 
-	bPassed &= AssertTrue(!Manager->HasEffectOfType(FastChar, EStatusType::SpeedBuff),
+	bPassed &= AssertTrue(!Manager->HasEffectOfType(FastChar, ESkillEffectType::SpeedBuff),
 						  TEXT("Short haste expired after 1 turn"));
 
 	UE_LOG(LogTemp, Display, TEXT("    Speed buff expired - TurnManager should have been notified"));

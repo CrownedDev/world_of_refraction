@@ -2,7 +2,7 @@
 
 #include "StatusBuildupManager.h"
 #include "SkillEffectManager.h"
-#include "StatusEffect.h"
+#include "ActiveSkillEffect.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "CombatConstants.h"
@@ -92,17 +92,17 @@ float UStatusBuildupManager::GetBuildupToTrigger(AActor *Target) const
 	return FMath::Max(0.0f, CombatConstants::STATUS_EFFECT_THRESHOLD - Current);
 }
 
-EStatusType UStatusBuildupManager::GetPendingTrigger(AActor *Target) const
+ESkillEffectType UStatusBuildupManager::GetPendingTrigger(AActor *Target) const
 {
 	if (!Target)
 	{
-		return EStatusType::None;
+		return ESkillEffectType::None;
 	}
 
 	const FStatusBarState *State = StatusBarStates.Find(Target);
 	if (!State)
 	{
-		return EStatusType::None;
+		return ESkillEffectType::None;
 	}
 	return BarCapTriggerResolver::ResolveTrigger(State->PendingElement, State->PendingPhysicalType);
 }
@@ -138,11 +138,11 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 	// Pull both effect types from the effect manager. The plumbing (ActiveEffects
 	// map) lives there; the element filter + aggregation belong here, on the
 	// buildup-side query.
-	const TArray<FStatusEffect> Buffs = EffectMgr->GetEffectsByType(Target, EStatusType::ResistanceBuff);
-	const TArray<FStatusEffect> Debuffs = EffectMgr->GetEffectsByType(Target, EStatusType::ResistanceDebuff);
+	const TArray<FActiveSkillEffect> Buffs = EffectMgr->GetEffectsByType(Target, ESkillEffectType::ResistanceBuff);
+	const TArray<FActiveSkillEffect> Debuffs = EffectMgr->GetEffectsByType(Target, ESkillEffectType::ResistanceDebuff);
 
 	float BuffSum = 0.0f;
-	for (const FStatusEffect &Effect : Buffs)
+	for (const FActiveSkillEffect &Effect : Buffs)
 	{
 		if (Effect.Element == Element)
 		{
@@ -151,7 +151,7 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 	}
 
 	float DebuffSum = 0.0f;
-	for (const FStatusEffect &Effect : Debuffs)
+	for (const FActiveSkillEffect &Effect : Debuffs)
 	{
 		if (Effect.Element == Element)
 		{
@@ -214,7 +214,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	State.CurrentBuildup += Amount;
 
 	// Resolve the trigger that WOULD fire if bar caps right now.
-	const EStatusType ResolvedTrigger = BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType);
+	const ESkillEffectType ResolvedTrigger = BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType);
 
 	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
 		CombatConstants::STATUS_EFFECT_THRESHOLD, Element);
@@ -232,7 +232,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// stays at/above cap, waiting for a hit with a real trigger to
 		// consume it. Prevents "phantom cap" where the bar fills,
 		// immediately empties, and nothing visible happens.
-		if (ResolvedTrigger != EStatusType::None)
+		if (ResolvedTrigger != ESkillEffectType::None)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status bar FULL - Triggering %s"),
 				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
@@ -309,9 +309,9 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 		   State->TurnsSinceLastHit);
 }
 
-void UStatusBuildupManager::TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, EStatusType StatusType, ESpellElement Element)
+void UStatusBuildupManager::TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element)
 {
-	if (!Target || StatusType == EStatusType::None)
+	if (!Target || StatusType == ESkillEffectType::None)
 	{
 		return;
 	}

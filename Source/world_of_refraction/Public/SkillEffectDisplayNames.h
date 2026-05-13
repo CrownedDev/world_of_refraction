@@ -1,16 +1,16 @@
-// StatusDisplayNames.h
+// SkillEffectDisplayNames.h
 // Display name and color mapping for element-agnostic status types
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "ESpellElement.h"
 
 /**
  * Status display information for UI
  */
-struct FStatusDisplayInfo
+struct FSkillEffectDisplayInfo
 {
     FString Name;
     FString Description;
@@ -21,14 +21,14 @@ struct FStatusDisplayInfo
  * Maps generic status types + elements to player-facing display names
  * Example: DOT + Fire = "Burn", DOT + Lightning = "Shocked"
  */
-namespace StatusDisplayNames
+namespace SkillEffectDisplayNames
 {
     /** Get display name for status type + element combination */
-    inline FString GetDisplayName(EStatusType StatusType, ESpellElement Element)
+    inline FString GetDisplayName(ESkillEffectType StatusType, ESpellElement Element)
     {
         switch (StatusType)
         {
-        case EStatusType::DOT:
+        case ESkillEffectType::DOT:
             switch (Element)
             {
             case ESpellElement::Fire:
@@ -53,7 +53,7 @@ namespace StatusDisplayNames
                 return TEXT("Damage Over Time");
             }
 
-        case EStatusType::SpeedDebuff:
+        case ESkillEffectType::SpeedDebuff:
             switch (Element)
             {
             case ESpellElement::Water:
@@ -70,7 +70,7 @@ namespace StatusDisplayNames
                 return TEXT("Slowed");
             }
 
-        case EStatusType::DefenseDebuff:
+        case ESkillEffectType::DefenseDebuff:
             switch (Element)
             {
             case ESpellElement::Fire:
@@ -87,7 +87,7 @@ namespace StatusDisplayNames
                 return TEXT("Weakened");
             }
 
-        case EStatusType::SkipTurn:
+        case ESkillEffectType::SkipTurn:
             switch (Element)
             {
             case ESpellElement::Wind:
@@ -102,7 +102,7 @@ namespace StatusDisplayNames
                 return TEXT("Stunned");
             }
 
-        case EStatusType::EnergyDebuff:
+        case ESkillEffectType::EnergyDebuff:
             switch (Element)
             {
             case ESpellElement::Darkness:
@@ -115,7 +115,7 @@ namespace StatusDisplayNames
                 return TEXT("Energy Locked");
             }
 
-        case EStatusType::CritDebuff:
+        case ESkillEffectType::CritDebuff:
             switch (Element)
             {
             case ESpellElement::Light:
@@ -128,7 +128,7 @@ namespace StatusDisplayNames
                 return TEXT("Unfocused");
             }
 
-        case EStatusType::RandomDebuff:
+        case ESkillEffectType::RandomDebuff:
             switch (Element)
             {
             case ESpellElement::Void:
@@ -143,19 +143,19 @@ namespace StatusDisplayNames
 
         // ==================== BAR-CAP GATE EFFECTS (Session X) ====================
         // Element-specific flavour names can be added later; defaults for now.
-        case EStatusType::Stun:
+        case ESkillEffectType::Stun:
             return TEXT("Stunned");
-        case EStatusType::HealBlock:
+        case ESkillEffectType::HealBlock:
             return TEXT("Frozen");
-        case EStatusType::Silenced:
+        case ESkillEffectType::Silenced:
             return TEXT("Silenced");
-        case EStatusType::RandomSkill:
+        case ESkillEffectType::RandomSkill:
             return TEXT("Voided");
 
         // All other status types use their enum display name
         default:
         {
-            const UEnum *EnumPtr = StaticEnum<EStatusType>();
+            const UEnum *EnumPtr = StaticEnum<ESkillEffectType>();
             FString EnumName = EnumPtr ? EnumPtr->GetDisplayNameTextByValue(static_cast<int64>(StatusType)).ToString() : TEXT("Unknown");
             return EnumName;
         }
@@ -163,9 +163,9 @@ namespace StatusDisplayNames
     }
 
     /** Get full display info (name, description, color) */
-    inline FStatusDisplayInfo GetDisplayInfo(EStatusType StatusType, ESpellElement Element)
+    inline FSkillEffectDisplayInfo GetDisplayInfo(ESkillEffectType StatusType, ESpellElement Element)
     {
-        FStatusDisplayInfo Info;
+        FSkillEffectDisplayInfo Info;
         Info.Name = GetDisplayName(StatusType, Element);
 
         // Element-based coloring
@@ -209,28 +209,28 @@ namespace StatusDisplayNames
         // Generate description based on type
         switch (StatusType)
         {
-        case EStatusType::DOT:
+        case ESkillEffectType::DOT:
             Info.Description = FString::Printf(TEXT("%s damage each turn"), *Info.Name);
             break;
-        case EStatusType::SpeedDebuff:
+        case ESkillEffectType::SpeedDebuff:
             Info.Description = TEXT("Reduced action speed");
             break;
-        case EStatusType::DefenseDebuff:
+        case ESkillEffectType::DefenseDebuff:
             Info.Description = TEXT("Reduced defense");
             break;
-        case EStatusType::CritDebuff:
+        case ESkillEffectType::CritDebuff:
             Info.Description = TEXT("Reduced crit chance");
             break;
-        case EStatusType::EnergyDebuff:
+        case ESkillEffectType::EnergyDebuff:
             Info.Description = TEXT("Energy generation locked");
             break;
-        case EStatusType::SkipTurn:
+        case ESkillEffectType::SkipTurn:
             Info.Description = TEXT("Cannot act next turn");
             break;
-        case EStatusType::RandomDebuff:
+        case ESkillEffectType::RandomDebuff:
             Info.Description = TEXT("Random stat reduction");
             break;
-        case EStatusType::BurstDamage:
+        case ESkillEffectType::BurstDamage:
             Info.Description = TEXT("Burst damage when triggered");
             break;
         default:

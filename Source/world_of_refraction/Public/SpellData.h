@@ -6,7 +6,7 @@
 #include "CoreMinimal.h"
 #include "CastableSkillDataBase.h"
 #include "ESpellElement.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "SpellSchool.h"
 #include "WeaponData.h"
 #include "CombatConstants.h"

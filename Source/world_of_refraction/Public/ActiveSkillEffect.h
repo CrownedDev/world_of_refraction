@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "ESkillEffectTiming.h"
 #include "EPassiveTrigger.h"
-#include "EStatusType.h"
+#include "ESkillEffectType.h"
 #include "ESpellElement.h"
-#include "StatusEffect.generated.h"
+#include "ActiveSkillEffect.generated.h"
 
 /**
- * FStatusEffect
+ * FActiveSkillEffect
  * Runtime status effect instance applied to actors during combat
  *
  * Supports:
@@ -21,7 +21,7 @@
  * - Duration tracking per affected actor's turn (not global)
  */
 USTRUCT(BlueprintType)
-struct WORLD_OF_REFRACTION_API FStatusEffect
+struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 {
 	GENERATED_BODY()
 
@@ -86,7 +86,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 	/** Type of effect (buff, debuff, DOT, etc.) - uses unified enum */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-	EStatusType EffectType = EStatusType::None;
+	ESkillEffectType EffectType = ESkillEffectType::None;
 
 	/** Effect magnitude (damage amount, buff percentage, etc.) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
@@ -149,7 +149,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	// CONSTRUCTORS
 	// ========================================
 
-	FStatusEffect()
+	FActiveSkillEffect()
 	{
 		InitialDuration = RemainingTurns;
 	}
@@ -164,24 +164,24 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 *
 	 * @param SpellName Display name for the effect
 	 * @param EffectIDBase Base ID (primary gets +0, secondary gets +1)
-	 * @param EffectType The EStatusType from SpellData
+	 * @param EffectType The ESkillEffectType from SpellData
 	 * @param Magnitude Percentage modifier (0.0-1.0 range from SpellData)
 	 * @param Value Flat value from SpellData
 	 * @param Duration Turns from SpellData
 	 * @param InElement Element for DOT effects
 	 * @param Timing When to process (usually StartOfOwnTurn for buffs, EndOfOwnTurn for DOTs)
 	 */
-	static FStatusEffect CreateFromSpellEffect(
+	static FActiveSkillEffect CreateFromSpellEffect(
 		const FString &SpellName,
 		int32 EffectIDBase,
-		EStatusType EffectType,
+		ESkillEffectType EffectType,
 		float Magnitude,
 		int32 Value,
 		int32 Duration,
 		ESpellElement InElement,
 		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
 	{
-		FStatusEffect Effect;
+		FActiveSkillEffect Effect;
 		Effect.EffectName = SpellName;
 		Effect.EffectID = EffectIDBase;
 		Effect.EffectType = EffectType;
@@ -196,12 +196,12 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		{
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
-		else if (Effect.EffectType == EStatusType::HealthRestore ||
-				 Effect.EffectType == EStatusType::EnergyRestore)
+		else if (Effect.EffectType == ESkillEffectType::HealthRestore ||
+				 Effect.EffectType == ESkillEffectType::EnergyRestore)
 		{
 			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 		}
-		else if (Effect.EffectType == EStatusType::EnergyDrain)
+		else if (Effect.EffectType == ESkillEffectType::EnergyDrain)
 		{
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
@@ -218,14 +218,14 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 * @param Value The effect value
 	 * @param PassiveIndex Index in the PassiveEffects array (for unique IDs)
 	 */
-	static FStatusEffect CreateFromEvolutionPassive(
+	static FActiveSkillEffect CreateFromEvolutionPassive(
 		const FString &EvolutionName,
 		int32 EvolutionID,
-		EStatusType PassiveType,
+		ESkillEffectType PassiveType,
 		float Value,
 		int32 PassiveIndex)
 	{
-		FStatusEffect Effect;
+		FActiveSkillEffect Effect;
 		Effect.EffectName = EvolutionName + TEXT(" Passive");
 		Effect.EffectID = EvolutionID * 100 + PassiveIndex;
 		Effect.EffectType = PassiveType;
@@ -239,14 +239,14 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 * Create DOT effect from ability infusion
 	 * When ability is infused, it gains elemental DOT
 	 */
-	static FStatusEffect CreateFromInfusion(
+	static FActiveSkillEffect CreateFromInfusion(
 		const FString &AbilityName,
 		int32 AbilityID,
 		ESpellElement InfusedElement,
 		float DOTDamage,
 		int32 Duration)
 	{
-		FStatusEffect Effect = CreateDOT(
+		FActiveSkillEffect Effect = CreateDOT(
 			AbilityName + TEXT(" Infusion"),
 			AbilityID * 10 + 5, // +5 offset for infusion effects
 			DOTDamage,
@@ -271,7 +271,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 * @param BonusActionSpeed Action speed bonus
 	 * @param BonusCritChance Crit chance bonus (percentage)
 	 */
-	static TArray<FStatusEffect> CreateFromWeaponBonuses(
+	static TArray<FActiveSkillEffect> CreateFromWeaponBonuses(
 		const FString &WeaponName,
 		int32 WeaponID,
 		int32 BonusRawDamage,
@@ -280,55 +280,55 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		int32 BonusActionSpeed,
 		float BonusCritChance)
 	{
-		TArray<FStatusEffect> Effects;
+		TArray<FActiveSkillEffect> Effects;
 		int32 BaseID = WeaponID * 100; // Offset for weapon bonuses
 
 		if (BonusRawDamage != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Raw Damage)"),
 				BaseID + 1,
-				BonusRawDamage > 0 ? EStatusType::RawDamageBuff : EStatusType::RawDamageDebuff,
+				BonusRawDamage > 0 ? ESkillEffectType::RawDamageBuff : ESkillEffectType::RawDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusRawDamage)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusDefense != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Defense)"),
 				BaseID + 2,
-				BonusDefense > 0 ? EStatusType::DefenseBuff : EStatusType::DefenseDebuff,
+				BonusDefense > 0 ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff,
 				static_cast<float>(FMath::Abs(BonusDefense)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusSpellDamage != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Spell Damage)"),
 				BaseID + 3,
-				BonusSpellDamage > 0 ? EStatusType::EffectDamageBuff : EStatusType::EffectDamageDebuff,
+				BonusSpellDamage > 0 ? ESkillEffectType::EffectDamageBuff : ESkillEffectType::EffectDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusSpellDamage)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusActionSpeed != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Action Speed)"),
 				BaseID + 4,
-				BonusActionSpeed > 0 ? EStatusType::SpeedBuff : EStatusType::SpeedDebuff,
+				BonusActionSpeed > 0 ? ESkillEffectType::SpeedBuff : ESkillEffectType::SpeedDebuff,
 				static_cast<float>(FMath::Abs(BonusActionSpeed)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusCritChance != 0.0f)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				WeaponName + TEXT(" (Crit Chance)"),
 				BaseID + 5,
-				BonusCritChance > 0 ? EStatusType::CritChanceBuff : EStatusType::CritChanceDebuff,
+				BonusCritChance > 0 ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff,
 				FMath::Abs(BonusCritChance));
 			Effects.Add(Bonus);
 		}
@@ -353,7 +353,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 * @param BonusActionSpeed Action speed bonus
 	 * @param BonusCritChance Crit chance bonus (percentage)
 	 */
-	static TArray<FStatusEffect> CreateFromRingBonuses(
+	static TArray<FActiveSkillEffect> CreateFromRingBonuses(
 		const FString &RingName,
 		int32 RingID,
 		int32 BonusRawDamage,
@@ -362,55 +362,55 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		int32 BonusActionSpeed,
 		float BonusCritChance)
 	{
-		TArray<FStatusEffect> Effects;
+		TArray<FActiveSkillEffect> Effects;
 		int32 BaseID = RingID * 100 + 50; // +50 offset isolates ring-bonus IDs from weapon-bonus IDs (+1..+6) in the same RingID*100 block
 
 		if (BonusRawDamage != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				RingName + TEXT(" (Raw Damage)"),
 				BaseID + 1,
-				BonusRawDamage > 0 ? EStatusType::RawDamageBuff : EStatusType::RawDamageDebuff,
+				BonusRawDamage > 0 ? ESkillEffectType::RawDamageBuff : ESkillEffectType::RawDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusRawDamage)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusDefense != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				RingName + TEXT(" (Defense)"),
 				BaseID + 2,
-				BonusDefense > 0 ? EStatusType::DefenseBuff : EStatusType::DefenseDebuff,
+				BonusDefense > 0 ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff,
 				static_cast<float>(FMath::Abs(BonusDefense)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusSpellDamage != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				RingName + TEXT(" (Spell Damage)"),
 				BaseID + 3,
-				BonusSpellDamage > 0 ? EStatusType::EffectDamageBuff : EStatusType::EffectDamageDebuff,
+				BonusSpellDamage > 0 ? ESkillEffectType::EffectDamageBuff : ESkillEffectType::EffectDamageDebuff,
 				static_cast<float>(FMath::Abs(BonusSpellDamage)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusActionSpeed != 0)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				RingName + TEXT(" (Action Speed)"),
 				BaseID + 4,
-				BonusActionSpeed > 0 ? EStatusType::SpeedBuff : EStatusType::SpeedDebuff,
+				BonusActionSpeed > 0 ? ESkillEffectType::SpeedBuff : ESkillEffectType::SpeedDebuff,
 				static_cast<float>(FMath::Abs(BonusActionSpeed)));
 			Effects.Add(Bonus);
 		}
 
 		if (BonusCritChance != 0.0f)
 		{
-			FStatusEffect Bonus = CreatePersistent(
+			FActiveSkillEffect Bonus = CreatePersistent(
 				RingName + TEXT(" (Crit Chance)"),
 				BaseID + 5,
-				BonusCritChance > 0 ? EStatusType::CritChanceBuff : EStatusType::CritChanceDebuff,
+				BonusCritChance > 0 ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff,
 				FMath::Abs(BonusCritChance));
 			Effects.Add(Bonus);
 		}
@@ -429,7 +429,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 * @param InfusionMultiplier Weapon's InfusionStatusMultiplier (1.0 = normal)
 	 * @param HitCount Number of hits (multiplies buildup)
 	 */
-	static FStatusEffect CreateFromPhysicalDamageType(
+	static FActiveSkillEffect CreateFromPhysicalDamageType(
 		const FString &WeaponName,
 		int32 WeaponID,
 		uint8 PhysicalType,
@@ -437,7 +437,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		float InfusionMultiplier,
 		int32 HitCount)
 	{
-		FStatusEffect Effect;
+		FActiveSkillEffect Effect;
 		Effect.EffectID = WeaponID * 10 + 7; // +7 offset for physical status
 
 		// Calculate actual buildup: base × multiplier × hits
@@ -448,7 +448,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		{
 		case 0: // Slash → Bleed DOT
 			Effect.EffectName = WeaponName + TEXT(" Bleed");
-			Effect.EffectType = EStatusType::DOT;
+			Effect.EffectType = ESkillEffectType::DOT;
 			Effect.Element = ESpellElement::Generic;  // Physical damage
 			Effect.EffectValue = TotalBuildup * 0.5f; // DOT damage = half of buildup
 			Effect.RemainingTurns = 3;
@@ -458,7 +458,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 		case 1: // Pierce → Armor Break (defense debuff)
 			Effect.EffectName = WeaponName + TEXT(" Armor Break");
-			Effect.EffectType = EStatusType::DefenseDebuff;
+			Effect.EffectType = ESkillEffectType::DefenseDebuff;
 			Effect.EffectValue = TotalBuildup * 0.3f; // Defense reduction
 			Effect.RemainingTurns = 2;
 			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
@@ -468,7 +468,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 		case 2: // Impact → Stun (skip turn - uses special handling)
 			Effect.EffectName = WeaponName + TEXT(" Stun");
-			Effect.EffectType = EStatusType::None; // TODO: Add Stun effect type
+			Effect.EffectType = ESkillEffectType::None; // TODO: Add Stun effect type
 			Effect.EffectValue = 1.0f;			   // Stun duration multiplier
 			Effect.RemainingTurns = 1;
 			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
@@ -478,7 +478,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 
 		default:
 			Effect.EffectName = TEXT("Unknown Physical Effect");
-			Effect.EffectType = EStatusType::None;
+			Effect.EffectType = ESkillEffectType::None;
 			break;
 		}
 
@@ -490,7 +490,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	 * Create weapon infusion DOT with weapon's multiplier applied
 	 * For Generic characters using infused abilities through weapons
 	 */
-	static FStatusEffect CreateFromWeaponInfusion(
+	static FActiveSkillEffect CreateFromWeaponInfusion(
 		const FString &AbilityName,
 		const FString &WeaponName,
 		int32 AbilityID,
@@ -500,7 +500,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 		float WeaponInfusionMultiplier)
 	{
 		float AdjustedDamage = BaseDOTDamage * WeaponInfusionMultiplier;
-		FStatusEffect Effect = CreateDOT(
+		FActiveSkillEffect Effect = CreateDOT(
 			AbilityName + TEXT(" (") + WeaponName + TEXT(" Infusion)"),
 			AbilityID * 10 + 8, // +8 offset for weapon-infused abilities
 			AdjustedDamage,
@@ -510,9 +510,9 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	}
 
 	/** Quick constructor for common buff/debuff creation */
-	static FStatusEffect CreateBuff(const FString &Name, int32 ID, EStatusType Type, float Value, int32 Duration)
+	static FActiveSkillEffect CreateBuff(const FString &Name, int32 ID, ESkillEffectType Type, float Value, int32 Duration)
 	{
-		FStatusEffect Effect;
+		FActiveSkillEffect Effect;
 		Effect.EffectName = Name;
 		Effect.EffectID = ID;
 		Effect.EffectType = Type;
@@ -524,27 +524,27 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	}
 
 	/** Quick constructor for DOT effects */
-	static FStatusEffect CreateDOT(const FString &Name, int32 ID, float DamagePerTurn, int32 Duration, ESpellElement InElement)
+	static FActiveSkillEffect CreateDOT(const FString &Name, int32 ID, float DamagePerTurn, int32 Duration, ESpellElement InElement)
 	{
-		FStatusEffect Effect;
+		FActiveSkillEffect Effect;
 		Effect.EffectName = Name;
 		Effect.EffectID = ID;
-		Effect.EffectType = EStatusType::DOT; // Generic DOT type
+		Effect.EffectType = ESkillEffectType::DOT; // Generic DOT type
 		Effect.EffectValue = DamagePerTurn;
 		Effect.RemainingTurns = Duration;
 		Effect.InitialDuration = Duration;
 		Effect.Element = InElement;
 		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 
-		// No element-specific switch needed - display name handled by StatusDisplayNames
+		// No element-specific switch needed - display name handled by SkillEffectDisplayNames
 
 		return Effect;
 	}
 
 	/** Quick constructor for persistent stat modifiers */
-	static FStatusEffect CreatePersistent(const FString &Name, int32 ID, EStatusType Type, float Value)
+	static FActiveSkillEffect CreatePersistent(const FString &Name, int32 ID, ESkillEffectType Type, float Value)
 	{
-		FStatusEffect Effect;
+		FActiveSkillEffect Effect;
 		Effect.EffectName = Name;
 		Effect.EffectID = ID;
 		Effect.EffectType = Type;
@@ -563,22 +563,22 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	{
 		switch (EffectType)
 		{
-		case EStatusType::MindBuff:
-		case EStatusType::BodyBuff:
-		case EStatusType::SpiritBuff:
-		case EStatusType::DamageBuff:
-		case EStatusType::DefenseBuff:
-		case EStatusType::SpeedBuff:
-		case EStatusType::CritChanceBuff:
-		case EStatusType::AttackSpeedBuff:
-		case EStatusType::RawDamageBuff:
-		case EStatusType::EffectDamageBuff:
-		case EStatusType::SpellCostBuff:
-		case EStatusType::ResistanceBuff:
-		case EStatusType::SpellSizeBuff:
-		case EStatusType::MaxEnergyBuff:
-		case EStatusType::HealthRestore:
-		case EStatusType::EnergyRestore:
+		case ESkillEffectType::MindBuff:
+		case ESkillEffectType::BodyBuff:
+		case ESkillEffectType::SpiritBuff:
+		case ESkillEffectType::DamageBuff:
+		case ESkillEffectType::DefenseBuff:
+		case ESkillEffectType::SpeedBuff:
+		case ESkillEffectType::CritChanceBuff:
+		case ESkillEffectType::AttackSpeedBuff:
+		case ESkillEffectType::RawDamageBuff:
+		case ESkillEffectType::EffectDamageBuff:
+		case ESkillEffectType::SpellCostBuff:
+		case ESkillEffectType::ResistanceBuff:
+		case ESkillEffectType::SpellSizeBuff:
+		case ESkillEffectType::MaxEnergyBuff:
+		case ESkillEffectType::HealthRestore:
+		case ESkillEffectType::EnergyRestore:
 			return true;
 		default:
 			return false;
@@ -590,28 +590,28 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	{
 		switch (EffectType)
 		{
-		case EStatusType::MindDebuff:
-		case EStatusType::BodyDebuff:
-		case EStatusType::SpiritDebuff:
-		case EStatusType::DamageDebuff:
-		case EStatusType::DefenseDebuff:
-		case EStatusType::SpeedDebuff:
-		case EStatusType::CritDebuff:
-		case EStatusType::EnergyDebuff:
-		case EStatusType::AttackSpeedDebuff:
-		case EStatusType::RawDamageDebuff:
-		case EStatusType::EffectDamageDebuff:
-		case EStatusType::SpellCostDebuff:
-		case EStatusType::ResistanceDebuff:
-		case EStatusType::SpellSizeDebuff:
-		case EStatusType::MaxEnergyDebuff:
-		case EStatusType::DOT:
-		case EStatusType::SkipTurn:
-		case EStatusType::RandomDebuff:
-		case EStatusType::Stun:
-		case EStatusType::HealBlock:
-		case EStatusType::Silenced:
-		case EStatusType::RandomSkill:
+		case ESkillEffectType::MindDebuff:
+		case ESkillEffectType::BodyDebuff:
+		case ESkillEffectType::SpiritDebuff:
+		case ESkillEffectType::DamageDebuff:
+		case ESkillEffectType::DefenseDebuff:
+		case ESkillEffectType::SpeedDebuff:
+		case ESkillEffectType::CritDebuff:
+		case ESkillEffectType::EnergyDebuff:
+		case ESkillEffectType::AttackSpeedDebuff:
+		case ESkillEffectType::RawDamageDebuff:
+		case ESkillEffectType::EffectDamageDebuff:
+		case ESkillEffectType::SpellCostDebuff:
+		case ESkillEffectType::ResistanceDebuff:
+		case ESkillEffectType::SpellSizeDebuff:
+		case ESkillEffectType::MaxEnergyDebuff:
+		case ESkillEffectType::DOT:
+		case ESkillEffectType::SkipTurn:
+		case ESkillEffectType::RandomDebuff:
+		case ESkillEffectType::Stun:
+		case ESkillEffectType::HealBlock:
+		case ESkillEffectType::Silenced:
+		case ESkillEffectType::RandomSkill:
 			return true;
 		default:
 			return false;
@@ -621,16 +621,16 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	/** Check if this is DOT damage */
 	bool IsDOT() const
 	{
-		return EffectType == EStatusType::DOT;
+		return EffectType == ESkillEffectType::DOT;
 	}
 
 	/** Check if this effect deals damage */
 	bool DealsDamage() const
 	{
 		return IsDOT() ||
-			   EffectType == EStatusType::RetaliationDamage ||
-			   EffectType == EStatusType::SelfDamage ||
-			   EffectType == EStatusType::BurstDamage;
+			   EffectType == ESkillEffectType::RetaliationDamage ||
+			   EffectType == ESkillEffectType::SelfDamage ||
+			   EffectType == ESkillEffectType::BurstDamage;
 	}
 
 	/** Get effective value considering stacks */
@@ -666,7 +666,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 	}
 
 	/** Equality check by EffectID (for finding existing effects) */
-	bool operator==(const FStatusEffect &Other) const
+	bool operator==(const FActiveSkillEffect &Other) const
 	{
 		return EffectID == Other.EffectID;
 	}
@@ -679,7 +679,7 @@ struct WORLD_OF_REFRACTION_API FStatusEffect
 };
 
 /** Hash function for TMap usage */
-FORCEINLINE uint32 GetTypeHash(const FStatusEffect &Effect)
+FORCEINLINE uint32 GetTypeHash(const FActiveSkillEffect &Effect)
 {
 	return GetTypeHash(Effect.EffectID);
 }
