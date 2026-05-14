@@ -7,7 +7,7 @@
 #include "ActiveSkillEffect.h"
 #include "ESkillEffectType.h"
 #include "FEquipmentStatBonus.h"
-#include "PassiveEffect.h"
+#include "FSkillEffect.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -55,7 +55,7 @@ enum class EEffectApplicationResult : uint8
  * Design Principles:
  * - Durations tick on AFFECTED actor's turn (not global turn count)
  * - Stacking rules configurable per effect
- * - Integrates with EPassiveTrigger for conditional effects
+ * - Integrates with ESkillTrigger for conditional effects
  * - Server-authoritative for multiplayer
  *
  * Usage:
@@ -118,38 +118,40 @@ public:
 		int32 SourceTeam = -1);
 
 	/**
-	 * Apply all passive effects from an evolution
-	 * Call when evolution is activated on a character
+	 * Apply all FSkillEffect-authored effects from an evolution crystal.
+	 * Call when evolution is activated on a character.
+	 *
+	 * @param Target Actor receiving the effects
+	 * @param EvolutionName Display prefix for effect names
+	 * @param EvolutionID Source identifier; effects are tracked at EvolutionID*100 + index
+	 * @param Effects Effects to apply (UItemData::Effects)
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
-	void ApplyEvolutionPassives(
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
+	void ApplyEvolutionEffects(
 		AActor *Target,
 		const FString &EvolutionName,
 		int32 EvolutionID,
-		const TArray<ESkillEffectType> &PassiveTypes,
-		const TArray<float> &PassiveValues);
+		const TArray<FSkillEffect> &Effects);
 
 	// ========================================
-	// EQUIPMENT PASSIVE APPLICATION
+	// EQUIPMENT EFFECT APPLICATION
 	// ========================================
 
 	/**
-	 * Apply equipment-level passive effects (weapon/ring PassiveEffects).
-	 * Mirrors ApplyEvolutionPassives but accepts the full FPassiveEffect
-	 * struct so triggered passives retain their trigger metadata.
+	 * Apply equipment-level skill effects (weapon/ring Effects array).
 	 *
-	 * @param Target Actor to apply passives to
-	 * @param Passives Equipment passives to apply (from ULoadoutComponent::GetActivePassiveEffects)
+	 * @param Target Actor to apply effects to
+	 * @param Effects Equipment effects to apply (from ULoadoutComponent::GetActiveEffects)
 	 * @param SourceID Per-source identifier (e.g. weapon/ring instance ID).
-	 *        Effects are tracked at SourceID*100 + PassiveIndex — pass a value
-	 *        that won't collide with evolution passive IDs.
+	 *        Effects are tracked at SourceID*100 + index — pass a value that
+	 *        won't collide with evolution effect IDs.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Passives")
-	void ApplyEquipmentPassives(AActor *Target, const TArray<FPassiveEffect> &Passives, int32 SourceID);
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
+	void ApplyEquipmentEffects(AActor *Target, const TArray<FSkillEffect> &Effects, int32 SourceID);
 
-	/** Remove equipment passives applied with the given SourceID. */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Passives")
-	void RemoveEquipmentPassives(AActor *Target, int32 SourceID);
+	/** Remove equipment effects applied with the given SourceID. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
+	void RemoveEquipmentEffects(AActor *Target, int32 SourceID);
 
 	// ========================================
 	// WEAPON EFFECT APPLICATION
@@ -307,7 +309,7 @@ public:
 	 * @param TriggerValue Optional value for threshold checks (HP%, etc.)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Turn Processing")
-	void ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue = 0.0f);
+	void ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue = 0.0f);
 
 	// ========================================
 	// QUERIES
@@ -465,5 +467,4 @@ private:
 
 	/** Notify TurnManager that an actor's speed has changed */
 	void NotifySpeedChanged(AActor *Actor);
-
 };

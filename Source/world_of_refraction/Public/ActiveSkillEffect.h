@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "ESkillEffectTiming.h"
-#include "EPassiveTrigger.h"
+#include "ESkillTrigger.h"
 #include "ESkillEffectType.h"
 #include "ESpellElement.h"
+#include "FSkillEffect.h"
 #include "ActiveSkillEffect.generated.h"
 
 /**
@@ -17,7 +18,7 @@
  * - Multiple timing modes (immediate, start/end of turn, conditional, persistent)
  * - Stacking with configurable limits
  * - Source tracking for effect ownership
- * - Conditional triggers via EPassiveTrigger
+ * - Conditional triggers via ESkillTrigger
  * - Duration tracking per affected actor's turn (not global)
  */
 USTRUCT(BlueprintType)
@@ -52,13 +53,24 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** If ProcessTiming = OnTrigger, what condition activates it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
 			  meta = (EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
-	EPassiveTrigger TriggerCondition = EPassiveTrigger::None;
+	ESkillTrigger TriggerCondition = ESkillTrigger::None;
 
-	/** Threshold for HP/Energy percentage triggers */
+	/** Threshold for HP/Energy percentage triggers (source side). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
 			  meta = (ClampMin = "0", ClampMax = "100",
 					  EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
 	float TriggerThreshold = 30.0f;
+
+	/** Target-side condition mirrored from FSkillEffect::TargetCondition.
+	 *  Effects with a target condition only apply when the target's state
+	 *  satisfies it (HP/Energy threshold checks evaluated against the target). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing")
+	ESkillTrigger TargetTriggerCondition = ESkillTrigger::None;
+
+	/** Threshold for the target-side trigger (0..100). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing",
+			  meta = (ClampMin = "0", ClampMax = "100"))
+	float TargetTriggerThreshold = 100.0f;
 
 	/** Whether this trigger condition is currently active (for conditional effects) */
 	UPROPERTY(BlueprintReadOnly, Category = "Timing")
@@ -179,7 +191,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		int32 Value,
 		int32 Duration,
 		ESpellElement InElement,
-		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
+		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn,
+		ESkillTrigger SourceCondition = ESkillTrigger::Always,
+		float SourceConditionThreshold = 30.0f,
+		ESkillTrigger TargetCondition = ESkillTrigger::None,
+		float TargetConditionThreshold = 100.0f)
 	{
 		FActiveSkillEffect Effect;
 		Effect.EffectName = SpellName;
@@ -205,33 +221,66 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		{
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
+
+		// Carry source-side trigger over. When the caller supplied an explicit
+		// non-Always condition, promote timing to OnTrigger so the manager's
+		// trigger evaluator picks it up.
+		Effect.TriggerCondition = SourceCondition;
+		Effect.TriggerThreshold = SourceConditionThreshold;
+		if (SourceCondition != ESkillTrigger::Always &&
+			SourceCondition != ESkillTrigger::None)
+		{
+			Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+		}
+
+		// Target-side condition mirrors FSkillEffect::TargetCondition.
+		Effect.TargetTriggerCondition = TargetCondition;
+		Effect.TargetTriggerThreshold = TargetConditionThreshold;
+
 		return Effect;
 	}
 
 	/**
-	 * Create effects from Evolution passive (TArray<FPassiveEffect>)
-	 * For permanent stat modifiers from evolutions
+	 * Create a runtime status-effect instance from an authored FSkillEffect.
+	 * Used for evolution-crystal effects AND equipment (weapon/ring) effects —
+	 * both now share the FSkillEffect type after the Phase 3 merge.
 	 *
-	 * @param EvolutionName Name of the evolution
-	 * @param EvolutionID Unique evolution ID
-	 * @param PassiveType The effect type from FPassiveEffect
-	 * @param Value The effect value
-	 * @param PassiveIndex Index in the PassiveEffects array (for unique IDs)
+	 * EffectID is packed as SourceID*100 + EffectIndex so removal scans a
+	 * contiguous window. Source callers must pass distinct SourceIDs to avoid
+	 * collisions (e.g. evolution-ID vs weapon/ring-instance-ID ranges).
+	 *
+	 * @param SourceName    Display prefix when Source.EffectName is empty
+	 * @param SourceID      Source's stable identifier (evolution/weapon/ring ID)
+	 * @param Source        Authored skill-effect data to instantiate from
+	 * @param EffectIndex   Index within the source's Effects array (for ID packing)
 	 */
-	static FActiveSkillEffect CreateFromEvolutionPassive(
-		const FString &EvolutionName,
-		int32 EvolutionID,
-		ESkillEffectType PassiveType,
-		float Value,
-		int32 PassiveIndex)
+	static FActiveSkillEffect CreateFromSkillEffect(
+		const FString &SourceName,
+		int32 SourceID,
+		const FSkillEffect &Source,
+		int32 EffectIndex)
 	{
 		FActiveSkillEffect Effect;
-		Effect.EffectName = EvolutionName + TEXT(" Passive");
-		Effect.EffectID = EvolutionID * 100 + PassiveIndex;
-		Effect.EffectType = PassiveType;
-		Effect.EffectValue = Value;
-		Effect.bPermanent = true;
+		Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
+		Effect.EffectID = SourceID * 100 + EffectIndex;
+		Effect.EffectType = Source.EffectType;
+		Effect.EffectValue = (Source.Value != 0) ? static_cast<float>(Source.Value) : (Source.Magnitude * 100.0f);
+		Effect.RemainingTurns = (Source.Duration > 0) ? Source.Duration : 1;
+		Effect.InitialDuration = Effect.RemainingTurns;
+		Effect.bPermanent = (Source.Duration == 0);
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+
+		// Carry trigger fields through; promote to OnTrigger when the source
+		// condition is non-trivial so the manager's trigger evaluator fires.
+		Effect.TriggerCondition = Source.Condition;
+		Effect.TriggerThreshold = Source.ConditionThreshold;
+		Effect.TargetTriggerCondition = Source.TargetCondition;
+		Effect.TargetTriggerThreshold = Source.TargetThreshold;
+		if (Source.Condition != ESkillTrigger::Always && Source.Condition != ESkillTrigger::None)
+		{
+			Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+		}
+
 		return Effect;
 	}
 
@@ -469,7 +518,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case 2: // Impact → Stun (skip turn - uses special handling)
 			Effect.EffectName = WeaponName + TEXT(" Stun");
 			Effect.EffectType = ESkillEffectType::None; // TODO: Add Stun effect type
-			Effect.EffectValue = 1.0f;			   // Stun duration multiplier
+			Effect.EffectValue = 1.0f;					// Stun duration multiplier
 			Effect.RemainingTurns = 1;
 			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 			Effect.bCanStack = false; // Stun doesn't stack, refreshes
@@ -583,6 +632,31 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::LuckBuff:
 		case ESkillEffectType::HealthRestore:
 		case ESkillEffectType::EnergyRestore:
+		// Phase 2 passive-layer buffs
+		case ESkillEffectType::ModifyDamageDealt:
+		case ESkillEffectType::ModifyHealing:
+		case ESkillEffectType::ModifyCritChance:
+		case ESkillEffectType::ModifyCritDamage:
+		case ESkillEffectType::RestoreHPPercent:
+		case ESkillEffectType::RestoreEnergyPercent:
+		case ESkillEffectType::DamageReflect:
+		case ESkillEffectType::Lifesteal:
+		case ESkillEffectType::AbsorbDamage:
+		case ESkillEffectType::Shield:
+		case ESkillEffectType::CounterAttack:
+		case ESkillEffectType::GrantBurnImmunity:
+		case ESkillEffectType::GrantFreezeImmunity:
+		case ESkillEffectType::GrantStunImmunity:
+		case ESkillEffectType::GrantSilenceImmunity:
+		case ESkillEffectType::GrantElementalImmunity:
+		case ESkillEffectType::GrantAllStatusImmunity:
+		case ESkillEffectType::CleanseSelf:
+		case ESkillEffectType::CleanseAllies:
+		case ESkillEffectType::ExtraAction:
+		case ESkillEffectType::GuaranteedCrit:
+		case ESkillEffectType::IgnoreDefense:
+		case ESkillEffectType::DoubleHit:
+		case ESkillEffectType::Revive:
 			return true;
 		default:
 			return false;
@@ -621,6 +695,16 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::HealBlock:
 		case ESkillEffectType::Silenced:
 		case ESkillEffectType::RandomSkill:
+		// Phase 2 passive-layer debuffs
+		case ESkillEffectType::ModifyDamageTaken:
+		case ESkillEffectType::ModifyEnergyCost:
+		case ESkillEffectType::ModifyTurnSpeed:
+		case ESkillEffectType::ModifyStatusResist:
+		case ESkillEffectType::DrainHP:
+		case ESkillEffectType::DrainEnergy:
+		case ESkillEffectType::ApplyBurnToTarget:
+		case ESkillEffectType::ApplyChillToTarget:
+		case ESkillEffectType::ApplyStunToTarget:
 			return true;
 		default:
 			return false;

@@ -16,7 +16,7 @@
 #include "FCombatLoadout.h"
 #include "FItemLoadoutSlot.h"
 #include "FEquipmentStatBonus.h"
-#include "PassiveEffect.h"
+#include "FSkillEffect.h"
 #include "LoadoutData.h"
 #include "CharacterDataComponent.h"
 #include "LoadoutComponent.generated.h"
@@ -396,15 +396,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FEquipmentStatBonus GetActiveStatBonus(AActor *Actor) const;
 
-    /** Equipment-level passive effects from the actor's currently active equipment.
+    /** Equipment-level skill effects from the actor's currently active equipment.
      *  Per-class resolution:
-     *   - Generic   → active weapon's PassiveEffects (whichever slot is shown)
-     *   - Caster    → primary-slot PassiveEffects (weapon OR ring, not both)
-     *   - Resonator → active-ring PassiveEffects
-     *  Evolution crystal PassiveEffects are handled separately and are NOT
-     *  included here. Actor parameter is for caller clarity (always == GetOwner()). */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Passives")
-    TArray<FPassiveEffect> GetActivePassiveEffects(AActor *Actor) const;
+     *   - Generic   → active weapon's Effects (whichever slot is shown)
+     *   - Caster    → primary-slot Effects (weapon OR ring, not both)
+     *   - Resonator → active-ring Effects
+     *  Evolution crystal Effects are handled separately and are NOT included
+     *  here. Actor parameter is for caller clarity (always == GetOwner()). */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Effects")
+    TArray<FSkillEffect> GetActiveEffects(AActor *Actor) const;
 
     /** Evolution crystal slotted in the PRIMARY WEAPON slot only.
      *  Returns nullptr for: secondary weapon crystal, ring crystal, non-evolution

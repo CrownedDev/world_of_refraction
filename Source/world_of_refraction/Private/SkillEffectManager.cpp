@@ -166,42 +166,39 @@ void USkillEffectManager::ApplyInfusionDOT(
 	ApplyEffect(Target, InfusionEffect, Source, AbilityName + TEXT(" (Infused)"), SourceTeam);
 }
 
-void USkillEffectManager::ApplyEvolutionPassives(
+void USkillEffectManager::ApplyEvolutionEffects(
 	AActor *Target,
 	const FString &EvolutionName,
 	int32 EvolutionID,
-	const TArray<ESkillEffectType> &PassiveTypes,
-	const TArray<float> &PassiveValues)
+	const TArray<FSkillEffect> &Effects)
 {
-	if (PassiveTypes.Num() != PassiveValues.Num())
+	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ApplyEvolutionPassives: Mismatched array sizes"));
 		return;
 	}
 
-	for (int32 i = 0; i < PassiveTypes.Num(); ++i)
+	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
-		if (PassiveTypes[i] != ESkillEffectType::None)
+		const FSkillEffect &Source = Effects[i];
+		if (Source.EffectType == ESkillEffectType::None)
 		{
-			FActiveSkillEffect Passive = FActiveSkillEffect::CreateFromEvolutionPassive(
-				EvolutionName,
-				EvolutionID,
-				PassiveTypes[i],
-				PassiveValues[i],
-				i);
-
-			ApplyEffect(Target, Passive, nullptr, EvolutionName, -1);
+			continue;
 		}
+
+		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
+			EvolutionName, EvolutionID, Source, i);
+
+		ApplyEffect(Target, Runtime, nullptr, EvolutionName, -1);
 	}
 }
 
 // ========================================
-// EQUIPMENT PASSIVE APPLICATION
+// EQUIPMENT EFFECT APPLICATION
 // ========================================
 
-void USkillEffectManager::ApplyEquipmentPassives(
+void USkillEffectManager::ApplyEquipmentEffects(
 	AActor *Target,
-	const TArray<FPassiveEffect> &Passives,
+	const TArray<FSkillEffect> &Effects,
 	int32 SourceID)
 {
 	if (!Target)
@@ -209,37 +206,32 @@ void USkillEffectManager::ApplyEquipmentPassives(
 		return;
 	}
 
-	for (int32 i = 0; i < Passives.Num(); ++i)
+	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
-		const FPassiveEffect &Passive = Passives[i];
+		const FSkillEffect &Source = Effects[i];
+		if (Source.EffectType == ESkillEffectType::None)
+		{
+			continue;
+		}
 
-		// CreateFromEvolutionPassive expects ESkillEffectType but FPassiveEffect
-		// carries EPassiveEffectType. No project-wide mapping table exists yet —
-		// type is passed as None for now; trigger metadata + value are preserved
-		// so the structure is wired end-to-end. TODO: add EPassiveEffectType →
-		// ESkillEffectType mapping (or refactor factory to accept EPassiveEffectType).
-		FActiveSkillEffect Effect = FActiveSkillEffect::CreateFromEvolutionPassive(
-			Passive.PassiveName,
-			SourceID,
-			ESkillEffectType::None,
-			Passive.EffectValue,
-			i);
+		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
+			Source.EffectName, SourceID, Source, i);
 
-		ApplyEffect(Target, Effect, nullptr, Passive.PassiveName, -1);
+		ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 	}
 }
 
-void USkillEffectManager::RemoveEquipmentPassives(AActor *Target, int32 SourceID)
+void USkillEffectManager::RemoveEquipmentEffects(AActor *Target, int32 SourceID)
 {
 	if (!Target)
 	{
 		return;
 	}
 
-	// CreateFromEvolutionPassive packs EffectID as SourceID*100 + PassiveIndex.
+	// CreateFromSkillEffect packs EffectID as SourceID*100 + EffectIndex.
 	// Clear every slot in that window; missing IDs are a no-op in RemoveEffectByID.
-	constexpr int32 PASSIVE_INDEX_RANGE = 100;
-	for (int32 i = 0; i < PASSIVE_INDEX_RANGE; ++i)
+	constexpr int32 EFFECT_INDEX_RANGE = 100;
+	for (int32 i = 0; i < EFFECT_INDEX_RANGE; ++i)
 	{
 		RemoveEffectByID(Target, SourceID * 100 + i);
 	}
@@ -790,7 +782,7 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::Persistent);
 
 	// Check conditional triggers with current state
-	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnStart);
+	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnStart);
 }
 
 void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
@@ -807,7 +799,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::EndOfOwnTurn);
 
 	// Check conditional triggers
-	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnEnd);
+	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnEnd);
 
 	// Tick durations and remove expired effects
 	TickDurations(Actor);
@@ -829,7 +821,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	}
 }
 
-void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue)
+void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue)
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1073,6 +1065,112 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::RandomSkill:
 		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] %s has RandomSkill active - implementation pending"),
 			   *Actor->GetName());
+		break;
+
+	// ==================== PASSIVE LAYER (Phase 2) ====================
+	// Stub cases for the new passive-layer effect types. Each needs its own
+	// runtime handler — added in upcoming phases.
+
+	// Stat modifiers — passive-layer percent. Like the existing stat modifiers,
+	// these are passive and queried by other systems; no per-tick logic here.
+	case ESkillEffectType::ModifyDamageDealt:
+	case ESkillEffectType::ModifyDamageTaken:
+	case ESkillEffectType::ModifyHealing:
+	case ESkillEffectType::ModifyCritChance:
+	case ESkillEffectType::ModifyCritDamage:
+	case ESkillEffectType::ModifyEnergyCost:
+	case ESkillEffectType::ModifyTurnSpeed:
+	case ESkillEffectType::ModifyStatusResist:
+		// TODO: Wire query path so DamageCalculator / TurnManager / CharacterDataComponent
+		// pick these up alongside the existing stat-modifier types.
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive stat modifier %s active on %s (%.1f%%)"),
+			   *Effect.EffectName, *Actor->GetName(), Value);
+		break;
+
+	// Resource changes — percent restore / drain.
+	case ESkillEffectType::RestoreHPPercent:
+		// TODO: Implement % MaxHP restore (multiply Value by CharComp->MaxHP)
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO RestoreHPPercent on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::RestoreEnergyPercent:
+		// TODO: Implement % MaxEnergy restore
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO RestoreEnergyPercent on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::DrainHP:
+		// TODO: Implement HP drain (separate from DOT — not clamped to 1 HP)
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO DrainHP on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::DrainEnergy:
+		// TODO: Implement energy drain handler (distinct from EnergyDrain bar-cap effect)
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO DrainEnergy on %s"), *Actor->GetName());
+		break;
+
+	// Defensive — passive shields and damage redirection. No per-tick logic;
+	// hooked into the damage pipeline.
+	case ESkillEffectType::DamageReflect:
+	case ESkillEffectType::Lifesteal:
+	case ESkillEffectType::AbsorbDamage:
+	case ESkillEffectType::Shield:
+		// TODO: Hook into DamageCalculator / ActionExecutor damage pipeline
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive defensive %s active on %s"),
+			   *Effect.EffectName, *Actor->GetName());
+		break;
+
+	// Counter — retaliation on attack received.
+	case ESkillEffectType::CounterAttack:
+		// TODO: Wire to ActionExecutor post-damage retaliation path
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] CounterAttack active on %s"), *Actor->GetName());
+		break;
+
+	// Immunities — gate checks in the relevant effect-application path.
+	case ESkillEffectType::GrantBurnImmunity:
+	case ESkillEffectType::GrantFreezeImmunity:
+	case ESkillEffectType::GrantStunImmunity:
+	case ESkillEffectType::GrantSilenceImmunity:
+	case ESkillEffectType::GrantElementalImmunity:
+	case ESkillEffectType::GrantAllStatusImmunity:
+		// TODO: ApplyEffect must early-out for matching incoming status types
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Immunity %s active on %s"),
+			   *Effect.EffectName, *Actor->GetName());
+		break;
+
+	// Status application on trigger — apply a follow-up effect when this fires.
+	case ESkillEffectType::ApplyBurnToTarget:
+	case ESkillEffectType::ApplyChillToTarget:
+	case ESkillEffectType::ApplyStunToTarget:
+		// TODO: Invoke ApplyTriggeredSkillEffect with the corresponding status type
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO %s — apply-on-trigger"), *Effect.EffectName);
+		break;
+
+	case ESkillEffectType::CleanseSelf:
+		// TODO: Call RemoveAllDebuffs(Actor) on trigger
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO CleanseSelf on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::CleanseAllies:
+		// TODO: Iterate team allies and RemoveAllDebuffs each
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO CleanseAllies for %s"), *Actor->GetName());
+		break;
+
+	// Special mechanics — bespoke handlers in different subsystems.
+	case ESkillEffectType::ExtraAction:
+		// TODO: Hook into TurnManager to grant an extra action this turn
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO ExtraAction on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::GuaranteedCrit:
+		// TODO: DamageCalculator forces crit when this is active
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] GuaranteedCrit active on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::IgnoreDefense:
+		// TODO: DamageCalculator skips defense subtraction when this is active
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] IgnoreDefense active on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::DoubleHit:
+		// TODO: ActionExecutor runs the hit pipeline twice at 50% each
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] DoubleHit active on %s"), *Actor->GetName());
+		break;
+	case ESkillEffectType::Revive:
+		// TODO: CharacterDataComponent death handler checks for this and revives
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Revive armed on %s"), *Actor->GetName());
 		break;
 
 	default:
@@ -1354,7 +1452,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 
 	switch (Effect.TriggerCondition)
 	{
-	case EPassiveTrigger::OnHPBelowThreshold:
+	case ESkillTrigger::OnHPBelowThreshold:
 	{
 		float HPPercent = (CharComp->MaxHP > 0)
 							  ? (static_cast<float>(CharComp->CurrentHP) / static_cast<float>(CharComp->MaxHP)) * 100.0f
@@ -1362,7 +1460,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return HPPercent < Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::OnHPAboveThreshold:
+	case ESkillTrigger::OnHPAboveThreshold:
 	{
 		float HPPercent = (CharComp->MaxHP > 0)
 							  ? (static_cast<float>(CharComp->CurrentHP) / static_cast<float>(CharComp->MaxHP)) * 100.0f
@@ -1370,7 +1468,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return HPPercent > Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::OnEnergyBelowThreshold:
+	case ESkillTrigger::OnEnergyBelowThreshold:
 	{
 		float EPPercent = (CharComp->MaxEP > 0)
 							  ? (static_cast<float>(CharComp->CurrentEP) / static_cast<float>(CharComp->MaxEP)) * 100.0f
@@ -1378,7 +1476,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return EPPercent < Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::OnEnergyAboveThreshold:
+	case ESkillTrigger::OnEnergyAboveThreshold:
 	{
 		float EPPercent = (CharComp->MaxEP > 0)
 							  ? (static_cast<float>(CharComp->CurrentEP) / static_cast<float>(CharComp->MaxEP)) * 100.0f
@@ -1386,23 +1484,23 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return EPPercent > Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::Always:
+	case ESkillTrigger::Always:
 		return true;
 
 	// Event-based triggers are always "met" when the event occurs
-	case EPassiveTrigger::OnCrit:
-	case EPassiveTrigger::OnHit:
-	case EPassiveTrigger::OnTakeDamage:
-	case EPassiveTrigger::OnKill:
-	case EPassiveTrigger::OnDodge:
-	case EPassiveTrigger::OnBlock:
-	case EPassiveTrigger::OnTurnStart:
-	case EPassiveTrigger::OnTurnEnd:
-	case EPassiveTrigger::OnSpellCast:
-	case EPassiveTrigger::OnAbilityUsed:
-	case EPassiveTrigger::OnBattleStart:
-	case EPassiveTrigger::OnStatusApplied:
-	case EPassiveTrigger::OnStatusReceived:
+	case ESkillTrigger::OnCrit:
+	case ESkillTrigger::OnHit:
+	case ESkillTrigger::OnTakeDamage:
+	case ESkillTrigger::OnKill:
+	case ESkillTrigger::OnDodge:
+	case ESkillTrigger::OnBlock:
+	case ESkillTrigger::OnTurnStart:
+	case ESkillTrigger::OnTurnEnd:
+	case ESkillTrigger::OnSpellCast:
+	case ESkillTrigger::OnAbilityUsed:
+	case ESkillTrigger::OnBattleStart:
+	case ESkillTrigger::OnStatusApplied:
+	case ESkillTrigger::OnStatusReceived:
 		return true;
 
 	default:

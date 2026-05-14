@@ -13,7 +13,7 @@
  * - Immediate: Once when applied (instant damage, cleanse, dispel)
  * - StartOfOwnTurn: At start of affected actor's turn (buffs, shields, regen)
  * - EndOfOwnTurn: At end of affected actor's turn (DOTs, lingering damage)
- * - OnTrigger: When condition met (uses EPassiveTrigger for condition)
+ * - OnTrigger: When condition met (uses ESkillTrigger for condition)
  * - Persistent: Always active, never removed unless explicitly cleared
  */
 UENUM(BlueprintType)
@@ -28,8 +28,8 @@ enum class ESkillEffectTiming : uint8
 	/** Processes at the end of the affected actor's turn */
 	EndOfOwnTurn UMETA(DisplayName = "End of Own Turn"),
 
-	/** Processes when a condition is met (uses EPassiveTrigger) */
-	OnTrigger UMETA(DisplayName = "Conditional (Uses EPassiveTrigger)"),
+	/** Processes when a condition is met (uses ESkillTrigger) */
+	OnTrigger UMETA(DisplayName = "Conditional (Uses ESkillTrigger)"),
 
 	/** Always active, stat modifier style effects */
 	Persistent UMETA(DisplayName = "Persistent (Always Active)")

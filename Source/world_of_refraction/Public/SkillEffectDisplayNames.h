@@ -171,6 +171,87 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::LuckDebuff:
             return TEXT("Misfortune");
 
+        // ==================== PASSIVE LAYER (Phase 2) ====================
+        // Stat modifiers
+        case ESkillEffectType::ModifyDamageDealt:
+            return TEXT("Damage Up");
+        case ESkillEffectType::ModifyDamageTaken:
+            return TEXT("Damage Taken Up");
+        case ESkillEffectType::ModifyHealing:
+            return TEXT("Healing Up");
+        case ESkillEffectType::ModifyCritChance:
+            return TEXT("Crit Chance Up");
+        case ESkillEffectType::ModifyCritDamage:
+            return TEXT("Crit Damage Up");
+        case ESkillEffectType::ModifyEnergyCost:
+            return TEXT("Energy Cost Up");
+        case ESkillEffectType::ModifyTurnSpeed:
+            return TEXT("Turn Speed Up");
+        case ESkillEffectType::ModifyStatusResist:
+            return TEXT("Status Resist Up");
+
+        // Resource changes
+        case ESkillEffectType::RestoreHPPercent:
+            return TEXT("Restore HP %");
+        case ESkillEffectType::RestoreEnergyPercent:
+            return TEXT("Restore Energy %");
+        case ESkillEffectType::DrainHP:
+            return TEXT("Drain HP");
+        case ESkillEffectType::DrainEnergy:
+            return TEXT("Drain Energy");
+
+        // Defensive
+        case ESkillEffectType::DamageReflect:
+            return TEXT("Reflect");
+        case ESkillEffectType::Lifesteal:
+            return TEXT("Lifesteal");
+        case ESkillEffectType::AbsorbDamage:
+            return TEXT("Absorb");
+        case ESkillEffectType::Shield:
+            return TEXT("Shield");
+
+        // Counter
+        case ESkillEffectType::CounterAttack:
+            return TEXT("Counter");
+
+        // Immunities
+        case ESkillEffectType::GrantBurnImmunity:
+            return TEXT("Burn Immunity");
+        case ESkillEffectType::GrantFreezeImmunity:
+            return TEXT("Freeze Immunity");
+        case ESkillEffectType::GrantStunImmunity:
+            return TEXT("Stun Immunity");
+        case ESkillEffectType::GrantSilenceImmunity:
+            return TEXT("Silence Immunity");
+        case ESkillEffectType::GrantElementalImmunity:
+            return TEXT("Elemental Immunity");
+        case ESkillEffectType::GrantAllStatusImmunity:
+            return TEXT("All-Status Immunity");
+
+        // Status application on trigger
+        case ESkillEffectType::ApplyBurnToTarget:
+            return TEXT("Apply Burn");
+        case ESkillEffectType::ApplyChillToTarget:
+            return TEXT("Apply Chill");
+        case ESkillEffectType::ApplyStunToTarget:
+            return TEXT("Apply Stun");
+        case ESkillEffectType::CleanseSelf:
+            return TEXT("Cleanse Self");
+        case ESkillEffectType::CleanseAllies:
+            return TEXT("Cleanse Allies");
+
+        // Special mechanics
+        case ESkillEffectType::ExtraAction:
+            return TEXT("Extra Action");
+        case ESkillEffectType::GuaranteedCrit:
+            return TEXT("Guaranteed Crit");
+        case ESkillEffectType::IgnoreDefense:
+            return TEXT("Ignore Defense");
+        case ESkillEffectType::DoubleHit:
+            return TEXT("Double Hit");
+        case ESkillEffectType::Revive:
+            return TEXT("Revive");
+
         // All other status types use their enum display name
         default:
         {

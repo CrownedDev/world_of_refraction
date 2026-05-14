@@ -21,7 +21,7 @@
 #include "ItemEffectType.h"
 #include "ESpellElement.h"
 #include "DurabilityConstants.h"
-#include "PassiveEffect.h"
+#include "FSkillEffect.h"
 #include "NiagaraSystem.h"
 #include "EEvolutionType.h"
 #include "ActionStatModifiers.h"
@@ -113,34 +113,34 @@ public:
         // to CombatConstants::CRYSTAL_BONUS_MIN; the UI clamp can't be
         // overridden at the embedding site, so out-of-range values are caught
         // by UItemData::IsDataValid warnings rather than UI enforcement.
-        // StatBonus (Category = "Stats|Evolution") is referred to as "Traits"
+        // BaseStatBonus (Category = "Stats|Evolution") is referred to as "Traits"
         // in design docs for evolution crystals — the in-editor category cannot
         // vary per subclass, so the header label stays generic.
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
-        FEquipmentStatBonus StatBonus;
+        FEquipmentStatBonus BaseStatBonus;
 
         // ==================== LEGACY PILLAR FIELDS (Deprecated) ====================
         // Kept for one transition release to support PostLoad migration of
-        // existing crystal assets. Values are copied into StatBonus on load.
+        // existing crystal assets. Values are copied into BaseStatBonus on load.
         // Scheduled for removal in a follow-up commit after content team
         // confirms all assets have been re-saved.
 
-        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusMindModifierPercent instead — PostLoad migrates legacy values."))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BaseStatBonus.BonusMindModifierPercent instead — PostLoad migrates legacy values."))
         float MindModifierPercent = 0.0f;
 
-        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusBodyModifierPercent instead — PostLoad migrates legacy values."))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BaseStatBonus.BonusBodyModifierPercent instead — PostLoad migrates legacy values."))
         float BodyModifierPercent = 0.0f;
 
-        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusSpiritModifierPercent instead — PostLoad migrates legacy values."))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BaseStatBonus.BonusSpiritModifierPercent instead — PostLoad migrates legacy values."))
         float SpiritModifierPercent = 0.0f;
 
-        // ==================== PASSIVE EFFECTS (Evolution only) ====================
+        // ==================== EFFECTS (Evolution only) ====================
 
-        /** Passive effects granted by this evolution crystal */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passives|Evolution",
+        /** Skill effects granted by this evolution crystal (passives + triggered) */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution",
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
-        TArray<FPassiveEffect> PassiveEffects;
+        TArray<FSkillEffect> Effects;
 
         // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
         // These are computed and displayed for reference - not editable
@@ -278,19 +278,19 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Stats")
         float GetSpiritModifierPercent() const;
 
-        // ==================== PASSIVE HELPER FUNCTIONS ====================
+        // ==================== EFFECT HELPER FUNCTIONS ====================
 
-        /** Get passive effect count */
-        UFUNCTION(BlueprintPure, Category = "Item|Passives")
-        int32 GetPassiveCount() const { return PassiveEffects.Num(); }
+        /** Get effect count */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetEffectCount() const { return Effects.Num(); }
 
-        /** Get always-active passives */
-        UFUNCTION(BlueprintPure, Category = "Item|Passives")
-        TArray<FPassiveEffect> GetAlwaysActivePassives() const;
+        /** Get always-active effects (Condition == Always, no target condition) */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        TArray<FSkillEffect> GetAlwaysActiveEffects() const;
 
-        /** Get triggered passives (not always-active) */
-        UFUNCTION(BlueprintPure, Category = "Item|Passives")
-        TArray<FPassiveEffect> GetTriggeredPassives() const;
+        /** Get triggered effects (anything not always-active) */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        TArray<FSkillEffect> GetTriggeredEffects() const;
 
         // ==================== EVOLUTION HELPER FUNCTIONS ====================
 
@@ -305,14 +305,14 @@ public:
         // ==================== STAT CALCULATION (Evolution only) ====================
 
         /** Compute per-action stat modifiers when this Evolution crystal is INFUSING.
-         *  Maps StatBonus int fields 1:1 onto FActionStatModifiers, scaled by
+         *  Maps BaseStatBonus int fields 1:1 onto FActionStatModifiers, scaled by
          *  InfusionMultiplier (L1 = 0.5f, L2 = 1.0f).
          *
          *  DOES NOT apply:
          *   - Pillar percent fields (BonusMind/Body/SpiritModifierPercent) — these
          *     flow through UCharacterDataComponent::ApplyCrystalPillarModifier as
          *     character-persistent modifiers, not per-action.
-         *   - PassiveEffects — character-only via a separate system.
+         *   - Effects — character-only via a separate system.
          *
          *  Returns a zeroed struct when bIsEvolutionCrystal is false. */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
