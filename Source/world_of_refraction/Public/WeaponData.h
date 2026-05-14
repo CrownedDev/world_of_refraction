@@ -30,9 +30,9 @@ class WORLD_OF_REFRACTION_API UWeaponData : public UEquipmentDataBase
     GENERATED_BODY()
 
 public:
-    // Inherited DefaultStatBonus (Category = "Bonuses") is referred to as
-    // "Mastery" in design docs for weapons — the in-editor category cannot
-    // vary per subclass, so the header label stays generic.
+    // Inherited BaseStatBonus / GeneratedStatBonus (Category = "Bonuses") are
+    // referred to as "Mastery" in design docs for weapons — the in-editor
+    // category cannot vary per subclass, so the header label stays generic.
 
     // ==================== WEAPON ====================
 

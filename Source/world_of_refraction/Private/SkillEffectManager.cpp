@@ -196,6 +196,56 @@ void USkillEffectManager::ApplyEvolutionPassives(
 }
 
 // ========================================
+// EQUIPMENT PASSIVE APPLICATION
+// ========================================
+
+void USkillEffectManager::ApplyEquipmentPassives(
+	AActor *Target,
+	const TArray<FPassiveEffect> &Passives,
+	int32 SourceID)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	for (int32 i = 0; i < Passives.Num(); ++i)
+	{
+		const FPassiveEffect &Passive = Passives[i];
+
+		// CreateFromEvolutionPassive expects ESkillEffectType but FPassiveEffect
+		// carries EPassiveEffectType. No project-wide mapping table exists yet —
+		// type is passed as None for now; trigger metadata + value are preserved
+		// so the structure is wired end-to-end. TODO: add EPassiveEffectType →
+		// ESkillEffectType mapping (or refactor factory to accept EPassiveEffectType).
+		FActiveSkillEffect Effect = FActiveSkillEffect::CreateFromEvolutionPassive(
+			Passive.PassiveName,
+			SourceID,
+			ESkillEffectType::None,
+			Passive.EffectValue,
+			i);
+
+		ApplyEffect(Target, Effect, nullptr, Passive.PassiveName, -1);
+	}
+}
+
+void USkillEffectManager::RemoveEquipmentPassives(AActor *Target, int32 SourceID)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	// CreateFromEvolutionPassive packs EffectID as SourceID*100 + PassiveIndex.
+	// Clear every slot in that window; missing IDs are a no-op in RemoveEffectByID.
+	constexpr int32 PASSIVE_INDEX_RANGE = 100;
+	for (int32 i = 0; i < PASSIVE_INDEX_RANGE; ++i)
+	{
+		RemoveEffectByID(Target, SourceID * 100 + i);
+	}
+}
+
+// ========================================
 // WEAPON EFFECT APPLICATION
 // ========================================
 

@@ -63,9 +63,11 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     TArray<USpellData *> AssignedSpells;
 
-    /** Per-instance stat bonus state. Seeded from URingData::DefaultStatBonus
-     *  at CreateFromRing time. This is what runtime damage and stat queries
-     *  should read — not the asset's DefaultStatBonus. */
+    /** Per-instance stat bonus state. Seeded from the asset's
+     *  GetCombinedStatBonus() (BaseStatBonus + GeneratedStatBonus) at
+     *  CreateFromRing time. This is what runtime damage and stat queries
+     *  should read — not the asset's BaseStatBonus / GeneratedStatBonus
+     *  layers. */
     UPROPERTY(BlueprintReadWrite, Category = "Engravings")
     FEquipmentStatBonus StatBonus;
 

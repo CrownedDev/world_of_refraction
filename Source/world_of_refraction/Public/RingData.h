@@ -24,9 +24,9 @@ class WORLD_OF_REFRACTION_API URingData : public UEquipmentDataBase
 	GENERATED_BODY()
 
 public:
-	// Inherited DefaultStatBonus (Category = "Bonuses") is referred to as
-	// "Engravings" in design docs for rings — the in-editor category cannot
-	// vary per subclass, so the header label stays generic.
+	// Inherited BaseStatBonus / GeneratedStatBonus (Category = "Bonuses") are
+	// referred to as "Engravings" in design docs for rings — the in-editor
+	// category cannot vary per subclass, so the header label stays generic.
 
 	// ==================== RING ====================
 

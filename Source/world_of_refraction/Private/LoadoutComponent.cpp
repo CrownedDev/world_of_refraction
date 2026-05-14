@@ -1967,6 +1967,51 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     return Combined;
 }
 
+TArray<FPassiveEffect> ULoadoutComponent::GetActivePassiveEffects(AActor *Actor) const
+{
+    (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
+
+    TArray<FPassiveEffect> Result;
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+    {
+        if (UWeaponData *Weapon = GetActiveWeapon())
+        {
+            Result.Append(Weapon->PassiveEffects);
+        }
+        break;
+    }
+
+    case ECharacterClass::Resonator:
+    {
+        if (URingData *Ring = GetActiveRing())
+        {
+            Result.Append(Ring->PassiveEffects);
+        }
+        break;
+    }
+
+    case ECharacterClass::Caster:
+    default:
+    {
+        // Primary slot only (weapon OR ring, not both).
+        if (UWeaponData *Weapon = GetPrimaryWeapon())
+        {
+            Result.Append(Weapon->PassiveEffects);
+        }
+        else if (URingData *Ring = GetPrimaryRing())
+        {
+            Result.Append(Ring->PassiveEffects);
+        }
+        break;
+    }
+    }
+
+    return Result;
+}
+
 UItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
 {
     (void)Actor;
