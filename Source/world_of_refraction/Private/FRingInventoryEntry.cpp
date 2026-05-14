@@ -40,8 +40,7 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool 
 
     if (InRing)
     {
-        Entry.StatBonus = InRing->DefaultStatBonus;
-        Entry.StatBonus.bLocked = InRing->bStatBonusLocked;
+        Entry.StatBonus = InRing->GetCombinedStatBonus();
     }
 
     return Entry;

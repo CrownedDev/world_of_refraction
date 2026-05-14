@@ -9,9 +9,9 @@
 //
 // At inventory creation (FWeaponInventoryEntry::CreateFromWeapon /
 // FRingInventoryEntry::CreateFromRing), the asset's DefaultStatBonus is
-// copied into the entry's StatBonus, and bStatBonusLocked is propagated
-// into bLocked. The per-instance copy is what should drive runtime stat
-// queries; the asset-side template is the starting state for new entries.
+// copied into the entry's StatBonus. The per-instance copy is what should
+// drive runtime stat queries; the asset-side template is the starting state
+// for new entries.
 
 #pragma once
 
@@ -21,11 +21,22 @@
 
 /**
  * FEquipmentStatBonus
- * Bag of bonus fields plus a pending-points / capped-roll budget.
+ * Bag of bonus fields populated by tier-budgeted reroll.
  *
- * Tier budgets (capacity points): F=6, E=10, D=15, C=21, B=28, A=36, S=45.
- * Per-stat cap (planned): 40% of tier budget.
- * Designed for a capped broken-stick distribution in SpendPendingPoints.
+ * Substat budgets (capacity points): F=6, E=10, D=15, C=21, B=28, A=36, S=45.
+ * Pillar budgets (percent magnitude): F=3, E=5, D=8, C=12, B=18, A=25, S=33.
+ *
+ * Roll model:
+ *  - RerollSubstats wipes the 13 substat fields and redistributes one full
+ *    tier budget using zero-sum broken-stick: net signed sum of changes
+ *    equals the budget; some fields land negative.
+ *  - RerollPillars mirrors the above for the 3 pillar percent fields.
+ *
+ * The pending-pool / cap-gate lives on the caller (UEquipmentDataBase) — the
+ * struct itself just wipes and redistributes when asked.
+ *
+ * Per-stat caps and field clamps live in CombatConstants — see
+ * SUBSTAT_CAP_FRACTION / PILLAR_CAP_FRACTION / CRYSTAL_BONUS_MIN/MAX.
  */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
@@ -33,47 +44,47 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     GENERATED_BODY()
 
     // ==================== BONUS FIELDS (16) ====================
-    // 13 capacity-point fields (counted by GetTotalSpent against tier budget)
-    // plus 3 pillar percent fields (designer-tuned, NOT counted in tier budget;
-    // see GetTotalSpent comment).
+    // 13 substat fields filled by zero-sum distribution of one full tier
+    // substat budget, plus 3 pillar percent fields filled from one full
+    // tier pillar budget. Per-field clamps below.
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusRawDamage = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusSpellDamage = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusEfficiency = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusStatusMultiplier = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21.0", ClampMax = "21.0"))
     float BonusCritChance = 0.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusSpellSpeed = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusDefense = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusActionSpeed = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusMaxHP = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusMaxEnergy = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusResistance = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusTurnSpeed = 0;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusLuck = 0;
 
     // ==================== PILLAR PERCENT BONUSES (3) ====================
@@ -82,7 +93,7 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     // Per-slot range: -15% to +15%. Negative values supported (cursed gear /
     // set-bonus tradeoffs). Multi-slot summing applies — see
     // ULoadoutComponent::GetActiveStatBonus for class-specific stacking rules.
-    // NOT counted toward tier capacity-spent points — designer-tuned per-asset.
+    // NOT counted toward tier substat capacity — designer-tuned per-asset.
     // See CombatConstants::PILLAR_MODIFIER_MIN/MAX (literals must mirror).
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Pillar", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
@@ -94,49 +105,33 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses|Pillar", meta = (ClampMin = "-15.0", ClampMax = "15.0"))
     float BonusSpiritModifierPercent = 0.0f;
 
-    // ==================== MASTERY / ROLL STATE ====================
+    // ==================== BUDGET / QUERIES ====================
 
-    /** Unspent points awaiting SpendPendingPoints() distribution. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mastery", meta = (ClampMin = "0"))
-    int32 PendingPoints = 0;
+    /** Tier → substat capacity budget. Delegates to EquipmentBonusGen::GetSubstatBudget
+     *  (defined in EquipmentBonusGenerator.h to keep CombatConstants.h free of
+     *  EItemTier dependencies). */
+    static int32 GetSubstatBudget(EItemTier Tier);
 
-    /** When true, SpendPendingPoints is a no-op — bonuses are fixed. Mirrors
-     *  the asset-side bStatBonusLocked, propagated at CreateFromWeapon /
-     *  CreateFromRing time. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mastery")
-    bool bLocked = false;
+    // ==================== MUTATORS ====================
 
-    // ==================== BUDGET / CAPACITY ====================
-
-    /** Capacity points available for a given tier. Inline table —
-     *  F=6, E=10, D=15, C=21, B=28, A=36, S=45. */
-    static int32 GetBudget(EItemTier Tier);
-
-    /** Sum of all 13 bonus fields. BonusCritChance is rounded to int for
-     *  this sum — caller should treat the result as "capacity points
-     *  spent", not as a damage / chance number. */
-    int32 GetTotalSpent() const;
-
-    /** Budget minus GetTotalSpent. May be negative if a designer over-allocates
-     *  in the editor — callers should check >= 0 before using as a slot count. */
-    int32 GetRemainingCapacity(EItemTier Tier) const;
-
-    /** True when GetTotalSpent() >= GetBudget(Tier). */
-    bool IsAtCap(EItemTier Tier) const;
-
-    /** Queue points for a later SpendPendingPoints. Clamped to >= 0. */
-    void AddPendingPoints(int32 Amount);
-
-    /** Distribute PendingPoints across the 13 bonus fields using the
-     *  capped broken-stick algorithm (40% per-stat cap, one reroll per
-     *  call when at cap and PendingPoints >= GetBudget(Tier)). Resets
-     *  PendingPoints to zero on return.
+    /** Wipe the 13 substat fields and redistribute one full tier budget
+     *  using zero-sum broken-stick:
+     *    1. Split the budget across Mind/Body/Spirit using FPillarWeights.
+     *    2. Within each pillar, distribute positives AND negatives so that
+     *       net signed change per pillar equals the pillar's share.
+     *    3. Each field's |delta| capped at (pillar_share × SUBSTAT_CAP_FRACTION).
+     *       Resulting field value clamped to CRYSTAL_BONUS_MIN/MAX (±21).
      *
-     *  No-op when bLocked is true.
+     *  Returns the budget redistributed (0 on no-op). */
+    int32 RerollSubstats(EItemTier Tier, const struct FPillarWeights &Weights);
+
+    /** Wipe the 3 pillar fields and redistribute one full tier pillar budget
+     *  using zero-sum broken-stick:
+     *    - Random magnitudes (broken-stick across 3 pillars), random per-pillar
+     *      negative offset, net signed sum = budget.
+     *    - Per-pillar |delta| capped at (budget × PILLAR_CAP_FRACTION).
+     *    - Resulting field clamped to PILLAR_MODIFIER_MIN/MAX (±15%).
      *
-     *  IMPLEMENTATION DEFERRED: algorithm parameters (RNG source, cap
-     *  rounding, reroll behavior, locked-field handling) are unresolved.
-     *  Body intentionally not provided in this pass — see
-     *  FEquipmentStatBonus.cpp. */
-    void SpendPendingPoints(EItemTier Tier);
+     *  Returns the budget redistributed (0.0f on no-op). */
+    float RerollPillars(EItemTier Tier);
 };

@@ -2,6 +2,10 @@
 
 #include "EquipmentDataBase.h"
 #include "ItemData.h"
+#include "EquipmentBonusGenerator.h"
+#include "FPillarWeights.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBonusEditor, Log, All);
 
 bool UEquipmentDataBase::IsEvolved() const
 {
@@ -15,6 +19,69 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
         return ESpellElement::Generic;
     }
     return SlottedCrystal->GetAssociatedElement();
+}
+
+void UEquipmentDataBase::RollSubstatPoints()
+{
+    const int32 Budget = EquipmentBonusGen::GetSubstatBudget(Tier);
+    if (SubstatPoints < Budget)
+    {
+        UE_LOG(LogEquipmentBonusEditor, Warning,
+               TEXT("[%s] RollSubstatPoints blocked — insufficient points: SubstatPoints (%d) < tier budget (%d)."),
+               *Name, SubstatPoints, Budget);
+        return;
+    }
+    Modify();
+    const FPillarWeights EqualWeights;
+    GeneratedStatBonus.RerollSubstats(Tier, EqualWeights);
+    SubstatPoints = 0;
+}
+
+void UEquipmentDataBase::RollPillarPoints()
+{
+    const float Budget = EquipmentBonusGen::GetPillarBudget(Tier);
+    if (PillarPoints < Budget)
+    {
+        UE_LOG(LogEquipmentBonusEditor, Warning,
+               TEXT("[%s] RollPillarPoints blocked — insufficient points: PillarPoints (%.2f) < tier budget (%.2f)."),
+               *Name, PillarPoints, Budget);
+        return;
+    }
+    Modify();
+    GeneratedStatBonus.RerollPillars(Tier);
+    PillarPoints = 0.0f;
+}
+
+void UEquipmentDataBase::ClearAllBonuses()
+{
+    // Clears the generator layer only — BaseStatBonus (designer baseline)
+    // is intentionally preserved.
+    Modify();
+    GeneratedStatBonus = FEquipmentStatBonus();
+    SubstatPoints = 0;
+    PillarPoints = 0.0f;
+}
+
+FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
+{
+    FEquipmentStatBonus Combined;
+    Combined.BonusRawDamage             = BaseStatBonus.BonusRawDamage             + GeneratedStatBonus.BonusRawDamage;
+    Combined.BonusSpellDamage           = BaseStatBonus.BonusSpellDamage           + GeneratedStatBonus.BonusSpellDamage;
+    Combined.BonusEfficiency            = BaseStatBonus.BonusEfficiency            + GeneratedStatBonus.BonusEfficiency;
+    Combined.BonusStatusMultiplier      = BaseStatBonus.BonusStatusMultiplier      + GeneratedStatBonus.BonusStatusMultiplier;
+    Combined.BonusCritChance            = BaseStatBonus.BonusCritChance            + GeneratedStatBonus.BonusCritChance;
+    Combined.BonusSpellSpeed            = BaseStatBonus.BonusSpellSpeed            + GeneratedStatBonus.BonusSpellSpeed;
+    Combined.BonusDefense               = BaseStatBonus.BonusDefense               + GeneratedStatBonus.BonusDefense;
+    Combined.BonusActionSpeed           = BaseStatBonus.BonusActionSpeed           + GeneratedStatBonus.BonusActionSpeed;
+    Combined.BonusMaxHP                 = BaseStatBonus.BonusMaxHP                 + GeneratedStatBonus.BonusMaxHP;
+    Combined.BonusMaxEnergy             = BaseStatBonus.BonusMaxEnergy             + GeneratedStatBonus.BonusMaxEnergy;
+    Combined.BonusResistance            = BaseStatBonus.BonusResistance            + GeneratedStatBonus.BonusResistance;
+    Combined.BonusTurnSpeed             = BaseStatBonus.BonusTurnSpeed             + GeneratedStatBonus.BonusTurnSpeed;
+    Combined.BonusLuck                  = BaseStatBonus.BonusLuck                  + GeneratedStatBonus.BonusLuck;
+    Combined.BonusMindModifierPercent   = BaseStatBonus.BonusMindModifierPercent   + GeneratedStatBonus.BonusMindModifierPercent;
+    Combined.BonusBodyModifierPercent   = BaseStatBonus.BonusBodyModifierPercent   + GeneratedStatBonus.BonusBodyModifierPercent;
+    Combined.BonusSpiritModifierPercent = BaseStatBonus.BonusSpiritModifierPercent + GeneratedStatBonus.BonusSpiritModifierPercent;
+    return Combined;
 }
 
 #if WITH_EDITOR

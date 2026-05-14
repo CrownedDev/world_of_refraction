@@ -113,6 +113,9 @@ public:
         // to CombatConstants::CRYSTAL_BONUS_MIN; the UI clamp can't be
         // overridden at the embedding site, so out-of-range values are caught
         // by UItemData::IsDataValid warnings rather than UI enforcement.
+        // StatBonus (Category = "Stats|Evolution") is referred to as "Traits"
+        // in design docs for evolution crystals — the in-editor category cannot
+        // vary per subclass, so the header label stays generic.
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         FEquipmentStatBonus StatBonus;

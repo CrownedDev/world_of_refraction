@@ -1861,8 +1861,7 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
 
 namespace
 {
-    /** Field-wise accumulator for FEquipmentStatBonus. Mastery/roll state
-     *  (PendingPoints, bLocked) is intentionally NOT summed — the result is a
+    /** Field-wise accumulator for FEquipmentStatBonus. The result is a
      *  read-only snapshot consumed by stat queries, not a roll target. */
     void AccumulateBonus(FEquipmentStatBonus &Out, const FEquipmentStatBonus &In)
     {

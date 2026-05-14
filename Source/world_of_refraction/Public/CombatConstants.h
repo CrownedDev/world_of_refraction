@@ -6,6 +6,11 @@
 
 // ==================== COMBAT CONSTANTS ====================
 // Pure constants - no UE reflection needed
+//
+// IMPORTANT: This header is included widely across the module. Do NOT add
+// game-type dependencies (e.g. enum-switching helpers that pull in ItemTier.h)
+// — keep this file to plain constexpr values and tiny math-only helpers.
+// Anything that switches on EItemTier lives in EquipmentBonusGenerator.h.
 
 namespace CombatConstants
 {
@@ -27,6 +32,36 @@ namespace CombatConstants
     constexpr int32 CRYSTAL_BONUS_MAX   = 21;
     constexpr float PILLAR_MODIFIER_MIN = -15.0f; // Pillar percent floor (Mind/Body/Spirit)
     constexpr float PILLAR_MODIFIER_MAX = 15.0f;
+
+    // Substat generation budgets per tier (capacity points distributed across
+    // the 13 int substat fields by UEquipmentBonusGenerator).
+    constexpr int32 SUBSTAT_BUDGET_F = 6;
+    constexpr int32 SUBSTAT_BUDGET_E = 10;
+    constexpr int32 SUBSTAT_BUDGET_D = 15;
+    constexpr int32 SUBSTAT_BUDGET_C = 21;
+    constexpr int32 SUBSTAT_BUDGET_B = 28;
+    constexpr int32 SUBSTAT_BUDGET_A = 36;
+    constexpr int32 SUBSTAT_BUDGET_S = 45;
+
+    // Pillar modifier generation budgets per tier (percent magnitude, sum of
+    // abs across the 3 BonusMind/Body/SpiritModifierPercent fields).
+    constexpr float PILLAR_BUDGET_F = 3.0f;
+    constexpr float PILLAR_BUDGET_E = 5.0f;
+    constexpr float PILLAR_BUDGET_D = 8.0f;
+    constexpr float PILLAR_BUDGET_C = 12.0f;
+    constexpr float PILLAR_BUDGET_B = 18.0f;
+    constexpr float PILLAR_BUDGET_A = 25.0f;
+    constexpr float PILLAR_BUDGET_S = 33.0f;
+
+    // Per-stat cap fraction — within a pillar's substat allocation, no single
+    // substat may exceed (pillar_points × SUBSTAT_CAP_FRACTION). Pillar cap
+    // similarly bounds any single pillar modifier to (tier_budget × PILLAR_CAP_FRACTION).
+    constexpr float SUBSTAT_CAP_FRACTION = 0.40f;
+    constexpr float PILLAR_CAP_FRACTION  = 0.40f;
+
+    // Tier→budget switch helpers live in EquipmentBonusGenerator.h to keep
+    // this header free of EItemTier (ItemTier.h) so it can stay a leaf-level
+    // header included everywhere without ramifying game-type dependencies.
 
     // ==================== STAT SCALING ====================
     // 13 Stats: Mind(4), Body(4), Spirit(5)
