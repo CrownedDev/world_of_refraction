@@ -19,6 +19,7 @@
 #include "CharacterData.h"
 #include "RingData.h"
 #include "ItemData.h"
+#include "FSkillEffect.h"
 #include "FCrystalInventoryEntry.h"
 #include "DurabilityConstants.h"
 #include "ItemEffectType.h"
@@ -847,7 +848,7 @@ FCombatResult ACombatOrchestrator::BuildCombatResult()
 
 void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 {
-	auto PrepareActor = [](AActor *Actor)
+	auto PrepareActor = [this](AActor *Actor)
 	{
 		if (!Actor)
 			return;
@@ -860,6 +861,28 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 			if (Loadout->PrepareForBattle(Inventory))
 			{
 				UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Prepared loadout for %s"), *Actor->GetName());
+
+				// Apply FSkillEffect-authored bonuses for evolution crystal + equipment.
+				if (SkillEffectManagerRef)
+				{
+					UItemData *EvoCrystal = Loadout->GetActivePrimaryEvolutionCrystal(Actor);
+					if (EvoCrystal && EvoCrystal->bIsEvolutionCrystal && EvoCrystal->Effects.Num() > 0)
+					{
+						SkillEffectManagerRef->ApplyEvolutionEffects(
+							Actor, EvoCrystal->GetName(), static_cast<int32>(EvoCrystal->GetUniqueID()), EvoCrystal->Effects);
+						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d evolution effects from %s to %s"),
+							   EvoCrystal->Effects.Num(), *EvoCrystal->GetName(), *Actor->GetName());
+					}
+
+					TArray<FSkillEffect> EquipmentEffects = Loadout->GetActiveEffects(Actor);
+					if (EquipmentEffects.Num() > 0)
+					{
+						int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
+						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, EquipmentEffects, SourceID);
+						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d equipment effects to %s"),
+							   EquipmentEffects.Num(), *Actor->GetName());
+					}
+				}
 			}
 			else
 			{

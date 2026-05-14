@@ -450,8 +450,11 @@ private:
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
 	void ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect);
 
-	/** Check if a trigger condition is met */
+	/** Check if a trigger condition is met (handles compound primary + secondary). */
 	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f) const;
+
+	/** Evaluate a single (Trigger, Threshold) pair against Actor's state. */
+	bool IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigger, float Threshold) const;
 
 	/** Find existing effect by ID on actor */
 	FActiveSkillEffect *FindEffectByID(AActor *Actor, int32 EffectID);

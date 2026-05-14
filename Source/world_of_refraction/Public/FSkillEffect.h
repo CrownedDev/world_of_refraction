@@ -85,6 +85,28 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
                       EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
     float ConditionThreshold = 30.0f;
 
+    /** Secondary source-side condition, combined with Condition via AND/OR. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
+              meta = (EditCondition = "Condition != ESkillTrigger::None && Condition != ESkillTrigger::Always",
+                      EditConditionHides))
+    ESkillTrigger SecondaryCondition = ESkillTrigger::None;
+
+    /** Auto-set by PostSerialize — true when SecondaryCondition uses a threshold. */
+    UPROPERTY()
+    bool bSecondaryConditionUsesThreshold = false;
+
+    /** HP or Energy % threshold for the secondary source trigger (0..100). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
+              meta = (EditCondition = "bSecondaryConditionUsesThreshold",
+                      EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
+    float SecondaryThreshold = 30.0f;
+
+    /** AND = both source conditions must hold. OR = either is enough. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
+              meta = (EditCondition = "SecondaryCondition != ESkillTrigger::None",
+                      EditConditionHides))
+    bool bRequireBothConditions = true;
+
     /** Condition that must hold on the TARGET for the effect to apply. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
     ESkillTrigger TargetCondition = ESkillTrigger::None;
@@ -243,16 +265,24 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return Duration == 0;
     }
 
-    /** Is this effect conditional (not Always, or has a target-side check)? */
+    /** Is this effect conditional (not Always, or has a secondary/target-side check)? */
     bool IsConditional() const
     {
-        return Condition != ESkillTrigger::Always || TargetCondition != ESkillTrigger::None;
+        return Condition != ESkillTrigger::Always
+            || SecondaryCondition != ESkillTrigger::None
+            || TargetCondition != ESkillTrigger::None;
     }
 
     /** Does this effect carry a target-side condition? */
     bool HasTargetCondition() const
     {
         return TargetCondition != ESkillTrigger::None;
+    }
+
+    /** Does this effect carry a secondary source-side condition? */
+    bool HasSecondaryCondition() const
+    {
+        return SecondaryCondition != ESkillTrigger::None;
     }
 
     /** Permanent / unconditional: no source-side or target-side trigger gating. */
@@ -358,6 +388,21 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
             }
         }
 
+        // Secondary source-side condition, joined by AND / OR
+        if (HasSecondaryCondition())
+        {
+            FString SecondaryName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(SecondaryCondition)).ToString() : TEXT("Unknown");
+            const TCHAR *Joiner = bRequireBothConditions ? TEXT("AND") : TEXT("OR");
+            if (SkillTriggerUtils::IsThresholdTrigger(SecondaryCondition))
+            {
+                Desc += FString::Printf(TEXT(" %s (%s %.0f%%)"), Joiner, *SecondaryName, SecondaryThreshold);
+            }
+            else
+            {
+                Desc += FString::Printf(TEXT(" %s (%s)"), Joiner, *SecondaryName);
+            }
+        }
+
         // Target-side condition
         if (HasTargetCondition())
         {
@@ -385,6 +430,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     void PostSerialize(const FArchive &Ar)
     {
         bConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Condition);
+        bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(SecondaryCondition);
         bTargetConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(TargetCondition);
     }
 };

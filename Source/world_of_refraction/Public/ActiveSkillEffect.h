@@ -72,6 +72,20 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			  meta = (ClampMin = "0", ClampMax = "100"))
 	float TargetTriggerThreshold = 100.0f;
 
+	/** Secondary source-side trigger condition, mirrored from FSkillEffect::SecondaryCondition.
+	 *  Combined with TriggerCondition via bRequireBothTriggers (AND / OR). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing")
+	ESkillTrigger SecondaryTriggerCondition = ESkillTrigger::None;
+
+	/** Threshold for the secondary source-side trigger (0..100). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing",
+			  meta = (ClampMin = "0", ClampMax = "100"))
+	float SecondaryTriggerThreshold = 30.0f;
+
+	/** True = both primary and secondary triggers must be met (AND). False = either suffices (OR). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing")
+	bool bRequireBothTriggers = true;
+
 	/** Whether this trigger condition is currently active (for conditional effects) */
 	UPROPERTY(BlueprintReadOnly, Category = "Timing")
 	bool bTriggerActive = false;
@@ -274,6 +288,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		// condition is non-trivial so the manager's trigger evaluator fires.
 		Effect.TriggerCondition = Source.Condition;
 		Effect.TriggerThreshold = Source.ConditionThreshold;
+		Effect.SecondaryTriggerCondition = Source.SecondaryCondition;
+		Effect.SecondaryTriggerThreshold = Source.SecondaryThreshold;
+		Effect.bRequireBothTriggers = Source.bRequireBothConditions;
 		Effect.TargetTriggerCondition = Source.TargetCondition;
 		Effect.TargetTriggerThreshold = Source.TargetThreshold;
 		if (Source.Condition != ESkillTrigger::Always && Source.Condition != ESkillTrigger::None)
