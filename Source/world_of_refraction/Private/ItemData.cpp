@@ -617,7 +617,19 @@ bool UItemData::HasStatModifiers() const
     return StatBonus.BonusMindModifierPercent != 0.0f ||
            StatBonus.BonusBodyModifierPercent != 0.0f ||
            StatBonus.BonusSpiritModifierPercent != 0.0f ||
-           StatBonus.GetTotalSpent() != 0;
+           StatBonus.BonusRawDamage        != 0 ||
+           StatBonus.BonusSpellDamage      != 0 ||
+           StatBonus.BonusEfficiency       != 0 ||
+           StatBonus.BonusStatusMultiplier != 0 ||
+           StatBonus.BonusCritChance       != 0.0f ||
+           StatBonus.BonusSpellSpeed       != 0 ||
+           StatBonus.BonusDefense          != 0 ||
+           StatBonus.BonusActionSpeed      != 0 ||
+           StatBonus.BonusMaxHP            != 0 ||
+           StatBonus.BonusMaxEnergy        != 0 ||
+           StatBonus.BonusResistance       != 0 ||
+           StatBonus.BonusTurnSpeed        != 0 ||
+           StatBonus.BonusLuck             != 0;
 }
 
 FString UItemData::GetStatModifierSummary() const

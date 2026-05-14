@@ -60,10 +60,9 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     TArray<USpellData *> AssignedSpells;
 
     /** Per-instance stat bonus state. Seeded from
-     *  UWeaponData::DefaultStatBonus at CreateFromWeapon time; bLocked is
-     *  driven by UWeaponData::bStatBonusLocked. Mutated at runtime by
-     *  SpendPendingPoints / AddPendingPoints. This is what runtime damage
-     *  and stat queries should read — not the asset's DefaultStatBonus. */
+     *  UWeaponData::DefaultStatBonus at CreateFromWeapon time. This is what
+     *  runtime damage and stat queries should read — not the asset's
+     *  DefaultStatBonus. */
     UPROPERTY(BlueprintReadWrite, Category = "Mastery")
     FEquipmentStatBonus StatBonus;
 

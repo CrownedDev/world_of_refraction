@@ -81,18 +81,27 @@ public:
               meta = (EditCondition = "!bImmuneToInfusion", ClampMin = "0.0", ClampMax = "2.0"))
     float InfusionStatusMultiplier = 1.0f;
 
-    // ==================== MASTERY ====================
+    // ==================== BONUSES ====================
+    // Roll template for per-instance stat bonuses is the field-wise sum of
+    // the two layers below, exposed via GetCombinedStatBonus(). The
+    // inventory entry copies that sum at CreateFromWeapon / CreateFromRing
+    // time.
 
-    /** Roll template for this equipment's per-instance stat bonuses. Copied
-     *  into the inventory entry's StatBonus at CreateFromWeapon /
-     *  CreateFromRing time. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mastery")
-    FEquipmentStatBonus DefaultStatBonus;
+    /** Designer-authored baseline. Never touched by the generator.
+     *  Positive or negative; per-field clamp -21..21 (substats) /
+     *  -15..15 (pillar percent) inherited from FEquipmentStatBonus. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
+    FEquipmentStatBonus BaseStatBonus;
 
-    /** When true, the per-instance StatBonus.bLocked is set on creation —
-     *  bonuses cannot be re-rolled via SpendPendingPoints. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mastery")
-    bool bStatBonusLocked = false;
+    /** Generator-rolled values. Rerollable. Zero-sum per roll. Read-only
+     *  in editor — only modified by Roll/Reroll buttons. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bonuses")
+    FEquipmentStatBonus GeneratedStatBonus;
+
+    /** Field-wise sum of BaseStatBonus + GeneratedStatBonus. Read by
+     *  inventory factories and any code needing the asset's final
+     *  per-instance roll template. */
+    FEquipmentStatBonus GetCombinedStatBonus() const;
 
     // ==================== REQUIREMENTS ====================
 
@@ -130,6 +139,41 @@ public:
     /** Cap on DefaultSpells, used by IsDataValid warning. Subclasses override. */
     UFUNCTION(BlueprintPure, Category = "Equipment|Spells")
     virtual int32 GetMaxSpells() const { return TNumericLimits<int32>::Max(); }
+
+    // ==================== GENERATOR (CallInEditor) ====================
+    // Editor-side roll buttons. SubstatPoints and PillarPoints act as the
+    // pending pool — fill to the tier budget, then hit Roll to consume them
+    // into GeneratedStatBonus (BaseStatBonus is never touched). Modify()
+    // wraps the writes so they hit the transaction stack (undo / redo /
+    // asset-dirty propagation).
+
+    UPROPERTY(EditAnywhere, Category = "Bonuses",
+        meta=(ClampMin="0"))
+    int32 SubstatPoints = 0;
+    // Set to tier budget max to unlock Roll Substat Points
+
+    UPROPERTY(EditAnywhere, Category = "Bonuses",
+        meta=(ClampMin="0.0"))
+    float PillarPoints = 0.0f;
+    // Set to tier budget max to unlock Roll Pillar Points
+
+    UFUNCTION(CallInEditor, Category = "Bonuses")
+    void RollSubstatPoints();
+    // Only fires when SubstatPoints >= tier substat budget
+    // Distributes points into stats using zero-sum broken-stick
+    // Resets SubstatPoints to 0 after roll
+    // Logs warning if insufficient points
+
+    UFUNCTION(CallInEditor, Category = "Bonuses")
+    void RollPillarPoints();
+    // Only fires when PillarPoints >= tier pillar budget
+    // Distributes points into pillar percent fields
+    // Resets PillarPoints to 0 after roll
+    // Logs warning if insufficient points
+
+    UFUNCTION(CallInEditor, Category = "Bonuses")
+    void ClearAllBonuses();
+    // Resets all stat fields and both point fields to 0
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;

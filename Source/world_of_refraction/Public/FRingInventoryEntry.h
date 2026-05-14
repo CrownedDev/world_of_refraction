@@ -64,10 +64,8 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     TArray<USpellData *> AssignedSpells;
 
     /** Per-instance stat bonus state. Seeded from URingData::DefaultStatBonus
-     *  at CreateFromRing time; bLocked is driven by URingData::bStatBonusLocked.
-     *  Mutated at runtime by SpendPendingPoints / AddPendingPoints. This is
-     *  what runtime damage and stat queries should read — not the asset's
-     *  DefaultStatBonus. */
+     *  at CreateFromRing time. This is what runtime damage and stat queries
+     *  should read — not the asset's DefaultStatBonus. */
     UPROPERTY(BlueprintReadWrite, Category = "Engravings")
     FEquipmentStatBonus StatBonus;
 

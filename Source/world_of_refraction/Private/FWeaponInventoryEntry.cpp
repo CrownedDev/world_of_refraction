@@ -32,8 +32,7 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
 
     if (InWeapon)
     {
-        Entry.StatBonus = InWeapon->DefaultStatBonus;
-        Entry.StatBonus.bLocked = InWeapon->bStatBonusLocked;
+        Entry.StatBonus = InWeapon->GetCombinedStatBonus();
     }
 
     return Entry;
