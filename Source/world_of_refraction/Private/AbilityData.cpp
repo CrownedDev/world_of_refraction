@@ -112,7 +112,7 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
                 FString::Printf(TEXT("Effect %d has no type set"), i + 1)));
         }
 
-        if (Effect.DrainPercent > 0.0f && Effect.Condition != EPassiveTrigger::OnHit)
+        if (Effect.DrainPercent > 0.0f && Effect.Condition != ESkillTrigger::OnHit)
         {
             Context.AddWarning(FText::FromString(
                 FString::Printf(TEXT("Effect %d has DrainPercent but condition is not OnHit"), i + 1)));

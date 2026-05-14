@@ -3,7 +3,7 @@
 
 #include "SkillDataBase.h"
 
-TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(EPassiveTrigger Condition) const
+TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condition) const
 {
     TArray<FSkillEffect> Result;
     for (const FSkillEffect &Effect : Effects)

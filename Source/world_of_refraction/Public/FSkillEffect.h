@@ -1,13 +1,13 @@
 // FSkillEffect.h
 // Struct defining a single effect applied by abilities, spells, and weapon attacks
-// Reuses existing enums: ESkillEffectType, ETargetType, EPassiveTrigger
+// Reuses existing enums: ESkillEffectType, ETargetType, ESkillTrigger
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "ESkillEffectType.h"
 #include "TargetType.h"
-#include "EPassiveTrigger.h"
+#include "ESkillTrigger.h"
 #include "FSkillEffect.generated.h"
 
 /**
@@ -67,7 +67,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     /** When does this effect trigger */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition")
-    EPassiveTrigger Condition = EPassiveTrigger::Always;
+    ESkillTrigger Condition = ESkillTrigger::Always;
 
     // ==================== DRAIN ====================
 
@@ -78,7 +78,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
      */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drain",
               meta = (ClampMin = "0.0", ClampMax = "1.0",
-                      EditCondition = "Condition == EPassiveTrigger::OnHit"))
+                      EditCondition = "Condition == ESkillTrigger::OnHit"))
     float DrainPercent = 0.0f;
 
     // ==================== CONSTRUCTORS ====================
@@ -88,7 +88,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     }
 
     FSkillEffect(ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration,
-                 ETargetType InTarget, EPassiveTrigger InCondition)
+                 ETargetType InTarget, ESkillTrigger InCondition)
         : EffectType(InType)
         , Magnitude(InMagnitude)
         , Value(InValue)
@@ -175,7 +175,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** Is this a drain effect (restore that scales with damage dealt)? */
     bool IsDrain() const
     {
-        return IsRestore() && DrainPercent > 0.0f && Condition == EPassiveTrigger::OnHit;
+        return IsRestore() && DrainPercent > 0.0f && Condition == ESkillTrigger::OnHit;
     }
 
     /** Is this effect instant (Duration == 0)? */
@@ -187,7 +187,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** Is this effect conditional (not Always)? */
     bool IsConditional() const
     {
-        return Condition != EPassiveTrigger::Always;
+        return Condition != ESkillTrigger::Always;
     }
 
     /** Does this effect target self? */
@@ -275,7 +275,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         // Condition
         if (IsConditional())
         {
-            const UEnum* TriggerEnum = StaticEnum<EPassiveTrigger>();
+            const UEnum* TriggerEnum = StaticEnum<ESkillTrigger>();
             FString ConditionName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(Condition)).ToString() : TEXT("Unknown");
             Desc += FString::Printf(TEXT(" (%s)"), *ConditionName);
         }

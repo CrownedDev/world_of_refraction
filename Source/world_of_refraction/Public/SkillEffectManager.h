@@ -55,7 +55,7 @@ enum class EEffectApplicationResult : uint8
  * Design Principles:
  * - Durations tick on AFFECTED actor's turn (not global turn count)
  * - Stacking rules configurable per effect
- * - Integrates with EPassiveTrigger for conditional effects
+ * - Integrates with ESkillTrigger for conditional effects
  * - Server-authoritative for multiplayer
  *
  * Usage:
@@ -307,7 +307,7 @@ public:
 	 * @param TriggerValue Optional value for threshold checks (HP%, etc.)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Turn Processing")
-	void ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue = 0.0f);
+	void ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue = 0.0f);
 
 	// ========================================
 	// QUERIES
@@ -465,5 +465,4 @@ private:
 
 	/** Notify TurnManager that an actor's speed has changed */
 	void NotifySpeedChanged(AActor *Actor);
-
 };

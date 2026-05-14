@@ -790,7 +790,7 @@ void USkillEffectManager::ProcessStartOfTurnEffects(AActor *Actor)
 	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::Persistent);
 
 	// Check conditional triggers with current state
-	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnStart);
+	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnStart);
 }
 
 void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
@@ -807,7 +807,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	ProcessEffectsWithTiming(Actor, ESkillEffectTiming::EndOfOwnTurn);
 
 	// Check conditional triggers
-	ProcessTriggerEffects(Actor, EPassiveTrigger::OnTurnEnd);
+	ProcessTriggerEffects(Actor, ESkillTrigger::OnTurnEnd);
 
 	// Tick durations and remove expired effects
 	TickDurations(Actor);
@@ -829,7 +829,7 @@ void USkillEffectManager::ProcessEndOfTurnEffects(AActor *Actor)
 	}
 }
 
-void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, EPassiveTrigger Trigger, float TriggerValue)
+void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue)
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
 	{
@@ -1354,7 +1354,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 
 	switch (Effect.TriggerCondition)
 	{
-	case EPassiveTrigger::OnHPBelowThreshold:
+	case ESkillTrigger::OnHPBelowThreshold:
 	{
 		float HPPercent = (CharComp->MaxHP > 0)
 							  ? (static_cast<float>(CharComp->CurrentHP) / static_cast<float>(CharComp->MaxHP)) * 100.0f
@@ -1362,7 +1362,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return HPPercent < Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::OnHPAboveThreshold:
+	case ESkillTrigger::OnHPAboveThreshold:
 	{
 		float HPPercent = (CharComp->MaxHP > 0)
 							  ? (static_cast<float>(CharComp->CurrentHP) / static_cast<float>(CharComp->MaxHP)) * 100.0f
@@ -1370,7 +1370,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return HPPercent > Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::OnEnergyBelowThreshold:
+	case ESkillTrigger::OnEnergyBelowThreshold:
 	{
 		float EPPercent = (CharComp->MaxEP > 0)
 							  ? (static_cast<float>(CharComp->CurrentEP) / static_cast<float>(CharComp->MaxEP)) * 100.0f
@@ -1378,7 +1378,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return EPPercent < Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::OnEnergyAboveThreshold:
+	case ESkillTrigger::OnEnergyAboveThreshold:
 	{
 		float EPPercent = (CharComp->MaxEP > 0)
 							  ? (static_cast<float>(CharComp->CurrentEP) / static_cast<float>(CharComp->MaxEP)) * 100.0f
@@ -1386,23 +1386,23 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		return EPPercent > Effect.TriggerThreshold;
 	}
 
-	case EPassiveTrigger::Always:
+	case ESkillTrigger::Always:
 		return true;
 
 	// Event-based triggers are always "met" when the event occurs
-	case EPassiveTrigger::OnCrit:
-	case EPassiveTrigger::OnHit:
-	case EPassiveTrigger::OnTakeDamage:
-	case EPassiveTrigger::OnKill:
-	case EPassiveTrigger::OnDodge:
-	case EPassiveTrigger::OnBlock:
-	case EPassiveTrigger::OnTurnStart:
-	case EPassiveTrigger::OnTurnEnd:
-	case EPassiveTrigger::OnSpellCast:
-	case EPassiveTrigger::OnAbilityUsed:
-	case EPassiveTrigger::OnBattleStart:
-	case EPassiveTrigger::OnStatusApplied:
-	case EPassiveTrigger::OnStatusReceived:
+	case ESkillTrigger::OnCrit:
+	case ESkillTrigger::OnHit:
+	case ESkillTrigger::OnTakeDamage:
+	case ESkillTrigger::OnKill:
+	case ESkillTrigger::OnDodge:
+	case ESkillTrigger::OnBlock:
+	case ESkillTrigger::OnTurnStart:
+	case ESkillTrigger::OnTurnEnd:
+	case ESkillTrigger::OnSpellCast:
+	case ESkillTrigger::OnAbilityUsed:
+	case ESkillTrigger::OnBattleStart:
+	case ESkillTrigger::OnStatusApplied:
+	case ESkillTrigger::OnStatusReceived:
 		return true;
 
 	default:

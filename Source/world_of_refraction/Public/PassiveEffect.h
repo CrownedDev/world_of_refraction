@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EPassiveTrigger.h"
+#include "ESkillTrigger.h"
 #include "EPassiveEffectType.h"
 #include "PassiveEffect.generated.h"
 
@@ -25,25 +25,25 @@ struct WORLD_OF_REFRACTION_API FPassiveEffect
     // ==================== PRIMARY TRIGGER ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger|Primary")
-    EPassiveTrigger PrimaryTrigger = EPassiveTrigger::Always;
+    ESkillTrigger PrimaryTrigger = ESkillTrigger::Always;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger|Primary",
               meta = (ClampMin = "0", ClampMax = "100",
-                      EditCondition = "PrimaryTrigger == EPassiveTrigger::OnHPBelowThreshold || PrimaryTrigger == EPassiveTrigger::OnHPAboveThreshold || PrimaryTrigger == EPassiveTrigger::OnEnergyBelowThreshold || PrimaryTrigger == EPassiveTrigger::OnEnergyAboveThreshold"))
+                      EditCondition = "PrimaryTrigger == ESkillTrigger::OnHPBelowThreshold || PrimaryTrigger == ESkillTrigger::OnHPAboveThreshold || PrimaryTrigger == ESkillTrigger::OnEnergyBelowThreshold || PrimaryTrigger == ESkillTrigger::OnEnergyAboveThreshold"))
     float PrimaryThreshold = 30.0f;
 
     // ==================== SECONDARY TRIGGER ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger|Secondary")
-    EPassiveTrigger SecondaryTrigger = EPassiveTrigger::None;
+    ESkillTrigger SecondaryTrigger = ESkillTrigger::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger|Secondary",
               meta = (ClampMin = "0", ClampMax = "100",
-                      EditCondition = "SecondaryTrigger == EPassiveTrigger::OnHPBelowThreshold || SecondaryTrigger == EPassiveTrigger::OnHPAboveThreshold || SecondaryTrigger == EPassiveTrigger::OnEnergyBelowThreshold || SecondaryTrigger == EPassiveTrigger::OnEnergyAboveThreshold"))
+                      EditCondition = "SecondaryTrigger == ESkillTrigger::OnHPBelowThreshold || SecondaryTrigger == ESkillTrigger::OnHPAboveThreshold || SecondaryTrigger == ESkillTrigger::OnEnergyBelowThreshold || SecondaryTrigger == ESkillTrigger::OnEnergyAboveThreshold"))
     float SecondaryThreshold = 30.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trigger|Secondary",
-              meta = (EditCondition = "SecondaryTrigger != EPassiveTrigger::None"))
+              meta = (EditCondition = "SecondaryTrigger != ESkillTrigger::None"))
     bool bRequireBothTriggers = true;
 
     // ==================== EFFECT ====================
@@ -61,12 +61,12 @@ struct WORLD_OF_REFRACTION_API FPassiveEffect
 
     bool HasSecondaryTrigger() const
     {
-        return SecondaryTrigger != EPassiveTrigger::None;
+        return SecondaryTrigger != ESkillTrigger::None;
     }
 
     bool IsAlwaysActive() const
     {
-        return PrimaryTrigger == EPassiveTrigger::Always && !HasSecondaryTrigger();
+        return PrimaryTrigger == ESkillTrigger::Always && !HasSecondaryTrigger();
     }
 
     // Refresh the generated description (call from parent's PostEditChangeProperty)
@@ -207,47 +207,47 @@ struct WORLD_OF_REFRACTION_API FPassiveEffect
         }
     }
 
-    static FString GetTriggerName(EPassiveTrigger Trigger, float Threshold = 0.0f)
+    static FString GetTriggerName(ESkillTrigger Trigger, float Threshold = 0.0f)
     {
         switch (Trigger)
         {
-        case EPassiveTrigger::None:
+        case ESkillTrigger::None:
             return TEXT("Never");
-        case EPassiveTrigger::Always:
+        case ESkillTrigger::Always:
             return TEXT("Always Active");
-        case EPassiveTrigger::OnCrit:
+        case ESkillTrigger::OnCrit:
             return TEXT("On Critical Hit");
-        case EPassiveTrigger::OnHit:
+        case ESkillTrigger::OnHit:
             return TEXT("On Dealing Damage");
-        case EPassiveTrigger::OnTakeDamage:
+        case ESkillTrigger::OnTakeDamage:
             return TEXT("On Receiving Damage");
-        case EPassiveTrigger::OnHPBelowThreshold:
+        case ESkillTrigger::OnHPBelowThreshold:
             return FString::Printf(TEXT("When HP Below %.0f%%"), Threshold);
-        case EPassiveTrigger::OnHPAboveThreshold:
+        case ESkillTrigger::OnHPAboveThreshold:
             return FString::Printf(TEXT("When HP Above %.0f%%"), Threshold);
-        case EPassiveTrigger::OnEnergyBelowThreshold:
+        case ESkillTrigger::OnEnergyBelowThreshold:
             return FString::Printf(TEXT("When Energy Below %.0f%%"), Threshold);
-        case EPassiveTrigger::OnEnergyAboveThreshold:
+        case ESkillTrigger::OnEnergyAboveThreshold:
             return FString::Printf(TEXT("When Energy Above %.0f%%"), Threshold);
-        case EPassiveTrigger::OnBattleStart:
+        case ESkillTrigger::OnBattleStart:
             return TEXT("On Battle Start");
-        case EPassiveTrigger::OnTurnStart:
+        case ESkillTrigger::OnTurnStart:
             return TEXT("On Turn Start");
-        case EPassiveTrigger::OnTurnEnd:
+        case ESkillTrigger::OnTurnEnd:
             return TEXT("On Turn End");
-        case EPassiveTrigger::OnKill:
+        case ESkillTrigger::OnKill:
             return TEXT("On Kill");
-        case EPassiveTrigger::OnStatusApplied:
+        case ESkillTrigger::OnStatusApplied:
             return TEXT("On Applying Status");
-        case EPassiveTrigger::OnStatusReceived:
+        case ESkillTrigger::OnStatusReceived:
             return TEXT("On Receiving Status");
-        case EPassiveTrigger::OnSpellCast:
+        case ESkillTrigger::OnSpellCast:
             return TEXT("After Casting Spell");
-        case EPassiveTrigger::OnAbilityUsed:
+        case ESkillTrigger::OnAbilityUsed:
             return TEXT("After Using Ability");
-        case EPassiveTrigger::OnDodge:
+        case ESkillTrigger::OnDodge:
             return TEXT("On Dodge");
-        case EPassiveTrigger::OnBlock:
+        case ESkillTrigger::OnBlock:
             return TEXT("On Block");
         default:
             return TEXT("Unknown Trigger");

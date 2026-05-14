@@ -549,14 +549,14 @@ void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 	AdrenalineRush.EffectType = ESkillEffectType::DamageBuff;
 	AdrenalineRush.EffectValue = 25.0f;
 	AdrenalineRush.ProcessTiming = ESkillEffectTiming::OnTrigger;
-	AdrenalineRush.TriggerCondition = EPassiveTrigger::OnHPBelowThreshold;
+	AdrenalineRush.TriggerCondition = ESkillTrigger::OnHPBelowThreshold;
 	AdrenalineRush.TriggerThreshold = 30.0f;
 	AdrenalineRush.bPermanent = true;
 
 	Manager->ApplyEffect(TestActor, AdrenalineRush);
 
 	// At 100 HP (100%), should not trigger
-	Manager->ProcessTriggerEffects(TestActor, EPassiveTrigger::OnHPBelowThreshold);
+	Manager->ProcessTriggerEffects(TestActor, ESkillTrigger::OnHPBelowThreshold);
 	TArray<FActiveSkillEffect> Effects = Manager->GetActiveEffects(TestActor);
 	bool bTriggeredAtFull = (Effects.Num() > 0) ? Effects[0].bTriggerActive : false;
 
@@ -564,7 +564,7 @@ void ASkillEffectManagerTestActor::Test_ConditionalTrigger()
 	CharComp->ServerTakeDamage(75);
 
 	// Now should trigger
-	Manager->ProcessTriggerEffects(TestActor, EPassiveTrigger::OnHPBelowThreshold);
+	Manager->ProcessTriggerEffects(TestActor, ESkillTrigger::OnHPBelowThreshold);
 	Effects = Manager->GetActiveEffects(TestActor);
 	bool bTriggeredAtLow = (Effects.Num() > 0) ? Effects[0].bTriggerActive : false;
 

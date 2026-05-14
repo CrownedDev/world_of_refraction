@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ESkillEffectTiming.h"
-#include "EPassiveTrigger.h"
+#include "ESkillTrigger.h"
 #include "ESkillEffectType.h"
 #include "ESpellElement.h"
 #include "ActiveSkillEffect.generated.h"
@@ -17,7 +17,7 @@
  * - Multiple timing modes (immediate, start/end of turn, conditional, persistent)
  * - Stacking with configurable limits
  * - Source tracking for effect ownership
- * - Conditional triggers via EPassiveTrigger
+ * - Conditional triggers via ESkillTrigger
  * - Duration tracking per affected actor's turn (not global)
  */
 USTRUCT(BlueprintType)
@@ -52,7 +52,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** If ProcessTiming = OnTrigger, what condition activates it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
 			  meta = (EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
-	EPassiveTrigger TriggerCondition = EPassiveTrigger::None;
+	ESkillTrigger TriggerCondition = ESkillTrigger::None;
 
 	/** Threshold for HP/Energy percentage triggers */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",

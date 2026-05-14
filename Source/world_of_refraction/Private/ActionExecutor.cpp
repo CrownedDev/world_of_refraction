@@ -3860,19 +3860,19 @@ void UActionExecutor::ApplySkillEffects(
 		bool bConditionMet = false;
 		switch (Effect.Condition)
 		{
-		case EPassiveTrigger::Always:
+		case ESkillTrigger::Always:
 			bConditionMet = true;
 			break;
 
-		case EPassiveTrigger::OnHit:
+		case ESkillTrigger::OnHit:
 			bConditionMet = Result.TotalDamageDealt > 0;
 			break;
 
-		case EPassiveTrigger::OnCrit:
+		case ESkillTrigger::OnCrit:
 			bConditionMet = Result.bWasCritical;
 			break;
 
-		case EPassiveTrigger::OnKill:
+		case ESkillTrigger::OnKill:
 			bConditionMet = bCausedDeath;
 			break;
 
@@ -3901,7 +3901,7 @@ void UActionExecutor::ApplySkillEffects(
 		}
 
 		// Handle drain effects specially
-		if (Effect.IsDrain() && Effect.Condition == EPassiveTrigger::OnHit)
+		if (Effect.IsDrain() && Effect.Condition == ESkillTrigger::OnHit)
 		{
 			int32 DrainAmount = FMath::RoundToInt(Result.TotalDamageDealt * Effect.DrainPercent);
 

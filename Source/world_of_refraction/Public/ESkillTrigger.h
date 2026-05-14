@@ -1,13 +1,13 @@
-// EPassiveTrigger.h
-// When a passive effect activates
+// ESkillTrigger.h
+// Trigger condition that activates a skill / passive effect.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EPassiveTrigger.generated.h"
+#include "ESkillTrigger.generated.h"
 
 UENUM(BlueprintType)
-enum class EPassiveTrigger : uint8
+enum class ESkillTrigger : uint8
 {
     None UMETA(DisplayName = "None (Disabled)"),
     Always UMETA(DisplayName = "Always Active"),
