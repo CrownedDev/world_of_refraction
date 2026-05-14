@@ -1967,11 +1967,11 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     return Combined;
 }
 
-TArray<FPassiveEffect> ULoadoutComponent::GetActivePassiveEffects(AActor *Actor) const
+TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
 {
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
 
-    TArray<FPassiveEffect> Result;
+    TArray<FSkillEffect> Result;
 
     switch (CharacterClass)
     {
@@ -1979,7 +1979,7 @@ TArray<FPassiveEffect> ULoadoutComponent::GetActivePassiveEffects(AActor *Actor)
     {
         if (UWeaponData *Weapon = GetActiveWeapon())
         {
-            Result.Append(Weapon->PassiveEffects);
+            Result.Append(Weapon->Effects);
         }
         break;
     }
@@ -1988,7 +1988,7 @@ TArray<FPassiveEffect> ULoadoutComponent::GetActivePassiveEffects(AActor *Actor)
     {
         if (URingData *Ring = GetActiveRing())
         {
-            Result.Append(Ring->PassiveEffects);
+            Result.Append(Ring->Effects);
         }
         break;
     }
@@ -1999,11 +1999,11 @@ TArray<FPassiveEffect> ULoadoutComponent::GetActivePassiveEffects(AActor *Actor)
         // Primary slot only (weapon OR ring, not both).
         if (UWeaponData *Weapon = GetPrimaryWeapon())
         {
-            Result.Append(Weapon->PassiveEffects);
+            Result.Append(Weapon->Effects);
         }
         else if (URingData *Ring = GetPrimaryRing())
         {
-            Result.Append(Ring->PassiveEffects);
+            Result.Append(Ring->Effects);
         }
         break;
     }

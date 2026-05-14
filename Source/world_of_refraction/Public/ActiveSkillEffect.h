@@ -7,6 +7,7 @@
 #include "ESkillTrigger.h"
 #include "ESkillEffectType.h"
 #include "ESpellElement.h"
+#include "FSkillEffect.h"
 #include "ActiveSkillEffect.generated.h"
 
 /**
@@ -240,29 +241,46 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	}
 
 	/**
-	 * Create effects from Evolution passive (TArray<FPassiveEffect>)
-	 * For permanent stat modifiers from evolutions
+	 * Create a runtime status-effect instance from an authored FSkillEffect.
+	 * Used for evolution-crystal effects AND equipment (weapon/ring) effects —
+	 * both now share the FSkillEffect type after the Phase 3 merge.
 	 *
-	 * @param EvolutionName Name of the evolution
-	 * @param EvolutionID Unique evolution ID
-	 * @param PassiveType The effect type from FPassiveEffect
-	 * @param Value The effect value
-	 * @param PassiveIndex Index in the PassiveEffects array (for unique IDs)
+	 * EffectID is packed as SourceID*100 + EffectIndex so removal scans a
+	 * contiguous window. Source callers must pass distinct SourceIDs to avoid
+	 * collisions (e.g. evolution-ID vs weapon/ring-instance-ID ranges).
+	 *
+	 * @param SourceName    Display prefix when Source.EffectName is empty
+	 * @param SourceID      Source's stable identifier (evolution/weapon/ring ID)
+	 * @param Source        Authored skill-effect data to instantiate from
+	 * @param EffectIndex   Index within the source's Effects array (for ID packing)
 	 */
-	static FActiveSkillEffect CreateFromEvolutionPassive(
-		const FString &EvolutionName,
-		int32 EvolutionID,
-		ESkillEffectType PassiveType,
-		float Value,
-		int32 PassiveIndex)
+	static FActiveSkillEffect CreateFromSkillEffect(
+		const FString &SourceName,
+		int32 SourceID,
+		const FSkillEffect &Source,
+		int32 EffectIndex)
 	{
 		FActiveSkillEffect Effect;
-		Effect.EffectName = EvolutionName + TEXT(" Passive");
-		Effect.EffectID = EvolutionID * 100 + PassiveIndex;
-		Effect.EffectType = PassiveType;
-		Effect.EffectValue = Value;
-		Effect.bPermanent = true;
+		Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
+		Effect.EffectID = SourceID * 100 + EffectIndex;
+		Effect.EffectType = Source.EffectType;
+		Effect.EffectValue = (Source.Value != 0) ? static_cast<float>(Source.Value) : (Source.Magnitude * 100.0f);
+		Effect.RemainingTurns = (Source.Duration > 0) ? Source.Duration : 1;
+		Effect.InitialDuration = Effect.RemainingTurns;
+		Effect.bPermanent = (Source.Duration == 0);
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+
+		// Carry trigger fields through; promote to OnTrigger when the source
+		// condition is non-trivial so the manager's trigger evaluator fires.
+		Effect.TriggerCondition = Source.Condition;
+		Effect.TriggerThreshold = Source.ConditionThreshold;
+		Effect.TargetTriggerCondition = Source.TargetCondition;
+		Effect.TargetTriggerThreshold = Source.TargetThreshold;
+		if (Source.Condition != ESkillTrigger::Always && Source.Condition != ESkillTrigger::None)
+		{
+			Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+		}
+
 		return Effect;
 	}
 

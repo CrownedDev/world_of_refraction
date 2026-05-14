@@ -12,7 +12,7 @@
 #include "ESpellElement.h"
 #include "WorldStatRequirements.h"
 #include "FEquipmentStatBonus.h"
-#include "PassiveEffect.h"
+#include "FSkillEffect.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -104,23 +104,23 @@ public:
      *  per-instance roll template. */
     FEquipmentStatBonus GetCombinedStatBonus() const;
 
-    // ==================== PASSIVES ====================
-    // Equipment-level passive effects. Applied via ApplyEquipmentPassives
-    // at combat start (see USkillEffectManager). Distinct from evolution
-    // crystal passives on UItemData::PassiveEffects — those flow through
-    // their own application path.
+    // ==================== EFFECTS ====================
+    // Equipment-level skill effects (passives + triggered). Applied via
+    // USkillEffectManager::ApplyEquipmentEffects at combat start. Distinct
+    // from evolution crystal effects on UItemData::Effects — those flow
+    // through their own application path.
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passives")
-    TArray<FPassiveEffect> PassiveEffects;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
+    TArray<FSkillEffect> Effects;
 
-    UFUNCTION(BlueprintPure, Category = "Passives")
-    int32 GetPassiveCount() const { return PassiveEffects.Num(); }
+    UFUNCTION(BlueprintPure, Category = "Effects")
+    int32 GetEffectCount() const { return Effects.Num(); }
 
-    UFUNCTION(BlueprintPure, Category = "Passives")
-    TArray<FPassiveEffect> GetAlwaysActivePassives() const;
+    UFUNCTION(BlueprintPure, Category = "Effects")
+    TArray<FSkillEffect> GetAlwaysActiveEffects() const;
 
-    UFUNCTION(BlueprintPure, Category = "Passives")
-    TArray<FPassiveEffect> GetTriggeredPassives() const;
+    UFUNCTION(BlueprintPure, Category = "Effects")
+    TArray<FSkillEffect> GetTriggeredEffects() const;
 
     // ==================== REQUIREMENTS ====================
 

@@ -166,42 +166,39 @@ void USkillEffectManager::ApplyInfusionDOT(
 	ApplyEffect(Target, InfusionEffect, Source, AbilityName + TEXT(" (Infused)"), SourceTeam);
 }
 
-void USkillEffectManager::ApplyEvolutionPassives(
+void USkillEffectManager::ApplyEvolutionEffects(
 	AActor *Target,
 	const FString &EvolutionName,
 	int32 EvolutionID,
-	const TArray<ESkillEffectType> &PassiveTypes,
-	const TArray<float> &PassiveValues)
+	const TArray<FSkillEffect> &Effects)
 {
-	if (PassiveTypes.Num() != PassiveValues.Num())
+	if (!Target)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ApplyEvolutionPassives: Mismatched array sizes"));
 		return;
 	}
 
-	for (int32 i = 0; i < PassiveTypes.Num(); ++i)
+	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
-		if (PassiveTypes[i] != ESkillEffectType::None)
+		const FSkillEffect &Source = Effects[i];
+		if (Source.EffectType == ESkillEffectType::None)
 		{
-			FActiveSkillEffect Passive = FActiveSkillEffect::CreateFromEvolutionPassive(
-				EvolutionName,
-				EvolutionID,
-				PassiveTypes[i],
-				PassiveValues[i],
-				i);
-
-			ApplyEffect(Target, Passive, nullptr, EvolutionName, -1);
+			continue;
 		}
+
+		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
+			EvolutionName, EvolutionID, Source, i);
+
+		ApplyEffect(Target, Runtime, nullptr, EvolutionName, -1);
 	}
 }
 
 // ========================================
-// EQUIPMENT PASSIVE APPLICATION
+// EQUIPMENT EFFECT APPLICATION
 // ========================================
 
-void USkillEffectManager::ApplyEquipmentPassives(
+void USkillEffectManager::ApplyEquipmentEffects(
 	AActor *Target,
-	const TArray<FPassiveEffect> &Passives,
+	const TArray<FSkillEffect> &Effects,
 	int32 SourceID)
 {
 	if (!Target)
@@ -209,37 +206,32 @@ void USkillEffectManager::ApplyEquipmentPassives(
 		return;
 	}
 
-	for (int32 i = 0; i < Passives.Num(); ++i)
+	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
-		const FPassiveEffect &Passive = Passives[i];
+		const FSkillEffect &Source = Effects[i];
+		if (Source.EffectType == ESkillEffectType::None)
+		{
+			continue;
+		}
 
-		// CreateFromEvolutionPassive expects ESkillEffectType but FPassiveEffect
-		// carries EPassiveEffectType. No project-wide mapping table exists yet —
-		// type is passed as None for now; trigger metadata + value are preserved
-		// so the structure is wired end-to-end. TODO: add EPassiveEffectType →
-		// ESkillEffectType mapping (or refactor factory to accept EPassiveEffectType).
-		FActiveSkillEffect Effect = FActiveSkillEffect::CreateFromEvolutionPassive(
-			Passive.PassiveName,
-			SourceID,
-			ESkillEffectType::None,
-			Passive.EffectValue,
-			i);
+		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
+			Source.EffectName, SourceID, Source, i);
 
-		ApplyEffect(Target, Effect, nullptr, Passive.PassiveName, -1);
+		ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
 	}
 }
 
-void USkillEffectManager::RemoveEquipmentPassives(AActor *Target, int32 SourceID)
+void USkillEffectManager::RemoveEquipmentEffects(AActor *Target, int32 SourceID)
 {
 	if (!Target)
 	{
 		return;
 	}
 
-	// CreateFromEvolutionPassive packs EffectID as SourceID*100 + PassiveIndex.
+	// CreateFromSkillEffect packs EffectID as SourceID*100 + EffectIndex.
 	// Clear every slot in that window; missing IDs are a no-op in RemoveEffectByID.
-	constexpr int32 PASSIVE_INDEX_RANGE = 100;
-	for (int32 i = 0; i < PASSIVE_INDEX_RANGE; ++i)
+	constexpr int32 EFFECT_INDEX_RANGE = 100;
+	for (int32 i = 0; i < EFFECT_INDEX_RANGE; ++i)
 	{
 		RemoveEffectByID(Target, SourceID * 100 + i);
 	}
@@ -1077,8 +1069,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 	// ==================== PASSIVE LAYER (Phase 2) ====================
 	// Stub cases for the new passive-layer effect types. Each needs its own
-	// runtime handler — added in upcoming phases as the merge consumes
-	// the corresponding FPassiveEffect / EPassiveEffectType code paths.
+	// runtime handler — added in upcoming phases.
 
 	// Stat modifiers — passive-layer percent. Like the existing stat modifiers,
 	// these are passive and queried by other systems; no per-tick logic here.

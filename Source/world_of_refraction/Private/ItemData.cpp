@@ -736,7 +736,7 @@ FActionStatModifiers UItemData::GetInfusionStatModifiers(float InfusionMultiplie
     // NOT applied here:
     //  - Pillar percent (BonusMind/Body/SpiritModifierPercent) — character-
     //    persistent via UCharacterDataComponent::ApplyCrystalPillarModifier.
-    //  - PassiveEffects — character-only via a separate system.
+    //  - Effects — character-only via a separate system.
     Out.Efficiency       = StatBonus.BonusEfficiency        * InfusionMultiplier;
     Out.SpellDamage      = StatBonus.BonusSpellDamage       * InfusionMultiplier;
     Out.StatusMultiplier = StatBonus.BonusStatusMultiplier  * InfusionMultiplier;
@@ -754,43 +754,43 @@ FActionStatModifiers UItemData::GetInfusionStatModifiers(float InfusionMultiplie
 
 // ==================== PASSIVE HELPER FUNCTIONS ====================
 
-TArray<FPassiveEffect> UItemData::GetAlwaysActivePassives() const
+TArray<FSkillEffect> UItemData::GetAlwaysActiveEffects() const
 {
-    TArray<FPassiveEffect> Result;
+    TArray<FSkillEffect> Result;
 
-    // PassiveEffects is authored only on evolution crystals (EditCondition gated
-    // in the header). The guard now correctly returns the filtered list for
-    // evolution crystals and empty for anything else.
+    // Effects is authored only on evolution crystals (EditCondition gated
+    // in the header). Returns filtered list for evolution crystals and
+    // empty for anything else.
     if (!bIsEvolutionCrystal)
     {
         return Result;
     }
 
-    for (const FPassiveEffect &Passive : PassiveEffects)
+    for (const FSkillEffect &Effect : Effects)
     {
-        if (Passive.IsAlwaysActive())
+        if (Effect.IsAlwaysActive())
         {
-            Result.Add(Passive);
+            Result.Add(Effect);
         }
     }
 
     return Result;
 }
 
-TArray<FPassiveEffect> UItemData::GetTriggeredPassives() const
+TArray<FSkillEffect> UItemData::GetTriggeredEffects() const
 {
-    TArray<FPassiveEffect> Result;
+    TArray<FSkillEffect> Result;
 
     if (!bIsEvolutionCrystal)
     {
         return Result;
     }
 
-    for (const FPassiveEffect &Passive : PassiveEffects)
+    for (const FSkillEffect &Effect : Effects)
     {
-        if (!Passive.IsAlwaysActive())
+        if (!Effect.IsAlwaysActive())
         {
-            Result.Add(Passive);
+            Result.Add(Effect);
         }
     }
 
@@ -998,27 +998,27 @@ FString UItemData::GenerateEvolutionDescription() const
         Parts.Add(StatSummary);
     }
 
-    // Passives - names only
-    if (PassiveEffects.Num() > 0)
+    // Effects - names only
+    if (Effects.Num() > 0)
     {
-        TArray<FString> PassiveNames;
-        for (const FPassiveEffect &Passive : PassiveEffects)
+        TArray<FString> EffectNames;
+        for (const FSkillEffect &Effect : Effects)
         {
-            if (!Passive.PassiveName.IsEmpty())
+            if (!Effect.EffectName.IsEmpty())
             {
-                PassiveNames.Add(Passive.PassiveName);
+                EffectNames.Add(Effect.EffectName);
             }
         }
 
-        if (PassiveNames.Num() > 0)
+        if (EffectNames.Num() > 0)
         {
-            Parts.Add(TEXT("Passives: ") + FString::Join(PassiveNames, TEXT(", ")));
+            Parts.Add(TEXT("Effects: ") + FString::Join(EffectNames, TEXT(", ")));
         }
     }
 
     if (Parts.Num() == 0)
     {
-        return TEXT("Configure stats, spells, and passives");
+        return TEXT("Configure stats, spells, and effects");
     }
 
     return FString::Join(Parts, TEXT(". ")) + TEXT(".");

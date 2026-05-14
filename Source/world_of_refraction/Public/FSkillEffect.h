@@ -255,6 +255,13 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return TargetCondition != ESkillTrigger::None;
     }
 
+    /** Permanent / unconditional: no source-side or target-side trigger gating. */
+    bool IsAlwaysActive() const
+    {
+        return Condition == ESkillTrigger::Always
+            && TargetCondition == ESkillTrigger::None;
+    }
+
     /** Does this effect target self? */
     bool TargetsSelf() const
     {
