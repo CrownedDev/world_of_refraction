@@ -211,12 +211,8 @@ namespace SkillEffectDisplayNames
             return TEXT("Lifesteal");
         case ESkillEffectType::AbsorbDamage:
             return TEXT("Absorb");
-        case ESkillEffectType::Shield:
-            return TEXT("Shield");
-
-        // Counter
-        case ESkillEffectType::CounterAttack:
-            return TEXT("Counter");
+        case ESkillEffectType::DamageReduction:
+            return TEXT("Damage Reduction");
 
         // Immunities — trigger-type
         case ESkillEffectType::GrantDOTImmunity:
