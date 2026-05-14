@@ -54,11 +54,22 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			  meta = (EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
 	ESkillTrigger TriggerCondition = ESkillTrigger::None;
 
-	/** Threshold for HP/Energy percentage triggers */
+	/** Threshold for HP/Energy percentage triggers (source side). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing",
 			  meta = (ClampMin = "0", ClampMax = "100",
 					  EditCondition = "ProcessTiming == ESkillEffectTiming::OnTrigger"))
 	float TriggerThreshold = 30.0f;
+
+	/** Target-side condition mirrored from FSkillEffect::TargetCondition.
+	 *  Effects with a target condition only apply when the target's state
+	 *  satisfies it (HP/Energy threshold checks evaluated against the target). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing")
+	ESkillTrigger TargetTriggerCondition = ESkillTrigger::None;
+
+	/** Threshold for the target-side trigger (0..100). */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing",
+			  meta = (ClampMin = "0", ClampMax = "100"))
+	float TargetTriggerThreshold = 100.0f;
 
 	/** Whether this trigger condition is currently active (for conditional effects) */
 	UPROPERTY(BlueprintReadOnly, Category = "Timing")
@@ -179,7 +190,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		int32 Value,
 		int32 Duration,
 		ESpellElement InElement,
-		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
+		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn,
+		ESkillTrigger SourceCondition = ESkillTrigger::Always,
+		float SourceConditionThreshold = 30.0f,
+		ESkillTrigger TargetCondition = ESkillTrigger::None,
+		float TargetConditionThreshold = 100.0f)
 	{
 		FActiveSkillEffect Effect;
 		Effect.EffectName = SpellName;
@@ -205,6 +220,22 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		{
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
+
+		// Carry source-side trigger over. When the caller supplied an explicit
+		// non-Always condition, promote timing to OnTrigger so the manager's
+		// trigger evaluator picks it up.
+		Effect.TriggerCondition = SourceCondition;
+		Effect.TriggerThreshold = SourceConditionThreshold;
+		if (SourceCondition != ESkillTrigger::Always &&
+			SourceCondition != ESkillTrigger::None)
+		{
+			Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+		}
+
+		// Target-side condition mirrors FSkillEffect::TargetCondition.
+		Effect.TargetTriggerCondition = TargetCondition;
+		Effect.TargetTriggerThreshold = TargetConditionThreshold;
+
 		return Effect;
 	}
 
@@ -469,7 +500,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case 2: // Impact → Stun (skip turn - uses special handling)
 			Effect.EffectName = WeaponName + TEXT(" Stun");
 			Effect.EffectType = ESkillEffectType::None; // TODO: Add Stun effect type
-			Effect.EffectValue = 1.0f;			   // Stun duration multiplier
+			Effect.EffectValue = 1.0f;					// Stun duration multiplier
 			Effect.RemainingTurns = 1;
 			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 			Effect.bCanStack = false; // Stun doesn't stack, refreshes

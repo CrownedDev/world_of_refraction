@@ -577,7 +577,7 @@ bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
 	return false;
 }
 
-void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit)
+void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 	OutDamagePerHit = FinalDamage / FMath::Max(1, HitCount);
@@ -590,11 +590,11 @@ void UActionExecutor::LogActionDispatch(
 	int32 NumTargets) const
 {
 	UE_LOG(LogTemp, Log,
-		TEXT("[ActionExecutor] %s async L%d - %d damage, opened %d defense windows"),
-		*UEnum::GetValueAsString(ActionType),
-		InfusionLevel,
-		FinalDamage,
-		NumTargets);
+		   TEXT("[ActionExecutor] %s async L%d - %d damage, opened %d defense windows"),
+		   *UEnum::GetValueAsString(ActionType),
+		   InfusionLevel,
+		   FinalDamage,
+		   NumTargets);
 }
 
 void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData)
@@ -724,7 +724,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup);
 
 	FinalizeDamageInputs(FinalDamage, Spell->HitCount, DamagePerHit);
-	PendingSpellDamage = FinalDamage;  // Spell-specific: cached for VFX notify
+	PendingSpellDamage = FinalDamage; // Spell-specific: cached for VFX notify
 
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -735,13 +735,13 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		DamagePerHit,
 		Spell->HitCount,
 		Spell->Element,
-		true,						   // Can crit
-		EActionType::Spell,			   // ActionType — drives post-defense stat selection
-		Action.SpellInfusionLevel,	   // InfusionLevel
-		Action.SelectedSource,		   // SelectedSource
-		SpellBaseBuildup,			   // BaseStatusBuildup (Phase C1)
-		EPhysicalDamageType::None,	   // PhysicalDamageType - spells have none (Session Y)
-		0.3f						   // Default window duration - TODO: get from spell data
+		true,					   // Can crit
+		EActionType::Spell,		   // ActionType — drives post-defense stat selection
+		Action.SpellInfusionLevel, // InfusionLevel
+		Action.SelectedSource,	   // SelectedSource
+		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
+		EPhysicalDamageType::None, // PhysicalDamageType - spells have none (Session Y)
+		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
 	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
@@ -930,8 +930,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	}
 
 	const EPhysicalDamageType AttackPhysicalType = Weapon
-		? Weapon->PhysicalDamageType
-		: EPhysicalDamageType::None;
+													   ? Weapon->PhysicalDamageType
+													   : EPhysicalDamageType::None;
 
 	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
 	// infusion (source selection). Attacks have no charge level concept. No energy
@@ -1018,12 +1018,12 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		DamagePerHit,
 		Attack->HitCount,
 		Element,
-		true,						 // Can crit
-		EActionType::Attack,		 // ActionType
-		0,							 // InfusionLevel — attacks have no L1/L2 concept
-		Action.SelectedSource,		 // SelectedSource
-		AttackBaseBuildup,			 // BaseStatusBuildup (Phase C3)
-		AttackPhysicalType,			 // PhysicalDamageType (from active weapon) - drives trigger when Generic
+		true,				   // Can crit
+		EActionType::Attack,   // ActionType
+		0,					   // InfusionLevel — attacks have no L1/L2 concept
+		Action.SelectedSource, // SelectedSource
+		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
+		AttackPhysicalType,	   // PhysicalDamageType (from active weapon) - drives trigger when Generic
 		0.3f);
 
 	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());
@@ -2927,8 +2927,8 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 	// shouldn't happen in practice since GetCharacterData already requires it).
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	const float CharMult = CharComp
-		? CharComp->GetCrystalModifiedEfficiencyMultiplier()
-		: CharData->CalculateEfficiencyMultiplier();
+							   ? CharComp->GetCrystalModifiedEfficiencyMultiplier()
+							   : CharData->CalculateEfficiencyMultiplier();
 
 	// Equipment-side multiplier — mirrors the asset formula shape but reads
 	// BonusEfficiency (capacity points from active loadout) instead of the
@@ -3943,7 +3943,11 @@ void UActionExecutor::ApplySkillEffects(
 				FMath::RoundToInt(Effect.Magnitude * 100.0f), // Convert to percentage value
 				Effect.Duration,
 				ESpellElement::Generic, // Abilities don't have inherent element
-				ESkillEffectTiming::StartOfOwnTurn);
+				ESkillEffectTiming::StartOfOwnTurn,
+				Effect.Condition,
+				Effect.ConditionThreshold,
+				Effect.TargetCondition,
+				Effect.TargetThreshold);
 
 			StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 			Result.StatusEffectsApplied++;
@@ -4044,8 +4048,8 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		if (UItemData *RingCrystal = Ring->SlottedCrystal)
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
-					? GetGameInstance()->GetSubsystem<UCrystalManager>()
-					: nullptr)
+												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
+												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
 					Actor, RingCrystal, Ring, ActionTier, Level, bIsSpell);
@@ -4098,8 +4102,8 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		if (UItemData *RingCrystal = Ring->SlottedCrystal)
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
-					? GetGameInstance()->GetSubsystem<UCrystalManager>()
-					: nullptr)
+												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
+												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
 					Actor, RingCrystal, Ring, ActionTier, Level, bIsSpell);
@@ -4143,8 +4147,8 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		UCrystalManager *CrystalMgr = GetGameInstance()
-			? GetGameInstance()->GetSubsystem<UCrystalManager>()
-			: nullptr;
+										  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
+										  : nullptr;
 		if (!CrystalMgr)
 		{
 			UE_LOG(LogTemp, Warning,

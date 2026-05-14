@@ -8,6 +8,7 @@
 #include "ESkillEffectType.h"
 #include "TargetType.h"
 #include "ESkillTrigger.h"
+#include "SkillTriggerUtils.h"
 #include "FSkillEffect.generated.h"
 
 /**
@@ -65,9 +66,38 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     // ==================== CONDITION ====================
 
-    /** When does this effect trigger */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Condition")
+    /** Optional display name for passive-style effects shown in UI. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    FString EffectName = TEXT("");
+
+    /** When does this effect trigger (source-side condition). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
     ESkillTrigger Condition = ESkillTrigger::Always;
+
+    /** Auto-set by PostSerialize — true when Condition uses a threshold value.
+     *  Drives EditCondition gating for ConditionThreshold. Do not edit manually. */
+    UPROPERTY()
+    bool bConditionUsesThreshold = false;
+
+    /** HP or Energy % threshold for the source trigger (0..100). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
+              meta = (EditCondition = "bConditionUsesThreshold",
+                      EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
+    float ConditionThreshold = 30.0f;
+
+    /** Condition that must hold on the TARGET for the effect to apply. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+    ESkillTrigger TargetCondition = ESkillTrigger::None;
+
+    /** Auto-set by PostSerialize — true when TargetCondition uses a threshold. */
+    UPROPERTY()
+    bool bTargetConditionUsesThreshold = false;
+
+    /** HP or Energy % threshold for the target condition (0..100). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
+              meta = (EditCondition = "bTargetConditionUsesThreshold",
+                      EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
+    float TargetThreshold = 100.0f;
 
     // ==================== DRAIN ====================
 
@@ -89,13 +119,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     FSkillEffect(ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration,
                  ETargetType InTarget, ESkillTrigger InCondition)
-        : EffectType(InType)
-        , Magnitude(InMagnitude)
-        , Value(InValue)
-        , Duration(InDuration)
-        , Target(InTarget)
-        , Condition(InCondition)
-        , DrainPercent(0.0f)
+        : EffectType(InType), Magnitude(InMagnitude), Value(InValue), Duration(InDuration), Target(InTarget), Condition(InCondition), DrainPercent(0.0f)
     {
     }
 
@@ -184,10 +208,16 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return Duration == 0;
     }
 
-    /** Is this effect conditional (not Always)? */
+    /** Is this effect conditional (not Always, or has a target-side check)? */
     bool IsConditional() const
     {
-        return Condition != ESkillTrigger::Always;
+        return Condition != ESkillTrigger::Always || TargetCondition != ESkillTrigger::None;
+    }
+
+    /** Does this effect carry a target-side condition? */
+    bool HasTargetCondition() const
+    {
+        return TargetCondition != ESkillTrigger::None;
     }
 
     /** Does this effect target self? */
@@ -222,41 +252,40 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
         FString Desc;
 
+        // Optional named-passive prefix.
+        if (!EffectName.IsEmpty())
+        {
+            Desc = EffectName + TEXT(": ");
+        }
+
         // Effect type and magnitude
-        const UEnum* StatusEnum = StaticEnum<ESkillEffectType>();
+        const UEnum *StatusEnum = StaticEnum<ESkillEffectType>();
         FString TypeName = StatusEnum ? StatusEnum->GetDisplayNameTextByValue(static_cast<int64>(EffectType)).ToString() : TEXT("Unknown");
 
         if (IsDrain())
         {
-            Desc = FString::Printf(TEXT("%.0f%% of damage as %s"),
-                                   DrainPercent * 100.0f,
-                                   *TypeName);
+            Desc += FString::Printf(TEXT("%.0f%% of damage as %s"),
+                                    DrainPercent * 100.0f,
+                                    *TypeName);
         }
         else if (Value != 0)
         {
-            // Flat amount (DOT damage, heal HP, etc.)
-            Desc = FString::Printf(TEXT("%s %d"),
-                                   *TypeName,
-                                   Value);
+            Desc += FString::Printf(TEXT("%s %d"), *TypeName, Value);
         }
         else if (Magnitude != 0.0f)
         {
             if (IsBuff() || IsDebuff())
             {
-                Desc = FString::Printf(TEXT("%s %.0f%%"),
-                                       *TypeName,
-                                       Magnitude * 100.0f);
+                Desc += FString::Printf(TEXT("%s %.0f%%"), *TypeName, Magnitude * 100.0f);
             }
             else
             {
-                Desc = FString::Printf(TEXT("%s %.0f"),
-                                       *TypeName,
-                                       Magnitude);
+                Desc += FString::Printf(TEXT("%s %.0f"), *TypeName, Magnitude);
             }
         }
         else
         {
-            Desc = TypeName;
+            Desc += TypeName;
         }
 
         // Duration
@@ -268,18 +297,61 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         }
 
         // Target
-        const UEnum* TargetEnum = StaticEnum<ETargetType>();
+        const UEnum *TargetEnum = StaticEnum<ETargetType>();
         FString TargetName = TargetEnum ? TargetEnum->GetDisplayNameTextByValue(static_cast<int64>(Target)).ToString() : TEXT("Unknown");
         Desc += FString::Printf(TEXT(" → %s"), *TargetName);
 
-        // Condition
-        if (IsConditional())
+        // Condition (source-side)
+        const UEnum *TriggerEnum = StaticEnum<ESkillTrigger>();
+        if (Condition != ESkillTrigger::Always)
         {
-            const UEnum* TriggerEnum = StaticEnum<ESkillTrigger>();
             FString ConditionName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(Condition)).ToString() : TEXT("Unknown");
-            Desc += FString::Printf(TEXT(" (%s)"), *ConditionName);
+            if (SkillTriggerUtils::IsThresholdTrigger(Condition))
+            {
+                Desc += FString::Printf(TEXT(" (%s %.0f%%)"), *ConditionName, ConditionThreshold);
+            }
+            else
+            {
+                Desc += FString::Printf(TEXT(" (%s)"), *ConditionName);
+            }
+        }
+
+        // Target-side condition
+        if (HasTargetCondition())
+        {
+            FString TargetCondName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(TargetCondition)).ToString() : TEXT("Unknown");
+            if (SkillTriggerUtils::IsThresholdTrigger(TargetCondition))
+            {
+                Desc += FString::Printf(TEXT(" [target: %s %.0f%%]"), *TargetCondName, TargetThreshold);
+            }
+            else
+            {
+                Desc += FString::Printf(TEXT(" [target: %s]"), *TargetCondName);
+            }
         }
 
         return Desc;
     }
+
+    // ==================== SERIALIZATION ====================
+
+    /** Syncs the b*UsesThreshold flags with the current Condition / TargetCondition
+     *  on every save AND load. Note: in-editor edits to Condition do not reflect
+     *  in the threshold-field gating until the next save/reload — the owning
+     *  UObject's PostEditChangeChainProperty would need to re-run this to make
+     *  the gating live on each property change. */
+    void PostSerialize(const FArchive &Ar)
+    {
+        bConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Condition);
+        bTargetConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(TargetCondition);
+    }
+};
+
+template <>
+struct TStructOpsTypeTraits<FSkillEffect> : public TStructOpsTypeTraitsBase2<FSkillEffect>
+{
+    enum
+    {
+        WithPostSerialize = true,
+    };
 };
