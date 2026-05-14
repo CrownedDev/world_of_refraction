@@ -6,6 +6,7 @@
 #include "SpellData.h"
 #include "DurabilityConstants.h"
 #include "CombatConstants.h"
+#include "SkillTriggerUtils.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -1092,6 +1093,22 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
         {
             MaxDurability = TierMax;
         }
+    }
+}
+
+void UItemData::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
+{
+    Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+    // Refresh threshold-visibility flags on every effect so EditCondition gating
+    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
+    // to in-editor edits of the matching ESkillTrigger field. Effects is empty
+    // for non-evolution crystals — the loop is a no-op in that case.
+    for (FSkillEffect &Effect : Effects)
+    {
+        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
+        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
+        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
     }
 }
 

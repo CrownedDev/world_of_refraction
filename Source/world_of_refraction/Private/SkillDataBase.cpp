@@ -2,6 +2,7 @@
 // Shared base class implementation.
 
 #include "SkillDataBase.h"
+#include "SkillTriggerUtils.h"
 
 TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condition) const
 {
@@ -71,5 +72,20 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
     }
 
     return Result;
+}
+
+void USkillDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
+{
+    Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+    // Refresh threshold-visibility flags on every effect so EditCondition gating
+    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
+    // to in-editor edits of the matching ESkillTrigger field.
+    for (FSkillEffect &Effect : Effects)
+    {
+        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
+        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
+        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
+    }
 }
 #endif

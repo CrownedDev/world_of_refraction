@@ -422,11 +422,12 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     // ==================== SERIALIZATION ====================
 
-    /** Syncs the b*UsesThreshold flags with the current Condition / TargetCondition
-     *  on every save AND load. Note: in-editor edits to Condition do not reflect
-     *  in the threshold-field gating until the next save/reload — the owning
-     *  UObject's PostEditChangeChainProperty would need to re-run this to make
-     *  the gating live on each property change. */
+    /** Syncs the b*UsesThreshold flags with the current Condition /
+     *  SecondaryCondition / TargetCondition on every save AND load. The owning
+     *  UObject's PostEditChangeChainProperty runs the same sync on each
+     *  in-editor property change, so threshold-field gating stays live without
+     *  needing a save/reload. See USkillDataBase / UEquipmentDataBase / UItemData
+     *  implementations. */
     void PostSerialize(const FArchive &Ar)
     {
         bConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Condition);
