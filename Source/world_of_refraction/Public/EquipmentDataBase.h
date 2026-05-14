@@ -12,6 +12,7 @@
 #include "ESpellElement.h"
 #include "WorldStatRequirements.h"
 #include "FEquipmentStatBonus.h"
+#include "PassiveEffect.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -102,6 +103,24 @@ public:
      *  inventory factories and any code needing the asset's final
      *  per-instance roll template. */
     FEquipmentStatBonus GetCombinedStatBonus() const;
+
+    // ==================== PASSIVES ====================
+    // Equipment-level passive effects. Applied via ApplyEquipmentPassives
+    // at combat start (see USkillEffectManager). Distinct from evolution
+    // crystal passives on UItemData::PassiveEffects — those flow through
+    // their own application path.
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Passives")
+    TArray<FPassiveEffect> PassiveEffects;
+
+    UFUNCTION(BlueprintPure, Category = "Passives")
+    int32 GetPassiveCount() const { return PassiveEffects.Num(); }
+
+    UFUNCTION(BlueprintPure, Category = "Passives")
+    TArray<FPassiveEffect> GetAlwaysActivePassives() const;
+
+    UFUNCTION(BlueprintPure, Category = "Passives")
+    TArray<FPassiveEffect> GetTriggeredPassives() const;
 
     // ==================== REQUIREMENTS ====================
 

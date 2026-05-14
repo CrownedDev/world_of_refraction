@@ -2,15 +2,16 @@
 // Shared stat-bonus struct used by weapons and rings.
 //
 // Lives on:
-//  - UWeaponData::DefaultStatBonus      (asset-side roll template)
-//  - URingData::DefaultStatBonus        (asset-side roll template)
-//  - FWeaponInventoryEntry::StatBonus   (per-instance runtime copy)
-//  - FRingInventoryEntry::StatBonus     (per-instance runtime copy)
+//  - UEquipmentDataBase::BaseStatBonus       (designer-authored baseline; weapons + rings)
+//  - UEquipmentDataBase::GeneratedStatBonus  (generator-rolled layer; weapons + rings)
+//  - FWeaponInventoryEntry::StatBonus        (per-instance runtime copy)
+//  - FRingInventoryEntry::StatBonus          (per-instance runtime copy)
 //
 // At inventory creation (FWeaponInventoryEntry::CreateFromWeapon /
-// FRingInventoryEntry::CreateFromRing), the asset's DefaultStatBonus is
-// copied into the entry's StatBonus. The per-instance copy is what should
-// drive runtime stat queries; the asset-side template is the starting state
+// FRingInventoryEntry::CreateFromRing), the asset's field-wise sum of
+// BaseStatBonus + GeneratedStatBonus (see UEquipmentDataBase::GetCombinedStatBonus)
+// is copied into the entry's StatBonus. The per-instance copy is what should
+// drive runtime stat queries; the asset-side layers are the starting state
 // for new entries.
 
 #pragma once

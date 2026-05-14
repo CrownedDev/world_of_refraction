@@ -62,6 +62,32 @@ void UEquipmentDataBase::ClearAllBonuses()
     PillarPoints = 0.0f;
 }
 
+TArray<FPassiveEffect> UEquipmentDataBase::GetAlwaysActivePassives() const
+{
+    TArray<FPassiveEffect> Result;
+    for (const FPassiveEffect &Passive : PassiveEffects)
+    {
+        if (Passive.IsAlwaysActive())
+        {
+            Result.Add(Passive);
+        }
+    }
+    return Result;
+}
+
+TArray<FPassiveEffect> UEquipmentDataBase::GetTriggeredPassives() const
+{
+    TArray<FPassiveEffect> Result;
+    for (const FPassiveEffect &Passive : PassiveEffects)
+    {
+        if (!Passive.IsAlwaysActive())
+        {
+            Result.Add(Passive);
+        }
+    }
+    return Result;
+}
+
 FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
 {
     FEquipmentStatBonus Combined;

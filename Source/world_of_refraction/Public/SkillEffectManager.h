@@ -7,6 +7,7 @@
 #include "ActiveSkillEffect.h"
 #include "ESkillEffectType.h"
 #include "FEquipmentStatBonus.h"
+#include "PassiveEffect.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -129,6 +130,28 @@ public:
 		const TArray<float> &PassiveValues);
 
 	// ========================================
+	// EQUIPMENT PASSIVE APPLICATION
+	// ========================================
+
+	/**
+	 * Apply equipment-level passive effects (weapon/ring PassiveEffects).
+	 * Mirrors ApplyEvolutionPassives but accepts the full FPassiveEffect
+	 * struct so triggered passives retain their trigger metadata.
+	 *
+	 * @param Target Actor to apply passives to
+	 * @param Passives Equipment passives to apply (from ULoadoutComponent::GetActivePassiveEffects)
+	 * @param SourceID Per-source identifier (e.g. weapon/ring instance ID).
+	 *        Effects are tracked at SourceID*100 + PassiveIndex — pass a value
+	 *        that won't collide with evolution passive IDs.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Passives")
+	void ApplyEquipmentPassives(AActor *Target, const TArray<FPassiveEffect> &Passives, int32 SourceID);
+
+	/** Remove equipment passives applied with the given SourceID. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Passives")
+	void RemoveEquipmentPassives(AActor *Target, int32 SourceID);
+
+	// ========================================
 	// WEAPON EFFECT APPLICATION
 	// ========================================
 
@@ -161,7 +184,7 @@ public:
 	 * Apply ring stat bonuses as permanent effects (mirrors ApplyWeaponBonuses).
 	 * Reads bonus values directly from the supplied StatBonus — pass the
 	 * per-instance FRingInventoryEntry::StatBonus so equipped bonuses reflect
-	 * runtime rolls rather than the asset's DefaultStatBonus.
+	 * runtime rolls rather than the asset's BaseStatBonus / GeneratedStatBonus.
 	 * Call when ring is equipped.
 	 *
 	 * @param Target Actor to apply bonuses to

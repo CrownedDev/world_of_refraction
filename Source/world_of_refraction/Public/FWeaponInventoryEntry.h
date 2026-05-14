@@ -59,10 +59,11 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
 
-    /** Per-instance stat bonus state. Seeded from
-     *  UWeaponData::DefaultStatBonus at CreateFromWeapon time. This is what
-     *  runtime damage and stat queries should read — not the asset's
-     *  DefaultStatBonus. */
+    /** Per-instance stat bonus state. Seeded from the asset's
+     *  GetCombinedStatBonus() (BaseStatBonus + GeneratedStatBonus) at
+     *  CreateFromWeapon time. This is what runtime damage and stat queries
+     *  should read — not the asset's BaseStatBonus / GeneratedStatBonus
+     *  layers. */
     UPROPERTY(BlueprintReadWrite, Category = "Mastery")
     FEquipmentStatBonus StatBonus;
 
