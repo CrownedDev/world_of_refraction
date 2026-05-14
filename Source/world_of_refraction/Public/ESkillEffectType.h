@@ -127,5 +127,55 @@ enum class ESkillEffectType : uint8
     Silenced UMETA(DisplayName = "Silenced (No EP Spend)"),
 
     /** Forces target to use a random skill from their loadout on a random enemy */
-    RandomSkill UMETA(DisplayName = "Random Skill (Loss of Control)")
+    RandomSkill UMETA(DisplayName = "Random Skill (Loss of Control)"),
+
+    // ==================== PASSIVE LAYER (Phase 2) ====================
+    // Appended (not mid-inserted) to preserve .uasset enum-by-value stamping.
+
+    // Stat Modifiers (percent-based, passive layer)
+    ModifyDamageDealt UMETA(DisplayName = "Damage Up"),
+    ModifyDamageTaken UMETA(DisplayName = "Damage Taken Up"),
+    ModifyHealing UMETA(DisplayName = "Healing Up"),
+    ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
+    ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
+    ModifyEnergyCost UMETA(DisplayName = "Energy Cost Up"),
+    ModifyTurnSpeed UMETA(DisplayName = "Turn Speed Up"),
+    ModifyStatusResist UMETA(DisplayName = "Status Resist Up"),
+
+    // Resource Changes
+    RestoreHPPercent UMETA(DisplayName = "Restore HP %"),
+    RestoreEnergyPercent UMETA(DisplayName = "Restore Energy %"),
+    DrainHP UMETA(DisplayName = "Drain HP"),
+    DrainEnergy UMETA(DisplayName = "Drain Energy"),
+
+    // Defensive
+    DamageReflect UMETA(DisplayName = "Reflect"),
+    Lifesteal UMETA(DisplayName = "Lifesteal"),
+    AbsorbDamage UMETA(DisplayName = "Absorb"),
+    Shield UMETA(DisplayName = "Shield"),
+
+    // Counter
+    CounterAttack UMETA(DisplayName = "Counter"),
+
+    // Immunities
+    GrantBurnImmunity UMETA(DisplayName = "Burn Immunity"),
+    GrantFreezeImmunity UMETA(DisplayName = "Freeze Immunity"),
+    GrantStunImmunity UMETA(DisplayName = "Stun Immunity"),
+    GrantSilenceImmunity UMETA(DisplayName = "Silence Immunity"),
+    GrantElementalImmunity UMETA(DisplayName = "Elemental Immunity"),
+    GrantAllStatusImmunity UMETA(DisplayName = "All-Status Immunity"),
+
+    // Status Application on Trigger
+    ApplyBurnToTarget UMETA(DisplayName = "Apply Burn"),
+    ApplyChillToTarget UMETA(DisplayName = "Apply Chill"),
+    ApplyStunToTarget UMETA(DisplayName = "Apply Stun"),
+    CleanseSelf UMETA(DisplayName = "Cleanse Self"),
+    CleanseAllies UMETA(DisplayName = "Cleanse Allies"),
+
+    // Special Mechanics
+    ExtraAction UMETA(DisplayName = "Extra Action"),
+    GuaranteedCrit UMETA(DisplayName = "Guaranteed Crit"),
+    IgnoreDefense UMETA(DisplayName = "Ignore Defense"),
+    DoubleHit UMETA(DisplayName = "Double Hit"),
+    Revive UMETA(DisplayName = "Revive")
 };

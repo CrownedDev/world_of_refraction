@@ -614,6 +614,31 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::LuckBuff:
 		case ESkillEffectType::HealthRestore:
 		case ESkillEffectType::EnergyRestore:
+		// Phase 2 passive-layer buffs
+		case ESkillEffectType::ModifyDamageDealt:
+		case ESkillEffectType::ModifyHealing:
+		case ESkillEffectType::ModifyCritChance:
+		case ESkillEffectType::ModifyCritDamage:
+		case ESkillEffectType::RestoreHPPercent:
+		case ESkillEffectType::RestoreEnergyPercent:
+		case ESkillEffectType::DamageReflect:
+		case ESkillEffectType::Lifesteal:
+		case ESkillEffectType::AbsorbDamage:
+		case ESkillEffectType::Shield:
+		case ESkillEffectType::CounterAttack:
+		case ESkillEffectType::GrantBurnImmunity:
+		case ESkillEffectType::GrantFreezeImmunity:
+		case ESkillEffectType::GrantStunImmunity:
+		case ESkillEffectType::GrantSilenceImmunity:
+		case ESkillEffectType::GrantElementalImmunity:
+		case ESkillEffectType::GrantAllStatusImmunity:
+		case ESkillEffectType::CleanseSelf:
+		case ESkillEffectType::CleanseAllies:
+		case ESkillEffectType::ExtraAction:
+		case ESkillEffectType::GuaranteedCrit:
+		case ESkillEffectType::IgnoreDefense:
+		case ESkillEffectType::DoubleHit:
+		case ESkillEffectType::Revive:
 			return true;
 		default:
 			return false;
@@ -652,6 +677,16 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::HealBlock:
 		case ESkillEffectType::Silenced:
 		case ESkillEffectType::RandomSkill:
+		// Phase 2 passive-layer debuffs
+		case ESkillEffectType::ModifyDamageTaken:
+		case ESkillEffectType::ModifyEnergyCost:
+		case ESkillEffectType::ModifyTurnSpeed:
+		case ESkillEffectType::ModifyStatusResist:
+		case ESkillEffectType::DrainHP:
+		case ESkillEffectType::DrainEnergy:
+		case ESkillEffectType::ApplyBurnToTarget:
+		case ESkillEffectType::ApplyChillToTarget:
+		case ESkillEffectType::ApplyStunToTarget:
 			return true;
 		default:
 			return false;
