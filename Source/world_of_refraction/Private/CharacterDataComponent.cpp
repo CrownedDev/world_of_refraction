@@ -9,6 +9,8 @@
 #include "LoadoutComponent.h"
 #include "FEquipmentStatBonus.h"
 #include "ItemData.h"
+#include "SkillEffectManager.h"
+#include "Engine/GameInstance.h"
 
 UCharacterDataComponent::UCharacterDataComponent()
 {
@@ -483,6 +485,20 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         {
             const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
             Luck += Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT;
+        }
+
+        // Skill-effect-driven LuckBuff / LuckDebuff (flat additive, percent-space).
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (USkillEffectManager *SkillMgr = GI->GetSubsystem<USkillEffectManager>())
+                {
+                    const float LuckBuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckBuff);
+                    const float LuckDebuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckDebuff);
+                    Luck += (LuckBuff - LuckDebuff);
+                }
+            }
         }
     }
 

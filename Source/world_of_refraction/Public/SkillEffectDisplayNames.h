@@ -214,19 +214,35 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::CounterAttack:
             return TEXT("Counter");
 
-        // Immunities
-        case ESkillEffectType::GrantBurnImmunity:
-            return TEXT("Burn Immunity");
-        case ESkillEffectType::GrantFreezeImmunity:
-            return TEXT("Freeze Immunity");
+        // Immunities — trigger-type
+        case ESkillEffectType::GrantDOTImmunity:
+            return TEXT("DOT Immunity");
         case ESkillEffectType::GrantStunImmunity:
             return TEXT("Stun Immunity");
         case ESkillEffectType::GrantSilenceImmunity:
             return TEXT("Silence Immunity");
-        case ESkillEffectType::GrantElementalImmunity:
-            return TEXT("Elemental Immunity");
         case ESkillEffectType::GrantAllStatusImmunity:
             return TEXT("All-Status Immunity");
+
+        // Immunities — per element
+        case ESkillEffectType::GrantFireImmunity:
+            return TEXT("Fire Immunity");
+        case ESkillEffectType::GrantWaterImmunity:
+            return TEXT("Water Immunity");
+        case ESkillEffectType::GrantEarthImmunity:
+            return TEXT("Earth Immunity");
+        case ESkillEffectType::GrantWindImmunity:
+            return TEXT("Wind Immunity");
+        case ESkillEffectType::GrantLightImmunity:
+            return TEXT("Light Immunity");
+        case ESkillEffectType::GrantDarknessImmunity:
+            return TEXT("Darkness Immunity");
+        case ESkillEffectType::GrantLightningImmunity:
+            return TEXT("Lightning Immunity");
+        case ESkillEffectType::GrantVoidImmunity:
+            return TEXT("Void Immunity");
+        case ESkillEffectType::GrantRealityImmunity:
+            return TEXT("Reality Immunity");
 
         // Status application on trigger
         case ESkillEffectType::ApplyBurnToTarget:

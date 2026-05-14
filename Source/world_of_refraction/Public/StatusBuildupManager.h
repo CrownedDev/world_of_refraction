@@ -155,6 +155,11 @@ private:
 	 *  and calls ApplyTriggeredSkillEffect on it. */
 	void TriggerSkillEffectFromBuildup(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element);
 
+	/** Map an ESpellElement to its corresponding GrantXxxImmunity flag.
+	 *  Returns ESkillEffectType::None for Generic / BrokenDarkness — those
+	 *  elements don't have a dedicated immunity. */
+	ESkillEffectType GetElementImmunityType(ESpellElement Element) const;
+
 	// ========================================
 	// CACHED CROSS-SUBSYSTEM REFERENCE
 	// ========================================

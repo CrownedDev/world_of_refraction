@@ -51,6 +51,26 @@ USkillEffectManager *UStatusBuildupManager::GetEffectManager() const
 	return EffectManagerRef;
 }
 
+ESkillEffectType UStatusBuildupManager::GetElementImmunityType(ESpellElement Element) const
+{
+	switch (Element)
+	{
+	case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
+	case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
+	case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
+	case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
+	case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
+	case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
+	case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
+	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
+	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
+	case ESpellElement::Generic:
+	case ESpellElement::BrokenDarkness:
+	default:
+		return ESkillEffectType::None;
+	}
+}
+
 // ========================================
 // STATUS BAR QUERIES
 // ========================================
@@ -176,6 +196,56 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		return false;
 	}
 
+	// Resolve which trigger this hit would fire and check target immunities up-front.
+	// Buildup never accrues for immune targets (returns false and short-circuits the
+	// amplification, resistance, and bar-update steps).
+	const ESkillEffectType ResolvedTrigger = BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType);
+	if (USkillEffectManager *EffectMgr = GetEffectManager())
+	{
+		// Global immunity — blocks any buildup.
+		if (EffectMgr->HasEffectOfType(Target, ESkillEffectType::GrantAllStatusImmunity))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s has GrantAllStatusImmunity — buildup absorbed"),
+				   *Target->GetName());
+			return false;
+		}
+
+		// Per-trigger-type immunities — gated on the resolved bar-cap trigger.
+		// BarCapTriggerResolver maps Lightning/Impact -> Stun, Darkness -> Silenced,
+		// Fire/Slash -> DOT. GrantDOTImmunity blocks any DOT regardless of element.
+		const bool bImmuneStun =
+			(ResolvedTrigger == ESkillEffectType::Stun) &&
+			EffectMgr->HasEffectOfType(Target, ESkillEffectType::GrantStunImmunity);
+
+		const bool bImmuneSilence =
+			(ResolvedTrigger == ESkillEffectType::Silenced) &&
+			EffectMgr->HasEffectOfType(Target, ESkillEffectType::GrantSilenceImmunity);
+
+		const bool bImmuneDOT =
+			(ResolvedTrigger == ESkillEffectType::DOT) &&
+			EffectMgr->HasEffectOfType(Target, ESkillEffectType::GrantDOTImmunity);
+
+		if (bImmuneStun || bImmuneSilence || bImmuneDOT)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s immune to resolved trigger %s — buildup absorbed"),
+				   *Target->GetName(), *UEnum::GetValueAsString(ResolvedTrigger));
+			return false;
+		}
+
+		// Per-element immunity — block when the incoming buildup Element matches
+		// a held GrantXxxImmunity for that element. Distinct from the per-trigger
+		// gates above; an actor with GrantFireImmunity blocks Fire-buildup
+		// regardless of whether it would resolve to DOT, Stun, or anything else.
+		const ESkillEffectType ElemImmunity = GetElementImmunityType(Element);
+		if (ElemImmunity != ESkillEffectType::None &&
+		    EffectMgr->HasEffectOfType(Target, ElemImmunity))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s has %s — buildup absorbed"),
+				   *Target->GetName(), *UEnum::GetValueAsString(ElemImmunity));
+			return false;
+		}
+	}
+
 	// Get or create state
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 
@@ -240,8 +310,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	float OldBuildup = State.CurrentBuildup;
 	State.CurrentBuildup += Amount;
 
-	// Resolve the trigger that WOULD fire if bar caps right now.
-	const ESkillEffectType ResolvedTrigger = BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType);
+	// ResolvedTrigger was computed at function entry for the immunity gate; reuse here.
 
 	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
 		CombatConstants::STATUS_EFFECT_THRESHOLD, Element);

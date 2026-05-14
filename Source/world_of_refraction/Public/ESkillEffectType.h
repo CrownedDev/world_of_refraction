@@ -157,13 +157,24 @@ enum class ESkillEffectType : uint8
     // Counter
     CounterAttack UMETA(DisplayName = "Counter"),
 
-    // Immunities
-    GrantBurnImmunity UMETA(DisplayName = "Burn Immunity"),
-    GrantFreezeImmunity UMETA(DisplayName = "Freeze Immunity"),
+    // Trigger-type immunities — block buildup when the resolved bar-cap trigger matches.
+    // GrantDOTImmunity blocks any DOT regardless of element; per-element blocking goes
+    // through the GrantXxxImmunity entries below.
+    GrantDOTImmunity UMETA(DisplayName = "DOT Immunity"),
     GrantStunImmunity UMETA(DisplayName = "Stun Immunity"),
     GrantSilenceImmunity UMETA(DisplayName = "Silence Immunity"),
-    GrantElementalImmunity UMETA(DisplayName = "Elemental Immunity"),
     GrantAllStatusImmunity UMETA(DisplayName = "All-Status Immunity"),
+
+    // Per-element immunities — block buildup when the incoming Element matches.
+    GrantFireImmunity UMETA(DisplayName = "Fire Immunity"),
+    GrantWaterImmunity UMETA(DisplayName = "Water Immunity"),
+    GrantEarthImmunity UMETA(DisplayName = "Earth Immunity"),
+    GrantWindImmunity UMETA(DisplayName = "Wind Immunity"),
+    GrantLightImmunity UMETA(DisplayName = "Light Immunity"),
+    GrantDarknessImmunity UMETA(DisplayName = "Darkness Immunity"),
+    GrantLightningImmunity UMETA(DisplayName = "Lightning Immunity"),
+    GrantVoidImmunity UMETA(DisplayName = "Void Immunity"),
+    GrantRealityImmunity UMETA(DisplayName = "Reality Immunity"),
 
     // Status Application on Trigger
     ApplyBurnToTarget UMETA(DisplayName = "Apply Burn"),
