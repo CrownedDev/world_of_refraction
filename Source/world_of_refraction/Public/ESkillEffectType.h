@@ -150,6 +150,8 @@ enum class ESkillEffectType : uint8
 
     // Defensive
     DamageReflect UMETA(DisplayName = "Reflect"),
+    ReflectPhysicalDamage UMETA(DisplayName = "Reflect Physical"),
+    ReflectSpellDamage UMETA(DisplayName = "Reflect Spell"),
     Lifesteal UMETA(DisplayName = "Lifesteal"),
     AbsorbDamage UMETA(DisplayName = "Absorb"),
     Shield UMETA(DisplayName = "Shield"),

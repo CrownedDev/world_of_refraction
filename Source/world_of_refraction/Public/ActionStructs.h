@@ -534,4 +534,9 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	 *  closes audit risk #7 from the Phase 2 Apply-Consolidation map. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
 	FActionStatModifiers ActionMods;
+
+	/** Reentrancy guard for DoubleHit skill-effect. Set true on the second hit
+	 *  ApplyHit dispatches to itself so the DoubleHit check doesn't loop. */
+	UPROPERTY(BlueprintReadWrite, Category = "Action Hit")
+	bool bIsDoubleHit = false;
 };

@@ -6,6 +6,9 @@
 #include "CharacterData.h"
 #include "LoadoutComponent.h"
 #include "FEquipmentStatBonus.h"
+#include "SkillEffectManager.h"
+#include "ESkillEffectType.h"
+#include "Engine/GameInstance.h"
 
 UTurnManager::UTurnManager()
 {
@@ -136,28 +139,79 @@ void UTurnManager::CalculateSpeedRatios()
 	if (Combatants.Num() == 0)
 		return;
 
-	// Find slowest speed among living combatants
+	// Effective speed = CachedSpeed (base) * (1 + (ModifyTurnSpeed + TurnSpeedBuff
+	// − TurnSpeedDebuff)/100). Computed on-the-fly each call so OnActorDied /
+	// OnActorResurrected — which invoke CalculateSpeedRatios without a fresh
+	// CacheActorStats — don't compound. CachedSpeed remains the pristine base.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+
+	auto GetEffectiveSpeed = [SEM](const FCombatantTurnDebt &Combatant) -> int32
+	{
+		if (!Combatant.Actor || Combatant.CachedSpeed <= 0)
+		{
+			return FMath::Max(1, Combatant.CachedSpeed);
+		}
+		if (!SEM)
+		{
+			return Combatant.CachedSpeed;
+		}
+		const float TurnMod = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::ModifyTurnSpeed);
+		const float TurnBuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedBuff);
+		const float TurnDebuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedDebuff);
+		const float Multiplier = 1.0f + (TurnMod + TurnBuff - TurnDebuff) / 100.0f;
+		return FMath::Max(1, FMath::RoundToInt(Combatant.CachedSpeed * Multiplier));
+	};
+
+	// Find slowest effective speed among living combatants.
 	int32 SlowestSpeed = INT_MAX;
 	for (const FCombatantTurnDebt &Combatant : Combatants)
 	{
 		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
 		if (CharComp && CharComp->bIsAlive)
 		{
-			SlowestSpeed = FMath::Min(SlowestSpeed, Combatant.CachedSpeed);
+			SlowestSpeed = FMath::Min(SlowestSpeed, GetEffectiveSpeed(Combatant));
 		}
 	}
 
-	if (SlowestSpeed <= 0)
+	if (SlowestSpeed <= 0 || SlowestSpeed == INT_MAX)
 		SlowestSpeed = 1;
 
-	// Calculate speed ratios (slowest = 1.0, others = proportionally higher)
+	// Calculate speed ratios from effective speed (slowest = 1.0, others higher).
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
-		if (Combatant.CachedSpeed <= 0)
-			Combatant.SpeedRatio = 1.0f;
-		else
-			Combatant.SpeedRatio = (float)Combatant.CachedSpeed / (float)SlowestSpeed;
+		const int32 Effective = GetEffectiveSpeed(Combatant);
+		Combatant.SpeedRatio = (Effective > 0) ? (float)Effective / (float)SlowestSpeed : 1.0f;
 	}
+}
+
+USkillEffectManager *UTurnManager::GetSkillEffectManager() const
+{
+	if (!SkillEffectManagerRef)
+	{
+		if (UGameInstance *GI = GetGameInstance())
+		{
+			const_cast<UTurnManager *>(this)->SkillEffectManagerRef =
+				GI->GetSubsystem<USkillEffectManager>();
+		}
+	}
+	return SkillEffectManagerRef;
+}
+
+void UTurnManager::RequestExtraTurn(AActor *Actor)
+{
+	if (!Actor) return;
+	for (FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (Combatant.Actor == Actor)
+		{
+			Combatant.TurnsOwed += 1.0f;
+			UE_LOG(LogTemp, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
+				   *Actor->GetName(), Combatant.TurnsOwed);
+			return;
+		}
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] RequestExtraTurn: %s not in current combat"),
+		   *Actor->GetName());
 }
 
 // ========================================

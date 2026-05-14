@@ -3,12 +3,14 @@
 #include "SkillEffectManager.h"
 #include "CharacterDataComponent.h"
 #include "TurnManager.h"
+#include "ActionExecutor.h"
 #include "ESkillEffectType.h"
 #include "CombatConstants.h"
 #include "InfusionConstants.h"
 #include "CharacterDataComponent.h"
 #include "SkillEffectDisplayNames.h"
 #include "RingData.h"
+#include "Engine/GameInstance.h"
 
 // ========================================
 // SUBSYSTEM LIFECYCLE
@@ -16,10 +18,28 @@
 
 void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 {
+	// Force ActionExecutor to initialize before this subsystem so the OnDamageDealt
+	// binding below sees a fully-constructed delegate.
+	Collection.InitializeDependency(UActionExecutor::StaticClass());
+
 	Super::Initialize(Collection);
 
 	ActiveEffects.Empty();
 	NextInstanceID = 1;
+
+	// Bind OnDamageDealt listener — drives Lifesteal + ApplyBurn/Chill/StunToTarget.
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		if (UActionExecutor *AE = GI->GetSubsystem<UActionExecutor>())
+		{
+			AE->OnDamageDealt.AddDynamic(this, &USkillEffectManager::OnDamageDealtHandler);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Bound to ActionExecutor::OnDamageDealt"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ActionExecutor not available at Initialize — OnDamageDealt binding skipped"));
+		}
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Initialized"));
 }
@@ -1081,8 +1101,6 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ModifyEnergyCost:
 	case ESkillEffectType::ModifyTurnSpeed:
 	case ESkillEffectType::ModifyStatusResist:
-		// TODO: Wire query path so DamageCalculator / TurnManager / CharacterDataComponent
-		// pick these up alongside the existing stat-modifier types.
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
@@ -1144,10 +1162,11 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Defensive — passive shields and damage redirection. No per-tick logic;
 	// hooked into the damage pipeline.
 	case ESkillEffectType::DamageReflect:
+	case ESkillEffectType::ReflectPhysicalDamage:
+	case ESkillEffectType::ReflectSpellDamage:
 	case ESkillEffectType::Lifesteal:
 	case ESkillEffectType::AbsorbDamage:
 	case ESkillEffectType::Shield:
-		// TODO: Hook into DamageCalculator / ActionExecutor damage pipeline
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive defensive %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
@@ -1198,29 +1217,47 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		break;
 	}
 	case ESkillEffectType::CleanseAllies:
-		// TODO: Iterate team allies and RemoveAllDebuffs each
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO CleanseAllies for %s"), *Actor->GetName());
+	{
+		UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		if (TM)
+		{
+			const int32 TeamIndex = TM->GetActorTeam(Actor);
+			const TArray<AActor *> Allies = TM->GetTeamMembers(TeamIndex);
+			int32 CleansedCount = 0;
+			for (AActor *Ally : Allies)
+			{
+				if (Ally && Ally != Actor)
+				{
+					RemoveAllDebuffs(Ally);
+					++CleansedCount;
+				}
+			}
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] CleanseAllies on %s cleansed %d ally(ies)"),
+				   *Actor->GetName(), CleansedCount);
+		}
 		break;
+	}
 
 	// Special mechanics — bespoke handlers in different subsystems.
 	case ESkillEffectType::ExtraAction:
-		// TODO: Hook into TurnManager to grant an extra action this turn
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO ExtraAction on %s"), *Actor->GetName());
+	{
+		UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+		if (TM)
+		{
+			TM->RequestExtraTurn(Actor);
+		}
 		break;
+	}
 	case ESkillEffectType::GuaranteedCrit:
-		// TODO: DamageCalculator forces crit when this is active
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] GuaranteedCrit active on %s"), *Actor->GetName());
 		break;
 	case ESkillEffectType::IgnoreDefense:
-		// TODO: DamageCalculator skips defense subtraction when this is active
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] IgnoreDefense active on %s"), *Actor->GetName());
 		break;
 	case ESkillEffectType::DoubleHit:
-		// TODO: ActionExecutor runs the hit pipeline twice at 50% each
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] DoubleHit active on %s"), *Actor->GetName());
 		break;
 	case ESkillEffectType::Revive:
-		// TODO: CharacterDataComponent death handler checks for this and revives
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Revive armed on %s"), *Actor->GetName());
 		break;
 
@@ -1228,6 +1265,67 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
 			   *Effect.EffectName);
 		break;
+	}
+}
+
+// ========================================
+// EVENT HANDLERS
+// ========================================
+
+void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical)
+{
+	if (!Attacker || !Target || Damage <= 0)
+	{
+		return;
+	}
+
+	// Lifesteal — heal the attacker for a percent of damage dealt.
+	if (HasEffectOfType(Attacker, ESkillEffectType::Lifesteal))
+	{
+		const float LifestealPct = GetTotalStatModifier(Attacker, ESkillEffectType::Lifesteal) / 100.0f;
+		const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(Damage * LifestealPct));
+		if (UCharacterDataComponent *Comp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+		{
+			Comp->ServerHeal(HealAmount);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
+				   *Attacker->GetName(), HealAmount, *Target->GetName());
+		}
+	}
+
+	// ApplyBurnToTarget — DOT (Fire) on the victim. Damage-per-turn = stored
+	// magnitude on the effect, default 10 if unset; duration 3 turns.
+	if (HasEffectOfType(Attacker, ESkillEffectType::ApplyBurnToTarget))
+	{
+		const float Magnitude = GetTotalStatModifier(Attacker, ESkillEffectType::ApplyBurnToTarget);
+		const float Damage_ApplyBurn = Magnitude > 0 ? Magnitude : 10.0f;
+		const int32 BurnID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyBurnToTarget);
+		FActiveSkillEffect Burn = FActiveSkillEffect::CreateDOT(
+			TEXT("Burn"), BurnID, Damage_ApplyBurn, 3, ESpellElement::Fire);
+		ApplyEffect(Target, Burn, Attacker, TEXT("Burn"), -1);
+	}
+
+	// ApplyChillToTarget — DOT (Water) on the victim.
+	if (HasEffectOfType(Attacker, ESkillEffectType::ApplyChillToTarget))
+	{
+		const float Magnitude = GetTotalStatModifier(Attacker, ESkillEffectType::ApplyChillToTarget);
+		const float Damage_ApplyChill = Magnitude > 0 ? Magnitude : 10.0f;
+		const int32 ChillID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyChillToTarget);
+		FActiveSkillEffect Chill = FActiveSkillEffect::CreateDOT(
+			TEXT("Chill"), ChillID, Damage_ApplyChill, 3, ESpellElement::Water);
+		ApplyEffect(Target, Chill, Attacker, TEXT("Chill"), -1);
+	}
+
+	// ApplyStunToTarget — bar-cap-style Stun on a CRIT only. Built via CreateBuff
+	// (gives 1-turn duration with no per-tick value); ApplyEffectLogic's Stun
+	// case at :1056 is a no-op marker — gate enforcement lives at ValidateAction.
+	if (bCritical && HasEffectOfType(Attacker, ESkillEffectType::ApplyStunToTarget))
+	{
+		const int32 StunID = GetTypeHash(Attacker) ^ static_cast<uint32>(ESkillEffectType::ApplyStunToTarget);
+		FActiveSkillEffect Stun = FActiveSkillEffect::CreateBuff(
+			TEXT("Stun"), StunID, ESkillEffectType::Stun, 0.0f, 1);
+		ApplyEffect(Target, Stun, Attacker, TEXT("Stun"), -1);
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] ApplyStunToTarget fired on crit: %s stunned %s"),
+			   *Attacker->GetName(), *Target->GetName());
 	}
 }
 
@@ -1375,14 +1473,12 @@ int32 USkillEffectManager::GetDebuffCount(AActor *Actor) const
 
 bool USkillEffectManager::IsStunned(AActor *Actor) const
 {
-	// TODO: Add stun effect type when implemented
-	return false;
+	return HasEffectOfType(Actor, ESkillEffectType::Stun);
 }
 
 bool USkillEffectManager::IsSilenced(AActor *Actor) const
 {
-	// TODO: Add silence effect type when implemented
-	return false;
+	return HasEffectOfType(Actor, ESkillEffectType::Silenced);
 }
 
 bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
@@ -1405,8 +1501,26 @@ bool USkillEffectManager::HasActiveDOT(AActor *Actor) const
 
 bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType EffectType) const
 {
-	// TODO: Implement immunity system via ResistanceBuff at 100%+
-	return false;
+	// Universal immunity short-circuits everything.
+	if (HasEffectOfType(Actor, ESkillEffectType::GrantAllStatusImmunity))
+	{
+		return true;
+	}
+
+	// Per-status-type gates. Element-specific (GrantFireImmunity etc.) live in
+	// StatusBuildupManager::AddStatusBuildup which has the incoming Element in
+	// scope — this query lacks that context and only handles trigger-type matches.
+	switch (EffectType)
+	{
+	case ESkillEffectType::Stun:
+		return HasEffectOfType(Actor, ESkillEffectType::GrantStunImmunity);
+	case ESkillEffectType::Silenced:
+		return HasEffectOfType(Actor, ESkillEffectType::GrantSilenceImmunity);
+	case ESkillEffectType::DOT:
+		return HasEffectOfType(Actor, ESkillEffectType::GrantDOTImmunity);
+	default:
+		return false;
+	}
 }
 
 // ========================================
