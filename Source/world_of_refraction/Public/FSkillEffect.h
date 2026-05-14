@@ -188,12 +188,19 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::AbsorbDamage:
         case ESkillEffectType::Shield:
         case ESkillEffectType::CounterAttack:
-        case ESkillEffectType::GrantBurnImmunity:
-        case ESkillEffectType::GrantFreezeImmunity:
+        case ESkillEffectType::GrantDOTImmunity:
         case ESkillEffectType::GrantStunImmunity:
         case ESkillEffectType::GrantSilenceImmunity:
-        case ESkillEffectType::GrantElementalImmunity:
         case ESkillEffectType::GrantAllStatusImmunity:
+        case ESkillEffectType::GrantFireImmunity:
+        case ESkillEffectType::GrantWaterImmunity:
+        case ESkillEffectType::GrantEarthImmunity:
+        case ESkillEffectType::GrantWindImmunity:
+        case ESkillEffectType::GrantLightImmunity:
+        case ESkillEffectType::GrantDarknessImmunity:
+        case ESkillEffectType::GrantLightningImmunity:
+        case ESkillEffectType::GrantVoidImmunity:
+        case ESkillEffectType::GrantRealityImmunity:
         case ESkillEffectType::CleanseSelf:
         case ESkillEffectType::CleanseAllies:
         case ESkillEffectType::ExtraAction:

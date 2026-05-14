@@ -116,20 +116,36 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			}
 		}
 
-		Result.bWasCritical = FMath::FRand() < CritChance;
+		// GuaranteedCrit (passive skill-effect): forces a crit when active on attacker.
+		bool bForceCrit = false;
+		if (USkillEffectManager *CritMgr = GetSkillEffectManager())
+		{
+			bForceCrit = CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
+		}
+		Result.bWasCritical = bForceCrit || (FMath::FRand() < CritChance);
 
 		if (Result.bWasCritical)
 		{
-			Result.CritMultiplier = DamageConstants::CRIT_MULTIPLIER;
-			RunningDamage *= DamageConstants::CRIT_MULTIPLIER;
+			const float CritMult = DamageConstants::CRIT_MULTIPLIER * GetCritDamageMultiplier(Attacker);
+			Result.CritMultiplier = CritMult;
+			RunningDamage *= CritMult;
 		}
 	}
 
 	// Store damage before defense
 	Result.DamageBeforeDefense = FMath::RoundToInt(RunningDamage);
 
-	// Step 5: Defender's flat defense
-	if (!Input.bIgnoreDefense && Defender)
+	// Step 5: Defender's flat defense — Input.bIgnoreDefense OR the attacker
+	// having an IgnoreDefense skill effect both skip this step.
+	bool bSkipDefense = Input.bIgnoreDefense;
+	if (!bSkipDefense && Attacker)
+	{
+		if (USkillEffectManager *DefMgr = GetSkillEffectManager())
+		{
+			bSkipDefense = DefMgr->HasEffectOfType(Attacker, ESkillEffectType::IgnoreDefense);
+		}
+	}
+	if (!bSkipDefense && Defender)
 	{
 		Result.DefenderFlatDefense = GetDefenderFlatDefense(Defender);
 		int32 Blocked = FMath::Min(Result.DefenderFlatDefense, FMath::RoundToInt(RunningDamage));
@@ -321,6 +337,10 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceDebuff);
 
 		BaseCrit += (CritBuff - CritDebuff) / 100.0f;
+
+		// Passive-layer ModifyCritChance: additive percent on top of buff/debuff.
+		float ModifyCrit = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritChance);
+		BaseCrit += ModifyCrit / 100.0f;
 	}
 
 	return FMath::Clamp(BaseCrit, 0.0f, DamageConstants::MAX_CRIT_CHANCE);
@@ -419,7 +439,15 @@ int32 UDamageCalculator::CalculateHealing(
 		}
 	}
 
-	// TODO: Wire ModifyHealing from ESkillEffectType into healing multiplier path
+	// Skill-effect-driven healing modifier (passive-layer ModifyHealing).
+	if (Healer)
+	{
+		if (USkillEffectManager *StatusManager = GetSkillEffectManager())
+		{
+			float ModifyHeal = StatusManager->GetTotalStatModifier(Healer, ESkillEffectType::ModifyHealing);
+			Healing *= (1.0f + ModifyHeal / 100.0f);
+		}
+	}
 
 	return FMath::Max(0, FMath::RoundToInt(Healing));
 }
@@ -501,6 +529,17 @@ UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Acto
 	return Actor->FindComponentByClass<UBrokenDarknessManager>();
 }
 
+float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
+{
+	USkillEffectManager *StatusManager = GetSkillEffectManager();
+	if (!StatusManager || !Attacker)
+	{
+		return 1.0f;
+	}
+	const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
+	return 1.0f + FMath::Max(0.0f, Modify / 100.0f);
+}
+
 float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender) const
 {
 	float Modifier = 1.0f;
@@ -517,11 +556,19 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageBuff);
 		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageDebuff);
 		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / 100.0f);
+
+		// Passive-layer ModifyDamageDealt: percent boost to outgoing damage.
+		float ModifyDealt = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyDamageDealt);
+		Modifier *= (1.0f + ModifyDealt / 100.0f);
 	}
 
-	// Defender defense modifiers affect incoming damage indirectly
-	// (handled separately in defense calculations)
-	// TODO: Wire ModifyDamageTaken from ESkillEffectType into damage taken multiplier path
+	// Defender-side damage-taken modifier — applies to incoming damage regardless
+	// of attacker. Defense-flat-reduction is handled separately in CalculateDamage.
+	if (Defender)
+	{
+		float ModifyTaken = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ModifyDamageTaken);
+		Modifier *= (1.0f + ModifyTaken / 100.0f);
+	}
 
 	return FMath::Max(0.0f, Modifier);
 }

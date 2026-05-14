@@ -293,6 +293,9 @@ private:
 	/** Apply status effect modifiers to damage */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender) const;
 
+	/** Skill-effect-driven crit damage multiplier — returns 1.0 + ModifyCritDamage% / 100. */
+	float GetCritDamageMultiplier(AActor *Attacker) const;
+
 	/** Get CombatGridSubsystem */
 	UCombatGridSubsystem *GetCombatGridSubsystem() const;
 

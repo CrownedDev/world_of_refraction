@@ -1087,23 +1087,59 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
 
-	// Resource changes — percent restore / drain.
+	// Resource changes — percent restore / drain. Value is the percent (0..100).
 	case ESkillEffectType::RestoreHPPercent:
-		// TODO: Implement % MaxHP restore (multiply Value by CharComp->MaxHP)
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO RestoreHPPercent on %s"), *Actor->GetName());
+	{
+		if (CharComp->MaxHP > 0)
+		{
+			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / 100.0f);
+			if (Amount > 0)
+			{
+				CharComp->ServerHeal(Amount);
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s restored %d HP (%.1f%% of MaxHP) from %s"),
+					   *Actor->GetName(), Amount, Value, *Effect.EffectName);
+			}
+		}
 		break;
+	}
 	case ESkillEffectType::RestoreEnergyPercent:
-		// TODO: Implement % MaxEnergy restore
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO RestoreEnergyPercent on %s"), *Actor->GetName());
+	{
+		if (CharComp->MaxEP > 0)
+		{
+			const int32 Amount = FMath::RoundToInt(CharComp->MaxEP * Value / 100.0f);
+			if (Amount > 0)
+			{
+				CharComp->ServerGainEnergy(Amount);
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s restored %d EP (%.1f%% of MaxEP) from %s"),
+					   *Actor->GetName(), Amount, Value, *Effect.EffectName);
+			}
+		}
 		break;
+	}
+	// DrainHP — distinct from DOT: flat damage, no "leave 1 HP" clamp (can be lethal).
 	case ESkillEffectType::DrainHP:
-		// TODO: Implement HP drain (separate from DOT — not clamped to 1 HP)
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO DrainHP on %s"), *Actor->GetName());
+	{
+		const int32 Amount = FMath::RoundToInt(Value);
+		if (Amount > 0)
+		{
+			CharComp->ServerTakeDamage(Amount);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s drained %d HP from %s (lethal)"),
+				   *Actor->GetName(), Amount, *Effect.EffectName);
+		}
 		break;
+	}
+	// DrainEnergy — distinct from the bar-cap EnergyDrain trigger above.
 	case ESkillEffectType::DrainEnergy:
-		// TODO: Implement energy drain handler (distinct from EnergyDrain bar-cap effect)
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO DrainEnergy on %s"), *Actor->GetName());
+	{
+		const int32 Amount = FMath::RoundToInt(Value);
+		if (Amount > 0)
+		{
+			CharComp->ServerSpendEnergy(Amount);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s drained %d EP from %s"),
+				   *Actor->GetName(), Amount, *Effect.EffectName);
+		}
 		break;
+	}
 
 	// Defensive — passive shields and damage redirection. No per-tick logic;
 	// hooked into the damage pipeline.
@@ -1122,30 +1158,45 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] CounterAttack active on %s"), *Actor->GetName());
 		break;
 
-	// Immunities — gate checks in the relevant effect-application path.
-	case ESkillEffectType::GrantBurnImmunity:
-	case ESkillEffectType::GrantFreezeImmunity:
+	// Immunities — passive markers. The gate lives in
+	// UStatusBuildupManager::AddStatusBuildup, which queries HasEffectOfType on
+	// the target before applying buildup. ApplyEffectLogic is a no-op here.
+	case ESkillEffectType::GrantDOTImmunity:
 	case ESkillEffectType::GrantStunImmunity:
 	case ESkillEffectType::GrantSilenceImmunity:
-	case ESkillEffectType::GrantElementalImmunity:
 	case ESkillEffectType::GrantAllStatusImmunity:
-		// TODO: ApplyEffect must early-out for matching incoming status types
+	case ESkillEffectType::GrantFireImmunity:
+	case ESkillEffectType::GrantWaterImmunity:
+	case ESkillEffectType::GrantEarthImmunity:
+	case ESkillEffectType::GrantWindImmunity:
+	case ESkillEffectType::GrantLightImmunity:
+	case ESkillEffectType::GrantDarknessImmunity:
+	case ESkillEffectType::GrantLightningImmunity:
+	case ESkillEffectType::GrantVoidImmunity:
+	case ESkillEffectType::GrantRealityImmunity:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Immunity %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
 
-	// Status application on trigger — apply a follow-up effect when this fires.
+	// Status application on trigger — passive markers consumed by ActionExecutor's
+	// OnHit / OnCrit broadcast (Phase B, pending missing-hooks pass). When the
+	// holder hits a target, ActionExecutor queries HasEffectOfType for these
+	// types and calls ApplyTriggeredSkillEffect on the victim with the matching
+	// status (DOT for Burn / Chill — by Element, Stun for Stun) using Effect.Element.
 	case ESkillEffectType::ApplyBurnToTarget:
 	case ESkillEffectType::ApplyChillToTarget:
 	case ESkillEffectType::ApplyStunToTarget:
-		// TODO: Invoke ApplyTriggeredSkillEffect with the corresponding status type
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO %s — apply-on-trigger"), *Effect.EffectName);
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] %s armed on %s — fires on hit (Phase B hook pending)"),
+			   *Effect.EffectName, *Actor->GetName());
 		break;
 
 	case ESkillEffectType::CleanseSelf:
-		// TODO: Call RemoveAllDebuffs(Actor) on trigger
-		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO CleanseSelf on %s"), *Actor->GetName());
+	{
+		const int32 Removed = RemoveAllDebuffs(Actor);
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s cleansed %d debuff(s) via %s"),
+			   *Actor->GetName(), Removed, *Effect.EffectName);
 		break;
+	}
 	case ESkillEffectType::CleanseAllies:
 		// TODO: Iterate team allies and RemoveAllDebuffs each
 		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] TODO CleanseAllies for %s"), *Actor->GetName());
