@@ -534,7 +534,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		case 2: // Impact → Stun (skip turn - uses special handling)
 			Effect.EffectName = WeaponName + TEXT(" Stun");
-			Effect.EffectType = ESkillEffectType::None; // TODO: Add Stun effect type
+			Effect.EffectType = ESkillEffectType::Stun;
 			Effect.EffectValue = 1.0f;					// Stun duration multiplier
 			Effect.RemainingTurns = 1;
 			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
@@ -657,6 +657,8 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::RestoreHPPercent:
 		case ESkillEffectType::RestoreEnergyPercent:
 		case ESkillEffectType::DamageReflect:
+		case ESkillEffectType::ReflectPhysicalDamage:
+		case ESkillEffectType::ReflectSpellDamage:
 		case ESkillEffectType::Lifesteal:
 		case ESkillEffectType::AbsorbDamage:
 		case ESkillEffectType::Shield:

@@ -1211,6 +1211,21 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 		Defender,
 		Context,
 		DefenseResult);
+
+	// CounterAttack — passive marker on the defender. Partial wire: logged only.
+	// Full implementation needs the orchestrator's action queue to inject a
+	// basic attack from Defender targeting Context.Attacker (Phase C).
+	if (USkillEffectManager *SEM = GetSkillEffectManager())
+	{
+		if (Defender && SEM->HasEffectOfType(Defender, ESkillEffectType::CounterAttack))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] CounterAttack triggered by %s (against %s) — queue not yet wired"),
+				   *Defender->GetName(),
+				   Context.Attacker.IsValid() ? *Context.Attacker->GetName() : TEXT("null"));
+			// TODO Phase C: inject a Counter action via CombatOrchestrator's action queue
+			// once a "queued reaction" path exists.
+		}
+	}
 	// Broken Darkness absorption from defense
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
 	if (BDManager && BDManager->IsTransformed())
@@ -1915,8 +1930,96 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 			Result.bWasCritical = CalcResult.bWasCritical;
 
+			// Pre-mitigation pass — skill-effect Shield / AbsorbDamage / DamageReflect.
+			// Runs after DamageCalculator (so element/crit/defense are already
+			// resolved) but before HP is actually decremented. Mutates a local
+			// FinalDamage copy; CalcResult itself stays const.
+			int32 FinalDamage = CalcResult.FinalDamage;
+			if (USkillEffectManager *SEM = GetSkillEffectManager())
+			{
+				// Shield — flat absorb. Simplified implementation: no per-effect
+				// pool storage yet; treats Value as the per-tick absorb cap.
+				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::Shield))
+				{
+					const float ShieldAmt = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::Shield);
+					const int32 ShieldBlock = FMath::Min(FMath::RoundToInt(ShieldAmt), FinalDamage);
+					FinalDamage -= ShieldBlock;
+					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Shield blocked %d damage on %s"),
+						   ShieldBlock, *Input.Target->GetName());
+				}
+
+				// AbsorbDamage — convert a percent of incoming damage to target EP.
+				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::AbsorbDamage))
+				{
+					const float AbsorbPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::AbsorbDamage) / 100.0f;
+					const int32 Absorbed = FMath::RoundToInt(FinalDamage * AbsorbPct);
+					FinalDamage -= Absorbed;
+					if (Absorbed > 0)
+					{
+						TargetComp->ServerGainEnergy(Absorbed);
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s absorbed %d damage as EP"),
+							   *Input.Target->GetName(), Absorbed);
+					}
+				}
+
+				// DamageReflect — bounce a percent of incoming damage back to attacker
+				// (any ActionType — generic reflect).
+				if (Input.Attacker && SEM->HasEffectOfType(Input.Target, ESkillEffectType::DamageReflect))
+				{
+					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::DamageReflect) / 100.0f;
+					const int32 Reflected = FMath::RoundToInt(FinalDamage * ReflectPct);
+					if (Reflected > 0)
+					{
+						if (UCharacterDataComponent *AC = Input.Attacker->FindComponentByClass<UCharacterDataComponent>())
+						{
+							AC->ServerTakeDamage(Reflected);
+							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d damage back to %s"),
+								   *Input.Target->GetName(), Reflected, *Input.Attacker->GetName());
+						}
+					}
+				}
+
+				// ReflectPhysicalDamage — only fires for Attack / Ability ActionTypes.
+				if (Input.Attacker &&
+					(Input.ActionType == EActionType::Attack || Input.ActionType == EActionType::Ability) &&
+					SEM->HasEffectOfType(Input.Target, ESkillEffectType::ReflectPhysicalDamage))
+				{
+					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::ReflectPhysicalDamage) / 100.0f;
+					const int32 Reflected = FMath::RoundToInt(FinalDamage * ReflectPct);
+					if (Reflected > 0)
+					{
+						if (UCharacterDataComponent *AC = Input.Attacker->FindComponentByClass<UCharacterDataComponent>())
+						{
+							AC->ServerTakeDamage(Reflected);
+							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d physical damage back to %s"),
+								   *Input.Target->GetName(), Reflected, *Input.Attacker->GetName());
+						}
+					}
+				}
+
+				// ReflectSpellDamage — only fires for Spell ActionType.
+				if (Input.Attacker &&
+					Input.ActionType == EActionType::Spell &&
+					SEM->HasEffectOfType(Input.Target, ESkillEffectType::ReflectSpellDamage))
+				{
+					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::ReflectSpellDamage) / 100.0f;
+					const int32 Reflected = FMath::RoundToInt(FinalDamage * ReflectPct);
+					if (Reflected > 0)
+					{
+						if (UCharacterDataComponent *AC = Input.Attacker->FindComponentByClass<UCharacterDataComponent>())
+						{
+							AC->ServerTakeDamage(Reflected);
+							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s reflected %d spell damage back to %s"),
+								   *Input.Target->GetName(), Reflected, *Input.Attacker->GetName());
+						}
+					}
+				}
+
+				FinalDamage = FMath::Max(0, FinalDamage);
+			}
+
 			const int32 HPBefore = TargetComp->CurrentHP;
-			TargetComp->ServerTakeDamage(CalcResult.FinalDamage);
+			TargetComp->ServerTakeDamage(FinalDamage);
 			Result.DamageDealt = HPBefore - TargetComp->CurrentHP;
 		}
 		else
@@ -1937,6 +2040,25 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 		// ApplyHit preserves the per-hit broadcast so floating-number widgets,
 		// hit-flash VFX, and any other listener see one event per hit landed.
 		OnDamageDealt.Broadcast(Input.Attacker, Input.Target, Result.DamageDealt, Result.bWasCritical);
+
+		// DoubleHit — re-run ApplyHit once more at 50% damage when the attacker
+		// has the effect. bIsDoubleHit guards against infinite recursion (second
+		// invocation skips this block).
+		if (!Input.bIsDoubleHit && Input.Attacker)
+		{
+			if (USkillEffectManager *SEM = GetSkillEffectManager())
+			{
+				if (SEM->HasEffectOfType(Input.Attacker, ESkillEffectType::DoubleHit))
+				{
+					FActionHitInput SecondHit = Input;
+					SecondHit.BaseDamage = FMath::Max(1, FMath::RoundToInt(Input.BaseDamage * 0.5f));
+					SecondHit.bIsDoubleHit = true;
+					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DoubleHit on %s — second hit %d dmg"),
+						   *Input.Attacker->GetName(), SecondHit.BaseDamage);
+					ApplyHit(SecondHit);
+				}
+			}
+		}
 	}
 
 	// Buildup path — manager resolves the trigger type internally from
@@ -2229,6 +2351,15 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Caster);
 			PlayRate += Bonus.BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
 		}
+	}
+
+	// Skill-effect-driven SpellSpeedBuff / SpellSpeedDebuff (percent-space).
+	if (USkillEffectManager *SEM = GetSkillEffectManager())
+	{
+		const float SpellBuff = SEM->GetTotalStatModifier(Caster, ESkillEffectType::SpellSpeedBuff);
+		const float SpellDebuff = SEM->GetTotalStatModifier(Caster, ESkillEffectType::SpellSpeedDebuff);
+		PlayRate *= (1.0f + (SpellBuff - SpellDebuff) / 100.0f);
+		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
 	PlayActionMontageOnActor(Caster, Spell->CastAnimation, PlayRate);
@@ -2945,7 +3076,23 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 			1.0f);
 	}
 
-	return CharMult * EquipmentMult;
+	// Skill-effect-driven cost modifiers: SpellCostBuff reduces cost,
+	// SpellCostDebuff increases it, ModifyEnergyCost contributes per the
+	// authored sign convention (positive = cheaper, mirroring SpellCostBuff).
+	// Clamped to [0.1x, 2.0x] so an actor can never get free spells or be
+	// taxed beyond 2x base cost from skill-effect stacking.
+	float SkillEffectMult = 1.0f;
+	if (USkillEffectManager *SEM = GetSkillEffectManager())
+	{
+		const float CostBuff = SEM->GetTotalStatModifier(Actor, ESkillEffectType::SpellCostBuff);
+		const float CostDebuff = SEM->GetTotalStatModifier(Actor, ESkillEffectType::SpellCostDebuff);
+		const float ModifyEnergy = SEM->GetTotalStatModifier(Actor, ESkillEffectType::ModifyEnergyCost);
+		SkillEffectMult = FMath::Clamp(
+			1.0f - (CostBuff - CostDebuff + ModifyEnergy) / 100.0f,
+			0.1f, 2.0f);
+	}
+
+	return CharMult * EquipmentMult * SkillEffectMult;
 }
 
 UItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const

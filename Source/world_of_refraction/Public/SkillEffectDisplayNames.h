@@ -203,6 +203,10 @@ namespace SkillEffectDisplayNames
         // Defensive
         case ESkillEffectType::DamageReflect:
             return TEXT("Reflect");
+        case ESkillEffectType::ReflectPhysicalDamage:
+            return TEXT("Reflect Physical");
+        case ESkillEffectType::ReflectSpellDamage:
+            return TEXT("Reflect Spell");
         case ESkillEffectType::Lifesteal:
             return TEXT("Lifesteal");
         case ESkillEffectType::AbsorbDamage:

@@ -76,6 +76,11 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 	virtual void Deinitialize() override;
 
+	/** Listener bound to UActionExecutor::OnDamageDealt. Drives OnHit-style
+	 *  skill effects: Lifesteal, ApplyBurn/Chill/StunToTarget. */
+	UFUNCTION()
+	void OnDamageDealtHandler(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
+
 	// ========================================
 	// EFFECT APPLICATION
 	// ========================================

@@ -296,6 +296,16 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		}
 
 		Resistance += GetTotalElementResistance(Target, Element);
+
+		// Skill-effect-driven ModifyStatusResist — flat percent-space additive
+		// to total resistance. Applied before the final clamp so it cannot
+		// push past RESISTANCE_MAX.
+		if (USkillEffectManager *EffectMgr = GetEffectManager())
+		{
+			const float ResistModify = EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist);
+			Resistance += ResistModify / 100.0f;
+		}
+
 		Resistance = FMath::Clamp(Resistance, 0.0f, CombatConstants::RESISTANCE_MAX);
 		Amount *= (1.0f - Resistance);
 	}

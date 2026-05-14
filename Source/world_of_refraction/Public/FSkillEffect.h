@@ -184,6 +184,8 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::RestoreHPPercent:
         case ESkillEffectType::RestoreEnergyPercent:
         case ESkillEffectType::DamageReflect:
+        case ESkillEffectType::ReflectPhysicalDamage:
+        case ESkillEffectType::ReflectSpellDamage:
         case ESkillEffectType::Lifesteal:
         case ESkillEffectType::AbsorbDamage:
         case ESkillEffectType::Shield:

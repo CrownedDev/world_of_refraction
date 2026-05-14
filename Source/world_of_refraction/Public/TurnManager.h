@@ -6,6 +6,8 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "TurnManager.generated.h"
 
+class USkillEffectManager;
+
 /**
  * Turn debt tracking for individual combatants
  */
@@ -123,6 +125,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void OnActorResurrected(AActor *Actor);
 
+	/** Grant an additional turn to the specified actor by crediting one unit of
+	 *  TurnsOwed. The debt-based scheduler will pick this actor on the next
+	 *  AdvanceToNextTurn call (or shortly after, depending on relative debt). */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void RequestExtraTurn(AActor *Actor);
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -196,4 +204,12 @@ private:
 
 	/** Cache actor stats from CharacterDataComponent */
 	void CacheActorStats(FCombatantTurnDebt &Combatant);
+
+	/** Lazy-acquired SkillEffectManager pointer used by CalculateSpeedRatios to
+	 *  fold ModifyTurnSpeed / TurnSpeedBuff / TurnSpeedDebuff into the cached
+	 *  speed value. Matches the const_cast pattern used by other subsystems. */
+	UPROPERTY()
+	mutable USkillEffectManager *SkillEffectManagerRef = nullptr;
+
+	USkillEffectManager *GetSkillEffectManager() const;
 };

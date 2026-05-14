@@ -203,6 +203,30 @@ void UCharacterDataComponent::CheckDeath()
 {
     if (CurrentHP <= 0 && bIsAlive)
     {
+        // Revive intercept — when the actor holds a Revive skill-effect, restore
+        // HP to 30% of MaxHP, consume the effect, and skip the death broadcast.
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                {
+                    if (AActor *Owner = GetOwner())
+                    {
+                        if (SEM->HasEffectOfType(Owner, ESkillEffectType::Revive))
+                        {
+                            CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * 0.3f));
+                            SEM->RemoveEffectsByType(Owner, ESkillEffectType::Revive);
+                            OnHPChanged.Broadcast(CurrentHP, MaxHP);
+                            UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (30%% of MaxHP)"),
+                                   *Owner->GetName(), CurrentHP);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
         bIsAlive = false;
         OnDied.Broadcast(GetOwner());
     }
