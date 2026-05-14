@@ -1166,15 +1166,9 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ReflectSpellDamage:
 	case ESkillEffectType::Lifesteal:
 	case ESkillEffectType::AbsorbDamage:
-	case ESkillEffectType::Shield:
+	case ESkillEffectType::DamageReduction:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive defensive %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
-		break;
-
-	// Counter — retaliation on attack received.
-	case ESkillEffectType::CounterAttack:
-		// TODO: Wire to ActionExecutor post-damage retaliation path
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] CounterAttack active on %s"), *Actor->GetName());
 		break;
 
 	// Immunities — passive markers. The gate lives in

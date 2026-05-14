@@ -1212,20 +1212,6 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 		Context,
 		DefenseResult);
 
-	// CounterAttack — passive marker on the defender. Partial wire: logged only.
-	// Full implementation needs the orchestrator's action queue to inject a
-	// basic attack from Defender targeting Context.Attacker (Phase C).
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		if (Defender && SEM->HasEffectOfType(Defender, ESkillEffectType::CounterAttack))
-		{
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] CounterAttack triggered by %s (against %s) — queue not yet wired"),
-				   *Defender->GetName(),
-				   Context.Attacker.IsValid() ? *Context.Attacker->GetName() : TEXT("null"));
-			// TODO Phase C: inject a Counter action via CombatOrchestrator's action queue
-			// once a "queued reaction" path exists.
-		}
-	}
 	// Broken Darkness absorption from defense
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Defender);
 	if (BDManager && BDManager->IsTransformed())
@@ -1937,15 +1923,20 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			int32 FinalDamage = CalcResult.FinalDamage;
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
-				// Shield — flat absorb. Simplified implementation: no per-effect
-				// pool storage yet; treats Value as the per-tick absorb cap.
-				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::Shield))
+				// DamageReduction — percent-space scalar on incoming damage,
+				// clamped to a 90% floor so an actor can never become fully
+				// invulnerable from stacked reductions alone.
+				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::DamageReduction))
 				{
-					const float ShieldAmt = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::Shield);
-					const int32 ShieldBlock = FMath::Min(FMath::RoundToInt(ShieldAmt), FinalDamage);
-					FinalDamage -= ShieldBlock;
-					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Shield blocked %d damage on %s"),
-						   ShieldBlock, *Input.Target->GetName());
+					float Reduction = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::DamageReduction) / 100.0f;
+					Reduction = FMath::Clamp(Reduction, 0.0f, 0.9f);
+					const int32 Reduced = FinalDamage - FMath::RoundToInt(FinalDamage * (1.0f - Reduction));
+					FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Reduction));
+					if (Reduced > 0)
+					{
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DamageReduction blocked %d damage on %s (%.0f%%)"),
+							   Reduced, *Input.Target->GetName(), Reduction * 100.0f);
+					}
 				}
 
 				// AbsorbDamage — convert a percent of incoming damage to target EP.
