@@ -1444,20 +1444,38 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 
 bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue) const
 {
+	(void)TriggerValue;
+
+	const bool bPrimaryMet = IsSingleTriggerMet(Actor, Effect.TriggerCondition, Effect.TriggerThreshold);
+
+	if (Effect.SecondaryTriggerCondition == ESkillTrigger::None)
+	{
+		return bPrimaryMet;
+	}
+
+	const bool bSecondaryMet = IsSingleTriggerMet(Actor, Effect.SecondaryTriggerCondition, Effect.SecondaryTriggerThreshold);
+
+	return Effect.bRequireBothTriggers
+			   ? (bPrimaryMet && bSecondaryMet)
+			   : (bPrimaryMet || bSecondaryMet);
+}
+
+bool USkillEffectManager::IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigger, float Threshold) const
+{
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
 	if (!CharComp)
 	{
 		return false;
 	}
 
-	switch (Effect.TriggerCondition)
+	switch (Trigger)
 	{
 	case ESkillTrigger::OnHPBelowThreshold:
 	{
 		float HPPercent = (CharComp->MaxHP > 0)
 							  ? (static_cast<float>(CharComp->CurrentHP) / static_cast<float>(CharComp->MaxHP)) * 100.0f
 							  : 0.0f;
-		return HPPercent < Effect.TriggerThreshold;
+		return HPPercent < Threshold;
 	}
 
 	case ESkillTrigger::OnHPAboveThreshold:
@@ -1465,7 +1483,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		float HPPercent = (CharComp->MaxHP > 0)
 							  ? (static_cast<float>(CharComp->CurrentHP) / static_cast<float>(CharComp->MaxHP)) * 100.0f
 							  : 0.0f;
-		return HPPercent > Effect.TriggerThreshold;
+		return HPPercent > Threshold;
 	}
 
 	case ESkillTrigger::OnEnergyBelowThreshold:
@@ -1473,7 +1491,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		float EPPercent = (CharComp->MaxEP > 0)
 							  ? (static_cast<float>(CharComp->CurrentEP) / static_cast<float>(CharComp->MaxEP)) * 100.0f
 							  : 0.0f;
-		return EPPercent < Effect.TriggerThreshold;
+		return EPPercent < Threshold;
 	}
 
 	case ESkillTrigger::OnEnergyAboveThreshold:
@@ -1481,7 +1499,7 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 		float EPPercent = (CharComp->MaxEP > 0)
 							  ? (static_cast<float>(CharComp->CurrentEP) / static_cast<float>(CharComp->MaxEP)) * 100.0f
 							  : 0.0f;
-		return EPPercent > Effect.TriggerThreshold;
+		return EPPercent > Threshold;
 	}
 
 	case ESkillTrigger::Always:
