@@ -370,8 +370,8 @@ namespace
         }
 
         // Crystal layer — read pillar percent directly from the crystal's
-        // StatBonus (the new canonical authoring surface; old CalculateModified*
-        // helpers were removed in the StatBonus migration).
+        // BaseStatBonus (the new canonical authoring surface; old CalculateModified*
+        // helpers were removed in the BaseStatBonus migration).
         float Result = BaseValue;
         if (UItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
         {
@@ -380,9 +380,9 @@ namespace
                 float CrystalPercent = 0.0f;
                 switch (Pillar)
                 {
-                case ECrystalPillar::Mind:   CrystalPercent = Crystal->StatBonus.BonusMindModifierPercent;   break;
-                case ECrystalPillar::Body:   CrystalPercent = Crystal->StatBonus.BonusBodyModifierPercent;   break;
-                case ECrystalPillar::Spirit: CrystalPercent = Crystal->StatBonus.BonusSpiritModifierPercent; break;
+                case ECrystalPillar::Mind:   CrystalPercent = Crystal->BaseStatBonus.BonusMindModifierPercent;   break;
+                case ECrystalPillar::Body:   CrystalPercent = Crystal->BaseStatBonus.BonusBodyModifierPercent;   break;
+                case ECrystalPillar::Spirit: CrystalPercent = Crystal->BaseStatBonus.BonusSpiritModifierPercent; break;
                 }
                 Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
             }

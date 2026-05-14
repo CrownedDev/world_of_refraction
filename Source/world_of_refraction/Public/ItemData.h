@@ -113,26 +113,26 @@ public:
         // to CombatConstants::CRYSTAL_BONUS_MIN; the UI clamp can't be
         // overridden at the embedding site, so out-of-range values are caught
         // by UItemData::IsDataValid warnings rather than UI enforcement.
-        // StatBonus (Category = "Stats|Evolution") is referred to as "Traits"
+        // BaseStatBonus (Category = "Stats|Evolution") is referred to as "Traits"
         // in design docs for evolution crystals — the in-editor category cannot
         // vary per subclass, so the header label stays generic.
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
                   meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
-        FEquipmentStatBonus StatBonus;
+        FEquipmentStatBonus BaseStatBonus;
 
         // ==================== LEGACY PILLAR FIELDS (Deprecated) ====================
         // Kept for one transition release to support PostLoad migration of
-        // existing crystal assets. Values are copied into StatBonus on load.
+        // existing crystal assets. Values are copied into BaseStatBonus on load.
         // Scheduled for removal in a follow-up commit after content team
         // confirms all assets have been re-saved.
 
-        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusMindModifierPercent instead — PostLoad migrates legacy values."))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BaseStatBonus.BonusMindModifierPercent instead — PostLoad migrates legacy values."))
         float MindModifierPercent = 0.0f;
 
-        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusBodyModifierPercent instead — PostLoad migrates legacy values."))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BaseStatBonus.BonusBodyModifierPercent instead — PostLoad migrates legacy values."))
         float BodyModifierPercent = 0.0f;
 
-        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use StatBonus.BonusSpiritModifierPercent instead — PostLoad migrates legacy values."))
+        UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BaseStatBonus.BonusSpiritModifierPercent instead — PostLoad migrates legacy values."))
         float SpiritModifierPercent = 0.0f;
 
         // ==================== EFFECTS (Evolution only) ====================
@@ -305,7 +305,7 @@ public:
         // ==================== STAT CALCULATION (Evolution only) ====================
 
         /** Compute per-action stat modifiers when this Evolution crystal is INFUSING.
-         *  Maps StatBonus int fields 1:1 onto FActionStatModifiers, scaled by
+         *  Maps BaseStatBonus int fields 1:1 onto FActionStatModifiers, scaled by
          *  InfusionMultiplier (L1 = 0.5f, L2 = 1.0f).
          *
          *  DOES NOT apply:

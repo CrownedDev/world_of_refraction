@@ -13,6 +13,7 @@
 #include "WorldStatRequirements.h"
 #include "FEquipmentStatBonus.h"
 #include "FSkillEffect.h"
+#include "IEquipmentGenerator.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -38,7 +39,7 @@ class UTexture2D;
  * would require an editor-only module with `IDetailCustomization`.
  */
 UCLASS(Abstract, BlueprintType)
-class WORLD_OF_REFRACTION_API UEquipmentDataBase : public UPrimaryDataAsset
+class WORLD_OF_REFRACTION_API UEquipmentDataBase : public UPrimaryDataAsset, public IEquipmentGenerator
 {
     GENERATED_BODY()
 
@@ -177,22 +178,27 @@ public:
     // Set to tier budget max to unlock Roll Pillar Points
 
     UFUNCTION(CallInEditor, Category = "Bonuses")
-    void RollSubstatPoints();
+    virtual void RollSubstatPoints() override;
     // Only fires when SubstatPoints >= tier substat budget
     // Distributes points into stats using zero-sum broken-stick
     // Resets SubstatPoints to 0 after roll
     // Logs warning if insufficient points
 
     UFUNCTION(CallInEditor, Category = "Bonuses")
-    void RollPillarPoints();
+    virtual void RollPillarPoints() override;
     // Only fires when PillarPoints >= tier pillar budget
     // Distributes points into pillar percent fields
     // Resets PillarPoints to 0 after roll
     // Logs warning if insufficient points
 
     UFUNCTION(CallInEditor, Category = "Bonuses")
-    void ClearAllBonuses();
+    virtual void ClearAllBonuses() override;
     // Resets all stat fields and both point fields to 0
+
+    // IEquipmentGenerator: target the generator layer (BaseStatBonus is the
+    // designer baseline and stays untouched).
+    virtual FEquipmentStatBonus& GetEditableStatBonus() override { return GeneratedStatBonus; }
+    virtual EItemTier GetGeneratorTier() const override { return Tier; }
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
