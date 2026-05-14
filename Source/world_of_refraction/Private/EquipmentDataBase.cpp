@@ -4,6 +4,7 @@
 #include "ItemData.h"
 #include "EquipmentBonusGenerator.h"
 #include "FPillarWeights.h"
+#include "SkillTriggerUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEquipmentBonusEditor, Log, All);
 
@@ -129,5 +130,20 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     }
 
     return Result;
+}
+
+void UEquipmentDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
+{
+    Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+    // Refresh threshold-visibility flags on every effect so EditCondition gating
+    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
+    // to in-editor edits of the matching ESkillTrigger field.
+    for (FSkillEffect &Effect : Effects)
+    {
+        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
+        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
+        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
+    }
 }
 #endif
