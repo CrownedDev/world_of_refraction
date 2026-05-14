@@ -366,7 +366,11 @@ int32 UDamageCalculator::CalculateStatusBuildup(
 	float BDMult = GetBDStackStatusMultiplier(Attacker, Element);
 	Buildup *= BDMult;
 
-	// TODO: Apply status effect modifiers (status potency buffs/debuffs)
+	// TODO: Apply skill effect modifiers — StatusMultiplierBuff /
+	// StatusMultiplierDebuff aggregated from SkillEffectManager (and
+	// target-side ResistanceBuff/Debuff). Equipment BonusStatusMultiplier
+	// is a separate path (direct FEquipmentStatBonus read), already
+	// migrated for damage; status buildup symmetry is still pending.
 
 	return FMath::RoundToInt(Buildup);
 }
@@ -415,8 +419,7 @@ int32 UDamageCalculator::CalculateHealing(
 		}
 	}
 
-	// TODO: Add HealingReceivedBuff/Debuff to ESkillEffectType when needed
-	// Currently no healing modifiers in status effect system
+	// TODO: Wire ModifyHealing from ESkillEffectType into healing multiplier path
 
 	return FMath::Max(0, FMath::RoundToInt(Healing));
 }
@@ -518,7 +521,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 
 	// Defender defense modifiers affect incoming damage indirectly
 	// (handled separately in defense calculations)
-	// TODO: Add DamageTakenBuff/Debuff to ESkillEffectType if needed
+	// TODO: Wire ModifyDamageTaken from ESkillEffectType into damage taken multiplier path
 
 	return FMath::Max(0.0f, Modifier);
 }
