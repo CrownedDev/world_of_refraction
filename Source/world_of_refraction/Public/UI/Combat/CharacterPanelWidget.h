@@ -34,8 +34,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPanelClicked);
  *   - Buffs/debuffs    -> USkillEffectManager::OnEffectApplied / Removed / DurationChanged
  *   - Death            -> UCharacterDataComponent::OnDied
  *
- * Lifecycle: Created by UCombatHUDRoot (or by debug spawn), given an actor via
- * InitialiseForActor.
+ * Lifecycle: Spawned by BP_CombatOrchestrator as a standalone viewport widget
+ * (or by debug spawn), given an actor via InitialiseForActor.
  */
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UCharacterPanelWidget : public UUserWidget
