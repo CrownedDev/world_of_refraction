@@ -16,6 +16,7 @@ class UCharacterDataComponent;
 class ULoadoutComponent;
 class USkillEffectManager;
 class UDamageCalculator;
+class UActionExecutor;
 class UDefenseSystem;
 class UCharacterData;
 
@@ -64,6 +65,9 @@ private:
     // ==================== INTERNAL ====================
 
     USkillEffectManager *GetSkillEffectManager() const;
+
+    /** Get ActionExecutor subsystem */
+    UActionExecutor *GetActionExecutor() const;
 
     /** Active combat reference */
     UPROPERTY()
@@ -132,6 +136,14 @@ private:
 
     /** Estimate damage to target with best available action */
     int32 EstimateBestDamage(AActor *Attacker, AActor *Target);
+
+    /** Execution-accurate spell damage estimate — routes the spell through
+     *  DamageCalculator so attacker stats, ActionMods and defender defense
+     *  are all applied, matching what real execution would deal. */
+    int32 EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel = 0) const;
+
+    /** Execution-accurate ability damage estimate — see EstimateSpellDamage. */
+    int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0) const;
 
     /** Calculate threat level of an actor */
     int32 CalculateThreatLevel(AActor *Actor);

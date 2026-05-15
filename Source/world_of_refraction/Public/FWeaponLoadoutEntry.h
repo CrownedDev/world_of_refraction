@@ -16,6 +16,7 @@
 
 class UAbilityData;
 class USpellData;
+class UWeaponAttackData;
 
 /**
  * FWeaponLoadoutEntry
@@ -37,9 +38,15 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
     TArray<UAbilityData *> AssignedAbilities;
 
-    /** Assigned spells (max 6, only valid if weapon has crystal) */
+    /** Assigned spells (max 6, only valid if weapon has crystal).
+     *  Sequential override list — see GetAllSpells(). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
     TArray<USpellData *> AssignedSpells;
+
+    /** Per-loadout attack override. If set, replaces the weapon asset's
+     *  WeaponAttack for this entry in combat. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
+    UWeaponAttackData *OverrideAttack = nullptr;
 
     // ==================== VALIDATION ====================
 
@@ -83,11 +90,10 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get all assigned spells (delegates to inventory entry - single source of truth) */
-    TArray<USpellData *> GetAllSpells() const
-    {
-        return WeaponEntry.GetSpells();
-    }
+    /** Get all spells: inventory-entry spells as the base list, with
+     *  AssignedSpells applied as a sequential override (replace base slots
+     *  in order, then append any remainder). Capped at MAX_SPELL_SLOTS. */
+    TArray<USpellData *> GetAllSpells() const;
 
     /** Get spell count (delegates to inventory entry) */
     int32 GetSpellCount() const
@@ -119,5 +125,7 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     {
         WeaponEntry = FWeaponInventoryEntry();
         AssignedAbilities.Empty();
+        AssignedSpells.Empty();
+        OverrideAttack = nullptr;
     }
 };

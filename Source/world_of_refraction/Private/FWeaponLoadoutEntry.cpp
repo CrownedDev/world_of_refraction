@@ -29,25 +29,87 @@ int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 {
-    TArray<UAbilityData *> Result;
+    // Preset abilities from the weapon asset.
+    const TArray<UAbilityData *> Presets = WeaponEntry.Weapon
+                                               ? WeaponEntry.Weapon->PresetAbilities
+                                               : TArray<UAbilityData *>();
 
-    // Start with locked/preset abilities
-    if (WeaponEntry.Weapon)
+    // Locked weapons (conjured) ignore overrides entirely — presets only.
+    if (WeaponEntry.Weapon && WeaponEntry.Weapon->bAbilitiesLocked)
     {
-        int32 LockedCount = GetLockedAbilityCount();
-        for (int32 i = 0; i < LockedCount && i < WeaponEntry.Weapon->PresetAbilities.Num(); ++i)
+        return Presets;
+    }
+
+    // Sequential override merge: AssignedAbilities replace preset slots in
+    // order; non-null entries beyond the preset count are appended.
+    TArray<UAbilityData *> Result;
+    int32 OverrideIndex = 0;
+
+    for (int32 i = 0; i < Presets.Num(); ++i)
+    {
+        if (OverrideIndex < AssignedAbilities.Num() && AssignedAbilities[OverrideIndex])
         {
-            Result.Add(WeaponEntry.Weapon->PresetAbilities[i]);
+            Result.Add(AssignedAbilities[OverrideIndex]);
+            ++OverrideIndex;
+        }
+        else
+        {
+            Result.Add(Presets[i]);
         }
     }
 
-    // Add customizable abilities
-    for (UAbilityData *Ability : AssignedAbilities)
+    while (OverrideIndex < AssignedAbilities.Num())
     {
-        if (Result.Num() < LoadoutConstants::MAX_WEAPON_ABILITIES)
+        if (AssignedAbilities[OverrideIndex])
         {
-            Result.Add(Ability);
+            Result.Add(AssignedAbilities[OverrideIndex]);
         }
+        ++OverrideIndex;
+    }
+
+    if (Result.Num() > LoadoutConstants::MAX_WEAPON_ABILITIES)
+    {
+        Result.SetNum(LoadoutConstants::MAX_WEAPON_ABILITIES);
+    }
+
+    return Result;
+}
+
+TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
+{
+    // Inventory-entry spells form the base list; AssignedSpells override them.
+    const TArray<USpellData *> Presets = WeaponEntry.GetSpells();
+
+    // Sequential override merge: AssignedSpells replace base slots in order;
+    // non-null entries beyond the base count are appended.
+    TArray<USpellData *> Result;
+    int32 OverrideIndex = 0;
+
+    for (int32 i = 0; i < Presets.Num(); ++i)
+    {
+        if (OverrideIndex < AssignedSpells.Num() && AssignedSpells[OverrideIndex])
+        {
+            Result.Add(AssignedSpells[OverrideIndex]);
+            ++OverrideIndex;
+        }
+        else
+        {
+            Result.Add(Presets[i]);
+        }
+    }
+
+    while (OverrideIndex < AssignedSpells.Num())
+    {
+        if (AssignedSpells[OverrideIndex])
+        {
+            Result.Add(AssignedSpells[OverrideIndex]);
+        }
+        ++OverrideIndex;
+    }
+
+    if (Result.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
+    {
+        Result.SetNum(LoadoutConstants::MAX_SPELL_SLOTS);
     }
 
     return Result;
@@ -141,21 +203,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
 
 void FWeaponLoadoutEntry::InitializeFromWeapon()
 {
+    // AssignedAbilities is a pure override list — it starts empty.
+    // Preset abilities are merged in at query time by GetAllAbilities().
     AssignedAbilities.Empty();
-
-    if (!WeaponEntry.Weapon)
-    {
-        return;
-    }
-
-    // Copy non-locked preset abilities as starting point
-    // (Locked abilities are accessed via GetLockedAbilities(), not stored in AssignedAbilities)
-    int32 LockedCount = GetLockedAbilityCount();
-    for (int32 i = LockedCount; i < WeaponEntry.Weapon->PresetAbilities.Num(); ++i)
-    {
-        if (AssignedAbilities.Num() < GetCustomizableAbilityCount())
-        {
-            AssignedAbilities.Add(WeaponEntry.Weapon->PresetAbilities[i]);
-        }
-    }
 }
