@@ -17,6 +17,7 @@
 #include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "DamageCalculator.h"
+#include "ActionExecutor.h"
 #include "FItemLoadoutSlot.h"
 #include "ItemData.h"
 #include "CrystalType.h"
@@ -26,6 +27,13 @@ UAIDecisionManager::GetSkillEffectManager() const
 {
     UGameInstance *GameInstance = GetGameInstance();
     return GameInstance ? GameInstance->GetSubsystem<USkillEffectManager>() : nullptr;
+}
+
+UActionExecutor *
+UAIDecisionManager::GetActionExecutor() const
+{
+    UGameInstance *GameInstance = GetGameInstance();
+    return GameInstance ? GameInstance->GetSubsystem<UActionExecutor>() : nullptr;
 }
 
 void UAIDecisionManager::Initialize(FSubsystemCollectionBase &Collection)
@@ -600,7 +608,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     {
         if (Spell)
         {
-            int32 SpellDamage = Spell->CalculateDamage(CharComp->CharacterData);
+            int32 SpellDamage = EstimateSpellDamage(Attacker, Target, Spell);
             BestDamage = FMath::Max(BestDamage, SpellDamage);
         }
     }
@@ -611,7 +619,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     {
         if (Ability)
         {
-            int32 AbilityDamage = Ability->CalculateDamage(CharComp->CharacterData, false);
+            int32 AbilityDamage = EstimateAbilityDamage(Attacker, Target, Ability);
             BestDamage = FMath::Max(BestDamage, AbilityDamage);
         }
     }
@@ -635,6 +643,95 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     }
 
     return BestDamage > 0 ? BestDamage : 50;
+}
+
+int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel) const
+{
+    if (!Attacker || !Target || !Spell)
+    {
+        return 0;
+    }
+
+    UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+    if (!AttackerComp || !AttackerComp->CharacterData)
+    {
+        return 0;
+    }
+
+    UDamageCalculator *DamageCalc = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDamageCalculator>() : nullptr;
+    UActionExecutor *ActionExec = GetActionExecutor();
+
+    // Fall back to the raw asset value if the subsystems are unavailable.
+    if (!DamageCalc || !ActionExec)
+    {
+        return Spell->CalculateDamage(AttackerComp->CharacterData);
+    }
+
+    // Build a complete action so ComputeActionStatModifiers can walk the
+    // Reality/Evolution sources for this specific spell + infusion level.
+    FAction Action;
+    Action.ActionType = EActionType::Spell;
+    Action.SpellData = Spell;
+    Action.SpellSource = ESpellSource::Innate;
+    Action.SpellInfusionLevel = InfusionLevel;
+    Action.Targets.Add(Target);
+
+    const FActionStatModifiers ActionMods = ActionExec->ComputeActionStatModifiers(Action, Attacker);
+
+    // BaseDamage is the attacker-side base only; DamageCalculator applies the
+    // SpellDamage stat, ActionMods and defender defense once, downstream.
+    FDamageCalculationInput Input;
+    Input.BaseDamage = Spell->CalculateDamage(AttackerComp->CharacterData);
+    Input.ActionType = EActionType::Spell;
+    Input.Element = Spell->Element;
+    Input.ActionMods = ActionMods;
+    Input.bCanCrit = false;
+
+    const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
+    return Result.FinalDamage;
+}
+
+int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel) const
+{
+    if (!Attacker || !Target || !Ability)
+    {
+        return 0;
+    }
+
+    UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+    if (!AttackerComp || !AttackerComp->CharacterData)
+    {
+        return 0;
+    }
+
+    UDamageCalculator *DamageCalc = GetGameInstance() ? GetGameInstance()->GetSubsystem<UDamageCalculator>() : nullptr;
+    UActionExecutor *ActionExec = GetActionExecutor();
+
+    // Fall back to the raw asset value if the subsystems are unavailable.
+    if (!DamageCalc || !ActionExec)
+    {
+        return Ability->CalculateDamage(AttackerComp->CharacterData, false);
+    }
+
+    FAction Action;
+    Action.ActionType = EActionType::Ability;
+    Action.AbilityData = Ability;
+    Action.AbilityInfusionLevel = InfusionLevel;
+    Action.Targets.Add(Target);
+
+    const FActionStatModifiers ActionMods = ActionExec->ComputeActionStatModifiers(Action, Attacker);
+
+    // BaseDamage is the attacker-side base only; DamageCalculator applies the
+    // RawDamage stat, ActionMods and defender defense once, downstream.
+    FDamageCalculationInput Input;
+    Input.BaseDamage = Ability->CalculateDamage(AttackerComp->CharacterData, false);
+    Input.ActionType = EActionType::Ability;
+    Input.Element = ESpellElement::Generic;
+    Input.ActionMods = ActionMods;
+    Input.bCanCrit = false;
+
+    const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
+    return Result.FinalDamage;
 }
 
 int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
@@ -687,11 +784,9 @@ int32 UAIDecisionManager::GetCurrentHP(AActor *Actor)
 int32 UAIDecisionManager::GetMaxHP(AActor *Actor)
 {
     UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    if (CharComp && CharComp->CharacterData)
+    if (CharComp)
     {
-        // TODO: reads asset directly — misses equipment BonusMaxHP bonus.
-        // Should read CharacterDataComponent::MaxHP instead.
-        return CharComp->CharacterData->CalculateMaxHealth();
+        return CharComp->MaxHP;
     }
     return 100;
 }
@@ -738,11 +833,9 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         return false;
     }
 
-    // TODO: reads asset directly — misses equipment BonusMaxHP/BonusMaxEnergy.
-    // Should read CharacterDataComponent::MaxHP / MaxEP instead.
-    float HPPercent = static_cast<float>(CharComp->CurrentHP) / CharComp->CharacterData->CalculateMaxHealth();
+    float HPPercent = static_cast<float>(CharComp->CurrentHP) / CharComp->MaxHP;
     int32 CurrentEnergy = CharComp->CurrentEP;
-    int32 MaxEnergy = CharComp->CharacterData->CalculateMaxEnergy();
+    int32 MaxEnergy = CharComp->MaxEP;
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
     // HP threshold based on difficulty
@@ -754,17 +847,29 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     {
         // Try healing spell first (if we have energy)
         USpellData *HealSpell = FindHealingSpell(Loadout);
-        // TODO: Does not apply CalculateEfficiencyMultiplier or BonusEfficiency —
-        // AI will overestimate energy costs and may skip spells it can actually afford.
-        // Route through ActionExecutor::CalculateActionEnergyCost instead.
-        if (HealSpell && CurrentEnergy >= HealSpell->CalculateEnergyCost(CharComp->CharacterData))
+        if (HealSpell)
         {
-            OutAction.ActionType = EActionType::Spell;
-            OutAction.SpellData = HealSpell;
-            OutAction.Targets.Add(AIActor); // Self-target
-            OutAction.SpellSource = ESpellSource::Innate;
-            UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
-            return true;
+            // Energy cost via ActionExecutor so efficiency + infusion multipliers apply.
+            FAction HealProbe;
+            HealProbe.ActionType = EActionType::Spell;
+            HealProbe.SpellData = HealSpell;
+            HealProbe.SpellSource = ESpellSource::Innate;
+            HealProbe.Targets.Add(AIActor);
+
+            UActionExecutor *ActionExec = GetActionExecutor();
+            const int32 HealCost = ActionExec
+                                       ? ActionExec->CalculateActionEnergyCost(AIActor, HealProbe)
+                                       : HealSpell->CalculateEnergyCost(CharComp->CharacterData);
+
+            if (CurrentEnergy >= HealCost)
+            {
+                OutAction.ActionType = EActionType::Spell;
+                OutAction.SpellData = HealSpell;
+                OutAction.Targets.Add(AIActor); // Self-target
+                OutAction.SpellSource = ESpellSource::Innate;
+                UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
+                return true;
+            }
         }
 
         // Fallback: Use healing item (Sapphire)
@@ -829,10 +934,17 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
     USpellData *CleanseSpell = FindCleanseSpell(Loadout);
     if (CleanseSpell)
     {
-        // TODO: Does not apply CalculateEfficiencyMultiplier or BonusEfficiency —
-        // AI will overestimate energy costs and may skip spells it can actually afford.
-        // Route through ActionExecutor::CalculateActionEnergyCost instead.
-        int32 Cost = CleanseSpell->CalculateEnergyCost(CharComp->CharacterData);
+        // Energy cost via ActionExecutor so efficiency + infusion multipliers apply.
+        FAction CleanseProbe;
+        CleanseProbe.ActionType = EActionType::Spell;
+        CleanseProbe.SpellData = CleanseSpell;
+        CleanseProbe.SpellSource = ESpellSource::Innate;
+        CleanseProbe.Targets.Add(AIActor);
+
+        UActionExecutor *ActionExec = GetActionExecutor();
+        const int32 Cost = ActionExec
+                               ? ActionExec->CalculateActionEnergyCost(AIActor, CleanseProbe)
+                               : CleanseSpell->CalculateEnergyCost(CharComp->CharacterData);
         if (CurrentEnergy >= Cost)
         {
             OutAction.ActionType = EActionType::Spell;
@@ -1044,7 +1156,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             {
                 if (Spell && Spell->School == ESpellSchool::Destruction)
                 {
-                    int32 Damage = Spell->CalculateDamage(CharComp->CharacterData);
+                    int32 Damage = EstimateSpellDamage(AIActor, BestTarget, Spell);
                     BestSpellDamage = FMath::Max(BestSpellDamage, Damage);
                 }
             }
@@ -1060,7 +1172,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             {
                 if (Ability)
                 {
-                    int32 Damage = Ability->CalculateDamage(CharComp->CharacterData, false);
+                    int32 Damage = EstimateAbilityDamage(AIActor, BestTarget, Ability);
                     BestAbilityDamage = FMath::Max(BestAbilityDamage, Damage);
                 }
             }
@@ -1130,7 +1242,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
             if (Spell && Spell->School == ESpellSchool::Destruction)
             {
-                int32 Damage = Spell->CalculateDamage(CharComp->CharacterData);
+                int32 Damage = EstimateSpellDamage(AIActor, BestTarget, Spell);
                 if (Damage > BestDamage)
                 {
                     BestDamage = Damage;
@@ -1147,6 +1259,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
 
         Action.SpellData = BestSpell;
         Action.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
+        Action.SpellInfusionLevel = DecideSpellInfusionLevel(AIActor, Action.Targets[0], BestSpell);
         break;
     }
     case EActionType::Ability:
@@ -1160,7 +1273,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
             if (Ability)
             {
-                int32 Damage = Ability->CalculateDamage(CharComp->CharacterData, false);
+                int32 Damage = EstimateAbilityDamage(AIActor, BestTarget, Ability);
                 if (Damage > BestDamage)
                 {
                     BestDamage = Damage;
@@ -1170,6 +1283,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
 
         Action.AbilityData = BestAbility;
+        Action.AbilityInfusionLevel = DecideAbilityInfusionLevel(AIActor, Action.Targets[0], BestAbility);
         break;
     }
     default:
@@ -1365,14 +1479,12 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     }
 
     // Get energy state
-    // TODO: reads asset directly — misses equipment BonusMaxEnergy.
-    // Should read CharacterDataComponent::MaxEP instead.
     int32 CurrentEnergy = AttackerComp->CurrentEP;
-    int32 MaxEnergy = AttackerComp->CharacterData->CalculateMaxEnergy();
+    int32 MaxEnergy = AttackerComp->MaxEP;
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
     // Calculate damage at each level
-    int32 L0Damage = Spell->CalculateDamage(AttackerComp->CharacterData);
+    int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell);
     int32 L2Damage = FMath::RoundToInt(L0Damage * 1.3f); // +30% damage
 
     int32 TargetHP = TargetComp->CurrentHP;
@@ -1455,14 +1567,12 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         return 0;
     }
 
-    // TODO: reads asset directly — misses equipment BonusMaxEnergy.
-    // Should read CharacterDataComponent::MaxEP instead.
     int32 CurrentEnergy = AttackerComp->CurrentEP;
-    int32 MaxEnergy = AttackerComp->CharacterData->CalculateMaxEnergy();
+    int32 MaxEnergy = AttackerComp->MaxEP;
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
     // Calculate damage at each level
-    int32 L0Damage = Ability->CalculateDamage(AttackerComp->CharacterData, false);
+    int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability);
     int32 L2Damage = FMath::RoundToInt(L0Damage * 1.3f); // L2: +30% damage
     int32 TargetHP = TargetComp->CurrentHP;
 
@@ -1549,11 +1659,9 @@ int32 UAIDecisionManager::GetMaxEP(AActor *Actor) const
     }
 
     UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    if (CharComp && CharComp->CharacterData)
+    if (CharComp)
     {
-        // TODO: reads asset directly — misses equipment BonusMaxEnergy.
-        // Should read CharacterDataComponent::MaxEP instead.
-        return CharComp->CharacterData->CalculateMaxEnergy();
+        return CharComp->MaxEP;
     }
 
     return 1; // Avoid division by zero
