@@ -108,8 +108,8 @@ private:
 
     // ==================== DEFENSE LOGIC ====================
 
-    /** Choose defense type based on attack and difficulty */
-    EDefenseType ChooseDefenseType(AActor *Defender, float AttackSize, EAIDifficulty Difficulty);
+    /** Choose defense type based on attack, incoming damage and difficulty */
+    EDefenseType ChooseDefenseType(AActor *Defender, float AttackSize, int32 BaseDamage, EAIDifficulty Difficulty) const;
 
     /** Get defense attempt chance for difficulty */
     float GetDefenseAttemptChance(EAIDifficulty Difficulty) const;
@@ -144,6 +144,19 @@ private:
 
     /** Execution-accurate ability damage estimate — see EstimateSpellDamage. */
     int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0) const;
+
+    /** Score the value of a spell's status-buildup payload against a target
+     *  (pre-weight, ~0..50). Non-const — reads HasDangerousDebuff. */
+    float EstimateStatusScore(AActor *Attacker, AActor *Target, USpellData *Spell);
+
+    /** Ability equivalent of EstimateStatusScore — see the spell overload. */
+    float EstimateStatusScore(AActor *Attacker, AActor *Target, UAbilityData *Ability);
+
+    /** True if the actor can afford the spell at the given infusion level. */
+    bool CanAffordSpell(AActor *Actor, USpellData *Spell, int32 InfusionLevel = 0) const;
+
+    /** True if the actor can afford the ability at the given infusion level. */
+    bool CanAffordAbility(AActor *Actor, UAbilityData *Ability, int32 InfusionLevel = 0) const;
 
     /** Calculate threat level of an actor */
     int32 CalculateThreatLevel(AActor *Actor);

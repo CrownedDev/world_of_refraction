@@ -335,7 +335,7 @@ void UAIDecisionManager::ScheduleDefenseDecision(AActor *Defender, float AttackS
     }
 
     // Choose defense type
-    EDefenseType Choice = ChooseDefenseType(Defender, AttackSize, Difficulty);
+    EDefenseType Choice = ChooseDefenseType(Defender, AttackSize, BaseDamage, Difficulty);
 
     UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose defense type: %d"),
            *Defender->GetName(), static_cast<int32>(Choice));
@@ -403,10 +403,24 @@ void UAIDecisionManager::ScheduleDefenseDecision(AActor *Defender, float AttackS
     }
 }
 
-EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float AttackSize, EAIDifficulty Difficulty)
+EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float AttackSize, int32 BaseDamage, EAIDifficulty Difficulty) const
 {
     // Check if dodge is viable
     bool bCanDodge = DefenseSystemRef && DefenseSystemRef->CanDodgeAttack(Defender, AttackSize);
+
+    // Lethality check — a hit that would kill always warrants a dodge attempt
+    // (100% avoid), regardless of difficulty. Gated on bCanDodge: an undodgeable
+    // lethal hit falls through to the Block/Parry logic below.
+    if (Defender && bCanDodge)
+    {
+        if (UCharacterDataComponent *DefComp = Defender->FindComponentByClass<UCharacterDataComponent>())
+        {
+            if (BaseDamage >= DefComp->CurrentHP)
+            {
+                return EDefenseType::Dodge;
+            }
+        }
+    }
 
     // Easy: Always block (safest)
     if (Difficulty == EAIDifficulty::Easy)
@@ -757,6 +771,120 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     }
 
     return FMath::RoundToInt(Estimate);
+}
+
+float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, USpellData *Spell)
+{
+    if (!Attacker || !Target || !Spell)
+    {
+        return 0.0f;
+    }
+
+    UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+    if (!AttackerComp || !AttackerComp->CharacterData)
+    {
+        return 0.0f;
+    }
+
+    const int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
+    if (Buildup <= 0)
+    {
+        return 0.0f;
+    }
+
+    // Target already carrying a dangerous status — extra buildup is low value.
+    if (HasDangerousDebuff(Target))
+    {
+        return AIConstants::STATUS_SCORE_REDUNDANT;
+    }
+
+    // This hit would tip the bar, or the bar is already close — high value.
+    if (WouldTriggerStatusBar(Attacker, Target, static_cast<float>(Buildup)) ||
+        IsStatusBarNearTrigger(Target))
+    {
+        return AIConstants::STATUS_SCORE_TRIGGER;
+    }
+
+    // Otherwise a modest value for contributing buildup.
+    return AIConstants::STATUS_SCORE_CONTRIBUTE;
+}
+
+float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, UAbilityData *Ability)
+{
+    if (!Attacker || !Target || !Ability)
+    {
+        return 0.0f;
+    }
+
+    UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+    if (!AttackerComp || !AttackerComp->CharacterData)
+    {
+        return 0.0f;
+    }
+
+    const int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
+    if (Buildup <= 0)
+    {
+        return 0.0f;
+    }
+
+    if (HasDangerousDebuff(Target))
+    {
+        return AIConstants::STATUS_SCORE_REDUNDANT;
+    }
+
+    if (WouldTriggerStatusBar(Attacker, Target, static_cast<float>(Buildup)) ||
+        IsStatusBarNearTrigger(Target))
+    {
+        return AIConstants::STATUS_SCORE_TRIGGER;
+    }
+
+    return AIConstants::STATUS_SCORE_CONTRIBUTE;
+}
+
+bool UAIDecisionManager::CanAffordSpell(AActor *Actor, USpellData *Spell, int32 InfusionLevel) const
+{
+    if (!Actor || !Spell)
+    {
+        return false;
+    }
+
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec)
+    {
+        return true; // Cannot compute cost — don't block the AI.
+    }
+
+    FAction Probe;
+    Probe.ActionType = EActionType::Spell;
+    Probe.SpellData = Spell;
+    Probe.SpellSource = ESpellSource::Innate;
+    Probe.SpellInfusionLevel = InfusionLevel;
+
+    const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, Probe);
+    return GetCurrentEP(Actor) >= Cost;
+}
+
+bool UAIDecisionManager::CanAffordAbility(AActor *Actor, UAbilityData *Ability, int32 InfusionLevel) const
+{
+    if (!Actor || !Ability)
+    {
+        return false;
+    }
+
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec)
+    {
+        return true; // Cannot compute cost — don't block the AI.
+    }
+
+    FAction Probe;
+    Probe.ActionType = EActionType::Ability;
+    Probe.AbilityData = Ability;
+    Probe.AbilityInfusionLevel = InfusionLevel;
+
+    const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, Probe);
+    return GetCurrentEP(Actor) >= Cost;
 }
 
 int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
@@ -1172,34 +1300,46 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
         case EActionType::Spell:
         {
-            // Find best damage spell
+            // Best combined damage + status score among affordable spells.
             TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
-            int32 BestSpellDamage = 0;
+            float BestSpellScore = 0.0f;
             for (USpellData *Spell : Spells)
             {
-                if (Spell && Spell->School == ESpellSchool::Destruction)
+                if (!Spell || Spell->School != ESpellSchool::Destruction)
                 {
-                    int32 Damage = EstimateSpellDamage(AIActor, BestTarget, Spell);
-                    BestSpellDamage = FMath::Max(BestSpellDamage, Damage);
+                    continue;
                 }
+                if (!CanAffordSpell(AIActor, Spell))
+                {
+                    continue; // Skip spells the AI cannot pay for.
+                }
+                const float SpellScore = EstimateSpellDamage(AIActor, BestTarget, Spell) +
+                                         EstimateStatusScore(AIActor, BestTarget, Spell) * AIConstants::STATUS_SCORE_WEIGHT;
+                BestSpellScore = FMath::Max(BestSpellScore, SpellScore);
             }
-            Score = BestSpellDamage;
+            Score = FMath::RoundToInt(BestSpellScore);
             break;
         }
         case EActionType::Ability:
         {
-            // Find best damage ability
+            // Best combined damage + status score among affordable abilities.
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
-            int32 BestAbilityDamage = 0;
+            float BestAbilityScore = 0.0f;
             for (UAbilityData *Ability : Abilities)
             {
-                if (Ability)
+                if (!Ability)
                 {
-                    int32 Damage = EstimateAbilityDamage(AIActor, BestTarget, Ability);
-                    BestAbilityDamage = FMath::Max(BestAbilityDamage, Damage);
+                    continue;
                 }
+                if (!CanAffordAbility(AIActor, Ability))
+                {
+                    continue; // Skip abilities the AI cannot pay for.
+                }
+                const float AbilityScore = EstimateAbilityDamage(AIActor, BestTarget, Ability) +
+                                           EstimateStatusScore(AIActor, BestTarget, Ability) * AIConstants::STATUS_SCORE_WEIGHT;
+                BestAbilityScore = FMath::Max(BestAbilityScore, AbilityScore);
             }
-            Score = BestAbilityDamage;
+            Score = FMath::RoundToInt(BestAbilityScore);
             break;
         }
         default:
@@ -1256,57 +1396,91 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     }
     case EActionType::Spell:
     {
-        // Pick highest damage spell
+        // Pick the affordable spell with the best combined damage + status score.
         TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
         USpellData *BestSpell = nullptr;
-        int32 BestDamage = 0;
+        float BestSpellScore = -1.0f;
 
         for (USpellData *Spell : Spells)
         {
-            if (Spell && Spell->School == ESpellSchool::Destruction)
+            if (!Spell || Spell->School != ESpellSchool::Destruction)
             {
-                int32 Damage = EstimateSpellDamage(AIActor, BestTarget, Spell);
-                if (Damage > BestDamage)
-                {
-                    BestDamage = Damage;
-                    BestSpell = Spell;
-                }
+                continue;
+            }
+            if (!CanAffordSpell(AIActor, Spell))
+            {
+                continue;
+            }
+            const float SpellScore = EstimateSpellDamage(AIActor, BestTarget, Spell) +
+                                     EstimateStatusScore(AIActor, BestTarget, Spell) * AIConstants::STATUS_SCORE_WEIGHT;
+            if (SpellScore > BestSpellScore)
+            {
+                BestSpellScore = SpellScore;
+                BestSpell = Spell;
             }
         }
 
-        // Fallback to any spell
-        if (!BestSpell && Spells.Num() > 0)
+        // No affordable spell — fall through to Defend.
+        if (!BestSpell)
         {
-            BestSpell = Spells[0];
+            Action.ActionType = EActionType::Defend;
+            break;
         }
 
         Action.SpellData = BestSpell;
         Action.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
-        Action.SpellInfusionLevel = DecideSpellInfusionLevel(AIActor, Action.Targets[0], BestSpell);
+
+        // Decide infusion, then drop to L0 if the infused cost is unaffordable.
+        int32 SpellInfusion = DecideSpellInfusionLevel(AIActor, Action.Targets[0], BestSpell);
+        if (SpellInfusion > 0 && !CanAffordSpell(AIActor, BestSpell, SpellInfusion))
+        {
+            SpellInfusion = 0;
+        }
+        Action.SpellInfusionLevel = SpellInfusion;
         break;
     }
     case EActionType::Ability:
     {
-        // Pick highest damage ability
+        // Pick the affordable ability with the best combined damage + status score.
         TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
         UAbilityData *BestAbility = nullptr;
-        int32 BestDamage = 0;
+        float BestAbilityScore = -1.0f;
 
         for (UAbilityData *Ability : Abilities)
         {
-            if (Ability)
+            if (!Ability)
             {
-                int32 Damage = EstimateAbilityDamage(AIActor, BestTarget, Ability);
-                if (Damage > BestDamage)
-                {
-                    BestDamage = Damage;
-                    BestAbility = Ability;
-                }
+                continue;
+            }
+            if (!CanAffordAbility(AIActor, Ability))
+            {
+                continue;
+            }
+            const float AbilityScore = EstimateAbilityDamage(AIActor, BestTarget, Ability) +
+                                       EstimateStatusScore(AIActor, BestTarget, Ability) * AIConstants::STATUS_SCORE_WEIGHT;
+            if (AbilityScore > BestAbilityScore)
+            {
+                BestAbilityScore = AbilityScore;
+                BestAbility = Ability;
             }
         }
 
+        // No affordable ability — fall through to Defend.
+        if (!BestAbility)
+        {
+            Action.ActionType = EActionType::Defend;
+            break;
+        }
+
         Action.AbilityData = BestAbility;
-        Action.AbilityInfusionLevel = DecideAbilityInfusionLevel(AIActor, Action.Targets[0], BestAbility);
+
+        // Decide infusion, then drop to L0 if the infused cost is unaffordable.
+        int32 AbilityInfusion = DecideAbilityInfusionLevel(AIActor, Action.Targets[0], BestAbility);
+        if (AbilityInfusion > 0 && !CanAffordAbility(AIActor, BestAbility, AbilityInfusion))
+        {
+            AbilityInfusion = 0;
+        }
+        Action.AbilityInfusionLevel = AbilityInfusion;
         break;
     }
     default:

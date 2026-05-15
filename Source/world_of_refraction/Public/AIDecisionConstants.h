@@ -13,6 +13,17 @@ namespace AIConstants
     constexpr float HP_MISSING_WEIGHT = 500.0f;
     constexpr float THREAT_WEIGHT = 2.0f;
 
+    // ==================== STATUS BUILDUP SCORING ====================
+
+    // Weight applied to a spell/ability's status-buildup score relative to its
+    // damage score — status is secondary to damage but meaningful.
+    constexpr float STATUS_SCORE_WEIGHT = 0.3f;
+
+    // Status-score tiers (pre-weight, ~0..50 range).
+    constexpr float STATUS_SCORE_TRIGGER = 50.0f;    // hit would trigger / bar near trigger
+    constexpr float STATUS_SCORE_CONTRIBUTE = 12.0f; // meaningful buildup, bar not close
+    constexpr float STATUS_SCORE_REDUNDANT = 5.0f;   // target already has a dangerous status
+
     // Threat calculation weights
     constexpr float RAW_DAMAGE_THREAT_MULT = 2.0f;
     constexpr float STATUS_MULTIPLIER_THREAT_MULT = 1.5f;
