@@ -154,7 +154,6 @@ enum class ESkillEffectType : uint8
     ReflectSpellDamage UMETA(DisplayName = "Reflect Spell"),
     Lifesteal UMETA(DisplayName = "Lifesteal"),
     AbsorbDamage UMETA(DisplayName = "Absorb"),
-    DamageReduction UMETA(DisplayName = "Damage Reduction"),
 
     // Trigger-type immunities — block buildup when the resolved bar-cap trigger matches.
     // GrantDOTImmunity blocks any DOT regardless of element; per-element blocking goes

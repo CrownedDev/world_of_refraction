@@ -1166,7 +1166,6 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ReflectSpellDamage:
 	case ESkillEffectType::Lifesteal:
 	case ESkillEffectType::AbsorbDamage:
-	case ESkillEffectType::DamageReduction:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive defensive %s active on %s"),
 			   *Effect.EffectName, *Actor->GetName());
 		break;
