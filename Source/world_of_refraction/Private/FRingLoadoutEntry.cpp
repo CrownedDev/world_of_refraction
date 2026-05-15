@@ -29,25 +29,49 @@ int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
 
 TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
 {
-    TArray<USpellData *> Result;
+    // Preset spells from the ring asset.
+    const TArray<USpellData *> Presets = RingEntry.Ring
+                                            ? RingEntry.Ring->PresetSpells
+                                            : TArray<USpellData *>();
 
-    // Locked/preset spells first.
-    if (RingEntry.Ring)
+    // Locked rings (conjured) ignore overrides entirely — presets only.
+    if (RingEntry.Ring && RingEntry.Ring->bSpellsLocked)
     {
-        const int32 LockedCount = GetLockedSpellCount();
-        for (int32 i = 0; i < LockedCount && i < RingEntry.Ring->PresetSpells.Num(); ++i)
+        return Presets;
+    }
+
+    // Sequential override merge: customisable spells replace preset slots in
+    // order; non-null entries beyond the preset count are appended.
+    const TArray<USpellData *> Overrides = RingEntry.GetSpells();
+
+    TArray<USpellData *> Result;
+    int32 OverrideIndex = 0;
+
+    for (int32 i = 0; i < Presets.Num(); ++i)
+    {
+        if (OverrideIndex < Overrides.Num() && Overrides[OverrideIndex])
         {
-            Result.Add(RingEntry.Ring->PresetSpells[i]);
+            Result.Add(Overrides[OverrideIndex]);
+            ++OverrideIndex;
+        }
+        else
+        {
+            Result.Add(Presets[i]);
         }
     }
 
-    // Customisable spells (capped at total ring slot count).
-    for (USpellData *Spell : RingEntry.GetSpells())
+    while (OverrideIndex < Overrides.Num())
     {
-        if (Result.Num() < LoadoutConstants::MAX_RING_SPELLS)
+        if (Overrides[OverrideIndex])
         {
-            Result.Add(Spell);
+            Result.Add(Overrides[OverrideIndex]);
         }
+        ++OverrideIndex;
+    }
+
+    if (Result.Num() > LoadoutConstants::MAX_RING_SPELLS)
+    {
+        Result.SetNum(LoadoutConstants::MAX_RING_SPELLS);
     }
 
     return Result;
@@ -104,22 +128,7 @@ bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) cons
 
 void FRingLoadoutEntry::InitializeFromRing()
 {
-    if (!RingEntry.Ring)
-    {
-        return;
-    }
-
-    // Mirrors FWeaponLoadoutEntry::InitializeFromWeapon:
-    //  - bSpellsLocked == true  → all PresetSpells locked, no copy into customisable.
-    //  - bSpellsLocked == false → all PresetSpells copied into RingEntry.AssignedSpells
-    //                             as starting state (capped at customisable count).
-    // Locked spells stay accessible via GetLockedSpells(), not stored in AssignedSpells.
-    const int32 LockedCount = GetLockedSpellCount();
-    for (int32 i = LockedCount; i < RingEntry.Ring->PresetSpells.Num(); ++i)
-    {
-        if (RingEntry.AssignedSpells.Num() < GetCustomizableSpellCount())
-        {
-            RingEntry.AssignedSpells.Add(RingEntry.Ring->PresetSpells[i]);
-        }
-    }
+    // RingEntry.AssignedSpells is a pure override list — it starts empty.
+    // Preset spells are merged in at query time by GetAllSpells().
+    RingEntry.AssignedSpells.Empty();
 }

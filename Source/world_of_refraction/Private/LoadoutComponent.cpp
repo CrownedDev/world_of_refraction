@@ -655,29 +655,31 @@ TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
 
     const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
 
-    // Primary weapon attack
+    // Primary weapon attack — OverrideAttack takes precedence over the asset attack.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
     {
-        if (UWeaponData *Weapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon)
+        UWeaponData *Weapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon;
+        UWeaponAttackData *Attack = Loadout.PrimaryWeapon.OverrideAttack
+                                        ? Loadout.PrimaryWeapon.OverrideAttack
+                                        : (Weapon ? Weapon->WeaponAttack : nullptr);
+        if (Attack)
         {
-            if (Weapon->WeaponAttack)
-            {
-                Result.Add(Weapon->WeaponAttack);
-            }
+            Result.Add(Attack);
         }
     }
 
-    // Secondary weapon attack (Generic only)
+    // Secondary weapon attack (Generic only) — OverrideAttack takes precedence.
     if (CharacterClass == ECharacterClass::Generic &&
         Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
         Loadout.SecondaryWeapon.IsValid())
     {
-        if (UWeaponData *Weapon = Loadout.SecondaryWeapon.WeaponEntry.Weapon)
+        UWeaponData *Weapon = Loadout.SecondaryWeapon.WeaponEntry.Weapon;
+        UWeaponAttackData *Attack = Loadout.SecondaryWeapon.OverrideAttack
+                                        ? Loadout.SecondaryWeapon.OverrideAttack
+                                        : (Weapon ? Weapon->WeaponAttack : nullptr);
+        if (Attack)
         {
-            if (Weapon->WeaponAttack)
-            {
-                Result.Add(Weapon->WeaponAttack);
-            }
+            Result.Add(Attack);
         }
     }
 
@@ -1411,13 +1413,18 @@ UWeaponAttackData *ULoadoutComponent::GetCurrentAttack() const
     }
 
     const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
-
-    if (WeaponEntry && WeaponEntry->WeaponEntry.Weapon)
+    if (!WeaponEntry)
     {
-        return WeaponEntry->WeaponEntry.Weapon->WeaponAttack;
+        return nullptr;
     }
 
-    return nullptr;
+    // Per-loadout attack override takes precedence over the weapon asset's attack.
+    if (WeaponEntry->OverrideAttack)
+    {
+        return WeaponEntry->OverrideAttack;
+    }
+
+    return WeaponEntry->WeaponEntry.Weapon ? WeaponEntry->WeaponEntry.Weapon->WeaponAttack : nullptr;
 }
 
 UAnimMontage *ULoadoutComponent::GetCurrentAttackMontage() const
