@@ -176,7 +176,7 @@ namespace SkillEffectDisplayNames
         case ESkillEffectType::ModifyDamageDealt:
             return TEXT("Damage Up");
         case ESkillEffectType::ModifyDamageTaken:
-            return TEXT("Damage Taken Up");
+            return TEXT("Damage Taken Modifier");
         case ESkillEffectType::ModifyHealing:
             return TEXT("Healing Up");
         case ESkillEffectType::ModifyCritChance:
@@ -211,8 +211,6 @@ namespace SkillEffectDisplayNames
             return TEXT("Lifesteal");
         case ESkillEffectType::AbsorbDamage:
             return TEXT("Absorb");
-        case ESkillEffectType::DamageReduction:
-            return TEXT("Damage Reduction");
 
         // Immunities — trigger-type
         case ESkillEffectType::GrantDOTImmunity:

@@ -188,7 +188,6 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::ReflectSpellDamage:
         case ESkillEffectType::Lifesteal:
         case ESkillEffectType::AbsorbDamage:
-        case ESkillEffectType::DamageReduction:
         case ESkillEffectType::GrantDOTImmunity:
         case ESkillEffectType::GrantStunImmunity:
         case ESkillEffectType::GrantSilenceImmunity:

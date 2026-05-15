@@ -567,6 +567,9 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	if (Defender)
 	{
 		float ModifyTaken = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ModifyDamageTaken);
+		// Negative = damage reduction; clamp to -90 so reduction never exceeds 90%
+		// (an actor can never become fully invulnerable). Positive (increase) uncapped.
+		ModifyTaken = FMath::Max(ModifyTaken, -90.0f);
 		Modifier *= (1.0f + ModifyTaken / 100.0f);
 	}
 

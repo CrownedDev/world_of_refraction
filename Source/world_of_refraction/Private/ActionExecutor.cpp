@@ -1923,22 +1923,6 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			int32 FinalDamage = CalcResult.FinalDamage;
 			if (USkillEffectManager *SEM = GetSkillEffectManager())
 			{
-				// DamageReduction — percent-space scalar on incoming damage,
-				// clamped to a 90% floor so an actor can never become fully
-				// invulnerable from stacked reductions alone.
-				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::DamageReduction))
-				{
-					float Reduction = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::DamageReduction) / 100.0f;
-					Reduction = FMath::Clamp(Reduction, 0.0f, 0.9f);
-					const int32 Reduced = FinalDamage - FMath::RoundToInt(FinalDamage * (1.0f - Reduction));
-					FinalDamage = FMath::RoundToInt(FinalDamage * (1.0f - Reduction));
-					if (Reduced > 0)
-					{
-						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] DamageReduction blocked %d damage on %s (%.0f%%)"),
-							   Reduced, *Input.Target->GetName(), Reduction * 100.0f);
-					}
-				}
-
 				// AbsorbDamage — convert a percent of incoming damage to target EP.
 				if (SEM->HasEffectOfType(Input.Target, ESkillEffectType::AbsorbDamage))
 				{
