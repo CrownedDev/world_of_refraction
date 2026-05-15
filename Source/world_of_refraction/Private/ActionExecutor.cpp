@@ -1916,7 +1916,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 			Result.bWasCritical = CalcResult.bWasCritical;
 
-			// Pre-mitigation pass — skill-effect Shield / AbsorbDamage / DamageReflect.
+			// Pre-mitigation pass — AbsorbDamage / DamageReflect.
 			// Runs after DamageCalculator (so element/crit/defense are already
 			// resolved) but before HP is actually decremented. Mutates a local
 			// FinalDamage copy; CalcResult itself stays const.
