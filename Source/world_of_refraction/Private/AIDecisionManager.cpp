@@ -18,6 +18,7 @@
 #include "StatusBuildupManager.h"
 #include "DamageCalculator.h"
 #include "ActionExecutor.h"
+#include "InfusionConstants.h"
 #include "FItemLoadoutSlot.h"
 #include "ItemData.h"
 #include "CrystalType.h"
@@ -688,7 +689,19 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     Input.bCanCrit = false;
 
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
-    return Result.FinalDamage;
+
+    // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
+    // so the estimate matches average execution damage.
+    const float CritChance = DamageCalc->GetCriticalChance(Attacker);
+    float Estimate = Result.FinalDamage * (1.0f + CritChance * (DamageConstants::CRIT_MULTIPLIER - 1.0f));
+
+    // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
+    if (InfusionLevel == 2)
+    {
+        Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
+    }
+
+    return FMath::RoundToInt(Estimate);
 }
 
 int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel) const
@@ -731,7 +744,19 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     Input.bCanCrit = false;
 
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
-    return Result.FinalDamage;
+
+    // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
+    // so the estimate matches average execution damage.
+    const float CritChance = DamageCalc->GetCriticalChance(Attacker);
+    float Estimate = Result.FinalDamage * (1.0f + CritChance * (DamageConstants::CRIT_MULTIPLIER - 1.0f));
+
+    // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
+    if (InfusionLevel == 2)
+    {
+        Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
+    }
+
+    return FMath::RoundToInt(Estimate);
 }
 
 int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
@@ -745,16 +770,14 @@ int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
     UCharacterData *Data = CharComp->CharacterData;
     int32 Threat = 0;
 
-    // Raw damage stat points
-    Threat += FMath::RoundToInt(Data->GetTotalRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
+    // Raw damage stat points — crystal/equipment-aware.
+    Threat += FMath::RoundToInt(CharComp->GetCrystalModifiedRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
 
-    // StatusMultiplier stat points
+    // StatusMultiplier stat points (Spirit-side — status buildup strength).
     Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
 
-    // Spell power — historical heuristic uses StatusMultiplier as a Mind proxy.
-    // TODO: switch to GetTotalSpellDamage() now that SpellDamage drives spell scaling
-    // (StatusMultiplier is Spirit-side and only affects buildup post pillar move).
-    Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::SPELL_POWER_THREAT_MULT);
+    // Spell power — crystal/equipment-aware SpellDamage (Mind-side).
+    Threat += FMath::RoundToInt(CharComp->GetCrystalModifiedSpellDamage() * AIConstants::SPELL_POWER_THREAT_MULT);
 
     return Threat;
 }
@@ -1485,7 +1508,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
 
     // Calculate damage at each level
     int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * 1.3f); // +30% damage
+    int32 L2Damage = FMath::RoundToInt(L0Damage * InfusionConstants::CHARGE_L2_DAMAGE_MULT); // +30% damage
 
     int32 TargetHP = TargetComp->CurrentHP;
 
@@ -1573,7 +1596,7 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
 
     // Calculate damage at each level
     int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * 1.3f); // L2: +30% damage
+    int32 L2Damage = FMath::RoundToInt(L0Damage * InfusionConstants::CHARGE_L2_DAMAGE_MULT); // L2: +30% damage
     int32 TargetHP = TargetComp->CurrentHP;
 
     // Priority 1: Can we kill with L0? Don't waste
