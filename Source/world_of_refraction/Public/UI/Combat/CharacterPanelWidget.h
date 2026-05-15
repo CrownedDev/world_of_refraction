@@ -17,6 +17,9 @@ class UVerticalBox;
 class UBrokenDarknessManager;
 struct FActiveSkillEffect;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPanelHovered, bool, bIsHovered);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPanelClicked);
+
 /**
  * UCharacterPanelWidget
  *
@@ -52,9 +55,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Character Panel")
 	AActor *GetBoundActor() const { return BoundActor.Get(); }
 
+	UPROPERTY(BlueprintAssignable, Category = "Character Panel|Events")
+	FOnPanelHovered OnPanelHovered;
+
+	UPROPERTY(BlueprintAssignable, Category = "Character Panel|Events")
+	FOnPanelClicked OnPanelClicked;
+
 protected:
+	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
 	virtual void BeginDestroy() override;
+
+	virtual void NativeOnMouseEnter(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 
 	// ========================================
 	// BindWidget — match names in WBP_CharacterPanel
@@ -87,9 +101,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock *WorldStatsText;
 
-	/** Container for buff/debuff text rows. BP populates via RebuildBuffDebuffList. */
+	/** Container for active skill-effect rows. BP populates via RebuildEffectsList. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
-	UVerticalBox *BuffDebuffList;
+	UVerticalBox *EffectsList;
 
 	// ========================================
 	// Delegate handlers
@@ -118,9 +132,9 @@ protected:
 	UFUNCTION()
 	void HandleBDOverloadStateChanged(AActor *Actor, bool bIsOverloaded);
 
-	/** BP fills the BuffDebuffList from this array each time it changes. */
+	/** BP fills the EffectsList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")
-	void RebuildBuffDebuffList(const TArray<FActiveSkillEffect> &ActiveEffects);
+	void RebuildEffectsList(const TArray<FActiveSkillEffect> &ActiveEffects);
 
 	/**
 	 * Called once during InitialiseForActor to populate name/class/element/world stats.
@@ -145,7 +159,7 @@ private:
 
 	bool bBound = false;
 
-	void RefreshBuffDebuffList();
+	void RefreshEffectsList();
 	void SetBarSafe(UProgressBar *Bar, float Percent);
 	void SetTextSafe(UTextBlock *Text, const FString &Value);
 

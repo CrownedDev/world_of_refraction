@@ -1,16 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/Combat/CombatHUDRoot.h"
-#include "UI/Combat/CharacterPanelWidget.h"
 #include "UI/Combat/TurnOrderStripWidget.h"
 #include "UI/Combat/DefensePromptWidget.h"
 #include "CombatActionMenuBase.h"
 #include "CombatOrchestrator.h"
-#include "Components/PanelWidget.h"
 
-void UCombatHUDRoot::InitialiseForCombat(ACombatOrchestrator *Orchestrator,
-										 const TArray<AActor *> &Team0,
-										 const TArray<AActor *> &Team1)
+void UCombatHUDRoot::InitialiseForCombat(ACombatOrchestrator *Orchestrator)
 {
 	if (bInitialised)
 	{
@@ -26,48 +22,9 @@ void UCombatHUDRoot::InitialiseForCombat(ACombatOrchestrator *Orchestrator,
 
 	CurrentOrchestrator = Orchestrator;
 
-	// 1. Spawn character panels for each team
-	if (!CharacterPanelClass)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[CombatHUDRoot] CharacterPanelClass not set — skipping panel spawn"));
-	}
-	else
-	{
-		auto SpawnPanelsForTeam = [this](UPanelWidget *Container, const TArray<AActor *> &Members, int32 TeamIndex)
-		{
-			if (!Container)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("[CombatHUDRoot] Team%d container not bound — check WBP layout"), TeamIndex);
-				return;
-			}
+	// Character panels are spawned and owned by BP_CombatOrchestrator, not this HUD.
 
-			Container->ClearChildren();
-
-			for (AActor *Member : Members)
-			{
-				if (!Member)
-				{
-					continue;
-				}
-
-				UCharacterPanelWidget *Panel = CreateWidget<UCharacterPanelWidget>(this, CharacterPanelClass);
-				if (!Panel)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("[CombatHUDRoot] CreateWidget failed for team %d member"), TeamIndex);
-					continue;
-				}
-
-				Container->AddChild(Panel);
-				Panel->InitialiseForActor(Member);
-				SpawnedPanels.Add(Panel);
-			}
-		};
-
-		SpawnPanelsForTeam(PlayerTeamContainer, Team0, 0);
-		SpawnPanelsForTeam(EnemyTeamContainer, Team1, 1);
-	}
-
-	// 2. Initialise turn order strip (self-contained — owns its own slot lifecycle + TurnManager binding)
+	// 1. Initialise turn order strip (self-contained — owns its own slot lifecycle + TurnManager binding)
 	if (TurnOrderStrip)
 	{
 		TurnOrderStrip->InitialiseForCombat();
@@ -77,7 +34,7 @@ void UCombatHUDRoot::InitialiseForCombat(ACombatOrchestrator *Orchestrator,
 		UE_LOG(LogTemp, Log, TEXT("[CombatHUDRoot] No TurnOrderStrip bound — skipping (optional)"));
 	}
 
-	// 3. Initialise defense prompt (self-contained — binds to DefenseSystem)
+	// 2. Initialise defense prompt (self-contained — binds to DefenseSystem)
 	if (DefensePrompt)
 	{
 		DefensePrompt->InitialiseForCombat();
@@ -95,8 +52,7 @@ void UCombatHUDRoot::InitialiseForCombat(ACombatOrchestrator *Orchestrator,
 
 	bInitialised = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[CombatHUDRoot] Initialised — Team0=%d Team1=%d (panels spawned: %d)"),
-		   Team0.Num(), Team1.Num(), SpawnedPanels.Num());
+	UE_LOG(LogTemp, Log, TEXT("[CombatHUDRoot] Initialised"));
 }
 
 void UCombatHUDRoot::TeardownForCombatEnd()
@@ -106,33 +62,13 @@ void UCombatHUDRoot::TeardownForCombatEnd()
 		return;
 	}
 
-	// 1. Tear down character panels
-	for (UCharacterPanelWidget *Panel : SpawnedPanels)
-	{
-		if (Panel)
-		{
-			Panel->TeardownPanel();
-			Panel->RemoveFromParent();
-		}
-	}
-	SpawnedPanels.Reset();
-
-	if (PlayerTeamContainer)
-	{
-		PlayerTeamContainer->ClearChildren();
-	}
-	if (EnemyTeamContainer)
-	{
-		EnemyTeamContainer->ClearChildren();
-	}
-
-	// 2. Tear down turn order strip
+	// 1. Tear down turn order strip
 	if (TurnOrderStrip)
 	{
 		TurnOrderStrip->TeardownStrip();
 	}
 
-	// 3. Tear down defense prompt
+	// 2. Tear down defense prompt
 	if (DefensePrompt)
 	{
 		DefensePrompt->TeardownPrompt();
