@@ -134,7 +134,7 @@ enum class ESkillEffectType : uint8
 
     // Stat Modifiers (percent-based, passive layer)
     ModifyDamageDealt UMETA(DisplayName = "Damage Up"),
-    ModifyDamageTaken UMETA(DisplayName = "Damage Taken Up"),
+    ModifyDamageTaken UMETA(DisplayName = "Damage Taken Modifier"),
     ModifyHealing UMETA(DisplayName = "Healing Up"),
     ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
     ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
