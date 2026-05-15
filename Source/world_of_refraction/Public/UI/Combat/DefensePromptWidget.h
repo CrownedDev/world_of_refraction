@@ -19,7 +19,7 @@ struct FDefenseResult;
  * Default state: hidden. Visible only during defense windows where the defender
  * is the local player's controlled actor (filter applied in HandleDefenseWindowOpened).
  *
- * Lifecycle: Owned by UCombatHUDRoot. Bound at combat start, unbound at combat end.
+ * Lifecycle: Bound at combat start, unbound at combat end.
  */
 UCLASS(Abstract)
 class WORLD_OF_REFRACTION_API UDefensePromptWidget : public UUserWidget
