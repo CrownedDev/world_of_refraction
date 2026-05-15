@@ -25,6 +25,12 @@ namespace PanelLabels
 	constexpr const TCHAR *Status = TEXT("SB");	   // Status Buildup
 }
 
+void UCharacterPanelWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	SetIsFocusable(true);
+}
+
 void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 {
 	if (bBound)
@@ -106,8 +112,8 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	SetBarSafe(StatusBar, 0.0f);
 	SetTextSafe(StatusText, FString::Printf(TEXT("%s:0/100"), PanelLabels::Status));
 
-	// Initial buff/debuff list (usually empty at combat start)
-	RefreshBuffDebuffList();
+	// Initial effects list (usually empty at combat start)
+	RefreshEffectsList();
 
 	UE_LOG(LogTemp, Log, TEXT("[CharacterPanel] Initialised for %s"), *InActor->GetName());
 }
@@ -240,7 +246,7 @@ void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FActiveSki
 	{
 		return;
 	}
-	RefreshBuffDebuffList();
+	RefreshEffectsList();
 }
 
 void UCharacterPanelWidget::HandleEffectRemoved(AActor *Target, const FActiveSkillEffect &Effect)
@@ -249,7 +255,7 @@ void UCharacterPanelWidget::HandleEffectRemoved(AActor *Target, const FActiveSki
 	{
 		return;
 	}
-	RefreshBuffDebuffList();
+	RefreshEffectsList();
 }
 
 void UCharacterPanelWidget::HandleEffectDurationChanged(AActor *Target, const FActiveSkillEffect &Effect, int32 RemainingTurns)
@@ -258,7 +264,7 @@ void UCharacterPanelWidget::HandleEffectDurationChanged(AActor *Target, const FA
 	{
 		return;
 	}
-	RefreshBuffDebuffList();
+	RefreshEffectsList();
 }
 
 void UCharacterPanelWidget::HandleDied(AActor *DeadActor)
@@ -275,18 +281,18 @@ void UCharacterPanelWidget::HandleDied(AActor *DeadActor)
 // Internal helpers
 // ========================================
 
-void UCharacterPanelWidget::RefreshBuffDebuffList()
+void UCharacterPanelWidget::RefreshEffectsList()
 {
 	USkillEffectManager *StatusMgr = BoundStatusManager.Get();
 	AActor *Actor = BoundActor.Get();
 
 	if (!StatusMgr || !Actor)
 	{
-		RebuildBuffDebuffList(TArray<FActiveSkillEffect>());
+		RebuildEffectsList(TArray<FActiveSkillEffect>());
 		return;
 	}
 
-	RebuildBuffDebuffList(StatusMgr->GetActiveEffects(Actor));
+	RebuildEffectsList(StatusMgr->GetActiveEffects(Actor));
 }
 
 void UCharacterPanelWidget::SetBarSafe(UProgressBar *Bar, float Percent)
@@ -426,4 +432,22 @@ void UCharacterPanelWidget::RefreshEPBarVisibility()
 	{
 		EPText->SetVisibility(V);
 	}
+}
+
+void UCharacterPanelWidget::NativeOnMouseEnter(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	Super::NativeOnMouseEnter(InGeometry, InMouseEvent);
+	OnPanelHovered.Broadcast(true);
+}
+
+void UCharacterPanelWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
+{
+	Super::NativeOnMouseLeave(InMouseEvent);
+	OnPanelHovered.Broadcast(false);
+}
+
+FReply UCharacterPanelWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	OnPanelClicked.Broadcast();
+	return FReply::Handled();
 }
