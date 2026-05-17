@@ -323,18 +323,14 @@ int32 UCharacterDataComponent::CalculateMaxHealth() const
 {
     if (!CharacterData)
         return 100;
-
-    // TODO: Implement actual HP formula
-    return 100;
+    return CharacterData->CalculateMaxHealth();
 }
 
 int32 UCharacterDataComponent::CalculateMaxEnergy() const
 {
     if (!CharacterData)
         return 100;
-
-    // TODO: Implement actual EP formula
-    return 100;
+    return CharacterData->CalculateMaxEnergy();
 }
 
 UWeaponData *UCharacterDataComponent::GetActiveWeapon() const

@@ -81,16 +81,8 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender);
 	RunningDamage *= StatusMod;
 
-	// Step 3: Element interaction (weakness/resistance)
-	if (Input.Element != ESpellElement::Generic && Defender)
-	{
-		UCharacterData *DefenderData = GetCharacterData(Defender);
-		if (DefenderData)
-		{
-			Result.ElementMultiplier = GetElementInteractionMultiplier(Input.Element, DefenderData->InnateElement);
-			RunningDamage *= Result.ElementMultiplier;
-		}
-	}
+	// Step 3: Element interaction — no elemental advantage system; always neutral.
+	Result.ElementMultiplier = 1.0f;
 
 	// Step 4: Critical hit
 	if (Input.bCanCrit)
@@ -352,21 +344,6 @@ bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) 
 	return FMath::FRand() < Chance;
 }
 
-float UDamageCalculator::GetElementInteractionMultiplier(ESpellElement AttackElement, ESpellElement DefenderElement) const
-{
-	if (IsWeakTo(DefenderElement, AttackElement))
-	{
-		return DamageConstants::WEAKNESS_MULTIPLIER;
-	}
-
-	if (ResistsElement(DefenderElement, AttackElement))
-	{
-		return DamageConstants::RESISTANCE_MULTIPLIER;
-	}
-
-	return DamageConstants::NEUTRAL_MULTIPLIER;
-}
-
 // ==================== STATUS EFFECT CALCULATIONS ====================
 
 int32 UDamageCalculator::CalculateStatusBuildup(
@@ -465,18 +442,6 @@ float UDamageCalculator::GetInfusionDamageMultiplier(int32 InfusionLevel)
 	default:
 		return 1.0f;
 	}
-}
-
-bool UDamageCalculator::IsWeakTo(ESpellElement Defender, ESpellElement Attacker)
-{
-	// No element weakness system - all elements are neutral
-	return false;
-}
-
-bool UDamageCalculator::ResistsElement(ESpellElement Defender, ESpellElement Attacker)
-{
-	// No element resistance system - all elements are neutral
-	return false;
 }
 
 // ==================== DEBUG ====================

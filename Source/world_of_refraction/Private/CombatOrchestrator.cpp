@@ -225,11 +225,6 @@ void ACombatOrchestrator::ForceEndCombat(ECombatState ForcedState)
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Force ending combat with state %d"), (int32)ForcedState);
 
-	if (CameraManager)
-	{
-		CameraManager->EndCombat();
-	}
-
 	if (UWeatherStateManager *WeatherManager = GetGameInstance()->GetSubsystem<UWeatherStateManager>())
 	{
 		WeatherManager->EndCombat();
@@ -586,14 +581,6 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	RequestActionFromActor(Actor);
 }
 
-void ACombatOrchestrator::HandleTurnEnded(AActor *Actor, int32 TurnNumber)
-{
-	// Note: This event from TurnManager fires when EndCurrentTurn() is called
-	// We handle most end-of-turn logic in OnActionCompleted() instead
-	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] TurnManager reports turn %d ended for %s"),
-		   TurnNumber, *Actor->GetName());
-}
-
 void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 {
 	// TurnManager ended combat (could be from no valid combatants)
@@ -649,7 +636,6 @@ void ACombatOrchestrator::BindTurnManagerEvents()
 	if (TurnManagerRef)
 	{
 		TurnManagerRef->OnTurnStarted.AddDynamic(this, &ACombatOrchestrator::HandleTurnStarted);
-		TurnManagerRef->OnTurnEnded.AddDynamic(this, &ACombatOrchestrator::HandleTurnEnded);
 		TurnManagerRef->OnCombatEnded.AddDynamic(this, &ACombatOrchestrator::HandleCombatEnded);
 	}
 }
@@ -659,7 +645,6 @@ void ACombatOrchestrator::UnbindTurnManagerEvents()
 	if (TurnManagerRef)
 	{
 		TurnManagerRef->OnTurnStarted.RemoveDynamic(this, &ACombatOrchestrator::HandleTurnStarted);
-		TurnManagerRef->OnTurnEnded.RemoveDynamic(this, &ACombatOrchestrator::HandleTurnEnded);
 		TurnManagerRef->OnCombatEnded.RemoveDynamic(this, &ACombatOrchestrator::HandleCombatEnded);
 	}
 }

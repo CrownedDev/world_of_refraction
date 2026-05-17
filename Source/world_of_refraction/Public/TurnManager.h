@@ -55,7 +55,6 @@ struct FCombatantTurnDebt
  * Delegate signatures
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor *, Actor, int32, TurnNumber);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor *, Actor, int32, TurnNumber);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCombatEnded, int32, FinalTurnCount);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpeedChanged, AActor *, Actor);
 
@@ -137,9 +136,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
 	FOnTurnStarted OnTurnStarted;
-
-	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
-	FOnTurnEnded OnTurnEnded;
 
 	UPROPERTY(BlueprintAssignable, Category = "Turn Manager|Events")
 	FOnCombatEnded OnCombatEnded;
