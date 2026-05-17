@@ -134,7 +134,11 @@ enum class ESkillEffectType : uint8
 
     // Stat Modifiers (percent-based, passive layer)
     ModifyDamageDealt UMETA(DisplayName = "Damage Up"),
-    ModifyDamageTaken UMETA(DisplayName = "Damage Taken Modifier"),
+    // ModifyDamageTaken was split into ReduceDamageTaken (buff) / IncreaseDamageTaken
+    // (debuff) — see item-system-redesign Phase 1. ReduceDamageTaken keeps the old
+    // enum slot so the ModifyDamageTaken redirect resolves by name; both use a
+    // POSITIVE magnitude (percent). IncreaseDamageTaken is appended at the end.
+    ReduceDamageTaken UMETA(DisplayName = "Reduce Damage Taken"),
     ModifyHealing UMETA(DisplayName = "Healing Up"),
     ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
     ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
@@ -186,5 +190,10 @@ enum class ESkillEffectType : uint8
     GuaranteedCrit UMETA(DisplayName = "Guaranteed Crit"),
     IgnoreDefense UMETA(DisplayName = "Ignore Defense"),
     DoubleHit UMETA(DisplayName = "Double Hit"),
-    Revive UMETA(DisplayName = "Revive")
+    Revive UMETA(DisplayName = "Revive"),
+
+    // ==================== ITEM SYSTEM REDESIGN (Phase 1) ====================
+    // Appended (not mid-inserted) to preserve .uasset enum-by-value stamping.
+    // Debuff half of the ModifyDamageTaken split; positive magnitude = % increase.
+    IncreaseDamageTaken UMETA(DisplayName = "Increase Damage Taken")
 };

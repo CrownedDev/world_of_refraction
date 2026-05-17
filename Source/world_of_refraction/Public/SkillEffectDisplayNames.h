@@ -175,8 +175,10 @@ namespace SkillEffectDisplayNames
         // Stat modifiers
         case ESkillEffectType::ModifyDamageDealt:
             return TEXT("Damage Up");
-        case ESkillEffectType::ModifyDamageTaken:
-            return TEXT("Damage Taken Modifier");
+        case ESkillEffectType::ReduceDamageTaken:
+            return TEXT("Reduce Damage Taken");
+        case ESkillEffectType::IncreaseDamageTaken:
+            return TEXT("Increase Damage Taken");
         case ESkillEffectType::ModifyHealing:
             return TEXT("Healing Up");
         case ESkillEffectType::ModifyCritChance:

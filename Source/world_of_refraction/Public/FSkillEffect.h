@@ -178,6 +178,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::SpeedBuff:
         // Phase 2 passive-layer buffs
         case ESkillEffectType::ModifyDamageDealt:
+        case ESkillEffectType::ReduceDamageTaken:
         case ESkillEffectType::ModifyHealing:
         case ESkillEffectType::ModifyCritChance:
         case ESkillEffectType::ModifyCritDamage:
@@ -238,7 +239,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::DamageDebuff:
         case ESkillEffectType::SpeedDebuff:
         // Phase 2 passive-layer debuffs
-        case ESkillEffectType::ModifyDamageTaken:
+        case ESkillEffectType::IncreaseDamageTaken:
         case ESkillEffectType::ModifyEnergyCost:
         case ESkillEffectType::ModifyTurnSpeed:
         case ESkillEffectType::ModifyStatusResist:

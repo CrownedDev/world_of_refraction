@@ -566,11 +566,18 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	// of attacker. Defense-flat-reduction is handled separately in CalculateDamage.
 	if (Defender)
 	{
-		float ModifyTaken = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ModifyDamageTaken);
-		// Negative = damage reduction; clamp to -90 so reduction never exceeds 90%
-		// (an actor can never become fully invulnerable). Positive (increase) uncapped.
-		ModifyTaken = FMath::Max(ModifyTaken, -90.0f);
-		Modifier *= (1.0f + ModifyTaken / 100.0f);
+		// ModifyDamageTaken was split (item-system-redesign Phase 1): ReduceDamageTaken
+		// (buff) and IncreaseDamageTaken (debuff) are now separate, both POSITIVE
+		// magnitude. CONTENT PASS REQUIRED: any asset still carrying a negative
+		// ModifyDamageTaken magnitude redirects to ReduceDamageTaken by name but
+		// keeps the old sign — a negative reduction reads as zero/negative here.
+		// Re-author those magnitudes as positive percent values.
+		float Reduction = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::ReduceDamageTaken);
+		float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
+		// Reduction capped at 90%, increase uncapped
+		Reduction = FMath::Min(Reduction, 90.0f);
+		Modifier *= (1.0f - Reduction / 100.0f);
+		Modifier *= (1.0f + Increase / 100.0f);
 	}
 
 	return FMath::Max(0.0f, Modifier);
