@@ -363,10 +363,6 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         float GetEPRestorePercent() const;
 
-        /** Citrine — Lightning status buildup on the user, percent of bar max */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetLightningBuildupPercent() const;
-
         /** Emerald — turn-speed buff percent */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         float GetSpeedBuffPercent() const;
