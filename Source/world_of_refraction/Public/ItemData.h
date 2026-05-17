@@ -352,6 +352,14 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         float GetDamageValue() const;
 
+        /** Garnet DOT — burn damage per turn as a percent of target MaxHP */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetDOTDamagePercent() const;
+
+        /** Garnet DOT — burn duration in turns */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetDOTDuration() const;
+
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         int32 GetEnergyValue() const;
 

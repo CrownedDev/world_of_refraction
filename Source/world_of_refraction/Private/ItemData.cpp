@@ -252,6 +252,64 @@ float UItemData::GetDamageValue() const
     return 0.0f;
 }
 
+// ==================== GARNET DOT ====================
+// Phase 2 redesign — Garnet is a percentage-based fire DOT (no instant damage).
+// Damage per turn is a percent of the target's MaxHP; see UItemExecutor::ExecuteDamageEffect.
+
+float UItemData::GetDOTDamagePercent() const
+{
+    if (CrystalType != ECrystalType::Garnet)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 5.0f;
+    case EItemTier::E_Tier:
+        return 7.0f;
+    case EItemTier::D_Tier:
+        return 9.0f;
+    case EItemTier::C_Tier:
+        return 12.0f;
+    case EItemTier::B_Tier:
+        return 16.0f;
+    case EItemTier::A_Tier:
+        return 20.0f;
+    case EItemTier::S_Tier:
+        return 30.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+int32 UItemData::GetDOTDuration() const
+{
+    if (CrystalType != ECrystalType::Garnet)
+    {
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 3;
+    case EItemTier::E_Tier:
+        return 3;
+    case EItemTier::D_Tier:
+        return 3;
+    case EItemTier::C_Tier:
+        return 2;
+    case EItemTier::B_Tier:
+        return 2;
+    case EItemTier::A_Tier:
+        return 2;
+    case EItemTier::S_Tier:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 // ==================== ENERGY VALUES ====================
 
 int32 UItemData::GetEnergyValue() const
@@ -876,12 +934,8 @@ FString UItemData::GenerateDescription() const
     switch (CrystalType)
     {
     case ECrystalType::Garnet:
-        Effect = FString::Printf(TEXT("Deals %.0f fire damage"), GetDamageValue());
-        if (HasSecondaryEffect())
-        {
-            Effect += FString::Printf(TEXT(" and applies burn (%d/turn for %d turns)"),
-                                      GetSecondaryDamagePerTurn(), GetSecondaryDuration());
-        }
+        Effect = FString::Printf(TEXT("Applies a fire burn dealing %.0f%% of target's max HP per turn for %d turns"),
+                                 GetDOTDamagePercent(), GetDOTDuration());
         break;
 
     case ECrystalType::Sapphire:

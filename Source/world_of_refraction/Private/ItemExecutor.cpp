@@ -136,7 +136,8 @@ FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UItemData *Item, 
 
 void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Garnet - Fire damage
+	// Garnet - percentage-based fire DOT (Phase 2). Damage per turn is a percent
+	// of the target's MaxHP; all tiers apply the DOT (no instant-damage path).
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
@@ -144,21 +145,36 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 		return;
 	}
 
-	float Damage = Item->GetDamageValue();
-	int32 HPBefore = TargetComp->CurrentHP;
+	const float DamagePercent = Item->GetDOTDamagePercent();
+	const int32 Duration = Item->GetDOTDuration();
 
-	TargetComp->ServerTakeDamage(FMath::RoundToInt(Damage));
-
-	OutResult.DamageDealt = HPBefore - TargetComp->CurrentHP;
-
-	// S-tier Garnet has burn DOT
-	if (Item->HasSecondaryEffect())
+	if (DamagePercent <= 0.0f || Duration <= 0)
 	{
-		ApplySecondaryEffect(Target, Item, User, OutResult);
+		OutResult.ErrorMessage = TEXT("Invalid Garnet DOT values");
+		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Garnet dealt %d damage to %s"),
-		   OutResult.DamageDealt, *Target->GetName());
+	const float DamagePerTurn = TargetComp->MaxHP * DamagePercent / 100.0f;
+	const int32 DamagePerTurnInt = FMath::Max(1, FMath::RoundToInt(DamagePerTurn));
+
+	// Apply fire DOT via SkillEffectManager
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager unavailable");
+		return;
+	}
+
+	const int32 EffectID = static_cast<int32>(GetTypeHash(User)) ^ static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(ESkillEffectType::DOT);
+	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
+		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, ESpellElement::Fire);
+
+	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log,
+		   TEXT("[ItemExecutor] Garnet: Applied Burn DOT to %s (%d dmg/turn x %d turns)"),
+		   *Target->GetName(), DamagePerTurnInt, Duration);
 }
 
 void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
