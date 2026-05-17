@@ -104,6 +104,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	void ResetStatusBar(AActor *Target);
 
+	/** Reduce a target's current status buildup by Fraction (0.0-1.0).
+	 *  Fraction 1.0 fully clears the bar; 0.0 is a no-op. */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	void ReduceStatusBuildup(AActor *Target, float Fraction);
+
 	/** Process status bar decay at turn start. Bar decays per-turn; full reset
 	 *  after STATUS_DECAY_FULL_RESET_TURNS without further buildup. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")

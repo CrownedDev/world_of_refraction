@@ -7,6 +7,7 @@
 #include "ActionStructs.h"
 #include "ItemEffectType.h"
 #include "ESpellElement.h"
+#include "ESkillEffectType.h"
 #include "ItemExecutor.generated.h"
 
 class UItemData;
@@ -140,8 +141,8 @@ private:
 	/** Sapphire - Healing */
 	void ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
-	/** Citrine - Energy restore with self-damage */
-	void ExecuteEnergyRestoreEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult);
+	/** Citrine - restore target EP %, apply Lightning buildup to the user */
+	void ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Emerald - Speed buff */
 	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
@@ -158,8 +159,11 @@ private:
 	/** Amethyst - Gamble (random effect) */
 	void ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
-	/** Iolite - Cleanse (tiered removal + immunity) */
+	/** Iolite - Cleanse (ally: remove debuffs / enemy: remove buffs) */
 	void ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+
+	/** Quartz - StatusClear (reduce target status bar + grant elemental resistance) */
+	void ExecuteStatusClearEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	// ========================================
 	// BONUS HANDLERS
@@ -183,6 +187,13 @@ private:
 	USkillEffectManager *GetSkillEffectManager() const;
 	bool IsGenericCharacter(AActor *Actor) const;
 	bool IsBrokenDarknessCharacter(AActor *Actor) const;
+
+	/** True if User and Target are on the same team (resolved via UTurnManager). */
+	bool IsAlly(AActor *User, AActor *Target) const;
+
+	/** Map an element to its GrantXxxImmunity effect type (None for Generic/BrokenDarkness).
+	 *  Mirrors UStatusBuildupManager's private resolver, which UItemExecutor cannot reach. */
+	static ESkillEffectType GetElementImmunityType(ESpellElement Element);
 
 	// ========================================
 	// STATE

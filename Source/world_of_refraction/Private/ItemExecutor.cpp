@@ -5,6 +5,8 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "SkillEffectManager.h"
+#include "StatusBuildupManager.h"
+#include "TurnManager.h"
 #include "ActiveSkillEffect.h"
 
 void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
@@ -57,7 +59,7 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Tar
 		break;
 
 	case EItemEffectType::EnergyRestore:
-		ExecuteEnergyRestoreEffect(User, Item, Result);
+		ExecuteEnergyRestoreEffect(User, Target, Item, Result);
 		break;
 
 	case EItemEffectType::BuffSpeed:
@@ -82,6 +84,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Tar
 
 	case EItemEffectType::Cleanse:
 		ExecuteCleanseEffect(User, Target, Item, Result);
+		break;
+
+	case EItemEffectType::StatusClear:
+		ExecuteStatusClearEffect(User, Target, Item, Result);
 		break;
 
 	default:
@@ -172,6 +178,17 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
 	OutResult.bSuccess = true;
 
+	// Garnet also builds the Fire status bar on application (not per tick),
+	// using the shared elemental-buildup table.
+	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	if (SBM)
+	{
+		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
+		const float BuildupAmount = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
+							   ESpellElement::Fire, EPhysicalDamageType::None);
+	}
+
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ItemExecutor] Garnet: Applied Burn DOT to %s (%d dmg/turn x %d turns)"),
 		   *Target->GetName(), DamagePerTurnInt, Duration);
@@ -179,7 +196,8 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 
 void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Sapphire - Water healing
+	// Sapphire - percentage-based water healing (Phase 2). S-tier additionally
+	// revives a dead target at 30% MaxHP; lower tiers heal living targets only.
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
@@ -187,174 +205,248 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UItemData
 		return;
 	}
 
-	float Healing = Item->GetDamageValue(); // Same getter for healing
-	int32 HPBefore = TargetComp->CurrentHP;
-
-	TargetComp->ServerHeal(FMath::RoundToInt(Healing));
-
-	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire healed %s for %d"),
-		   *Target->GetName(), OutResult.HealingDone);
-}
-
-void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult)
-{
-	// Citrine - Lightning energy with self-damage cost
-	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
-	if (!UserComp)
+	const float HealPercent = Item->GetHealPercent();
+	if (HealPercent <= 0.0f)
 	{
-		OutResult.ErrorMessage = TEXT("User has no character data");
+		OutResult.ErrorMessage = TEXT("Invalid Sapphire heal value");
 		return;
 	}
 
-	int32 Energy = Item->GetEnergyValue();
-	int32 SelfDamage = Item->GetSelfDamage();
+	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / 100.0f));
 
-	// Take self-damage first
-	if (SelfDamage > 0)
+	// S-rank: revive a dead target at 30% MaxHP
+	if (!TargetComp->bIsAlive && Item->Tier == EItemTier::S_Tier)
 	{
-		int32 HPBefore = UserComp->CurrentHP;
-		UserComp->ServerTakeDamage(SelfDamage);
-		OutResult.SelfDamageTaken = HPBefore - UserComp->CurrentHP;
+		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * 0.3f);
+		TargetComp->ServerResurrect(ReviveHP);
+		OutResult.HealingDone = ReviveHP;
+		OutResult.bSuccess = true;
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire S: Revived %s at %d HP"),
+			   *Target->GetName(), ReviveHP);
+		return;
 	}
 
-	// Restore energy
-	int32 EPBefore = UserComp->CurrentEP;
-	UserComp->ServerGainEnergy(Energy);
-	OutResult.EnergyRestored = UserComp->CurrentEP - EPBefore;
+	// Non-S Sapphire cannot affect a dead target
+	if (!TargetComp->bIsAlive)
+	{
+		OutResult.ErrorMessage = TEXT("Cannot heal dead target with non-S Sapphire");
+		return;
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Citrine: %s gained %d energy, took %d self-damage"),
-		   *User->GetName(), OutResult.EnergyRestored, OutResult.SelfDamageTaken);
+	// Living target — heal a percent of MaxHP
+	const int32 HPBefore = TargetComp->CurrentHP;
+	TargetComp->ServerHeal(HealAmount);
+	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire: Healed %s for %d HP (%.0f%%)"),
+		   *Target->GetName(), OutResult.HealingDone, HealPercent);
+}
+
+void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+{
+	// Citrine (Phase 2) - restores a percent of the target's MaxEP and builds
+	// Lightning status on the target (no HP cost anymore).
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!TargetComp)
+	{
+		OutResult.ErrorMessage = TEXT("Target has no character data");
+		return;
+	}
+
+	const float EPPercent = Item->GetEPRestorePercent();
+	if (EPPercent <= 0.0f)
+	{
+		OutResult.ErrorMessage = TEXT("Invalid Citrine EP value");
+		return;
+	}
+
+	const int32 EnergyAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxEP * EPPercent / 100.0f));
+	const int32 EPBefore = TargetComp->CurrentEP;
+	TargetComp->ServerGainEnergy(EnergyAmount);
+	OutResult.EnergyRestored = TargetComp->CurrentEP - EPBefore;
+
+	// Lightning buildup is applied to the TARGET; the user remains the source.
+	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	if (SBM)
+	{
+		const float BuildupPercent = Item->GetElementalBuildupPercent();
+		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
+		const float BuildupAmount = BarMax * BuildupPercent / 100.0f;
+		if (BuildupAmount > 0.0f)
+		{
+			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
+								   ESpellElement::Lightning, EPhysicalDamageType::None);
+		}
+	}
+
+	OutResult.bSuccess = true;
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Citrine: Restored %d EP to %s (Lightning buildup applied)"),
+		   OutResult.EnergyRestored, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Emerald - Wind speed buff
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
+	// Emerald (Phase 2) - F-A apply a turn-speed buff; S grants an extra turn.
+	if (Item->Tier == EItemTier::S_Tier)
+	{
+		UTurnManager *TurnMgr = nullptr;
+		if (UGameInstance *GI = GetGameInstance())
+		{
+			TurnMgr = GI->GetSubsystem<UTurnManager>();
+		}
+		if (!TurnMgr)
+		{
+			OutResult.ErrorMessage = TEXT("TurnManager not available");
+			return;
+		}
+		TurnMgr->RequestExtraTurn(Target);
+		OutResult.bSuccess = true;
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald S: Granted %s an extra turn"), *Target->GetName());
+		return;
+	}
+
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
 	{
 		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
-	float BuffPercent = Item->GetBuffPercentage();
-	int32 Duration = Item->GetBuffDuration();
+	const float BuffPercent = Item->GetSpeedBuffPercent();
+	const int32 Duration = Item->GetCrystalDuration();
 
 	FActiveSkillEffect SpeedBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Speed"), *Item->GetFullItemName()),
-		Item->GetUniqueID(),
-		ESkillEffectType::SpeedBuff,
-		BuffPercent,
-		Duration);
+		Item->GetUniqueID(), ESkillEffectType::TurnSpeedBuff, BuffPercent, Duration);
 	SpeedBuff.Element = Item->GetAssociatedElement();
 
-	StatusManager->ApplyEffect(Target, SpeedBuff, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, SpeedBuff, User, Item->GetFullItemName(), -1);
 	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: Applied %.0f%% speed buff for %d turns"),
-		   BuffPercent, Duration);
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: Applied %.0f%% turn-speed buff for %d turns to %s"),
+		   BuffPercent, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Amber - Earth defense buff
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
+	// Amber (Phase 2) - buff an ally's defense, or debuff an enemy's.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
 	{
 		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
-	float BuffPercent = Item->GetBuffPercentage();
-	int32 Duration = Item->GetBuffDuration();
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff;
+	const float Magnitude = Item->GetBuffPercentage();
+	const int32 Duration = Item->GetCrystalDuration();
 
-	FActiveSkillEffect DefenseBuff = FActiveSkillEffect::CreateBuff(
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Defense"), *Item->GetFullItemName()),
-		Item->GetUniqueID(),
-		ESkillEffectType::DefenseBuff,
-		BuffPercent,
-		Duration);
-	DefenseBuff.Element = Item->GetAssociatedElement();
+		Item->GetUniqueID(), EffectType, Magnitude, Duration);
+	Effect.Element = Item->GetAssociatedElement();
 
-	StatusManager->ApplyEffect(Target, DefenseBuff, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, Effect, User, Item->GetFullItemName(), -1);
 	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amber: Applied %.0f%% defense buff for %d turns"),
-		   BuffPercent, Duration);
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amber: Applied %s %.0f%% for %d turns to %s"),
+		   bAlly ? TEXT("DefenseBuff") : TEXT("DefenseDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Opal - Light crit buff (+ S-tier reveals enemy stats)
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
+	// Opal (Phase 2) - buff an ally's crit chance, or debuff an enemy's.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
 	{
 		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
-	float BuffPercent = Item->GetBuffPercentage();
-	int32 Duration = Item->GetBuffDuration();
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
+	const float Magnitude = Item->GetCritBuffPercent();
+	const int32 Duration = Item->GetCrystalDuration();
 
-	FActiveSkillEffect CritBuff = FActiveSkillEffect::CreateBuff(
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Crit"), *Item->GetFullItemName()),
-		Item->GetUniqueID(),
-		ESkillEffectType::CritChanceBuff,
-		BuffPercent,
-		Duration);
-	CritBuff.Element = Item->GetAssociatedElement();
+		Item->GetUniqueID(), EffectType, Magnitude, Duration);
+	Effect.Element = Item->GetAssociatedElement();
 
-	StatusManager->ApplyEffect(Target, CritBuff, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, Effect, User, Item->GetFullItemName(), -1);
 	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
 
-	// S-tier Opal reveals enemy info
-	if (Item->GetRevealsHP() || Item->GetRevealsStats())
-	{
-		// TODO: Broadcast reveal event for UI to show enemy HP/stats
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal S-tier: Revealing enemy info (HP: %s, Stats: %s)"),
-			   Item->GetRevealsHP() ? TEXT("Yes") : TEXT("No"),
-			   Item->GetRevealsStats() ? TEXT("Yes") : TEXT("No"));
-	}
+	// TODO: S-rank stat reveal — implement in UI pass
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Applied %.0f%% crit buff for %d turns"),
-		   BuffPercent, Duration);
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Applied %s %.0f%% for %d turns to %s"),
+		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Onyx - Darkness silence (prevents spell casting)
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
+	// Onyx - F-A apply a percentage energy-lock (EnergyDrain); S-rank applies a
+	// binary Silenced effect (blocks spellcasting via USkillEffectManager::IsSilenced).
+	// All tiers additionally build the Darkness status bar on the target.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
 	{
 		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
-	int32 Duration = Item->GetSilenceDuration();
+	const float SilencePercent = Item->GetSilencePercentage();
+	const bool bSRank = (Item->Tier == EItemTier::S_Tier);
 
-	// NOTE: Silence effect type not yet in enum - using EnergyDrain as placeholder
-	// This prevents energy gain which effectively limits spell casting
-	FActiveSkillEffect Silence = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
-		Item->GetUniqueID(),
-		ESkillEffectType::EnergyDrain, // TODO: Add proper Silence type
-		1.0f,							 // Binary effect
-		Duration);
-	Silence.Element = Item->GetAssociatedElement();
+	if (bSRank)
+	{
+		// S-rank: full binary silence for 1 turn.
+		FActiveSkillEffect Silence = FActiveSkillEffect::CreateBuff(
+			FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
+			Item->GetUniqueID(), ESkillEffectType::Silenced, 1.0f, 1);
+		Silence.Element = Item->GetAssociatedElement();
+		SEM->ApplyEffect(Target, Silence, User, Item->GetFullItemName(), -1);
+	}
+	else
+	{
+		// F-A: percentage energy-lock via the EnergyDrain effect type.
+		const int32 Duration = Item->GetSilenceDurationNew();
+		FActiveSkillEffect EnergyLock = FActiveSkillEffect::CreateBuff(
+			FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
+			Item->GetUniqueID(), ESkillEffectType::EnergyDrain, SilencePercent, Duration);
+		EnergyLock.Element = Item->GetAssociatedElement();
+		SEM->ApplyEffect(Target, EnergyLock, User, Item->GetFullItemName(), -1);
+	}
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
 
-	StatusManager->ApplyEffect(Target, Silence, User, Item->GetFullItemName(), -1);
-	OutResult.BuffsApplied++; // Counts as applied effect
+	// All tiers build the Darkness status bar on the target.
+	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	if (SBM)
+	{
+		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
+		const float BuildupAmount = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		if (BuildupAmount > 0.0f)
+		{
+			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
+								   ESpellElement::Darkness, EPhysicalDamageType::None);
+		}
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx: Applied silence for %d turns to %s"),
-		   Duration, *Target->GetName());
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx: Silenced %s (%s)"),
+		   *Target->GetName(), bSRank ? TEXT("S-rank binary, 1 turn") : TEXT("energy-lock"));
 }
 
 void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Amethyst - Void gamble (random buff or debuff)
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
+	// Amethyst (Phase 2) - roll buff vs debuff against the tier's buff chance,
+	// then apply a random effect from the matching pool to the target.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
 	{
 		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
@@ -362,117 +454,148 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData 
 
 	OutResult.bWasGamble = true;
 
-	// 50/50 chance for buff or debuff
-	bool bIsPositive = FMath::RandBool();
-	OutResult.bGambleWon = bIsPositive;
-
-	// Random effect type
-	TArray<ESkillEffectType> BuffTypes = {
-		ESkillEffectType::DamageBuff,
+	const TArray<ESkillEffectType> BuffPool = {
+		ESkillEffectType::SpellDamageBuff,
+		ESkillEffectType::RawDamageBuff,
 		ESkillEffectType::DefenseBuff,
-		ESkillEffectType::SpeedBuff,
-		ESkillEffectType::CritChanceBuff};
-
-	TArray<ESkillEffectType> DebuffTypes = {
-		ESkillEffectType::DamageDebuff,
+		ESkillEffectType::CritChanceBuff,
+		ESkillEffectType::TurnSpeedBuff,
+		ESkillEffectType::ResistanceBuff,
+		ESkillEffectType::LuckBuff};
+	const TArray<ESkillEffectType> DebuffPool = {
+		ESkillEffectType::SpellDamageDebuff,
+		ESkillEffectType::RawDamageDebuff,
 		ESkillEffectType::DefenseDebuff,
-		ESkillEffectType::SpeedDebuff,
-		ESkillEffectType::CritChanceDebuff};
+		ESkillEffectType::CritChanceDebuff,
+		ESkillEffectType::TurnSpeedDebuff,
+		ESkillEffectType::ResistanceDebuff,
+		ESkillEffectType::LuckDebuff};
 
-	ESkillEffectType ChosenType;
-	if (bIsPositive)
-	{
-		ChosenType = BuffTypes[FMath::RandRange(0, BuffTypes.Num() - 1)];
-	}
-	else
-	{
-		ChosenType = DebuffTypes[FMath::RandRange(0, DebuffTypes.Num() - 1)];
-	}
+	const bool bIsBuff = FMath::FRand() < (Item->GetBuffChancePercent() / 100.0f);
+	OutResult.bGambleWon = bIsBuff;
 
-	// Random magnitude (scaled by tier)
-	float BaseMagnitude = Item->GetBuffPercentage(); // Use tier scaling
-	float Magnitude = BaseMagnitude * FMath::FRandRange(0.5f, 1.5f);
-	int32 Duration = FMath::RandRange(2, 5);
+	const TArray<ESkillEffectType> &Pool = bIsBuff ? BuffPool : DebuffPool;
+	const ESkillEffectType ChosenType = Pool[FMath::RandRange(0, Pool.Num() - 1)];
 
-	// CreateBuff works for both - EffectType determines if it's buff or debuff
+	const float Magnitude = Item->GetGambleMagnitudePercent();
+	const int32 Duration = Item->GetGambleDuration();
+
 	FActiveSkillEffect GambleEffect = FActiveSkillEffect::CreateBuff(
 		TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration);
 	GambleEffect.Element = ESpellElement::Void;
 
-	// Apply to user (gamble affects self)
-	StatusManager->ApplyEffect(User, GambleEffect, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, GambleEffect, User, Item->GetFullItemName(), -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	// Amethyst also builds the Void status bar on the target.
+	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	if (SBM)
+	{
+		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
+		const float BuildupAmount = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		if (BuildupAmount > 0.0f)
+		{
+			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
+								   ESpellElement::Void, EPhysicalDamageType::None);
+		}
+	}
 
 	OutResult.GambleOutcome = FString::Printf(TEXT("%s %.0f%% for %d turns"),
-											  bIsPositive ? TEXT("Won") : TEXT("Lost"),
-											  Magnitude, Duration);
+											  bIsBuff ? TEXT("Buff") : TEXT("Debuff"), Magnitude, Duration);
+	OnGambleResult.Broadcast(User, bIsBuff, OutResult.GambleOutcome);
 
-	// Broadcast gamble result
-	OnGambleResult.Broadcast(User, bIsPositive, OutResult.GambleOutcome);
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amethyst gamble: %s"), *OutResult.GambleOutcome);
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amethyst gamble on %s: %s"),
+		   *Target->GetName(), *OutResult.GambleOutcome);
 }
 
 void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Iolite - Reality cleanse (tiered removal + immunity)
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
+	// Iolite (Phase 2) - cleanse debuffs from an ally, or strip buffs from an enemy.
+	// GetEffectsToRemoveCount() == 99 means "remove all" (fixes the old S-rank bug).
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
 	{
 		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
 		return;
 	}
 
-	int32 DebuffsToRemove = Item->GetDebuffsToRemove();
-	bool bGrantsImmunity = Item->GetGrantsImmunity();
-	int32 ImmunityDuration = Item->GetImmunityDuration();
+	const bool bRemoveDebuffs = IsAlly(User, Target);
+	const int32 Count = Item->GetEffectsToRemoveCount();
 
-	// Get current debuff count
-	int32 DebuffsBefore = StatusManager->GetDebuffCount(Target);
-
-	if (DebuffsToRemove >= 99) // High value = remove all
+	// GetActiveEffects returns a copy — safe to iterate while removing by ID.
+	const TArray<FActiveSkillEffect> Effects = SEM->GetActiveEffects(Target);
+	int32 Removed = 0;
+	for (const FActiveSkillEffect &Effect : Effects)
 	{
-		StatusManager->RemoveAllDebuffs(Target);
-	}
-	else
-	{
-		// Remove specific number of debuffs (oldest first)
-		TArray<FActiveSkillEffect> Debuffs = StatusManager->GetActiveEffects(Target);
-		int32 Removed = 0;
-
-		for (const FActiveSkillEffect &Effect : Debuffs)
+		if (Count < 99 && Removed >= Count)
 		{
-			if (Removed >= DebuffsToRemove)
-				break;
-
-			if (!Effect.IsBuff())
-			{
-				StatusManager->RemoveEffectByID(Target, Effect.EffectID);
-				Removed++;
-			}
+			break;
+		}
+		const bool bMatch = bRemoveDebuffs ? Effect.IsDebuff() : Effect.IsBuff();
+		if (bMatch)
+		{
+			SEM->RemoveEffectByID(Target, Effect.EffectID);
+			Removed++;
 		}
 	}
 
-	int32 DebuffsAfter = StatusManager->GetDebuffCount(Target);
-	OutResult.DebuffsRemoved = DebuffsBefore - DebuffsAfter;
+	OutResult.DebuffsRemoved = Removed;
+	OutResult.bSuccess = true;
 
-	// Apply immunity if granted (B-tier and above)
-	// NOTE: Using high ResistanceBuff as pseudo-immunity since DebuffImmunity doesn't exist
-	if (bGrantsImmunity && ImmunityDuration > 0)
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Iolite: Removed %d %s from %s"),
+		   Removed, bRemoveDebuffs ? TEXT("debuff(s)") : TEXT("buff(s)"), *Target->GetName());
+}
+
+void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+{
+	// Quartz (Phase 2) - clears a percent of the target's status bar, then grants
+	// element-specific protection for the bar's pending (last-hit) element:
+	//   F-A : ResistanceBuff   — reduces further buildup of that element
+	//   S   : GrantXxxImmunity — fully absorbs further buildup of that element
+	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!SBM || !TargetComp)
 	{
-		FActiveSkillEffect Immunity = FActiveSkillEffect::CreateBuff(
-			TEXT("Cleanse Immunity"),
-			Item->GetUniqueID(),
-			ESkillEffectType::ResistanceBuff, // 100% = immunity
-			100.0f,
-			ImmunityDuration);
-		Immunity.Element = ESpellElement::Reality;
-
-		StatusManager->ApplyEffect(Target, Immunity, User, Item->GetFullItemName(), -1);
-		OutResult.BuffsApplied++;
+		OutResult.ErrorMessage = TEXT("StatusBuildupManager or target unavailable");
+		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Iolite: Removed %d debuffs, immunity: %s"),
-		   OutResult.DebuffsRemoved, bGrantsImmunity ? TEXT("Yes") : TEXT("No"));
+	const float ClearFraction = Item->GetStatusClearPercent() / 100.0f;
+	const ESpellElement ResistElement = SBM->GetPendingElement(Target);
+	SBM->ReduceStatusBuildup(Target, ClearFraction);
+
+	// Grant protection for the cleared element (skip Generic — no element to resist).
+	bool bAppliedImmunity = false;
+	if (ResistElement != ESpellElement::Generic)
+	{
+		if (USkillEffectManager *SEM = GetSkillEffectManager())
+		{
+			const int32 Duration = Item->GetResistanceDuration();
+			const ESkillEffectType ImmunityType = GetElementImmunityType(ResistElement);
+			const bool bUseImmunity = (Item->Tier == EItemTier::S_Tier) && (ImmunityType != ESkillEffectType::None);
+
+			const ESkillEffectType EffectType = bUseImmunity ? ImmunityType : ESkillEffectType::ResistanceBuff;
+			const float Magnitude = bUseImmunity ? 1.0f : 30.0f;
+			const int32 EffectID = static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(EffectType);
+
+			FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+				bUseImmunity ? TEXT("Elemental Immunity") : TEXT("Elemental Resistance"),
+				EffectID, EffectType, Magnitude, Duration);
+			Effect.Element = ResistElement;
+			SEM->ApplyEffect(Target, Effect, User, TEXT("Quartz"), -1);
+			OutResult.BuffsApplied++;
+			bAppliedImmunity = bUseImmunity;
+		}
+	}
+
+	OutResult.bSuccess = true;
+	UE_LOG(LogTemp, Log,
+		   TEXT("[ItemExecutor] Quartz: Cleared %.0f%% status bar on %s, applied %s %s for %d turns"),
+		   Item->GetStatusClearPercent(), *Target->GetName(),
+		   *UEnum::GetValueAsString(ResistElement),
+		   bAppliedImmunity ? TEXT("immunity") : TEXT("resistance"),
+		   Item->GetResistanceDuration());
 }
 
 // ========================================
@@ -605,4 +728,50 @@ bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
 	return Data && Data->InnateElement == ESpellElement::BrokenDarkness;
+}
+
+bool UItemExecutor::IsAlly(AActor *User, AActor *Target) const
+{
+	if (!User || !Target)
+	{
+		return false;
+	}
+	if (User == Target)
+	{
+		return true;
+	}
+
+	UTurnManager *TurnMgr = nullptr;
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		TurnMgr = GI->GetSubsystem<UTurnManager>();
+	}
+	if (!TurnMgr)
+	{
+		return false;
+	}
+
+	const int32 UserTeam = TurnMgr->GetActorTeam(User);
+	const int32 TargetTeam = TurnMgr->GetActorTeam(Target);
+	return UserTeam >= 0 && UserTeam == TargetTeam;
+}
+
+ESkillEffectType UItemExecutor::GetElementImmunityType(ESpellElement Element)
+{
+	switch (Element)
+	{
+	case ESpellElement::Fire:      return ESkillEffectType::GrantFireImmunity;
+	case ESpellElement::Water:     return ESkillEffectType::GrantWaterImmunity;
+	case ESpellElement::Earth:     return ESkillEffectType::GrantEarthImmunity;
+	case ESpellElement::Wind:      return ESkillEffectType::GrantWindImmunity;
+	case ESpellElement::Light:     return ESkillEffectType::GrantLightImmunity;
+	case ESpellElement::Darkness:  return ESkillEffectType::GrantDarknessImmunity;
+	case ESpellElement::Lightning: return ESkillEffectType::GrantLightningImmunity;
+	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
+	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
+	case ESpellElement::Generic:
+	case ESpellElement::BrokenDarkness:
+	default:
+		return ESkillEffectType::None;
+	}
 }

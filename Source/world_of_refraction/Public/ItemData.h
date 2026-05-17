@@ -360,6 +360,65 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         int32 GetDOTDuration() const;
 
+        /** Sapphire heal — restored HP as a percent of target MaxHP */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetHealPercent() const;
+
+        // ==================== PHASE 2 REDESIGN GETTERS ====================
+
+        /** Citrine — EP restored as a percent of target MaxEP */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetEPRestorePercent() const;
+
+        /** Citrine — Lightning status buildup on the user, percent of bar max */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetLightningBuildupPercent() const;
+
+        /** Emerald — turn-speed buff percent */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetSpeedBuffPercent() const;
+
+        /** Phase 2 shared buff duration (Emerald/Amber/Opal) in turns */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetCrystalDuration() const;
+
+        /** Opal — crit-chance buff/debuff percent */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetCritBuffPercent() const;
+
+        /** Amethyst — chance to roll a buff (vs debuff), percent */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetBuffChancePercent() const;
+
+        /** Amethyst — gamble effect magnitude percent */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetGambleMagnitudePercent() const;
+
+        /** Amethyst — gamble effect duration in turns */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetGambleDuration() const;
+
+        /** Iolite — number of effects to remove (99 = remove all) */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetEffectsToRemoveCount() const;
+
+        /** Quartz — fraction of the status bar cleared, percent */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetStatusClearPercent() const;
+
+        /** Quartz — elemental resistance duration in turns */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetResistanceDuration() const;
+
+        /** Onyx — energy-lock duration in turns (Phase 2 table; F-A tiers) */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        int32 GetSilenceDurationNew() const;
+
+        /** Shared status-bar buildup percent for status-building crystals
+         *  (Garnet/Citrine/Onyx/Amethyst): 10/15/20/30/40/50/60 per tier. */
+        UFUNCTION(BlueprintPure, Category = "Item|Effects")
+        float GetElementalBuildupPercent() const;
+
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         int32 GetEnergyValue() const;
 
