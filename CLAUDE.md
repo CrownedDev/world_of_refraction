@@ -99,6 +99,28 @@ When making a change:
 - Remove code prematurely
 - Write summary documentation mid-refactor
 
+## Architectural Documentation
+
+Maintain living system documents in `docs/Architecture/`. Each document covers one system and is updated as the system changes — not just at session end.
+
+### Document structure (per system):
+- Overview — what it does and why
+- Architecture — key classes, responsibilities, fields
+- Integration Points — delegates, subsystem connections
+- Known Limitations / TODOs
+- Changelog — date, change description, branch
+
+### When to update:
+- Any new system → create `docs/Architecture/<SystemName>.md`
+- Any significant change to an existing system → update the relevant doc and add a changelog entry
+- Session end → verify docs reflect current state
+
+### Existing documents:
+- `docs/Architecture/ItemSystem.md`
+- Add more as systems are documented
+
+Create or update these documents as part of completing tasks, not as a separate afterthought.
+
 ## Session orientation
 
 At the start of a session, the user will state:
