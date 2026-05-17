@@ -626,37 +626,6 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FI
 		   *Target->GetName(), OutResult.BrokenDarknessEnergyGained);
 }
 
-void UItemExecutor::ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult)
-{
-	// S-tier secondary effects (burn DOT for Garnet)
-	if (!Item->HasSecondaryEffect())
-		return;
-
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
-		return;
-
-	int32 DamagePerTurn = Item->GetSecondaryDamagePerTurn();
-	int32 Duration = Item->GetSecondaryDuration();
-
-	if (DamagePerTurn <= 0 || Duration <= 0)
-		return;
-
-	ESpellElement ItemElement = Item->GetAssociatedElement();
-	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
-		FString::Printf(TEXT("%s Burn"), *Item->GetFullItemName()),
-		Item->GetUniqueID() + 2000,
-		static_cast<float>(DamagePerTurn),
-		Duration,
-		ItemElement);
-
-	StatusManager->ApplyEffect(Target, DOT, Source, Item->GetFullItemName(), -1);
-	OutResult.bAppliedSecondaryEffect = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Secondary effect: %d damage/turn for %d turns"),
-		   DamagePerTurn, Duration);
-}
-
 // ========================================
 // HELPERS
 // ========================================
@@ -666,12 +635,6 @@ UCharacterDataComponent *UItemExecutor::GetCharacterDataComponent(AActor *Actor)
 	if (!Actor)
 		return nullptr;
 	return Actor->FindComponentByClass<UCharacterDataComponent>();
-}
-
-UCharacterData *UItemExecutor::GetCharacterData(AActor *Actor) const
-{
-	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
-	return Comp ? Comp->CharacterData : nullptr;
 }
 
 USkillEffectManager *UItemExecutor::GetSkillEffectManager() const
@@ -685,14 +648,6 @@ USkillEffectManager *UItemExecutor::GetSkillEffectManager() const
 		}
 	}
 	return SkillEffectManagerRef;
-}
-
-bool UItemExecutor::IsGenericCharacter(AActor *Actor) const
-{
-	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
-	if (!Comp || !Comp->CharacterData)
-		return false;
-	return Comp->CharacterData->CharacterClass == ECharacterClass::Generic;
 }
 
 bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const

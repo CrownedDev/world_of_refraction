@@ -55,9 +55,6 @@ struct WORLD_OF_REFRACTION_API FItemUseResult
 
 	// Character-specific bonuses
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Bonuses")
-	int32 GenericResistanceApplied = 0;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Result|Bonuses")
 	int32 BrokenDarknessEnergyGained = 0;
 
 	// Gamble results (Amethyst)
@@ -173,17 +170,12 @@ private:
 	 *  crystal was used on; it absorbs EP scaled by the crystal's tier. */
 	void ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
-	/** Apply S-tier secondary effects (burn DOT) */
-	void ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult);
-
 	// ========================================
 	// HELPERS
 	// ========================================
 
 	UCharacterDataComponent *GetCharacterDataComponent(AActor *Actor) const;
-	UCharacterData *GetCharacterData(AActor *Actor) const;
 	USkillEffectManager *GetSkillEffectManager() const;
-	bool IsGenericCharacter(AActor *Actor) const;
 	bool IsBrokenDarknessCharacter(AActor *Actor) const;
 
 	/** True if User and Target are on the same team (resolved via UTurnManager). */

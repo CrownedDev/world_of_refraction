@@ -8,9 +8,9 @@ executed in turn-based combat by the `UItemExecutor` subsystem. Each crystal map
 of the nine elements (plus Generic) and to a single combat effect — damage, healing,
 buffs, status effects, etc. Tiers F→S scale the effect's magnitude.
 
-> This document reflects the item system as of the `feature/item-system-redesign` branch.
-> Crystal **values** are still the original flat tables in shipped code; the
-> percentage-based redesign is specced but **not yet implemented** (see Crystal Behaviour).
+> This document reflects the **shipped** item system on `main` after the
+> `feature/item-system-redesign` work (Phases 1–3). Crystal values are
+> percentage-based and the redesign is fully implemented.
 
 ## Architecture
 
@@ -27,36 +27,40 @@ Immutable design-time definition of a crystal. Key fields:
 - `Display*` fields — `VisibleAnywhere` editor mirrors, recomputed in `PostEditChangeProperty`.
 
 Per-crystal combat numbers are **not stored as fields** — they are hardcoded tier `switch`
-tables inside `UItemData`'s `Get*()` functions (`GetDamageValue`, `GetEnergyValue`,
-`GetBuffPercentage`, `GetSilenceDuration`, …). Quartz is **consumable-only**: `IsDataValid`
-and `PostEditChangeProperty` reject / clear `bIsRefined` and `bIsEvolutionCrystal` on Quartz.
+tables inside `UItemData`'s `Get*()` functions (`GetDOTDamagePercent`, `GetHealPercent`,
+`GetEPRestorePercent`, `GetElementalBuildupPercent`, `GetCrystalDuration`, …). Quartz is
+**consumable-only**: `IsDataValid` and `PostEditChangeProperty` reject / clear `bIsRefined`
+and `bIsEvolutionCrystal` on Quartz.
 
 ### UItemExecutor (`UGameInstanceSubsystem`)
 
 Runs item use in combat. Entry point `UseItem(User, Item, Target)`:
 
-1. Validates user/item; defaults `Target` to `User` if null (self-target items).
-2. Switches on `Item->GetPrimaryEffectType()` to a per-effect handler (`ExecuteDamageEffect`, `ExecuteHealingEffect`, …).
-3. Always applies the Generic-class elemental-resistance bonus and the Broken-Darkness energy bonus.
+1. Validates user/item; defaults `Target` to `User` if null.
+2. Switches on `Item->GetPrimaryEffectType()` to a per-effect handler (`ExecuteDamageEffect`, `ExecuteHealingEffect`, …, `ExecuteStatusClearEffect`).
+3. If the **target** is a Broken Darkness character, applies the BD energy absorption.
 4. Sets `bSuccess` on the `FItemUseResult` and broadcasts `OnItemUsed`.
 
 `UseItemMultiTarget` loops `UseItem` and accumulates results. The executor applies effects
 only — it does **not** manage inventory or consume item counts.
 
+`IsAlly(User, Target)` (resolved via `UTurnManager::GetActorTeam`) lets handlers branch
+buff-vs-debuff (Amber, Opal) or cleanse-vs-strip (Iolite).
+
 ### ECrystalType — the 10 crystals
 
 | Crystal | Element | Effect role |
 |---|---|---|
-| Garnet | Fire | Damage |
-| Sapphire | Water | Healing |
+| Garnet | Fire | Fire DOT |
+| Sapphire | Water | Healing / revive |
 | Citrine | Lightning | Energy restore |
-| Emerald | Wind | Speed buff |
-| Amber | Earth | Defense buff |
-| Opal | Light | Crit buff / info reveal |
-| Onyx | Darkness | Silence |
+| Emerald | Wind | Turn-speed buff / extra turn |
+| Amber | Earth | Defense buff / debuff |
+| Opal | Light | Crit buff / debuff |
+| Onyx | Darkness | Silence (energy-lock / binary) |
 | Amethyst | Void | Gamble (random buff/debuff) |
-| Iolite | Reality | Cleanse |
-| Quartz | Generic | Status clear (consumable-only) |
+| Iolite | Reality | Cleanse / strip |
+| Quartz | Generic | Status-bar clear + elemental protection |
 
 `ECrystalType::Quartz` is the last enum value — `ItemDataDebug` loops iterate up to it.
 
@@ -74,164 +78,145 @@ value tables and gates S-rank specials.
 
 ## Crystal Behaviour
 
-> **Phase 2 of `feature/item-system-redesign` will replace the current flat values with the
-> percentage-based design below.** Until then the flat tables are authoritative in code.
-
-Tier order in all tables: **F / E / D / C / B / A / S**.
-
-### Current Implementation (flat values)
+All crystal values are **percentage-based** (the redesign is shipped). Tier order in every
+table: **F / E / D / C / B / A / S**.
 
 | Crystal | Metric | F | E | D | C | B | A | S |
 |---|---|---|---|---|---|---|---|---|
-| Garnet | Damage | 60 | 75 | 95 | 120 | 150 | 180 | 220 |
-| Sapphire | Heal | 60 | 75 | 95 | 120 | 150 | 180 | 220 |
-| Citrine | Energy restore | 20 | 25 | 35 | 45 | 60 | 80 | 100 |
-| Citrine | HP cost | 10 | 10 | 10 | 15 | 15 | 20 | 25 |
-| Emerald | Speed buff % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
-| Amber | Defense buff % | 15 | 20 | 25 | 30 | 35 | 40 | 50 |
-| Opal | Crit buff % | 5 | 8 | 10 | 12 | 15 | 18 | 20 |
-| Emerald/Amber/Opal | Buff duration | 3 | 3 | 4 | 4 | 5 | 5 | 6 |
-| Onyx | Silence % | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
-| Onyx | Silence duration | 1 | 1 | 2 | 2 | 2 | 3 | 1 |
-| Iolite | Debuffs removed | 1 | 1 | 2 | 2 | 3 | 3 | 0* |
-| Iolite | Immunity duration | 1 | 2 | 1 | 2 | 2 | 3 | 0 |
-
-- Garnet S adds a burn DOT: 15 damage/turn for 3 turns (flat, S-tier only).
-- \* Iolite S `GetDebuffsToRemove()` returns 0 (intended "remove all") — currently broken, see Known Limitations.
-- Amethyst has no flat value table — gamble magnitude reads `GetBuffPercentage()`, which returns 0 for Amethyst (see Known Limitations).
-- Quartz had a flat transform-threshold table (200→750); the transform system and its getter were removed on `feature/item-system-redesign`.
-
-### Designed Values — Pending Phase 2 (percentage based)
-
-| Crystal | Metric | F | E | D | C | B | A | S |
-|---|---|---|---|---|---|---|---|---|
-| Garnet | DOT damage %/turn | 5 | 7 | 9 | 12 | 16 | 20 | 30 |
-| Garnet | DOT duration | 3 | 3 | 3 | 2 | 2 | 2 | 1 |
-| Sapphire | Heal % of max HP | 15 | 20 | 25 | 30 | 35 | 45 | 60 |
-| Citrine | EP restore % of max EP | 30 | 40 | 50 | 60 | 70 | 85 | 100 |
-| Citrine | Lightning buildup % | 15 | 20 | 30 | 40 | 55 | 70 | 70 |
-| Emerald | Speed buff % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
-| Emerald | Duration | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Garnet | DOT damage %/turn (of target MaxHP) | 5 | 7 | 9 | 12 | 16 | 20 | 30 |
+| Garnet | DOT duration (turns) | 3 | 3 | 3 | 2 | 2 | 2 | 1 |
+| Sapphire | Heal % of MaxHP | 15 | 20 | 25 | 30 | 35 | 45 | 60 |
+| Citrine | EP restore % of MaxEP | 30 | 40 | 50 | 60 | 70 | 85 | 100 |
+| Emerald | Turn-speed buff % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 | Amber | Defense buff/debuff % | 15 | 20 | 25 | 30 | 35 | 40 | 50 |
-| Amber | Duration | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
 | Opal | Crit buff/debuff % | 5 | 8 | 10 | 12 | 15 | 18 | 25 |
-| Opal | Duration | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
-| Onyx | Silence % | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
-| Onyx | Duration | 3 | 3 | 2 | 2 | 2 | 1 | 1 |
-| Amethyst | Buff/debuff % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
-| Amethyst | Duration | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Emerald/Amber/Opal | Duration — `GetCrystalDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Onyx | Silence % (energy-lock) | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
+| Onyx | Energy-lock duration, F–A — `GetSilenceDurationNew` | 3 | 3 | 2 | 2 | 2 | 1 | — |
+| Amethyst | Buff/debuff magnitude % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 | Amethyst | Buff chance % | 10 | 20 | 30 | 40 | 50 | 60 | 70 |
-| Iolite | Debuffs/buffs removed | 1 | 1 | 2 | 2 | 3 | 3 | 99 |
-| Iolite | Immunity duration | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Amethyst | Duration — `GetGambleDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Iolite | Effects removed (99 = all) | 1 | 1 | 2 | 2 | 3 | 3 | 99 |
 | Quartz | Status bar cleared % | 25 | 35 | 45 | 55 | 65 | 80 | 100 |
-| Quartz | Resistance duration | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Quartz | Resistance duration — `GetResistanceDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Garnet/Citrine/Onyx/Amethyst | Elemental buildup % — `GetElementalBuildupPercent` | 10 | 15 | 20 | 30 | 40 | 50 | 60 |
 
-Designed mechanic changes vs current: Citrine drops its HP cost; Garnet becomes a pure DOT;
-Quartz becomes an enemy status-bar cleaner; Amethyst gains an explicit buff-chance roll;
-Iolite S uses `99` as the remove-all sentinel (fixing the current bug).
+Notes:
+- **Status buildup** — Garnet (Fire), Citrine (Lightning), Onyx (Darkness) and Amethyst
+  (Void) each add status-bar buildup on use via the shared `GetElementalBuildupPercent`
+  table. Buildup amount = `BarMax × percent / 100` (Garnet uses target MaxHP as the base).
+- **Onyx S-rank** does not use the energy-lock duration table — it applies a binary
+  `Silenced` effect for 1 turn (see S-Rank Specials).
+- **Citrine** no longer has an HP cost. **Iolite** no longer grants immunity.
 
 ## Targeting Rules
 
-| Crystal | Target |
-|---|---|
-| Garnet | Enemy |
-| Sapphire | Ally or self |
-| Citrine | Self only — handler uses `User`, ignores `Target` |
-| Emerald | Ally or self |
-| Amber | Ally or self |
-| Opal | Ally or self (S-rank reveal reads the enemy) |
-| Onyx | Enemy |
-| Amethyst | Self — gamble applies to `User` |
-| Iolite | Ally or self |
-| Quartz | Enemy (designed — clears the target's status bar) |
+Every crystal returns `ETargetType::SingleAnyone` from `UItemData::GetItemTargetType()` —
+any living combatant (ally or enemy) is a legal target, for tactical flexibility. The
+command menu's `Item` case reads `GetItemTargetType()` directly; the old Quartz `Self`
+special-case is gone.
 
-`UseItem` defaults a null `Target` to `User`, so self-target crystals work without an
-explicit target.
+The `SingleAnyone` target picker groups its buttons into two labelled sections —
+**Allies** and **Enemies** — using `EPieMenuCategory::SectionHeader` rows
+(`MakeSectionHeaderButton`). Section-header rows are force-disabled and non-clickable.
+
+Handlers that care about ally-vs-enemy resolve it at execution time via
+`UItemExecutor::IsAlly` (Amber → buff/debuff, Opal → buff/debuff, Iolite → cleanse/strip).
 
 ## S-Rank Specials
 
-### Implemented
+Final implemented S-rank behaviour for all 10 crystals:
 
-- **Garnet S** — only tier with a secondary effect: burn DOT (15/turn × 3 turns).
-- **Opal S** — flags enemy HP + stat reveal (`GetRevealsHP` / `GetRevealsStats`); the reveal
-  broadcast itself is an unimplemented `// TODO` in `ExecuteCritBuffEffect`.
-- **Onyx S** — 100% silence (full energy lock vs partial lock at lower tiers); duration drops to 1.
-- **Iolite S** — intended to remove all debuffs (currently broken — see Known Limitations).
-
-### Designed (Phase 2)
-
-- **Sapphire S** — revive a dead target at 30% HP.
-- **Emerald S** — grant an extra turn instead of the speed buff.
-- **Iolite S** — debuffs-removed becomes `99` (remove-all sentinel), fixing the bug below.
+- **Garnet S** — DOT at 30%/turn for **1 turn** (a hard single-turn burst vs the long low-tier burn).
+- **Sapphire S** — revives a **dead** target at 30% MaxHP via `ServerResurrect`; heals a living target for 60% MaxHP.
+- **Citrine S** — restores 100% of target MaxEP; adds 60% Lightning buildup (shared table).
+- **Emerald S** — grants the target an **immediate extra turn** via `UTurnManager::RequestExtraTurn`, instead of the turn-speed buff.
+- **Amber S** — 50% defense buff (ally) or debuff (enemy).
+- **Opal S** — 25% crit buff (ally) or debuff (enemy). *(A stat-reveal special is designed but unimplemented — see TODOs.)*
+- **Onyx S** — applies the binary `ESkillEffectType::Silenced` effect (full spell lockout) for 1 turn, instead of the F–A percentage energy-lock.
+- **Amethyst S** — 70% buff chance, 40% magnitude.
+- **Iolite S** — removes **all** debuffs (ally) or **all** buffs (enemy) — the `99` sentinel.
+- **Quartz S** — clears 100% of the status bar and grants full elemental **immunity**
+  (`GrantXxxImmunity`) for the pending element, instead of the F–A `ResistanceBuff`.
 
 ## Integration Points
 
 ### → SkillEffectManager (`UGameInstanceSubsystem`)
 
-`UItemExecutor::GetSkillEffectManager()` lazily fetches and caches the subsystem. The buff,
-debuff, silence, gamble, cleanse, Generic-resistance and Garnet-burn handlers each build an
-`FActiveSkillEffect` and call `SkillEffectManager->ApplyEffect(Target, Effect, Source,
-SourceName, SourceTeam)`. Cleanse additionally calls `RemoveAllDebuffs`, `RemoveEffectByID`
-and `GetDebuffCount`.
+`UItemExecutor::GetSkillEffectManager()` lazily fetches and caches the subsystem. Buff/
+debuff/silence/gamble handlers build an `FActiveSkillEffect` and call
+`ApplyEffect(Target, Effect, Source, SourceName, SourceTeam)`. Iolite uses
+`GetActiveEffects` + `IsBuff()/IsDebuff()` + `RemoveEffectByID`. Quartz uses
+`CreateBuff` with `ResistanceBuff` / `GrantXxxImmunity`.
 
 ### → StatusBuildupManager (`UGameInstanceSubsystem`)
 
-**Not currently connected.** `UItemExecutor` holds no reference to `StatusBuildupManager`.
-The Phase 2 designed mechanics — Citrine's lightning buildup and Quartz's status-bar clear
-— will require this integration; it does not exist yet.
+Now connected. `UItemExecutor` reaches it via `GetGameInstance()->GetSubsystem<…>()`:
+- `AddStatusBuildup(Source, Target, Amount, Element, PhysicalType)` — Garnet (Fire),
+  Citrine (Lightning), Onyx (Darkness), Amethyst (Void).
+- **`ReduceStatusBuildup(Target, Fraction)`** — *new* function added for Quartz; reduces
+  the bar by a 0–1 fraction.
+- `GetStatusBarBuildup` / `GetBuildupToTrigger` — used to derive `BarMax` for buildup sizing.
+- `GetPendingElement` — Quartz reads it to choose which element to resist/immunise.
+
+**Elemental-buildup pattern** — the status-building crystals share an inline pattern (not
+a single helper function): compute `BarMax = GetStatusBarBuildup + GetBuildupToTrigger`,
+then `AddStatusBuildup(…, BarMax × GetElementalBuildupPercent()/100, <element>, None)`.
 
 ### → CharacterDataComponent (`UActorComponent`)
 
-`GetCharacterDataComponent(Actor)` resolves via `FindComponentByClass`. Damage/heal/energy
-handlers call `ServerTakeDamage`, `ServerHeal`, `ServerGainEnergy` and read `CurrentHP` /
-`CurrentEP`. `GetCharacterData()->InnateElement` drives the Generic-class resistance bonus
-and the Broken-Darkness energy bonus applied to every item use.
+`GetCharacterDataComponent(Actor)` resolves via `FindComponentByClass`. Handlers call
+`ServerTakeDamage`, `ServerHeal`, `ServerGainEnergy`, `ServerResurrect`, and read
+`CurrentHP/CurrentEP`, `MaxHP/MaxEP`, `bIsAlive`. Class checks use
+`CharacterData->CharacterClass` (Generic) and `IsBrokenDarkness()` (catches
+runtime-transformed BD).
 
-### OnItemUsed delegate
+### → TurnManager (`UGameInstanceSubsystem`)
 
-`DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemUsed, AActor* User, UItemData* Item,
-const FItemUseResult& Result)` — broadcast at the end of every successful `UseItem`. UI and
-listeners bind to it for feedback. `OnGambleResult` is a second delegate for Amethyst
-outcomes. `FOnQuartzTransformed` was removed with the transform system.
+`RequestExtraTurn` (Emerald S) and `GetActorTeam` (the `IsAlly` helper).
+
+### → CombatCommandMenuSubsystem (`UGameInstanceSubsystem`)
+
+The command menu's `Item` selection reads `UItemData::GetItemTargetType()` to open the
+target picker, and renders `EPieMenuCategory::SectionHeader` rows in the `SingleAnyone`
+picker.
+
+### Delegates
+
+`OnItemUsed(User, Item, Result)` broadcasts at the end of every successful `UseItem`.
+`OnGambleResult` is a second delegate for Amethyst outcomes. `FOnQuartzTransformed` was
+removed with the transform system.
 
 ## Known Limitations / TODOs
 
-### Phase 2 — pending implementation
-
-- **`ExecuteStatusClearEffect` does not exist.** Quartz returns `EItemEffectType::StatusClear`
-  from `GetPrimaryEffectType()`, but `UseItem`'s switch has no handler — using a Quartz item
-  hits `default` and returns `"Unknown item effect type"`.
-- Percentage-based crystal values (see Crystal Behaviour) replace the flat tables, including
-  new getters (`GetDOTDamagePercent`, `GetHealPercent`, `GetEPRestorePercent`,
-  `GetLightningBuildupPercent`, `GetBuffChancePercent`, `GetStatusClearPercent`, …).
-- Citrine lightning buildup + Quartz status-bar clear require `StatusBuildupManager` wiring.
-- Sapphire S revive and Emerald S extra-turn specials.
-
-### Existing bugs / placeholders
-
-- **Amethyst gamble magnitude is 0** — `ExecuteGambleEffect` reads `GetBuffPercentage()`,
-  which has no Amethyst case and returns 0; every gamble applies a 0-magnitude effect.
-- **Iolite S removes 0 debuffs** — `GetDebuffsToRemove()` returns 0 for S-tier (meant as
-  "all"), but `ExecuteCleanseEffect` only triggers remove-all on `>= 99`. Phase 2 sets it to 99.
-- **Onyx silence** uses `ESkillEffectType::EnergyDrain` as a placeholder — no real silence type.
-- **Opal S reveal** is a `// TODO` log line; no reveal event is broadcast to UI.
-- **Cleanse immunity** is applied as a 100% `ResistanceBuff` pseudo-immunity (no dedicated
-  debuff-immunity effect type exists).
-- Self-targeted buff items with duration 1 expire at the end of the casting turn (effect
-  durations tick down at the end of the affected actor's own turn), giving no benefit —
-  designers must tune self-buff durations to ≥ 2.
-
-### Phase 3 — further out
-
+- **BP styling for `SectionHeader` buttons (pinned).** The `EPieMenuCategory::SectionHeader`
+  rows are functional (force-disabled, non-clickable) but need a distinct Blueprint visual
+  style so they read as headers rather than dimmed buttons.
+- **Opal S-rank stat reveal unimplemented.** `ExecuteCritBuffEffect` carries a
+  `// TODO: S-rank stat reveal — implement in UI pass`; no reveal event is broadcast.
+- **Dead-code cleanup pending.** The redesign orphaned several getters/helpers. Genuinely
+  dead (zero callers): `UItemExecutor::ApplySecondaryEffect`, `UItemExecutor::IsGenericCharacter`,
+  `UItemExecutor::GetCharacterData`, `UItemData::GetLightningBuildupPercent`,
+  `ItemConstants::GENERIC_RESISTANCE_*` / `GENERIC_DURATION_*`, `FItemUseResult::GenericResistanceApplied`.
+  A second tier of pre-redesign getters (`GetDamageValue`, `GetEnergyValue`, `GetSelfDamage`,
+  `GetBuffDuration`, `GetDebuffsToRemove`, `GetGrantsImmunity`, `GetImmunityDuration`,
+  `HasSecondaryEffect`, `GetSecondaryDamagePerTurn`, `GetSecondaryDuration`,
+  `GetSilenceDuration`) has no gameplay callers but is still referenced by the editor
+  `Display*` mirrors and `ItemDataDebug` — removing them needs those scaffolds cleaned too.
 - **Item inventory / consumption.** `UItemExecutor` applies effects but never decrements
   item counts or checks ownership — inventory wiring is unbuilt.
-- Full Quartz `StatusClear` mechanic, including `StatusBuildupManager` integration.
+- Self-targeted buff items with duration 1 expire at the end of the casting turn (effect
+  durations tick at the end of the affected actor's own turn) — designers must tune
+  self-buff durations to ≥ 2.
 
 ## Changelog
 
 | Date | Change | Branch |
 |------|--------|--------|
-| 2026-05-17 | Quartz transform system removed, StatusClear added | feature/item-system-redesign |
-| 2026-05-17 | ReduceDamageTaken/IncreaseDamageTaken split | feature/item-system-redesign |
-| 2026-05-17 | IsDebuff() fixed for 8 misclassified types | feature/item-system-redesign |
+| 2026-05-17 | Phase 1 — `ModifyDamageTaken` split into `ReduceDamageTaken` / `IncreaseDamageTaken` | feature/item-system-redesign |
+| 2026-05-17 | Phase 1 — `IsDebuff()` fixed for 8 misclassified effect types | feature/item-system-redesign |
+| 2026-05-17 | Quartz transform system removed, `StatusClear` added | feature/item-system-redesign |
 | 2026-05-17 | Quartz consumable-only restriction added | feature/item-system-redesign |
+| 2026-05-17 | Garnet redesign — percentage-based fire DOT | feature/item-system-redesign |
+| 2026-05-17 | Phase 2 — bulk crystal redesign (Sapphire–Quartz); percentage values; `ExecuteStatusClearEffect`; `ReduceStatusBuildup`; shared elemental buildup | feature/item-system-redesign |
+| 2026-05-17 | Phase 3 — class-detection fixes; `ApplyGenericBonus` removed; BD absorption fires on target; `GetItemTargetType` + `SingleAnyone` targeting with section headers | feature/item-system-redesign |

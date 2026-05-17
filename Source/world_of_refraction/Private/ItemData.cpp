@@ -334,33 +334,6 @@ float UItemData::GetEPRestorePercent() const
     }
 }
 
-float UItemData::GetLightningBuildupPercent() const
-{
-    if (CrystalType != ECrystalType::Citrine)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 15.0f;
-    case EItemTier::E_Tier:
-        return 20.0f;
-    case EItemTier::D_Tier:
-        return 30.0f;
-    case EItemTier::C_Tier:
-        return 40.0f;
-    case EItemTier::B_Tier:
-        return 55.0f;
-    case EItemTier::A_Tier:
-        return 70.0f;
-    case EItemTier::S_Tier:
-        return 70.0f;
-    default:
-        return 0.0f;
-    }
-}
-
 float UItemData::GetSpeedBuffPercent() const
 {
     if (CrystalType != ECrystalType::Emerald)
