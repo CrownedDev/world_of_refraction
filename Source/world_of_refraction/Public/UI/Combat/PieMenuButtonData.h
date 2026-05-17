@@ -57,7 +57,10 @@ enum class EPieMenuCategory : uint8
 	Target UMETA(DisplayName = "Target"),				   // A combat target (actor) in the target selection grid
 
 	// Navigation
-	Back UMETA(DisplayName = "Back") // Navigate back
+	Back UMETA(DisplayName = "Back"), // Navigate back
+
+	// Non-interactive
+	SectionHeader UMETA(DisplayName = "Section Header") // Label-only divider in a button list
 };
 
 /**
@@ -231,6 +234,20 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 		Button.Description = FText::FromString(TEXT("Return to previous menu"));
 		Button.Category = EPieMenuCategory::Back;
 		Button.bEnabled = true;
+		return Button;
+	}
+
+	/** Create a non-interactive section header — a label-only divider in a button
+	 *  list (e.g. "Allies" / "Enemies"). Always disabled; never routes a selection. */
+	static FPieMenuButtonData MakeSectionHeaderButton(const FString &InID, const FText &InLabel,
+													  const FLinearColor &InTint)
+	{
+		FPieMenuButtonData Button;
+		Button.ButtonID = InID;
+		Button.DisplayName = InLabel;
+		Button.Category = EPieMenuCategory::SectionHeader;
+		Button.ButtonTint = InTint;
+		Button.bEnabled = false;
 		return Button;
 	}
 };

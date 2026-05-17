@@ -178,6 +178,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::SpeedBuff:
         // Phase 2 passive-layer buffs
         case ESkillEffectType::ModifyDamageDealt:
+        case ESkillEffectType::ReduceDamageTaken:
         case ESkillEffectType::ModifyHealing:
         case ESkillEffectType::ModifyCritChance:
         case ESkillEffectType::ModifyCritDamage:
@@ -237,8 +238,20 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::LuckDebuff:
         case ESkillEffectType::DamageDebuff:
         case ESkillEffectType::SpeedDebuff:
+        // Misclassified detrimental types — item-system-redesign Phase 1.
+        // These are clearly negative status effects and must count as debuffs:
+        // cleanse targeting, GetDebuffCount, and AI threat scoring all rely on
+        // IsDebuff() to recognise them.
+        case ESkillEffectType::Stun:
+        case ESkillEffectType::Silenced:
+        case ESkillEffectType::HealBlock:
+        case ESkillEffectType::SkipTurn:
+        case ESkillEffectType::DOT:
+        case ESkillEffectType::CritDebuff:
+        case ESkillEffectType::EnergyDebuff:
+        case ESkillEffectType::SelfDamage:
         // Phase 2 passive-layer debuffs
-        case ESkillEffectType::ModifyDamageTaken:
+        case ESkillEffectType::IncreaseDamageTaken:
         case ESkillEffectType::ModifyEnergyCost:
         case ESkillEffectType::ModifyTurnSpeed:
         case ESkillEffectType::ModifyStatusResist:

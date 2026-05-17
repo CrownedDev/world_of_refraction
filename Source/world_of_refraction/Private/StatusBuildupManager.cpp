@@ -377,6 +377,30 @@ void UStatusBuildupManager::ResetStatusBar(AActor *Target)
 	}
 }
 
+void UStatusBuildupManager::ReduceStatusBuildup(AActor *Target, float Fraction)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	FStatusBarState *State = StatusBarStates.Find(Target);
+	if (!State)
+	{
+		return;
+	}
+
+	Fraction = FMath::Clamp(Fraction, 0.0f, 1.0f);
+	State->CurrentBuildup = FMath::Max(0.0f, State->CurrentBuildup * (1.0f - Fraction));
+
+	// PendingElement passthrough — UI keeps the current tint while the bar drops.
+	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement);
+
+	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup reduced by %.0f%% -> %.1f"),
+		   *Target->GetName(), Fraction * 100.0f, State->CurrentBuildup);
+}
+
 void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 {
 	if (!Target)

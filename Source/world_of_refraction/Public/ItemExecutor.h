@@ -7,78 +7,13 @@
 #include "ActionStructs.h"
 #include "ItemEffectType.h"
 #include "ESpellElement.h"
+#include "ESkillEffectType.h"
 #include "ItemExecutor.generated.h"
 
 class UItemData;
 class UCharacterDataComponent;
 class UCharacterData;
 class USkillEffectManager;
-
-// ========================================
-// QUARTZ TRANSFORM TRACKING
-// ========================================
-
-/**
- * Tracks elemental damage absorbed by Quartz crystals
- * Used to determine transformation result
- */
-USTRUCT(BlueprintType)
-struct FQuartzAbsorptionState
-{
-	GENERATED_BODY()
-
-	/** Damage absorbed per element */
-	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	TMap<ESpellElement, float> AbsorbedDamage;
-
-	/** Total damage absorbed */
-	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	float TotalAbsorbed = 0.0f;
-
-	/** Transformation threshold (from item tier) */
-	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	float TransformThreshold = 100.0f;
-
-	/** Has transformation occurred? */
-	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	bool bHasTransformed = false;
-
-	/** Resulting element after transformation */
-	UPROPERTY(BlueprintReadOnly, Category = "Quartz")
-	ESpellElement TransformedElement = ESpellElement::Generic;
-
-	void AbsorbDamage(ESpellElement Element, float Amount)
-	{
-		// Don't absorb Generic or BrokenDarkness
-		if (Element == ESpellElement::Generic || Element == ESpellElement::BrokenDarkness)
-			return;
-
-		float &Current = AbsorbedDamage.FindOrAdd(Element);
-		Current += Amount;
-		TotalAbsorbed += Amount;
-	}
-
-	ESpellElement GetDominantElement() const
-	{
-		ESpellElement Dominant = ESpellElement::Generic;
-		float MaxDamage = 0.0f;
-
-		for (const auto &Pair : AbsorbedDamage)
-		{
-			if (Pair.Value > MaxDamage)
-			{
-				MaxDamage = Pair.Value;
-				Dominant = Pair.Key;
-			}
-		}
-		return Dominant;
-	}
-
-	bool CanTransform() const
-	{
-		return !bHasTransformed && TotalAbsorbed >= TransformThreshold;
-	}
-};
 
 /**
  * FItemUseResult
@@ -134,13 +69,6 @@ struct WORLD_OF_REFRACTION_API FItemUseResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Gamble")
 	FString GambleOutcome;
-
-	// Quartz results
-	UPROPERTY(BlueprintReadOnly, Category = "Result|Quartz")
-	bool bQuartzTransformed = false;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Result|Quartz")
-	ESpellElement QuartzNewElement = ESpellElement::Generic;
 };
 
 // ========================================
@@ -148,7 +76,6 @@ struct WORLD_OF_REFRACTION_API FItemUseResult
 // ========================================
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemUsed, AActor *, User, UItemData *, Item, const FItemUseResult &, Result);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnQuartzTransformed, AActor *, Owner, ESpellElement, NewElement, UItemData *, Item);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGambleResult, AActor *, User, bool, bWon, const FString &, Outcome);
 
 /**
@@ -161,7 +88,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGambleResult, AActor *, User, 
  * - Citrine self-damage
  * - S-tier secondary effects (burn DOT)
  * - Amethyst gambling
- * - Quartz transformation tracking
  * - Iolite tiered cleansing
  *
  * Usage:
@@ -195,49 +121,6 @@ public:
 	FItemUseResult UseItemMultiTarget(AActor *User, UItemData *Item, const TArray<AActor *> &Targets);
 
 	// ========================================
-	// QUARTZ SYSTEM
-	// ========================================
-
-	/**
-	 * Register a Quartz crystal for transformation tracking
-	 * Call when Quartz is equipped
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	void RegisterQuartz(AActor *Owner, UItemData *QuartzItem);
-
-	/**
-	 * Unregister Quartz (unequipped or transformed)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	void UnregisterQuartz(AActor *Owner);
-
-	/**
-	 * Notify Quartz of incoming elemental damage
-	 * Called by damage system when owner takes elemental damage
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	void NotifyQuartzDamage(AActor *Owner, ESpellElement Element, float Damage);
-
-	/**
-	 * Check if actor has Quartz that can transform
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	bool CanQuartzTransform(AActor *Owner) const;
-
-	/**
-	 * Force Quartz transformation (if threshold met)
-	 * Returns the new element, or None if cannot transform
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	ESpellElement TransformQuartz(AActor *Owner);
-
-	/**
-	 * Get current Quartz absorption state
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Quartz")
-	FQuartzAbsorptionState GetQuartzState(AActor *Owner) const;
-
-	// ========================================
 	// EVENTS
 	// ========================================
 
@@ -245,17 +128,7 @@ public:
 	FOnItemUsed OnItemUsed;
 
 	UPROPERTY(BlueprintAssignable, Category = "Item Executor|Events")
-	FOnQuartzTransformed OnQuartzTransformed;
-
-	UPROPERTY(BlueprintAssignable, Category = "Item Executor|Events")
 	FOnGambleResult OnGambleResult;
-
-	// ========================================
-	// DEBUG
-	// ========================================
-
-	UFUNCTION(BlueprintCallable, Category = "Item Executor|Debug", CallInEditor)
-	void DebugPrintQuartzStates() const;
 
 private:
 	// ========================================
@@ -268,8 +141,8 @@ private:
 	/** Sapphire - Healing */
 	void ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
-	/** Citrine - Energy restore with self-damage */
-	void ExecuteEnergyRestoreEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult);
+	/** Citrine - restore target EP %, apply Lightning buildup to the user */
+	void ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Emerald - Speed buff */
 	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
@@ -286,21 +159,19 @@ private:
 	/** Amethyst - Gamble (random effect) */
 	void ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
-	/** Iolite - Cleanse (tiered removal + immunity) */
+	/** Iolite - Cleanse (ally: remove debuffs / enemy: remove buffs) */
 	void ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
-	/** Quartz - Transform (passive, this just activates it) */
-	void ExecuteTransformEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult);
+	/** Quartz - StatusClear (reduce target status bar + grant elemental resistance) */
+	void ExecuteStatusClearEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	// ========================================
 	// BONUS HANDLERS
 	// ========================================
 
-	/** Apply Generic character resistance bonus */
-	void ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult);
-
-	/** Apply Broken Darkness energy bonus */
-	void ApplyBrokenDarknessBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult);
+	/** Apply Broken Darkness energy absorption — Target is the BD character a
+	 *  crystal was used on; it absorbs EP scaled by the crystal's tier. */
+	void ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Apply S-tier secondary effects (burn DOT) */
 	void ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult);
@@ -315,15 +186,16 @@ private:
 	bool IsGenericCharacter(AActor *Actor) const;
 	bool IsBrokenDarknessCharacter(AActor *Actor) const;
 
+	/** True if User and Target are on the same team (resolved via UTurnManager). */
+	bool IsAlly(AActor *User, AActor *Target) const;
+
+	/** Map an element to its GrantXxxImmunity effect type (None for Generic/BrokenDarkness).
+	 *  Mirrors UStatusBuildupManager's private resolver, which UItemExecutor cannot reach. */
+	static ESkillEffectType GetElementImmunityType(ESpellElement Element);
+
 	// ========================================
 	// STATE
 	// ========================================
-
-	/** Quartz absorption tracking per actor */
-	TMap<TWeakObjectPtr<AActor>, FQuartzAbsorptionState> QuartzStates;
-
-	/** Quartz item references */
-	TMap<TWeakObjectPtr<AActor>, TWeakObjectPtr<UItemData>> QuartzItems;
 
 	/** Cached SkillEffectManager */
 	UPROPERTY()

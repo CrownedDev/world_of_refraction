@@ -79,12 +79,6 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
     }
 
     // Check tier bonuses are positive
-    if (Item->GetGenericResistanceBonus() <= 0.0f)
-    {
-        Errors.Add(TEXT("Zero or negative Generic resistance"));
-        bValid = false;
-    }
-
     if (Item->GetBrokenDarknessEnergyBonus() <= 0)
     {
         Errors.Add(TEXT("Zero or negative BD energy bonus"));
@@ -150,9 +144,9 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
         break;
 
     case ECrystalType::Quartz:
-        if (Item->GetTransformThreshold() <= 0)
+        if (Item->bIsRefined || Item->bIsEvolutionCrystal)
         {
-            Errors.Add(TEXT("Zero transform threshold"));
+            Errors.Add(TEXT("Quartz must be consumable-only (not refined or evolution)"));
             bValid = false;
         }
         break;
@@ -224,7 +218,6 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Debuffs Removed: %d (0=all)"), Item->GetDebuffsToRemove());
     UE_LOG(LogTemp, Display, TEXT("Grants Immunity: %s"), Item->GetGrantsImmunity() ? TEXT("Yes") : TEXT("No"));
     UE_LOG(LogTemp, Display, TEXT("Immunity Duration: %d turns"), Item->GetImmunityDuration());
-    UE_LOG(LogTemp, Display, TEXT("Transform Threshold: %d"), Item->GetTransformThreshold());
     UE_LOG(LogTemp, Display, TEXT(""));
 
     // Secondary effects
@@ -239,8 +232,6 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
 
     // Bonuses
     UE_LOG(LogTemp, Display, TEXT("--- Tier Bonuses ---"));
-    UE_LOG(LogTemp, Display, TEXT("Generic Resistance: %.1f%% for %d turns"),
-           Item->GetGenericResistanceBonus(), Item->GetGenericResistanceDuration());
     UE_LOG(LogTemp, Display, TEXT("BD Energy Bonus: +%d"), Item->GetBrokenDarknessEnergyBonus());
     UE_LOG(LogTemp, Display, TEXT(""));
 }
@@ -324,7 +315,7 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
                 break;
 
             case ECrystalType::Quartz:
-                ValueStr = FString::Printf(TEXT("%d absorption threshold"), TestItem->GetTransformThreshold());
+                ValueStr = TEXT("Status clear (pending redesign)");
                 break;
             }
 
@@ -367,11 +358,6 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
                 UE_LOG(LogTemp, Display, TEXT("  WARNING: No Evolution assigned!"));
             }
         }
-        else if (Item->CrystalType == ECrystalType::Quartz)
-        {
-            UE_LOG(LogTemp, Display, TEXT("Special: QUARTZ (absorbs element from attacks)"));
-            UE_LOG(LogTemp, Display, TEXT("  Transform Threshold: %d damage"), Item->GetTransformThreshold());
-        }
         else if (Item->CrystalType == ECrystalType::Iolite)
         {
             UE_LOG(LogTemp, Display, TEXT("Special: IOLITE (Reality element, physical enhancement)"));
@@ -408,23 +394,6 @@ void UItemDataDebug::LogTierBonuses()
 {
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("========== TIER-BASED BONUSES =========="));
-    UE_LOG(LogTemp, Display, TEXT(""));
-    UE_LOG(LogTemp, Display, TEXT("--- Generic Character Resistance Bonus ---"));
-
-    for (int32 TierIndex = 0; TierIndex <= static_cast<int32>(EItemTier::S_Tier); ++TierIndex)
-    {
-        EItemTier Tier = static_cast<EItemTier>(TierIndex);
-        UItemData *TestItem = CreateTestItem(ECrystalType::Garnet, Tier);
-
-        if (TestItem)
-        {
-            UE_LOG(LogTemp, Display, TEXT("  %s: %.0f%% resistance for %d turns"),
-                   *GetTierName(Tier),
-                   TestItem->GetGenericResistanceBonus(),
-                   TestItem->GetGenericResistanceDuration());
-        }
-    }
-
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("--- Broken Darkness Energy Bonus ---"));
 
@@ -631,7 +600,7 @@ float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
         return static_cast<float>(Item->GetDebuffsToRemove());
 
     case ECrystalType::Quartz:
-        return static_cast<float>(Item->GetTransformThreshold());
+        return 0.0f;
 
     default:
         return 0.0f;

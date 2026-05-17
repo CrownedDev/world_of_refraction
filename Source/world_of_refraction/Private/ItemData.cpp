@@ -122,52 +122,6 @@ ESpellElement UItemData::GetAssociatedElement() const
     }
 }
 
-float UItemData::GetGenericResistanceBonus() const
-{
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_F;
-    case EItemTier::E_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_E;
-    case EItemTier::D_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_D;
-    case EItemTier::C_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_C;
-    case EItemTier::B_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_B;
-    case EItemTier::A_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_A;
-    case EItemTier::S_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_S;
-    default:
-        return 0.0f;
-    }
-}
-
-int32 UItemData::GetGenericResistanceDuration() const
-{
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return ItemConstants::GENERIC_DURATION_F;
-    case EItemTier::E_Tier:
-        return ItemConstants::GENERIC_DURATION_E;
-    case EItemTier::D_Tier:
-        return ItemConstants::GENERIC_DURATION_D;
-    case EItemTier::C_Tier:
-        return ItemConstants::GENERIC_DURATION_C;
-    case EItemTier::B_Tier:
-        return ItemConstants::GENERIC_DURATION_B;
-    case EItemTier::A_Tier:
-        return ItemConstants::GENERIC_DURATION_A;
-    case EItemTier::S_Tier:
-        return ItemConstants::GENERIC_DURATION_S;
-    default:
-        return 0;
-    }
-}
-
 int32 UItemData::GetBrokenDarknessEnergyBonus() const
 {
     switch (Tier)
@@ -189,6 +143,14 @@ int32 UItemData::GetBrokenDarknessEnergyBonus() const
     default:
         return 0;
     }
+}
+
+// ==================== TARGETING ====================
+
+ETargetType UItemData::GetItemTargetType() const
+{
+    // All crystals can target anyone for tactical flexibility.
+    return ETargetType::SingleAnyone;
 }
 
 // ==================== EFFECT TYPE ====================
@@ -216,7 +178,7 @@ EItemEffectType UItemData::GetPrimaryEffectType() const
     case ECrystalType::Iolite:
         return EItemEffectType::Cleanse;
     case ECrystalType::Quartz:
-        return EItemEffectType::Transform;
+        return EItemEffectType::StatusClear;
     default:
         return EItemEffectType::Damage; // Default to damage
     }
@@ -250,6 +212,462 @@ float UItemData::GetDamageValue() const
         }
     }
     return 0.0f;
+}
+
+// ==================== GARNET DOT ====================
+// Phase 2 redesign — Garnet is a percentage-based fire DOT (no instant damage).
+// Damage per turn is a percent of the target's MaxHP; see UItemExecutor::ExecuteDamageEffect.
+
+float UItemData::GetDOTDamagePercent() const
+{
+    if (CrystalType != ECrystalType::Garnet)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 5.0f;
+    case EItemTier::E_Tier:
+        return 7.0f;
+    case EItemTier::D_Tier:
+        return 9.0f;
+    case EItemTier::C_Tier:
+        return 12.0f;
+    case EItemTier::B_Tier:
+        return 16.0f;
+    case EItemTier::A_Tier:
+        return 20.0f;
+    case EItemTier::S_Tier:
+        return 30.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+int32 UItemData::GetDOTDuration() const
+{
+    if (CrystalType != ECrystalType::Garnet)
+    {
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 3;
+    case EItemTier::E_Tier:
+        return 3;
+    case EItemTier::D_Tier:
+        return 3;
+    case EItemTier::C_Tier:
+        return 2;
+    case EItemTier::B_Tier:
+        return 2;
+    case EItemTier::A_Tier:
+        return 2;
+    case EItemTier::S_Tier:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+// ==================== SAPPHIRE HEAL ====================
+// Phase 2 redesign — Sapphire heals a percent of the target's MaxHP.
+// S-tier additionally revives a dead target at 30% MaxHP (see ExecuteHealingEffect).
+
+float UItemData::GetHealPercent() const
+{
+    if (CrystalType != ECrystalType::Sapphire)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 15.0f;
+    case EItemTier::E_Tier:
+        return 20.0f;
+    case EItemTier::D_Tier:
+        return 25.0f;
+    case EItemTier::C_Tier:
+        return 30.0f;
+    case EItemTier::B_Tier:
+        return 35.0f;
+    case EItemTier::A_Tier:
+        return 45.0f;
+    case EItemTier::S_Tier:
+        return 60.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+// ==================== PHASE 2 REDESIGN GETTERS ====================
+// Percentage / duration tables for the Phase 2 crystal redesign. Each guards on
+// its owning crystal type and returns 0 otherwise.
+
+float UItemData::GetEPRestorePercent() const
+{
+    if (CrystalType != ECrystalType::Citrine)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 30.0f;
+    case EItemTier::E_Tier:
+        return 40.0f;
+    case EItemTier::D_Tier:
+        return 50.0f;
+    case EItemTier::C_Tier:
+        return 60.0f;
+    case EItemTier::B_Tier:
+        return 70.0f;
+    case EItemTier::A_Tier:
+        return 85.0f;
+    case EItemTier::S_Tier:
+        return 100.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+float UItemData::GetLightningBuildupPercent() const
+{
+    if (CrystalType != ECrystalType::Citrine)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 15.0f;
+    case EItemTier::E_Tier:
+        return 20.0f;
+    case EItemTier::D_Tier:
+        return 30.0f;
+    case EItemTier::C_Tier:
+        return 40.0f;
+    case EItemTier::B_Tier:
+        return 55.0f;
+    case EItemTier::A_Tier:
+        return 70.0f;
+    case EItemTier::S_Tier:
+        return 70.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+float UItemData::GetSpeedBuffPercent() const
+{
+    if (CrystalType != ECrystalType::Emerald)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 10.0f;
+    case EItemTier::E_Tier:
+        return 15.0f;
+    case EItemTier::D_Tier:
+        return 20.0f;
+    case EItemTier::C_Tier:
+        return 25.0f;
+    case EItemTier::B_Tier:
+        return 30.0f;
+    case EItemTier::A_Tier:
+        return 35.0f;
+    case EItemTier::S_Tier:
+        return 40.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+int32 UItemData::GetCrystalDuration() const
+{
+    switch (CrystalType)
+    {
+    case ECrystalType::Emerald:
+    case ECrystalType::Amber:
+    case ECrystalType::Opal:
+        break;
+    default:
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 4;
+    case EItemTier::E_Tier:
+        return 4;
+    case EItemTier::D_Tier:
+        return 3;
+    case EItemTier::C_Tier:
+        return 3;
+    case EItemTier::B_Tier:
+        return 3;
+    case EItemTier::A_Tier:
+        return 2;
+    case EItemTier::S_Tier:
+        return 2;
+    default:
+        return 0;
+    }
+}
+
+float UItemData::GetCritBuffPercent() const
+{
+    if (CrystalType != ECrystalType::Opal)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 5.0f;
+    case EItemTier::E_Tier:
+        return 8.0f;
+    case EItemTier::D_Tier:
+        return 10.0f;
+    case EItemTier::C_Tier:
+        return 12.0f;
+    case EItemTier::B_Tier:
+        return 15.0f;
+    case EItemTier::A_Tier:
+        return 18.0f;
+    case EItemTier::S_Tier:
+        return 25.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+float UItemData::GetBuffChancePercent() const
+{
+    if (CrystalType != ECrystalType::Amethyst)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 10.0f;
+    case EItemTier::E_Tier:
+        return 20.0f;
+    case EItemTier::D_Tier:
+        return 30.0f;
+    case EItemTier::C_Tier:
+        return 40.0f;
+    case EItemTier::B_Tier:
+        return 50.0f;
+    case EItemTier::A_Tier:
+        return 60.0f;
+    case EItemTier::S_Tier:
+        return 70.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+float UItemData::GetGambleMagnitudePercent() const
+{
+    if (CrystalType != ECrystalType::Amethyst)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 10.0f;
+    case EItemTier::E_Tier:
+        return 15.0f;
+    case EItemTier::D_Tier:
+        return 20.0f;
+    case EItemTier::C_Tier:
+        return 25.0f;
+    case EItemTier::B_Tier:
+        return 30.0f;
+    case EItemTier::A_Tier:
+        return 35.0f;
+    case EItemTier::S_Tier:
+        return 40.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+int32 UItemData::GetGambleDuration() const
+{
+    if (CrystalType != ECrystalType::Amethyst)
+    {
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 4;
+    case EItemTier::E_Tier:
+        return 4;
+    case EItemTier::D_Tier:
+        return 3;
+    case EItemTier::C_Tier:
+        return 3;
+    case EItemTier::B_Tier:
+        return 3;
+    case EItemTier::A_Tier:
+        return 2;
+    case EItemTier::S_Tier:
+        return 2;
+    default:
+        return 0;
+    }
+}
+
+int32 UItemData::GetEffectsToRemoveCount() const
+{
+    if (CrystalType != ECrystalType::Iolite)
+    {
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 1;
+    case EItemTier::E_Tier:
+        return 1;
+    case EItemTier::D_Tier:
+        return 2;
+    case EItemTier::C_Tier:
+        return 2;
+    case EItemTier::B_Tier:
+        return 3;
+    case EItemTier::A_Tier:
+        return 3;
+    case EItemTier::S_Tier:
+        return 99;
+    default:
+        return 0;
+    }
+}
+
+float UItemData::GetStatusClearPercent() const
+{
+    if (CrystalType != ECrystalType::Quartz)
+    {
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 25.0f;
+    case EItemTier::E_Tier:
+        return 35.0f;
+    case EItemTier::D_Tier:
+        return 45.0f;
+    case EItemTier::C_Tier:
+        return 55.0f;
+    case EItemTier::B_Tier:
+        return 65.0f;
+    case EItemTier::A_Tier:
+        return 80.0f;
+    case EItemTier::S_Tier:
+        return 100.0f;
+    default:
+        return 0.0f;
+    }
+}
+
+int32 UItemData::GetResistanceDuration() const
+{
+    if (CrystalType != ECrystalType::Quartz)
+    {
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 4;
+    case EItemTier::E_Tier:
+        return 4;
+    case EItemTier::D_Tier:
+        return 3;
+    case EItemTier::C_Tier:
+        return 3;
+    case EItemTier::B_Tier:
+        return 3;
+    case EItemTier::A_Tier:
+        return 2;
+    case EItemTier::S_Tier:
+        return 2;
+    default:
+        return 0;
+    }
+}
+
+int32 UItemData::GetSilenceDurationNew() const
+{
+    if (CrystalType != ECrystalType::Onyx)
+    {
+        return 0;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 3;
+    case EItemTier::E_Tier:
+        return 3;
+    case EItemTier::D_Tier:
+        return 2;
+    case EItemTier::C_Tier:
+        return 2;
+    case EItemTier::B_Tier:
+        return 2;
+    case EItemTier::A_Tier:
+        return 1;
+    case EItemTier::S_Tier:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+float UItemData::GetElementalBuildupPercent() const
+{
+    // Shared status-bar buildup table for crystals that build status.
+    switch (CrystalType)
+    {
+    case ECrystalType::Garnet:
+    case ECrystalType::Citrine:
+    case ECrystalType::Onyx:
+    case ECrystalType::Amethyst:
+        break;
+    default:
+        return 0.0f;
+    }
+    switch (Tier)
+    {
+    case EItemTier::F_Tier:
+        return 10.0f;
+    case EItemTier::E_Tier:
+        return 15.0f;
+    case EItemTier::D_Tier:
+        return 20.0f;
+    case EItemTier::C_Tier:
+        return 30.0f;
+    case EItemTier::B_Tier:
+        return 40.0f;
+    case EItemTier::A_Tier:
+        return 50.0f;
+    case EItemTier::S_Tier:
+        return 60.0f;
+    default:
+        return 0.0f;
+    }
 }
 
 // ==================== ENERGY VALUES ====================
@@ -546,35 +964,6 @@ bool UItemData::GetRevealsHP() const
 bool UItemData::GetRevealsStats() const
 {
     return CrystalType == ECrystalType::Opal && Tier == EItemTier::S_Tier;
-}
-
-// ==================== QUARTZ TRANSFORM ====================
-
-int32 UItemData::GetTransformThreshold() const
-{
-    if (CrystalType == ECrystalType::Quartz)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 200;
-        case EItemTier::E_Tier:
-            return 250;
-        case EItemTier::D_Tier:
-            return 300;
-        case EItemTier::C_Tier:
-            return 400;
-        case EItemTier::B_Tier:
-            return 500;
-        case EItemTier::A_Tier:
-            return 600;
-        case EItemTier::S_Tier:
-            return 750;
-        default:
-            return 0;
-        }
-    }
-    return 0;
 }
 
 // ==================== SECONDARY EFFECTS ====================
@@ -905,79 +1294,80 @@ FString UItemData::GenerateDescription() const
     switch (CrystalType)
     {
     case ECrystalType::Garnet:
-        Effect = FString::Printf(TEXT("Deals %.0f fire damage"), GetDamageValue());
-        if (HasSecondaryEffect())
-        {
-            Effect += FString::Printf(TEXT(" and applies burn (%d/turn for %d turns)"),
-                                      GetSecondaryDamagePerTurn(), GetSecondaryDuration());
-        }
+        Effect = FString::Printf(TEXT("Applies a fire burn dealing %.0f%% of target's max HP per turn for %d turns"),
+                                 GetDOTDamagePercent(), GetDOTDuration());
         break;
 
     case ECrystalType::Sapphire:
-        Effect = FString::Printf(TEXT("Restores %.0f HP"), GetDamageValue());
-        break;
-
-    case ECrystalType::Citrine:
-        Effect = FString::Printf(TEXT("Restores %d energy"), GetEnergyValue());
-        if (GetSelfDamage() > 0)
+        if (Tier == EItemTier::S_Tier)
         {
-            Effect += FString::Printf(TEXT(" (costs %d HP)"), GetSelfDamage());
-        }
-        break;
-
-    case ECrystalType::Emerald:
-        Effect = FString::Printf(TEXT("Increases attack speed by %.0f%% for %d turns"),
-                                 GetBuffPercentage(), GetBuffDuration());
-        break;
-
-    case ECrystalType::Amber:
-        Effect = FString::Printf(TEXT("Reduces incoming damage by %.0f%% for %d turns"),
-                                 GetBuffPercentage(), GetBuffDuration());
-        break;
-
-    case ECrystalType::Opal:
-        Effect = FString::Printf(TEXT("Increases crit chance by %.0f%% for %d turns"),
-                                 GetBuffPercentage(), GetBuffDuration());
-        if (GetRevealsHP() || GetRevealsStats())
-        {
-            Effect += TEXT(" and reveals enemy HP and stats");
-        }
-        break;
-
-    case ECrystalType::Onyx:
-        if (GetSilencePercentage() >= 100.0f)
-        {
-            Effect = FString::Printf(TEXT("Completely silences target for %d turns"), GetSilenceDuration());
+            Effect = TEXT("Revives fallen ally at 30% HP, or heals for 60% max HP");
         }
         else
         {
-            Effect = FString::Printf(TEXT("Locks %.0f%% of target's energy for %d turns"),
-                                     GetSilencePercentage(), GetSilenceDuration());
+            Effect = FString::Printf(TEXT("Restores %.0f%% of target's max HP"), GetHealPercent());
+        }
+        break;
+
+    case ECrystalType::Citrine:
+        Effect = FString::Printf(TEXT("Restores %.0f%% of the target's max energy; overloads the user with Lightning status buildup"),
+                                 GetEPRestorePercent());
+        break;
+
+    case ECrystalType::Emerald:
+        if (Tier == EItemTier::S_Tier)
+        {
+            Effect = TEXT("Grants the target an extra turn");
+        }
+        else
+        {
+            Effect = FString::Printf(TEXT("Increases turn speed by %.0f%% for %d turns"),
+                                     GetSpeedBuffPercent(), GetCrystalDuration());
+        }
+        break;
+
+    case ECrystalType::Amber:
+        Effect = FString::Printf(TEXT("Buffs an ally's defense (or debuffs an enemy's) by %.0f%% for %d turns"),
+                                 GetBuffPercentage(), GetCrystalDuration());
+        break;
+
+    case ECrystalType::Opal:
+        Effect = FString::Printf(TEXT("Buffs an ally's crit chance (or debuffs an enemy's) by %.0f%% for %d turns"),
+                                 GetCritBuffPercent(), GetCrystalDuration());
+        break;
+
+    case ECrystalType::Onyx:
+        if (Tier == EItemTier::S_Tier)
+        {
+            Effect = TEXT("Completely silences target for 1 turn");
+        }
+        else
+        {
+            Effect = FString::Printf(TEXT("Drains %.0f%% of target's energy for %d turns"),
+                                     GetSilencePercentage(), GetSilenceDurationNew());
         }
         break;
 
     case ECrystalType::Amethyst:
-        Effect = TEXT("Random effect - high risk, high reward!");
+        Effect = FString::Printf(TEXT("%.0f%% chance of a random buff (else a random debuff) at %.0f%% magnitude for %d turns"),
+                                 GetBuffChancePercent(), GetGambleMagnitudePercent(), GetGambleDuration());
         break;
 
     case ECrystalType::Iolite:
-        if (GetDebuffsToRemove() == 0)
+        if (GetEffectsToRemoveCount() >= 99)
         {
-            Effect = TEXT("Removes all debuffs");
+            Effect = TEXT("Removes all debuffs from an ally, or all buffs from an enemy");
         }
         else
         {
-            Effect = FString::Printf(TEXT("Removes %d debuff(s)"), GetDebuffsToRemove());
-        }
-        if (GetGrantsImmunity())
-        {
-            Effect += FString::Printf(TEXT(" and grants immunity for %d turns"), GetImmunityDuration());
+            Effect = FString::Printf(TEXT("Removes up to %d debuff(s) from an ally, or %d buff(s) from an enemy"),
+                                     GetEffectsToRemoveCount(), GetEffectsToRemoveCount());
         }
         break;
 
     case ECrystalType::Quartz:
-        Effect = FString::Printf(TEXT("Passively absorbs elemental damage (transforms at %d damage)"),
-                                 GetTransformThreshold());
+        Effect = FString::Printf(TEXT("Clears %.0f%% of the target's status bar and grants matching elemental resistance for %d turns"),
+                                 GetStatusClearPercent(), GetResistanceDuration());
         break;
 
     default:
@@ -1061,12 +1451,9 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     DisplayImmunityDuration = GetImmunityDuration();
     DisplayRevealsHP = GetRevealsHP();
     DisplayRevealsStats = GetRevealsStats();
-    DisplayTransformThreshold = GetTransformThreshold();
     DisplayHasSecondary = HasSecondaryEffect();
     DisplaySecondaryDamage = GetSecondaryDamagePerTurn();
     DisplaySecondaryDuration = GetSecondaryDuration();
-    DisplayGenericResistance = GetGenericResistanceBonus();
-    DisplayGenericDuration = GetGenericResistanceDuration();
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 
     // Re-init durability when designer changes Tier (or evolution/immune flags
@@ -1092,6 +1479,24 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
         if (TierMax > 0)
         {
             MaxDurability = TierMax;
+        }
+    }
+
+    // Quartz is consumable-only — it cannot be refined or made an evolution
+    // crystal. If the designer switches CrystalType to Quartz with either flag
+    // set, force the flags off (item-system-redesign).
+    static const FName CrystalTypeProperty = GET_MEMBER_NAME_CHECKED(UItemData, CrystalType);
+    if (PropertyName == CrystalTypeProperty && CrystalType == ECrystalType::Quartz)
+    {
+        if (bIsRefined)
+        {
+            bIsRefined = false;
+            UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsRefined on %s"), *GetName());
+        }
+        if (bIsEvolutionCrystal)
+        {
+            bIsEvolutionCrystal = false;
+            UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsEvolutionCrystal on %s"), *GetName());
         }
     }
 }
@@ -1121,6 +1526,22 @@ EDataValidationResult UItemData::IsDataValid(FDataValidationContext &Context) co
     {
         Context.AddError(FText::FromString(TEXT("Computed damage value is negative")));
         Result = EDataValidationResult::Invalid;
+    }
+
+    // Quartz is consumable-only (item-system-redesign) — refined or evolution
+    // Quartz is an invalid authoring state.
+    if (CrystalType == ECrystalType::Quartz)
+    {
+        if (bIsRefined)
+        {
+            Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be refined — they are consumable only")));
+            Result = EDataValidationResult::Invalid;
+        }
+        if (bIsEvolutionCrystal)
+        {
+            Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be evolution crystals — they are consumable only")));
+            Result = EDataValidationResult::Invalid;
+        }
     }
 
     // Evolution crystal BaseStatBonus range warnings — the embedded FEquipmentStatBonus

@@ -39,6 +39,8 @@ void UCombatCommandButtonWidget::SetData(const FPieMenuButtonData &InData)
     CurrentData = InData;
     bHasData = true;
 
+    const bool bIsSectionHeader = (InData.Category == EPieMenuCategory::SectionHeader);
+
     if (LabelText)
     {
         LabelText->SetText(InData.DisplayName);
@@ -47,9 +49,13 @@ void UCombatCommandButtonWidget::SetData(const FPieMenuButtonData &InData)
 
     if (CommandButton)
     {
-        CommandButton->SetIsEnabled(InData.bEnabled);
+        // Section headers are label-only dividers — never interactive,
+        // regardless of the incoming bEnabled flag.
+        CommandButton->SetIsEnabled(!bIsSectionHeader && InData.bEnabled);
     }
 
+    // BP restyle hook — BP child can branch on Data.Category == SectionHeader
+    // to apply bold / divider styling.
     OnDataChanged(InData);
 }
 
@@ -68,6 +74,13 @@ void UCombatCommandButtonWidget::HandleClicked()
     if (!bHasData)
     {
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandButton] HandleClicked: no data set — ignoring"));
+        return;
+    }
+
+    // Section headers are non-interactive — guard against stray clicks
+    // defensively (the button is also disabled in SetData).
+    if (CurrentData.Category == EPieMenuCategory::SectionHeader)
+    {
         return;
     }
 

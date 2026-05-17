@@ -1094,7 +1094,8 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Stat modifiers — passive-layer percent. Like the existing stat modifiers,
 	// these are passive and queried by other systems; no per-tick logic here.
 	case ESkillEffectType::ModifyDamageDealt:
-	case ESkillEffectType::ModifyDamageTaken:
+	case ESkillEffectType::ReduceDamageTaken:
+	case ESkillEffectType::IncreaseDamageTaken:
 	case ESkillEffectType::ModifyHealing:
 	case ESkillEffectType::ModifyCritChance:
 	case ESkillEffectType::ModifyCritDamage:

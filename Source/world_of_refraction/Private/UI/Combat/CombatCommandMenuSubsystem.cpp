@@ -233,15 +233,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     case EPieMenuCategory::Item:
     {
         UItemData *Item = Cast<UItemData>(ButtonData.DataReference);
-        ETargetType TT = ETargetType::SingleAnyone;
-        if (Item)
-        {
-            // Quartz transforms the user only — no choice involved
-            if (Item->CrystalType == ECrystalType::Quartz)
-            {
-                TT = ETargetType::Self;
-            }
-        }
+        const ETargetType TT = Item ? Item->GetItemTargetType() : ETargetType::SingleAnyone;
         OpenTargetSelection(EPieMenuCategory::Item, ButtonData, TT);
         break;
     }
@@ -944,51 +936,36 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
 {
     TArray<FPieMenuButtonData> Buttons;
 
-    // Resolve caster's team for ally/enemy tinting
+    // Resolve caster's team for ally/enemy tinting + section grouping.
+    // TM is cached once and reused for the per-target team lookups below.
     int32 UserTeam = -1;
-    if (AActor *User = CurrentActor.Get())
+    UTurnManager *TM = nullptr;
+    if (UGameInstance *GI = GetGameInstance())
     {
-        if (UGameInstance *GI = GetGameInstance())
+        TM = GI->GetSubsystem<UTurnManager>();
+    }
+    if (TM)
+    {
+        if (AActor *User = CurrentActor.Get())
         {
-            if (UTurnManager *TM = GI->GetSubsystem<UTurnManager>())
-            {
-                UserTeam = TM->GetActorTeam(User);
-            }
+            UserTeam = TM->GetActorTeam(User);
         }
     }
 
     // Tints
     const FLinearColor EnemyTint(1.0f, 0.3f, 0.3f, 1.0f); // Red
+    const FLinearColor AllyTint = FLinearColor::White;
 
-    for (AActor *Target : Targets)
+    // Build a single per-actor target button (display name from CharacterData
+    // when available, falling back to the actor name).
+    auto MakeTargetButton = [](AActor *Target, const FLinearColor &Tint) -> FPieMenuButtonData
     {
-        if (!Target)
-            continue;
-
-        // Pull display name from CharacterData if available
         FString TargetName = Target->GetName();
         if (UCharacterDataComponent *CDC = Target->FindComponentByClass<UCharacterDataComponent>())
         {
             if (CDC->CharacterData && !CDC->CharacterData->Name.IsEmpty())
             {
                 TargetName = CDC->CharacterData->Name;
-            }
-        }
-
-        // Tint enemies only; allies use default
-        FLinearColor Tint = FLinearColor::White;
-        if (UserTeam >= 0)
-        {
-            if (UGameInstance *GI = GetGameInstance())
-            {
-                if (UTurnManager *TM = GI->GetSubsystem<UTurnManager>())
-                {
-                    int32 TargetTeam = TM->GetActorTeam(Target);
-                    if (TargetTeam >= 0 && TargetTeam != UserTeam)
-                    {
-                        Tint = EnemyTint;
-                    }
-                }
             }
         }
 
@@ -999,7 +976,69 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         Button.DataReference = Target;
         Button.ButtonTint = Tint;
         Button.bEnabled = true;
-        Buttons.Add(Button);
+        return Button;
+    };
+
+    // SingleAnyone is the only per-actor picker that spans both teams, so it
+    // gets two labelled sections: "Allies" then "Enemies". SingleEnemy /
+    // SingleAlly are single-team — a flat, header-less list.
+    const bool bGroupByTeam =
+        (PendingTargetType == ETargetType::SingleAnyone) && (UserTeam >= 0) && (TM != nullptr);
+
+    if (bGroupByTeam)
+    {
+        TArray<FPieMenuButtonData> AllyButtons;
+        TArray<FPieMenuButtonData> EnemyButtons;
+
+        for (AActor *Target : Targets)
+        {
+            if (!Target)
+                continue;
+
+            const int32 TargetTeam = TM->GetActorTeam(Target);
+            const bool bIsEnemy = (TargetTeam >= 0 && TargetTeam != UserTeam);
+            if (bIsEnemy)
+            {
+                EnemyButtons.Add(MakeTargetButton(Target, EnemyTint));
+            }
+            else
+            {
+                AllyButtons.Add(MakeTargetButton(Target, AllyTint));
+            }
+        }
+
+        if (AllyButtons.Num() > 0)
+        {
+            Buttons.Add(FPieMenuButtonData::MakeSectionHeaderButton(
+                TEXT("Header_Allies"), FText::FromString(TEXT("Allies")), AllyTint));
+            Buttons.Append(AllyButtons);
+        }
+        if (EnemyButtons.Num() > 0)
+        {
+            Buttons.Add(FPieMenuButtonData::MakeSectionHeaderButton(
+                TEXT("Header_Enemies"), FText::FromString(TEXT("Enemies")), EnemyTint));
+            Buttons.Append(EnemyButtons);
+        }
+    }
+    else
+    {
+        // Flat list — tint enemies only; allies use the default.
+        for (AActor *Target : Targets)
+        {
+            if (!Target)
+                continue;
+
+            FLinearColor Tint = AllyTint;
+            if (UserTeam >= 0 && TM)
+            {
+                const int32 TargetTeam = TM->GetActorTeam(Target);
+                if (TargetTeam >= 0 && TargetTeam != UserTeam)
+                {
+                    Tint = EnemyTint;
+                }
+            }
+            Buttons.Add(MakeTargetButton(Target, Tint));
+        }
     }
 
     // ==================== INFUSION CONTROLS ====================
