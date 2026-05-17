@@ -720,6 +720,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::HealBlock:
 		case ESkillEffectType::Silenced:
 		case ESkillEffectType::RandomSkill:
+		// item-system-redesign Phase 1 — SelfDamage classified as a debuff.
+		// (DOT/SkipTurn/Stun/HealBlock/Silenced/CritDebuff/EnergyDebuff already present.)
+		case ESkillEffectType::SelfDamage:
 		// Phase 2 passive-layer debuffs
 		case ESkillEffectType::IncreaseDamageTaken:
 		case ESkillEffectType::ModifyEnergyCost:
