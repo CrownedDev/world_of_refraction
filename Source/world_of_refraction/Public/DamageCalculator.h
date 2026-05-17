@@ -31,11 +31,6 @@ namespace DamageConstants
 	constexpr float MAX_RESISTANCE = 0.50f; // 50% cap
 	constexpr int32 MIN_DAMAGE = 1;			// Always deal at least 1 damage
 
-	// Element interactions
-	constexpr float WEAKNESS_MULTIPLIER = 1.5f;	  // 50% more damage
-	constexpr float RESISTANCE_MULTIPLIER = 0.5f; // 50% less damage
-	constexpr float NEUTRAL_MULTIPLIER = 1.0f;
-
 	// Infusion
 	// ELEMENT_INFUSION_PENALTY removed per locked cost matrix — see commit message.
 	constexpr float POWER_INFUSION_L1_MULT = 1.3f;
