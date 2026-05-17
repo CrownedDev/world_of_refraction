@@ -391,9 +391,6 @@ private:
 	void HandleTurnStarted(AActor *Actor, int32 TurnNumber);
 
 	UFUNCTION()
-	void HandleTurnEnded(AActor *Actor, int32 TurnNumber);
-
-	UFUNCTION()
 	void HandleCombatEnded(int32 FinalTurnCount);
 
 	// ========================================

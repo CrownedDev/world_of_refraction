@@ -215,13 +215,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Components")
 	bool RollCriticalHit(AActor *Attacker, float OverrideChance = -1.0f) const;
 
-	/**
-	 * Get element interaction multiplier
-	 * Currently always returns 1.0 - no elemental advantage system
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	float GetElementInteractionMultiplier(ESpellElement AttackElement, ESpellElement DefenderElement) const;
-
 	// ==================== STATUS EFFECT CALCULATIONS ====================
 
 	/**
@@ -260,20 +253,6 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Utility")
 	static float GetInfusionDamageMultiplier(int32 InfusionLevel);
-
-	/**
-	 * Check if element A is weak to element B
-	 * Currently returns false - no elemental weakness system
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Utility")
-	static bool IsWeakTo(ESpellElement Defender, ESpellElement Attacker);
-
-	/**
-	 * Check if element A resists element B
-	 * Currently returns false - no elemental resistance system
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Utility")
-	static bool ResistsElement(ESpellElement Defender, ESpellElement Attacker);
 
 	// ==================== DEBUG ====================
 
