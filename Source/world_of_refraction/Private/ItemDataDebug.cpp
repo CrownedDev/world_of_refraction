@@ -79,12 +79,6 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
     }
 
     // Check tier bonuses are positive
-    if (Item->GetGenericResistanceBonus() <= 0.0f)
-    {
-        Errors.Add(TEXT("Zero or negative Generic resistance"));
-        bValid = false;
-    }
-
     if (Item->GetBrokenDarknessEnergyBonus() <= 0)
     {
         Errors.Add(TEXT("Zero or negative BD energy bonus"));
@@ -238,8 +232,6 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
 
     // Bonuses
     UE_LOG(LogTemp, Display, TEXT("--- Tier Bonuses ---"));
-    UE_LOG(LogTemp, Display, TEXT("Generic Resistance: %.1f%% for %d turns"),
-           Item->GetGenericResistanceBonus(), Item->GetGenericResistanceDuration());
     UE_LOG(LogTemp, Display, TEXT("BD Energy Bonus: +%d"), Item->GetBrokenDarknessEnergyBonus());
     UE_LOG(LogTemp, Display, TEXT(""));
 }
@@ -402,23 +394,6 @@ void UItemDataDebug::LogTierBonuses()
 {
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("========== TIER-BASED BONUSES =========="));
-    UE_LOG(LogTemp, Display, TEXT(""));
-    UE_LOG(LogTemp, Display, TEXT("--- Generic Character Resistance Bonus ---"));
-
-    for (int32 TierIndex = 0; TierIndex <= static_cast<int32>(EItemTier::S_Tier); ++TierIndex)
-    {
-        EItemTier Tier = static_cast<EItemTier>(TierIndex);
-        UItemData *TestItem = CreateTestItem(ECrystalType::Garnet, Tier);
-
-        if (TestItem)
-        {
-            UE_LOG(LogTemp, Display, TEXT("  %s: %.0f%% resistance for %d turns"),
-                   *GetTierName(Tier),
-                   TestItem->GetGenericResistanceBonus(),
-                   TestItem->GetGenericResistanceDuration());
-        }
-    }
-
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("--- Broken Darkness Energy Bonus ---"));
 

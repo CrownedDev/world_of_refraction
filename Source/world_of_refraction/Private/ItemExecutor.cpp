@@ -96,9 +96,12 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Tar
 		return Result;
 	}
 
-	// Apply character-specific bonuses (all items give these)
-	ApplyGenericBonus(User, Item, Result);
-	ApplyBrokenDarknessBonus(User, Item, Result);
+	// Broken Darkness absorption — when a crystal is used on a BD character,
+	// they absorb its elemental energy (EP scaled by the crystal's tier).
+	if (IsBrokenDarknessCharacter(Target))
+	{
+		ApplyBrokenDarknessBonus(Target, Item, Result);
+	}
 
 	Result.bSuccess = true;
 
@@ -602,59 +605,25 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UItem
 // BONUS HANDLERS
 // ========================================
 
-void UItemExecutor::ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Generic characters gain elemental resistance from items
-	if (!IsGenericCharacter(User))
-		return;
-
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager)
-		return;
-
-	float Resistance = Item->GetGenericResistanceBonus();
-	int32 Duration = Item->GetGenericResistanceDuration();
-	ESpellElement Element = Item->GetAssociatedElement();
-
-	if (Resistance <= 0 || Element == ESpellElement::Generic)
-		return;
-
-	// Apply resistance buff (element-specific via Element field)
-	FActiveSkillEffect ResistBuff = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Resistance"), *UEnum::GetValueAsString(Element)),
-		Item->GetUniqueID() + 1000, // Offset to avoid ID collision
-		ESkillEffectType::ResistanceBuff,
-		Resistance,
-		Duration);
-	ResistBuff.Element = Element;
-
-	StatusManager->ApplyEffect(User, ResistBuff, User, TEXT("Generic Bonus"), -1);
-	OutResult.GenericResistanceApplied = FMath::RoundToInt(Resistance);
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Generic bonus: +%.0f%% %s resistance for %d turns"),
-		   Resistance, *UEnum::GetValueAsString(Element), Duration);
-}
-
-void UItemExecutor::ApplyBrokenDarknessBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult)
-{
-	// Broken Darkness characters gain bonus energy from ALL items
-	if (!IsBrokenDarknessCharacter(User))
-		return;
-
-	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
-	if (!UserComp)
+	// Broken Darkness character absorbs the crystal's elemental energy when one
+	// is used on them — gains EP scaled by the crystal's tier. The caller has
+	// already confirmed Target is a Broken Darkness character.
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!TargetComp)
 		return;
 
 	int32 BonusEnergy = Item->GetBrokenDarknessEnergyBonus();
 	if (BonusEnergy <= 0)
 		return;
 
-	int32 EPBefore = UserComp->CurrentEP;
-	UserComp->ServerGainEnergy(BonusEnergy);
-	OutResult.BrokenDarknessEnergyGained = UserComp->CurrentEP - EPBefore;
+	int32 EPBefore = TargetComp->CurrentEP;
+	TargetComp->ServerGainEnergy(BonusEnergy);
+	OutResult.BrokenDarknessEnergyGained = TargetComp->CurrentEP - EPBefore;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Broken Darkness bonus: +%d energy"),
-		   OutResult.BrokenDarknessEnergyGained);
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Broken Darkness absorption: %s gained %d energy"),
+		   *Target->GetName(), OutResult.BrokenDarknessEnergyGained);
 }
 
 void UItemExecutor::ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult)
@@ -720,14 +689,18 @@ USkillEffectManager *UItemExecutor::GetSkillEffectManager() const
 
 bool UItemExecutor::IsGenericCharacter(AActor *Actor) const
 {
-	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->InnateElement == ESpellElement::Generic;
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+	if (!Comp || !Comp->CharacterData)
+		return false;
+	return Comp->CharacterData->CharacterClass == ECharacterClass::Generic;
 }
 
 bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const
 {
-	UCharacterData *Data = GetCharacterData(Actor);
-	return Data && Data->InnateElement == ESpellElement::BrokenDarkness;
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+	if (!Comp)
+		return false;
+	return Comp->IsBrokenDarkness();
 }
 
 bool UItemExecutor::IsAlly(AActor *User, AActor *Target) const

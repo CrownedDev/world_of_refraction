@@ -26,6 +26,7 @@
 #include "EEvolutionType.h"
 #include "ActionStatModifiers.h"
 #include "FEquipmentStatBonus.h"
+#include "TargetType.h"
 #include "ItemData.generated.h"
 
 class USpellData;
@@ -197,12 +198,6 @@ public:
         int32 DisplaySecondaryDuration;
 
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Bonuses")
-        float DisplayGenericResistance;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Bonuses")
-        int32 DisplayGenericDuration;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Bonuses")
         int32 DisplayBDEnergy;
 
         // ==================== VISUAL/AUDIO ====================
@@ -336,13 +331,11 @@ public:
         ESpellElement GetAssociatedElement() const;
 
         UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
-        float GetGenericResistanceBonus() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
-        int32 GetGenericResistanceDuration() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
         int32 GetBrokenDarknessEnergyBonus() const;
+
+        /** Target type for combat targeting UI — all crystals target anyone. */
+        UFUNCTION(BlueprintPure, Category = "Item|Targeting")
+        ETargetType GetItemTargetType() const;
 
         // ==================== COMPUTED EFFECT VALUES ====================
 

@@ -169,11 +169,9 @@ private:
 	// BONUS HANDLERS
 	// ========================================
 
-	/** Apply Generic character resistance bonus */
-	void ApplyGenericBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult);
-
-	/** Apply Broken Darkness energy bonus */
-	void ApplyBrokenDarknessBonus(AActor *User, UItemData *Item, FItemUseResult &OutResult);
+	/** Apply Broken Darkness energy absorption — Target is the BD character a
+	 *  crystal was used on; it absorbs EP scaled by the crystal's tier. */
+	void ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FItemUseResult &OutResult);
 
 	/** Apply S-tier secondary effects (burn DOT) */
 	void ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor *Source, FItemUseResult &OutResult);

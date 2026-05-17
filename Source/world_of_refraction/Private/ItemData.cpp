@@ -122,52 +122,6 @@ ESpellElement UItemData::GetAssociatedElement() const
     }
 }
 
-float UItemData::GetGenericResistanceBonus() const
-{
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_F;
-    case EItemTier::E_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_E;
-    case EItemTier::D_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_D;
-    case EItemTier::C_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_C;
-    case EItemTier::B_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_B;
-    case EItemTier::A_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_A;
-    case EItemTier::S_Tier:
-        return ItemConstants::GENERIC_RESISTANCE_S;
-    default:
-        return 0.0f;
-    }
-}
-
-int32 UItemData::GetGenericResistanceDuration() const
-{
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return ItemConstants::GENERIC_DURATION_F;
-    case EItemTier::E_Tier:
-        return ItemConstants::GENERIC_DURATION_E;
-    case EItemTier::D_Tier:
-        return ItemConstants::GENERIC_DURATION_D;
-    case EItemTier::C_Tier:
-        return ItemConstants::GENERIC_DURATION_C;
-    case EItemTier::B_Tier:
-        return ItemConstants::GENERIC_DURATION_B;
-    case EItemTier::A_Tier:
-        return ItemConstants::GENERIC_DURATION_A;
-    case EItemTier::S_Tier:
-        return ItemConstants::GENERIC_DURATION_S;
-    default:
-        return 0;
-    }
-}
-
 int32 UItemData::GetBrokenDarknessEnergyBonus() const
 {
     switch (Tier)
@@ -189,6 +143,14 @@ int32 UItemData::GetBrokenDarknessEnergyBonus() const
     default:
         return 0;
     }
+}
+
+// ==================== TARGETING ====================
+
+ETargetType UItemData::GetItemTargetType() const
+{
+    // All crystals can target anyone for tactical flexibility.
+    return ETargetType::SingleAnyone;
 }
 
 // ==================== EFFECT TYPE ====================
@@ -1492,8 +1454,6 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     DisplayHasSecondary = HasSecondaryEffect();
     DisplaySecondaryDamage = GetSecondaryDamagePerTurn();
     DisplaySecondaryDuration = GetSecondaryDuration();
-    DisplayGenericResistance = GetGenericResistanceBonus();
-    DisplayGenericDuration = GetGenericResistanceDuration();
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 
     // Re-init durability when designer changes Tier (or evolution/immune flags
