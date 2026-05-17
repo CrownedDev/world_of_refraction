@@ -150,9 +150,9 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
         break;
 
     case ECrystalType::Quartz:
-        if (Item->GetTransformThreshold() <= 0)
+        if (Item->bIsRefined || Item->bIsEvolutionCrystal)
         {
-            Errors.Add(TEXT("Zero transform threshold"));
+            Errors.Add(TEXT("Quartz must be consumable-only (not refined or evolution)"));
             bValid = false;
         }
         break;
@@ -224,7 +224,6 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Debuffs Removed: %d (0=all)"), Item->GetDebuffsToRemove());
     UE_LOG(LogTemp, Display, TEXT("Grants Immunity: %s"), Item->GetGrantsImmunity() ? TEXT("Yes") : TEXT("No"));
     UE_LOG(LogTemp, Display, TEXT("Immunity Duration: %d turns"), Item->GetImmunityDuration());
-    UE_LOG(LogTemp, Display, TEXT("Transform Threshold: %d"), Item->GetTransformThreshold());
     UE_LOG(LogTemp, Display, TEXT(""));
 
     // Secondary effects
@@ -324,7 +323,7 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
                 break;
 
             case ECrystalType::Quartz:
-                ValueStr = FString::Printf(TEXT("%d absorption threshold"), TestItem->GetTransformThreshold());
+                ValueStr = TEXT("Status clear (pending redesign)");
                 break;
             }
 
@@ -366,11 +365,6 @@ void UItemDataDebug::LogCrystalState(const UItemData *Item)
             {
                 UE_LOG(LogTemp, Display, TEXT("  WARNING: No Evolution assigned!"));
             }
-        }
-        else if (Item->CrystalType == ECrystalType::Quartz)
-        {
-            UE_LOG(LogTemp, Display, TEXT("Special: QUARTZ (absorbs element from attacks)"));
-            UE_LOG(LogTemp, Display, TEXT("  Transform Threshold: %d damage"), Item->GetTransformThreshold());
         }
         else if (Item->CrystalType == ECrystalType::Iolite)
         {
@@ -631,7 +625,7 @@ float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
         return static_cast<float>(Item->GetDebuffsToRemove());
 
     case ECrystalType::Quartz:
-        return static_cast<float>(Item->GetTransformThreshold());
+        return 0.0f;
 
     default:
         return 0.0f;

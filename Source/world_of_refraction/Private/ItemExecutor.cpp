@@ -15,8 +15,6 @@ void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 
 void UItemExecutor::Deinitialize()
 {
-	QuartzStates.Empty();
-	QuartzItems.Empty();
 	SkillEffectManagerRef = nullptr;
 	Super::Deinitialize();
 }
@@ -84,10 +82,6 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Tar
 
 	case EItemEffectType::Cleanse:
 		ExecuteCleanseEffect(User, Target, Item, Result);
-		break;
-
-	case EItemEffectType::Transform:
-		ExecuteTransformEffect(User, Item, Result);
 		break;
 
 	default:
@@ -465,27 +459,6 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData
 		   OutResult.DebuffsRemoved, bGrantsImmunity ? TEXT("Yes") : TEXT("No"));
 }
 
-void UItemExecutor::ExecuteTransformEffect(AActor *User, UItemData *Item, FItemUseResult &OutResult)
-{
-	// Quartz - Transform (activates if threshold met)
-	if (!CanQuartzTransform(User))
-	{
-		OutResult.ErrorMessage = TEXT("Quartz cannot transform yet");
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Quartz: Not enough damage absorbed to transform"));
-		return;
-	}
-
-	ESpellElement NewElement = TransformQuartz(User);
-	if (NewElement != ESpellElement::Generic)
-	{
-		OutResult.bQuartzTransformed = true;
-		OutResult.QuartzNewElement = NewElement;
-
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Quartz transformed into %s element!"),
-			   *UEnum::GetValueAsString(NewElement));
-	}
-}
-
 // ========================================
 // BONUS HANDLERS
 // ========================================
@@ -577,89 +550,6 @@ void UItemExecutor::ApplySecondaryEffect(AActor *Target, UItemData *Item, AActor
 }
 
 // ========================================
-// QUARTZ SYSTEM
-// ========================================
-
-void UItemExecutor::RegisterQuartz(AActor *Owner, UItemData *QuartzItem)
-{
-	if (!Owner || !QuartzItem)
-		return;
-
-	if (QuartzItem->GetPrimaryEffectType() != EItemEffectType::Transform)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ItemExecutor] Attempted to register non-Quartz item"));
-		return;
-	}
-
-	FQuartzAbsorptionState State;
-	State.TransformThreshold = QuartzItem->GetTransformThreshold();
-
-	QuartzStates.Add(Owner, State);
-	QuartzItems.Add(Owner, QuartzItem);
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Registered Quartz for %s (Threshold: %.0f)"),
-		   *Owner->GetName(), State.TransformThreshold);
-}
-
-void UItemExecutor::UnregisterQuartz(AActor *Owner)
-{
-	QuartzStates.Remove(Owner);
-	QuartzItems.Remove(Owner);
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Unregistered Quartz for %s"),
-		   Owner ? *Owner->GetName() : TEXT("Unknown"));
-}
-
-void UItemExecutor::NotifyQuartzDamage(AActor *Owner, ESpellElement Element, float Damage)
-{
-	FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
-	if (!State || State->bHasTransformed)
-		return;
-
-	State->AbsorbDamage(Element, Damage);
-
-	UE_LOG(LogTemp, Verbose, TEXT("[ItemExecutor] Quartz absorbed %.0f %s damage (Total: %.0f/%.0f)"),
-		   Damage, *UEnum::GetValueAsString(Element), State->TotalAbsorbed, State->TransformThreshold);
-}
-
-bool UItemExecutor::CanQuartzTransform(AActor *Owner) const
-{
-	const FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
-	return State && State->CanTransform();
-}
-
-ESpellElement UItemExecutor::TransformQuartz(AActor *Owner)
-{
-	FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
-	if (!State || !State->CanTransform())
-	{
-		return ESpellElement::Generic;
-	}
-
-	ESpellElement NewElement = State->GetDominantElement();
-	State->bHasTransformed = true;
-	State->TransformedElement = NewElement;
-
-	// Get the Quartz item
-	TWeakObjectPtr<UItemData> *ItemPtr = QuartzItems.Find(Owner);
-	UItemData *Item = ItemPtr ? ItemPtr->Get() : nullptr;
-
-	// Broadcast transformation
-	OnQuartzTransformed.Broadcast(Owner, NewElement, Item);
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Quartz transformed! Dominant element: %s"),
-		   *UEnum::GetValueAsString(NewElement));
-
-	return NewElement;
-}
-
-FQuartzAbsorptionState UItemExecutor::GetQuartzState(AActor *Owner) const
-{
-	const FQuartzAbsorptionState *State = QuartzStates.Find(Owner);
-	return State ? *State : FQuartzAbsorptionState();
-}
-
-// ========================================
 // HELPERS
 // ========================================
 
@@ -699,43 +589,4 @@ bool UItemExecutor::IsBrokenDarknessCharacter(AActor *Actor) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
 	return Data && Data->InnateElement == ESpellElement::BrokenDarkness;
-}
-
-// ========================================
-// DEBUG
-// ========================================
-
-void UItemExecutor::DebugPrintQuartzStates() const
-{
-	UE_LOG(LogTemp, Display, TEXT("=== QUARTZ ABSORPTION STATES ==="));
-
-	for (const auto &Pair : QuartzStates)
-	{
-		AActor *Owner = Pair.Key.Get();
-		const FQuartzAbsorptionState &State = Pair.Value;
-
-		UE_LOG(LogTemp, Display, TEXT("Owner: %s"), Owner ? *Owner->GetName() : TEXT("Invalid"));
-		UE_LOG(LogTemp, Display, TEXT("  Total Absorbed: %.0f / %.0f"),
-			   State.TotalAbsorbed, State.TransformThreshold);
-		UE_LOG(LogTemp, Display, TEXT("  Transformed: %s"), State.bHasTransformed ? TEXT("Yes") : TEXT("No"));
-
-		if (State.bHasTransformed)
-		{
-			UE_LOG(LogTemp, Display, TEXT("  Result Element: %s"),
-				   *UEnum::GetValueAsString(State.TransformedElement));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Display, TEXT("  Dominant Element: %s"),
-				   *UEnum::GetValueAsString(State.GetDominantElement()));
-		}
-
-		for (const auto &ElementPair : State.AbsorbedDamage)
-		{
-			UE_LOG(LogTemp, Display, TEXT("    %s: %.0f"),
-				   *UEnum::GetValueAsString(ElementPair.Key), ElementPair.Value);
-		}
-	}
-
-	UE_LOG(LogTemp, Display, TEXT("================================"));
 }

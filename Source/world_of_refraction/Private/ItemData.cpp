@@ -216,7 +216,7 @@ EItemEffectType UItemData::GetPrimaryEffectType() const
     case ECrystalType::Iolite:
         return EItemEffectType::Cleanse;
     case ECrystalType::Quartz:
-        return EItemEffectType::Transform;
+        return EItemEffectType::StatusClear;
     default:
         return EItemEffectType::Damage; // Default to damage
     }
@@ -546,35 +546,6 @@ bool UItemData::GetRevealsHP() const
 bool UItemData::GetRevealsStats() const
 {
     return CrystalType == ECrystalType::Opal && Tier == EItemTier::S_Tier;
-}
-
-// ==================== QUARTZ TRANSFORM ====================
-
-int32 UItemData::GetTransformThreshold() const
-{
-    if (CrystalType == ECrystalType::Quartz)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 200;
-        case EItemTier::E_Tier:
-            return 250;
-        case EItemTier::D_Tier:
-            return 300;
-        case EItemTier::C_Tier:
-            return 400;
-        case EItemTier::B_Tier:
-            return 500;
-        case EItemTier::A_Tier:
-            return 600;
-        case EItemTier::S_Tier:
-            return 750;
-        default:
-            return 0;
-        }
-    }
-    return 0;
 }
 
 // ==================== SECONDARY EFFECTS ====================
@@ -976,8 +947,7 @@ FString UItemData::GenerateDescription() const
         break;
 
     case ECrystalType::Quartz:
-        Effect = FString::Printf(TEXT("Passively absorbs elemental damage (transforms at %d damage)"),
-                                 GetTransformThreshold());
+        Effect = TEXT("Clears a portion of the target's status bar");
         break;
 
     default:
@@ -1061,7 +1031,6 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     DisplayImmunityDuration = GetImmunityDuration();
     DisplayRevealsHP = GetRevealsHP();
     DisplayRevealsStats = GetRevealsStats();
-    DisplayTransformThreshold = GetTransformThreshold();
     DisplayHasSecondary = HasSecondaryEffect();
     DisplaySecondaryDamage = GetSecondaryDamagePerTurn();
     DisplaySecondaryDuration = GetSecondaryDuration();
@@ -1094,6 +1063,24 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
             MaxDurability = TierMax;
         }
     }
+
+    // Quartz is consumable-only — it cannot be refined or made an evolution
+    // crystal. If the designer switches CrystalType to Quartz with either flag
+    // set, force the flags off (item-system-redesign).
+    static const FName CrystalTypeProperty = GET_MEMBER_NAME_CHECKED(UItemData, CrystalType);
+    if (PropertyName == CrystalTypeProperty && CrystalType == ECrystalType::Quartz)
+    {
+        if (bIsRefined)
+        {
+            bIsRefined = false;
+            UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsRefined on %s"), *GetName());
+        }
+        if (bIsEvolutionCrystal)
+        {
+            bIsEvolutionCrystal = false;
+            UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsEvolutionCrystal on %s"), *GetName());
+        }
+    }
 }
 
 void UItemData::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
@@ -1121,6 +1108,22 @@ EDataValidationResult UItemData::IsDataValid(FDataValidationContext &Context) co
     {
         Context.AddError(FText::FromString(TEXT("Computed damage value is negative")));
         Result = EDataValidationResult::Invalid;
+    }
+
+    // Quartz is consumable-only (item-system-redesign) — refined or evolution
+    // Quartz is an invalid authoring state.
+    if (CrystalType == ECrystalType::Quartz)
+    {
+        if (bIsRefined)
+        {
+            Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be refined — they are consumable only")));
+            Result = EDataValidationResult::Invalid;
+        }
+        if (bIsEvolutionCrystal)
+        {
+            Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be evolution crystals — they are consumable only")));
+            Result = EDataValidationResult::Invalid;
+        }
     }
 
     // Evolution crystal BaseStatBonus range warnings — the embedded FEquipmentStatBonus

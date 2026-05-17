@@ -187,9 +187,6 @@ public:
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
         bool DisplayRevealsStats;
 
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplayTransformThreshold;
-
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Secondary")
         bool DisplayHasSecondary;
 
@@ -387,9 +384,6 @@ public:
 
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         bool GetRevealsStats() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetTransformThreshold() const;
 
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         bool HasSecondaryEffect() const;
