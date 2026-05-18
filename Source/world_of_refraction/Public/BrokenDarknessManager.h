@@ -58,8 +58,11 @@ public:
 	 * Roll for Broken Darkness transformation. Chance is tier-keyed and
 	 * infusion-multiplied:
 	 *   Tier base: S=1.5%, A=1.0%, B=0.6%, C=0.3%, D=0.1%, E/F=0%
-	 *   L0 = base, L1 = base × 2, L2 = base × 3
-	 * Called when casting above requirements or using L1/L2 infusion.
+	 *   L0 = base, L1 = base × 1.5, L2 = base × 2.0
+	 * Triggered (via ActionExecutor::CheckBrokenDarknessBreak) when an
+	 * innate-Darkness character: casts a spell above its stat requirements;
+	 * casts an L1/L2-infused spell; or uses an ability that is both above
+	 * requirements and infused from a Darkness source.
 	 * @param Tier The tier of the spell/ability that triggered the roll
 	 * @param InfusionLevel The infusion level of the cast (0/1/2)
 	 * @param TriggerReason Debug string for logging what triggered the roll
@@ -87,7 +90,15 @@ public:
 	static bool DoesAbilityExceedRequirements(UAbilityData *Ability, UCharacterData *Character);
 
 	/**
-	 * Force transformation (for testing/story events)
+	 * Debug/test hook — forces an unconditional transformation into Broken
+	 * Darkness. Bypasses both the break roll (RollForBreak) and the
+	 * InnateElement == Darkness eligibility gate, so any character can be
+	 * transformed regardless of class or element.
+	 *
+	 * Intended only for debug paths — CallInEditor buttons, console commands,
+	 * automated test code. Not part of the production transformation flow
+	 * (that is RollForBreak via ActionExecutor::CheckBrokenDarknessBreak).
+	 * Intentionally retained despite having zero production callers.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
 	void ForceTransformation();

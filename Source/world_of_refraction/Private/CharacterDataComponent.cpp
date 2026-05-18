@@ -104,7 +104,12 @@ void UCharacterDataComponent::ResetToMax()
     if (HasServerAuthority())
     {
         CurrentHP = MaxHP;
-        CurrentEP = MaxEP;
+
+        // Broken Darkness gains energy only through absorption (no passive
+        // regen), so resetting to MaxEP would violate the design rule. Reset
+        // to 0 — a BD must absorb before it can cast.
+        CurrentEP = IsBrokenDarkness() ? 0 : MaxEP;
+
         bIsAlive = true;
         OnHPChanged.Broadcast(CurrentHP, MaxHP);
         OnEPChanged.Broadcast(CurrentEP, MaxEP);
