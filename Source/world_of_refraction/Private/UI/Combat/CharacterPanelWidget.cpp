@@ -244,8 +244,15 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 	if (!StatusBar)
 		return;
 
-	// BD attacker — darkened element colour. GetHybridSpellColors handles the
-	// Generic/BrokenDarkness element cases internally (pure BD colour).
+	// Generic = physical-only damage (Slash/Pierce/Impact) — no element to
+	// surface, and nothing for a BD attacker to darken, so always neutral.
+	if (PendingElement == ESpellElement::Generic)
+	{
+		StatusBar->SetFillColorAndOpacity(FLinearColor::White);
+		return;
+	}
+
+	// BD attacker — darkened element colour.
 	if (Source)
 	{
 		UBrokenDarknessManager *BDManager = Source->FindComponentByClass<UBrokenDarknessManager>();
@@ -258,21 +265,10 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 		}
 	}
 
-	// Non-BD attacker (or null Source). Generic = physical-only damage
-	// (Slash/Pierce/Impact) — no element to surface, so a neutral fill.
-	FLinearColor BarColour;
-	if (PendingElement == ESpellElement::Generic)
-	{
-		BarColour = FLinearColor::White;
-	}
-	else if (PendingElement == ESpellElement::BrokenDarkness)
-	{
-		BarColour = ElementColors::BrokenDarkness;
-	}
-	else
-	{
-		BarColour = ElementColors::GetColorForElement(PendingElement);
-	}
+	// Non-BD attacker (or null Source) — raw element colour.
+	const FLinearColor BarColour = (PendingElement == ESpellElement::BrokenDarkness)
+		? ElementColors::BrokenDarkness
+		: ElementColors::GetColorForElement(PendingElement);
 
 	StatusBar->SetFillColorAndOpacity(BarColour);
 }

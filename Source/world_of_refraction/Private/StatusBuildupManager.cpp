@@ -398,7 +398,7 @@ void UStatusBuildupManager::ReduceStatusBuildup(AActor *Target, float Fraction)
 	// PendingElement + LastSource passthrough — UI keeps the current tint
 	// (including BD darkening) while the bar drops.
 	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
-		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource);
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource.Get());
 
 	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup reduced by %.0f%% -> %.1f"),
 		   *Target->GetName(), Fraction * 100.0f, State->CurrentBuildup);
@@ -435,7 +435,7 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 	// Element + LastSource passthrough on decay - UI keeps current tint
 	// (including BD darkening) while bar drops.
 	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
-		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource);
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource.Get());
 
 	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar decayed: %.1f → %.1f (-%d%%, turn %d)"),
 		   *Target->GetName(), OldBuildup, State->CurrentBuildup,
