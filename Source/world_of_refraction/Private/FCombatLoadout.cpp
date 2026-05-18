@@ -486,6 +486,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
     if (Asset->RequiredClass == ECharacterClass::Caster)
     {
         Result.InnateSpells = Asset->InnateSpells;
+        Result.BDSpellPools = Asset->BDSpellPools;
     }
 
     // ==================== ITEMS ====================

@@ -20,6 +20,7 @@
 #include "Engine/DataAsset.h"
 #include "ECharacterClass.h"
 #include "EWeaponSlotType.h"
+#include "FCombatLoadout.h"
 #include "LoadoutData.generated.h"
 
 class UWeaponData;
@@ -68,10 +69,18 @@ public:
 
     // ==================== CASTER INNATE SPELLS ====================
 
-    /** Innate spells (Caster only - up to 24, must match InnateElement) */
+    /** Innate spells (Caster only - up to 24, must match InnateElement).
+     *  For a Broken Darkness template this is the Darkness pool (max 6). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Caster Spells",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
     TArray<USpellData *> InnateSpells;
+
+    /** Broken Darkness per-element spell pools (Fire/Water/Earth/Wind/Light/
+     *  Lightning/Void). Authored for BD enemy templates; leave empty for a
+     *  normal Caster. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Caster Spells",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
+    TArray<FBDElementSpellPool> BDSpellPools;
 
     // ==================== RESONATOR RINGS ====================
 

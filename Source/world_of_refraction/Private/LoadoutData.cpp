@@ -9,6 +9,7 @@
 #include "ItemData.h"
 #include "LoadoutConstants.h"
 #include "InventoryConstants.h"
+#include "FCombatLoadout.h"
 
 // ==================== VALIDATION ====================
 
@@ -76,9 +77,15 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
 
     if (RequiredClass == ECharacterClass::Caster)
     {
-        // Innate spells limit
-        if (InnateSpells.Num() > InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
+        if (BDSpellPools.Num() > 0)
         {
+            // Broken Darkness template — InnateSpells is the Darkness pool,
+            // BDSpellPools the per-element pools. Same rules as FCombatLoadout.
+            Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(InnateSpells, BDSpellPools));
+        }
+        else if (InnateSpells.Num() > InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
+        {
+            // Normal Caster — innate spells limit.
             Errors.Add(FString::Printf(TEXT("Too many innate spells (%d/%d)"),
                                        InnateSpells.Num(), InventoryConstants::MAX_INNATE_SPELLS_TOTAL));
         }
@@ -293,6 +300,7 @@ void ULoadoutData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChanged
         if (RequiredClass != ECharacterClass::Caster)
         {
             InnateSpells.Empty();
+            BDSpellPools.Empty();
         }
 
         if (RequiredClass != ECharacterClass::Resonator)
