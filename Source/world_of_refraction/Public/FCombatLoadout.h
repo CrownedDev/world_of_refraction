@@ -19,6 +19,7 @@
 #include "ECharacterClass.h"
 #include "EWeaponSlotType.h"
 #include "SpellSchool.h"
+#include "ESpellElement.h"
 #include "FWeaponLoadoutEntry.h"
 #include "FRingLoadoutEntry.h"
 #include "FItemLoadoutSlot.h"
@@ -31,6 +32,27 @@ class ULoadoutData;
 class UItemData;
 class UStanceData;
 class UInfusionDisplayData;
+
+/**
+ * FBDElementSpellPool
+ * One Broken Darkness element spell pool. Holds up to 6 spells of a single
+ * element and is locked until that element has been absorbed in combat
+ * (UBrokenDarknessManager::HasAbsorbedElement). The Darkness pool is NOT stored
+ * here — it lives in FCombatLoadout::InnateSpells and is always available.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FBDElementSpellPool
+{
+    GENERATED_BODY()
+
+    /** Element this pool channels (Fire/Water/Earth/Wind/Light/Lightning/Void) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    ESpellElement Element = ESpellElement::Generic;
+
+    /** Spells in this pool (max 6, every entry must match Element) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    TArray<USpellData *> Spells;
+};
 
 /**
  * FCombatLoadout
@@ -98,9 +120,16 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     // ==================== CASTER INNATE SPELLS ====================
 
-    /** Innate spells (Caster only - max 24) */
+    /** Innate spells (Caster only - max 24).
+     *  For Broken Darkness this is the always-available Darkness pool (max 6). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
     TArray<USpellData *> InnateSpells;
+
+    /** Broken Darkness per-element spell pools (Fire/Water/Earth/Wind/Light/
+     *  Lightning/Void). Each pool is locked until its element is absorbed.
+     *  Empty / unused for non-BD characters. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    TArray<FBDElementSpellPool> BDSpellPools;
 
     // ==================== ITEMS ====================
 

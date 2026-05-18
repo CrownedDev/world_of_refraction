@@ -949,6 +949,9 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
 
     UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no DefaultLoadout - created empty loadout. Assign equipment via UI or set DefaultLoadout in CharacterData."),
            *CharacterData->Name);
+
+    // Broken Darkness characters get their element-spell pools initialised.
+    ApplyBDPoolsIfBroken();
 }
 
 void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
@@ -988,6 +991,53 @@ void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
     UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Initialized from asset '%s' (Class: %s)"),
            *LoadoutAsset->LoadoutName,
            *UEnum::GetValueAsString(CharacterClass));
+
+    // Broken Darkness characters get their element-spell pools initialised.
+    ApplyBDPoolsIfBroken();
+}
+
+void ULoadoutComponent::InitializeBDPools(FCombatLoadout &Loadout)
+{
+    // One pool per absorbable element other than Darkness. Darkness is the
+    // always-available default pool and lives in InnateSpells, not here.
+    // Idempotent — existing pools are kept, only missing ones are added.
+    for (uint8 i = 0; i <= static_cast<uint8>(ESpellElement::BrokenDarkness); ++i)
+    {
+        const ESpellElement Elem = static_cast<ESpellElement>(i);
+        if (Elem == ESpellElement::Darkness || !UBrokenDarknessManager::CanAbsorbElement(Elem))
+        {
+            continue;
+        }
+
+        const bool bExists = Loadout.BDSpellPools.ContainsByPredicate(
+            [Elem](const FBDElementSpellPool &Pool) { return Pool.Element == Elem; });
+        if (!bExists)
+        {
+            FBDElementSpellPool NewPool;
+            NewPool.Element = Elem;
+            Loadout.BDSpellPools.Add(NewPool);
+        }
+    }
+}
+
+void ULoadoutComponent::ApplyBDPoolsIfBroken()
+{
+    AActor *OwnerActor = GetOwner();
+    if (!OwnerActor)
+    {
+        return;
+    }
+
+    UCharacterDataComponent *CharComp = OwnerActor->FindComponentByClass<UCharacterDataComponent>();
+    if (!CharComp || !CharComp->IsBrokenDarkness())
+    {
+        return;
+    }
+
+    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    {
+        InitializeBDPools(SavedLoadouts[ActiveLoadoutIndex]);
+    }
 }
 
 // ==================== COMBAT ACCESSORS ====================

@@ -292,6 +292,7 @@ void FCombatLoadout::Clear()
 
     RingLoadout.Empty();
     InnateSpells.Empty();
+    BDSpellPools.Empty();
     ItemSlots.Empty();
 
     bShowPrimary = true;

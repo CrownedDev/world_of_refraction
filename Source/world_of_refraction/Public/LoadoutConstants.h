@@ -13,6 +13,10 @@ namespace LoadoutConstants
     constexpr int32 MAX_SPELL_SLOTS = 6;
     constexpr int32 MAX_RING_SPELLS = 6;
 
+    // Broken Darkness spell pools
+    constexpr int32 MAX_BD_POOL_SPELLS = 6;   // per element pool, and the Darkness pool
+    constexpr int32 MAX_BD_ELEMENT_POOLS = 7; // Fire/Water/Earth/Wind/Light/Lightning/Void
+
     // Skills (abilities/spells/attacks all share this cap on Effects array)
     constexpr int32 MAX_SKILL_EFFECTS = 5;
 

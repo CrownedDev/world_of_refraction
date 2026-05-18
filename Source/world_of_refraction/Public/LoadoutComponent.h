@@ -494,6 +494,15 @@ private:
     /** Helper to get CharacterData from sibling component */
     UCharacterData *GetOwnerCharacterData() const;
 
+    /** Build the Broken Darkness element-spell pools on a loadout — one empty
+     *  pool per absorbable non-Darkness element (7 total). Idempotent: existing
+     *  pools are kept, only missing ones are added. */
+    static void InitializeBDPools(FCombatLoadout &Loadout);
+
+    /** If the owning character is Broken Darkness, ensure its active loadout
+     *  has the BD element-spell pools initialised. */
+    void ApplyBDPoolsIfBroken();
+
 protected:
     virtual void BeginPlay() override;
 
