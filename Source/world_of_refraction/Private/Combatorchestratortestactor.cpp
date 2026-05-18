@@ -1240,8 +1240,8 @@ void ACombatOrchestratorTestActor::Test_ItemExecution()
 		return;
 	}
 
-	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (Damage: %.0f)"),
-		   *Item->GetFullItemName(), Item->GetDamageValue());
+	UE_LOG(LogTemp, Display, TEXT("    Loaded: %s (DOT: %.0f%%/turn)"),
+		   *Item->GetFullItemName(), Item->GetDOTDamagePercent());
 
 	ACombatOrchestrator *Orchestrator = GetOrCreateOrchestrator();
 	if (!Orchestrator)

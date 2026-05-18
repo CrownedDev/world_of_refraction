@@ -198,11 +198,9 @@ removed with the transform system.
   dead (zero callers): `UItemExecutor::ApplySecondaryEffect`, `UItemExecutor::IsGenericCharacter`,
   `UItemExecutor::GetCharacterData`, `UItemData::GetLightningBuildupPercent`,
   `ItemConstants::GENERIC_RESISTANCE_*` / `GENERIC_DURATION_*`, `FItemUseResult::GenericResistanceApplied`.
-  A second tier of pre-redesign getters (`GetDamageValue`, `GetEnergyValue`, `GetSelfDamage`,
-  `GetBuffDuration`, `GetDebuffsToRemove`, `GetGrantsImmunity`, `GetImmunityDuration`,
-  `HasSecondaryEffect`, `GetSecondaryDamagePerTurn`, `GetSecondaryDuration`,
-  `GetSilenceDuration`) has no gameplay callers but is still referenced by the editor
-  `Display*` mirrors and `ItemDataDebug` — removing them needs those scaffolds cleaned too.
+  The second tier of pre-redesign value getters and their `Display*` editor mirrors has
+  been removed (see Changelog, 2026-05-18); `ItemDataDebug` now reads only the
+  percentage-based getters.
 - **Item inventory / consumption.** `UItemExecutor` applies effects but never decrements
   item counts or checks ownership — inventory wiring is unbuilt.
 - Self-targeted buff items with duration 1 expire at the end of the casting turn (effect
@@ -220,3 +218,4 @@ removed with the transform system.
 | 2026-05-17 | Garnet redesign — percentage-based fire DOT | feature/item-system-redesign |
 | 2026-05-17 | Phase 2 — bulk crystal redesign (Sapphire–Quartz); percentage values; `ExecuteStatusClearEffect`; `ReduceStatusBuildup`; shared elemental buildup | feature/item-system-redesign |
 | 2026-05-17 | Phase 3 — class-detection fixes; `ApplyGenericBonus` removed; BD absorption fires on target; `GetItemTargetType` + `SingleAnyone` targeting with section headers | feature/item-system-redesign |
+| 2026-05-18 | Tier 2 dead-code cleanup — removed 11 pre-redesign value getters and their `Display*` editor mirrors from `UItemData`; `ItemDataDebug` validation/logging/tier tables modernised to the percentage-based getters; `CombatOrchestratorTestActor` item log updated | chore/tier2-dead-code |

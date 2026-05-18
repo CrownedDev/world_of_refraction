@@ -184,36 +184,6 @@ EItemEffectType UItemData::GetPrimaryEffectType() const
     }
 }
 
-// ==================== DAMAGE/HEALING VALUES ====================
-
-float UItemData::GetDamageValue() const
-{
-    // Garnet (Fire Damage) and Sapphire (Water Healing) use same values
-    if (CrystalType == ECrystalType::Garnet || CrystalType == ECrystalType::Sapphire)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 60.0f;
-        case EItemTier::E_Tier:
-            return 75.0f;
-        case EItemTier::D_Tier:
-            return 95.0f;
-        case EItemTier::C_Tier:
-            return 120.0f;
-        case EItemTier::B_Tier:
-            return 150.0f;
-        case EItemTier::A_Tier:
-            return 180.0f;
-        case EItemTier::S_Tier:
-            return 220.0f;
-        default:
-            return 0.0f;
-        }
-    }
-    return 0.0f;
-}
-
 // ==================== GARNET DOT ====================
 // Phase 2 redesign — Garnet is a percentage-based fire DOT (no instant damage).
 // Damage per turn is a percent of the target's MaxHP; see UItemExecutor::ExecuteDamageEffect.
@@ -643,62 +613,6 @@ float UItemData::GetElementalBuildupPercent() const
     }
 }
 
-// ==================== ENERGY VALUES ====================
-
-int32 UItemData::GetEnergyValue() const
-{
-    if (CrystalType == ECrystalType::Citrine)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 20;
-        case EItemTier::E_Tier:
-            return 25;
-        case EItemTier::D_Tier:
-            return 35;
-        case EItemTier::C_Tier:
-            return 45;
-        case EItemTier::B_Tier:
-            return 60;
-        case EItemTier::A_Tier:
-            return 80;
-        case EItemTier::S_Tier:
-            return 100;
-        default:
-            return 0;
-        }
-    }
-    return 0;
-}
-
-int32 UItemData::GetSelfDamage() const
-{
-    if (CrystalType == ECrystalType::Citrine)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 10;
-        case EItemTier::E_Tier:
-            return 10;
-        case EItemTier::D_Tier:
-            return 10;
-        case EItemTier::C_Tier:
-            return 15;
-        case EItemTier::B_Tier:
-            return 15;
-        case EItemTier::A_Tier:
-            return 20;
-        case EItemTier::S_Tier:
-            return 25;
-        default:
-            return 0;
-        }
-    }
-    return 0;
-}
-
 // ==================== BUFF VALUES ====================
 
 float UItemData::GetBuffPercentage() const
@@ -773,38 +687,6 @@ float UItemData::GetBuffPercentage() const
     }
 }
 
-int32 UItemData::GetBuffDuration() const
-{
-    switch (CrystalType)
-    {
-    case ECrystalType::Emerald: // Attack Speed
-    case ECrystalType::Amber:   // Defense
-    case ECrystalType::Opal:    // Crit
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 3;
-        case EItemTier::E_Tier:
-            return 3;
-        case EItemTier::D_Tier:
-            return 4;
-        case EItemTier::C_Tier:
-            return 4;
-        case EItemTier::B_Tier:
-            return 5;
-        case EItemTier::A_Tier:
-            return 5;
-        case EItemTier::S_Tier:
-            return 6;
-        default:
-            return 0;
-        }
-
-    default:
-        return 0;
-    }
-}
-
 // ==================== SILENCE (Onyx) ====================
 
 float UItemData::GetSilencePercentage() const
@@ -834,99 +716,6 @@ float UItemData::GetSilencePercentage() const
     return 0.0f;
 }
 
-int32 UItemData::GetSilenceDuration() const
-{
-    if (CrystalType == ECrystalType::Onyx)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 1;
-        case EItemTier::E_Tier:
-            return 1;
-        case EItemTier::D_Tier:
-            return 2;
-        case EItemTier::C_Tier:
-            return 2;
-        case EItemTier::B_Tier:
-            return 2;
-        case EItemTier::A_Tier:
-            return 3;
-        case EItemTier::S_Tier:
-            return 1;
-        default:
-            return 0;
-        }
-    }
-    return 0;
-}
-
-// ==================== CLEANSE (Iolite) ====================
-
-int32 UItemData::GetDebuffsToRemove() const
-{
-    if (CrystalType == ECrystalType::Iolite)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 1;
-        case EItemTier::E_Tier:
-            return 1;
-        case EItemTier::D_Tier:
-            return 2;
-        case EItemTier::C_Tier:
-            return 2;
-        case EItemTier::B_Tier:
-            return 3;
-        case EItemTier::A_Tier:
-            return 3;
-        case EItemTier::S_Tier:
-            return 0;
-        default:
-            return 0;
-        }
-    }
-    return 0;
-}
-
-bool UItemData::GetGrantsImmunity() const
-{
-    if (CrystalType == ECrystalType::Iolite)
-    {
-        // F through A grant immunity, S doesn't need it (removes ALL)
-        return Tier >= EItemTier::F_Tier && Tier <= EItemTier::A_Tier;
-    }
-    return false;
-}
-
-int32 UItemData::GetImmunityDuration() const
-{
-    if (CrystalType == ECrystalType::Iolite)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 1; // NEW
-        case EItemTier::E_Tier:
-            return 2; // NEW
-        case EItemTier::D_Tier:
-            return 1; // NEW
-        case EItemTier::C_Tier:
-            return 2; // NEW
-        case EItemTier::B_Tier:
-            return 2; // CHANGED: was 1
-        case EItemTier::A_Tier:
-            return 3; // CHANGED: was 2
-        case EItemTier::S_Tier:
-            return 0; // CHANGED: was 3 (no immunity needed - all gone!)
-        default:
-            return 0;
-        }
-    }
-    return 0;
-}
-
 // ==================== OPAL REVEALS ====================
 
 bool UItemData::GetRevealsHP() const
@@ -937,32 +726,6 @@ bool UItemData::GetRevealsHP() const
 bool UItemData::GetRevealsStats() const
 {
     return CrystalType == ECrystalType::Opal && Tier == EItemTier::S_Tier;
-}
-
-// ==================== SECONDARY EFFECTS ====================
-
-bool UItemData::HasSecondaryEffect() const
-{
-    // Only Garnet S-Tier has burn DOT
-    return CrystalType == ECrystalType::Garnet && Tier == EItemTier::S_Tier;
-}
-
-int32 UItemData::GetSecondaryDamagePerTurn() const
-{
-    if (HasSecondaryEffect())
-    {
-        return 15; // Garnet S burn damage
-    }
-    return 0;
-}
-
-int32 UItemData::GetSecondaryDuration() const
-{
-    if (HasSecondaryEffect())
-    {
-        return 3; // Garnet S burn duration
-    }
-    return 0;
 }
 
 // ==================== STAT MODIFIER FUNCTIONS ====================
@@ -1412,21 +1175,10 @@ void UItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEve
     // Update all display values for editor viewing
     DisplayElement = GetAssociatedElement();
     DisplayEffectType = GetPrimaryEffectType();
-    DisplayDamageValue = GetDamageValue();
-    DisplayEnergyValue = GetEnergyValue();
-    DisplaySelfDamage = GetSelfDamage();
     DisplayBuffPercentage = GetBuffPercentage();
-    DisplayBuffDuration = GetBuffDuration();
     DisplaySilencePercentage = GetSilencePercentage();
-    DisplaySilenceDuration = GetSilenceDuration();
-    DisplayDebuffsToRemove = GetDebuffsToRemove();
-    DisplayGrantsImmunity = GetGrantsImmunity();
-    DisplayImmunityDuration = GetImmunityDuration();
     DisplayRevealsHP = GetRevealsHP();
     DisplayRevealsStats = GetRevealsStats();
-    DisplayHasSecondary = HasSecondaryEffect();
-    DisplaySecondaryDamage = GetSecondaryDamagePerTurn();
-    DisplaySecondaryDuration = GetSecondaryDuration();
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 
     // Re-init durability when designer changes Tier (or evolution/immune flags
@@ -1493,13 +1245,6 @@ void UItemData::PostEditChangeChainProperty(FPropertyChangedChainEvent &Property
 EDataValidationResult UItemData::IsDataValid(FDataValidationContext &Context) const
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
-
-    // Basic validation - values are computed, so just check they make sense
-    if (GetDamageValue() < 0.0f)
-    {
-        Context.AddError(FText::FromString(TEXT("Computed damage value is negative")));
-        Result = EDataValidationResult::Invalid;
-    }
 
     // Quartz is consumable-only (item-system-redesign) — refined or evolution
     // Quartz is an invalid authoring state.
