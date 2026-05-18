@@ -16,14 +16,17 @@ class USkillEffectManager;
 // ========================================
 
 /** Broadcast when a status buildup changes (for UI feedback).
- *  PendingElement parameter lets UI re-tint the bar on every hit per the
- *  locked design (bar colour follows most-recent-hit element). */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+ *  PendingElement lets UI re-tint the bar on every hit per the locked design
+ *  (bar colour follows most-recent-hit element). Source is the attacker, so UI
+ *  can darken the tint for Broken Darkness attackers; may be null on decay/reset
+ *  with no recorded last source. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
     FOnStatusBuildupChanged,
     AActor *, Target,
     float, CurrentBuildup,
     float, MaxBuildup,
-    ESpellElement, PendingElement);
+    ESpellElement, PendingElement,
+    AActor *, Source);
 
 /**
  * UStatusBuildupManager

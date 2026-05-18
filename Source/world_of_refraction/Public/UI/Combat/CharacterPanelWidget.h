@@ -114,7 +114,7 @@ protected:
 	UFUNCTION()
 	void HandleEPChanged(int32 CurrentEP, int32 MaxEP);
 	UFUNCTION()
-	void HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement);
+	void HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source);
 	UFUNCTION()
 	void HandleEffectApplied(AActor *Target, const FActiveSkillEffect &Effect);
 	UFUNCTION()
@@ -170,9 +170,10 @@ private:
 	 *  currently-displayed energy source */
 	void ApplyEnergyBarTint();
 
-	/** Tint the status buildup bar to the pending-cap element. Generic (physical
-	 *  damage) falls back to a neutral fill. Called on every buildup change. */
-	void ApplyStatusBarTint(ESpellElement PendingElement);
+	/** Tint the status buildup bar to the pending-cap element. A Broken Darkness
+	 *  attacker darkens the tint (BlendedColor); Generic (physical damage) falls
+	 *  back to a neutral fill. Called on every buildup change. */
+	void ApplyStatusBarTint(ESpellElement PendingElement, AActor *Source);
 
 	/** Apply EP-bar visibility rule for the currently bound character.
 	 *  Hides bar+text for Resonator-without-weapon; shows otherwise.

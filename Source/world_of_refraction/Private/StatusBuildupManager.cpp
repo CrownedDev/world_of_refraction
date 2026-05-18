@@ -323,7 +323,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// ResolvedTrigger was computed at function entry for the immunity gate; reuse here.
 
 	OnStatusBuildupChanged.Broadcast(Target, State.CurrentBuildup,
-		CombatConstants::STATUS_EFFECT_THRESHOLD, Element);
+		CombatConstants::STATUS_EFFECT_THRESHOLD, Element, Source);
 
 	UE_LOG(LogTemp, Log, TEXT("[StatusBuildupManager] %s status buildup: %.1f -> %.1f (+%.1f) - Element: %s, Physical: %s, Resolved trigger: %s"),
 		   *Target->GetName(), OldBuildup, State.CurrentBuildup, Amount,
@@ -372,8 +372,10 @@ void UStatusBuildupManager::ResetStatusBar(AActor *Target)
 		State->LastSource = nullptr;
 		State->TurnsSinceLastHit = 0;
 
+		// LastSource was just cleared above — broadcast null; the reset bar is
+		// neutral anyway (PendingElement == Generic).
 		OnStatusBuildupChanged.Broadcast(Target, 0.0f,
-			CombatConstants::STATUS_EFFECT_THRESHOLD, ESpellElement::Generic);
+			CombatConstants::STATUS_EFFECT_THRESHOLD, ESpellElement::Generic, nullptr);
 	}
 }
 
@@ -393,9 +395,10 @@ void UStatusBuildupManager::ReduceStatusBuildup(AActor *Target, float Fraction)
 	Fraction = FMath::Clamp(Fraction, 0.0f, 1.0f);
 	State->CurrentBuildup = FMath::Max(0.0f, State->CurrentBuildup * (1.0f - Fraction));
 
-	// PendingElement passthrough — UI keeps the current tint while the bar drops.
+	// PendingElement + LastSource passthrough — UI keeps the current tint
+	// (including BD darkening) while the bar drops.
 	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
-		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement);
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup reduced by %.0f%% -> %.1f"),
 		   *Target->GetName(), Fraction * 100.0f, State->CurrentBuildup);
@@ -429,9 +432,10 @@ void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 	float OldBuildup = State->CurrentBuildup;
 	State->CurrentBuildup *= (1.0f - CombatConstants::STATUS_DECAY_RATE);
 
-	// Element passthrough on decay - UI keeps current tint while bar drops.
+	// Element + LastSource passthrough on decay - UI keeps current tint
+	// (including BD darkening) while bar drops.
 	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
-		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement);
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource);
 
 	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar decayed: %.1f → %.1f (-%d%%, turn %d)"),
 		   *Target->GetName(), OldBuildup, State->CurrentBuildup,

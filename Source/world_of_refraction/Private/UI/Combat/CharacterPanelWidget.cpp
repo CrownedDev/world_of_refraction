@@ -225,7 +225,7 @@ void UCharacterPanelWidget::HandleBDOverloadStateChanged(AActor *Actor, bool bIs
 	RefreshEnergyBar();
 }
 
-void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement)
+void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source)
 {
 	if (Target != BoundActor.Get())
 	{
@@ -236,20 +236,43 @@ void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Cur
 	SetTextSafe(StatusText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::Status, FMath::TruncToInt(Current), FMath::TruncToInt(Max)));
 	// Retint per most-recent-hit element — pending element can shift when a
 	// different element lands on the same target.
-	ApplyStatusBarTint(PendingElement);
+	ApplyStatusBarTint(PendingElement, Source);
 }
 
-void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement)
+void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AActor *Source)
 {
 	if (!StatusBar)
 		return;
 
-	// Generic = physical-only damage (Slash/Pierce/Impact) — no element to
-	// surface, so fall back to a neutral fill. GetColorForElement already
-	// maps BrokenDarkness to ElementColors::BrokenDarkness.
-	const FLinearColor BarColour = (PendingElement == ESpellElement::Generic)
-		? FLinearColor::White
-		: ElementColors::GetColorForElement(PendingElement);
+	// BD attacker — darkened element colour. GetHybridSpellColors handles the
+	// Generic/BrokenDarkness element cases internally (pure BD colour).
+	if (Source)
+	{
+		UBrokenDarknessManager *BDManager = Source->FindComponentByClass<UBrokenDarknessManager>();
+		UCharacterDataComponent *SourceChar = Source->FindComponentByClass<UCharacterDataComponent>();
+		if (BDManager && BDManager->IsTransformed() && SourceChar && SourceChar->IsBrokenDarkness())
+		{
+			StatusBar->SetFillColorAndOpacity(
+				UHybridSpellColors::GetHybridSpellColors(PendingElement).BlendedColor);
+			return;
+		}
+	}
+
+	// Non-BD attacker (or null Source). Generic = physical-only damage
+	// (Slash/Pierce/Impact) — no element to surface, so a neutral fill.
+	FLinearColor BarColour;
+	if (PendingElement == ESpellElement::Generic)
+	{
+		BarColour = FLinearColor::White;
+	}
+	else if (PendingElement == ESpellElement::BrokenDarkness)
+	{
+		BarColour = ElementColors::BrokenDarkness;
+	}
+	else
+	{
+		BarColour = ElementColors::GetColorForElement(PendingElement);
+	}
 
 	StatusBar->SetFillColorAndOpacity(BarColour);
 }
