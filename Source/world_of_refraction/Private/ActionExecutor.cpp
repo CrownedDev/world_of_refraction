@@ -158,11 +158,21 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 	// Calculate energy cost
 	int32 EnergyCost = CalculateActionEnergyCost(Actor, Action);
 
-	// Check energy
+	// Check energy. Broken Darkness characters pay from AbsorptionEnergy on
+	// UBrokenDarknessManager (their CurrentEP is forced to 0); everyone else —
+	// and any BD missing its manager — pays from CurrentEP.
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
-	if (CharComp && CharComp->CurrentEP < EnergyCost)
+	if (CharComp)
 	{
-		return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
+		UBrokenDarknessManager *BDManager =
+			CharComp->IsBrokenDarkness() ? GetBrokenDarknessManager(Actor) : nullptr;
+		const bool bCanAfford = BDManager
+									? BDManager->CanAffordEnergy(EnergyCost)
+									: (CharComp->CurrentEP >= EnergyCost);
+		if (!bCanAfford)
+		{
+			return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
+		}
 	}
 
 	// Check requirements (world stat requirements)
@@ -182,10 +192,19 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			// element gate.
 			if (Action.SpellData && CharData->CharacterClass == ECharacterClass::Caster)
 			{
+				// Source-side: Reality / BrokenDarkness infusion sources unlock any element.
 				const ESpellElement SourceElement =
 					GetElementForSourceOption(Actor, Action.SelectedSource);
 				const bool bAnyElement = ElementHelpers::IsAnySpellSource(SourceElement);
-				if (!bAnyElement && CharData->InnateElement != Action.SpellData->Element)
+
+				// Character-side capability — innate match for normal Casters,
+				// Darkness + absorbed elements for Broken Darkness, plus any
+				// element channelled by an equipped crystal. Shared with
+				// LoadoutComponent::GetValidationErrors via the same helper.
+				const bool bElementCastable = UBrokenDarknessManager::IsElementCastable(
+					Actor, CharComp, GetBrokenDarknessManager(Actor), Action.SpellData->Element);
+
+				if (!bAnyElement && !bElementCastable)
 				{
 					return FActionValidationResult(false, TEXT("Element restricted"));
 				}
@@ -244,6 +263,15 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	case EActionType::Spell:
 		if (Action.SpellData)
 		{
+			// Ring and weapon crystal spells (including ring/weapon-attached
+			// evolutions) are free to cast. Only innate refraction spells and
+			// primary-slot evolution spells draw energy.
+			if (Action.SpellSource == ESpellSource::RingCrystal ||
+				Action.SpellSource == ESpellSource::WeaponCrystal)
+			{
+				return 0;
+			}
+
 			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
 			// Spell infusion: 1.0x / 1.3x / 1.6x cost
 			float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
@@ -2281,6 +2309,19 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 	if (!Comp)
 		return false;
+
+	// Broken Darkness pays from AbsorptionEnergy on UBrokenDarknessManager;
+	// everyone else — and any BD missing its manager — pays from CurrentEP.
+	if (Comp->IsBrokenDarkness())
+	{
+		if (UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor))
+		{
+			const bool bSpent = BDManager->SpendAbsorptionEnergy(Amount);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s spent %d from AbsorptionEnergy (success: %s)"),
+				   *Actor->GetName(), Amount, bSpent ? TEXT("yes") : TEXT("no"));
+			return bSpent;
+		}
+	}
 
 	if (Comp->CurrentEP < Amount)
 		return false;

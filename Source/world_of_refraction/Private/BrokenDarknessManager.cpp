@@ -6,9 +6,11 @@
 #include "AbilityData.h"
 #include "CharacterData.h"
 #include "CharacterDataComponent.h"
+#include "LoadoutComponent.h"
 #include "DefenseSystem.h"
 #include "WorldStatRequirements.h"
 #include "StatConstants.h"
+#include "ElementHelpers.h"
 
 namespace BrokenDarknessConstants
 {
@@ -583,6 +585,40 @@ void UBrokenDarknessManager::ResetStacks()
 bool UBrokenDarknessManager::HasAbsorbedElement(ESpellElement Element) const
 {
 	return AbsorbedElements.Contains(Element);
+}
+
+bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
+											   UCharacterDataComponent *CharComp,
+											   UBrokenDarknessManager *BDManager,
+											   ESpellElement Element)
+{
+	// Cannot resolve the character — do not block.
+	if (!CharComp)
+	{
+		return true;
+	}
+
+	// Broken Darkness: Darkness (the BD default) is always castable; every other
+	// element requires a session absorption. AbsorbedElements never contains
+	// Darkness, so the Darkness case is checked explicitly here. An equipped
+	// crystal channelling the element also unlocks the cast.
+	if (CharComp->IsBrokenDarkness() && BDManager)
+	{
+		return Element == ESpellElement::Darkness
+			|| BDManager->HasAbsorbedElement(Element)
+			|| ULoadoutComponent::HasEquippedSourceForElement(Actor, Element);
+	}
+
+	// Non-BD: innate-element match, an innate any-element source
+	// (Reality / BrokenDarkness), or an equipped crystal channelling the element.
+	const UCharacterData *CharData = CharComp->CharacterData;
+	if (!CharData)
+	{
+		return true;
+	}
+	return Element == CharData->InnateElement
+		|| ElementHelpers::IsAnySpellSource(CharData->InnateElement)
+		|| ULoadoutComponent::HasEquippedSourceForElement(Actor, Element);
 }
 
 bool UBrokenDarknessManager::CanCastHybridSpell(ESpellElement SecondaryElement) const

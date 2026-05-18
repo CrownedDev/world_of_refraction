@@ -202,6 +202,33 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
 	bool HasAbsorbedElement(ESpellElement Element) const;
 
+	/**
+	 * Element-capability predicate shared by combat (ActionExecutor::ValidateAction)
+	 * and loadout (LoadoutComponent::GetValidationErrors) validation.
+	 *
+	 * Broken Darkness characters can cast Darkness (the BD default element) plus
+	 * any element absorbed this session. Non-BD characters can cast their innate
+	 * element, or anything if their innate element is itself an any-element
+	 * source (Reality / BrokenDarkness).
+	 *
+	 * In both cases the cast is also unlocked when the character has an equipped
+	 * crystal channelling the element — ring, weapon, or primary evolution slot
+	 * (ULoadoutComponent::HasEquippedSourceForElement).
+	 *
+	 * Returns true (castable) when the character cannot be resolved — callers
+	 * must not block on missing data.
+	 *
+	 * @param Actor     Casting actor — used to query equipped crystals (may be null)
+	 * @param CharComp  Casting character's data component (may be null)
+	 * @param BDManager Character's BrokenDarknessManager (may be null)
+	 * @param Element   Spell element being checked
+	 */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
+	static bool IsElementCastable(AActor *Actor,
+								  UCharacterDataComponent *CharComp,
+								  UBrokenDarknessManager *BDManager,
+								  ESpellElement Element);
+
 	/** Can cast hybrid spell with this element? */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
 	bool CanCastHybridSpell(ESpellElement SecondaryElement) const;

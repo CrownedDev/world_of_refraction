@@ -13,6 +13,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "ECharacterClass.h"
+#include "ESpellElement.h"
 #include "FCombatLoadout.h"
 #include "FItemLoadoutSlot.h"
 #include "FEquipmentStatBonus.h"
@@ -258,6 +259,14 @@ public:
      *  that needs to walk all equipped crystals (e.g. between-combat repair). */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystals")
     TArray<FEquippedCrystalSlot> GetEquippedCrystals() const;
+
+    /** True if any crystal equipped on Actor channels the given element.
+     *  Walks every slot from GetEquippedCrystals() — weapon/ring crystals plus
+     *  the primary evolution slot. Used as a casting unlock channel by
+     *  UBrokenDarknessManager::IsElementCastable: a Caster can cast a spell
+     *  whose element matches an equipped crystal, regardless of innate element.
+     *  Returns false (no unlock) when Actor or its ULoadoutComponent is null. */
+    static bool HasEquippedSourceForElement(AActor *Actor, ESpellElement Element);
 
     /** Get primary slot type */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")

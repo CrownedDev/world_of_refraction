@@ -10,6 +10,7 @@
 #include "RingData.h"
 #include "CharacterData.h"
 #include "CharacterDataComponent.h"
+#include "BrokenDarknessManager.h"
 #include "ElementHelpers.h"
 #include "LoadoutData.h"
 #include "RingData.h"
@@ -496,19 +497,18 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     // Validate innate spells (Caster)
     if (CharacterClass == ECharacterClass::Caster)
     {
-        // Need CharacterData for the innate-element check. Pull it from the
-        // owning actor's CharacterDataComponent. If unavailable, skip the
-        // element check (ownership check still runs).
-        UCharacterData *CharData = nullptr;
-        if (AActor *OwnerActor = GetOwner())
+        // Resolve the owning actor's CharacterDataComponent + BrokenDarknessManager
+        // for the element-capability check. If unavailable, the shared helper
+        // returns true (castable) so the element check is effectively skipped —
+        // the ownership check still runs.
+        AActor *OwnerActor = GetOwner();
+        UCharacterDataComponent *CharComp = nullptr;
+        UBrokenDarknessManager *BDManager = nullptr;
+        if (OwnerActor)
         {
-            if (UCharacterDataComponent *CDC = OwnerActor->FindComponentByClass<UCharacterDataComponent>())
-            {
-                CharData = CDC->CharacterData;
-            }
+            CharComp = OwnerActor->FindComponentByClass<UCharacterDataComponent>();
+            BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
         }
-
-        const bool bAnyElement = CharData && ElementHelpers::IsAnySpellSource(CharData->InnateElement);
 
         for (USpellData *Spell : Loadout.InnateSpells)
         {
@@ -521,11 +521,13 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
                 continue;
             }
 
-            // Element-match check (only if we resolved CharData; otherwise skip)
-            if (CharData && !bAnyElement && Spell->Element != CharData->InnateElement)
+            // Element-capability check — shared with ActionExecutor::ValidateAction.
+            // Castable = innate-element match for normal Casters; Darkness +
+            // absorbed elements for Broken Darkness.
+            if (!UBrokenDarknessManager::IsElementCastable(OwnerActor, CharComp, BDManager, Spell->Element))
             {
                 Errors.Add(FString::Printf(
-                    TEXT("Innate spell '%s' element does not match Caster's innate element"),
+                    TEXT("Innate spell '%s' element not castable by this character"),
                     *Spell->Name));
             }
         }
@@ -1195,6 +1197,32 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     }
 
     return Result;
+}
+
+bool ULoadoutComponent::HasEquippedSourceForElement(AActor *Actor, ESpellElement Element)
+{
+    if (!Actor)
+    {
+        return false;
+    }
+
+    const ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+    if (!Loadout)
+    {
+        return false;
+    }
+
+    // GetEquippedCrystals already covers weapon/ring crystals and the primary
+    // evolution slot. A crystal channels its associated element.
+    for (const FEquippedCrystalSlot &Slot : Loadout->GetEquippedCrystals())
+    {
+        if (Slot.Crystal && Slot.Crystal->GetAssociatedElement() == Element)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 EPrimarySlotType ULoadoutComponent::GetPrimarySlotType() const
