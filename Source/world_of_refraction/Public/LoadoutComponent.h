@@ -326,10 +326,6 @@ public:
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get all combat spells from active loadout */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
-    TArray<USpellData *> GetCombatSpells() const;
-
     /** Get spells from evolved weapon crystal */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetWeaponResonateSpells() const;

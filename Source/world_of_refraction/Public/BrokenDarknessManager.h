@@ -229,10 +229,6 @@ public:
 								  UBrokenDarknessManager *BDManager,
 								  ESpellElement Element);
 
-	/** Can cast hybrid spell with this element? */
-	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
-	bool CanCastHybridSpell(ESpellElement SecondaryElement) const;
-
 	/** Get hybrid element (Darkness + last absorbed) */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
 	ESpellElement GetHybridElement() const { return LastAbsorbedElement; }

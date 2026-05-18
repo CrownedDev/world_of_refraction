@@ -621,17 +621,6 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 		|| ULoadoutComponent::HasEquippedSourceForElement(Actor, Element);
 }
 
-bool UBrokenDarknessManager::CanCastHybridSpell(ESpellElement SecondaryElement) const
-{
-	if (!bIsTransformed)
-	{
-		return false;
-	}
-
-	// Must have absorbed this element
-	return HasAbsorbedElement(SecondaryElement);
-}
-
 // ==================== DEFENSE SYSTEM INTEGRATION ====================
 
 void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,

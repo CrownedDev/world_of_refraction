@@ -1519,59 +1519,6 @@ UAnimMontage *ULoadoutComponent::GetCurrentAttackMontage() const
 
 // ==================== SPELL ACCESS ====================
 
-TArray<USpellData *> ULoadoutComponent::GetCombatSpells() const
-{
-    TArray<USpellData *> Result;
-
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-    {
-        return Result;
-    }
-
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
-
-    // Caster innate spells
-    if (CharacterClass == ECharacterClass::Caster)
-    {
-        Result.Append(Loadout.InnateSpells);
-    }
-
-    // Evolution spells
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
-    {
-        Result.Append(Loadout.EvolutionSpells);
-    }
-
-    // Weapon crystal spells
-    const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout();
-    if (WeaponEntry)
-    {
-        Result.Append(WeaponEntry->GetAllSpells());
-    }
-
-    // Ring spells (Resonator)
-    if (CharacterClass == ECharacterClass::Resonator)
-    {
-        const FRingLoadoutEntry *RingEntry = GetActiveRingLoadout();
-        if (RingEntry)
-        {
-            Result.Append(RingEntry->GetAllSpells());
-        }
-    }
-
-    // Primary ring spells (Caster/Generic with ring primary)
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
-    {
-        const FRingLoadoutEntry *RingEntry = GetPrimaryRingLoadout();
-        if (RingEntry)
-        {
-            Result.Append(RingEntry->GetAllSpells());
-        }
-    }
-
-    return Result;
-}
-
 TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
 {
     TArray<USpellData *> Result;
