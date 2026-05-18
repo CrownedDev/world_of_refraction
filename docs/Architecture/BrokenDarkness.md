@@ -107,7 +107,9 @@ rule survives: passive regen is suppressed (`ServerGainEnergy` BD early-out), an
 event-driven gain path is `CharacterDataComponent::ServerGainBrokenDarknessEnergy`, which
 bypasses that early-out and permits `CurrentEP` to exceed `MaxEP` into overload.
 `AddAbsorptionEnergy` routes defense and crystal absorption through it; the ceiling is
-`MaxEP + OverloadCapacity` (30). Crossing `MaxEP` enters **overload** — `UpdateOverloadState`
+`MaxEP + GetOverloadCapacity()`, where `GetOverloadCapacity()` is derived as **30% of
+`MaxEP`** (`OVERLOAD_CAPACITY_FRACTION`) — no stored field, so the overload buffer scales
+with the BD's energy pool. Crossing `MaxEP` enters **overload** — `UpdateOverloadState`
 is driven by a binding to `CharacterDataComponent::OnEPChanged` (`BeginPlay`), the single
 overload trigger, so absorption gain, cast spend, and overload drain all re-evaluate it.
 `ProcessOverloadTick` (called by `CombatOrchestrator.cpp`) applies aura damage to nearby
@@ -300,3 +302,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-18 | Session 3 — BD spell-pool loadout: `FBDElementSpellPool` struct + `BDSpellPools` field (7 element pools) on `FCombatLoadout` and `ULoadoutData`; `InitializeBDPools` 7-pool init; `ValidateBDSpellLoadout` structural validation; `FCombatCapabilities` surfaces the Darkness pool + the absorbed element's pool; single-slot absorption (`HasAbsorbedElement` matches `AbsorbedElements.Last()`); removed dead `CanCastHybridSpell` and `GetCombatSpells`; new *BD Spell Pools* section | feature/bd-spell-pools |
 | 2026-05-18 | Session 4 — AI BD-awareness: `ULoadoutComponent::GetAvailableSpells` now appends absorbed BD pools; `AIDecisionManager::GetCurrentEP` routes BD to `AbsorptionEnergy`. All 8 AI spell-evaluation sites benefit through the shared method. | feature/bd-ai-awareness |
 | 2026-05-18 | Session 5 — energy unification: BD absorption energy merged onto `UCharacterDataComponent::CurrentEP`. Deleted `AbsorptionEnergy` / `MaxAbsorptionEnergy` fields and `GetAbsorptionEnergy` / `SpendAbsorptionEnergy` / `CanAffordEnergy` / `GetMaxAbsorptionEnergy`. New `ServerGainBrokenDarknessEnergy` (overload-aware gain, bypasses the passive-regen early-out) + public `GrantAbsorptionEnergy`. Overload now re-evaluated via a `CharacterDataComponent::OnEPChanged` binding. BD branches in `ValidateAction` / `SpendEnergy` / `GetCurrentEP` collapsed. Runtime-transform energy carries over (`ServerSetBrokenDarkness` no longer zeroes EP); overload threshold is the stat-derived `MaxEP`. Fixed `ItemExecutor::ApplyBrokenDarknessBonus` granting nothing on BD. | feature/bd-ai-awareness |
+| 2026-05-18 | Session 5 follow-up — `OverloadCapacity` is no longer a flat 30.0f field; `GetOverloadCapacity()` derives it as 30% of `MaxEP` (`OVERLOAD_CAPACITY_FRACTION`) so the overload buffer scales with the BD's energy pool. | feature/bd-energy-unification |
