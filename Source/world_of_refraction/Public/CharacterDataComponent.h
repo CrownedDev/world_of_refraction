@@ -121,6 +121,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerSetEP(int32 NewEP);
 
+    /**
+     * Server-only: Broken Darkness absorption-energy gain. Unlike
+     * ServerGainEnergy this is NOT suppressed for BD characters — it is the
+     * event-driven gain path (parry / block absorption, crystal use). Permits
+     * CurrentEP to rise above MaxEP into overload: the upper bound is
+     * AbsoluteMax, which BrokenDarknessManager supplies as MaxEP + its
+     * OverloadCapacity. Broadcasts OnEPChanged.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void ServerGainBrokenDarknessEnergy(int32 Amount, int32 AbsoluteMax);
+
     // ========================================
     // DEATH/RESURRECTION (SERVER ONLY)
     // ========================================
@@ -246,8 +257,8 @@ public:
     /**
      * Server-only: set the runtime BD flag. Called by
      * BrokenDarknessManager::TriggerTransformation on a successful break roll.
-     * Also clears CurrentEP — BDs use BrokenDarknessManager::AbsorptionEnergy,
-     * not regular EP.
+     * CurrentEP carries over — the energy held at transformation becomes the
+     * new BD's starting absorption buffer.
      */
     UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
     void ServerSetBrokenDarkness(bool bNewState);

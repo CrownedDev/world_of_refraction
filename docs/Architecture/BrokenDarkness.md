@@ -9,10 +9,11 @@ absorption stacks that scale status effects, can overload when energy exceeds ca
 and cast with a darkness-tinted visual treatment. The system is implemented around one
 runtime component, `UBrokenDarknessManager`, plus a state flag on `UCharacterDataComponent`.
 
-> This document reflects the BD system on `feature/bd-spell-pools` after **Session 3**.
-> Sessions 1–2 wired BD energy and the Caster element gate into action validation
-> (see *Energy Model* and *Element Access*); Session 3 added the BD spell-pool loadout
-> (see *BD Spell Pools*). AI integration is not yet BD-aware — see *Known Gaps*.
+> This document reflects the BD system after **Session 5** (`feature/bd-ai-awareness`).
+> Sessions 1–2 wired BD energy and the Caster element gate into action validation;
+> Session 3 added the BD spell-pool loadout; Session 4 made AI BD-aware; Session 5
+> unified BD absorption energy onto `UCharacterDataComponent::CurrentEP` — see
+> *Energy Model*.
 
 ## Two Paths to Broken Darkness
 
@@ -100,13 +101,17 @@ when a defense window closes:
 points using a different formula (`DamageBlocked × ParryAbsorptionRate/BlockAbsorptionRate`);
 they currently have no callers.
 
-**Energy** — absorption energy lives in `AbsorptionEnergy` (cap `MaxAbsorptionEnergy` 100,
-`.h:291-295`), entirely separate from `UCharacterDataComponent::CurrentEP`, which is forced
-to 0 for BD (`ServerGainEnergy` early-out `.cpp:159`, `ServerSetEP` guard `.cpp:184`).
-Energy may exceed max by `OverloadCapacity` (30); crossing max enters **overload**
-(`AddAbsorptionEnergy` / `UpdateOverloadState`, `.cpp:359-415`). `ProcessOverloadTick`
-(`.cpp:453`, called by `CombatOrchestrator.cpp:1033`) applies aura damage to nearby enemies,
-self-damage, and energy drain each turn while overloaded.
+**Energy** — since Session 5, BD absorption energy is stored on
+`UCharacterDataComponent::CurrentEP` — the same field a non-BD caster spends. BD's gain
+rule survives: passive regen is suppressed (`ServerGainEnergy` BD early-out), and the
+event-driven gain path is `CharacterDataComponent::ServerGainBrokenDarknessEnergy`, which
+bypasses that early-out and permits `CurrentEP` to exceed `MaxEP` into overload.
+`AddAbsorptionEnergy` routes defense and crystal absorption through it; the ceiling is
+`MaxEP + OverloadCapacity` (30). Crossing `MaxEP` enters **overload** — `UpdateOverloadState`
+is driven by a binding to `CharacterDataComponent::OnEPChanged` (`BeginPlay`), the single
+overload trigger, so absorption gain, cast spend, and overload drain all re-evaluate it.
+`ProcessOverloadTick` (called by `CombatOrchestrator.cpp`) applies aura damage to nearby
+enemies, self-damage, and energy drain (via `ServerSpendEnergy`) each turn while overloaded.
 
 **Stacks & alignment** — `ProcessElementAbsorption` (`.cpp:529`) tracks `CurrentAlignmentElement`.
 Absorbing the same element consecutively raises `CurrentAbsorptionStacks` (max 3); absorbing
@@ -116,15 +121,15 @@ a different element resets stacks and re-aligns. `GetStackStatusMultiplier` retu
 
 ## Energy Model
 
-Two energy pools back spellcasting. Which one is charged — and whether anything is charged
-at all — depends on `FAction::SpellSource` and on whether the caster is BD.
+A single energy pool backs spellcasting for every character. Whether anything is charged
+at all depends on `FAction::SpellSource`.
 
-**Pools** — a non-BD caster spends `UCharacterDataComponent::CurrentEP`; a BD spends
-`AbsorptionEnergy` on `UBrokenDarknessManager` (`CurrentEP` is forced to 0 for BD).
-`UActionExecutor::ValidateAction` picks the pool via `CanAffordEnergy` for BD versus the
-`CurrentEP` comparison otherwise (`ActionExecutor.cpp:165-176`); `SpendEnergy` mirrors the
-split, routing BD spends through `BDManager->SpendAbsorptionEnergy` (`ActionExecutor.cpp:2319`).
-A BD missing its manager falls back to `CurrentEP` in both paths.
+**Pool** — BD and non-BD casters alike spend `UCharacterDataComponent::CurrentEP`
+(unified in Session 5). `UActionExecutor::ValidateAction` and `SpendEnergy` compare and
+debit `CurrentEP` directly — no BD energy branch. The only difference between a BD and a
+non-BD caster is the *gain* rule: a non-BD regenerates `CurrentEP` passively; a BD does
+not (`ServerGainEnergy` BD early-out) and instead gains it event-driven via absorption.
+The overload threshold is therefore the BD's stat-derived `MaxEP`, not a flat cap.
 
 **Cost by spell source** — `CalculateActionEnergyCost` reads `SpellSource`
 (`ActionExecutor.cpp:269-273`):
@@ -246,33 +251,25 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 | File | BD branch |
 |---|---|
-| `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (`:61-66`); `ServerGainEnergy`/`ServerSetEP` suppress regular EP for BD (`:159, 184`); `IsBrokenDarkness()` helper (`:279`); `ServerSetBrokenDarkness` zeroes EP (`:292`). |
-| `ActionExecutor.cpp` | `ValidateAction` energy gate checks `AbsorptionEnergy` via `CanAffordEnergy` for BD (`:165-176`) and runs the Caster element gate through the shared `IsElementCastable` predicate (`:204`); `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts (`:269-273`); `SpendEnergy` routes BD spends through `BDManager->SpendAbsorptionEnergy` (`:2319`); `CheckBrokenDarknessBreak` break-roll logic (`:3196`); `OnDefenseResolved` absorption call (`:1236`); `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()` (`:3282`); `bPendingSpellIsBrokenDarkness` visual threading (`:690`). |
+| `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (zeroes `CurrentEP` so they start at 0); `IsBrokenDarkness()` helper; `ServerGainEnergy` BD early-out suppresses *passive regen only*; `ServerGainBrokenDarknessEnergy` is the BD absorption-gain path — overload-aware, bypasses the early-out; `ServerSetBrokenDarkness` no longer zeroes EP — energy carries over on runtime transform. |
+| `ActionExecutor.cpp` | `ValidateAction` and `SpendEnergy` compare/debit `CurrentEP` for all characters — no BD energy branch (unified Session 5); `ValidateAction` runs the Caster element gate through the shared `IsElementCastable` predicate; `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts; `CheckBrokenDarknessBreak` break-roll logic; `OnDefenseResolved` absorption call; `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()`; `bPendingSpellIsBrokenDarkness` visual threading. |
 | `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the shared element gate for normal Casters and `FCombatLoadout::ValidateBDSpellLoadout` for BD; `InitializeBDPools` / `ApplyBDPoolsIfBroken` build the seven BD element pools for BD characters at loadout creation; `GetAvailableSpells` BD branch appends `BDSpellPools[i].Spells` where `HasAbsorbedElement(pool.Element)` — the BD-aware castable set shared by 12 callers including the 8 AI spell-list sites. |
 | `FCombatCapabilities.cpp` | `BuildFrom` Caster branch: for a BD character, appends each `BDSpellPools` entry's spells to `RefractionSpells` when `HasAbsorbedElement(Pool.Element)` — the always-on Darkness pool (`InnateSpells`) plus the single absorbed element's pool. |
-| `AIDecisionManager.cpp` | `GetCurrentEP` BD branch returns `FloorToInt(BDManager->GetAbsorptionEnergy())`; non-BD returns `CharComp->CurrentEP` — feeds `CanAffordSpell` / `CanAffordAbility` and the heal/cleanse affordability checks. Spell lists come from the BD-aware `GetAvailableSpells`, so all 8 AI spell-evaluation sites see the absorbed-pool set. |
+| `AIDecisionManager.cpp` | `GetCurrentEP` returns `CharComp->CurrentEP` for all characters — no BD branch (unified Session 5) — feeding `CanAffordSpell` / `CanAffordAbility` and the heal/cleanse checks. `DecideSpell`/`AbilityInfusionLevel` read `CurrentEP`/`MaxEP` directly for the infusion `EnergyPercent`, which is now correct for BD too. Spell lists come from the BD-aware `GetAvailableSpells`. |
 | `CombatOrchestrator.cpp` | `ProcessBrokenDarknessOverflow` calls `ProcessOverloadTick` each turn for overloaded BDs (`:993, 1033`). |
 | `DamageCalculator.cpp` | `GetBDStackStatusMultiplier` reads the attacker's absorption-stack multiplier when transformed (`:375`). |
-| `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`, `:653`), `ApplyBrokenDarknessBonus` grants absorption energy scaled by crystal tier (`:101-103, 608`). |
-| `CharacterPanelWidget.cpp` | Binds `UBrokenDarknessManager` energy/overload delegates (`:89`); EP bar shows `GetAbsorptionEnergy()` for BD (`:329`) tinted by absorbed-element colour (`:377-398`). |
+| `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`), `ApplyBrokenDarknessBonus` grants absorption energy (crystal-tier-scaled) via `BDManager->GrantAbsorptionEnergy`. Session 5 fixed a latent bug here — it previously called `ServerGainEnergy`, which the BD early-out silently no-op'd, granting nothing. |
+| `CharacterPanelWidget.cpp` | Binds `UBrokenDarknessManager` absorption/overload delegates; for a BD the energy bar shows `CurrentEP`/`MaxEP` (labelled "Absorb"), tinted by absorbed-element colour. |
 | `ElementColorDebugComponent.cpp` | Mesh tint uses BD blended colour for `IsBrokenDarkness()` characters (`:61`). |
 | `HybridSpellColors.cpp` | `bIsBrokenDarkness` parameter selects darkened vs pure element colours (`:189`). |
 
 ## Known Gaps / Not-Yet-Implemented
 
-- **AI infusion-level heuristic still reads `CurrentEP`** — `DecideSpellInfusionLevel`
-  and `DecideAbilityInfusionLevel` compute `EnergyPercent` from `CharComp->CurrentEP`,
-  which reads 0 for BD, so a BD AI is infusion-shy. Not a bug — the BD-aware
-  `CanAffordSpell` re-check still rejects any unaffordable infused cast — just
-  suboptimal. A proper fix needs a BD-aware `GetMaxEP` for the percentage denominator.
-- **Energy pool unification candidate (Session 5)** — `AbsorptionEnergy` and `CurrentEP`
-  share the same stat formula and represent the same resource ("energy you spend to
-  cast") with different *gain* rules. Merging them into a single `CurrentEP` field would
-  remove ~8 BD branches across `ValidateAction` / `SpendEnergy` / `GetCurrentEP` /
-  `ServerSetBrokenDarkness` and resolve the infusion-heuristic gap above. BD's gain rule
-  (event-driven absorption, no passive regen) would survive via the existing
-  `ServerGainEnergy` BD early-out.
-- **`ForceTransformation` dead** — `BrokenDarknessManager.cpp:185`, zero callers.
+- **`ResetToMax` ignores BD** — `UCharacterDataComponent::ResetToMax` sets
+  `CurrentEP = MaxEP`, which would hand a BD a full energy pool. It has no C++ callers
+  today (Blueprint usage unknown); if it is ever wired into combat reset it must zero
+  `CurrentEP` for BD characters.
+- **`ForceTransformation` dead** — `BrokenDarknessManager.cpp`, zero callers.
 - **`OnSuccessfulParry` / `OnSuccessfulBlock` unwired** — `BrokenDarknessManager.cpp:288, 314`,
   zero callers; the live absorption path is `OnDefenseResolved`.
 - **Stale L1/L2 multiplier docs** — `BrokenDarknessManager.h` (RollForBreak doc comment,
@@ -302,3 +299,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-18 | Sessions 1–2 — element gate now BD-aware and equipment-aware (rings, weapons, primary + attached evolutions); ring/weapon spells now cost 0 energy; BD spends from `AbsorptionEnergy` via `ValidateAction`/`SpendEnergy`; shared `IsElementCastable` predicate between `ValidateAction` and `GetValidationErrors`; new *Energy Model* and *Element Access* sections | feature/bd-element-gate |
 | 2026-05-18 | Session 3 — BD spell-pool loadout: `FBDElementSpellPool` struct + `BDSpellPools` field (7 element pools) on `FCombatLoadout` and `ULoadoutData`; `InitializeBDPools` 7-pool init; `ValidateBDSpellLoadout` structural validation; `FCombatCapabilities` surfaces the Darkness pool + the absorbed element's pool; single-slot absorption (`HasAbsorbedElement` matches `AbsorbedElements.Last()`); removed dead `CanCastHybridSpell` and `GetCombatSpells`; new *BD Spell Pools* section | feature/bd-spell-pools |
 | 2026-05-18 | Session 4 — AI BD-awareness: `ULoadoutComponent::GetAvailableSpells` now appends absorbed BD pools; `AIDecisionManager::GetCurrentEP` routes BD to `AbsorptionEnergy`. All 8 AI spell-evaluation sites benefit through the shared method. | feature/bd-ai-awareness |
+| 2026-05-18 | Session 5 — energy unification: BD absorption energy merged onto `UCharacterDataComponent::CurrentEP`. Deleted `AbsorptionEnergy` / `MaxAbsorptionEnergy` fields and `GetAbsorptionEnergy` / `SpendAbsorptionEnergy` / `CanAffordEnergy` / `GetMaxAbsorptionEnergy`. New `ServerGainBrokenDarknessEnergy` (overload-aware gain, bypasses the passive-regen early-out) + public `GrantAbsorptionEnergy`. Overload now re-evaluated via a `CharacterDataComponent::OnEPChanged` binding. BD branches in `ValidateAction` / `SpendEnergy` / `GetCurrentEP` collapsed. Runtime-transform energy carries over (`ServerSetBrokenDarkness` no longer zeroes EP); overload threshold is the stat-derived `MaxEP`. Fixed `ItemExecutor::ApplyBrokenDarknessBonus` granting nothing on BD. | feature/bd-ai-awareness |

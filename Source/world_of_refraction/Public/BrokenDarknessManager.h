@@ -44,6 +44,7 @@ public:
 	UBrokenDarknessManager();
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	// ==================== TRANSFORMATION STATE ====================
 
@@ -134,21 +135,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
 	void OnSuccessfulBlock(float DamageBlocked, ESpellElement DamageElement);
 
-	/** Get current absorption energy */
-	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Absorption")
-	float GetAbsorptionEnergy() const { return AbsorptionEnergy; }
-
-	/** Get maximum absorption energy */
-	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Absorption")
-	float GetMaxAbsorptionEnergy() const { return MaxAbsorptionEnergy; }
-
-	/** Spend absorption energy for spell cast */
+	/**
+	 * Grant absorption energy from a non-defense source (e.g. a crystal used
+	 * on a BD via ItemExecutor). Routes through the same overload-aware path
+	 * as parry/block absorption — writes UCharacterDataComponent::CurrentEP.
+	 * No-op if not transformed.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
-	bool SpendAbsorptionEnergy(float Amount);
-
-	/** Can afford this energy cost? */
-	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Absorption")
-	bool CanAffordEnergy(float Amount) const { return AbsorptionEnergy >= Amount; }
+	void GrantAbsorptionEnergy(float Amount);
 
 	// ==================== OVERLOAD STATE ====================
 
@@ -272,7 +266,16 @@ public:
 private:
 	// ==================== PRIVATE METHODS ====================
 
-	/** Add absorption energy (clamped to max + overload capacity) */
+	/** Resolve the owner's CharacterDataComponent — BD energy lives on its CurrentEP. */
+	UCharacterDataComponent *GetCharComp() const;
+
+	/** Bound to CharacterDataComponent::OnEPChanged. Re-evaluates overload on
+	 *  every owner energy change — absorption gain, cast spend, and overload
+	 *  drain all broadcast OnEPChanged, so this is the single overload trigger. */
+	UFUNCTION()
+	void HandleOwnerEnergyChanged(int32 InCurrentEP, int32 InMaxEP);
+
+	/** Add absorption energy (writes CurrentEP, clamped to MaxEP + overload capacity) */
 	void AddAbsorptionEnergy(float Amount);
 
 	/** Record absorbed element */
@@ -310,14 +313,11 @@ protected:
 	bool bIsTransformed = false;
 
 	// ==================== ABSORPTION ENERGY ====================
-
-	/** Current absorption energy (replaces normal energy for transformed) */
-	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Energy")
-	float AbsorptionEnergy = 0.0f;
-
-	/** Maximum absorption energy */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Energy")
-	float MaxAbsorptionEnergy = 100.0f;
+	// Broken Darkness energy is unified onto UCharacterDataComponent::CurrentEP
+	// — the single spend pool for BD and non-BD characters alike. BD's gain
+	// rule (event-driven absorption, no passive regen) survives via the
+	// ServerGainEnergy BD early-out. The cap is the stat-derived MaxEP; energy
+	// may exceed it by OverloadCapacity into overload.
 
 	/** Energy gained per damage absorbed via parry */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Energy")

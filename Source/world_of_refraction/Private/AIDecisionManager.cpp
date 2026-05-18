@@ -5,7 +5,6 @@
 #include "CombatOrchestrator.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
-#include "BrokenDarknessManager.h"
 #include "LoadoutComponent.h"
 #include "WeaponData.h"
 #include "WeaponAttackData.h"
@@ -986,7 +985,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     }
 
     float HPPercent = static_cast<float>(CharComp->CurrentHP) / CharComp->MaxHP;
-    int32 CurrentEnergy = GetCurrentEP(AIActor); // BD-aware: AbsorptionEnergy for BD
+    int32 CurrentEnergy = GetCurrentEP(AIActor); // CurrentEP — unified BD/non-BD pool
     int32 MaxEnergy = CharComp->MaxEP;
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
@@ -1080,7 +1079,7 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
         return false;
     }
 
-    int32 CurrentEnergy = GetCurrentEP(AIActor); // BD-aware: AbsorptionEnergy for BD
+    int32 CurrentEnergy = GetCurrentEP(AIActor); // CurrentEP — unified BD/non-BD pool
 
     // Try cleanse spell first (if we have energy)
     USpellData *CleanseSpell = FindCleanseSpell(Loadout);
@@ -1846,17 +1845,8 @@ int32 UAIDecisionManager::GetCurrentEP(AActor *Actor) const
         return 0;
     }
 
-    // Broken Darkness spends AbsorptionEnergy (CurrentEP is forced to 0 for BD).
-    // Floor to int for comparison against integer energy costs — equivalent to
-    // the float >= check ActionExecutor uses, since costs are integers.
-    if (CharComp->IsBrokenDarkness())
-    {
-        if (UBrokenDarknessManager *BDManager = Actor->FindComponentByClass<UBrokenDarknessManager>())
-        {
-            return FMath::FloorToInt(BDManager->GetAbsorptionEnergy());
-        }
-    }
-
+    // CurrentEP is the unified spend pool — Broken Darkness (absorption) and
+    // non-BD (regenerating EP) characters alike.
     return CharComp->CurrentEP;
 }
 

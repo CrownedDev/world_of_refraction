@@ -4,6 +4,7 @@
 #include "ItemData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
+#include "BrokenDarknessManager.h"
 #include "SkillEffectManager.h"
 #include "StatusBuildupManager.h"
 #include "TurnManager.h"
@@ -618,8 +619,15 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FI
 	if (BonusEnergy <= 0)
 		return;
 
+	// Route through the BD manager's absorption path. ServerGainEnergy is
+	// suppressed for BD characters (passive regen is excluded), so a direct
+	// call there grants nothing — GrantAbsorptionEnergy is the BD gain path.
+	UBrokenDarknessManager *BDManager = Target->FindComponentByClass<UBrokenDarknessManager>();
+	if (!BDManager)
+		return;
+
 	int32 EPBefore = TargetComp->CurrentEP;
-	TargetComp->ServerGainEnergy(BonusEnergy);
+	BDManager->GrantAbsorptionEnergy(static_cast<float>(BonusEnergy));
 	OutResult.BrokenDarknessEnergyGained = TargetComp->CurrentEP - EPBefore;
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Broken Darkness absorption: %s gained %d energy"),

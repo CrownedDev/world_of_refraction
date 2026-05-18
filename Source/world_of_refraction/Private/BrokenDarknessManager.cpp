@@ -82,22 +82,26 @@ void UBrokenDarknessManager::BeginPlay()
 	Super::BeginPlay();
 
 	// Initialize state
-	AbsorptionEnergy = 0.0f;
 	bIsTransformed = false;
 	bIsOverloaded = false;
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
 
-	// Character-created BD path: align manager's internal flag with the
-	// CharacterDataComponent::IsBrokenDarkness() helper. Without this,
-	// character-created BDs silently short-circuit absorption methods
-	// (OnSuccessfulParry, OnSuccessfulBlock, ProcessForbiddenCast, etc.)
-	// because they all check bIsTransformed.
 	if (AActor *Owner = GetOwner())
 	{
 		if (UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
 		{
+			// Overload is re-evaluated on every owner energy change. Absorption
+			// gain, cast spend, and overload drain all broadcast OnEPChanged,
+			// so this binding is the single overload trigger point.
+			CharComp->OnEPChanged.AddDynamic(this, &UBrokenDarknessManager::HandleOwnerEnergyChanged);
+
+			// Character-created BD path: align the manager's internal flag with
+			// CharacterDataComponent::IsBrokenDarkness(). Without this,
+			// character-created BDs silently short-circuit absorption methods
+			// (OnSuccessfulParry, OnSuccessfulBlock, ProcessForbiddenCast, etc.)
+			// because they all check bIsTransformed.
 			if (CharComp->IsBrokenDarkness())
 			{
 				bIsTransformed = true;
@@ -106,6 +110,16 @@ void UBrokenDarknessManager::BeginPlay()
 			}
 		}
 	}
+}
+
+void UBrokenDarknessManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UCharacterDataComponent *CharComp = GetCharComp())
+	{
+		CharComp->OnEPChanged.RemoveDynamic(this, &UBrokenDarknessManager::HandleOwnerEnergyChanged);
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 // ==================== BREAK SYSTEM ====================
@@ -202,8 +216,8 @@ void UBrokenDarknessManager::TriggerTransformation()
 
 	bIsTransformed = true;
 
-	// Start with 0 absorption energy - must absorb to cast
-	AbsorptionEnergy = 0.0f;
+	// Energy carries over: whatever CurrentEP the character held at the moment
+	// of transformation becomes their starting absorption buffer.
 
 	// Reset alignment
 	CurrentAlignmentElement = ESpellElement::Generic;
@@ -339,38 +353,41 @@ void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ESpellElemen
 		   *UEnum::GetValueAsString(DamageElement));
 }
 
-bool UBrokenDarknessManager::SpendAbsorptionEnergy(float Amount)
+void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount)
 {
+	// Public entry point for non-defense absorption sources (e.g. ItemExecutor
+	// when a crystal is used on a BD). Defense absorption reaches the same path
+	// via OnDefenseResolved -> AddAbsorptionEnergy.
 	if (!bIsTransformed)
 	{
-		return false;
-	}
-	if (AbsorptionEnergy < Amount)
-	{
-		return false;
+		return;
 	}
 
-	AbsorptionEnergy -= Amount;
-
-	// Check if exiting overload
-	UpdateOverloadState();
-
-	return true;
+	AddAbsorptionEnergy(Amount);
 }
 
 void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)
 {
-	float OldEnergy = AbsorptionEnergy;
+	if (Amount <= 0.0f)
+	{
+		return;
+	}
 
-	// Allow exceeding max by OverloadCapacity
-	float AbsoluteMax = MaxAbsorptionEnergy + OverloadCapacity;
-	AbsorptionEnergy = FMath::Min(AbsorptionEnergy + Amount, AbsoluteMax);
+	UCharacterDataComponent *CharComp = GetCharComp();
+	if (!CharComp)
+	{
+		return;
+	}
 
-	// Check for overload state change
-	UpdateOverloadState();
+	// BD energy is stored on CurrentEP. Absorption may push it above MaxEP into
+	// overload — the ceiling is MaxEP + OverloadCapacity. The OnEPChanged
+	// broadcast inside ServerGainBrokenDarknessEnergy drives UpdateOverloadState
+	// via HandleOwnerEnergyChanged.
+	const int32 AbsoluteMax = CharComp->MaxEP + FMath::RoundToInt(OverloadCapacity);
+	CharComp->ServerGainBrokenDarknessEnergy(FMath::RoundToInt(Amount), AbsoluteMax);
 
-	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: Energy %.1f -> %.1f (Max: %.1f, Overload: %s)"),
-		   OldEnergy, AbsorptionEnergy, MaxAbsorptionEnergy, bIsOverloaded ? TEXT("Yes") : TEXT("No"));
+	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: absorbed %.1f energy -> CurrentEP %d/%d (Overload: %s)"),
+		   Amount, CharComp->CurrentEP, CharComp->MaxEP, bIsOverloaded ? TEXT("Yes") : TEXT("No"));
 }
 
 void UBrokenDarknessManager::RecordAbsorbedElement(ESpellElement Element)
@@ -395,16 +412,23 @@ void UBrokenDarknessManager::RecordAbsorbedElement(ESpellElement Element)
 
 float UBrokenDarknessManager::GetOverloadEnergy() const
 {
-	if (AbsorptionEnergy > MaxAbsorptionEnergy)
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	if (CharComp && CharComp->CurrentEP > CharComp->MaxEP)
 	{
-		return AbsorptionEnergy - MaxAbsorptionEnergy;
+		return static_cast<float>(CharComp->CurrentEP - CharComp->MaxEP);
 	}
 	return 0.0f;
 }
 
 void UBrokenDarknessManager::UpdateOverloadState()
 {
-	bool bShouldBeOverloaded = AbsorptionEnergy > MaxAbsorptionEnergy;
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	if (!CharComp)
+	{
+		return;
+	}
+
+	const bool bShouldBeOverloaded = CharComp->CurrentEP > CharComp->MaxEP;
 
 	if (bShouldBeOverloaded && !bIsOverloaded)
 	{
@@ -426,9 +450,10 @@ void UBrokenDarknessManager::EnterOverload()
 	bIsOverloaded = true;
 
 	AActor *Owner = GetOwner();
-	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s entered OVERLOAD! (Energy: %.1f/%.1f)"),
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s entered OVERLOAD! (Energy: %d/%d)"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
-		   AbsorptionEnergy, MaxAbsorptionEnergy);
+		   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0);
 
 	OnOverloadStateChanged.Broadcast(Owner, true);
 
@@ -445,9 +470,10 @@ void UBrokenDarknessManager::ExitOverload()
 	bIsOverloaded = false;
 
 	AActor *Owner = GetOwner();
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s exited overload (Energy: %.1f/%.1f)"),
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s exited overload (Energy: %d/%d)"),
 		   Owner ? *Owner->GetName() : TEXT("Unknown"),
-		   AbsorptionEnergy, MaxAbsorptionEnergy);
+		   CharComp ? CharComp->CurrentEP : 0, CharComp ? CharComp->MaxEP : 0);
 
 	OnOverloadStateChanged.Broadcast(Owner, false);
 }
@@ -483,17 +509,18 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 
 	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
 
-	// 3. Drain energy (efficiency reduces drain)
+	// 3. Drain energy (efficiency reduces drain). The ServerSpendEnergy
+	// broadcast re-evaluates overload via HandleOwnerEnergyChanged.
 	float DrainMultiplier = 1.0f - (EfficiencyPercent * 0.01f);
 	float EnergyDrain = BaseEnergyDrain * FMath::Max(0.1f, DrainMultiplier);
 
-	AbsorptionEnergy = FMath::Max(0.0f, AbsorptionEnergy - EnergyDrain);
+	if (UCharacterDataComponent *CharComp = GetCharComp())
+	{
+		CharComp->ServerSpendEnergy(FMath::RoundToInt(EnergyDrain));
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Energy drained %.1f (Efficiency: %.0f%%), now at %.1f"),
-		   EnergyDrain, EfficiencyPercent, AbsorptionEnergy);
-
-	// 4. Check if exiting overload
-	UpdateOverloadState();
+		UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Energy drained %.1f (Efficiency: %.0f%%), now at %d"),
+			   EnergyDrain, EfficiencyPercent, CharComp->CurrentEP);
+	}
 }
 
 void UBrokenDarknessManager::ApplyDamageToActor(AActor *Target, float Damage)
@@ -508,6 +535,23 @@ void UBrokenDarknessManager::ApplyDamageToActor(AActor *Target, float Damage)
 	{
 		CharComp->ServerTakeDamage(FMath::RoundToInt(Damage));
 	}
+}
+
+UCharacterDataComponent *UBrokenDarknessManager::GetCharComp() const
+{
+	AActor *Owner = GetOwner();
+	return Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+}
+
+void UBrokenDarknessManager::HandleOwnerEnergyChanged(int32 InCurrentEP, int32 InMaxEP)
+{
+	// Overload is a Broken-Darkness mechanic — non-BD energy changes are ignored.
+	if (!bIsTransformed)
+	{
+		return;
+	}
+
+	UpdateOverloadState();
 }
 
 // ==================== ABSORPTION STACKS ====================

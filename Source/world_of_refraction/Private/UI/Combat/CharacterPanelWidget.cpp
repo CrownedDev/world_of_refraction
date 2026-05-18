@@ -325,26 +325,19 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 		return;
 	}
 
-	// --- BD absorption energy path ---
+	// --- BD absorption energy path: CurrentEP is the BD spend pool, labelled
+	//     "Absorb" to distinguish it from regular regenerating EP. The bar may
+	//     read over 100% briefly during overload (CurrentEP > MaxEP) — clamped. ---
 	if (CharComp->IsBrokenDarkness())
 	{
-		UBrokenDarknessManager *BDManager = BoundBDManager.Get();
-		if (BDManager)
-		{
-			const float Current = BDManager->GetAbsorptionEnergy();
-			const float Max = BDManager->GetMaxAbsorptionEnergy();
-			const float Percent = (Max > 0.0f) ? FMath::Min(Current / Max, 1.0f) : 0.0f;
+		const int32 Current = CharComp->CurrentEP;
+		const int32 Max = CharComp->MaxEP;
+		const float Percent = (Max > 0)
+								  ? FMath::Min(static_cast<float>(Current) / static_cast<float>(Max), 1.0f)
+								  : 0.0f;
 
-			SetBarSafe(EPBar, Percent);
-			SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"),
-												PanelLabels::Absorb,
-												FMath::TruncToInt(Current),
-												FMath::TruncToInt(Max)));
-			return;
-		}
-		// BD without manager — empty
-		SetBarSafe(EPBar, 0.0f);
-		SetTextSafe(EPText, FString::Printf(TEXT("%s:--/--"), PanelLabels::Absorb));
+		SetBarSafe(EPBar, Percent);
+		SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::Absorb, Current, Max));
 		return;
 	}
 

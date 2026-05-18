@@ -154,8 +154,9 @@ void UCharacterDataComponent::ServerGainEnergy(int32 Amount)
     if (!HasServerAuthority() || Amount <= 0)
         return;
 
-    // BD characters do not gain regular EP — their energy lives on
-    // BrokenDarknessManager::AbsorptionEnergy.
+    // BD characters do not gain passive-regen EP — their energy is event-driven
+    // (parry/block absorption). The absorption gain path is
+    // ServerGainBrokenDarknessEnergy, which deliberately bypasses this early-out.
     if (bIsBrokenDarkness)
         return;
 
@@ -179,8 +180,9 @@ void UCharacterDataComponent::ServerSetEP(int32 NewEP)
     if (!HasServerAuthority())
         return;
 
-    // BD characters: only allow setting to 0. Non-zero sets are silently
-    // ignored — BD energy lives on BrokenDarknessManager::AbsorptionEnergy.
+    // BD characters: this generic setter only allows clearing to 0. BD energy
+    // is mutated through ServerSpendEnergy (cast/drain) and
+    // ServerGainBrokenDarknessEnergy (absorption, overload-aware).
     if (bIsBrokenDarkness && NewEP > 0)
         return;
 
@@ -196,6 +198,18 @@ void UCharacterDataComponent::ServerSetEP(int32 NewEP)
     }
 
     CurrentEP = FMath::Clamp(NewEP, 0, MaxEP);
+    OnEPChanged.Broadcast(CurrentEP, MaxEP);
+}
+
+void UCharacterDataComponent::ServerGainBrokenDarknessEnergy(int32 Amount, int32 AbsoluteMax)
+{
+    if (!HasServerAuthority() || Amount <= 0)
+        return;
+
+    // BD absorption — bypasses the ServerGainEnergy BD early-out and permits
+    // CurrentEP to exceed MaxEP up to AbsoluteMax (MaxEP + OverloadCapacity,
+    // supplied by BrokenDarknessManager) so the overload mechanic still fires.
+    CurrentEP = FMath::Min(CurrentEP + Amount, AbsoluteMax);
     OnEPChanged.Broadcast(CurrentEP, MaxEP);
 }
 
@@ -299,20 +313,20 @@ void UCharacterDataComponent::ServerSetBrokenDarkness(bool bNewState)
 
     bIsBrokenDarkness = bNewState;
 
-    // Zero EP on transition to BD — they use BrokenDarknessManager
-    // absorption energy, not regular EP, going forward.
+    // Energy carries over on transition to BD — whatever CurrentEP the
+    // character held becomes their starting absorption buffer. Re-broadcast
+    // OnEPChanged (value unchanged) so the panel relabels the bar EP -> Absorb.
     if (bIsBrokenDarkness)
     {
-        CurrentEP = 0;
         OnEPChanged.Broadcast(CurrentEP, MaxEP);
     }
 }
 
 void UCharacterDataComponent::OnRep_bIsBrokenDarkness()
 {
-    // Client-side: when the flag flips, ensure EP UI shows 0.
-    // No state mutation here — server already cleared CurrentEP, replication
-    // delivers it. Just broadcast so the panel re-paints.
+    // Client-side: when the flag flips, re-broadcast so the panel relabels the
+    // energy bar (EP -> Absorb). CurrentEP carries over and replicates
+    // independently — no state mutation here.
     if (bIsBrokenDarkness)
     {
         OnEPChanged.Broadcast(CurrentEP, MaxEP);

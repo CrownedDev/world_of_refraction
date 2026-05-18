@@ -158,21 +158,12 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 	// Calculate energy cost
 	int32 EnergyCost = CalculateActionEnergyCost(Actor, Action);
 
-	// Check energy. Broken Darkness characters pay from AbsorptionEnergy on
-	// UBrokenDarknessManager (their CurrentEP is forced to 0); everyone else —
-	// and any BD missing its manager — pays from CurrentEP.
+	// Energy check — CurrentEP is the unified spend pool for Broken Darkness
+	// (event-driven absorption) and non-BD (regenerating EP) characters alike.
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
-	if (CharComp)
+	if (CharComp && CharComp->CurrentEP < EnergyCost)
 	{
-		UBrokenDarknessManager *BDManager =
-			CharComp->IsBrokenDarkness() ? GetBrokenDarknessManager(Actor) : nullptr;
-		const bool bCanAfford = BDManager
-									? BDManager->CanAffordEnergy(EnergyCost)
-									: (CharComp->CurrentEP >= EnergyCost);
-		if (!bCanAfford)
-		{
-			return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
-		}
+		return FActionValidationResult(false, TEXT("Not enough energy"), EnergyCost);
 	}
 
 	// Check requirements (world stat requirements)
@@ -2310,19 +2301,8 @@ bool UActionExecutor::SpendEnergy(AActor *Actor, int32 Amount)
 	if (!Comp)
 		return false;
 
-	// Broken Darkness pays from AbsorptionEnergy on UBrokenDarknessManager;
-	// everyone else — and any BD missing its manager — pays from CurrentEP.
-	if (Comp->IsBrokenDarkness())
-	{
-		if (UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Actor))
-		{
-			const bool bSpent = BDManager->SpendAbsorptionEnergy(Amount);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s spent %d from AbsorptionEnergy (success: %s)"),
-				   *Actor->GetName(), Amount, bSpent ? TEXT("yes") : TEXT("no"));
-			return bSpent;
-		}
-	}
-
+	// CurrentEP is the unified spend pool — Broken Darkness (absorption) and
+	// non-BD (regenerating EP) characters alike.
 	if (Comp->CurrentEP < Amount)
 		return false;
 

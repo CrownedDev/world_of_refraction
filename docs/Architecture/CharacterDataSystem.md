@@ -170,9 +170,13 @@ in `NM_Standalone`/PIE):
 - `ServerHeal` / `ServerSetHP` — clamp to `[0, MaxHP]`, broadcast.
 - `ServerSpendEnergy` — subtract EP, broadcast.
 - `ServerGainEnergy` / `ServerSetEP` — **suppressed** for BD characters
-  (energy lives on `BrokenDarknessManager::AbsorptionEnergy`) and for Resonators
-  without a usable EP target (`!HasUsableEPTarget()`); `ServerSetEP` allows
-  setting to 0 in those cases.
+  (BD energy is event-driven absorption, not passive regen — see below) and for
+  Resonators without a usable EP target (`!HasUsableEPTarget()`); `ServerSetEP`
+  allows setting to 0 in those cases.
+- `ServerGainBrokenDarknessEnergy` — the BD absorption-gain path. Bypasses the
+  `ServerGainEnergy` BD early-out and lets `CurrentEP` exceed `MaxEP` into
+  overload (clamped to a caller-supplied `AbsoluteMax`). Since Session 5, BD
+  energy is unified onto `CurrentEP` — see `docs/Architecture/BrokenDarkness.md`.
 - `ServerResurrect` — restores HP (clamped `[1, MaxHP]`), sets `bIsAlive`,
   broadcasts `OnResurrected` and `OnHPChanged`.
 
