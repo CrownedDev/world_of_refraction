@@ -26,26 +26,39 @@ namespace BarCapTriggerResolver
     {
         switch (Element)
         {
-        case ESpellElement::Fire:      return ESkillEffectType::DOT;
-        case ESpellElement::Water:     return ESkillEffectType::HealBlock;
-        case ESpellElement::Earth:     return ESkillEffectType::DefenseDebuff;
-        case ESpellElement::Wind:      return ESkillEffectType::SkipTurn;
-        case ESpellElement::Lightning: return ESkillEffectType::Stun;
-        case ESpellElement::Light:     return ESkillEffectType::CritChanceDebuff;
-        case ESpellElement::Darkness:  return ESkillEffectType::Silenced;
-        case ESpellElement::Void:      return ESkillEffectType::RandomSkill;
-        case ESpellElement::Reality:   return ESkillEffectType::BurstDamage;
-        case ESpellElement::Generic:
+        case ESpellElement::Fire:
+            return ESkillEffectType::DOT;
+        case ESpellElement::Water:
+            return ESkillEffectType::HealBlock;
+        case ESpellElement::Earth:
+            return ESkillEffectType::DefenseDebuff;
+        case ESpellElement::Wind:
+            return ESkillEffectType::SkipTurn;
+        case ESpellElement::Lightning:
+            return ESkillEffectType::Stun;
+        case ESpellElement::Light:
+            return ESkillEffectType::CritChanceDebuff;
+        case ESpellElement::Darkness:
+            return ESkillEffectType::Silenced;
+        case ESpellElement::Void:
+            return ESkillEffectType::RandomSkill;
+        case ESpellElement::Reality:
+            return ESkillEffectType::BurstDamage;
         case ESpellElement::BrokenDarkness:
+            return ESkillEffectType::DrainEnergy;
+        case ESpellElement::Generic:
         default:
             break; // Fall through to physical
         }
 
         switch (PhysicalType)
         {
-        case EPhysicalDamageType::Slash:   return ESkillEffectType::DOT;
-        case EPhysicalDamageType::Pierce:  return ESkillEffectType::DefenseDebuff;
-        case EPhysicalDamageType::Impact:  return ESkillEffectType::Stun;
+        case EPhysicalDamageType::Slash:
+            return ESkillEffectType::DOT;
+        case EPhysicalDamageType::Pierce:
+            return ESkillEffectType::DefenseDebuff;
+        case EPhysicalDamageType::Impact:
+            return ESkillEffectType::Stun;
         case EPhysicalDamageType::None:
         default:
             return ESkillEffectType::None;
