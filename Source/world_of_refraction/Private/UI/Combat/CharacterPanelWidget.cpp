@@ -234,10 +234,24 @@ void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Cur
 	const float Percent = (Max > 0.0f) ? (Current / Max) : 0.0f;
 	SetBarSafe(StatusBar, Percent);
 	SetTextSafe(StatusText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::Status, FMath::TruncToInt(Current), FMath::TruncToInt(Max)));
-	// Session Y: PendingElement is plumbed through so the bar can tint per
-	// most-recent-hit element. UI-side tinting is a follow-up; param is wired
-	// here so the C++ binding compiles against the new 4-param delegate.
-	(void)PendingElement;
+	// Retint per most-recent-hit element — pending element can shift when a
+	// different element lands on the same target.
+	ApplyStatusBarTint(PendingElement);
+}
+
+void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement)
+{
+	if (!StatusBar)
+		return;
+
+	// Generic = physical-only damage (Slash/Pierce/Impact) — no element to
+	// surface, so fall back to a neutral fill. GetColorForElement already
+	// maps BrokenDarkness to ElementColors::BrokenDarkness.
+	const FLinearColor BarColour = (PendingElement == ESpellElement::Generic)
+		? FLinearColor::White
+		: ElementColors::GetColorForElement(PendingElement);
+
+	StatusBar->SetFillColorAndOpacity(BarColour);
 }
 
 void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FActiveSkillEffect &Effect)

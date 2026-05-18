@@ -170,6 +170,10 @@ private:
 	 *  currently-displayed energy source */
 	void ApplyEnergyBarTint();
 
+	/** Tint the status buildup bar to the pending-cap element. Generic (physical
+	 *  damage) falls back to a neutral fill. Called on every buildup change. */
+	void ApplyStatusBarTint(ESpellElement PendingElement);
+
 	/** Apply EP-bar visibility rule for the currently bound character.
 	 *  Hides bar+text for Resonator-without-weapon; shows otherwise.
 	 *  Called once from InitialiseForActor. */
