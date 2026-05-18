@@ -712,7 +712,28 @@ TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
         return TArray<USpellData *>();
     }
 
-    TArray<USpellData *> Result = SavedLoadouts[ActiveLoadoutIndex].GetAllSpells();
+    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    TArray<USpellData *> Result = Loadout.GetAllSpells();
+
+    // Broken Darkness: GetAllSpells yields only the Darkness pool (InnateSpells).
+    // Append each BD element pool whose element is currently absorbed — the same
+    // castable set FCombatCapabilities surfaces for the player UI.
+    if (AActor *OwnerActor = GetOwner())
+    {
+        UCharacterDataComponent *CharComp = OwnerActor->FindComponentByClass<UCharacterDataComponent>();
+        UBrokenDarknessManager *BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
+        if (CharComp && CharComp->IsBrokenDarkness() && BDManager)
+        {
+            for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+            {
+                if (BDManager->HasAbsorbedElement(Pool.Element))
+                {
+                    Result.Append(Pool.Spells);
+                }
+            }
+        }
+    }
+
     UE_LOG(LogTemp, Verbose, TEXT("[GetAvailableSpells] Returning %d spells"), Result.Num());
     return Result;
 }
