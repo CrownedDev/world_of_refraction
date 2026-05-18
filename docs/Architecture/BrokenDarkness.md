@@ -9,9 +9,10 @@ absorption stacks that scale status effects, can overload when energy exceeds ca
 and cast with a darkness-tinted visual treatment. The system is implemented around one
 runtime component, `UBrokenDarknessManager`, plus a state flag on `UCharacterDataComponent`.
 
-> This document reflects the BD system on `main` after **Session 0** (`feature/bd-break-roll-rules`),
-> which rewrote the break-roll triggers and gates. Energy spending, the loadout, and AI
-> integration are not yet BD-aware — see *Known Gaps*.
+> This document reflects the BD system on `feature/bd-element-gate` after **Session 2**.
+> Sessions 1–2 wired BD energy and the Caster element gate into action validation
+> (see *Energy Model* and *Element Access*). The BD spell loadout and AI integration
+> are not yet BD-aware — see *Known Gaps*.
 
 ## Two Paths to Broken Darkness
 
@@ -113,6 +114,61 @@ a different element resets stacks and re-aligns. `GetStackStatusMultiplier` retu
 1.0 / 1.0 / 2.0 / 4.0 for stacks 0-3 (`.cpp:513-527`), consumed by
 `UDamageCalculator::GetBDStackStatusMultiplier` (`DamageCalculator.cpp:375`).
 
+## Energy Model
+
+Two energy pools back spellcasting. Which one is charged — and whether anything is charged
+at all — depends on `FAction::SpellSource` and on whether the caster is BD.
+
+**Pools** — a non-BD caster spends `UCharacterDataComponent::CurrentEP`; a BD spends
+`AbsorptionEnergy` on `UBrokenDarknessManager` (`CurrentEP` is forced to 0 for BD).
+`UActionExecutor::ValidateAction` picks the pool via `CanAffordEnergy` for BD versus the
+`CurrentEP` comparison otherwise (`ActionExecutor.cpp:165-176`); `SpendEnergy` mirrors the
+split, routing BD spends through `BDManager->SpendAbsorptionEnergy` (`ActionExecutor.cpp:2319`).
+A BD missing its manager falls back to `CurrentEP` in both paths.
+
+**Cost by spell source** — `CalculateActionEnergyCost` reads `SpellSource`
+(`ActionExecutor.cpp:269-273`):
+
+| `ESpellSource` | Cost | Notes |
+|---|---|---|
+| `Innate` | Full cost | Refraction spells — paid from EP / AbsorptionEnergy |
+| `Evolution` | Full cost | Primary-slot evolution spells — same as innate |
+| `RingCrystal` | **0** | Ring spells are free, including ring-attached evolutions |
+| `WeaponCrystal` | **0** | Weapon spells are free, including weapon-attached evolutions |
+
+A ring- or weapon-attached evolution routes through `RingCrystal` / `WeaponCrystal`, so it
+is free; only a *primary-slot* evolution routes through `Evolution` and pays. A free spell
+(cost 0) trivially passes the energy gate for either pool — a BD with empty
+`AbsorptionEnergy` can still cast ring/weapon spells.
+
+## Element Access
+
+Casting an element is gated for the Caster class only (Generic and Resonator have no
+element gate). The check is the shared static predicate
+`UBrokenDarknessManager::IsElementCastable(Actor, CharComp, BDManager, Element)`
+(`BrokenDarknessManager.cpp:590`), called by both `ActionExecutor::ValidateAction`
+(`ActionExecutor.cpp:204`) and `LoadoutComponent::GetValidationErrors`
+(`LoadoutComponent.cpp:527`) so combat and loadout validation never disagree.
+
+An element is castable when **any** of these hold:
+
+- **Non-BD** — the element matches `InnateElement`; or `InnateElement` is itself an
+  any-element source (`Reality` / `BrokenDarkness`, via `ElementHelpers::IsAnySpellSource`);
+  or an equipped crystal channels the element.
+- **BD** — the element is `Darkness` (the BD default); or it was absorbed this session
+  (`HasAbsorbedElement`); or an equipped crystal channels the element.
+
+The equipment channel is `ULoadoutComponent::HasEquippedSourceForElement(Actor, Element)`
+(`LoadoutComponent.cpp:1202`): it walks every slot from `GetEquippedCrystals()` — weapon
+and ring crystals plus the primary evolution slot — and returns true if any crystal's
+`GetAssociatedElement()` matches. A Fire Caster with a Water ring crystal can therefore
+cast Water spells.
+
+`IsElementCastable` returns true (castable) whenever the character cannot be resolved, so
+missing data never blocks a cast. Separately, `ValidateAction` still unlocks *all* elements
+when the selected infusion **source** is itself an any-element source — the source-side
+`bAnyElement` check (`ActionExecutor.cpp:196-198`), distinct from the equipment channel above.
+
 ## Forbidden Elements
 
 `Light` and `Void` are *forbidden* elements for BD. `UBrokenDarknessManager::IsForbiddenElement`
@@ -154,7 +210,8 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | File | BD branch |
 |---|---|
 | `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (`:61-66`); `ServerGainEnergy`/`ServerSetEP` suppress regular EP for BD (`:159, 184`); `IsBrokenDarkness()` helper (`:279`); `ServerSetBrokenDarkness` zeroes EP (`:292`). |
-| `ActionExecutor.cpp` | `CheckBrokenDarknessBreak` break-roll logic (`:3196`); `OnDefenseResolved` absorption call (`:1236`); `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()` (`:3282`); `bPendingSpellIsBrokenDarkness` visual threading (`:690`). |
+| `ActionExecutor.cpp` | `ValidateAction` energy gate checks `AbsorptionEnergy` via `CanAffordEnergy` for BD (`:165-176`) and runs the Caster element gate through the shared `IsElementCastable` predicate (`:204`); `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts (`:269-273`); `SpendEnergy` routes BD spends through `BDManager->SpendAbsorptionEnergy` (`:2319`); `CheckBrokenDarknessBreak` break-roll logic (`:3196`); `OnDefenseResolved` absorption call (`:1236`); `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()` (`:3282`); `bPendingSpellIsBrokenDarkness` visual threading (`:690`). |
+| `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the same shared element gate (`:527`). |
 | `CombatOrchestrator.cpp` | `ProcessBrokenDarknessOverflow` calls `ProcessOverloadTick` each turn for overloaded BDs (`:993, 1033`). |
 | `DamageCalculator.cpp` | `GetBDStackStatusMultiplier` reads the attacker's absorption-stack multiplier when transformed (`:375`). |
 | `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`, `:653`), `ApplyBrokenDarknessBonus` grants absorption energy scaled by crystal tier (`:101-103, 608`). |
@@ -164,13 +221,6 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 ## Known Gaps / Not-Yet-Implemented
 
-- **BD energy not wired into action validation/spend** — `ActionExecutor::ValidateAction`
-  checks `CurrentEP` (0 for BD) and `SpendEnergy` spends from it; `AbsorptionEnergy` /
-  `SpendAbsorptionEnergy` are never consulted. BD spellcasting fails the energy gate.
-  (Session 1.)
-- **Element gate not BD-aware** — `ActionExecutor::ValidateAction`'s Caster element gate
-  (`:183-192`) compares against `InnateElement`, restricting a BD to a single element.
-  (Session 2.)
 - **No BD spell loadout** — BD has no per-element spell pool; it shares the Caster
   `InnateSpells` shape. (Session 3 — separate design doc.)
 - **AI not BD-aware** — `AIDecisionManager` evaluates a flat spell list and does not
@@ -204,3 +254,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 |------|--------|--------|
 | 2026-05-18 | Session 0 — break-roll rewrite: Darkness innate-element gate added; spell triggers = over-requirement OR L1/L2 infused; ability triggers = infused + innate-Darkness source + over-requirement; ability infusion-overcharge and non-Darkness triggers removed; L1/L2 break multipliers changed 2.0/3.0 → 1.5/2.0 | feature/bd-break-roll-rules |
 | 2026-05-18 | Document created — reference state of the BD system after Session 0 | feature/bd-break-roll-rules |
+| 2026-05-18 | Sessions 1–2 — element gate now BD-aware and equipment-aware (rings, weapons, primary + attached evolutions); ring/weapon spells now cost 0 energy; BD spends from `AbsorptionEnergy` via `ValidateAction`/`SpendEnergy`; shared `IsElementCastable` predicate between `ValidateAction` and `GetValidationErrors`; new *Energy Model* and *Element Access* sections | feature/bd-element-gate |
