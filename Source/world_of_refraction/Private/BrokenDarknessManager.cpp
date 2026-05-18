@@ -37,6 +37,10 @@ namespace BrokenDarknessConstants
 	constexpr float STACK_2_MULT = 2.0f;
 	constexpr float STACK_3_MULT = 4.0f;
 
+	// Overload — CurrentEP may exceed MaxEP by this fraction of MaxEP before the
+	// hard cap, so the overload window scales with the BD's stat-derived pool.
+	constexpr float OVERLOAD_CAPACITY_FRACTION = 0.30f;
+
 	// Aura Range (scales with MaxEnergy points)
 	constexpr float AURA_RANGE_MIN = 2.0f; // 0 points - no coverage
 	constexpr float AURA_RANGE_MAX = 4.5f; // 21 points - full 3x3 coverage
@@ -380,10 +384,10 @@ void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)
 	}
 
 	// BD energy is stored on CurrentEP. Absorption may push it above MaxEP into
-	// overload — the ceiling is MaxEP + OverloadCapacity. The OnEPChanged
-	// broadcast inside ServerGainBrokenDarknessEnergy drives UpdateOverloadState
-	// via HandleOwnerEnergyChanged.
-	const int32 AbsoluteMax = CharComp->MaxEP + FMath::RoundToInt(OverloadCapacity);
+	// overload — the ceiling is MaxEP + GetOverloadCapacity() (30% of MaxEP).
+	// The OnEPChanged broadcast inside ServerGainBrokenDarknessEnergy drives
+	// UpdateOverloadState via HandleOwnerEnergyChanged.
+	const int32 AbsoluteMax = CharComp->MaxEP + FMath::RoundToInt(GetOverloadCapacity());
 	CharComp->ServerGainBrokenDarknessEnergy(FMath::RoundToInt(Amount), AbsoluteMax);
 
 	UE_LOG(LogTemp, Verbose, TEXT("BrokenDarkness: absorbed %.1f energy -> CurrentEP %d/%d (Overload: %s)"),
@@ -418,6 +422,15 @@ float UBrokenDarknessManager::GetOverloadEnergy() const
 		return static_cast<float>(CharComp->CurrentEP - CharComp->MaxEP);
 	}
 	return 0.0f;
+}
+
+float UBrokenDarknessManager::GetOverloadCapacity() const
+{
+	// Derived: 30% of the stat-derived MaxEP — no stored field. The overload
+	// window scales with the BD's energy pool rather than a flat buffer.
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	const int32 MaxEP = CharComp ? CharComp->MaxEP : 0;
+	return MaxEP * BrokenDarknessConstants::OVERLOAD_CAPACITY_FRACTION;
 }
 
 void UBrokenDarknessManager::UpdateOverloadState()

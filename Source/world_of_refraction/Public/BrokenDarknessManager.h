@@ -154,9 +154,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Overload")
 	float GetOverloadEnergy() const;
 
-	/** Get overload capacity (how much over max before forced drain) */
+	/** Overload capacity — how far CurrentEP may exceed MaxEP before the hard
+	 *  cap. Derived: MaxEP × OVERLOAD_CAPACITY_FRACTION (30%), so the overload
+	 *  window scales with the BD's stat-derived energy pool. */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Overload")
-	float GetOverloadCapacity() const { return OverloadCapacity; }
+	float GetOverloadCapacity() const;
 
 	/**
 	 * Process overload tick (call from turn manager at end of turn)
@@ -344,10 +346,6 @@ protected:
 	/** Is currently in overload state? */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Overload")
 	bool bIsOverloaded = false;
-
-	/** Overload capacity (energy can exceed max by this amount) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Overload")
-	float OverloadCapacity = 30.0f;
 
 	/** Base damage per turn while overloaded (to enemies in aura) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Overload")
