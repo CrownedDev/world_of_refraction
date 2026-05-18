@@ -497,10 +497,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     // Validate innate spells (Caster)
     if (CharacterClass == ECharacterClass::Caster)
     {
-        // Resolve the owning actor's CharacterDataComponent + BrokenDarknessManager
-        // for the element-capability check. If unavailable, the shared helper
-        // returns true (castable) so the element check is effectively skipped —
-        // the ownership check still runs.
+        // Resolve the owning actor's CharacterDataComponent + BrokenDarknessManager.
         AActor *OwnerActor = GetOwner();
         UCharacterDataComponent *CharComp = nullptr;
         UBrokenDarknessManager *BDManager = nullptr;
@@ -510,25 +507,34 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
         }
 
-        for (USpellData *Spell : Loadout.InnateSpells)
+        if (CharComp && CharComp->IsBrokenDarkness())
         {
-            if (!Spell)
-                continue;
-
-            if (!Inventory->HasSpell(Spell))
+            // Broken Darkness: InnateSpells is the Darkness pool, BDSpellPools
+            // the per-element pools. Structural rules only (caps + element match).
+            Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(
+                Loadout.InnateSpells, Loadout.BDSpellPools));
+        }
+        else
+        {
+            // Normal Caster: ownership + element-capability per innate spell.
+            for (USpellData *Spell : Loadout.InnateSpells)
             {
-                Errors.Add(FString::Printf(TEXT("Innate spell '%s' not learned"), *Spell->Name));
-                continue;
-            }
+                if (!Spell)
+                    continue;
 
-            // Element-capability check — shared with ActionExecutor::ValidateAction.
-            // Castable = innate-element match for normal Casters; Darkness +
-            // absorbed elements for Broken Darkness.
-            if (!UBrokenDarknessManager::IsElementCastable(OwnerActor, CharComp, BDManager, Spell->Element))
-            {
-                Errors.Add(FString::Printf(
-                    TEXT("Innate spell '%s' element not castable by this character"),
-                    *Spell->Name));
+                if (!Inventory->HasSpell(Spell))
+                {
+                    Errors.Add(FString::Printf(TEXT("Innate spell '%s' not learned"), *Spell->Name));
+                    continue;
+                }
+
+                // Element-capability check — shared with ActionExecutor::ValidateAction.
+                if (!UBrokenDarknessManager::IsElementCastable(OwnerActor, CharComp, BDManager, Spell->Element))
+                {
+                    Errors.Add(FString::Printf(
+                        TEXT("Innate spell '%s' element not castable by this character"),
+                        *Spell->Name));
+                }
             }
         }
     }

@@ -146,6 +146,58 @@ bool FCombatLoadout::ValidateResonator(UInventoryComponent *Inventory) const
     return true;
 }
 
+// ==================== BROKEN DARKNESS VALIDATION ====================
+
+TArray<FString> FCombatLoadout::ValidateBDSpellLoadout(
+    const TArray<USpellData *> &InnateSpells,
+    const TArray<FBDElementSpellPool> &BDSpellPools)
+{
+    TArray<FString> Errors;
+
+    // Darkness pool (InnateSpells) — capped, every entry must be Darkness.
+    if (InnateSpells.Num() > LoadoutConstants::MAX_BD_POOL_SPELLS)
+    {
+        Errors.Add(FString::Printf(TEXT("Broken Darkness: too many Darkness spells (%d/%d)"),
+                                   InnateSpells.Num(), LoadoutConstants::MAX_BD_POOL_SPELLS));
+    }
+    for (const USpellData *Spell : InnateSpells)
+    {
+        if (Spell && Spell->Element != ESpellElement::Darkness)
+        {
+            Errors.Add(FString::Printf(
+                TEXT("Broken Darkness: Darkness-pool spell '%s' is not a Darkness element spell"),
+                *Spell->Name));
+        }
+    }
+
+    // Element pools — capped count, each pool capped, every spell matches element.
+    if (BDSpellPools.Num() > LoadoutConstants::MAX_BD_ELEMENT_POOLS)
+    {
+        Errors.Add(FString::Printf(TEXT("Broken Darkness: too many element pools (%d/%d)"),
+                                   BDSpellPools.Num(), LoadoutConstants::MAX_BD_ELEMENT_POOLS));
+    }
+    for (const FBDElementSpellPool &Pool : BDSpellPools)
+    {
+        if (Pool.Spells.Num() > LoadoutConstants::MAX_BD_POOL_SPELLS)
+        {
+            Errors.Add(FString::Printf(TEXT("Broken Darkness: %s pool has too many spells (%d/%d)"),
+                                       *UEnum::GetValueAsString(Pool.Element),
+                                       Pool.Spells.Num(), LoadoutConstants::MAX_BD_POOL_SPELLS));
+        }
+        for (const USpellData *Spell : Pool.Spells)
+        {
+            if (Spell && Spell->Element != Pool.Element)
+            {
+                Errors.Add(FString::Printf(
+                    TEXT("Broken Darkness: spell '%s' in %s pool does not match the pool element"),
+                    *Spell->Name, *UEnum::GetValueAsString(Pool.Element)));
+            }
+        }
+    }
+
+    return Errors;
+}
+
 // ==================== ACCESSORS ====================
 
 int32 FCombatLoadout::GetInnateSpellCountForSchool(ESpellSchool School) const

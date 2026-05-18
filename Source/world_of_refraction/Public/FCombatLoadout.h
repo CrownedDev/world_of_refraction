@@ -156,6 +156,17 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     bool ValidateCaster(UInventoryComponent *Inventory) const;
     bool ValidateResonator(UInventoryComponent *Inventory) const;
 
+    /**
+     * Validate a Broken Darkness spell loadout — InnateSpells as the Darkness
+     * pool (<= 6, every spell Darkness element) and BDSpellPools (<= 7 pools,
+     * each <= 6 spells, every spell matching its pool's element). Structural
+     * only — no inventory ownership check. Shared by FCombatLoadout and
+     * ULoadoutData validation. Returns one error string per violation.
+     */
+    static TArray<FString> ValidateBDSpellLoadout(
+        const TArray<USpellData *> &InnateSpells,
+        const TArray<FBDElementSpellPool> &BDSpellPools);
+
     // ==================== ACCESSORS ====================
 
     /** Get all abilities from this loadout */
