@@ -4,6 +4,7 @@
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "LoadoutComponent.h"
 #include "CharacterDataComponent.h"
+#include "BrokenDarknessManager.h"
 #include "SkillDataBase.h"
 #include "SpellData.h"
 #include "AbilityData.h"
@@ -168,12 +169,11 @@ void UCombatCommandMenuSubsystem::OpenForActor(AActor *Actor)
     }
 
     // Build capabilities - single LC query for entire turn
-    CurrentCapabilities = FCombatCapabilities::BuildFrom(
-        LC,
-        CDC->CharacterData->CharacterClass,
-        CDC->CharacterData->InnateElement,
-        [this](int32 ElementIndex)
-        { return GetElementColor(ElementIndex); });
+    RebuildCapabilities();
+
+    // Live refresh: a BD's castable spell pool changes when it absorbs a new
+    // element — bind OnAlignmentChanged so an open menu can rebuild.
+    BindBDAbsorptionDelegate();
 
     CurrentDepth = ECombatMenuDepth::Main;
     bIsOpen = true;
@@ -419,10 +419,109 @@ void UCombatCommandMenuSubsystem::Close()
     bIsOpen = false;
     CurrentDepth = ECombatMenuDepth::Closed;
     ActiveSubmenuSource = EPieMenuCategory::None;
+    UnbindBDAbsorptionDelegate();
     CurrentActor.Reset();
     OnCommandMenuClosed.Broadcast();
 
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Closed"));
+}
+
+// ==================== CAPABILITIES / BD LIVE REFRESH ====================
+
+void UCombatCommandMenuSubsystem::RebuildCapabilities()
+{
+    ULoadoutComponent *LC = GetLoadoutComponent();
+    UCharacterDataComponent *CDC =
+        CurrentActor.IsValid() ? CurrentActor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    if (!LC || !CDC || !CDC->CharacterData)
+    {
+        return;
+    }
+
+    CurrentCapabilities = FCombatCapabilities::BuildFrom(
+        LC,
+        CDC->CharacterData->CharacterClass,
+        CDC->CharacterData->InnateElement,
+        [this](int32 ElementIndex)
+        { return GetElementColor(ElementIndex); });
+}
+
+void UCombatCommandMenuSubsystem::RebroadcastCurrentView()
+{
+    switch (CurrentDepth)
+    {
+    case ECombatMenuDepth::Main:
+        OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+        break;
+
+    case ECombatMenuDepth::Submenu:
+        switch (ActiveSubmenuType)
+        {
+        case EPieMenuCategory::Abilities:
+            OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
+            break;
+        case EPieMenuCategory::Items:
+            OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
+            break;
+        case EPieMenuCategory::Refractions:
+        case EPieMenuCategory::Breakthrough:
+        case EPieMenuCategory::ResonateWeapon:
+        case EPieMenuCategory::ResonateRing:
+            OnCommandMenuReady.Broadcast(
+                BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource)));
+            break;
+        default:
+            break;
+        }
+        break;
+
+    default:
+        // Closed / TargetSelection — no refresh (an action is already chosen).
+        break;
+    }
+}
+
+void UCombatCommandMenuSubsystem::BindBDAbsorptionDelegate()
+{
+    UnbindBDAbsorptionDelegate();
+
+    AActor *Actor = CurrentActor.Get();
+    if (!Actor)
+    {
+        return;
+    }
+
+    // OnAlignmentChanged fires precisely when the absorbed element changes —
+    // re-absorbing the same element does not move the active pool, so it does
+    // not fire. That makes it the exact hook for "BD castable pool changed".
+    if (UBrokenDarknessManager *BDManager = Actor->FindComponentByClass<UBrokenDarknessManager>())
+    {
+        BDManager->OnAlignmentChanged.AddDynamic(this, &UCombatCommandMenuSubsystem::HandleBDAlignmentChanged);
+        BoundBDManager = BDManager;
+    }
+}
+
+void UCombatCommandMenuSubsystem::UnbindBDAbsorptionDelegate()
+{
+    if (UBrokenDarknessManager *BDManager = BoundBDManager.Get())
+    {
+        BDManager->OnAlignmentChanged.RemoveDynamic(this, &UCombatCommandMenuSubsystem::HandleBDAlignmentChanged);
+    }
+    BoundBDManager.Reset();
+}
+
+void UCombatCommandMenuSubsystem::HandleBDAlignmentChanged(AActor *Actor, ESpellElement OldElement, ESpellElement NewElement)
+{
+    // A BD's absorbed element changed while its menu is open — the castable BD
+    // spell pool (Darkness pool + the absorbed element's pool) is now
+    // different. Rebuild capabilities and re-broadcast the current view.
+    if (!bIsOpen || Actor != CurrentActor.Get())
+    {
+        return;
+    }
+
+    RebuildCapabilities();
+    RebroadcastCurrentView();
 }
 
 // ==================== MAIN MENU ====================
@@ -735,17 +834,7 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
     LC->ToggleEquipment();
 
     // Rebuild capabilities with the new active weapon and refresh main menu
-    UCharacterDataComponent *CDC =
-        CurrentActor->FindComponentByClass<UCharacterDataComponent>();
-    if (CDC && CDC->CharacterData)
-    {
-        CurrentCapabilities = FCombatCapabilities::BuildFrom(
-            LC,
-            CDC->CharacterData->CharacterClass,
-            CDC->CharacterData->InnateElement,
-            [this](int32 ElementIndex)
-            { return GetElementColor(ElementIndex); });
-    }
+    RebuildCapabilities();
 
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
 }
@@ -773,17 +862,7 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
     LC->SetActiveRingIndex(NextIndex);
 
     // Rebuild capabilities with new active ring
-    UCharacterDataComponent *CDC =
-        CurrentActor->FindComponentByClass<UCharacterDataComponent>();
-    if (CDC && CDC->CharacterData)
-    {
-        CurrentCapabilities = FCombatCapabilities::BuildFrom(
-            LC,
-            CDC->CharacterData->CharacterClass,
-            CDC->CharacterData->InnateElement,
-            [this](int32 ElementIndex)
-            { return GetElementColor(ElementIndex); });
-    }
+    RebuildCapabilities();
 
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
 }

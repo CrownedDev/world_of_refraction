@@ -267,16 +267,10 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 ## Known Gaps / Not-Yet-Implemented
 
-- **`ResetToMax` ignores BD** — `UCharacterDataComponent::ResetToMax` sets
-  `CurrentEP = MaxEP`, which would hand a BD a full energy pool. It has no C++ callers
-  today (Blueprint usage unknown); if it is ever wired into combat reset it must zero
-  `CurrentEP` for BD characters.
-- **`ForceTransformation` dead** — `BrokenDarknessManager.cpp`, zero callers.
+- **`ForceTransformation` dead** — `BrokenDarknessManager.cpp`, zero production
+  callers; intentionally retained as a documented debug/test hook.
 - **`OnSuccessfulParry` / `OnSuccessfulBlock` unwired** — `BrokenDarknessManager.cpp:288, 314`,
   zero callers; the live absorption path is `OnDefenseResolved`.
-- **Stale L1/L2 multiplier docs** — `BrokenDarknessManager.h` (RollForBreak doc comment,
-  ~`:59-61`) still states "L1 = base × 2, L2 = base × 3"; actual values are 1.5× / 2.0×
-  after Session 0. Header left untouched per Session 0's two-file constraint.
 
 ## File Index
 
@@ -303,3 +297,5 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-18 | Session 4 — AI BD-awareness: `ULoadoutComponent::GetAvailableSpells` now appends absorbed BD pools; `AIDecisionManager::GetCurrentEP` routes BD to `AbsorptionEnergy`. All 8 AI spell-evaluation sites benefit through the shared method. | feature/bd-ai-awareness |
 | 2026-05-18 | Session 5 — energy unification: BD absorption energy merged onto `UCharacterDataComponent::CurrentEP`. Deleted `AbsorptionEnergy` / `MaxAbsorptionEnergy` fields and `GetAbsorptionEnergy` / `SpendAbsorptionEnergy` / `CanAffordEnergy` / `GetMaxAbsorptionEnergy`. New `ServerGainBrokenDarknessEnergy` (overload-aware gain, bypasses the passive-regen early-out) + public `GrantAbsorptionEnergy`. Overload now re-evaluated via a `CharacterDataComponent::OnEPChanged` binding. BD branches in `ValidateAction` / `SpendEnergy` / `GetCurrentEP` collapsed. Runtime-transform energy carries over (`ServerSetBrokenDarkness` no longer zeroes EP); overload threshold is the stat-derived `MaxEP`. Fixed `ItemExecutor::ApplyBrokenDarknessBonus` granting nothing on BD. | feature/bd-ai-awareness |
 | 2026-05-18 | Session 5 follow-up — `OverloadCapacity` is no longer a flat 30.0f field; `GetOverloadCapacity()` derives it as 30% of `MaxEP` (`OVERLOAD_CAPACITY_FRACTION`) so the overload buffer scales with the BD's energy pool. | feature/bd-energy-unification |
+| 2026-05-19 | Session 5 follow-up, Batch A — `ForceTransformation` documented as a debug/test hook; `ResetToMax` now zeroes `CurrentEP` for BD (no passive regen, so a full reset would violate the design); stale L1/L2 break-multiplier doc comment corrected (×2 / ×3 → ×1.5 / ×2.0). | feature/bd-energy-unification |
+| 2026-05-19 | Session 5 follow-up, Batch B — combat command menu refreshes the BD spell list live: `CombatCommandMenuSubsystem` binds `BrokenDarknessManager::OnAlignmentChanged` while a BD's menu is open and rebuilds capabilities + the current view on absorption. `FCombatCapabilities::BuildFrom` (Session 3) already filtered `RefractionSpells` to the Darkness pool + absorbed-element pools — this batch adds the live-refresh trigger. | feature/bd-energy-unification |

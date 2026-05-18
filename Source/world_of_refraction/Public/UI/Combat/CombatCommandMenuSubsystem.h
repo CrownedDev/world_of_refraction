@@ -14,11 +14,13 @@
 #include "TargetType.h"
 #include "ActionStructs.h"
 #include "ESpellSource.h"
+#include "ESpellElement.h"
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
 class UCharacterData;
 class USpellData;
+class UBrokenDarknessManager;
 
 // ==================== DELEGATES ====================
 
@@ -140,6 +142,10 @@ private:
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 
+    /** BrokenDarknessManager of the actor whose menu is open — bound to
+     *  OnAlignmentChanged for live BD spell-pool refresh. */
+    TWeakObjectPtr<UBrokenDarknessManager> BoundBDManager;
+
     // ==================== MAIN MENU ====================
 
     TArray<FPieMenuButtonData> BuildMainMenuButtons() const;
@@ -198,4 +204,24 @@ private:
     ULoadoutComponent *GetLoadoutComponent() const;
     FLinearColor GetElementColor(int32 ElementIndex) const;
     class UInfusionVFXComponent *GetInfusionVFXComponent() const;
+
+    // ==================== CAPABILITIES / BD LIVE REFRESH ====================
+
+    /** Rebuild CurrentCapabilities from CurrentActor's LoadoutComponent.
+     *  Shared by OpenForActor, weapon/ring switches, and BD absorption refresh. */
+    void RebuildCapabilities();
+
+    /** Re-broadcast the menu view for the current depth — used after a live
+     *  capability change so the open menu reflects it without a close/reopen. */
+    void RebroadcastCurrentView();
+
+    /** Bind / unbind CurrentActor's BrokenDarknessManager::OnAlignmentChanged so
+     *  the menu refreshes when the absorbed element — and thus the castable BD
+     *  spell pool — changes while the menu is open. */
+    void BindBDAbsorptionDelegate();
+    void UnbindBDAbsorptionDelegate();
+
+    /** OnAlignmentChanged handler — rebuilds capabilities and re-broadcasts. */
+    UFUNCTION()
+    void HandleBDAlignmentChanged(AActor *Actor, ESpellElement OldElement, ESpellElement NewElement);
 };
