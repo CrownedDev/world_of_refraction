@@ -11,6 +11,8 @@
 #include "RingData.h"
 #include "ItemData.h"
 #include "FItemLoadoutSlot.h"
+#include "CharacterDataComponent.h"
+#include "BrokenDarknessManager.h"
 #include "UI/Combat/PieMenuButtonData.h"
 
 const TArray<USpellData *> FCombatCapabilities::EmptySpells = TArray<USpellData *>();
@@ -71,7 +73,26 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     if (CharClass == ECharacterClass::Caster)
     {
+        // Darkness pool (InnateSpells) is always available. For Broken Darkness,
+        // also surface each element pool whose element has been absorbed.
         Out.RefractionSpells = Loadout.InnateSpells;
+
+        if (AActor *OwnerActor = LC->GetOwner())
+        {
+            UCharacterDataComponent *CharComp = OwnerActor->FindComponentByClass<UCharacterDataComponent>();
+            UBrokenDarknessManager *BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
+            if (CharComp && CharComp->IsBrokenDarkness() && BDManager)
+            {
+                for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+                {
+                    if (BDManager->HasAbsorbedElement(Pool.Element))
+                    {
+                        Out.RefractionSpells.Append(Pool.Spells);
+                    }
+                }
+            }
+        }
+
         Out.bHasRefractions = Out.RefractionSpells.Num() > 0;
         Out.RefractionColor = GetElementColorFn(static_cast<int32>(InnateElement));
     }
