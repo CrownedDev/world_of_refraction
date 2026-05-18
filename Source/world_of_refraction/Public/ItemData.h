@@ -153,49 +153,16 @@ public:
         EItemEffectType DisplayEffectType;
 
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        float DisplayDamageValue;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplayEnergyValue;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplaySelfDamage;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
         float DisplayBuffPercentage;
 
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplayBuffDuration;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
         float DisplaySilencePercentage;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplaySilenceDuration;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplayDebuffsToRemove;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        bool DisplayGrantsImmunity;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        int32 DisplayImmunityDuration;
 
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
         bool DisplayRevealsHP;
 
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
         bool DisplayRevealsStats;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Secondary")
-        bool DisplayHasSecondary;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Secondary")
-        int32 DisplaySecondaryDamage;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Secondary")
-        int32 DisplaySecondaryDuration;
 
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Bonuses")
         int32 DisplayBDEnergy;
@@ -342,9 +309,6 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         EItemEffectType GetPrimaryEffectType() const;
 
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetDamageValue() const;
-
         /** Garnet DOT — burn damage per turn as a percent of target MaxHP */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         float GetDOTDamagePercent() const;
@@ -409,46 +373,16 @@ public:
         float GetElementalBuildupPercent() const;
 
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetEnergyValue() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetSelfDamage() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
         float GetBuffPercentage() const;
 
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetBuffDuration() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
         float GetSilencePercentage() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetSilenceDuration() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetDebuffsToRemove() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        bool GetGrantsImmunity() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetImmunityDuration() const;
 
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         bool GetRevealsHP() const;
 
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         bool GetRevealsStats() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        bool HasSecondaryEffect() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetSecondaryDamagePerTurn() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetSecondaryDuration() const;
 
         // ==================== EDITOR SUPPORT ====================
 
