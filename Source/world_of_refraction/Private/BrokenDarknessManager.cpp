@@ -381,11 +381,11 @@ void UBrokenDarknessManager::RecordAbsorbedElement(ESpellElement Element)
 		return;
 	}
 
-	// Track for hybrid spell availability
-	if (!AbsorbedElements.Contains(Element))
-	{
-		AbsorbedElements.Add(Element);
-	}
+	// Single active slot: the most recent absorption is always Last(). Re-absorbing
+	// a prior element moves it to the end rather than duplicating, so the array
+	// stays a distinct, recency-ordered history and Last() is the active element.
+	AbsorbedElements.Remove(Element);
+	AbsorbedElements.Add(Element);
 
 	// Process stacks and alignment
 	ProcessElementAbsorption(Element);
@@ -584,7 +584,9 @@ void UBrokenDarknessManager::ResetStacks()
 
 bool UBrokenDarknessManager::HasAbsorbedElement(ESpellElement Element) const
 {
-	return AbsorbedElements.Contains(Element);
+	// Single active slot: only the most recent absorption is "active". Earlier
+	// entries in AbsorbedElements are historical and do not count here.
+	return AbsorbedElements.Num() > 0 && AbsorbedElements.Last() == Element;
 }
 
 bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,

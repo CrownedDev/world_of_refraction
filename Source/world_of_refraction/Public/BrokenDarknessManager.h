@@ -198,7 +198,9 @@ public:
 
 	// ==================== HYBRID SPELLS ====================
 
-	/** Has absorbed this element? */
+	/** True if Element is the currently-active absorbed element — the most recent
+	 *  absorption (AbsorbedElements.Last()). Absorption is a single active slot:
+	 *  earlier entries in the absorbed-element history do NOT count as active. */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
 	bool HasAbsorbedElement(ESpellElement Element) const;
 
@@ -327,7 +329,9 @@ protected:
 
 	// ==================== ABSORBED ELEMENTS ====================
 
-	/** Elements absorbed this combat (for hybrid spells) */
+	/** Absorbed-element history this combat. The most recent entry (Last()) is the
+	 *  currently active absorbed element; earlier entries are historical and may
+	 *  be referenced by future abilities (e.g. re-tapping a past absorption). */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Elements")
 	TArray<ESpellElement> AbsorbedElements;
 
