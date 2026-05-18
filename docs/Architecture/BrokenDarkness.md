@@ -9,10 +9,10 @@ absorption stacks that scale status effects, can overload when energy exceeds ca
 and cast with a darkness-tinted visual treatment. The system is implemented around one
 runtime component, `UBrokenDarknessManager`, plus a state flag on `UCharacterDataComponent`.
 
-> This document reflects the BD system on `feature/bd-element-gate` after **Session 2**.
+> This document reflects the BD system on `feature/bd-spell-pools` after **Session 3**.
 > Sessions 1–2 wired BD energy and the Caster element gate into action validation
-> (see *Energy Model* and *Element Access*). The BD spell loadout and AI integration
-> are not yet BD-aware — see *Known Gaps*.
+> (see *Energy Model* and *Element Access*); Session 3 added the BD spell-pool loadout
+> (see *BD Spell Pools*). AI integration is not yet BD-aware — see *Known Gaps*.
 
 ## Two Paths to Broken Darkness
 
@@ -169,6 +169,43 @@ missing data never blocks a cast. Separately, `ValidateAction` still unlocks *al
 when the selected infusion **source** is itself an any-element source — the source-side
 `bAnyElement` check (`ActionExecutor.cpp:196-198`), distinct from the equipment channel above.
 
+## BD Spell Pools
+
+A Broken Darkness character's spell loadout is split into a Darkness pool plus seven
+per-element pools.
+
+- **Darkness pool** — `FCombatLoadout::InnateSpells` (the existing Caster field). Max 6
+  spells, every entry must be `Darkness` element. Always castable.
+- **Element pools** — `FCombatLoadout::BDSpellPools`, a `TArray<FBDElementSpellPool>`
+  (`FCombatLoadout.h`). Seven pools — `Fire`, `Water`, `Earth`, `Wind`, `Light`,
+  `Lightning`, `Void` — each holding up to 6 spells that must match the pool's element.
+  `Reality` is excluded: it cannot be absorbed (`CanAbsorbElement`), so it is never a pool.
+
+`ULoadoutComponent::InitializeBDPools` builds the seven empty pools — one per absorbable
+non-Darkness element — and is idempotent (authored pools survive, missing ones are added).
+`ApplyBDPoolsIfBroken` runs it when the owning character is `IsBrokenDarkness()`, at
+loadout creation (`InitializeFromAsset` and the empty-loadout path of
+`InitializeFromCharacterData`). Non-BD characters get no pools.
+
+**Validation** — `FCombatLoadout::ValidateBDSpellLoadout` (static, shared by `FCombatLoadout`
+and `ULoadoutData`) enforces the structural rules: Darkness pool ≤ 6 and all-Darkness;
+≤ 7 element pools; each pool ≤ 6 and element-matched. `LoadoutComponent::GetValidationErrors`
+calls it for BD characters; `ULoadoutData::GetValidationErrors` calls it when an asset has
+authored `BDSpellPools`.
+
+**Single-slot absorption** — absorption has one active slot. `HasAbsorbedElement(Element)`
+returns true only when `Element` is the most recent absorption — `AbsorbedElements.Last()`.
+`RecordAbsorbedElement` moves a re-absorbed element to the end, so the array is a distinct,
+recency-ordered history and `Last()` is always the active element. Earlier entries are
+historical (retained for possible future "re-tap" abilities) but are not active.
+
+**Castable filter (BD)** — the spells a BD can cast are every Darkness-pool spell
+(`InnateSpells`), plus the spells of the single `BDSpellPools` entry whose element is
+currently absorbed. `FCombatCapabilities::BuildFrom` assembles this into `RefractionSpells`
+(Caster branch): it starts with `InnateSpells`, then for each pool appends `Pool.Spells`
+when `HasAbsorbedElement(Pool.Element)`. Because absorption is single-slot, at most one
+element pool contributes at a time.
+
 ## Forbidden Elements
 
 `Light` and `Void` are *forbidden* elements for BD. `UBrokenDarknessManager::IsForbiddenElement`
@@ -211,7 +248,8 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 |---|---|
 | `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (`:61-66`); `ServerGainEnergy`/`ServerSetEP` suppress regular EP for BD (`:159, 184`); `IsBrokenDarkness()` helper (`:279`); `ServerSetBrokenDarkness` zeroes EP (`:292`). |
 | `ActionExecutor.cpp` | `ValidateAction` energy gate checks `AbsorptionEnergy` via `CanAffordEnergy` for BD (`:165-176`) and runs the Caster element gate through the shared `IsElementCastable` predicate (`:204`); `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts (`:269-273`); `SpendEnergy` routes BD spends through `BDManager->SpendAbsorptionEnergy` (`:2319`); `CheckBrokenDarknessBreak` break-roll logic (`:3196`); `OnDefenseResolved` absorption call (`:1236`); `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()` (`:3282`); `bPendingSpellIsBrokenDarkness` visual threading (`:690`). |
-| `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the same shared element gate (`:527`). |
+| `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the shared element gate for normal Casters and `FCombatLoadout::ValidateBDSpellLoadout` for BD; `InitializeBDPools` / `ApplyBDPoolsIfBroken` build the seven BD element pools for BD characters at loadout creation. |
+| `FCombatCapabilities.cpp` | `BuildFrom` Caster branch: for a BD character, appends each `BDSpellPools` entry's spells to `RefractionSpells` when `HasAbsorbedElement(Pool.Element)` — the always-on Darkness pool (`InnateSpells`) plus the single absorbed element's pool. |
 | `CombatOrchestrator.cpp` | `ProcessBrokenDarknessOverflow` calls `ProcessOverloadTick` each turn for overloaded BDs (`:993, 1033`). |
 | `DamageCalculator.cpp` | `GetBDStackStatusMultiplier` reads the attacker's absorption-stack multiplier when transformed (`:375`). |
 | `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`, `:653`), `ApplyBrokenDarknessBonus` grants absorption energy scaled by crystal tier (`:101-103, 608`). |
@@ -221,15 +259,11 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 ## Known Gaps / Not-Yet-Implemented
 
-- **No BD spell loadout** — BD has no per-element spell pool; it shares the Caster
-  `InnateSpells` shape. (Session 3 — separate design doc.)
 - **AI not BD-aware** — `AIDecisionManager` evaluates a flat spell list and does not
-  consider absorption or BD energy. (Session 4.)
+  consider absorption, BD energy, or the BD spell pools. (Session 4.)
 - **`ForceTransformation` dead** — `BrokenDarknessManager.cpp:185`, zero callers.
 - **`OnSuccessfulParry` / `OnSuccessfulBlock` unwired** — `BrokenDarknessManager.cpp:288, 314`,
   zero callers; the live absorption path is `OnDefenseResolved`.
-- **`CanCastHybridSpell` / `HasAbsorbedElement` near-dead** — `CanCastHybridSpell`
-  (`.cpp:588`) has zero callers; `HasAbsorbedElement` (`.cpp:583`) is called only by it.
 - **Stale L1/L2 multiplier docs** — `BrokenDarknessManager.h` (RollForBreak doc comment,
   ~`:59-61`) still states "L1 = base × 2, L2 = base × 3"; actual values are 1.5× / 2.0×
   after Session 0. Header left untouched per Session 0's two-file constraint.
@@ -255,3 +289,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-18 | Session 0 — break-roll rewrite: Darkness innate-element gate added; spell triggers = over-requirement OR L1/L2 infused; ability triggers = infused + innate-Darkness source + over-requirement; ability infusion-overcharge and non-Darkness triggers removed; L1/L2 break multipliers changed 2.0/3.0 → 1.5/2.0 | feature/bd-break-roll-rules |
 | 2026-05-18 | Document created — reference state of the BD system after Session 0 | feature/bd-break-roll-rules |
 | 2026-05-18 | Sessions 1–2 — element gate now BD-aware and equipment-aware (rings, weapons, primary + attached evolutions); ring/weapon spells now cost 0 energy; BD spends from `AbsorptionEnergy` via `ValidateAction`/`SpendEnergy`; shared `IsElementCastable` predicate between `ValidateAction` and `GetValidationErrors`; new *Energy Model* and *Element Access* sections | feature/bd-element-gate |
+| 2026-05-18 | Session 3 — BD spell-pool loadout: `FBDElementSpellPool` struct + `BDSpellPools` field (7 element pools) on `FCombatLoadout` and `ULoadoutData`; `InitializeBDPools` 7-pool init; `ValidateBDSpellLoadout` structural validation; `FCombatCapabilities` surfaces the Darkness pool + the absorbed element's pool; single-slot absorption (`HasAbsorbedElement` matches `AbsorbedElements.Last()`); removed dead `CanCastHybridSpell` and `GetCombatSpells`; new *BD Spell Pools* section | feature/bd-spell-pools |
