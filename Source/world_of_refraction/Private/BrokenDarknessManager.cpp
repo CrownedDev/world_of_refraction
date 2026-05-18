@@ -12,7 +12,7 @@
 
 namespace BrokenDarknessConstants
 {
-	// Break System — tier-keyed, doubled on L2 infusion
+	// Break System — tier-keyed, infusion-multiplied (L1 ×1.5, L2 ×2.0)
 	// Per locked design (May 2026):
 	// S=1.5%, A=1.0%, B=0.6%, C=0.3%, D=0.1%, E/F=0%.
 	constexpr float BREAK_CHANCE_S_TIER = 0.015f;
@@ -22,8 +22,8 @@ namespace BrokenDarknessConstants
 	constexpr float BREAK_CHANCE_D_TIER = 0.001f;
 	constexpr float BREAK_CHANCE_E_TIER = 0.0f;
 	constexpr float BREAK_CHANCE_F_TIER = 0.0f;
-	constexpr float BREAK_CHANCE_L1_MULTIPLIER = 2.0f;
-	constexpr float BREAK_CHANCE_L2_MULTIPLIER = 3.0f;
+	constexpr float BREAK_CHANCE_L1_MULTIPLIER = 1.5f;
+	constexpr float BREAK_CHANCE_L2_MULTIPLIER = 2.0f;
 
 	// Absorption
 	constexpr float PARRY_ABSORPTION_MULT = 0.30f; // 30% of spell cost on parry
@@ -58,7 +58,7 @@ namespace
 		}
 	}
 
-	/** Look up infusion-level multiplier. L0 = no multiplier, L1 = 2x, L2 = 3x. */
+	/** Look up infusion-level multiplier. L0 = 1.0x, L1 = 1.5x, L2 = 2.0x. */
 	float GetInfusionMultiplier(int32 InfusionLevel)
 	{
 		switch (InfusionLevel)

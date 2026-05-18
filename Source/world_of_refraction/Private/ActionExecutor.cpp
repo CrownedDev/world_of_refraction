@@ -3207,6 +3207,13 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		return;
 	}
 
+	// Darkness gate: only innate-Darkness characters can break into Broken
+	// Darkness. Non-Darkness Casters (and missing CharData) never roll.
+	if (!CharData || CharData->InnateElement != ESpellElement::Darkness)
+	{
+		return;
+	}
+
 	// Determine tier and infused state from the action's source data.
 	// Spells: use SpellData->Tier. Abilities: use AbilityData->Tier.
 	// Other action types (Attack, Defend, Item, etc.) don't trigger break.
@@ -3219,42 +3226,56 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		Tier = Action.SpellData->Tier;
 		InfusionLevel = Action.SpellInfusionLevel;
 		const bool bInfused = (InfusionLevel >= 1);
+		const bool bOverReq =
+			UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData);
 
-		if (UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData))
+		// Spell rolls when over-requirement OR infused at L1/L2. The infusion
+		// multiplier is applied inside RollForBreak via InfusionLevel.
+		if (!bOverReq && !bInfused)
 		{
-			TriggerReason = bInfused
-								? FString::Printf(TEXT("Underpowered spell cast (L%d)"), InfusionLevel)
-								: TEXT("Underpowered spell cast");
+			return; // Spell within stats and not infused — no roll
 		}
-		else if (bInfused)
+
+		if (bOverReq && bInfused)
 		{
-			TriggerReason = FString::Printf(TEXT("L%d Infusion overcharge (spell)"), InfusionLevel);
+			TriggerReason = FString::Printf(TEXT("Requirement deficit + L%d Infusion"), InfusionLevel);
+		}
+		else if (bOverReq)
+		{
+			TriggerReason = TEXT("Requirement deficit");
 		}
 		else
 		{
-			return; // Spell within stats and not infused — no roll
+			TriggerReason = FString::Printf(TEXT("L%d Infusion"), InfusionLevel);
 		}
 	}
 	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
 	{
 		Tier = Action.AbilityData->Tier;
 		InfusionLevel = Action.AbilityInfusionLevel;
-		const bool bInfused = (InfusionLevel >= 1);
 
-		if (UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
+		// Ability rolls ONLY when all three hold: the ability is infused, the
+		// infusion source resolves to the character's innate (Darkness) element,
+		// and the ability exceeds the character's stat requirements.
+		if (Action.SelectedSource == EInfusionSourceOption::None)
 		{
-			TriggerReason = bInfused
-								? FString::Printf(TEXT("Underpowered ability use (L%d)"), InfusionLevel)
-								: TEXT("Underpowered ability use");
+			return;
 		}
-		else if (bInfused)
+
+		const ESpellElement SourceElement =
+			GetElementForSourceOption(Actor, Action.SelectedSource);
+		if (SourceElement != CharData->InnateElement)
 		{
-			TriggerReason = FString::Printf(TEXT("L%d Infusion overcharge (ability)"), InfusionLevel);
+			return;
 		}
-		else
+
+		if (!UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
 		{
-			return; // Ability within stats and not infused — no roll
+			return;
 		}
+
+		TriggerReason = FString::Printf(
+			TEXT("Innate Darkness infused ability over requirements (L%d)"), InfusionLevel);
 	}
 	else
 	{
