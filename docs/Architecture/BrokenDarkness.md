@@ -248,8 +248,9 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 |---|---|
 | `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (`:61-66`); `ServerGainEnergy`/`ServerSetEP` suppress regular EP for BD (`:159, 184`); `IsBrokenDarkness()` helper (`:279`); `ServerSetBrokenDarkness` zeroes EP (`:292`). |
 | `ActionExecutor.cpp` | `ValidateAction` energy gate checks `AbsorptionEnergy` via `CanAffordEnergy` for BD (`:165-176`) and runs the Caster element gate through the shared `IsElementCastable` predicate (`:204`); `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts (`:269-273`); `SpendEnergy` routes BD spends through `BDManager->SpendAbsorptionEnergy` (`:2319`); `CheckBrokenDarknessBreak` break-roll logic (`:3196`); `OnDefenseResolved` absorption call (`:1236`); `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()` (`:3282`); `bPendingSpellIsBrokenDarkness` visual threading (`:690`). |
-| `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the shared element gate for normal Casters and `FCombatLoadout::ValidateBDSpellLoadout` for BD; `InitializeBDPools` / `ApplyBDPoolsIfBroken` build the seven BD element pools for BD characters at loadout creation. |
+| `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the shared element gate for normal Casters and `FCombatLoadout::ValidateBDSpellLoadout` for BD; `InitializeBDPools` / `ApplyBDPoolsIfBroken` build the seven BD element pools for BD characters at loadout creation; `GetAvailableSpells` BD branch appends `BDSpellPools[i].Spells` where `HasAbsorbedElement(pool.Element)` — the BD-aware castable set shared by 12 callers including the 8 AI spell-list sites. |
 | `FCombatCapabilities.cpp` | `BuildFrom` Caster branch: for a BD character, appends each `BDSpellPools` entry's spells to `RefractionSpells` when `HasAbsorbedElement(Pool.Element)` — the always-on Darkness pool (`InnateSpells`) plus the single absorbed element's pool. |
+| `AIDecisionManager.cpp` | `GetCurrentEP` BD branch returns `FloorToInt(BDManager->GetAbsorptionEnergy())`; non-BD returns `CharComp->CurrentEP` — feeds `CanAffordSpell` / `CanAffordAbility` and the heal/cleanse affordability checks. Spell lists come from the BD-aware `GetAvailableSpells`, so all 8 AI spell-evaluation sites see the absorbed-pool set. |
 | `CombatOrchestrator.cpp` | `ProcessBrokenDarknessOverflow` calls `ProcessOverloadTick` each turn for overloaded BDs (`:993, 1033`). |
 | `DamageCalculator.cpp` | `GetBDStackStatusMultiplier` reads the attacker's absorption-stack multiplier when transformed (`:375`). |
 | `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`, `:653`), `ApplyBrokenDarknessBonus` grants absorption energy scaled by crystal tier (`:101-103, 608`). |
@@ -259,8 +260,18 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 ## Known Gaps / Not-Yet-Implemented
 
-- **AI not BD-aware** — `AIDecisionManager` evaluates a flat spell list and does not
-  consider absorption, BD energy, or the BD spell pools. (Session 4.)
+- **AI infusion-level heuristic still reads `CurrentEP`** — `DecideSpellInfusionLevel`
+  and `DecideAbilityInfusionLevel` compute `EnergyPercent` from `CharComp->CurrentEP`,
+  which reads 0 for BD, so a BD AI is infusion-shy. Not a bug — the BD-aware
+  `CanAffordSpell` re-check still rejects any unaffordable infused cast — just
+  suboptimal. A proper fix needs a BD-aware `GetMaxEP` for the percentage denominator.
+- **Energy pool unification candidate (Session 5)** — `AbsorptionEnergy` and `CurrentEP`
+  share the same stat formula and represent the same resource ("energy you spend to
+  cast") with different *gain* rules. Merging them into a single `CurrentEP` field would
+  remove ~8 BD branches across `ValidateAction` / `SpendEnergy` / `GetCurrentEP` /
+  `ServerSetBrokenDarkness` and resolve the infusion-heuristic gap above. BD's gain rule
+  (event-driven absorption, no passive regen) would survive via the existing
+  `ServerGainEnergy` BD early-out.
 - **`ForceTransformation` dead** — `BrokenDarknessManager.cpp:185`, zero callers.
 - **`OnSuccessfulParry` / `OnSuccessfulBlock` unwired** — `BrokenDarknessManager.cpp:288, 314`,
   zero callers; the live absorption path is `OnDefenseResolved`.
@@ -290,3 +301,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-18 | Document created — reference state of the BD system after Session 0 | feature/bd-break-roll-rules |
 | 2026-05-18 | Sessions 1–2 — element gate now BD-aware and equipment-aware (rings, weapons, primary + attached evolutions); ring/weapon spells now cost 0 energy; BD spends from `AbsorptionEnergy` via `ValidateAction`/`SpendEnergy`; shared `IsElementCastable` predicate between `ValidateAction` and `GetValidationErrors`; new *Energy Model* and *Element Access* sections | feature/bd-element-gate |
 | 2026-05-18 | Session 3 — BD spell-pool loadout: `FBDElementSpellPool` struct + `BDSpellPools` field (7 element pools) on `FCombatLoadout` and `ULoadoutData`; `InitializeBDPools` 7-pool init; `ValidateBDSpellLoadout` structural validation; `FCombatCapabilities` surfaces the Darkness pool + the absorbed element's pool; single-slot absorption (`HasAbsorbedElement` matches `AbsorbedElements.Last()`); removed dead `CanCastHybridSpell` and `GetCombatSpells`; new *BD Spell Pools* section | feature/bd-spell-pools |
+| 2026-05-18 | Session 4 — AI BD-awareness: `ULoadoutComponent::GetAvailableSpells` now appends absorbed BD pools; `AIDecisionManager::GetCurrentEP` routes BD to `AbsorptionEnergy`. All 8 AI spell-evaluation sites benefit through the shared method. | feature/bd-ai-awareness |
