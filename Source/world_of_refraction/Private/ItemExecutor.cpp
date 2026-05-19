@@ -175,38 +175,45 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 		return;
 	}
 
-	// Immediate Fire hit on use — equal to one DOT tick. Unlike DOT ticks (which
-	// SkillEffectManager clamps to leave 1 HP, "DOTs can't kill"), this is a
-	// direct damage event and CAN drop the target to 0.
-	const int32 HPBefore = TargetComp->CurrentHP;
-	TargetComp->ServerTakeDamage(DamagePerTurnInt);
-	OutResult.DamageDealt = HPBefore - TargetComp->CurrentHP;
-
-	// Apply the fire DOT tail via SkillEffectManager — registration is unchanged;
-	// first tick lands at the end of the target's next turn.
-	const int32 EffectID = static_cast<int32>(GetTypeHash(User)) ^ static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(ESkillEffectType::DOT);
-	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
-		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, ESpellElement::Fire);
-
-	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
-	OutResult.bSuccess = true;
-
-	// Fire status buildup for the immediate hit's damage event, using the shared
-	// elemental-buildup table. NOTE: DOT ticks do not yet contribute buildup —
-	// that path lives in SkillEffectManager (out of scope for this change).
-	float BuildupApplied = 0.0f;
+	// Garnet's per-event Fire buildup, from the shared elemental-buildup table.
+	// The same amount accompanies the immediate hit and every DOT tick — it is
+	// carried on the DOT via BuildupPerTick (see below).
+	float BuildupPerEvent = 0.0f;
 	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		BuildupApplied = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
-		SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupApplied),
+		BuildupPerEvent = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+	}
+
+	// Immediate Fire hit on use — equal to one DOT tick.
+	// Immediate Garnet hit is unclamped — can secure kills. Only DOT ticks have
+	// the can't-kill clamp (SkillEffectManager leaves the target at 1 HP).
+	const int32 HPBefore = TargetComp->CurrentHP;
+	TargetComp->ServerTakeDamage(DamagePerTurnInt);
+	OutResult.DamageDealt = HPBefore - TargetComp->CurrentHP;
+
+	// Fire status buildup for the immediate hit's damage event.
+	if (SBM && BuildupPerEvent > 0.0f)
+	{
+		SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupPerEvent),
 							   ESpellElement::Fire, EPhysicalDamageType::None);
 	}
 
+	// Apply the fire DOT tail via SkillEffectManager — first tick lands at the
+	// end of the target's next turn. BuildupPerTick carries the per-event buildup
+	// so each tick contributes the same amount the immediate hit did.
+	const int32 EffectID = static_cast<int32>(GetTypeHash(User)) ^ static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(ESkillEffectType::DOT);
+	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
+		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, ESpellElement::Fire);
+	DOT.BuildupPerTick = BuildupPerEvent;
+
+	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
+	OutResult.bSuccess = true;
+
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ItemExecutor] Garnet: %s took %d immediate Fire damage + %.1f buildup"),
-		   *Target->GetName(), OutResult.DamageDealt, BuildupApplied);
+		   *Target->GetName(), OutResult.DamageDealt, BuildupPerEvent);
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ItemExecutor] Garnet: Applied Burn DOT tail to %s (%d dmg/turn x %d turns)"),
 		   *Target->GetName(), DamagePerTurnInt, Duration);

@@ -1079,8 +1079,8 @@ FString UItemData::GenerateDescription() const
         }
         else
         {
-            Effect = FString::Printf(TEXT("Drains %.0f%% of target's energy for %d turns"),
-                                     GetSilencePercentage(), GetSilenceDurationNew());
+            Effect = FString::Printf(TEXT("Drains %.0f%% of the target's energy on use"),
+                                     GetSilencePercentage());
         }
         break;
 

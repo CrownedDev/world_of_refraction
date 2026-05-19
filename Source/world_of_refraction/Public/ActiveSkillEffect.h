@@ -122,6 +122,13 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	ESpellElement Element = ESpellElement::Generic;
 
+	/** Status-bar buildup contributed per damage event. Set by the effect's
+	 *  source (e.g. Garnet) so each DOT tick mirrors the buildup of the
+	 *  immediate hit. Left 0 for DOTs that don't build status (weapon Bleed,
+	 *  ability infusions) — a 0 value contributes no buildup on tick. */
+	UPROPERTY(BlueprintReadOnly, Category = "Effect")
+	float BuildupPerTick = 0.0f;
+
 	// ========================================
 	// STACKING
 	// ========================================

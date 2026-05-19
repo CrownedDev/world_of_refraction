@@ -10,6 +10,7 @@
 #include "CharacterDataComponent.h"
 #include "SkillEffectDisplayNames.h"
 #include "RingData.h"
+#include "StatusBuildupManager.h"
 #include "Engine/GameInstance.h"
 
 // ========================================
@@ -979,6 +980,26 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 			CharComp->ServerTakeDamage(DamageToApply);
 			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (clamped, can't kill)"),
 				   *Actor->GetName(), DamageToApply, *Effect.EffectName);
+		}
+
+		// Per-tick status buildup — mirrors the per-event amount the effect's
+		// source applied with its immediate hit. BuildupPerTick is 0 for DOTs
+		// that don't build status (weapon Bleed, ability infusions).
+		if (Effect.BuildupPerTick > 0.0f)
+		{
+			if (UGameInstance *GI = GetGameInstance())
+			{
+				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				{
+					AActor *BuildupSource = Effect.SourceActor.IsValid() ? Effect.SourceActor.Get() : Actor;
+					const int32 BuildupAmount = FMath::RoundToInt(Effect.BuildupPerTick);
+					SBM->AddStatusBuildup(BuildupSource, Actor, BuildupAmount,
+										  Effect.Element, EPhysicalDamageType::None);
+					UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s gained %d %s buildup from %s tick"),
+						   *Actor->GetName(), BuildupAmount,
+						   *UEnum::GetValueAsString(Effect.Element), *Effect.EffectName);
+				}
+			}
 		}
 		break;
 	}
