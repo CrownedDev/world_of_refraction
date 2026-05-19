@@ -72,7 +72,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage *SheatheMontage = nullptr;
 
-    /** Weapon-specific parry animation (used when character's bUseWeaponParryAnimation is true) */
+    /** Weapon-specific parry animation (used when the active weapon's
+     *  FWeaponLoadoutEntry::bUseWeaponParryAnimation is true) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage *ParryMontage = nullptr;
 

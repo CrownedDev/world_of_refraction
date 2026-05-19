@@ -39,6 +39,15 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         Context.AddWarning(FText::FromString(TEXT("No DefaultLoadout assigned - character will have no equipment")));
     }
 
+    // Validate Cosmetics asset assigned
+    if (!Cosmetics)
+    {
+        Context.AddError(FText::FromString(FString::Printf(
+            TEXT("UCharacterData '%s' has no Cosmetics asset assigned. Assign a UCosmeticsData asset before using this character in combat."),
+            *Name)));
+        Result = EDataValidationResult::Invalid;
+    }
+
     return Result;
 }
 #endif
