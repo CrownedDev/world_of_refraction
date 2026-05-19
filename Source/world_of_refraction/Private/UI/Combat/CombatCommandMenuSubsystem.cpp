@@ -254,6 +254,17 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
     }
 
+    case EPieMenuCategory::TargetCategory:
+    {
+        // Allies / Enemies side picked — narrow to that team and show the
+        // per-actor picker. The narrowed type is carried in DataIndex.
+        ResolvedTargetType = static_cast<ETargetType>(ButtonData.DataIndex);
+        const TArray<AActor *> Targets = ResolveTargets(ResolvedTargetType);
+        CurrentDepth = ECombatMenuDepth::TargetSelection;
+        OnCommandMenuReady.Broadcast(BuildTargetButtons(Targets));
+        break;
+    }
+
     case EPieMenuCategory::Abilities:
         OpenAbilitySubmenu();
         break;
@@ -345,58 +356,25 @@ void UCombatCommandMenuSubsystem::HandleBack()
     switch (CurrentDepth)
     {
     case ECombatMenuDepth::TargetSelection:
-    {
-        // Reset infusion state — picker is closing without commit
-        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+        if (ResolvedTargetType != PendingTargetType)
         {
-            VFX->SetInfusionLevel(0);
-            VFX->SetImmuneToInfusion(false);
-        }
-
-        // Cancel pending action
-        PendingActionCategory = EPieMenuCategory::None;
-        PendingActionID.Empty();
-        PendingActionData.Reset();
-
-        if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
-        {
-            // Restore whichever submenu we came from
-            CurrentDepth = ECombatMenuDepth::Submenu;
-            switch (ActiveSubmenuType)
-            {
-            case EPieMenuCategory::Abilities:
-                OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
-                break;
-            case EPieMenuCategory::Items:
-                OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
-                break;
-            case EPieMenuCategory::Refractions:
-            case EPieMenuCategory::Breakthrough:
-            case EPieMenuCategory::ResonateWeapon:
-            case EPieMenuCategory::ResonateRing:
-            {
-                const TArray<USpellData *> &Spells =
-                    CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
-                OnCommandMenuReady.Broadcast(BuildSchoolButtons(Spells));
-                break;
-            }
-            default:
-                // Unknown submenu type, fall back to main
-                CurrentDepth = ECombatMenuDepth::Main;
-                ActiveSubmenuSource = EPieMenuCategory::None;
-                ActiveSubmenuType = EPieMenuCategory::None;
-                OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
-                break;
-            }
+            // Entered the per-actor list via the Allies/Enemies category step —
+            // Back steps out to that category view; the pending action stays alive.
+            ResolvedTargetType = PendingTargetType;
+            CurrentDepth = ECombatMenuDepth::TargetCategory;
+            OnCommandMenuReady.Broadcast(BuildTargetCategoryButtons());
         }
         else
         {
-            // Came directly from main (e.g. Attack)
-            CurrentDepth = ECombatMenuDepth::Main;
-            OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+            // Flat single-team / group picker — Back exits to the action menu.
+            ExitTargetSelectionToActionMenu();
         }
         break;
-    }
+
+    case ECombatMenuDepth::TargetCategory:
+        // Back from the category step — exit to the action menu.
+        ExitTargetSelectionToActionMenu();
+        break;
 
     case ECombatMenuDepth::Submenu:
         CurrentDepth = ECombatMenuDepth::Main;
@@ -886,6 +864,8 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     PendingActionID = ActionButton.ButtonID;
     PendingActionData = ActionButton.DataReference;
     PendingTargetType = TargetType;
+    // Synced on entry — diverges only once a side is picked in the category step.
+    ResolvedTargetType = TargetType;
     DepthBeforeTargetSelection = CurrentDepth;
 
     // Log target type
@@ -987,6 +967,16 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         return;
     }
 
+    // SingleAnyone spans both teams — drill in via an Allies / Enemies category
+    // step first, then narrow to a single-team per-actor list on selection.
+    if (TargetType == ETargetType::SingleAnyone)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing Allies/Enemies category step"));
+        CurrentDepth = ECombatMenuDepth::TargetCategory;
+        OnCommandMenuReady.Broadcast(BuildTargetCategoryButtons());
+        return;
+    }
+
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing target picker"));
 
     CurrentDepth = ECombatMenuDepth::TargetSelection;
@@ -1002,12 +992,100 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         break;
 
     default:
-        // SingleEnemy / SingleAlly / SingleAnyone — per-actor picker
+        // SingleEnemy / SingleAlly — single-team per-actor picker
         TargetButtons = BuildTargetButtons(Targets);
         break;
     }
 
     OnCommandMenuReady.Broadcast(TargetButtons);
+}
+
+// ==================== TARGET CATEGORY STEP ====================
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetCategoryButtons() const
+{
+    // Same tints used by the per-actor picker in BuildTargetButtons.
+    const FLinearColor EnemyTint(1.0f, 0.3f, 0.3f, 1.0f); // Red
+    const FLinearColor AllyTint = FLinearColor::White;
+
+    TArray<FPieMenuButtonData> Buttons;
+
+    // The narrowed ETargetType rides in DataIndex — the same field School
+    // buttons use to carry their distinguishing enum.
+    FPieMenuButtonData Allies;
+    Allies.ButtonID = TEXT("TargetCategory_Allies");
+    Allies.DisplayName = FText::FromString(TEXT("Allies"));
+    Allies.Category = EPieMenuCategory::TargetCategory;
+    Allies.DataIndex = static_cast<int32>(ETargetType::SingleAlly);
+    Allies.ButtonTint = AllyTint;
+    Allies.bEnabled = true;
+    Buttons.Add(Allies);
+
+    FPieMenuButtonData Enemies;
+    Enemies.ButtonID = TEXT("TargetCategory_Enemies");
+    Enemies.DisplayName = FText::FromString(TEXT("Enemies"));
+    Enemies.Category = EPieMenuCategory::TargetCategory;
+    Enemies.DataIndex = static_cast<int32>(ETargetType::SingleEnemy);
+    Enemies.ButtonTint = EnemyTint;
+    Enemies.bEnabled = true;
+    Buttons.Add(Enemies);
+
+    Buttons.Add(FPieMenuButtonData::MakeBackButton());
+    return Buttons;
+}
+
+void UCombatCommandMenuSubsystem::ExitTargetSelectionToActionMenu()
+{
+    // Reset infusion state — picker is closing without commit
+    if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+    {
+        VFX->SetInfusionLevel(0);
+        VFX->SetImmuneToInfusion(false);
+    }
+
+    // Cancel pending action
+    PendingActionCategory = EPieMenuCategory::None;
+    PendingActionID.Empty();
+    PendingActionData.Reset();
+    ResolvedTargetType = PendingTargetType;
+
+    if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
+    {
+        // Restore whichever submenu we came from
+        CurrentDepth = ECombatMenuDepth::Submenu;
+        switch (ActiveSubmenuType)
+        {
+        case EPieMenuCategory::Abilities:
+            OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
+            break;
+        case EPieMenuCategory::Items:
+            OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
+            break;
+        case EPieMenuCategory::Refractions:
+        case EPieMenuCategory::Breakthrough:
+        case EPieMenuCategory::ResonateWeapon:
+        case EPieMenuCategory::ResonateRing:
+        {
+            const TArray<USpellData *> &Spells =
+                CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
+            OnCommandMenuReady.Broadcast(BuildSchoolButtons(Spells));
+            break;
+        }
+        default:
+            // Unknown submenu type, fall back to main
+            CurrentDepth = ECombatMenuDepth::Main;
+            ActiveSubmenuSource = EPieMenuCategory::None;
+            ActiveSubmenuType = EPieMenuCategory::None;
+            OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+            break;
+        }
+    }
+    else
+    {
+        // Came directly from main (e.g. Attack)
+        CurrentDepth = ECombatMenuDepth::Main;
+        OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+    }
 }
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
@@ -1058,66 +1136,24 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         return Button;
     };
 
-    // SingleAnyone is the only per-actor picker that spans both teams, so it
-    // gets two labelled sections: "Allies" then "Enemies". SingleEnemy /
-    // SingleAlly are single-team — a flat, header-less list.
-    const bool bGroupByTeam =
-        (PendingTargetType == ETargetType::SingleAnyone) && (UserTeam >= 0) && (TM != nullptr);
-
-    if (bGroupByTeam)
+    // Flat single-team list — enemies tinted red, allies default. SingleAnyone
+    // is split into teams upstream by the Allies/Enemies category step, so this
+    // picker only ever receives one side's actors.
+    for (AActor *Target : Targets)
     {
-        TArray<FPieMenuButtonData> AllyButtons;
-        TArray<FPieMenuButtonData> EnemyButtons;
+        if (!Target)
+            continue;
 
-        for (AActor *Target : Targets)
+        FLinearColor Tint = AllyTint;
+        if (UserTeam >= 0 && TM)
         {
-            if (!Target)
-                continue;
-
             const int32 TargetTeam = TM->GetActorTeam(Target);
-            const bool bIsEnemy = (TargetTeam >= 0 && TargetTeam != UserTeam);
-            if (bIsEnemy)
+            if (TargetTeam >= 0 && TargetTeam != UserTeam)
             {
-                EnemyButtons.Add(MakeTargetButton(Target, EnemyTint));
-            }
-            else
-            {
-                AllyButtons.Add(MakeTargetButton(Target, AllyTint));
+                Tint = EnemyTint;
             }
         }
-
-        if (AllyButtons.Num() > 0)
-        {
-            Buttons.Add(FPieMenuButtonData::MakeSectionHeaderButton(
-                TEXT("Header_Allies"), FText::FromString(TEXT("Allies")), AllyTint));
-            Buttons.Append(AllyButtons);
-        }
-        if (EnemyButtons.Num() > 0)
-        {
-            Buttons.Add(FPieMenuButtonData::MakeSectionHeaderButton(
-                TEXT("Header_Enemies"), FText::FromString(TEXT("Enemies")), EnemyTint));
-            Buttons.Append(EnemyButtons);
-        }
-    }
-    else
-    {
-        // Flat list — tint enemies only; allies use the default.
-        for (AActor *Target : Targets)
-        {
-            if (!Target)
-                continue;
-
-            FLinearColor Tint = AllyTint;
-            if (UserTeam >= 0 && TM)
-            {
-                const int32 TargetTeam = TM->GetActorTeam(Target);
-                if (TargetTeam >= 0 && TargetTeam != UserTeam)
-                {
-                    Tint = EnemyTint;
-                }
-            }
-            Buttons.Add(MakeTargetButton(Target, Tint));
-        }
+        Buttons.Add(MakeTargetButton(Target, Tint));
     }
 
     // ==================== INFUSION CONTROLS ====================
@@ -1334,14 +1370,17 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::RebuildCurrentPicker() const
 {
-    const TArray<AActor *> Targets = ResolveTargets(PendingTargetType);
-    switch (PendingTargetType)
+    // ResolvedTargetType — not PendingTargetType — so that after the category
+    // step this rebuilds the narrowed single-team list, not the SingleAnyone
+    // set. The two are equal whenever no category step was taken.
+    const TArray<AActor *> Targets = ResolveTargets(ResolvedTargetType);
+    switch (ResolvedTargetType)
     {
     case ETargetType::Self:
     case ETargetType::AllEnemies:
     case ETargetType::AllAllies:
     case ETargetType::Everyone:
-        return BuildGroupTargetButtons(PendingTargetType, Targets);
+        return BuildGroupTargetButtons(ResolvedTargetType, Targets);
     default:
         return BuildTargetButtons(Targets);
     }
@@ -1461,6 +1500,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     PendingActionCategory = EPieMenuCategory::None;
     PendingActionID.Empty();
     PendingActionData.Reset();
+    ResolvedTargetType = PendingTargetType;
 
     SubmitConfirmedAction(ActionButton);
     Close();
@@ -1481,6 +1521,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     PendingActionCategory = EPieMenuCategory::None;
     PendingActionID.Empty();
     PendingActionData.Reset();
+    ResolvedTargetType = PendingTargetType;
 
     SubmitConfirmedAction(ActionButton);
     Close();

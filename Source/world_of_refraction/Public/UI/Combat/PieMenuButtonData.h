@@ -55,6 +55,7 @@ enum class EPieMenuCategory : uint8
 	InfusionSource UMETA(DisplayName = "Infusion Source"), // An infusion source option
 	Item UMETA(DisplayName = "Item"),					   // An item in the grid
 	Target UMETA(DisplayName = "Target"),				   // A combat target (actor) in the target selection grid
+	TargetCategory UMETA(DisplayName = "Target Category"), // Allies / Enemies side pick (SingleAnyone targeting)
 
 	// Navigation
 	Back UMETA(DisplayName = "Back"), // Navigate back

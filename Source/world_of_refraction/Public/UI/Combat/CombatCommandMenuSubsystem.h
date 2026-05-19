@@ -36,6 +36,7 @@ enum class ECombatMenuDepth : uint8
     Closed,
     Main,
     Submenu,
+    TargetCategory,
     TargetSelection
 };
 
@@ -139,6 +140,11 @@ private:
     FString PendingActionID;
     TWeakObjectPtr<UObject> PendingActionData;
     ETargetType PendingTargetType = ETargetType::SingleEnemy;
+    /** Effective target type after the Allies/Enemies category step. Synced to
+     *  PendingTargetType on entry; set to SingleAlly/SingleEnemy when a side is
+     *  picked. ResolvedTargetType != PendingTargetType means the category step
+     *  is active (used by Back routing and RebuildCurrentPicker). */
+    ETargetType ResolvedTargetType = ETargetType::SingleEnemy;
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 
@@ -181,11 +187,20 @@ private:
 
     // Target selection
     void OpenTargetSelection(EPieMenuCategory ActionCategory, const FPieMenuButtonData &ActionButton, ETargetType TargetType);
+    /** Two-button Allies / Enemies view shown before the per-actor picker when
+     *  the action's TargetType is SingleAnyone. Each button carries the narrowed
+     *  ETargetType (SingleAlly / SingleEnemy) in DataIndex. */
+    TArray<FPieMenuButtonData> BuildTargetCategoryButtons() const;
+    /** Exit the picker back to the originating action menu (Submenu or Main):
+     *  resets infusion, cancels the pending action, clears ResolvedTargetType. */
+    void ExitTargetSelectionToActionMenu();
     TArray<FPieMenuButtonData> BuildTargetButtons(const TArray<AActor *> &Targets) const;
     TArray<FPieMenuButtonData> BuildGroupTargetButtons(ETargetType TargetType, const TArray<AActor *> &Targets) const;
-    /** Rebuild the active target picker using PendingTargetType to pick between
+    /** Rebuild the active target picker using ResolvedTargetType to pick between
      *  the per-actor picker (single targets) and the group confirm picker
      *  (auto-resolve targets: Self / AllEnemies / AllAllies / Everyone).
+     *  ResolvedTargetType (not PendingTargetType) so a post-category-step picker
+     *  rebuilds the narrowed single-team list, not the SingleAnyone set.
      *  Called when an infusion control mutates state and the picker needs to
      *  re-broadcast with the same shape it was opened with. */
     TArray<FPieMenuButtonData> RebuildCurrentPicker() const;
