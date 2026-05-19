@@ -160,12 +160,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "5. Items")
     TArray<UItemData *> EquippedItems;
 
-    // ==================== DEFENSE ANIMATIONS ====================
-
-    /** Use weapon's parry animation instead of character's */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "6. Defense")
-    bool bUseWeaponParryAnimation = false;
-
     // ==================== VALIDATION ====================
 
     /** Check if loadout is valid for given class */

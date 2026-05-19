@@ -48,6 +48,11 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
     UWeaponAttackData *OverrideAttack = nullptr;
 
+    /** Use this weapon's own parry animation instead of the character's.
+     *  Per-equipped-weapon decision. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
+    bool bUseWeaponParryAnimation = true;
+
     // ==================== VALIDATION ====================
 
     /** Check if this loadout entry is valid */
@@ -127,5 +132,6 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
         AssignedAbilities.Empty();
         AssignedSpells.Empty();
         OverrideAttack = nullptr;
+        bUseWeaponParryAnimation = true;
     }
 };

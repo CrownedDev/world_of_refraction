@@ -137,9 +137,6 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
     TArray<FItemLoadoutSlot> ItemSlots;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense")
-    bool bUseWeaponParryAnimation = false;
-
     // ==================== RUNTIME STATE ====================
 
     /** Active ring index for Resonator */

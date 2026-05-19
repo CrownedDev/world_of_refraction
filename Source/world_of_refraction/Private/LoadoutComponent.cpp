@@ -10,6 +10,7 @@
 #include "RingData.h"
 #include "CharacterData.h"
 #include "CharacterDataComponent.h"
+#include "CosmeticsData.h"
 #include "BrokenDarknessManager.h"
 #include "ElementHelpers.h"
 #include "LoadoutData.h"
@@ -1805,101 +1806,109 @@ void ULoadoutComponent::DebugLogLoadout()
 
 bool ULoadoutComponent::ShouldUseWeaponParry() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    // Read the per-weapon loadout-entry flag for the active weapon.
+    if (const FWeaponLoadoutEntry *WeaponEntry = GetActiveWeaponLoadout())
     {
-        return false;
+        return WeaponEntry->bUseWeaponParryAnimation;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].bUseWeaponParryAnimation;
+    return false;
 }
 
 UAnimMontage *ULoadoutComponent::GetDodgeLeftMontage() const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->DodgeLeftMontage;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->DodgeLeftMontage : nullptr;
 }
 
 UAnimMontage *ULoadoutComponent::GetDodgeRightMontage() const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->DodgeRightMontage;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->DodgeRightMontage : nullptr;
 }
 
 UAnimMontage *ULoadoutComponent::GetBlockMontage() const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->BlockMontage;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->BlockMontage : nullptr;
 }
 
 UAnimMontage *ULoadoutComponent::GetParryMontage() const
 {
-    // Check if loadout prefers weapon parry
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    // Weapon-entry preference for the weapon's own parry animation.
+    if (ShouldUseWeaponParry())
     {
-        const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
-        if (Loadout.bUseWeaponParryAnimation)
+        if (UWeaponData *Weapon = GetActiveWeapon())
         {
-            if (UWeaponData *Weapon = GetActiveWeapon())
+            if (Weapon->ParryMontage)
             {
-                if (Weapon->ParryMontage)
-                {
-                    return Weapon->ParryMontage;
-                }
+                return Weapon->ParryMontage;
             }
         }
     }
 
-    // Fall back to character's parry
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    // Fall back to the character's parry montage from the Cosmetics asset.
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->ParryMontage;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->ParryMontage : nullptr;
 }
 
 UStanceData *ULoadoutComponent::GetUnarmedStance() const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->UnarmedStance;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->UnarmedStance : nullptr;
 }
 
 UInfusionDisplayData *ULoadoutComponent::GetInfusionDisplay() const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->InfusionDisplay;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->InfusionDisplay : nullptr;
 }
 
 UAnimMontage *ULoadoutComponent::GetRingSwitchMontage() const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return CharData->RingSwitchMontage;
+        return nullptr;
     }
-    return nullptr;
+    return CharData->Cosmetics ? CharData->Cosmetics->RingSwitchMontage : nullptr;
 }
 
-// GetItemUseAnimation() - change from reading FCombatLoadout to CharacterData
 UAnimMontage *ULoadoutComponent::GetItemUseAnimation(bool bIsSelfTarget) const
 {
-    if (UCharacterData *CharData = GetOwnerCharacterData())
+    UCharacterData *CharData = GetOwnerCharacterData();
+    if (!CharData)
     {
-        return bIsSelfTarget ? CharData->ItemUseSelfMontage : CharData->ItemUseTargetMontage;
+        return nullptr;
     }
-    return nullptr;
+    if (!CharData->Cosmetics)
+    {
+        return nullptr;
+    }
+    return bIsSelfTarget ? CharData->Cosmetics->ItemUseSelfMontage : CharData->Cosmetics->ItemUseTargetMontage;
 }
 
 UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const

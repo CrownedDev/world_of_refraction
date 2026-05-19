@@ -1,6 +1,7 @@
 #include "WeatherStateManager.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
+#include "CosmeticsData.h"
 
 void UWeatherStateManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -232,9 +233,9 @@ UPrimaryDataAsset *UWeatherStateManager::ResolveWeatherDA(const TArray<FLeadersh
         Data->CharacterClass == ECharacterClass::Resonator)
         return nullptr;
 
-    // Return equipped variant if set
-    if (Data->EquippedWeatherVariant)
-        return Data->EquippedWeatherVariant;
+    // Return the equipped variant from the Cosmetics asset, if any.
+    if (Data->Cosmetics && Data->Cosmetics->EquippedWeatherVariant)
+        return Data->Cosmetics->EquippedWeatherVariant;
 
     // No equipped variant — return null, sky stays as level default
     return nullptr;
