@@ -146,8 +146,9 @@ FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UItemData *Item, 
 
 void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Garnet - percentage-based fire DOT (Phase 2). Damage per turn is a percent
-	// of the target's MaxHP; all tiers apply the DOT (no instant-damage path).
+	// Garnet - percentage-based fire damage (Phase 2). One immediate Fire hit on
+	// use, then a DOT tail for the configured duration ("throw a grenade" feel).
+	// The immediate hit and each DOT tick are equal: a percent of the target's MaxHP.
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
@@ -167,7 +168,6 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 	const float DamagePerTurn = TargetComp->MaxHP * DamagePercent / 100.0f;
 	const int32 DamagePerTurnInt = FMath::Max(1, FMath::RoundToInt(DamagePerTurn));
 
-	// Apply fire DOT via SkillEffectManager
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -175,6 +175,15 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 		return;
 	}
 
+	// Immediate Fire hit on use — equal to one DOT tick. Unlike DOT ticks (which
+	// SkillEffectManager clamps to leave 1 HP, "DOTs can't kill"), this is a
+	// direct damage event and CAN drop the target to 0.
+	const int32 HPBefore = TargetComp->CurrentHP;
+	TargetComp->ServerTakeDamage(DamagePerTurnInt);
+	OutResult.DamageDealt = HPBefore - TargetComp->CurrentHP;
+
+	// Apply the fire DOT tail via SkillEffectManager — registration is unchanged;
+	// first tick lands at the end of the target's next turn.
 	const int32 EffectID = static_cast<int32>(GetTypeHash(User)) ^ static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(ESkillEffectType::DOT);
 	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
 		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, ESpellElement::Fire);
@@ -182,19 +191,24 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
 	OutResult.bSuccess = true;
 
-	// Garnet also builds the Fire status bar on application (not per tick),
-	// using the shared elemental-buildup table.
+	// Fire status buildup for the immediate hit's damage event, using the shared
+	// elemental-buildup table. NOTE: DOT ticks do not yet contribute buildup —
+	// that path lives in SkillEffectManager (out of scope for this change).
+	float BuildupApplied = 0.0f;
 	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		const float BuildupAmount = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
-		SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
+		BuildupApplied = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupApplied),
 							   ESpellElement::Fire, EPhysicalDamageType::None);
 	}
 
 	UE_LOG(LogTemp, Log,
-		   TEXT("[ItemExecutor] Garnet: Applied Burn DOT to %s (%d dmg/turn x %d turns)"),
+		   TEXT("[ItemExecutor] Garnet: %s took %d immediate Fire damage + %.1f buildup"),
+		   *Target->GetName(), OutResult.DamageDealt, BuildupApplied);
+	UE_LOG(LogTemp, Log,
+		   TEXT("[ItemExecutor] Garnet: Applied Burn DOT tail to %s (%d dmg/turn x %d turns)"),
 		   *Target->GetName(), DamagePerTurnInt, Duration);
 }
 
@@ -393,39 +407,53 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemDat
 
 void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
 {
-	// Onyx - F-A apply a percentage energy-lock (EnergyDrain); S-rank applies a
-	// binary Silenced effect (blocks spellcasting via USkillEffectManager::IsSilenced).
+	// Onyx - F-A is a one-shot energy drain (a percent of the target's MaxEP,
+	// spent immediately on use, no tick); S-rank applies a binary Silenced gate
+	// for 1 turn (blocks spellcasting via USkillEffectManager::IsSilenced).
 	// All tiers additionally build the Darkness status bar on the target.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const float SilencePercent = Item->GetSilencePercentage();
 	const bool bSRank = (Item->Tier == EItemTier::S_Tier);
 
 	if (bSRank)
 	{
-		// S-rank: full binary silence for 1 turn.
+		USkillEffectManager *SEM = GetSkillEffectManager();
+		if (!SEM)
+		{
+			OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+			return;
+		}
+
+		// S-rank: binary silence gate for 1 turn.
 		FActiveSkillEffect Silence = FActiveSkillEffect::CreateBuff(
 			FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
 			Item->GetUniqueID(), ESkillEffectType::Silenced, 1.0f, 1);
 		Silence.Element = Item->GetAssociatedElement();
 		SEM->ApplyEffect(Target, Silence, User, Item->GetFullItemName(), -1);
+		OutResult.BuffsApplied++;
+
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx S: Silenced %s (binary gate, 1 turn)"),
+			   *Target->GetName());
 	}
 	else
 	{
-		// F-A: percentage energy-lock via the EnergyDrain effect type.
-		const int32 Duration = Item->GetSilenceDurationNew();
-		FActiveSkillEffect EnergyLock = FActiveSkillEffect::CreateBuff(
-			FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
-			Item->GetUniqueID(), ESkillEffectType::EnergyDrain, SilencePercent, Duration);
-		EnergyLock.Element = Item->GetAssociatedElement();
-		SEM->ApplyEffect(Target, EnergyLock, User, Item->GetFullItemName(), -1);
+		// F-A: one-shot energy drain. SilencePercent is a percentage of the
+		// target's MaxEP — resolve it to a flat amount and spend it immediately.
+		// No FActiveSkillEffect, no duration, no tick (mirrors Sapphire/Citrine).
+		UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+		if (!TargetComp)
+		{
+			OutResult.ErrorMessage = TEXT("Target has no character data");
+			return;
+		}
+
+		const float SilencePercent = Item->GetSilencePercentage();
+		const int32 DrainAmount = FMath::RoundToInt(TargetComp->MaxEP * SilencePercent / 100.0f);
+		const int32 EPBefore = TargetComp->CurrentEP;
+		TargetComp->ServerSpendEnergy(DrainAmount);
+
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx: %s took %d EP drain (%.0f%% of MaxEP)"),
+			   *Target->GetName(), EPBefore - TargetComp->CurrentEP, SilencePercent);
 	}
-	OutResult.BuffsApplied++;
+
 	OutResult.bSuccess = true;
 
 	// All tiers build the Darkness status bar on the target.
@@ -440,9 +468,6 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData
 								   ESpellElement::Darkness, EPhysicalDamageType::None);
 		}
 	}
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx: Silenced %s (%s)"),
-		   *Target->GetName(), bSRank ? TEXT("S-rank binary, 1 turn") : TEXT("energy-lock"));
 }
 
 void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
