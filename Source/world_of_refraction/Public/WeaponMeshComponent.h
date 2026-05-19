@@ -19,17 +19,9 @@ class WORLD_OF_REFRACTION_API UWeaponMeshComponent : public UActorComponent
 public:
     UWeaponMeshComponent();
 
-    // ==================== SOCKET CONFIGURATION ====================
-
-    /** Socket name for right hand weapon attachment */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
-    FName RightHandSocket = FName("hand_r_weapon");
-
-    /** Default left-hand attachment socket. Used as fallback when a weapon does not specify its own LeftHandSocket. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
-    FName LeftHandSocket = FName("hand_l_sword");
-
     // ==================== FUNCTIONS ====================
+    // Attachment sockets are derived from the weapon's WeaponType (and
+    // WieldMode for the left hand) — there are no configurable socket fields.
 
     /** Force update weapon mesh (call after weapon change) */
     UFUNCTION(BlueprintCallable, Category = "Weapon Mesh")
@@ -64,11 +56,14 @@ private:
     void SpawnDualWeaponMesh(UWeaponData *Weapon);
     USkeletalMeshComponent *GetOwnerMesh() const;
 
-    /** Resolve the right-hand socket: weapon override if set, else component default. */
-    FName ResolveRightSocket(const UWeaponData *Weapon) const;
+    /** Resolve the right-hand attachment socket from the weapon's WeaponType.
+     *  Returns NAME_None (and logs an Error) for an unmapped type. */
+    FName GetRightSocketForWeapon(const UWeaponData *Weapon) const;
 
-    /** Resolve the left-hand socket: weapon override if set, else component default. */
-    FName ResolveLeftSocket(const UWeaponData *Weapon) const;
+    /** Resolve the left-hand attachment socket. OffHandShield short-circuits to
+     *  hand_l_sas; otherwise derived from WeaponType. Returns NAME_None (and
+     *  logs an Error) for an unmapped type. */
+    FName GetLeftSocketForWeapon(const UWeaponData *Weapon) const;
 
     // ==================== CACHED REFERENCES ====================
 

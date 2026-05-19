@@ -40,6 +40,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     EWeaponType WeaponType = EWeaponType::Sword;
 
+    /** Drives mesh-spawn behaviour AND ability dual-gating. See EWeaponWieldMode. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
+    EWeaponWieldMode WieldMode = EWeaponWieldMode::Single;
+
     /** What physical damage this weapon delivers. Drives the bar-cap
      *  trigger when no elemental infusion is active. Every weapon must
      *  declare one — None is rejected by validation. A staff = Impact,
@@ -86,35 +90,28 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
     USkeletalMesh *WeaponSkeletalMesh = nullptr;
 
+    /** Rotation applied to the right-hand mesh. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
     FRotator MeshRotation = FRotator::ZeroRotator;
 
-    /** Drives mesh-spawn behaviour AND ability dual-gating. See EWeaponWieldMode. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
-    EWeaponWieldMode WieldMode = EWeaponWieldMode::Single;
-
-    /** Right-hand attachment socket.
-     *  NAME_None falls back to UWeaponMeshComponent::RightHandSocket. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
-    FName RightHandSocket = NAME_None;
-
-    /** Left-hand attachment socket (dual modes only).
-     *  NAME_None falls back to UWeaponMeshComponent::LeftHandSocket. */
+    /** Distinct left-hand static mesh for any non-Single WieldMode (Dual / OffHandShield).
+     *  Must be assigned explicitly — there is no reuse of the right-hand mesh.
+     *  If both LeftHand* fields are null, no left-hand mesh spawns. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
               meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
-    FName LeftHandSocket = NAME_None;
-
-    /** Distinct left-hand static mesh for OffHandShield mode (sword+shield style).
-     *  If null, the right-hand mesh is reused. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
-              meta = (EditCondition = "WieldMode == EWeaponWieldMode::OffHandShield", EditConditionHides))
     UStaticMesh *LeftHandStaticMesh = nullptr;
 
-    /** Distinct left-hand skeletal mesh for OffHandShield mode (sword+shield style).
-     *  If null, the right-hand mesh is reused. */
+    /** Distinct left-hand skeletal mesh for any non-Single WieldMode (Dual / OffHandShield).
+     *  Must be assigned explicitly — there is no reuse of the right-hand mesh.
+     *  If both LeftHand* fields are null, no left-hand mesh spawns. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
-              meta = (EditCondition = "WieldMode == EWeaponWieldMode::OffHandShield", EditConditionHides))
+              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
     USkeletalMesh *LeftHandSkeletalMesh = nullptr;
+
+    /** Rotation applied to the left-hand mesh in Dual / OffHandShield modes. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
+              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
+    FRotator LeftMeshRotation = FRotator::ZeroRotator;
 
     // ==================== UTILITY ====================
 

@@ -14,11 +14,15 @@
  *                 weapons (Greatsword) — two-handedness is handled by
  *                 the animation system, not by this enum.
  *
- * Dual          — two meshes, both hands, same asset (left side reuses
- *                 right-hand mesh at the left socket).
+ * Dual          — two meshes, one per hand. Each hand resolves its mesh
+ *                 independently — the right hand uses WeaponStatic/Skeletal
+ *                 Mesh, the left hand uses LeftHandStatic/SkeletalMesh.
+ *                 There is no reuse of the right-hand mesh; if no left-hand
+ *                 mesh is assigned, no left mesh spawns.
  *
  * OffHandShield — two meshes, asymmetric. Right hand uses the primary
- *                 mesh; left hand uses LeftHandStaticMesh/Skeletal.
+ *                 mesh; left hand uses LeftHandStaticMesh/Skeletal and
+ *                 always attaches to the hand_l_sas socket.
  */
 UENUM(BlueprintType)
 enum class EWeaponWieldMode : uint8

@@ -64,22 +64,60 @@ USkeletalMeshComponent *UWeaponMeshComponent::GetOwnerMesh() const
     return Owner->FindComponentByClass<USkeletalMeshComponent>();
 }
 
-FName UWeaponMeshComponent::ResolveRightSocket(const UWeaponData *Weapon) const
+FName UWeaponMeshComponent::GetRightSocketForWeapon(const UWeaponData *Weapon) const
 {
-    if (Weapon && !Weapon->RightHandSocket.IsNone())
+    if (!Weapon)
     {
-        return Weapon->RightHandSocket;
+        return NAME_None;
     }
-    return RightHandSocket;
+
+    switch (Weapon->WeaponType)
+    {
+    case EWeaponType::Sword:
+    case EWeaponType::Dagger:
+        return FName("hand_r_sword");
+    case EWeaponType::Greatsword:
+        return FName("hand_r_greatsword");
+    case EWeaponType::Axe:
+        return FName("hand_r_axe");
+
+    default:
+        UE_LOG(LogTemp, Error,
+               TEXT("[WeaponMeshComponent] No right-hand socket mapped for weapon '%s' (WeaponType %s)."),
+               *Weapon->Name, *UEnum::GetValueAsString(Weapon->WeaponType));
+        return NAME_None;
+    }
 }
 
-FName UWeaponMeshComponent::ResolveLeftSocket(const UWeaponData *Weapon) const
+FName UWeaponMeshComponent::GetLeftSocketForWeapon(const UWeaponData *Weapon) const
 {
-    if (Weapon && !Weapon->LeftHandSocket.IsNone())
+    if (!Weapon)
     {
-        return Weapon->LeftHandSocket;
+        return NAME_None;
     }
-    return LeftHandSocket;
+
+    // A shield always uses the same socket regardless of the right-hand weapon type.
+    if (Weapon->WieldMode == EWeaponWieldMode::OffHandShield)
+    {
+        return FName("hand_l_sas");
+    }
+
+    switch (Weapon->WeaponType)
+    {
+
+    case EWeaponType::Sword:
+    case EWeaponType::Dagger:
+        return FName("hand_l_sword");
+    case EWeaponType::Greatsword:
+        return FName("hand_l_greatsword");
+    case EWeaponType::Axe:
+        return FName("hand_l_axe");
+    default:
+        UE_LOG(LogTemp, Error,
+               TEXT("[WeaponMeshComponent] No left-hand socket mapped for weapon '%s' (WeaponType %s)."),
+               *Weapon->Name, *UEnum::GetValueAsString(Weapon->WeaponType));
+        return NAME_None;
+    }
 }
 
 void UWeaponMeshComponent::UpdateWeaponMesh()
@@ -125,7 +163,14 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
         return;
     }
 
-    const FName RightSocket = ResolveRightSocket(Weapon);
+    const FName RightSocket = GetRightSocketForWeapon(Weapon);
+    if (RightSocket.IsNone())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[WeaponMeshComponent] No right-hand socket for weapon '%s' — skipping right-hand mesh spawn."),
+               *Weapon->Name);
+        return;
+    }
 
     // Check for Skeletal Mesh first, then Static Mesh
     if (Weapon->WeaponSkeletalMesh)
@@ -169,13 +214,19 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         return;
     }
 
-    const FName RightSocket = ResolveRightSocket(Weapon);
-    const FName LeftSocket = ResolveLeftSocket(Weapon);
+    const FName RightSocket = GetRightSocketForWeapon(Weapon);
+    const FName LeftSocket = GetLeftSocketForWeapon(Weapon);
     const FAttachmentTransformRules AttachRules =
         FAttachmentTransformRules::SnapToTargetNotIncludingScale;
 
     // ---- Right hand: skeletal preferred, then static ----
-    if (Weapon->WeaponSkeletalMesh)
+    if (RightSocket.IsNone())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[WeaponMeshComponent] No right-hand socket for weapon '%s' — skipping right-hand mesh spawn."),
+               *Weapon->Name);
+    }
+    else if (Weapon->WeaponSkeletalMesh)
     {
         PrimarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
         PrimarySkeletalMeshComp->SetSkeletalMesh(Weapon->WeaponSkeletalMesh);
@@ -192,15 +243,22 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
     }
 
-    // ---- Left hand: distinct skeletal, distinct static, else reuse right ----
+    // ---- Left hand: distinct skeletal preferred, then distinct static ----
+    // Explicit assignment required — no reuse of the right-hand mesh.
     // Sockets handle handedness — no mirror scale is applied.
-    if (Weapon->LeftHandSkeletalMesh)
+    if (LeftSocket.IsNone())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[WeaponMeshComponent] No left-hand socket for weapon '%s' — skipping left-hand mesh spawn."),
+               *Weapon->Name);
+    }
+    else if (Weapon->LeftHandSkeletalMesh)
     {
         SecondarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
         SecondarySkeletalMeshComp->SetSkeletalMesh(Weapon->LeftHandSkeletalMesh);
         SecondarySkeletalMeshComp->RegisterComponent();
         SecondarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        SecondarySkeletalMeshComp->SetRelativeRotation(Weapon->LeftMeshRotation);
     }
     else if (Weapon->LeftHandStaticMesh)
     {
@@ -208,25 +266,14 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         SecondaryStaticMeshComp->SetStaticMesh(Weapon->LeftHandStaticMesh);
         SecondaryStaticMeshComp->RegisterComponent();
         SecondaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        SecondaryStaticMeshComp->SetRelativeRotation(Weapon->LeftMeshRotation);
     }
-    else if (Weapon->WeaponSkeletalMesh)
+    else
     {
-        // Fallback: reuse the right-hand skeletal asset on the left.
-        SecondarySkeletalMeshComp = NewObject<USkeletalMeshComponent>(GetOwner());
-        SecondarySkeletalMeshComp->SetSkeletalMesh(Weapon->WeaponSkeletalMesh);
-        SecondarySkeletalMeshComp->RegisterComponent();
-        SecondarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
-    }
-    else if (Weapon->WeaponStaticMesh)
-    {
-        // Fallback: reuse the right-hand static asset on the left.
-        SecondaryStaticMeshComp = NewObject<UStaticMeshComponent>(GetOwner());
-        SecondaryStaticMeshComp->SetStaticMesh(Weapon->WeaponStaticMesh);
-        SecondaryStaticMeshComp->RegisterComponent();
-        SecondaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        UE_LOG(LogTemp, Warning,
+               TEXT("[WeaponMeshComponent] Dual-mode weapon '%s' has no left-hand mesh assigned "
+                    "(LeftHandSkeletalMesh and LeftHandStaticMesh are both null) — no left mesh spawned."),
+               *Weapon->Name);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[WeaponMeshComponent] Spawned dual weapon '%s' (R socket '%s', L socket '%s')"),
@@ -280,23 +327,16 @@ void UWeaponMeshComponent::DebugLogMeshState()
     UE_LOG(LogTemp, Display, TEXT("Secondary Skeletal: %s"),
            SecondarySkeletalMeshComp ? TEXT("Spawned") : TEXT("None"));
 
-    // Socket overrides authored on the weapon asset (NAME_None = use component default).
-    UE_LOG(LogTemp, Display, TEXT("Weapon Right Socket Override: %s"),
-           (CachedWeapon && !CachedWeapon->RightHandSocket.IsNone())
-               ? *CachedWeapon->RightHandSocket.ToString() : TEXT("<unset>"));
-    UE_LOG(LogTemp, Display, TEXT("Weapon Left Socket Override: %s"),
-           (CachedWeapon && !CachedWeapon->LeftHandSocket.IsNone())
-               ? *CachedWeapon->LeftHandSocket.ToString() : TEXT("<unset>"));
+    // Sockets derived from the weapon's EWeaponType (and WieldMode for the left hand).
+    UE_LOG(LogTemp, Display, TEXT("Derived Right Socket: %s"),
+           *GetRightSocketForWeapon(CachedWeapon).ToString());
+    UE_LOG(LogTemp, Display, TEXT("Derived Left Socket: %s"),
+           *GetLeftSocketForWeapon(CachedWeapon).ToString());
 
-    // Sockets actually used for attachment, with their resolution source.
-    UE_LOG(LogTemp, Display, TEXT("Resolved Right Socket: %s %s"),
-           *ResolveRightSocket(CachedWeapon).ToString(),
-           (CachedWeapon && !CachedWeapon->RightHandSocket.IsNone())
-               ? TEXT("(weapon)") : TEXT("(component default)"));
-    UE_LOG(LogTemp, Display, TEXT("Resolved Left Socket: %s %s"),
-           *ResolveLeftSocket(CachedWeapon).ToString(),
-           (CachedWeapon && !CachedWeapon->LeftHandSocket.IsNone())
-               ? TEXT("(weapon)") : TEXT("(component default)"));
+    UE_LOG(LogTemp, Display, TEXT("Mesh Rotation (right): %s"),
+           CachedWeapon ? *CachedWeapon->MeshRotation.ToString() : TEXT("N/A"));
+    UE_LOG(LogTemp, Display, TEXT("Left Mesh Rotation: %s"),
+           CachedWeapon ? *CachedWeapon->LeftMeshRotation.ToString() : TEXT("N/A"));
 
     // Which fallback tier supplies the left-hand mesh.
     FString LeftMeshSource = TEXT("<none>");
@@ -312,7 +352,7 @@ void UWeaponMeshComponent::DebugLogMeshState()
         }
         else
         {
-            LeftMeshSource = TEXT("<reused right-hand>");
+            LeftMeshSource = TEXT("<none — left mesh unassigned>");
         }
     }
     UE_LOG(LogTemp, Display, TEXT("Left Mesh Source: %s"), *LeftMeshSource);

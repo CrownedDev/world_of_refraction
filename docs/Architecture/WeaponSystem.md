@@ -72,17 +72,26 @@ ring assets. Key fields and members:
 data:
 
 - **Weapon** — `WeaponType` (`EWeaponType`, default `Sword`),
-  `PhysicalDamageType` (`EPhysicalDamageType`, default `Slash`; drives the
-  bar-cap trigger when no elemental infusion is active and must not be `None`),
-  `WeaponAttack` (`UWeaponAttackData*`, replaces base attack when equipped),
-  `PresetAbilities` (`TArray<UAbilityData*>`), `bAbilitiesLocked` (bool — when
-  true abilities cannot be customised; used for conjured weapons),
+  `WieldMode` (`EWeaponWieldMode`, default `Single`; drives both mesh-spawn
+  behaviour and ability dual-gating — see *Wield modes and mesh attachment*
+  below), `PhysicalDamageType` (`EPhysicalDamageType`, default `Slash`; drives
+  the bar-cap trigger when no elemental infusion is active and must not be
+  `None`), `WeaponAttack` (`UWeaponAttackData*`, replaces base attack when
+  equipped), `PresetAbilities` (`TArray<UAbilityData*>`), `bAbilitiesLocked`
+  (bool — when true abilities cannot be customised; used for conjured weapons),
   `WeaponStance` (`UStanceData*`).
 - **Animations** — `DrawMontage`, `SheatheMontage`, `ParryMontage`
   (`UAnimMontage*`).
-- **Mesh** — `WeaponStaticMesh`, `WeaponSkeletalMesh`, `MeshRotation`.
+- **Mesh** — right-hand mesh `WeaponStaticMesh`, `WeaponSkeletalMesh` and its
+  `MeshRotation`; left-hand mesh `LeftHandStaticMesh`, `LeftHandSkeletalMesh`
+  and its `LeftMeshRotation`. The left-hand fields carry `EditConditionHides`
+  on `WieldMode != Single`, so they only appear in the details panel for
+  `Dual` / `OffHandShield` weapons. There are **no socket-name fields on the
+  weapon DA** — attachment sockets are derived from `WeaponType` in
+  `UWeaponMeshComponent` (see *Wield modes and mesh attachment*).
 - **Utility** — `GetWeaponTypeName()`, `GetAbilityCount()`,
-  `IsConjuredWeapon()` (returns `bAbilitiesLocked`), `HasAttack()`,
+  `IsConjuredWeapon()` (returns `bAbilitiesLocked`), `IsDualWielded()` (true
+  when `WieldMode` is `Dual` or `OffHandShield`), `HasAttack()`,
   `HasStance()`. Overrides `GetMaxSpells()`.
 
 ### `URingData`
@@ -109,7 +118,12 @@ is a slight mismatch between the comment and the `EditCondition`.
 extends `USkillDataBase`). Universal skills usable by all characters; can be
 infused with the character's innate element for status effects.
 
-- **Identity** — `RequiredWeaponType` (`EWeaponType`).
+- **Identity** — `RequiredWeaponType` (`EWeaponType`), `bRequiresDualWeapon`
+  (bool, default `false`). When `bRequiresDualWeapon` is true the ability is
+  valid only on weapons whose `IsDualWielded()` is true (`Dual` or
+  `OffHandShield`); when false it is valid on both single and dual weapons
+  matching `RequiredWeaponType`. Enforced by
+  `FWeaponLoadoutEntry::ValidateAbilities` — see the Loadout System doc.
 - **Execution** — `ExecutionType` (`EAbilityExecutionType`, default `Melee`).
   Melee-only fields: `ApproachData` (`UMovementData*`), `ExecutionRange`
   (float, default 150.0). Both are gated by `EditCondition`/`EditConditionHides`
@@ -153,6 +167,61 @@ magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
   `GetElementName()`.
 - **Construct** — `bIsConstruct` (bool), `ConstructedWeapon` (`UWeaponData*`),
   `bSealsSpells` (bool, default true).
+
+### Wield modes and mesh attachment
+
+`EWeaponWieldMode` (the type of `UWeaponData::WieldMode`) governs both how many
+weapon meshes spawn and how abilities gate. It has three values:
+
+- **`Single`** — one mesh, right hand only; the off-hand is free. Used by both
+  one-handed and two-handed weapons — two-handedness is an animation concern,
+  not a wield-mode one.
+- **`Dual`** — two meshes, one per hand. Each hand resolves its mesh
+  independently; there is no cross-hand fallback.
+- **`OffHandShield`** — two meshes, asymmetric: a weapon in the right hand and
+  a shield (or other off-hand item) in the left.
+
+`UWeaponData::IsDualWielded()` returns `true` for `Dual` and `OffHandShield`,
+`false` for `Single`.
+
+`UWeaponMeshComponent` spawns and attaches the meshes at runtime. It resolves
+attachment sockets **from `WeaponType`**, not from any per-DA field — the
+weapon DA carries no socket names:
+
+- `GetRightSocketForWeapon()` switches on `WeaponType` and returns the
+  right-hand socket (`hand_r_sword`, `hand_r_axe`, `hand_r_greatsword`;
+  `Dagger` shares the `Sword` socket). A `WeaponType` with no `case` hits the
+  `default:`, which logs an Error and returns `NAME_None`.
+- `GetLeftSocketForWeapon()` short-circuits to `hand_l_sas` when
+  `WieldMode == OffHandShield` — a shield always uses the same socket
+  regardless of the right-hand `WeaponType`. Otherwise it switches on
+  `WeaponType` exactly like the right-hand lookup, with the same
+  Error-and-`NAME_None` default.
+
+**To support a new weapon type's attachment, add a `case` to both switches**
+(`GetRightSocketForWeapon` and `GetLeftSocketForWeapon`). If a socket resolves
+to `NAME_None`, the spawn function logs a Warning and skips that hand — there
+is no fallback socket.
+
+Spawn behaviour:
+
+- `Single` → `SpawnWeaponMesh` spawns the right-hand mesh only.
+- `Dual` / `OffHandShield` → `SpawnDualWeaponMesh` spawns both hands
+  independently. The right hand prefers `WeaponSkeletalMesh`, then
+  `WeaponStaticMesh`; the left hand prefers `LeftHandSkeletalMesh`, then
+  `LeftHandStaticMesh`. There is **no reuse of the right-hand mesh** on the
+  left — if both `LeftHand*` fields are null, no left mesh spawns and a Warning
+  is logged.
+- `MeshRotation` applies to the right-hand mesh, `LeftMeshRotation` to the
+  left. No mirror scale is applied — the left socket itself carries the
+  handedness.
+
+**Authoring rule for the left-hand mesh.** `LeftHandStaticMesh` /
+`LeftHandSkeletalMesh` are the explicit off-hand mesh. For `OffHandShield` they
+hold the shield and must be set. For `Dual` they are optional — set them when
+the off-hand should use different geometry, leave them null otherwise (no left
+mesh spawns). They are hidden in the details panel while `WieldMode` is
+`Single`.
 
 ## How It Works
 
@@ -262,3 +331,4 @@ magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-19 | Added `EWeaponWieldMode` (Single / Dual / OffHandShield) and the *Wield modes and mesh attachment* section; documented the left-hand mesh fields on `UWeaponData`, enum-driven socket resolution in `UWeaponMeshComponent`, and `UAbilityData::bRequiresDualWeapon`. Noted removal of `EWeaponType::DualBlades` and the `Fists` → `Gauntlets` rename. | feature/weapon-sockets-dual-flag |

@@ -81,9 +81,18 @@ Notable behavior:
 - `GetAllSpells()` — same sequential override merge using
   `WeaponEntry.GetSpells()` as the base list and `AssignedSpells` as overrides,
   capped at `LoadoutConstants::MAX_SPELL_SLOTS`.
-- `ValidateAbilities()` — checks each assigned ability is owned and its
-  `RequiredWeaponType` matches the weapon, and that count fits the customizable
-  partition.
+- `ValidateAbilities()` — validates each assigned (non-null) ability and
+  **hard-fails** (`return false`, no soft-warning path) on any of:
+  - the ability is not owned (`OwnedAbilities.HasAbility` is false);
+  - `Ability->RequiredWeaponType` does not equal the weapon's `WeaponType`;
+  - `Ability->bRequiresDualWeapon` is true but the weapon's `IsDualWielded()`
+    is false — a dual-only ability assigned to a `Single` weapon. Dual-only
+    abilities are accepted on **both** `Dual` and `OffHandShield` weapons,
+    since `IsDualWielded()` is true for either.
+
+  It also fails if `AssignedAbilities.Num()` exceeds
+  `GetCustomizableAbilityCount()`. Set `bRequiresDualWeapon` on an ability
+  whose animation or mechanics only make sense with a weapon in each hand.
 - `ValidateSpells()` — checks ownership and element match (skipped for
   "any-element" crystal sources via `ElementHelpers::IsAnySpellSource`). Note:
   this method validates `WeaponEntry.AssignedSpells`, not the entry's own
@@ -289,3 +298,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-19 | Documented the `bRequiresDualWeapon` hard-fail in `FWeaponLoadoutEntry::ValidateAbilities` (dual-only abilities reject `Single` weapons). | feature/weapon-sockets-dual-flag |
