@@ -27,7 +27,7 @@ public:
 
     /** Socket name for left hand weapon attachment (DualBlades) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
-    FName LeftHandSocket = FName("hand_l_weapon");
+    FName LeftHandSocket = FName("hand_l_sword");
 
     // ==================== FUNCTIONS ====================
 
@@ -63,6 +63,12 @@ private:
     void SpawnWeaponMesh(UWeaponData *Weapon);
     void SpawnDualWeaponMesh(UWeaponData *Weapon);
     USkeletalMeshComponent *GetOwnerMesh() const;
+
+    /** Resolve the right-hand socket: weapon override if set, else component default. */
+    FName ResolveRightSocket(const UWeaponData *Weapon) const;
+
+    /** Resolve the left-hand socket: weapon override if set, else component default. */
+    FName ResolveLeftSocket(const UWeaponData *Weapon) const;
 
     // ==================== CACHED REFERENCES ====================
 

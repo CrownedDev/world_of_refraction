@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "EquipmentDataBase.h"
 #include "EWeaponType.h"
+#include "EWeaponWieldMode.h"
 #include "EPhysicalDamageType.h"
 #include "Animation/AnimMontage.h"
 
@@ -88,6 +89,33 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
     FRotator MeshRotation = FRotator::ZeroRotator;
 
+    /** Drives mesh-spawn behaviour AND ability dual-gating. See EWeaponWieldMode. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    EWeaponWieldMode WieldMode = EWeaponWieldMode::Single;
+
+    /** Right-hand attachment socket.
+     *  NAME_None falls back to UWeaponMeshComponent::RightHandSocket. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    FName RightHandSocket = NAME_None;
+
+    /** Left-hand attachment socket (dual modes only).
+     *  NAME_None falls back to UWeaponMeshComponent::LeftHandSocket. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
+              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
+    FName LeftHandSocket = NAME_None;
+
+    /** Distinct left-hand static mesh for OffHandShield mode (sword+shield style).
+     *  If null, the right-hand mesh is reused. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
+              meta = (EditCondition = "WieldMode == EWeaponWieldMode::OffHandShield", EditConditionHides))
+    UStaticMesh *LeftHandStaticMesh = nullptr;
+
+    /** Distinct left-hand skeletal mesh for OffHandShield mode (sword+shield style).
+     *  If null, the right-hand mesh is reused. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
+              meta = (EditCondition = "WieldMode == EWeaponWieldMode::OffHandShield", EditConditionHides))
+    USkeletalMesh *LeftHandSkeletalMesh = nullptr;
+
     // ==================== UTILITY ====================
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
@@ -98,6 +126,10 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool IsConjuredWeapon() const { return bAbilitiesLocked; }
+
+    /** True if this weapon spawns a left-hand mesh — i.e. WieldMode is Dual or OffHandShield. */
+    UFUNCTION(BlueprintPure, Category = "Weapon")
+    bool IsDualWielded() const { return WieldMode != EWeaponWieldMode::Single; }
 
     UFUNCTION(BlueprintPure, Category = "Weapon")
     bool HasAttack() const { return WeaponAttack != nullptr; }
