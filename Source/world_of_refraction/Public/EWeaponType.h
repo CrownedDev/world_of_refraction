@@ -14,13 +14,10 @@ enum class EWeaponType : uint8
     Spear UMETA(DisplayName = "Spear"),
     Staff UMETA(DisplayName = "Staff"),
     Dagger UMETA(DisplayName = "Dagger"),
-    DualBlades UMETA(DisplayName = "Dual Blades"),
     Axe UMETA(DisplayName = "Axe"),
     Hammer UMETA(DisplayName = "Hammer"),
     Bow UMETA(DisplayName = "Bow"),
-    Fists UMETA(DisplayName = "Gauntlets"),
+    Gauntlets UMETA(DisplayName = "Gauntlets"),
     Scythe UMETA(DisplayName = "Scythe"),
     Gun UMETA(DisplayName = "Gun")
-        swordandshield UMETA(DisplayName = "Sword and Shield")
-
 };

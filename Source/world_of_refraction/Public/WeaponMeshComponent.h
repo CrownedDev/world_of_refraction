@@ -25,7 +25,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
     FName RightHandSocket = FName("hand_r_weapon");
 
-    /** Socket name for left hand weapon attachment (DualBlades) */
+    /** Default left-hand attachment socket. Used as fallback when a weapon does not specify its own LeftHandSocket. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sockets")
     FName LeftHandSocket = FName("hand_l_sword");
 
