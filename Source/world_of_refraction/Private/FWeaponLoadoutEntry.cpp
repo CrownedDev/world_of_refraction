@@ -165,6 +165,12 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
         {
             return false;
         }
+
+        // Dual-weapon gate: dual-only abilities reject single-wield weapons.
+        if (Ability->bRequiresDualWeapon && !WeaponEntry.Weapon->IsDualWielded())
+        {
+            return false;
+        }
     }
 
     // Check count

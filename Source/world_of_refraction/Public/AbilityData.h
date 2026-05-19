@@ -40,6 +40,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EWeaponType RequiredWeaponType = EWeaponType::Sword;
 
+    /** When true, usable ONLY on weapons whose WieldMode is Dual or
+     *  OffHandShield. When false, usable on both single and dual weapons
+     *  of the matching RequiredWeaponType. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    bool bRequiresDualWeapon = false;
+
     // ==================== EXECUTION ====================
 
     /** How this ability executes (determines movement, animation style, delivery) */
