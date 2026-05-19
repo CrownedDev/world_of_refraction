@@ -233,7 +233,7 @@ void UItemDataDebug::LogItemValues(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Buff %%: %.1f"), Item->GetBuffPercentage());
     UE_LOG(LogTemp, Display, TEXT("Crit Buff %%: %.1f"), Item->GetCritBuffPercent());
     UE_LOG(LogTemp, Display, TEXT("Crystal Buff Duration: %d turns"), Item->GetCrystalDuration());
-    UE_LOG(LogTemp, Display, TEXT("Silence %%: %.1f for %d turns"), Item->GetSilencePercentage(), Item->GetSilenceDurationNew());
+    UE_LOG(LogTemp, Display, TEXT("Silence %%: %.1f (one-shot drain on use)"), Item->GetSilencePercentage());
     UE_LOG(LogTemp, Display, TEXT("Buff Chance %%: %.1f"), Item->GetBuffChancePercent());
     UE_LOG(LogTemp, Display, TEXT("Gamble Magnitude %%: %.1f for %d turns"), Item->GetGambleMagnitudePercent(), Item->GetGambleDuration());
     UE_LOG(LogTemp, Display, TEXT("Effects To Remove: %d (99=all)"), Item->GetEffectsToRemoveCount());
@@ -298,8 +298,8 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
                 break;
 
             case ECrystalType::Onyx:
-                ValueStr = FString::Printf(TEXT("%.0f%% energy locked for %d turns"),
-                                           TestItem->GetSilencePercentage(), TestItem->GetSilenceDurationNew());
+                ValueStr = FString::Printf(TEXT("%.0f%% energy drained on use"),
+                                           TestItem->GetSilencePercentage());
                 break;
 
             case ECrystalType::Amethyst:

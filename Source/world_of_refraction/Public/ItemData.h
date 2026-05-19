@@ -363,10 +363,6 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         int32 GetResistanceDuration() const;
 
-        /** Onyx — energy-lock duration in turns (Phase 2 table; F-A tiers) */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetSilenceDurationNew() const;
-
         /** Shared status-bar buildup percent for status-building crystals
          *  (Garnet/Citrine/Onyx/Amethyst): 10/15/20/30/40/50/60 per tier. */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")

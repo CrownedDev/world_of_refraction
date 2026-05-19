@@ -552,33 +552,6 @@ int32 UItemData::GetResistanceDuration() const
     }
 }
 
-int32 UItemData::GetSilenceDurationNew() const
-{
-    if (CrystalType != ECrystalType::Onyx)
-    {
-        return 0;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 3;
-    case EItemTier::E_Tier:
-        return 3;
-    case EItemTier::D_Tier:
-        return 2;
-    case EItemTier::C_Tier:
-        return 2;
-    case EItemTier::B_Tier:
-        return 2;
-    case EItemTier::A_Tier:
-        return 1;
-    case EItemTier::S_Tier:
-        return 1;
-    default:
-        return 0;
-    }
-}
-
 float UItemData::GetElementalBuildupPercent() const
 {
     // Shared status-bar buildup table for crystals that build status.
