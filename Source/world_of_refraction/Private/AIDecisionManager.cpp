@@ -1676,8 +1676,8 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     }
 
     // Get energy state
-    int32 CurrentEnergy = AttackerComp->CurrentEP;
-    int32 MaxEnergy = AttackerComp->MaxEP;
+    int32 CurrentEnergy = GetCurrentEP(Attacker);
+    int32 MaxEnergy = GetMaxEP(Attacker);
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
     // Calculate damage at each level
@@ -1764,8 +1764,8 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
         return 0;
     }
 
-    int32 CurrentEnergy = AttackerComp->CurrentEP;
-    int32 MaxEnergy = AttackerComp->MaxEP;
+    int32 CurrentEnergy = GetCurrentEP(Attacker);
+    int32 MaxEnergy = GetMaxEP(Attacker);
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
     // Calculate damage at each level
