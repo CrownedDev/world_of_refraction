@@ -2984,13 +2984,12 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 
 	case EInfusionSourceOption::PrimaryRing:
 	{
-		URingManager *RM = GetRingManager();
-		if (RM)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		if (LC)
 		{
-			URingData *Ring = RM->GetPrimaryRing(Actor);
-			if (Ring)
+			if (const FRingLoadoutEntry *Entry = LC->GetPrimaryRingLoadout())
 			{
-				return Ring->GetCrystalElement();
+				return Entry->RingEntry.AttachedCrystal.GetElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -2998,13 +2997,12 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 
 	case EInfusionSourceOption::WeaponCrystal:
 	{
-		UWeaponManager *WM = GetWeaponManager();
-		if (WM)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		if (LC)
 		{
-			UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
-			if (Weapon)
+			if (const FWeaponLoadoutEntry *Entry = LC->GetActiveWeaponLoadout())
 			{
-				return Weapon->GetCrystalElement();
+				return Entry->WeaponEntry.AttachedCrystal.GetElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -3108,35 +3106,41 @@ UItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction 
 
 	case EInfusionSourceOption::ActiveRing:
 	{
-		URingManager *RM = GetRingManager();
-		if (!RM)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		if (!LC)
 		{
 			return nullptr;
 		}
-		URingData *Ring = RM->GetActiveRing(Actor);
-		return Ring ? Ring->SlottedCrystal : nullptr;
+		const FRingLoadoutEntry *Entry = LC->GetActiveRingLoadout();
+		return (Entry && Entry->RingEntry.AttachedCrystal.Crystal)
+				   ? Entry->RingEntry.AttachedCrystal.Crystal
+				   : nullptr;
 	}
 
 	case EInfusionSourceOption::PrimaryRing:
 	{
-		URingManager *RM = GetRingManager();
-		if (!RM)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		if (!LC)
 		{
 			return nullptr;
 		}
-		URingData *Ring = RM->GetPrimaryRing(Actor);
-		return Ring ? Ring->SlottedCrystal : nullptr;
+		const FRingLoadoutEntry *Entry = LC->GetPrimaryRingLoadout();
+		return (Entry && Entry->RingEntry.AttachedCrystal.Crystal)
+				   ? Entry->RingEntry.AttachedCrystal.Crystal
+				   : nullptr;
 	}
 
 	case EInfusionSourceOption::WeaponCrystal:
 	{
-		UWeaponManager *WM = GetWeaponManager();
-		if (!WM)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		if (!LC)
 		{
 			return nullptr;
 		}
-		UWeaponData *Weapon = WM->GetActiveWeapon(Actor);
-		return Weapon ? Weapon->SlottedCrystal : nullptr;
+		const FWeaponLoadoutEntry *Entry = LC->GetActiveWeaponLoadout();
+		return (Entry && Entry->WeaponEntry.AttachedCrystal.Crystal)
+				   ? Entry->WeaponEntry.AttachedCrystal.Crystal
+				   : nullptr;
 	}
 
 	case EInfusionSourceOption::Evolution:
@@ -4209,14 +4213,16 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			}
 		}
 
-		if (UItemData *RingCrystal = Ring->SlottedCrystal)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		FCrystalInventoryEntry *Entry = LC ? LC->FindCrystalEntryByHolder(Ring) : nullptr;
+		if (Entry && Entry->Crystal)
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
-					Actor, RingCrystal, Ring, ActionTier, Level, bIsSpell);
+					Actor, Entry->Crystal, Ring, ActionTier, Level, bIsSpell);
 			}
 		}
 
@@ -4263,14 +4269,16 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			}
 		}
 
-		if (UItemData *RingCrystal = Ring->SlottedCrystal)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		FCrystalInventoryEntry *Entry = LC ? LC->FindCrystalEntryByHolder(Ring) : nullptr;
+		if (Entry && Entry->Crystal)
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
-					Actor, RingCrystal, Ring, ActionTier, Level, bIsSpell);
+					Actor, Entry->Crystal, Ring, ActionTier, Level, bIsSpell);
 			}
 		}
 
@@ -4304,7 +4312,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			break;
 		}
 
-		UItemData *WeaponCrystal = Weapon->SlottedCrystal;
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		FCrystalInventoryEntry *Entry = LC ? LC->FindCrystalEntryByHolder(Weapon) : nullptr;
+		UItemData *WeaponCrystal = (Entry && Entry->Crystal) ? Entry->Crystal : nullptr;
 		if (!WeaponCrystal)
 		{
 			break;
@@ -4344,19 +4354,14 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// Self-status build is logged as intent — actual application pending the
 		// element-to-status mapping system (separate workstream).
 
-		// 1. Resolve evolution element from active weapon's slotted crystal
+		// 1. Resolve evolution element from active weapon's runtime crystal
 		//    for logging; needed by the future status-build wiring.
-		UWeaponManager *WeaponMgr = GetWeaponManager();
-		if (!WeaponMgr)
-		{
-			UE_LOG(LogTemp, Warning,
-				   TEXT("[ActionExecutor] %s: Evolution infusion but WeaponManager unavailable"),
-				   *Actor->GetName());
-			break;
-		}
-
-		UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor);
-		if (!Weapon || !Weapon->IsEvolved() || !Weapon->SlottedCrystal)
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		const FWeaponLoadoutEntry *ActiveWeaponLoadout = LC ? LC->GetActiveWeaponLoadout() : nullptr;
+		UItemData *WeaponCrystal = (ActiveWeaponLoadout && ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal)
+									   ? ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal
+									   : nullptr;
+		if (!WeaponCrystal || !WeaponCrystal->bIsEvolutionCrystal)
 		{
 			UE_LOG(LogTemp, Warning,
 				   TEXT("[ActionExecutor] %s: Evolution infusion but weapon is not evolved or no slotted crystal"),
@@ -4364,7 +4369,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			break;
 		}
 
-		const ESpellElement EvolutionElement = Weapon->SlottedCrystal->GetAssociatedElement();
+		const ESpellElement EvolutionElement = WeaponCrystal->GetAssociatedElement();
 
 		// 2. HP cost — same percentages as Innate/Raw (5% L1, 10% L2).
 		ApplyHPCostInternal(Actor, Level);

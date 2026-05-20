@@ -49,8 +49,17 @@ URingData *URingManager::GetActiveRing(AActor *Actor) const
 
 ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 {
-	URingData *Ring = GetActiveRing(Actor);
-	return Ring ? Ring->GetCrystalElement() : ESpellElement::Generic;
+	if (!Actor)
+	{
+		return ESpellElement::Generic;
+	}
+	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!LC)
+	{
+		return ESpellElement::Generic;
+	}
+	const FRingLoadoutEntry *Entry = LC->GetActiveRingLoadout();
+	return Entry ? Entry->RingEntry.AttachedCrystal.GetElement() : ESpellElement::Generic;
 }
 
 URingData *URingManager::GetPrimaryRing(AActor *Actor) const
