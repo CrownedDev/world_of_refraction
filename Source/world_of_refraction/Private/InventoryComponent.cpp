@@ -420,50 +420,146 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
     Rings.Empty();
     Items.Clear();
 
-    // Add weapons
-    // Lines 425-437 - Replace entire section with:
     ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
-    if (DefaultLoadoutAsset)
+    if (!DefaultLoadoutAsset)
     {
-        if (DefaultLoadoutAsset->PrimaryWeapon)
+        UE_LOG(LogTemp, Display, TEXT("InitializeFromCharacterData(%s): No DefaultLoadout set"),
+               *CharacterData->Name);
+        return;
+    }
+
+    // ---------- Weapons ----------
+    if (DefaultLoadoutAsset->PrimaryWeapon)
+    {
+        AddWeapon(DefaultLoadoutAsset->PrimaryWeapon, true);
+    }
+    if (DefaultLoadoutAsset->SecondaryWeapon)
+    {
+        AddWeapon(DefaultLoadoutAsset->SecondaryWeapon, true);
+    }
+
+    // ---------- Rings ----------
+    if (DefaultLoadoutAsset->PrimaryRing)
+    {
+        AddRing(DefaultLoadoutAsset->PrimaryRing, true);
+    }
+    for (const FResonatorRingSlot &Slot : DefaultLoadoutAsset->EquippedRings)
+    {
+        if (Slot.Ring)
         {
-            AddWeapon(DefaultLoadoutAsset->PrimaryWeapon, true);
-        }
-        if (DefaultLoadoutAsset->SecondaryWeapon)
-        {
-            AddWeapon(DefaultLoadoutAsset->SecondaryWeapon, true);
-        }
-        if (DefaultLoadoutAsset->PrimaryRing)
-        {
-            AddRing(DefaultLoadoutAsset->PrimaryRing, true);
+            AddRing(Slot.Ring, true);
         }
     }
 
-    if (DefaultLoadoutAsset && DefaultLoadoutAsset->PrimaryWeapon)
+    // ---------- Items ----------
+    // Consumables first, evolution crystal last so it lands at a predictable
+    // tail position in its tier array. AddItem fails only on tier-cap overflow
+    // (no dedup), so a false return after the null filter is a capacity drop.
+    for (UItemData *Item : DefaultLoadoutAsset->EquippedItems)
+    {
+        if (Item && !AddItem(Item))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("InitializeFromCharacterData(%s): item capacity full, dropping %s"),
+                   *CharacterData->Name, *Item->ItemName);
+        }
+    }
+    if (DefaultLoadoutAsset->PrimaryEvolution && !AddItem(DefaultLoadoutAsset->PrimaryEvolution))
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("InitializeFromCharacterData(%s): item capacity full, dropping evolution crystal %s"),
+               *CharacterData->Name, *DefaultLoadoutAsset->PrimaryEvolution->ItemName);
+    }
+
+    // ---------- Spells ----------
+    // Innate → Evolution → BD pools. LearnSpell short-circuits on null,
+    // capacity, OR duplicate; HasSpell discriminates dedup (silent) from
+    // capacity drop (warn).
+    for (USpellData *Spell : DefaultLoadoutAsset->InnateSpells)
+    {
+        if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("InitializeFromCharacterData(%s): spell capacity full, dropping %s"),
+                   *CharacterData->Name, *Spell->Name);
+        }
+    }
+    for (USpellData *Spell : DefaultLoadoutAsset->EvolutionSpells)
+    {
+        if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("InitializeFromCharacterData(%s): spell capacity full, dropping %s"),
+                   *CharacterData->Name, *Spell->Name);
+        }
+    }
+    for (const FBDElementSpellPool &Pool : DefaultLoadoutAsset->BDSpellPools)
+    {
+        for (USpellData *Spell : Pool.Spells)
+        {
+            if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
+            {
+                UE_LOG(LogTemp, Warning,
+                       TEXT("InitializeFromCharacterData(%s): spell capacity full, dropping %s"),
+                       *CharacterData->Name, *Spell->Name);
+            }
+        }
+    }
+
+    // ---------- Abilities ----------
+    // Loadout-listed abilities before weapon PresetAbilities so overlap dedup
+    // logs read as "PresetAbilities subset already known" rather than the
+    // reverse. Same false-return-and-not-known capacity discrimination as
+    // spells above.
+    for (UAbilityData *Ability : DefaultLoadoutAsset->PrimaryWeaponAbilities)
+    {
+        if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
+                   *CharacterData->Name, *Ability->Name);
+        }
+    }
+    for (UAbilityData *Ability : DefaultLoadoutAsset->SecondaryWeaponAbilities)
+    {
+        if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
+                   *CharacterData->Name, *Ability->Name);
+        }
+    }
+    if (DefaultLoadoutAsset->PrimaryWeapon)
     {
         for (UAbilityData *Ability : DefaultLoadoutAsset->PrimaryWeapon->PresetAbilities)
         {
-            if (Ability)
+            if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
             {
-                Abilities.LearnAbility(Ability);
+                UE_LOG(LogTemp, Warning,
+                       TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
+                       *CharacterData->Name, *Ability->Name);
             }
         }
     }
-    if (DefaultLoadoutAsset && DefaultLoadoutAsset->SecondaryWeapon)
+    if (DefaultLoadoutAsset->SecondaryWeapon)
     {
         for (UAbilityData *Ability : DefaultLoadoutAsset->SecondaryWeapon->PresetAbilities)
         {
-            if (Ability)
+            if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
             {
-                Abilities.LearnAbility(Ability);
+                UE_LOG(LogTemp, Warning,
+                       TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
+                       *CharacterData->Name, *Ability->Name);
             }
         }
     }
 
-    UE_LOG(LogTemp, Display, TEXT("Initialized inventory from %s: %d weapons, %d rings, %d spells, %d abilities"),
+    UE_LOG(LogTemp, Display,
+           TEXT("Initialized inventory from %s: %d weapons, %d rings, %d items, %d spells, %d abilities"),
            *CharacterData->Name,
            Weapons.Num(),
            Rings.Num(),
+           Items.GetTotalCount(),
            Spells.GetCount(),
            Abilities.GetCount());
 }
