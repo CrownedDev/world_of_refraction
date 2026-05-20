@@ -350,6 +350,33 @@ before touching any code.
 
 ## Changelog
 
+- **2026-05-20 (`feature/weather-team-hp-and-debug`)** — `ComputeTeamHPPercent` correction: dead members contribute 0 HP to numerator; their MaxHP stays in denominator for persistent post-death pressure (PIE showed the previous skip-the-dead-from-both produced a wrong 100% read after a teammate died).
+- **2026-05-20 (`feature/weather-team-hp-signal`)** — Signal refactor: BlendValue
+  now reflects whole-team HP, not the leader's individual HP. For each team,
+  `ComputeTeamHPPercent` sums `CurrentHP` / `MaxHP` across all hierarchy entries
+  where the character's `bIsAlive` flag is `true` (skip-the-dead — hierarchy is
+  not pruned, so a resurrected character naturally re-enters the sum).
+  `ComputeBlendValue` applies a deadzone (`WEATHER_DEADZONE_GAP = 0.05f`) and
+  linear ramp to full saturation (`WEATHER_RAMP_END_GAP = 0.20f`); both constants
+  live in an anonymous namespace at the top of `WeatherStateManager.cpp`. Sign
+  of `BlendValue` is preserved (positive = Team 0 winning, magnitude = intensity).
+  **Leader-DA / team-intensity split is intentional:** `ResolveWeatherDA` still
+  asks the highest-statted alive member for their `Cosmetics->EquippedWeatherVariant`,
+  so the *displayed* sky is leader-driven; the team-HP sum drives *how strongly*
+  it displays. Per-member `OnHPChanged` / `OnDied` bindings replace the previous
+  leader-only bindings — damage on any teammate now triggers `RecalculateWeather`.
+  `BindToLeader` was renamed to `BindToTeam`; the two death handlers were renamed
+  `OnTeam{0,1}MemberDied` and no longer prune the hierarchy or rebind a new leader
+  (the team is already fully bound at combat start). `GetCurrentLeader` was changed
+  from "return `Hierarchy[0].Actor`" to "return first ALIVE entry" (Option X in
+  today's planning) so the resolver picks up a new leader's DA after a death
+  without any explicit hierarchy mutation. **Known limitations carried forward:**
+  tied world-stats still produce nondeterministic leader selection (G5);
+  broadcast throttling is still absent (G9, slightly worsened — AOE attacks now
+  fire `RecalculateWeather` once per damaged target rather than only when the
+  leader was a target). G6 (death-handler null guard) is fixed as part of this
+  rewrite; G1 (asymmetric `EndCombat` cleanup) remains fixed and now iterates
+  every entry on both teams.
 - **2026-05-20 (`feature/weather-system-doc-bootstrap`)** — Initial document. Maps
   the HP-to-sky chain after the April restructure landed in C++. Captures the
   resolver's actual variant access path (`Cosmetics->EquippedWeatherVariant`, not
