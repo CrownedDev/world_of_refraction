@@ -77,6 +77,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
     bool bImmuneToInfusion = false;
 
+    /** When true, the player cannot unfuse this equipment's slotted crystal at
+     *  a vendor. Independent of bImmuneToBreaking (which is on UItemData and
+     *  prevents wear). bCrystalLocked is a player-side ergonomic gate; the
+     *  crystal can still break via the standard wear path. No runtime code
+     *  consumes this flag yet — the vendor system will use it when built. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
+    bool bCrystalLocked = false;
+
     /** Status buildup multiplier when this equipment is the infusion source
      *  (higher = faster status). Applied at the infusion DOT gate. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion",

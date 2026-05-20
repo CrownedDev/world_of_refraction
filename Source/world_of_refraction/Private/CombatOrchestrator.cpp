@@ -1116,17 +1116,18 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 
 				if (UWeaponData *Weapon = Cast<UWeaponData>(Slot.Holder))
 				{
-					Weapon->SlottedCrystal = nullptr;
 					HolderDesc = FString::Printf(TEXT("Weapon '%s'"), *Weapon->Name);
+					*Entry = FCrystalInventoryEntry();
 					bCleared = true;
 				}
 				else if (URingData *Ring = Cast<URingData>(Slot.Holder))
 				{
-					Ring->SlottedCrystal = nullptr;
 					HolderDesc = FString::Printf(TEXT("Ring '%s'"), *Ring->Name);
+					*Entry = FCrystalInventoryEntry();
 					bCleared = true;
 				}
-				// Evolution holder is the crystal itself (immune); won't reach here.
+				// Evolution self-holder filtered above — FindCrystalEntryByHolder returns
+				// nullptr for UItemData* holders, tripping the early continue at the loop head.
 
 				if (bCleared)
 				{
