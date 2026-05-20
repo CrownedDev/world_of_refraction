@@ -88,7 +88,10 @@ public:
 
     // ==================== SAVED LOADOUTS ====================
 
-    /** Saved loadout configurations (C++ access - not serialized via UPROPERTY) */
+    /** Saved loadout configurations. UPROPERTY for GC tracking; not exposed to
+     *  editor or BP — populated programmatically via SaveCurrentLoadout /
+     *  LoadoutComponent init paths. */
+    UPROPERTY()
     TArray<FCombatLoadout> SavedLoadouts;
 
     /** Index of currently active loadout */
