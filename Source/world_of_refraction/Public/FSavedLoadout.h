@@ -112,10 +112,9 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     TArray<USpellData *> EvolutionSpells;
 
     /** Override primary weapon stance (nullptr = use weapon default).
-     *  NOTE: Runtime propagation not wired up in commit 1 — declared here so
-     *  the field exists for designer authoring; a downstream commit adds a
-     *  matching field on FWeaponLoadoutEntry and copies through in
-     *  FCombatLoadout::CreateFromSavedLoadout. */
+     *  Propagated to FWeaponLoadoutEntry::StanceOverride in
+     *  FCombatLoadout::CreateFromSavedLoadout; consumed by
+     *  ULoadoutComponent::GetCurrentStance. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     UStanceData *PrimaryWeaponStanceOverride = nullptr;
@@ -140,8 +139,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     TArray<UAbilityData *> SecondaryWeaponAbilities;
 
     /** Override secondary weapon stance (Generic only, nullptr = use weapon default).
-     *  NOTE: Runtime propagation not wired up in commit 1 — see
-     *  PrimaryWeaponStanceOverride. */
+     *  Same propagation path as PrimaryWeaponStanceOverride. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     UStanceData *SecondaryWeaponStanceOverride = nullptr;

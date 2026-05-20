@@ -428,6 +428,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
                 Asset->PrimaryWeapon, true);
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
+            Result.PrimaryWeapon.StanceOverride = Asset->PrimaryWeaponStanceOverride;
 
             UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
                    *Asset->PrimaryWeapon->Name,
@@ -463,6 +464,7 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
                 Asset->SecondaryWeapon, true);
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = Asset->SecondaryWeaponAbilities;
+            Result.SecondaryWeapon.StanceOverride = Asset->SecondaryWeaponStanceOverride;
         }
     }
 
@@ -545,6 +547,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 SavedLoadout.PrimaryWeapon, true);
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = SavedLoadout.PrimaryWeaponAbilities;
+            Result.PrimaryWeapon.StanceOverride = SavedLoadout.PrimaryWeaponStanceOverride;
 
             UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
                    *SavedLoadout.PrimaryWeapon->Name,
@@ -580,6 +583,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 SavedLoadout.SecondaryWeapon, true);
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = SavedLoadout.SecondaryWeaponAbilities;
+            Result.SecondaryWeapon.StanceOverride = SavedLoadout.SecondaryWeaponStanceOverride;
         }
     }
 
@@ -629,12 +633,6 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     // ==================== COSMETICS & DEFENSE ====================
 
     Result.bShowPrimary = SavedLoadout.bShowPrimary;
-
-    // NOTE: SavedLoadout.PrimaryWeaponStanceOverride and
-    // SecondaryWeaponStanceOverride are intentionally NOT propagated here.
-    // CreateFromAsset doesn't propagate them either — wiring them up
-    // requires adding a stance-override field to FWeaponLoadoutEntry, which
-    // is deferred to a follow-up commit.
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from SavedLoadout '%s' (PrimarySlotType: %d)"),
            *SavedLoadout.LoadoutName, static_cast<int32>(SavedLoadout.PrimarySlotType));
