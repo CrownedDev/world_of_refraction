@@ -18,6 +18,7 @@
 #include "FWeaponInventoryEntry.h"
 #include "FRingInventoryEntry.h"
 #include "FItemCrystalInventory.h"
+#include "FCombatLoadout.h"
 #include "InventoryComponent.generated.h"
 
 class USpellData;
@@ -66,6 +67,26 @@ public:
     /** Consumable item crystals (tiered capacity) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Items")
     FItemCrystalInventory Items;
+
+    // ============================================================
+    // SAVED LOADOUTS — moved from ULoadoutComponent
+    // TODO (commit 3b): these become the source of truth when
+    // ULoadoutComponent's facade methods redirect their reads here.
+    // ULoadoutComponent's matching fields are deleted in commit 3c.
+    // ============================================================
+
+    /** Configured maximum number of saved loadouts. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Config")
+    int32 MaxSavedLoadouts = 5;
+
+    /** Array of saved loadout configurations for this character. Per-instance
+     *  runtime state — populated from UInventoryData at character spawn. */
+    UPROPERTY()
+    TArray<FCombatLoadout> SavedLoadouts;
+
+    /** Index of the currently active loadout within SavedLoadouts. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Saved")
+    int32 ActiveLoadoutIndex = 0;
 
     // ==================== SPELL OPERATIONS ====================
 
