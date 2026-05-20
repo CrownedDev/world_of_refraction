@@ -320,12 +320,6 @@ bool ULoadoutComponent::ValidateLoadout(int32 Index, UInventoryComponent *Invent
         return false;
     }
 
-    // Asset-based loadouts don't require inventory validation
-    if (bInitializedFromAsset)
-    {
-        return true;
-    }
-
     if (!Inventory)
     {
         return false;
@@ -569,29 +563,11 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
         return false;
     }
 
-    // Asset-based loadouts (AI) skip inventory validation - designer configured
-    if (bInitializedFromAsset)
-    {
-        // Reset item uses
-        if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
-        {
-            for (FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
-            {
-                Slot.ResetForBattle();
-            }
-        }
-        bIsReadyForBattle = true;
-        return true;
-    }
+    // Soft-fail: ValidateActiveLoadout broadcasts OnValidationFailed for each
+    // error but its return value is intentionally ignored. Combat proceeds
+    // with whatever's valid; validation surfaces warnings, not failures.
+    ValidateActiveLoadout(Inventory);
 
-    // Player loadouts - validate against inventory
-    if (!ValidateActiveLoadout(Inventory))
-    {
-        bIsReadyForBattle = false;
-        return false;
-    }
-
-    // Reset item uses
     if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
     {
         for (FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
@@ -972,7 +948,6 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     EmptyLoadout.InitializeForClass(CharacterClass);
     SavedLoadouts.Add(EmptyLoadout);
     ActiveLoadoutIndex = 0;
-    bInitializedFromAsset = false;
     bIsReadyForBattle = false;
 
     UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no DefaultLoadout - created empty loadout. Assign equipment via UI or set DefaultLoadout in CharacterData."),
@@ -1011,10 +986,6 @@ void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
     FCombatLoadout NewLoadout = FCombatLoadout::CreateFromAsset(LoadoutAsset);
     SavedLoadouts.Add(NewLoadout);
     ActiveLoadoutIndex = 0;
-
-    // Mark as asset-based (skips inventory validation)
-    bInitializedFromAsset = true;
-    bIsReadyForBattle = true; // Asset-based loadouts are always ready
 
     UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Initialized from asset '%s' (Class: %s)"),
            *LoadoutAsset->LoadoutName,

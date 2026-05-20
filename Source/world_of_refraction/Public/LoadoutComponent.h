@@ -456,10 +456,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Init")
     void InitializeFromAsset(ULoadoutData *LoadoutAsset);
 
-    /** Check if initialized from asset (AI) vs inventory (Player) */
-    UFUNCTION(BlueprintPure, Category = "Loadout")
-    bool IsAssetBased() const { return bInitializedFromAsset; }
-
     /** Auto-populate loadout from inventory (best available) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")
     bool AutoPopulateLoadout(int32 LoadoutIndex, UInventoryComponent *Inventory);
@@ -487,9 +483,6 @@ public:
     void DebugLogLoadout();
 
 private:
-    /** True if initialized from LoadoutData asset (AI), false if from inventory (Player) */
-    bool bInitializedFromAsset = false;
-
     /** Helper to get CharacterData from sibling component */
     UCharacterData *GetOwnerCharacterData() const;
 
