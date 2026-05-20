@@ -113,9 +113,9 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
 
         // Evolved ring limit
         int32 EvolvedCount = 0;
-        for (const URingData *Ring : EquippedRings)
+        for (const FResonatorRingSlot &Slot : EquippedRings)
         {
-            if (Ring && Ring->IsEvolved())
+            if (Slot.Ring && Slot.Ring->IsEvolved())
             {
                 EvolvedCount++;
             }
@@ -165,7 +165,7 @@ TArray<FString> ULoadoutData::GetValidationErrors() const
 
     for (int32 i = 0; i < EquippedRings.Num(); ++i)
     {
-        if (!EquippedRings[i])
+        if (!EquippedRings[i].Ring)
         {
             Errors.Add(FString::Printf(TEXT("Null ring in slot %d"), i));
         }
@@ -197,14 +197,16 @@ TArray<USpellData *> ULoadoutData::GetAllSpells() const
         Result.Append(InnateSpells);
     }
 
-    // Ring loadout spells (Resonator only) - read from each ring's DefaultSpells
+    // Ring loadout spells (Resonator only) - per slot, the ring's DefaultSpells
+    // plus any per-loadout AssignedSpells override list.
     if (RequiredClass == ECharacterClass::Resonator)
     {
-        for (URingData *Ring : EquippedRings)
+        for (const FResonatorRingSlot &Slot : EquippedRings)
         {
-            if (Ring)
+            if (Slot.Ring)
             {
-                Result.Append(Ring->DefaultSpells);
+                Result.Append(Slot.Ring->DefaultSpells);
+                Result.Append(Slot.AssignedSpells);
             }
         }
     }

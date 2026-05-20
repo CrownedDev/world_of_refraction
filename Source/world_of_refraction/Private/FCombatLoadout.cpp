@@ -469,13 +469,20 @@ FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
 
     if (Asset->RequiredClass == ECharacterClass::Resonator)
     {
-        for (URingData *Ring : Asset->EquippedRings)
+        for (const FResonatorRingSlot &Slot : Asset->EquippedRings)
         {
-            if (Ring)
+            if (Slot.Ring)
             {
                 FRingLoadoutEntry RingEntry;
-                RingEntry.RingEntry = FRingInventoryEntry::CreateFromRing(Ring, true);
+                RingEntry.RingEntry = FRingInventoryEntry::CreateFromRing(Slot.Ring, true);
                 RingEntry.InitializeFromRing();
+                // Per-loadout spell overrides flow through to the inventory
+                // entry's AssignedSpells override list (empty list = use the
+                // ring's DefaultSpells, set in CreateFromRing above).
+                if (Slot.AssignedSpells.Num() > 0)
+                {
+                    RingEntry.RingEntry.AssignedSpells = Slot.AssignedSpells;
+                }
                 Result.RingLoadout.Add(RingEntry);
             }
         }

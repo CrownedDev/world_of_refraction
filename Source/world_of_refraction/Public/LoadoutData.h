@@ -33,6 +33,28 @@ class UAnimMontage;
 class UInfusionDisplayData;
 
 /**
+ * FResonatorRingSlot
+ * One Resonator ring slot — pairs a ring asset with the spell-override list
+ * that applies to that ring in this loadout. The override flows through to
+ * FRingInventoryEntry::AssignedSpells at FCombatLoadout::CreateFromAsset.
+ * Empty AssignedSpells means the ring exposes its DefaultSpells unchanged.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FResonatorRingSlot
+{
+    GENERATED_BODY()
+
+    /** The ring asset assigned to this slot */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
+    URingData* Ring = nullptr;
+
+    /** Spells assigned to this ring's slots in this loadout (overrides the ring's defaults).
+     *  Empty array means use the ring's DefaultSpells. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
+    TArray<USpellData*> AssignedSpells;
+};
+
+/**
  * ULoadoutData
  *
  * Pre-configured combat loadout stored as a Data Asset.
@@ -84,10 +106,11 @@ public:
 
     // ==================== RESONATOR RINGS ====================
 
-    /** Equipped rings (Resonator only - 5 normal, 3 if evolved) */
+    /** Equipped rings (Resonator only - 5 normal, 3 if evolved).
+     *  Each slot pairs a ring with its per-loadout spell overrides. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Resonator Rings",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Resonator", EditConditionHides))
-    TArray<URingData *> EquippedRings;
+    TArray<FResonatorRingSlot> EquippedRings;
 
     /** If true, character starts combat showing primary equipment stance. If false, starts showing secondary (Generic) or unarmed (Caster/Resonator). Visual/stance flag — does not gate combat capability. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity", meta = (DisplayName = "Starts Showing Primary"))
