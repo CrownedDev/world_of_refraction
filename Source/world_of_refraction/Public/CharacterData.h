@@ -18,6 +18,7 @@
 class USpellData;
 class UItemData;
 class ULoadoutData;
+class UInventoryData;
 class UCosmeticsData;
 
 /**
@@ -83,6 +84,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout",
 			  meta = (DisplayName = "Default Loadout"))
 	ULoadoutData *DefaultLoadout = nullptr;
+
+	/** The character's inventory asset. References the items they own and the
+	 *  saved loadout configurations they can switch between. When set, this
+	 *  replaces the legacy DefaultLoadout authoring path. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+	UInventoryData *Inventory = nullptr;
 
 	// ==================== WORLD STAT LEVELS ====================
 
