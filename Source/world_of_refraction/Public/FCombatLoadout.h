@@ -33,6 +33,7 @@ class ULoadoutData;
 class UItemData;
 class UStanceData;
 class UInfusionDisplayData;
+struct FSavedLoadout;
 
 /**
  * FBDElementSpellPool
@@ -77,6 +78,12 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     /** Create FCombatLoadout from LoadoutData asset (for AI enemies) */
     static FCombatLoadout CreateFromAsset(const ULoadoutData *Asset);
+
+    /** Build a runtime combat loadout from a designer-authored FSavedLoadout
+     *  struct (inline on UInventoryData). Mirrors CreateFromAsset 1:1; both
+     *  factories coexist until ULoadoutData is removed in the final migration
+     *  commit. */
+    static FCombatLoadout CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout);
 
     // ==================== PRIMARY EQUIPMENT ====================
     /** Does this character start combat with weapon drawn? */
