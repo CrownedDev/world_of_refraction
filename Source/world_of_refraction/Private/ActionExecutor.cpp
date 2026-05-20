@@ -3016,9 +3016,9 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		if (Loadout && Loadout->IsEvolved())
 		{
 			FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
-			if (ActiveLoadout.PrimaryEvolution)
+			if (ActiveLoadout.PrimaryEvolution.Crystal)
 			{
-				return ActiveLoadout.PrimaryEvolution->GetAssociatedElement();
+				return ActiveLoadout.PrimaryEvolution.Crystal->GetAssociatedElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -3147,7 +3147,7 @@ UItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction 
 			return nullptr;
 		}
 		const FCombatLoadout Loadout = LC->GetActiveLoadout();
-		return Loadout.PrimaryEvolution;
+		return Loadout.PrimaryEvolution.Crystal;
 	}
 
 	default:
@@ -4451,7 +4451,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		const FCombatLoadout Loadout = LC->GetActiveLoadout();
 		if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
 		{
-			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution;
+			PrimaryEvolutionCrystal = Loadout.PrimaryEvolution.Crystal;
 		}
 	}
 
