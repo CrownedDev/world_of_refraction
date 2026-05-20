@@ -350,6 +350,7 @@ before touching any code.
 
 ## Changelog
 
+- **2026-05-20 (`feature/weather-team-hp-and-debug`)** — BP_WeatherController sign-interpretation fix: the BP was routing positive `BlendValue` to Team 1's DA (the *losing* team) instead of Team 0's. The C++ broadcast contract (positive = Team 0 winning, per the signal-refactor entry below) was correct; the inversion lived in `BP_WeatherController`'s `OnWeatherChanged` handler — the branch/select choosing which DA to feed to `SetNewStaticWeather` had its sign mapping crossed. PIE confirmed both signs now route correctly (Team 0 winning → Team 0's DA dominates; Team 1 winning → Team 1's DA dominates). Pure BP fix — no C++ change. Confirms the contract in `WeatherSystem_Restructure_April2026.md:108-117` is what the BP should follow.
 - **2026-05-20 (`feature/weather-team-hp-and-debug`)** — `ComputeTeamHPPercent` correction: dead members contribute 0 HP to numerator; their MaxHP stays in denominator for persistent post-death pressure (PIE showed the previous skip-the-dead-from-both produced a wrong 100% read after a teammate died).
 - **2026-05-20 (`feature/weather-team-hp-signal`)** — Signal refactor: BlendValue
   now reflects whole-team HP, not the leader's individual HP. For each team,
