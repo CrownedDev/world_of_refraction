@@ -105,10 +105,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.bHasBreakthrough = Out.BreakthroughSpells.Num() > 0;
 
         // Get element from evolution crystal
-        if (Loadout.PrimaryEvolution.Crystal)
+        if (Loadout.PrimaryEvolution.Item)
         {
             Out.BreakthroughColor = GetElementColorFn(
-                static_cast<int32>(Loadout.PrimaryEvolution.Crystal->GetAssociatedElement()));
+                static_cast<int32>(Loadout.PrimaryEvolution.Item->GetAssociatedElement()));
         }
     }
 

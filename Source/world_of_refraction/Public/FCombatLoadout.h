@@ -20,7 +20,7 @@
 #include "EWeaponSlotType.h"
 #include "SpellSchool.h"
 #include "ESpellElement.h"
-#include "FCrystalInventoryEntry.h"
+#include "FEvolutionAttachment.h"
 #include "FWeaponLoadoutEntry.h"
 #include "FRingLoadoutEntry.h"
 #include "FItemLoadoutSlot.h"
@@ -96,14 +96,15 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
     FRingLoadoutEntry PrimaryRing;
 
-    /** Primary evolution crystal (when PrimarySlotType == Evolution).
-     *  Wrapped in FCrystalInventoryEntry for per-instance durability tracking
-     *  (CurrentDurability, InstanceID) — symmetric with weapon/ring crystal
-     *  storage. The crystal IS the slot, so no parent wrapper struct is
-     *  needed. Access the crystal asset via .Crystal; LoadoutComponent::
-     *  GetPrimaryEvolution() preserves the BP-facing UEvolutionItemData* signature. */
+    /** Active evolution item slotted in the primary loadout slot
+     *  (when PrimarySlotType == Evolution). FEvolutionAttachment wraps the
+     *  item asset pointer plus current durability for wear tracking. No
+     *  InstanceID — slotted evolution items are destroyed on removal, so
+     *  no instance-retrieval pathway is needed. Access the item asset via
+     *  .Item; LoadoutComponent::GetPrimaryEvolution() preserves the BP-facing
+     *  UEvolutionItemData* signature. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
-    FCrystalInventoryEntry PrimaryEvolution;
+    FEvolutionAttachment PrimaryEvolution;
 
     /** Spells selected from evolution (max 6) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")

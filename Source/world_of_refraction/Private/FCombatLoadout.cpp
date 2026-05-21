@@ -41,7 +41,7 @@ bool FCombatLoadout::ValidateGeneric(UInventoryComponent *Inventory) const
             return false;
         break;
     case EPrimarySlotType::Evolution:
-        if (!PrimaryEvolution.Crystal)
+        if (!PrimaryEvolution.Item)
             return false;
         break;
     }
@@ -70,7 +70,7 @@ bool FCombatLoadout::ValidateCaster(UInventoryComponent *Inventory) const
             return false;
         break;
     case EPrimarySlotType::Evolution:
-        if (!PrimaryEvolution.Crystal)
+        if (!PrimaryEvolution.Item)
             return false;
         break;
     }
@@ -109,7 +109,7 @@ bool FCombatLoadout::ValidateResonator(UInventoryComponent *Inventory) const
             return false;
         break;
     case EPrimarySlotType::Evolution:
-        if (!PrimaryEvolution.Crystal)
+        if (!PrimaryEvolution.Item)
             return false;
         break;
     default:
@@ -336,7 +336,7 @@ void FCombatLoadout::Clear()
     PrimarySlotType = EPrimarySlotType::Weapon;
     PrimaryWeapon.Clear();
     PrimaryRing.Clear();
-    PrimaryEvolution = FCrystalInventoryEntry();
+    PrimaryEvolution = FEvolutionAttachment();
     EvolutionSpells.Empty();
 
     SecondarySlotType = ESecondarySlotType::None;
@@ -440,7 +440,9 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         break;
 
     case EPrimarySlotType::Evolution:
-        Result.PrimaryEvolution = FCrystalInventoryEntry::CreateFromCrystal(SavedLoadout.PrimaryEvolution);
+        Result.PrimaryEvolution.Item = SavedLoadout.PrimaryEvolution;
+        Result.PrimaryEvolution.CurrentDurability =
+            SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->MaxDurability : 0;
         Result.EvolutionSpells = SavedLoadout.EvolutionSpells;
         break;
     }

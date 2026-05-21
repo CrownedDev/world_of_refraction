@@ -511,10 +511,10 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     }
 
     // Validate primary evolution
-    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Crystal)
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
         // Evolution validation - check if character owns this evolution crystal
-        if (!Inventory->HasItem(Loadout.PrimaryEvolution.Crystal))
+        if (!Inventory->HasItem(Loadout.PrimaryEvolution.Item))
         {
             Errors.Add(TEXT("Primary evolution crystal not in inventory"));
         }
@@ -1389,7 +1389,7 @@ UEvolutionItemData *ULoadoutComponent::GetPrimaryEvolution() const
         return nullptr;
     }
 
-    return Loadout.PrimaryEvolution.Crystal;
+    return Loadout.PrimaryEvolution.Item;
 }
 
 TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const

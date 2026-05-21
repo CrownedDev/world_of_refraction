@@ -245,10 +245,10 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
         break;
 
     case EPrimarySlotType::Evolution:
-        if (Active.PrimaryEvolution.Crystal)
+        if (Active.PrimaryEvolution.Item)
         {
             UE_LOG(LogTemp, Display, TEXT("Primary Evolution: %s"),
-                   *Active.PrimaryEvolution.Crystal->ItemName);
+                   *Active.PrimaryEvolution.Item->ItemName);
             UE_LOG(LogTemp, Display, TEXT("  Evolution Spells: %d"),
                    Active.EvolutionSpells.Num());
         }
