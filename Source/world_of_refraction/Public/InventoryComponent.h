@@ -69,10 +69,9 @@ public:
     FItemCrystalInventory Items;
 
     // ============================================================
-    // SAVED LOADOUTS — moved from ULoadoutComponent
-    // TODO (commit 3b): these become the source of truth when
-    // ULoadoutComponent's facade methods redirect their reads here.
-    // ULoadoutComponent's matching fields are deleted in commit 3c.
+    // SAVED LOADOUTS
+    // ULoadoutComponent's public facade methods read these via
+    // GetInventoryComponent() — see LoadoutComponent for the API.
     // ============================================================
 
     /** Configured maximum number of saved loadouts. */

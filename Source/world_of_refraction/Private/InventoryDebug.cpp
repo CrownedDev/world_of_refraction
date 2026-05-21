@@ -178,10 +178,15 @@ void UInventoryDebug::LogAllLoadouts(ULoadoutComponent *Loadout)
         return;
     }
 
+    UInventoryComponent *Inv = Loadout->GetOwner()
+        ? Loadout->GetOwner()->FindComponentByClass<UInventoryComponent>()
+        : nullptr;
+    const int32 MaxLoadouts = Inv ? Inv->MaxSavedLoadouts : 0;
+
     LogSeparator(TEXT("ALL LOADOUTS"));
     UE_LOG(LogTemp, Display, TEXT("Saved: %d/%d, Active: %d"),
            Loadout->GetLoadoutCount(),
-           Loadout->MaxSavedLoadouts,
+           MaxLoadouts,
            Loadout->GetActiveLoadoutIndex());
 
     TArray<FString> Names = Loadout->GetLoadoutNames();

@@ -82,22 +82,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Config")
     ECharacterClass CharacterClass = ECharacterClass::Generic;
 
-    /** Maximum saved loadouts per character */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout|Config")
-    int32 MaxSavedLoadouts = 5;
-
-    // ==================== SAVED LOADOUTS ====================
-
-    /** Saved loadout configurations. UPROPERTY for GC tracking; not exposed to
-     *  editor or BP — populated programmatically via SaveCurrentLoadout /
-     *  LoadoutComponent init paths. */
-    UPROPERTY()
-    TArray<FCombatLoadout> SavedLoadouts;
-
-    /** Index of currently active loadout */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Loadout|Saved")
-    int32 ActiveLoadoutIndex = 0;
-
     // ==================== ACTIVE LOADOUT ====================
 
     /** Get the currently active loadout (C++ only - use specific getters for Blueprint) */
@@ -112,7 +96,7 @@ public:
 
     /** Get active loadout index */
     UFUNCTION(BlueprintPure, Category = "Loadout")
-    int32 GetActiveLoadoutIndex() const { return ActiveLoadoutIndex; }
+    int32 GetActiveLoadoutIndex() const;
 
     /** Get active loadout name */
     UFUNCTION(BlueprintPure, Category = "Loadout")
@@ -150,7 +134,7 @@ public:
 
     /** Get loadout count */
     UFUNCTION(BlueprintPure, Category = "Loadout|Management")
-    int32 GetLoadoutCount() const { return SavedLoadouts.Num(); }
+    int32 GetLoadoutCount() const;
 
     /** Get loadout names for UI */
     UFUNCTION(BlueprintPure, Category = "Loadout|Management")
@@ -426,7 +410,14 @@ public:
      *
      *  Mutable: callers mutate the entry's per-instance state (durability,
      *  InstanceID, etc.). Single resolution point — used by UCrystalManager
-     *  for wear/repair/break writes. */
+     *  for wear/repair/break writes.
+     *
+     *  LIFETIME ASSUMPTION: The returned pointer is valid only within the
+     *  current scope. Do NOT retain across array-mutating operations (Add,
+     *  Remove, Empty) on SavedLoadouts or any inner RingLoadout. Today's
+     *  callers fetch-and-mutate within a single function scope; new callers
+     *  must follow the same pattern. Commit 3b.5 will refactor this method
+     *  to return by value with a paired setter to eliminate the hazard. */
     FCrystalInventoryEntry *FindCrystalEntryByHolder(UObject *Holder);
 
     // ==================== POST-BATTLE ====================
@@ -485,6 +476,11 @@ public:
 private:
     /** Helper to get CharacterData from sibling component */
     UCharacterData *GetOwnerCharacterData() const;
+
+    /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
+     *  cache) — loading screens hide the FindComponentByClass cost. Returns
+     *  nullptr if the owner has no inventory component; callers must guard. */
+    UInventoryComponent *GetInventoryComponent() const;
 
     /** Build the Broken Darkness element-spell pools on a loadout — one empty
      *  pool per absorbable non-Darkness element (7 total). Idempotent: existing

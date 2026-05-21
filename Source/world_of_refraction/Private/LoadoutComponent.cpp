@@ -35,13 +35,19 @@ void ULoadoutComponent::BeginPlay()
 
 void ULoadoutComponent::EnsureDefaultLoadout()
 {
-    if (SavedLoadouts.Num() == 0)
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::EnsureDefaultLoadout] No InventoryComponent found on owner"));
+        return;
+    }
+    if (Inv->SavedLoadouts.Num() == 0)
     {
         FCombatLoadout DefaultLoadout;
         DefaultLoadout.LoadoutName = TEXT("Default");
         DefaultLoadout.InitializeForClass(CharacterClass);
-        SavedLoadouts.Add(DefaultLoadout);
-        ActiveLoadoutIndex = 0;
+        Inv->SavedLoadouts.Add(DefaultLoadout);
+        Inv->ActiveLoadoutIndex = 0;
     }
 }
 
@@ -49,18 +55,30 @@ void ULoadoutComponent::EnsureDefaultLoadout()
 
 FCombatLoadout ULoadoutComponent::GetActiveLoadout() const
 {
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        return SavedLoadouts[ActiveLoadoutIndex];
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveLoadout] No InventoryComponent found on owner"));
+        return FCombatLoadout();
+    }
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
     }
     return FCombatLoadout();
 }
 
 bool ULoadoutComponent::GetActiveLoadoutRef(FCombatLoadout &OutLoadout) const
 {
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        OutLoadout = SavedLoadouts[ActiveLoadoutIndex];
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveLoadoutRef] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        OutLoadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
         return true;
     }
     return false;
@@ -68,22 +86,40 @@ bool ULoadoutComponent::GetActiveLoadoutRef(FCombatLoadout &OutLoadout) const
 
 bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
 {
-    if (!SavedLoadouts.IsValidIndex(Index))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::SetActiveLoadoutIndex] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
     {
         return false;
     }
 
-    ActiveLoadoutIndex = Index;
-    bIsReadyForBattle = false; // Need to re-validate
-    OnLoadoutChanged.Broadcast(Index);
+    Inv->ActiveLoadoutIndex = Index;
+    bIsReadyForBattle = false; // local field, stays
+    OnLoadoutChanged.Broadcast(Index); // local delegate, broadcast preserved
     return true;
+}
+
+int32 ULoadoutComponent::GetActiveLoadoutIndex() const
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    return Inv ? Inv->ActiveLoadoutIndex : 0;
 }
 
 FString ULoadoutComponent::GetActiveLoadoutName() const
 {
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        return SavedLoadouts[ActiveLoadoutIndex].LoadoutName;
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveLoadoutName] No InventoryComponent found on owner"));
+        return TEXT("Invalid");
+    }
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].LoadoutName;
     }
     return TEXT("Invalid");
 }
@@ -92,7 +128,13 @@ FString ULoadoutComponent::GetActiveLoadoutName() const
 
 int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
 {
-    if (SavedLoadouts.Num() >= MaxSavedLoadouts)
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::CreateNewLoadout] No InventoryComponent found on owner"));
+        return -1;
+    }
+    if (Inv->SavedLoadouts.Num() >= Inv->MaxSavedLoadouts)
     {
         return -1;
     }
@@ -101,7 +143,7 @@ int32 ULoadoutComponent::CreateNewLoadout(const FString &LoadoutName)
     NewLoadout.LoadoutName = LoadoutName;
     NewLoadout.InitializeForClass(CharacterClass);
 
-    int32 NewIndex = SavedLoadouts.Add(NewLoadout);
+    int32 NewIndex = Inv->SavedLoadouts.Add(NewLoadout);
     return NewIndex;
 }
 
@@ -119,16 +161,23 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         return -1;
     }
 
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::CreateAndConfigureLoadout] No InventoryComponent found on owner"));
+        return -1;
+    }
+
     // Create new empty loadout
     int32 NewIndex = CreateNewLoadout(LoadoutName);
     if (NewIndex < 0)
     {
         UE_LOG(LogTemp, Error, TEXT("[LoadoutComponent] Failed to create loadout - max loadouts reached (%d/%d)"),
-               SavedLoadouts.Num(), MaxSavedLoadouts);
+               Inv->SavedLoadouts.Num(), Inv->MaxSavedLoadouts);
         return -1;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[NewIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[NewIndex];
 
     UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Created loadout '%s' at index %d"), *LoadoutName, NewIndex);
 
@@ -240,27 +289,33 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
 
 bool ULoadoutComponent::DeleteLoadout(int32 Index)
 {
-    if (!SavedLoadouts.IsValidIndex(Index))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::DeleteLoadout] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
     {
         return false;
     }
 
     // Don't delete last loadout
-    if (SavedLoadouts.Num() <= 1)
+    if (Inv->SavedLoadouts.Num() <= 1)
     {
         return false;
     }
 
-    SavedLoadouts.RemoveAt(Index);
+    Inv->SavedLoadouts.RemoveAt(Index);
 
     // Adjust active index if needed
-    if (ActiveLoadoutIndex >= SavedLoadouts.Num())
+    if (Inv->ActiveLoadoutIndex >= Inv->SavedLoadouts.Num())
     {
-        ActiveLoadoutIndex = SavedLoadouts.Num() - 1;
+        Inv->ActiveLoadoutIndex = Inv->SavedLoadouts.Num() - 1;
     }
-    else if (ActiveLoadoutIndex > Index)
+    else if (Inv->ActiveLoadoutIndex > Index)
     {
-        ActiveLoadoutIndex--;
+        Inv->ActiveLoadoutIndex--;
     }
 
     return true;
@@ -268,38 +323,62 @@ bool ULoadoutComponent::DeleteLoadout(int32 Index)
 
 int32 ULoadoutComponent::DuplicateLoadout(int32 SourceIndex, const FString &NewName)
 {
-    if (!SavedLoadouts.IsValidIndex(SourceIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::DuplicateLoadout] No InventoryComponent found on owner"));
+        return -1;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(SourceIndex))
     {
         return -1;
     }
 
-    if (SavedLoadouts.Num() >= MaxSavedLoadouts)
+    if (Inv->SavedLoadouts.Num() >= Inv->MaxSavedLoadouts)
     {
         return -1;
     }
 
-    FCombatLoadout NewLoadout = SavedLoadouts[SourceIndex];
+    FCombatLoadout NewLoadout = Inv->SavedLoadouts[SourceIndex];
     NewLoadout.LoadoutName = NewName;
 
-    int32 NewIndex = SavedLoadouts.Add(NewLoadout);
+    int32 NewIndex = Inv->SavedLoadouts.Add(NewLoadout);
     return NewIndex;
 }
 
 bool ULoadoutComponent::RenameLoadout(int32 Index, const FString &NewName)
 {
-    if (!SavedLoadouts.IsValidIndex(Index))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::RenameLoadout] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
     {
         return false;
     }
 
-    SavedLoadouts[Index].LoadoutName = NewName;
+    Inv->SavedLoadouts[Index].LoadoutName = NewName;
     return true;
+}
+
+int32 ULoadoutComponent::GetLoadoutCount() const
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    return Inv ? Inv->SavedLoadouts.Num() : 0;
 }
 
 TArray<FString> ULoadoutComponent::GetLoadoutNames() const
 {
     TArray<FString> Names;
-    for (const FCombatLoadout &Loadout : SavedLoadouts)
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetLoadoutNames] No InventoryComponent found on owner"));
+        return Names;
+    }
+    for (const FCombatLoadout &Loadout : Inv->SavedLoadouts)
     {
         Names.Add(Loadout.LoadoutName);
     }
@@ -310,12 +389,24 @@ TArray<FString> ULoadoutComponent::GetLoadoutNames() const
 
 bool ULoadoutComponent::ValidateActiveLoadout(UInventoryComponent *Inventory)
 {
-    return ValidateLoadout(ActiveLoadoutIndex, Inventory);
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ValidateActiveLoadout] No InventoryComponent found on owner"));
+        return false;
+    }
+    return ValidateLoadout(Inv->ActiveLoadoutIndex, Inventory);
 }
 
 bool ULoadoutComponent::ValidateLoadout(int32 Index, UInventoryComponent *Inventory)
 {
-    if (!SavedLoadouts.IsValidIndex(Index))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ValidateLoadout] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
     {
         return false;
     }
@@ -343,7 +434,15 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 {
     TArray<FString> Errors;
 
-    if (!SavedLoadouts.IsValidIndex(Index))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetValidationErrors] No InventoryComponent found on owner"));
+        Errors.Add(TEXT("No inventory component on owner"));
+        return Errors;
+    }
+
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
     {
         Errors.Add(TEXT("Invalid loadout index"));
         return Errors;
@@ -355,7 +454,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         return Errors;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[Index];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Index];
 
     // Validate primary weapon
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
@@ -556,8 +655,15 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 
 bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
 {
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::PrepareForBattle] No InventoryComponent found on owner"));
+        return false;
+    }
+
     // Not initialized yet - can't prepare
-    if (SavedLoadouts.Num() == 0)
+    if (Inv->SavedLoadouts.Num() == 0)
     {
         UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] PrepareForBattle called before initialization"));
         return false;
@@ -568,9 +674,9 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
     // with whatever's valid; validation surfaces warnings, not failures.
     ValidateActiveLoadout(Inventory);
 
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
-        for (FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
+        for (FItemLoadoutSlot &Slot : Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].ItemSlots)
         {
             Slot.ResetForBattle();
         }
@@ -589,12 +695,18 @@ bool ULoadoutComponent::UseItem(int32 SlotIndex)
         return false;
     }
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::UseItem] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return false;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (!Loadout.ItemSlots.IsValidIndex(SlotIndex))
     {
@@ -614,12 +726,18 @@ bool ULoadoutComponent::UseItem(int32 SlotIndex)
 
 int32 ULoadoutComponent::GetItemRemainingUses(int32 SlotIndex) const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetItemRemainingUses] No InventoryComponent found on owner"));
+        return 0;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return 0;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (!Loadout.ItemSlots.IsValidIndex(SlotIndex))
     {
@@ -633,12 +751,18 @@ TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
 {
     TArray<UWeaponAttackData *> Result;
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetAllWeaponAttacks] No InventoryComponent found on owner"));
+        return Result;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return Result;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Primary weapon attack — OverrideAttack takes precedence over the asset attack.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
@@ -673,23 +797,35 @@ TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
 
 TArray<UAbilityData *> ULoadoutComponent::GetAvailableAbilities() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetAvailableAbilities] No InventoryComponent found on owner"));
+        return TArray<UAbilityData *>();
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return TArray<UAbilityData *>();
     }
 
-    return SavedLoadouts[ActiveLoadoutIndex].GetAllAbilities();
+    return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].GetAllAbilities();
 }
 
 TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[GetAvailableSpells] Invalid ActiveLoadoutIndex: %d"), ActiveLoadoutIndex);
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetAvailableSpells] No InventoryComponent found on owner"));
+        return TArray<USpellData *>();
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[GetAvailableSpells] Invalid ActiveLoadoutIndex: %d"), Inv->ActiveLoadoutIndex);
         return TArray<USpellData *>();
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
     TArray<USpellData *> Result = Loadout.GetAllSpells();
 
     // Broken Darkness: GetAllSpells yields only the Darkness pool (InnateSpells).
@@ -719,12 +855,18 @@ TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimarySlotSpells] No InventoryComponent found on owner"));
+        return Result;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return Result;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Ring primary
     if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
@@ -755,12 +897,18 @@ TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
 {
     TArray<USpellData *> Result;
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondarySlotSpells] No InventoryComponent found on owner"));
+        return Result;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return Result;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Only Generic has secondary
     if (CharacterClass != ECharacterClass::Generic)
@@ -779,12 +927,18 @@ TArray<USpellData *> ULoadoutComponent::GetSecondarySlotSpells() const
 
 TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveSlotSpells] No InventoryComponent found on owner"));
+        return TArray<USpellData *>();
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return TArray<USpellData *>();
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Resonator uses active ring
     if (CharacterClass == ECharacterClass::Resonator)
@@ -807,12 +961,18 @@ TArray<USpellData *> ULoadoutComponent::GetActiveSlotSpells() const
 
 TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetUsableItems] No InventoryComponent found on owner"));
+        return TArray<FItemLoadoutSlot>();
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return TArray<FItemLoadoutSlot>();
     }
 
-    return SavedLoadouts[ActiveLoadoutIndex].GetUsableItemSlots();
+    return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].GetUsableItemSlots();
 }
 
 int32 ULoadoutComponent::GetUsableItemCount() const
@@ -824,12 +984,18 @@ int32 ULoadoutComponent::GetUsableItemCount() const
 
 void ULoadoutComponent::ConsumeUsedItems(UInventoryComponent *Inventory)
 {
-    if (!Inventory || !SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ConsumeUsedItems] No InventoryComponent found on owner"));
+        return;
+    }
+    if (!Inventory || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
     {
@@ -845,12 +1011,18 @@ TArray<UItemData *> ULoadoutComponent::GetItemsToConsume() const
 {
     TArray<UItemData *> Result;
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetItemsToConsume] No InventoryComponent found on owner"));
+        return Result;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return Result;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
     {
@@ -868,10 +1040,17 @@ void ULoadoutComponent::ResetBattleState()
 {
     bIsReadyForBattle = false;
 
-    // Reset item slots
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        for (FItemLoadoutSlot &Slot : SavedLoadouts[ActiveLoadoutIndex].ItemSlots)
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ResetBattleState] No InventoryComponent found on owner"));
+        return;
+    }
+
+    // Reset item slots
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        for (FItemLoadoutSlot &Slot : Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].ItemSlots)
         {
             Slot.ResetForBattle();
         }
@@ -882,12 +1061,18 @@ void ULoadoutComponent::ResetBattleState()
 
 bool ULoadoutComponent::AutoPopulateLoadout(int32 LoadoutIndex, UInventoryComponent *Inventory)
 {
-    if (!SavedLoadouts.IsValidIndex(LoadoutIndex) || !Inventory)
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::AutoPopulateLoadout] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(LoadoutIndex) || !Inventory)
     {
         return false;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[LoadoutIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[LoadoutIndex];
     Loadout.Clear();
     Loadout.InitializeForClass(CharacterClass);
 
@@ -906,13 +1091,19 @@ bool ULoadoutComponent::AutoPopulateLoadout(int32 LoadoutIndex, UInventoryCompon
 
 void ULoadoutComponent::ClearLoadout(int32 LoadoutIndex)
 {
-    if (!SavedLoadouts.IsValidIndex(LoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ClearLoadout] No InventoryComponent found on owner"));
+        return;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(LoadoutIndex))
     {
         return;
     }
 
-    SavedLoadouts[LoadoutIndex].Clear();
-    SavedLoadouts[LoadoutIndex].InitializeForClass(CharacterClass);
+    Inv->SavedLoadouts[LoadoutIndex].Clear();
+    Inv->SavedLoadouts[LoadoutIndex].InitializeForClass(CharacterClass);
 }
 
 void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory)
@@ -942,12 +1133,18 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     }
 
     // No DefaultLoadout - create empty loadout for manual setup
-    SavedLoadouts.Empty();
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::InitializeFromCharacterData] No InventoryComponent found on owner — cannot seed empty loadout"));
+        return;
+    }
+    Inv->SavedLoadouts.Empty();
     FCombatLoadout EmptyLoadout;
     EmptyLoadout.LoadoutName = TEXT("Default");
     EmptyLoadout.InitializeForClass(CharacterClass);
-    SavedLoadouts.Add(EmptyLoadout);
-    ActiveLoadoutIndex = 0;
+    Inv->SavedLoadouts.Add(EmptyLoadout);
+    Inv->ActiveLoadoutIndex = 0;
     bIsReadyForBattle = false;
 
     UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no DefaultLoadout - created empty loadout. Assign equipment via UI or set DefaultLoadout in CharacterData."),
@@ -976,16 +1173,23 @@ void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
         }
     }
 
-    // Set class from asset
+    // Set class from asset (local field, stays on ULoadoutComponent)
     CharacterClass = LoadoutAsset->RequiredClass;
 
-    // Clear existing loadouts
-    SavedLoadouts.Empty();
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::InitializeFromAsset] No InventoryComponent found on owner — cannot seed loadout"));
+        return;
+    }
+
+    // Clear existing loadouts (on the inventory component)
+    Inv->SavedLoadouts.Empty();
 
     // Create loadout from asset using factory function
     FCombatLoadout NewLoadout = FCombatLoadout::CreateFromAsset(LoadoutAsset);
-    SavedLoadouts.Add(NewLoadout);
-    ActiveLoadoutIndex = 0;
+    Inv->SavedLoadouts.Add(NewLoadout);
+    Inv->ActiveLoadoutIndex = 0;
 
     UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Initialized from asset '%s' (Class: %s)"),
            *LoadoutAsset->LoadoutName,
@@ -1033,9 +1237,17 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
         return;
     }
 
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        InitializeBDPools(SavedLoadouts[ActiveLoadoutIndex]);
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ApplyBDPoolsIfBroken] No InventoryComponent found on owner"));
+        return;
+    }
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        // Pass by reference into the live inventory array so InitializeBDPools'
+        // mutations land on the active loadout, not a copy.
+        InitializeBDPools(Inv->SavedLoadouts[Inv->ActiveLoadoutIndex]);
     }
 }
 
@@ -1043,12 +1255,18 @@ void ULoadoutComponent::ApplyBDPoolsIfBroken()
 
 UWeaponData *ULoadoutComponent::GetActiveWeapon() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveWeapon] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Evolution primary = no weapon access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
@@ -1098,12 +1316,18 @@ UWeaponData *ULoadoutComponent::GetActiveWeapon() const
 
 UWeaponData *ULoadoutComponent::GetPrimaryWeapon() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryWeapon] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
     {
@@ -1115,12 +1339,18 @@ UWeaponData *ULoadoutComponent::GetPrimaryWeapon() const
 
 UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondaryWeapon] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (CharacterClass != ECharacterClass::Generic)
     {
@@ -1137,12 +1367,18 @@ UWeaponData *ULoadoutComponent::GetSecondaryWeapon() const
 
 URingData *ULoadoutComponent::GetPrimaryRing() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryRing] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
     {
@@ -1154,12 +1390,18 @@ URingData *ULoadoutComponent::GetPrimaryRing() const
 
 URingData *ULoadoutComponent::GetActiveRing() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveRing] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Only Resonators have ring loadout
     if (CharacterClass != ECharacterClass::Resonator)
@@ -1178,12 +1420,18 @@ URingData *ULoadoutComponent::GetActiveRing() const
 
 UItemData *ULoadoutComponent::GetPrimaryEvolution() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryEvolution] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
     {
@@ -1276,39 +1524,63 @@ bool ULoadoutComponent::HasEquippedSourceForElement(AActor *Actor, ESpellElement
 
 EPrimarySlotType ULoadoutComponent::GetPrimarySlotType() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimarySlotType] No InventoryComponent found on owner"));
+        return EPrimarySlotType::Weapon;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return EPrimarySlotType::Weapon;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].PrimarySlotType;
+    return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].PrimarySlotType;
 }
 
 ESecondarySlotType ULoadoutComponent::GetSecondarySlotType() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondarySlotType] No InventoryComponent found on owner"));
+        return ESecondarySlotType::None;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return ESecondarySlotType::None;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].SecondarySlotType;
+    return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].SecondarySlotType;
 }
 
 bool ULoadoutComponent::IsShowingPrimary() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::IsShowingPrimary] No InventoryComponent found on owner"));
+        return true;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return true;
     }
-    return SavedLoadouts[ActiveLoadoutIndex].bShowPrimary;
+    return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].bShowPrimary;
 }
 
 void ULoadoutComponent::ToggleEquipment()
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ToggleEquipment] No InventoryComponent found on owner"));
+        return;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
     Loadout.bShowPrimary = !Loadout.bShowPrimary;
 
     UE_LOG(LogTemp, Log, TEXT("[LoadoutComponent] Toggled equipment: bShowPrimary = %s"),
@@ -1331,12 +1603,18 @@ void ULoadoutComponent::ToggleEquipment()
 
 bool ULoadoutComponent::HasWeaponAccess() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::HasWeaponAccess] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return false;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Evolution primary = no weapon access
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
@@ -1374,12 +1652,18 @@ bool ULoadoutComponent::IsArmed() const
 }
 bool ULoadoutComponent::IsEvolved() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::IsEvolved] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return false;
     }
 
-    return SavedLoadouts[ActiveLoadoutIndex].PrimarySlotType == EPrimarySlotType::Evolution;
+    return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].PrimarySlotType == EPrimarySlotType::Evolution;
 }
 // ==================== EQUIPMENT STATE HELPERS ====================
 
@@ -1390,12 +1674,18 @@ bool ULoadoutComponent::HasSecondaryEquipment() const
         return false;
     }
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::HasSecondaryEquipment] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return false;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Evolved characters lose secondary
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
@@ -1418,12 +1708,18 @@ bool ULoadoutComponent::HasRingInSecondary() const
         return false;
     }
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::HasRingInSecondary] No InventoryComponent found on owner"));
+        return false;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return false;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Evolved characters lose secondary
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
@@ -1437,12 +1733,18 @@ bool ULoadoutComponent::HasRingInSecondary() const
 
 UStanceData *ULoadoutComponent::GetCurrentStance() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetCurrentStance] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Stance is a visual concern, decoupled from combat capability:
     // bShowPrimary picks which slot is currently DISPLAYED, regardless of
@@ -1548,12 +1850,18 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
 {
     TArray<USpellData *> Result;
 
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetRingResonateSpells] No InventoryComponent found on owner"));
+        return Result;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return Result;
     }
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Caster with ring primary
     if (CharacterClass == ECharacterClass::Caster && Loadout.PrimarySlotType == EPrimarySlotType::Ring)
@@ -1582,10 +1890,16 @@ TArray<USpellData *> ULoadoutComponent::GetRingResonateSpells() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveWeaponLoadout] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         return nullptr;
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Evolution primary = no weapon
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution)
@@ -1629,10 +1943,16 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryWeaponLoadout] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         return nullptr;
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon)
         return nullptr;
@@ -1642,10 +1962,16 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const
 
 const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetSecondaryWeaponLoadout] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         return nullptr;
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (CharacterClass != ECharacterClass::Generic)
         return nullptr;
@@ -1658,10 +1984,16 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetSecondaryWeaponLoadout() const
 
 const FRingLoadoutEntry *ULoadoutComponent::GetPrimaryRingLoadout() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimaryRingLoadout] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         return nullptr;
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
         return nullptr;
@@ -1671,10 +2003,16 @@ const FRingLoadoutEntry *ULoadoutComponent::GetPrimaryRingLoadout() const
 
 const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetActiveRingLoadout] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         return nullptr;
 
-    const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (CharacterClass != ECharacterClass::Resonator)
         return nullptr;
@@ -1688,12 +2026,21 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
 
 FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolder(UObject *Holder)
 {
-    if (!Holder || !SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    // LIFETIME ASSUMPTION: returned pointer is valid only within the current
+    // scope. Do NOT retain across array-mutating operations on the inventory's
+    // SavedLoadouts or any inner RingLoadout. See header doc for details.
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::FindCrystalEntryByHolder] No InventoryComponent found on owner"));
+        return nullptr;
+    }
+    if (!Holder || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return nullptr;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     // Weapon holder — match by Weapon pointer across primary/secondary slots,
     // regardless of PrimarySlotType. A holder lookup is by identity, not slot.
@@ -1733,12 +2080,18 @@ FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolder(UObject *Hol
 
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
-    if (!SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::SetActiveRingIndex] No InventoryComponent found on owner"));
+        return;
+    }
+    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
         return;
     }
 
-    FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
 
     if (!Loadout.RingLoadout.IsValidIndex(NewIndex))
     {
@@ -1768,13 +2121,21 @@ void ULoadoutComponent::DebugLogLoadout()
 {
     UE_LOG(LogTemp, Log, TEXT("=== LoadoutComponent Debug ==="));
     UE_LOG(LogTemp, Log, TEXT("CharacterClass: %s"), *UEnum::GetValueAsString(CharacterClass));
-    UE_LOG(LogTemp, Log, TEXT("ActiveLoadoutIndex: %d"), ActiveLoadoutIndex);
-    UE_LOG(LogTemp, Log, TEXT("SavedLoadouts: %d"), SavedLoadouts.Num());
     UE_LOG(LogTemp, Log, TEXT("bIsReadyForBattle: %s"), bIsReadyForBattle ? TEXT("true") : TEXT("false"));
 
-    if (SavedLoadouts.IsValidIndex(ActiveLoadoutIndex))
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
     {
-        const FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::DebugLogLoadout] No InventoryComponent found on owner"));
+        UE_LOG(LogTemp, Log, TEXT("=============================="));
+        return;
+    }
+    UE_LOG(LogTemp, Log, TEXT("ActiveLoadoutIndex: %d"), Inv->ActiveLoadoutIndex);
+    UE_LOG(LogTemp, Log, TEXT("SavedLoadouts: %d"), Inv->SavedLoadouts.Num());
+
+    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
         UE_LOG(LogTemp, Log, TEXT("Active Loadout: %s"), *Loadout.LoadoutName);
         UE_LOG(LogTemp, Log, TEXT("  PrimarySlotType: %s"), *UEnum::GetValueAsString(Loadout.PrimarySlotType));
         UE_LOG(LogTemp, Log, TEXT("  bShowPrimary: %s"), Loadout.bShowPrimary ? TEXT("true") : TEXT("false"));
@@ -1902,6 +2263,15 @@ UCharacterData *ULoadoutComponent::GetOwnerCharacterData() const
         return CharComp->CharacterData;
     }
     return nullptr;
+}
+
+UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
+{
+    if (!GetOwner())
+    {
+        return nullptr;
+    }
+    return GetOwner()->FindComponentByClass<UInventoryComponent>();
 }
 
 // ==================== EQUIPMENT STAT QUERIES ====================
