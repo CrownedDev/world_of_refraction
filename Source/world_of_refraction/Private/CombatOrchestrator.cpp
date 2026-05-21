@@ -21,6 +21,8 @@
 #include "EvolutionItemData.h"
 #include "FSkillEffect.h"
 #include "FCrystalInventoryEntry.h"
+#include "CrystalIdentity.h"
+#include "EAttachedItemKind.h"
 #include "DurabilityConstants.h"
 #include "ItemEffectType.h"
 #include "CombatCameraManager.h"
@@ -1096,8 +1098,7 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
-				UEvolutionItemData *Crystal = Slot.Crystal;
-				if (!Crystal)
+				if (Slot.Kind == EAttachedItemKind::None)
 				{
 					continue;
 				}
@@ -1113,7 +1114,22 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 					continue;
 				}
 
-				const FString CrystalName = Crystal->GetFullItemName();
+				// Branch-aware display name. Refined crystals have no asset
+				// pointer; resolve via CrystalIdentity.
+				FString CrystalName;
+				switch (Slot.Kind)
+				{
+				case EAttachedItemKind::Refined:
+					CrystalName = CrystalIdentity::GetDisplayName(Slot.RefinedId);
+					break;
+				case EAttachedItemKind::Evolution:
+					CrystalName = Slot.Item ? Slot.Item->GetFullItemName() : TEXT("(null)");
+					break;
+				default:
+					CrystalName = TEXT("(none)");
+					break;
+				}
+
 				FString HolderDesc;
 				bool bCleared = false;
 
@@ -1176,20 +1192,20 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
-				UEvolutionItemData *Crystal = Slot.Crystal;
-				if (!Crystal)
-				{
-					continue;
-				}
-				if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking)
+				// Only refined crystals are eligible for between-combat repair.
+				// Translation of the old (bIsRefined && !bImmuneToBreaking) gate:
+				// bIsRefined and bIsEvolutionCrystal are mutually exclusive in the
+				// existing data, so Kind == Refined replaces both checks. Refined
+				// crystals are never immune to breaking (locked decision).
+				if (Slot.Kind != EAttachedItemKind::Refined)
 				{
 					continue;
 				}
 
 				// Read first to gate on IsBroken and capture the pre-repair value.
 				// On no match GetCrystalEntryByHolder returns an empty entry; IsBroken
-				// is false for that case, but the bIsRefined check above already
-				// filtered out non-matching holders' crystals via Slot.Crystal.
+				// is false for that case, but the Kind == Refined gate above already
+				// filtered out the unmatched-holder rows.
 				const FCrystalInventoryEntry Before = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
 				if (!Before.Crystal || Before.IsBroken())
 				{
@@ -1201,10 +1217,14 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 
 				if (NewDur > BeforeDur)
 				{
+					// Use the asset-side crystal pointer from the entry for the
+					// MaxDurability log (still asset-backed in the 7a window;
+					// 7b will route this through FRuntimeAttachedItem helpers).
+					const int32 MaxDur = Before.Crystal ? Before.Crystal->MaxDurability : 0;
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
-						   *Crystal->GetFullItemName(), *Actor->GetName(),
-						   BeforeDur, NewDur, Crystal->MaxDurability);
+						   *CrystalIdentity::GetDisplayName(Slot.RefinedId), *Actor->GetName(),
+						   BeforeDur, NewDur, MaxDur);
 					CrystalsRepaired++;
 				}
 			}

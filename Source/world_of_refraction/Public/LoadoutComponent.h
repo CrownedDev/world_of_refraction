@@ -19,6 +19,8 @@
 #include "FEquipmentStatBonus.h"
 #include "FSkillEffect.h"
 #include "CharacterDataComponent.h"
+#include "EAttachedItemKind.h"
+#include "FCrystalId.h"
 #include "LoadoutComponent.generated.h"
 
 class UInventoryComponent;
@@ -41,17 +43,33 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadout
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutItemUsed, int32, SlotIndex, UEvolutionItemData *, Item);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FString &, Reason);
 
-/** A single crystal-bearing slot — the crystal and its holder (the
- *  UWeaponData or URingData that the crystal is slotted on).
+/** A single crystal-bearing slot — discriminated by Kind. Refined slots
+ *  identify by FCrystalId (refined crystals have no asset pointer in the
+ *  new model); Evolution slots carry the item asset pointer.
  *  Holder is UObject* because UWeaponData and URingData don't share
- *  a base beyond UPrimaryDataAsset; consumers cast as needed. */
+ *  a base beyond UPrimaryDataAsset; consumers cast as needed. The Evolution
+ *  primary slot uses the item itself as its holder.
+ *
+ *  Populated by ULoadoutComponent::GetEquippedCrystals — in the 7a window
+ *  the Kind is derived from the asset-side bIsEvolutionCrystal flag; once
+ *  7b lands and AttachedCrystal becomes FRuntimeAttachedItem the
+ *  populator reads Kind from the discriminator directly. Consumers
+ *  branch on Kind in both windows; no consumer changes between 7a and 7b. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 {
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
-    UEvolutionItemData *Crystal = nullptr;
+    EAttachedItemKind Kind = EAttachedItemKind::None;
+
+    /** Meaningful when Kind == Refined. */
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    FCrystalId RefinedId;
+
+    /** Meaningful when Kind == Evolution. */
+    UPROPERTY(BlueprintReadOnly, Category = "Crystal")
+    UEvolutionItemData *Item = nullptr;
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
     UObject *Holder = nullptr;

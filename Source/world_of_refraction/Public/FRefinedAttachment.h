@@ -11,6 +11,7 @@
 
 #include "CoreMinimal.h"
 #include "FCrystalId.h"
+#include "CrystalIdentity.h"
 #include "FRefinedAttachment.generated.h"
 
 USTRUCT(BlueprintType)
@@ -28,4 +29,45 @@ struct WORLD_OF_REFRACTION_API FRefinedAttachment
 
     FRefinedAttachment(const FCrystalId &InId, int32 InDurability)
         : Id(InId), CurrentDurability(InDurability) {}
+
+    /** Refined crystals are never immune to breaking. Caller must gate this
+     *  with !IsEmpty()-equivalent — a default-constructed FRefinedAttachment
+     *  reports IsBroken()==true since CurrentDurability defaults to 0.
+     *  FRuntimeAttachedItem::IsBroken() applies that gate. */
+    bool IsBroken() const
+    {
+        return CurrentDurability <= 0;
+    }
+
+    /** Apply wear. Returns true iff this wear broke the crystal
+     *  (durability transitioned from >0 to 0). No-op when Amount <= 0 or
+     *  CurrentDurability <= 0. */
+    bool ApplyWear(int32 Amount)
+    {
+        if (Amount <= 0 || CurrentDurability <= 0)
+        {
+            return false;
+        }
+
+        const int32 Before = CurrentDurability;
+        CurrentDurability = FMath::Max(0, CurrentDurability - Amount);
+
+        return Before > 0 && CurrentDurability == 0;
+    }
+
+    /** Repair between combats. Clamp to CrystalIdentity::GetMaxDurability(Id).
+     *  Returns actual amount repaired. No-op when Amount <= 0. */
+    int32 RepairBetweenCombats(int32 Amount)
+    {
+        if (Amount <= 0)
+        {
+            return 0;
+        }
+
+        const int32 MaxDur = CrystalIdentity::GetMaxDurability(Id);
+        const int32 Before = CurrentDurability;
+        CurrentDurability = FMath::Min(MaxDur, CurrentDurability + Amount);
+
+        return CurrentDurability - Before;
+    }
 };

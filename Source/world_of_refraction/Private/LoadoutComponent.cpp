@@ -17,6 +17,7 @@
 #include "EvolutionItemData.h"
 #include "StanceData.h"
 #include "TurnManager.h"
+#include "CrystalIdentity.h"
 #include "Engine/GameInstance.h"
 
 #include "WeaponAttackData.h"
@@ -1398,13 +1399,29 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 
     auto AddIfCrystal = [&Result](UEvolutionItemData *Crystal, UObject *Holder)
     {
-        if (Crystal && Holder)
+        if (!Crystal || !Holder)
         {
-            FEquippedCrystalSlot Slot;
-            Slot.Crystal = Crystal;
-            Slot.Holder = Holder;
-            Result.Add(Slot);
+            return;
         }
+
+        FEquippedCrystalSlot Slot;
+        Slot.Holder = Holder;
+
+        // Discriminate from the asset flag during the 7a window. In 7b once
+        // AttachedCrystal becomes FRuntimeAttachedItem, the populator reads
+        // Kind from the discriminator directly — consumers don't change.
+        if (Crystal->bIsEvolutionCrystal)
+        {
+            Slot.Kind = EAttachedItemKind::Evolution;
+            Slot.Item = Crystal;
+        }
+        else
+        {
+            Slot.Kind = EAttachedItemKind::Refined;
+            Slot.RefinedId = FCrystalId(Crystal->CrystalType, Crystal->Tier);
+        }
+
+        Result.Add(Slot);
     };
 
     // Weapons — read crystal from the runtime inventory entry, not the asset.
@@ -1464,9 +1481,22 @@ bool ULoadoutComponent::HasEquippedSourceForElement(AActor *Actor, ESpellElement
     // evolution slot. A crystal channels its associated element.
     for (const FEquippedCrystalSlot &Slot : Loadout->GetEquippedCrystals())
     {
-        if (Slot.Crystal && Slot.Crystal->GetAssociatedElement() == Element)
+        switch (Slot.Kind)
         {
-            return true;
+        case EAttachedItemKind::Refined:
+            if (CrystalIdentity::GetElement(Slot.RefinedId) == Element)
+            {
+                return true;
+            }
+            break;
+        case EAttachedItemKind::Evolution:
+            if (Slot.Item && Slot.Item->GetAssociatedElement() == Element)
+            {
+                return true;
+            }
+            break;
+        default:
+            break;
         }
     }
 
