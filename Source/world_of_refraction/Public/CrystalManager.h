@@ -82,6 +82,19 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Crystal Manager|Events")
     FOnCrystalDurabilityChanged OnCrystalDurabilityChanged;
 
+    // ========================================
+    // DEBUG
+    // ========================================
+
+    /** Force-break the active character's primary weapon crystal. Drains the
+     *  per-instance durability to 1 directly, then routes through the real
+     *  ProcessPostCastWear pipeline (in a bounded retry loop, since Luck-skip
+     *  is probabilistic) so OnCrystalBroken broadcasts via the production path.
+     *  Console: type "DebugBreakActiveCrystal" in PIE. No-op outside combat,
+     *  on already-broken crystals, or on unrefined / immune crystals. */
+    UFUNCTION(Exec)
+    void DebugBreakActiveCrystal();
+
 private:
     // ========================================
     // HELPERS

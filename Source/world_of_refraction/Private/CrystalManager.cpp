@@ -8,6 +8,9 @@
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "CombatConstants.h"
+#include "TurnManager.h"
+#include "WeaponData.h"
+#include "Engine/GameInstance.h"
 
 void UCrystalManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -145,4 +148,112 @@ ULoadoutComponent *UCrystalManager::GetLoadoutComponent(AActor *Actor) const
         return nullptr;
     }
     return Actor->FindComponentByClass<ULoadoutComponent>();
+}
+
+// ========================================
+// DEBUG
+// ========================================
+
+void UCrystalManager::DebugBreakActiveCrystal()
+{
+    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+    if (!TurnMgr)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Debug.BreakActiveCrystal] No TurnManager subsystem."));
+        return;
+    }
+
+    AActor *Actor = TurnMgr->GetCurrentActor();
+    if (!Actor)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Debug.BreakActiveCrystal] No active character (combat not active?)."));
+        return;
+    }
+
+    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+    if (!LC)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.BreakActiveCrystal] No LoadoutComponent on %s."),
+               *Actor->GetName());
+        return;
+    }
+
+    UWeaponData *Weapon = LC->GetPrimaryWeapon();
+    if (!Weapon)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.BreakActiveCrystal] %s has no primary weapon equipped."),
+               *Actor->GetName());
+        return;
+    }
+
+    const FCrystalInventoryEntry Entry = LC->GetCrystalEntryByHolder(Weapon);
+    if (!Entry.Crystal)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon has no attached crystal."),
+               *Actor->GetName());
+        return;
+    }
+    if (Entry.IsBroken())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is already broken."),
+               *Actor->GetName(), *Entry.Crystal->GetFullItemName());
+        return;
+    }
+    if (!Entry.Crystal->bIsRefined)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is unrefined (consumables do not wear/break)."),
+               *Actor->GetName(), *Entry.Crystal->GetFullItemName());
+        return;
+    }
+    if (Entry.Crystal->bImmuneToBreaking)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is immune to breaking (likely evolution crystal)."),
+               *Actor->GetName(), *Entry.Crystal->GetFullItemName());
+        return;
+    }
+
+    // Drain durability down to 1 so the next non-skipped wear breaks it.
+    // ApplyWearToCrystalEntryByHolder does not broadcast OnCrystalBroken on
+    // partial wear (non-zero remaining) — the unified broadcast lives in
+    // ProcessPostCastWear's bBroke branch, so this drain stays silent.
+    const int32 DrainAmount = Entry.CurrentDurability - 1;
+    if (DrainAmount > 0)
+    {
+        LC->ApplyWearToCrystalEntryByHolder(Weapon, DrainAmount);
+    }
+
+    // Route through the real pipeline. Luck-skip is probabilistic, so retry
+    // until the entry transitions to broken. S-Tier + L2 + spell parameters
+    // produce the worst-case wear, guaranteeing >0 wear on any non-skipped roll.
+    static constexpr int32 MAX_ATTEMPTS = 8;
+    for (int32 Attempt = 1; Attempt <= MAX_ATTEMPTS; ++Attempt)
+    {
+        ProcessPostCastWear(Actor, Entry.Crystal, Weapon,
+                            EItemTier::S_Tier, /*InfusionLevel*/ 2, /*bIsSpell*/ true);
+
+        if (LC->GetCrystalEntryByHolder(Weapon).IsBroken())
+        {
+            UE_LOG(LogTemp, Display,
+                   TEXT("[Debug.BreakActiveCrystal] Broke %s's primary weapon crystal '%s' on attempt %d/%d."),
+                   *Actor->GetName(), *Entry.Crystal->GetFullItemName(), Attempt, MAX_ATTEMPTS);
+            return;
+        }
+    }
+
+    // All attempts luck-skipped. Surface the luck stat so we know whether the
+    // cap needs raising for high-luck actors.
+    float RawLuck = -1.0f;
+    if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
+    {
+        RawLuck = CharComp->GetEquipmentModifiedLuck();
+    }
+    UE_LOG(LogTemp, Warning,
+           TEXT("[Debug.BreakActiveCrystal] All %d attempts luck-skipped on %s's crystal '%s' (EquipmentModifiedLuck=%.2f). Try again, or raise MAX_ATTEMPTS if this recurs."),
+           MAX_ATTEMPTS, *Actor->GetName(), *Entry.Crystal->GetFullItemName(), RawLuck);
 }
