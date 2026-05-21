@@ -4214,15 +4214,15 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		FCrystalInventoryEntry *Entry = LC ? LC->FindCrystalEntryByHolder(Ring) : nullptr;
-		if (Entry && Entry->Crystal)
+		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Ring) : FCrystalInventoryEntry();
+		if (Entry.Crystal)
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
-					Actor, Entry->Crystal, Ring, ActionTier, Level, bIsSpell);
+					Actor, Entry.Crystal, Ring, ActionTier, Level, bIsSpell);
 			}
 		}
 
@@ -4270,15 +4270,15 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		FCrystalInventoryEntry *Entry = LC ? LC->FindCrystalEntryByHolder(Ring) : nullptr;
-		if (Entry && Entry->Crystal)
+		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Ring) : FCrystalInventoryEntry();
+		if (Entry.Crystal)
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
-					Actor, Entry->Crystal, Ring, ActionTier, Level, bIsSpell);
+					Actor, Entry.Crystal, Ring, ActionTier, Level, bIsSpell);
 			}
 		}
 
@@ -4313,8 +4313,8 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		FCrystalInventoryEntry *Entry = LC ? LC->FindCrystalEntryByHolder(Weapon) : nullptr;
-		UItemData *WeaponCrystal = (Entry && Entry->Crystal) ? Entry->Crystal : nullptr;
+		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Weapon) : FCrystalInventoryEntry();
+		UItemData *WeaponCrystal = Entry.Crystal;
 		if (!WeaponCrystal)
 		{
 			break;

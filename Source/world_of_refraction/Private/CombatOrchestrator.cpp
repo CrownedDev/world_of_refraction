@@ -1102,10 +1102,13 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 					continue;
 				}
 
-				// Resolve per-instance entry; Entry->IsBroken() filters refined +
+				// Resolve per-instance entry; Entry.IsBroken() filters refined +
 				// non-immune + durability <= 0, matching the old triple-check.
-				FCrystalInventoryEntry *Entry = LoadoutComp->FindCrystalEntryByHolder(Slot.Holder);
-				if (!Entry || !Entry->IsBroken())
+				// On no match GetCrystalEntryByHolder returns an empty entry whose
+				// IsBroken() is false (requires Crystal != nullptr), so the gate
+				// below correctly skips unmatched holders.
+				const FCrystalInventoryEntry Entry = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
+				if (!Entry.IsBroken())
 				{
 					continue;
 				}
@@ -1117,17 +1120,17 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 				if (UWeaponData *Weapon = Cast<UWeaponData>(Slot.Holder))
 				{
 					HolderDesc = FString::Printf(TEXT("Weapon '%s'"), *Weapon->Name);
-					*Entry = FCrystalInventoryEntry();
+					LoadoutComp->ResetCrystalEntryByHolder(Slot.Holder);
 					bCleared = true;
 				}
 				else if (URingData *Ring = Cast<URingData>(Slot.Holder))
 				{
 					HolderDesc = FString::Printf(TEXT("Ring '%s'"), *Ring->Name);
-					*Entry = FCrystalInventoryEntry();
+					LoadoutComp->ResetCrystalEntryByHolder(Slot.Holder);
 					bCleared = true;
 				}
-				// Evolution self-holder filtered above — FindCrystalEntryByHolder returns
-				// nullptr for UItemData* holders, tripping the early continue at the loop head.
+				// Evolution self-holder filtered above — GetCrystalEntryByHolder returns
+				// an empty entry for UItemData* holders, tripping the IsBroken gate.
 
 				if (bCleared)
 				{
@@ -1183,21 +1186,25 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 					continue;
 				}
 
-				FCrystalInventoryEntry *Entry = LoadoutComp->FindCrystalEntryByHolder(Slot.Holder);
-				if (!Entry || Entry->IsBroken())
+				// Read first to gate on IsBroken and capture the pre-repair value.
+				// On no match GetCrystalEntryByHolder returns an empty entry; IsBroken
+				// is false for that case, but the bIsRefined check above already
+				// filtered out non-matching holders' crystals via Slot.Crystal.
+				const FCrystalInventoryEntry Before = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
+				if (!Before.Crystal || Before.IsBroken())
 				{
 					continue;
 				}
 
-				const int32 Before = Entry->CurrentDurability;
-				const int32 Repaired = Entry->RepairBetweenCombats(RepairAmount);
+				const int32 BeforeDur = Before.CurrentDurability;
+				const int32 NewDur = LoadoutComp->RepairCrystalEntryByHolder(Slot.Holder, RepairAmount);
 
-				if (Repaired > 0)
+				if (NewDur > BeforeDur)
 				{
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
 						   *Crystal->GetFullItemName(), *Actor->GetName(),
-						   Before, Entry->CurrentDurability, Crystal->MaxDurability);
+						   BeforeDur, NewDur, Crystal->MaxDurability);
 					CrystalsRepaired++;
 				}
 			}

@@ -113,9 +113,8 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 			{
 				if (UWeaponData *ActiveWeapon = WM->GetActiveWeapon(InActor))
 				{
-					FCrystalInventoryEntry *WeaponCrystalEntry = LC->FindCrystalEntryByHolder(ActiveWeapon);
-					if (WeaponCrystalEntry && WeaponCrystalEntry->Crystal &&
-						!WeaponCrystalEntry->IsBroken())
+					const FCrystalInventoryEntry WeaponCrystalEntry = LC->GetCrystalEntryByHolder(ActiveWeapon);
+					if (WeaponCrystalEntry.Crystal && !WeaponCrystalEntry.IsBroken())
 					{
 						bHasWeaponResource = true;
 					}
@@ -189,17 +188,17 @@ void UDurabilityHeaderWidget::UpdateSlot1FromRing()
 
 	URingData *ActiveRing = RingMgr->GetActiveRing(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-	FCrystalInventoryEntry *Entry = (ActiveRing && LC) ? LC->FindCrystalEntryByHolder(ActiveRing) : nullptr;
+	const FCrystalInventoryEntry Entry = (ActiveRing && LC) ? LC->GetCrystalEntryByHolder(ActiveRing) : FCrystalInventoryEntry();
 
-	if (!Entry || !Entry->Crystal)
+	if (!Entry.Crystal)
 	{
 		Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:0/0"), HeaderLabels::RingDur)));
 		Slot1DurText->SetVisibility(ESlateVisibility::Visible);
 		return;
 	}
 
-	const int32 Current = Entry->CurrentDurability;
-	const int32 Max = Entry->Crystal->MaxDurability;
+	const int32 Current = Entry.CurrentDurability;
+	const int32 Max = Entry.Crystal->MaxDurability;
 	Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:%d/%d"),
 		HeaderLabels::RingDur, Current, Max)));
 	Slot1DurText->SetVisibility(ESlateVisibility::Visible);
@@ -220,17 +219,17 @@ void UDurabilityHeaderWidget::UpdateSlot1FromWeapon()
 
 	UWeaponData *ActiveWeapon = WM->GetActiveWeapon(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-	FCrystalInventoryEntry *Entry = (ActiveWeapon && LC) ? LC->FindCrystalEntryByHolder(ActiveWeapon) : nullptr;
+	const FCrystalInventoryEntry Entry = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FCrystalInventoryEntry();
 
-	if (!Entry || !Entry->Crystal)
+	if (!Entry.Crystal)
 	{
 		Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:0/0"), HeaderLabels::WeaponDur)));
 		Slot1DurText->SetVisibility(ESlateVisibility::Visible);
 		return;
 	}
 
-	const int32 Current = Entry->CurrentDurability;
-	const int32 Max = Entry->Crystal->MaxDurability;
+	const int32 Current = Entry.CurrentDurability;
+	const int32 Max = Entry.Crystal->MaxDurability;
 	Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:%d/%d"),
 		HeaderLabels::WeaponDur, Current, Max)));
 	Slot1DurText->SetVisibility(ESlateVisibility::Visible);
@@ -251,17 +250,17 @@ void UDurabilityHeaderWidget::UpdateSlot2FromWeapon()
 
 	UWeaponData *ActiveWeapon = WM->GetActiveWeapon(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-	FCrystalInventoryEntry *Entry = (ActiveWeapon && LC) ? LC->FindCrystalEntryByHolder(ActiveWeapon) : nullptr;
+	const FCrystalInventoryEntry Entry = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FCrystalInventoryEntry();
 
-	if (!Entry || !Entry->Crystal)
+	if (!Entry.Crystal)
 	{
 		Slot2DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:0/0"), HeaderLabels::WeaponDur)));
 		Slot2DurText->SetVisibility(ESlateVisibility::Visible);
 		return;
 	}
 
-	const int32 Current = Entry->CurrentDurability;
-	const int32 Max = Entry->Crystal->MaxDurability;
+	const int32 Current = Entry.CurrentDurability;
+	const int32 Max = Entry.Crystal->MaxDurability;
 	Slot2DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:%d/%d"),
 		HeaderLabels::WeaponDur, Current, Max)));
 	Slot2DurText->SetVisibility(ESlateVisibility::Visible);

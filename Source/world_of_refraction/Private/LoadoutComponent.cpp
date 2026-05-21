@@ -2024,15 +2024,12 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     return Entry.IsValid() ? &Entry : nullptr;
 }
 
-FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolder(UObject *Holder)
+FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolderInternal(UObject *Holder)
 {
-    // LIFETIME ASSUMPTION: returned pointer is valid only within the current
-    // scope. Do NOT retain across array-mutating operations on the inventory's
-    // SavedLoadouts or any inner RingLoadout. See header doc for details.
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::FindCrystalEntryByHolder] No InventoryComponent found on owner"));
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::FindCrystalEntryByHolderInternal] No InventoryComponent found on owner"));
         return nullptr;
     }
     if (!Holder || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
@@ -2076,6 +2073,43 @@ FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolder(UObject *Hol
     }
 
     return nullptr;
+}
+
+FCrystalInventoryEntry ULoadoutComponent::GetCrystalEntryByHolder(UObject *Holder) const
+{
+    // const_cast: the internal helper is non-const because it's shared with
+    // the mutating wrappers below. Get does not mutate — it takes a copy.
+    FCrystalInventoryEntry *Entry = const_cast<ULoadoutComponent *>(this)->FindCrystalEntryByHolderInternal(Holder);
+    return Entry ? *Entry : FCrystalInventoryEntry();
+}
+
+void ULoadoutComponent::ResetCrystalEntryByHolder(UObject *Holder)
+{
+    if (FCrystalInventoryEntry *Entry = FindCrystalEntryByHolderInternal(Holder))
+    {
+        *Entry = FCrystalInventoryEntry();
+    }
+}
+
+int32 ULoadoutComponent::RepairCrystalEntryByHolder(UObject *Holder, int32 Amount)
+{
+    FCrystalInventoryEntry *Entry = FindCrystalEntryByHolderInternal(Holder);
+    if (!Entry)
+    {
+        return -1;
+    }
+    Entry->RepairBetweenCombats(Amount);
+    return Entry->CurrentDurability;
+}
+
+bool ULoadoutComponent::ApplyWearToCrystalEntryByHolder(UObject *Holder, int32 Amount)
+{
+    FCrystalInventoryEntry *Entry = FindCrystalEntryByHolderInternal(Holder);
+    if (!Entry)
+    {
+        return false;
+    }
+    return Entry->ApplyWear(Amount);
 }
 
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)

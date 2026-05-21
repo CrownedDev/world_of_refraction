@@ -78,8 +78,18 @@ int32 UCrystalManager::ProcessPostCastWear(
     // the template (UItemData); the FCrystalInventoryEntry is the per-instance
     // state we want to mutate. Phase B 2/5 routes all wear through the entry.
     ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-    FCrystalInventoryEntry *Entry = LoadoutComp ? LoadoutComp->FindCrystalEntryByHolder(Holder) : nullptr;
-    if (!Entry)
+    if (!LoadoutComp)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[CrystalManager] ProcessPostCastWear: no LoadoutComponent for %s"),
+               *Actor->GetName());
+        return 0;
+    }
+
+    // Pre-read for defensive broken check and as the no-match guard
+    // (empty entry => Crystal == nullptr).
+    const FCrystalInventoryEntry PreEntry = LoadoutComp->GetCrystalEntryByHolder(Holder);
+    if (!PreEntry.Crystal)
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[CrystalManager] ProcessPostCastWear: could not resolve crystal entry for %s on %s"),
@@ -89,7 +99,7 @@ int32 UCrystalManager::ProcessPostCastWear(
 
     // Defensive: don't double-process an already-broken entry. Commit-time
     // gate should have excluded broken crystals from infusion options.
-    if (Entry->IsBroken())
+    if (PreEntry.IsBroken())
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[CrystalManager] ProcessPostCastWear called on already-broken crystal '%s' for %s"),
@@ -97,17 +107,18 @@ int32 UCrystalManager::ProcessPostCastWear(
         return 0;
     }
 
-    const bool bBroke = Entry->ApplyWear(Wear);
+    const bool bBroke = LoadoutComp->ApplyWearToCrystalEntryByHolder(Holder, Wear);
+    const FCrystalInventoryEntry PostEntry = LoadoutComp->GetCrystalEntryByHolder(Holder);
 
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d wear to crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
            *Actor->GetName(), Wear,
            *Crystal->GetFullItemName(),
-           Entry->CurrentDurability, Crystal->MaxDurability,
+           PostEntry.CurrentDurability, Crystal->MaxDurability,
            static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
     // Broadcast post-wear durability for real-time UI updates.
-    OnCrystalDurabilityChanged.Broadcast(Actor, Holder, Entry->CurrentDurability, Crystal->MaxDurability);
+    OnCrystalDurabilityChanged.Broadcast(Actor, Holder, PostEntry.CurrentDurability, Crystal->MaxDurability);
 
     if (bBroke)
     {
