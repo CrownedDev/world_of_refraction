@@ -41,6 +41,16 @@ namespace InventoryConstants
     /** Maximum evolution crystals */
     constexpr int32 MAX_EVOLUTION_CRYSTALS = 10;
 
+    /** Hard cap on owned (unslotted) evolution items in
+     *  UEvolutionInventoryComponent. Distinct from MAX_EVOLUTION_CRYSTALS,
+     *  which is the legacy FItemCrystalInventory total — that path is
+     *  scheduled for removal in commit 15 of the crystal/evolution refactor. */
+    constexpr int32 MAX_EVOLUTION_ITEMS = 5;
+
+    /** Per-tier cap for each pool in UCrystalInventoryComponent. Item-crystal
+     *  and refined-crystal pools each respect this cap independently. */
+    constexpr int32 CRYSTAL_PER_TIER_CAP = 20;
+
     // ==================== EQUIPMENT SLOT COSTS ====================
     // These determine how much inventory space each item uses
 

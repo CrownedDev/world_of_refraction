@@ -1,19 +1,28 @@
+// CrystalInventoryComponent.h
+// Count-based inventory for refined and item (consumable) crystals.
+//
+// Two independent pools, each capped per tier:
+//  - ItemCrystals:    unrefined consumables    (bIsRefined=false, bIsEvolutionCrystal=false)
+//  - RefinedCrystals: refined slottable items  (bIsRefined=true,  bIsEvolutionCrystal=false)
+//
+// Evolution items (bIsEvolutionCrystal=true, either refined or unrefined)
+// live in UEvolutionInventoryComponent as instances with FGuids — counts
+// aren't enough because trade APIs need identity. This component never
+// stores evolution items.
+//
+// Storage is keyed on FCrystalId (Type + Tier). Identity by (Type, Tier) is
+// sufficient because refined/item crystals are fungible — two refined
+// Garnet (F) crystals are interchangeable. Per-attachment durability lives
+// on the holder, not here.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "FCrystalId.h"
+#include "ItemTier.h"
 #include "CrystalInventoryComponent.generated.h"
 
-/**
- * UCrystalInventoryComponent — count-based storage for refined crystals and
- * item crystals.
- *
- * Empty placeholder. Future commits will add:
- * - Count-table fields keyed by FCrystalId for ItemCrystals and RefinedCrystals
- * - Per-tier shared caps (20 per tier per pool, independent)
- * - Add / Remove / GetCount / HasCrystal methods
- * - Wiring to the character actor
- */
 UCLASS(ClassGroup = (Inventory), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UCrystalInventoryComponent : public UActorComponent
 {
@@ -21,4 +30,53 @@ class WORLD_OF_REFRACTION_API UCrystalInventoryComponent : public UActorComponen
 
 public:
     UCrystalInventoryComponent();
+
+    // ==================== STORAGE ====================
+
+    /** Unrefined consumable crystals, counted per (Type, Tier). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
+    TMap<FCrystalId, int32> ItemCrystals;
+
+    /** Refined slottable crystals, counted per (Type, Tier). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
+    TMap<FCrystalId, int32> RefinedCrystals;
+
+    // ==================== WRITE ====================
+
+    /** Add Count item crystals at Id. Returns false on cap exhaustion or
+     *  non-positive Count — no partial writes. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    bool AddItemCount(FCrystalId Id, int32 Count = 1);
+
+    /** Add Count refined crystals at Id. Same per-tier cap, independent pool. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    bool AddRefinedCount(FCrystalId Id, int32 Count = 1);
+
+    // ==================== READ ====================
+
+    /** Count at exact Id in the item-crystal pool. 0 when absent. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    int32 GetItemCount(FCrystalId Id) const;
+
+    /** Count at exact Id in the refined-crystal pool. 0 when absent. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    int32 GetRefinedCount(FCrystalId Id) const;
+
+    /** Sum of item-crystal counts across all Types at the given Tier. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    int32 GetItemCountForTier(EItemTier Tier) const;
+
+    /** Sum of refined-crystal counts across all Types at the given Tier. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    int32 GetRefinedCountForTier(EItemTier Tier) const;
+
+    // ==================== CAPS ====================
+
+    /** True iff AddItemCount(Id, Count) would not exceed the per-tier cap. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    bool CanAddItemCount(FCrystalId Id, int32 Count = 1) const;
+
+    /** True iff AddRefinedCount(Id, Count) would not exceed the per-tier cap. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    bool CanAddRefinedCount(FCrystalId Id, int32 Count = 1) const;
 };

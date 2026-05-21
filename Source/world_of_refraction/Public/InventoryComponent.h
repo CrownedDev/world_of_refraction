@@ -28,6 +28,8 @@ class URingData;
 class UEvolutionItemData;
 class UInventoryData;
 class UCharacterData;
+class UCrystalInventoryComponent;
+class UEvolutionInventoryComponent;
 
 /**
  * UInventoryComponent
@@ -264,6 +266,22 @@ private:
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
      *  path — InitializeFromCharacterData delegates here when Inventory is set. */
     void InitializeFromInventoryAsset(UCharacterData *CharacterData);
+
+    /** Parallel-write item add. Routes the crystal to the legacy Items pool
+     *  AND to the appropriate new component (UCrystalInventoryComponent for
+     *  refined/item crystals, UEvolutionInventoryComponent for evolution
+     *  items) based on the crystal's runtime flags. Returns the NEW-path
+     *  result when the new components are available — that is authoritative
+     *  per the commit-8 design. Falls back to the legacy result when the
+     *  new components are not wired on the owner. Logs a warning when the
+     *  two paths disagree on capacity.
+     *
+     *  Public AddItem resolves the siblings via FindComponentByClass per
+     *  call; InitializeFromInventoryAsset resolves them once and passes
+     *  them through. */
+    bool AddItemInternal(UEvolutionItemData *Item,
+                         UCrystalInventoryComponent *CrystalInv,
+                         UEvolutionInventoryComponent *EvolutionInv);
 
 protected:
     virtual void BeginPlay() override;

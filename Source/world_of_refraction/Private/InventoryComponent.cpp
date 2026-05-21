@@ -11,6 +11,9 @@
 #include "CharacterData.h"
 #include "InventoryData.h"
 #include "FSavedLoadout.h"
+#include "CrystalInventoryComponent.h"
+#include "EvolutionInventoryComponent.h"
+#include "FCrystalId.h"
 
 UInventoryComponent::UInventoryComponent()
 {
@@ -329,7 +332,65 @@ bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemDa
 
 bool UInventoryComponent::AddItem(UEvolutionItemData *Item)
 {
-    return Items.AddCrystal(Item);
+    AActor *Owner = GetOwner();
+    UCrystalInventoryComponent *CrystalInv = Owner
+        ? Owner->FindComponentByClass<UCrystalInventoryComponent>()
+        : nullptr;
+    UEvolutionInventoryComponent *EvolutionInv = Owner
+        ? Owner->FindComponentByClass<UEvolutionInventoryComponent>()
+        : nullptr;
+    return AddItemInternal(Item, CrystalInv, EvolutionInv);
+}
+
+bool UInventoryComponent::AddItemInternal(UEvolutionItemData *Item,
+                                          UCrystalInventoryComponent *CrystalInv,
+                                          UEvolutionInventoryComponent *EvolutionInv)
+{
+    if (!Item)
+    {
+        return false;
+    }
+
+    // Legacy parallel write — old storage stays populated until commit 15
+    // so existing readers (FItemCrystalInventory consumers) continue to work.
+    const bool bLegacyOk = Items.AddCrystal(Item);
+
+    // New-path dispatch by crystal flags. Anything bIsEvolutionCrystal flows
+    // to the evolution component regardless of bIsRefined — refined/unrefined
+    // distinction matters for slottability, not inventory bucket.
+    const bool bIsEvolution = Item->bIsEvolutionCrystal;
+    const bool bHasNewPath = bIsEvolution ? (EvolutionInv != nullptr) : (CrystalInv != nullptr);
+
+    if (!bHasNewPath)
+    {
+        // New components not wired on this owner — degrade gracefully to
+        // the legacy result so pre-migration actors (and tests) keep working.
+        return bLegacyOk;
+    }
+
+    bool bNewOk = false;
+    if (bIsEvolution)
+    {
+        bNewOk = EvolutionInv->AddInstance(Item);
+    }
+    else
+    {
+        const FCrystalId Id(Item->CrystalType, Item->Tier);
+        bNewOk = Item->bIsRefined
+                     ? CrystalInv->AddRefinedCount(Id, 1)
+                     : CrystalInv->AddItemCount(Id, 1);
+    }
+
+    if (bLegacyOk != bNewOk)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] AddItem capacity divergence for %s: legacy=%s new=%s (returning new-path result, which is authoritative)"),
+               *Item->ItemName,
+               bLegacyOk ? TEXT("ok") : TEXT("reject"),
+               bNewOk ? TEXT("ok") : TEXT("reject"));
+    }
+
+    return bNewOk;
 }
 
 bool UInventoryComponent::RemoveItem(UEvolutionItemData *Item)
@@ -451,6 +512,38 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     Rings.Empty();
     Items.Clear();
 
+    // Resolve the new inventory components once. Either may be null on
+    // actors not yet migrated to the inventory split — AddItemInternal
+    // degrades to legacy-only when that happens, but we log here so the
+    // missing component surfaces alongside init rather than as a silent
+    // divergence later.
+    AActor *Owner = GetOwner();
+    UCrystalInventoryComponent *CrystalInv = Owner
+        ? Owner->FindComponentByClass<UCrystalInventoryComponent>()
+        : nullptr;
+    UEvolutionInventoryComponent *EvolutionInv = Owner
+        ? Owner->FindComponentByClass<UEvolutionInventoryComponent>()
+        : nullptr;
+    if (!CrystalInv || !EvolutionInv)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): new inventory components missing on owner (CrystalInv=%s, EvolutionInv=%s) — legacy storage only"),
+               *CharacterData->Name,
+               CrystalInv ? TEXT("present") : TEXT("MISSING"),
+               EvolutionInv ? TEXT("present") : TEXT("MISSING"));
+    }
+
+    // Clear the new pools so re-init doesn't accumulate.
+    if (CrystalInv)
+    {
+        CrystalInv->ItemCrystals.Empty();
+        CrystalInv->RefinedCrystals.Empty();
+    }
+    if (EvolutionInv)
+    {
+        EvolutionInv->Entries.Empty();
+    }
+
     // ---------- Weapons ----------
     for (UWeaponData *Weapon : InventoryAsset->Weapons)
     {
@@ -469,12 +562,19 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         }
     }
 
-    // ---------- Items (Crystals + consumables share FItemCrystalInventory) ----------
-    // Mirror the legacy path's capacity-drop warning so authoring mistakes
-    // surface in the log instead of silently dropping at runtime.
+    // ---------- Items (Crystals + consumables) ----------
+    // Designer convention: UInventoryData::Crystals holds refined and evolution
+    // crystals; UInventoryData::Items holds non-evolution consumables. Routing
+    // is by per-crystal runtime flags (bIsEvolutionCrystal, bIsRefined) — NOT
+    // by which asset list the entry came from — so a mis-authored entry in
+    // either list still lands in the correct new-path bucket.
+    //
+    // We do flag evolution crystals authored in Items as a designer-side
+    // mistake, since the asset's documented contract says that list is for
+    // non-evolution consumables.
     for (UEvolutionItemData *Crystal : InventoryAsset->Crystals)
     {
-        if (Crystal && !AddItem(Crystal))
+        if (Crystal && !AddItemInternal(Crystal, CrystalInv, EvolutionInv))
         {
             UE_LOG(LogTemp, Warning,
                    TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping crystal %s"),
@@ -483,7 +583,17 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     }
     for (UEvolutionItemData *Item : InventoryAsset->Items)
     {
-        if (Item && !AddItem(Item))
+        if (!Item)
+        {
+            continue;
+        }
+        if (Item->bIsEvolutionCrystal)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution crystal '%s' authored in UInventoryData::Items — belongs in Crystals list. Routing to evolution inventory."),
+                   *CharacterData->Name, *Item->ItemName);
+        }
+        if (!AddItemInternal(Item, CrystalInv, EvolutionInv))
         {
             UE_LOG(LogTemp, Warning,
                    TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping %s"),

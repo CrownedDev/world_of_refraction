@@ -1,19 +1,25 @@
+// EvolutionInventoryComponent.h
+// Instance-based inventory for evolution items the character owns but has
+// not yet slotted onto a weapon, ring, or character.
+//
+// Hard cap MAX_EVOLUTION_ITEMS (5). Each entry carries an FGuid so trading
+// APIs (later commits) can move a specific instance unambiguously when
+// multiple copies of the same evolution asset are owned.
+//
+// Slotted evolution items live in FEvolutionAttachment on the holder
+// (FWeaponInventoryEntry::AttachedItem / FRingInventoryEntry::AttachedItem),
+// NOT here. Slotted evolutions are destroyed on removal per locked design
+// — they do not return to this component.
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "FEvolutionInventoryEntry.h"
 #include "EvolutionInventoryComponent.generated.h"
 
-/**
- * UEvolutionInventoryComponent — instance-based storage for evolution items.
- *
- * Empty placeholder. Future commits will add:
- * - TArray<FEvolutionInventoryEntry> storing owned evolution items with FGuid InstanceIDs
- * - Hard cap of 5 (MAX_EVOLUTION_ITEMS)
- * - Add / Remove / GetByInstanceID / Contains methods
- * - Trading API hooks (move instance between components)
- * - Wiring to the character actor
- */
+class UEvolutionItemData;
+
 UCLASS(ClassGroup = (Inventory), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UEvolutionInventoryComponent : public UActorComponent
 {
@@ -21,4 +27,17 @@ class WORLD_OF_REFRACTION_API UEvolutionInventoryComponent : public UActorCompon
 
 public:
     UEvolutionInventoryComponent();
+
+    /** Owned, unslotted evolution items. Order is insertion order. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Evolution")
+    TArray<FEvolutionInventoryEntry> Entries;
+
+    /** Append Item as a new entry with a freshly-generated InstanceID.
+     *  Returns false when Item is null or the hard cap is reached. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
+    bool AddInstance(UEvolutionItemData *Item);
+
+    /** Current entry count. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
+    int32 Num() const { return Entries.Num(); }
 };
