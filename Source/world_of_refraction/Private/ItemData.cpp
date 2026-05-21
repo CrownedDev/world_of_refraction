@@ -7,6 +7,7 @@
 #include "DurabilityConstants.h"
 #include "CombatConstants.h"
 #include "SkillTriggerUtils.h"
+#include "CrystalTypeHelpers.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -95,31 +96,7 @@ int32 UItemData::GetTierValue() const
 
 ESpellElement UItemData::GetAssociatedElement() const
 {
-    switch (CrystalType)
-    {
-    case ECrystalType::Garnet:
-        return ESpellElement::Fire;
-    case ECrystalType::Sapphire:
-        return ESpellElement::Water;
-    case ECrystalType::Citrine:
-        return ESpellElement::Lightning;
-    case ECrystalType::Emerald:
-        return ESpellElement::Wind;
-    case ECrystalType::Amber:
-        return ESpellElement::Earth;
-    case ECrystalType::Opal:
-        return ESpellElement::Light;
-    case ECrystalType::Onyx:
-        return ESpellElement::Darkness;
-    case ECrystalType::Amethyst:
-        return ESpellElement::Void;
-    case ECrystalType::Iolite:
-        return ESpellElement::Reality;
-    case ECrystalType::Quartz:
-        return ESpellElement::Generic;
-    default:
-        return ESpellElement::Generic;
-    }
+    return CrystalTypeHelpers::GetElement(CrystalType);
 }
 
 int32 UItemData::GetBrokenDarknessEnergyBonus() const
