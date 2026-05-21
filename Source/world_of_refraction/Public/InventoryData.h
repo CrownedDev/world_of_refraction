@@ -90,14 +90,20 @@ public:
     /** Saved loadout configurations the character can switch between at
      *  combat start. Index 0 is the default active loadout (preset by
      *  convention — no bIsPreset flag). */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Loadouts")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Loadouts",
+              meta = (TitleProperty = "LoadoutName"))
     TArray<FSavedLoadout> SavedLoadouts;
 
     /** Which entry in SavedLoadouts[] is active at spawn. Out-of-range
-     *  values are clamped at runtime to 0. */
+     *  values are clamped at runtime to 0. Editor renders as a dropdown of
+     *  loadout names; storage stays as int32 so renames don't break refs. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Loadouts",
-              meta = (ClampMin = "0"))
+              meta = (GetOptions = "GetActiveLoadoutOptions"))
     int32 DefaultActiveLoadoutIndex = 0;
+
+    /** Supplies dropdown labels for DefaultActiveLoadoutIndex. */
+    UFUNCTION()
+    TArray<FString> GetActiveLoadoutOptions() const;
 
     // ==================== VALIDATION ====================
 

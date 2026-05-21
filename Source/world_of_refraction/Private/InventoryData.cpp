@@ -147,6 +147,16 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
 {
     Super::PostEditChangeProperty(PropertyChangedEvent);
 
+    // Auto-name empty entries as "Loadout N" (1-indexed). Designer-set
+    // names are preserved — only empties are filled.
+    for (int32 i = 0; i < SavedLoadouts.Num(); ++i)
+    {
+        if (SavedLoadouts[i].LoadoutName.IsEmpty())
+        {
+            SavedLoadouts[i].LoadoutName = FString::Printf(TEXT("Loadout %d"), i + 1);
+        }
+    }
+
     // Mirrors ULoadoutData::PostEditChangeProperty per-loadout clearing
     // logic. USTRUCT-internal edits don't trigger PostEditChangeProperty on
     // the owning UObject — so we sweep every SavedLoadouts entry on any
@@ -209,6 +219,19 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
     }
 }
 #endif
+
+// ==================== DROPDOWN OPTIONS ====================
+
+TArray<FString> UInventoryData::GetActiveLoadoutOptions() const
+{
+    TArray<FString> Options;
+    Options.Reserve(SavedLoadouts.Num());
+    for (const FSavedLoadout &Loadout : SavedLoadouts)
+    {
+        Options.Add(Loadout.LoadoutName);
+    }
+    return Options;
+}
 
 // ==================== DATA ASSET ====================
 

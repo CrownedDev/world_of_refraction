@@ -42,9 +42,11 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
 
     // ==================== IDENTITY ====================
 
-    /** Display name for UI */
+    /** Display name for UI. Empty on construction so UInventoryData's
+     *  PostEditChangeProperty auto-fills "Loadout N" for new entries;
+     *  designers can override and renames are preserved. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
-    FString LoadoutName = TEXT("Unnamed Loadout");
+    FString LoadoutName;
 
     /** Which character class this loadout is designed for */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
