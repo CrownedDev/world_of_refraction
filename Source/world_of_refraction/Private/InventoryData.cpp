@@ -6,6 +6,8 @@
 
 #include "AbilityData.h"
 #include "EvolutionItemData.h"
+#include "InventoryConstants.h"
+#include "ItemTier.h"
 #include "RingData.h"
 #include "SpellData.h"
 #include "WeaponData.h"
@@ -22,6 +24,49 @@ TArray<FString> UInventoryData::GetValidationErrors() const
         Errors.Add(FString::Printf(
             TEXT("DefaultActiveLoadoutIndex %d is out of range for SavedLoadouts (%d entries)"),
             DefaultActiveLoadoutIndex, SavedLoadouts.Num()));
+    }
+
+    // ---------- New-fields per-tier caps ----------
+    // Each pool gets its own per-tier sum check. Legacy-only assets (where
+    // ItemCrystals / RefinedCrystals are empty) skip these loops entirely
+    // and pass through unchanged.
+    auto ValidateTierSums = [&Errors](const TMap<FCrystalId, int32> &Pool, const TCHAR *PoolName)
+    {
+        TMap<EItemTier, int32> SumByTier;
+        for (const TPair<FCrystalId, int32> &Pair : Pool)
+        {
+            if (Pair.Value < 0)
+            {
+                Errors.Add(FString::Printf(
+                    TEXT("%s entry (Type=%d, Tier=%d) has negative count %d"),
+                    PoolName,
+                    static_cast<int32>(Pair.Key.Type),
+                    static_cast<int32>(Pair.Key.Tier),
+                    Pair.Value));
+            }
+            SumByTier.FindOrAdd(Pair.Key.Tier) += FMath::Max(0, Pair.Value);
+        }
+        for (const TPair<EItemTier, int32> &TierPair : SumByTier)
+        {
+            if (TierPair.Value > InventoryConstants::CRYSTAL_PER_TIER_CAP)
+            {
+                Errors.Add(FString::Printf(
+                    TEXT("%s sum for Tier=%d is %d, exceeds CRYSTAL_PER_TIER_CAP (%d)"),
+                    PoolName,
+                    static_cast<int32>(TierPair.Key),
+                    TierPair.Value,
+                    InventoryConstants::CRYSTAL_PER_TIER_CAP));
+            }
+        }
+    };
+    ValidateTierSums(ItemCrystals, TEXT("ItemCrystals"));
+    ValidateTierSums(RefinedCrystals, TEXT("RefinedCrystals"));
+
+    if (EvolutionItems.Num() > InventoryConstants::MAX_EVOLUTION_ITEMS)
+    {
+        Errors.Add(FString::Printf(
+            TEXT("EvolutionItems has %d entries, exceeds MAX_EVOLUTION_ITEMS (%d)"),
+            EvolutionItems.Num(), InventoryConstants::MAX_EVOLUTION_ITEMS));
     }
 
     for (int32 LoadoutIdx = 0; LoadoutIdx < SavedLoadouts.Num(); ++LoadoutIdx)

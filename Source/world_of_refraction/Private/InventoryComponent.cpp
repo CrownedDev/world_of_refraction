@@ -563,41 +563,121 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     }
 
     // ---------- Items (Crystals + consumables) ----------
-    // Designer convention: UInventoryData::Crystals holds refined and evolution
-    // crystals; UInventoryData::Items holds non-evolution consumables. Routing
-    // is by per-crystal runtime flags (bIsEvolutionCrystal, bIsRefined) — NOT
-    // by which asset list the entry came from — so a mis-authored entry in
-    // either list still lands in the correct new-path bucket.
-    //
-    // We do flag evolution crystals authored in Items as a designer-side
-    // mistake, since the asset's documented contract says that list is for
-    // non-evolution consumables.
-    for (UEvolutionItemData *Crystal : InventoryAsset->Crystals)
+    // Two paths. Prefer the new fields (ItemCrystals / RefinedCrystals /
+    // EvolutionItems) when ANY of them is populated — they write straight to
+    // the new components, no UEvolutionItemData* indirection. Fall back to
+    // the legacy fields (Crystals[], Items[]) when all three new fields are
+    // empty, preserving commit 8 parallel-write behavior for un-migrated
+    // assets.
+    const bool bUseNewFields =
+        InventoryAsset->ItemCrystals.Num() > 0 ||
+        InventoryAsset->RefinedCrystals.Num() > 0 ||
+        InventoryAsset->EvolutionItems.Num() > 0;
+
+    UE_LOG(LogTemp, Display,
+           TEXT("[InventoryComponent] Init path for '%s' on '%s': %s"),
+           *CharacterData->Name,
+           *InventoryAsset->GetName(),
+           bUseNewFields ? TEXT("new fields") : TEXT("legacy fields"));
+
+    if (bUseNewFields)
     {
-        if (Crystal && !AddItemInternal(Crystal, CrystalInv, EvolutionInv))
+        // ItemCrystals → CrystalInv->AddItemCount per (Id, Count).
+        if (CrystalInv)
+        {
+            for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->ItemCrystals)
+            {
+                if (Pair.Value > 0 && !CrystalInv->AddItemCount(Pair.Key, Pair.Value))
+                {
+                    UE_LOG(LogTemp, Warning,
+                           TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
+                           *CharacterData->Name,
+                           static_cast<int32>(Pair.Key.Type),
+                           static_cast<int32>(Pair.Key.Tier),
+                           Pair.Value);
+                }
+            }
+            for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->RefinedCrystals)
+            {
+                if (Pair.Value > 0 && !CrystalInv->AddRefinedCount(Pair.Key, Pair.Value))
+                {
+                    UE_LOG(LogTemp, Warning,
+                           TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): RefinedCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
+                           *CharacterData->Name,
+                           static_cast<int32>(Pair.Key.Type),
+                           static_cast<int32>(Pair.Key.Tier),
+                           Pair.Value);
+                }
+            }
+        }
+        else if (InventoryAsset->ItemCrystals.Num() > 0 || InventoryAsset->RefinedCrystals.Num() > 0)
         {
             UE_LOG(LogTemp, Warning,
-                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping crystal %s"),
-                   *CharacterData->Name, *Crystal->ItemName);
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals/RefinedCrystals authored but UCrystalInventoryComponent missing — data dropped"),
+                   *CharacterData->Name);
         }
+
+        // EvolutionItems → EvolutionInv->AddInstance per entry.
+        if (EvolutionInv)
+        {
+            for (UEvolutionItemData *Item : InventoryAsset->EvolutionItems)
+            {
+                if (Item && !EvolutionInv->AddInstance(Item))
+                {
+                    UE_LOG(LogTemp, Warning,
+                           TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution item '%s' rejected (MAX_EVOLUTION_ITEMS reached)"),
+                           *CharacterData->Name, *Item->ItemName);
+                }
+            }
+        }
+        else if (InventoryAsset->EvolutionItems.Num() > 0)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): EvolutionItems authored but UEvolutionInventoryComponent missing — data dropped"),
+                   *CharacterData->Name);
+        }
+
+        // Legacy UInventoryComponent::Items intentionally left empty under
+        // the new-fields path. Pre-migration readers of Items will see no
+        // data on new-fields characters — that's the locked tradeoff;
+        // commit 15 removes the legacy storage entirely.
     }
-    for (UEvolutionItemData *Item : InventoryAsset->Items)
+    else
     {
-        if (!Item)
+        // Legacy fields path. Designer convention: UInventoryData::Crystals
+        // holds refined and evolution crystals; UInventoryData::Items holds
+        // non-evolution consumables. Routing is by per-crystal runtime flags
+        // (bIsEvolutionCrystal, bIsRefined) — NOT by which asset list the
+        // entry came from — so a mis-authored entry in either list still
+        // lands in the correct new-path bucket. AddItemInternal also writes
+        // to legacy Items in parallel (commit 8 behavior).
+        for (UEvolutionItemData *Crystal : InventoryAsset->Crystals)
         {
-            continue;
+            if (Crystal && !AddItemInternal(Crystal, CrystalInv, EvolutionInv))
+            {
+                UE_LOG(LogTemp, Warning,
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping crystal %s"),
+                       *CharacterData->Name, *Crystal->ItemName);
+            }
         }
-        if (Item->bIsEvolutionCrystal)
+        for (UEvolutionItemData *Item : InventoryAsset->Items)
         {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution crystal '%s' authored in UInventoryData::Items — belongs in Crystals list. Routing to evolution inventory."),
-                   *CharacterData->Name, *Item->ItemName);
-        }
-        if (!AddItemInternal(Item, CrystalInv, EvolutionInv))
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping %s"),
-                   *CharacterData->Name, *Item->ItemName);
+            if (!Item)
+            {
+                continue;
+            }
+            if (Item->bIsEvolutionCrystal)
+            {
+                UE_LOG(LogTemp, Warning,
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution crystal '%s' authored in UInventoryData::Items — belongs in Crystals list. Routing to evolution inventory."),
+                       *CharacterData->Name, *Item->ItemName);
+            }
+            if (!AddItemInternal(Item, CrystalInv, EvolutionInv))
+            {
+                UE_LOG(LogTemp, Warning,
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping %s"),
+                       *CharacterData->Name, *Item->ItemName);
+            }
         }
     }
 
@@ -648,12 +728,23 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         ActiveLoadoutIndex = 0;
     }
 
+    // Crystal counts reported reflect whichever storage was actually
+    // populated this init. Under the new-fields path Items.GetTotalCount()
+    // is zero; the new components hold the counts.
+    const int32 LegacyItemCount = Items.GetTotalCount();
+    const int32 NewItemCount = CrystalInv ? CrystalInv->ItemCrystals.Num() : 0;
+    const int32 NewRefinedCount = CrystalInv ? CrystalInv->RefinedCrystals.Num() : 0;
+    const int32 NewEvolutionCount = EvolutionInv ? EvolutionInv->Num() : 0;
+
     UE_LOG(LogTemp, Display,
-           TEXT("[InventoryComponent] Initialized inventory from %s (new path): %d weapons, %d rings, %d items, %d spells, %d abilities, %d loadouts (active=%d)"),
+           TEXT("[InventoryComponent] Initialized inventory from %s: %d weapons, %d rings, legacy-items=%d, new-pool-entries=[item:%d refined:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
            *InventoryAsset->GetName(),
            Weapons.Num(),
            Rings.Num(),
-           Items.GetTotalCount(),
+           LegacyItemCount,
+           NewItemCount,
+           NewRefinedCount,
+           NewEvolutionCount,
            Spells.GetCount(),
            Abilities.GetCount(),
            SavedLoadouts.Num(),

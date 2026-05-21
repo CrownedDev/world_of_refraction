@@ -19,6 +19,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "FCrystalId.h"
 #include "FSavedLoadout.h"
 
 #if WITH_EDITOR
@@ -58,11 +59,39 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Inventory|Equipment")
     TArray<URingData *> Rings;
 
-    /** Raw / refined crystals the character owns (evolution crystals plus
+    /** Legacy field — populate RefinedCrystals and/or EvolutionItems below
+     *  instead. Removal deferred to commit 15.
+     *  Raw / refined crystals the character owns (evolution crystals plus
      *  unfused inventory). Every loadout's PrimaryEvolution must come from
      *  this list. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Inventory|Equipment")
     TArray<UEvolutionItemData *> Crystals;
+
+    // ==================== OWNED CRYSTALS (NEW) ====================
+    // Replaces the legacy Crystals[] and Items[] arrays. Init prefers these
+    // when any of the three is populated; falls back to legacy fields when
+    // all three are empty. Per-tier cap CRYSTAL_PER_TIER_CAP enforced via
+    // IsDataValid; EvolutionItems hard cap MAX_EVOLUTION_ITEMS.
+
+    /** Count-based item-crystal storage (unrefined consumables). Each
+     *  (Type, Tier) entry maps to a count. Per-tier cap of 20
+     *  (CRYSTAL_PER_TIER_CAP). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
+              meta = (DisplayName = "Item Crystals (counts)"))
+    TMap<FCrystalId, int32> ItemCrystals;
+
+    /** Count-based refined-crystal storage (slottable into weapons/rings).
+     *  Same per-tier cap of 20 as ItemCrystals; independent pool. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
+              meta = (DisplayName = "Refined Crystals (counts)"))
+    TMap<FCrystalId, int32> RefinedCrystals;
+
+    /** Evolution items the character owns (unslotted). Each entry becomes a
+     *  runtime FEvolutionInventoryEntry with its own FGuid in
+     *  UEvolutionInventoryComponent. Hard cap MAX_EVOLUTION_ITEMS (5). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
+              meta = (DisplayName = "Evolution Items"))
+    TArray<UEvolutionItemData *> EvolutionItems;
 
     // ==================== OWNED SPELLS / ABILITIES ====================
 
@@ -79,7 +108,9 @@ public:
 
     // ==================== OWNED CONSUMABLES ====================
 
-    /** Consumable item crystals (separate from evolution Crystals above —
+    /** Legacy field — populate ItemCrystals above instead. Removal deferred
+     *  to commit 15.
+     *  Consumable item crystals (separate from evolution Crystals above —
      *  these are the per-combat-usable items that populate loadout
      *  EquippedItems slots). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Inventory|Consumables")
