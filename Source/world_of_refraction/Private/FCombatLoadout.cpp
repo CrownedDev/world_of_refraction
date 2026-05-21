@@ -9,7 +9,6 @@
 #include "FSavedLoadout.h"
 #include "FSpellCollection.h"
 #include "FAbilityCollection.h"
-#include "LoadoutData.h"
 
 // ==================== VALIDATION ====================
 
@@ -394,131 +393,6 @@ void FCombatLoadout::ResetForBattle()
 }
 
 // ==================== FACTORY ====================
-
-FCombatLoadout FCombatLoadout::CreateFromAsset(const ULoadoutData *Asset)
-{
-    FCombatLoadout Result;
-
-    if (!Asset)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[FCombatLoadout] CreateFromAsset: Null asset"));
-        return Result;
-    }
-
-    Result.LoadoutName = Asset->LoadoutName;
-    Result.PrimarySlotType = Asset->PrimarySlotType;
-
-    // Resonator cannot have Ring primary - guard against bad asset data
-    if (Asset->RequiredClass == ECharacterClass::Resonator &&
-        Result.PrimarySlotType == EPrimarySlotType::Ring)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Resonator asset '%s' has invalid Ring primary - forcing Weapon"),
-               *Asset->LoadoutName);
-        Result.PrimarySlotType = EPrimarySlotType::Weapon;
-    }
-
-    // ==================== PRIMARY EQUIPMENT ====================
-
-    switch (Asset->PrimarySlotType)
-    {
-    case EPrimarySlotType::Weapon:
-        if (Asset->PrimaryWeapon)
-        {
-            Result.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
-                Asset->PrimaryWeapon, true);
-            Result.PrimaryWeapon.InitializeFromWeapon();
-            Result.PrimaryWeapon.AssignedAbilities = Asset->PrimaryWeaponAbilities;
-            Result.PrimaryWeapon.StanceOverride = Asset->PrimaryWeaponStanceOverride;
-
-            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
-                   *Asset->PrimaryWeapon->Name,
-                   Result.PrimaryWeapon.WeaponEntry.HasCrystal(),
-                   Result.PrimaryWeapon.WeaponEntry.HasCrystal() ? *Result.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal->ItemName : TEXT("none"));
-        }
-        break;
-
-    case EPrimarySlotType::Ring:
-        if (Asset->PrimaryRing)
-        {
-            Result.PrimaryRing.RingEntry = FRingInventoryEntry::CreateFromRing(
-                Asset->PrimaryRing, true); // true = copy SlottedCrystal from RingData
-            Result.PrimaryRing.InitializeFromRing();
-        }
-        break;
-
-    case EPrimarySlotType::Evolution:
-        Result.PrimaryEvolution = FCrystalInventoryEntry::CreateFromCrystal(Asset->PrimaryEvolution);
-        Result.EvolutionSpells = Asset->EvolutionSpells;
-        break;
-    }
-
-    // ==================== SECONDARY EQUIPMENT (Generic only) ====================
-
-    if (Asset->RequiredClass == ECharacterClass::Generic)
-    {
-        Result.SecondarySlotType = Asset->SecondarySlotType;
-
-        if (Asset->SecondarySlotType == ESecondarySlotType::Weapon && Asset->SecondaryWeapon)
-        {
-            Result.SecondaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
-                Asset->SecondaryWeapon, true);
-            Result.SecondaryWeapon.InitializeFromWeapon();
-            Result.SecondaryWeapon.AssignedAbilities = Asset->SecondaryWeaponAbilities;
-            Result.SecondaryWeapon.StanceOverride = Asset->SecondaryWeaponStanceOverride;
-        }
-    }
-
-    // ==================== RESONATOR RINGS ====================
-
-    if (Asset->RequiredClass == ECharacterClass::Resonator)
-    {
-        for (const FResonatorRingSlot &Slot : Asset->EquippedRings)
-        {
-            if (Slot.Ring)
-            {
-                FRingLoadoutEntry RingEntry;
-                RingEntry.RingEntry = FRingInventoryEntry::CreateFromRing(Slot.Ring, true);
-                RingEntry.InitializeFromRing();
-                // Per-loadout spell overrides flow through to the inventory
-                // entry's AssignedSpells override list (empty list = use the
-                // ring's DefaultSpells, set in CreateFromRing above).
-                if (Slot.AssignedSpells.Num() > 0)
-                {
-                    RingEntry.RingEntry.AssignedSpells = Slot.AssignedSpells;
-                }
-                Result.RingLoadout.Add(RingEntry);
-            }
-        }
-    }
-
-    // ==================== CASTER INNATE SPELLS ====================
-
-    if (Asset->RequiredClass == ECharacterClass::Caster)
-    {
-        Result.InnateSpells = Asset->InnateSpells;
-        Result.BDSpellPools = Asset->BDSpellPools;
-    }
-
-    // ==================== ITEMS ====================
-
-    Result.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
-    for (int32 i = 0; i < Asset->EquippedItems.Num() && i < Result.ItemSlots.Num(); i++)
-    {
-        if (Asset->EquippedItems[i])
-        {
-            Result.ItemSlots[i].Crystal = Asset->EquippedItems[i];
-            Result.ItemSlots[i].ResetForBattle();
-        }
-    }
-
-    // ==================== COSMETICS & DEFENSE ====================
-
-    Result.bShowPrimary = Asset->bShowPrimary;
-
-    UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from asset '%s' (PrimarySlotType: %d)"),
-           *Asset->LoadoutName, static_cast<int32>(Asset->PrimarySlotType));
-    return Result;
-}
 
 FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout)
 {

@@ -5,16 +5,13 @@
 //
 // FCombatLoadout::CreateFromSavedLoadout inflates this into the runtime
 // FCombatLoadout (per-instance crystal state, item-use counters, etc).
-//
-// TODO (delete-ULoadoutData commit): FResonatorRingSlot currently lives in
-// LoadoutData.h. Before that file is deleted, extract FResonatorRingSlot to
-// its own header (or move it next to FRingLoadoutEntry) and drop the
-// LoadoutData.h include from this file.
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "LoadoutData.h"
+#include "ECharacterClass.h"
+#include "EWeaponSlotType.h"
+#include "FCombatLoadout.h"
 #include "FSavedLoadout.generated.h"
 
 class UWeaponData;
@@ -23,6 +20,27 @@ class UItemData;
 class USpellData;
 class UAbilityData;
 class UStanceData;
+
+/**
+ * FResonatorRingSlot
+ * One Resonator ring slot — pairs a ring asset with the spell-override list
+ * that applies to that ring in this loadout. Empty AssignedSpells means the
+ * ring exposes its DefaultSpells unchanged.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FResonatorRingSlot
+{
+    GENERATED_BODY()
+
+    /** The ring asset assigned to this slot */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
+    URingData* Ring = nullptr;
+
+    /** Spells assigned to this ring's slots in this loadout (overrides the ring's defaults).
+     *  Empty array means use the ring's DefaultSpells. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
+    TArray<USpellData*> AssignedSpells;
+};
 
 /**
  * FSavedLoadout

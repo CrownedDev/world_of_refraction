@@ -7,7 +7,6 @@
 #include "WeaponData.h"
 #include "RingData.h"
 #include "ItemData.h"
-#include "LoadoutData.h"
 #include "CrystalType.h"
 #include "CharacterData.h"
 #include "InventoryData.h"
@@ -415,176 +414,15 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
         return;
     }
 
-    // Both-set authoring diagnostic: Inventory wins; DefaultLoadout will be ignored.
-    if (CharacterData->Inventory && CharacterData->DefaultLoadout)
-    {
-        UE_LOG(LogTemp, Display,
-               TEXT("[InventoryComponent] Character '%s' has both Inventory and DefaultLoadout set — Inventory takes precedence; DefaultLoadout ignored"),
-               *CharacterData->Name);
-    }
-
-    // New path (UInventoryData) — takes over the entire init if set.
-    if (CharacterData->Inventory)
-    {
-        InitializeFromInventoryAsset(CharacterData);
-        return;
-    }
-
-    // Legacy path — migration warning fires once per init until the character
-    // is migrated to UInventoryData (and the warning self-removes in commit 5).
-    UE_LOG(LogTemp, Warning,
-           TEXT("[InventoryComponent] Character '%s' falling back to DefaultLoadout — needs migration to UInventoryData"),
-           *CharacterData->Name);
-
-    // Clear existing inventory
-    Spells.LearnedSpells.Empty();
-    Abilities.LearnedAbilities.Empty();
-    Weapons.Empty();
-    Rings.Empty();
-    Items.Clear();
-
-    ULoadoutData *DefaultLoadoutAsset = CharacterData->DefaultLoadout;
-    if (!DefaultLoadoutAsset)
-    {
-        UE_LOG(LogTemp, Display, TEXT("InitializeFromCharacterData(%s): No DefaultLoadout set"),
-               *CharacterData->Name);
-        return;
-    }
-
-    // ---------- Weapons ----------
-    if (DefaultLoadoutAsset->PrimaryWeapon)
-    {
-        AddWeapon(DefaultLoadoutAsset->PrimaryWeapon, true);
-    }
-    if (DefaultLoadoutAsset->SecondaryWeapon)
-    {
-        AddWeapon(DefaultLoadoutAsset->SecondaryWeapon, true);
-    }
-
-    // ---------- Rings ----------
-    if (DefaultLoadoutAsset->PrimaryRing)
-    {
-        AddRing(DefaultLoadoutAsset->PrimaryRing, true);
-    }
-    for (const FResonatorRingSlot &Slot : DefaultLoadoutAsset->EquippedRings)
-    {
-        if (Slot.Ring)
-        {
-            AddRing(Slot.Ring, true);
-        }
-    }
-
-    // ---------- Items ----------
-    // Consumables first, evolution crystal last so it lands at a predictable
-    // tail position in its tier array. AddItem fails only on tier-cap overflow
-    // (no dedup), so a false return after the null filter is a capacity drop.
-    for (UItemData *Item : DefaultLoadoutAsset->EquippedItems)
-    {
-        if (Item && !AddItem(Item))
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("InitializeFromCharacterData(%s): item capacity full, dropping %s"),
-                   *CharacterData->Name, *Item->ItemName);
-        }
-    }
-    if (DefaultLoadoutAsset->PrimaryEvolution && !AddItem(DefaultLoadoutAsset->PrimaryEvolution))
+    if (!CharacterData->Inventory)
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("InitializeFromCharacterData(%s): item capacity full, dropping evolution crystal %s"),
-               *CharacterData->Name, *DefaultLoadoutAsset->PrimaryEvolution->ItemName);
+               TEXT("[InventoryComponent] Character '%s' has no Inventory asset - inventory will be empty"),
+               *CharacterData->Name);
+        return;
     }
 
-    // ---------- Spells ----------
-    // Innate → Evolution → BD pools. LearnSpell short-circuits on null,
-    // capacity, OR duplicate; HasSpell discriminates dedup (silent) from
-    // capacity drop (warn).
-    for (USpellData *Spell : DefaultLoadoutAsset->InnateSpells)
-    {
-        if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("InitializeFromCharacterData(%s): spell capacity full, dropping %s"),
-                   *CharacterData->Name, *Spell->Name);
-        }
-    }
-    for (USpellData *Spell : DefaultLoadoutAsset->EvolutionSpells)
-    {
-        if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("InitializeFromCharacterData(%s): spell capacity full, dropping %s"),
-                   *CharacterData->Name, *Spell->Name);
-        }
-    }
-    for (const FBDElementSpellPool &Pool : DefaultLoadoutAsset->BDSpellPools)
-    {
-        for (USpellData *Spell : Pool.Spells)
-        {
-            if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
-            {
-                UE_LOG(LogTemp, Warning,
-                       TEXT("InitializeFromCharacterData(%s): spell capacity full, dropping %s"),
-                       *CharacterData->Name, *Spell->Name);
-            }
-        }
-    }
-
-    // ---------- Abilities ----------
-    // Loadout-listed abilities before weapon PresetAbilities so overlap dedup
-    // logs read as "PresetAbilities subset already known" rather than the
-    // reverse. Same false-return-and-not-known capacity discrimination as
-    // spells above.
-    for (UAbilityData *Ability : DefaultLoadoutAsset->PrimaryWeaponAbilities)
-    {
-        if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
-                   *CharacterData->Name, *Ability->Name);
-        }
-    }
-    for (UAbilityData *Ability : DefaultLoadoutAsset->SecondaryWeaponAbilities)
-    {
-        if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
-                   *CharacterData->Name, *Ability->Name);
-        }
-    }
-    if (DefaultLoadoutAsset->PrimaryWeapon)
-    {
-        for (UAbilityData *Ability : DefaultLoadoutAsset->PrimaryWeapon->PresetAbilities)
-        {
-            if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
-            {
-                UE_LOG(LogTemp, Warning,
-                       TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
-                       *CharacterData->Name, *Ability->Name);
-            }
-        }
-    }
-    if (DefaultLoadoutAsset->SecondaryWeapon)
-    {
-        for (UAbilityData *Ability : DefaultLoadoutAsset->SecondaryWeapon->PresetAbilities)
-        {
-            if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
-            {
-                UE_LOG(LogTemp, Warning,
-                       TEXT("InitializeFromCharacterData(%s): ability capacity full, dropping %s"),
-                       *CharacterData->Name, *Ability->Name);
-            }
-        }
-    }
-
-    UE_LOG(LogTemp, Display,
-           TEXT("Initialized inventory from %s: %d weapons, %d rings, %d items, %d spells, %d abilities"),
-           *CharacterData->Name,
-           Weapons.Num(),
-           Rings.Num(),
-           Items.GetTotalCount(),
-           Spells.GetCount(),
-           Abilities.GetCount());
+    InitializeFromInventoryAsset(CharacterData);
 }
 
 void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *CharacterData)

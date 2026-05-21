@@ -10,7 +10,6 @@
 #include "ItemData.h"
 #include "StatConstants.h"
 #include "LoadoutConstants.h"
-#include "LoadoutData.h"
 #include "InventoryData.h"
 
 // Implementation is mostly in header (inline functions)
@@ -34,12 +33,10 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
         Context.AddWarning(FText::FromString(TEXT("Caster should have an innate element set")));
     }
 
-    // Validate at least one authoring path is set. Either field is acceptable
-    // during the migration window — runtime currently only reads DefaultLoadout
-    // (Inventory becomes the source of truth in a later commit).
-    if (!DefaultLoadout && !Inventory)
+    // Inventory is the sole authoring path for loadouts.
+    if (!Inventory)
     {
-        Context.AddWarning(FText::FromString(TEXT("No DefaultLoadout or Inventory assigned - character will have no equipment")));
+        Context.AddWarning(FText::FromString(TEXT("No Inventory assigned - character will have no equipment")));
     }
 
     // Validate Cosmetics asset assigned

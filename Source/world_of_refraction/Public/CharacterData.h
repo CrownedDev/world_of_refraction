@@ -17,7 +17,6 @@
 
 class USpellData;
 class UItemData;
-class ULoadoutData;
 class UInventoryData;
 class UCosmeticsData;
 
@@ -78,16 +77,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Control")
 	bool bIsAIControlled = false;
 
-	// ==================== DEFAULT LOADOUT ====================
-
-	/** Default loadout for AI/template use (nullptr = build from inventory) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout",
-			  meta = (DisplayName = "Default Loadout"))
-	ULoadoutData *DefaultLoadout = nullptr;
+	// ==================== INVENTORY ====================
 
 	/** The character's inventory asset. References the items they own and the
-	 *  saved loadout configurations they can switch between. When set, this
-	 *  replaces the legacy DefaultLoadout authoring path. */
+	 *  saved loadout configurations they can switch between. Sole source of
+	 *  truth for runtime loadout population. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
 	UInventoryData *Inventory = nullptr;
 

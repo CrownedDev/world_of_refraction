@@ -18,7 +18,6 @@
 #include "FItemLoadoutSlot.h"
 #include "FEquipmentStatBonus.h"
 #include "FSkillEffect.h"
-#include "LoadoutData.h"
 #include "CharacterDataComponent.h"
 #include "LoadoutComponent.generated.h"
 
@@ -447,13 +446,6 @@ public:
     /** Initialize loadout from CharacterData and Inventory */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")
     void InitializeFromCharacterData(UCharacterData *CharacterData, UInventoryComponent *Inventory);
-
-    /**
-     * Initialize from pre-configured LoadoutData asset (AI enemies)
-     * Copies asset configuration into SavedLoadouts[0] and sets as active
-     */
-    UFUNCTION(BlueprintCallable, Category = "Loadout|Init")
-    void InitializeFromAsset(ULoadoutData *LoadoutAsset);
 
     /** Auto-populate loadout from inventory (best available) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Setup")

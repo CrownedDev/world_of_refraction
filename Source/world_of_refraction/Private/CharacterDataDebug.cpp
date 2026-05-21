@@ -3,7 +3,7 @@
 #include "CharacterDataDebug.h"
 #include "Engine/Engine.h"
 #include "StatConstants.h"
-#include "LoadoutData.h"
+#include "InventoryData.h"
 
 void UCharacterDataDebug::PrintCharacterStats(UCharacterData *Character, float Duration, FLinearColor TextColor)
 {
@@ -75,8 +75,8 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 		Output += FString::Printf(TEXT("  Innate Element: %s\n"), *ElementName);
 	}
 	Output += FString::Printf(TEXT("  AI Controlled: %s\n"), Character->bIsAIControlled ? TEXT("Yes") : TEXT("No"));
-	Output += FString::Printf(TEXT("  Default Loadout: %s\n"),
-							  Character->DefaultLoadout ? *Character->DefaultLoadout->GetName() : TEXT("None"));
+	Output += FString::Printf(TEXT("  Inventory: %s\n"),
+							  Character->Inventory ? *Character->Inventory->GetName() : TEXT("None"));
 	Output += TEXT("\n");
 
 	// ==================== WORLD PROGRESSION ====================

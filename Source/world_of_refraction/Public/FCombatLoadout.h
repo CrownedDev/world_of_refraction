@@ -29,7 +29,6 @@
 class USpellData;
 class UAbilityData;
 class UInventoryComponent;
-class ULoadoutData;
 class UItemData;
 class UStanceData;
 class UInfusionDisplayData;
@@ -76,13 +75,8 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     // ==================== FACTORY ====================
 
-    /** Create FCombatLoadout from LoadoutData asset (for AI enemies) */
-    static FCombatLoadout CreateFromAsset(const ULoadoutData *Asset);
-
     /** Build a runtime combat loadout from a designer-authored FSavedLoadout
-     *  struct (inline on UInventoryData). Mirrors CreateFromAsset 1:1; both
-     *  factories coexist until ULoadoutData is removed in the final migration
-     *  commit. */
+     *  struct (inline on UInventoryData). Sole factory for runtime loadouts. */
     static FCombatLoadout CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout);
 
     // ==================== PRIMARY EQUIPMENT ====================

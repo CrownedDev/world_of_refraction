@@ -256,10 +256,9 @@ public:
     FString GetInventorySummary() const;
 
 private:
-    /** New-path init: populate ownership lists + SavedLoadouts + ActiveLoadoutIndex
-     *  from CharacterData->Inventory (a UInventoryData asset). Called by
-     *  InitializeFromCharacterData when CharacterData->Inventory is non-null.
-     *  The legacy DefaultLoadout path stays inline in the public method. */
+    /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
+     *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
+     *  path — InitializeFromCharacterData delegates here when Inventory is set. */
     void InitializeFromInventoryAsset(UCharacterData *CharacterData);
 
 protected:

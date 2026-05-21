@@ -13,7 +13,6 @@
 #include "CosmeticsData.h"
 #include "BrokenDarknessManager.h"
 #include "ElementHelpers.h"
-#include "LoadoutData.h"
 #include "RingData.h"
 #include "ItemData.h"
 #include "StanceData.h"
@@ -1129,22 +1128,7 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
         return;
     }
 
-    // If DefaultLoadout exists, use it (AI path or player template)
-    if (CharacterData->DefaultLoadout)
-    {
-        InitializeFromAsset(CharacterData->DefaultLoadout);
-
-        // For players with inventory, we may want to validate against inventory later
-        // For now, asset-based initialization is sufficient
-        if (Inventory)
-        {
-            UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] %s: Initialized from DefaultLoadout (inventory available for future validation)"),
-                   *CharacterData->Name);
-        }
-        return;
-    }
-
-    // No DefaultLoadout - create empty loadout for manual setup
+    // No Inventory - create empty loadout for manual setup
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -1159,53 +1143,8 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     Inv->ActiveLoadoutIndex = 0;
     bIsReadyForBattle = false;
 
-    UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no DefaultLoadout - created empty loadout. Assign equipment via UI or set DefaultLoadout in CharacterData."),
+    UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] %s has no Inventory - created empty loadout. Assign UInventoryData on CharacterData."),
            *CharacterData->Name);
-
-    // Broken Darkness characters get their element-spell pools initialised.
-    ApplyBDPoolsIfBroken();
-}
-
-void ULoadoutComponent::InitializeFromAsset(ULoadoutData *LoadoutAsset)
-{
-    if (!LoadoutAsset)
-    {
-        UE_LOG(LogTemp, Error, TEXT("[LoadoutComponent] InitializeFromAsset: Null LoadoutAsset"));
-        return;
-    }
-
-    // Log validation warnings (but don't block - designer may be testing)
-    if (LoadoutAsset->HasValidationErrors())
-    {
-        TArray<FString> Errors = LoadoutAsset->GetValidationErrors();
-        for (const FString &Error : Errors)
-        {
-            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] LoadoutData '%s' validation: %s"),
-                   *LoadoutAsset->LoadoutName, *Error);
-        }
-    }
-
-    // Set class from asset (local field, stays on ULoadoutComponent)
-    CharacterClass = LoadoutAsset->RequiredClass;
-
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::InitializeFromAsset] No InventoryComponent found on owner — cannot seed loadout"));
-        return;
-    }
-
-    // Clear existing loadouts (on the inventory component)
-    Inv->SavedLoadouts.Empty();
-
-    // Create loadout from asset using factory function
-    FCombatLoadout NewLoadout = FCombatLoadout::CreateFromAsset(LoadoutAsset);
-    Inv->SavedLoadouts.Add(NewLoadout);
-    Inv->ActiveLoadoutIndex = 0;
-
-    UE_LOG(LogTemp, Display, TEXT("[LoadoutComponent] Initialized from asset '%s' (Class: %s)"),
-           *LoadoutAsset->LoadoutName,
-           *UEnum::GetValueAsString(CharacterClass));
 
     // Broken Darkness characters get their element-spell pools initialised.
     ApplyBDPoolsIfBroken();
