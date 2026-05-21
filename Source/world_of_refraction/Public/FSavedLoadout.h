@@ -12,6 +12,7 @@
 #include "ECharacterClass.h"
 #include "EWeaponSlotType.h"
 #include "FCombatLoadout.h"
+#include "FEquippedItemSlot.h"
 #include "FSavedLoadout.generated.h"
 
 class UWeaponData;
@@ -166,9 +167,19 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
 
     // ==================== ITEMS ====================
 
-    /** Equipped item crystals (max 6 slots, 3 uses each) */
+    /** Equipped item slots (max 6, max 3 quantity per slot, unique by ECrystalType). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "5. Items")
-    TArray<UEvolutionItemData *> EquippedItems;
+    TArray<FEquippedItemSlot> EquippedItems;
+
+    /** When true, runtime auto-equips items from inventory at combat start
+     *  (and refills empty/partial slots between combats), ignoring each
+     *  slot's designer-authored Quantity. When false, the slot's authored
+     *  Quantity is taken as the starting amount and ItemCrystals is
+     *  debited at character init; no between-combat refill.
+     *  Auto-equip runtime logic lands with the equip API in a later commit. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "5. Items",
+              meta = (DisplayName = "Auto-Equip Items at Combat Start"))
+    bool bAutoEquipItemsOnCombatStart = false;
 
     // ==================== VALIDATION ====================
 

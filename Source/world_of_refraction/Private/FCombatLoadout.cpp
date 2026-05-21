@@ -510,15 +510,15 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     }
 
     // ==================== ITEMS ====================
-
+    // 9.5a: slot gets the designer's authored Quantity directly. When
+    // SavedLoadout.bAutoEquipItemsOnCombatStart is true, Quantity is 0 and
+    // the slot stays empty until the runtime equip API (later commit) fills
+    // it from inventory at combat start.
     Result.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
-    for (int32 i = 0; i < SavedLoadout.EquippedItems.Num() && i < Result.ItemSlots.Num(); i++)
+    for (int32 i = 0; i < SavedLoadout.EquippedItems.Num() && i < Result.ItemSlots.Num(); ++i)
     {
-        if (SavedLoadout.EquippedItems[i])
-        {
-            Result.ItemSlots[i].Crystal = SavedLoadout.EquippedItems[i];
-            Result.ItemSlots[i].ResetForBattle();
-        }
+        Result.ItemSlots[i].CrystalId = SavedLoadout.EquippedItems[i].CrystalId;
+        Result.ItemSlots[i].Quantity = SavedLoadout.EquippedItems[i].Quantity;
     }
 
     // ==================== COSMETICS & DEFENSE ====================

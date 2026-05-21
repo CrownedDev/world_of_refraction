@@ -146,11 +146,25 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
                                    EquippedItems.Num(), InventoryConstants::MAX_ITEM_LOADOUT_SLOTS));
     }
 
+    TSet<ECrystalType> SeenTypes;
     for (int32 i = 0; i < EquippedItems.Num(); ++i)
     {
-        if (!EquippedItems[i])
+        const FEquippedItemSlot &Slot = EquippedItems[i];
+
+        if (Slot.Quantity < 0 || Slot.Quantity > InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT)
         {
-            Errors.Add(FString::Printf(TEXT("Null item in slot %d"), i));
+            Errors.Add(FString::Printf(
+                TEXT("Equipped item slot %d Quantity %d out of range [0, %d]"),
+                i, Slot.Quantity, InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT));
+        }
+
+        bool bAlreadyIn = false;
+        SeenTypes.Add(Slot.CrystalId.Type, &bAlreadyIn);
+        if (bAlreadyIn)
+        {
+            Errors.Add(FString::Printf(
+                TEXT("Equipped item slot %d duplicates ECrystalType %s already in another slot"),
+                i, *UEnum::GetValueAsString(Slot.CrystalId.Type)));
         }
     }
 

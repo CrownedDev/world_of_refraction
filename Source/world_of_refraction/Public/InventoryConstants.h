@@ -107,7 +107,10 @@ namespace InventoryConstants
     /** Maximum item slots in combat loadout */
     constexpr int32 MAX_ITEM_LOADOUT_SLOTS = 6;
 
-    /** Uses per item slot in combat */
+    /** Maximum starting/refilled quantity per equipped item slot (new model). */
+    constexpr int32 MAX_QUANTITY_PER_ITEM_SLOT = 3;
+
+    /** Uses per item slot in combat (legacy — removed in 9.5b reader migration). */
     constexpr int32 ITEM_USES_PER_SLOT = 3;
 
     /** Maximum total item uses per battle */
