@@ -1117,6 +1117,18 @@ void ULoadoutComponent::InitializeFromCharacterData(UCharacterData *CharacterDat
     // Set class from CharacterData
     CharacterClass = CharacterData->CharacterClass;
 
+    // New path: InventoryComponent has already populated SavedLoadouts +
+    // ActiveLoadoutIndex from UInventoryData. LC just sets class, applies
+    // BD pool runtime flag, and returns.
+    if (CharacterData->Inventory)
+    {
+        ApplyBDPoolsIfBroken();
+        UE_LOG(LogTemp, Display,
+               TEXT("[LoadoutComponent] %s: Initialized from UInventoryData (SavedLoadouts populated by InventoryComponent)"),
+               *CharacterData->Name);
+        return;
+    }
+
     // If DefaultLoadout exists, use it (AI path or player template)
     if (CharacterData->DefaultLoadout)
     {

@@ -26,6 +26,8 @@ class UAbilityData;
 class UWeaponData;
 class URingData;
 class UItemData;
+class UInventoryData;
+class UCharacterData;
 
 /**
  * UInventoryComponent
@@ -252,6 +254,13 @@ public:
     /** Get inventory summary for debug */
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
     FString GetInventorySummary() const;
+
+private:
+    /** New-path init: populate ownership lists + SavedLoadouts + ActiveLoadoutIndex
+     *  from CharacterData->Inventory (a UInventoryData asset). Called by
+     *  InitializeFromCharacterData when CharacterData->Inventory is non-null.
+     *  The legacy DefaultLoadout path stays inline in the public method. */
+    void InitializeFromInventoryAsset(UCharacterData *CharacterData);
 
 protected:
     virtual void BeginPlay() override;

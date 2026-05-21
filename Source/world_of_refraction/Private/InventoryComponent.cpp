@@ -10,6 +10,8 @@
 #include "LoadoutData.h"
 #include "CrystalType.h"
 #include "CharacterData.h"
+#include "InventoryData.h"
+#include "FSavedLoadout.h"
 
 UInventoryComponent::UInventoryComponent()
 {
@@ -413,6 +415,27 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
         return;
     }
 
+    // Both-set authoring diagnostic: Inventory wins; DefaultLoadout will be ignored.
+    if (CharacterData->Inventory && CharacterData->DefaultLoadout)
+    {
+        UE_LOG(LogTemp, Display,
+               TEXT("[InventoryComponent] Character '%s' has both Inventory and DefaultLoadout set — Inventory takes precedence; DefaultLoadout ignored"),
+               *CharacterData->Name);
+    }
+
+    // New path (UInventoryData) — takes over the entire init if set.
+    if (CharacterData->Inventory)
+    {
+        InitializeFromInventoryAsset(CharacterData);
+        return;
+    }
+
+    // Legacy path — migration warning fires once per init until the character
+    // is migrated to UInventoryData (and the warning self-removes in commit 5).
+    UE_LOG(LogTemp, Warning,
+           TEXT("[InventoryComponent] Character '%s' falling back to DefaultLoadout — needs migration to UInventoryData"),
+           *CharacterData->Name);
+
     // Clear existing inventory
     Spells.LearnedSpells.Empty();
     Abilities.LearnedAbilities.Empty();
@@ -562,6 +585,131 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
            Items.GetTotalCount(),
            Spells.GetCount(),
            Abilities.GetCount());
+}
+
+void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *CharacterData)
+{
+    UInventoryData *InventoryAsset = CharacterData ? CharacterData->Inventory : nullptr;
+    if (!InventoryAsset)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] InitializeFromInventoryAsset: null Inventory asset (CharacterData=%s)"),
+               CharacterData ? *CharacterData->Name : TEXT("null"));
+        return;
+    }
+
+    // Validate before population — surfaces ownership/loadout cross-check
+    // failures alongside the init log rather than as downstream symptoms.
+    for (const FString &Error : InventoryAsset->GetValidationErrors())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryData] '%s' validation: %s"),
+               *InventoryAsset->GetName(), *Error);
+    }
+
+    // Clear ownership lists (same shape as legacy path).
+    Spells.LearnedSpells.Empty();
+    Abilities.LearnedAbilities.Empty();
+    Weapons.Empty();
+    Rings.Empty();
+    Items.Clear();
+
+    // ---------- Weapons ----------
+    for (UWeaponData *Weapon : InventoryAsset->Weapons)
+    {
+        if (Weapon)
+        {
+            AddWeapon(Weapon, true);
+        }
+    }
+
+    // ---------- Rings ----------
+    for (URingData *Ring : InventoryAsset->Rings)
+    {
+        if (Ring)
+        {
+            AddRing(Ring, true);
+        }
+    }
+
+    // ---------- Items (Crystals + consumables share FItemCrystalInventory) ----------
+    // Mirror the legacy path's capacity-drop warning so authoring mistakes
+    // surface in the log instead of silently dropping at runtime.
+    for (UItemData *Crystal : InventoryAsset->Crystals)
+    {
+        if (Crystal && !AddItem(Crystal))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping crystal %s"),
+                   *CharacterData->Name, *Crystal->ItemName);
+        }
+    }
+    for (UItemData *Item : InventoryAsset->Items)
+    {
+        if (Item && !AddItem(Item))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping %s"),
+                   *CharacterData->Name, *Item->ItemName);
+        }
+    }
+
+    // ---------- Spells ----------
+    // LearnSpell short-circuits on null/capacity/duplicate; HasSpell
+    // discriminates dedup (silent) from capacity drop (warn).
+    for (USpellData *Spell : InventoryAsset->Spells)
+    {
+        if (Spell && !LearnSpell(Spell) && !HasSpell(Spell))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): spell capacity full, dropping %s"),
+                   *CharacterData->Name, *Spell->Name);
+        }
+    }
+
+    // ---------- Abilities ----------
+    // Explicit-only — no implicit seeding from weapon PresetAbilities per
+    // locked decision. Designer must list every ability in
+    // UInventoryData::Abilities.
+    for (UAbilityData *Ability : InventoryAsset->Abilities)
+    {
+        if (Ability && !LearnAbility(Ability) && !HasAbility(Ability))
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ability capacity full, dropping %s"),
+                   *CharacterData->Name, *Ability->Name);
+        }
+    }
+
+    // ---------- SavedLoadouts ----------
+    // Inflate each FSavedLoadout into a runtime FCombatLoadout. Stance
+    // overrides flow through CreateFromSavedLoadout (commit 1.5).
+    SavedLoadouts.Empty();
+    for (const FSavedLoadout &SavedLoadout : InventoryAsset->SavedLoadouts)
+    {
+        SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout));
+    }
+
+    // Active index — clamp to valid range. Empty SavedLoadouts is soft-fail
+    // (legacy parity); LoadoutComponent will seed an empty default downstream.
+    if (SavedLoadouts.Num() > 0)
+    {
+        ActiveLoadoutIndex = FMath::Clamp(InventoryAsset->DefaultActiveLoadoutIndex, 0, SavedLoadouts.Num() - 1);
+    }
+    else
+    {
+        ActiveLoadoutIndex = 0;
+    }
+
+    UE_LOG(LogTemp, Display,
+           TEXT("[InventoryComponent] Initialized inventory from %s (new path): %d weapons, %d rings, %d items, %d spells, %d abilities, %d loadouts (active=%d)"),
+           *InventoryAsset->GetName(),
+           Weapons.Num(),
+           Rings.Num(),
+           Items.GetTotalCount(),
+           Spells.GetCount(),
+           Abilities.GetCount(),
+           SavedLoadouts.Num(),
+           ActiveLoadoutIndex);
 }
 
 #if WITH_EDITOR
