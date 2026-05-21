@@ -7,7 +7,7 @@ their runtime combat state. It is split into two cooperating pieces:
 
 - **`UCharacterData`** — an immutable, design-time `UPrimaryDataAsset`. It
   defines the character's identity (name, class, innate element, portrait),
-  AI/control flag, default loadout reference, the stat-point distribution
+  AI/control flag, inventory reference, the stat-point distribution
   (character "DNA"), world-level progression, and cosmetic/defense animation
   references. It also contains all the *stat formulas* (efficiency, spell
   damage, crit, defense, HP/EP pools, etc.) as inline `BlueprintPure` helpers.
@@ -33,8 +33,11 @@ Immutable design-time data. Key groups of fields:
   `InnateElement` (`ESpellElement`, editor-gated to Casters only),
   `Description`, `Portrait`.
 - **Control**: `bIsAIControlled`.
-- **Default loadout**: `DefaultLoadout` (`ULoadoutData*`; nullptr means build
-  from inventory).
+- **Inventory**: `Inventory` (`UInventoryData*`) — the sole authoring surface
+  for ownership lists (Weapons / Rings / Crystals / Items / Spells /
+  Abilities) and saved loadouts. `UInventoryComponent::InitializeFromCharacterData`
+  reads this asset to populate runtime state. Nullptr is a soft-fail: the
+  character spawns with an empty inventory and one empty `"Default"` loadout.
 - **World stat levels**: `WorldMindLevel`, `WorldBodyLevel`, `WorldSpiritLevel`
   (each clamped 0–7) — progression multipliers.
 - **Sub-stats (character DNA)** — 13 `int32` point pools across three pillars:
@@ -78,7 +81,7 @@ Defined in the header but not consumed within these files.
 `CharacterData.cpp` is almost entirely empty (formulas are inline in the
 header). Its only logic is `IsDataValid()` (editor-only), which errors on an
 empty name and warns when a Caster has no innate element or when no
-`DefaultLoadout` is assigned.
+`Inventory` asset is assigned.
 
 ### `UCharacterDataComponent` (`UActorComponent`)
 
@@ -268,3 +271,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-21 | Inventory redesign merged — `UCharacterData::DefaultLoadout` (`ULoadoutData*`) replaced by `Inventory` (`UInventoryData*`); `IsDataValid` now warns on missing `Inventory` instead of missing `DefaultLoadout`. | feature/inventory-refactor |

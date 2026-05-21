@@ -11,11 +11,12 @@ The header states the architectural split plainly:
 > `InventoryComponent` = What you OWN (warehouse)
 > `LoadoutComponent`  = What you're USING in battle (equipped gear)
 
-A character can save multiple loadout configurations (`SavedLoadouts`, capped by
-`MaxSavedLoadouts`, default 5). One loadout is active at a time
-(`ActiveLoadoutIndex`). At battle start the active loadout is validated against
-inventory (for player characters) or accepted as-is (for AI characters
-initialized from a `ULoadoutData` asset).
+A character can save multiple loadout configurations. `SavedLoadouts` is owned
+by `UInventoryComponent` (not `ULoadoutComponent`) and capped by
+`UInventoryComponent::MaxSavedLoadouts` (default 5); the loadout component
+reaches into the inventory to read them. One loadout is active at a time
+(`UInventoryComponent::ActiveLoadoutIndex`). At battle start the active loadout
+is validated against inventory ownership.
 
 The system is the central query surface for combat: it answers "what weapon is
 active?", "what spells can I cast?", "what abilities are available?", "what
@@ -34,12 +35,10 @@ Key fields:
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `CharacterClass` | `ECharacterClass` | Determines loadout rules; defaults to `Generic`. Set from `CharacterData` / `LoadoutData` during initialization. |
-| `MaxSavedLoadouts` | `int32` | Cap on saved configurations (default 5). |
-| `SavedLoadouts` | `TArray<FCombatLoadout>` | All saved loadout configurations. **Not a `UPROPERTY`** — C++-only access, not serialized via the reflection system. |
-| `ActiveLoadoutIndex` | `int32` | Index of the currently active loadout. |
+| `CharacterClass` | `ECharacterClass` | Determines loadout rules; defaults to `Generic`. Set from `CharacterData` during initialization. |
 | `bIsReadyForBattle` | `bool` | Set true by `PrepareForBattle`; gates `UseItem`. |
-| `bInitializedFromAsset` | `bool` (private) | True if initialized from a `ULoadoutData` asset (AI), false if from inventory (player). Controls whether inventory validation is skipped. |
+
+`SavedLoadouts` (`TArray<FCombatLoadout>`, `UPROPERTY()`-tagged for GC), `MaxSavedLoadouts` and `ActiveLoadoutIndex` live on **`UInventoryComponent`**, not on `ULoadoutComponent` — the loadout component is a thin facade that reads them through `GetInventoryComponent()` on every accessor.
 
 ### `FEquippedCrystalSlot` (`USTRUCT`)
 
@@ -132,28 +131,30 @@ fields the component reads include: `LoadoutName`, `PrimarySlotType`
 `PrimaryEvolution` (`UItemData*`), `EvolutionSpells`, `InnateSpells` (Caster),
 `ItemSlots` (`TArray<FItemLoadoutSlot>`), `bShowPrimary` and
 `bUseWeaponParryAnimation`. It also exposes `InitializeForClass`, `Clear`,
-`CreateFromAsset`, `GetAllAbilities`, `GetAllSpells`, `GetUsableItemSlots` and
-`HasDuplicateItemTypes`.
+`CreateFromSavedLoadout` (the sole runtime factory; inflates an `FSavedLoadout`
+struct stored inline on `UInventoryData`), `GetAllAbilities`, `GetAllSpells`,
+`GetUsableItemSlots` and `HasDuplicateItemTypes`.
 
 ## How It Works
 
 ### Initialization
 
-1. `BeginPlay()` calls `EnsureDefaultLoadout()`, which creates a single
-   `"Default"` loadout (`InitializeForClass(CharacterClass)`) if none exist.
-2. `UCharacterDataComponent::BeginPlay()` then calls
-   `InitializeFromCharacterData(CharacterData, Inventory)` on this component
-   (after initializing the inventory). This:
-   - Sets `CharacterClass` from `CharacterData->CharacterClass`.
-   - If `CharacterData->DefaultLoadout` is set, calls `InitializeFromAsset()`
-     (AI path, or a player template).
-   - Otherwise clears `SavedLoadouts` and creates a fresh empty `"Default"`
-     loadout for manual UI setup, with `bInitializedFromAsset = false`.
-3. `InitializeFromAsset(ULoadoutData*)` logs any validation errors (non-blocking),
-   sets `CharacterClass` from `LoadoutAsset->RequiredClass`, replaces
-   `SavedLoadouts` with a single `FCombatLoadout::CreateFromAsset(...)`, marks
-   `bInitializedFromAsset = true` and `bIsReadyForBattle = true` (asset-based
-   loadouts are always considered ready).
+`UCharacterDataComponent::BeginPlay()` drives the sequence:
+
+1. `UInventoryComponent::InitializeFromCharacterData(CharacterData)` runs
+   **first**. It reads `CharacterData->Inventory` (`UInventoryData*` — the sole
+   authoring surface) and delegates to `InitializeFromInventoryAsset`, which
+   populates the ownership lists (Weapons/Rings/Items/Spells/Abilities) and
+   inflates each `FSavedLoadout` on the asset into a runtime `FCombatLoadout`
+   via `FCombatLoadout::CreateFromSavedLoadout`. The resulting array is stored
+   on the inventory component as `SavedLoadouts`. `ActiveLoadoutIndex` is
+   clamped from `UInventoryData::DefaultActiveLoadoutIndex`. Missing-inventory
+   characters get an empty inventory and one fallback empty `"Default"`
+   loadout (soft-fail).
+2. `ULoadoutComponent::InitializeFromCharacterData(CharacterData)` runs after.
+   It sets `CharacterClass` from `CharacterData->CharacterClass`. If the
+   inventory's `SavedLoadouts` is empty (legacy soft-fail), it seeds one empty
+   `FCombatLoadout` initialized for the class.
 
 ### Loadout management
 
@@ -167,8 +168,8 @@ skipping anything unowned.
 ### Validation and battle prep
 
 1. `ValidateActiveLoadout` / `ValidateLoadout` delegate to
-   `GetValidationErrors()`. Asset-based loadouts short-circuit to `true` (no
-   inventory check). For every error found, `OnValidationFailed` is broadcast.
+   `GetValidationErrors()`. For every error found, `OnValidationFailed` is
+   broadcast.
 2. `GetValidationErrors()` checks: primary weapon/ring/evolution ownership and
    assigned ability/spell ownership; secondary weapon ownership (Generic);
    Resonator ring-loadout ownership plus a **slot-cost budget** (1 per normal
@@ -176,9 +177,9 @@ skipping anything unowned.
    `RESONATOR_RING_SLOTS_NORMAL` / `RESONATOR_RING_SLOTS_EVOLVED`; Caster innate
    spell ownership and element match; item-slot ownership; and duplicate item
    types.
-3. `PrepareForBattle()` — asset-based loadouts just reset item-slot uses
-   (`ResetForBattle()`) and set `bIsReadyForBattle = true`. Player loadouts must
-   pass `ValidateActiveLoadout` first; failure leaves `bIsReadyForBattle = false`.
+3. `PrepareForBattle()` — runs `ValidateActiveLoadout` and resets item-slot
+   uses (`ResetForBattle()`). On success sets `bIsReadyForBattle = true`;
+   failure leaves it `false`.
 
 ### Runtime combat queries
 
@@ -258,9 +259,9 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
   prep, configuration and post-battle consumption (not cached).
 - `UCharacterDataComponent` / `UCharacterData` — sibling component looked up via
   `GetOwnerCharacterData()` for class info and defense/cosmetic montages.
-- Data assets it reads: `ULoadoutData`, `UWeaponData`, `URingData`, `UItemData`,
-  `USpellData`, `UAbilityData`, `UWeaponAttackData`, `UStanceData`,
-  `UInfusionDisplayData`.
+- Data assets it reads: `UInventoryData` (indirectly via `UInventoryComponent`),
+  `UWeaponData`, `URingData`, `UItemData`, `USpellData`, `UAbilityData`,
+  `UWeaponAttackData`, `UStanceData`, `UInfusionDisplayData`.
 
 ### Systems that depend on it
 
@@ -281,17 +282,11 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
   — currently ability locking is all-or-nothing.
 - `AutoPopulateLoadout()` carries `// TODO: Implement smarter auto-population`;
   it only assigns the first available weapon and does not auto-assign items.
-- `SavedLoadouts` is **not a `UPROPERTY`** and is not serialized — there is no
-  save/load persistence for player loadouts through the reflection system.
 - `HasRingInSecondary()` unconditionally returns `false` after its early-out
   checks — the "ring in secondary slot" case is effectively unimplemented.
 - `FWeaponLoadoutEntry::ValidateSpells()` validates `WeaponEntry.AssignedSpells`
   rather than the entry's own `AssignedSpells` field — a possible inconsistency
   worth confirming against intended design.
-- `InitializeFromCharacterData()` notes that, for players with an inventory, the
-  loadout is currently accepted from `DefaultLoadout` without inventory
-  validation ("inventory available for future validation") — that validation
-  pass is not yet wired.
 
 ## Changelog
 
@@ -299,3 +294,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-19 | Documented the `bRequiresDualWeapon` hard-fail in `FWeaponLoadoutEntry::ValidateAbilities` (dual-only abilities reject `Single` weapons). | feature/weapon-sockets-dual-flag |
+| 2026-05-21 | Inventory redesign merged — `ULoadoutData` and `UCharacterData::DefaultLoadout` deleted; `UInventoryData` is the sole authoring surface and owns the inline `FSavedLoadout` array. `SavedLoadouts` / `ActiveLoadoutIndex` / `MaxSavedLoadouts` moved from `ULoadoutComponent` to `UInventoryComponent`; the loadout component now reads them via `GetInventoryComponent()`. `InitializeFromAsset` and the `bInitializedFromAsset` validation-bypass field removed; `FCombatLoadout::CreateFromSavedLoadout` is the sole runtime factory. Initialization, Validation, Field-table and Integration-Points sections updated. | feature/inventory-refactor |

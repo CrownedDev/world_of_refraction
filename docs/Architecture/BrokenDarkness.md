@@ -191,14 +191,16 @@ per-element pools.
 `ULoadoutComponent::InitializeBDPools` builds the seven empty pools — one per absorbable
 non-Darkness element — and is idempotent (authored pools survive, missing ones are added).
 `ApplyBDPoolsIfBroken` runs it when the owning character is `IsBrokenDarkness()`, at
-loadout creation (`InitializeFromAsset` and the empty-loadout path of
-`InitializeFromCharacterData`). Non-BD characters get no pools.
+loadout creation (via `InitializeFromCharacterData`, including the empty-loadout
+soft-fail path). Non-BD characters get no pools.
 
-**Validation** — `FCombatLoadout::ValidateBDSpellLoadout` (static, shared by `FCombatLoadout`
-and `ULoadoutData`) enforces the structural rules: Darkness pool ≤ 6 and all-Darkness;
-≤ 7 element pools; each pool ≤ 6 and element-matched. `LoadoutComponent::GetValidationErrors`
-calls it for BD characters; `ULoadoutData::GetValidationErrors` calls it when an asset has
-authored `BDSpellPools`.
+**Validation** — `FCombatLoadout::ValidateBDSpellLoadout` (static, shared between
+runtime `FCombatLoadout` and the inline-asset `FSavedLoadout`) enforces the
+structural rules: Darkness pool ≤ 6 and all-Darkness; ≤ 7 element pools; each
+pool ≤ 6 and element-matched. `LoadoutComponent::GetValidationErrors` calls it
+for BD characters at runtime; `FSavedLoadout::GetValidationErrors` calls it on
+authored saved loadouts (each `UInventoryData::SavedLoadouts[i]`) when the
+entry has authored `BDSpellPools`.
 
 **Single-slot absorption** — absorption has one active slot. `HasAbsorbedElement(Element)`
 returns true only when `Element` is the most recent absorption — `AbsorbedElements.Last()`.
@@ -300,3 +302,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-19 | Session 5 follow-up, Batch A — `ForceTransformation` documented as a debug/test hook; `ResetToMax` now zeroes `CurrentEP` for BD (no passive regen, so a full reset would violate the design); stale L1/L2 break-multiplier doc comment corrected (×2 / ×3 → ×1.5 / ×2.0). | feature/bd-energy-unification |
 | 2026-05-19 | Session 5 follow-up, Batch B — combat command menu refreshes the BD spell list live: `CombatCommandMenuSubsystem` binds `BrokenDarknessManager::OnAlignmentChanged` while a BD's menu is open and rebuilds capabilities + the current view on absorption. `FCombatCapabilities::BuildFrom` (Session 3) already filtered `RefractionSpells` to the Darkness pool + absorbed-element pools — this batch adds the live-refresh trigger. | feature/bd-energy-unification |
 | 2026-05-19 | AI infusion heuristic confirmed working post-Session-5 unification; sites tidied to use `GetCurrentEP`/`GetMaxEP` helpers for divide-by-zero safety. | feature/ai-infusion-tidy |
+| 2026-05-21 | Inventory redesign merged — `ULoadoutData` deleted. BD validation references updated: `ValidateBDSpellLoadout` is now shared between `FCombatLoadout` and `FSavedLoadout` (inline on `UInventoryData::SavedLoadouts`); authored-asset BD pool validation goes through `FSavedLoadout::GetValidationErrors`. `InitializeFromAsset` reference in `ApplyBDPoolsIfBroken` removed (method was deleted). | feature/inventory-refactor |
