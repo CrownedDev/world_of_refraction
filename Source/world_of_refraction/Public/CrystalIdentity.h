@@ -14,6 +14,7 @@
 #include "CrystalTypeHelpers.h"
 #include "ESpellElement.h"
 #include "ItemTier.h"
+#include "ItemEffectType.h"
 #include "Durabilityconstants.h"
 
 namespace CrystalIdentity
@@ -25,6 +26,39 @@ namespace CrystalIdentity
     inline ESpellElement GetElement(const FCrystalId &Id)
     {
         return CrystalTypeHelpers::GetElement(Id.Type);
+    }
+
+    /** Returns the primary effect category for this crystal type
+     *  (Damage / Healing / EnergyRestore / BuffSpeed / BuffDefense /
+     *  BuffCrit / Silence / Gamble / Cleanse / StatusClear). Type-only —
+     *  Id.Tier is ignored. */
+    inline EItemEffectType GetPrimaryEffectType(const FCrystalId &Id)
+    {
+        switch (Id.Type)
+        {
+        case ECrystalType::Garnet:
+            return EItemEffectType::Damage;
+        case ECrystalType::Sapphire:
+            return EItemEffectType::Healing;
+        case ECrystalType::Citrine:
+            return EItemEffectType::EnergyRestore;
+        case ECrystalType::Emerald:
+            return EItemEffectType::BuffSpeed;
+        case ECrystalType::Amber:
+            return EItemEffectType::BuffDefense;
+        case ECrystalType::Opal:
+            return EItemEffectType::BuffCrit;
+        case ECrystalType::Onyx:
+            return EItemEffectType::Silence;
+        case ECrystalType::Amethyst:
+            return EItemEffectType::Gamble;
+        case ECrystalType::Iolite:
+            return EItemEffectType::Cleanse;
+        case ECrystalType::Quartz:
+            return EItemEffectType::StatusClear;
+        default:
+            return EItemEffectType::Damage;
+        }
     }
 
     /** Returns max durability for the crystal's tier (F=30 … S=100, per

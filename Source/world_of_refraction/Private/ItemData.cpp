@@ -8,6 +8,8 @@
 #include "CombatConstants.h"
 #include "SkillTriggerUtils.h"
 #include "CrystalTypeHelpers.h"
+#include "CrystalIdentity.h"
+#include "CrystalEffectTable.h"
 
 FString UItemData::GetFullItemName() const
 {
@@ -101,25 +103,7 @@ ESpellElement UItemData::GetAssociatedElement() const
 
 int32 UItemData::GetBrokenDarknessEnergyBonus() const
 {
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return ItemConstants::BD_ENERGY_F;
-    case EItemTier::E_Tier:
-        return ItemConstants::BD_ENERGY_E;
-    case EItemTier::D_Tier:
-        return ItemConstants::BD_ENERGY_D;
-    case EItemTier::C_Tier:
-        return ItemConstants::BD_ENERGY_C;
-    case EItemTier::B_Tier:
-        return ItemConstants::BD_ENERGY_B;
-    case EItemTier::A_Tier:
-        return ItemConstants::BD_ENERGY_A;
-    case EItemTier::S_Tier:
-        return ItemConstants::BD_ENERGY_S;
-    default:
-        return 0;
-    }
+    return CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== TARGETING ====================
@@ -134,31 +118,7 @@ ETargetType UItemData::GetItemTargetType() const
 
 EItemEffectType UItemData::GetPrimaryEffectType() const
 {
-    switch (CrystalType)
-    {
-    case ECrystalType::Garnet:
-        return EItemEffectType::Damage;
-    case ECrystalType::Sapphire:
-        return EItemEffectType::Healing;
-    case ECrystalType::Citrine:
-        return EItemEffectType::EnergyRestore;
-    case ECrystalType::Emerald:
-        return EItemEffectType::BuffSpeed;
-    case ECrystalType::Amber:
-        return EItemEffectType::BuffDefense;
-    case ECrystalType::Opal:
-        return EItemEffectType::BuffCrit;
-    case ECrystalType::Onyx:
-        return EItemEffectType::Silence;
-    case ECrystalType::Amethyst:
-        return EItemEffectType::Gamble;
-    case ECrystalType::Iolite:
-        return EItemEffectType::Cleanse;
-    case ECrystalType::Quartz:
-        return EItemEffectType::StatusClear;
-    default:
-        return EItemEffectType::Damage; // Default to damage
-    }
+    return CrystalIdentity::GetPrimaryEffectType(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== GARNET DOT ====================
@@ -167,56 +127,12 @@ EItemEffectType UItemData::GetPrimaryEffectType() const
 
 float UItemData::GetDOTDamagePercent() const
 {
-    if (CrystalType != ECrystalType::Garnet)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 5.0f;
-    case EItemTier::E_Tier:
-        return 7.0f;
-    case EItemTier::D_Tier:
-        return 9.0f;
-    case EItemTier::C_Tier:
-        return 12.0f;
-    case EItemTier::B_Tier:
-        return 16.0f;
-    case EItemTier::A_Tier:
-        return 20.0f;
-    case EItemTier::S_Tier:
-        return 30.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetDOTDamagePercent(FCrystalId{CrystalType, Tier});
 }
 
 int32 UItemData::GetDOTDuration() const
 {
-    if (CrystalType != ECrystalType::Garnet)
-    {
-        return 0;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 3;
-    case EItemTier::E_Tier:
-        return 3;
-    case EItemTier::D_Tier:
-        return 3;
-    case EItemTier::C_Tier:
-        return 2;
-    case EItemTier::B_Tier:
-        return 2;
-    case EItemTier::A_Tier:
-        return 2;
-    case EItemTier::S_Tier:
-        return 1;
-    default:
-        return 0;
-    }
+    return CrystalEffectTable::GetDOTDuration(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== SAPPHIRE HEAL ====================
@@ -225,29 +141,7 @@ int32 UItemData::GetDOTDuration() const
 
 float UItemData::GetHealPercent() const
 {
-    if (CrystalType != ECrystalType::Sapphire)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 15.0f;
-    case EItemTier::E_Tier:
-        return 20.0f;
-    case EItemTier::D_Tier:
-        return 25.0f;
-    case EItemTier::C_Tier:
-        return 30.0f;
-    case EItemTier::B_Tier:
-        return 35.0f;
-    case EItemTier::A_Tier:
-        return 45.0f;
-    case EItemTier::S_Tier:
-        return 60.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetHealPercent(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== PHASE 2 REDESIGN GETTERS ====================
@@ -256,426 +150,83 @@ float UItemData::GetHealPercent() const
 
 float UItemData::GetEPRestorePercent() const
 {
-    if (CrystalType != ECrystalType::Citrine)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 30.0f;
-    case EItemTier::E_Tier:
-        return 40.0f;
-    case EItemTier::D_Tier:
-        return 50.0f;
-    case EItemTier::C_Tier:
-        return 60.0f;
-    case EItemTier::B_Tier:
-        return 70.0f;
-    case EItemTier::A_Tier:
-        return 85.0f;
-    case EItemTier::S_Tier:
-        return 100.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetEPRestorePercent(FCrystalId{CrystalType, Tier});
 }
 
 float UItemData::GetSpeedBuffPercent() const
 {
-    if (CrystalType != ECrystalType::Emerald)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 10.0f;
-    case EItemTier::E_Tier:
-        return 15.0f;
-    case EItemTier::D_Tier:
-        return 20.0f;
-    case EItemTier::C_Tier:
-        return 25.0f;
-    case EItemTier::B_Tier:
-        return 30.0f;
-    case EItemTier::A_Tier:
-        return 35.0f;
-    case EItemTier::S_Tier:
-        return 40.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{CrystalType, Tier});
 }
 
 int32 UItemData::GetCrystalDuration() const
 {
-    switch (CrystalType)
-    {
-    case ECrystalType::Emerald:
-    case ECrystalType::Amber:
-    case ECrystalType::Opal:
-        break;
-    default:
-        return 0;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 4;
-    case EItemTier::E_Tier:
-        return 4;
-    case EItemTier::D_Tier:
-        return 3;
-    case EItemTier::C_Tier:
-        return 3;
-    case EItemTier::B_Tier:
-        return 3;
-    case EItemTier::A_Tier:
-        return 2;
-    case EItemTier::S_Tier:
-        return 2;
-    default:
-        return 0;
-    }
+    return CrystalEffectTable::GetCrystalDuration(FCrystalId{CrystalType, Tier});
 }
 
 float UItemData::GetCritBuffPercent() const
 {
-    if (CrystalType != ECrystalType::Opal)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 5.0f;
-    case EItemTier::E_Tier:
-        return 8.0f;
-    case EItemTier::D_Tier:
-        return 10.0f;
-    case EItemTier::C_Tier:
-        return 12.0f;
-    case EItemTier::B_Tier:
-        return 15.0f;
-    case EItemTier::A_Tier:
-        return 18.0f;
-    case EItemTier::S_Tier:
-        return 25.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetCritBuffPercent(FCrystalId{CrystalType, Tier});
 }
 
 float UItemData::GetBuffChancePercent() const
 {
-    if (CrystalType != ECrystalType::Amethyst)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 10.0f;
-    case EItemTier::E_Tier:
-        return 20.0f;
-    case EItemTier::D_Tier:
-        return 30.0f;
-    case EItemTier::C_Tier:
-        return 40.0f;
-    case EItemTier::B_Tier:
-        return 50.0f;
-    case EItemTier::A_Tier:
-        return 60.0f;
-    case EItemTier::S_Tier:
-        return 70.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetBuffChancePercent(FCrystalId{CrystalType, Tier});
 }
 
 float UItemData::GetGambleMagnitudePercent() const
 {
-    if (CrystalType != ECrystalType::Amethyst)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 10.0f;
-    case EItemTier::E_Tier:
-        return 15.0f;
-    case EItemTier::D_Tier:
-        return 20.0f;
-    case EItemTier::C_Tier:
-        return 25.0f;
-    case EItemTier::B_Tier:
-        return 30.0f;
-    case EItemTier::A_Tier:
-        return 35.0f;
-    case EItemTier::S_Tier:
-        return 40.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetGambleMagnitudePercent(FCrystalId{CrystalType, Tier});
 }
 
 int32 UItemData::GetGambleDuration() const
 {
-    if (CrystalType != ECrystalType::Amethyst)
-    {
-        return 0;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 4;
-    case EItemTier::E_Tier:
-        return 4;
-    case EItemTier::D_Tier:
-        return 3;
-    case EItemTier::C_Tier:
-        return 3;
-    case EItemTier::B_Tier:
-        return 3;
-    case EItemTier::A_Tier:
-        return 2;
-    case EItemTier::S_Tier:
-        return 2;
-    default:
-        return 0;
-    }
+    return CrystalEffectTable::GetGambleDuration(FCrystalId{CrystalType, Tier});
 }
 
 int32 UItemData::GetEffectsToRemoveCount() const
 {
-    if (CrystalType != ECrystalType::Iolite)
-    {
-        return 0;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 1;
-    case EItemTier::E_Tier:
-        return 1;
-    case EItemTier::D_Tier:
-        return 2;
-    case EItemTier::C_Tier:
-        return 2;
-    case EItemTier::B_Tier:
-        return 3;
-    case EItemTier::A_Tier:
-        return 3;
-    case EItemTier::S_Tier:
-        return 99;
-    default:
-        return 0;
-    }
+    return CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{CrystalType, Tier});
 }
 
 float UItemData::GetStatusClearPercent() const
 {
-    if (CrystalType != ECrystalType::Quartz)
-    {
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 25.0f;
-    case EItemTier::E_Tier:
-        return 35.0f;
-    case EItemTier::D_Tier:
-        return 45.0f;
-    case EItemTier::C_Tier:
-        return 55.0f;
-    case EItemTier::B_Tier:
-        return 65.0f;
-    case EItemTier::A_Tier:
-        return 80.0f;
-    case EItemTier::S_Tier:
-        return 100.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetStatusClearPercent(FCrystalId{CrystalType, Tier});
 }
 
 int32 UItemData::GetResistanceDuration() const
 {
-    if (CrystalType != ECrystalType::Quartz)
-    {
-        return 0;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 4;
-    case EItemTier::E_Tier:
-        return 4;
-    case EItemTier::D_Tier:
-        return 3;
-    case EItemTier::C_Tier:
-        return 3;
-    case EItemTier::B_Tier:
-        return 3;
-    case EItemTier::A_Tier:
-        return 2;
-    case EItemTier::S_Tier:
-        return 2;
-    default:
-        return 0;
-    }
+    return CrystalEffectTable::GetResistanceDuration(FCrystalId{CrystalType, Tier});
 }
 
 float UItemData::GetElementalBuildupPercent() const
 {
-    // Shared status-bar buildup table for crystals that build status.
-    switch (CrystalType)
-    {
-    case ECrystalType::Garnet:
-    case ECrystalType::Citrine:
-    case ECrystalType::Onyx:
-    case ECrystalType::Amethyst:
-        break;
-    default:
-        return 0.0f;
-    }
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        return 10.0f;
-    case EItemTier::E_Tier:
-        return 15.0f;
-    case EItemTier::D_Tier:
-        return 20.0f;
-    case EItemTier::C_Tier:
-        return 30.0f;
-    case EItemTier::B_Tier:
-        return 40.0f;
-    case EItemTier::A_Tier:
-        return 50.0f;
-    case EItemTier::S_Tier:
-        return 60.0f;
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetElementalBuildupPercent(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== BUFF VALUES ====================
 
 float UItemData::GetBuffPercentage() const
 {
-    switch (CrystalType)
-    {
-    case ECrystalType::Emerald: // Attack Speed
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 10.0f;
-        case EItemTier::E_Tier:
-            return 15.0f;
-        case EItemTier::D_Tier:
-            return 20.0f;
-        case EItemTier::C_Tier:
-            return 25.0f;
-        case EItemTier::B_Tier:
-            return 30.0f;
-        case EItemTier::A_Tier:
-            return 35.0f;
-        case EItemTier::S_Tier:
-            return 40.0f;
-        default:
-            return 0.0f;
-        }
-
-    case ECrystalType::Amber: // Defense
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 15.0f;
-        case EItemTier::E_Tier:
-            return 20.0f;
-        case EItemTier::D_Tier:
-            return 25.0f;
-        case EItemTier::C_Tier:
-            return 30.0f;
-        case EItemTier::B_Tier:
-            return 35.0f;
-        case EItemTier::A_Tier:
-            return 40.0f;
-        case EItemTier::S_Tier:
-            return 50.0f;
-        default:
-            return 0.0f;
-        }
-
-    case ECrystalType::Opal: // Crit Chance
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 5.0f;
-        case EItemTier::E_Tier:
-            return 8.0f;
-        case EItemTier::D_Tier:
-            return 10.0f;
-        case EItemTier::C_Tier:
-            return 12.0f;
-        case EItemTier::B_Tier:
-            return 15.0f;
-        case EItemTier::A_Tier:
-            return 18.0f;
-        case EItemTier::S_Tier:
-            return 20.0f;
-        default:
-            return 0.0f;
-        }
-
-    default:
-        return 0.0f;
-    }
+    return CrystalEffectTable::GetBuffPercentage(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== SILENCE (Onyx) ====================
 
 float UItemData::GetSilencePercentage() const
 {
-    if (CrystalType == ECrystalType::Onyx)
-    {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier:
-            return 15.0f;
-        case EItemTier::E_Tier:
-            return 30.0f;
-        case EItemTier::D_Tier:
-            return 30.0f;
-        case EItemTier::C_Tier:
-            return 50.0f;
-        case EItemTier::B_Tier:
-            return 70.0f;
-        case EItemTier::A_Tier:
-            return 70.0f;
-        case EItemTier::S_Tier:
-            return 100.0f;
-        default:
-            return 0.0f;
-        }
-    }
-    return 0.0f;
+    return CrystalEffectTable::GetSilencePercentage(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== OPAL REVEALS ====================
 
 bool UItemData::GetRevealsHP() const
 {
-    return CrystalType == ECrystalType::Opal && Tier == EItemTier::S_Tier;
+    return CrystalEffectTable::GetRevealsHP(FCrystalId{CrystalType, Tier});
 }
 
 bool UItemData::GetRevealsStats() const
 {
-    return CrystalType == ECrystalType::Opal && Tier == EItemTier::S_Tier;
+    return CrystalEffectTable::GetRevealsStats(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== STAT MODIFIER FUNCTIONS ====================
