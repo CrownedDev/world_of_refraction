@@ -4,7 +4,7 @@
 #include "FCombatLoadout.h"
 #include "SpellData.h"
 #include "AbilityData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "CrystalType.h"
 #include "FSavedLoadout.h"
 #include "FSpellCollection.h"

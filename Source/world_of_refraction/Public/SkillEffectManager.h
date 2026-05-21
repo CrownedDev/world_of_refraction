@@ -129,7 +129,7 @@ public:
 	 * @param Target Actor receiving the effects
 	 * @param EvolutionName Display prefix for effect names
 	 * @param EvolutionID Source identifier; effects are tracked at EvolutionID*100 + index
-	 * @param Effects Effects to apply (UItemData::Effects)
+	 * @param Effects Effects to apply (UEvolutionItemData::Effects)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
 	void ApplyEvolutionEffects(

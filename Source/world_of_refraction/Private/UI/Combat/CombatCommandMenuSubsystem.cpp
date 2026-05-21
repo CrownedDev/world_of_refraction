@@ -11,7 +11,7 @@
 #include "WeaponAttackData.h"
 #include "WeaponData.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "TurnManager.h"
 #include "CharacterData.h"
 #include "FItemLoadoutSlot.h"
@@ -232,7 +232,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
 
     case EPieMenuCategory::Item:
     {
-        UItemData *Item = Cast<UItemData>(ButtonData.DataReference);
+        UEvolutionItemData *Item = Cast<UEvolutionItemData>(ButtonData.DataReference);
         const ETargetType TT = Item ? Item->GetItemTargetType() : ETargetType::SingleAnyone;
         OpenTargetSelection(EPieMenuCategory::Item, ButtonData, TT);
         break;
@@ -1589,7 +1589,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
         break;
     case EPieMenuCategory::Item:
         Action.ActionType = EActionType::Item;
-        Action.ItemData = Cast<UItemData>(DataRef);
+        Action.ItemData = Cast<UEvolutionItemData>(DataRef);
         break;
     default:
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] BuildActionFromButton: unhandled category %d"),

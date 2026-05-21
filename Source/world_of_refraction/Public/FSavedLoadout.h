@@ -16,7 +16,7 @@
 
 class UWeaponData;
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 class USpellData;
 class UAbilityData;
 class UStanceData;
@@ -117,7 +117,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     /** Primary evolution crystal (when PrimarySlotType == Evolution) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
-    UItemData *PrimaryEvolution = nullptr;
+    UEvolutionItemData *PrimaryEvolution = nullptr;
 
     // ==================== PRIMARY EQUIPMENT CONFIGURATION ====================
 
@@ -168,7 +168,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
 
     /** Equipped item crystals (max 6 slots, 3 uses each) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "5. Items")
-    TArray<UItemData *> EquippedItems;
+    TArray<UEvolutionItemData *> EquippedItems;
 
     // ==================== VALIDATION ====================
 
@@ -197,7 +197,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     URingData *GetPrimaryRing() const;
 
     /** Get primary evolution (nullptr if using weapon or ring) */
-    UItemData *GetPrimaryEvolution() const;
+    UEvolutionItemData *GetPrimaryEvolution() const;
 
     /** Check if this loadout uses evolution */
     bool IsEvolutionLoadout() const { return PrimarySlotType == EPrimarySlotType::Evolution; }

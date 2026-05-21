@@ -1,6 +1,6 @@
 // IEquipmentGenerator.h
 // Shared interface for assets that expose CallInEditor stat-bonus roll
-// buttons (UEquipmentDataBase, UItemData evolution crystals). Lets the
+// buttons (UEquipmentDataBase, UEvolutionItemData evolution crystals). Lets the
 // generator logic stay co-located with each asset's own state while
 // keeping a single contract for tooling and future callers.
 

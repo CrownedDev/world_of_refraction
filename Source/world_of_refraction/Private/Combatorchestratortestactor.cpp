@@ -10,7 +10,7 @@
 #include "AbilityData.h"
 #include "SkillEffectManager.h"
 #include "ESkillEffectType.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "LoadoutComponent.h"
 #include "InventoryComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -1230,7 +1230,7 @@ void ACombatOrchestratorTestActor::Test_ItemExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Item Execution (DA_Items_Garnet_F)"));
 
 	// Load Garnet item (damage type)
-	UItemData *Item = LoadObject<UItemData>(nullptr,
+	UEvolutionItemData *Item = LoadObject<UEvolutionItemData>(nullptr,
 											TEXT("/Game/Data/Items/Garnet/DA_Items_Garnet_F.DA_Items_Garnet_F"));
 
 	if (!Item)

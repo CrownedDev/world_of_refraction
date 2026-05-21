@@ -29,7 +29,7 @@
 
 class UWeaponData;
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 class USpellData;
 class UAbilityData;
 
@@ -62,7 +62,7 @@ public:
      *  unfused inventory). Every loadout's PrimaryEvolution must come from
      *  this list. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Inventory|Equipment")
-    TArray<UItemData *> Crystals;
+    TArray<UEvolutionItemData *> Crystals;
 
     // ==================== OWNED SPELLS / ABILITIES ====================
 
@@ -83,7 +83,7 @@ public:
      *  these are the per-combat-usable items that populate loadout
      *  EquippedItems slots). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Inventory|Consumables")
-    TArray<UItemData *> Items;
+    TArray<UEvolutionItemData *> Items;
 
     // ==================== SAVED LOADOUTS ====================
 

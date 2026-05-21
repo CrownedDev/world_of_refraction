@@ -8,7 +8,7 @@
 #include "InventoryComponent.h"
 #include "LoadoutComponent.h"
 #include "FEquipmentStatBonus.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "SkillEffectManager.h"
 #include "Engine/GameInstance.h"
 
@@ -390,7 +390,7 @@ namespace
     /** Shared body for the three GetCrystalModifiedX helpers. Layers TWO
      *  pillar-modifier sources on top of the supplied base value:
      *   1. Crystal — primary-weapon-slot evolution crystal's Pillar/SubStats
-     *      modifier via UItemData::CalculateModified{Mind,Body,Spirit}.
+     *      modifier via UEvolutionItemData::CalculateModified{Mind,Body,Spirit}.
      *   2. Equipment — active loadout's BonusMindModifierPercent /
      *      BonusBodyModifierPercent / BonusSpiritModifierPercent, applied
      *      multiplicatively after the crystal layer.
@@ -414,7 +414,7 @@ namespace
         // BaseStatBonus (the new canonical authoring surface; old CalculateModified*
         // helpers were removed in the BaseStatBonus migration).
         float Result = BaseValue;
-        if (UItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
+        if (UEvolutionItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
         {
             if (Crystal->bIsEvolutionCrystal)
             {

@@ -14,7 +14,7 @@
 class ULoadoutComponent;
 class USpellData;
 class UAbilityData;
-class UItemData;
+class UEvolutionItemData;
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FCombatCapabilities
@@ -93,7 +93,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
 
     /** Usable items in the active loadout's item slots */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Items")
-    TArray<UItemData *> AvailableItems;
+    TArray<UEvolutionItemData *> AvailableItems;
 
     // ==================== DISPLAY DATA ====================
     // Used by Create*Button functions for descriptions and tints.

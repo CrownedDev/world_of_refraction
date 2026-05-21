@@ -6,7 +6,7 @@
 #include "AbilityData.h"
 #include "WeaponData.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "CrystalType.h"
 #include "CharacterData.h"
 #include "InventoryData.h"
@@ -135,7 +135,7 @@ bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
 
 // ==================== WEAPON CRYSTAL OPERATIONS ====================
 
-bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UItemData *Crystal)
+bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UEvolutionItemData *Crystal)
 {
     if (!Weapons.IsValidIndex(WeaponIndex) || !Crystal || !Crystal->CanBeSlotted())
     {
@@ -159,19 +159,19 @@ bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UItemData *Cr
     return true;
 }
 
-UItemData *UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
+UEvolutionItemData *UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 {
     if (!Weapons.IsValidIndex(WeaponIndex))
     {
         return nullptr;
     }
 
-    UItemData *OldCrystal = Weapons[WeaponIndex].AttachedCrystal.Crystal;
+    UEvolutionItemData *OldCrystal = Weapons[WeaponIndex].AttachedCrystal.Crystal;
     Weapons[WeaponIndex].RemoveCrystal();
     return OldCrystal;
 }
 
-bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UItemData *EvolutionCrystal)
+bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionItemData *EvolutionCrystal)
 {
     if (!Weapons.IsValidIndex(WeaponIndex))
     {
@@ -271,7 +271,7 @@ bool UInventoryComponent::CanAddRing(URingData *Ring) const
 
 // ==================== RING CRYSTAL OPERATIONS ====================
 
-bool UInventoryComponent::AttachCrystalToRing(int32 RingIndex, UItemData *Crystal)
+bool UInventoryComponent::AttachCrystalToRing(int32 RingIndex, UEvolutionItemData *Crystal)
 {
     if (!Rings.IsValidIndex(RingIndex) || !Crystal || !Crystal->CanBeSlotted())
     {
@@ -282,19 +282,19 @@ bool UInventoryComponent::AttachCrystalToRing(int32 RingIndex, UItemData *Crysta
     return true;
 }
 
-UItemData *UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
+UEvolutionItemData *UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
 {
     if (!Rings.IsValidIndex(RingIndex))
     {
         return nullptr;
     }
 
-    UItemData *OldCrystal = Rings[RingIndex].AttachedCrystal.Crystal;
+    UEvolutionItemData *OldCrystal = Rings[RingIndex].AttachedCrystal.Crystal;
     Rings[RingIndex].RemoveCrystal();
     return OldCrystal;
 }
 
-bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UItemData *EvolutionCrystal)
+bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemData *EvolutionCrystal)
 {
     if (!Rings.IsValidIndex(RingIndex))
     {
@@ -327,44 +327,44 @@ bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UItemData *Evolu
 
 // ==================== ITEM OPERATIONS ====================
 
-bool UInventoryComponent::AddItem(UItemData *Item)
+bool UInventoryComponent::AddItem(UEvolutionItemData *Item)
 {
     return Items.AddCrystal(Item);
 }
 
-bool UInventoryComponent::RemoveItem(UItemData *Item)
+bool UInventoryComponent::RemoveItem(UEvolutionItemData *Item)
 {
     return Items.RemoveCrystal(Item);
 }
 
-bool UInventoryComponent::HasItem(UItemData *Item) const
+bool UInventoryComponent::HasItem(UEvolutionItemData *Item) const
 {
     return Items.HasCrystal(Item);
 }
 
-TArray<UItemData *> UInventoryComponent::GetItemsByType(ECrystalType Type) const
+TArray<UEvolutionItemData *> UInventoryComponent::GetItemsByType(ECrystalType Type) const
 {
     return Items.GetCrystalsOfType(Type);
 }
 
-TArray<UItemData *> UInventoryComponent::GetItemsByTier(EItemTier Tier) const
+TArray<UEvolutionItemData *> UInventoryComponent::GetItemsByTier(EItemTier Tier) const
 {
     return Items.GetCrystalsOfTier(Tier);
 }
 
 // ==================== EVOLUTION HELPERS ====================
 
-TArray<UItemData *> UInventoryComponent::GetEvolutionCrystals() const
+TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
 {
     return Items.GetEvolutionCrystals();
 }
 
-TArray<UItemData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const
+TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const
 {
-    TArray<UItemData *> Result;
+    TArray<UEvolutionItemData *> Result;
 
-    TArray<UItemData *> AllEvolutions = GetEvolutionCrystals();
-    for (UItemData *Crystal : AllEvolutions)
+    TArray<UEvolutionItemData *> AllEvolutions = GetEvolutionCrystals();
+    for (UEvolutionItemData *Crystal : AllEvolutions)
     {
         if (Crystal && Crystal->GetAssociatedElement() == Element)
         {
@@ -472,7 +472,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     // ---------- Items (Crystals + consumables share FItemCrystalInventory) ----------
     // Mirror the legacy path's capacity-drop warning so authoring mistakes
     // surface in the log instead of silently dropping at runtime.
-    for (UItemData *Crystal : InventoryAsset->Crystals)
+    for (UEvolutionItemData *Crystal : InventoryAsset->Crystals)
     {
         if (Crystal && !AddItem(Crystal))
         {
@@ -481,7 +481,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
                    *CharacterData->Name, *Crystal->ItemName);
         }
     }
-    for (UItemData *Item : InventoryAsset->Items)
+    for (UEvolutionItemData *Item : InventoryAsset->Items)
     {
         if (Item && !AddItem(Item))
         {

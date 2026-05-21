@@ -29,7 +29,7 @@
 class USpellData;
 class UAbilityData;
 class UInventoryComponent;
-class UItemData;
+class UEvolutionItemData;
 class UStanceData;
 class UInfusionDisplayData;
 struct FSavedLoadout;
@@ -101,7 +101,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  (CurrentDurability, InstanceID) — symmetric with weapon/ring crystal
      *  storage. The crystal IS the slot, so no parent wrapper struct is
      *  needed. Access the crystal asset via .Crystal; LoadoutComponent::
-     *  GetPrimaryEvolution() preserves the BP-facing UItemData* signature. */
+     *  GetPrimaryEvolution() preserves the BP-facing UEvolutionItemData* signature. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
     FCrystalInventoryEntry PrimaryEvolution;
 

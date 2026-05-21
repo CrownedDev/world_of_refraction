@@ -6,7 +6,7 @@
 #include "ItemTier.h"
 #include "CrystalManager.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 class ULoadoutComponent;
 
 /**
@@ -48,7 +48,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Crystal Manager")
     int32 ProcessPostCastWear(
         AActor *Actor,
-        UItemData *Crystal,
+        UEvolutionItemData *Crystal,
         UObject *Holder,
         EItemTier ActionTier,
         int32 InfusionLevel,
@@ -62,7 +62,7 @@ public:
         FOnCrystalBroken,
         AActor *, Actor,
         UObject *, Holder,
-        UItemData *, Crystal);
+        UEvolutionItemData *, Crystal);
 
     /** Fires when any tracked crystal's durability hits 0.
      *  Holder is provenance — cast to UWeaponData or URingData to filter

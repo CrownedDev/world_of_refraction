@@ -446,7 +446,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
      *  SecondaryCondition / TargetCondition on every save AND load. The owning
      *  UObject's PostEditChangeChainProperty runs the same sync on each
      *  in-editor property change, so threshold-field gating stays live without
-     *  needing a save/reload. See USkillDataBase / UEquipmentDataBase / UItemData
+     *  needing a save/reload. See USkillDataBase / UEquipmentDataBase / UEvolutionItemData
      *  implementations. */
     void PostSerialize(const FArchive &Ar)
     {

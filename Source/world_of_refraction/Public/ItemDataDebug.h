@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "ItemDataDebug.generated.h"
 
@@ -34,7 +34,7 @@ public:
      * @return True if item is valid
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
-    static bool ValidateItem(const UItemData *Item);
+    static bool ValidateItem(const UEvolutionItemData *Item);
 
     // ==================== LOGGING ====================
 
@@ -43,7 +43,7 @@ public:
      * @param Item The item to log
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
-    static void LogItemValues(const UItemData *Item);
+    static void LogItemValues(const UEvolutionItemData *Item);
 
     /**
      * Logs a summary table of all items for a specific crystal type
@@ -71,7 +71,7 @@ public:
      * @param Item The item to check
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
-    static void LogCrystalState(const UItemData *Item);
+    static void LogCrystalState(const UEvolutionItemData *Item);
     /**
      * Logs a crystal asset's design-time durability properties (MaxDurability,
      * refined, immune). Per-instance runtime state lives on
@@ -79,7 +79,7 @@ public:
      * @param Item The crystal asset to inspect
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
-    static void LogCrystalDurability(const UItemData *Item);
+    static void LogCrystalDurability(const UEvolutionItemData *Item);
 
     /**
      * Returns a single-line formatted design-time durability string for asset
@@ -88,7 +88,7 @@ public:
      * FCrystalInventoryEntry via LoadoutComponent.
      */
     UFUNCTION(BlueprintPure, Category = "Item Debug")
-    static FString GetDurabilityString(const UItemData *Item);
+    static FString GetDurabilityString(const UEvolutionItemData *Item);
 
     // ==================== TESTING ====================
 
@@ -99,7 +99,7 @@ public:
      * @return Temporary item (not saved to disk)
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
-    static UItemData *CreateTestItem(ECrystalType CrystalType, EItemTier Tier);
+    static UEvolutionItemData *CreateTestItem(ECrystalType CrystalType, EItemTier Tier);
 
     /**
      * Tests that tier progression is correct (higher tier = better values)
@@ -124,5 +124,5 @@ private:
     static FString GetTierName(EItemTier Tier);
 
     // Helper to get primary value for a crystal type (for progression testing)
-    static float GetPrimaryValue(const UItemData *Item);
+    static float GetPrimaryValue(const UEvolutionItemData *Item);
 };

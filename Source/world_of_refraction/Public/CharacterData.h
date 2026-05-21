@@ -16,7 +16,7 @@
 #include "CharacterData.generated.h"
 
 class USpellData;
-class UItemData;
+class UEvolutionItemData;
 class UInventoryData;
 class UCosmeticsData;
 

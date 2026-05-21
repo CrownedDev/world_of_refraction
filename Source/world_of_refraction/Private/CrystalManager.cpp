@@ -1,7 +1,7 @@
 // Source/world_of_refraction/Private/CrystalManager.cpp
 #include "CrystalManager.h"
 
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "LoadoutComponent.h"
 #include "FCrystalInventoryEntry.h"
 #include "BreakCalculator.h"
@@ -26,7 +26,7 @@ void UCrystalManager::Deinitialize()
 
 int32 UCrystalManager::ProcessPostCastWear(
     AActor *Actor,
-    UItemData *Crystal,
+    UEvolutionItemData *Crystal,
     UObject *Holder,
     EItemTier ActionTier,
     int32 InfusionLevel,
@@ -75,7 +75,7 @@ int32 UCrystalManager::ProcessPostCastWear(
     }
 
     // Resolve the per-instance entry from the holder. The Crystal* parameter is
-    // the template (UItemData); the FCrystalInventoryEntry is the per-instance
+    // the template (UEvolutionItemData); the FCrystalInventoryEntry is the per-instance
     // state we want to mutate. Phase B 2/5 routes all wear through the entry.
     ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
     if (!LoadoutComp)

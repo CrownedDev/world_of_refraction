@@ -5,7 +5,7 @@
 //
 // Discriminated by Kind: when Refined, the Refined branch holds the live
 // state (FCrystalId + CurrentDurability); when Evolution, the Evolution
-// branch holds the live state (UItemData* + CurrentDurability). Branches
+// branch holds the live state (UEvolutionItemData* + CurrentDurability). Branches
 // other than Kind are hidden in the editor via EditConditionHides and not
 // expected to carry meaningful data.
 

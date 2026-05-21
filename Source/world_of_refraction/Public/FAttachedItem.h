@@ -6,7 +6,7 @@
 // dropdowns; when Evolution, designer picks an evolution item asset. Other
 // fields are hidden in the editor via EditConditionHides.
 //
-// Item is typed as UItemData* during the transition window; the commit 3
+// Item is typed as UEvolutionItemData* during the transition window; the commit 3
 // rename retargets it to UEvolutionItemData*.
 
 #pragma once
@@ -17,7 +17,7 @@
 #include "ItemTier.h"
 #include "FAttachedItem.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FAttachedItem
@@ -41,5 +41,5 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
      *  Retargets to UEvolutionItemData* in commit 3. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Evolution", EditConditionHides))
-    UItemData *Evolution = nullptr;
+    UEvolutionItemData *Evolution = nullptr;
 };

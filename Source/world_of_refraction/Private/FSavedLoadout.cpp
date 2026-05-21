@@ -8,7 +8,7 @@
 #include "AbilityData.h"
 #include "FCombatLoadout.h"
 #include "InventoryConstants.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "LoadoutConstants.h"
 #include "RingData.h"
 #include "SpellData.h"
@@ -228,7 +228,7 @@ URingData *FSavedLoadout::GetPrimaryRing() const
     return (PrimarySlotType == EPrimarySlotType::Ring) ? PrimaryRing : nullptr;
 }
 
-UItemData *FSavedLoadout::GetPrimaryEvolution() const
+UEvolutionItemData *FSavedLoadout::GetPrimaryEvolution() const
 {
     return (PrimarySlotType == EPrimarySlotType::Evolution) ? PrimaryEvolution : nullptr;
 }

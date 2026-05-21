@@ -22,7 +22,7 @@
 
 // Forward declaration
 class UCharacterData;
-class UItemData;
+class UEvolutionItemData;
 
 /**
  * Spell Data Asset - Element-locked magical abilities
@@ -48,7 +48,7 @@ public:
 
     /** Required evolution crystal to use this spell (nullptr = no requirement, only for evolution spells) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
-    UItemData *RequiredEvolutionCrystal = nullptr;
+    UEvolutionItemData *RequiredEvolutionCrystal = nullptr;
 
     // ==================== STATS ====================
 

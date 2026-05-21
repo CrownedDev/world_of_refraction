@@ -3,7 +3,7 @@
 
 #include "FRingInventoryEntry.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 
 #include <atomic>
 

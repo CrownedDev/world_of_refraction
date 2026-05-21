@@ -12,7 +12,7 @@
 #include "RingManager.generated.h"
 
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 class UCrystalManager;
 
 /**
@@ -56,5 +56,5 @@ private:
 	/** Consumer of UCrystalManager::OnCrystalBroken. Filters by
 	 *  Cast<URingData>(Holder); performs SwitchToNextRing on match. */
 	UFUNCTION()
-	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal);
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal);
 };

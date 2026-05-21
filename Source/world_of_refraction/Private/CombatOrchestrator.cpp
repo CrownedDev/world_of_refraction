@@ -18,7 +18,7 @@
 #include "BrokenDarknessManager.h"
 #include "CharacterData.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "FSkillEffect.h"
 #include "FCrystalInventoryEntry.h"
 #include "DurabilityConstants.h"
@@ -850,7 +850,7 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 				// Apply FSkillEffect-authored bonuses for evolution crystal + equipment.
 				if (SkillEffectManagerRef)
 				{
-					UItemData *EvoCrystal = Loadout->GetActivePrimaryEvolutionCrystal(Actor);
+					UEvolutionItemData *EvoCrystal = Loadout->GetActivePrimaryEvolutionCrystal(Actor);
 					if (EvoCrystal && EvoCrystal->bIsEvolutionCrystal && EvoCrystal->Effects.Num() > 0)
 					{
 						SkillEffectManagerRef->ApplyEvolutionEffects(
@@ -1096,7 +1096,7 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
-				UItemData *Crystal = Slot.Crystal;
+				UEvolutionItemData *Crystal = Slot.Crystal;
 				if (!Crystal)
 				{
 					continue;
@@ -1130,7 +1130,7 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 					bCleared = true;
 				}
 				// Evolution self-holder filtered above — GetCrystalEntryByHolder returns
-				// an empty entry for UItemData* holders, tripping the IsBroken gate.
+				// an empty entry for UEvolutionItemData* holders, tripping the IsBroken gate.
 
 				if (bCleared)
 				{
@@ -1176,7 +1176,7 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
-				UItemData *Crystal = Slot.Crystal;
+				UEvolutionItemData *Crystal = Slot.Crystal;
 				if (!Crystal)
 				{
 					continue;
@@ -1664,7 +1664,7 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 	}
 
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	UItemData *DamageItem = nullptr;
+	UEvolutionItemData *DamageItem = nullptr;
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
@@ -1678,7 +1678,7 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 	// Fallback: load Garnet directly for testing
 	if (!DamageItem)
 	{
-		DamageItem = LoadObject<UItemData>(nullptr,
+		DamageItem = LoadObject<UEvolutionItemData>(nullptr,
 										   TEXT("/Game/Data/Items/Garnet/DA_Items_Garnet_F.DA_Items_Garnet_F"));
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No damage item in loadout, using fallback Garnet"));
 	}
@@ -1725,7 +1725,7 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 	}
 
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	UItemData *HealItem = nullptr;
+	UEvolutionItemData *HealItem = nullptr;
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
@@ -1739,7 +1739,7 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 	// Fallback: load Sapphire directly for testing
 	if (!HealItem)
 	{
-		HealItem = LoadObject<UItemData>(nullptr,
+		HealItem = LoadObject<UEvolutionItemData>(nullptr,
 										 TEXT("/Game/Data/Items/Sapphire/DA_Items_Sapphire_F.DA_Items_Sapphire_F"));
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Sapphire"));
 	}
@@ -1806,7 +1806,7 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 	}
 
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	UItemData *HealItem = nullptr;
+	UEvolutionItemData *HealItem = nullptr;
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
@@ -1820,7 +1820,7 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 	// Fallback: load Sapphire directly for testing
 	if (!HealItem)
 	{
-		HealItem = LoadObject<UItemData>(nullptr,
+		HealItem = LoadObject<UEvolutionItemData>(nullptr,
 										 TEXT("/Game/Data/Items/Sapphire/DA_Items_Sapphire_F.DA_Items_Sapphire_F"));
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Sapphire"));
 	}

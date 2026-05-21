@@ -20,7 +20,7 @@
 #include "ActionExecutor.h"
 #include "InfusionConstants.h"
 #include "FItemLoadoutSlot.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "CrystalType.h"
 
 USkillEffectManager *
@@ -1024,7 +1024,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         }
 
         // Fallback: Use healing item (Sapphire)
-        UItemData *HealItem = FindHealingItem(Loadout);
+        UEvolutionItemData *HealItem = FindHealingItem(Loadout);
         if (HealItem)
         {
             OutAction.ActionType = EActionType::Item;
@@ -1043,7 +1043,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     // Priority 2: Low energy - need energy restoration
     if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD) // 30%
     {
-        UItemData *EnergyItem = FindEnergyItem(Loadout);
+        UEvolutionItemData *EnergyItem = FindEnergyItem(Loadout);
         if (EnergyItem)
         {
             OutAction.ActionType = EActionType::Item;
@@ -1108,7 +1108,7 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
     }
 
     // Fallback: Use cleanse item (Iolite)
-    UItemData *CleanseItem = FindCleanseItem(Loadout);
+    UEvolutionItemData *CleanseItem = FindCleanseItem(Loadout);
     if (CleanseItem)
     {
         OutAction.ActionType = EActionType::Item;
@@ -1124,7 +1124,7 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
 
 // ==================== ITEM DETECTION ====================
 
-UItemData *UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout)
+UEvolutionItemData *UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {
@@ -1155,7 +1155,7 @@ UItemData *UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout)
     return nullptr;
 }
 
-UItemData *UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout)
+UEvolutionItemData *UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {
@@ -1186,7 +1186,7 @@ UItemData *UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout)
     return nullptr;
 }
 
-UItemData *UAIDecisionManager::FindEnergyItem(ULoadoutComponent *Loadout)
+UEvolutionItemData *UAIDecisionManager::FindEnergyItem(ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {

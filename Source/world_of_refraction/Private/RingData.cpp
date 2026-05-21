@@ -1,7 +1,7 @@
 // RingData.cpp
 
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "LoadoutConstants.h"
 
 int32 URingData::GetMaxSpells() const

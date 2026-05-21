@@ -2,9 +2,9 @@
 // Runtime crystal inventory entry implementation
 
 #include "FCrystalInventoryEntry.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 
-FCrystalInventoryEntry FCrystalInventoryEntry::CreateFromCrystal(UItemData *InCrystal)
+FCrystalInventoryEntry FCrystalInventoryEntry::CreateFromCrystal(UEvolutionItemData *InCrystal)
 {
     FCrystalInventoryEntry Entry;
     Entry.Crystal = InCrystal;

@@ -24,9 +24,9 @@
 class UInventoryComponent;
 class USpellData;
 class UAbilityData;
-class UItemData;
+class UEvolutionItemData;
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 struct FWeaponLoadoutEntry;
 struct FRingLoadoutEntry;
 struct FCrystalInventoryEntry;
@@ -38,7 +38,7 @@ class UInfusionDisplayData;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutItemUsed, int32, SlotIndex, UItemData *, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutItemUsed, int32, SlotIndex, UEvolutionItemData *, Item);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FString &, Reason);
 
 /** A single crystal-bearing slot — the crystal and its holder (the
@@ -51,7 +51,7 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
-    UItemData *Crystal = nullptr;
+    UEvolutionItemData *Crystal = nullptr;
 
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
     UObject *Holder = nullptr;
@@ -117,7 +117,7 @@ public:
         UInventoryComponent *Inventory,
         const TArray<USpellData *> &SpellsToAdd,
         const TArray<UAbilityData *> &AbilitiesToAdd,
-        const TArray<UItemData *> &ItemsToAdd);
+        const TArray<UEvolutionItemData *> &ItemsToAdd);
 
     /** Delete a saved loadout */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
@@ -231,7 +231,7 @@ public:
 
     /** Get primary evolution crystal */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
-    UItemData *GetPrimaryEvolution() const;
+    UEvolutionItemData *GetPrimaryEvolution() const;
 
     /** Enumerate every crystal-bearing slot currently equipped on this actor.
      *  Iterates: Primary weapon, Secondary weapon (Generic only), Primary ring
@@ -401,7 +401,7 @@ public:
      *  Returns nullptr for: secondary weapon crystal, ring crystal, non-evolution
      *  crystal in primary weapon, no weapon equipped, or non-Weapon primary slot. */
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
-    UItemData *GetActivePrimaryEvolutionCrystal(AActor *Actor) const;
+    UEvolutionItemData *GetActivePrimaryEvolutionCrystal(AActor *Actor) const;
 
     /** Returns the FCrystalInventoryEntry for the given holder by value.
      *  Searches primary/secondary weapon entries, primary ring entry, and
@@ -435,7 +435,7 @@ public:
 
     /** Get items that will be consumed after battle */
     UFUNCTION(BlueprintPure, Category = "Loadout|Battle")
-    TArray<UItemData *> GetItemsToConsume() const;
+    TArray<UEvolutionItemData *> GetItemsToConsume() const;
 
     /** Reset battle state (call after battle ends) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Battle")

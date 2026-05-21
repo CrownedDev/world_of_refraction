@@ -19,7 +19,7 @@
 #include "FWeaponInventoryEntry.generated.h"
 
 class UWeaponData;
-class UItemData;
+class UEvolutionItemData;
 class USpellData;
 
 /**
@@ -137,7 +137,7 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     // ==================== CRYSTAL OPERATIONS ====================
 
     /** Attach a crystal (creates new FCrystalInventoryEntry) */
-    void AttachCrystal(UItemData *NewCrystal)
+    void AttachCrystal(UEvolutionItemData *NewCrystal)
     {
         AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }

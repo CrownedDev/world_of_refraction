@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ItemExecutor.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "BrokenDarknessManager.h"
@@ -26,7 +26,7 @@ void UItemExecutor::Deinitialize()
 // MAIN EXECUTION
 // ========================================
 
-FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Target)
+FItemUseResult UItemExecutor::UseItem(AActor *User, UEvolutionItemData *Item, AActor *Target)
 {
 	FItemUseResult Result;
 
@@ -112,7 +112,7 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UItemData *Item, AActor *Tar
 	return Result;
 }
 
-FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UItemData *Item, const TArray<AActor *> &Targets)
+FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UEvolutionItemData *Item, const TArray<AActor *> &Targets)
 {
 	FItemUseResult CombinedResult;
 	CombinedResult.bSuccess = true;
@@ -144,7 +144,7 @@ FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UItemData *Item, 
 // EFFECT HANDLERS
 // ========================================
 
-void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Garnet - percentage-based fire damage (Phase 2). One immediate Fire hit on
 	// use, then a DOT tail for the configured duration ("throw a grenade" feel).
@@ -219,7 +219,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UItemData 
 		   *Target->GetName(), DamagePerTurnInt, Duration);
 }
 
-void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Sapphire - percentage-based water healing (Phase 2). S-tier additionally
 	// revives a dead target at 30% MaxHP; lower tiers heal living targets only.
@@ -268,7 +268,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UItemData
 		   *Target->GetName(), OutResult.HealingDone, HealPercent);
 }
 
-void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Citrine (Phase 2) - restores a percent of the target's MaxEP and builds
 	// Lightning status on the target (no HP cost anymore).
@@ -310,7 +310,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UIt
 		   OutResult.EnergyRestored, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Emerald (Phase 2) - F-A apply a turn-speed buff; S grants an extra turn.
 	if (Item->Tier == EItemTier::S_Tier)
@@ -354,7 +354,7 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemDa
 		   BuffPercent, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Amber (Phase 2) - buff an ally's defense, or debuff an enemy's.
 	USkillEffectManager *SEM = GetSkillEffectManager();
@@ -382,7 +382,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItem
 		   bAlly ? TEXT("DefenseBuff") : TEXT("DefenseDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Opal (Phase 2) - buff an ally's crit chance, or debuff an enemy's.
 	USkillEffectManager *SEM = GetSkillEffectManager();
@@ -412,7 +412,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemDat
 		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Onyx - F-A is a one-shot energy drain (a percent of the target's MaxEP,
 	// spent immediately on use, no tick); S-rank applies a binary Silenced gate
@@ -477,7 +477,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData
 	}
 }
 
-void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Amethyst (Phase 2) - roll buff vs debuff against the tier's buff chance,
 	// then apply a random effect from the matching pool to the target.
@@ -545,7 +545,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UItemData 
 		   *Target->GetName(), *OutResult.GambleOutcome);
 }
 
-void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Iolite (Phase 2) - cleanse debuffs from an ally, or strip buffs from an enemy.
 	// GetEffectsToRemoveCount() == 99 means "remove all" (fixes the old S-rank bug).
@@ -583,7 +583,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData
 		   Removed, bRemoveDebuffs ? TEXT("debuff(s)") : TEXT("buff(s)"), *Target->GetName());
 }
 
-void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Quartz (Phase 2) - clears a percent of the target's status bar, then grants
 	// element-specific protection for the bar's pending (last-hit) element:
@@ -638,7 +638,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UItem
 // BONUS HANDLERS
 // ========================================
 
-void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
 {
 	// Broken Darkness character absorbs the crystal's elemental energy when one
 	// is used on them — gains EP scaled by the crystal's tier. The caller has

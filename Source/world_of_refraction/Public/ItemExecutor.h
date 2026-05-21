@@ -10,7 +10,7 @@
 #include "ESkillEffectType.h"
 #include "ItemExecutor.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 class UCharacterDataComponent;
 class UCharacterData;
 class USkillEffectManager;
@@ -72,7 +72,7 @@ struct WORLD_OF_REFRACTION_API FItemUseResult
 // DELEGATES
 // ========================================
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemUsed, AActor *, User, UItemData *, Item, const FItemUseResult &, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnItemUsed, AActor *, User, UEvolutionItemData *, Item, const FItemUseResult &, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGambleResult, AActor *, User, bool, bWon, const FString &, Outcome);
 
 /**
@@ -109,13 +109,13 @@ public:
 	 * Handles all crystal types, bonuses, and special mechanics
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor")
-	FItemUseResult UseItem(AActor *User, UItemData *Item, AActor *Target);
+	FItemUseResult UseItem(AActor *User, UEvolutionItemData *Item, AActor *Target);
 
 	/**
 	 * Use an item on multiple targets (AOE items)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Item Executor")
-	FItemUseResult UseItemMultiTarget(AActor *User, UItemData *Item, const TArray<AActor *> &Targets);
+	FItemUseResult UseItemMultiTarget(AActor *User, UEvolutionItemData *Item, const TArray<AActor *> &Targets);
 
 	// ========================================
 	// EVENTS
@@ -133,34 +133,34 @@ private:
 	// ========================================
 
 	/** Garnet - Direct damage */
-	void ExecuteDamageEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteDamageEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Sapphire - Healing */
-	void ExecuteHealingEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteHealingEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Citrine - restore target EP %, apply Lightning buildup to the user */
-	void ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Emerald - Speed buff */
-	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Amber - Defense buff */
-	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Opal - Crit buff (+ S-tier reveals) */
-	void ExecuteCritBuffEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteCritBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Onyx - Silence */
-	void ExecuteSilenceEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Amethyst - Gamble (random effect) */
-	void ExecuteGambleEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteGambleEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Iolite - Cleanse (ally: remove debuffs / enemy: remove buffs) */
-	void ExecuteCleanseEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteCleanseEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	/** Quartz - StatusClear (reduce target status bar + grant elemental resistance) */
-	void ExecuteStatusClearEffect(AActor *User, AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	// ========================================
 	// BONUS HANDLERS
@@ -168,7 +168,7 @@ private:
 
 	/** Apply Broken Darkness energy absorption — Target is the BD character a
 	 *  crystal was used on; it absorbs EP scaled by the crystal's tier. */
-	void ApplyBrokenDarknessBonus(AActor *Target, UItemData *Item, FItemUseResult &OutResult);
+	void ApplyBrokenDarknessBonus(AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult);
 
 	// ========================================
 	// HELPERS

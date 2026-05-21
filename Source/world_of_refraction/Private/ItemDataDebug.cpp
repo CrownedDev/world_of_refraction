@@ -22,7 +22,7 @@ bool UItemDataDebug::ValidateAllItemCombinations()
             EItemTier Tier = static_cast<EItemTier>(TierIndex);
 
             // Create test item
-            UItemData *TestItem = CreateTestItem(Crystal, Tier);
+            UEvolutionItemData *TestItem = CreateTestItem(Crystal, Tier);
             if (TestItem)
             {
                 if (ValidateItem(TestItem))
@@ -52,7 +52,7 @@ bool UItemDataDebug::ValidateAllItemCombinations()
     return bAllValid;
 }
 
-bool UItemDataDebug::ValidateItem(const UItemData *Item)
+bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
 {
     if (!Item)
     {
@@ -187,7 +187,7 @@ bool UItemDataDebug::ValidateItem(const UItemData *Item)
     return bValid;
 }
 
-void UItemDataDebug::LogItemValues(const UItemData *Item)
+void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
 {
     if (!Item)
     {
@@ -257,7 +257,7 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
     for (int32 TierIndex = 0; TierIndex <= static_cast<int32>(EItemTier::S_Tier); ++TierIndex)
     {
         EItemTier Tier = static_cast<EItemTier>(TierIndex);
-        UItemData *TestItem = CreateTestItem(CrystalType, Tier);
+        UEvolutionItemData *TestItem = CreateTestItem(CrystalType, Tier);
 
         if (TestItem)
         {
@@ -332,7 +332,7 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
-void UItemDataDebug::LogCrystalState(const UItemData *Item)
+void UItemDataDebug::LogCrystalState(const UEvolutionItemData *Item)
 {
     if (!Item)
     {
@@ -406,7 +406,7 @@ void UItemDataDebug::LogTierBonuses()
     for (int32 TierIndex = 0; TierIndex <= static_cast<int32>(EItemTier::S_Tier); ++TierIndex)
     {
         EItemTier Tier = static_cast<EItemTier>(TierIndex);
-        UItemData *TestItem = CreateTestItem(ECrystalType::Garnet, Tier);
+        UEvolutionItemData *TestItem = CreateTestItem(ECrystalType::Garnet, Tier);
 
         if (TestItem)
         {
@@ -419,9 +419,9 @@ void UItemDataDebug::LogTierBonuses()
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
-UItemData *UItemDataDebug::CreateTestItem(ECrystalType CrystalType, EItemTier Tier)
+UEvolutionItemData *UItemDataDebug::CreateTestItem(ECrystalType CrystalType, EItemTier Tier)
 {
-    UItemData *TestItem = NewObject<UItemData>();
+    UEvolutionItemData *TestItem = NewObject<UEvolutionItemData>();
     if (TestItem)
     {
         TestItem->CrystalType = CrystalType;
@@ -443,7 +443,7 @@ bool UItemDataDebug::TestTierProgression(ECrystalType CrystalType)
     for (int32 TierIndex = 0; TierIndex <= static_cast<int32>(EItemTier::S_Tier); ++TierIndex)
     {
         EItemTier Tier = static_cast<EItemTier>(TierIndex);
-        UItemData *TestItem = CreateTestItem(CrystalType, Tier);
+        UEvolutionItemData *TestItem = CreateTestItem(CrystalType, Tier);
 
         if (TestItem)
         {
@@ -572,7 +572,7 @@ FString UItemDataDebug::GetTierName(EItemTier Tier)
     }
 }
 
-float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
+float UItemDataDebug::GetPrimaryValue(const UEvolutionItemData *Item)
 {
     if (!Item)
         return 0.0f;
@@ -614,7 +614,7 @@ float UItemDataDebug::GetPrimaryValue(const UItemData *Item)
     }
 }
 
-void UItemDataDebug::LogCrystalDurability(const UItemData *Item)
+void UItemDataDebug::LogCrystalDurability(const UEvolutionItemData *Item)
 {
     if (!Item)
     {
@@ -642,7 +642,7 @@ void UItemDataDebug::LogCrystalDurability(const UItemData *Item)
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
-FString UItemDataDebug::GetDurabilityString(const UItemData *Item)
+FString UItemDataDebug::GetDurabilityString(const UEvolutionItemData *Item)
 {
     if (!Item)
     {

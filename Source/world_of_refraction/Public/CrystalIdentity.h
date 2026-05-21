@@ -1,7 +1,7 @@
 // CrystalIdentity.h
 // Free-function helpers operating on FCrystalId. Returns the derived data a
 // caller needs about a crystal — element, max durability, display name —
-// without holding any UItemData / UEvolutionItemData asset pointer.
+// without holding any UEvolutionItemData / UEvolutionItemData asset pointer.
 //
 // Sits one layer above CrystalTypeHelpers: where CrystalTypeHelpers operates
 // on raw ECrystalType, CrystalIdentity operates on the (Type, Tier) pair via

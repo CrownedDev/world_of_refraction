@@ -9,7 +9,7 @@
 #include "ActiveSkillEffect.h"
 #include "SpellData.h"
 #include "AbilityData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "WeaponAttackData.h"
 #include "ESpellSource.h"
 #include "ActionUtils.h"
@@ -21,11 +21,11 @@
 #include "TimerManager.h"
 #include "RingManager.h"
 #include "WeaponData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "CrystalType.h"
 #include "RingManager.h"
 #include "WeaponData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "DefenseSystem.h"
 #include "EDefenseType.h"
 #include "BrokenDarknessManager.h"
@@ -52,7 +52,7 @@ class UCharacterData;
 class USkillEffectManager;
 class USpellData;
 class UAbilityData;
-class UItemData;
+class UEvolutionItemData;
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -1716,7 +1716,7 @@ void UActionExecutor::UnbindDefenseSystemEvents()
 
 FActionResult UActionExecutor::ExecuteItem(
 	AActor *User,
-	UItemData *Item,
+	UEvolutionItemData *Item,
 	const TArray<AActor *> &Targets)
 {
 	FActionResult Result;
@@ -3089,7 +3089,7 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 	return CharMult * EquipmentMult * SkillEffectMult;
 }
 
-UItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const
+UEvolutionItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const
 {
 	if (!Actor)
 	{
@@ -4314,7 +4314,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Weapon) : FCrystalInventoryEntry();
-		UItemData *WeaponCrystal = Entry.Crystal;
+		UEvolutionItemData *WeaponCrystal = Entry.Crystal;
 		if (!WeaponCrystal)
 		{
 			break;
@@ -4358,7 +4358,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		//    for logging; needed by the future status-build wiring.
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		const FWeaponLoadoutEntry *ActiveWeaponLoadout = LC ? LC->GetActiveWeaponLoadout() : nullptr;
-		UItemData *WeaponCrystal = (ActiveWeaponLoadout && ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal)
+		UEvolutionItemData *WeaponCrystal = (ActiveWeaponLoadout && ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal)
 									   ? ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal
 									   : nullptr;
 		if (!WeaponCrystal || !WeaponCrystal->bIsEvolutionCrystal)
@@ -4450,7 +4450,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	}
 
 	// 2. Evolution crystal slotted as primary
-	UItemData *PrimaryEvolutionCrystal = nullptr;
+	UEvolutionItemData *PrimaryEvolutionCrystal = nullptr;
 	if (ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		const FCombatLoadout Loadout = LC->GetActiveLoadout();
@@ -4496,10 +4496,10 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 
 		// Evolution-infused authored stats. Source crystal resolves via
 		// ResolveInfusionCrystal (WeaponCrystal/ActiveRing/PrimaryRing/Evolution
-		// → the appropriate slotted/equipped UItemData). InfusionMultiplier
+		// → the appropriate slotted/equipped UEvolutionItemData). InfusionMultiplier
 		// follows the locked design: L1 = 0.5, L2 = 1.0. Reality flat-bump
 		// above still applies independently for Reality-element infusion.
-		if (UItemData *InfusionCrystal = ResolveInfusionCrystal(Actor, Action))
+		if (UEvolutionItemData *InfusionCrystal = ResolveInfusionCrystal(Actor, Action))
 		{
 			if (InfusionCrystal->bIsEvolutionCrystal)
 			{

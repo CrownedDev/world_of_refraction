@@ -3,7 +3,7 @@
 
 #include "FWeaponInventoryEntry.h"
 #include "WeaponData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 
 #include <atomic>
 

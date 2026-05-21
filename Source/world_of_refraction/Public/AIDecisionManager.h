@@ -192,14 +192,14 @@ private:
 
     // Healing detection
     USpellData *FindHealingSpell(ULoadoutComponent *Loadout);
-    UItemData *FindHealingItem(ULoadoutComponent *Loadout);
+    UEvolutionItemData *FindHealingItem(ULoadoutComponent *Loadout);
 
     // Cleanse detection
     USpellData *FindCleanseSpell(ULoadoutComponent *Loadout);
-    UItemData *FindCleanseItem(ULoadoutComponent *Loadout);
+    UEvolutionItemData *FindCleanseItem(ULoadoutComponent *Loadout);
 
     // Energy detection
-    UItemData *FindEnergyItem(ULoadoutComponent *Loadout);
+    UEvolutionItemData *FindEnergyItem(ULoadoutComponent *Loadout);
 
     // Energy helpers
     int32 GetCurrentEP(AActor *Actor) const;

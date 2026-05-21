@@ -5,7 +5,7 @@
 #include "InventoryData.h"
 
 #include "AbilityData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "RingData.h"
 #include "SpellData.h"
 #include "WeaponData.h"
@@ -68,7 +68,7 @@ TArray<FString> UInventoryData::GetValidationErrors() const
             }
         }
 
-        if (UItemData *Evolution = Loadout.GetPrimaryEvolution())
+        if (UEvolutionItemData *Evolution = Loadout.GetPrimaryEvolution())
         {
             if (!Crystals.Contains(Evolution))
             {
@@ -88,7 +88,7 @@ TArray<FString> UInventoryData::GetValidationErrors() const
             }
         }
 
-        for (UItemData *Item : Loadout.EquippedItems)
+        for (UEvolutionItemData *Item : Loadout.EquippedItems)
         {
             if (Item && !Items.Contains(Item))
             {

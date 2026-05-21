@@ -11,7 +11,7 @@
 
 class UTextBlock;
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 class UCrystalManager;
 class UWeaponData;
 
@@ -95,5 +95,5 @@ private:
 	 *  Re-detects resources after a break — auto-switch may change which
 	 *  slot displays what. */
 	UFUNCTION()
-	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal);
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal);
 };

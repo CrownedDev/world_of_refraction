@@ -5,7 +5,7 @@
 #include "InventoryComponent.h"
 #include "SpellData.h"
 #include "AbilityData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "WeaponData.h"
 #include "RingData.h"
 #include "CharacterData.h"
@@ -14,7 +14,7 @@
 #include "BrokenDarknessManager.h"
 #include "ElementHelpers.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "StanceData.h"
 #include "TurnManager.h"
 #include "Engine/GameInstance.h"
@@ -151,7 +151,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
     UInventoryComponent *Inventory,
     const TArray<USpellData *> &SpellsToAdd,
     const TArray<UAbilityData *> &AbilitiesToAdd,
-    const TArray<UItemData *> &ItemsToAdd)
+    const TArray<UEvolutionItemData *> &ItemsToAdd)
 {
     // Validate inventory
     if (!Inventory)
@@ -249,7 +249,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
     // Add items (validate against inventory)
     int32 ItemsAdded = 0;
     int32 SlotIndex = 0;
-    for (UItemData *Item : ItemsToAdd)
+    for (UEvolutionItemData *Item : ItemsToAdd)
     {
         if (!Item)
         {
@@ -1006,9 +1006,9 @@ void ULoadoutComponent::ConsumeUsedItems(UInventoryComponent *Inventory)
     }
 }
 
-TArray<UItemData *> ULoadoutComponent::GetItemsToConsume() const
+TArray<UEvolutionItemData *> ULoadoutComponent::GetItemsToConsume() const
 {
-    TArray<UItemData *> Result;
+    TArray<UEvolutionItemData *> Result;
 
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
@@ -1369,7 +1369,7 @@ URingData *ULoadoutComponent::GetActiveRing() const
     return Entry.IsValid() ? Entry.RingEntry.Ring : nullptr;
 }
 
-UItemData *ULoadoutComponent::GetPrimaryEvolution() const
+UEvolutionItemData *ULoadoutComponent::GetPrimaryEvolution() const
 {
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
@@ -1396,7 +1396,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 {
     TArray<FEquippedCrystalSlot> Result;
 
-    auto AddIfCrystal = [&Result](UItemData *Crystal, UObject *Holder)
+    auto AddIfCrystal = [&Result](UEvolutionItemData *Crystal, UObject *Holder)
     {
         if (Crystal && Holder)
         {
@@ -1439,7 +1439,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     }
 
     // Evolution crystal slot — no inventory entry, evolution IS the crystal.
-    if (UItemData *Evolution = GetPrimaryEvolution())
+    if (UEvolutionItemData *Evolution = GetPrimaryEvolution())
     {
         AddIfCrystal(Evolution, Evolution);
     }
@@ -2414,7 +2414,7 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     return Result;
 }
 
-UItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
+UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
 {
     (void)Actor;
 
@@ -2428,7 +2428,7 @@ UItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) co
         return nullptr;
     }
 
-    UItemData *Crystal = Loadout.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal;
+    UEvolutionItemData *Crystal = Loadout.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal;
     if (!Crystal || !Crystal->bIsEvolutionCrystal)
     {
         return nullptr;

@@ -23,7 +23,7 @@
 #include "FRingInventoryEntry.generated.h"
 
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 class USpellData;
 
 /**
@@ -110,7 +110,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     /** Get ring's element from attached crystal. Returns Generic for missing
      *  OR broken crystals — a broken crystal cannot channel its element.
-     *  Body in FRingInventoryEntry.cpp because it reads UItemData fields
+     *  Body in FRingInventoryEntry.cpp because it reads UEvolutionItemData fields
      *  via the attached crystal entry (full type only forward-declared here). */
     ESpellElement GetElement() const;
 
@@ -132,7 +132,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     // ==================== CRYSTAL OPERATIONS ====================
 
     /** Attach a crystal (creates new FCrystalInventoryEntry) */
-    void AttachCrystal(UItemData *NewCrystal)
+    void AttachCrystal(UEvolutionItemData *NewCrystal)
     {
         AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
     }

@@ -9,7 +9,7 @@
 #include "SpellData.h"
 #include "AbilityData.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "FItemLoadoutSlot.h"
 #include "CharacterDataComponent.h"
 #include "BrokenDarknessManager.h"

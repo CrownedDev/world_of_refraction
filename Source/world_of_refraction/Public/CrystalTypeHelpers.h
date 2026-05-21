@@ -1,6 +1,6 @@
 // CrystalTypeHelpers.h
 // Free-function helpers keyed on ECrystalType. Decouples crystal-type-derived
-// data (element, future identity/effects/durability) from UItemData so callers
+// data (element, future identity/effects/durability) from UEvolutionItemData so callers
 // can resolve these without holding an asset pointer — required for refined
 // attachments after the crystal/evolution refactor, where refined crystals
 // become enum pairs rather than asset references.
@@ -15,7 +15,7 @@ namespace CrystalTypeHelpers
 {
     /** Returns the spell element associated with the given crystal type.
      *  Pure function — no side effects, no asset access. Mirrors the byte-
-     *  for-byte body lifted from UItemData::GetAssociatedElement in commit 0
+     *  for-byte body lifted from UEvolutionItemData::GetAssociatedElement in commit 0
      *  of the crystal/evolution refactor sequence. */
     inline ESpellElement GetElement(ECrystalType Type)
     {

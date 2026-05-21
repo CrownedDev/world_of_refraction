@@ -5,7 +5,7 @@
 
 #include "RingManager.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "LoadoutComponent.h"
 #include "FCombatLoadout.h"
 #include "FRingLoadoutEntry.h"
@@ -108,7 +108,7 @@ bool URingManager::SwitchToNextRing(AActor *Actor)
 
 // ==================== CRYSTAL BREAK CONSUMER ====================
 
-void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal)
+void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal)
 {
 	// Filter: only handle ring crystal breaks. Weapon crystals are not our concern.
 	URingData *BrokenRing = Cast<URingData>(Holder);

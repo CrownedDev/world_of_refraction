@@ -21,7 +21,7 @@
 
 #include "EquipmentDataBase.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 class USpellData;
 class UCharacterData;
 class UTexture2D;
@@ -62,7 +62,7 @@ public:
 
     /** Refined crystal slotted into this equipment — determines element. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-    UItemData *SlottedCrystal = nullptr;
+    UEvolutionItemData *SlottedCrystal = nullptr;
 
     /** Default spells for this equipment — copied to inventory entry when obtained.
      *  Lost if crystal is removed; spell vendor reassigns them. */
@@ -78,7 +78,7 @@ public:
     bool bImmuneToInfusion = false;
 
     /** When true, the player cannot unfuse this equipment's slotted crystal at
-     *  a vendor. Independent of bImmuneToBreaking (which is on UItemData and
+     *  a vendor. Independent of bImmuneToBreaking (which is on UEvolutionItemData and
      *  prevents wear). bCrystalLocked is a player-side ergonomic gate; the
      *  crystal can still break via the standard wear path. No runtime code
      *  consumes this flag yet — the vendor system will use it when built. */
@@ -116,7 +116,7 @@ public:
     // ==================== EFFECTS ====================
     // Equipment-level skill effects (passives + triggered). Applied via
     // USkillEffectManager::ApplyEquipmentEffects at combat start. Distinct
-    // from evolution crystal effects on UItemData::Effects — those flow
+    // from evolution crystal effects on UEvolutionItemData::Effects — those flow
     // through their own application path.
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")

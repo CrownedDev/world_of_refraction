@@ -13,7 +13,7 @@
 #include "InventoryConstants.h"
 #include "FItemLoadoutSlot.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 
 /**
  * FItemLoadoutSlot
@@ -29,7 +29,7 @@ struct WORLD_OF_REFRACTION_API FItemLoadoutSlot
 
     /** The item crystal in this slot */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-    UItemData* Crystal = nullptr;
+    UEvolutionItemData* Crystal = nullptr;
 
     /** Remaining uses this battle (starts at 3) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
@@ -89,7 +89,7 @@ struct WORLD_OF_REFRACTION_API FItemLoadoutSlot
     // ==================== INITIALIZATION ====================
 
     /** Initialize slot with crystal */
-    void Initialize(UItemData* InCrystal)
+    void Initialize(UEvolutionItemData* InCrystal)
     {
         Crystal = InCrystal;
         RemainingUses = InventoryConstants::ITEM_USES_PER_SLOT;

@@ -15,7 +15,7 @@ class USpellData;
 class UAbilityData;
 class UWeaponData;
 class URingData;
-class UItemData;
+class UEvolutionItemData;
 class UEvolutionData;
 
 /**

@@ -1,7 +1,7 @@
 // CrystalEffectTable.h
 // Static effect-data lookups keyed by FCrystalId — the consumable item-crystal
 // effects (DOT, heal, EP, buffs, status, etc.) and the per-tier BD energy
-// bonus. Switch bodies transferred verbatim from UItemData in commit 0.5 of
+// bonus. Switch bodies transferred verbatim from UEvolutionItemData in commit 0.5 of
 // the crystal/evolution refactor sequence.
 //
 // All values hardcoded. Code change required to rebalance. Future option to

@@ -2,7 +2,7 @@
 // Runtime crystal inventory entry - metadata wrapper
 //
 // ARCHITECTURE:
-// UItemData = Immutable template (crystal type, tier, evolution data, stat mods)
+// UEvolutionItemData = Immutable template (crystal type, tier, evolution data, stat mods)
 // FCrystalInventoryEntry = Runtime state (which crystal is attached)
 //
 // Spells live on FWeaponInventoryEntry/FRingInventoryEntry, NOT here.
@@ -14,11 +14,11 @@
 #include "Misc/Guid.h"
 #include "FCrystalInventoryEntry.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 
 /**
  * FCrystalInventoryEntry
- * Wraps a crystal (UItemData) with runtime-assigned custom spells
+ * Wraps a crystal (UEvolutionItemData) with runtime-assigned custom spells
  * Used by FWeaponInventoryEntry, FRingInventoryEntry, and CharacterData
  */
 USTRUCT(BlueprintType)
@@ -28,7 +28,7 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
 
     /** The crystal data asset */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
-    UItemData *Crystal = nullptr;
+    UEvolutionItemData *Crystal = nullptr;
 
     /** Current durability of this specific crystal instance. Initialized
      *  from Crystal->MaxDurability at CreateFromCrystal time. Per-instance
@@ -50,7 +50,7 @@ struct WORLD_OF_REFRACTION_API FCrystalInventoryEntry
     // ==================== FACTORY ====================
 
     /** Create entry from crystal */
-    static FCrystalInventoryEntry CreateFromCrystal(UItemData *InCrystal);
+    static FCrystalInventoryEntry CreateFromCrystal(UEvolutionItemData *InCrystal);
 
     // ==================== DURABILITY ====================
 

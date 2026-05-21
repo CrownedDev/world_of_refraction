@@ -2,9 +2,9 @@
 // Item crystal inventory implementation
 
 #include "FItemCrystalInventory.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 
-bool FItemCrystalInventory::CanAddCrystal(UItemData *Crystal) const
+bool FItemCrystalInventory::CanAddCrystal(UEvolutionItemData *Crystal) const
 {
     if (!Crystal)
     {
@@ -15,7 +15,7 @@ bool FItemCrystalInventory::CanAddCrystal(UItemData *Crystal) const
     return CanAddToTier(Tier);
 }
 
-bool FItemCrystalInventory::AddCrystal(UItemData *Crystal)
+bool FItemCrystalInventory::AddCrystal(UEvolutionItemData *Crystal)
 {
     if (!CanAddCrystal(Crystal))
     {
@@ -27,7 +27,7 @@ bool FItemCrystalInventory::AddCrystal(UItemData *Crystal)
     return true;
 }
 
-bool FItemCrystalInventory::RemoveCrystal(UItemData *Crystal)
+bool FItemCrystalInventory::RemoveCrystal(UEvolutionItemData *Crystal)
 {
     if (!Crystal)
     {
@@ -38,7 +38,7 @@ bool FItemCrystalInventory::RemoveCrystal(UItemData *Crystal)
     return GetMutableArrayForTier(Tier).Remove(Crystal) > 0;
 }
 
-bool FItemCrystalInventory::HasCrystal(UItemData *Crystal) const
+bool FItemCrystalInventory::HasCrystal(UEvolutionItemData *Crystal) const
 {
     if (!Crystal)
     {
@@ -49,14 +49,14 @@ bool FItemCrystalInventory::HasCrystal(UItemData *Crystal) const
     return GetArrayForTier(Tier).Contains(Crystal);
 }
 
-TArray<UItemData *> FItemCrystalInventory::GetCrystalsOfType(ECrystalType Type) const
+TArray<UEvolutionItemData *> FItemCrystalInventory::GetCrystalsOfType(ECrystalType Type) const
 {
-    TArray<UItemData *> Result;
+    TArray<UEvolutionItemData *> Result;
 
     // Check all tier arrays
-    auto CheckArray = [&](const TArray<UItemData *> &Arr)
+    auto CheckArray = [&](const TArray<UEvolutionItemData *> &Arr)
     {
-        for (UItemData *Crystal : Arr)
+        for (UEvolutionItemData *Crystal : Arr)
         {
             if (Crystal && Crystal->CrystalType == Type)
             {
@@ -76,13 +76,13 @@ TArray<UItemData *> FItemCrystalInventory::GetCrystalsOfType(ECrystalType Type) 
     return Result;
 }
 
-TArray<UItemData *> FItemCrystalInventory::GetEvolutionCrystals() const
+TArray<UEvolutionItemData *> FItemCrystalInventory::GetEvolutionCrystals() const
 {
-    TArray<UItemData *> Result;
+    TArray<UEvolutionItemData *> Result;
 
-    auto CheckArray = [&](const TArray<UItemData *> &Arr)
+    auto CheckArray = [&](const TArray<UEvolutionItemData *> &Arr)
     {
-        for (UItemData *Crystal : Arr)
+        for (UEvolutionItemData *Crystal : Arr)
         {
             if (Crystal && Crystal->bIsEvolutionCrystal)
             {
@@ -102,13 +102,13 @@ TArray<UItemData *> FItemCrystalInventory::GetEvolutionCrystals() const
     return Result;
 }
 
-TArray<UItemData *> FItemCrystalInventory::GetItemCrystals() const
+TArray<UEvolutionItemData *> FItemCrystalInventory::GetItemCrystals() const
 {
-    TArray<UItemData *> Result;
+    TArray<UEvolutionItemData *> Result;
 
-    auto CheckArray = [&](const TArray<UItemData *> &Arr)
+    auto CheckArray = [&](const TArray<UEvolutionItemData *> &Arr)
     {
-        for (UItemData *Crystal : Arr)
+        for (UEvolutionItemData *Crystal : Arr)
         {
             if (Crystal && !Crystal->bIsEvolutionCrystal)
             {

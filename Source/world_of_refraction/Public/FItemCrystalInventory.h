@@ -13,7 +13,7 @@
 #include "CrystalType.h"
 #include "FItemCrystalInventory.generated.h"
 
-class UItemData;
+class UEvolutionItemData;
 
 /**
  * FItemCrystalInventory
@@ -33,25 +33,25 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
     // ==================== STORAGE (Per-Tier Arrays) ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|F-Tier")
-    TArray<UItemData *> CrystalsF; // Max 25
+    TArray<UEvolutionItemData *> CrystalsF; // Max 25
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|E-Tier")
-    TArray<UItemData *> CrystalsE; // Max 20
+    TArray<UEvolutionItemData *> CrystalsE; // Max 20
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|D-Tier")
-    TArray<UItemData *> CrystalsD; // Max 15
+    TArray<UEvolutionItemData *> CrystalsD; // Max 15
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|C-Tier")
-    TArray<UItemData *> CrystalsC; // Max 12
+    TArray<UEvolutionItemData *> CrystalsC; // Max 12
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|B-Tier")
-    TArray<UItemData *> CrystalsB; // Max 8
+    TArray<UEvolutionItemData *> CrystalsB; // Max 8
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|A-Tier")
-    TArray<UItemData *> CrystalsA; // Max 5
+    TArray<UEvolutionItemData *> CrystalsA; // Max 5
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items|S-Tier")
-    TArray<UItemData *> CrystalsS; // Max 3
+    TArray<UEvolutionItemData *> CrystalsS; // Max 3
 
     // ==================== CAPACITY ====================
 
@@ -107,33 +107,33 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
     // ==================== ADD/REMOVE ====================
 
     /** Check if crystal can be added (validates tier capacity) */
-    bool CanAddCrystal(UItemData *Crystal) const;
+    bool CanAddCrystal(UEvolutionItemData *Crystal) const;
 
     /** Add crystal to inventory (returns false if at capacity) */
-    bool AddCrystal(UItemData *Crystal);
+    bool AddCrystal(UEvolutionItemData *Crystal);
 
     /** Remove crystal from inventory (returns false if not found) */
-    bool RemoveCrystal(UItemData *Crystal);
+    bool RemoveCrystal(UEvolutionItemData *Crystal);
 
     // ==================== QUERIES ====================
 
     /** Check if crystal is in inventory */
-    bool HasCrystal(UItemData *Crystal) const;
+    bool HasCrystal(UEvolutionItemData *Crystal) const;
 
     /** Get all crystals of a specific tier */
-    TArray<UItemData *> GetCrystalsOfTier(EItemTier Tier) const
+    TArray<UEvolutionItemData *> GetCrystalsOfTier(EItemTier Tier) const
     {
         return GetArrayForTier(Tier);
     }
 
     /** Get all crystals of a specific type (across all tiers) */
-    TArray<UItemData *> GetCrystalsOfType(ECrystalType Type) const;
+    TArray<UEvolutionItemData *> GetCrystalsOfType(ECrystalType Type) const;
 
     /** Get all evolution crystals across all tiers */
-    TArray<UItemData *> GetEvolutionCrystals() const;
+    TArray<UEvolutionItemData *> GetEvolutionCrystals() const;
 
     /** Get all non-evolution (item) crystals across all tiers */
-    TArray<UItemData *> GetItemCrystals() const;
+    TArray<UEvolutionItemData *> GetItemCrystals() const;
 
     // ==================== CLEAR ====================
 
@@ -157,7 +157,7 @@ struct WORLD_OF_REFRACTION_API FItemCrystalInventory
 
 private:
     /** Get array for tier (const) */
-    const TArray<UItemData *> &GetArrayForTier(EItemTier Tier) const
+    const TArray<UEvolutionItemData *> &GetArrayForTier(EItemTier Tier) const
     {
         switch (Tier)
         {
@@ -180,7 +180,7 @@ private:
     }
 
     /** Get array for tier (mutable) */
-    TArray<UItemData *> &GetMutableArrayForTier(EItemTier Tier)
+    TArray<UEvolutionItemData *> &GetMutableArrayForTier(EItemTier Tier)
     {
         switch (Tier)
         {

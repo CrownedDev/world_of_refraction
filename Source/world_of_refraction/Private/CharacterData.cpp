@@ -7,7 +7,7 @@
 #include "WeaponData.h"
 #include "EWeaponSlotType.h"
 #include "WeaponAttackData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "StatConstants.h"
 #include "LoadoutConstants.h"
 #include "InventoryData.h"

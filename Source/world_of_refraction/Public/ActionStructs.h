@@ -15,7 +15,7 @@
 
 class USpellData;
 class UAbilityData;
-class UItemData;
+class UEvolutionItemData;
 class UWeaponAttackData;
 
 /**
@@ -46,7 +46,7 @@ struct WORLD_OF_REFRACTION_API FAction
 
 	/** Item data (if ActionType == Item) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UItemData *ItemData = nullptr;
+	UEvolutionItemData *ItemData = nullptr;
 
 	/** Source of spell (Innate, Ring, Evolution, Item) - determines post-cast logic */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")

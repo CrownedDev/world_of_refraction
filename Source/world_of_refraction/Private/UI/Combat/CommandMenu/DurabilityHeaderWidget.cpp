@@ -3,7 +3,7 @@
 #include "UI/Combat/CommandMenu/DurabilityHeaderWidget.h"
 #include "RingManager.h"
 #include "RingData.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "Components/TextBlock.h"
@@ -360,7 +360,7 @@ void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObj
 	}
 }
 
-void UDurabilityHeaderWidget::HandleCrystalBroken(AActor *Actor, UObject *Holder, UItemData *Crystal)
+void UDurabilityHeaderWidget::HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal)
 {
 	if (Actor != BoundActor.Get())
 		return;

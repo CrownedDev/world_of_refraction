@@ -1,7 +1,7 @@
 // EquipmentDataBase.cpp
 
 #include "EquipmentDataBase.h"
-#include "ItemData.h"
+#include "EvolutionItemData.h"
 #include "EquipmentBonusGenerator.h"
 #include "FPillarWeights.h"
 #include "SkillTriggerUtils.h"
