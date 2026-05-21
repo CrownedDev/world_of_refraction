@@ -4,10 +4,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ItemTier.h"
+#include "FBrokenCrystalPayload.h"
 #include "CrystalManager.generated.h"
 
 class UEvolutionItemData;
 class ULoadoutComponent;
+struct FRuntimeAttachedItem;
 
 /**
  * UCrystalManager
@@ -17,9 +19,9 @@ class ULoadoutComponent;
  *    and URingManager::ProcessPostCastWear)
  *  - Unified broadcasts: OnCrystalBroken, OnCrystalDurabilityChanged
  *
- * Per-instance durability state lives on FCrystalInventoryEntry; this
- * manager resolves the entry via LoadoutComponent at wear time and
- * broadcasts breaks directly on the entry's transition to 0.
+ * Per-instance durability state lives on FRuntimeAttachedItem; this
+ * manager operates on the attachment provided by the caller directly
+ * and broadcasts breaks via the discriminated FBrokenCrystalPayload.
  */
 UCLASS()
 class WORLD_OF_REFRACTION_API UCrystalManager : public UGameInstanceSubsystem
@@ -34,22 +36,23 @@ public:
     // WEAR
     // ========================================
 
-    /** Apply post-cast wear to a crystal. Generic on Crystal so it works for
-     *  weapons, rings, or any future holder type.
-     *  @param Actor       The wielder/wearer
-     *  @param Crystal     The crystal taking wear
-     *  @param Holder      Provenance — the UWeaponData or URingData that
-     *                     holds this crystal. Forwarded to broadcasts for
-     *                     consumer disambiguation.
-     *  @param ActionTier  Tier of the action being wear-applied
-     *  @param InfusionLevel  L0/L1/L2 charge level
-     *  @param bIsSpell    True if the action is a spell (affects wear math)
-     *  @return Wear amount actually applied (0 if Luck skip or immune) */
-    UFUNCTION(BlueprintCallable, Category = "Crystal Manager")
-    int32 ProcessPostCastWear(
+    /** Apply post-cast wear to an attachment. Caller resolves the live
+     *  FRuntimeAttachedItem reference (e.g. via
+     *  ULoadoutComponent::FindAttachedItemByHolder) and passes it in.
+     *  Branches internally on Attachment.Kind.
+     *  @param Actor         The wielder/wearer
+     *  @param Holder        Provenance — the UWeaponData or URingData that
+     *                       owns the attachment. Forwarded to broadcasts so
+     *                       consumers can disambiguate weapon vs ring breaks.
+     *  @param Attachment    Live attachment reference; wear and break state
+     *                       transitions are written here.
+     *  @param ActionTier    Tier of the action being wear-applied
+     *  @param InfusionLevel L0/L1/L2 charge level
+     *  @param bIsSpell      True if the action is a spell (affects wear math) */
+    void ProcessPostCastWear(
         AActor *Actor,
-        UEvolutionItemData *Crystal,
         UObject *Holder,
+        FRuntimeAttachedItem &Attachment,
         EItemTier ActionTier,
         int32 InfusionLevel,
         bool bIsSpell);
@@ -62,11 +65,12 @@ public:
         FOnCrystalBroken,
         AActor *, Actor,
         UObject *, Holder,
-        UEvolutionItemData *, Crystal);
+        FBrokenCrystalPayload, Payload);
 
-    /** Fires when any tracked crystal's durability hits 0.
+    /** Fires when any tracked attachment's durability hits 0.
      *  Holder is provenance — cast to UWeaponData or URingData to filter
-     *  by holder type. */
+     *  by holder type. Payload discriminates refined (FCrystalId) vs
+     *  evolution (asset pointer). */
     UPROPERTY(BlueprintAssignable, Category = "Crystal Manager|Events")
     FOnCrystalBroken OnCrystalBroken;
 

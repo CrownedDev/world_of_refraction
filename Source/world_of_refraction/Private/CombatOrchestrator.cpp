@@ -20,7 +20,7 @@
 #include "RingData.h"
 #include "EvolutionItemData.h"
 #include "FSkillEffect.h"
-#include "FCrystalInventoryEntry.h"
+#include "FRuntimeAttachedItem.h"
 #include "CrystalIdentity.h"
 #include "EAttachedItemKind.h"
 #include "DurabilityConstants.h"
@@ -1103,13 +1103,14 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 					continue;
 				}
 
-				// Resolve per-instance entry; Entry.IsBroken() filters refined +
-				// non-immune + durability <= 0, matching the old triple-check.
-				// On no match GetCrystalEntryByHolder returns an empty entry whose
-				// IsBroken() is false (requires Crystal != nullptr), so the gate
-				// below correctly skips unmatched holders.
-				const FCrystalInventoryEntry Entry = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
-				if (!Entry.IsBroken())
+				// Resolve per-instance attachment; IsBroken() filters refined-
+				// + durability <= 0 (evolution items always report not-broken
+				// due to bImmuneToBreaking), matching the old triple-check.
+				// On no match GetCrystalEntryByHolder returns an empty attachment
+				// whose IsBroken() is false, so the gate below correctly skips
+				// unmatched holders.
+				const FRuntimeAttachedItem Attachment = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
+				if (!Attachment.IsBroken())
 				{
 					continue;
 				}
@@ -1203,24 +1204,21 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 				}
 
 				// Read first to gate on IsBroken and capture the pre-repair value.
-				// On no match GetCrystalEntryByHolder returns an empty entry; IsBroken
-				// is false for that case, but the Kind == Refined gate above already
-				// filtered out the unmatched-holder rows.
-				const FCrystalInventoryEntry Before = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
-				if (!Before.Crystal || Before.IsBroken())
+				// On no match GetCrystalEntryByHolder returns an empty attachment;
+				// IsBroken is false for that case, but the Kind == Refined gate
+				// above already filtered out the unmatched-holder rows.
+				const FRuntimeAttachedItem Before = LoadoutComp->GetCrystalEntryByHolder(Slot.Holder);
+				if (Before.IsEmpty() || Before.IsBroken())
 				{
 					continue;
 				}
 
-				const int32 BeforeDur = Before.CurrentDurability;
+				const int32 BeforeDur = Before.GetCurrentDurability();
 				const int32 NewDur = LoadoutComp->RepairCrystalEntryByHolder(Slot.Holder, RepairAmount);
 
 				if (NewDur > BeforeDur)
 				{
-					// Use the asset-side crystal pointer from the entry for the
-					// MaxDurability log (still asset-backed in the 7a window;
-					// 7b will route this through FRuntimeAttachedItem helpers).
-					const int32 MaxDur = Before.Crystal ? Before.Crystal->MaxDurability : 0;
+					const int32 MaxDur = Before.GetMaxDurability();
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
 						   *CrystalIdentity::GetDisplayName(Slot.RefinedId), *Actor->GetName(),

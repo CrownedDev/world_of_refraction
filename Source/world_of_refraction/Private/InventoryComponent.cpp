@@ -159,16 +159,16 @@ bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UEvolutionIte
     return true;
 }
 
-UEvolutionItemData *UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
+bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 {
     if (!Weapons.IsValidIndex(WeaponIndex))
     {
-        return nullptr;
+        return false;
     }
 
-    UEvolutionItemData *OldCrystal = Weapons[WeaponIndex].AttachedCrystal.Crystal;
+    const bool bHadAttachment = !Weapons[WeaponIndex].AttachedItem.IsEmpty();
     Weapons[WeaponIndex].RemoveCrystal();
-    return OldCrystal;
+    return bHadAttachment;
 }
 
 bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionItemData *EvolutionCrystal)
@@ -187,7 +187,7 @@ bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionIt
     FWeaponInventoryEntry &Entry = Weapons[WeaponIndex];
 
     int32 CurrentCost = Entry.GetSlotCost();
-    FCrystalInventoryEntry OldCrystalEntry = Entry.AttachedCrystal;
+    FRuntimeAttachedItem OldAttachment = Entry.AttachedItem;
 
     Entry.AttachCrystal(EvolutionCrystal);
     int32 NewCost = Entry.GetSlotCost();
@@ -195,7 +195,7 @@ bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionIt
     int32 CostDelta = NewCost - CurrentCost;
     if (GetRemainingWeaponCapacity() < CostDelta)
     {
-        Entry.AttachedCrystal = OldCrystalEntry;
+        Entry.AttachedItem = OldAttachment;
         return false;
     }
 
@@ -282,16 +282,16 @@ bool UInventoryComponent::AttachCrystalToRing(int32 RingIndex, UEvolutionItemDat
     return true;
 }
 
-UEvolutionItemData *UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
+bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
 {
     if (!Rings.IsValidIndex(RingIndex))
     {
-        return nullptr;
+        return false;
     }
 
-    UEvolutionItemData *OldCrystal = Rings[RingIndex].AttachedCrystal.Crystal;
+    const bool bHadAttachment = !Rings[RingIndex].AttachedItem.IsEmpty();
     Rings[RingIndex].RemoveCrystal();
-    return OldCrystal;
+    return bHadAttachment;
 }
 
 bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemData *EvolutionCrystal)
@@ -310,7 +310,7 @@ bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemDa
     FRingInventoryEntry &Entry = Rings[RingIndex];
 
     int32 CurrentCost = Entry.GetSlotCost();
-    FCrystalInventoryEntry OldCrystalEntry = Entry.AttachedCrystal;
+    FRuntimeAttachedItem OldAttachment = Entry.AttachedItem;
 
     Entry.AttachCrystal(EvolutionCrystal);
     int32 NewCost = Entry.GetSlotCost();
@@ -318,7 +318,7 @@ bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemDa
     int32 CostDelta = NewCost - CurrentCost;
     if (GetRemainingRingCapacity() < CostDelta)
     {
-        Entry.AttachedCrystal = OldCrystalEntry;
+        Entry.AttachedItem = OldAttachment;
         return false;
     }
 

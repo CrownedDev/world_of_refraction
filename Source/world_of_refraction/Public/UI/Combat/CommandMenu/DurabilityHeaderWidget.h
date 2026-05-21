@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "FBrokenCrystalPayload.h"
 #include "DurabilityHeaderWidget.generated.h"
 
 class UTextBlock;
@@ -95,5 +96,5 @@ private:
 	 *  Re-detects resources after a break — auto-switch may change which
 	 *  slot displays what. */
 	UFUNCTION()
-	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal);
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
 };

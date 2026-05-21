@@ -9,6 +9,8 @@
 #include "FSavedLoadout.h"
 #include "FSpellCollection.h"
 #include "FAbilityCollection.h"
+#include "FRuntimeAttachedItem.h"
+#include "CrystalIdentity.h"
 
 // ==================== VALIDATION ====================
 
@@ -423,10 +425,23 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             Result.PrimaryWeapon.AssignedAbilities = SavedLoadout.PrimaryWeaponAbilities;
             Result.PrimaryWeapon.StanceOverride = SavedLoadout.PrimaryWeaponStanceOverride;
 
+            FString CrystalDesc = TEXT("none");
+            if (Result.PrimaryWeapon.WeaponEntry.HasCrystal())
+            {
+                const FRuntimeAttachedItem &Att = Result.PrimaryWeapon.WeaponEntry.AttachedItem;
+                if (Att.IsRefined())
+                {
+                    CrystalDesc = CrystalIdentity::GetDisplayName(Att.Refined.Id);
+                }
+                else if (Att.IsEvolution() && Att.Evolution.Item)
+                {
+                    CrystalDesc = Att.Evolution.Item->ItemName;
+                }
+            }
             UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
                    *SavedLoadout.PrimaryWeapon->Name,
                    Result.PrimaryWeapon.WeaponEntry.HasCrystal(),
-                   Result.PrimaryWeapon.WeaponEntry.HasCrystal() ? *Result.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal->ItemName : TEXT("none"));
+                   *CrystalDesc);
         }
         break;
 

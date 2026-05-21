@@ -10,6 +10,7 @@
 #include "FCombatLoadout.h"
 #include "FRingLoadoutEntry.h"
 #include "CrystalManager.h"
+#include "CrystalIdentity.h"
 
 void URingManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -59,7 +60,7 @@ ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 		return ESpellElement::Generic;
 	}
 	const FRingLoadoutEntry *Entry = LC->GetActiveRingLoadout();
-	return Entry ? Entry->RingEntry.AttachedCrystal.GetElement() : ESpellElement::Generic;
+	return Entry ? Entry->RingEntry.AttachedItem.GetElement() : ESpellElement::Generic;
 }
 
 URingData *URingManager::GetPrimaryRing(AActor *Actor) const
@@ -95,8 +96,8 @@ bool URingManager::SwitchToNextRing(AActor *Actor)
 		const int32 CheckIndex = (StartIndex + i) % RingCount;
 		const FRingLoadoutEntry &Entry = Loadout.RingLoadout[CheckIndex];
 
-		const FCrystalInventoryEntry &CrystalEntry = Entry.RingEntry.AttachedCrystal;
-		if (CrystalEntry.Crystal && !CrystalEntry.IsBroken())
+		const FRuntimeAttachedItem &Attachment = Entry.RingEntry.AttachedItem;
+		if (!Attachment.IsEmpty() && !Attachment.IsBroken())
 		{
 			LoadoutComp->SetActiveRingIndex(CheckIndex);
 			return true;
@@ -108,18 +109,32 @@ bool URingManager::SwitchToNextRing(AActor *Actor)
 
 // ==================== CRYSTAL BREAK CONSUMER ====================
 
-void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal)
+void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload)
 {
 	// Filter: only handle ring crystal breaks. Weapon crystals are not our concern.
 	URingData *BrokenRing = Cast<URingData>(Holder);
-	if (!BrokenRing || !Actor || !Crystal)
+	if (!BrokenRing || !Actor)
 	{
 		return;
 	}
 
+	FString CrystalName;
+	switch (Payload.Kind)
+	{
+	case EAttachedItemKind::Refined:
+		CrystalName = CrystalIdentity::GetDisplayName(Payload.RefinedId);
+		break;
+	case EAttachedItemKind::Evolution:
+		CrystalName = Payload.Item ? Payload.Item->GetFullItemName() : TEXT("(null)");
+		break;
+	default:
+		CrystalName = TEXT("(none)");
+		break;
+	}
+
 	UE_LOG(LogTemp, Log,
 		   TEXT("[RingManager] Ring crystal '%s' broke on %s — auto-switching"),
-		   *Crystal->GetFullItemName(), *Actor->GetName());
+		   *CrystalName, *Actor->GetName());
 
 	SwitchToNextRing(Actor);
 }

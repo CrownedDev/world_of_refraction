@@ -24,6 +24,7 @@
 #include "FSkillEffect.h"
 #include "InfusionCostHelper.h"
 #include "ActionStatModifiers.h"
+#include "FRuntimeAttachedItem.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -449,11 +450,13 @@ private:
 
 	ULoadoutComponent *GetLoadoutComponent(AActor *Actor) const;
 
-	/** Resolve the source crystal UEvolutionItemData* for the given action's infusion source.
-	 *  Mirrors GetElementForSourceOption's dispatch shape — returns the crystal
-	 *  rather than its element. Returns nullptr for non-crystal sources
-	 *  (None/Raw/Innate) or when the resolver lookup fails (no equipped ring etc.). */
-	UEvolutionItemData *ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const;
+	/** Resolve the source attachment (FRuntimeAttachedItem snapshot) for the
+	 *  given action's infusion source. Mirrors GetElementForSourceOption's
+	 *  dispatch shape — returns the attachment rather than its element.
+	 *  Returns a default (empty) attachment for non-crystal sources
+	 *  (None/Raw/Innate) or when the resolver lookup fails (no equipped
+	 *  ring etc.). */
+	FRuntimeAttachedItem ResolveInfusionAttachment(AActor *Actor, const FAction &Action) const;
 
 	/** Combined efficiency multiplier for spell/ability energy costs — character
 	 *  CalculateEfficiencyMultiplier × an equipment BonusEfficiency multiplier

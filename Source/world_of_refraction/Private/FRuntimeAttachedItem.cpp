@@ -68,6 +68,20 @@ int32 FRuntimeAttachedItem::GetMaxDurability() const
     return 0;
 }
 
+bool FRuntimeAttachedItem::HasStatModifiers() const
+{
+    return IsEvolution() && Evolution.Item && Evolution.Item->HasStatModifiers();
+}
+
+FString FRuntimeAttachedItem::GetStatModifierSummary() const
+{
+    if (IsEvolution() && Evolution.Item)
+    {
+        return Evolution.Item->GetStatModifierSummary();
+    }
+    return FString();
+}
+
 bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
 {
     if (IsRefined())

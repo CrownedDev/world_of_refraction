@@ -23,8 +23,7 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
 
     if (bCopyDefaultCrystal && InWeapon && InWeapon->SlottedCrystal)
     {
-        // Create crystal entry from default crystal on data asset
-        Entry.AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(InWeapon->SlottedCrystal);
+        Entry.AttachedItem = FRuntimeAttachedItem::FromAsset(InWeapon->SlottedCrystal);
 
         // Copy default spells from weapon asset
         Entry.AssignedSpells = InWeapon->DefaultSpells;

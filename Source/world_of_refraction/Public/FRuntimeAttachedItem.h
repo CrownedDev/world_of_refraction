@@ -64,6 +64,14 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
      *  0 when empty or item is null. */
     int32 GetMaxDurability() const;
 
+    /** Stat-modifier query — evolution-only. Refined attachments and empty
+     *  return false. Evolution branch delegates to the item asset. */
+    bool HasStatModifiers() const;
+
+    /** Stat-modifier summary string — evolution-only. Refined attachments and
+     *  empty return an empty string. */
+    FString GetStatModifierSummary() const;
+
     // ==================== WEAR / REPAIR ====================
 
     /** Dispatch wear to the active branch. Returns true iff this wear broke

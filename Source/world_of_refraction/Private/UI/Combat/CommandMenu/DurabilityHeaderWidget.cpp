@@ -14,7 +14,7 @@
 #include "LoadoutComponent.h"
 #include "FCombatLoadout.h"
 #include "FRingLoadoutEntry.h"
-#include "FCrystalInventoryEntry.h"
+#include "FRuntimeAttachedItem.h"
 
 namespace HeaderLabels
 {
@@ -86,8 +86,8 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 		auto RingIsUsable = [](const FRingLoadoutEntry &Entry)
 		{
 			return Entry.IsValid() &&
-				   Entry.RingEntry.AttachedCrystal.Crystal &&
-				   !Entry.RingEntry.AttachedCrystal.IsBroken();
+				   !Entry.RingEntry.AttachedItem.IsEmpty() &&
+				   !Entry.RingEntry.AttachedItem.IsBroken();
 		};
 
 		for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
@@ -104,17 +104,17 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 			bHasRingResource = true;
 		}
 
-		// Weapon resource: active weapon with a slotted, non-broken crystal.
-		// Resolve per-instance entry via LoadoutComponent — asset-side
-		// SlottedCrystal->IsBroken is stale post-Phase-B (writes go to entry).
+		// Weapon resource: active weapon with a slotted, non-broken attachment.
+		// Resolve per-instance attachment via LoadoutComponent — asset-side
+		// SlottedCrystal->IsBroken is stale post-Phase-B (writes go to runtime).
 		if (UGameInstance *GI = GetGameInstance())
 		{
 			if (UWeaponManager *WM = GI->GetSubsystem<UWeaponManager>())
 			{
 				if (UWeaponData *ActiveWeapon = WM->GetActiveWeapon(InActor))
 				{
-					const FCrystalInventoryEntry WeaponCrystalEntry = LC->GetCrystalEntryByHolder(ActiveWeapon);
-					if (WeaponCrystalEntry.Crystal && !WeaponCrystalEntry.IsBroken())
+					const FRuntimeAttachedItem WeaponAttachment = LC->GetCrystalEntryByHolder(ActiveWeapon);
+					if (!WeaponAttachment.IsEmpty() && !WeaponAttachment.IsBroken())
 					{
 						bHasWeaponResource = true;
 					}
@@ -188,17 +188,17 @@ void UDurabilityHeaderWidget::UpdateSlot1FromRing()
 
 	URingData *ActiveRing = RingMgr->GetActiveRing(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-	const FCrystalInventoryEntry Entry = (ActiveRing && LC) ? LC->GetCrystalEntryByHolder(ActiveRing) : FCrystalInventoryEntry();
+	const FRuntimeAttachedItem Attachment = (ActiveRing && LC) ? LC->GetCrystalEntryByHolder(ActiveRing) : FRuntimeAttachedItem();
 
-	if (!Entry.Crystal)
+	if (Attachment.IsEmpty())
 	{
 		Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:0/0"), HeaderLabels::RingDur)));
 		Slot1DurText->SetVisibility(ESlateVisibility::Visible);
 		return;
 	}
 
-	const int32 Current = Entry.CurrentDurability;
-	const int32 Max = Entry.Crystal->MaxDurability;
+	const int32 Current = Attachment.GetCurrentDurability();
+	const int32 Max = Attachment.GetMaxDurability();
 	Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:%d/%d"),
 		HeaderLabels::RingDur, Current, Max)));
 	Slot1DurText->SetVisibility(ESlateVisibility::Visible);
@@ -219,17 +219,17 @@ void UDurabilityHeaderWidget::UpdateSlot1FromWeapon()
 
 	UWeaponData *ActiveWeapon = WM->GetActiveWeapon(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-	const FCrystalInventoryEntry Entry = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FCrystalInventoryEntry();
+	const FRuntimeAttachedItem Attachment = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FRuntimeAttachedItem();
 
-	if (!Entry.Crystal)
+	if (Attachment.IsEmpty())
 	{
 		Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:0/0"), HeaderLabels::WeaponDur)));
 		Slot1DurText->SetVisibility(ESlateVisibility::Visible);
 		return;
 	}
 
-	const int32 Current = Entry.CurrentDurability;
-	const int32 Max = Entry.Crystal->MaxDurability;
+	const int32 Current = Attachment.GetCurrentDurability();
+	const int32 Max = Attachment.GetMaxDurability();
 	Slot1DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:%d/%d"),
 		HeaderLabels::WeaponDur, Current, Max)));
 	Slot1DurText->SetVisibility(ESlateVisibility::Visible);
@@ -250,17 +250,17 @@ void UDurabilityHeaderWidget::UpdateSlot2FromWeapon()
 
 	UWeaponData *ActiveWeapon = WM->GetActiveWeapon(Actor);
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
-	const FCrystalInventoryEntry Entry = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FCrystalInventoryEntry();
+	const FRuntimeAttachedItem Attachment = (ActiveWeapon && LC) ? LC->GetCrystalEntryByHolder(ActiveWeapon) : FRuntimeAttachedItem();
 
-	if (!Entry.Crystal)
+	if (Attachment.IsEmpty())
 	{
 		Slot2DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:0/0"), HeaderLabels::WeaponDur)));
 		Slot2DurText->SetVisibility(ESlateVisibility::Visible);
 		return;
 	}
 
-	const int32 Current = Entry.CurrentDurability;
-	const int32 Max = Entry.Crystal->MaxDurability;
+	const int32 Current = Attachment.GetCurrentDurability();
+	const int32 Max = Attachment.GetMaxDurability();
 	Slot2DurText->SetText(FText::FromString(FString::Printf(TEXT("%s:%d/%d"),
 		HeaderLabels::WeaponDur, Current, Max)));
 	Slot2DurText->SetVisibility(ESlateVisibility::Visible);
@@ -331,8 +331,8 @@ void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObj
 		auto RingIsUsable = [](const FRingLoadoutEntry &Entry)
 		{
 			return Entry.IsValid() &&
-				   Entry.RingEntry.AttachedCrystal.Crystal &&
-				   !Entry.RingEntry.AttachedCrystal.IsBroken();
+				   !Entry.RingEntry.AttachedItem.IsEmpty() &&
+				   !Entry.RingEntry.AttachedItem.IsBroken();
 		};
 
 		for (const FRingLoadoutEntry &Entry : Loadout.RingLoadout)
@@ -360,7 +360,7 @@ void UDurabilityHeaderWidget::HandleCrystalDurabilityChanged(AActor *Actor, UObj
 	}
 }
 
-void UDurabilityHeaderWidget::HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal)
+void UDurabilityHeaderWidget::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload)
 {
 	if (Actor != BoundActor.Get())
 		return;

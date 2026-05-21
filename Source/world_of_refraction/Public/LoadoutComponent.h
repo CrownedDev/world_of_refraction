@@ -31,7 +31,7 @@ class URingData;
 class UEvolutionItemData;
 struct FWeaponLoadoutEntry;
 struct FRingLoadoutEntry;
-struct FCrystalInventoryEntry;
+struct FRuntimeAttachedItem;
 class UStanceData;
 class UWeaponAttackData;
 class UAnimMontage;
@@ -421,27 +421,34 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     UEvolutionItemData *GetActivePrimaryEvolutionCrystal(AActor *Actor) const;
 
-    /** Returns the FCrystalInventoryEntry for the given holder by value.
+    /** Returns the FRuntimeAttachedItem for the given holder by value.
      *  Searches primary/secondary weapon entries, primary ring entry, and
-     *  the Resonator RingLoadout array. Returns a default-constructed empty
-     *  entry (Crystal == nullptr) if no match is found. */
-    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
-    FCrystalInventoryEntry GetCrystalEntryByHolder(UObject *Holder) const;
+     *  the Resonator RingLoadout array. Returns a default-constructed
+     *  (empty) attachment if no match is found. */
+    FRuntimeAttachedItem GetCrystalEntryByHolder(UObject *Holder) const;
 
-    /** Resets the entry to its default (empty) state. Used by end-of-combat
+    /** Returns a mutable pointer into the active loadout's attached item for
+     *  the given holder. LIFETIME: valid only within the calling scope —
+     *  array mutations on SavedLoadouts or any inner RingLoadout invalidate
+     *  the pointer. Used by ProcessPostCastWear callers that need to mutate
+     *  the live attachment, and by the public Reset/Repair/ApplyWear wrappers
+     *  which perform fetch-and-use within a single scope. */
+    FRuntimeAttachedItem *FindAttachedItemByHolder(UObject *Holder);
+
+    /** Resets the attachment to its default (empty) state. Used by end-of-combat
      *  crystal destruction. No-op if no matching entry exists. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     void ResetCrystalEntryByHolder(UObject *Holder);
 
-    /** Repairs the entry's crystal by Amount, clamped to MaxDurability.
+    /** Repairs the attachment by Amount, clamped to MaxDurability.
      *  Returns the new CurrentDurability after the repair. Returns -1 if
      *  no matching entry exists. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     int32 RepairCrystalEntryByHolder(UObject *Holder, int32 Amount);
 
-    /** Applies wear to the entry's crystal by Amount. Returns true if the
-     *  wear caused the crystal to break. Returns false if no matching entry
-     *  exists or if the crystal didn't break. */
+    /** Applies wear to the attachment by Amount. Returns true if the
+     *  wear caused the attachment to break. Returns false if no matching entry
+     *  exists or if it didn't break. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ApplyWearToCrystalEntryByHolder(UObject *Holder, int32 Amount);
 
@@ -500,13 +507,7 @@ private:
      *  nullptr if the owner has no inventory component; callers must guard. */
     UInventoryComponent *GetInventoryComponent() const;
 
-    /** Internal: returns a mutable pointer into the active loadout's crystal
-     *  entry for the given holder. LIFETIME: valid only within the calling
-     *  method body — array mutations on SavedLoadouts or any inner
-     *  RingLoadout invalidate the pointer. Used exclusively by the four
-     *  public Get/Reset/Repair/ApplyWear wrappers, each of which performs
-     *  fetch-and-use within a single scope. */
-    FCrystalInventoryEntry *FindCrystalEntryByHolderInternal(UObject *Holder);
+    // FindAttachedItemByHolder is the unified mutable-lookup helper, now public above.
 
     /** Build the Broken Darkness element-spell pools on a loadout — one empty
      *  pool per absorbable non-Darkness element (7 total). Idempotent: existing

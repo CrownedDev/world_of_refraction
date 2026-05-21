@@ -161,9 +161,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool AttachCrystalToWeapon(int32 WeaponIndex, UEvolutionItemData *Crystal);
 
-    /** Remove crystal from weapon (returns removed crystal) */
+    /** Remove crystal from weapon. Returns true if an attachment was removed,
+     *  false if the slot was already empty or the index was invalid. Refined
+     *  and evolution attachments are both destroyed on removal. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    UEvolutionItemData *RemoveCrystalFromWeapon(int32 WeaponIndex);
+    bool RemoveCrystalFromWeapon(int32 WeaponIndex);
 
     /** Apply evolution to weapon */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
@@ -205,9 +207,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachCrystalToRing(int32 RingIndex, UEvolutionItemData *Crystal);
 
-    /** Remove crystal from ring (returns removed crystal) */
+    /** Remove crystal from ring. Returns true if an attachment was removed,
+     *  false if the slot was already empty or the index was invalid. Refined
+     *  and evolution attachments are both destroyed on removal. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    UEvolutionItemData *RemoveCrystalFromRing(int32 RingIndex);
+    bool RemoveCrystalFromRing(int32 RingIndex);
 
     /** Apply evolution to ring */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")

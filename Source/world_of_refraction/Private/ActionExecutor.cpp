@@ -2940,7 +2940,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	if (LC)
 	{
 		const FWeaponLoadoutEntry *ActiveWeapon = LC->GetActiveWeaponLoadout();
-		if (ActiveWeapon && ActiveWeapon->WeaponEntry.AttachedCrystal.CanProvideSpells())
+		if (ActiveWeapon && ActiveWeapon->WeaponEntry.AttachedItem.CanProvideSpells())
 		{
 			Sources.Add(EInfusionSourceOption::WeaponCrystal);
 		}
@@ -2989,7 +2989,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		{
 			if (const FRingLoadoutEntry *Entry = LC->GetPrimaryRingLoadout())
 			{
-				return Entry->RingEntry.AttachedCrystal.GetElement();
+				return Entry->RingEntry.AttachedItem.GetElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -3002,7 +3002,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 		{
 			if (const FWeaponLoadoutEntry *Entry = LC->GetActiveWeaponLoadout())
 			{
-				return Entry->WeaponEntry.AttachedCrystal.GetElement();
+				return Entry->WeaponEntry.AttachedItem.GetElement();
 			}
 		}
 		return ESpellElement::Generic;
@@ -3089,11 +3089,11 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 	return CharMult * EquipmentMult * SkillEffectMult;
 }
 
-UEvolutionItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const FAction &Action) const
+FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, const FAction &Action) const
 {
 	if (!Actor)
 	{
-		return nullptr;
+		return FRuntimeAttachedItem();
 	}
 
 	switch (Action.SelectedSource)
@@ -3102,19 +3102,17 @@ UEvolutionItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const
 	case EInfusionSourceOption::Raw:
 	case EInfusionSourceOption::Innate:
 		// Not crystal-sourced — Raw/Innate pay HP, None means no infusion.
-		return nullptr;
+		return FRuntimeAttachedItem();
 
 	case EInfusionSourceOption::ActiveRing:
 	{
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		if (!LC)
 		{
-			return nullptr;
+			return FRuntimeAttachedItem();
 		}
 		const FRingLoadoutEntry *Entry = LC->GetActiveRingLoadout();
-		return (Entry && Entry->RingEntry.AttachedCrystal.Crystal)
-				   ? Entry->RingEntry.AttachedCrystal.Crystal
-				   : nullptr;
+		return Entry ? Entry->RingEntry.AttachedItem : FRuntimeAttachedItem();
 	}
 
 	case EInfusionSourceOption::PrimaryRing:
@@ -3122,12 +3120,10 @@ UEvolutionItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		if (!LC)
 		{
-			return nullptr;
+			return FRuntimeAttachedItem();
 		}
 		const FRingLoadoutEntry *Entry = LC->GetPrimaryRingLoadout();
-		return (Entry && Entry->RingEntry.AttachedCrystal.Crystal)
-				   ? Entry->RingEntry.AttachedCrystal.Crystal
-				   : nullptr;
+		return Entry ? Entry->RingEntry.AttachedItem : FRuntimeAttachedItem();
 	}
 
 	case EInfusionSourceOption::WeaponCrystal:
@@ -3135,12 +3131,10 @@ UEvolutionItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		if (!LC)
 		{
-			return nullptr;
+			return FRuntimeAttachedItem();
 		}
 		const FWeaponLoadoutEntry *Entry = LC->GetActiveWeaponLoadout();
-		return (Entry && Entry->WeaponEntry.AttachedCrystal.Crystal)
-				   ? Entry->WeaponEntry.AttachedCrystal.Crystal
-				   : nullptr;
+		return Entry ? Entry->WeaponEntry.AttachedItem : FRuntimeAttachedItem();
 	}
 
 	case EInfusionSourceOption::Evolution:
@@ -3148,14 +3142,22 @@ UEvolutionItemData *UActionExecutor::ResolveInfusionCrystal(AActor *Actor, const
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		if (!LC)
 		{
-			return nullptr;
+			return FRuntimeAttachedItem();
 		}
 		const FCombatLoadout Loadout = LC->GetActiveLoadout();
-		return Loadout.PrimaryEvolution.Item;
+		// Evolution primary slot is its own thing — wrap it as an evolution attachment.
+		FRuntimeAttachedItem Result;
+		if (Loadout.PrimaryEvolution.Item)
+		{
+			Result.Kind = EAttachedItemKind::Evolution;
+			Result.Evolution.Item = Loadout.PrimaryEvolution.Item;
+			Result.Evolution.CurrentDurability = Loadout.PrimaryEvolution.CurrentDurability;
+		}
+		return Result;
 	}
 
 	default:
-		return nullptr;
+		return FRuntimeAttachedItem();
 	}
 }
 
@@ -4214,15 +4216,15 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Ring) : FCrystalInventoryEntry();
-		if (Entry.Crystal)
+		FRuntimeAttachedItem *Attachment = LC ? LC->FindAttachedItemByHolder(Ring) : nullptr;
+		if (Attachment && !Attachment->IsEmpty())
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
-					Actor, Entry.Crystal, Ring, ActionTier, Level, bIsSpell);
+					Actor, Ring, *Attachment, ActionTier, Level, bIsSpell);
 			}
 		}
 
@@ -4270,15 +4272,15 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Ring) : FCrystalInventoryEntry();
-		if (Entry.Crystal)
+		FRuntimeAttachedItem *Attachment = LC ? LC->FindAttachedItemByHolder(Ring) : nullptr;
+		if (Attachment && !Attachment->IsEmpty())
 		{
 			if (UCrystalManager *CrystalMgr = GetGameInstance()
 												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastWear(
-					Actor, Entry.Crystal, Ring, ActionTier, Level, bIsSpell);
+					Actor, Ring, *Attachment, ActionTier, Level, bIsSpell);
 			}
 		}
 
@@ -4313,9 +4315,8 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
-		const FCrystalInventoryEntry Entry = LC ? LC->GetCrystalEntryByHolder(Weapon) : FCrystalInventoryEntry();
-		UEvolutionItemData *WeaponCrystal = Entry.Crystal;
-		if (!WeaponCrystal)
+		FRuntimeAttachedItem *Attachment = LC ? LC->FindAttachedItemByHolder(Weapon) : nullptr;
+		if (!Attachment || Attachment->IsEmpty())
 		{
 			break;
 		}
@@ -4339,7 +4340,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		CrystalMgr->ProcessPostCastWear(
-			Actor, WeaponCrystal, Weapon, ActionTier, Level, bIsSpell);
+			Actor, Weapon, *Attachment, ActionTier, Level, bIsSpell);
 
 		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;
@@ -4354,14 +4355,16 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// Self-status build is logged as intent — actual application pending the
 		// element-to-status mapping system (separate workstream).
 
-		// 1. Resolve evolution element from active weapon's runtime crystal
+		// 1. Resolve evolution element from active weapon's runtime attachment
 		//    for logging; needed by the future status-build wiring.
 		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 		const FWeaponLoadoutEntry *ActiveWeaponLoadout = LC ? LC->GetActiveWeaponLoadout() : nullptr;
-		UEvolutionItemData *WeaponCrystal = (ActiveWeaponLoadout && ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal)
-									   ? ActiveWeaponLoadout->WeaponEntry.AttachedCrystal.Crystal
-									   : nullptr;
-		if (!WeaponCrystal || !WeaponCrystal->bIsEvolutionCrystal)
+		UEvolutionItemData *WeaponCrystal = nullptr;
+		if (ActiveWeaponLoadout && ActiveWeaponLoadout->WeaponEntry.AttachedItem.IsEvolution())
+		{
+			WeaponCrystal = ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Item;
+		}
+		if (!WeaponCrystal)
 		{
 			UE_LOG(LogTemp, Warning,
 				   TEXT("[ActionExecutor] %s: Evolution infusion but weapon is not evolved or no slotted crystal"),
@@ -4494,18 +4497,16 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 			Result.AddFlatPercent(Pct);
 		}
 
-		// Evolution-infused authored stats. Source crystal resolves via
-		// ResolveInfusionCrystal (WeaponCrystal/ActiveRing/PrimaryRing/Evolution
-		// → the appropriate slotted/equipped UEvolutionItemData). InfusionMultiplier
+		// Evolution-infused authored stats. Source attachment resolves via
+		// ResolveInfusionAttachment (WeaponCrystal/ActiveRing/PrimaryRing/Evolution
+		// → the appropriate slotted/equipped attachment). InfusionMultiplier
 		// follows the locked design: L1 = 0.5, L2 = 1.0. Reality flat-bump
 		// above still applies independently for Reality-element infusion.
-		if (UEvolutionItemData *InfusionCrystal = ResolveInfusionCrystal(Actor, Action))
+		const FRuntimeAttachedItem InfusionAttachment = ResolveInfusionAttachment(Actor, Action);
+		if (InfusionAttachment.IsEvolution() && InfusionAttachment.Evolution.Item)
 		{
-			if (InfusionCrystal->bIsEvolutionCrystal)
-			{
-				const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
-				Result.Accumulate(InfusionCrystal->GetInfusionStatModifiers(InfusionMultiplier));
-			}
+			const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
+			Result.Accumulate(InfusionAttachment.Evolution.Item->GetInfusionStatModifiers(InfusionMultiplier));
 		}
 	}
 

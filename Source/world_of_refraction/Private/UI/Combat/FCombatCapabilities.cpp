@@ -59,8 +59,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Out.bCanUseAbilities = Out.WeaponAbilities.Num() > 0;
 
         // Crystal spells on active weapon (gated on CanProvideSpells —
-        // broken crystals stay attached for visual feedback but provide no spells)
-        if (ActiveWeapon->WeaponEntry.AttachedCrystal.CanProvideSpells())
+        // broken attachments stay slotted for visual feedback but provide no spells)
+        if (ActiveWeapon->WeaponEntry.AttachedItem.CanProvideSpells())
         {
             Out.WeaponCrystalSpells = ActiveWeapon->WeaponEntry.AssignedSpells;
             Out.bHasWeaponCrystal = true;
@@ -127,8 +127,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                    LC->GetPrimaryRingLoadout() ? TEXT("exists") : TEXT("null"),
                    LC->GetPrimaryRingLoadout() && LC->GetPrimaryRingLoadout()->RingEntry.Ring != nullptr ? TEXT("true") : TEXT("false"),
                    Out.RingSpells.Num());
-            // Spells gated on CanProvideSpells — broken crystals don't provide spells
-            if (PrimaryRing->RingEntry.AttachedCrystal.CanProvideSpells())
+            // Spells gated on CanProvideSpells — broken attachments don't provide spells
+            if (PrimaryRing->RingEntry.AttachedItem.CanProvideSpells())
             {
                 Out.RingSpells = PrimaryRing->RingEntry.AssignedSpells;
             }
@@ -160,8 +160,8 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         const FRingLoadoutEntry *ActiveRing = LC->GetActiveRingLoadout();
         if (ActiveRing && ActiveRing->IsValid())
         {
-            // Spells gated on CanProvideSpells — broken crystals don't provide spells
-            if (ActiveRing->RingEntry.AttachedCrystal.CanProvideSpells())
+            // Spells gated on CanProvideSpells — broken attachments don't provide spells
+            if (ActiveRing->RingEntry.AttachedItem.CanProvideSpells())
             {
                 Out.RingSpells = ActiveRing->RingEntry.AssignedSpells;
             }

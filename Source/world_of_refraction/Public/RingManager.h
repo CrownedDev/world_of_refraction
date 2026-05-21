@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ESpellElement.h"
+#include "FBrokenCrystalPayload.h"
 #include "RingManager.generated.h"
 
 class URingData;
@@ -56,5 +57,5 @@ private:
 	/** Consumer of UCrystalManager::OnCrystalBroken. Filters by
 	 *  Cast<URingData>(Holder); performs SwitchToNextRing on match. */
 	UFUNCTION()
-	void HandleCrystalBroken(AActor *Actor, UObject *Holder, UEvolutionItemData *Crystal);
+	void HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCrystalPayload Payload);
 };

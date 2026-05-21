@@ -17,9 +17,9 @@ namespace
 
 ESpellElement FRingInventoryEntry::GetElement() const
 {
-    if (HasCrystal() && !AttachedCrystal.IsBroken())
+    if (HasCrystal() && !AttachedItem.IsBroken())
     {
-        return AttachedCrystal.GetElement();
+        return AttachedItem.GetElement();
     }
     return ESpellElement::Generic;
 }
@@ -32,7 +32,7 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool 
 
     if (bCopyDefaultCrystal && InRing && InRing->SlottedCrystal)
     {
-        Entry.AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(InRing->SlottedCrystal);
+        Entry.AttachedItem = FRuntimeAttachedItem::FromAsset(InRing->SlottedCrystal);
 
         // Copy default spells from ring asset
         Entry.AssignedSpells = InRing->DefaultSpells;

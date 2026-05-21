@@ -5,7 +5,7 @@
 // RingData = immutable template (spells, tier, default crystal for editor preview)
 // FRingInventoryEntry = mutable runtime state (ACTUAL attached crystal + custom spells)
 //
-// IMPORTANT: When checking crystal state at runtime, use FRingInventoryEntry.AttachedCrystal,
+// IMPORTANT: When checking crystal state at runtime, use FRingInventoryEntry.AttachedItem,
 // NOT RingData.SlottedCrystal. The data asset may have a default crystal for editor
 // testing, but the inventory entry is the runtime truth.
 //
@@ -17,7 +17,7 @@
 #include "CoreMinimal.h"
 #include "InventoryConstants.h"
 #include "ESpellElement.h"
-#include "FCrystalInventoryEntry.h"
+#include "FRuntimeAttachedItem.h"
 #include "FEquipmentStatBonus.h"
 
 #include "FRingInventoryEntry.generated.h"
@@ -55,9 +55,9 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(BlueprintReadOnly, Category = "Identity")
     int32 InstanceID = 0;
 
-    /** Attached crystal with runtime spell customization */
+    /** Attached refined crystal or evolution item, discriminated by Kind. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
-    FCrystalInventoryEntry AttachedCrystal;
+    FRuntimeAttachedItem AttachedItem;
 
     /** Spells assigned to this ring's crystal slots (lost when crystal removed) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
@@ -87,7 +87,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     /** Check if ring has a crystal (required for combat use) */
     bool HasCrystal() const
     {
-        return AttachedCrystal.IsValid();
+        return !AttachedItem.IsEmpty();
     }
 
     /** Check if ring can be used in combat (has valid crystal) */
@@ -99,7 +99,7 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     /** Check if ring is evolved (crystal grants evolution) */
     bool IsEvolved() const
     {
-        return AttachedCrystal.GrantsEvolution();
+        return AttachedItem.IsEvolution();
     }
 
     /** Get slot cost based on current state */
@@ -110,49 +110,47 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
 
     /** Get ring's element from attached crystal. Returns Generic for missing
      *  OR broken crystals — a broken crystal cannot channel its element.
-     *  Body in FRingInventoryEntry.cpp because it reads UEvolutionItemData fields
-     *  via the attached crystal entry (full type only forward-declared here). */
+     *  Body in FRingInventoryEntry.cpp. */
     ESpellElement GetElement() const;
 
     // ==================== SPELL ACCESS ====================
 
-    /** Get assigned spells (only when crystal can currently provide spells —
-     *  excludes broken crystals). Use AttachedCrystal.HasCrystal() if you need
-     *  "is a crystal physically slotted" regardless of state. */
+    /** Get assigned spells (only when the attachment can currently provide spells —
+     *  excludes empty/broken). Use HasCrystal() for "physically slotted regardless of state". */
     TArray<USpellData *> GetSpells() const
     {
-        return AttachedCrystal.CanProvideSpells() ? AssignedSpells : TArray<USpellData *>();
+        return AttachedItem.CanProvideSpells() ? AssignedSpells : TArray<USpellData *>();
     }
 
-    /** Get spell count (returns 0 for broken crystals) */
+    /** Get spell count (returns 0 for empty/broken attachments) */
     int32 GetSpellCount() const
     {
-        return AttachedCrystal.CanProvideSpells() ? AssignedSpells.Num() : 0;
+        return AttachedItem.CanProvideSpells() ? AssignedSpells.Num() : 0;
     }
     // ==================== CRYSTAL OPERATIONS ====================
 
-    /** Attach a crystal (creates new FCrystalInventoryEntry) */
+    /** Attach a crystal — branches refined vs evolution via FRuntimeAttachedItem::FromAsset. */
     void AttachCrystal(UEvolutionItemData *NewCrystal)
     {
-        AttachedCrystal = FCrystalInventoryEntry::CreateFromCrystal(NewCrystal);
+        AttachedItem = FRuntimeAttachedItem::FromAsset(NewCrystal);
     }
 
     /** Remove crystal (clears spells too - vendor must reassign) */
     void RemoveCrystal()
     {
-        AttachedCrystal = FCrystalInventoryEntry();
+        AttachedItem = FRuntimeAttachedItem();
         AssignedSpells.Empty();
     }
 
-    /** Get direct access to crystal entry for spell customization */
-    FCrystalInventoryEntry &GetCrystalEntry()
+    /** Get direct access to the attached item for spell customization */
+    FRuntimeAttachedItem &GetAttachedItem()
     {
-        return AttachedCrystal;
+        return AttachedItem;
     }
 
-    const FCrystalInventoryEntry &GetCrystalEntry() const
+    const FRuntimeAttachedItem &GetAttachedItem() const
     {
-        return AttachedCrystal;
+        return AttachedItem;
     }
 
     // ==================== STAT MODIFIERS (Evolution only) ====================
@@ -160,20 +158,20 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     /** Check if ring has stat modifiers (from evolution crystal) */
     bool HasStatModifiers() const
     {
-        return AttachedCrystal.HasStatModifiers();
+        return AttachedItem.HasStatModifiers();
     }
 
     /** Get stat modifier summary */
     FString GetStatModifierSummary() const
     {
-        return AttachedCrystal.GetStatModifierSummary();
+        return AttachedItem.GetStatModifierSummary();
     }
 
     // ==================== COMPARISON ====================
 
     bool operator==(const FRingInventoryEntry &Other) const
     {
-        return Ring == Other.Ring && AttachedCrystal == Other.AttachedCrystal;
+        return Ring == Other.Ring && AttachedItem == Other.AttachedItem;
     }
 
     bool operator!=(const FRingInventoryEntry &Other) const

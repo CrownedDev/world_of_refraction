@@ -18,6 +18,7 @@
 #include "StanceData.h"
 #include "TurnManager.h"
 #include "CrystalIdentity.h"
+#include "FRuntimeAttachedItem.h"
 #include "Engine/GameInstance.h"
 
 #include "WeaponAttackData.h"
@@ -1397,68 +1398,66 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
 {
     TArray<FEquippedCrystalSlot> Result;
 
-    auto AddIfCrystal = [&Result](UEvolutionItemData *Crystal, UObject *Holder)
+    auto AddAttachment = [&Result](const FRuntimeAttachedItem &Attachment, UObject *Holder)
     {
-        if (!Crystal || !Holder)
+        if (Attachment.IsEmpty() || !Holder)
         {
             return;
         }
 
         FEquippedCrystalSlot Slot;
         Slot.Holder = Holder;
-
-        // Discriminate from the asset flag during the 7a window. In 7b once
-        // AttachedCrystal becomes FRuntimeAttachedItem, the populator reads
-        // Kind from the discriminator directly — consumers don't change.
-        if (Crystal->bIsEvolutionCrystal)
+        Slot.Kind = Attachment.Kind;
+        if (Attachment.IsRefined())
         {
-            Slot.Kind = EAttachedItemKind::Evolution;
-            Slot.Item = Crystal;
+            Slot.RefinedId = Attachment.Refined.Id;
         }
-        else
+        else if (Attachment.IsEvolution())
         {
-            Slot.Kind = EAttachedItemKind::Refined;
-            Slot.RefinedId = FCrystalId(Crystal->CrystalType, Crystal->Tier);
+            Slot.Item = Attachment.Evolution.Item;
         }
 
         Result.Add(Slot);
     };
 
-    // Weapons — read crystal from the runtime inventory entry, not the asset.
-    // FCombatCapabilities uses the same pattern (WeaponEntry.AttachedCrystal).
+    // Weapons — read attachment from the runtime inventory entry, not the asset.
     // The asset-side UWeaponData::SlottedCrystal field gets nulled by
     // CombatOrchestrator's combat-end broken-crystal cleanup; the runtime
-    // entry preserves the crystal across combats and is the actual source
-    // of truth for "what crystal is on this weapon right now."
+    // attachment preserves state across combats and is the actual source
+    // of truth for "what is attached to this weapon right now."
     if (const FWeaponLoadoutEntry *PrimaryLoadout = GetPrimaryWeaponLoadout())
     {
-        AddIfCrystal(PrimaryLoadout->WeaponEntry.AttachedCrystal.Crystal,
-                     PrimaryLoadout->WeaponEntry.Weapon);
+        AddAttachment(PrimaryLoadout->WeaponEntry.AttachedItem,
+                      PrimaryLoadout->WeaponEntry.Weapon);
     }
     if (const FWeaponLoadoutEntry *SecondaryLoadout = GetSecondaryWeaponLoadout())
     {
-        AddIfCrystal(SecondaryLoadout->WeaponEntry.AttachedCrystal.Crystal,
-                     SecondaryLoadout->WeaponEntry.Weapon);
+        AddAttachment(SecondaryLoadout->WeaponEntry.AttachedItem,
+                      SecondaryLoadout->WeaponEntry.Weapon);
     }
 
     // Primary ring (Generic / Caster) — runtime entry
     if (const FRingLoadoutEntry *PrimaryRingLoadout = GetPrimaryRingLoadout())
     {
-        AddIfCrystal(PrimaryRingLoadout->RingEntry.AttachedCrystal.Crystal,
-                     PrimaryRingLoadout->RingEntry.Ring);
+        AddAttachment(PrimaryRingLoadout->RingEntry.AttachedItem,
+                      PrimaryRingLoadout->RingEntry.Ring);
     }
 
     // Resonator ring loadout — every ring in the array, runtime entry
     const FCombatLoadout ActiveLoadout = GetActiveLoadout();
     for (const FRingLoadoutEntry &Entry : ActiveLoadout.RingLoadout)
     {
-        AddIfCrystal(Entry.RingEntry.AttachedCrystal.Crystal, Entry.RingEntry.Ring);
+        AddAttachment(Entry.RingEntry.AttachedItem, Entry.RingEntry.Ring);
     }
 
     // Evolution crystal slot — no inventory entry, evolution IS the crystal.
     if (UEvolutionItemData *Evolution = GetPrimaryEvolution())
     {
-        AddIfCrystal(Evolution, Evolution);
+        FEquippedCrystalSlot Slot;
+        Slot.Holder = Evolution;
+        Slot.Kind = EAttachedItemKind::Evolution;
+        Slot.Item = Evolution;
+        Result.Add(Slot);
     }
 
     return Result;
@@ -1819,7 +1818,7 @@ TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
         return Result;
     }
 
-    if (WeaponEntry->WeaponEntry.AttachedCrystal.IsValid())
+    if (!WeaponEntry->WeaponEntry.AttachedItem.IsEmpty())
     {
         // Get spells from weapon's assigned spells (no longer from crystal)
         Result = WeaponEntry->WeaponEntry.AssignedSpells;
@@ -2005,12 +2004,12 @@ const FRingLoadoutEntry *ULoadoutComponent::GetActiveRingLoadout() const
     return Entry.IsValid() ? &Entry : nullptr;
 }
 
-FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolderInternal(UObject *Holder)
+FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)
 {
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::FindCrystalEntryByHolderInternal] No InventoryComponent found on owner"));
+        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::FindAttachedItemByHolder] No InventoryComponent found on owner"));
         return nullptr;
     }
     if (!Holder || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
@@ -2026,11 +2025,11 @@ FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolderInternal(UObj
     {
         if (Loadout.PrimaryWeapon.WeaponEntry.Weapon == Weapon)
         {
-            return &Loadout.PrimaryWeapon.WeaponEntry.AttachedCrystal;
+            return &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
         }
         if (Loadout.SecondaryWeapon.WeaponEntry.Weapon == Weapon)
         {
-            return &Loadout.SecondaryWeapon.WeaponEntry.AttachedCrystal;
+            return &Loadout.SecondaryWeapon.WeaponEntry.AttachedItem;
         }
         return nullptr;
     }
@@ -2041,13 +2040,13 @@ FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolderInternal(UObj
     {
         if (Loadout.PrimaryRing.RingEntry.Ring == Ring)
         {
-            return &Loadout.PrimaryRing.RingEntry.AttachedCrystal;
+            return &Loadout.PrimaryRing.RingEntry.AttachedItem;
         }
         for (FRingLoadoutEntry &Entry : Loadout.RingLoadout)
         {
             if (Entry.RingEntry.Ring == Ring)
             {
-                return &Entry.RingEntry.AttachedCrystal;
+                return &Entry.RingEntry.AttachedItem;
             }
         }
         return nullptr;
@@ -2056,36 +2055,36 @@ FCrystalInventoryEntry *ULoadoutComponent::FindCrystalEntryByHolderInternal(UObj
     return nullptr;
 }
 
-FCrystalInventoryEntry ULoadoutComponent::GetCrystalEntryByHolder(UObject *Holder) const
+FRuntimeAttachedItem ULoadoutComponent::GetCrystalEntryByHolder(UObject *Holder) const
 {
     // const_cast: the internal helper is non-const because it's shared with
     // the mutating wrappers below. Get does not mutate — it takes a copy.
-    FCrystalInventoryEntry *Entry = const_cast<ULoadoutComponent *>(this)->FindCrystalEntryByHolderInternal(Holder);
-    return Entry ? *Entry : FCrystalInventoryEntry();
+    FRuntimeAttachedItem *Entry = const_cast<ULoadoutComponent *>(this)->FindAttachedItemByHolder(Holder);
+    return Entry ? *Entry : FRuntimeAttachedItem();
 }
 
 void ULoadoutComponent::ResetCrystalEntryByHolder(UObject *Holder)
 {
-    if (FCrystalInventoryEntry *Entry = FindCrystalEntryByHolderInternal(Holder))
+    if (FRuntimeAttachedItem *Entry = FindAttachedItemByHolder(Holder))
     {
-        *Entry = FCrystalInventoryEntry();
+        *Entry = FRuntimeAttachedItem();
     }
 }
 
 int32 ULoadoutComponent::RepairCrystalEntryByHolder(UObject *Holder, int32 Amount)
 {
-    FCrystalInventoryEntry *Entry = FindCrystalEntryByHolderInternal(Holder);
+    FRuntimeAttachedItem *Entry = FindAttachedItemByHolder(Holder);
     if (!Entry)
     {
         return -1;
     }
     Entry->RepairBetweenCombats(Amount);
-    return Entry->CurrentDurability;
+    return Entry->GetCurrentDurability();
 }
 
 bool ULoadoutComponent::ApplyWearToCrystalEntryByHolder(UObject *Holder, int32 Amount)
 {
-    FCrystalInventoryEntry *Entry = FindCrystalEntryByHolderInternal(Holder);
+    FRuntimeAttachedItem *Entry = FindAttachedItemByHolder(Holder);
     if (!Entry)
     {
         return false;
@@ -2458,10 +2457,6 @@ UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *
         return nullptr;
     }
 
-    UEvolutionItemData *Crystal = Loadout.PrimaryWeapon.WeaponEntry.AttachedCrystal.Crystal;
-    if (!Crystal || !Crystal->bIsEvolutionCrystal)
-    {
-        return nullptr;
-    }
-    return Crystal;
+    const FRuntimeAttachedItem &Attachment = Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
+    return Attachment.IsEvolution() ? Attachment.Evolution.Item : nullptr;
 }

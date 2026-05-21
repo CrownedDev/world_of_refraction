@@ -3,7 +3,8 @@
 
 #include "EvolutionItemData.h"
 #include "LoadoutComponent.h"
-#include "FCrystalInventoryEntry.h"
+#include "FRuntimeAttachedItem.h"
+#include "CrystalIdentity.h"
 #include "BreakCalculator.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
@@ -27,43 +28,49 @@ void UCrystalManager::Deinitialize()
 // WEAR
 // ========================================
 
-int32 UCrystalManager::ProcessPostCastWear(
+void UCrystalManager::ProcessPostCastWear(
     AActor *Actor,
-    UEvolutionItemData *Crystal,
     UObject *Holder,
+    FRuntimeAttachedItem &Attachment,
     EItemTier ActionTier,
     int32 InfusionLevel,
     bool bIsSpell)
 {
-    if (!Actor || !Crystal)
+    if (!Actor || Attachment.IsEmpty())
     {
-        return 0;
+        return;
     }
 
-    if (!Crystal->bIsRefined || Crystal->bImmuneToBreaking)
+    // Only refined attachments wear/break. Evolution items are immune by design
+    // (see FEvolutionAttachment::IsBroken — checks bImmuneToBreaking).
+    if (!Attachment.IsRefined())
     {
-        // Unrefined consumables and immune (evolution) crystals never wear.
-        return 0;
+        return;
     }
 
-    // Defensive broken-check moved post-entry-resolution below — the entry
-    // (not the asset) is the per-instance source of truth post-Phase-B 2/5.
+    // Defensive: don't double-process an already-broken attachment.
+    if (Attachment.IsBroken())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[CrystalManager] ProcessPostCastWear called on already-broken attachment for %s"),
+               *Actor->GetName());
+        return;
+    }
 
+    // Wear math reads the source crystal's tier. For refined: from FCrystalId.
     const int32 Wear = UBreakCalculator::CalculateDurabilityWear(
-        Crystal->Tier,
+        Attachment.Refined.Id.Tier,
         ActionTier,
         InfusionLevel,
         bIsSpell);
 
     if (Wear <= 0)
     {
-        return 0;
+        return;
     }
 
     // Luck-driven break skip. Roll the wielder's Luck before applying wear.
     // On success, skip the wear entirely (durability unchanged, no broadcast).
-    // GetEquipmentModifiedLuck folds in active-loadout BonusLuck and null-guards
-    // the CharacterData asset internally.
     if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
     {
         const float RawLuck = CharComp->GetEquipmentModifiedLuck();
@@ -72,69 +79,40 @@ int32 UCrystalManager::ProcessPostCastWear(
         {
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
-                   *Actor->GetName(), *Crystal->GetFullItemName(), Wear, SkipChance);
-            return 0;
+                   *Actor->GetName(),
+                   *CrystalIdentity::GetDisplayName(Attachment.Refined.Id),
+                   Wear, SkipChance);
+            return;
         }
     }
 
-    // Resolve the per-instance entry from the holder. The Crystal* parameter is
-    // the template (UEvolutionItemData); the FCrystalInventoryEntry is the per-instance
-    // state we want to mutate. Phase B 2/5 routes all wear through the entry.
-    ULoadoutComponent *LoadoutComp = GetLoadoutComponent(Actor);
-    if (!LoadoutComp)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[CrystalManager] ProcessPostCastWear: no LoadoutComponent for %s"),
-               *Actor->GetName());
-        return 0;
-    }
-
-    // Pre-read for defensive broken check and as the no-match guard
-    // (empty entry => Crystal == nullptr).
-    const FCrystalInventoryEntry PreEntry = LoadoutComp->GetCrystalEntryByHolder(Holder);
-    if (!PreEntry.Crystal)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[CrystalManager] ProcessPostCastWear: could not resolve crystal entry for %s on %s"),
-               *Crystal->GetFullItemName(), *Actor->GetName());
-        return 0;
-    }
-
-    // Defensive: don't double-process an already-broken entry. Commit-time
-    // gate should have excluded broken crystals from infusion options.
-    if (PreEntry.IsBroken())
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[CrystalManager] ProcessPostCastWear called on already-broken crystal '%s' for %s"),
-               *Crystal->GetFullItemName(), *Actor->GetName());
-        return 0;
-    }
-
-    const bool bBroke = LoadoutComp->ApplyWearToCrystalEntryByHolder(Holder, Wear);
-    const FCrystalInventoryEntry PostEntry = LoadoutComp->GetCrystalEntryByHolder(Holder);
+    const bool bBroke = Attachment.ApplyWear(Wear);
+    const int32 NewDur = Attachment.GetCurrentDurability();
+    const int32 MaxDur = Attachment.GetMaxDurability();
 
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d wear to crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
            *Actor->GetName(), Wear,
-           *Crystal->GetFullItemName(),
-           PostEntry.CurrentDurability, Crystal->MaxDurability,
+           *CrystalIdentity::GetDisplayName(Attachment.Refined.Id),
+           NewDur, MaxDur,
            static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
     // Broadcast post-wear durability for real-time UI updates.
-    OnCrystalDurabilityChanged.Broadcast(Actor, Holder, PostEntry.CurrentDurability, Crystal->MaxDurability);
+    OnCrystalDurabilityChanged.Broadcast(Actor, Holder, NewDur, MaxDur);
 
     if (bBroke)
     {
         UE_LOG(LogTemp, Log,
                TEXT("[CrystalManager] Crystal '%s' broke on %s (holder: %s)"),
-               *Crystal->GetFullItemName(),
+               *CrystalIdentity::GetDisplayName(Attachment.Refined.Id),
                *Actor->GetName(),
                Holder ? *Holder->GetName() : TEXT("Unknown"));
 
-        OnCrystalBroken.Broadcast(Actor, Holder, Crystal);
+        FBrokenCrystalPayload Payload;
+        Payload.Kind = EAttachedItemKind::Refined;
+        Payload.RefinedId = Attachment.Refined.Id;
+        OnCrystalBroken.Broadcast(Actor, Holder, Payload);
     }
-
-    return Wear;
 }
 
 // ========================================
@@ -188,60 +166,58 @@ void UCrystalManager::DebugBreakActiveCrystal()
         return;
     }
 
-    const FCrystalInventoryEntry Entry = LC->GetCrystalEntryByHolder(Weapon);
-    if (!Entry.Crystal)
+    FRuntimeAttachedItem *Attachment = LC->FindAttachedItemByHolder(Weapon);
+    if (!Attachment || Attachment->IsEmpty())
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[Debug.BreakActiveCrystal] %s's primary weapon has no attached crystal."),
                *Actor->GetName());
         return;
     }
-    if (Entry.IsBroken())
+
+    const FString CrystalName = Attachment->IsRefined()
+                                    ? CrystalIdentity::GetDisplayName(Attachment->Refined.Id)
+                                    : (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"));
+
+    if (Attachment->IsBroken())
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is already broken."),
-               *Actor->GetName(), *Entry.Crystal->GetFullItemName());
+               *Actor->GetName(), *CrystalName);
         return;
     }
-    if (!Entry.Crystal->bIsRefined)
+    if (!Attachment->IsRefined())
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is unrefined (consumables do not wear/break)."),
-               *Actor->GetName(), *Entry.Crystal->GetFullItemName());
-        return;
-    }
-    if (Entry.Crystal->bImmuneToBreaking)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is immune to breaking (likely evolution crystal)."),
-               *Actor->GetName(), *Entry.Crystal->GetFullItemName());
+               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is not refined (evolution / immune — does not wear/break)."),
+               *Actor->GetName(), *CrystalName);
         return;
     }
 
-    // Drain durability down to 1 so the next non-skipped wear breaks it.
-    // ApplyWearToCrystalEntryByHolder does not broadcast OnCrystalBroken on
-    // partial wear (non-zero remaining) — the unified broadcast lives in
-    // ProcessPostCastWear's bBroke branch, so this drain stays silent.
-    const int32 DrainAmount = Entry.CurrentDurability - 1;
+    // Drain durability down to 1 directly on the attachment so the next
+    // non-skipped wear breaks it. ApplyWear on partial wear does not broadcast
+    // OnCrystalBroken; the unified broadcast lives in ProcessPostCastWear's
+    // bBroke branch, so this drain stays silent.
+    const int32 DrainAmount = Attachment->GetCurrentDurability() - 1;
     if (DrainAmount > 0)
     {
-        LC->ApplyWearToCrystalEntryByHolder(Weapon, DrainAmount);
+        Attachment->ApplyWear(DrainAmount);
     }
 
     // Route through the real pipeline. Luck-skip is probabilistic, so retry
-    // until the entry transitions to broken. S-Tier + L2 + spell parameters
+    // until the attachment transitions to broken. S-Tier + L2 + spell parameters
     // produce the worst-case wear, guaranteeing >0 wear on any non-skipped roll.
     static constexpr int32 MAX_ATTEMPTS = 8;
     for (int32 Attempt = 1; Attempt <= MAX_ATTEMPTS; ++Attempt)
     {
-        ProcessPostCastWear(Actor, Entry.Crystal, Weapon,
+        ProcessPostCastWear(Actor, Weapon, *Attachment,
                             EItemTier::S_Tier, /*InfusionLevel*/ 2, /*bIsSpell*/ true);
 
-        if (LC->GetCrystalEntryByHolder(Weapon).IsBroken())
+        if (Attachment->IsBroken())
         {
             UE_LOG(LogTemp, Display,
                    TEXT("[Debug.BreakActiveCrystal] Broke %s's primary weapon crystal '%s' on attempt %d/%d."),
-                   *Actor->GetName(), *Entry.Crystal->GetFullItemName(), Attempt, MAX_ATTEMPTS);
+                   *Actor->GetName(), *CrystalName, Attempt, MAX_ATTEMPTS);
             return;
         }
     }
@@ -255,5 +231,5 @@ void UCrystalManager::DebugBreakActiveCrystal()
     }
     UE_LOG(LogTemp, Warning,
            TEXT("[Debug.BreakActiveCrystal] All %d attempts luck-skipped on %s's crystal '%s' (EquipmentModifiedLuck=%.2f). Try again, or raise MAX_ATTEMPTS if this recurs."),
-           MAX_ATTEMPTS, *Actor->GetName(), *Entry.Crystal->GetFullItemName(), RawLuck);
+           MAX_ATTEMPTS, *Actor->GetName(), *CrystalName, RawLuck);
 }
