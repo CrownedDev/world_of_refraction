@@ -225,7 +225,4 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     /** Initialize empty loadout for a class */
     void InitializeForClass(ECharacterClass CharClass);
-
-    /** Reset item uses for battle start */
-    void ResetForBattle();
 };

@@ -385,13 +385,6 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
     ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
 }
 
-void FCombatLoadout::ResetForBattle()
-{
-    // 9.5b: no-op. Item slots no longer reset between battles — Quantity
-    // persists as the runtime count, and FCombatLoadout::ApplyAutoEquip
-    // refills from inventory at combat start when the auto-equip flag is set.
-}
-
 // ==================== FACTORY ====================
 
 FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout)

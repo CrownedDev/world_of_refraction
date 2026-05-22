@@ -1284,18 +1284,8 @@ void ACombatOrchestratorTestActor::Test_ItemExecution()
 	Inventory->AddItem(Item);
 	Loadout->PrepareForBattle(Inventory);
 
-	// Manually add item to loadout slot if not auto-populated
-	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	if (UsableItems.Num() == 0 || UsableItems[0].IsEmpty())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("    Manually configuring item slot"));
-		// Access internal loadout and set item
-		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
-		if (ActiveLoadout.ItemSlots.Num() > 0)
-		{
-			ActiveLoadout.ItemSlots[0].CrystalId = FCrystalId{ECrystalType::Garnet, EItemTier::F_Tier};
-		}
-	}
+	// Item slot is populated by ApplyAutoEquip in PrepareForBattle (9.5b);
+	// no manual slot configuration is needed here.
 
 	// Get initial HP
 	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();

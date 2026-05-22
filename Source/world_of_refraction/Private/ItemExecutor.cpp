@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ItemExecutor.h"
-#include "EvolutionItemData.h"
 #include "CharacterDataComponent.h"
 #include "CharacterData.h"
 #include "BrokenDarknessManager.h"
