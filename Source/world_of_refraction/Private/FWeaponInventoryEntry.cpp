@@ -21,9 +21,9 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
     Entry.Weapon = InWeapon;
     Entry.InstanceID = GWeaponInstanceCounter.fetch_add(1);
 
-    if (bCopyDefaultCrystal && InWeapon && InWeapon->SlottedCrystal)
+    if (bCopyDefaultCrystal && InWeapon && InWeapon->HasCrystal())
     {
-        Entry.AttachedItem = FRuntimeAttachedItem::FromAsset(InWeapon->SlottedCrystal);
+        Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InWeapon->AttachedItem);
 
         // Copy default spells from weapon asset
         Entry.AssignedSpells = InWeapon->DefaultSpells;

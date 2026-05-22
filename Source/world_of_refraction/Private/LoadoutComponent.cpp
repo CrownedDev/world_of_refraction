@@ -1357,10 +1357,10 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
     };
 
     // Weapons — read attachment from the runtime inventory entry, not the asset.
-    // The asset-side UWeaponData::SlottedCrystal field gets nulled by
-    // CombatOrchestrator's combat-end broken-crystal cleanup; the runtime
-    // attachment preserves state across combats and is the actual source
-    // of truth for "what is attached to this weapon right now."
+    // The asset-side UWeaponData::AttachedItem field is a design-time default
+    // and carries no runtime durability/broken state; the runtime attachment
+    // preserves state across combats and is the actual source of truth for
+    // "what is attached to this weapon right now."
     if (const FWeaponLoadoutEntry *PrimaryLoadout = GetPrimaryWeaponLoadout())
     {
         AddAttachment(PrimaryLoadout->WeaponEntry.AttachedItem,

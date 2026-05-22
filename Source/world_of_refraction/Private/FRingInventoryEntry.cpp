@@ -30,9 +30,9 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool 
     Entry.Ring = InRing;
     Entry.InstanceID = GRingInstanceCounter.fetch_add(1);
 
-    if (bCopyDefaultCrystal && InRing && InRing->SlottedCrystal)
+    if (bCopyDefaultCrystal && InRing && InRing->HasCrystal())
     {
-        Entry.AttachedItem = FRuntimeAttachedItem::FromAsset(InRing->SlottedCrystal);
+        Entry.AttachedItem = FRuntimeAttachedItem::FromAttachedItem(InRing->AttachedItem);
 
         // Copy default spells from ring asset
         Entry.AssignedSpells = InRing->DefaultSpells;

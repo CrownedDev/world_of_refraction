@@ -19,6 +19,7 @@
 #include "FRuntimeAttachedItem.generated.h"
 
 class UEvolutionItemData;
+struct FAttachedItem;
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
@@ -105,4 +106,22 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
      *  Evolution branch: stores Item, seeds CurrentDurability from
      *  Crystal->MaxDurability. */
     static FRuntimeAttachedItem FromAsset(UEvolutionItemData *Crystal);
+
+    /** Bridge factory — given the design-time FAttachedItem struct carried on
+     *  UEquipmentDataBase (whose Kind was already decided by PostLoad), produce
+     *  the discriminated runtime attachment. Simpler than FromAsset: no
+     *  bIsEvolutionCrystal inspection is needed because Source.Kind already
+     *  carries that decision; this just copies identity and seeds initial
+     *  durability. Returns a default (Empty) attachment when Source.Kind is None.
+     *
+     *  Refined branch: builds FCrystalId from Source.RefinedType +
+     *  Source.RefinedTier, seeds CurrentDurability from
+     *  CrystalIdentity::GetMaxDurability — the tier-based max the runtime
+     *  already treats as refined's source of truth (refined crystals carry no
+     *  asset, so there is no per-asset MaxDurability to read as FromAsset does).
+     *
+     *  Evolution branch: stores Source.Evolution, seeds CurrentDurability from
+     *  Evolution->MaxDurability — byte-for-byte parity with FromAsset, since
+     *  Source.Evolution is that same asset pointer. */
+    static FRuntimeAttachedItem FromAttachedItem(const FAttachedItem &Source);
 };

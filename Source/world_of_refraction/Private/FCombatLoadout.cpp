@@ -440,7 +440,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         if (SavedLoadout.PrimaryRing)
         {
             Result.PrimaryRing.RingEntry = FRingInventoryEntry::CreateFromRing(
-                SavedLoadout.PrimaryRing, true); // true = copy SlottedCrystal from RingData
+                SavedLoadout.PrimaryRing, true); // true = copy default crystal (AttachedItem) from RingData
             Result.PrimaryRing.InitializeFromRing();
         }
         break;

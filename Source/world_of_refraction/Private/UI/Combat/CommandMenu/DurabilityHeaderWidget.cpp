@@ -105,8 +105,9 @@ void UDurabilityHeaderWidget::RefreshForActor(AActor *InActor)
 		}
 
 		// Weapon resource: active weapon with a slotted, non-broken attachment.
-		// Resolve per-instance attachment via LoadoutComponent — asset-side
-		// SlottedCrystal->IsBroken is stale post-Phase-B (writes go to runtime).
+		// Resolve per-instance attachment via LoadoutComponent — the asset-side
+		// AttachedItem carries no runtime durability, so broken-state must be
+		// read from the runtime attachment (writes go to runtime post-Phase-B).
 		if (UGameInstance *GI = GetGameInstance())
 		{
 			if (UWeaponManager *WM = GI->GetSubsystem<UWeaponManager>())

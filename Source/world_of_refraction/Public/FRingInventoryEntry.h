@@ -6,7 +6,7 @@
 // FRingInventoryEntry = mutable runtime state (ACTUAL attached crystal + custom spells)
 //
 // IMPORTANT: When checking crystal state at runtime, use FRingInventoryEntry.AttachedItem,
-// NOT RingData.SlottedCrystal. The data asset may have a default crystal for editor
+// NOT RingData.AttachedItem. The data asset may have a default crystal for editor
 // testing, but the inventory entry is the runtime truth.
 //
 // NOTE: Rings require a crystal to function. An entry with no crystal

@@ -13,6 +13,7 @@
 #include "WorldStatRequirements.h"
 #include "FEquipmentStatBonus.h"
 #include "FSkillEffect.h"
+#include "FAttachedItem.h"
 #include "IEquipmentGenerator.h"
 
 #if WITH_EDITOR
@@ -60,8 +61,18 @@ public:
 
     // ==================== CRYSTAL ====================
 
-    /** Refined crystal slotted into this equipment — determines element. */
+    /** Design-time attachment slot. Refined (Type+Tier) or Evolution (asset
+     *  pointer), discriminated by Kind. Replaces the legacy SlottedCrystal
+     *  pointer; inventory factories read this when building runtime entries. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
+    FAttachedItem AttachedItem;
+
+    /** [Commit 10] DEPRECATED — migrated to AttachedItem via PostLoad. Bare
+     *  UPROPERTY keeps it serialization-readable (so PostLoad can read old
+     *  assets) but hides it from the designer UI and Blueprint, so nobody
+     *  authors into a field slated for removal. Remove in a later commit once
+     *  all equipment assets are confirmed re-saved. */
+    UPROPERTY()
     UEvolutionItemData *SlottedCrystal = nullptr;
 
     /** Default spells for this equipment — copied to inventory entry when obtained.
@@ -139,7 +150,7 @@ public:
     // ==================== CRYSTAL HELPERS ====================
 
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
-    bool HasCrystal() const { return SlottedCrystal != nullptr; }
+    bool HasCrystal() const { return AttachedItem.Kind != EAttachedItemKind::None; }
 
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;
@@ -207,6 +218,10 @@ public:
     // designer baseline and stays untouched).
     virtual FEquipmentStatBonus& GetEditableStatBonus() override { return GeneratedStatBonus; }
     virtual EItemTier GetGeneratorTier() const override { return Tier; }
+
+    // [Commit 10] Self-migration of legacy SlottedCrystal → AttachedItem.
+    // Runs in all build configs (not editor-only) so cooked assets migrate too.
+    virtual void PostLoad() override;
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;

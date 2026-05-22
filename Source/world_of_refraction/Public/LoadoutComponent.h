@@ -259,8 +259,8 @@ public:
      *  (Generic/Caster), every ring in RingLoadout (Resonator), and the primary
      *  evolution crystal slot (if any).
      *
-     *  Empty slots are skipped — only slots with a non-null SlottedCrystal
-     *  appear in the result.
+     *  Empty slots are skipped — only slots with a crystal attached
+     *  (non-empty AttachedItem) appear in the result.
      *
      *  Used by UCrystalManager for combat-init enumeration and by any code
      *  that needs to walk all equipped crystals (e.g. between-combat repair). */

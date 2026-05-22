@@ -2935,7 +2935,7 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 
 	// Weapon Crystal — read runtime entry, not data asset.
 	// Aligns with FCombatCapabilities::BuildFrom path; the data-asset
-	// SlottedCrystal field is the legacy path that diverges from runtime
+	// AttachedItem field is the design-time default that diverges from runtime
 	// when crystals are slotted/changed at runtime.
 	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
 	if (LC)

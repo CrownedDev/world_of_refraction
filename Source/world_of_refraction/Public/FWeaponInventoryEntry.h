@@ -6,7 +6,7 @@
 // FWeaponInventoryEntry = mutable runtime state (ACTUAL attached crystal + custom spells)
 //
 // IMPORTANT: When checking crystal state at runtime, use FWeaponInventoryEntry.AttachedItem,
-// NOT WeaponData.SlottedCrystal. The data asset may have a default crystal for editor
+// NOT WeaponData.AttachedItem. The data asset may have a default crystal for editor
 // testing, but the inventory entry is the runtime truth.
 
 #pragma once

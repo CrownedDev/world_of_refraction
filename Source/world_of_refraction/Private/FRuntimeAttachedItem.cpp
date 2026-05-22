@@ -4,6 +4,7 @@
 // transitive consumer.
 
 #include "FRuntimeAttachedItem.h"
+#include "FAttachedItem.h"
 #include "EvolutionItemData.h"
 #include "CrystalTypeHelpers.h"
 
@@ -152,6 +153,39 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAsset(UEvolutionItemData *Crystal
         // tier-only lookup would also work; the asset value is the
         // existing source of truth pre-7b.
         Result.Refined.CurrentDurability = Crystal->MaxDurability;
+    }
+
+    return Result;
+}
+
+FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem &Source)
+{
+    FRuntimeAttachedItem Result;
+
+    switch (Source.Kind)
+    {
+    case EAttachedItemKind::Refined:
+        Result.Kind = EAttachedItemKind::Refined;
+        Result.Refined.Id = FCrystalId(Source.RefinedType, Source.RefinedTier);
+        // Refined crystals carry no asset, so there is no per-asset MaxDurability
+        // to read as FromAsset does. Seed from the tier-based max the runtime
+        // already treats as refined's source of truth (GetMaxDurability and
+        // FRefinedAttachment::RepairBetweenCombats both resolve via CrystalIdentity).
+        Result.Refined.CurrentDurability = CrystalIdentity::GetMaxDurability(Result.Refined.Id);
+        break;
+
+    case EAttachedItemKind::Evolution:
+        Result.Kind = EAttachedItemKind::Evolution;
+        Result.Evolution.Item = Source.Evolution;
+        // Byte-for-byte parity with FromAsset's evolution branch
+        // (Crystal->MaxDurability) — Source.Evolution is that same asset.
+        Result.Evolution.CurrentDurability = Source.Evolution ? Source.Evolution->MaxDurability : 0;
+        break;
+
+    case EAttachedItemKind::None:
+    default:
+        // Leave Result default-constructed (Empty).
+        break;
     }
 
     return Result;
