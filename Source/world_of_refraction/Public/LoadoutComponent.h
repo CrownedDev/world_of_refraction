@@ -16,6 +16,7 @@
 #include "ESpellElement.h"
 #include "FCombatLoadout.h"
 #include "FItemLoadoutSlot.h"
+#include "FEquippedItemSlot.h"
 #include "FEquipmentStatBonus.h"
 #include "FSkillEffect.h"
 #include "CharacterDataComponent.h"
@@ -40,7 +41,7 @@ class UInfusionDisplayData;
 
 /** Delegate for loadout changes (query GetActiveLoadout() for data) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutChanged, int32, NewLoadoutIndex);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLoadoutItemUsed, int32, SlotIndex, UEvolutionItemData *, Item);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLoadoutItemUsed, int32, SlotIndex, FCrystalId, ItemId, int32, NewQuantity);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FString &, Reason);
 
 /** A single crystal-bearing slot — discriminated by Kind. Refined slots
@@ -128,14 +129,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
     int32 CreateNewLoadout(const FString &LoadoutName);
 
-    /** Create and populate a new loadout with spells, abilities, and items */
+    /** Create and populate a new loadout with spells, abilities, and items.
+     *  Crystal-refactor 9.5b: ItemsToAdd is now TArray<FEquippedItemSlot>
+     *  (CrystalId + Quantity per entry). Blueprint callers must re-wire. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
     int32 CreateAndConfigureLoadout(
         const FString &LoadoutName,
         UInventoryComponent *Inventory,
         const TArray<USpellData *> &SpellsToAdd,
         const TArray<UAbilityData *> &AbilitiesToAdd,
-        const TArray<UEvolutionItemData *> &ItemsToAdd);
+        const TArray<FEquippedItemSlot> &ItemsToAdd);
 
     /** Delete a saved loadout */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Management")
@@ -453,14 +456,9 @@ public:
     bool ApplyWearToCrystalEntryByHolder(UObject *Holder, int32 Amount);
 
     // ==================== POST-BATTLE ====================
-
-    /** Consume items from inventory based on uses during battle */
-    UFUNCTION(BlueprintCallable, Category = "Loadout|Battle")
-    void ConsumeUsedItems(UInventoryComponent *Inventory);
-
-    /** Get items that will be consumed after battle */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Battle")
-    TArray<UEvolutionItemData *> GetItemsToConsume() const;
+    // Crystal-refactor 9.5b: ConsumeUsedItems and GetItemsToConsume removed.
+    // Item slot Quantity is now the persistent post-combat state; inventory
+    // is debited at equip/auto-equip time, not at battle end.
 
     /** Reset battle state (call after battle ends) */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Battle")

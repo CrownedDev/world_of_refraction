@@ -9,12 +9,12 @@
 #include "ECharacterClass.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "ESpellElement.h"
+#include "FCrystalId.h"
 #include "FCombatCapabilities.generated.h"
 
 class ULoadoutComponent;
 class USpellData;
 class UAbilityData;
-class UEvolutionItemData;
 
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FCombatCapabilities
@@ -91,9 +91,10 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
 
     // ==================== ITEM POOL ====================
 
-    /** Usable items in the active loadout's item slots */
+    /** Usable items in the active loadout's item slots (CrystalId only —
+     *  resolve display name via CrystalIdentity::GetDisplayName). */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Items")
-    TArray<UEvolutionItemData *> AvailableItems;
+    TArray<FCrystalId> AvailableItems;
 
     // ==================== DISPLAY DATA ====================
     // Used by Create*Button functions for descriptions and tints.

@@ -292,10 +292,10 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
     int32 TotalUses = 0;
     for (const FItemLoadoutSlot &Slot : Active.ItemSlots)
     {
-        if (Slot.CanUse())
+        if (!Slot.IsEmpty())
         {
             UsableItems++;
-            TotalUses += Slot.GetRemainingUses();
+            TotalUses += Slot.Quantity;
         }
     }
     UE_LOG(LogTemp, Display, TEXT("Items: %d slots, %d uses remaining"), UsableItems, TotalUses);

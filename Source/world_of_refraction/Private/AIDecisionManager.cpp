@@ -22,6 +22,7 @@
 #include "FItemLoadoutSlot.h"
 #include "EvolutionItemData.h"
 #include "CrystalType.h"
+#include "CrystalIdentity.h"
 
 USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const
@@ -1024,11 +1025,12 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         }
 
         // Fallback: Use healing item (Sapphire)
-        UEvolutionItemData *HealItem = FindHealingItem(Loadout);
-        if (HealItem)
+        bool bFoundHeal = false;
+        const FCrystalId HealId = FindHealingItem(Loadout, bFoundHeal);
+        if (bFoundHeal)
         {
             OutAction.ActionType = EActionType::Item;
-            OutAction.ItemData = HealItem;
+            OutAction.ItemData = HealId;
             OutAction.Targets.Add(AIActor); // Self-target
             UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing item (Sapphire)"));
             return true;
@@ -1043,11 +1045,12 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     // Priority 2: Low energy - need energy restoration
     if (EnergyPercent < AIConstants::ENERGY_CONSERVATION_THRESHOLD) // 30%
     {
-        UEvolutionItemData *EnergyItem = FindEnergyItem(Loadout);
-        if (EnergyItem)
+        bool bFoundEnergy = false;
+        const FCrystalId EnergyId = FindEnergyItem(Loadout, bFoundEnergy);
+        if (bFoundEnergy)
         {
             OutAction.ActionType = EActionType::Item;
-            OutAction.ItemData = EnergyItem;
+            OutAction.ItemData = EnergyId;
             OutAction.Targets.Add(AIActor); // Self-target
             UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using energy item (Citrine)"));
             return true;
@@ -1108,11 +1111,12 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
     }
 
     // Fallback: Use cleanse item (Iolite)
-    UEvolutionItemData *CleanseItem = FindCleanseItem(Loadout);
-    if (CleanseItem)
+    bool bFoundCleanse = false;
+    const FCrystalId CleanseId = FindCleanseItem(Loadout, bFoundCleanse);
+    if (bFoundCleanse)
     {
         OutAction.ActionType = EActionType::Item;
-        OutAction.ItemData = CleanseItem;
+        OutAction.ItemData = CleanseId;
         OutAction.Targets.Add(AIActor); // Self-target
         UE_LOG(LogTemp, Log, TEXT("[AI Cleanse] Using cleanse item (Iolite)"));
         return true;
@@ -1124,97 +1128,79 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
 
 // ==================== ITEM DETECTION ====================
 
-UEvolutionItemData *UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout)
+FCrystalId UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout, bool &bOutFound)
 {
+    bOutFound = false;
     if (!Loadout)
     {
-        return nullptr;
+        return FCrystalId{};
     }
 
-    // Get all usable items from loadout
-    TArray<FItemLoadoutSlot> Items = Loadout->GetUsableItems();
-
-    for (const FItemLoadoutSlot &Slot : Items)
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
     {
-        if (!Slot.Crystal)
+        if (Slot.IsEmpty())
         {
             continue;
         }
-
-        // Check if it's a Sapphire (healing crystal)
-        if (Slot.Crystal->CrystalType == ECrystalType::Sapphire)
+        if (CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
         {
-            // Verify it has remaining uses
-            if (Slot.GetRemainingUses() > 0)
-            {
-                return Slot.Crystal;
-            }
+            bOutFound = true;
+            return Slot.CrystalId;
         }
     }
 
-    return nullptr;
+    return FCrystalId{};
 }
 
-UEvolutionItemData *UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout)
+FCrystalId UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout, bool &bOutFound)
 {
+    bOutFound = false;
     if (!Loadout)
     {
-        return nullptr;
+        return FCrystalId{};
     }
 
-    // Get all usable items from loadout
-    TArray<FItemLoadoutSlot> Items = Loadout->GetUsableItems();
-
-    for (const FItemLoadoutSlot &Slot : Items)
+    // Cleanse-only (Iolite). NOTE: deliberately does NOT match StatusClear
+    // (Quartz) — Quartz reduces the status *buildup bar*, it does not remove an
+    // already-applied debuff, so it can't satisfy TryCleanseBranch's intent.
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
     {
-        if (!Slot.Crystal)
+        if (Slot.IsEmpty())
         {
             continue;
         }
-
-        // Check if it's an Iolite (cleanse crystal)
-        if (Slot.Crystal->CrystalType == ECrystalType::Iolite)
+        if (CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Cleanse)
         {
-            // Verify it has remaining uses
-            if (Slot.GetRemainingUses() > 0)
-            {
-                return Slot.Crystal;
-            }
+            bOutFound = true;
+            return Slot.CrystalId;
         }
     }
 
-    return nullptr;
+    return FCrystalId{};
 }
 
-UEvolutionItemData *UAIDecisionManager::FindEnergyItem(ULoadoutComponent *Loadout)
+FCrystalId UAIDecisionManager::FindEnergyItem(ULoadoutComponent *Loadout, bool &bOutFound)
 {
+    bOutFound = false;
     if (!Loadout)
     {
-        return nullptr;
+        return FCrystalId{};
     }
 
-    // Get all usable items from loadout
-    TArray<FItemLoadoutSlot> Items = Loadout->GetUsableItems();
-
-    for (const FItemLoadoutSlot &Slot : Items)
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
     {
-        if (!Slot.Crystal)
+        if (Slot.IsEmpty())
         {
             continue;
         }
-
-        // Check if it's a Citrine (energy crystal)
-        if (Slot.Crystal->CrystalType == ECrystalType::Citrine)
+        if (CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::EnergyRestore)
         {
-            // Verify it has remaining uses
-            if (Slot.GetRemainingUses() > 0)
-            {
-                return Slot.Crystal;
-            }
+            bOutFound = true;
+            return Slot.CrystalId;
         }
     }
 
-    return nullptr;
+    return FCrystalId{};
 }
 
 // ==================== OFFENSIVE ACTION ====================

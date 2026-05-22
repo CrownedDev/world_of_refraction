@@ -11,6 +11,8 @@
 #include "FAbilityCollection.h"
 #include "FRuntimeAttachedItem.h"
 #include "CrystalIdentity.h"
+#include "CrystalInventoryComponent.h"
+#include "GameFramework/Actor.h"
 
 // ==================== VALIDATION ====================
 
@@ -221,12 +223,12 @@ bool FCombatLoadout::HasDuplicateItemTypes() const
 
     for (const FItemLoadoutSlot &Slot : ItemSlots)
     {
-        if (!Slot.HasCrystal())
+        if (Slot.IsEmpty())
         {
             continue;
         }
 
-        ECrystalType Type = Slot.Crystal->CrystalType;
+        ECrystalType Type = Slot.CrystalId.Type;
         if (SeenTypes.Contains(Type))
         {
             return true; // Duplicate found
@@ -243,7 +245,7 @@ int32 FCombatLoadout::GetTotalItemUses() const
 
     for (const FItemLoadoutSlot &Slot : ItemSlots)
     {
-        Total += Slot.GetRemainingUses();
+        Total += Slot.Quantity;
     }
 
     return Total;
@@ -320,7 +322,7 @@ TArray<FItemLoadoutSlot> FCombatLoadout::GetUsableItemSlots() const
 
     for (const FItemLoadoutSlot &Slot : ItemSlots)
     {
-        if (Slot.CanUse())
+        if (!Slot.IsEmpty())
         {
             Result.Add(Slot);
         }
@@ -378,20 +380,16 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
         break;
     }
 
-    // Initialize item slots (empty)
+    // Initialize item slots (empty). SetNum default-constructs each slot
+    // (default CrystalId, Quantity 0) — no per-slot reset needed.
     ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
-    for (FItemLoadoutSlot &Slot : ItemSlots)
-    {
-        Slot.Clear();
-    }
 }
 
 void FCombatLoadout::ResetForBattle()
 {
-    for (FItemLoadoutSlot &Slot : ItemSlots)
-    {
-        Slot.ResetForBattle();
-    }
+    // 9.5b: no-op. Item slots no longer reset between battles — Quantity
+    // persists as the runtime count, and FCombatLoadout::ApplyAutoEquip
+    // refills from inventory at combat start when the auto-equip flag is set.
 }
 
 // ==================== FACTORY ====================
@@ -510,10 +508,11 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     }
 
     // ==================== ITEMS ====================
-    // 9.5a: slot gets the designer's authored Quantity directly. When
-    // SavedLoadout.bAutoEquipItemsOnCombatStart is true, Quantity is 0 and
-    // the slot stays empty until the runtime equip API (later commit) fills
-    // it from inventory at combat start.
+    // Slot gets the designer's authored CrystalId + Quantity directly. The
+    // auto-equip flag is propagated so ULoadoutComponent::PrepareForBattle
+    // can call FCombatLoadout::ApplyAutoEquip, which refills each slot from
+    // UCrystalInventoryComponent at combat start when the flag is true.
+    Result.bAutoEquipItemsOnCombatStart = SavedLoadout.bAutoEquipItemsOnCombatStart;
     Result.ItemSlots.SetNum(InventoryConstants::MAX_ITEM_LOADOUT_SLOTS);
     for (int32 i = 0; i < SavedLoadout.EquippedItems.Num() && i < Result.ItemSlots.Num(); ++i)
     {
@@ -528,4 +527,52 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from SavedLoadout '%s' (PrimarySlotType: %d)"),
            *SavedLoadout.LoadoutName, static_cast<int32>(SavedLoadout.PrimarySlotType));
     return Result;
+}
+
+// ==================== AUTO-EQUIP ====================
+
+void FCombatLoadout::ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor)
+{
+    if (!OwningActor)
+    {
+        return;
+    }
+    if (!Loadout.bAutoEquipItemsOnCombatStart)
+    {
+        return;
+    }
+
+    UCrystalInventoryComponent *CrystalInv =
+        OwningActor->FindComponentByClass<UCrystalInventoryComponent>();
+    if (!CrystalInv)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[FCombatLoadout::ApplyAutoEquip] No UCrystalInventoryComponent on %s; skipping auto-equip"),
+               *OwningActor->GetName());
+        return;
+    }
+
+    // Top each non-full slot up to the per-slot cap, debiting the inventory
+    // pool. Min(Available, Capacity) guarantees we never over-equip or pull
+    // more than the inventory holds.
+    for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+    {
+        if (Slot.CrystalId.Type == ECrystalType::None)
+        {
+            continue;
+        }
+        if (Slot.Quantity >= InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT)
+        {
+            continue;
+        }
+
+        const int32 Available = CrystalInv->GetItemCount(Slot.CrystalId);
+        const int32 Capacity = InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT - Slot.Quantity;
+        const int32 ToEquip = FMath::Min(Available, Capacity);
+        if (ToEquip > 0)
+        {
+            CrystalInv->RemoveItemCount(Slot.CrystalId, ToEquip);
+            Slot.Quantity += ToEquip;
+        }
+    }
 }

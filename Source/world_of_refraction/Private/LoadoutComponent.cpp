@@ -18,6 +18,7 @@
 #include "StanceData.h"
 #include "TurnManager.h"
 #include "CrystalIdentity.h"
+#include "CrystalInventoryComponent.h"
 #include "FRuntimeAttachedItem.h"
 #include "Engine/GameInstance.h"
 
@@ -153,7 +154,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
     UInventoryComponent *Inventory,
     const TArray<USpellData *> &SpellsToAdd,
     const TArray<UAbilityData *> &AbilitiesToAdd,
-    const TArray<UEvolutionItemData *> &ItemsToAdd)
+    const TArray<FEquippedItemSlot> &ItemsToAdd)
 {
     // Validate inventory
     if (!Inventory)
@@ -248,37 +249,43 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         }
     }
 
-    // Add items (validate against inventory)
+    // Add items — runtime equip path. Each entry pairs a CrystalId with a
+    // requested Quantity; we debit what the crystal inventory actually holds
+    // and store the transferred amount on the slot (transfer model: you can't
+    // equip crystals you don't own). None/empty entries are skipped.
+    UCrystalInventoryComponent *CrystalInv =
+        Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!CrystalInv)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[LoadoutComponent] CreateAndConfigureLoadout: no UCrystalInventoryComponent on inventory owner — items not debited/equipped"));
+    }
+
     int32 ItemsAdded = 0;
     int32 SlotIndex = 0;
-    for (UEvolutionItemData *Item : ItemsToAdd)
+    for (const FEquippedItemSlot &Entry : ItemsToAdd)
     {
-        if (!Item)
+        if (Entry.CrystalId.Type == ECrystalType::None || Entry.Quantity <= 0)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Null item in ItemsToAdd array"));
             continue;
         }
 
         if (SlotIndex >= Loadout.ItemSlots.Num())
         {
-            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Item slots full (%d) - skipping item '%s'"),
-                   Loadout.ItemSlots.Num(), *Item->ItemName);
+            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Item slots full (%d) - skipping '%s'"),
+                   Loadout.ItemSlots.Num(), *CrystalIdentity::GetDisplayName(Entry.CrystalId));
             break;
         }
 
-        if (!Inventory->HasItem(Item))
+        const int32 Debited = CrystalInv ? CrystalInv->RemoveItemCount(Entry.CrystalId, Entry.Quantity) : 0;
+        Loadout.ItemSlots[SlotIndex].CrystalId = Entry.CrystalId;
+        Loadout.ItemSlots[SlotIndex].Quantity = Debited;
+        if (Debited > 0)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Item '%s' not in inventory - skipping"),
-                   *Item->ItemName);
-            SlotIndex++;
-            continue;
+            ItemsAdded++;
         }
-
-        Loadout.ItemSlots[SlotIndex].Crystal = Item;
-        Loadout.ItemSlots[SlotIndex].ResetForBattle();
-        ItemsAdded++;
-        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added item '%s' to slot %d"),
-               *Item->ItemName, SlotIndex);
+        UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Equipped '%s' x%d (requested %d) to slot %d"),
+               *CrystalIdentity::GetDisplayName(Entry.CrystalId), Debited, Entry.Quantity, SlotIndex);
         SlotIndex++;
     }
 
@@ -634,16 +641,10 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         }
     }
 
-    // Validate items
-    for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
-    {
-        if (Slot.HasCrystal() && !Inventory->HasItem(Slot.Crystal))
-        {
-            Errors.Add(TEXT("Item in loadout not in inventory"));
-        }
-    }
-
-    // Check for duplicate item types
+    // Item slots are self-owning under the transfer model — their Quantity is
+    // debited from the crystal inventory at equip time, so there's no ongoing
+    // inventory-ownership relationship left to validate. Only the duplicate-type
+    // rule still applies.
     if (Loadout.HasDuplicateItemTypes())
     {
         Errors.Add(TEXT("Duplicate item types in loadout"));
@@ -677,10 +678,11 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
 
     if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
-        for (FItemLoadoutSlot &Slot : Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].ItemSlots)
-        {
-            Slot.ResetForBattle();
-        }
+        // Auto-equip refills item slots from the crystal inventory at combat
+        // start when the loadout's flag is set. Pass the LIVE loadout element
+        // (not a by-value accessor) so the Quantity writes persist.
+        FCombatLoadout::ApplyAutoEquip(
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex], GetOwner());
     }
 
     bIsReadyForBattle = true;
@@ -716,12 +718,16 @@ bool ULoadoutComponent::UseItem(int32 SlotIndex)
 
     FItemLoadoutSlot &Slot = Loadout.ItemSlots[SlotIndex];
 
-    if (!Slot.UseOne())
+    if (Slot.IsEmpty())
     {
         return false;
     }
 
-    OnItemUsed.Broadcast(SlotIndex, Slot.Crystal);
+    --Slot.Quantity;
+
+    // Combat use depletes the slot only — inventory is NOT touched (it was
+    // already debited at equip/auto-equip time under the transfer model).
+    OnItemUsed.Broadcast(SlotIndex, Slot.CrystalId, Slot.Quantity);
     return true;
 }
 
@@ -745,7 +751,7 @@ int32 ULoadoutComponent::GetItemRemainingUses(int32 SlotIndex) const
         return 0;
     }
 
-    return Loadout.ItemSlots[SlotIndex].GetRemainingUses();
+    return Loadout.ItemSlots[SlotIndex].Quantity;
 }
 
 TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
@@ -983,79 +989,9 @@ int32 ULoadoutComponent::GetUsableItemCount() const
 
 // ==================== POST-BATTLE ====================
 
-void ULoadoutComponent::ConsumeUsedItems(UInventoryComponent *Inventory)
-{
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ConsumeUsedItems] No InventoryComponent found on owner"));
-        return;
-    }
-    if (!Inventory || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return;
-    }
-
-    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
-    {
-        int32 ToConsume = Slot.GetItemsToConsume();
-        for (int32 i = 0; i < ToConsume; ++i)
-        {
-            Inventory->RemoveItem(Slot.Crystal);
-        }
-    }
-}
-
-TArray<UEvolutionItemData *> ULoadoutComponent::GetItemsToConsume() const
-{
-    TArray<UEvolutionItemData *> Result;
-
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetItemsToConsume] No InventoryComponent found on owner"));
-        return Result;
-    }
-    if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        return Result;
-    }
-
-    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-
-    for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
-    {
-        int32 ToConsume = Slot.GetItemsToConsume();
-        for (int32 i = 0; i < ToConsume; ++i)
-        {
-            Result.Add(Slot.Crystal);
-        }
-    }
-
-    return Result;
-}
-
 void ULoadoutComponent::ResetBattleState()
 {
     bIsReadyForBattle = false;
-
-    UInventoryComponent *Inv = GetInventoryComponent();
-    if (!Inv)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::ResetBattleState] No InventoryComponent found on owner"));
-        return;
-    }
-
-    // Reset item slots
-    if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
-    {
-        for (FItemLoadoutSlot &Slot : Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].ItemSlots)
-        {
-            Slot.ResetForBattle();
-        }
-    }
 }
 
 // ==================== QUICK SETUP ====================

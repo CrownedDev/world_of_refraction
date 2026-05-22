@@ -52,6 +52,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
     bool AddRefinedCount(FCrystalId Id, int32 Count = 1);
 
+    /** Remove up to Count item crystals at Id. Clamps to available; returns
+     *  the number actually removed (0 if Count <= 0 or Id absent). Removes
+     *  the TMap entry entirely when the count reaches 0. Used by auto-equip
+     *  and runtime equip-transfer to debit inventory. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    int32 RemoveItemCount(FCrystalId Id, int32 Count = 1);
+
+    /** Remove up to Count refined crystals at Id. Same semantics as
+     *  RemoveItemCount but for the refined pool. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
+    int32 RemoveRefinedCount(FCrystalId Id, int32 Count = 1);
+
     // ==================== READ ====================
 
     /** Count at exact Id in the item-crystal pool. 0 when absent. */

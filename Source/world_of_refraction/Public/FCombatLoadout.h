@@ -79,6 +79,14 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  struct (inline on UInventoryData). Sole factory for runtime loadouts. */
     static FCombatLoadout CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout);
 
+    /** Refill item slots from the owner's UCrystalInventoryComponent when
+     *  bAutoEquipItemsOnCombatStart is true. No-op when the flag is false,
+     *  the owner is null, or the owner has no UCrystalInventoryComponent.
+     *  Fills each non-full slot up to MAX_QUANTITY_PER_ITEM_SLOT (3),
+     *  debiting the inventory via RemoveItemCount. Called from
+     *  ULoadoutComponent::PrepareForBattle. */
+    static void ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor);
+
     // ==================== PRIMARY EQUIPMENT ====================
     /** Does this character start combat with weapon drawn? */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Identity")
@@ -141,9 +149,15 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     // ==================== ITEMS ====================
 
-    /** Item slots (max 6, 3 uses each) */
+    /** Item slots (max 6, max 3 Quantity per slot, unique by ECrystalType) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Items")
     TArray<FItemLoadoutSlot> ItemSlots;
+
+    /** Propagated from FSavedLoadout at CreateFromSavedLoadout. When true,
+     *  ApplyAutoEquip refills item slots from UCrystalInventoryComponent at
+     *  combat start (called by ULoadoutComponent::PrepareForBattle). */
+    UPROPERTY(BlueprintReadWrite, Category = "Items")
+    bool bAutoEquipItemsOnCombatStart = false;
 
     // ==================== RUNTIME STATE ====================
 

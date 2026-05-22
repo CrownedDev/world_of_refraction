@@ -133,15 +133,10 @@ TArray<FString> UInventoryData::GetValidationErrors() const
             }
         }
 
-        for (UEvolutionItemData *Item : Loadout.EquippedItems)
-        {
-            if (Item && !Items.Contains(Item))
-            {
-                Errors.Add(Prefix + FString::Printf(
-                    TEXT("Equipped item '%s' not in inventory Items list"),
-                    *Item->GetName()));
-            }
-        }
+        // [9.5b] Inventory/EquippedItems cross-check removed: under the transfer
+        // model, equipped slots are debited from inventory at equip time, so
+        // consistency is invariant by construction — no runtime cross-validation
+        // needed.
 
         for (USpellData *Spell : Loadout.GetAllSpells())
         {

@@ -1286,15 +1286,14 @@ void ACombatOrchestratorTestActor::Test_ItemExecution()
 
 	// Manually add item to loadout slot if not auto-populated
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	if (UsableItems.Num() == 0 || !UsableItems[0].Crystal)
+	if (UsableItems.Num() == 0 || UsableItems[0].IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("    Manually configuring item slot"));
 		// Access internal loadout and set item
 		FCombatLoadout ActiveLoadout = Loadout->GetActiveLoadout();
 		if (ActiveLoadout.ItemSlots.Num() > 0)
 		{
-			ActiveLoadout.ItemSlots[0].Crystal = Item;
-			ActiveLoadout.ItemSlots[0].ResetForBattle();
+			ActiveLoadout.ItemSlots[0].CrystalId = FCrystalId{ECrystalType::Garnet, EItemTier::F_Tier};
 		}
 	}
 
@@ -1321,7 +1320,7 @@ void ACombatOrchestratorTestActor::Test_ItemExecution()
 	// Create item action
 	FAction ItemAction;
 	ItemAction.ActionType = EActionType::Item;
-	ItemAction.ItemData = Item;
+	ItemAction.ItemData = FCrystalId{ECrystalType::Garnet, EItemTier::F_Tier};
 	ItemAction.Targets.Add(Target);
 
 	// Submit item use

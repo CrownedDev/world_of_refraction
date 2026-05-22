@@ -9,6 +9,7 @@
 #include "ActionStructs.h"
 #include "EDefenseType.h"
 #include "ESkillEffectType.h"
+#include "FCrystalId.h"
 #include "AIDecisionManager.generated.h"
 
 class ACombatOrchestrator;
@@ -192,14 +193,18 @@ private:
 
     // Healing detection
     USpellData *FindHealingSpell(ULoadoutComponent *Loadout);
-    UEvolutionItemData *FindHealingItem(ULoadoutComponent *Loadout);
+    /** Crystal-refactor 9.5b: returns FCrystalId of a matching slot, or a
+     *  default-constructed FCrystalId{Garnet, F_Tier} with bOutFound=false
+     *  semantics encoded via the companion bool. Callers must check bFound
+     *  before assigning to OutAction.ItemData. */
+    FCrystalId FindHealingItem(ULoadoutComponent *Loadout, bool &bOutFound);
 
     // Cleanse detection
     USpellData *FindCleanseSpell(ULoadoutComponent *Loadout);
-    UEvolutionItemData *FindCleanseItem(ULoadoutComponent *Loadout);
+    FCrystalId FindCleanseItem(ULoadoutComponent *Loadout, bool &bOutFound);
 
     // Energy detection
-    UEvolutionItemData *FindEnergyItem(ULoadoutComponent *Loadout);
+    FCrystalId FindEnergyItem(ULoadoutComponent *Loadout, bool &bOutFound);
 
     // Energy helpers
     int32 GetCurrentEP(AActor *Actor) const;

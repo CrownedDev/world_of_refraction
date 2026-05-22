@@ -497,6 +497,10 @@ namespace CrystalEffectTable
      *  Tier-only — Id.Type is ignored. */
     inline int32 GetBrokenDarknessEnergyBonus(const FCrystalId &Id)
     {
+        if (Id.Type == ECrystalType::None)
+        {
+            return 0;
+        }
         switch (Id.Tier)
         {
         case EItemTier::F_Tier:

@@ -12,7 +12,7 @@ bool UItemDataDebug::ValidateAllItemCombinations()
     int32 InvalidCount = 0;
 
     // Iterate all crystal types
-    for (int32 CrystalIndex = 0; CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
+    for (int32 CrystalIndex = static_cast<int32>(ECrystalType::Garnet); CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
     {
         ECrystalType Crystal = static_cast<ECrystalType>(CrystalIndex);
 
@@ -172,6 +172,9 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
             bValid = false;
         }
         break;
+
+    default:
+        break;
     }
 
     // Log errors if any
@@ -323,6 +326,9 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
                 ValueStr = FString::Printf(TEXT("Clear %.0f%% status, %d turns resistance"),
                                            TestItem->GetStatusClearPercent(), TestItem->GetResistanceDuration());
                 break;
+
+            default:
+                break;
             }
 
             UE_LOG(LogTemp, Display, TEXT("  %s: %s"), *GetTierName(Tier), *ValueStr);
@@ -385,7 +391,7 @@ void UItemDataDebug::LogAllItems()
     UE_LOG(LogTemp, Display, TEXT("#       COMPLETE ITEM MATRIX (70)        #"));
     UE_LOG(LogTemp, Display, TEXT("##########################################"));
 
-    for (int32 CrystalIndex = 0; CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
+    for (int32 CrystalIndex = static_cast<int32>(ECrystalType::Garnet); CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
     {
         ECrystalType Crystal = static_cast<ECrystalType>(CrystalIndex);
         LogCrystalTierProgression(Crystal);
@@ -492,7 +498,7 @@ bool UItemDataDebug::RunAllTests()
     // Test 2: Tier progression for each crystal
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("=== TEST 2: Tier Progression ==="));
-    for (int32 CrystalIndex = 0; CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
+    for (int32 CrystalIndex = static_cast<int32>(ECrystalType::Garnet); CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
     {
         ECrystalType Crystal = static_cast<ECrystalType>(CrystalIndex);
         if (!TestTierProgression(Crystal))

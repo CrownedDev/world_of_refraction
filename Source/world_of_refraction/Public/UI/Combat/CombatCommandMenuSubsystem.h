@@ -139,6 +139,9 @@ private:
     EPieMenuCategory PendingActionCategory = EPieMenuCategory::None;
     FString PendingActionID;
     TWeakObjectPtr<UObject> PendingActionData;
+    // Slot index for identity-by-index buttons (consumables). DataReference is
+    // null for these, so the index must survive the target-selection round-trip.
+    int32 PendingActionDataIndex = -1;
     ETargetType PendingTargetType = ETargetType::SingleEnemy;
     /** Effective target type after the Allies/Enemies category step. Synced to
      *  PendingTargetType on entry; set to SingleAlly/SingleEnemy when a side is

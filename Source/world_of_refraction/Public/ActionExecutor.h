@@ -180,7 +180,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
 	FActionResult ExecuteItem(
 		AActor *User,
-		UEvolutionItemData *Item,
+		FCrystalId Id,
 		const TArray<AActor *> &Targets);
 
 	/** Execute defend action */

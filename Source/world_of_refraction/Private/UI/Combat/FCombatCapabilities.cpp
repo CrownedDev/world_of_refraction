@@ -180,9 +180,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
     {
-        if (Slot.CanUse())
+        if (!Slot.IsEmpty())
         {
-            Out.AvailableItems.Add(Slot.Crystal);
+            Out.AvailableItems.Add(Slot.CrystalId);
         }
     }
     Out.bHasItems = Out.AvailableItems.Num() > 0;

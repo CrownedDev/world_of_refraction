@@ -11,11 +11,12 @@
 #include "EInfusionSourceOption.h"
 #include "EChargeInfusionType.h"
 #include "ActionStatModifiers.h"
+#include "FCrystalId.h"
+#include "CrystalIdentity.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
 class UAbilityData;
-class UEvolutionItemData;
 class UWeaponAttackData;
 
 /**
@@ -44,9 +45,11 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	UAbilityData *AbilityData = nullptr;
 
-	/** Item data (if ActionType == Item) */
+	/** Item crystal identity (when ActionType == Item).
+	 *  The slot index in the active loadout is not carried — ActionExecutor
+	 *  finds the matching slot by FCrystalId at execution time. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UEvolutionItemData *ItemData = nullptr;
+	FCrystalId ItemData;
 
 	/** Source of spell (Innate, Ring, Evolution, Item) - determines post-cast logic */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
@@ -87,8 +90,6 @@ struct WORLD_OF_REFRACTION_API FAction
 			return false;
 		if (ActionType == EActionType::Ability && !AbilityData)
 			return false;
-		if (ActionType == EActionType::Item && !ItemData)
-			return false;
 		if (ActionType == EActionType::Attack && !AttackData)
 			return false;
 		return true;
@@ -110,7 +111,7 @@ struct WORLD_OF_REFRACTION_API FAction
 		case EActionType::Ability:
 			return AbilityData ? TEXT("Ability") : TEXT("Unknown Ability");
 		case EActionType::Item:
-			return ItemData ? TEXT("Item") : TEXT("Unknown Item");
+			return CrystalIdentity::GetDisplayName(ItemData);
 		case EActionType::Attack:
 			return AttackData ? TEXT("Attack") : TEXT("Basic Attack");
 		case EActionType::Defend:

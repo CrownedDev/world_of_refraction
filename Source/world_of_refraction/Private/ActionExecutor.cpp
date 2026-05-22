@@ -23,6 +23,7 @@
 #include "WeaponData.h"
 #include "EvolutionItemData.h"
 #include "CrystalType.h"
+#include "CrystalIdentity.h"
 #include "RingManager.h"
 #include "WeaponData.h"
 #include "EvolutionItemData.h"
@@ -1054,15 +1055,15 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 
 void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCharacterData *CharData)
 {
-	if (!Actor || !Action.ItemData)
+	if (!Actor)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ExecuteItemAsync - Invalid actor or item"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ExecuteItemAsync - Invalid actor"));
 		FinalizeAsyncAction();
 		return;
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Executing item async: %s by %s"),
-		   *Action.ItemData->GetFullItemName(), *Actor->GetName());
+		   *CrystalIdentity::GetDisplayName(Action.ItemData), *Actor->GetName());
 
 	// Face target (if not self)
 	AActor *Target = Action.Targets.Num() > 0 ? Action.Targets[0] : Actor;
@@ -1716,17 +1717,17 @@ void UActionExecutor::UnbindDefenseSystemEvents()
 
 FActionResult UActionExecutor::ExecuteItem(
 	AActor *User,
-	UEvolutionItemData *Item,
+	FCrystalId Id,
 	const TArray<AActor *> &Targets)
 {
 	FActionResult Result;
 	Result.Executor = User;
 	Result.ActionType = EActionType::Item;
 
-	if (!User || !Item)
+	if (!User)
 	{
 		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Invalid user or item");
+		Result.ErrorMessage = TEXT("Invalid user");
 		return Result;
 	}
 
@@ -1740,7 +1741,7 @@ FActionResult UActionExecutor::ExecuteItem(
 		TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
 		for (int32 i = 0; i < UsableItems.Num(); ++i)
 		{
-			if (UsableItems[i].Crystal == Item)
+			if (UsableItems[i].CrystalId == Id)
 			{
 				ItemSlotIndex = i;
 				break;
@@ -1773,7 +1774,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	// Execute through ItemExecutor
 	if (Targets.Num() > 1)
 	{
-		FItemUseResult ItemResult = ItemExec->UseItemMultiTarget(User, Item, Targets);
+		FItemUseResult ItemResult = ItemExec->UseItemMultiTarget(User, Id, Targets);
 
 		Result.bSuccess = ItemResult.bSuccess;
 		Result.ErrorMessage = ItemResult.ErrorMessage;
@@ -1788,7 +1789,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	}
 	else
 	{
-		FItemUseResult ItemResult = ItemExec->UseItem(User, Item, Target);
+		FItemUseResult ItemResult = ItemExec->UseItem(User, Id, Target);
 
 		Result.bSuccess = ItemResult.bSuccess;
 		Result.ErrorMessage = ItemResult.ErrorMessage;
@@ -1806,7 +1807,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
-		   *User->GetName(), *Item->GetFullItemName());
+		   *User->GetName(), *CrystalIdentity::GetDisplayName(Id));
 
 	return Result;
 }

@@ -9,6 +9,8 @@
 #include "StatusBuildupManager.h"
 #include "TurnManager.h"
 #include "ActiveSkillEffect.h"
+#include "CrystalIdentity.h"
+#include "CrystalEffectTable.h"
 
 void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -26,14 +28,14 @@ void UItemExecutor::Deinitialize()
 // MAIN EXECUTION
 // ========================================
 
-FItemUseResult UItemExecutor::UseItem(AActor *User, UEvolutionItemData *Item, AActor *Target)
+FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Target)
 {
 	FItemUseResult Result;
 
-	if (!User || !Item)
+	if (!User)
 	{
 		Result.bSuccess = false;
-		Result.ErrorMessage = TEXT("Invalid user or item");
+		Result.ErrorMessage = TEXT("Invalid user");
 		return Result;
 	}
 
@@ -44,51 +46,51 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UEvolutionItemData *Item, AA
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] %s using %s on %s"),
-		   *User->GetName(), *Item->GetFullItemName(), *Target->GetName());
+		   *User->GetName(), *CrystalIdentity::GetDisplayName(Id), *Target->GetName());
 
 	// Execute based on effect type
-	EItemEffectType EffectType = Item->GetPrimaryEffectType();
+	EItemEffectType EffectType = CrystalIdentity::GetPrimaryEffectType(Id);
 
 	switch (EffectType)
 	{
 	case EItemEffectType::Damage:
-		ExecuteDamageEffect(User, Target, Item, Result);
+		ExecuteDamageEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::Healing:
-		ExecuteHealingEffect(User, Target, Item, Result);
+		ExecuteHealingEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::EnergyRestore:
-		ExecuteEnergyRestoreEffect(User, Target, Item, Result);
+		ExecuteEnergyRestoreEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::BuffSpeed:
-		ExecuteSpeedBuffEffect(User, Target, Item, Result);
+		ExecuteSpeedBuffEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::BuffDefense:
-		ExecuteDefenseBuffEffect(User, Target, Item, Result);
+		ExecuteDefenseBuffEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::BuffCrit:
-		ExecuteCritBuffEffect(User, Target, Item, Result);
+		ExecuteCritBuffEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::Silence:
-		ExecuteSilenceEffect(User, Target, Item, Result);
+		ExecuteSilenceEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::Gamble:
-		ExecuteGambleEffect(User, Target, Item, Result);
+		ExecuteGambleEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::Cleanse:
-		ExecuteCleanseEffect(User, Target, Item, Result);
+		ExecuteCleanseEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::StatusClear:
-		ExecuteStatusClearEffect(User, Target, Item, Result);
+		ExecuteStatusClearEffect(User, Target, Id, Result);
 		break;
 
 	default:
@@ -101,18 +103,18 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, UEvolutionItemData *Item, AA
 	// they absorb its elemental energy (EP scaled by the crystal's tier).
 	if (IsBrokenDarknessCharacter(Target))
 	{
-		ApplyBrokenDarknessBonus(Target, Item, Result);
+		ApplyBrokenDarknessBonus(Target, Id, Result);
 	}
 
 	Result.bSuccess = true;
 
 	// Broadcast event
-	OnItemUsed.Broadcast(User, Item, Result);
+	OnItemUsed.Broadcast(User, Id, Result);
 
 	return Result;
 }
 
-FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UEvolutionItemData *Item, const TArray<AActor *> &Targets)
+FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, FCrystalId Id, const TArray<AActor *> &Targets)
 {
 	FItemUseResult CombinedResult;
 	CombinedResult.bSuccess = true;
@@ -122,7 +124,7 @@ FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UEvolutionItemDat
 		if (!Target)
 			continue;
 
-		FItemUseResult SingleResult = UseItem(User, Item, Target);
+		FItemUseResult SingleResult = UseItem(User, Id, Target);
 
 		// Accumulate results
 		CombinedResult.DamageDealt += SingleResult.DamageDealt;
@@ -144,7 +146,7 @@ FItemUseResult UItemExecutor::UseItemMultiTarget(AActor *User, UEvolutionItemDat
 // EFFECT HANDLERS
 // ========================================
 
-void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Garnet - percentage-based fire damage (Phase 2). One immediate Fire hit on
 	// use, then a DOT tail for the configured duration ("throw a grenade" feel).
@@ -156,8 +158,8 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UEvolution
 		return;
 	}
 
-	const float DamagePercent = Item->GetDOTDamagePercent();
-	const int32 Duration = Item->GetDOTDuration();
+	const float DamagePercent = CrystalEffectTable::GetDOTDamagePercent(Id);
+	const int32 Duration = CrystalEffectTable::GetDOTDuration(Id);
 
 	if (DamagePercent <= 0.0f || Duration <= 0)
 	{
@@ -183,7 +185,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UEvolution
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		BuildupPerEvent = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		BuildupPerEvent = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / 100.0f;
 	}
 
 	// Immediate Fire hit on use — equal to one DOT tick.
@@ -219,7 +221,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, UEvolution
 		   *Target->GetName(), DamagePerTurnInt, Duration);
 }
 
-void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Sapphire - percentage-based water healing (Phase 2). S-tier additionally
 	// revives a dead target at 30% MaxHP; lower tiers heal living targets only.
@@ -230,7 +232,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UEvolutio
 		return;
 	}
 
-	const float HealPercent = Item->GetHealPercent();
+	const float HealPercent = CrystalEffectTable::GetHealPercent(Id);
 	if (HealPercent <= 0.0f)
 	{
 		OutResult.ErrorMessage = TEXT("Invalid Sapphire heal value");
@@ -240,7 +242,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UEvolutio
 	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / 100.0f));
 
 	// S-rank: revive a dead target at 30% MaxHP
-	if (!TargetComp->bIsAlive && Item->Tier == EItemTier::S_Tier)
+	if (!TargetComp->bIsAlive && Id.Tier == EItemTier::S_Tier)
 	{
 		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * 0.3f);
 		TargetComp->ServerResurrect(ReviveHP);
@@ -268,7 +270,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, UEvolutio
 		   *Target->GetName(), OutResult.HealingDone, HealPercent);
 }
 
-void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Citrine (Phase 2) - restores a percent of the target's MaxEP and builds
 	// Lightning status on the target (no HP cost anymore).
@@ -279,7 +281,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UEv
 		return;
 	}
 
-	const float EPPercent = Item->GetEPRestorePercent();
+	const float EPPercent = CrystalEffectTable::GetEPRestorePercent(Id);
 	if (EPPercent <= 0.0f)
 	{
 		OutResult.ErrorMessage = TEXT("Invalid Citrine EP value");
@@ -295,7 +297,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UEv
 	UStatusBuildupManager *SBM = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
 	if (SBM)
 	{
-		const float BuildupPercent = Item->GetElementalBuildupPercent();
+		const float BuildupPercent = CrystalEffectTable::GetElementalBuildupPercent(Id);
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
 		const float BuildupAmount = BarMax * BuildupPercent / 100.0f;
 		if (BuildupAmount > 0.0f)
@@ -310,10 +312,10 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, UEv
 		   OutResult.EnergyRestored, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Emerald (Phase 2) - F-A apply a turn-speed buff; S grants an extra turn.
-	if (Item->Tier == EItemTier::S_Tier)
+	if (Id.Tier == EItemTier::S_Tier)
 	{
 		UTurnManager *TurnMgr = nullptr;
 		if (UGameInstance *GI = GetGameInstance())
@@ -338,15 +340,16 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UEvolut
 		return;
 	}
 
-	const float BuffPercent = Item->GetSpeedBuffPercent();
-	const int32 Duration = Item->GetCrystalDuration();
+	const float BuffPercent = CrystalEffectTable::GetSpeedBuffPercent(Id);
+	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
+	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
 	FActiveSkillEffect SpeedBuff = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Speed"), *Item->GetFullItemName()),
-		Item->GetUniqueID(), ESkillEffectType::TurnSpeedBuff, BuffPercent, Duration);
-	SpeedBuff.Element = Item->GetAssociatedElement();
+		FString::Printf(TEXT("%s Speed"), *DisplayName),
+		CrystalIdentity::GetEffectSourceID(Id), ESkillEffectType::TurnSpeedBuff, BuffPercent, Duration);
+	SpeedBuff.Element = CrystalIdentity::GetElement(Id);
 
-	SEM->ApplyEffect(Target, SpeedBuff, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, SpeedBuff, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
@@ -354,7 +357,7 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, UEvolut
 		   BuffPercent, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Amber (Phase 2) - buff an ally's defense, or debuff an enemy's.
 	USkillEffectManager *SEM = GetSkillEffectManager();
@@ -366,15 +369,16 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UEvol
 
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff;
-	const float Magnitude = Item->GetBuffPercentage();
-	const int32 Duration = Item->GetCrystalDuration();
+	const float Magnitude = CrystalEffectTable::GetBuffPercentage(Id);
+	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
+	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Defense"), *Item->GetFullItemName()),
-		Item->GetUniqueID(), EffectType, Magnitude, Duration);
-	Effect.Element = Item->GetAssociatedElement();
+		FString::Printf(TEXT("%s Defense"), *DisplayName),
+		CrystalIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = CrystalIdentity::GetElement(Id);
 
-	SEM->ApplyEffect(Target, Effect, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
@@ -382,7 +386,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, UEvol
 		   bAlly ? TEXT("DefenseBuff") : TEXT("DefenseDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Opal (Phase 2) - buff an ally's crit chance, or debuff an enemy's.
 	USkillEffectManager *SEM = GetSkillEffectManager();
@@ -394,15 +398,16 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UEvoluti
 
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
-	const float Magnitude = Item->GetCritBuffPercent();
-	const int32 Duration = Item->GetCrystalDuration();
+	const float Magnitude = CrystalEffectTable::GetCritBuffPercent(Id);
+	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
+	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Crit"), *Item->GetFullItemName()),
-		Item->GetUniqueID(), EffectType, Magnitude, Duration);
-	Effect.Element = Item->GetAssociatedElement();
+		FString::Printf(TEXT("%s Crit"), *DisplayName),
+		CrystalIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = CrystalIdentity::GetElement(Id);
 
-	SEM->ApplyEffect(Target, Effect, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
@@ -412,13 +417,13 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, UEvoluti
 		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Onyx - F-A is a one-shot energy drain (a percent of the target's MaxEP,
 	// spent immediately on use, no tick); S-rank applies a binary Silenced gate
 	// for 1 turn (blocks spellcasting via USkillEffectManager::IsSilenced).
 	// All tiers additionally build the Darkness status bar on the target.
-	const bool bSRank = (Item->Tier == EItemTier::S_Tier);
+	const bool bSRank = (Id.Tier == EItemTier::S_Tier);
 
 	if (bSRank)
 	{
@@ -430,11 +435,12 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutio
 		}
 
 		// S-rank: binary silence gate for 1 turn.
+		const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
 		FActiveSkillEffect Silence = FActiveSkillEffect::CreateBuff(
-			FString::Printf(TEXT("%s Silence"), *Item->GetFullItemName()),
-			Item->GetUniqueID(), ESkillEffectType::Silenced, 1.0f, 1);
-		Silence.Element = Item->GetAssociatedElement();
-		SEM->ApplyEffect(Target, Silence, User, Item->GetFullItemName(), -1);
+			FString::Printf(TEXT("%s Silence"), *DisplayName),
+			CrystalIdentity::GetEffectSourceID(Id), ESkillEffectType::Silenced, 1.0f, 1);
+		Silence.Element = CrystalIdentity::GetElement(Id);
+		SEM->ApplyEffect(Target, Silence, User, DisplayName, -1);
 		OutResult.BuffsApplied++;
 
 		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx S: Silenced %s (binary gate, 1 turn)"),
@@ -452,7 +458,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutio
 			return;
 		}
 
-		const float SilencePercent = Item->GetSilencePercentage();
+		const float SilencePercent = CrystalEffectTable::GetSilencePercentage(Id);
 		const int32 DrainAmount = FMath::RoundToInt(TargetComp->MaxEP * SilencePercent / 100.0f);
 		const int32 EPBefore = TargetComp->CurrentEP;
 		TargetComp->ServerSpendEnergy(DrainAmount);
@@ -468,7 +474,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutio
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		const float BuildupAmount = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		const float BuildupAmount = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / 100.0f;
 		if (BuildupAmount > 0.0f)
 		{
 			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
@@ -477,7 +483,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, UEvolutio
 	}
 }
 
-void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Amethyst (Phase 2) - roll buff vs debuff against the tier's buff chance,
 	// then apply a random effect from the matching pool to the target.
@@ -507,20 +513,20 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UEvolution
 		ESkillEffectType::ResistanceDebuff,
 		ESkillEffectType::LuckDebuff};
 
-	const bool bIsBuff = FMath::FRand() < (Item->GetBuffChancePercent() / 100.0f);
+	const bool bIsBuff = FMath::FRand() < (CrystalEffectTable::GetBuffChancePercent(Id) / 100.0f);
 	OutResult.bGambleWon = bIsBuff;
 
 	const TArray<ESkillEffectType> &Pool = bIsBuff ? BuffPool : DebuffPool;
 	const ESkillEffectType ChosenType = Pool[FMath::RandRange(0, Pool.Num() - 1)];
 
-	const float Magnitude = Item->GetGambleMagnitudePercent();
-	const int32 Duration = Item->GetGambleDuration();
+	const float Magnitude = CrystalEffectTable::GetGambleMagnitudePercent(Id);
+	const int32 Duration = CrystalEffectTable::GetGambleDuration(Id);
 
 	FActiveSkillEffect GambleEffect = FActiveSkillEffect::CreateBuff(
-		TEXT("Gamble Result"), Item->GetUniqueID(), ChosenType, Magnitude, Duration);
+		TEXT("Gamble Result"), CrystalIdentity::GetEffectSourceID(Id), ChosenType, Magnitude, Duration);
 	GambleEffect.Element = ESpellElement::Void;
 
-	SEM->ApplyEffect(Target, GambleEffect, User, Item->GetFullItemName(), -1);
+	SEM->ApplyEffect(Target, GambleEffect, User, CrystalIdentity::GetDisplayName(Id), -1);
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
@@ -529,7 +535,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UEvolution
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		const float BuildupAmount = BarMax * Item->GetElementalBuildupPercent() / 100.0f;
+		const float BuildupAmount = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / 100.0f;
 		if (BuildupAmount > 0.0f)
 		{
 			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
@@ -545,7 +551,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, UEvolution
 		   *Target->GetName(), *OutResult.GambleOutcome);
 }
 
-void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Iolite (Phase 2) - cleanse debuffs from an ally, or strip buffs from an enemy.
 	// GetEffectsToRemoveCount() == 99 means "remove all" (fixes the old S-rank bug).
@@ -557,7 +563,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UEvolutio
 	}
 
 	const bool bRemoveDebuffs = IsAlly(User, Target);
-	const int32 Count = Item->GetEffectsToRemoveCount();
+	const int32 Count = CrystalEffectTable::GetEffectsToRemoveCount(Id);
 
 	// GetActiveEffects returns a copy — safe to iterate while removing by ID.
 	const TArray<FActiveSkillEffect> Effects = SEM->GetActiveEffects(Target);
@@ -583,7 +589,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, UEvolutio
 		   Removed, bRemoveDebuffs ? TEXT("debuff(s)") : TEXT("buff(s)"), *Target->GetName());
 }
 
-void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Quartz (Phase 2) - clears a percent of the target's status bar, then grants
 	// element-specific protection for the bar's pending (last-hit) element:
@@ -597,7 +603,9 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvol
 		return;
 	}
 
-	const float ClearFraction = Item->GetStatusClearPercent() / 100.0f;
+	const float StatusClearPercent = CrystalEffectTable::GetStatusClearPercent(Id);
+	const int32 ResistanceDurationTurns = CrystalEffectTable::GetResistanceDuration(Id);
+	const float ClearFraction = StatusClearPercent / 100.0f;
 	const ESpellElement ResistElement = SBM->GetPendingElement(Target);
 	SBM->ReduceStatusBuildup(Target, ClearFraction);
 
@@ -607,9 +615,8 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvol
 	{
 		if (USkillEffectManager *SEM = GetSkillEffectManager())
 		{
-			const int32 Duration = Item->GetResistanceDuration();
 			const ESkillEffectType ImmunityType = GetElementImmunityType(ResistElement);
-			const bool bUseImmunity = (Item->Tier == EItemTier::S_Tier) && (ImmunityType != ESkillEffectType::None);
+			const bool bUseImmunity = (Id.Tier == EItemTier::S_Tier) && (ImmunityType != ESkillEffectType::None);
 
 			const ESkillEffectType EffectType = bUseImmunity ? ImmunityType : ESkillEffectType::ResistanceBuff;
 			const float Magnitude = bUseImmunity ? 1.0f : 30.0f;
@@ -617,7 +624,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvol
 
 			FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 				bUseImmunity ? TEXT("Elemental Immunity") : TEXT("Elemental Resistance"),
-				EffectID, EffectType, Magnitude, Duration);
+				EffectID, EffectType, Magnitude, ResistanceDurationTurns);
 			Effect.Element = ResistElement;
 			SEM->ApplyEffect(Target, Effect, User, TEXT("Quartz"), -1);
 			OutResult.BuffsApplied++;
@@ -628,17 +635,17 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, UEvol
 	OutResult.bSuccess = true;
 	UE_LOG(LogTemp, Log,
 		   TEXT("[ItemExecutor] Quartz: Cleared %.0f%% status bar on %s, applied %s %s for %d turns"),
-		   Item->GetStatusClearPercent(), *Target->GetName(),
+		   StatusClearPercent, *Target->GetName(),
 		   *UEnum::GetValueAsString(ResistElement),
 		   bAppliedImmunity ? TEXT("immunity") : TEXT("resistance"),
-		   Item->GetResistanceDuration());
+		   ResistanceDurationTurns);
 }
 
 // ========================================
 // BONUS HANDLERS
 // ========================================
 
-void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UEvolutionItemData *Item, FItemUseResult &OutResult)
+void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Broken Darkness character absorbs the crystal's elemental energy when one
 	// is used on them — gains EP scaled by the crystal's tier. The caller has
@@ -647,7 +654,7 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, UEvolutionItemData 
 	if (!TargetComp)
 		return;
 
-	int32 BonusEnergy = Item->GetBrokenDarknessEnergyBonus();
+	int32 BonusEnergy = CrystalEffectTable::GetBrokenDarknessEnergyBonus(Id);
 	if (BonusEnergy <= 0)
 		return;
 

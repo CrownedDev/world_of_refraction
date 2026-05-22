@@ -42,5 +42,5 @@ struct WORLD_OF_REFRACTION_API FEquippedItemSlot
     FEquippedItemSlot(const FCrystalId &InId, int32 InQuantity)
         : CrystalId(InId), Quantity(InQuantity) {}
 
-    bool IsEmpty() const { return Quantity <= 0; }
+    bool IsEmpty() const { return CrystalId.Type == ECrystalType::None || Quantity <= 0; }
 };

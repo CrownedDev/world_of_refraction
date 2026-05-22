@@ -15,6 +15,7 @@
 UENUM(BlueprintType)
 enum class ECrystalType : uint8
 {
+    None = 0 UMETA(Hidden),
     Garnet UMETA(DisplayName = "Garnet (Fire - Damage)"),
     Sapphire UMETA(DisplayName = "Sapphire (Water - Healing)"),
     Citrine UMETA(DisplayName = "Citrine (Lightning - Energy)"),

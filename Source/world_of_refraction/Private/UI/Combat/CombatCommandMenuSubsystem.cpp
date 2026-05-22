@@ -17,6 +17,7 @@
 #include "FItemLoadoutSlot.h"
 #include "FCombatLoadout.h"
 #include "CrystalType.h"
+#include "CrystalIdentity.h"
 #include "CombatOrchestrator.h"
 #include "ActionStructs.h"
 #include "InfusionVFXComponent.h"
@@ -707,27 +708,29 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
     if (LC)
     {
         const FCombatLoadout &Loadout = LC->GetActiveLoadout();
-        int32 ButtonIndex = 0;
 
-        for (const FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+        for (int32 SlotIndex = 0; SlotIndex < Loadout.ItemSlots.Num(); ++SlotIndex)
         {
-            if (!Slot.CanUse() || !Slot.Crystal)
+            const FItemLoadoutSlot &Slot = Loadout.ItemSlots[SlotIndex];
+            if (Slot.IsEmpty())
                 continue;
 
             const FString DisplayName = FString::Printf(TEXT("%dx %s"),
-                                                        Slot.RemainingUses,
-                                                        *Slot.Crystal->ItemName);
+                                                        Slot.Quantity,
+                                                        *CrystalIdentity::GetDisplayName(Slot.CrystalId));
 
+            // Carry the slot index (DataIndex), not a UObject* — consumables have
+            // no asset identity now; the click handler reads the live CrystalId
+            // from Loadout.ItemSlots[DataIndex].
             FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
-                FString::Printf(TEXT("Item_%d"), ButtonIndex),
+                FString::Printf(TEXT("Item_%d"), SlotIndex),
                 FText::FromString(DisplayName),
                 EPieMenuCategory::Item,
-                Slot.Crystal,
-                ButtonIndex);
+                nullptr,
+                SlotIndex);
 
             Button.bEnabled = true;
             Buttons.Add(Button);
-            ButtonIndex++;
         }
     }
 
@@ -863,6 +866,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     PendingActionCategory = ActionCategory;
     PendingActionID = ActionButton.ButtonID;
     PendingActionData = ActionButton.DataReference;
+    PendingActionDataIndex = ActionButton.DataIndex; // carry slot index (consumables)
     PendingTargetType = TargetType;
     // Synced on entry — diverges only once a side is picked in the category step.
     ResolvedTargetType = TargetType;
@@ -964,6 +968,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         PendingActionCategory = EPieMenuCategory::None;
         PendingActionID.Empty();
         PendingActionData.Reset();
+        PendingActionDataIndex = -1;
         return;
     }
 
@@ -1047,6 +1052,7 @@ void UCombatCommandMenuSubsystem::ExitTargetSelectionToActionMenu()
     PendingActionCategory = EPieMenuCategory::None;
     PendingActionID.Empty();
     PendingActionData.Reset();
+    PendingActionDataIndex = -1;
     ResolvedTargetType = PendingTargetType;
 
     if (DepthBeforeTargetSelection == ECombatMenuDepth::Submenu)
@@ -1470,6 +1476,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     ActionButton.ButtonID = PendingActionID;
     ActionButton.Category = PendingActionCategory;
     ActionButton.DataReference = PendingActionData.Get();
+    ActionButton.DataIndex = PendingActionDataIndex; // restore slot index (consumables)
     ActionButton.TargetActor = SelectedTarget;
 
     FString TargetName = TEXT("(no target)");
@@ -1500,6 +1507,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     PendingActionCategory = EPieMenuCategory::None;
     PendingActionID.Empty();
     PendingActionData.Reset();
+    PendingActionDataIndex = -1;
     ResolvedTargetType = PendingTargetType;
 
     SubmitConfirmedAction(ActionButton);
@@ -1512,6 +1520,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     ActionButton.ButtonID = PendingActionID;
     ActionButton.Category = PendingActionCategory;
     ActionButton.DataReference = PendingActionData.Get();
+    ActionButton.DataIndex = PendingActionDataIndex; // restore slot index (consumables)
     ActionButton.Targets = SelectedTargets;
 
     UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
@@ -1521,6 +1530,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
     PendingActionCategory = EPieMenuCategory::None;
     PendingActionID.Empty();
     PendingActionData.Reset();
+    PendingActionDataIndex = -1;
     ResolvedTargetType = PendingTargetType;
 
     SubmitConfirmedAction(ActionButton);
@@ -1588,9 +1598,27 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
         Action.SpellSource = MapCategoryToSpellSource(ActiveSubmenuSource);
         break;
     case EPieMenuCategory::Item:
+    {
         Action.ActionType = EActionType::Item;
-        Action.ItemData = Cast<UEvolutionItemData>(DataRef);
+        // Consumable identity comes from the live loadout slot the button points
+        // at (DataIndex), not a UObject* payload.
+        if (ULoadoutComponent *LC = GetLoadoutComponent())
+        {
+            const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+            if (Loadout.ItemSlots.IsValidIndex(ButtonData.DataIndex))
+            {
+                Action.ItemData = Loadout.ItemSlots[ButtonData.DataIndex].CrystalId;
+            }
+            else
+            {
+                // Surface a dropped slot index instead of a silent empty action.
+                UE_LOG(LogTemp, Warning,
+                       TEXT("[CombatCommandMenu] Item action has invalid slot DataIndex=%d (ItemSlots.Num=%d) — ItemData left empty"),
+                       ButtonData.DataIndex, Loadout.ItemSlots.Num());
+            }
+        }
         break;
+    }
     default:
         UE_LOG(LogTemp, Warning, TEXT("[CombatCommandMenu] BuildActionFromButton: unhandled category %d"),
                static_cast<int32>(ResolvedCategory));

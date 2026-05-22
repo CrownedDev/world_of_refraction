@@ -28,5 +28,5 @@ struct WORLD_OF_REFRACTION_API FItemLoadoutSlot
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item Slot")
     int32 Quantity = 0;
 
-    bool IsEmpty() const { return Quantity <= 0; }
+    bool IsEmpty() const { return CrystalId.Type == ECrystalType::None || Quantity <= 0; }
 };

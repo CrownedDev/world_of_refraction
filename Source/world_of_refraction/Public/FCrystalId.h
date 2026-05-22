@@ -17,7 +17,7 @@ struct WORLD_OF_REFRACTION_API FCrystalId
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
-    ECrystalType Type = ECrystalType::Garnet;
+    ECrystalType Type = ECrystalType::None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal")
     EItemTier Tier = EItemTier::F_Tier;

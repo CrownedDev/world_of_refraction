@@ -25,6 +25,10 @@ namespace CrystalIdentity
      *  elements) has a single migration point. */
     inline ESpellElement GetElement(const FCrystalId &Id)
     {
+        if (Id.Type == ECrystalType::None)
+        {
+            return ESpellElement::Generic;
+        }
         return CrystalTypeHelpers::GetElement(Id.Type);
     }
 
@@ -34,6 +38,10 @@ namespace CrystalIdentity
      *  Id.Tier is ignored. */
     inline EItemEffectType GetPrimaryEffectType(const FCrystalId &Id)
     {
+        if (Id.Type == ECrystalType::None)
+        {
+            return EItemEffectType::Damage;
+        }
         switch (Id.Type)
         {
         case ECrystalType::Garnet:
@@ -65,6 +73,10 @@ namespace CrystalIdentity
      *  DurabilityConstants). Tier-only — does not vary by Type. */
     inline int32 GetMaxDurability(const FCrystalId &Id)
     {
+        if (Id.Type == ECrystalType::None)
+        {
+            return 0;
+        }
         return DurabilityConstants::GetMaxDurabilityForTier(Id.Tier);
     }
 
@@ -112,8 +124,29 @@ namespace CrystalIdentity
      *  "Sapphire (S)". Built from GetTypeName + GetTierLetter. */
     inline FString GetDisplayName(const FCrystalId &Id)
     {
+        if (Id.Type == ECrystalType::None)
+        {
+            return TEXT("(empty)");
+        }
         return FString::Printf(TEXT("%s (%s)"),
                                *GetTypeName(Id.Type),
                                *GetTierLetter(Id.Tier));
+    }
+
+    /** Returns a stable int32 source identifier for use with
+     *  SkillEffectManager / FActiveSkillEffect dedup keys. Replaces
+     *  `Item->GetUniqueID()` calls in UItemExecutor with a FCrystalId-keyed
+     *  equivalent. Two slots holding the same (Type, Tier) intentionally
+     *  share the same SourceID — preserves the singleton-DA dedup outcome
+     *  (UPrimaryDataAsset is loaded once per path per session, so
+     *  Item->GetUniqueID() returned the same value for every use of e.g.
+     *  Sapphire (F) within a session). */
+    inline int32 GetEffectSourceID(const FCrystalId &Id)
+    {
+        if (Id.Type == ECrystalType::None)
+        {
+            return 0;
+        }
+        return static_cast<int32>(GetTypeHash(Id));
     }
 }

@@ -1682,39 +1682,34 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 	}
 
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	UEvolutionItemData *DamageItem = nullptr;
+	FCrystalId DamageId;
+	bool bFoundDamage = false;
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (Slot.Crystal && Slot.Crystal->GetPrimaryEffectType() == EItemEffectType::Damage)
+		if (!Slot.IsEmpty() && CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Damage)
 		{
-			DamageItem = Slot.Crystal;
+			DamageId = Slot.CrystalId;
+			bFoundDamage = true;
 			break;
 		}
 	}
 
-	// Fallback: load Garnet directly for testing
-	if (!DamageItem)
+	// Fallback: a literal Garnet F when the loadout has no damage item.
+	if (!bFoundDamage)
 	{
-		DamageItem = LoadObject<UEvolutionItemData>(nullptr,
-										   TEXT("/Game/Data/Items/Garnet/DA_Items_Garnet_F.DA_Items_Garnet_F"));
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No damage item in loadout, using fallback Garnet"));
-	}
-
-	if (!DamageItem)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[DebugTestItemOnEnemy] No damage item available"));
-		return;
+		DamageId = FCrystalId{ECrystalType::Garnet, EItemTier::F_Tier};
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnEnemy] No damage item in loadout, using fallback Garnet F"));
 	}
 
 	// Build item action
 	FAction ItemAction;
 	ItemAction.ActionType = EActionType::Item;
-	ItemAction.ItemData = DamageItem;
+	ItemAction.ItemData = DamageId;
 	ItemAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnEnemy] %s using %s on enemy %s"),
-		   *Actor->GetName(), *DamageItem->GetFullItemName(), *Target->GetName());
+		   *Actor->GetName(), *CrystalIdentity::GetDisplayName(DamageId), *Target->GetName());
 
 	// Execute
 	if (ActionExecutorRef)
@@ -1743,39 +1738,34 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 	}
 
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	UEvolutionItemData *HealItem = nullptr;
+	FCrystalId HealId;
+	bool bFoundHeal = false;
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (Slot.Crystal && Slot.Crystal->GetPrimaryEffectType() == EItemEffectType::Healing)
+		if (!Slot.IsEmpty() && CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
 		{
-			HealItem = Slot.Crystal;
+			HealId = Slot.CrystalId;
+			bFoundHeal = true;
 			break;
 		}
 	}
 
-	// Fallback: load Sapphire directly for testing
-	if (!HealItem)
+	// Fallback: a literal Sapphire F when the loadout has no healing item.
+	if (!bFoundHeal)
 	{
-		HealItem = LoadObject<UEvolutionItemData>(nullptr,
-										 TEXT("/Game/Data/Items/Sapphire/DA_Items_Sapphire_F.DA_Items_Sapphire_F"));
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Sapphire"));
-	}
-
-	if (!HealItem)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[DebugTestItemOnSelf] No healing item available"));
-		return;
+		HealId = FCrystalId{ECrystalType::Sapphire, EItemTier::F_Tier};
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Sapphire F"));
 	}
 
 	// Build item action - target is self
 	FAction ItemAction;
 	ItemAction.ActionType = EActionType::Item;
-	ItemAction.ItemData = HealItem;
+	ItemAction.ItemData = HealId;
 	ItemAction.Targets.Add(Actor); // Self-target
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnSelf] %s using %s on SELF"),
-		   *Actor->GetName(), *HealItem->GetFullItemName());
+		   *Actor->GetName(), *CrystalIdentity::GetDisplayName(HealId));
 
 	// Execute
 	if (ActionExecutorRef)
@@ -1824,39 +1814,34 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 	}
 
 	TArray<FItemLoadoutSlot> UsableItems = Loadout->GetUsableItems();
-	UEvolutionItemData *HealItem = nullptr;
+	FCrystalId HealId;
+	bool bFoundHeal = false;
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (Slot.Crystal && Slot.Crystal->GetPrimaryEffectType() == EItemEffectType::Healing)
+		if (!Slot.IsEmpty() && CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
 		{
-			HealItem = Slot.Crystal;
+			HealId = Slot.CrystalId;
+			bFoundHeal = true;
 			break;
 		}
 	}
 
-	// Fallback: load Sapphire directly for testing
-	if (!HealItem)
+	// Fallback: a literal Sapphire F when the loadout has no healing item.
+	if (!bFoundHeal)
 	{
-		HealItem = LoadObject<UEvolutionItemData>(nullptr,
-										 TEXT("/Game/Data/Items/Sapphire/DA_Items_Sapphire_F.DA_Items_Sapphire_F"));
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Sapphire"));
-	}
-
-	if (!HealItem)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[DebugTestItemOnAlly] No healing item available"));
-		return;
+		HealId = FCrystalId{ECrystalType::Sapphire, EItemTier::F_Tier};
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Sapphire F"));
 	}
 
 	// Build item action - target is ally
 	FAction ItemAction;
 	ItemAction.ActionType = EActionType::Item;
-	ItemAction.ItemData = HealItem;
+	ItemAction.ItemData = HealId;
 	ItemAction.Targets.Add(Ally);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnAlly] %s using %s on ally %s"),
-		   *Actor->GetName(), *HealItem->GetFullItemName(), *Ally->GetName());
+		   *Actor->GetName(), *CrystalIdentity::GetDisplayName(HealId), *Ally->GetName());
 
 	// Execute
 	if (ActionExecutorRef)
@@ -2263,14 +2248,15 @@ void ACombatOrchestrator::ConsumeAllUsedItems()
 		if (!Actor)
 			return;
 
-		UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
 		ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
 
-		if (Loadout && Inventory)
+		if (Loadout)
 		{
-			Loadout->ConsumeUsedItems(Inventory);
+			// Transfer model: no end-of-combat consume step — the crystal
+			// inventory was debited at equip time and item-slot Quantity is the
+			// persistent source of truth. Only reset the battle-ready flag.
 			Loadout->ResetBattleState();
-			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Consumed items and reset loadout for %s"), *Actor->GetName());
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Reset loadout battle state for %s"), *Actor->GetName());
 		}
 	};
 
