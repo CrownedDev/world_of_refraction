@@ -564,7 +564,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
 
     // ---------- Items (Crystals + consumables) ----------
     // Two paths. Prefer the new fields (ItemCrystals / RefinedCrystals /
-    // EvolutionItems) when ANY of them is populated — they write straight to
+    // EvolutionEquipment) when ANY of them is populated — they write straight to
     // the new components, no UEvolutionItemData* indirection. Fall back to
     // the legacy fields (Crystals[], Items[]) when all three new fields are
     // empty, preserving commit 8 parallel-write behavior for un-migrated
@@ -572,7 +572,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     const bool bUseNewFields =
         InventoryAsset->ItemCrystals.Num() > 0 ||
         InventoryAsset->RefinedCrystals.Num() > 0 ||
-        InventoryAsset->EvolutionItems.Num() > 0;
+        InventoryAsset->EvolutionEquipment.Num() > 0;
 
     UE_LOG(LogTemp, Display,
            TEXT("[InventoryComponent] Init path for '%s' on '%s': %s"),
@@ -617,10 +617,10 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
                    *CharacterData->Name);
         }
 
-        // EvolutionItems → EvolutionInv->AddInstance per entry.
+        // EvolutionEquipment → EvolutionInv->AddInstance per entry.
         if (EvolutionInv)
         {
-            for (UEvolutionItemData *Item : InventoryAsset->EvolutionItems)
+            for (UEvolutionItemData *Item : InventoryAsset->EvolutionEquipment)
             {
                 if (Item && !EvolutionInv->AddInstance(Item))
                 {
@@ -630,10 +630,10 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
                 }
             }
         }
-        else if (InventoryAsset->EvolutionItems.Num() > 0)
+        else if (InventoryAsset->EvolutionEquipment.Num() > 0)
         {
             UE_LOG(LogTemp, Warning,
-                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): EvolutionItems authored but UEvolutionInventoryComponent missing — data dropped"),
+                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): EvolutionEquipment authored but UEvolutionInventoryComponent missing — data dropped"),
                    *CharacterData->Name);
         }
 

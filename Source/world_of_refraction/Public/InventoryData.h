@@ -59,7 +59,7 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Inventory|Equipment")
     TArray<URingData *> Rings;
 
-    /** Legacy field — populate RefinedCrystals and/or EvolutionItems below
+    /** Legacy field — populate RefinedCrystals and/or EvolutionEquipment below
      *  instead. Removal deferred to commit 15.
      *  Raw / refined crystals the character owns (evolution crystals plus
      *  unfused inventory). Every loadout's PrimaryEvolution must come from
@@ -71,7 +71,7 @@ public:
     // Replaces the legacy Crystals[] and Items[] arrays. Init prefers these
     // when any of the three is populated; falls back to legacy fields when
     // all three are empty. Per-tier cap CRYSTAL_PER_TIER_CAP enforced via
-    // IsDataValid; EvolutionItems hard cap MAX_EVOLUTION_ITEMS.
+    // IsDataValid; EvolutionEquipment hard cap MAX_EVOLUTION_ITEMS.
 
     /** Count-based item-crystal storage (unrefined consumables). Each
      *  (Type, Tier) entry maps to a count. Per-tier cap of 20
@@ -90,8 +90,8 @@ public:
      *  runtime FEvolutionInventoryEntry with its own FGuid in
      *  UEvolutionInventoryComponent. Hard cap MAX_EVOLUTION_ITEMS (5). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
-              meta = (DisplayName = "Evolution Items"))
-    TArray<UEvolutionItemData *> EvolutionItems;
+              meta = (DisplayName = "Evolution Equipment"))
+    TArray<UEvolutionItemData *> EvolutionEquipment;
 
     // ==================== OWNED SPELLS / ABILITIES ====================
 

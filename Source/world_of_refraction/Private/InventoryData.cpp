@@ -62,11 +62,11 @@ TArray<FString> UInventoryData::GetValidationErrors() const
     ValidateTierSums(ItemCrystals, TEXT("ItemCrystals"));
     ValidateTierSums(RefinedCrystals, TEXT("RefinedCrystals"));
 
-    if (EvolutionItems.Num() > InventoryConstants::MAX_EVOLUTION_ITEMS)
+    if (EvolutionEquipment.Num() > InventoryConstants::MAX_EVOLUTION_ITEMS)
     {
         Errors.Add(FString::Printf(
-            TEXT("EvolutionItems has %d entries, exceeds MAX_EVOLUTION_ITEMS (%d)"),
-            EvolutionItems.Num(), InventoryConstants::MAX_EVOLUTION_ITEMS));
+            TEXT("EvolutionEquipment has %d entries, exceeds MAX_EVOLUTION_ITEMS (%d)"),
+            EvolutionEquipment.Num(), InventoryConstants::MAX_EVOLUTION_ITEMS));
     }
 
     for (int32 LoadoutIdx = 0; LoadoutIdx < SavedLoadouts.Num(); ++LoadoutIdx)
