@@ -74,8 +74,8 @@ public:
     static void LogCrystalState(const UEvolutionItemData *Item);
     /**
      * Logs a crystal asset's design-time durability properties (MaxDurability,
-     * refined, immune). Per-instance runtime state lives on
-     * FCrystalInventoryEntry — query the actor's LoadoutComponent for that.
+     * refined, immune). Per-instance runtime state lives on the runtime
+     * attachment (FRuntimeAttachedItem) — query the actor's LoadoutComponent.
      * @param Item The crystal asset to inspect
      */
     UFUNCTION(BlueprintCallable, Category = "Item Debug", meta = (DevelopmentOnly))
@@ -84,8 +84,8 @@ public:
     /**
      * Returns a single-line formatted design-time durability string for asset
      * inspection. Format: "[Refined Crystal Name] Max 40 [Immune]" or
-     * "[Unrefined - no durability]". For live per-instance state use
-     * FCrystalInventoryEntry via LoadoutComponent.
+     * "[Unrefined - no durability]". For live per-instance state use the
+     * runtime attachment (FRuntimeAttachedItem) via LoadoutComponent.
      */
     UFUNCTION(BlueprintPure, Category = "Item Debug")
     static FString GetDurabilityString(const UEvolutionItemData *Item);

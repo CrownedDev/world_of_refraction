@@ -31,8 +31,7 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     int32 CurrentDurability = 0;
 
     /** True iff the item exists, is not immune to breaking, and current
-     *  durability has reached zero. Mirrors FCrystalInventoryEntry::IsBroken
-     *  semantics for evolution items. */
+     *  durability has reached zero. */
     bool IsBroken() const;
 
     /** Apply wear. Returns true iff this wear broke the item (durability

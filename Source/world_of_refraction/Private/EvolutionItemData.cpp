@@ -437,8 +437,8 @@ void UEvolutionItemData::PostInitProperties()
     }
 
     // Evolution crystals are immune to breaking by design. Per-instance
-    // durability lives on FCrystalInventoryEntry; this asset only carries
-    // the design-time MaxDurability seed.
+    // durability lives on the runtime attachment (FRuntimeAttachedItem);
+    // this asset only carries the design-time MaxDurability seed.
     if (bIsEvolutionCrystal)
     {
         bImmuneToBreaking = true;

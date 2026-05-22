@@ -640,8 +640,8 @@ void UItemDataDebug::LogCrystalDurability(const UEvolutionItemData *Item)
     }
 
     // Design-time inspection only: this asset has no runtime durability state.
-    // Live per-instance state lives on FCrystalInventoryEntry — query the
-    // actor's LoadoutComponent for that.
+    // Live per-instance state lives on the runtime attachment
+    // (FRuntimeAttachedItem) — query the actor's LoadoutComponent for that.
     UE_LOG(LogTemp, Display, TEXT("Max Durability: %d"), Item->MaxDurability);
     UE_LOG(LogTemp, Display, TEXT("Immune to breaking: %s"),
            Item->bImmuneToBreaking ? TEXT("YES") : TEXT("NO"));
@@ -662,7 +662,7 @@ FString UItemDataDebug::GetDurabilityString(const UEvolutionItemData *Item)
     }
 
     // Design-time inspection only: this asset has no runtime durability state.
-    // Live per-instance state lives on FCrystalInventoryEntry.
+    // Live per-instance state lives on the runtime attachment (FRuntimeAttachedItem).
     FString State = FString::Printf(TEXT("[%s] Max %d"),
                                     *Item->GetFullItemName(),
                                     Item->MaxDurability);

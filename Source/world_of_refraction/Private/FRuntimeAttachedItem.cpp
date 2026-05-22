@@ -120,8 +120,8 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
     case EAttachedItemKind::None:
         return true;
     case EAttachedItemKind::Refined:
-        // Durability is per-instance state, not identity — match
-        // FCrystalInventoryEntry::operator== semantics (asset-only).
+        // Durability is per-instance state, not identity — compare by Id
+        // only (identity match, not instance state).
         return Refined.Id == Other.Refined.Id;
     case EAttachedItemKind::Evolution:
         return Evolution.Item == Other.Evolution.Item;
@@ -148,10 +148,9 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAsset(UEvolutionItemData *Crystal
     {
         Result.Kind = EAttachedItemKind::Refined;
         Result.Refined.Id = FCrystalId(Crystal->CrystalType, Crystal->Tier);
-        // Seed from asset's MaxDurability for byte-for-byte parity with
-        // FCrystalInventoryEntry::CreateFromCrystal. CrystalIdentity's
-        // tier-only lookup would also work; the asset value is the
-        // existing source of truth pre-7b.
+        // Seed from the asset's MaxDurability (its design-time durability
+        // seed). CrystalIdentity's tier-only lookup would also work; the
+        // asset value is the existing source of truth pre-7b.
         Result.Refined.CurrentDurability = Crystal->MaxDurability;
     }
 

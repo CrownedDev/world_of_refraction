@@ -1,7 +1,7 @@
 // FRuntimeAttachedItem.h
 // Runtime attachment slot for FWeaponInventoryEntry / FRingInventoryEntry.
-// Replaces AttachedCrystal (FCrystalInventoryEntry) after the storage-split
-// commits land.
+// Holds per-instance crystal state (identity + durability) for an equipped
+// weapon or ring.
 //
 // Discriminated by Kind: when Refined, the Refined branch holds the live
 // state (FCrystalId + CurrentDurability); when Evolution, the Evolution
@@ -94,14 +94,14 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     // ==================== FACTORY ====================
 
     /** Transitional factory — given a UEvolutionItemData* (the asset-side
-     *  crystal handle still used by FCrystalInventoryEntry-era code),
+     *  crystal handle still passed by the runtime AttachCrystal paths),
      *  produce a discriminated runtime attachment. Branches on
      *  Crystal->bIsEvolutionCrystal. Returns a default (Empty) attachment
      *  when Crystal is null.
      *
      *  Refined branch: builds FCrystalId from Crystal->CrystalType +
      *  Crystal->Tier, seeds CurrentDurability from Crystal->MaxDurability
-     *  for byte-for-byte parity with FCrystalInventoryEntry::CreateFromCrystal.
+     *  (the asset's design-time durability seed).
      *
      *  Evolution branch: stores Item, seeds CurrentDurability from
      *  Crystal->MaxDurability. */
