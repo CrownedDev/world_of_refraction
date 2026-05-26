@@ -116,8 +116,21 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - Session end → verify docs reflect current state
 
 ### Existing documents:
+- `docs/Architecture/AISystem.md`
+- `docs/Architecture/BrokenDarkness.md`
+- `docs/Architecture/CharacterDataSystem.md`
+- `docs/Architecture/CombatOrchestrator.md`
+- `docs/Architecture/DamageCalculator.md`
 - `docs/Architecture/ItemSystem.md`
-- Add more as systems are documented
+- `docs/Architecture/LoadoutSystem.md`
+- `docs/Architecture/SkillEffectSystem.md`
+- `docs/Architecture/StatusBuildupSystem.md`
+- `docs/Architecture/TurnManager.md`
+- `docs/Architecture/UISystem.md`
+- `docs/Architecture/WeaponSystem.md`
+- `docs/Architecture/WeatherSystem.md`
+
+Add more as systems are documented.
 
 Create or update these documents as part of completing tasks, not as a separate afterthought.
 

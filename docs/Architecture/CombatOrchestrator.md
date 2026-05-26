@@ -142,9 +142,11 @@ aborted combats do not count as completed battles.
 ### Crystal durability at combat end
 
 - `ApplyBetweenCombatCrystalDestruction()` (Phase B) — iterates each combatant's
-  equipped crystal slots; for any broken crystal (`FCrystalInventoryEntry::IsBroken()`)
-  it clears `SlottedCrystal` on the holding `UWeaponData` / `URingData`. Silent (no
-  UI delegate). Runs BEFORE repair so destroyed crystals are not repair candidates.
+  equipped crystal slots; for any broken crystal (`FRuntimeAttachedItem::IsBroken()`,
+  queried via `LoadoutComp->GetCrystalEntryByHolder(Slot.Holder)`) it calls
+  `LoadoutComp->ResetCrystalEntryByHolder(Slot.Holder)` to clear the runtime entry.
+  The asset is never mutated at runtime. Silent (no UI delegate). Runs BEFORE repair
+  so destroyed crystals are not repair candidates.
 - `ApplyBetweenCombatRepair()` — adds `DurabilityConstants::REPAIR_PER_BATTLE` to
   every refined, non-immune, non-broken equipped crystal.
 

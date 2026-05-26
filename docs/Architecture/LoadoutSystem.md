@@ -45,10 +45,12 @@ Key fields:
 A lightweight pairing of a crystal and its holder, returned by
 `GetEquippedCrystals()`:
 
-- `Crystal` — `UItemData*`, the slotted crystal.
+- `Kind` — `EAttachedItemKind`, the discriminator (`None` / `Refined` / `Evolution`).
+- `RefinedId` — `FCrystalId` (meaningful when `Kind == Refined`).
+- `Item` — `UEvolutionItemData*` (meaningful when `Kind == Evolution`).
 - `Holder` — `UObject*` (the `UWeaponData` or `URingData` bearing it; `UObject*`
   because weapons and rings share no base beyond `UPrimaryDataAsset`). For an
-  evolution crystal slot, `Holder == Crystal` (evolution *is* the crystal).
+  evolution crystal slot, `Holder == Item` (evolution *is* the crystal).
 
 ### `FWeaponLoadoutEntry` (`USTRUCT`)
 
@@ -128,7 +130,7 @@ fields the component reads include: `LoadoutName`, `PrimarySlotType`
 (`ESecondarySlotType`: None / Weapon), `PrimaryWeapon`, `SecondaryWeapon`
 (`FWeaponLoadoutEntry`), `PrimaryRing` (`FRingLoadoutEntry`), `RingLoadout`
 (`TArray<FRingLoadoutEntry>` for Resonators), `ActiveRingIndex`,
-`PrimaryEvolution` (`UItemData*`), `EvolutionSpells`, `InnateSpells` (Caster),
+`PrimaryEvolution` (`UEvolutionItemData*`), `EvolutionSpells`, `InnateSpells` (Caster),
 `ItemSlots` (`TArray<FItemLoadoutSlot>`), `bShowPrimary` and
 `bUseWeaponParryAnimation`. It also exposes `InitializeForClass`, `Clear`,
 `CreateFromSavedLoadout` (the sole runtime factory; inflates an `FSavedLoadout`
@@ -216,12 +218,15 @@ While in combat, callers query the component:
   secondary weapon, primary ring, every Resonator ring, the primary evolution
   crystal) and returns non-empty `FEquippedCrystalSlot` entries. Crucially, it
   reads crystals from the **runtime inventory entry**
-  (`WeaponEntry.AttachedCrystal`), not the asset's `SlottedCrystal` field, since
-  the asset field is nulled by combat-end crystal-break cleanup.
-- `FindCrystalEntryByHolder(UObject*)` returns the mutable
-  `FCrystalInventoryEntry*` matching a holder asset (by identity, across primary
-  / secondary weapon and the ring loadout). It is the single resolution point
-  for crystal wear/repair/break writes.
+  (`WeaponEntry.AttachedItem` / `RingEntry.AttachedItem`, type
+  `FRuntimeAttachedItem`), not the asset's design-time `AttachedItem`. The
+  crystal-break cleanup operates exclusively on the runtime entry; the asset is
+  never mutated at runtime.
+- `GetCrystalEntryByHolder(UObject*)` returns the `FRuntimeAttachedItem`
+  matching a holder asset (by identity, across primary / secondary weapon and
+  the ring loadout). `ResetCrystalEntryByHolder` is the corresponding mutator
+  used by break cleanup. These are the single resolution points for crystal
+  wear/repair/break writes.
 - `GetActiveStatBonus(AActor*)` returns a combined `FEquipmentStatBonus` with
   per-class resolution (Generic dual weapon uses the active weapon; Generic
   ring+weapon sums both; Caster uses the primary slot only; Resonator sums the
@@ -245,7 +250,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 
 - `FOnLoadoutChanged OnLoadoutChanged(int32 NewLoadoutIndex)` — fired by
   `SetActiveLoadoutIndex()`. Consumers re-query `GetActiveLoadout()`.
-- `FOnLoadoutItemUsed OnItemUsed(int32 SlotIndex, UItemData* Item)` — fired by
+- `FOnLoadoutItemUsed OnItemUsed(int32 SlotIndex, UEvolutionItemData* Item)` — fired by
   `UseItem()`.
 - `FOnLoadoutValidationFailed OnValidationFailed(const FString& Reason)` — fired
   once per error by `ValidateLoadout()`.
@@ -260,7 +265,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 - `UCharacterDataComponent` / `UCharacterData` — sibling component looked up via
   `GetOwnerCharacterData()` for class info and defense/cosmetic montages.
 - Data assets it reads: `UInventoryData` (indirectly via `UInventoryComponent`),
-  `UWeaponData`, `URingData`, `UItemData`, `USpellData`, `UAbilityData`,
+  `UWeaponData`, `URingData`, `UEvolutionItemData`, `USpellData`, `UAbilityData`,
   `UWeaponAttackData`, `UStanceData`, `UInfusionDisplayData`.
 
 ### Systems that depend on it
@@ -269,8 +274,8 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
   `GetActiveStatBonus`, `GetActivePrimaryEvolutionCrystal` for crystal-aware
   pillar/pool calculations and `HasUsableEPTarget`.
 - `UCrystalManager` (per code comments) — uses `GetEquippedCrystals()` for
-  combat-init crystal enumeration and `FindCrystalEntryByHolder()` for
-  wear/repair/break writes.
+  combat-init crystal enumeration and `GetCrystalEntryByHolder()` /
+  `ResetCrystalEntryByHolder()` for wear/repair/break writes.
 - AI evaluation — uses `GetAllWeaponAttacks`, `GetAvailableAbilities`,
   `GetAvailableSpells`.
 - Combat UI — uses loadout-management and item-slot accessors.

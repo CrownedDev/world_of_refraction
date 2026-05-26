@@ -32,10 +32,12 @@ ring assets. Key fields and members:
 
 - **Identity** — `Name` (FString), `Tier` (`EItemTier`, default `E_Tier`),
   `Description` (multi-line), `Icon` (`UTexture2D*`).
-- **Crystal** — `SlottedCrystal` (`UItemData*`): the refined crystal slotted
-  into the equipment, which determines its element. `DefaultSpells`
-  (`TArray<USpellData*>`): default spells copied to the inventory entry when
-  obtained; lost if the crystal is removed.
+- **Crystal** — `AttachedItem` (`FAttachedItem`): design-time attachment slot,
+  discriminated by `Kind`. `Refined` carries an `FCrystalId` (Type + Tier);
+  `Evolution` carries a `UEvolutionItemData*` pointer; `None` is the empty
+  default. Determines the equipment's element via `GetCrystalElement()`.
+  `DefaultSpells` (`TArray<USpellData*>`): default spells copied to the
+  inventory entry when obtained; lost if the crystal is removed.
 - **Infusion** — `bImmuneToInfusion` (bool): when true the equipment cannot be
   an infusion source and infusion-requesting actions are rejected (ORed with
   action-level immunity at the infusion gate). `InfusionStatusMultiplier`
@@ -51,7 +53,7 @@ ring assets. Key fields and members:
 - **Effects** — `Effects` (`TArray<FSkillEffect>`): equipment-level skill
   effects (passives + triggered), applied via
   `USkillEffectManager::ApplyEquipmentEffects` at combat start. Distinct from
-  evolution-crystal effects on `UItemData::Effects`. Helpers
+  evolution-crystal effects on `UEvolutionItemData::Effects`. Helpers
   `GetAlwaysActiveEffects()` and `GetTriggeredEffects()` split the array by
   `FSkillEffect::IsAlwaysActive()`.
 - **Requirements** — `Requirements` (`FWorldStatRequirements`), queried by
@@ -147,8 +149,8 @@ magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
 
 - **Identity** — `Element` (`ESpellElement`, default `Fire`), `School`
   (`ESpellSchool`, default `Destruction`).
-- **Requirements** — `RequiredEvolutionCrystal` (`UItemData*`; non-null only
-  for evolution spells).
+- **Requirements** — `RequiredEvolutionCrystal` (`UEvolutionItemData*`; non-null
+  only for evolution spells).
 - **Stats** — `TurnCost` (int32, default 1; flagged for future multi-turn
   casting).
 - **Visuals** — `CastAnimation`, `SpellVFX`, `ImpactVFX`, `MuzzleVFX`.
@@ -226,7 +228,8 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 ## How It Works
 
 1. **Authoring.** A designer creates a `UWeaponData` or `URingData` asset, sets
-   identity/tier, slots a crystal (`SlottedCrystal`), and authors a
+   identity/tier, fills `AttachedItem` (`FAttachedItem`) with Kind = Refined
+   (FCrystalId) or Evolution (UEvolutionItemData*), and authors a
    `BaseStatBonus` baseline plus `PresetAbilities`/`PresetSpells` and
    `DefaultSpells`.
 2. **Rolling stat bonuses.** In the editor the designer fills the
@@ -280,8 +283,11 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 - `FEquipmentStatBonus` / `FPillarWeights` — the stat-bonus struct and reroll
   logic (`RerollSubstats`, `RerollPillars`).
 - `SkillTriggerUtils` — `IsThresholdTrigger` for editor effect-flag refresh.
-- `UItemData` — read for `SlottedCrystal` (`bIsEvolutionCrystal`,
-  `GetAssociatedElement`) and `RequiredEvolutionCrystal`.
+- `UEvolutionItemData` — read for the evolution-crystal asset's element
+  (`GetAssociatedElement`) and `RequiredEvolutionCrystal` spell gate. Equipment
+  reads its own `AttachedItem` for element via `GetCrystalElement()` (dispatches
+  by `Kind`: refined → `FCrystalId` → element table; evolution → asset's
+  `GetAssociatedElement`).
 - `IEquipmentGenerator` — interface implemented by `UEquipmentDataBase`,
   letting a generic generator target the editable bonus layer.
 - `UCharacterData` — passed into the skill `CalculateXxx` methods.

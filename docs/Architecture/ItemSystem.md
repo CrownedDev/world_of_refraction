@@ -2,11 +2,17 @@
 
 ## Overview
 
-The item system covers **crystals** — consumable and equippable magical items built on a
-10-type / 7-tier matrix. Crystals are authored as `UItemData` primary data assets and
-executed in turn-based combat by the `UItemExecutor` subsystem. Each crystal maps to one
-of the nine elements (plus Generic) and to a single combat effect — damage, healing,
-buffs, status effects, etc. Tiers F→S scale the effect's magnitude.
+The item system covers **crystals** — consumable and equippable magical items
+built on a 10-type / 7-tier matrix. The system splits into two complementary
+tracks: **item and refined crystals** are identified by `FCrystalId` (Type +
+Tier) and stored count-based in `UCrystalInventoryComponent`, with their
+behaviour, names, and tier tables living in the `CrystalEffectTable` and
+`CrystalIdentity` namespaces; **evolution crystals** are authored individually
+as `UEvolutionItemData` primary data assets and stored instance-based in
+`UEvolutionInventoryComponent`. The `UItemExecutor` subsystem runs item-crystal
+use in turn-based combat. Each crystal maps to one of the nine elements (plus
+Generic) and to a single combat effect — damage, healing, buffs, status
+effects, etc. Tiers F→S scale the effect's magnitude.
 
 > This document reflects the **shipped** item system on `main` after the
 > `feature/item-system-redesign` work (Phases 1–3). Crystal values are
@@ -14,23 +20,74 @@ buffs, status effects, etc. Tiers F→S scale the effect's magnitude.
 
 ## Architecture
 
-### UItemData (`UPrimaryDataAsset`)
+### Storage model
 
-Immutable design-time definition of a crystal. Key fields:
+The crystal-bearing surface splits into two complementary tracks, each with
+its own asset shape and runtime container.
 
-- `CrystalType` (`ECrystalType`) — selects element + effect path; drives every value getter.
-- `Tier` (`EItemTier`) — scales all magnitudes; gates S-rank specials.
-- `bIsRefined` — `false` = consumable; `true` = slottable onto a weapon/ring (durability, spells).
-- `bIsEvolutionCrystal` — `true` = grants an evolution when slotted; enables `EvolutionType`, `BaseStatBonus`, `Effects`.
-- `MaxDurability`, `bImmuneToBreaking` — durability tracking (refined crystals only).
-- `BaseStatBonus` (`FEquipmentStatBonus`), `Effects` (`TArray<FSkillEffect>`) — evolution-crystal traits.
-- `Display*` fields — `VisibleAnywhere` editor mirrors, recomputed in `PostEditChangeProperty`.
+**Item & refined crystals (FCrystalId-based, no asset).** Each item/refined
+crystal is fully identified by an `FCrystalId` (Type + Tier). Authoring is
+count-based: `TMap<FCrystalId, int32>` on `UInventoryData::ItemCrystals` and
+`RefinedCrystals`, with the per-tier cap enforced by `IsDataValid`. Runtime
+storage lives on `UCrystalInventoryComponent`, which mirrors the two
+count-based pools. Percentage tables, display names, primary effect type, and
+target type live in the `CrystalEffectTable` and `CrystalIdentity` namespaces
+(inline tables keyed by `FCrystalId`). Refined and item crystals are fungible
+within their pool — two refined Garnet (F) crystals are interchangeable.
 
-Per-crystal combat numbers are **not stored as fields** — they are hardcoded tier `switch`
-tables inside `UItemData`'s `Get*()` functions (`GetDOTDamagePercent`, `GetHealPercent`,
-`GetEPRestorePercent`, `GetElementalBuildupPercent`, `GetCrystalDuration`, …). Quartz is
-**consumable-only**: `IsDataValid` and `PostEditChangeProperty` reject / clear `bIsRefined`
-and `bIsEvolutionCrystal` on Quartz.
+**Evolution crystals (`UEvolutionItemData` asset).** Each evolution crystal is
+its own `UPrimaryDataAsset`, authored individually with custom `Effects`,
+`BaseStatBonus`, `EvolutionType`, and a designer-authored
+`RevealedDescription`. Per-asset identity matters — trade APIs need the
+underlying `FGuid`, so the runtime container (`UEvolutionInventoryComponent`)
+stores instances, not counts.
+
+**Attachment slot (`FAttachedItem` / `FRuntimeAttachedItem`).** The attachment
+point on equipment is a discriminated union, not a pointer:
+- `FAttachedItem` (design-time, on `UEquipmentDataBase::AttachedItem`):
+  `Kind ∈ {None, Refined, Evolution}` + `RefinedType` / `RefinedTier` (for
+  Refined) or `Evolution` (`UEvolutionItemData*`, for Evolution).
+- `FRuntimeAttachedItem` (runtime, on `FWeaponInventoryEntry::AttachedItem`
+  and `FRingInventoryEntry::AttachedItem`): same shape plus per-instance
+  durability and a `FGuid` for evolution identity.
+
+Routing into these tracks happens structurally at inventory build time:
+`UInventoryComponent::InitializeFromInventoryAsset` reads the three ownership
+lists on `UInventoryData` and dispatches each by field — `ItemCrystals` and
+`RefinedCrystals` to `UCrystalInventoryComponent` by count,
+`EvolutionEquipment` to `UEvolutionInventoryComponent` by instance. There is
+no runtime flag-based routing; the dispatch is determined by which
+`UInventoryData` field the entry was authored into.
+
+### UEvolutionItemData (`UPrimaryDataAsset`)
+
+Immutable design-time definition of an evolution crystal. Key fields:
+
+- `CrystalType` (`ECrystalType`) — element, drives `GetAssociatedElement()`.
+- `Tier` (`EItemTier`) — scales magnitudes; drives durability defaults.
+- `ItemName` (`FString`) — designer-authored evolution name.
+- `Description`, `RevealedDescription` (`FString`) — see Description Model.
+- `bIsRefined` — `false` = unrefined (in inventory); `true` = slotted on a
+  weapon/ring.
+- `bCanBreak` — opt-in durability wear. Default `false`: the crystal is
+  permanent and its displayed durability is cosmetic. Refined evolution
+  crystals only break when this is explicitly authored true.
+- `MaxDurability`, `CurrentDurability` — durability tracking when `bCanBreak`.
+  Defaults from `Tier` if author leaves `MaxDurability == 0`.
+- `EvolutionType` (`EEvolutionType`) — Balanced / Mind / Body / Spirit / etc.
+- `BaseStatBonus` (`FEquipmentStatBonus`) — evolution stat modifiers. The
+  embedded struct's `ClampMin=0` UPROPERTY meta can't be overridden at the
+  embedding site, so out-of-range values (crystals permit negatives down to
+  `CRYSTAL_BONUS_MIN`) surface as `IsDataValid` warnings.
+- `Effects` (`TArray<FSkillEffect>`) — skill effects granted by the evolution
+  crystal (passives + triggered).
+
+Quartz is consumable-only and **cannot exist as a `UEvolutionItemData`
+asset**. `IsDataValid` rejects any `UEvolutionItemData` with
+`CrystalType == Quartz` (error: `"Quartz crystals cannot be evolution crystals — they are consumable only"`).
+`PostEditChangeProperty` additionally force-clears `bIsRefined` if the
+designer switches `CrystalType` to Quartz on an existing asset. Quartz exists
+only as `FCrystalId{Quartz, Tier}` in the `ItemCrystals` pool.
 
 ### UItemExecutor (`UGameInstanceSubsystem`)
 
@@ -109,9 +166,44 @@ Notes:
   `Silenced` effect for 1 turn (see S-Rank Specials).
 - **Citrine** no longer has an HP cost. **Iolite** no longer grants immunity.
 
+## Description Model
+
+Every crystal needs distinct UI text for identity and effect; evolution
+crystals also carry a designer-authored reveal field. These flow through three
+independent getters and one authored field — never composed into a single
+`Description`. Numerics come from `CrystalEffectTable`; this layer only
+formats text on top of the FCrystalId-keyed value tables.
+
+- **`CrystalDescription::GetCrystalText(const FCrystalId &Id)`** — shared
+  identity sentence usable by any crystal kind. Format:
+  `"A {tier-descriptor} {name-lowercase} crystal."`, e.g. Garnet S returns
+  `"A legendary garnet crystal."`. Tier descriptors are F=crude, E=common,
+  D=refined, C=quality, B=exceptional, A=masterwork, S=legendary (supplied by
+  `GetTierDescriptor`).
+- **`CrystalDescription::GetItemEffectText(const FCrystalId &Id)`** —
+  mechanical-effect sentence for item / refined consumable crystals.
+  Per-`CrystalType` switch with S-tier conditional alternates (Sapphire,
+  Emerald, Onyx) and effect-count branches (Iolite); pluralises turn counts
+  (`"1 turn"` vs `"N turns"`). Example (Garnet S):
+  `"Applies a fire burn dealing 30% of target's max HP per turn for 1 turn."`
+- **`UEvolutionItemData::GetEvolutionEffectText()`** — evolution-effect
+  sentence composed from the asset's `BaseStatBonus` + `Effects`. Parallel to
+  `GetItemEffectText`; also returns a self-contained sentence ending in `"."`.
+  Editor-only (`#if WITH_EDITOR`).
+- **`UEvolutionItemData::RevealedDescription`** (FString, designer-authored)
+  — in-world reveal flavour shown when the crystal is revealed (slotting,
+  Mind unlocking). The reveal mechanic is designed but not yet wired up.
+
+`UEvolutionItemData::GenerateDescription()` produces the `Description` field
+contents by calling `CrystalDescription::GetCrystalText` — so the asset's
+`Description` is just the identity sentence. The `PostEditChangeProperty`
+description-regen path regenerates it on first fill or Type/Tier change.
+Effect text is queried separately at display time, never composed into
+`Description`.
+
 ## Targeting Rules
 
-Every crystal returns `ETargetType::SingleAnyone` from `UItemData::GetItemTargetType()` —
+Every crystal returns `ETargetType::SingleAnyone` from `UEvolutionItemData::GetItemTargetType()` —
 any living combatant (ally or enemy) is a legal target, for tactical flexibility. The
 command menu's `Item` case reads `GetItemTargetType()` directly; the old Quartz `Self`
 special-case is gone.
@@ -177,7 +269,7 @@ runtime-transformed BD).
 
 ### → CombatCommandMenuSubsystem (`UGameInstanceSubsystem`)
 
-The command menu's `Item` selection reads `UItemData::GetItemTargetType()` to open the
+The command menu's `Item` selection reads `UEvolutionItemData::GetItemTargetType()` to open the
 target picker, and renders `EPieMenuCategory::SectionHeader` rows in the `SingleAnyone`
 picker.
 
@@ -196,7 +288,7 @@ removed with the transform system.
   `// TODO: S-rank stat reveal — implement in UI pass`; no reveal event is broadcast.
 - **Dead-code cleanup pending.** The redesign orphaned several getters/helpers. Genuinely
   dead (zero callers): `UItemExecutor::ApplySecondaryEffect`, `UItemExecutor::IsGenericCharacter`,
-  `UItemExecutor::GetCharacterData`, `UItemData::GetLightningBuildupPercent`,
+  `UItemExecutor::GetCharacterData`, `UEvolutionItemData::GetLightningBuildupPercent`,
   `ItemConstants::GENERIC_RESISTANCE_*` / `GENERIC_DURATION_*`, `FItemUseResult::GenericResistanceApplied`.
   The second tier of pre-redesign value getters and their `Display*` editor mirrors has
   been removed (see Changelog, 2026-05-18); `ItemDataDebug` now reads only the
@@ -219,3 +311,6 @@ removed with the transform system.
 | 2026-05-17 | Phase 2 — bulk crystal redesign (Sapphire–Quartz); percentage values; `ExecuteStatusClearEffect`; `ReduceStatusBuildup`; shared elemental buildup | feature/item-system-redesign |
 | 2026-05-17 | Phase 3 — class-detection fixes; `ApplyGenericBonus` removed; BD absorption fires on target; `GetItemTargetType` + `SingleAnyone` targeting with section headers | feature/item-system-redesign |
 | 2026-05-18 | Tier 2 dead-code cleanup — removed 11 pre-redesign value getters and their `Display*` editor mirrors from `UItemData`; `ItemDataDebug` validation/logging/tier tables modernised to the percentage-based getters; `CombatOrchestratorTestActor` item log updated | chore/tier2-dead-code |
+| 2026-05-26 | Two-track storage split — item/refined crystals migrated from `UItemData` assets to `FCrystalId` + `CrystalEffectTable` / `CrystalIdentity` tables; 23 obsolete crystal assets deleted; legacy item-crystal authoring fields removed; description model split into `GetCrystalText` (shared) / `GetItemEffectText` (item) / `GetEvolutionEffectText` (evolution) | feature/crystal-evolution-refactor |
+| 2026-05-26 | `UItemData` renamed to `UEvolutionItemData` (evolution-only); item-effect surface decoupled from the asset; `bImmuneToBreaking` flipped to `bCanBreak` (opt-in breaking, default false); dead asset-pointer slotting tower removed | feature/crystal-evolution-refactor |
+| 2026-05-26 | Final field removal — `bIsEvolutionCrystal` deleted (`UEvolutionItemData` is now structurally evolution-only); 5 dead category helpers removed; `UInventoryComponent::AddItem`/`AddItemInternal` flag-routed dispatch deleted (modern routing via `UInventoryData` field dispatch only); `UEquipmentDataBase::SlottedCrystal` removed with its `PostLoad` migration | feature/crystal-evolution-refactor |
