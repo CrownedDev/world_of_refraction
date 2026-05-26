@@ -11,6 +11,7 @@
 #include "CrystalTypeHelpers.h"
 #include "CrystalIdentity.h"
 #include "CrystalEffectTable.h"
+#include "CrystalDescription.h"
 
 FString UEvolutionItemData::GetFullItemName() const
 {
@@ -489,183 +490,104 @@ void UEvolutionItemData::PostLoad()
 #if WITH_EDITOR
 FString UEvolutionItemData::GenerateDescription() const
 {
-    FString BaseName = GetCrystalName();
-    FString TierDesc;
-
-    // Get tier descriptor
-    switch (Tier)
-    {
-    case EItemTier::F_Tier:
-        TierDesc = TEXT("crude");
-        break;
-    case EItemTier::E_Tier:
-        TierDesc = TEXT("common");
-        break;
-    case EItemTier::D_Tier:
-        TierDesc = TEXT("refined");
-        break;
-    case EItemTier::C_Tier:
-        TierDesc = TEXT("quality");
-        break;
-    case EItemTier::B_Tier:
-        TierDesc = TEXT("exceptional");
-        break;
-    case EItemTier::A_Tier:
-        TierDesc = TEXT("masterwork");
-        break;
-    case EItemTier::S_Tier:
-        TierDesc = TEXT("legendary");
-        break;
-    default:
-        TierDesc = TEXT("unknown");
-        break;
-    }
-
-    // Generate description based on crystal type
-    FString Effect;
-    switch (CrystalType)
-    {
-    case ECrystalType::Garnet:
-        Effect = FString::Printf(TEXT("Applies a fire burn dealing %.0f%% of target's max HP per turn for %d turns"),
-                                 GetDOTDamagePercent(), GetDOTDuration());
-        break;
-
-    case ECrystalType::Sapphire:
-        if (Tier == EItemTier::S_Tier)
-        {
-            Effect = TEXT("Revives fallen ally at 30% HP, or heals for 60% max HP");
-        }
-        else
-        {
-            Effect = FString::Printf(TEXT("Restores %.0f%% of target's max HP"), GetHealPercent());
-        }
-        break;
-
-    case ECrystalType::Citrine:
-        Effect = FString::Printf(TEXT("Restores %.0f%% of the target's max energy; overloads the user with Lightning status buildup"),
-                                 GetEPRestorePercent());
-        break;
-
-    case ECrystalType::Emerald:
-        if (Tier == EItemTier::S_Tier)
-        {
-            Effect = TEXT("Grants the target an extra turn");
-        }
-        else
-        {
-            Effect = FString::Printf(TEXT("Increases turn speed by %.0f%% for %d turns"),
-                                     GetSpeedBuffPercent(), GetCrystalDuration());
-        }
-        break;
-
-    case ECrystalType::Amber:
-        Effect = FString::Printf(TEXT("Buffs an ally's defense (or debuffs an enemy's) by %.0f%% for %d turns"),
-                                 GetBuffPercentage(), GetCrystalDuration());
-        break;
-
-    case ECrystalType::Opal:
-        Effect = FString::Printf(TEXT("Buffs an ally's crit chance (or debuffs an enemy's) by %.0f%% for %d turns"),
-                                 GetCritBuffPercent(), GetCrystalDuration());
-        break;
-
-    case ECrystalType::Onyx:
-        if (Tier == EItemTier::S_Tier)
-        {
-            Effect = TEXT("Completely silences target for 1 turn");
-        }
-        else
-        {
-            Effect = FString::Printf(TEXT("Drains %.0f%% of the target's energy on use"),
-                                     GetSilencePercentage());
-        }
-        break;
-
-    case ECrystalType::Amethyst:
-        Effect = FString::Printf(TEXT("%.0f%% chance of a random buff (else a random debuff) at %.0f%% magnitude for %d turns"),
-                                 GetBuffChancePercent(), GetGambleMagnitudePercent(), GetGambleDuration());
-        break;
-
-    case ECrystalType::Iolite:
-        if (GetEffectsToRemoveCount() >= 99)
-        {
-            Effect = TEXT("Removes all debuffs from an ally, or all buffs from an enemy");
-        }
-        else
-        {
-            Effect = FString::Printf(TEXT("Removes up to %d debuff(s) from an ally, or %d buff(s) from an enemy"),
-                                     GetEffectsToRemoveCount(), GetEffectsToRemoveCount());
-        }
-        break;
-
-    case ECrystalType::Quartz:
-        Effect = FString::Printf(TEXT("Clears %.0f%% of the target's status bar and grants matching elemental resistance for %d turns"),
-                                 GetStatusClearPercent(), GetResistanceDuration());
-        break;
-
-    default:
-        Effect = TEXT("Unknown effect");
-        break;
-    }
-
-    return FString::Printf(TEXT("A %s %s crystal. %s."), *TierDesc, *BaseName.ToLower(), *Effect);
+    // Description tracks crystal identity only — the shared "A {tier} {name}
+    // crystal." sentence. Effect text is a separate concern: items go through
+    // CrystalDescription::GetItemEffectText, evolution crystals through
+    // UEvolutionItemData::GetEvolutionEffectText. Neither is composed into
+    // Description here.
+    return CrystalDescription::GetCrystalText(FCrystalId{CrystalType, Tier});
 }
 
-FString UEvolutionItemData::GenerateEvolutionDescription() const
+FString UEvolutionItemData::GetEvolutionEffectText() const
 {
-    TArray<FString> Parts;
-
-    // Stat modifiers
-    FString StatSummary = GetStatModifierSummary();
-    if (!StatSummary.IsEmpty() && StatSummary != TEXT("No stat changes"))
+    // Parallel to CrystalDescription::GetItemEffectText — produces the "effect
+    // half" sentence for an evolution crystal. Standalone getter; not written
+    // into Description (Description is the shared crystal-identity sentence).
+    // Returns a self-contained sentence ending in "." to match item effect text.
+    TArray<FString> EffectNames;
+    for (const FSkillEffect &Effect : Effects)
     {
-        Parts.Add(StatSummary);
-    }
-
-    // Effects - names only
-    if (Effects.Num() > 0)
-    {
-        TArray<FString> EffectNames;
-        for (const FSkillEffect &Effect : Effects)
+        if (!Effect.EffectName.IsEmpty())
         {
-            if (!Effect.EffectName.IsEmpty())
-            {
-                EffectNames.Add(Effect.EffectName);
-            }
-        }
-
-        if (EffectNames.Num() > 0)
-        {
-            Parts.Add(TEXT("Effects: ") + FString::Join(EffectNames, TEXT(", ")));
+            EffectNames.Add(Effect.EffectName);
         }
     }
 
-    if (Parts.Num() == 0)
+    TArray<FString> StatTokens;
+    auto AddPillar = [&StatTokens](const TCHAR *Name, float Value)
     {
-        return TEXT("Configure stats, spells, and effects");
+        if (Value != 0.0f)
+        {
+            const FString Sign = Value > 0.0f ? TEXT("+") : TEXT("");
+            StatTokens.Add(FString::Printf(TEXT("%s %s%.0f%%"), Name, *Sign, Value));
+        }
+    };
+    AddPillar(TEXT("Mind"),   BaseStatBonus.BonusMindModifierPercent);
+    AddPillar(TEXT("Body"),   BaseStatBonus.BonusBodyModifierPercent);
+    AddPillar(TEXT("Spirit"), BaseStatBonus.BonusSpiritModifierPercent);
+
+    const bool bHasEffects = EffectNames.Num() > 0;
+    const bool bHasStats   = StatTokens.Num()  > 0;
+
+    if (!bHasEffects && !bHasStats)
+    {
+        return TEXT("Configure stats, spells, and effects.");
     }
 
-    return FString::Join(Parts, TEXT(". ")) + TEXT(".");
+    FString Body;
+    if (bHasEffects)
+    {
+        Body = FString::Join(EffectNames, TEXT(", "));
+    }
+    if (bHasEffects && bHasStats)
+    {
+        Body += TEXT(" and ");
+    }
+    if (bHasStats)
+    {
+        Body += FString::Join(StatTokens, TEXT(", "));
+    }
+
+    return FString::Printf(TEXT("Grants %s."), *Body);
 }
 
 void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
 {
     UObject::PostEditChangeProperty(PropertyChangedEvent);
 
-    // Evolution crystals: Don't auto-generate name/description (user provides unique values)
+    const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+    static const FName CrystalTypeProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, CrystalType);
+    static const FName TierProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, Tier);
+    static const FName EvolutionProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, bIsEvolutionCrystal);
+
+    const bool bTypeOrTierChanged =
+        PropertyName == CrystalTypeProperty ||
+        PropertyName == TierProperty;
+
+    // Description = crystal identity sentence only, for BOTH item and evolution
+    // branches. Effect text lives in separate getters (CrystalDescription::
+    // GetItemEffectText / UEvolutionItemData::GetEvolutionEffectText) and is
+    // not composed into Description. Regenerate on first fill or Type/Tier
+    // change so the sentence tracks identity.
     if (bIsEvolutionCrystal)
     {
-        // Only auto-generate description if empty, based on stats/spells
-        if (Description.IsEmpty())
+        // Evolution: ItemName stays user-authored; Description tracks identity.
+        if (Description.IsEmpty() || bTypeOrTierChanged)
         {
-            Description = GenerateEvolutionDescription();
+            Description = GenerateDescription();
         }
-        // Leave ItemName alone for manual entry
     }
     else
     {
-        // Non-evolution crystals: Auto-generate name and description
-        ItemName = GetFullItemName();
-        Description = GenerateDescription();
+        // Non-evolution: ItemName and Description are both derived from Type/Tier.
+        if (ItemName.IsEmpty() || bTypeOrTierChanged)
+        {
+            ItemName = GetFullItemName();
+        }
+        if (Description.IsEmpty() || bTypeOrTierChanged)
+        {
+            Description = GenerateDescription();
+        }
     }
 
     // Update all display values for editor viewing
@@ -678,10 +600,6 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 
     // Re-init durability when designer changes Tier or the Evolution flag.
-    const FName PropertyName = PropertyChangedEvent.GetPropertyName();
-    static const FName TierProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, Tier);
-    static const FName EvolutionProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, bIsEvolutionCrystal);
-
     if (PropertyName == TierProperty ||
         PropertyName == EvolutionProperty)
     {
@@ -697,7 +615,6 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
     // Quartz is consumable-only — it cannot be refined or made an evolution
     // crystal. If the designer switches CrystalType to Quartz with either flag
     // set, force the flags off (item-system-redesign).
-    static const FName CrystalTypeProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, CrystalType);
     if (PropertyName == CrystalTypeProperty && CrystalType == ECrystalType::Quartz)
     {
         if (bIsRefined)

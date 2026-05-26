@@ -65,6 +65,12 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
         FString Description;
 
+        /** Authored description shown when the crystal is revealed (slotting / Mind).
+         *  Distinct from auto-generated Description. Reveal logic not yet implemented. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
+                  meta = (MultiLine = true, EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+        FString RevealedDescription;
+
         /** Whether crystal has been refined (cut) for slotting onto equipment.
          *  Unrefined crystals are consumable items; refined crystals slot into weapons/rings. */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
@@ -388,7 +394,7 @@ public:
 
 #if WITH_EDITOR
         FString GenerateDescription() const;
-        FString GenerateEvolutionDescription() const; // ADD THIS
+        FString GetEvolutionEffectText() const;
         virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
         virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
         virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
