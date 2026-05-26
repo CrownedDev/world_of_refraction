@@ -159,24 +159,6 @@ public:
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Identity")
         ESpellElement DisplayElement;
 
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        EItemEffectType DisplayEffectType;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        float DisplayBuffPercentage;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        float DisplaySilencePercentage;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        bool DisplayRevealsHP;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Effect")
-        bool DisplayRevealsStats;
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Bonuses")
-        int32 DisplayBDEnergy;
-
         // ==================== VISUAL/AUDIO ====================
 
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
@@ -307,88 +289,9 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item")
         ESpellElement GetAssociatedElement() const;
 
-        UFUNCTION(BlueprintPure, Category = "Item|Bonuses")
-        int32 GetBrokenDarknessEnergyBonus() const;
-
         /** Target type for combat targeting UI — all crystals target anyone. */
         UFUNCTION(BlueprintPure, Category = "Item|Targeting")
         ETargetType GetItemTargetType() const;
-
-        // ==================== COMPUTED EFFECT VALUES ====================
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        EItemEffectType GetPrimaryEffectType() const;
-
-        /** Garnet DOT — burn damage per turn as a percent of target MaxHP */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetDOTDamagePercent() const;
-
-        /** Garnet DOT — burn duration in turns */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetDOTDuration() const;
-
-        /** Sapphire heal — restored HP as a percent of target MaxHP */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetHealPercent() const;
-
-        // ==================== PHASE 2 REDESIGN GETTERS ====================
-
-        /** Citrine — EP restored as a percent of target MaxEP */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetEPRestorePercent() const;
-
-        /** Emerald — turn-speed buff percent */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetSpeedBuffPercent() const;
-
-        /** Phase 2 shared buff duration (Emerald/Amber/Opal) in turns */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetCrystalDuration() const;
-
-        /** Opal — crit-chance buff/debuff percent */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetCritBuffPercent() const;
-
-        /** Amethyst — chance to roll a buff (vs debuff), percent */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetBuffChancePercent() const;
-
-        /** Amethyst — gamble effect magnitude percent */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetGambleMagnitudePercent() const;
-
-        /** Amethyst — gamble effect duration in turns */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetGambleDuration() const;
-
-        /** Iolite — number of effects to remove (99 = remove all) */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetEffectsToRemoveCount() const;
-
-        /** Quartz — fraction of the status bar cleared, percent */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetStatusClearPercent() const;
-
-        /** Quartz — elemental resistance duration in turns */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetResistanceDuration() const;
-
-        /** Shared status-bar buildup percent for status-building crystals
-         *  (Garnet/Citrine/Onyx/Amethyst): 10/15/20/30/40/50/60 per tier. */
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetElementalBuildupPercent() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetBuffPercentage() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        float GetSilencePercentage() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        bool GetRevealsHP() const;
-
-        UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        bool GetRevealsStats() const;
 
         // ==================== EDITOR SUPPORT ====================
 

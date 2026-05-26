@@ -2,6 +2,9 @@
 // Implementation of item system debug utilities
 
 #include "ItemDataDebug.h"
+#include "FCrystalId.h"
+#include "CrystalEffectTable.h"
+#include "CrystalIdentity.h"
 
 bool UItemDataDebug::ValidateAllItemCombinations()
 {
@@ -79,7 +82,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
     }
 
     // Check tier bonuses are positive
-    if (Item->GetBrokenDarknessEnergyBonus() <= 0)
+    if (CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{Item->CrystalType, Item->Tier}) <= 0)
     {
         Errors.Add(TEXT("Zero or negative BD energy bonus"));
         bValid = false;
@@ -89,7 +92,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
     switch (Item->CrystalType)
     {
     case ECrystalType::Garnet:
-        if (Item->GetDOTDamagePercent() <= 0.0f)
+        if (CrystalEffectTable::GetDOTDamagePercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero DOT damage percent"));
             bValid = false;
@@ -97,7 +100,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Sapphire:
-        if (Item->GetHealPercent() <= 0.0f)
+        if (CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero heal percent"));
             bValid = false;
@@ -105,7 +108,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Citrine:
-        if (Item->GetEPRestorePercent() <= 0.0f)
+        if (CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero EP restore percent"));
             bValid = false;
@@ -113,7 +116,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Emerald:
-        if (Item->GetSpeedBuffPercent() <= 0.0f)
+        if (CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero speed buff percent"));
             bValid = false;
@@ -121,7 +124,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Amber:
-        if (Item->GetBuffPercentage() <= 0.0f)
+        if (CrystalEffectTable::GetBuffPercentage(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero buff percentage"));
             bValid = false;
@@ -129,7 +132,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Opal:
-        if (Item->GetCritBuffPercent() <= 0.0f)
+        if (CrystalEffectTable::GetCritBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero crit buff percent"));
             bValid = false;
@@ -137,7 +140,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Onyx:
-        if (Item->GetSilencePercentage() <= 0.0f)
+        if (CrystalEffectTable::GetSilencePercentage(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero silence percentage"));
             bValid = false;
@@ -145,7 +148,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Amethyst:
-        if (Item->GetBuffChancePercent() <= 0.0f)
+        if (CrystalEffectTable::GetBuffChancePercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero buff chance percent"));
             bValid = false;
@@ -153,7 +156,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Iolite:
-        if (Item->GetEffectsToRemoveCount() <= 0)
+        if (CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{Item->CrystalType, Item->Tier}) <= 0)
         {
             Errors.Add(TEXT("Zero effects to remove count"));
             bValid = false;
@@ -166,7 +169,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
             Errors.Add(TEXT("Quartz must be consumable-only (not refined or evolution)"));
             bValid = false;
         }
-        if (Item->GetStatusClearPercent() <= 0.0f)
+        if (CrystalEffectTable::GetStatusClearPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero status clear percent"));
             bValid = false;
@@ -203,7 +206,7 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Crystal Type: %s"), *GetCrystalTypeName(Item->CrystalType));
     UE_LOG(LogTemp, Display, TEXT("Tier: %s"), *Item->GetTierName());
     UE_LOG(LogTemp, Display, TEXT("Element: %d"), static_cast<int32>(Item->GetAssociatedElement()));
-    UE_LOG(LogTemp, Display, TEXT("Effect Type: %d"), static_cast<int32>(Item->GetPrimaryEffectType()));
+    UE_LOG(LogTemp, Display, TEXT("Effect Type: %d"), static_cast<int32>(CrystalIdentity::GetPrimaryEffectType(FCrystalId{Item->CrystalType, Item->Tier})));
     UE_LOG(LogTemp, Display, TEXT(""));
 
     // ADD: Crystal state
@@ -229,25 +232,25 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
 
     // Effect values (Phase 2 percentage-based getters)
     UE_LOG(LogTemp, Display, TEXT("--- Effect Values ---"));
-    UE_LOG(LogTemp, Display, TEXT("DOT Damage %%: %.1f for %d turns"), Item->GetDOTDamagePercent(), Item->GetDOTDuration());
-    UE_LOG(LogTemp, Display, TEXT("Heal %%: %.1f"), Item->GetHealPercent());
-    UE_LOG(LogTemp, Display, TEXT("EP Restore %%: %.1f"), Item->GetEPRestorePercent());
-    UE_LOG(LogTemp, Display, TEXT("Speed Buff %%: %.1f"), Item->GetSpeedBuffPercent());
-    UE_LOG(LogTemp, Display, TEXT("Buff %%: %.1f"), Item->GetBuffPercentage());
-    UE_LOG(LogTemp, Display, TEXT("Crit Buff %%: %.1f"), Item->GetCritBuffPercent());
-    UE_LOG(LogTemp, Display, TEXT("Crystal Buff Duration: %d turns"), Item->GetCrystalDuration());
-    UE_LOG(LogTemp, Display, TEXT("Silence %%: %.1f (one-shot drain on use)"), Item->GetSilencePercentage());
-    UE_LOG(LogTemp, Display, TEXT("Buff Chance %%: %.1f"), Item->GetBuffChancePercent());
-    UE_LOG(LogTemp, Display, TEXT("Gamble Magnitude %%: %.1f for %d turns"), Item->GetGambleMagnitudePercent(), Item->GetGambleDuration());
-    UE_LOG(LogTemp, Display, TEXT("Effects To Remove: %d (99=all)"), Item->GetEffectsToRemoveCount());
-    UE_LOG(LogTemp, Display, TEXT("Status Clear %%: %.1f, Resistance: %d turns"), Item->GetStatusClearPercent(), Item->GetResistanceDuration());
-    UE_LOG(LogTemp, Display, TEXT("Elemental Buildup %%: %.1f"), Item->GetElementalBuildupPercent());
-    UE_LOG(LogTemp, Display, TEXT("Reveals HP/Stats: %s"), Item->GetRevealsHP() ? TEXT("Yes") : TEXT("No"));
+    UE_LOG(LogTemp, Display, TEXT("DOT Damage %%: %.1f for %d turns"), CrystalEffectTable::GetDOTDamagePercent(FCrystalId{Item->CrystalType, Item->Tier}), CrystalEffectTable::GetDOTDuration(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Heal %%: %.1f"), CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("EP Restore %%: %.1f"), CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Speed Buff %%: %.1f"), CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Buff %%: %.1f"), CrystalEffectTable::GetBuffPercentage(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Crit Buff %%: %.1f"), CrystalEffectTable::GetCritBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Crystal Buff Duration: %d turns"), CrystalEffectTable::GetCrystalDuration(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Silence %%: %.1f (one-shot drain on use)"), CrystalEffectTable::GetSilencePercentage(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Buff Chance %%: %.1f"), CrystalEffectTable::GetBuffChancePercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Gamble Magnitude %%: %.1f for %d turns"), CrystalEffectTable::GetGambleMagnitudePercent(FCrystalId{Item->CrystalType, Item->Tier}), CrystalEffectTable::GetGambleDuration(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Effects To Remove: %d (99=all)"), CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Status Clear %%: %.1f, Resistance: %d turns"), CrystalEffectTable::GetStatusClearPercent(FCrystalId{Item->CrystalType, Item->Tier}), CrystalEffectTable::GetResistanceDuration(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Elemental Buildup %%: %.1f"), CrystalEffectTable::GetElementalBuildupPercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Reveals HP/Stats: %s"), CrystalEffectTable::GetRevealsHP(FCrystalId{Item->CrystalType, Item->Tier}) ? TEXT("Yes") : TEXT("No"));
     UE_LOG(LogTemp, Display, TEXT(""));
 
     // Bonuses
     UE_LOG(LogTemp, Display, TEXT("--- Tier Bonuses ---"));
-    UE_LOG(LogTemp, Display, TEXT("BD Energy Bonus: +%d"), Item->GetBrokenDarknessEnergyBonus());
+    UE_LOG(LogTemp, Display, TEXT("BD Energy Bonus: +%d"), CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
@@ -270,31 +273,31 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
             {
             case ECrystalType::Garnet:
                 ValueStr = FString::Printf(TEXT("%.0f%% burn/turn x%d turns"),
-                                           TestItem->GetDOTDamagePercent(), TestItem->GetDOTDuration());
+                                           CrystalEffectTable::GetDOTDamagePercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetDOTDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Sapphire:
-                ValueStr = FString::Printf(TEXT("%.0f%% HP healed"), TestItem->GetHealPercent());
+                ValueStr = FString::Printf(TEXT("%.0f%% HP healed"), CrystalEffectTable::GetHealPercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Citrine:
-                ValueStr = FString::Printf(TEXT("+%.0f%% EP restored"), TestItem->GetEPRestorePercent());
+                ValueStr = FString::Printf(TEXT("+%.0f%% EP restored"), CrystalEffectTable::GetEPRestorePercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Emerald:
                 ValueStr = FString::Printf(TEXT("+%.0f%% speed for %d turns"),
-                                           TestItem->GetSpeedBuffPercent(), TestItem->GetCrystalDuration());
+                                           CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetCrystalDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Amber:
                 ValueStr = FString::Printf(TEXT("-%.0f%% damage taken for %d turns"),
-                                           TestItem->GetBuffPercentage(), TestItem->GetCrystalDuration());
+                                           CrystalEffectTable::GetBuffPercentage(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetCrystalDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Opal:
                 ValueStr = FString::Printf(TEXT("+%.0f%% crit for %d turns"),
-                                           TestItem->GetCritBuffPercent(), TestItem->GetCrystalDuration());
-                if (TestItem->GetRevealsHP())
+                                           CrystalEffectTable::GetCritBuffPercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetCrystalDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
+                if (CrystalEffectTable::GetRevealsHP(FCrystalId{TestItem->CrystalType, TestItem->Tier}))
                 {
                     ValueStr += TEXT(" + reveals");
                 }
@@ -302,29 +305,29 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
 
             case ECrystalType::Onyx:
                 ValueStr = FString::Printf(TEXT("%.0f%% energy drained on use"),
-                                           TestItem->GetSilencePercentage());
+                                           CrystalEffectTable::GetSilencePercentage(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Amethyst:
                 ValueStr = FString::Printf(TEXT("%.0f%% buff chance, %.0f%% magnitude for %d turns"),
-                                           TestItem->GetBuffChancePercent(), TestItem->GetGambleMagnitudePercent(),
-                                           TestItem->GetGambleDuration());
+                                           CrystalEffectTable::GetBuffChancePercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetGambleMagnitudePercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}),
+                                           CrystalEffectTable::GetGambleDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Iolite:
-                if (TestItem->GetEffectsToRemoveCount() >= 99)
+                if (CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{TestItem->CrystalType, TestItem->Tier}) >= 99)
                 {
                     ValueStr = TEXT("Remove ALL effects");
                 }
                 else
                 {
-                    ValueStr = FString::Printf(TEXT("Remove %d effect(s)"), TestItem->GetEffectsToRemoveCount());
+                    ValueStr = FString::Printf(TEXT("Remove %d effect(s)"), CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 }
                 break;
 
             case ECrystalType::Quartz:
                 ValueStr = FString::Printf(TEXT("Clear %.0f%% status, %d turns resistance"),
-                                           TestItem->GetStatusClearPercent(), TestItem->GetResistanceDuration());
+                                           CrystalEffectTable::GetStatusClearPercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetResistanceDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             default:
@@ -418,7 +421,7 @@ void UItemDataDebug::LogTierBonuses()
         {
             UE_LOG(LogTemp, Display, TEXT("  %s: +%d energy"),
                    *GetTierName(Tier),
-                   TestItem->GetBrokenDarknessEnergyBonus());
+                   CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
         }
     }
 
@@ -586,34 +589,34 @@ float UItemDataDebug::GetPrimaryValue(const UEvolutionItemData *Item)
     switch (Item->CrystalType)
     {
     case ECrystalType::Garnet:
-        return Item->GetDOTDamagePercent();
+        return CrystalEffectTable::GetDOTDamagePercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Sapphire:
-        return Item->GetHealPercent();
+        return CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Citrine:
-        return Item->GetEPRestorePercent();
+        return CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Emerald:
-        return Item->GetSpeedBuffPercent();
+        return CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Amber:
-        return Item->GetBuffPercentage();
+        return CrystalEffectTable::GetBuffPercentage(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Opal:
-        return Item->GetCritBuffPercent();
+        return CrystalEffectTable::GetCritBuffPercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Onyx:
-        return Item->GetSilencePercentage();
+        return CrystalEffectTable::GetSilencePercentage(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Amethyst:
-        return Item->GetBuffChancePercent();
+        return CrystalEffectTable::GetBuffChancePercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Iolite:
-        return static_cast<float>(Item->GetEffectsToRemoveCount());
+        return static_cast<float>(CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{Item->CrystalType, Item->Tier}));
 
     case ECrystalType::Quartz:
-        return Item->GetStatusClearPercent();
+        return CrystalEffectTable::GetStatusClearPercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     default:
         return 0.0f;

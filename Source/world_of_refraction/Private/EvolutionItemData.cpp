@@ -9,8 +9,6 @@
 #include "CombatConstants.h"
 #include "SkillTriggerUtils.h"
 #include "CrystalTypeHelpers.h"
-#include "CrystalIdentity.h"
-#include "CrystalEffectTable.h"
 #include "CrystalDescription.h"
 
 FString UEvolutionItemData::GetFullItemName() const
@@ -103,132 +101,12 @@ ESpellElement UEvolutionItemData::GetAssociatedElement() const
     return CrystalTypeHelpers::GetElement(CrystalType);
 }
 
-int32 UEvolutionItemData::GetBrokenDarknessEnergyBonus() const
-{
-    return CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{CrystalType, Tier});
-}
-
 // ==================== TARGETING ====================
 
 ETargetType UEvolutionItemData::GetItemTargetType() const
 {
     // All crystals can target anyone for tactical flexibility.
     return ETargetType::SingleAnyone;
-}
-
-// ==================== EFFECT TYPE ====================
-
-EItemEffectType UEvolutionItemData::GetPrimaryEffectType() const
-{
-    return CrystalIdentity::GetPrimaryEffectType(FCrystalId{CrystalType, Tier});
-}
-
-// ==================== GARNET DOT ====================
-// Phase 2 redesign — Garnet is a percentage-based fire DOT (no instant damage).
-// Damage per turn is a percent of the target's MaxHP; see UItemExecutor::ExecuteDamageEffect.
-
-float UEvolutionItemData::GetDOTDamagePercent() const
-{
-    return CrystalEffectTable::GetDOTDamagePercent(FCrystalId{CrystalType, Tier});
-}
-
-int32 UEvolutionItemData::GetDOTDuration() const
-{
-    return CrystalEffectTable::GetDOTDuration(FCrystalId{CrystalType, Tier});
-}
-
-// ==================== SAPPHIRE HEAL ====================
-// Phase 2 redesign — Sapphire heals a percent of the target's MaxHP.
-// S-tier additionally revives a dead target at 30% MaxHP (see ExecuteHealingEffect).
-
-float UEvolutionItemData::GetHealPercent() const
-{
-    return CrystalEffectTable::GetHealPercent(FCrystalId{CrystalType, Tier});
-}
-
-// ==================== PHASE 2 REDESIGN GETTERS ====================
-// Percentage / duration tables for the Phase 2 crystal redesign. Each guards on
-// its owning crystal type and returns 0 otherwise.
-
-float UEvolutionItemData::GetEPRestorePercent() const
-{
-    return CrystalEffectTable::GetEPRestorePercent(FCrystalId{CrystalType, Tier});
-}
-
-float UEvolutionItemData::GetSpeedBuffPercent() const
-{
-    return CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{CrystalType, Tier});
-}
-
-int32 UEvolutionItemData::GetCrystalDuration() const
-{
-    return CrystalEffectTable::GetCrystalDuration(FCrystalId{CrystalType, Tier});
-}
-
-float UEvolutionItemData::GetCritBuffPercent() const
-{
-    return CrystalEffectTable::GetCritBuffPercent(FCrystalId{CrystalType, Tier});
-}
-
-float UEvolutionItemData::GetBuffChancePercent() const
-{
-    return CrystalEffectTable::GetBuffChancePercent(FCrystalId{CrystalType, Tier});
-}
-
-float UEvolutionItemData::GetGambleMagnitudePercent() const
-{
-    return CrystalEffectTable::GetGambleMagnitudePercent(FCrystalId{CrystalType, Tier});
-}
-
-int32 UEvolutionItemData::GetGambleDuration() const
-{
-    return CrystalEffectTable::GetGambleDuration(FCrystalId{CrystalType, Tier});
-}
-
-int32 UEvolutionItemData::GetEffectsToRemoveCount() const
-{
-    return CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{CrystalType, Tier});
-}
-
-float UEvolutionItemData::GetStatusClearPercent() const
-{
-    return CrystalEffectTable::GetStatusClearPercent(FCrystalId{CrystalType, Tier});
-}
-
-int32 UEvolutionItemData::GetResistanceDuration() const
-{
-    return CrystalEffectTable::GetResistanceDuration(FCrystalId{CrystalType, Tier});
-}
-
-float UEvolutionItemData::GetElementalBuildupPercent() const
-{
-    return CrystalEffectTable::GetElementalBuildupPercent(FCrystalId{CrystalType, Tier});
-}
-
-// ==================== BUFF VALUES ====================
-
-float UEvolutionItemData::GetBuffPercentage() const
-{
-    return CrystalEffectTable::GetBuffPercentage(FCrystalId{CrystalType, Tier});
-}
-
-// ==================== SILENCE (Onyx) ====================
-
-float UEvolutionItemData::GetSilencePercentage() const
-{
-    return CrystalEffectTable::GetSilencePercentage(FCrystalId{CrystalType, Tier});
-}
-
-// ==================== OPAL REVEALS ====================
-
-bool UEvolutionItemData::GetRevealsHP() const
-{
-    return CrystalEffectTable::GetRevealsHP(FCrystalId{CrystalType, Tier});
-}
-
-bool UEvolutionItemData::GetRevealsStats() const
-{
-    return CrystalEffectTable::GetRevealsStats(FCrystalId{CrystalType, Tier});
 }
 
 // ==================== STAT MODIFIER FUNCTIONS ====================
@@ -558,12 +436,6 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
 
     // Update all display values for editor viewing
     DisplayElement = GetAssociatedElement();
-    DisplayEffectType = GetPrimaryEffectType();
-    DisplayBuffPercentage = GetBuffPercentage();
-    DisplaySilencePercentage = GetSilencePercentage();
-    DisplayRevealsHP = GetRevealsHP();
-    DisplayRevealsStats = GetRevealsStats();
-    DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 
     // Re-init durability when designer changes Tier or the Evolution flag.
     if (PropertyName == TierProperty ||
