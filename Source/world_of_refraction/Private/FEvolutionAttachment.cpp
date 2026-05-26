@@ -8,12 +8,12 @@
 
 bool FEvolutionAttachment::IsBroken() const
 {
-    return Item && !Item->bImmuneToBreaking && CurrentDurability <= 0;
+    return Item && Item->bCanBreak && CurrentDurability <= 0;
 }
 
 bool FEvolutionAttachment::ApplyWear(int32 Amount)
 {
-    if (!Item || Item->bImmuneToBreaking || Amount <= 0 || CurrentDurability <= 0)
+    if (!Item || !Item->bCanBreak || Amount <= 0 || CurrentDurability <= 0)
     {
         return false;
     }

@@ -83,7 +83,8 @@ public:
 
         // ==================== DURABILITY ====================
         // Only meaningful for refined crystals. Unrefined crystals are consumables
-        // and don't track durability. Evolution crystals are immune (set bImmuneToBreaking).
+        // and don't track durability. Breaking is opt-in via bCanBreak — default
+        // false means the crystal never wears down (durability shown is cosmetic).
         // See DurabilityConstants.h for tier defaults and wear values.
 
         /** Maximum durability. If left at 0, auto-computed from Tier in PostInitProperties.
@@ -92,11 +93,12 @@ public:
                   meta = (EditCondition = "bIsRefined", EditConditionHides, ClampMin = "0"))
         int32 MaxDurability = 0;
 
-        /** Crystal cannot break (durability is cosmetic). Auto-set true for Evolution crystals
-         *  in PostInitProperties; can be manually set true for special cases. */
+        /** When true, this crystal can wear down and break. Default false means the
+         *  crystal is permanent (durability shown is cosmetic). Designers opt-in per
+         *  item — evolution crystals are unbreakable unless explicitly set true. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
                   meta = (EditCondition = "bIsRefined", EditConditionHides))
-        bool bImmuneToBreaking = false;
+        bool bCanBreak = false;
 
         // ==================== STAT BONUS (Evolution only) ====================
         // Authoring surface for evolution crystal stat modifiers. Replaces the

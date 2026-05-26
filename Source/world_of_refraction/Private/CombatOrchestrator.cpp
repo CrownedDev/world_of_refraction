@@ -1104,8 +1104,8 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 				}
 
 				// Resolve per-instance attachment; IsBroken() filters refined-
-				// + durability <= 0 (evolution items always report not-broken
-				// due to bImmuneToBreaking), matching the old triple-check.
+				// + durability <= 0 (evolution items default to bCanBreak=false
+				// so they always report not-broken), matching the old triple-check.
 				// On no match GetCrystalEntryByHolder returns an empty attachment
 				// whose IsBroken() is false, so the gate below correctly skips
 				// unmatched holders.
@@ -1194,10 +1194,10 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
 				// Only refined crystals are eligible for between-combat repair.
-				// Translation of the old (bIsRefined && !bImmuneToBreaking) gate:
 				// bIsRefined and bIsEvolutionCrystal are mutually exclusive in the
-				// existing data, so Kind == Refined replaces both checks. Refined
-				// crystals are never immune to breaking (locked decision).
+				// existing data, so Kind == Refined captures the eligibility gate.
+				// Under the bCanBreak opt-in model, a refined crystal may or may
+				// not be breakable; repair still routes through the refined branch.
 				if (Slot.Kind != EAttachedItemKind::Refined)
 				{
 					continue;

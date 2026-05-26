@@ -41,8 +41,8 @@ void UCrystalManager::ProcessPostCastWear(
         return;
     }
 
-    // Only refined attachments wear/break. Evolution items are immune by design
-    // (see FEvolutionAttachment::IsBroken — checks bImmuneToBreaking).
+    // Only refined attachments wear/break. Evolution items default to unbreakable
+    // (see FEvolutionAttachment::IsBroken — checks bCanBreak).
     if (!Attachment.IsRefined())
     {
         return;
@@ -232,4 +232,92 @@ void UCrystalManager::DebugBreakActiveCrystal()
     UE_LOG(LogTemp, Warning,
            TEXT("[Debug.BreakActiveCrystal] All %d attempts luck-skipped on %s's crystal '%s' (EquipmentModifiedLuck=%.2f). Try again, or raise MAX_ATTEMPTS if this recurs."),
            MAX_ATTEMPTS, *Actor->GetName(), *CrystalName, RawLuck);
+}
+
+void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
+{
+    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+    if (!TurnMgr)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Debug.ForceWearActiveCrystal] No TurnManager subsystem."));
+        return;
+    }
+
+    AActor *Actor = TurnMgr->GetCurrentActor();
+    if (!Actor)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Debug.ForceWearActiveCrystal] No active character (combat not active?)."));
+        return;
+    }
+
+    ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+    if (!LC)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.ForceWearActiveCrystal] No LoadoutComponent on %s."),
+               *Actor->GetName());
+        return;
+    }
+
+    UWeaponData *Weapon = LC->GetPrimaryWeapon();
+    if (!Weapon)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.ForceWearActiveCrystal] %s has no primary weapon equipped."),
+               *Actor->GetName());
+        return;
+    }
+
+    FRuntimeAttachedItem *Attachment = LC->FindAttachedItemByHolder(Weapon);
+    if (!Attachment || Attachment->IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[Debug.ForceWearActiveCrystal] %s's primary weapon has no attached crystal."),
+               *Actor->GetName());
+        return;
+    }
+
+    // Identify the branch + the crystal — used in every log line below so the
+    // bCanBreak flip is unambiguous in the Output Log.
+    const bool bIsEvolutionBranch = Attachment->IsEvolution();
+    const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION") : TEXT("REFINED");
+    const FString CrystalName = bIsEvolutionBranch
+                                    ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
+                                    : CrystalIdentity::GetDisplayName(Attachment->Refined.Id);
+
+    // Evolution-only: bCanBreak is what the refactor flipped. Refined branch
+    // is always wearable (no gate), so log "n/a" there for clarity.
+    const FString CanBreakStr = bIsEvolutionBranch
+                                    ? (Attachment->Evolution.Item
+                                           ? (Attachment->Evolution.Item->bCanBreak ? TEXT("true") : TEXT("false"))
+                                           : TEXT("(null item)"))
+                                    : TEXT("n/a (refined — always wearable)");
+
+    const int32 BeforeDur = Attachment->GetCurrentDurability();
+    const int32 MaxDur = Attachment->GetMaxDurability();
+    const bool bBeforeBroken = Attachment->IsBroken();
+
+    UE_LOG(LogTemp, Display,
+           TEXT("[Debug.ForceWearActiveCrystal] BEFORE — Actor=%s, Branch=%s, Crystal='%s', bCanBreak=%s, Durability=%d/%d, IsBroken=%d, Amount=%d"),
+           *Actor->GetName(), BranchLabel, *CrystalName, *CanBreakStr,
+           BeforeDur, MaxDur, bBeforeBroken ? 1 : 0, Amount);
+
+    // Direct ApplyWear — no BreakCalculator math, no Luck skip. The point of
+    // this hook is to exercise the bCanBreak gate and the durability
+    // transition only.
+    const bool bBrokeThisWear = Attachment->ApplyWear(Amount);
+    const int32 AfterDur = Attachment->GetCurrentDurability();
+    const bool bAfterBroken = Attachment->IsBroken();
+    const bool bWearApplied = AfterDur != BeforeDur;
+
+    UE_LOG(LogTemp, Display,
+           TEXT("[Debug.ForceWearActiveCrystal] AFTER  — Durability=%d/%d, WearApplied=%d, BrokeThisCall=%d, IsBroken=%d"),
+           AfterDur, MaxDur, bWearApplied ? 1 : 0, bBrokeThisWear ? 1 : 0, bAfterBroken ? 1 : 0);
+
+    if (bIsEvolutionBranch && !bWearApplied && !bBeforeBroken)
+    {
+        UE_LOG(LogTemp, Display,
+               TEXT("[Debug.ForceWearActiveCrystal] Evolution wear was a no-op — expected when bCanBreak=false on '%s'."),
+               *CrystalName);
+    }
 }

@@ -25,18 +25,16 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     UEvolutionItemData *Item = nullptr;
 
-    /** Per-instance durability. Only meaningful when the item's bCanBreak is
-     *  true (post-commit-3) — today that maps to bImmuneToBreaking == false. */
+    /** Per-instance durability. Only meaningful when the item's bCanBreak is true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     int32 CurrentDurability = 0;
 
-    /** True iff the item exists, is not immune to breaking, and current
-     *  durability has reached zero. */
+    /** True iff the item exists, can break, and current durability has reached zero. */
     bool IsBroken() const;
 
     /** Apply wear. Returns true iff this wear broke the item (durability
-     *  transitioned from >0 to 0). Skips when Item is null, bImmuneToBreaking
-     *  is true, or durability is already at zero. */
+     *  transitioned from >0 to 0). Skips when Item is null, bCanBreak is false,
+     *  or durability is already at zero. */
     bool ApplyWear(int32 Amount);
 
     /** Repair between combats. Clamps to Item->MaxDurability. Returns actual

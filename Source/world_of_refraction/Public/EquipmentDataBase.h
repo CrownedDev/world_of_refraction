@@ -89,9 +89,9 @@ public:
     bool bImmuneToInfusion = false;
 
     /** When true, the player cannot unfuse this equipment's slotted crystal at
-     *  a vendor. Independent of bImmuneToBreaking (which is on UEvolutionItemData and
-     *  prevents wear). bCrystalLocked is a player-side ergonomic gate; the
-     *  crystal can still break via the standard wear path. No runtime code
+     *  a vendor. Independent of bCanBreak (which is on UEvolutionItemData and gates
+     *  wear). bCrystalLocked is a player-side ergonomic gate; the crystal can still
+     *  break via the standard wear path when its bCanBreak is true. No runtime code
      *  consumes this flag yet — the vendor system will use it when built. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
     bool bCrystalLocked = false;

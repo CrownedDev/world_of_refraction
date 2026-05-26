@@ -99,6 +99,18 @@ public:
     UFUNCTION(Exec)
     void DebugBreakActiveCrystal();
 
+    /** Apply raw wear to the active character's primary weapon crystal. Calls
+     *  FRuntimeAttachedItem::ApplyWear directly on the live attachment —
+     *  bypasses the BreakCalculator tier math AND the luck-skip roll — so the
+     *  underlying bCanBreak gate (evolution branch) and durability transition
+     *  are exercised deterministically. Handles both refined and evolution
+     *  attachments and logs WHICH branch was hit, since the bCanBreak flip
+     *  only affects evolution.
+     *  Console: type "DebugForceWearActiveCrystal 10" in PIE (default Amount=10).
+     *  No broadcasts — this is a raw test path, not a production wear event. */
+    UFUNCTION(Exec)
+    void DebugForceWearActiveCrystal(int32 Amount = 10);
+
 private:
     // ========================================
     // HELPERS

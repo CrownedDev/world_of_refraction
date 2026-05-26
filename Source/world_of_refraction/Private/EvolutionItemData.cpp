@@ -436,14 +436,8 @@ void UEvolutionItemData::PostInitProperties()
         return;
     }
 
-    // Evolution crystals are immune to breaking by design. Per-instance
-    // durability lives on the runtime attachment (FRuntimeAttachedItem);
+    // Per-instance durability lives on the runtime attachment (FRuntimeAttachedItem);
     // this asset only carries the design-time MaxDurability seed.
-    if (bIsEvolutionCrystal)
-    {
-        bImmuneToBreaking = true;
-    }
-
     // Auto-compute MaxDurability from tier if designer left it at 0.
     if (MaxDurability == 0)
     {
@@ -683,24 +677,15 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
     DisplayRevealsStats = GetRevealsStats();
     DisplayBDEnergy = GetBrokenDarknessEnergyBonus();
 
-    // Re-init durability when designer changes Tier (or evolution/immune flags
-    // that determine whether the crystal uses durability at all).
+    // Re-init durability when designer changes Tier or the Evolution flag.
     const FName PropertyName = PropertyChangedEvent.GetPropertyName();
     static const FName TierProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, Tier);
     static const FName EvolutionProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, bIsEvolutionCrystal);
-    static const FName ImmuneProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, bImmuneToBreaking);
 
     if (PropertyName == TierProperty ||
-        PropertyName == EvolutionProperty ||
-        PropertyName == ImmuneProperty)
+        PropertyName == EvolutionProperty)
     {
-        // Evolution flag implies immunity (matches PostInitProperties).
-        if (bIsEvolutionCrystal)
-        {
-            bImmuneToBreaking = true;
-        }
-
-        // Always derive MaxDurability from tier — including for immune/evolution
+        // Always derive MaxDurability from tier — including for unbreakable/evolution
         // crystals. Needed for non-zero UI display and to avoid divide-by-zero.
         const int32 TierMax = DurabilityConstants::GetMaxDurabilityForTier(Tier);
         if (TierMax > 0)
