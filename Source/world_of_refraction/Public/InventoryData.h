@@ -10,10 +10,11 @@
 // - Commit 5: UCharacterData::DefaultLoadout removed.
 // - Commit 6: ULoadoutData and ULoadoutData-shaped factories deleted.
 //
-// The ownership lists (Weapons / Rings / Crystals / Spells / Abilities /
-// Items) are the source of truth for what a character can equip. Each
-// FSavedLoadout in SavedLoadouts[] references assets that MUST also appear
-// in the matching ownership list — GetValidationErrors() flags any mismatch.
+// The ownership lists (Weapons / Rings / ItemCrystals / RefinedCrystals /
+// EvolutionEquipment / Spells / Abilities) are the source of truth for what
+// a character can equip. Each FSavedLoadout in SavedLoadouts[] references
+// assets that MUST also appear in the matching ownership list —
+// GetValidationErrors() flags any mismatch.
 
 #pragma once
 
@@ -59,19 +60,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Inventory|Equipment")
     TArray<URingData *> Rings;
 
-    /** Legacy field — populate RefinedCrystals and/or EvolutionEquipment below
-     *  instead. Removal deferred to commit 15.
-     *  Raw / refined crystals the character owns (evolution crystals plus
-     *  unfused inventory). Every loadout's PrimaryEvolution must come from
-     *  this list. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1. Inventory|Equipment")
-    TArray<UEvolutionItemData *> Crystals;
-
-    // ==================== OWNED CRYSTALS (NEW) ====================
-    // Replaces the legacy Crystals[] and Items[] arrays. Init prefers these
-    // when any of the three is populated; falls back to legacy fields when
-    // all three are empty. Per-tier cap CRYSTAL_PER_TIER_CAP enforced via
-    // IsDataValid; EvolutionEquipment hard cap MAX_EVOLUTION_ITEMS.
+    // ==================== OWNED CRYSTALS ====================
+    // Per-tier cap CRYSTAL_PER_TIER_CAP enforced via IsDataValid;
+    // EvolutionEquipment hard cap MAX_EVOLUTION_ITEMS.
 
     /** Count-based item-crystal storage (unrefined consumables). Each
      *  (Type, Tier) entry maps to a count. Per-tier cap of 20
@@ -105,16 +96,6 @@ public:
      *  this list. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Inventory|Knowledge")
     TArray<UAbilityData *> Abilities;
-
-    // ==================== OWNED CONSUMABLES ====================
-
-    /** Legacy field — populate ItemCrystals above instead. Removal deferred
-     *  to commit 15.
-     *  Consumable item crystals (separate from evolution Crystals above —
-     *  these are the per-combat-usable items that populate loadout
-     *  EquippedItems slots). */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Inventory|Consumables")
-    TArray<UEvolutionItemData *> Items;
 
     // ==================== SAVED LOADOUTS ====================
 

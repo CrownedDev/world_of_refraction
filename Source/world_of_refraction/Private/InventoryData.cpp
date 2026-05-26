@@ -115,10 +115,10 @@ TArray<FString> UInventoryData::GetValidationErrors() const
 
         if (UEvolutionItemData *Evolution = Loadout.GetPrimaryEvolution())
         {
-            if (!Crystals.Contains(Evolution))
+            if (!EvolutionEquipment.Contains(Evolution))
             {
                 Errors.Add(Prefix + FString::Printf(
-                    TEXT("Primary evolution crystal '%s' not in inventory Crystals list"),
+                    TEXT("Primary evolution crystal '%s' not in inventory EvolutionEquipment list"),
                     *Evolution->GetName()));
             }
         }

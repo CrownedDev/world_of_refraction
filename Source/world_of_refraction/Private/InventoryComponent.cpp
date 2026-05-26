@@ -483,8 +483,8 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     Rings.Empty();
 
     // Resolve the new inventory components once. Either may be null on
-    // misconfigured actors — AddItemInternal rejects with a warning when
-    // the required sibling is missing; we log here so the missing component
+    // misconfigured actors — the per-block guards below warn when the
+    // required sibling is missing; we log here so the missing component
     // surfaces alongside init rather than as a downstream symptom.
     AActor *Owner = GetOwner();
     UCrystalInventoryComponent *CrystalInv = Owner
@@ -531,117 +531,63 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         }
     }
 
-    // ---------- Items (Crystals + consumables) ----------
-    // Two paths on the AUTHORING side. Prefer the new asset fields (ItemCrystals /
-    // RefinedCrystals / EvolutionEquipment) when ANY of them is populated — they
-    // write straight to the new components, no UEvolutionItemData* indirection.
-    // Fall back to the legacy asset fields (Crystals[], Items[]) when all three
-    // new fields are empty, for un-migrated UInventoryData assets.
-    const bool bUseNewFields =
-        InventoryAsset->ItemCrystals.Num() > 0 ||
-        InventoryAsset->RefinedCrystals.Num() > 0 ||
-        InventoryAsset->EvolutionEquipment.Num() > 0;
-
-    UE_LOG(LogTemp, Display,
-           TEXT("[InventoryComponent] Init path for '%s' on '%s': %s"),
-           *CharacterData->Name,
-           *InventoryAsset->GetName(),
-           bUseNewFields ? TEXT("new fields") : TEXT("legacy fields"));
-
-    if (bUseNewFields)
+    // ---------- Crystals (item / refined / evolution) ----------
+    // ItemCrystals → CrystalInv->AddItemCount per (Id, Count).
+    // RefinedCrystals → CrystalInv->AddRefinedCount per (Id, Count).
+    // EvolutionEquipment → EvolutionInv->AddInstance per entry.
+    // Sibling components are warned about above when missing; per-block
+    // guards surface the misconfig with the specific dropped data.
+    if (CrystalInv)
     {
-        // ItemCrystals → CrystalInv->AddItemCount per (Id, Count).
-        if (CrystalInv)
+        for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->ItemCrystals)
         {
-            for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->ItemCrystals)
+            if (Pair.Value > 0 && !CrystalInv->AddItemCount(Pair.Key, Pair.Value))
             {
-                if (Pair.Value > 0 && !CrystalInv->AddItemCount(Pair.Key, Pair.Value))
-                {
-                    UE_LOG(LogTemp, Warning,
-                           TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
-                           *CharacterData->Name,
-                           static_cast<int32>(Pair.Key.Type),
-                           static_cast<int32>(Pair.Key.Tier),
-                           Pair.Value);
-                }
-            }
-            for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->RefinedCrystals)
-            {
-                if (Pair.Value > 0 && !CrystalInv->AddRefinedCount(Pair.Key, Pair.Value))
-                {
-                    UE_LOG(LogTemp, Warning,
-                           TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): RefinedCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
-                           *CharacterData->Name,
-                           static_cast<int32>(Pair.Key.Type),
-                           static_cast<int32>(Pair.Key.Tier),
-                           Pair.Value);
-                }
+                UE_LOG(LogTemp, Warning,
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
+                       *CharacterData->Name,
+                       static_cast<int32>(Pair.Key.Type),
+                       static_cast<int32>(Pair.Key.Tier),
+                       Pair.Value);
             }
         }
-        else if (InventoryAsset->ItemCrystals.Num() > 0 || InventoryAsset->RefinedCrystals.Num() > 0)
+        for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->RefinedCrystals)
         {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals/RefinedCrystals authored but UCrystalInventoryComponent missing — data dropped"),
-                   *CharacterData->Name);
-        }
-
-        // EvolutionEquipment → EvolutionInv->AddInstance per entry.
-        if (EvolutionInv)
-        {
-            for (UEvolutionItemData *Item : InventoryAsset->EvolutionEquipment)
+            if (Pair.Value > 0 && !CrystalInv->AddRefinedCount(Pair.Key, Pair.Value))
             {
-                if (Item && !EvolutionInv->AddInstance(Item))
-                {
-                    UE_LOG(LogTemp, Warning,
-                           TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution item '%s' rejected (MAX_EVOLUTION_ITEMS reached)"),
-                           *CharacterData->Name, *Item->ItemName);
-                }
+                UE_LOG(LogTemp, Warning,
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): RefinedCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
+                       *CharacterData->Name,
+                       static_cast<int32>(Pair.Key.Type),
+                       static_cast<int32>(Pair.Key.Tier),
+                       Pair.Value);
             }
         }
-        else if (InventoryAsset->EvolutionEquipment.Num() > 0)
-        {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): EvolutionEquipment authored but UEvolutionInventoryComponent missing — data dropped"),
-                   *CharacterData->Name);
-        }
-
     }
-    else
+    else if (InventoryAsset->ItemCrystals.Num() > 0 || InventoryAsset->RefinedCrystals.Num() > 0)
     {
-        // Legacy-asset-fields path. Designer convention: UInventoryData::Crystals
-        // holds refined and evolution crystals; UInventoryData::Items holds
-        // non-evolution consumables. Routing is by per-crystal runtime flags
-        // (bIsEvolutionCrystal, bIsRefined) — NOT by which asset list the
-        // entry came from — so a mis-authored entry in either list still
-        // lands in the correct component bucket via AddItemInternal.
-        for (UEvolutionItemData *Crystal : InventoryAsset->Crystals)
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals/RefinedCrystals authored but UCrystalInventoryComponent missing — data dropped"),
+               *CharacterData->Name);
+    }
+
+    if (EvolutionInv)
+    {
+        for (UEvolutionItemData *Item : InventoryAsset->EvolutionEquipment)
         {
-            if (Crystal && !AddItemInternal(Crystal, CrystalInv, EvolutionInv))
+            if (Item && !EvolutionInv->AddInstance(Item))
             {
                 UE_LOG(LogTemp, Warning,
-                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping crystal %s"),
-                       *CharacterData->Name, *Crystal->ItemName);
-            }
-        }
-        for (UEvolutionItemData *Item : InventoryAsset->Items)
-        {
-            if (!Item)
-            {
-                continue;
-            }
-            if (Item->bIsEvolutionCrystal)
-            {
-                UE_LOG(LogTemp, Warning,
-                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution crystal '%s' authored in UInventoryData::Items — belongs in Crystals list. Routing to evolution inventory."),
-                       *CharacterData->Name, *Item->ItemName);
-            }
-            if (!AddItemInternal(Item, CrystalInv, EvolutionInv))
-            {
-                UE_LOG(LogTemp, Warning,
-                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): item capacity full, dropping %s"),
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): evolution item '%s' rejected (MAX_EVOLUTION_ITEMS reached)"),
                        *CharacterData->Name, *Item->ItemName);
             }
         }
+    }
+    else if (InventoryAsset->EvolutionEquipment.Num() > 0)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): EvolutionEquipment authored but UEvolutionInventoryComponent missing — data dropped"),
+               *CharacterData->Name);
     }
 
     // ---------- Spells ----------
