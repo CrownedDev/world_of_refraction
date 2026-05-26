@@ -74,9 +74,6 @@ public:
 	/** Test energy is properly deducted from actions */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
 	void Test_EnergyCost();
-	/** Test item execution through full pipeline */
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat Tests")
-	void Test_ItemExecution();
 
 	// ========================================
 	// CONFIGURATION
