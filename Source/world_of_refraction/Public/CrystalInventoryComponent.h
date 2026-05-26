@@ -82,6 +82,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetRefinedCountForTier(EItemTier Tier) const;
 
+    /** Sum of item-crystal + refined-crystal counts across all (Type, Tier).
+     *  Convenience for inventory summary / debug display. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
+    int32 GetTotalCount() const;
+
     // ==================== CAPS ====================
 
     /** True iff AddItemCount(Id, Count) would not exceed the per-tier cap. */

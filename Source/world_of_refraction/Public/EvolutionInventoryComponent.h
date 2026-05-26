@@ -37,6 +37,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
     bool AddInstance(UEvolutionItemData *Item);
 
+    /** True iff an owned (unslotted) entry references Item (pointer identity).
+     *  Returns false when Item is null. Ownership query for loadout validation
+     *  and inventory inspection — replaces the legacy Items-pool HasItem read. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
+    bool HasInstance(UEvolutionItemData *Item) const;
+
     /** Current entry count. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
     int32 Num() const { return Entries.Num(); }

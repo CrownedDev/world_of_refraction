@@ -132,6 +132,20 @@ int32 UCrystalInventoryComponent::GetRefinedCountForTier(EItemTier Tier) const
     return Total;
 }
 
+int32 UCrystalInventoryComponent::GetTotalCount() const
+{
+    int32 Total = 0;
+    for (const TPair<FCrystalId, int32> &Pair : ItemCrystals)
+    {
+        Total += Pair.Value;
+    }
+    for (const TPair<FCrystalId, int32> &Pair : RefinedCrystals)
+    {
+        Total += Pair.Value;
+    }
+    return Total;
+}
+
 // ==================== CAPS ====================
 
 bool UCrystalInventoryComponent::CanAddItemCount(FCrystalId Id, int32 Count) const

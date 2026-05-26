@@ -15,3 +15,19 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
     Entries.Add(FEvolutionInventoryEntry(Item));
     return true;
 }
+
+bool UEvolutionInventoryComponent::HasInstance(UEvolutionItemData *Item) const
+{
+    if (!Item)
+    {
+        return false;
+    }
+    for (const FEvolutionInventoryEntry &Entry : Entries)
+    {
+        if (Entry.Item == Item)
+        {
+            return true;
+        }
+    }
+    return false;
+}

@@ -417,7 +417,23 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetItemsByTier(EItemTier Tier)
 
 TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
 {
-    return Items.GetEvolutionCrystals();
+    TArray<UEvolutionItemData *> Result;
+
+    // Evolution items live in UEvolutionInventoryComponent post-refactor; the
+    // legacy Items pool is empty under the new-fields path. Read the sibling.
+    const UEvolutionInventoryComponent *EvolutionInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    if (EvolutionInv)
+    {
+        for (const FEvolutionInventoryEntry &Entry : EvolutionInv->Entries)
+        {
+            if (Entry.Item)
+            {
+                Result.Add(Entry.Item);
+            }
+        }
+    }
+    return Result;
 }
 
 TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const
@@ -449,7 +465,13 @@ void UInventoryComponent::ClearAll()
 
 FString UInventoryComponent::GetInventorySummary() const
 {
-    int32 EvolutionCount = GetEvolutionCrystals().Num();
+    const int32 EvolutionCount = GetEvolutionCrystals().Num();
+
+    // Item count from the new count-based pool (item + refined). Evolution is
+    // reported on its own line below, so it is not folded into the item total.
+    const UCrystalInventoryComponent *CrystalInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    const int32 ItemCount = CrystalInv ? CrystalInv->GetTotalCount() : 0;
 
     return FString::Printf(
         TEXT("Inventory Summary:\n")
@@ -463,7 +485,7 @@ FString UInventoryComponent::GetInventorySummary() const
         Abilities.GetCount(), InventoryConstants::MAX_LEARNED_ABILITIES,
         Weapons.Num(), GetWeaponSlotCostTotal(), InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS,
         Rings.Num(), GetRingSlotCostTotal(), InventoryConstants::MAX_RING_INVENTORY_SLOTS,
-        Items.GetTotalCount(), InventoryConstants::ITEM_CAPACITY_TOTAL,
+        ItemCount, InventoryConstants::ITEM_CAPACITY_TOTAL,
         EvolutionCount);
 }
 

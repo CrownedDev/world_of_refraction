@@ -3,6 +3,7 @@
 
 #include "InventoryDebug.h"
 #include "InventoryComponent.h"
+#include "CrystalInventoryComponent.h"
 #include "LoadoutComponent.h"
 #include "SpellData.h"
 #include "AbilityData.h"
@@ -146,9 +147,16 @@ void UInventoryDebug::LogItems(UInventoryComponent *Inventory)
     if (!Inventory)
         return;
 
+    // Counts come from the new count-based pool (item + refined). Capacity
+    // denominators still reflect the legacy tiered model (S=3..F=25); the new
+    // component uses a flat per-tier/per-pool cap, so these are dev-reference
+    // figures pending a debug-display follow-up.
+    const UCrystalInventoryComponent *CrystalInv =
+        Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+
     LogSeparator(TEXT("ITEM CRYSTALS"));
     UE_LOG(LogTemp, Display, TEXT("Total: %d/%d"),
-           Inventory->Items.GetTotalCount(),
+           CrystalInv ? CrystalInv->GetTotalCount() : 0,
            InventoryConstants::ITEM_CAPACITY_TOTAL);
 
     // Log by tier
@@ -159,8 +167,10 @@ void UInventoryDebug::LogItems(UInventoryComponent *Inventory)
 
     for (int32 i = 0; i < 7; ++i)
     {
-        int32 Count = Inventory->Items.GetCountForTier(Tiers[i]);
-        int32 Cap = Inventory->Items.GetCapacityForTier(Tiers[i]);
+        const int32 Count = CrystalInv
+                                ? CrystalInv->GetItemCountForTier(Tiers[i]) + CrystalInv->GetRefinedCountForTier(Tiers[i])
+                                : 0;
+        const int32 Cap = InventoryConstants::GetItemCapacityForTier(static_cast<int32>(Tiers[i]));
         if (Count > 0)
         {
             UE_LOG(LogTemp, Display, TEXT("  %s-Tier: %d/%d"), TierNames[i], Count, Cap);
@@ -414,9 +424,11 @@ void UInventoryDebug::TestCapacityLimits(UInventoryComponent *Inventory)
            Inventory->GetRemainingRingCapacity());
 
     // Test item tiered capacity
+    const UCrystalInventoryComponent *CrystalInv =
+        Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
     UE_LOG(LogTemp, Display, TEXT("Item Capacity (Tiered):"));
     UE_LOG(LogTemp, Display, TEXT("  Total: %d/%d"),
-           Inventory->Items.GetTotalCount(), InventoryConstants::ITEM_CAPACITY_TOTAL);
+           CrystalInv ? CrystalInv->GetTotalCount() : 0, InventoryConstants::ITEM_CAPACITY_TOTAL);
 }
 
 void UInventoryDebug::LogCapacityStatus(UInventoryComponent *Inventory)
@@ -447,8 +459,10 @@ void UInventoryDebug::LogCapacityStatus(UInventoryComponent *Inventory)
            InventoryConstants::MAX_RING_INVENTORY_SLOTS,
            Inventory->GetRemainingRingCapacity());
 
+    const UCrystalInventoryComponent *CrystalInv =
+        Inventory->GetOwner() ? Inventory->GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
     UE_LOG(LogTemp, Display, TEXT("Items:     %3d / %3d"),
-           Inventory->Items.GetTotalCount(),
+           CrystalInv ? CrystalInv->GetTotalCount() : 0,
            InventoryConstants::ITEM_CAPACITY_TOTAL);
 
     UE_LOG(LogTemp, Display, TEXT("Evolution Crystals: %3d"),

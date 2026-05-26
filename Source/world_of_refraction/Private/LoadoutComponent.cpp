@@ -19,6 +19,7 @@
 #include "TurnManager.h"
 #include "CrystalIdentity.h"
 #include "CrystalInventoryComponent.h"
+#include "EvolutionInventoryComponent.h"
 #include "FRuntimeAttachedItem.h"
 #include "Engine/GameInstance.h"
 
@@ -522,8 +523,22 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     // Validate primary evolution
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
-        // Evolution validation - check if character owns this evolution crystal
-        if (!Inventory->HasItem(Loadout.PrimaryEvolution.Item))
+        // Evolution ownership lives in UEvolutionInventoryComponent post-refactor;
+        // the legacy Items pool is empty under the new-fields path, so the old
+        // HasItem read produced a false "not owned" for migrated characters.
+        // Resolve the sibling on the inventory's owner; wiring is guaranteed via
+        // the character base, so a missing component is a misconfiguration — log
+        // and treat as not-owned to preserve the original fail-safe.
+        const UEvolutionInventoryComponent *EvolutionInv =
+            Inventory->GetOwner()
+                ? Inventory->GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>()
+                : nullptr;
+        if (!EvolutionInv)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[ULoadoutComponent::GetValidationErrors] No UEvolutionInventoryComponent on inventory owner — cannot verify Evolution ownership; treating as not owned"));
+        }
+        if (!EvolutionInv || !EvolutionInv->HasInstance(Loadout.PrimaryEvolution.Item))
         {
             Errors.Add(TEXT("Primary evolution crystal not in inventory"));
         }
