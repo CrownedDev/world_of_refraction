@@ -231,59 +231,6 @@ bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
     return bHadAttachment;
 }
 
-// ==================== ITEM OPERATIONS ====================
-
-bool UInventoryComponent::AddItem(UEvolutionItemData *Item)
-{
-    AActor *Owner = GetOwner();
-    UCrystalInventoryComponent *CrystalInv = Owner
-        ? Owner->FindComponentByClass<UCrystalInventoryComponent>()
-        : nullptr;
-    UEvolutionInventoryComponent *EvolutionInv = Owner
-        ? Owner->FindComponentByClass<UEvolutionInventoryComponent>()
-        : nullptr;
-    return AddItemInternal(Item, CrystalInv, EvolutionInv);
-}
-
-bool UInventoryComponent::AddItemInternal(UEvolutionItemData *Item,
-                                          UCrystalInventoryComponent *CrystalInv,
-                                          UEvolutionInventoryComponent *EvolutionInv)
-{
-    if (!Item)
-    {
-        return false;
-    }
-
-    // Dispatch by crystal flags. Anything bIsEvolutionCrystal flows to the
-    // evolution component regardless of bIsRefined — refined/unrefined
-    // distinction matters for slottability, not inventory bucket.
-    const bool bIsEvolution = Item->bIsEvolutionCrystal;
-    const bool bHasNewPath = bIsEvolution ? (EvolutionInv != nullptr) : (CrystalInv != nullptr);
-
-    if (!bHasNewPath)
-    {
-        // Misconfiguration safety net — the owner is missing the sibling
-        // component this crystal needs. Init already logs the missing
-        // component at startup; we warn and reject here so the add isn't
-        // silently dropped on this code path.
-        UE_LOG(LogTemp, Warning,
-               TEXT("[InventoryComponent] AddItemInternal: missing %s on owner — rejecting '%s'"),
-               bIsEvolution ? TEXT("UEvolutionInventoryComponent") : TEXT("UCrystalInventoryComponent"),
-               *Item->ItemName);
-        return false;
-    }
-
-    if (bIsEvolution)
-    {
-        return EvolutionInv->AddInstance(Item);
-    }
-
-    const FCrystalId Id(Item->CrystalType, Item->Tier);
-    return Item->bIsRefined
-               ? CrystalInv->AddRefinedCount(Id, 1)
-               : CrystalInv->AddItemCount(Id, 1);
-}
-
 // ==================== EVOLUTION HELPERS ====================
 
 TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const

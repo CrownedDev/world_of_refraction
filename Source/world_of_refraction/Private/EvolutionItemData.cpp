@@ -110,10 +110,8 @@ ETargetType UEvolutionItemData::GetItemTargetType() const
 }
 
 // ==================== STAT MODIFIER FUNCTIONS ====================
-// All read from BaseStatBonus (the new canonical authoring surface). The prior
-// inverted bIsEvolutionCrystal guards have been corrected — these are
-// evolution-only concepts and now return non-empty results when the crystal
-// is an evolution crystal with non-zero modifiers.
+// All read from BaseStatBonus (the canonical authoring surface). These return
+// non-empty results when the crystal has non-zero modifiers.
 
 bool UEvolutionItemData::HasStatModifiers() const
 {
@@ -312,20 +310,17 @@ void UEvolutionItemData::PostLoad()
     // re-saved through the new authoring surface, legacy values are no longer
     // the source of truth. Legacy fields are scheduled for removal after the
     // content team confirms every crystal has been re-saved.
-    if (bIsEvolutionCrystal)
+    if (BaseStatBonus.BonusMindModifierPercent == 0.0f && MindModifierPercent != 0.0f)
     {
-        if (BaseStatBonus.BonusMindModifierPercent == 0.0f && MindModifierPercent != 0.0f)
-        {
-            BaseStatBonus.BonusMindModifierPercent = MindModifierPercent;
-        }
-        if (BaseStatBonus.BonusBodyModifierPercent == 0.0f && BodyModifierPercent != 0.0f)
-        {
-            BaseStatBonus.BonusBodyModifierPercent = BodyModifierPercent;
-        }
-        if (BaseStatBonus.BonusSpiritModifierPercent == 0.0f && SpiritModifierPercent != 0.0f)
-        {
-            BaseStatBonus.BonusSpiritModifierPercent = SpiritModifierPercent;
-        }
+        BaseStatBonus.BonusMindModifierPercent = MindModifierPercent;
+    }
+    if (BaseStatBonus.BonusBodyModifierPercent == 0.0f && BodyModifierPercent != 0.0f)
+    {
+        BaseStatBonus.BonusBodyModifierPercent = BodyModifierPercent;
+    }
+    if (BaseStatBonus.BonusSpiritModifierPercent == 0.0f && SpiritModifierPercent != 0.0f)
+    {
+        BaseStatBonus.BonusSpiritModifierPercent = SpiritModifierPercent;
     }
 }
 
@@ -402,44 +397,25 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
     const FName PropertyName = PropertyChangedEvent.GetPropertyName();
     static const FName CrystalTypeProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, CrystalType);
     static const FName TierProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, Tier);
-    static const FName EvolutionProperty = GET_MEMBER_NAME_CHECKED(UEvolutionItemData, bIsEvolutionCrystal);
 
     const bool bTypeOrTierChanged =
         PropertyName == CrystalTypeProperty ||
         PropertyName == TierProperty;
 
-    // Description = crystal identity sentence only, for BOTH item and evolution
-    // branches. Effect text lives in separate getters (CrystalDescription::
-    // GetItemEffectText / UEvolutionItemData::GetEvolutionEffectText) and is
-    // not composed into Description. Regenerate on first fill or Type/Tier
-    // change so the sentence tracks identity.
-    if (bIsEvolutionCrystal)
+    // Description tracks crystal identity. Effect text lives in separate getters
+    // (CrystalDescription::GetItemEffectText / UEvolutionItemData::GetEvolutionEffectText)
+    // and is not composed into Description. ItemName stays user-authored. Regenerate
+    // Description on first fill or Type/Tier change so the sentence tracks identity.
+    if (Description.IsEmpty() || bTypeOrTierChanged)
     {
-        // Evolution: ItemName stays user-authored; Description tracks identity.
-        if (Description.IsEmpty() || bTypeOrTierChanged)
-        {
-            Description = GenerateDescription();
-        }
-    }
-    else
-    {
-        // Non-evolution: ItemName and Description are both derived from Type/Tier.
-        if (ItemName.IsEmpty() || bTypeOrTierChanged)
-        {
-            ItemName = GetFullItemName();
-        }
-        if (Description.IsEmpty() || bTypeOrTierChanged)
-        {
-            Description = GenerateDescription();
-        }
+        Description = GenerateDescription();
     }
 
     // Update all display values for editor viewing
     DisplayElement = GetAssociatedElement();
 
-    // Re-init durability when designer changes Tier or the Evolution flag.
-    if (PropertyName == TierProperty ||
-        PropertyName == EvolutionProperty)
+    // Re-init durability when designer changes Tier.
+    if (PropertyName == TierProperty)
     {
         // Always derive MaxDurability from tier — including for unbreakable/evolution
         // crystals. Needed for non-zero UI display and to avoid divide-by-zero.
@@ -450,21 +426,13 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
         }
     }
 
-    // Quartz is consumable-only — it cannot be refined or made an evolution
-    // crystal. If the designer switches CrystalType to Quartz with either flag
-    // set, force the flags off (item-system-redesign).
-    if (PropertyName == CrystalTypeProperty && CrystalType == ECrystalType::Quartz)
+    // Quartz is consumable-only — it cannot be refined. If the designer switches
+    // CrystalType to Quartz with bIsRefined set, force it off. (Quartz on a
+    // UEvolutionItemData asset itself is invalid; IsDataValid surfaces it.)
+    if (PropertyName == CrystalTypeProperty && CrystalType == ECrystalType::Quartz && bIsRefined)
     {
-        if (bIsRefined)
-        {
-            bIsRefined = false;
-            UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsRefined on %s"), *GetName());
-        }
-        if (bIsEvolutionCrystal)
-        {
-            bIsEvolutionCrystal = false;
-            UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsEvolutionCrystal on %s"), *GetName());
-        }
+        bIsRefined = false;
+        UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsRefined on %s"), *GetName());
     }
 }
 
@@ -488,76 +456,65 @@ EDataValidationResult UEvolutionItemData::IsDataValid(FDataValidationContext &Co
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    // Quartz is consumable-only (item-system-redesign) — refined or evolution
-    // Quartz is an invalid authoring state.
+    // Quartz is consumable-only — it cannot exist as a UEvolutionItemData asset.
+    // (Item/refined Quartz lives in the FCrystalId / CrystalEffectTable system.)
     if (CrystalType == ECrystalType::Quartz)
     {
-        if (bIsRefined)
-        {
-            Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be refined — they are consumable only")));
-            Result = EDataValidationResult::Invalid;
-        }
-        if (bIsEvolutionCrystal)
-        {
-            Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be evolution crystals — they are consumable only")));
-            Result = EDataValidationResult::Invalid;
-        }
+        Context.AddError(FText::FromString(TEXT("Quartz crystals cannot be evolution crystals — they are consumable only")));
+        Result = EDataValidationResult::Invalid;
     }
 
-    // Evolution crystal BaseStatBonus range warnings — the embedded FEquipmentStatBonus
-    // struct's UPROPERTY meta clamps are baked at ClampMin=0 (intended for
-    // weapons/rings) and can't be overridden at the embedding site. Crystals
-    // permit negative values down to CRYSTAL_BONUS_MIN; we surface out-of-range
-    // authoring here as warnings rather than enforcing in the editor UI.
-    if (bIsEvolutionCrystal)
+    // BaseStatBonus range warnings — the embedded FEquipmentStatBonus struct's
+    // UPROPERTY meta clamps are baked at ClampMin=0 (intended for weapons/rings)
+    // and can't be overridden at the embedding site. Crystals permit negative
+    // values down to CRYSTAL_BONUS_MIN; we surface out-of-range authoring here
+    // as warnings rather than enforcing in the editor UI.
+    auto WarnIntOutOfRange = [&](const TCHAR *FieldName, int32 Value)
     {
-        auto WarnIntOutOfRange = [&](const TCHAR *FieldName, int32 Value)
-        {
-            if (Value < CombatConstants::CRYSTAL_BONUS_MIN || Value > CombatConstants::CRYSTAL_BONUS_MAX)
-            {
-                Context.AddWarning(FText::FromString(FString::Printf(
-                    TEXT("BaseStatBonus.%s = %d is outside [%d, %d] — clamp not enforced for crystals; please correct manually."),
-                    FieldName, Value,
-                    CombatConstants::CRYSTAL_BONUS_MIN, CombatConstants::CRYSTAL_BONUS_MAX)));
-            }
-        };
-        WarnIntOutOfRange(TEXT("BonusRawDamage"),        BaseStatBonus.BonusRawDamage);
-        WarnIntOutOfRange(TEXT("BonusSpellDamage"),      BaseStatBonus.BonusSpellDamage);
-        WarnIntOutOfRange(TEXT("BonusEfficiency"),       BaseStatBonus.BonusEfficiency);
-        WarnIntOutOfRange(TEXT("BonusStatusMultiplier"), BaseStatBonus.BonusStatusMultiplier);
-        WarnIntOutOfRange(TEXT("BonusSpellSpeed"),       BaseStatBonus.BonusSpellSpeed);
-        WarnIntOutOfRange(TEXT("BonusDefense"),          BaseStatBonus.BonusDefense);
-        WarnIntOutOfRange(TEXT("BonusActionSpeed"),      BaseStatBonus.BonusActionSpeed);
-        WarnIntOutOfRange(TEXT("BonusMaxHP"),            BaseStatBonus.BonusMaxHP);
-        WarnIntOutOfRange(TEXT("BonusMaxEnergy"),        BaseStatBonus.BonusMaxEnergy);
-        WarnIntOutOfRange(TEXT("BonusResistance"),       BaseStatBonus.BonusResistance);
-        WarnIntOutOfRange(TEXT("BonusTurnSpeed"),        BaseStatBonus.BonusTurnSpeed);
-        WarnIntOutOfRange(TEXT("BonusLuck"),             BaseStatBonus.BonusLuck);
-
-        // BonusCritChance is float; cast for the int-domain comparison.
-        if (BaseStatBonus.BonusCritChance < CombatConstants::CRYSTAL_BONUS_MIN ||
-            BaseStatBonus.BonusCritChance > CombatConstants::CRYSTAL_BONUS_MAX)
+        if (Value < CombatConstants::CRYSTAL_BONUS_MIN || Value > CombatConstants::CRYSTAL_BONUS_MAX)
         {
             Context.AddWarning(FText::FromString(FString::Printf(
-                TEXT("BaseStatBonus.BonusCritChance = %.2f is outside [%d, %d]."),
-                BaseStatBonus.BonusCritChance,
+                TEXT("BaseStatBonus.%s = %d is outside [%d, %d] — clamp not enforced for crystals; please correct manually."),
+                FieldName, Value,
                 CombatConstants::CRYSTAL_BONUS_MIN, CombatConstants::CRYSTAL_BONUS_MAX)));
         }
+    };
+    WarnIntOutOfRange(TEXT("BonusRawDamage"),        BaseStatBonus.BonusRawDamage);
+    WarnIntOutOfRange(TEXT("BonusSpellDamage"),      BaseStatBonus.BonusSpellDamage);
+    WarnIntOutOfRange(TEXT("BonusEfficiency"),       BaseStatBonus.BonusEfficiency);
+    WarnIntOutOfRange(TEXT("BonusStatusMultiplier"), BaseStatBonus.BonusStatusMultiplier);
+    WarnIntOutOfRange(TEXT("BonusSpellSpeed"),       BaseStatBonus.BonusSpellSpeed);
+    WarnIntOutOfRange(TEXT("BonusDefense"),          BaseStatBonus.BonusDefense);
+    WarnIntOutOfRange(TEXT("BonusActionSpeed"),      BaseStatBonus.BonusActionSpeed);
+    WarnIntOutOfRange(TEXT("BonusMaxHP"),            BaseStatBonus.BonusMaxHP);
+    WarnIntOutOfRange(TEXT("BonusMaxEnergy"),        BaseStatBonus.BonusMaxEnergy);
+    WarnIntOutOfRange(TEXT("BonusResistance"),       BaseStatBonus.BonusResistance);
+    WarnIntOutOfRange(TEXT("BonusTurnSpeed"),        BaseStatBonus.BonusTurnSpeed);
+    WarnIntOutOfRange(TEXT("BonusLuck"),             BaseStatBonus.BonusLuck);
 
-        auto WarnPillarOutOfRange = [&](const TCHAR *FieldName, float Value)
-        {
-            if (Value < CombatConstants::PILLAR_MODIFIER_MIN || Value > CombatConstants::PILLAR_MODIFIER_MAX)
-            {
-                Context.AddWarning(FText::FromString(FString::Printf(
-                    TEXT("BaseStatBonus.%s = %.2f is outside [%.1f, %.1f]."),
-                    FieldName, Value,
-                    CombatConstants::PILLAR_MODIFIER_MIN, CombatConstants::PILLAR_MODIFIER_MAX)));
-            }
-        };
-        WarnPillarOutOfRange(TEXT("BonusMindModifierPercent"),   BaseStatBonus.BonusMindModifierPercent);
-        WarnPillarOutOfRange(TEXT("BonusBodyModifierPercent"),   BaseStatBonus.BonusBodyModifierPercent);
-        WarnPillarOutOfRange(TEXT("BonusSpiritModifierPercent"), BaseStatBonus.BonusSpiritModifierPercent);
+    // BonusCritChance is float; cast for the int-domain comparison.
+    if (BaseStatBonus.BonusCritChance < CombatConstants::CRYSTAL_BONUS_MIN ||
+        BaseStatBonus.BonusCritChance > CombatConstants::CRYSTAL_BONUS_MAX)
+    {
+        Context.AddWarning(FText::FromString(FString::Printf(
+            TEXT("BaseStatBonus.BonusCritChance = %.2f is outside [%d, %d]."),
+            BaseStatBonus.BonusCritChance,
+            CombatConstants::CRYSTAL_BONUS_MIN, CombatConstants::CRYSTAL_BONUS_MAX)));
     }
+
+    auto WarnPillarOutOfRange = [&](const TCHAR *FieldName, float Value)
+    {
+        if (Value < CombatConstants::PILLAR_MODIFIER_MIN || Value > CombatConstants::PILLAR_MODIFIER_MAX)
+        {
+            Context.AddWarning(FText::FromString(FString::Printf(
+                TEXT("BaseStatBonus.%s = %.2f is outside [%.1f, %.1f]."),
+                FieldName, Value,
+                CombatConstants::PILLAR_MODIFIER_MIN, CombatConstants::PILLAR_MODIFIER_MAX)));
+        }
+    };
+    WarnPillarOutOfRange(TEXT("BonusMindModifierPercent"),   BaseStatBonus.BonusMindModifierPercent);
+    WarnPillarOutOfRange(TEXT("BonusBodyModifierPercent"),   BaseStatBonus.BonusBodyModifierPercent);
+    WarnPillarOutOfRange(TEXT("BonusSpiritModifierPercent"), BaseStatBonus.BonusSpiritModifierPercent);
 
     return Result;
 }

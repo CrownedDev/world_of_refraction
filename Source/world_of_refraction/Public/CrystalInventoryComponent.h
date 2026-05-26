@@ -1,14 +1,13 @@
 // CrystalInventoryComponent.h
 // Count-based inventory for refined and item (consumable) crystals.
 //
-// Two independent pools, each capped per tier:
-//  - ItemCrystals:    unrefined consumables    (bIsRefined=false, bIsEvolutionCrystal=false)
-//  - RefinedCrystals: refined slottable items  (bIsRefined=true,  bIsEvolutionCrystal=false)
+// Two independent pools, each capped per tier and keyed on FCrystalId (Type+Tier):
+//  - ItemCrystals:    unrefined consumables (no asset — FCrystalId only)
+//  - RefinedCrystals: refined slottable items (no asset — FCrystalId only)
 //
-// Evolution items (bIsEvolutionCrystal=true, either refined or unrefined)
-// live in UEvolutionInventoryComponent as instances with FGuids — counts
-// aren't enough because trade APIs need identity. This component never
-// stores evolution items.
+// Evolution crystals live in UEvolutionInventoryComponent as instances with
+// FGuids — counts aren't enough because trade APIs need identity. This
+// component never stores evolution items.
 //
 // Storage is keyed on FCrystalId (Type + Tier). Identity by (Type, Tier) is
 // sufficient because refined/item crystals are fungible — two refined

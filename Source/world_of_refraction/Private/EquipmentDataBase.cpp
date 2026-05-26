@@ -32,28 +32,6 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
 void UEquipmentDataBase::PostLoad()
 {
     Super::PostLoad();
-
-    // [Commit 10] Migrate the legacy SlottedCrystal pointer onto the AttachedItem
-    // struct. Gated on AttachedItem still being empty so a re-authored asset is
-    // never clobbered. Kept inline (rather than a FAttachedItem helper) to keep
-    // this cluster scoped to EquipmentDataBase and avoid leaking UEvolutionItemData
-    // into FAttachedItem.h. Refined-vs-evolution split mirrors
-    // FRuntimeAttachedItem::FromAsset; FAttachedItem carries no durability
-    // (design-time only), so only type/tier or the evolution pointer are set.
-    if (AttachedItem.Kind == EAttachedItemKind::None && SlottedCrystal != nullptr)
-    {
-        if (SlottedCrystal->bIsEvolutionCrystal)
-        {
-            AttachedItem.Kind = EAttachedItemKind::Evolution;
-            AttachedItem.Evolution = SlottedCrystal;
-        }
-        else
-        {
-            AttachedItem.Kind = EAttachedItemKind::Refined;
-            AttachedItem.RefinedType = SlottedCrystal->CrystalType;
-            AttachedItem.RefinedTier = SlottedCrystal->Tier;
-        }
-    }
 }
 
 void UEquipmentDataBase::RollSubstatPoints()

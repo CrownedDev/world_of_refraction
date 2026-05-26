@@ -1,18 +1,11 @@
 // EvolutionItemData.h
-// Primary data asset for crystals in World of Refraction. Renamed from
-// ItemData.h in commit 3 of the crystal/evolution refactor sequence; class
-// will be narrowed to evolution-only in later commits as the refined and
-// item-crystal asset paths are deleted.
+// Primary data asset for evolution crystals in World of Refraction. Item and
+// refined crystals live in the FCrystalId / CrystalEffectTable count-based
+// system (no asset); only evolution crystals are asset-backed.
 //
-// CRYSTAL STATES (orthogonal flags — any combination is valid):
-// - bIsRefined:           Whether crystal has been cut for slotting (false = consumable item)
-// - bIsEvolutionCrystal:  Whether crystal grants evolution when slotted/applied
-//
-// Common combinations:
-// - !refined, !evolution: Standard consumable elemental crystal (e.g. unrefined Garnet)
-// -  refined, !evolution: Slottable elemental crystal (slot on weapon/ring for element)
-// -  refined,  evolution: Slottable evolution crystal (grants evolution when slotted)
-// - !refined,  evolution: Evolution crystal in inventory, awaiting refinement
+// REFINEMENT STATE:
+// - !bIsRefined: Evolution crystal in inventory, awaiting refinement
+// -  bIsRefined: Slottable evolution crystal (slotted onto weapon/ring)
 
 #pragma once
 
@@ -68,7 +61,7 @@ public:
         /** Authored description shown when the crystal is revealed (slotting / Mind).
          *  Distinct from auto-generated Description. Reveal logic not yet implemented. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
-                  meta = (MultiLine = true, EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+                  meta = (MultiLine = true))
         FString RevealedDescription;
 
         /** Whether crystal has been refined (cut) for slotting onto equipment.
@@ -76,15 +69,8 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
         bool bIsRefined = false;
 
-        /** Whether this is an Evolution crystal (grants evolution status when slotted).
-         *  Independent of bIsRefined: Evolution crystals can be unrefined (in inventory)
-         *  or refined (slotted on weapon/ring/character). */
+        /** Evolution type */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
-        bool bIsEvolutionCrystal = false;
-
-        /** Evolution type (only for Evolution category crystals) */
-        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System",
-                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
 
         // ==================== DURABILITY ====================
@@ -127,8 +113,7 @@ public:
         // BaseStatBonus (Category = "Stats|Evolution") is referred to as "Traits"
         // in design docs for evolution crystals — the in-editor category cannot
         // vary per subclass, so the header label stays generic.
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution",
-                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
         FEquipmentStatBonus BaseStatBonus;
 
         // ==================== LEGACY PILLAR FIELDS (Deprecated) ====================
@@ -149,8 +134,7 @@ public:
         // ==================== EFFECTS (Evolution only) ====================
 
         /** Skill effects granted by this evolution crystal (passives + triggered) */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution",
-                  meta = (EditCondition = "bIsEvolutionCrystal", EditConditionHides))
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution")
         TArray<FSkillEffect> Effects;
 
         // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
@@ -186,26 +170,6 @@ public:
         /** Check if crystal has been refined (cut for slotting) */
         UFUNCTION(BlueprintPure, Category = "Item|Category")
         bool IsRefined() const { return bIsRefined; }
-
-        /** Check if crystal grants evolution status */
-        UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool GrantsEvolution() const { return bIsEvolutionCrystal; }
-
-        /** Check if crystal is a refined item crystal (non-evolution slottable) */
-        UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool IsRefinedItemCrystal() const { return !bIsEvolutionCrystal && bIsRefined; }
-
-        /** Check if crystal is a refined evolution crystal (slottable, grants evolution) */
-        UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool IsRefinedEvolutionCrystal() const { return bIsEvolutionCrystal && bIsRefined; }
-
-        /** Check if item effects are active (unrefined Item category only) */
-        UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool HasItemEffects() const { return !bIsEvolutionCrystal && !bIsRefined; }
-
-        /** Check if can be applied to character directly (unrefined Evolution only) */
-        UFUNCTION(BlueprintPure, Category = "Item|Category")
-        bool CanApplyToCharacter() const { return bIsEvolutionCrystal && !bIsRefined; }
 
         // ==================== STAT MODIFIER FUNCTIONS ====================
 
@@ -263,9 +227,7 @@ public:
          *   - Pillar percent fields (BonusMind/Body/SpiritModifierPercent) — these
          *     flow through UCharacterDataComponent::ApplyCrystalPillarModifier as
          *     character-persistent modifiers, not per-action.
-         *   - Effects — character-only via a separate system.
-         *
-         *  Returns a zeroed struct when bIsEvolutionCrystal is false. */
+         *   - Effects — character-only via a separate system. */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
         FActionStatModifiers GetInfusionStatModifiers(float InfusionMultiplier) const;
 

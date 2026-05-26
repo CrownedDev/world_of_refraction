@@ -51,11 +51,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoadoutValidationFailed, const FS
  *  a base beyond UPrimaryDataAsset; consumers cast as needed. The Evolution
  *  primary slot uses the item itself as its holder.
  *
- *  Populated by ULoadoutComponent::GetEquippedCrystals — in the 7a window
- *  the Kind is derived from the asset-side bIsEvolutionCrystal flag; once
- *  7b lands and AttachedCrystal becomes FRuntimeAttachedItem the
- *  populator reads Kind from the discriminator directly. Consumers
- *  branch on Kind in both windows; no consumer changes between 7a and 7b. */
+ *  Populated by ULoadoutComponent::GetEquippedCrystals; consumers branch on
+ *  Kind for the refined-vs-evolution discriminator. */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 {

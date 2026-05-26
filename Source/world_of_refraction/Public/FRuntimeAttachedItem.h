@@ -94,11 +94,10 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     // ==================== FACTORY ====================
 
     /** Bridge factory — given the design-time FAttachedItem struct carried on
-     *  UEquipmentDataBase (whose Kind was already decided by PostLoad), produce
-     *  the discriminated runtime attachment. Simpler than FromAsset: no
-     *  bIsEvolutionCrystal inspection is needed because Source.Kind already
-     *  carries that decision; this just copies identity and seeds initial
-     *  durability. Returns a default (Empty) attachment when Source.Kind is None.
+     *  UEquipmentDataBase, produce the discriminated runtime attachment.
+     *  Source.Kind directly carries the refined-vs-evolution decision; this
+     *  just copies identity and seeds initial durability. Returns a default
+     *  (Empty) attachment when Source.Kind is None.
      *
      *  Refined branch: builds FCrystalId from Source.RefinedType +
      *  Source.RefinedTier, seeds CurrentDurability from

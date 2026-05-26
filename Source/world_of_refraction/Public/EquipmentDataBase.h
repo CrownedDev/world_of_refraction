@@ -67,14 +67,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
     FAttachedItem AttachedItem;
 
-    /** [Commit 10] DEPRECATED — migrated to AttachedItem via PostLoad. Bare
-     *  UPROPERTY keeps it serialization-readable (so PostLoad can read old
-     *  assets) but hides it from the designer UI and Blueprint, so nobody
-     *  authors into a field slated for removal. Remove in a later commit once
-     *  all equipment assets are confirmed re-saved. */
-    UPROPERTY()
-    UEvolutionItemData *SlottedCrystal = nullptr;
-
     /** Default spells for this equipment — copied to inventory entry when obtained.
      *  Lost if crystal is removed; spell vendor reassigns them. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal", meta = (TitleProperty = "Name"))

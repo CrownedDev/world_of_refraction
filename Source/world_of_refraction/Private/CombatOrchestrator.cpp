@@ -1193,11 +1193,10 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 
 			for (const FEquippedCrystalSlot &Slot : LoadoutComp->GetEquippedCrystals())
 			{
-				// Only refined crystals are eligible for between-combat repair.
-				// bIsRefined and bIsEvolutionCrystal are mutually exclusive in the
-				// existing data, so Kind == Refined captures the eligibility gate.
-				// Under the bCanBreak opt-in model, a refined crystal may or may
-				// not be breakable; repair still routes through the refined branch.
+				// Only refined attachments are eligible for between-combat repair.
+				// Kind == Refined captures the eligibility gate. Under the
+				// bCanBreak opt-in model, a refined crystal may or may not be
+				// breakable; repair still routes through the refined branch.
 				if (Slot.Kind != EAttachedItemKind::Refined)
 				{
 					continue;

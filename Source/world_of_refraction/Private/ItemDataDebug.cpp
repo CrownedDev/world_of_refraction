@@ -164,11 +164,8 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Quartz:
-        if (Item->bIsRefined || Item->bIsEvolutionCrystal)
-        {
-            Errors.Add(TEXT("Quartz must be consumable-only (not refined or evolution)"));
-            bValid = false;
-        }
+        Errors.Add(TEXT("Quartz cannot exist as a UEvolutionItemData asset — consumable only"));
+        bValid = false;
         if (CrystalEffectTable::GetStatusClearPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero status clear percent"));
@@ -212,23 +209,13 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     // ADD: Crystal state
     UE_LOG(LogTemp, Display, TEXT(""));
     UE_LOG(LogTemp, Display, TEXT("--- Crystal State ---"));
-    UE_LOG(LogTemp, Display, TEXT("Category: %s"), Item->GrantsEvolution() ? TEXT("Evolution") : (Item->CanBeSlotted() ? TEXT("Refined") : TEXT("Item")));
+    UE_LOG(LogTemp, Display, TEXT("Category: Evolution"));
 
-    // ADD: Evolution details if applicable
-    if (Item->bIsEvolutionCrystal)
-    {
-        UE_LOG(LogTemp, Display, TEXT(""));
-        UE_LOG(LogTemp, Display, TEXT("--- Evolution Details ---"));
-        if (Item->GrantsEvolution())
-        {
-            UE_LOG(LogTemp, Display, TEXT("Evolution Name: %s"), *Item->ItemName);
-            UE_LOG(LogTemp, Display, TEXT("Evolution Element: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
-        }
-        else
-        {
-            UE_LOG(LogTemp, Display, TEXT("Evolution: NOT ASSIGNED (INVALID)"));
-        }
-    }
+    // ADD: Evolution details
+    UE_LOG(LogTemp, Display, TEXT(""));
+    UE_LOG(LogTemp, Display, TEXT("--- Evolution Details ---"));
+    UE_LOG(LogTemp, Display, TEXT("Evolution Name: %s"), *Item->ItemName);
+    UE_LOG(LogTemp, Display, TEXT("Evolution Element: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
 
     // Effect values (Phase 2 percentage-based getters)
     UE_LOG(LogTemp, Display, TEXT("--- Effect Values ---"));
@@ -361,22 +348,8 @@ void UItemDataDebug::LogCrystalState(const UEvolutionItemData *Item)
         UE_LOG(LogTemp, Display, TEXT("Usage: Can be slotted into Weapons or Rings"));
         UE_LOG(LogTemp, Display, TEXT("Element Provided: %s"), *UEnum::GetValueAsString(Item->GetAssociatedElement()));
 
-        if (Item->bIsEvolutionCrystal)
-        {
-            UE_LOG(LogTemp, Display, TEXT("Special: EVOLUTION CRYSTAL"));
-            if (Item->GrantsEvolution())
-            {
-                UE_LOG(LogTemp, Display, TEXT("  Evolution: %s"), *Item->ItemName);
-            }
-            else
-            {
-                UE_LOG(LogTemp, Display, TEXT("  WARNING: No Evolution assigned!"));
-            }
-        }
-        else if (Item->CrystalType == ECrystalType::Iolite)
-        {
-            UE_LOG(LogTemp, Display, TEXT("Special: IOLITE (Reality element, physical enhancement)"));
-        }
+        UE_LOG(LogTemp, Display, TEXT("Special: EVOLUTION CRYSTAL"));
+        UE_LOG(LogTemp, Display, TEXT("  Evolution: %s"), *Item->ItemName);
     }
     else
     {

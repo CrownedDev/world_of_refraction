@@ -198,12 +198,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveCrystalFromRing(int32 RingIndex);
 
-    // ==================== ITEM OPERATIONS ====================
-
-    /** Add item crystal to inventory */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool AddItem(UEvolutionItemData *Item);
-
     // ==================== EVOLUTION HELPERS ====================
 
     /** Get all evolution crystals owned by this character.
@@ -226,19 +220,6 @@ private:
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
      *  path — InitializeFromCharacterData delegates here when Inventory is set. */
     void InitializeFromInventoryAsset(UCharacterData *CharacterData);
-
-    /** Routes the crystal to the appropriate inventory component based on
-     *  runtime flags: bIsEvolutionCrystal → UEvolutionInventoryComponent;
-     *  otherwise → UCrystalInventoryComponent (refined or item pool by
-     *  bIsRefined). Warns and rejects when the required sibling component
-     *  is missing.
-     *
-     *  Public AddItem resolves the siblings via FindComponentByClass per
-     *  call; InitializeFromInventoryAsset resolves them once and passes
-     *  them through. */
-    bool AddItemInternal(UEvolutionItemData *Item,
-                         UCrystalInventoryComponent *CrystalInv,
-                         UEvolutionInventoryComponent *EvolutionInv);
 
 protected:
     virtual void BeginPlay() override;
