@@ -416,17 +416,14 @@ namespace
         float Result = BaseValue;
         if (UEvolutionItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
         {
-            if (Crystal->bIsEvolutionCrystal)
+            float CrystalPercent = 0.0f;
+            switch (Pillar)
             {
-                float CrystalPercent = 0.0f;
-                switch (Pillar)
-                {
-                case ECrystalPillar::Mind:   CrystalPercent = Crystal->BaseStatBonus.BonusMindModifierPercent;   break;
-                case ECrystalPillar::Body:   CrystalPercent = Crystal->BaseStatBonus.BonusBodyModifierPercent;   break;
-                case ECrystalPillar::Spirit: CrystalPercent = Crystal->BaseStatBonus.BonusSpiritModifierPercent; break;
-                }
-                Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            case ECrystalPillar::Mind:   CrystalPercent = Crystal->BaseStatBonus.BonusMindModifierPercent;   break;
+            case ECrystalPillar::Body:   CrystalPercent = Crystal->BaseStatBonus.BonusBodyModifierPercent;   break;
+            case ECrystalPillar::Spirit: CrystalPercent = Crystal->BaseStatBonus.BonusSpiritModifierPercent; break;
             }
+            Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
         }
 
         // Equipment layer — multiplicative percent on top of the crystal layer.

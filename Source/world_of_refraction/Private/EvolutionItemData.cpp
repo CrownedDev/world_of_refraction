@@ -239,10 +239,6 @@ bool UEvolutionItemData::GetRevealsStats() const
 
 bool UEvolutionItemData::HasStatModifiers() const
 {
-    if (!bIsEvolutionCrystal)
-    {
-        return false;
-    }
     return BaseStatBonus.BonusMindModifierPercent != 0.0f ||
            BaseStatBonus.BonusBodyModifierPercent != 0.0f ||
            BaseStatBonus.BonusSpiritModifierPercent != 0.0f ||
@@ -263,11 +259,6 @@ bool UEvolutionItemData::HasStatModifiers() const
 
 FString UEvolutionItemData::GetStatModifierSummary() const
 {
-    if (!bIsEvolutionCrystal)
-    {
-        return TEXT("");
-    }
-
     TArray<FString> Modifiers;
 
     if (BaseStatBonus.BonusMindModifierPercent != 0.0f)
@@ -296,28 +287,23 @@ FString UEvolutionItemData::GetStatModifierSummary() const
 
 float UEvolutionItemData::GetMindModifierPercent() const
 {
-    return bIsEvolutionCrystal ? BaseStatBonus.BonusMindModifierPercent : 0.0f;
+    return BaseStatBonus.BonusMindModifierPercent;
 }
 
 float UEvolutionItemData::GetBodyModifierPercent() const
 {
-    return bIsEvolutionCrystal ? BaseStatBonus.BonusBodyModifierPercent : 0.0f;
+    return BaseStatBonus.BonusBodyModifierPercent;
 }
 
 float UEvolutionItemData::GetSpiritModifierPercent() const
 {
-    return bIsEvolutionCrystal ? BaseStatBonus.BonusSpiritModifierPercent : 0.0f;
+    return BaseStatBonus.BonusSpiritModifierPercent;
 }
 
 // ==================== EVOLUTION HELPER FUNCTIONS ====================
 
 FString UEvolutionItemData::GetEvolutionTypeName() const
 {
-    if (!bIsEvolutionCrystal)
-    {
-        return TEXT("N/A");
-    }
-
     switch (EvolutionType)
     {
     case EEvolutionType::Positive:
@@ -335,11 +321,6 @@ FString UEvolutionItemData::GetEvolutionTypeName() const
 
 FString UEvolutionItemData::GetEvolutionStatSummary() const
 {
-    if (!bIsEvolutionCrystal)
-    {
-        return TEXT("N/A");
-    }
-
     // SubStats authoring mode has been removed — the 11 substat percent fields
     // were dropped in the BaseStatBonus migration. Only the three pillar percent
     // fields remain, sourced from BaseStatBonus.
@@ -351,11 +332,6 @@ FString UEvolutionItemData::GetEvolutionStatSummary() const
 FActionStatModifiers UEvolutionItemData::GetInfusionStatModifiers(float InfusionMultiplier) const
 {
     FActionStatModifiers Out;
-
-    if (!bIsEvolutionCrystal)
-    {
-        return Out;
-    }
 
     // Map BaseStatBonus int fields 1:1 onto FActionStatModifiers, scaled by the
     // infusion magnitude (L1 = 0.5, L2 = 1.0). Int values are interpreted as
@@ -388,13 +364,8 @@ TArray<FSkillEffect> UEvolutionItemData::GetAlwaysActiveEffects() const
     TArray<FSkillEffect> Result;
 
     // Effects is authored only on evolution crystals (EditCondition gated
-    // in the header). Returns filtered list for evolution crystals and
-    // empty for anything else.
-    if (!bIsEvolutionCrystal)
-    {
-        return Result;
-    }
-
+    // in the header). Non-evolution crystals have an empty Effects array,
+    // so the loop yields an empty Result for them.
     for (const FSkillEffect &Effect : Effects)
     {
         if (Effect.IsAlwaysActive())
@@ -409,11 +380,6 @@ TArray<FSkillEffect> UEvolutionItemData::GetAlwaysActiveEffects() const
 TArray<FSkillEffect> UEvolutionItemData::GetTriggeredEffects() const
 {
     TArray<FSkillEffect> Result;
-
-    if (!bIsEvolutionCrystal)
-    {
-        return Result;
-    }
 
     for (const FSkillEffect &Effect : Effects)
     {

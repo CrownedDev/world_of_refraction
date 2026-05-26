@@ -4464,7 +4464,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		}
 	}
 
-	if (PrimaryEvolutionCrystal && PrimaryEvolutionCrystal->bIsEvolutionCrystal)
+	if (PrimaryEvolutionCrystal)
 	{
 		// TODO: Apply Crystal->StatBonus persistent bonuses via the equipment-bonus
 		// channel (ApplyCrystalPillarModifier for the pillar percent fields;

@@ -37,7 +37,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
 
         // Evolved ring validation: an Evolution-kind slot must carry an assigned
         // evolution item that actually grants evolution.
-        if (IsEvolved() && (!AttachedItem.Evolution || !AttachedItem.Evolution->GrantsEvolution()))
+        if (IsEvolved() && !AttachedItem.Evolution)
         {
             Context.AddError(FText::FromString(TEXT("Evolution crystal has no Evolution assigned")));
             Result = EDataValidationResult::Invalid;

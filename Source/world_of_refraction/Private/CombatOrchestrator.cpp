@@ -853,7 +853,7 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 				if (SkillEffectManagerRef)
 				{
 					UEvolutionItemData *EvoCrystal = Loadout->GetActivePrimaryEvolutionCrystal(Actor);
-					if (EvoCrystal && EvoCrystal->bIsEvolutionCrystal && EvoCrystal->Effects.Num() > 0)
+					if (EvoCrystal && EvoCrystal->Effects.Num() > 0)
 					{
 						SkillEffectManagerRef->ApplyEvolutionEffects(
 							Actor, EvoCrystal->GetName(), static_cast<int32>(EvoCrystal->GetUniqueID()), EvoCrystal->Effects);
