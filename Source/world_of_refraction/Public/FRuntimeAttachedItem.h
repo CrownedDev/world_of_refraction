@@ -93,20 +93,6 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
 
     // ==================== FACTORY ====================
 
-    /** Transitional factory — given a UEvolutionItemData* (the asset-side
-     *  crystal handle still passed by the runtime AttachCrystal paths),
-     *  produce a discriminated runtime attachment. Branches on
-     *  Crystal->bIsEvolutionCrystal. Returns a default (Empty) attachment
-     *  when Crystal is null.
-     *
-     *  Refined branch: builds FCrystalId from Crystal->CrystalType +
-     *  Crystal->Tier, seeds CurrentDurability from Crystal->MaxDurability
-     *  (the asset's design-time durability seed).
-     *
-     *  Evolution branch: stores Item, seeds CurrentDurability from
-     *  Crystal->MaxDurability. */
-    static FRuntimeAttachedItem FromAsset(UEvolutionItemData *Crystal);
-
     /** Bridge factory — given the design-time FAttachedItem struct carried on
      *  UEquipmentDataBase (whose Kind was already decided by PostLoad), produce
      *  the discriminated runtime attachment. Simpler than FromAsset: no

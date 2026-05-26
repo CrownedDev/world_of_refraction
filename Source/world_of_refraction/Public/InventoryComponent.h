@@ -154,19 +154,11 @@ public:
 
     // ==================== WEAPON CRYSTAL OPERATIONS ====================
 
-    /** Attach crystal to weapon */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool AttachCrystalToWeapon(int32 WeaponIndex, UEvolutionItemData *Crystal);
-
     /** Remove crystal from weapon. Returns true if an attachment was removed,
      *  false if the slot was already empty or the index was invalid. Refined
      *  and evolution attachments are both destroyed on removal. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveCrystalFromWeapon(int32 WeaponIndex);
-
-    /** Apply evolution to weapon */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
-    bool ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionItemData *EvolutionCrystal);
 
     // ==================== RING OPERATIONS ====================
 
@@ -200,19 +192,11 @@ public:
 
     // ==================== RING CRYSTAL OPERATIONS ====================
 
-    /** Attach crystal to ring */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool AttachCrystalToRing(int32 RingIndex, UEvolutionItemData *Crystal);
-
     /** Remove crystal from ring. Returns true if an attachment was removed,
      *  false if the slot was already empty or the index was invalid. Refined
      *  and evolution attachments are both destroyed on removal. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveCrystalFromRing(int32 RingIndex);
-
-    /** Apply evolution to ring */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
-    bool ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemData *EvolutionCrystal);
 
     // ==================== ITEM OPERATIONS ====================
 

@@ -138,30 +138,6 @@ bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
 
 // ==================== WEAPON CRYSTAL OPERATIONS ====================
 
-bool UInventoryComponent::AttachCrystalToWeapon(int32 WeaponIndex, UEvolutionItemData *Crystal)
-{
-    if (!Weapons.IsValidIndex(WeaponIndex) || !Crystal || !Crystal->CanBeSlotted())
-    {
-        return false;
-    }
-
-    FWeaponInventoryEntry &Entry = Weapons[WeaponIndex];
-
-    // Check if adding crystal would exceed capacity
-    int32 CurrentCost = Entry.GetSlotCost();
-    Entry.AttachCrystal(Crystal);
-    int32 NewCost = Entry.GetSlotCost();
-
-    int32 CostDelta = NewCost - CurrentCost;
-    if (GetRemainingWeaponCapacity() < CostDelta)
-    {
-        // Revert
-        return false;
-    }
-
-    return true;
-}
-
 bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
 {
     if (!Weapons.IsValidIndex(WeaponIndex))
@@ -172,37 +148,6 @@ bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
     const bool bHadAttachment = !Weapons[WeaponIndex].AttachedItem.IsEmpty();
     Weapons[WeaponIndex].RemoveCrystal();
     return bHadAttachment;
-}
-
-bool UInventoryComponent::ApplyEvolutionToWeapon(int32 WeaponIndex, UEvolutionItemData *EvolutionCrystal)
-{
-    if (!Weapons.IsValidIndex(WeaponIndex))
-    {
-        return false;
-    }
-
-    if (!EvolutionCrystal || !EvolutionCrystal->CanBeSlotted() || !EvolutionCrystal->GrantsEvolution())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToWeapon: Crystal must be refined and grant evolution"));
-        return false;
-    }
-
-    FWeaponInventoryEntry &Entry = Weapons[WeaponIndex];
-
-    int32 CurrentCost = Entry.GetSlotCost();
-    FRuntimeAttachedItem OldAttachment = Entry.AttachedItem;
-
-    Entry.AttachCrystal(EvolutionCrystal);
-    int32 NewCost = Entry.GetSlotCost();
-
-    int32 CostDelta = NewCost - CurrentCost;
-    if (GetRemainingWeaponCapacity() < CostDelta)
-    {
-        Entry.AttachedItem = OldAttachment;
-        return false;
-    }
-
-    return true;
 }
 
 // ==================== RING OPERATIONS ====================
@@ -274,17 +219,6 @@ bool UInventoryComponent::CanAddRing(URingData *Ring) const
 
 // ==================== RING CRYSTAL OPERATIONS ====================
 
-bool UInventoryComponent::AttachCrystalToRing(int32 RingIndex, UEvolutionItemData *Crystal)
-{
-    if (!Rings.IsValidIndex(RingIndex) || !Crystal || !Crystal->CanBeSlotted())
-    {
-        return false;
-    }
-
-    Rings[RingIndex].AttachCrystal(Crystal);
-    return true;
-}
-
 bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
 {
     if (!Rings.IsValidIndex(RingIndex))
@@ -295,37 +229,6 @@ bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
     const bool bHadAttachment = !Rings[RingIndex].AttachedItem.IsEmpty();
     Rings[RingIndex].RemoveCrystal();
     return bHadAttachment;
-}
-
-bool UInventoryComponent::ApplyEvolutionToRing(int32 RingIndex, UEvolutionItemData *EvolutionCrystal)
-{
-    if (!Rings.IsValidIndex(RingIndex))
-    {
-        return false;
-    }
-
-    if (!EvolutionCrystal || !EvolutionCrystal->CanBeSlotted() || !EvolutionCrystal->GrantsEvolution())
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ApplyEvolutionToRing: Crystal must be refined and grant evolution"));
-        return false;
-    }
-
-    FRingInventoryEntry &Entry = Rings[RingIndex];
-
-    int32 CurrentCost = Entry.GetSlotCost();
-    FRuntimeAttachedItem OldAttachment = Entry.AttachedItem;
-
-    Entry.AttachCrystal(EvolutionCrystal);
-    int32 NewCost = Entry.GetSlotCost();
-
-    int32 CostDelta = NewCost - CurrentCost;
-    if (GetRemainingRingCapacity() < CostDelta)
-    {
-        Entry.AttachedItem = OldAttachment;
-        return false;
-    }
-
-    return true;
 }
 
 // ==================== ITEM OPERATIONS ====================

@@ -23,7 +23,6 @@
 #include "FRingInventoryEntry.generated.h"
 
 class URingData;
-class UEvolutionItemData;
 class USpellData;
 
 /**
@@ -128,12 +127,6 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
         return AttachedItem.CanProvideSpells() ? AssignedSpells.Num() : 0;
     }
     // ==================== CRYSTAL OPERATIONS ====================
-
-    /** Attach a crystal — branches refined vs evolution via FRuntimeAttachedItem::FromAsset. */
-    void AttachCrystal(UEvolutionItemData *NewCrystal)
-    {
-        AttachedItem = FRuntimeAttachedItem::FromAsset(NewCrystal);
-    }
 
     /** Remove crystal (clears spells too - vendor must reassign) */
     void RemoveCrystal()

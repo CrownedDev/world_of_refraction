@@ -130,33 +130,6 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
     }
 }
 
-FRuntimeAttachedItem FRuntimeAttachedItem::FromAsset(UEvolutionItemData *Crystal)
-{
-    FRuntimeAttachedItem Result;
-    if (!Crystal)
-    {
-        return Result;
-    }
-
-    if (Crystal->bIsEvolutionCrystal)
-    {
-        Result.Kind = EAttachedItemKind::Evolution;
-        Result.Evolution.Item = Crystal;
-        Result.Evolution.CurrentDurability = Crystal->MaxDurability;
-    }
-    else
-    {
-        Result.Kind = EAttachedItemKind::Refined;
-        Result.Refined.Id = FCrystalId(Crystal->CrystalType, Crystal->Tier);
-        // Seed from the asset's MaxDurability (its design-time durability
-        // seed). CrystalIdentity's tier-only lookup would also work; the
-        // asset value is the existing source of truth pre-7b.
-        Result.Refined.CurrentDurability = Crystal->MaxDurability;
-    }
-
-    return Result;
-}
-
 FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem &Source)
 {
     FRuntimeAttachedItem Result;
