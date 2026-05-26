@@ -351,66 +351,34 @@ bool UInventoryComponent::AddItemInternal(UEvolutionItemData *Item,
         return false;
     }
 
-    // Legacy parallel write — old storage stays populated until commit 15
-    // so existing readers (FItemCrystalInventory consumers) continue to work.
-    const bool bLegacyOk = Items.AddCrystal(Item);
-
-    // New-path dispatch by crystal flags. Anything bIsEvolutionCrystal flows
-    // to the evolution component regardless of bIsRefined — refined/unrefined
+    // Dispatch by crystal flags. Anything bIsEvolutionCrystal flows to the
+    // evolution component regardless of bIsRefined — refined/unrefined
     // distinction matters for slottability, not inventory bucket.
     const bool bIsEvolution = Item->bIsEvolutionCrystal;
     const bool bHasNewPath = bIsEvolution ? (EvolutionInv != nullptr) : (CrystalInv != nullptr);
 
     if (!bHasNewPath)
     {
-        // New components not wired on this owner — degrade gracefully to
-        // the legacy result so pre-migration actors (and tests) keep working.
-        return bLegacyOk;
+        // Misconfiguration safety net — the owner is missing the sibling
+        // component this crystal needs. Init already logs the missing
+        // component at startup; we warn and reject here so the add isn't
+        // silently dropped on this code path.
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] AddItemInternal: missing %s on owner — rejecting '%s'"),
+               bIsEvolution ? TEXT("UEvolutionInventoryComponent") : TEXT("UCrystalInventoryComponent"),
+               *Item->ItemName);
+        return false;
     }
 
-    bool bNewOk = false;
     if (bIsEvolution)
     {
-        bNewOk = EvolutionInv->AddInstance(Item);
-    }
-    else
-    {
-        const FCrystalId Id(Item->CrystalType, Item->Tier);
-        bNewOk = Item->bIsRefined
-                     ? CrystalInv->AddRefinedCount(Id, 1)
-                     : CrystalInv->AddItemCount(Id, 1);
+        return EvolutionInv->AddInstance(Item);
     }
 
-    if (bLegacyOk != bNewOk)
-    {
-        UE_LOG(LogTemp, Warning,
-               TEXT("[InventoryComponent] AddItem capacity divergence for %s: legacy=%s new=%s (returning new-path result, which is authoritative)"),
-               *Item->ItemName,
-               bLegacyOk ? TEXT("ok") : TEXT("reject"),
-               bNewOk ? TEXT("ok") : TEXT("reject"));
-    }
-
-    return bNewOk;
-}
-
-bool UInventoryComponent::RemoveItem(UEvolutionItemData *Item)
-{
-    return Items.RemoveCrystal(Item);
-}
-
-bool UInventoryComponent::HasItem(UEvolutionItemData *Item) const
-{
-    return Items.HasCrystal(Item);
-}
-
-TArray<UEvolutionItemData *> UInventoryComponent::GetItemsByType(ECrystalType Type) const
-{
-    return Items.GetCrystalsOfType(Type);
-}
-
-TArray<UEvolutionItemData *> UInventoryComponent::GetItemsByTier(EItemTier Tier) const
-{
-    return Items.GetCrystalsOfTier(Tier);
+    const FCrystalId Id(Item->CrystalType, Item->Tier);
+    return Item->bIsRefined
+               ? CrystalInv->AddRefinedCount(Id, 1)
+               : CrystalInv->AddItemCount(Id, 1);
 }
 
 // ==================== EVOLUTION HELPERS ====================
@@ -419,8 +387,6 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
 {
     TArray<UEvolutionItemData *> Result;
 
-    // Evolution items live in UEvolutionInventoryComponent post-refactor; the
-    // legacy Items pool is empty under the new-fields path. Read the sibling.
     const UEvolutionInventoryComponent *EvolutionInv =
         GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     if (EvolutionInv)
@@ -436,22 +402,6 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
     return Result;
 }
 
-TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystalsByElement(ESpellElement Element) const
-{
-    TArray<UEvolutionItemData *> Result;
-
-    TArray<UEvolutionItemData *> AllEvolutions = GetEvolutionCrystals();
-    for (UEvolutionItemData *Crystal : AllEvolutions)
-    {
-        if (Crystal && Crystal->GetAssociatedElement() == Element)
-        {
-            Result.Add(Crystal);
-        }
-    }
-
-    return Result;
-}
-
 // ==================== UTILITY ====================
 
 void UInventoryComponent::ClearAll()
@@ -460,7 +410,6 @@ void UInventoryComponent::ClearAll()
     Abilities.Clear();
     Weapons.Empty();
     Rings.Empty();
-    Items.Clear();
 }
 
 FString UInventoryComponent::GetInventorySummary() const
@@ -527,18 +476,16 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
                *InventoryAsset->GetName(), *Error);
     }
 
-    // Clear ownership lists (same shape as legacy path).
+    // Clear ownership lists.
     Spells.LearnedSpells.Empty();
     Abilities.LearnedAbilities.Empty();
     Weapons.Empty();
     Rings.Empty();
-    Items.Clear();
 
     // Resolve the new inventory components once. Either may be null on
-    // actors not yet migrated to the inventory split — AddItemInternal
-    // degrades to legacy-only when that happens, but we log here so the
-    // missing component surfaces alongside init rather than as a silent
-    // divergence later.
+    // misconfigured actors — AddItemInternal rejects with a warning when
+    // the required sibling is missing; we log here so the missing component
+    // surfaces alongside init rather than as a downstream symptom.
     AActor *Owner = GetOwner();
     UCrystalInventoryComponent *CrystalInv = Owner
         ? Owner->FindComponentByClass<UCrystalInventoryComponent>()
@@ -549,7 +496,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     if (!CrystalInv || !EvolutionInv)
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): new inventory components missing on owner (CrystalInv=%s, EvolutionInv=%s) — legacy storage only"),
+               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): inventory components missing on owner (CrystalInv=%s, EvolutionInv=%s) — items routed to missing components will be dropped"),
                *CharacterData->Name,
                CrystalInv ? TEXT("present") : TEXT("MISSING"),
                EvolutionInv ? TEXT("present") : TEXT("MISSING"));
@@ -585,12 +532,11 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     }
 
     // ---------- Items (Crystals + consumables) ----------
-    // Two paths. Prefer the new fields (ItemCrystals / RefinedCrystals /
-    // EvolutionEquipment) when ANY of them is populated — they write straight to
-    // the new components, no UEvolutionItemData* indirection. Fall back to
-    // the legacy fields (Crystals[], Items[]) when all three new fields are
-    // empty, preserving commit 8 parallel-write behavior for un-migrated
-    // assets.
+    // Two paths on the AUTHORING side. Prefer the new asset fields (ItemCrystals /
+    // RefinedCrystals / EvolutionEquipment) when ANY of them is populated — they
+    // write straight to the new components, no UEvolutionItemData* indirection.
+    // Fall back to the legacy asset fields (Crystals[], Items[]) when all three
+    // new fields are empty, for un-migrated UInventoryData assets.
     const bool bUseNewFields =
         InventoryAsset->ItemCrystals.Num() > 0 ||
         InventoryAsset->RefinedCrystals.Num() > 0 ||
@@ -659,20 +605,15 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
                    *CharacterData->Name);
         }
 
-        // Legacy UInventoryComponent::Items intentionally left empty under
-        // the new-fields path. Pre-migration readers of Items will see no
-        // data on new-fields characters — that's the locked tradeoff;
-        // commit 15 removes the legacy storage entirely.
     }
     else
     {
-        // Legacy fields path. Designer convention: UInventoryData::Crystals
+        // Legacy-asset-fields path. Designer convention: UInventoryData::Crystals
         // holds refined and evolution crystals; UInventoryData::Items holds
         // non-evolution consumables. Routing is by per-crystal runtime flags
         // (bIsEvolutionCrystal, bIsRefined) — NOT by which asset list the
         // entry came from — so a mis-authored entry in either list still
-        // lands in the correct new-path bucket. AddItemInternal also writes
-        // to legacy Items in parallel (commit 8 behavior).
+        // lands in the correct component bucket via AddItemInternal.
         for (UEvolutionItemData *Crystal : InventoryAsset->Crystals)
         {
             if (Crystal && !AddItemInternal(Crystal, CrystalInv, EvolutionInv))
@@ -750,23 +691,18 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         ActiveLoadoutIndex = 0;
     }
 
-    // Crystal counts reported reflect whichever storage was actually
-    // populated this init. Under the new-fields path Items.GetTotalCount()
-    // is zero; the new components hold the counts.
-    const int32 LegacyItemCount = Items.GetTotalCount();
-    const int32 NewItemCount = CrystalInv ? CrystalInv->ItemCrystals.Num() : 0;
-    const int32 NewRefinedCount = CrystalInv ? CrystalInv->RefinedCrystals.Num() : 0;
-    const int32 NewEvolutionCount = EvolutionInv ? EvolutionInv->Num() : 0;
+    const int32 ItemCount = CrystalInv ? CrystalInv->ItemCrystals.Num() : 0;
+    const int32 RefinedCount = CrystalInv ? CrystalInv->RefinedCrystals.Num() : 0;
+    const int32 EvolutionCount = EvolutionInv ? EvolutionInv->Num() : 0;
 
     UE_LOG(LogTemp, Display,
-           TEXT("[InventoryComponent] Initialized inventory from %s: %d weapons, %d rings, legacy-items=%d, new-pool-entries=[item:%d refined:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
+           TEXT("[InventoryComponent] Initialized inventory from %s: %d weapons, %d rings, pool-entries=[item:%d refined:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
            *InventoryAsset->GetName(),
            Weapons.Num(),
            Rings.Num(),
-           LegacyItemCount,
-           NewItemCount,
-           NewRefinedCount,
-           NewEvolutionCount,
+           ItemCount,
+           RefinedCount,
+           EvolutionCount,
            Spells.GetCount(),
            Abilities.GetCount(),
            SavedLoadouts.Num(),

@@ -17,7 +17,6 @@
 #include "FAbilityCollection.h"
 #include "FWeaponInventoryEntry.h"
 #include "FRingInventoryEntry.h"
-#include "FItemCrystalInventory.h"
 #include "FCombatLoadout.h"
 #include "InventoryComponent.generated.h"
 
@@ -67,10 +66,6 @@ public:
     /** Owned rings with crystal/evolution state */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Rings")
     TArray<FRingInventoryEntry> Rings;
-
-    /** Consumable item crystals (tiered capacity) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory|Items")
-    FItemCrystalInventory Items;
 
     // ============================================================
     // SAVED LOADOUTS
@@ -225,31 +220,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
     bool AddItem(UEvolutionItemData *Item);
 
-    /** Remove item crystal from inventory */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Items")
-    bool RemoveItem(UEvolutionItemData *Item);
-
-    /** Check if item is in inventory */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    bool HasItem(UEvolutionItemData *Item) const;
-
-    /** Get items by type */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    TArray<UEvolutionItemData *> GetItemsByType(ECrystalType Type) const;
-
-    /** Get items by tier */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Items")
-    TArray<UEvolutionItemData *> GetItemsByTier(EItemTier Tier) const;
-
     // ==================== EVOLUTION HELPERS ====================
 
-    /** Get all evolution crystals from items (Category::Evolution) */
+    /** Get all evolution crystals owned by this character.
+     *  Reads UEvolutionInventoryComponent on the owner. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
     TArray<UEvolutionItemData *> GetEvolutionCrystals() const;
-
-    /** Get evolution crystals by element */
-    UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
-    TArray<UEvolutionItemData *> GetEvolutionCrystalsByElement(ESpellElement Element) const;
 
     // ==================== UTILITY ====================
 
@@ -267,14 +243,11 @@ private:
      *  path — InitializeFromCharacterData delegates here when Inventory is set. */
     void InitializeFromInventoryAsset(UCharacterData *CharacterData);
 
-    /** Parallel-write item add. Routes the crystal to the legacy Items pool
-     *  AND to the appropriate new component (UCrystalInventoryComponent for
-     *  refined/item crystals, UEvolutionInventoryComponent for evolution
-     *  items) based on the crystal's runtime flags. Returns the NEW-path
-     *  result when the new components are available — that is authoritative
-     *  per the commit-8 design. Falls back to the legacy result when the
-     *  new components are not wired on the owner. Logs a warning when the
-     *  two paths disagree on capacity.
+    /** Routes the crystal to the appropriate inventory component based on
+     *  runtime flags: bIsEvolutionCrystal → UEvolutionInventoryComponent;
+     *  otherwise → UCrystalInventoryComponent (refined or item pool by
+     *  bIsRefined). Warns and rejects when the required sibling component
+     *  is missing.
      *
      *  Public AddItem resolves the siblings via FindComponentByClass per
      *  call; InitializeFromInventoryAsset resolves them once and passes
