@@ -353,8 +353,8 @@ void UItemDataDebug::LogCrystalState(const UEvolutionItemData *Item)
     }
     else
     {
-        UE_LOG(LogTemp, Display, TEXT("Usage: Consumable in combat"));
-        UE_LOG(LogTemp, Display, TEXT("Effect: %s"), *Item->Description);
+        UE_LOG(LogTemp, Display, TEXT("Usage: Unrefined — in inventory awaiting refinement"));
+        UE_LOG(LogTemp, Display, TEXT("Description: %s"), *Item->Description);
     }
 
     UE_LOG(LogTemp, Display, TEXT("====================================="));

@@ -29,11 +29,6 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
     }
 }
 
-void UEquipmentDataBase::PostLoad()
-{
-    Super::PostLoad();
-}
-
 void UEquipmentDataBase::RollSubstatPoints()
 {
     const int32 Budget = EquipmentBonusGen::GetSubstatBudget(Tier);

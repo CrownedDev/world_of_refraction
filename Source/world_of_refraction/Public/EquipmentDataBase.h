@@ -211,10 +211,6 @@ public:
     virtual FEquipmentStatBonus& GetEditableStatBonus() override { return GeneratedStatBonus; }
     virtual EItemTier GetGeneratorTier() const override { return Tier; }
 
-    // [Commit 10] Self-migration of legacy SlottedCrystal → AttachedItem.
-    // Runs in all build configs (not editor-only) so cooked assets migrate too.
-    virtual void PostLoad() override;
-
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
     virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;

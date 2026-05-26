@@ -442,8 +442,7 @@ void UEvolutionItemData::PostEditChangeChainProperty(FPropertyChangedChainEvent 
 
     // Refresh threshold-visibility flags on every effect so EditCondition gating
     // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
-    // to in-editor edits of the matching ESkillTrigger field. Effects is empty
-    // for non-evolution crystals — the loop is a no-op in that case.
+    // to in-editor edits of the matching ESkillTrigger field.
     for (FSkillEffect &Effect : Effects)
     {
         Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);

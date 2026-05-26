@@ -34,9 +34,9 @@ namespace CrystalSpellConstants
 }
 
 /**
- * Primary data asset for items (crystals)
- * Each item is defined by crystal type + tier + refined/evolution flags.
- * See ItemData.h header comment for crystal state combinations.
+ * Primary data asset for evolution crystals. Identity is (CrystalType, Tier);
+ * bIsRefined distinguishes a slottable evolution crystal from an unrefined one
+ * in inventory. See the file header for the refinement-state combinations.
  */
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UEvolutionItemData : public UPrimaryDataAsset
@@ -181,15 +181,15 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Stats")
         FString GetStatModifierSummary() const;
 
-        /** Get Mind modifier (returns 0 if not Evolution) */
+        /** Get Mind modifier */
         UFUNCTION(BlueprintPure, Category = "Item|Stats")
         float GetMindModifierPercent() const;
 
-        /** Get Body modifier (returns 0 if not Evolution) */
+        /** Get Body modifier */
         UFUNCTION(BlueprintPure, Category = "Item|Stats")
         float GetBodyModifierPercent() const;
 
-        /** Get Spirit modifier (returns 0 if not Evolution) */
+        /** Get Spirit modifier */
         UFUNCTION(BlueprintPure, Category = "Item|Stats")
         float GetSpiritModifierPercent() const;
 
