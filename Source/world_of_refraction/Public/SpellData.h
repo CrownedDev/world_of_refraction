@@ -86,6 +86,16 @@ public:
                       EditConditionHides, ClampMin = "0.1"))
     float BeamDuration = 1.0f;
 
+    /** Seconds between damage ticks while the beam is active (Beam only).
+     *  TickCount = max(1, RoundToInt(BeamDuration / BeamTickInterval)).
+     *  BaseDamage is the total dealt across all ticks; per-tick = BaseDamage /
+     *  TickCount with the integer remainder distributed across the first
+     *  `BaseDamage % TickCount` ticks so the total stays exact. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
+                      EditConditionHides, ClampMin = "0.01"))
+    float BeamTickInterval = 0.5f;
+
     // ==================== SIZE ====================
 
     /** Base VFX scale - set to match Niagara system's intended size */

@@ -15,11 +15,10 @@ class UCharacterDataComponent;
 
 // ==================== DELEGATES ====================
 
-/** Broadcast when Movement completes (ready to execute action) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnApproachComplete);
-
-/** Broadcast when return movement completes (back at grid position) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnReturnComplete);
+/** Broadcast when movement completes (used for both approach and return phases —
+ *  ActionExecutor switches its bind target between the two via the
+ *  MovementState query). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMovementComplete);
 
 /** Broadcast when movement is interrupted/cancelled */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMovementCancelled);
@@ -43,7 +42,7 @@ enum class ECombatMovementState : uint8
  * 1. StartApproach() - Move toward target
  * 2. OnMovementComplete fires - Action system executes attack/ability/spell
  * 3. StartReturn() - Move back to grid position
- * 4. OnReturnComplete fires - Turn ends
+ * 4. OnMovementComplete fires again - Turn ends
  */
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UCombatMovementComponent : public UActorComponent
@@ -104,13 +103,11 @@ public:
 
     // ==================== EVENTS ====================
 
-    /** Fires when approach completes - action system should execute attack/ability/spell */
+    /** Fires when approach OR return completes — the active phase is the
+     *  MovementState at broadcast time. Consumers (e.g. ActionExecutor)
+     *  subscribe to drive action-execution then turn-end transitions. */
     UPROPERTY(BlueprintAssignable, Category = "Combat Movement|Events")
-    FOnApproachComplete OnMovementComplete;
-
-    /** Fires when return completes - turn can end */
-    UPROPERTY(BlueprintAssignable, Category = "Combat Movement|Events")
-    FOnReturnComplete OnReturnComplete;
+    FOnMovementComplete OnMovementComplete;
 
     /** Fires when movement is cancelled */
     UPROPERTY(BlueprintAssignable, Category = "Combat Movement|Events")

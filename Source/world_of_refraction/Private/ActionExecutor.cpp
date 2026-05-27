@@ -313,8 +313,19 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	case EActionType::Attack:
 		if (Action.AttackData && Action.SelectedSource != EInfusionSourceOption::None)
 		{
-			// Infused attacks cost energy
-			return 5; // TODO: Get from constants or attack data
+			// Infused attacks cost energy. BaseEnergyCost (UCastableSkillDataBase)
+			// defaults to 0 — attacks are free unless designers set a cost. The
+			// raw value is returned with no fallback constant; a warning fires if
+			// an infused attack ends up costing nothing so the configuration gap
+			// is visible in the log.
+			const int32 Cost = Action.AttackData->BaseEnergyCost;
+			if (Cost <= 0)
+			{
+				UE_LOG(LogTemp, Warning,
+					   TEXT("[ActionExecutor] Infused attack '%s' has BaseEnergyCost=0 — designer authoring gap"),
+					   *Action.AttackData->Name);
+			}
+			return Cost;
 		}
 		return 0;
 
@@ -1021,8 +1032,16 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	// Element
 	ESpellElement Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
 
-	// Attack size
-	float AttackSize = 1.5f; // TODO: get from attack data
+	// Attack size — read from the asset. 0 = unauthored; the executor uses the
+	// raw value (no fallback constant) so the defense-window picks up the gap
+	// loudly rather than silently using a magic number.
+	float AttackSize = Attack->BaseSize;
+	if (AttackSize <= 0.0f)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor] Attack '%s' has BaseSize=0 — defense window will read zero size; author UWeaponAttackData::BaseSize"),
+			   *Attack->Name);
+	}
 
 	// Store in result
 	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
@@ -2777,19 +2796,20 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 	}
 }
 
-void UActionExecutor::OnBeamTick(AActor *Target, float DeltaTime, bool bTargetInBeam)
+void UActionExecutor::OnBeamTick(AActor *Target, int32 TickDamage, bool bTargetInBeam)
 {
-	// Beam applies damage over time while target is in beam
-	if (!bTargetInBeam || !Target)
+	// Discrete beam tick — fires on the projectile's BeamTickInterval cadence.
+	// Per-tick damage is computed projectile-side from the spell's BaseDamage /
+	// tick count with remainder distribution; this handler just applies it
+	// when the target is currently in the beam. No defense window (beam is
+	// continuous) and no caster threading today (the projectile doesn't carry
+	// a Caster reference into the broadcast — symmetric with the prior
+	// placeholder behaviour).
+	if (!bTargetInBeam || !Target || TickDamage <= 0)
 	{
 		return;
 	}
 
-	// TODO: Calculate per-tick damage based on beam total damage and duration
-	// For now, apply small damage each tick
-	int32 TickDamage = 5; // Placeholder
-
-	// Apply damage without defense window (beam is continuous)
 	ApplyDamage(nullptr, Target, TickDamage, ESpellElement::Generic, false);
 }
 

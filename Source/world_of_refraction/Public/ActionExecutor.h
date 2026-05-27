@@ -67,9 +67,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetKilled, AActor *, Killer, 
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
-/** Broadcast when defense window should open (for DefenseSystem integration) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnDefenseWindowRequested, AActor *, Attacker, AActor *, Defender, float, AttackSize, int32, BaseDamage);
-
 /**
  * UActionExecutor
  *
@@ -325,13 +322,6 @@ public:
 	/** Broadcast when async action fully completes (after all defense windows) */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnActionCompleted OnAsyncActionCompleted;
-
-	/**
-	 * Broadcast when a defense window should open
-	 * DefenseSystem should bind to this to handle Block/Parry/Dodge
-	 */
-	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
-	FOnDefenseWindowRequested OnDefenseWindowRequested;
 
 	// ========================================
 	// ANIMATION/VFX STUBS (Override in subclass or bind via events)
@@ -892,5 +882,5 @@ protected:
 
 	/** Called each tick while beam is active */
 	UFUNCTION()
-	void OnBeamTick(AActor *Target, float DeltaTime, bool bTargetInBeam);
+	void OnBeamTick(AActor *Target, int32 TickDamage, bool bTargetInBeam);
 };

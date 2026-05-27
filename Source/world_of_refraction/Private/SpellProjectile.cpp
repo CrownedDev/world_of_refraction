@@ -89,6 +89,12 @@ ASpellProjectile::ASpellProjectile()
     bHasImpacted = false;
     BeamTimeRemaining = 0.f;
     bTargetInBeam = false;
+    BeamTickIntervalSec = 0.5f;
+    BeamTickCount = 0;
+    BeamTickIndex = 0;
+    BeamBaseDmgPerTick = 0;
+    BeamRemainder = 0;
+    BeamTimeUntilNextTick = 0.f;
 }
 
 // ==================== LIFECYCLE ====================
@@ -202,10 +208,23 @@ void ASpellProjectile::InitializeProjectile(
     ApplyElementColors();
     ApplyVisualScale();
 
-    // Beam: Initialize duration
+    // Beam: Initialize duration + discrete-tick schedule. BaseDamage is the
+    // TOTAL across the beam; per-tick = BaseDamage / TickCount with the integer
+    // remainder distributed across the first `Remainder` ticks so the sum
+    // exactly equals BaseDamage.
     if (DeliveryType == ESpellDeliveryType::Beam)
     {
         BeamTimeRemaining = BeamDuration;
+        BeamTickIntervalSec = Spell ? FMath::Max(Spell->BeamTickInterval, 0.01f) : 0.5f;
+        BeamTickCount = FMath::Max(1, FMath::RoundToInt(BeamDuration / BeamTickIntervalSec));
+        BeamBaseDmgPerTick = Damage / BeamTickCount;
+        BeamRemainder = Damage % BeamTickCount;
+        BeamTickIndex = 0;
+        BeamTimeUntilNextTick = BeamTickIntervalSec;
+
+        UE_LOG(LogTemp, Log,
+               TEXT("[SpellProjectile] Beam tick schedule: Total=%d, Ticks=%d, Base=%d/tick, Remainder=%d, Interval=%.2fs"),
+               Damage, BeamTickCount, BeamBaseDmgPerTick, BeamRemainder, BeamTickIntervalSec);
     }
 
     UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Initialized: Type=%d, Target=%s, Radius=%.2f, Speed=%.1f"),
@@ -384,8 +403,19 @@ void ASpellProjectile::TickBeam(float DeltaTime)
         ProjectileFX->SetFloatParameter(FName("BeamLength"), BeamLength);
     }
 
-    // Broadcast beam tick for damage processing
-    OnBeamTick.Broadcast(Target, DeltaTime, bTargetInBeam);
+    // Discrete damage tick — fires on a fixed cadence (BeamTickIntervalSec),
+    // not per frame. Per-tick damage = BeamBaseDmgPerTick + (TickIndex <
+    // BeamRemainder ? 1 : 0). VFX/sound/debug visualization stay per-frame
+    // (cosmetic continuous effects); the OnBeamTick delegate is the
+    // damage-side surface only.
+    BeamTimeUntilNextTick -= DeltaTime;
+    if (BeamTimeUntilNextTick <= 0.f && BeamTickIndex < BeamTickCount)
+    {
+        const int32 ThisTickDamage = BeamBaseDmgPerTick + (BeamTickIndex < BeamRemainder ? 1 : 0);
+        OnBeamTick.Broadcast(Target, ThisTickDamage, bTargetInBeam);
+        ++BeamTickIndex;
+        BeamTimeUntilNextTick += BeamTickIntervalSec;
+    }
 
 #if WITH_EDITOR
     // Debug visualization

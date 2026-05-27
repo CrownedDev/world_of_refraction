@@ -40,6 +40,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (EditCondition = "HitCount == 2"))
     float SecondHitPercent = 50.0f;
 
+    // ==================== SIZE ====================
+
+    /** Hitbox / defense-window size scalar for this attack. 0 = unauthored
+     *  (logged as a warning at execution time; the executor uses the raw 0 — no
+     *  fallback). Mirrors USpellData::BaseSize convention; designers should set
+     *  it on every attack a player can defend against. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size", meta = (ClampMin = "0.0"))
+    float BaseSize = 0.0f;
+
     // ==================== ANIMATION ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
