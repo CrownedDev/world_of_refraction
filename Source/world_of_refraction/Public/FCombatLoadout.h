@@ -166,14 +166,12 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     int32 ActiveRingIndex = 0;
 
     // ==================== VALIDATION ====================
-
-    /** Full validation against class rules and inventory */
-    bool Validate(ECharacterClass CharClass, UInventoryComponent *Inventory) const;
-
-    /** Class-specific validation */
-    bool ValidateGeneric(UInventoryComponent *Inventory) const;
-    bool ValidateCaster(UInventoryComponent *Inventory) const;
-    bool ValidateResonator(UInventoryComponent *Inventory) const;
+    // Live validation lives on ULoadoutComponent::GetValidationErrors —
+    // comprehensive inventory ownership + class-rule + element-capability
+    // checks, broadcast via OnValidationFailed. The struct-side dispatcher
+    // and class-specific Validate* methods were dead code (zero callers) and
+    // were removed in feature/integration-gaps-sweep-2; ValidateBDSpellLoadout
+    // stays — it's still shared with FSavedLoadout::GetValidationErrors.
 
     /**
      * Validate a Broken Darkness spell loadout — InnateSpells as the Darkness

@@ -237,6 +237,17 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 These are not full gaps but are TODO-marked compromises that may affect demo correctness.
 
 ### 10.1 AI spell source defaults to Innate without resolving
+✅ **RESOLVED** on `feature/integration-gaps-sweep-2`. New helper `ULoadoutComponent::ResolveSpellSource(USpellData*)` walks the active loadout's spell lists in locked precedence order (**Innate → RingCrystal → WeaponCrystal → Evolution**), first match wins. Semantically mirrors the player path's `MapCategoryToSpellSource` (Refractions→Innate, ResonateRing→RingCrystal, ResonateWeapon→WeaponCrystal, Breakthrough→Evolution); BD per-element pools resolve as Innate (still Refraction-source, just filtered by absorption). Default fallback: Innate with a warning when the spell isn't in any loadout source (data inconsistency).
+
+All 6 AI sites (the survey said 5, actual count is 6) updated:
+- `AIDecisionManager.cpp:691` (EstimateSpellDamage probe — modifier walk)
+- `AIDecisionManager.cpp:862` (CanAffordSpell probe — cost gate)
+- `AIDecisionManager.cpp:1008/:1021` (TrySurvivalBranch heal probe + OutAction — same spell, source resolved once, both use it)
+- `AIDecisionManager.cpp:1095/:1107` (TryCleanseBranch cleanse probe + OutAction — same pattern)
+- `AIDecisionManager.cpp:1417` (main spell-decision OutAction)
+
+Sites :691 and :862 resolve `ULoadoutComponent` from `Actor->FindComponentByClass<>` (loadout not in scope); the four TrySurvival/TryCleanse/main-decision sites use the in-scope `Loadout` parameter. All sites fall back to Innate if loadout lookup fails, preserving prior behaviour on misconfigured actors.
+
 - **Where:** `Private/AIDecisionManager.cpp:1417` `Action.SpellSource = ESpellSource::Innate; // TODO: Determine actual source`.
 - **Impact:** AI casts get the wrong `ESpellSource` for ring/weapon/evolution crystals, meaning the EP-vs-wear split (this branch's wear modifier) doesn't apply correctly to AI casts.
 - **Priority:** Medium — directly affects this branch's gameplay model.
@@ -279,11 +290,18 @@ These are not full gaps but are TODO-marked compromises that may affect demo cor
 - **Priority:** Medium.
 - **Scope:** Small.
 
-### 10.6 `FCombatLoadout` ownership validation unbuilt (×3)
-- **Where:** `Private/FCombatLoadout.cpp:59, 97, 149` — three `// TODO: Validate against inventory when component exists`.
-- **Impact:** Loadout validation is structural only; the inventory-ownership cross-check is deferred. Authored saved loadouts can list owned-only items that aren't actually owned and pass validation.
-- **Priority:** Medium (data-integrity).
-- **Scope:** Small.
+### 10.6 Loadout validation reports errors but doesn't clear bad slots
+🔄 **REFRAMED (sweep-2)**. Original framing was "three TODO sites need wiring"; verification on `feature/integration-gaps-sweep-2` revealed the three sites were in **dead code** (`FCombatLoadout::Validate / ValidateGeneric / ValidateCaster / ValidateResonator`, zero callers). Option-(a) cleanup applied: the four dead functions were deleted (decl + impl, plus the in-block `// TODO: Validate against inventory when component exists` comments). `FCombatLoadout::ValidateBDSpellLoadout` stays — it's still shared with `FSavedLoadout::GetValidationErrors`. The real gap surfaces below.
+
+- **What:** Loadout validation in `ULoadoutComponent::GetValidationErrors` reports errors but does not mutate the loadout — bad slots remain populated after validation, so runtime can still hit unowned items mid-combat.
+- **Where:** `ULoadoutComponent::GetValidationErrors` (`LoadoutComponent.cpp:440-667`, currently `const`). Comprehensive ownership checks exist (primary weapon, weapon `AssignedAbilities`/`AssignedSpells`, primary ring, primary evolution via `UEvolutionInventoryComponent::HasInstance`, secondary weapon, ring loadout with slot-cost cap, innate spells with element-capability gate) but each finding becomes an error string — no slot is cleared. Called from `ValidateActiveLoadout`/`ValidateLoadout`/`PrepareForBattle`; `PrepareForBattle` is soft-fail (errors broadcast via `OnValidationFailed`, battle still starts).
+- **Impact:** Authored loadouts with unowned references pass through to combat. The character will attempt to use the unowned item at runtime — silent failure or potential crash depending on null-handling at the use site. Logged via `OnValidationFailed` broadcast but the slot itself is not cleared.
+- **Priority:** Medium — data-integrity, latent runtime bug.
+- **Scope:** Medium — contract change (validator becomes non-const, mutation semantics), plus careful audit of every `GetValidationErrors` caller (currently 3 in `LoadoutComponent.cpp` alone) to make sure mutation is safe at each call site.
+- **Status:** NOT in this sweep — separate future task.
+
+#### Original framing (sweep-1 catalog entry)
+> Three TODOs in `FCombatLoadout.cpp` at lines 59, 97, 149: "Validate against inventory when component exists." Treated as a small fix wiring three inventory cross-checks. Sweep-2 verification: those three TODO sites were inside `FCombatLoadout::ValidateGeneric / ValidateCaster / ValidateResonator` — zero callers anywhere in the module. The dead functions were deleted; the real gap (soft-reject semantics on the live path) was reframed above.
 
 ### 10.7 `LoadoutComponent` auto-populate is dumb
 - **Where:** `Private/LoadoutComponent.cpp:1037` `// TODO: Implement smarter auto-population`.
@@ -314,10 +332,10 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 7.3 | Action-camera transition TODO | Medium | Small | — |
 | 8.1 | HUD spawn only via test actor / BP | Medium | Medium | — |
 | 9.2 | BD InnateSpells empty | Medium (if BD demoed) | Small (designer fix) | YES (if BD) |
-| 10.1 | AI `SpellSource` defaults to Innate | Medium | Small | YES (AI casts will mis-charge) |
+| 10.1 | **✅ RESOLVED (sweep-2)** — AI `SpellSource` defaults to Innate — new `ULoadoutComponent::ResolveSpellSource` helper; 6 AI sites updated; locked precedence Innate→Ring→Weapon→Evolution | Medium | Small | YES (AI casts will mis-charge) |
 | 10.4 | **✅ RESOLVED (sweep-1)** — Beam DOT placeholder 5/tick — discrete-tick model; new `USpellData::BeamTickInterval` field; remainder distributed across ticks | Medium | Small | YES (if beams demoed) |
 | 10.5 | DamageCalculator StatusMultiplier modifiers | Medium | Small | — |
-| 10.6 | `FCombatLoadout` ownership validation × 3 | Medium | Small | — |
+| 10.6 | **🔄 REFRAMED (sweep-2)** — loadout validation reports errors but doesn't clear bad slots — dead struct-side Validate* deleted; live `GetValidationErrors` needs mutation semantics (separate future task) | Medium | Medium | — |
 | 2.4 | **✅ RESOLVED (sweep-1)** — `OnDefenseWindowRequested` pure dead | Low | Small | — |
 | 3.3 | `OnResurrected` no subscribers | Low | Small | — |
 | 6.1 | **✅ RESOLVED (sweep-1)** — Movement Approach/Return delegates never broadcast — dead bits deleted; `FOnApproachComplete` renamed to `FOnMovementComplete` to match the live field | Low | Small | — |

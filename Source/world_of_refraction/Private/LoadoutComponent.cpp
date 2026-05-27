@@ -871,6 +871,89 @@ TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
     return Result;
 }
 
+ESpellSource ULoadoutComponent::ResolveSpellSource(USpellData *Spell) const
+{
+    if (!Spell)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[ULoadoutComponent::ResolveSpellSource] Null spell — defaulting to Innate"));
+        return ESpellSource::Innate;
+    }
+
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[ULoadoutComponent::ResolveSpellSource] No active loadout — defaulting to Innate for spell '%s'"),
+               *Spell->Name);
+        return ESpellSource::Innate;
+    }
+
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+
+    // 1. Innate pool — Caster InnateSpells plus BD per-element pools. BD-pool
+    //    spells are still Refraction-source (cast as Innate, just filtered by
+    //    absorption), so they belong here per the locked precedence.
+    if (Loadout.InnateSpells.Contains(Spell))
+    {
+        return ESpellSource::Innate;
+    }
+    for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+    {
+        if (Pool.Spells.Contains(Spell))
+        {
+            return ESpellSource::Innate;
+        }
+    }
+
+    // 2. Ring spells — primary ring (Generic/Caster) + Resonator ring loadout.
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
+    {
+        if (Loadout.PrimaryRing.GetAllSpells().Contains(Spell))
+        {
+            return ESpellSource::RingCrystal;
+        }
+    }
+    for (const FRingLoadoutEntry &RingEntry : Loadout.RingLoadout)
+    {
+        if (RingEntry.IsValid() && RingEntry.GetAllSpells().Contains(Spell))
+        {
+            return ESpellSource::RingCrystal;
+        }
+    }
+
+    // 3. Weapon spells — primary weapon (when weapon-primary) + secondary
+    //    weapon (Generic only). Walks the same composition GetAllSpells uses.
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    {
+        if (Loadout.PrimaryWeapon.GetAllSpells().Contains(Spell))
+        {
+            return ESpellSource::WeaponCrystal;
+        }
+    }
+    if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
+    {
+        if (Loadout.SecondaryWeapon.GetAllSpells().Contains(Spell))
+        {
+            return ESpellSource::WeaponCrystal;
+        }
+    }
+
+    // 4. Evolution spells (primary-slot evolution).
+    if (Loadout.EvolutionSpells.Contains(Spell))
+    {
+        return ESpellSource::Evolution;
+    }
+
+    // Default — the spell isn't in any loadout source. Either a stale reference
+    // or AI somehow picked a spell outside GetAvailableSpells. Log and default
+    // to Innate (matches prior hardcoded behaviour, so worst case is no regression).
+    UE_LOG(LogTemp, Warning,
+           TEXT("[ULoadoutComponent::ResolveSpellSource] Spell '%s' not in any loadout source list — defaulting to Innate (data inconsistency)"),
+           *Spell->Name);
+    return ESpellSource::Innate;
+}
+
 TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;

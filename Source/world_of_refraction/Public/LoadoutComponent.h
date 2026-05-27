@@ -22,6 +22,7 @@
 #include "CharacterDataComponent.h"
 #include "EAttachedItemKind.h"
 #include "FCrystalId.h"
+#include "ESpellSource.h"
 #include "LoadoutComponent.generated.h"
 
 class UInventoryComponent;
@@ -202,6 +203,18 @@ public:
     /** Get all available spells from active loadout */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetAvailableSpells() const;
+
+    /** Resolve which source a spell came from on the active loadout. Precedence
+     *  order (first match wins): Innate (including BD per-element pools) →
+     *  RingCrystal (primary ring + Resonator ring loadout) → WeaponCrystal
+     *  (primary + secondary weapon spell lists) → Evolution. Defaults to Innate
+     *  with a warning if the spell isn't in any loadout source — a data
+     *  inconsistency the AI shouldn't normally hit. Mirrors the player path's
+     *  UCombatCommandMenuSubsystem::MapCategoryToSpellSource semantically:
+     *  Refractions → Innate, ResonateRing → RingCrystal, ResonateWeapon →
+     *  WeaponCrystal, Breakthrough → Evolution. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
+    ESpellSource ResolveSpellSource(USpellData *Spell) const;
 
     /** Get spells from primary slot only (Ring or evolved Weapon) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")

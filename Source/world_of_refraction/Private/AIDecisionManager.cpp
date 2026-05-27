@@ -685,10 +685,14 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
 
     // Build a complete action so ComputeActionStatModifiers can walk the
     // Reality/Evolution sources for this specific spell + infusion level.
+    // Source is resolved off the attacker's active loadout so the modifier walk
+    // sees the real provenance (ring/weapon/evolution casts compute differently
+    // from innate). Falls back to Innate if no loadout is reachable.
+    ULoadoutComponent *AttackerLoadout = Attacker->FindComponentByClass<ULoadoutComponent>();
     FAction Action;
     Action.ActionType = EActionType::Spell;
     Action.SpellData = Spell;
-    Action.SpellSource = ESpellSource::Innate;
+    Action.SpellSource = AttackerLoadout ? AttackerLoadout->ResolveSpellSource(Spell) : ESpellSource::Innate;
     Action.SpellInfusionLevel = InfusionLevel;
     Action.Targets.Add(Target);
 
@@ -856,10 +860,15 @@ bool UAIDecisionManager::CanAffordSpell(AActor *Actor, USpellData *Spell, int32 
         return true; // Cannot compute cost — don't block the AI.
     }
 
+    // Source is resolved off the actor's loadout — CalculateActionEnergyCost
+    // returns 0 for ring/weapon crystal sources and varies for BD evolution
+    // with the Innate-conversion carve-out, so a wrong default ESpellSource
+    // would mis-gate affordability.
+    ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
     FAction Probe;
     Probe.ActionType = EActionType::Spell;
     Probe.SpellData = Spell;
-    Probe.SpellSource = ESpellSource::Innate;
+    Probe.SpellSource = Loadout ? Loadout->ResolveSpellSource(Spell) : ESpellSource::Innate;
     Probe.SpellInfusionLevel = InfusionLevel;
 
     const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, Probe);
@@ -1002,10 +1011,12 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
         if (HealSpell)
         {
             // Energy cost via ActionExecutor so efficiency + infusion multipliers apply.
+            // Source resolved once so the probe and the OutAction agree.
+            const ESpellSource HealSource = Loadout->ResolveSpellSource(HealSpell);
             FAction HealProbe;
             HealProbe.ActionType = EActionType::Spell;
             HealProbe.SpellData = HealSpell;
-            HealProbe.SpellSource = ESpellSource::Innate;
+            HealProbe.SpellSource = HealSource;
             HealProbe.Targets.Add(AIActor);
 
             UActionExecutor *ActionExec = GetActionExecutor();
@@ -1018,7 +1029,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                 OutAction.ActionType = EActionType::Spell;
                 OutAction.SpellData = HealSpell;
                 OutAction.Targets.Add(AIActor); // Self-target
-                OutAction.SpellSource = ESpellSource::Innate;
+                OutAction.SpellSource = HealSource;
                 UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
                 return true;
             }
@@ -1089,10 +1100,12 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
     if (CleanseSpell)
     {
         // Energy cost via ActionExecutor so efficiency + infusion multipliers apply.
+        // Source resolved once so probe and OutAction agree.
+        const ESpellSource CleanseSource = Loadout->ResolveSpellSource(CleanseSpell);
         FAction CleanseProbe;
         CleanseProbe.ActionType = EActionType::Spell;
         CleanseProbe.SpellData = CleanseSpell;
-        CleanseProbe.SpellSource = ESpellSource::Innate;
+        CleanseProbe.SpellSource = CleanseSource;
         CleanseProbe.Targets.Add(AIActor);
 
         UActionExecutor *ActionExec = GetActionExecutor();
@@ -1104,7 +1117,7 @@ bool UAIDecisionManager::TryCleanseBranch(AActor *AIActor, ULoadoutComponent *Lo
             OutAction.ActionType = EActionType::Spell;
             OutAction.SpellData = CleanseSpell;
             OutAction.Targets.Add(AIActor); // Self-target
-            OutAction.SpellSource = ESpellSource::Innate;
+            OutAction.SpellSource = CleanseSource;
             UE_LOG(LogTemp, Log, TEXT("[AI Cleanse] Using cleanse spell"));
             return true;
         }
@@ -1414,7 +1427,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
 
         Action.SpellData = BestSpell;
-        Action.SpellSource = ESpellSource::Innate; // TODO: Determine actual source
+        Action.SpellSource = Loadout->ResolveSpellSource(BestSpell);
 
         // Decide infusion, then drop to L0 if the infused cost is unaffordable.
         int32 SpellInfusion = DecideSpellInfusionLevel(AIActor, Action.Targets[0], BestSpell);
