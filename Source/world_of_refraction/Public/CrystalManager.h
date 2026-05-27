@@ -57,6 +57,21 @@ public:
         int32 InfusionLevel,
         bool bIsSpell);
 
+    /** Apply post-cast wear to the active loadout's standalone primary-slot
+     *  evolution (PrimarySlotType==Evolution, e.g. Broken Darkness). Reads
+     *  the crystal-modified substat fractions off the caster's
+     *  UCharacterDataComponent (case-B aware via ApplyCrystalPillarModifier),
+     *  computes wear via UBreakCalculator::CalculateDurabilityWearWithSubstats,
+     *  and writes live storage via ULoadoutComponent::ApplyWearToActivePrimaryEvolution.
+     *  Leaner than the refined path: NO luck-skip roll, NO OnCrystalBroken
+     *  broadcast (between-combat destruction sweep handles cleanup). */
+    void ProcessPostCastEvolutionWear(
+        AActor *Actor,
+        ULoadoutComponent *LC,
+        EItemTier ActionTier,
+        int32 InfusionLevel,
+        bool bIsSpell);
+
     // ========================================
     // EVENTS
     // ========================================

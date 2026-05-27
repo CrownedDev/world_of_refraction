@@ -33,9 +33,16 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     bool IsBroken() const;
 
     /** Apply wear. Returns true iff this wear broke the item (durability
-     *  transitioned from >0 to 0). Skips when Item is null, bCanBreak is false,
-     *  or durability is already at zero. */
-    bool ApplyWear(int32 Amount);
+     *  transitioned from >0 to 0). Skips when Item is null, Amount <= 0, or
+     *  durability is already at zero.
+     *
+     *  bForceWear (default false): when false, also skips if bCanBreak is
+     *  false (per-asset opt-in). When true, bypasses ONLY the bCanBreak
+     *  gate — all other guards still apply. Intended for callers whose
+     *  mechanic is intrinsic (e.g. Broken Darkness) where per-asset opt-in
+     *  is fragile; FEvolutionAttachment itself stays BD-agnostic. Default
+     *  preserves existing behavior for every other caller. */
+    bool ApplyWear(int32 Amount, bool bForceWear = false);
 
     /** Repair between combats. Clamps to Item->MaxDurability. Returns actual
      *  amount repaired. No-op when Item is null or Amount <= 0. */

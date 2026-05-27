@@ -1158,6 +1158,19 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 					CrystalsDestroyed++;
 				}
 			}
+
+			// Case-B: standalone primary-slot evolution (e.g. Broken Darkness).
+			// GetEquippedCrystals above does not surface this slot — evolution
+			// self-holders aren't matched by FindAttachedItemByHolder — so the
+			// loop misses broken primary evolutions. Helper is a no-op unless
+			// the slot is Evolution AND its attachment IsBroken().
+			if (LoadoutComp->ClearBrokenPrimaryEvolution())
+			{
+				UE_LOG(LogTemp, Log,
+					   TEXT("[CombatOrchestrator] Destroyed broken primary evolution on %s"),
+					   *Actor->GetName());
+				CrystalsDestroyed++;
+			}
 		}
 	};
 

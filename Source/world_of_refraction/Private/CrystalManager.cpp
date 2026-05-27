@@ -141,6 +141,87 @@ void UCrystalManager::ProcessPostCastWear(
     }
 }
 
+void UCrystalManager::ProcessPostCastEvolutionWear(
+    AActor *Actor,
+    ULoadoutComponent *LC,
+    EItemTier ActionTier,
+    int32 InfusionLevel,
+    bool bIsSpell)
+{
+    if (!Actor || !LC)
+    {
+        return;
+    }
+
+    const FCombatLoadout Loadout = LC->GetActiveLoadout();
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution || !Loadout.PrimaryEvolution.Item)
+    {
+        return;
+    }
+
+    const EItemTier EvoTier = Loadout.PrimaryEvolution.Item->Tier;
+
+    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+    int32 Wear = 0;
+    if (CasterCharComp && CasterCharComp->CharacterData)
+    {
+        const float SpellDmgFrac    = CasterCharComp->GetCrystalModifiedSpellDamage() - 1.0f;
+        const float StatusMultFrac  = CasterCharComp->GetCrystalModifiedStatusMultiplier() - 1.0f;
+        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetCrystalModifiedEfficiencyMultiplier();
+        const float ResistanceFrac  = CasterCharComp->GetCrystalModifiedResistance();
+        Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
+            EvoTier,
+            ActionTier,
+            InfusionLevel,
+            bIsSpell,
+            SpellDmgFrac,
+            StatusMultFrac,
+            EfficiencyFrac,
+            ResistanceFrac);
+    }
+    else
+    {
+        Wear = UBreakCalculator::CalculateDurabilityWear(
+            EvoTier,
+            ActionTier,
+            InfusionLevel,
+            bIsSpell);
+    }
+
+    if (Wear <= 0)
+    {
+        return;
+    }
+
+    const int32 BeforeDur = Loadout.PrimaryEvolution.CurrentDurability;
+    const int32 MaxDur = Loadout.PrimaryEvolution.Item->MaxDurability;
+    const FString EvoName = Loadout.PrimaryEvolution.Item->GetFullItemName();
+
+    // BD's mechanic is intrinsic — bypass the per-asset bCanBreak gate so the
+    // evolution can wear even when the asset wasn't explicitly opted-in. This
+    // function is only called from the BD branch of ApplyCommitCosts, so the
+    // force flag is safe to hard-code here. FEvolutionAttachment itself stays
+    // BD-agnostic; the override is expressed via the bForceWear parameter.
+    const bool bBroke = LC->ApplyWearToActivePrimaryEvolution(Wear, /*bForceWear=*/true);
+
+    const FCombatLoadout AfterLoadout = LC->GetActiveLoadout();
+    const int32 AfterDur = AfterLoadout.PrimaryEvolution.CurrentDurability;
+
+    UE_LOG(LogTemp, Verbose,
+           TEXT("[CrystalManager] %s applies %d evolution wear to '%s' (%d -> %d / %d)%s [ActionTier=%d L%d bIsSpell=%d]"),
+           *Actor->GetName(), Wear, *EvoName,
+           BeforeDur, AfterDur, MaxDur,
+           bBroke ? TEXT(" BROKE") : TEXT(""),
+           static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
+
+    if (bBroke)
+    {
+        UE_LOG(LogTemp, Log,
+               TEXT("[CrystalManager] Evolution '%s' broke on %s (between-combat sweep will clear slot)"),
+               *EvoName, *Actor->GetName());
+    }
+}
+
 // ========================================
 // HELPERS
 // ========================================

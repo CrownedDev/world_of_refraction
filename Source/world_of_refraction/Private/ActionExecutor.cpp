@@ -264,6 +264,26 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 				return 0;
 			}
 
+			// Broken Darkness: primary-slot evolution casts are free at the EP
+			// layer (durability wear in ExecuteSpellAsync is the cost), EXCEPT
+			// when the player explicitly infuses with their innate (Darkness)
+			// element at L1/L2 — that conversion pays EP on top of wear.
+			// Non-BD evolution casts always draw EP.
+			if (Action.SpellSource == ESpellSource::Evolution)
+			{
+				UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
+				if (CharComp && CharComp->IsBrokenDarkness())
+				{
+					const bool bInnateDarknessInfusion =
+						Action.SpellInfusionLevel >= 1 &&
+						Action.SelectedSource == EInfusionSourceOption::Innate;
+					if (!bInnateDarknessInfusion)
+					{
+						return 0;
+					}
+				}
+			}
+
 			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
 			// Spell infusion: 1.0x / 1.3x / 1.6x cost
 			float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
@@ -654,6 +674,24 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		return;
 	}
 	CurrentExecutionContext->PartialResult.EnergySpent = FinalEnergyCost;
+
+	// Broken Darkness pays durability wear on every evolution-source cast
+	// (the EP-waiver counterpart in CalculateActionEnergyCost). Universal
+	// hook — the wear formula self-returns 0 for matched-tier uninfused
+	// casts, so no extra gating is required here.
+	if (CasterComp->IsBrokenDarkness() && Action.SpellSource == ESpellSource::Evolution)
+	{
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Caster))
+		{
+			if (UCrystalManager *CrystalMgr = GetGameInstance()
+												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
+												  : nullptr)
+			{
+				CrystalMgr->ProcessPostCastEvolutionWear(
+					Caster, LC, Spell->Tier, Action.SpellInfusionLevel, /*bIsSpell=*/true);
+			}
+		}
+	}
 
 	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
 	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
