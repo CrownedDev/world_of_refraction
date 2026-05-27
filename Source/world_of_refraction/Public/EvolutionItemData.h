@@ -49,6 +49,9 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
         ECrystalType CrystalType = ECrystalType::Garnet;
 
+        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Identity")
+        ESpellElement DisplayElement;
+
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
         EItemTier Tier = EItemTier::F_Tier;
 
@@ -136,12 +139,6 @@ public:
         /** Skill effects granted by this evolution crystal (passives + triggered) */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution")
         TArray<FSkillEffect> Effects;
-
-        // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
-        // These are computed and displayed for reference - not editable
-
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Identity")
-        ESpellElement DisplayElement;
 
         // ==================== VISUAL/AUDIO ====================
 

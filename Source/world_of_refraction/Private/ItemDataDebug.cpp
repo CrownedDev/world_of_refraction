@@ -18,6 +18,7 @@ bool UItemDataDebug::ValidateAllItemCombinations()
     for (int32 CrystalIndex = static_cast<int32>(ECrystalType::Garnet); CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
     {
         ECrystalType Crystal = static_cast<ECrystalType>(CrystalIndex);
+        if (Crystal == ECrystalType::Quartz) continue; // consumable-only, not a valid UEvolutionItemData asset
 
         // Iterate all tiers
         for (int32 TierIndex = 0; TierIndex <= static_cast<int32>(EItemTier::S_Tier); ++TierIndex)
@@ -477,6 +478,7 @@ bool UItemDataDebug::RunAllTests()
     for (int32 CrystalIndex = static_cast<int32>(ECrystalType::Garnet); CrystalIndex <= static_cast<int32>(ECrystalType::Quartz); ++CrystalIndex)
     {
         ECrystalType Crystal = static_cast<ECrystalType>(CrystalIndex);
+        if (Crystal == ECrystalType::Quartz) continue; // consumable-only, not a valid UEvolutionItemData asset
         if (!TestTierProgression(Crystal))
         {
             bAllPassed = false;
