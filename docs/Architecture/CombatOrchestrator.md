@@ -145,10 +145,34 @@ aborted combats do not count as completed battles.
   equipped crystal slots; for any broken crystal (`FRuntimeAttachedItem::IsBroken()`,
   queried via `LoadoutComp->GetCrystalEntryByHolder(Slot.Holder)`) it calls
   `LoadoutComp->ResetCrystalEntryByHolder(Slot.Holder)` to clear the runtime entry.
-  The asset is never mutated at runtime. Silent (no UI delegate). Runs BEFORE repair
-  so destroyed crystals are not repair candidates.
+  Also calls `LoadoutComp->ClearBrokenPrimaryEvolution()` for the case-B standalone
+  primary-slot evolution (e.g. Broken Darkness) — `GetEquippedCrystals` doesn't
+  surface evolution self-holders, so the loop would miss broken primary evolutions.
+  Counted in `CrystalsDestroyed`. The asset is never mutated at runtime. Silent
+  (no UI delegate). Runs BEFORE repair so destroyed crystals are not repair candidates.
 - `ApplyBetweenCombatRepair()` — adds `DurabilityConstants::REPAIR_PER_BATTLE` to
   every refined, non-immune, non-broken equipped crystal.
+
+### Crystal-wear debug (`CallInEditor`)
+
+Four parameterless buttons under category `Debug|CrystalWear` (Details panel
+during PIE). All forward to `UCrystalManager` `WOR_*` methods — the subsystem
+isn't in the `FExec` chain so the orchestrator hosts the entry points:
+
+- `DebugCrystalState` → `WOR_CrystalState` — prints the active combatant's
+  primary-weapon crystal: type (Refined / Evolution), tier, `bCanBreak`,
+  current/max durability.
+- `DebugWearTable` → `WOR_WearTable` — substat-modified wear prediction table
+  (rows F→S) for the active combatant, worst-case envelope (S-tier, L2, Spell).
+  No wear applied.
+- `DebugSimCast_S_L2` → `WOR_SimCast(S, 2)` — runs the real `ProcessPostCastWear`
+  path once on the active combatant's primary-weapon crystal at worst-case
+  parameters. Logs PREDICT and AFTER.
+- `DebugSimCast_Matched_L1` — resolves the equipped crystal's own tier from
+  `Attachment->Refined.Id.Tier`, then `WOR_SimCast(<crystalTier>, 1)`.
+  Isolates infusion-only wear.
+
+Full formula, constants, and `WOR_*` semantics: `CrystalWear.md`.
 
 ## Integration Points
 
@@ -209,3 +233,4 @@ Observations from the code (not explicitly flagged as issues):
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-27 | Between-combat destruction sweep extended via `ULoadoutComponent::ClearBrokenPrimaryEvolution` to cover case-B primary-slot evolutions (BD). New `Debug\|CrystalWear` subsection — four `CallInEditor` buttons (`DebugCrystalState`, `DebugWearTable`, `DebugSimCast_S_L2`, `DebugSimCast_Matched_L1`) forwarding to `UCrystalManager` `WOR_*`. | feature/crystal-wear-substat-modifier |

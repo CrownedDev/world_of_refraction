@@ -142,18 +142,33 @@ caller decides clamp/refill/notify policy.
 A file-local `ApplyCrystalPillarModifier()` helper layers **two** optional
 modifier sources on top of an asset pillar value:
 
-1. **Crystal layer** — the primary-weapon-slot evolution crystal's
+1. **Crystal layer** — the active evolution crystal's
    `BaseStatBonus.Bonus{Mind,Body,Spirit}ModifierPercent`, applied
-   multiplicatively (divided by `STAT_PERCENT_DIVISOR`). Read via
-   `ULoadoutComponent::GetActivePrimaryEvolutionCrystal()`.
+   multiplicatively (divided by `STAT_PERCENT_DIVISOR`). Two mutually
+   exclusive sub-cases:
+   - **Case A** — evolution attached to the active weapon
+     (`PrimarySlotType == Weapon`). Read via
+     `ULoadoutComponent::GetActivePrimaryEvolutionCrystal()`.
+   - **Case B** — evolution slotted as the primary slot itself
+     (`PrimarySlotType == Evolution`, e.g. Broken Darkness). Read from
+     `FCombatLoadout::PrimaryEvolution.Item` on the active loadout.
+   - The two cases branch on `PrimarySlotType` so the helper never
+     double-applies. Without case B, BD's evolution stats would not feed
+     the substat wear modifier (see `CrystalWear.md`).
 2. **Equipment layer** — the active loadout's matching
    `FEquipmentStatBonus` percent, applied multiplicatively on top.
 
 `GetCrystalModifiedMind/Body/Spirit()` feed `GetEffectiveMind/Body/Spirit()`
 through this helper. The derived `GetCrystalModified*` functions
 (`SpellDamage`, `RawDamage`, `CritChance`, `FlatDefense`,
-`SpellDamageForHealing`, `EfficiencyMultiplier`) mirror the asset's `Calculate*`
-formula shapes but substitute the crystal-modified pillar as input.
+`SpellDamageForHealing`, `EfficiencyMultiplier`, `StatusMultiplier`,
+`Resistance`) mirror the asset's `Calculate*` formula shapes but substitute
+the crystal-modified pillar as input. `GetCrystalModifiedStatusMultiplier`
+returns `1 + frac` (mirrors `CalculateStatusMultiplier`);
+`GetCrystalModifiedResistance` returns the raw fraction clamped to
+`[0, RESISTANCE_MAX]`. The four output-side fractions (`SpellDamage`,
+`StatusMultiplier`, `Efficiency`, `Resistance`) feed
+`UCrystalManager::ProcessPostCast*Wear` — the substat wear modifier.
 
 `GetEquipmentModifiedLuck()` is crystal-aware Luck: pillar-scaled against
 `GetCrystalModifiedSpirit()`, plus the loadout's `BonusLuck`, plus
@@ -272,3 +287,4 @@ bar repaints (no client-side state mutation — the server already cleared
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-21 | Inventory redesign merged — `UCharacterData::DefaultLoadout` (`ULoadoutData*`) replaced by `Inventory` (`UInventoryData*`); `IsDataValid` now warns on missing `Inventory` instead of missing `DefaultLoadout`. | feature/inventory-refactor |
+| 2026-05-27 | `ApplyCrystalPillarModifier` gains a case-B branch (`PrimarySlotType == Evolution`) so BD's primary-slot evolution stats flow through the crystal-modified pillars; two new accessors `GetCrystalModifiedStatusMultiplier` and `GetCrystalModifiedResistance` mirror the existing pattern. Consumed by the substat crystal-wear modifier — see `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
