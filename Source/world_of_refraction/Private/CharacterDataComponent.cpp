@@ -413,6 +413,10 @@ namespace
         // Crystal layer — read pillar percent directly from the crystal's
         // BaseStatBonus (the new canonical authoring surface; old CalculateModified*
         // helpers were removed in the BaseStatBonus migration).
+        // Case A: evolution attached to the active weapon (PrimarySlotType==Weapon).
+        // Case B: evolution slotted as the primary slot itself (PrimarySlotType==Evolution,
+        // e.g. Broken Darkness). The two cases are mutually exclusive on PrimarySlotType,
+        // so the else-if cannot double-apply.
         float Result = BaseValue;
         if (UEvolutionItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
         {
@@ -424,6 +428,22 @@ namespace
             case ECrystalPillar::Spirit: CrystalPercent = Crystal->BaseStatBonus.BonusSpiritModifierPercent; break;
             }
             Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+        }
+        else
+        {
+            const FCombatLoadout Active = Loadout->GetActiveLoadout();
+            if (Active.PrimarySlotType == EPrimarySlotType::Evolution && Active.PrimaryEvolution.Item)
+            {
+                UEvolutionItemData *PrimaryEvo = Active.PrimaryEvolution.Item;
+                float CrystalPercent = 0.0f;
+                switch (Pillar)
+                {
+                case ECrystalPillar::Mind:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusMindModifierPercent;   break;
+                case ECrystalPillar::Body:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusBodyModifierPercent;   break;
+                case ECrystalPillar::Spirit: CrystalPercent = PrimaryEvo->BaseStatBonus.BonusSpiritModifierPercent; break;
+                }
+                Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
         }
 
         // Equipment layer — multiplicative percent on top of the crystal layer.
@@ -605,6 +625,31 @@ float UCharacterDataComponent::GetCrystalModifiedEfficiencyMultiplier() const
         1.0f - (ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT),
         1.0f - CombatConstants::EFFICIENCY_MAX,
         1.0f);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedStatusMultiplier() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const int32 TotalPoints = CharacterData->GetTotalStatusMultiplier();
+    return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedResistance() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const int32 TotalPoints = CharacterData->GetTotalResistance();
+    return FMath::Clamp(
+        ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
+        0.0f,
+        CombatConstants::RESISTANCE_MAX);
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()

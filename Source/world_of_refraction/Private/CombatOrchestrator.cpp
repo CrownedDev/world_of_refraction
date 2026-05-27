@@ -28,6 +28,7 @@
 #include "CombatCameraManager.h"
 #include "WeatherStateManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "CrystalManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -1156,6 +1157,19 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 						   *CrystalName, *HolderDesc, *Actor->GetName());
 					CrystalsDestroyed++;
 				}
+			}
+
+			// Case-B: standalone primary-slot evolution (e.g. Broken Darkness).
+			// GetEquippedCrystals above does not surface this slot — evolution
+			// self-holders aren't matched by FindAttachedItemByHolder — so the
+			// loop misses broken primary evolutions. Helper is a no-op unless
+			// the slot is Evolution AND its attachment IsBroken().
+			if (LoadoutComp->ClearBrokenPrimaryEvolution())
+			{
+				UE_LOG(LogTemp, Log,
+					   TEXT("[CombatOrchestrator] Destroyed broken primary evolution on %s"),
+					   *Actor->GetName());
+				CrystalsDestroyed++;
 			}
 		}
 	};
@@ -2395,4 +2409,98 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Attacking %s"), *Target->GetName());
 
 	SubmitActionAsync(AttackAction);
+}
+
+// ========================================
+// CRYSTAL WEAR DEBUG BUTTONS
+// ========================================
+
+void ACombatOrchestrator::DebugCrystalState()
+{
+	if (UCrystalManager *CM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCrystalManager>() : nullptr)
+	{
+		CM->WOR_CrystalState();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugCrystalState: No CrystalManager subsystem."));
+	}
+}
+
+void ACombatOrchestrator::DebugWearTable()
+{
+	if (UCrystalManager *CM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCrystalManager>() : nullptr)
+	{
+		CM->WOR_WearTable();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugWearTable: No CrystalManager subsystem."));
+	}
+}
+
+void ACombatOrchestrator::DebugSimCast_S_L2()
+{
+	if (UCrystalManager *CM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCrystalManager>() : nullptr)
+	{
+		CM->WOR_SimCast(static_cast<int32>(EItemTier::S_Tier), 2);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_S_L2: No CrystalManager subsystem."));
+	}
+}
+
+void ACombatOrchestrator::DebugSimCast_Matched_L1()
+{
+	if (!TurnManagerRef)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: No TurnManager."));
+		return;
+	}
+
+	AActor *Actor = TurnManagerRef->GetCurrentActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: No active combatant (combat not active?)."));
+		return;
+	}
+
+	ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!Loadout)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: No LoadoutComponent on %s."), *Actor->GetName());
+		return;
+	}
+
+	UWeaponData *Weapon = Loadout->GetPrimaryWeapon();
+	if (!Weapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: %s has no primary weapon equipped."), *Actor->GetName());
+		return;
+	}
+
+	FRuntimeAttachedItem *Attachment = Loadout->FindAttachedItemByHolder(Weapon);
+	if (!Attachment || Attachment->IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: %s's primary weapon has no attached crystal."), *Actor->GetName());
+		return;
+	}
+
+	if (!Attachment->IsRefined())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: %s's crystal is not refined (no tier to match)."), *Actor->GetName());
+		return;
+	}
+
+	const int32 CrystalTier = static_cast<int32>(Attachment->Refined.Id.Tier);
+
+	if (UCrystalManager *CM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCrystalManager>() : nullptr)
+	{
+		CM->WOR_SimCast(CrystalTier, 1);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: No CrystalManager subsystem."));
+	}
 }

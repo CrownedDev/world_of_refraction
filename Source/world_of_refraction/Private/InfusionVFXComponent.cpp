@@ -499,6 +499,23 @@ void UInfusionVFXComponent::CacheAvailableSources()
     UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
 }
 
+void UInfusionVFXComponent::RestrictCachedSources(const TArray<EInfusionSourceOption> &Allowed)
+{
+    TArray<EInfusionSourceOption> Filtered;
+    Filtered.Reserve(CachedSources.Num());
+    for (EInfusionSourceOption Source : CachedSources)
+    {
+        if (Allowed.Contains(Source))
+        {
+            Filtered.Add(Source);
+        }
+    }
+    CachedSources = MoveTemp(Filtered);
+    CurrentSourceIndex = 0;
+
+    UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Restricted to %d sources"), CachedSources.Num());
+}
+
 void UInfusionVFXComponent::CycleToNextSource()
 {
     if (CachedSources.Num() == 0)

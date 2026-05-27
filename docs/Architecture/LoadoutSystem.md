@@ -130,7 +130,7 @@ fields the component reads include: `LoadoutName`, `PrimarySlotType`
 (`ESecondarySlotType`: None / Weapon), `PrimaryWeapon`, `SecondaryWeapon`
 (`FWeaponLoadoutEntry`), `PrimaryRing` (`FRingLoadoutEntry`), `RingLoadout`
 (`TArray<FRingLoadoutEntry>` for Resonators), `ActiveRingIndex`,
-`PrimaryEvolution` (`UEvolutionItemData*`), `EvolutionSpells`, `InnateSpells` (Caster),
+`PrimaryEvolution` (`FEvolutionAttachment` — wraps `UEvolutionItemData*` plus per-instance durability; see `FCombatLoadout.h`), `EvolutionSpells`, `InnateSpells` (Caster),
 `ItemSlots` (`TArray<FItemLoadoutSlot>`), `bShowPrimary` and
 `bUseWeaponParryAnimation`. It also exposes `InitializeForClass`, `Clear`,
 `CreateFromSavedLoadout` (the sole runtime factory; inflates an `FSavedLoadout`
@@ -237,6 +237,15 @@ While in combat, callers query the component:
   crystal effects are explicitly *not* included here.
 - `GetActivePrimaryEvolutionCrystal(AActor*)` returns the evolution crystal
   slotted specifically in the primary *weapon* slot, or nullptr.
+- `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` (BlueprintCallable)
+  — writes the live `SavedLoadouts[ActiveLoadoutIndex].PrimaryEvolution` (not
+  a `GetActiveLoadout` copy). Returns true if the wear broke the crystal.
+  `bForceWear=true` bypasses the per-asset `bCanBreak` gate — used by Broken
+  Darkness's intrinsic wear path. See `CrystalWear.md`.
+- `ClearBrokenPrimaryEvolution()` (BlueprintCallable) — clears the active
+  loadout's primary evolution slot if its attachment `IsBroken()`.
+  `PrimarySlotType` is left as `Evolution` (slot empties; kind unchanged).
+  For between-combat sweep use (`ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction`).
 
 ### Post-battle
 
@@ -275,7 +284,10 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
   pillar/pool calculations and `HasUsableEPTarget`.
 - `UCrystalManager` (per code comments) — uses `GetEquippedCrystals()` for
   combat-init crystal enumeration and `GetCrystalEntryByHolder()` /
-  `ResetCrystalEntryByHolder()` for wear/repair/break writes.
+  `ResetCrystalEntryByHolder()` for wear/repair/break writes. Also calls
+  `ApplyWearToActivePrimaryEvolution` from `ProcessPostCastEvolutionWear` (the
+  BD-evolution case-B wear path) and `ClearBrokenPrimaryEvolution` from the
+  between-combat sweep.
 - AI evaluation — uses `GetAllWeaponAttacks`, `GetAvailableAbilities`,
   `GetAvailableSpells`.
 - Combat UI — uses loadout-management and item-slot accessors.
@@ -300,3 +312,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-19 | Documented the `bRequiresDualWeapon` hard-fail in `FWeaponLoadoutEntry::ValidateAbilities` (dual-only abilities reject `Single` weapons). | feature/weapon-sockets-dual-flag |
 | 2026-05-21 | Inventory redesign merged — `ULoadoutData` and `UCharacterData::DefaultLoadout` deleted; `UInventoryData` is the sole authoring surface and owns the inline `FSavedLoadout` array. `SavedLoadouts` / `ActiveLoadoutIndex` / `MaxSavedLoadouts` moved from `ULoadoutComponent` to `UInventoryComponent`; the loadout component now reads them via `GetInventoryComponent()`. `InitializeFromAsset` and the `bInitializedFromAsset` validation-bypass field removed; `FCombatLoadout::CreateFromSavedLoadout` is the sole runtime factory. Initialization, Validation, Field-table and Integration-Points sections updated. | feature/inventory-refactor |
+| 2026-05-27 | Two new BlueprintCallable wear/clear helpers — `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution()` — for the case-B standalone primary-slot evolution (BD wear path). Both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage. Also corrected the `FCombatLoadout::PrimaryEvolution` field-shape note (it's `FEvolutionAttachment`, not a raw `UEvolutionItemData*` — pre-existing drift surfaced by this branch). | feature/crystal-wear-substat-modifier |

@@ -452,6 +452,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ApplyWearToCrystalEntryByHolder(UObject *Holder, int32 Amount);
 
+    /** Applies wear to the active loadout's standalone primary-slot evolution
+     *  (PrimarySlotType==Evolution, e.g. Broken Darkness). Writes the LIVE
+     *  storage in Inv->SavedLoadouts[ActiveLoadoutIndex] — not a copy.
+     *  Returns true if the wear took the crystal to 0 (broke). Returns false
+     *  if there is no active evolution slot, no item, or the wear did not
+     *  break it.
+     *
+     *  bForceWear (default false): forwarded to FEvolutionAttachment::ApplyWear.
+     *  When false, per-item bCanBreak still gates the wear (no-op if false).
+     *  When true, the bCanBreak gate is bypassed — intended for intrinsic
+     *  mechanics like Broken Darkness. Default preserves existing behavior. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
+    bool ApplyWearToActivePrimaryEvolution(int32 Amount, bool bForceWear = false);
+
+    /** Clears the active loadout's primary evolution slot if its attachment
+     *  is broken (durability <= 0 and bCanBreak). PrimarySlotType is left
+     *  unchanged (stays Evolution — the slot just empties). Returns true if
+     *  a clear occurred. Intended for between-combat destruction sweeps. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
+    bool ClearBrokenPrimaryEvolution();
+
     // ==================== POST-BATTLE ====================
     // Crystal-refactor 9.5b: ConsumeUsedItems and GetItemsToConsume removed.
     // Item slot Quantity is now the persistent post-combat state; inventory

@@ -2041,6 +2041,40 @@ bool ULoadoutComponent::ApplyWearToCrystalEntryByHolder(UObject *Holder, int32 A
     return Entry->ApplyWear(Amount);
 }
 
+bool ULoadoutComponent::ApplyWearToActivePrimaryEvolution(int32 Amount, bool bForceWear)
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
+    {
+        return false;
+    }
+
+    return Loadout.PrimaryEvolution.ApplyWear(Amount, bForceWear);
+}
+
+bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.IsBroken())
+    {
+        Loadout.PrimaryEvolution = FEvolutionAttachment();
+        return true;
+    }
+    return false;
+}
+
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
     UInventoryComponent *Inv = GetInventoryComponent();

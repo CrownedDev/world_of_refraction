@@ -316,6 +316,29 @@ public:
 	UFUNCTION(CallInEditor, Category = "Combat|Debug")
 	void DebugTestItemOnAlly();
 
+	// ========================================
+	// CRYSTAL WEAR DEBUG (forwards to UCrystalManager WOR_* methods)
+	// ========================================
+	// CallInEditor must be parameterless; each button is a fixed scenario.
+	// All forwarders resolve the active combatant via TurnManager inside
+	// the WOR_ methods — no orchestrator-side state needed.
+
+	/** Print the active combatant's equipped primary weapon crystal state. */
+	UFUNCTION(CallInEditor, Category = "Debug|CrystalWear")
+	void DebugCrystalState();
+
+	/** Print the active combatant's substat-modified wear prediction table (F->S). */
+	UFUNCTION(CallInEditor, Category = "Debug|CrystalWear")
+	void DebugWearTable();
+
+	/** Sim worst case: S-tier action, L2 infused, on the active combatant's crystal. */
+	UFUNCTION(CallInEditor, Category = "Debug|CrystalWear")
+	void DebugSimCast_S_L2();
+
+	/** Sim light case: matched-tier action (== crystal tier), L1 infused — isolates infusion-only wear. */
+	UFUNCTION(CallInEditor, Category = "Debug|CrystalWear")
+	void DebugSimCast_Matched_L1();
+
 	UPROPERTY()
 	ACombatCameraManager *CameraManager;
 

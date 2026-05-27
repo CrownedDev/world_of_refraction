@@ -84,6 +84,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Infusion VFX")
     void SetSourceIndex(int32 Index) { CurrentSourceIndex = FMath::Clamp(Index, 0, FMath::Max(0, CachedSources.Num() - 1)); }
 
+    /** Restrict the current CachedSources to the intersection with Allowed,
+     *  preserving the executor-decided order. Resets CurrentSourceIndex to 0.
+     *  Used by the menu subsystem when a submenu (e.g. Breakthrough) should
+     *  surface only a context-appropriate subset of sources. */
+    UFUNCTION(BlueprintCallable, Category = "Infusion VFX")
+    void RestrictCachedSources(const TArray<EInfusionSourceOption> &Allowed);
+
     /** Current infusion level */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "InfusionVFX")
     int32 CurrentInfusionLevel = 0;

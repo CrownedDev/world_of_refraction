@@ -71,7 +71,11 @@ Immutable design-time definition of an evolution crystal. Key fields:
   weapon/ring.
 - `bCanBreak` — opt-in durability wear. Default `false`: the crystal is
   permanent and its displayed durability is cosmetic. Refined evolution
-  crystals only break when this is explicitly authored true.
+  crystals only break when this is explicitly authored true. The intrinsic-
+  mechanic override `FEvolutionAttachment::ApplyWear(_, bForceWear=true)`
+  bypasses this gate — Broken Darkness uses it so per-asset opt-in can't
+  silently disable BD's wear (see `CrystalWear.md`). Default behavior for
+  every other caller is unchanged.
 - `MaxDurability`, `CurrentDurability` — durability tracking when `bCanBreak`.
   Defaults from `Tier` if author leaves `MaxDurability == 0`.
 - `EvolutionType` (`EEvolutionType`) — Balanced / Mind / Body / Spirit / etc.
@@ -314,3 +318,4 @@ removed with the transform system.
 | 2026-05-26 | Two-track storage split — item/refined crystals migrated from `UItemData` assets to `FCrystalId` + `CrystalEffectTable` / `CrystalIdentity` tables; 23 obsolete crystal assets deleted; legacy item-crystal authoring fields removed; description model split into `GetCrystalText` (shared) / `GetItemEffectText` (item) / `GetEvolutionEffectText` (evolution) | feature/crystal-evolution-refactor |
 | 2026-05-26 | `UItemData` renamed to `UEvolutionItemData` (evolution-only); item-effect surface decoupled from the asset; `bImmuneToBreaking` flipped to `bCanBreak` (opt-in breaking, default false); dead asset-pointer slotting tower removed | feature/crystal-evolution-refactor |
 | 2026-05-26 | Final field removal — `bIsEvolutionCrystal` deleted (`UEvolutionItemData` is now structurally evolution-only); 5 dead category helpers removed; `UInventoryComponent::AddItem`/`AddItemInternal` flag-routed dispatch deleted (modern routing via `UInventoryData` field dispatch only); `UEquipmentDataBase::SlottedCrystal` removed with its `PostLoad` migration | feature/crystal-evolution-refactor |
+| 2026-05-27 | `bCanBreak` description note — overridable via `FEvolutionAttachment::ApplyWear(_, bForceWear=true)` for intrinsic mechanics (Broken Darkness). | feature/crystal-wear-substat-modifier |

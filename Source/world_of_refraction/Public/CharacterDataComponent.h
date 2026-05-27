@@ -237,6 +237,20 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalModifiedEfficiencyMultiplier() const;
 
+    /** Crystal-aware StatusMultiplier — mirrors
+     *  UCharacterData::CalculateStatusMultiplier but uses
+     *  GetCrystalModifiedSpirit() in place of GetEffectiveSpirit().
+     *  Returns 1+frac like the raw formula. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedStatusMultiplier() const;
+
+    /** Crystal-aware Resistance — mirrors
+     *  UCharacterData::CalculateResistance but uses
+     *  GetCrystalModifiedSpirit() in place of GetEffectiveSpirit().
+     *  Returns the raw fraction clamped to [0, RESISTANCE_MAX]. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalModifiedResistance() const;
+
     // ========================================
     // BROKEN DARKNESS STATE
     // ========================================

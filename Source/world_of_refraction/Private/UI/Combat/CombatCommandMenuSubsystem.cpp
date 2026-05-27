@@ -895,6 +895,18 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
             VFX->CacheAvailableSources(); // refresh available sources
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
 
+            // Breakthrough spells are the only spell submenu that exposes a
+            // CycleSource button — narrow the cache to the meaningful
+            // evolution-cast subset {Evolution, Innate}. Other spell submenus
+            // stay element-locked (no cycle UI), so no filtering needed for them.
+            if (ActionCategory == EPieMenuCategory::Spell &&
+                ActiveSubmenuSource == EPieMenuCategory::Breakthrough)
+            {
+                VFX->RestrictCachedSources({
+                    EInfusionSourceOption::Evolution,
+                    EInfusionSourceOption::Innate});
+            }
+
             // For Spell action category, source is intrinsic — read from
             // ActiveSubmenuSource (set by OpenSpellSubmenu) to know which
             // spell submenu the player navigated through.
@@ -1197,12 +1209,12 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             case EPieMenuCategory::ResonateRing:
                 SourceLabel = TEXT("Ring");
                 break;
-            case EPieMenuCategory::Breakthrough:
-                SourceLabel = TEXT("Evolution");
-                break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:
+            case EPieMenuCategory::Breakthrough:
             default:
+                // Breakthrough spells can cycle source (Evolution / Innate),
+                // so label reads from the live VFX state like Attack/Ability.
                 SourceLabel = VFX->GetCurrentSourceName();
                 break;
             }
@@ -1220,10 +1232,16 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
             CycleLvl.bEnabled = true;
             Buttons.Add(CycleLvl);
 
-            // Cycle Source — separate button, only for Attack / Ability
+            // Cycle Source — Attack / Ability always; Breakthrough spells too
+            // (so BD can pick Innate for Darkness-conversion). Other spell
+            // submenus stay element-locked. Suppressed when the filtered cache
+            // has ≤1 entry (cycling would be a no-op).
             const bool bShowCycleSource =
-                (PendingActionCategory == EPieMenuCategory::Attack) ||
-                (PendingActionCategory == EPieMenuCategory::Ability);
+                ((PendingActionCategory == EPieMenuCategory::Attack) ||
+                 (PendingActionCategory == EPieMenuCategory::Ability) ||
+                 (PendingActionCategory == EPieMenuCategory::Spell &&
+                  ActiveSubmenuSource == EPieMenuCategory::Breakthrough)) &&
+                VFX->GetCachedSources().Num() > 1;
 
             if (bShowCycleSource)
             {
@@ -1330,12 +1348,12 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
             case EPieMenuCategory::ResonateRing:
                 SourceLabel = TEXT("Ring");
                 break;
-            case EPieMenuCategory::Breakthrough:
-                SourceLabel = TEXT("Evolution");
-                break;
             case EPieMenuCategory::Attack:
             case EPieMenuCategory::Ability:
+            case EPieMenuCategory::Breakthrough:
             default:
+                // Breakthrough spells can cycle source (Evolution / Innate),
+                // so label reads from the live VFX state like Attack/Ability.
                 SourceLabel = VFX->GetCurrentSourceName();
                 break;
             }
@@ -1353,10 +1371,16 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
             CycleLvl.bEnabled = true;
             Buttons.Add(CycleLvl);
 
-            // Cycle Source — separate button, only for Attack / Ability
+            // Cycle Source — Attack / Ability always; Breakthrough spells too
+            // (so BD can pick Innate for Darkness-conversion). Other spell
+            // submenus stay element-locked. Suppressed when the filtered cache
+            // has ≤1 entry (cycling would be a no-op).
             const bool bShowCycleSource =
-                (PendingActionCategory == EPieMenuCategory::Attack) ||
-                (PendingActionCategory == EPieMenuCategory::Ability);
+                ((PendingActionCategory == EPieMenuCategory::Attack) ||
+                 (PendingActionCategory == EPieMenuCategory::Ability) ||
+                 (PendingActionCategory == EPieMenuCategory::Spell &&
+                  ActiveSubmenuSource == EPieMenuCategory::Breakthrough)) &&
+                VFX->GetCachedSources().Num() > 1;
 
             if (bShowCycleSource)
             {

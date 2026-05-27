@@ -136,17 +136,29 @@ The overload threshold is therefore the BD's stat-derived `MaxEP`, not a flat ca
 **Cost by spell source** — `CalculateActionEnergyCost` reads `SpellSource`
 (`ActionExecutor.cpp:269-273`):
 
-| `ESpellSource` | Cost | Notes |
+| `ESpellSource` | Non-BD cost | BD cost |
 |---|---|---|
-| `Innate` | Full cost | Refraction spells — paid from EP / AbsorptionEnergy |
-| `Evolution` | Full cost | Primary-slot evolution spells — same as innate |
-| `RingCrystal` | **0** | Ring spells are free, including ring-attached evolutions |
-| `WeaponCrystal` | **0** | Weapon spells are free, including weapon-attached evolutions |
+| `Innate` | Full EP | Full EP |
+| `Evolution` (primary-slot) | Full EP + HP backlash + self-status | **0 EP** — durability wear is the cost. *Except* `SpellInfusionLevel ≥ 1` with `SelectedSource == Innate` (Darkness conversion): pays normal EP **plus** wear. |
+| `RingCrystal` | **0** EP | **0** EP |
+| `WeaponCrystal` | **0** EP | **0** EP |
 
 A ring- or weapon-attached evolution routes through `RingCrystal` / `WeaponCrystal`, so it
-is free; only a *primary-slot* evolution routes through `Evolution` and pays. A free spell
-(cost 0) trivially passes the energy gate for either pool — a BD with empty
-`AbsorptionEnergy` can still cast ring/weapon spells.
+is free; only a *primary-slot* evolution routes through `Evolution`. A free spell
+(cost 0) trivially passes the energy gate — a BD with empty `CurrentEP` can still cast
+ring/weapon spells.
+
+**Wear-as-cost (BD evolution).** For a BD, the standalone primary-slot evolution is
+free at the EP layer; the cost is paid in durability wear via
+`UCrystalManager::ProcessPostCastEvolutionWear`, hooked from
+`UActionExecutor::ExecuteSpellAsync` after `SpendEnergy` succeeds. The substat wear
+formula self-handles zero-wear cases (matched-tier uninfused = no wear), and the
+per-asset `bCanBreak` gate is bypassed via the new
+`FEvolutionAttachment::ApplyWear(_, bForceWear=true)` flag — BD's mechanic is
+intrinsic, so per-asset opt-in would silently fail and contradict BD's identity. The
+Innate-source carve-out (above) captures *absorbed energy converting the spell's
+element* — the only case where BD's evolution cast still pays EP, **on top of**
+wear. Full formula + constants: `CrystalWear.md`.
 
 ## Element Access
 
@@ -256,11 +268,14 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | File | BD branch |
 |---|---|
 | `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (zeroes `CurrentEP` so they start at 0); `IsBrokenDarkness()` helper; `ServerGainEnergy` BD early-out suppresses *passive regen only*; `ServerGainBrokenDarknessEnergy` is the BD absorption-gain path — overload-aware, bypasses the early-out; `ServerSetBrokenDarkness` no longer zeroes EP — energy carries over on runtime transform. |
-| `ActionExecutor.cpp` | `ValidateAction` and `SpendEnergy` compare/debit `CurrentEP` for all characters — no BD energy branch (unified Session 5); `ValidateAction` runs the Caster element gate through the shared `IsElementCastable` predicate; `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts; `CheckBrokenDarknessBreak` break-roll logic; `OnDefenseResolved` absorption call; `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()`; `bPendingSpellIsBrokenDarkness` visual threading. |
+| `ActionExecutor.cpp` | `ValidateAction` and `SpendEnergy` compare/debit `CurrentEP` for all characters — no BD energy branch (unified Session 5); `ValidateAction` runs the Caster element gate through the shared `IsElementCastable` predicate; `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts; **for BD also returns 0 on `SpellSource == Evolution`, *unless* `SpellInfusionLevel ≥ 1 && SelectedSource == Innate` (Darkness conversion, pays normal EP)**; `ExecuteSpellAsync` calls `CrystalManager->ProcessPostCastEvolutionWear` after `SpendEnergy` for every BD evolution-source cast (the wear-as-cost counterpart); `CheckBrokenDarknessBreak` break-roll logic; `OnDefenseResolved` absorption call; `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()`; `bPendingSpellIsBrokenDarkness` visual threading. |
 | `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the shared element gate for normal Casters and `FCombatLoadout::ValidateBDSpellLoadout` for BD; `InitializeBDPools` / `ApplyBDPoolsIfBroken` build the seven BD element pools for BD characters at loadout creation; `GetAvailableSpells` BD branch appends `BDSpellPools[i].Spells` where `HasAbsorbedElement(pool.Element)` — the BD-aware castable set shared by 12 callers including the 8 AI spell-list sites. |
 | `FCombatCapabilities.cpp` | `BuildFrom` Caster branch: for a BD character, appends each `BDSpellPools` entry's spells to `RefractionSpells` when `HasAbsorbedElement(Pool.Element)` — the always-on Darkness pool (`InnateSpells`) plus the single absorbed element's pool. |
 | `AIDecisionManager.cpp` | `GetCurrentEP` returns `CharComp->CurrentEP` for all characters — no BD branch (unified Session 5) — feeding `CanAffordSpell` / `CanAffordAbility` and the heal/cleanse checks. `DecideSpell`/`AbilityInfusionLevel` read `CurrentEP`/`MaxEP` directly for the infusion `EnergyPercent`, which is now correct for BD too. Spell lists come from the BD-aware `GetAvailableSpells`. |
-| `CombatOrchestrator.cpp` | `ProcessBrokenDarknessOverflow` calls `ProcessOverloadTick` each turn for overloaded BDs (`:993, 1033`). |
+| `CombatOrchestrator.cpp` | `ProcessBrokenDarknessOverflow` calls `ProcessOverloadTick` each turn for overloaded BDs (`:993, 1033`); `ApplyBetweenCombatCrystalDestruction` also clears a broken standalone primary evolution via `ULoadoutComponent::ClearBrokenPrimaryEvolution` (the `GetEquippedCrystals` loop misses self-holder evolutions). |
+| `CrystalManager.cpp` | `ProcessPostCastEvolutionWear` is the BD-evolution sibling of `ProcessPostCastWear` — reads crystal-modified substat fractions, calls `UBreakCalculator::CalculateDurabilityWearWithSubstats`, writes via `ULoadoutComponent::ApplyWearToActivePrimaryEvolution(_, bForceWear=true)`. No Luck-skip, no per-cast broadcast (between-combat sweep cleans up). See `CrystalWear.md`. |
+| `LoadoutComponent.cpp` | (above, plus) two BD-aware wear writers: `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution`. Both BlueprintCallable; both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage (not a `GetActiveLoadout` copy). |
+| `FEvolutionAttachment.cpp` | `ApplyWear(Amount, bForceWear=false)` — `bForceWear=true` bypasses the per-asset `bCanBreak` gate. BD's wear path is the only caller passing `true`; the struct itself stays BD-agnostic. |
 | `DamageCalculator.cpp` | `GetBDStackStatusMultiplier` reads the attacker's absorption-stack multiplier when transformed (`:375`). |
 | `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`), `ApplyBrokenDarknessBonus` grants absorption energy (crystal-tier-scaled) via `BDManager->GrantAbsorptionEnergy`. Session 5 fixed a latent bug here — it previously called `ServerGainEnergy`, which the BD early-out silently no-op'd, granting nothing. |
 | `CharacterPanelWidget.cpp` | Binds `UBrokenDarknessManager` absorption/overload delegates; for a BD the energy bar shows `CurrentEP`/`MaxEP` (labelled "Absorb"), tinted by absorbed-element colour. |
@@ -303,3 +318,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-19 | Session 5 follow-up, Batch B — combat command menu refreshes the BD spell list live: `CombatCommandMenuSubsystem` binds `BrokenDarknessManager::OnAlignmentChanged` while a BD's menu is open and rebuilds capabilities + the current view on absorption. `FCombatCapabilities::BuildFrom` (Session 3) already filtered `RefractionSpells` to the Darkness pool + absorbed-element pools — this batch adds the live-refresh trigger. | feature/bd-energy-unification |
 | 2026-05-19 | AI infusion heuristic confirmed working post-Session-5 unification; sites tidied to use `GetCurrentEP`/`GetMaxEP` helpers for divide-by-zero safety. | feature/ai-infusion-tidy |
 | 2026-05-21 | Inventory redesign merged — `ULoadoutData` deleted. BD validation references updated: `ValidateBDSpellLoadout` is now shared between `FCombatLoadout` and `FSavedLoadout` (inline on `UInventoryData::SavedLoadouts`); authored-asset BD pool validation goes through `FSavedLoadout::GetValidationErrors`. `InitializeFromAsset` reference in `ApplyBDPoolsIfBroken` removed (method was deleted). | feature/inventory-refactor |
+| 2026-05-27 | BD evolution **wear-as-cost** model — primary-slot evolution casts swap full EP for stat-scaled durability wear via `UCrystalManager::ProcessPostCastEvolutionWear`, hooked from `UActionExecutor::ExecuteSpellAsync`. **Innate-source carve-out** retains normal EP cost on L1/L2 Innate-infused evolution casts (the Darkness conversion). `FEvolutionAttachment::ApplyWear` gains `bForceWear` so BD bypasses the per-asset `bCanBreak` gate intrinsically. Between-combat sweep extended via `ULoadoutComponent::ClearBrokenPrimaryEvolution`. Energy Model table refreshed; new Integration Points rows for `CrystalManager`, `LoadoutComponent`, `FEvolutionAttachment`. Formula and constants split out to `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
