@@ -493,32 +493,33 @@ namespace CrystalEffectTable
 
     // ==================== BROKEN DARKNESS ENERGY BONUS (Tier-only) ====================
 
-    /** Per-tier BD energy bonus granted when crystal used on a BD target.
-     *  Tier-only — Id.Type is ignored. */
-    inline int32 GetBrokenDarknessEnergyBonus(const FCrystalId &Id)
+    /** Fraction of the target BD's MaxEP granted as absorption energy when
+     *  this crystal is used on them. Tier-scaled (F=0.10 .. S=0.70).
+     *  Tier-only — Id.Type is ignored (other than the None early-out). */
+    inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
         if (Id.Type == ECrystalType::None)
         {
-            return 0;
+            return 0.0f;
         }
         switch (Id.Tier)
         {
         case EItemTier::F_Tier:
-            return ItemConstants::BD_ENERGY_F;
+            return ItemConstants::BD_ENERGY_PERCENT_F;
         case EItemTier::E_Tier:
-            return ItemConstants::BD_ENERGY_E;
+            return ItemConstants::BD_ENERGY_PERCENT_E;
         case EItemTier::D_Tier:
-            return ItemConstants::BD_ENERGY_D;
+            return ItemConstants::BD_ENERGY_PERCENT_D;
         case EItemTier::C_Tier:
-            return ItemConstants::BD_ENERGY_C;
+            return ItemConstants::BD_ENERGY_PERCENT_C;
         case EItemTier::B_Tier:
-            return ItemConstants::BD_ENERGY_B;
+            return ItemConstants::BD_ENERGY_PERCENT_B;
         case EItemTier::A_Tier:
-            return ItemConstants::BD_ENERGY_A;
+            return ItemConstants::BD_ENERGY_PERCENT_A;
         case EItemTier::S_Tier:
-            return ItemConstants::BD_ENERGY_S;
+            return ItemConstants::BD_ENERGY_PERCENT_S;
         default:
-            return 0;
+            return 0.0f;
         }
     }
 }

@@ -13,12 +13,14 @@ namespace ItemConstants
     constexpr int32 MAX_TOTAL_ITEMS = MAX_ITEM_SLOTS * MAX_STACKS_PER_SLOT; // 18
 
     // ==================== BROKEN DARKNESS ENERGY BONUSES ====================
-    // Broken Darkness gains extra energy based on item tier
-    constexpr int32 BD_ENERGY_F = 15;
-    constexpr int32 BD_ENERGY_E = 20;
-    constexpr int32 BD_ENERGY_D = 25;
-    constexpr int32 BD_ENERGY_C = 30;
-    constexpr int32 BD_ENERGY_B = 35;
-    constexpr int32 BD_ENERGY_A = 40;
-    constexpr int32 BD_ENERGY_S = 50;
+    // Broken Darkness gains EP equal to a percentage of the target's MaxEP,
+    // scaled by the crystal's tier. Resolved at the call site
+    // (ItemExecutor::ApplyBrokenDarknessBonus) where MaxEP is available.
+    constexpr float BD_ENERGY_PERCENT_F = 0.10f;
+    constexpr float BD_ENERGY_PERCENT_E = 0.20f;
+    constexpr float BD_ENERGY_PERCENT_D = 0.30f;
+    constexpr float BD_ENERGY_PERCENT_C = 0.40f;
+    constexpr float BD_ENERGY_PERCENT_B = 0.50f;
+    constexpr float BD_ENERGY_PERCENT_A = 0.60f;
+    constexpr float BD_ENERGY_PERCENT_S = 0.70f;
 }

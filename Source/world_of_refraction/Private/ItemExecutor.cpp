@@ -647,14 +647,18 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Broken Darkness character absorbs the crystal's elemental energy when one
-	// is used on them — gains EP scaled by the crystal's tier. The caller has
-	// already confirmed Target is a Broken Darkness character.
+	// is used on them — gains EP scaled as a percentage of MaxEP by the crystal's
+	// tier. The caller has already confirmed Target is a Broken Darkness character.
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 		return;
 
-	int32 BonusEnergy = CrystalEffectTable::GetBrokenDarknessEnergyBonus(Id);
-	if (BonusEnergy <= 0)
+	const float Percent = CrystalEffectTable::GetBrokenDarknessEnergyPercent(Id);
+	if (Percent <= 0.0f)
+		return;
+
+	const float BonusEnergy = TargetComp->MaxEP * Percent;
+	if (BonusEnergy <= 0.0f)
 		return;
 
 	// Route through the BD manager's absorption path. ServerGainEnergy is
@@ -664,12 +668,14 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, FCrystalId Id, FIte
 	if (!BDManager)
 		return;
 
-	int32 EPBefore = TargetComp->CurrentEP;
-	BDManager->GrantAbsorptionEnergy(static_cast<float>(BonusEnergy));
+	const int32 EPBefore = TargetComp->CurrentEP;
+	BDManager->GrantAbsorptionEnergy(BonusEnergy);
 	OutResult.BrokenDarknessEnergyGained = TargetComp->CurrentEP - EPBefore;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Broken Darkness absorption: %s gained %d energy"),
-		   *Target->GetName(), OutResult.BrokenDarknessEnergyGained);
+	UE_LOG(LogTemp, Log,
+		   TEXT("[ItemExecutor] Broken Darkness absorption: %s gained %d energy (%.0f%% of MaxEP %d)"),
+		   *Target->GetName(), OutResult.BrokenDarknessEnergyGained,
+		   Percent * 100.0f, TargetComp->MaxEP);
 }
 
 // ========================================

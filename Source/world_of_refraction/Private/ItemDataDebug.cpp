@@ -83,7 +83,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
     }
 
     // Check tier bonuses are positive
-    if (CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{Item->CrystalType, Item->Tier}) <= 0)
+    if (CrystalEffectTable::GetBrokenDarknessEnergyPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
     {
         Errors.Add(TEXT("Zero or negative BD energy bonus"));
         bValid = false;
@@ -238,7 +238,8 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
 
     // Bonuses
     UE_LOG(LogTemp, Display, TEXT("--- Tier Bonuses ---"));
-    UE_LOG(LogTemp, Display, TEXT("BD Energy Bonus: +%d"), CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("BD Energy Bonus: %.0f%% of target MaxEP"),
+           CrystalEffectTable::GetBrokenDarknessEnergyPercent(FCrystalId{Item->CrystalType, Item->Tier}) * 100.0f);
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
@@ -393,9 +394,9 @@ void UItemDataDebug::LogTierBonuses()
 
         if (TestItem)
         {
-            UE_LOG(LogTemp, Display, TEXT("  %s: +%d energy"),
+            UE_LOG(LogTemp, Display, TEXT("  %s: %.0f%% of MaxEP"),
                    *GetTierName(Tier),
-                   CrystalEffectTable::GetBrokenDarknessEnergyBonus(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
+                   CrystalEffectTable::GetBrokenDarknessEnergyPercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}) * 100.0f);
         }
     }
 
