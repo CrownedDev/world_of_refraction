@@ -641,13 +641,10 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		return;
 	}
 
-	// Calculate and spend energy
-	int32 BaseEnergyCost = Spell->CalculateEnergyCost(CasterData);
-	float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
-	// Efficiency reduction — character substat + equipment BonusEfficiency.
-	// Mirrors CalculateActionEnergyCost so validation and spend agree.
-	const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Caster);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
+	// Calculate and spend energy. Single source of truth: the validator.
+	// Honours the ring/weapon-crystal waiver (0 EP) and applies the same
+	// base * infusion-multiplier * efficiency for innate/evolution spells.
+	const int32 FinalEnergyCost = CalculateActionEnergyCost(Caster, Action);
 
 	if (!SpendEnergy(Caster, FinalEnergyCost))
 	{
