@@ -39,6 +39,37 @@ struct WORLD_OF_REFRACTION_API FDurabilityWearResult
 };
 
 /**
+ * Detailed breakdown of substat-modified wear.
+ * Layered on top of FDurabilityWearResult — surfaces the power/control factors
+ * so designers can sanity-check the modifier vs the paper formula.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDurabilityWearWithSubstatsResult
+{
+	GENERATED_BODY()
+
+	/** Wear from CalculateDurabilityWear before substat modulation */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 BaseWear = 0;
+
+	/** clamp(PF_MIN, 1 + (spell_damage% + status_mult%) * AMP, +inf) */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	float PowerFactor = 1.0f;
+
+	/** clamp(CF_MIN, 1 + (efficiency% + resistance%) * AMP, CF_MAX) */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	float ControlFactor = 1.0f;
+
+	/** Tier difference (action tier - crystal tier). Negative if action is lower tier. */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 TierGap = 0;
+
+	/** Final wear after floor/ceiling — what callers should apply to the crystal */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	int32 FinalWear = 0;
+};
+
+/**
  * Break Calculator - Durability wear calculations for equipment crystals
  */
 UCLASS()
@@ -88,4 +119,34 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Durability")
 	static bool WouldBreakCrystal(int32 CurrentDurability, int32 ProposedWear);
+
+	// ==================== SUBSTAT-MODIFIED WEAR ====================
+	// Wraps CalculateDurabilityWear with a caster power/control modifier:
+	//   final = base x power_factor / control_factor
+	// with a floor of FLOOR_FRAC x base and (for tier_gap < ONE_SHOT_GAP) a
+	// ceiling of CEIL_FRAC x max_durability. Pure — no state, no CharacterData ref.
+	// Callers pass already-normalized fractions; see CharacterData.h notes on
+	// the efficiency inversion (EfficiencyFrac = 1 - CalculateEfficiencyMultiplier()).
+
+	UFUNCTION(BlueprintPure, Category = "Durability")
+	static int32 CalculateDurabilityWearWithSubstats(
+		EItemTier CrystalTier,
+		EItemTier ActionTier,
+		int32 InfusionLevel,
+		bool bIsSpell,
+		float SpellDamageFrac,
+		float StatusMultiplierFrac,
+		float EfficiencyFrac,
+		float ResistanceFrac);
+
+	UFUNCTION(BlueprintPure, Category = "Durability")
+	static FDurabilityWearWithSubstatsResult CalculateDurabilityWearWithSubstatsDetailed(
+		EItemTier CrystalTier,
+		EItemTier ActionTier,
+		int32 InfusionLevel,
+		bool bIsSpell,
+		float SpellDamageFrac,
+		float StatusMultiplierFrac,
+		float EfficiencyFrac,
+		float ResistanceFrac);
 };

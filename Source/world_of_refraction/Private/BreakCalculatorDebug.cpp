@@ -90,3 +90,75 @@ FString UBreakCalculatorDebug::GetWearResultString(const FDurabilityWearResult &
         Result.InfusionWear,
         Result.TierGap);
 }
+
+// ============================================================
+// SUBSTAT-MODIFIED WEAR
+// ============================================================
+
+void UBreakCalculatorDebug::PrintWearTableWithSubstats(
+    float SpellDamageFrac,
+    float StatusMultiplierFrac,
+    float EfficiencyFrac,
+    float ResistanceFrac,
+    EItemTier ActionTier,
+    int32 InfusionLevel,
+    bool bIsSpell)
+{
+    UE_LOG(LogTemp, Display, TEXT(""));
+    UE_LOG(LogTemp, Display, TEXT("========== SUBSTAT-MODIFIED WEAR TABLE =========="));
+    UE_LOG(LogTemp, Display, TEXT("Action: %s tier, Infusion L%d, %s"),
+           *TierHelpers::GetTierName(ActionTier),
+           InfusionLevel,
+           bIsSpell ? TEXT("Spell") : TEXT("Ability/Attack"));
+    UE_LOG(LogTemp, Display, TEXT("Caster: SpellDmg=%+.2f StatusMult=%+.2f Efficiency=%+.2f Resistance=%+.2f"),
+           SpellDamageFrac, StatusMultiplierFrac, EfficiencyFrac, ResistanceFrac);
+    UE_LOG(LogTemp, Display, TEXT("Crystal | Base | PowerF | CtrlF | Final | MaxDur | CastsToBreak | Flag"));
+    UE_LOG(LogTemp, Display, TEXT("--------+------+--------+-------+-------+--------+--------------+------"));
+
+    const EItemTier Tiers[] = {
+        EItemTier::F_Tier, EItemTier::E_Tier, EItemTier::D_Tier,
+        EItemTier::C_Tier, EItemTier::B_Tier, EItemTier::A_Tier,
+        EItemTier::S_Tier};
+
+    for (EItemTier CrystalTier : Tiers)
+    {
+        const FDurabilityWearWithSubstatsResult R =
+            UBreakCalculator::CalculateDurabilityWearWithSubstatsDetailed(
+                CrystalTier, ActionTier, InfusionLevel, bIsSpell,
+                SpellDamageFrac, StatusMultiplierFrac,
+                EfficiencyFrac, ResistanceFrac);
+
+        const int32 MaxDur = DurabilityConstants::GetMaxDurabilityForTier(CrystalTier);
+
+        // Casts-to-break: how many casts before durability reaches 0.
+        // Final<=0 means zero wear — infinite casts (no overdrive, no infusion).
+        // Final>=MaxDur means a single cast shatters the crystal.
+        FString CastsStr;
+        FString FlagStr;
+        if (R.FinalWear <= 0)
+        {
+            CastsStr = TEXT("inf");
+            FlagStr = TEXT("NoWear");
+        }
+        else
+        {
+            const int32 Casts = FMath::DivideAndRoundUp(MaxDur, R.FinalWear);
+            CastsStr = FString::Printf(TEXT("%d"), Casts);
+            FlagStr = (R.FinalWear >= MaxDur) ? TEXT("SHATTER") : TEXT("");
+        }
+
+        UE_LOG(LogTemp, Display,
+               TEXT("   %s   |  %2d  |  %4.2f  | %4.2f  |  %3d  |  %3d   |     %5s    | %s"),
+               *TierHelpers::GetTierName(CrystalTier),
+               R.BaseWear,
+               R.PowerFactor,
+               R.ControlFactor,
+               R.FinalWear,
+               MaxDur,
+               *CastsStr,
+               *FlagStr);
+    }
+
+    UE_LOG(LogTemp, Display, TEXT("================================================="));
+    UE_LOG(LogTemp, Display, TEXT(""));
+}

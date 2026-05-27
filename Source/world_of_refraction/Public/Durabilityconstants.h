@@ -47,6 +47,34 @@ namespace DurabilityConstants
     /** Custom (non-default) spell cast on a ring's crystal */
     constexpr int32 CUSTOM_SPELL_WEAR = 2;
 
+    // ==================== SUBSTAT WEAR MODIFIER ====================
+    // Caster power/control wraps the base wear:
+    //   final = base x power_factor / control_factor (with floor and tier-gated ceiling)
+    // power_factor   from spell_damage% + status_multiplier% (caster output)
+    // control_factor from efficiency%   + resistance%        (caster discipline)
+    // See: feature/crystal-wear-substat-modifier (paper sanity-check)
+
+    /** Sensitivity of power/control factors to each 1.0 of substat fraction */
+    constexpr float SUBSTAT_AMP = 5.0f;
+
+    /** Lower bound on power_factor — a weak caster still pays meaningful wear */
+    constexpr float SUBSTAT_POWER_FACTOR_MIN = 0.4f;
+
+    /** Lower bound on control_factor — undisciplined caster can't reduce control below this */
+    constexpr float SUBSTAT_CONTROL_FACTOR_MIN = 0.5f;
+
+    /** Upper bound on control_factor — a skilled caster still pays some wear */
+    constexpr float SUBSTAT_CONTROL_FACTOR_MAX = 3.0f;
+
+    /** Final wear is never less than this fraction of the base (when base > 0) */
+    constexpr float SUBSTAT_FLOOR_FRAC = 0.25f;
+
+    /** Final wear is capped at this fraction of max durability when tier gap < ONE_SHOT_GAP */
+    constexpr float SUBSTAT_CEIL_FRAC = 0.45f;
+
+    /** At/above this tier gap the ceiling is lifted (shatter is allowed) */
+    constexpr int32 SUBSTAT_ONE_SHOT_GAP = 4;
+
     // ==================== REPAIR ====================
 
     /** Durability restored to each crystal at end of combat */

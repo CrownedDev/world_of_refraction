@@ -607,6 +607,31 @@ float UCharacterDataComponent::GetCrystalModifiedEfficiencyMultiplier() const
         1.0f);
 }
 
+float UCharacterDataComponent::GetCrystalModifiedStatusMultiplier() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const int32 TotalPoints = CharacterData->GetTotalStatusMultiplier();
+    return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+}
+
+float UCharacterDataComponent::GetCrystalModifiedResistance() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const int32 TotalPoints = CharacterData->GetTotalResistance();
+    return FMath::Clamp(
+        ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
+        0.0f,
+        CombatConstants::RESISTANCE_MAX);
+}
+
 void UCharacterDataComponent::DebugToggleWeapon()
 {
     ULoadoutComponent *Loadout = GetOwner() ? GetOwner()->FindComponentByClass<ULoadoutComponent>() : nullptr;

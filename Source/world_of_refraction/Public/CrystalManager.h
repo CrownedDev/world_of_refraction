@@ -111,6 +111,31 @@ public:
     UFUNCTION(Exec)
     void DebugForceWearActiveCrystal(int32 Amount = 10);
 
+    // ========================================
+    // WOR_ DEBUG SUITE
+    // ========================================
+    // Invoked from ACombatOrchestrator's Debug|CrystalWear CallInEditor buttons
+    // (Details panel during PIE). Plain non-Exec methods — UGameInstanceSubsystem
+    // isn't in the console FExec chain, so the orchestrator hosts the entry
+    // points and these stay as thin live-state callers.
+
+    /** Print a substat-modified wear prediction table (rows F->S) for the
+     *  active combatant. Reads live caster fractions via the crystal-modified
+     *  pillar accessors on UCharacterDataComponent — no actual wear is applied.
+     *  Action config defaults to the worst-case envelope (S-Tier, L2, Spell). */
+    void WOR_WearTable();
+
+    /** Run the real ProcessPostCastWear path on the active combatant's primary
+     *  weapon crystal once. Logs predicted breakdown (base, power_factor,
+     *  control_factor, tier_gap, final wear) and before/after durability —
+     *  decisive end-to-end live test versus the prediction table. Spell-cast
+     *  is implied. Args clamp into valid ranges (ActionTier 0..6, InfusionLevel 0..2). */
+    void WOR_SimCast(int32 ActionTier, int32 InfusionLevel);
+
+    /** Print the active combatant's equipped primary weapon crystal: type
+     *  (Refined / Evolution), tier, bCanBreak, and current/max durability. */
+    void WOR_CrystalState();
+
 private:
     // ========================================
     // HELPERS
