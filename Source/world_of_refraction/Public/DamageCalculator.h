@@ -211,17 +211,11 @@ public:
 	bool RollCriticalHit(AActor *Attacker, float OverrideChance = -1.0f) const;
 
 	// ==================== STATUS EFFECT CALCULATIONS ====================
-
-	/**
-	 * Calculate status effect buildup
-	 * Includes BD stack multiplier if applicable
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Status")
-	int32 CalculateStatusBuildup(
-		AActor *Attacker,
-		AActor *Target,
-		int32 BaseBuildup,
-		ESpellElement Element);
+	// CalculateStatusBuildup was dead code (zero callers) and was removed in
+	// feature/integration-gaps-sweep-3. Live buildup amplification +
+	// resistance reduction live on UStatusBuildupManager::AddStatusBuildup —
+	// that's the path every consumer (ActionExecutor, CombatOrchestrator,
+	// ItemExecutor) actually calls.
 
 	/**
 	 * Get BD stack multiplier for status effects

@@ -345,32 +345,13 @@ bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) 
 }
 
 // ==================== STATUS EFFECT CALCULATIONS ====================
-
-int32 UDamageCalculator::CalculateStatusBuildup(
-	AActor *Attacker,
-	AActor *Target,
-	int32 BaseBuildup,
-	ESpellElement Element)
-{
-	if (BaseBuildup <= 0)
-	{
-		return 0;
-	}
-
-	float Buildup = static_cast<float>(BaseBuildup);
-
-	// Apply BD stack multiplier
-	float BDMult = GetBDStackStatusMultiplier(Attacker, Element);
-	Buildup *= BDMult;
-
-	// TODO: Apply skill effect modifiers — StatusMultiplierBuff /
-	// StatusMultiplierDebuff aggregated from SkillEffectManager (and
-	// target-side ResistanceBuff/Debuff). Equipment BonusStatusMultiplier
-	// is a separate path (direct FEquipmentStatBonus read), already
-	// migrated for damage; status buildup symmetry is still pending.
-
-	return FMath::RoundToInt(Buildup);
-}
+// CalculateStatusBuildup was dead code (zero callers) and was removed in
+// feature/integration-gaps-sweep-3. The live buildup pipeline is
+// UStatusBuildupManager::AddStatusBuildup — it applies the attacker's
+// crystal-aware StatusMultiplier + equipment bonus, then (sweep-3) the
+// StatusMultiplierBuff/Debuff skill-effect deltas, then the defender's
+// element-filtered Resistance reduction. GetBDStackStatusMultiplier stays
+// here — it's a leaf accessor the BD damage path still consumes.
 
 float UDamageCalculator::GetBDStackStatusMultiplier(AActor *Attacker, ESpellElement Element) const
 {

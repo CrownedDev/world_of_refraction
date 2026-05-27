@@ -285,6 +285,15 @@ Sites :691 and :862 resolve `ULoadoutComponent` from `Actor->FindComponentByClas
 - **Scope:** Small.
 
 ### 10.5 Damage calculator status-multiplier modifiers
+✅ **RESOLVED** on `feature/integration-gaps-sweep-3`. Verification revealed `UDamageCalculator::CalculateStatusBuildup` (the function containing the TODO) had zero callers — dead code, same pattern as sweep-2's 10.6. Resolution applied as **(a) + (b)** together:
+
+- **(a)** Deleted `UDamageCalculator::CalculateStatusBuildup` (decl + impl, ~30 lines) with a tombstone comment pointing readers to the live path. `GetBDStackStatusMultiplier` is preserved — it's still consumed by the BD damage path.
+- **(b)** Added the genuine missing piece — StatusMultiplierBuff/StatusMultiplierDebuff aggregation on the attacker — to `UStatusBuildupManager::AddStatusBuildup` between the character-stat amplification (lines 252-278) and the resistance reduction block. ~6 lines, mirrors the `DamageBuff`/`DamageDebuff` shape at `DamageCalculator.cpp:521-523`. Uses `GetEffectManager()` (the file-local precedent — same call already at `:154, :203, :303, :453`).
+
+Resistance side was NOT added: the live path's `GetTotalElementResistance` (`StatusBuildupManager.cpp:163-184`, called at `:298`) already aggregates `ResistanceBuff`/`ResistanceDebuff` with the element filter the user's spec described. Adding it again at `CalculateStatusBuildup` would have double-applied even if that function had been live.
+
+**Cross-link to gap 7.1:** the queried `StatusMultiplierBuff`/`Debuff` aggregation goes through the same SkillEffectManager handler stubs flagged by 7.1 (`SkillEffectManager.cpp:1051-1056`). `GetTotalStatModifier` sums effect values by type, so the query path is sound — but the values sum to whatever the stubbed handlers populate. If 7.1's handlers remain no-op, this fix queries `0.0f` and is effectively a no-op until 7.1 lands. The wiring is correct and will activate the moment the handlers do real work.
+
 - **Where:** `Private/DamageCalculator.cpp:366` `// TODO: Apply skill effect modifiers — StatusMultiplierBuff / StatusMultiplierDebuff` (incomplete TODO comment).
 - **Impact:** Buffs/debuffs that modify status-multiplier don't affect damage.
 - **Priority:** Medium.
@@ -334,7 +343,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 9.2 | BD InnateSpells empty | Medium (if BD demoed) | Small (designer fix) | YES (if BD) |
 | 10.1 | **✅ RESOLVED (sweep-2)** — AI `SpellSource` defaults to Innate — new `ULoadoutComponent::ResolveSpellSource` helper; 6 AI sites updated; locked precedence Innate→Ring→Weapon→Evolution | Medium | Small | YES (AI casts will mis-charge) |
 | 10.4 | **✅ RESOLVED (sweep-1)** — Beam DOT placeholder 5/tick — discrete-tick model; new `USpellData::BeamTickInterval` field; remainder distributed across ticks | Medium | Small | YES (if beams demoed) |
-| 10.5 | DamageCalculator StatusMultiplier modifiers | Medium | Small | — |
+| 10.5 | **✅ RESOLVED (sweep-3)** — DamageCalculator StatusMultiplier modifiers — dead-code deletion + StatusMultiplierBuff/Debuff wired into live StatusBuildupManager path (resistance side already lived there) | Medium | Small | — |
 | 10.6 | **🔄 REFRAMED (sweep-2)** — loadout validation reports errors but doesn't clear bad slots — dead struct-side Validate* deleted; live `GetValidationErrors` needs mutation semantics (separate future task) | Medium | Medium | — |
 | 2.4 | **✅ RESOLVED (sweep-1)** — `OnDefenseWindowRequested` pure dead | Low | Small | — |
 | 3.3 | `OnResurrected` no subscribers | Low | Small | — |

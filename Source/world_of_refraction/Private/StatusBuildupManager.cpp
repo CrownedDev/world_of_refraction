@@ -275,6 +275,19 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 			Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
 			              + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 		}
+
+		// Skill-effect-driven StatusMultiplier buff/debuff — symmetric with
+		// DamageCalculator's DamageBuff/Debuff at GetStatusEffectDamageModifier
+		// (:521-523). Aggregated via GetTotalStatModifier (non-element-specific:
+		// StatusMultiplier is caster output amplification, not per-element). Sits
+		// between the character-stat amplification above and the defender-side
+		// resistance reduction below — mirrors the layering in damage.
+		if (USkillEffectManager *EffectMgr = GetEffectManager())
+		{
+			const float SmBuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierBuff);
+			const float SmDebuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierDebuff);
+			Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / 100.0f);
+		}
 	}
 
 	// Apply target's resistance reduction. Effective = base Spirit-Resistance plus
