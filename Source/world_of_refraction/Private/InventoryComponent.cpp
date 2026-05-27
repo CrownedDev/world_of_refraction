@@ -254,14 +254,6 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
 
 // ==================== UTILITY ====================
 
-void UInventoryComponent::ClearAll()
-{
-    Spells.Clear();
-    Abilities.Clear();
-    Weapons.Empty();
-    Rings.Empty();
-}
-
 FString UInventoryComponent::GetInventorySummary() const
 {
     const int32 EvolutionCount = GetEvolutionCrystals().Num();

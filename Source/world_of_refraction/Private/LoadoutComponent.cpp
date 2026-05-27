@@ -13,8 +13,6 @@
 #include "CosmeticsData.h"
 #include "BrokenDarknessManager.h"
 #include "ElementHelpers.h"
-#include "RingData.h"
-#include "EvolutionItemData.h"
 #include "StanceData.h"
 #include "TurnManager.h"
 #include "CrystalIdentity.h"

@@ -207,10 +207,6 @@ public:
 
     // ==================== UTILITY ====================
 
-    /** Clear all inventory */
-    UFUNCTION(BlueprintCallable, Category = "Inventory")
-    void ClearAll();
-
     /** Get inventory summary for debug */
     UFUNCTION(BlueprintPure, Category = "Inventory|Debug")
     FString GetInventorySummary() const;

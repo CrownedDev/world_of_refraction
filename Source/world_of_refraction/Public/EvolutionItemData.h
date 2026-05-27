@@ -140,7 +140,7 @@ public:
         // ==================== COMPUTED VALUES (DISPLAY ONLY) ====================
         // These are computed and displayed for reference - not editable
 
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Computed Values|Identity")
+        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Identity")
         ESpellElement DisplayElement;
 
         // ==================== VISUAL/AUDIO ====================
