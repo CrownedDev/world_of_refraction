@@ -195,6 +195,16 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Stacks")
 	float GetStackStatusMultiplier() const;
 
+	/**
+	 * Element-gated stack multiplier for status-buildup amplification.
+	 * Returns 1.0 when not transformed, or when Element does not match the
+	 * current alignment; otherwise returns GetStackStatusMultiplier() (1x/1x/2x/4x).
+	 * This is the live entry point consumed by UStatusBuildupManager::AddStatusBuildup
+	 * — element gate lives here so callers don't duplicate the matching-element check.
+	 */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Stacks")
+	float GetElementStackStatusMultiplier(ESpellElement Element) const;
+
 	/** Get maximum stacks allowed */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Stacks")
 	int32 GetMaxStacks() const { return MaxAbsorptionStacks; }

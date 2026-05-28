@@ -216,13 +216,13 @@ public:
 	// resistance reduction live on UStatusBuildupManager::AddStatusBuildup —
 	// that's the path every consumer (ActionExecutor, CombatOrchestrator,
 	// ItemExecutor) actually calls.
-
-	/**
-	 * Get BD stack multiplier for status effects
-	 * Returns 1.0 if not BD or element doesn't match
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Status")
-	float GetBDStackStatusMultiplier(AActor *Attacker, ESpellElement Element) const;
+	//
+	// GetBDStackStatusMultiplier also removed (feature/fix-bd-stack-multiplier):
+	// it was a thin gate over BDManager methods that lost its only caller when
+	// CalculateStatusBuildup was deleted, leaving BD stacks dead. The element-
+	// gated accessor now lives on the manager itself —
+	// UBrokenDarknessManager::GetElementStackStatusMultiplier(Element) — and is
+	// consumed by UStatusBuildupManager::AddStatusBuildup as step 5c.
 
 	// ==================== HEALING CALCULATIONS ====================
 

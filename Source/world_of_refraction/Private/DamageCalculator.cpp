@@ -349,26 +349,15 @@ bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) 
 // feature/integration-gaps-sweep-3. The live buildup pipeline is
 // UStatusBuildupManager::AddStatusBuildup — it applies the attacker's
 // crystal-aware StatusMultiplier + equipment bonus, then (sweep-3) the
-// StatusMultiplierBuff/Debuff skill-effect deltas, then the defender's
-// element-filtered Resistance reduction. GetBDStackStatusMultiplier stays
-// here — it's a leaf accessor the BD damage path still consumes.
-
-float UDamageCalculator::GetBDStackStatusMultiplier(AActor *Attacker, ESpellElement Element) const
-{
-	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Attacker);
-	if (!BDManager || !BDManager->IsTransformed())
-	{
-		return 1.0f;
-	}
-
-	// Only apply multiplier if spell element matches BD alignment
-	if (Element == BDManager->GetCurrentAlignment())
-	{
-		return BDManager->GetStackStatusMultiplier();
-	}
-
-	return 1.0f;
-}
+// StatusMultiplierBuff/Debuff skill-effect deltas, then (fix-bd-stack-multiplier)
+// the BD absorption-stack amplification via UBrokenDarknessManager::
+// GetElementStackStatusMultiplier as step 5c, then the defender's element-
+// filtered Resistance reduction.
+//
+// GetBDStackStatusMultiplier was a thin wrapper over BDManager methods that
+// lost its only caller when CalculateStatusBuildup was deleted (leaving BD
+// stacks inert). Removed in feature/fix-bd-stack-multiplier; the element-gated
+// accessor moved onto the manager itself.
 
 // ==================== HEALING CALCULATIONS ====================
 
