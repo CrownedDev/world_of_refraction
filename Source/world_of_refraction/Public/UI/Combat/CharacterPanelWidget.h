@@ -101,7 +101,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UTextBlock *WorldStatsText;
 
-	/** Container for active skill-effect rows. BP populates via RebuildEffectsList. */
+	/** Container for active skill-effect rows. BP populates via RebuildEffectsList.
+	 *  Also receives a synthetic row for BD absorption stacks (StatusMultiplierBuff,
+	 *  element-aligned) — surfaces stacks through the same pipeline as real effects,
+	 *  no separate widget. */
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
 	UVerticalBox *EffectsList;
 
@@ -131,6 +134,21 @@ protected:
 	/** Called when BD enters/exits overload state */
 	UFUNCTION()
 	void HandleBDOverloadStateChanged(AActor *Actor, bool bIsOverloaded);
+
+	/** Called when a BD's absorption stack count changes (same alignment). */
+	UFUNCTION()
+	void HandleBDStacksChanged(AActor *Actor, ESpellElement Element, int32 NewStackCount);
+
+	/** Called when a BD's alignment switches (different element absorbed). */
+	UFUNCTION()
+	void HandleBDAlignmentChanged(AActor *Actor, ESpellElement OldElement, ESpellElement NewElement);
+
+	/** Called when a Darkness character transforms into Broken Darkness.
+	 *  Refreshes every BD-affected display on the panel immediately so the
+	 *  player doesn't have to wait for the next EP / status / stack broadcast
+	 *  for the panel to look right. */
+	UFUNCTION()
+	void HandleBDTransformed(AActor *Actor);
 
 	/** BP fills the EffectsList from this array each time it changes. */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character Panel")

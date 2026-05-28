@@ -308,6 +308,15 @@ bool UCharacterDataComponent::IsBrokenDarkness() const
     return false;
 }
 
+ESpellElement UCharacterDataComponent::GetDisplayElement() const
+{
+    if (IsBrokenDarkness())
+    {
+        return ESpellElement::BrokenDarkness;
+    }
+    return CharacterData ? CharacterData->GetElement() : ESpellElement::Generic;
+}
+
 void UCharacterDataComponent::ServerSetBrokenDarkness(bool bNewState)
 {
     if (!HasServerAuthority())

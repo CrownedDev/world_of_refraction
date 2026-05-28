@@ -107,6 +107,16 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ## 4. BD overflow — visibility broadcasts + self-cost mechanics
 
 ### 4.1 `UBrokenDarknessManager::OnTransformed`, `OnOverloadDamage`, `OnStacksChanged` — broadcast, no production C++ subscribers
+✅ **RESOLVED (partial)** on `feature/integration-gaps-sweep-5` — the BD display surfaces flagged here are now wired. Three pieces shipped:
+
+- **Piece 1 — element display:** new `UCharacterDataComponent::GetDisplayElement()` (BlueprintPure) returns `BrokenDarkness` for any IsBrokenDarkness character, else delegates to the existing `UCharacterData::GetElement()` (Caster→Innate; others→Generic). Single source of truth for "what element does this character display as". The energy-bar tint was already BD-gated correctly in `ApplyEnergyBarTint` (`CharacterPanelWidget.cpp:402-426`) — no C++ change needed there. **BP-side follow-up (Crown editor work, out of C++ scope):** wire `WBP_CharacterPanel::ClassElementText` to call `GetDisplayElement()` instead of reading `InnateElement` directly.
+
+- **Piece 2 — stack display (reworked sweep-5):** `CharacterPanelWidget` binds `OnStacksChanged` and `OnAlignmentChanged` (and `OnTransformed`); their handlers route through `RefreshEffectsList`. Stacks render in the **existing effects/debuff panel** as a synthetic `FActiveSkillEffect` row — `EffectType = StatusMultiplierBuff` (truthful: stacks amplify status buildup on matching-element spells via `UDamageCalculator::GetBDStackStatusMultiplier`), `Element = CurrentAlignment`, `bCanStack = true`, `CurrentStacks = GetCurrentStackCount()`, `MaxStacks = GetMaxStacks()`, `bPermanent = true`, `EffectName` = element display name. The existing `SkillEffectBlueprintLibrary` helpers consume it directly: `GetEffectDisplayName` → element name, `GetEffectStackString` → "xN" (stack 1 collapses to no count, which matches the 1× multiplier truthfully), `IsEffectBuff` → true → row tints as a buff. **Single-alignment model** preserved — appended row auto-clears when stacks drop to 0 or alignment switches. **No separate widget**, **no BP changes required**; the standalone `StacksText` was removed.
+
+- **Piece 3 — overload bar text color (sweep-5):** `RefreshEnergyBar` colors `EPText` when BD has `CurrentEP > MaxEP`. Thresholds in `CombatConstants.h` rescaled to fit the real overload window (`MaxEP × OVERLOAD_CAPACITY_FRACTION = 30%`, i.e. ratio capped at 1.30): **101%+ → yellow, 111%+ → orange, 121%+ → red.** Red sits at 1.20 so it's reachable before the 1.30 hard cap. Resets to white when not overloaded. Visual cue for energy-past-cap, since the bar percent is clamped at 1.0.
+
+**Still out of scope (not in this sweep):** `OnTransformed` stinger (UI/SFX, separate concern), `OnOverloadDamage` per-tick feedback (4.3 overload-aura gap covers the gameplay half; UI feedback is a separate consumer task), runtime BD transformation UI beat.
+
 - **What:** Three BD lifecycle/combat broadcasts have no UI/SFX consumer in C++.
 - **Where:** `BrokenDarknessManager.h:21, 24, 26`. Broadcasts at `BrokenDarknessManager.cpp:248` (Transformed), `:605, 623` (Stacks), `:301, 511, 521` (Overload damage).
 - **Evidence:** `CharacterPanelWidget` binds `OnEnergyAbsorbed` (`:92`) and `OnOverloadStateChanged` (`:93`) but NOT the three above. `CombatCommandMenuSubsystem` binds `OnAlignmentChanged` (`:478`). No other BD subscribers.
@@ -383,7 +393,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 1.2 | Player defense input is BP-only | Medium | Small | — |
 | 2.3 | `OnDefenseInputReceived` / `OnParryReflect` / `OnDefenseCueTriggered` no subscribers | Medium | Small | — |
 | 3.1 | ActionExecutor `OnActionStarted`/`Completed`/`HealingDone`/`TargetKilled` no consumers | Medium | Medium | — |
-| 4.1 | BD `OnTransformed` / `OnOverloadDamage` / `OnStacksChanged` no UI | Medium | Small | YES (if runtime BD transform happens on stage) |
+| 4.1 | **✅ RESOLVED partial (sweep-5)** — BD UI display: `GetDisplayElement` helper + stack-text wiring (single-alignment "Fire x3") + overload text color (yellow/orange/red); `OnTransformed` stinger still pending | Medium | Small | YES (if runtime BD transform happens on stage) |
 | 4.2 | BD forbidden-cast self-buildup unwired — self-damage exists, self-status-buildup half missing; scales with StatusMultiplier | Medium | Small-Medium | — |
 | 4.3 | BD overload aura per-turn tick — status-buildup release + absorption-drain coupling unwired; HP-damage half may be partially wired via `OnOverloadDamage` | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |

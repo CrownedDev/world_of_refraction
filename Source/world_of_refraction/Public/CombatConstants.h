@@ -184,4 +184,17 @@ namespace CombatConstants
     // Final = Base * (1 + StatValue / STAT_PERCENT_DIVISOR). Used wherever
     // a raw sub-stat point value drives a percentage-style multiplier.
     constexpr float STAT_PERCENT_DIVISOR = 100.0f;
+
+    // ==================== BD OVERLOAD UI THRESHOLDS ====================
+    // CharacterPanelWidget tints the EP text when CurrentEP > MaxEP (BD
+    // overload). Thresholds are CurrentEP / MaxEP ratios; the bar percent
+    // itself is clamped at 1.0 (visual), the underlying value can exceed it.
+    // The overload window is hard-capped at MaxEP + 30% (BrokenDarkness
+    // OVERLOAD_CAPACITY_FRACTION), so the meaningful ratio range is
+    // [1.00, 1.30]. Thresholds are scaled to fit that window — red sits at
+    // 1.20 so it's reachable before the hard cap.
+    // Below YELLOW = no tint (white). Above RED = red. Bands between.
+    constexpr float OVERLOAD_YELLOW_THRESHOLD = 1.00f; // 101%+ → yellow
+    constexpr float OVERLOAD_ORANGE_THRESHOLD = 1.10f; // 111%+ → orange
+    constexpr float OVERLOAD_RED_THRESHOLD    = 1.20f; // 121%+ → red
 }

@@ -9,6 +9,7 @@
 #include "BrokenDarknessManager.h"
 #include "ElementColors.h"
 #include "HybridSpellColors.h"
+#include "CombatConstants.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -91,6 +92,9 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 		BoundBDManager = BDManager;
 		BDManager->OnEnergyAbsorbed.AddDynamic(this, &UCharacterPanelWidget::HandleBDEnergyAbsorbed);
 		BDManager->OnOverloadStateChanged.AddDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
+		BDManager->OnStacksChanged.AddDynamic(this, &UCharacterPanelWidget::HandleBDStacksChanged);
+		BDManager->OnAlignmentChanged.AddDynamic(this, &UCharacterPanelWidget::HandleBDAlignmentChanged);
+		BDManager->OnTransformed.AddDynamic(this, &UCharacterPanelWidget::HandleBDTransformed);
 	}
 
 	// Resonator EP-bar visibility: hidden when unarmed (pool is dormant),
@@ -112,7 +116,8 @@ void UCharacterPanelWidget::InitialiseForActor(AActor *InActor)
 	SetBarSafe(StatusBar, 0.0f);
 	SetTextSafe(StatusText, FString::Printf(TEXT("%s:0/100"), PanelLabels::Status));
 
-	// Initial effects list (usually empty at combat start)
+	// Initial effects list (usually empty at combat start). Includes the
+	// synthetic BD-stacks row when applicable — no separate call needed.
 	RefreshEffectsList();
 
 	UE_LOG(LogTemp, Log, TEXT("[CharacterPanel] Initialised for %s"), *InActor->GetName());
@@ -148,6 +153,9 @@ void UCharacterPanelWidget::TeardownPanel()
 	{
 		BDManager->OnEnergyAbsorbed.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDEnergyAbsorbed);
 		BDManager->OnOverloadStateChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDOverloadStateChanged);
+		BDManager->OnStacksChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDStacksChanged);
+		BDManager->OnAlignmentChanged.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDAlignmentChanged);
+		BDManager->OnTransformed.RemoveDynamic(this, &UCharacterPanelWidget::HandleBDTransformed);
 	}
 
 	BoundActor.Reset();
@@ -223,6 +231,34 @@ void UCharacterPanelWidget::HandleBDOverloadStateChanged(AActor *Actor, bool bIs
 	if (Actor != BoundActor.Get())
 		return;
 	RefreshEnergyBar();
+}
+
+void UCharacterPanelWidget::HandleBDStacksChanged(AActor *Actor, ESpellElement Element, int32 NewStackCount)
+{
+	if (Actor != BoundActor.Get())
+		return;
+	RefreshEffectsList();
+}
+
+void UCharacterPanelWidget::HandleBDAlignmentChanged(AActor *Actor, ESpellElement OldElement, ESpellElement NewElement)
+{
+	if (Actor != BoundActor.Get())
+		return;
+	RefreshEffectsList();
+}
+
+void UCharacterPanelWidget::HandleBDTransformed(AActor *Actor)
+{
+	if (Actor != BoundActor.Get())
+		return;
+
+	// Refresh every BD-affected display so the panel reflects the new state
+	// the moment a Darkness character transforms — energy bar tint + label
+	// swap to BD's absorption pool; effects list rebuilt so any synthetic
+	// stack row appears/clears in sync with the new BD state.
+	RefreshEnergyBar();
+	ApplyEnergyBarTint();
+	RefreshEffectsList();
 }
 
 void UCharacterPanelWidget::HandleStatusBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source)
@@ -325,7 +361,41 @@ void UCharacterPanelWidget::RefreshEffectsList()
 		return;
 	}
 
-	RebuildEffectsList(StatusMgr->GetActiveEffects(Actor));
+	TArray<FActiveSkillEffect> Effects = StatusMgr->GetActiveEffects(Actor);
+
+	// BD absorption stacks function as a status-multiplier buff on
+	// matching-element spells (UDamageCalculator::GetBDStackStatusMultiplier).
+	// Surface them via the same pipeline as real skill effects: append a
+	// synthetic StatusMultiplierBuff entry so the existing BP row widget +
+	// SkillEffectBlueprintLibrary helpers render it (IsBuff → buff tint,
+	// GetStackString → "xN"). Auto-clears: when stacks drop to 0 or the
+	// character is no longer BD, the next refresh just doesn't append it.
+	UCharacterDataComponent *CharComp = BoundCharData.Get();
+	UBrokenDarknessManager *BDManager = BoundBDManager.Get();
+	if (CharComp && CharComp->IsBrokenDarkness() && BDManager && BDManager->IsTransformed())
+	{
+		const int32 StackCount = BDManager->GetCurrentStackCount();
+		if (StackCount > 0)
+		{
+			const ESpellElement Element = BDManager->GetCurrentAlignment();
+			const UEnum *ElementEnum = StaticEnum<ESpellElement>();
+			const FString ElementName = ElementEnum
+											? ElementEnum->GetDisplayNameTextByValue(static_cast<int64>(Element)).ToString()
+											: FString(TEXT("?"));
+
+			FActiveSkillEffect StackEntry;
+			StackEntry.EffectName = ElementName;
+			StackEntry.EffectType = ESkillEffectType::StatusMultiplierBuff;
+			StackEntry.Element = Element;
+			StackEntry.bCanStack = true;
+			StackEntry.CurrentStacks = StackCount;
+			StackEntry.MaxStacks = BDManager->GetMaxStacks();
+			StackEntry.bPermanent = true;
+			Effects.Add(StackEntry);
+		}
+	}
+
+	RebuildEffectsList(Effects);
 }
 
 void UCharacterPanelWidget::SetBarSafe(UProgressBar *Bar, float Percent)
@@ -371,6 +441,33 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 
 		SetBarSafe(EPBar, Percent);
 		SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::Absorb, Current, Max));
+
+		// Overload text tint — escalates as CurrentEP / MaxEP rises past 1.0.
+		// Bar percent is clamped at 1.0 above, so the only visual signal that
+		// energy has exceeded the cap is this text color. Thresholds in
+		// CombatConstants. Reset to white when not overloaded.
+		if (EPText && Max > 0 && Current > Max)
+		{
+			const float OverPct = static_cast<float>(Current) / static_cast<float>(Max);
+			FLinearColor TextColor = FLinearColor::White;
+			if (OverPct > CombatConstants::OVERLOAD_RED_THRESHOLD)
+			{
+				TextColor = FLinearColor::Red;
+			}
+			else if (OverPct > CombatConstants::OVERLOAD_ORANGE_THRESHOLD)
+			{
+				TextColor = FLinearColor(1.0f, 0.5f, 0.0f); // orange
+			}
+			else if (OverPct > CombatConstants::OVERLOAD_YELLOW_THRESHOLD)
+			{
+				TextColor = FLinearColor::Yellow;
+			}
+			EPText->SetColorAndOpacity(FSlateColor(TextColor));
+		}
+		else if (EPText)
+		{
+			EPText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		}
 		return;
 	}
 
@@ -382,6 +479,14 @@ void UCharacterPanelWidget::RefreshEnergyBar()
 
 		SetBarSafe(EPBar, Percent);
 		SetTextSafe(EPText, FString::Printf(TEXT("%s:%d/%d"), PanelLabels::EP, Current, Max));
+
+		// Non-BD: ensure text stays default-white. Cheap idempotent reset so a
+		// runtime transform from non-BD → BD that later returns to default
+		// (impossible today but defensive) doesn't leave a stuck colour.
+		if (EPText)
+		{
+			EPText->SetColorAndOpacity(FSlateColor(FLinearColor::White));
+		}
 	}
 }
 
