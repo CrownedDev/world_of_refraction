@@ -11,6 +11,9 @@
 #include "WorldStatRequirements.h"
 #include "StatConstants.h"
 #include "ElementHelpers.h"
+#include "StatusBuildupManager.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
 
 namespace BrokenDarknessConstants
 {
@@ -272,7 +275,17 @@ bool UBrokenDarknessManager::CanAbsorbElement(ESpellElement Element)
 
 float UBrokenDarknessManager::CalculateForbiddenCastDamage(float SpellBaseDamage) const
 {
-	return SpellBaseDamage * ForbiddenCastSelfDamagePercent;
+	// Spell-damage-scaled self-cost — mirrors the convention at
+	// DamageCalculator::GetAttackerDamageMultiplier (:226-249) where
+	// GetCrystalModifiedSpellDamage is used as a direct multiplier on damage.
+	// The multiplier returns 1.0 + (ModifiedMind × points × SPELL_DAMAGE_PER_POINT),
+	// so an unleveled caster gets the flat percent and a stat-invested one scales up.
+	float SpellDamageMult = 1.0f;
+	if (const UCharacterDataComponent *CharComp = GetCharComp())
+	{
+		SpellDamageMult = CharComp->GetCrystalModifiedSpellDamage();
+	}
+	return SpellBaseDamage * ForbiddenCastSelfDamagePercent * SpellDamageMult;
 }
 
 bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, float SpellBaseDamage)
@@ -287,17 +300,40 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 		return false;
 	}
 
-	float SelfDamage = CalculateForbiddenCastDamage(SpellBaseDamage);
-
 	AActor *Owner = GetOwner();
+
+	// 1) Self-DAMAGE — scales with caster's SpellDamage stat (locked design 4.2).
+	const float SelfDamage = CalculateForbiddenCastDamage(SpellBaseDamage);
 	ApplyDamageToActor(Owner, SelfDamage);
 
-	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: Forbidden element %s dealt %.1f self-damage to %s!"),
-		   *UEnum::GetValueAsString(SpellElement),
-		   SelfDamage,
-		   Owner ? *Owner->GetName() : TEXT("Unknown"));
+	// 2) Self-BUILDUP — in the forbidden element. Base amount only; AddStatusBuildup
+	//    applies the caster's StatusMultiplier amplification AND the caster's own
+	//    Resistance reduction internally (the BD is both Source and Target here).
+	//    Routed directly to UStatusBuildupManager — keeping the apply site
+	//    adjacent to the self-damage call rather than going through the dead
+	//    ApplySelfStatusBuildup helper on ActionExecutor.
+	const float SelfBuildup = SpellBaseDamage * ForbiddenCastSelfBuildupPercent;
+	if (SelfBuildup > 0.0f)
+	{
+		if (UWorld *World = GetWorld())
+		{
+			if (UGameInstance *GI = World->GetGameInstance())
+			{
+				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				{
+					SBM->AddStatusBuildup(Owner, Owner, SelfBuildup, SpellElement, EPhysicalDamageType::None);
+				}
+			}
+		}
+	}
 
-	// Broadcast for VFX/UI feedback
+	UE_LOG(LogTemp, Warning,
+		   TEXT("BrokenDarkness: Forbidden element %s self-cost on %s — damage %.1f, base buildup %.1f"),
+		   *UEnum::GetValueAsString(SpellElement),
+		   Owner ? *Owner->GetName() : TEXT("Unknown"),
+		   SelfDamage, SelfBuildup);
+
+	// Broadcast for VFX/UI feedback (HP-side; no subscribers in source today)
 	OnOverloadDamage.Broadcast(Owner, Owner, SelfDamage);
 
 	return true;
