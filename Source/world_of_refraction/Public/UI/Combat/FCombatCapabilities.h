@@ -6,10 +6,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ECharacterClass.h"
+#include "Character/ECharacterClass.h"
 #include "UI/Combat/PieMenuButtonData.h"
-#include "ESpellElement.h"
-#include "FCrystalId.h"
+#include "Skills/Definitions/ESpellElement.h"
+#include "Equipment/Crystals/FCrystalId.h"
 #include "FCombatCapabilities.generated.h"
 
 class ULoadoutComponent;

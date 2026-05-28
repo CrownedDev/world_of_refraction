@@ -9,12 +9,12 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "UI/Combat/FCombatCapabilities.h"
 #include "UI/Combat/PieMenuButtonData.h"
-#include "ECharacterClass.h"
-#include "ElementColors.h"
-#include "TargetType.h"
-#include "ActionStructs.h"
-#include "ESpellSource.h"
-#include "ESpellElement.h"
+#include "Character/ECharacterClass.h"
+#include "Infusion/ElementColors.h"
+#include "Combat/TargetType.h"
+#include "Combat/Actions/ActionStructs.h"
+#include "Skills/Definitions/ESpellSource.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;

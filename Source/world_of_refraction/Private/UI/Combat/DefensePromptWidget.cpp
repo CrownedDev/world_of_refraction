@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/Combat/DefensePromptWidget.h"
-#include "DefenseSystem.h"
+#include "Combat/Defense/DefenseSystem.h"
 #include "Engine/GameInstance.h"
 
 void UDefensePromptWidget::InitialiseForCombat()

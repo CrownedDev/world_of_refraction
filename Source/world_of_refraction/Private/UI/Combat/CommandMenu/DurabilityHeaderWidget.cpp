@@ -1,20 +1,20 @@
 // DurabilityHeaderWidget.cpp
 
 #include "UI/Combat/CommandMenu/DurabilityHeaderWidget.h"
-#include "RingManager.h"
-#include "RingData.h"
-#include "EvolutionItemData.h"
-#include "CharacterDataComponent.h"
-#include "CharacterData.h"
+#include "Equipment/Rings/RingManager.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Character/CharacterDataComponent.h"
+#include "Character/CharacterData.h"
 #include "Components/TextBlock.h"
 #include "Engine/GameInstance.h"
-#include "CrystalManager.h"
-#include "WeaponManager.h"
-#include "WeaponData.h"
-#include "LoadoutComponent.h"
-#include "FCombatLoadout.h"
-#include "FRingLoadoutEntry.h"
-#include "FRuntimeAttachedItem.h"
+#include "Equipment/Crystals/CrystalManager.h"
+#include "Equipment/Weapons/WeaponManager.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Loadout/Entries/FRingLoadoutEntry.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 
 namespace HeaderLabels
 {

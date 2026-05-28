@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "ESpellElement.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "CharacterPanelWidget.generated.h"
 
 class AActor;
