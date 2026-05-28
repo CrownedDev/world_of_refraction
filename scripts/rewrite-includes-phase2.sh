@@ -366,7 +366,7 @@ rewrite_quote() {
   local pat="#include[[:space:]]*\"${e}\""
   local files n
   files="$(grep -rlE "$pat" "$SRC" --include='*.h' --include='*.cpp' 2>/dev/null || true)"
-  n="$(grep -rhE "$pat" "$SRC" --include='*.h' --include='*.cpp' 2>/dev/null | wc -l | tr -d ' ')"
+  n="$(grep -rhE "$pat" "$SRC" --include='*.h' --include='*.cpp' 2>/dev/null | wc -l | tr -d ' ' || true)"
   if [ "${n:-0}" -eq 0 ]; then ZERO_HEADERS+=("$old"); return 0; fi
   TOTAL_LINES=$((TOTAL_LINES + n))
   while IFS= read -r f; do
@@ -384,7 +384,7 @@ rewrite_angle() {
   local pat="#include[[:space:]]*<${e}>"
   local files n
   files="$(grep -rlE "$pat" "$SRC" --include='*.h' --include='*.cpp' 2>/dev/null || true)"
-  n="$(grep -rhE "$pat" "$SRC" --include='*.h' --include='*.cpp' 2>/dev/null | wc -l | tr -d ' ')"
+  n="$(grep -rhE "$pat" "$SRC" --include='*.h' --include='*.cpp' 2>/dev/null | wc -l | tr -d ' ' || true)"
   if [ "${n:-0}" -eq 0 ]; then return 0; fi
   TOTAL_LINES=$((TOTAL_LINES + n))
   while IFS= read -r f; do
