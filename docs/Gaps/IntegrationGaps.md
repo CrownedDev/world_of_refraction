@@ -347,12 +347,22 @@ Sites :691 and :862 resolve `ULoadoutComponent` from `Actor->FindComponentByClas
 ### 10.5 Damage calculator status-multiplier modifiers
 ✅ **RESOLVED** on `feature/integration-gaps-sweep-3`. Verification revealed `UDamageCalculator::CalculateStatusBuildup` (the function containing the TODO) had zero callers — dead code, same pattern as sweep-2's 10.6. Resolution applied as **(a) + (b)** together:
 
-- **(a)** Deleted `UDamageCalculator::CalculateStatusBuildup` (decl + impl, ~30 lines) with a tombstone comment pointing readers to the live path. `GetBDStackStatusMultiplier` is preserved — it's still consumed by the BD damage path.
+- **(a)** Deleted `UDamageCalculator::CalculateStatusBuildup` (decl + impl, ~30 lines) with a tombstone comment pointing readers to the live path. `GetBDStackStatusMultiplier` was preserved at the time — but see the regression note below.
 - **(b)** Added the genuine missing piece — StatusMultiplierBuff/StatusMultiplierDebuff aggregation on the attacker — to `UStatusBuildupManager::AddStatusBuildup` between the character-stat amplification (lines 252-278) and the resistance reduction block. ~6 lines, mirrors the `DamageBuff`/`DamageDebuff` shape at `DamageCalculator.cpp:521-523`. Uses `GetEffectManager()` (the file-local precedent — same call already at `:154, :203, :303, :453`).
 
 Resistance side was NOT added: the live path's `GetTotalElementResistance` (`StatusBuildupManager.cpp:163-184`, called at `:298`) already aggregates `ResistanceBuff`/`ResistanceDebuff` with the element filter the user's spec described. Adding it again at `CalculateStatusBuildup` would have double-applied even if that function had been live.
 
 **Cross-link to gap 7.1:** the queried `StatusMultiplierBuff`/`Debuff` aggregation goes through the same SkillEffectManager handler stubs flagged by 7.1 (`SkillEffectManager.cpp:1051-1056`). `GetTotalStatModifier` sums effect values by type, so the query path is sound — but the values sum to whatever the stubbed handlers populate. If 7.1's handlers remain no-op, this fix queries `0.0f` and is effectively a no-op until 7.1 lands. The wiring is correct and will activate the moment the handlers do real work.
+
+#### 10.5.r — BD stack multiplier regression (caused by 10.5 cleanup, fixed)
+✅ **RESOLVED** on `feature/fix-bd-stack-multiplier`. Sweep-3's deletion of `CalculateStatusBuildup` left `UDamageCalculator::GetBDStackStatusMultiplier` standing but **with zero live callers** — its only consumer was the deleted function. Net effect: BD absorption stacks (1×/1×/2×/4× at stacks 0-3) became inert against matching-element status buildup. The sweep-3 tombstone comment claiming "the BD damage path still consumes it" was incorrect — that path was inside the deleted function.
+
+- Moved the element-gated accessor onto the manager: `UBrokenDarknessManager::GetElementStackStatusMultiplier(ESpellElement Element) const` (`BrokenDarknessManager.h/.cpp`). Returns `1.0` when not transformed or element doesn't match `CurrentAlignmentElement`; otherwise returns `GetStackStatusMultiplier()`. Same logic as the old `DamageCalculator::GetBDStackStatusMultiplier`, just lifted to where it naturally lives (no `DamageCalculator` state was being used).
+- Wired into `UStatusBuildupManager::AddStatusBuildup` as **step 5c** (between the StatusMultiplierBuff/Debuff aggregation and the target-resistance reduction): `Amount *= Source->FindComponentByClass<UBrokenDarknessManager>()->GetElementStackStatusMultiplier(Element)`. Safe to call unconditionally — non-BD sources return `1.0` via the manager-component lookup failing, and matching-element/transformed gating lives inside the accessor.
+- Deleted `UDamageCalculator::GetBDStackStatusMultiplier` (decl + impl). Updated the sweep-3 tombstone in `DamageCalculator.cpp:347-360` to capture the regression resolution. Updated the descriptive comment at `CharacterPanelWidget.cpp:367` to point at the new accessor location.
+- **Side benefit (4.3 enabler):** any `AddStatusBuildup` call from an overloaded BD targeting themselves in the current alignment now picks up stack amplification automatically — gap 4.3's "released energy × stacks" question is resolved by this regression fix without any code in `ProcessOverloadTick` needing to know about stacks.
+
+**PIE-verify:** A Fire-aligned BD at 2-3 stacks casting an offensive Fire spell should build target Fire status noticeably faster than at 0-1 stacks. Pre-fix: no amplification at all.
 
 - **Where:** `Private/DamageCalculator.cpp:366` `// TODO: Apply skill effect modifiers — StatusMultiplierBuff / StatusMultiplierDebuff` (incomplete TODO comment).
 - **Impact:** Buffs/debuffs that modify status-multiplier don't affect damage.

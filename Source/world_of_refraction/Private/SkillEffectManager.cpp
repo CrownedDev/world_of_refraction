@@ -1284,19 +1284,19 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Generic to preserve historical behaviour — see ActionExecutor.cpp).
 	case ESkillEffectType::StatusIncrease:
 	{
-		if (Effect.Value > 0.0f)
+		if (Value > 0.0f)
 		{
 			if (UGameInstance *GI = GetGameInstance())
 			{
 				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
 				{
 					AActor *BuildupSource = Effect.SourceActor.IsValid() ? Effect.SourceActor.Get() : Actor;
-					SBM->AddStatusBuildup(BuildupSource, Actor, Effect.Value,
+					SBM->AddStatusBuildup(BuildupSource, Actor, Value,
 										  Effect.Element, EPhysicalDamageType::None);
 					UE_LOG(LogTemp, Log,
 						   TEXT("[SkillEffectManager] %s built %.1f %s status on %s via %s"),
 						   *(BuildupSource ? BuildupSource->GetName() : FString(TEXT("?"))),
-						   Effect.Value, *UEnum::GetValueAsString(Effect.Element),
+						   Value, *UEnum::GetValueAsString(Effect.Element),
 						   *Actor->GetName(), *Effect.EffectName);
 				}
 			}
@@ -1305,16 +1305,16 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	}
 	case ESkillEffectType::StatusDecrease:
 	{
-		if (Effect.Value > 0.0f)
+		if (Value > 0.0f)
 		{
 			if (UGameInstance *GI = GetGameInstance())
 			{
 				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
 				{
-					SBM->ReduceStatusBuildupByAmount(Actor, Effect.Value);
+					SBM->ReduceStatusBuildupByAmount(Actor, Value);
 					UE_LOG(LogTemp, Log,
 						   TEXT("[SkillEffectManager] %s status buildup reduced by %.1f via %s"),
-						   *Actor->GetName(), Effect.Value, *Effect.EffectName);
+						   *Actor->GetName(), Value, *Effect.EffectName);
 				}
 			}
 		}

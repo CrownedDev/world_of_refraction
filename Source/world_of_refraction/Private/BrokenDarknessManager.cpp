@@ -585,6 +585,21 @@ float UBrokenDarknessManager::GetStackStatusMultiplier() const
 	}
 }
 
+float UBrokenDarknessManager::GetElementStackStatusMultiplier(ESpellElement Element) const
+{
+	// Non-transformed BD (or pre-transform Caster) → no amplification.
+	if (!bIsTransformed)
+	{
+		return 1.0f;
+	}
+	// Element gate — stacks amplify only matches against the current alignment.
+	if (Element == CurrentAlignmentElement)
+	{
+		return GetStackStatusMultiplier();
+	}
+	return 1.0f;
+}
+
 void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 {
 	AActor *Owner = GetOwner();

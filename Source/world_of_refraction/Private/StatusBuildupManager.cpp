@@ -9,6 +9,7 @@
 #include "BarCapTriggerResolver.h"
 #include "LoadoutComponent.h"
 #include "FEquipmentStatBonus.h"
+#include "BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
 
 // ========================================
@@ -287,6 +288,21 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 			const float SmBuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierBuff);
 			const float SmDebuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierDebuff);
 			Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / 100.0f);
+		}
+
+		// 5c. BD absorption-stack amplification (matching-element only).
+		// Restores the stack→buildup link that went dead in sweep-3 (the only
+		// caller of the old DamageCalculator::GetBDStackStatusMultiplier was
+		// the deleted CalculateStatusBuildup). Stacks amplify STATUS BUILDUP
+		// on matching-alignment spells: 1×/1×/2×/4× at stacks 0-3. Separate
+		// from the StatusMultiplier-stat amplification above — both layers
+		// legitimately apply (stat amp = Spirit-driven, stack amp = absorption-
+		// driven). Element gate + transform gate live inside
+		// GetElementStackStatusMultiplier; non-BD sources and non-matching
+		// elements return 1.0 — safe to call unconditionally.
+		if (UBrokenDarknessManager *SourceBD = Source->FindComponentByClass<UBrokenDarknessManager>())
+		{
+			Amount *= SourceBD->GetElementStackStatusMultiplier(Element);
 		}
 	}
 

@@ -364,7 +364,8 @@ void UCharacterPanelWidget::RefreshEffectsList()
 	TArray<FActiveSkillEffect> Effects = StatusMgr->GetActiveEffects(Actor);
 
 	// BD absorption stacks function as a status-multiplier buff on
-	// matching-element spells (UDamageCalculator::GetBDStackStatusMultiplier).
+	// matching-element spells (UBrokenDarknessManager::GetElementStackStatusMultiplier,
+	// wired into UStatusBuildupManager::AddStatusBuildup as step 5c).
 	// Surface them via the same pipeline as real skill effects: append a
 	// synthetic StatusMultiplierBuff entry so the existing BP row widget +
 	// SkillEffectBlueprintLibrary helpers render it (IsBuff → buff tint,
