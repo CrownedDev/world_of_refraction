@@ -689,6 +689,8 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::IgnoreDefense:
 		case ESkillEffectType::DoubleHit:
 		case ESkillEffectType::Revive:
+		// sweep-4: status-bar manipulation buff (reduces target's gauge)
+		case ESkillEffectType::StatusDecrease:
 			return true;
 		default:
 			return false;
@@ -740,6 +742,8 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::ApplyBurnToTarget:
 		case ESkillEffectType::ApplyChillToTarget:
 		case ESkillEffectType::ApplyStunToTarget:
+		// sweep-4: status-bar manipulation debuff (builds target's gauge)
+		case ESkillEffectType::StatusIncrease:
 			return true;
 		default:
 			return false;

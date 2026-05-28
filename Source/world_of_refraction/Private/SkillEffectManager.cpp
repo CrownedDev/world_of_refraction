@@ -1276,6 +1276,51 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Revive armed on %s"), *Actor->GetName());
 		break;
 
+	// ==================== STATUS BAR MANIPULATION (sweep-4) ====================
+	// Instant gauge manipulators. Both fire once on apply (Duration is an
+	// authoring field but doesn't drive persistence — Value is consumed up-front).
+	// Element comes from Effect.Element which ApplySkillEffects sets to the
+	// resolved cast element ONLY for these effect types (other effect types stay
+	// Generic to preserve historical behaviour — see ActionExecutor.cpp).
+	case ESkillEffectType::StatusIncrease:
+	{
+		if (Effect.Value > 0.0f)
+		{
+			if (UGameInstance *GI = GetGameInstance())
+			{
+				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				{
+					AActor *BuildupSource = Effect.SourceActor.IsValid() ? Effect.SourceActor.Get() : Actor;
+					SBM->AddStatusBuildup(BuildupSource, Actor, Effect.Value,
+										  Effect.Element, EPhysicalDamageType::None);
+					UE_LOG(LogTemp, Log,
+						   TEXT("[SkillEffectManager] %s built %.1f %s status on %s via %s"),
+						   *(BuildupSource ? BuildupSource->GetName() : FString(TEXT("?"))),
+						   Effect.Value, *UEnum::GetValueAsString(Effect.Element),
+						   *Actor->GetName(), *Effect.EffectName);
+				}
+			}
+		}
+		break;
+	}
+	case ESkillEffectType::StatusDecrease:
+	{
+		if (Effect.Value > 0.0f)
+		{
+			if (UGameInstance *GI = GetGameInstance())
+			{
+				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				{
+					SBM->ReduceStatusBuildupByAmount(Actor, Effect.Value);
+					UE_LOG(LogTemp, Log,
+						   TEXT("[SkillEffectManager] %s status buildup reduced by %.1f via %s"),
+						   *Actor->GetName(), Effect.Value, *Effect.EffectName);
+				}
+			}
+		}
+		break;
+	}
+
 	default:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Unhandled effect type for %s"),
 			   *Effect.EffectName);

@@ -195,5 +195,23 @@ enum class ESkillEffectType : uint8
     // ==================== ITEM SYSTEM REDESIGN (Phase 1) ====================
     // Appended (not mid-inserted) to preserve .uasset enum-by-value stamping.
     // Debuff half of the ModifyDamageTaken split; positive magnitude = % increase.
-    IncreaseDamageTaken UMETA(DisplayName = "Increase Damage Taken")
+    IncreaseDamageTaken UMETA(DisplayName = "Increase Damage Taken"),
+
+    // ==================== STATUS BAR MANIPULATION (sweep-4) ====================
+    // Effect-system gauge manipulators. Element comes from the resolved cast
+    // element of the source skill (spell's Element, or infused-source's element
+    // if the cast was infused). Value is the absolute buildup amount. Both
+    // effect types fire instant on apply (Duration stays as an authoring field
+    // but the handlers do not persist).
+
+    /** Builds up the target's status-bar gauge in the resolved cast element.
+     *  Routes through UStatusBuildupManager::AddStatusBuildup so StatusMultiplier
+     *  amplification and target resistance apply as normal. Classified as a debuff. */
+    StatusIncrease UMETA(DisplayName = "Status Increase (Build Gauge)"),
+
+    /** Reduces the target's status-bar gauge by a flat amount. Routes through
+     *  UStatusBuildupManager::ReduceStatusBuildupByAmount (parallel to AddStatusBuildup;
+     *  the existing fraction-based ReduceStatusBuildup stays for Quartz items).
+     *  Classified as a buff (reducing your own buildup is beneficial). */
+    StatusDecrease UMETA(DisplayName = "Status Decrease (Reduce Gauge)")
 };

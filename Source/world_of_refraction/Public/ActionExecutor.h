@@ -406,7 +406,8 @@ private:
 		const TArray<FSkillEffect> &Effects,
 		const FString &SourceName,
 		FActionResult &Result,
-		bool bCausedDeath);
+		bool bCausedDeath,
+		ESpellElement ResolvedCastElement = ESpellElement::Generic);
 
 	/** Get targets for an effect based on ETargetType */
 	void GetEffectTargets(

@@ -1524,13 +1524,32 @@ void UActionExecutor::FinalizeAsyncAction()
 
 		if (EffectsToApply && EffectsToApply->Num() > 0)
 		{
+			// Resolve the cast's effective element for sweep-4's status-bar
+			// manipulation effects (StatusIncrease / StatusDecrease). Spells
+			// carry an inherent element; infusion overrides it. Abilities and
+			// attacks only have an element when infused. Other (non-gauge-
+			// manipulating) effect types stay element=Generic inside the loop
+			// to preserve historical behaviour.
+			ESpellElement ResolvedElement = ESpellElement::Generic;
+			if (Action.ActionType == EActionType::Spell && Action.SpellData)
+			{
+				ResolvedElement = (Action.SelectedSource != EInfusionSourceOption::None)
+									  ? GetElementForSourceOption(Executor, Action.SelectedSource)
+									  : Action.SpellData->Element;
+			}
+			else if (Action.SelectedSource != EInfusionSourceOption::None)
+			{
+				ResolvedElement = GetElementForSourceOption(Executor, Action.SelectedSource);
+			}
+
 			ApplySkillEffects(
 				Executor,
 				FinalResult.AffectedTargets,
 				*EffectsToApply,
 				SourceName,
 				FinalResult,
-				FinalResult.bCausedDeath);
+				FinalResult.bCausedDeath,
+				ResolvedElement);
 		}
 
 		// Process post-cast by source (durability wear, etc.)
@@ -4056,7 +4075,8 @@ void UActionExecutor::ApplySkillEffects(
 	const TArray<FSkillEffect> &Effects,
 	const FString &SourceName,
 	FActionResult &Result,
-	bool bCausedDeath)
+	bool bCausedDeath,
+	ESpellElement ResolvedCastElement)
 {
 	if (Effects.Num() == 0)
 	{
@@ -4158,6 +4178,29 @@ void UActionExecutor::ApplySkillEffects(
 			continue;
 		}
 
+		// Per-effect element: status-bar manipulation effects (sweep-4
+		// StatusIncrease/StatusDecrease) use the resolved cast element so the
+		// gauge fills/drains in the correct element. Every other effect type
+		// stays Generic to preserve historical behaviour (abilities have no
+		// inherent element; existing DOT / ResistanceBuff / etc. on spells
+		// have historically been applied as Generic — this branch keeps that
+		// invariant rather than silently changing them).
+		const ESpellElement EffectElement =
+			(Effect.EffectType == ESkillEffectType::StatusIncrease ||
+			 Effect.EffectType == ESkillEffectType::StatusDecrease)
+				? ResolvedCastElement
+				: ESpellElement::Generic;
+
+		// For instant gauge manipulators (Value > 0, no need to persist the
+		// effect on the target's active list), the runtime Value field carries
+		// the absolute buildup amount. Use Effect.Value directly instead of
+		// the percentage conversion used for stat-modifier effects.
+		const int32 RuntimeValue =
+			(Effect.EffectType == ESkillEffectType::StatusIncrease ||
+			 Effect.EffectType == ESkillEffectType::StatusDecrease)
+				? Effect.Value
+				: FMath::RoundToInt(Effect.Magnitude * 100.0f); // existing percentage shape
+
 		// Apply effect to each target as a status effect
 		for (AActor *EffectTarget : EffectTargets)
 		{
@@ -4166,9 +4209,9 @@ void UActionExecutor::ApplySkillEffects(
 				GetUniqueEffectID(),
 				Effect.EffectType,
 				Effect.Magnitude,
-				FMath::RoundToInt(Effect.Magnitude * 100.0f), // Convert to percentage value
+				RuntimeValue,
 				Effect.Duration,
-				ESpellElement::Generic, // Abilities don't have inherent element
+				EffectElement,
 				ESkillEffectTiming::StartOfOwnTurn,
 				Effect.Condition,
 				Effect.ConditionThreshold,

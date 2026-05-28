@@ -417,6 +417,32 @@ void UStatusBuildupManager::ReduceStatusBuildup(AActor *Target, float Fraction)
 		   *Target->GetName(), Fraction * 100.0f, State->CurrentBuildup);
 }
 
+void UStatusBuildupManager::ReduceStatusBuildupByAmount(AActor *Target, float Amount)
+{
+	if (!Target || Amount <= 0.0f)
+	{
+		return;
+	}
+
+	FStatusBarState *State = StatusBarStates.Find(Target);
+	if (!State)
+	{
+		return;
+	}
+
+	const float Before = State->CurrentBuildup;
+	State->CurrentBuildup = FMath::Max(0.0f, State->CurrentBuildup - Amount);
+
+	// PendingElement + LastSource passthrough — same UI behaviour as the
+	// fraction-based ReduceStatusBuildup above. The reduction is "negative
+	// buildup" by nature, so no Source is logged.
+	OnStatusBuildupChanged.Broadcast(Target, State->CurrentBuildup,
+		CombatConstants::STATUS_EFFECT_THRESHOLD, State->PendingElement, State->LastSource.Get());
+
+	UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status buildup reduced by %.1f -> %.1f (was %.1f)"),
+		   *Target->GetName(), Amount, State->CurrentBuildup, Before);
+}
+
 void UStatusBuildupManager::ProcessStatusBarDecay(AActor *Target)
 {
 	if (!Target)

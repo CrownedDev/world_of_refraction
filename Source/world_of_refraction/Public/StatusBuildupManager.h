@@ -112,6 +112,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	void ReduceStatusBuildup(AActor *Target, float Fraction);
 
+	/** Reduce a target's current status buildup by a flat absolute Amount.
+	 *  Parallel shape to AddStatusBuildup (sweep-4 / StatusDecrease effect type)
+	 *  but without StatusMultiplier / Resistance modulation — pure subtraction
+	 *  clamped at 0. The existing fraction-based ReduceStatusBuildup stays
+	 *  untouched (Quartz items still use it). */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	void ReduceStatusBuildupByAmount(AActor *Target, float Amount);
+
 	/** Process status bar decay at turn start. Bar decays per-turn; full reset
 	 *  after STATUS_DECAY_FULL_RESET_TURNS without further buildup. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")

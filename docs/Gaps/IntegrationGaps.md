@@ -104,7 +104,7 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 
 ---
 
-## 4. BD overflow visibility — broadcasts without UI consumers
+## 4. BD overflow — visibility broadcasts + self-cost mechanics
 
 ### 4.1 `UBrokenDarknessManager::OnTransformed`, `OnOverloadDamage`, `OnStacksChanged` — broadcast, no production C++ subscribers
 - **What:** Three BD lifecycle/combat broadcasts have no UI/SFX consumer in C++.
@@ -113,6 +113,45 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Impact:** No on-screen "TRANSFORMED INTO BROKEN DARKNESS" stinger on the runtime-transform path (a major narrative beat fires silently). No stack-count indicator updates on absorption stack changes (the absorbed-element color updates via `OnAlignmentChanged`, but the **stack count** doesn't drive any UI). No "overload aura tick damaged enemy X" feedback during overload.
 - **Priority:** Medium — runtime BD transformation is dramatic in design; firing it silently undersells it.
 - **Scope:** Small per consumer; depends on designer priority.
+
+### 4.2 BD forbidden-cast self-buildup unwired
+- **What:** When BD casts a **forbidden element** (one they're attempting to absorb), they currently take self-DAMAGE but not self-status-BUILDUP. Both halves should fire together — two costs scaled by two different stats.
+- **Where:** `UActionExecutor::ProcessForbiddenElementCast` (`ActionExecutor.cpp:3356`) → `UBrokenDarknessManager::ProcessForbiddenCast` (`BrokenDarknessManager.cpp:278+`, self-damage path at `:275, 290-293`). The dead `UActionExecutor::ApplySelfStatusBuildup` helper (`ActionExecutor.cpp:3419-3434`) was the intended apply hook for the missing buildup half.
+- **Design (locked):**
+  - **Self-damage** scales with **SpellDamage** (existing behaviour via `BrokenDarknessManager::CalculateForbiddenCastDamage` × `ForbiddenCastSelfDamagePercent`).
+  - **Self-buildup** scales with **StatusMultiplier** (the missing piece — same stat the offensive buildup pipeline uses).
+  - **Element built** = the forbidden element the BD is attempting to absorb (the spell's element on a forbidden cast).
+  - Both apply together — two costs, two stats, two channels.
+- **Impact:** Forbidden-cast risk is currently HP-only; the design's "status backlash" half doesn't fire. Casting a forbidden Fire spell as a BD should both burn the caster AND build Fire on their status bar (eventually triggering Burn on themselves).
+- **Priority:** Medium — BD core risk/reward mechanic; partial implementation undersells the design.
+- **Scope:** Small-Medium — one new buildup call inside the existing forbidden-cast path, scaled correctly off StatusMultiplier; route via `UStatusBuildupManager::AddStatusBuildup(Caster, Caster, Amount, ForbiddenElement, None)` so the standard pipeline (resistance, trigger) applies.
+
+### 4.3 BD overload aura per-turn tick — status-buildup + absorption-drain coupling unwired
+- **What:** When BD absorbs **past their absorption limit**, they enter overload — an unstable aura of the absorbed element that should, per turn while overloaded, release elemental energy. `OnOverloadDamage` already broadcasts (`BrokenDarknessManager.cpp:301, 511, 521`) so HP-damage may be partially wired; the **status-buildup release + absorption-drain coupling** is the missing core design.
+- **Where:** `UBrokenDarknessManager` overload state machine + `OnOverloadDamage` broadcast path; `UStatusBuildupManager::AddStatusBuildup` for the status half. Likely tick site is the existing overload-state per-turn processing (audit before adding to avoid double-wiring HP damage).
+- **Design (locked, key insight: status buildup IS released elemental energy — one flow, multiple faces):**
+  - **Per turn, the aura releases elemental energy.** The amount released:
+    - **Increases** with **StatusMultiplier** (more output → more release)
+    - **Decreases** with **Efficiency** (better control → holds it together, less release)
+  - That released energy simultaneously:
+    - **Drains** the same amount from the BD's **absorption pool** (bleeding back toward limit)
+    - Becomes **status buildup on the BD** in the aura's element, **mitigated by Resistance**
+  - **Separately**, the aura deals **HP damage** scaled by **SpellDamage** (may already be partially wired via `OnOverloadDamage`).
+  - **Element** = the absorbed (overloading) element — the BD's current alignment.
+- **Per-turn tick formula:**
+  ```
+  released = f(StatusMultiplier↑, Efficiency↓)
+  absorption_pool -= released
+  status_buildup(self, aura_element) += released × (1 - Resistance)
+  hp_damage(self) = g(SpellDamage)
+  ```
+- **Impact:** Overload's risk model is incomplete. Without status-buildup release, overload is purely an HP cost — designers can't tune the "elemental backlash" half. The absorption-drain coupling is what gives overload its self-recovery curve (BD bleeds back toward limit naturally over turns).
+- **Priority:** Medium — BD core mechanic; absorption/overload loop is structurally incomplete without it.
+- **Scope:** Medium — touches overload state machine + adds the buildup release. **Verify what `OnOverloadDamage` already does before implementing** so the HP-damage half isn't double-wired. The dead `UActionExecutor::ApplySelfStatusBuildup` helper is again the intended apply hook for the buildup half (or a direct `AddStatusBuildup` call from the BD manager — design choice for the implementing session).
+
+### 4.x cross-reference — DON'T DELETE `ApplySelfStatusBuildup` / `ApplySelfDamage` yet
+
+Sweep-4's `7.2` reframe note flagged `UActionExecutor::ApplySelfStatusBuildup` (`:3419-3434`) and `ApplySelfDamage` (`:3402-3417`) as structurally obsolete now that the `StatusIncrease` / `StatusDecrease` effect-type pipeline exists for authored effects. **However, gaps 4.2 and 4.3 are intrinsic BD mechanics (not authored effects)** and these dead helpers are the natural apply hooks for those mechanics. **Leave them in place until 4.2 + 4.3 are implemented (or a final apply path for intrinsic self-cost is chosen during that implementation).** If 4.2/4.3 end up routing through `UStatusBuildupManager::AddStatusBuildup` directly (skipping the helpers), then the helpers can be deleted post-implementation.
 
 ---
 
@@ -176,12 +215,23 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Medium — implement each handler.
 
 ### 7.2 ActionExecutor status-buildup self-application is a TODO
-- **What:** Buildup-on-self code path is unimplemented.
-- **Where:** `Private/ActionExecutor.cpp:3430`, `:3535`.
-- **Evidence:** `:3430` `// TODO: Implement status buildup on self`. `:3535` `// TODO: Integrate with SkillEffectManager when API is available`. Adjacent `:3532` `int32 BaseBuildup = 10 * HitCount; // TODO: Get from CombatConstants`.
-- **Impact:** Self-buildup (e.g. recoil from a forbidden cast that should add to the caster's own status bar) doesn't fire; magic constants used.
-- **Priority:** Medium — silent gameplay gap if any spell is designed around it.
-- **Scope:** Small.
+✅ **RESOLVED** on `feature/integration-gaps-sweep-4` (reframed). The original catalog entry conflated two distinct surfaces. Sweep-4 verification clarified:
+
+- **Self-EFFECT application** (Burn-instance on caster, etc.) was **already supported** via `FSkillEffect::Target = ETargetType::Self` flowing through `UActionExecutor::GetEffectTargets` → `UActionExecutor::ApplySkillEffects` → `StatusMgr->ApplyEffect(User, ...)`. The original 7.2 framing missed `FSkillEffect::Target` (`FSkillEffect.h:64-65`).
+- **Status-bar GAUGE manipulation** (caller's intent: "this spell builds N Fire on the target" or "this ability reduces N status on the caster") was the genuine gap. The dead helpers `ApplySelfStatusBuildup` / `ApplySelfDamage` on ActionExecutor + the magic-number TODOs at `:3430` / `:3532` / `:3535` were stubs for this surface but never wired.
+
+Resolution: added two new effect types — **`StatusIncrease`** (debuff, builds the target's gauge) and **`StatusDecrease`** (buff, reduces it) — that flow through the existing effect system. They use `FSkillEffect::Target` for self-vs-other routing, the existing condition framework for triggers, and the resolved cast element (spell's `Element`, or the infused source's element for infused casts) for which status bar to manipulate. Specifically:
+
+- Enum entries appended to `ESkillEffectType.h` under a new `STATUS BAR MANIPULATION` banner (preserves `.uasset` enum-by-value stamping).
+- Classification: `StatusDecrease` added to `IsBuff()` in both `FSkillEffect.h` and `ActiveSkillEffect.h`; `StatusIncrease` added to `IsDebuff()` in both.
+- New `UStatusBuildupManager::ReduceStatusBuildupByAmount(Target, Amount)` mirrors `AddStatusBuildup`'s shape but subtracts (the existing fraction-based `ReduceStatusBuildup` stays untouched — Quartz items still use it).
+- Two new switch cases in `USkillEffectManager::ApplyEffectLogic`: StatusIncrease → `AddStatusBuildup(Source, Actor, Value, Effect.Element, None)`; StatusDecrease → `ReduceStatusBuildupByAmount(Actor, Value)`.
+- Element threading: `UActionExecutor::ApplySkillEffects` gains an `ESpellElement ResolvedCastElement = Generic` parameter; the single caller at `:1527` computes it from the Action. Inside the loop, the new effect types use the resolved element while every other effect type keeps the previous `Generic` hardcode — **no behaviour change for DOT / ResistanceBuff / any pre-existing effect**.
+
+The original dead helpers (`ApplySelfStatusBuildup`, `ApplySelfDamage`, magic-number TODOs at `:3430-3535`) remain in `ActionExecutor.cpp` for now. **They are NOT cleanup candidates** — gaps **4.2** (BD forbidden-cast self-buildup) and **4.3** (BD overload aura per-turn tick) are intrinsic BD self-cost mechanics for which these helpers are the natural apply hooks. See the **4.x cross-reference note** in section 4 before considering deletion.
+
+#### Original framing (pre-sweep-4)
+> Buildup-on-self code path is unimplemented. TODOs at `ActionExecutor.cpp:3430` `// TODO: Implement status buildup on self`, `:3535` `// TODO: Integrate with SkillEffectManager when API is available`, and the adjacent magic number `:3532` `int32 BaseBuildup = 10 * HitCount`. Framing assumed a new "self-buildup channel" was needed; sweep-4 verification showed the right answer was two effect types that flow through the existing effect pipeline.
 
 ### 7.3 `UCombatCameraManager` TODO `// Get target from action and transition to Action camera`
 - **What:** Action camera transition not wired.
@@ -334,10 +384,12 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 2.3 | `OnDefenseInputReceived` / `OnParryReflect` / `OnDefenseCueTriggered` no subscribers | Medium | Small | — |
 | 3.1 | ActionExecutor `OnActionStarted`/`Completed`/`HealingDone`/`TargetKilled` no consumers | Medium | Medium | — |
 | 4.1 | BD `OnTransformed` / `OnOverloadDamage` / `OnStacksChanged` no UI | Medium | Small | YES (if runtime BD transform happens on stage) |
+| 4.2 | BD forbidden-cast self-buildup unwired — self-damage exists, self-status-buildup half missing; scales with StatusMultiplier | Medium | Small-Medium | — |
+| 4.3 | BD overload aura per-turn tick — status-buildup release + absorption-drain coupling unwired; HP-damage half may be partially wired via `OnOverloadDamage` | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |
 | 7.1 | SkillEffectManager Phase 2 passive-layer stubs | Medium | Medium | YES (if affected effects are demo'd) |
-| 7.2 | Status-buildup-on-self TODO | Medium | Small | — |
+| 7.2 | **✅ RESOLVED (sweep-4)** — Status-buildup-on-self TODO — reframed: two new effect types `StatusIncrease`/`StatusDecrease` flow through existing effect system with element from resolved cast source | Medium | Small | — |
 | 7.3 | Action-camera transition TODO | Medium | Small | — |
 | 8.1 | HUD spawn only via test actor / BP | Medium | Medium | — |
 | 9.2 | BD InnateSpells empty | Medium (if BD demoed) | Small (designer fix) | YES (if BD) |
@@ -356,7 +408,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 10.3 | `ESpellSource::Item` stub case (unreachable) | Low | Small | — |
 | 10.7 | LoadoutComponent auto-populate dumb | Low | Medium | — |
 
-**Totals:** 29 distinct gaps — **3 High**, **12 Medium / Medium-High**, **14 Low**.
+**Totals:** 31 distinct gaps — **3 High**, **14 Medium / Medium-High**, **14 Low**.
 **Pitch-impacting (the subset most likely to bite the demo):** 1.1, 2.1, 2.2, 3.2, 4.1, 7.1, 9.2, 10.1, 10.4.
 
 **Smallest fix-set to unblock a clean pitch demo:** 2.1 (implement DefensePromptWidget Phase 1) + 1.1 (gate or remove `CombatPlayerController` test path) + confirm BP-side coverage of 3.2 (or ship a minimal C++ result-overlay). Three focused fixes, ~one session each.
