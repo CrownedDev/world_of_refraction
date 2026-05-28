@@ -487,16 +487,6 @@ private:
 	bool SpendEnergy(AActor *Actor, int32 Amount);
 
 	// ========================================
-	// INFUSION INTERNAL HELPERS
-	// ========================================
-
-	/** Apply self-damage for HP costs */
-	void ApplySelfDamage(AActor *Actor, int32 Amount);
-
-	/** Apply self-status buildup (Evolution L2) */
-	void ApplySelfStatusBuildup(AActor *Actor, ESpellElement Element, int32 Amount);
-
-	// ========================================
 	// CHARGE INFUSION HELPERS (NEW)
 	// ========================================
 

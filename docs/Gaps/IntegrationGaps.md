@@ -131,7 +131,7 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 
 - **Self-BUILDUP wired** alongside the self-damage. New designer constant `ForbiddenCastSelfBuildupPercent` (default 0.25, parallel to `ForbiddenCastSelfDamagePercent`). `ProcessForbiddenCast` now also calls `UStatusBuildupManager::AddStatusBuildup(Owner, Owner, SpellBaseDamage × ForbiddenCastSelfBuildupPercent, SpellElement, EPhysicalDamageType::None)`. The standard pipeline applies the caster's StatusMultiplier amplification (step 5/5b) and the caster's own Resistance reduction (step 6) automatically — Source and Target are both the BD, so the caster eats their own backlash through the normal damage-symmetry buildup math. Element = the forbidden element being cast (the attempted-absorb element per locked design).
 
-- **Apply hook chosen.** Routed directly to `UStatusBuildupManager` from `BrokenDarknessManager.cpp` — the dead `UActionExecutor::ApplySelfStatusBuildup` helper (`:3458-3473`) was NOT used (its body is a TODO stub against the wrong subsystem). After 4.3 lands with the same pattern, both `ApplySelfStatusBuildup` and `ApplySelfDamage` can be cleaned up.
+- **Apply hook chosen.** Routed directly to `UStatusBuildupManager` from `BrokenDarknessManager.cpp` — the dead `UActionExecutor::ApplySelfStatusBuildup` helper (`:3458-3473`) was NOT used (its body is a TODO stub against the wrong subsystem). After 4.3 lands with the same pattern, both `ApplySelfStatusBuildup` and `ApplySelfDamage` can be cleaned up. **(done)** — both helpers deleted on `feature/dead-helper-cleanup`; see 4.x cross-reference below.
 
 - **Single debug log** at Warning level summarising both costs ("damage X, base buildup Y").
 
@@ -193,9 +193,8 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Priority:** Medium — BD core mechanic; absorption/overload loop is structurally incomplete without it.
 - **Scope:** Medium — touches overload state machine + adds the buildup release. **Verify what `OnOverloadDamage` already does before implementing** so the HP-damage half isn't double-wired. The dead `UActionExecutor::ApplySelfStatusBuildup` helper is again the intended apply hook for the buildup half (or a direct `AddStatusBuildup` call from the BD manager — design choice for the implementing session).
 
-### 4.x cross-reference — DON'T DELETE `ApplySelfStatusBuildup` / `ApplySelfDamage` yet
-
-Sweep-4's `7.2` reframe note flagged `UActionExecutor::ApplySelfStatusBuildup` (`:3419-3434`) and `ApplySelfDamage` (`:3402-3417`) as structurally obsolete now that the `StatusIncrease` / `StatusDecrease` effect-type pipeline exists for authored effects. **However, gaps 4.2 and 4.3 are intrinsic BD mechanics (not authored effects)** and these dead helpers are the natural apply hooks for those mechanics. **Leave them in place until 4.2 + 4.3 are implemented (or a final apply path for intrinsic self-cost is chosen during that implementation).** If 4.2/4.3 end up routing through `UStatusBuildupManager::AddStatusBuildup` directly (skipping the helpers), then the helpers can be deleted post-implementation.
+### 4.x cross-reference — `ApplySelfStatusBuildup` / `ApplySelfDamage` cleanup landed
+✅ **CLEANED UP** post-4.2/4.3. Both helpers (`UActionExecutor::ApplySelfStatusBuildup` and `ApplySelfDamage`) deleted on `feature/dead-helper-cleanup` along with their "INFUSION INTERNAL HELPERS" header in `ActionExecutor.h` and the "HELPER IMPLEMENTATIONS" header in `ActionExecutor.cpp`. The 4.2 (`ProcessForbiddenCast`) and 4.3 (`ProcessOverloadTick`) implementations route directly to `UStatusBuildupManager::AddStatusBuildup` from `UBrokenDarknessManager` — intrinsic BD self-cost mechanics live in the manager, not in `ActionExecutor`. Pre-deletion grep confirmed zero live callers (the original "leave in place" gate from sweep-4 expected at-least-one helper to become the apply hook; the implementations chose direct manager calls instead).
 
 ---
 

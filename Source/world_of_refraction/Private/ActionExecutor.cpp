@@ -3435,44 +3435,6 @@ URingManager *UActionExecutor::GetRingManager() const
 }
 
 // ========================================
-// HELPER IMPLEMENTATIONS
-// ========================================
-
-void UActionExecutor::ApplySelfDamage(AActor *Actor, int32 Amount)
-{
-	if (!Actor || Amount <= 0)
-	{
-		return;
-	}
-
-	UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
-	if (Comp)
-	{
-		Comp->ServerTakeDamage(Amount);
-
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s took %d self-damage from infusion cost"),
-			   *Actor->GetName(), Amount);
-	}
-}
-
-void UActionExecutor::ApplySelfStatusBuildup(AActor *Actor, ESpellElement Element, int32 Amount)
-{
-	if (!Actor || Amount <= 0)
-	{
-		return;
-	}
-
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (StatusManager)
-	{
-		// Apply element status to self
-		// TODO: Implement status buildup on self
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s received %d self-status buildup (%s) from Evolution L2"),
-			   *Actor->GetName(), Amount, *UEnum::GetValueAsString(Element));
-	}
-}
-
-// ========================================
 // CHARGE INFUSION HELPERS
 // ========================================
 

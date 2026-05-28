@@ -309,9 +309,8 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 	// 2) Self-BUILDUP — in the forbidden element. Base amount only; AddStatusBuildup
 	//    applies the caster's StatusMultiplier amplification AND the caster's own
 	//    Resistance reduction internally (the BD is both Source and Target here).
-	//    Routed directly to UStatusBuildupManager — keeping the apply site
-	//    adjacent to the self-damage call rather than going through the dead
-	//    ApplySelfStatusBuildup helper on ActionExecutor.
+	//    Routed directly to UStatusBuildupManager from here — the apply site sits
+	//    adjacent to the self-damage call, both costs side by side.
 	const float SelfBuildup = SpellBaseDamage * ForbiddenCastSelfBuildupPercent;
 	if (SelfBuildup > 0.0f)
 	{
