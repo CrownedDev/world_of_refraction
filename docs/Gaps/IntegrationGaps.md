@@ -127,7 +127,7 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ### 4.2 BD forbidden-cast self-buildup unwired
 ✅ **RESOLVED** on `feature/bd-forbidden-cast-self-cost` — both halves of the locked design now fire together inside `UBrokenDarknessManager::ProcessForbiddenCast`:
 
-- **Self-DAMAGE corrected to scale off SpellDamage.** `CalculateForbiddenCastDamage` now returns `SpellBaseDamage × ForbiddenCastSelfDamagePercent × GetCrystalModifiedSpellDamage()`. Matches the spell-damage convention at `DamageCalculator::GetAttackerDamageMultiplier` (`:226-249`), where `GetCrystalModifiedSpellDamage` is used as a direct multiplier on damage (returns `1.0 + (ModifiedMind × points × SPELL_DAMAGE_PER_POINT)` — an unleveled caster still pays the flat 25%, a stat-invested one scales up). Previous behaviour was a flat % of the spell's authored `BaseDamage`, ignoring the caster's stat.
+- **Self-DAMAGE corrected to scale off SpellDamage.** `CalculateForbiddenCastDamage` now returns `SpellBaseDamage × ForbiddenCastSelfDamagePercent × GetEvolutionModifiedSpellDamage()`. Matches the spell-damage convention at `DamageCalculator::GetAttackerDamageMultiplier` (`:226-249`), where `GetEvolutionModifiedSpellDamage` is used as a direct multiplier on damage (returns `1.0 + (ModifiedMind × points × SPELL_DAMAGE_PER_POINT)` — an unleveled caster still pays the flat 25%, a stat-invested one scales up). Previous behaviour was a flat % of the spell's authored `BaseDamage`, ignoring the caster's stat.
 
 - **Self-BUILDUP wired** alongside the self-damage. New designer constant `ForbiddenCastSelfBuildupPercent` (default 0.25, parallel to `ForbiddenCastSelfDamagePercent`). `ProcessForbiddenCast` now also calls `UStatusBuildupManager::AddStatusBuildup(Owner, Owner, SpellBaseDamage × ForbiddenCastSelfBuildupPercent, SpellElement, EPhysicalDamageType::None)`. The standard pipeline applies the caster's StatusMultiplier amplification (step 5/5b) and the caster's own Resistance reduction (step 6) automatically — Source and Target are both the BD, so the caster eats their own backlash through the normal damage-symmetry buildup math. Element = the forbidden element being cast (the attempted-absorb element per locked design).
 
@@ -153,7 +153,7 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ### 4.3 BD overload aura per-turn tick — status-buildup + absorption-drain coupling unwired
 ✅ **RESOLVED** on `feature/bd-overload-aura` (branched off `feature/fix-bd-stack-multiplier` for step 5c availability). The locked design is now wired in `UBrokenDarknessManager::ProcessOverloadTick`:
 
-- **Unified HP-damage path.** Both aura damage (to combatants in range) and self-damage now scale `Base × GetCrystalModifiedSpellDamage()` — the 4.2 forbidden-cast convention. Previously both scaled by `StatusMultiplierBonus`, which mixed channels (damage and status sharing one stat curve). `ApplyDamageToActor` stays the shared apply primitive. `OnOverloadDamage` broadcast preserved at the same three sites.
+- **Unified HP-damage path.** Both aura damage (to combatants in range) and self-damage now scale `Base × GetEvolutionModifiedSpellDamage()` — the 4.2 forbidden-cast convention. Previously both scaled by `StatusMultiplierBonus`, which mixed channels (damage and status sharing one stat curve). `ApplyDamageToActor` stays the shared apply primitive. `OnOverloadDamage` broadcast preserved at the same three sites.
 
 - **Coupled energy leak.** `released = BaseEnergyRelease × StatusMultiplierBonus × EfficiencyMult` — single quantity feeding both outflows:
   - **Drain:** `ServerSpendEnergy(RoundToInt(released))`, replacing the prior decoupled `BaseEnergyDrain × (1 - Eff%)` formula (which also had the Efficiency direction inverted relative to its inline comment — fixed in passing).
@@ -437,8 +437,8 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 2.3 | `OnDefenseInputReceived` / `OnParryReflect` / `OnDefenseCueTriggered` no subscribers | Medium | Small | — |
 | 3.1 | ActionExecutor `OnActionStarted`/`Completed`/`HealingDone`/`TargetKilled` no consumers | Medium | Medium | — |
 | 4.1 | **✅ RESOLVED partial (sweep-5)** — BD UI display: `GetDisplayElement` helper + stack-text wiring (single-alignment "Fire x3") + overload text color (yellow/orange/red); `OnTransformed` stinger still pending | Medium | Small | YES (if runtime BD transform happens on stage) |
-| 4.2 | **✅ RESOLVED (bd-forbidden-cast-self-cost)** — forbidden-cast self-buildup wired in `ProcessForbiddenCast`; self-damage corrected to scale off `GetCrystalModifiedSpellDamage` | Medium | Small-Medium | — |
-| 4.3 | **✅ RESOLVED (bd-overload-aura)** — coupled `released` quantity drains absorption + becomes self-status; HP-damage unified on `GetCrystalModifiedSpellDamage`; `bSkipBaseStatAmp` flag on `AddStatusBuildup` prevents stat double-count | Medium | Medium | — |
+| 4.2 | **✅ RESOLVED (bd-forbidden-cast-self-cost)** — forbidden-cast self-buildup wired in `ProcessForbiddenCast`; self-damage corrected to scale off `GetEvolutionModifiedSpellDamage` | Medium | Small-Medium | — |
+| 4.3 | **✅ RESOLVED (bd-overload-aura)** — coupled `released` quantity drains absorption + becomes self-status; HP-damage unified on `GetEvolutionModifiedSpellDamage`; `bSkipBaseStatAmp` flag on `AddStatusBuildup` prevents stat double-count | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |
 | 7.1 | SkillEffectManager Phase 2 passive-layer stubs | Medium | Medium | YES (if affected effects are demo'd) |

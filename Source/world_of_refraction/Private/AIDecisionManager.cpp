@@ -909,13 +909,13 @@ int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
     int32 Threat = 0;
 
     // Raw damage stat points — crystal/equipment-aware.
-    Threat += FMath::RoundToInt(CharComp->GetCrystalModifiedRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
+    Threat += FMath::RoundToInt(CharComp->GetEvolutionModifiedRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
 
     // StatusMultiplier stat points (Spirit-side — status buildup strength).
     Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
 
     // Spell power — crystal/equipment-aware SpellDamage (Mind-side).
-    Threat += FMath::RoundToInt(CharComp->GetCrystalModifiedSpellDamage() * AIConstants::SPELL_POWER_THREAT_MULT);
+    Threat += FMath::RoundToInt(CharComp->GetEvolutionModifiedSpellDamage() * AIConstants::SPELL_POWER_THREAT_MULT);
 
     return Threat;
 }

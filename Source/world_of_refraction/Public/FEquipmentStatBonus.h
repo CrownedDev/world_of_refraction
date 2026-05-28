@@ -90,7 +90,7 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
 
     // ==================== PILLAR PERCENT BONUSES (3) ====================
     // Multiplicative percent layered on top of crystal pillar modifiers via
-    // UCharacterDataComponent::GetCrystalModified{Mind,Body,Spirit}.
+    // UCharacterDataComponent::GetEvolutionModified{Mind,Body,Spirit}.
     // Per-slot range: -15% to +15%. Negative values supported (cursed gear /
     // set-bonus tradeoffs). Multi-slot summing applies — see
     // ULoadoutComponent::GetActiveStatBonus for class-specific stacking rules.

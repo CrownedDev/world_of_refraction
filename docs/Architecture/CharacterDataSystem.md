@@ -135,10 +135,10 @@ entry points; `InitializeFromTemplate()` uses the stub
 
 `RecomputeMaxPools()` (safe to re-call on equipment change) computes:
 
-- `MaxHP` = `MAX_HEALTH_BASE` + `GetCrystalModifiedBody()` ×
+- `MaxHP` = `MAX_HEALTH_BASE` + `GetEvolutionModifiedBody()` ×
   `CharacterData->GetTotalMaxHealth()` × `MAX_HEALTH_PER_POINT`, plus the active
   loadout's `BonusMaxHP`.
-- `MaxEP` = `MAX_ENERGY_BASE` + `GetCrystalModifiedSpirit()` ×
+- `MaxEP` = `MAX_ENERGY_BASE` + `GetEvolutionModifiedSpirit()` ×
   `GetTotalMaxEnergy()` × `MAX_ENERGY_PER_POINT`, plus loadout `BonusMaxEnergy`.
 
 It does **not** clamp `CurrentHP`/`CurrentEP` or broadcast change events — the
@@ -146,7 +146,7 @@ caller decides clamp/refill/notify policy.
 
 ### Crystal-aware stat layer
 
-A file-local `ApplyCrystalPillarModifier()` helper layers **two** optional
+A file-local `ApplyEvolutionPillarModifier()` helper layers **two** optional
 modifier sources on top of an asset pillar value:
 
 1. **Crystal layer** — the active evolution crystal's
@@ -165,20 +165,20 @@ modifier sources on top of an asset pillar value:
 2. **Equipment layer** — the active loadout's matching
    `FEquipmentStatBonus` percent, applied multiplicatively on top.
 
-`GetCrystalModifiedMind/Body/Spirit()` feed `GetEffectiveMind/Body/Spirit()`
-through this helper. The derived `GetCrystalModified*` functions
+`GetEvolutionModifiedMind/Body/Spirit()` feed `GetEffectiveMind/Body/Spirit()`
+through this helper. The derived `GetEvolutionModified*` functions
 (`SpellDamage`, `RawDamage`, `CritChance`, `FlatDefense`,
 `SpellDamageForHealing`, `EfficiencyMultiplier`, `StatusMultiplier`,
 `Resistance`) mirror the asset's `Calculate*` formula shapes but substitute
-the crystal-modified pillar as input. `GetCrystalModifiedStatusMultiplier`
+the crystal-modified pillar as input. `GetEvolutionModifiedStatusMultiplier`
 returns `1 + frac` (mirrors `CalculateStatusMultiplier`);
-`GetCrystalModifiedResistance` returns the raw fraction clamped to
+`GetEvolutionModifiedResistance` returns the raw fraction clamped to
 `[0, RESISTANCE_MAX]`. The four output-side fractions (`SpellDamage`,
 `StatusMultiplier`, `Efficiency`, `Resistance`) feed
 `UCrystalManager::ProcessPostCast*Wear` — the substat wear modifier.
 
 `GetEquipmentModifiedLuck()` is crystal-aware Luck: pillar-scaled against
-`GetCrystalModifiedSpirit()`, plus the loadout's `BonusLuck`, plus
+`GetEvolutionModifiedSpirit()`, plus the loadout's `BonusLuck`, plus
 skill-effect `LuckBuff`/`LuckDebuff` modifiers from `USkillEffectManager`,
 clamped to `LUCK_RAW_MAX`.
 
@@ -270,7 +270,7 @@ bar repaints (no client-side state mutation — the server already cleared
 - `ULoadoutComponent` — reads `CharacterData` (class, defense/cosmetic montages,
   innate element) via the sibling `UCharacterDataComponent`.
 - Combat systems (damage, healing, status, AI, turn order) — consume the
-  `GetCrystalModified*` / `GetEquipmentModifiedLuck` stat queries and the
+  `GetEvolutionModified*` / `GetEquipmentModifiedLuck` stat queries and the
   `Server*` mutators.
 - UI (HP/EP bars, death/resurrection feedback) — bind to the four delegates.
 - The asset's `Calculate*` formulas are referenced (with crystal-aware
@@ -300,5 +300,5 @@ bar repaints (no client-side state mutation — the server already cleared
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-21 | Inventory redesign merged — `UCharacterData::DefaultLoadout` (`ULoadoutData*`) replaced by `Inventory` (`UInventoryData*`); `IsDataValid` now warns on missing `Inventory` instead of missing `DefaultLoadout`. | feature/inventory-refactor |
-| 2026-05-27 | `ApplyCrystalPillarModifier` gains a case-B branch (`PrimarySlotType == Evolution`) so BD's primary-slot evolution stats flow through the crystal-modified pillars; two new accessors `GetCrystalModifiedStatusMultiplier` and `GetCrystalModifiedResistance` mirror the existing pattern. Consumed by the substat crystal-wear modifier — see `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
+| 2026-05-27 | `ApplyEvolutionPillarModifier` gains a case-B branch (`PrimarySlotType == Evolution`) so BD's primary-slot evolution stats flow through the crystal-modified pillars; two new accessors `GetEvolutionModifiedStatusMultiplier` and `GetEvolutionModifiedResistance` mirror the existing pattern. Consumed by the substat crystal-wear modifier — see `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` (BlueprintPure) UI-facing element accessor; returns `BrokenDarkness` for any `IsBrokenDarkness()` character, else delegates to `CharacterData->GetElement()`. Panels/labels should prefer this over reading `InnateElement` directly. | feature/integration-gaps-sweep-5 |

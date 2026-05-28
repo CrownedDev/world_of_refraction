@@ -216,7 +216,7 @@ FActionStatModifiers UEvolutionItemData::GetInfusionStatModifiers(float Infusion
     //
     // NOT applied here:
     //  - Pillar percent (BonusMind/Body/SpiritModifierPercent) — character-
-    //    persistent via UCharacterDataComponent::ApplyCrystalPillarModifier.
+    //    persistent via UCharacterDataComponent::ApplyEvolutionPillarModifier.
     //  - Effects — character-only via a separate system.
     Out.Efficiency       = BaseStatBonus.BonusEfficiency        * InfusionMultiplier;
     Out.SpellDamage      = BaseStatBonus.BonusSpellDamage       * InfusionMultiplier;

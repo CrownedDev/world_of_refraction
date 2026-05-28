@@ -187,19 +187,19 @@ public:
      *  Use in place of CharacterData->GetEffectiveMind() for any system that
      *  needs to see crystal- and equipment-driven pillar adjustments. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedMind() const;
+    float GetEvolutionModifiedMind() const;
 
-    /** Body equivalent of GetCrystalModifiedMind — see comment there.
+    /** Body equivalent of GetEvolutionModifiedMind — see comment there.
      *  Equipment layer uses BonusBodyModifierPercent. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedBody() const;
+    float GetEvolutionModifiedBody() const;
 
-    /** Spirit equivalent of GetCrystalModifiedMind — see comment there.
+    /** Spirit equivalent of GetEvolutionModifiedMind — see comment there.
      *  Equipment layer uses BonusSpiritModifierPercent. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedSpirit() const;
+    float GetEvolutionModifiedSpirit() const;
 
-    /** Crystal-aware Luck: pillar-scaled against GetCrystalModifiedSpirit plus
+    /** Crystal-aware Luck: pillar-scaled against GetEvolutionModifiedSpirit plus
      *  the active loadout's BonusLuck contribution, clamped to LUCK_RAW_MAX.
      *  Use in place of CharacterData->CalculateLuck() for any consumer that
      *  should respect crystal Spirit modifier AND equipment-driven bonuses
@@ -208,48 +208,48 @@ public:
     float GetEquipmentModifiedLuck() const;
 
     /** Crystal-aware derived-stat helpers. Each mirrors the asset's matching
-     *  Calculate* formula shape, but reads GetCrystalModified{Mind,Body,Spirit}
+     *  Calculate* formula shape, but reads GetEvolutionModified{Mind,Body,Spirit}
      *  as the EffectivePillar input. Use these in place of the raw asset
      *  Calculate* calls anywhere the slotted primary evolution crystal's
      *  pillar modifier should apply. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedSpellDamage() const;
+    float GetEvolutionModifiedSpellDamage() const;
 
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedRawDamage() const;
+    float GetEvolutionModifiedRawDamage() const;
 
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedCritChance() const;
+    float GetEvolutionModifiedCritChance() const;
 
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    int32 GetCrystalModifiedFlatDefense() const;
+    int32 GetEvolutionModifiedFlatDefense() const;
 
-    /** Same formula as GetCrystalModifiedSpellDamage — separate entry point
+    /** Same formula as GetEvolutionModifiedSpellDamage — separate entry point
      *  for clarity at healing call sites (healing scales with spell power). */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedSpellDamageForHealing() const;
+    float GetEvolutionModifiedSpellDamageForHealing() const;
 
     /** Crystal-aware Efficiency multiplier — mirrors
      *  UCharacterData::CalculateEfficiencyMultiplier but uses
-     *  GetCrystalModifiedMind() in place of GetEffectiveMind() so the
+     *  GetEvolutionModifiedMind() in place of GetEffectiveMind() so the
      *  slotted primary evolution crystal's Mind pillar modifier feeds the
      *  cost-reduction curve. Same clamp shape as the asset formula. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedEfficiencyMultiplier() const;
+    float GetEvolutionModifiedEfficiencyMultiplier() const;
 
     /** Crystal-aware StatusMultiplier — mirrors
      *  UCharacterData::CalculateStatusMultiplier but uses
-     *  GetCrystalModifiedSpirit() in place of GetEffectiveSpirit().
+     *  GetEvolutionModifiedSpirit() in place of GetEffectiveSpirit().
      *  Returns 1+frac like the raw formula. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedStatusMultiplier() const;
+    float GetEvolutionModifiedStatusMultiplier() const;
 
     /** Crystal-aware Resistance — mirrors
      *  UCharacterData::CalculateResistance but uses
-     *  GetCrystalModifiedSpirit() in place of GetEffectiveSpirit().
+     *  GetEvolutionModifiedSpirit() in place of GetEffectiveSpirit().
      *  Returns the raw fraction clamped to [0, RESISTANCE_MAX]. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetCrystalModifiedResistance() const;
+    float GetEvolutionModifiedResistance() const;
 
     // ========================================
     // BROKEN DARKNESS STATE

@@ -102,7 +102,7 @@ public:
         //
         // READ PATHS:
         //  - Pillar percent (BonusMindModifierPercent etc.): consumed directly by
-        //    UCharacterDataComponent::ApplyCrystalPillarModifier — NOT aggregated
+        //    UCharacterDataComponent::ApplyEvolutionPillarModifier — NOT aggregated
         //    by ULoadoutComponent::GetActiveStatBonus.
         //  - Int substat fields (BonusRawDamage etc.): consumed by
         //    UEvolutionItemData::GetInfusionStatModifiers when the crystal is infusing,
@@ -222,7 +222,7 @@ public:
          *
          *  DOES NOT apply:
          *   - Pillar percent fields (BonusMind/Body/SpiritModifierPercent) — these
-         *     flow through UCharacterDataComponent::ApplyCrystalPillarModifier as
+         *     flow through UCharacterDataComponent::ApplyEvolutionPillarModifier as
          *     character-persistent modifiers, not per-action.
          *   - Effects — character-only via a separate system. */
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
