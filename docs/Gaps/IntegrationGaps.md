@@ -125,6 +125,20 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Small per consumer; depends on designer priority.
 
 ### 4.2 BD forbidden-cast self-buildup unwired
+✅ **RESOLVED** on `feature/bd-forbidden-cast-self-cost` — both halves of the locked design now fire together inside `UBrokenDarknessManager::ProcessForbiddenCast`:
+
+- **Self-DAMAGE corrected to scale off SpellDamage.** `CalculateForbiddenCastDamage` now returns `SpellBaseDamage × ForbiddenCastSelfDamagePercent × GetCrystalModifiedSpellDamage()`. Matches the spell-damage convention at `DamageCalculator::GetAttackerDamageMultiplier` (`:226-249`), where `GetCrystalModifiedSpellDamage` is used as a direct multiplier on damage (returns `1.0 + (ModifiedMind × points × SPELL_DAMAGE_PER_POINT)` — an unleveled caster still pays the flat 25%, a stat-invested one scales up). Previous behaviour was a flat % of the spell's authored `BaseDamage`, ignoring the caster's stat.
+
+- **Self-BUILDUP wired** alongside the self-damage. New designer constant `ForbiddenCastSelfBuildupPercent` (default 0.25, parallel to `ForbiddenCastSelfDamagePercent`). `ProcessForbiddenCast` now also calls `UStatusBuildupManager::AddStatusBuildup(Owner, Owner, SpellBaseDamage × ForbiddenCastSelfBuildupPercent, SpellElement, EPhysicalDamageType::None)`. The standard pipeline applies the caster's StatusMultiplier amplification (step 5/5b) and the caster's own Resistance reduction (step 6) automatically — Source and Target are both the BD, so the caster eats their own backlash through the normal damage-symmetry buildup math. Element = the forbidden element being cast (the attempted-absorb element per locked design).
+
+- **Apply hook chosen.** Routed directly to `UStatusBuildupManager` from `BrokenDarknessManager.cpp` — the dead `UActionExecutor::ApplySelfStatusBuildup` helper (`:3458-3473`) was NOT used (its body is a TODO stub against the wrong subsystem). After 4.3 lands with the same pattern, both `ApplySelfStatusBuildup` and `ApplySelfDamage` can be cleaned up.
+
+- **Single debug log** at Warning level summarising both costs ("damage X, base buildup Y").
+
+- **`OnOverloadDamage` broadcast preserved** — still fires the self-damage value for any future VFX/UI consumer; no current subscribers, no behavioural change.
+
+**Original gap below for history.**
+
 - **What:** When BD casts a **forbidden element** (one they're attempting to absorb), they currently take self-DAMAGE but not self-status-BUILDUP. Both halves should fire together — two costs scaled by two different stats.
 - **Where:** `UActionExecutor::ProcessForbiddenElementCast` (`ActionExecutor.cpp:3356`) → `UBrokenDarknessManager::ProcessForbiddenCast` (`BrokenDarknessManager.cpp:278+`, self-damage path at `:275, 290-293`). The dead `UActionExecutor::ApplySelfStatusBuildup` helper (`ActionExecutor.cpp:3419-3434`) was the intended apply hook for the missing buildup half.
 - **Design (locked):**
@@ -404,7 +418,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 2.3 | `OnDefenseInputReceived` / `OnParryReflect` / `OnDefenseCueTriggered` no subscribers | Medium | Small | — |
 | 3.1 | ActionExecutor `OnActionStarted`/`Completed`/`HealingDone`/`TargetKilled` no consumers | Medium | Medium | — |
 | 4.1 | **✅ RESOLVED partial (sweep-5)** — BD UI display: `GetDisplayElement` helper + stack-text wiring (single-alignment "Fire x3") + overload text color (yellow/orange/red); `OnTransformed` stinger still pending | Medium | Small | YES (if runtime BD transform happens on stage) |
-| 4.2 | BD forbidden-cast self-buildup unwired — self-damage exists, self-status-buildup half missing; scales with StatusMultiplier | Medium | Small-Medium | — |
+| 4.2 | **✅ RESOLVED (bd-forbidden-cast-self-cost)** — forbidden-cast self-buildup wired in `ProcessForbiddenCast`; self-damage corrected to scale off `GetCrystalModifiedSpellDamage` | Medium | Small-Medium | — |
 | 4.3 | BD overload aura per-turn tick — status-buildup release + absorption-drain coupling unwired; HP-damage half may be partially wired via `OnOverloadDamage` | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |

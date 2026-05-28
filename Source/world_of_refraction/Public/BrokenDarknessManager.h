@@ -400,7 +400,17 @@ protected:
 
 	// ==================== FORBIDDEN ELEMENTS ====================
 
-	/** Self-damage percentage when casting forbidden elements (Light/Void) */
+	/** Self-damage fraction of spell base damage on a forbidden cast. Final
+	 *  self-damage = SpellBaseDamage × this × caster's spell-damage multiplier
+	 *  (UCharacterDataComponent::GetCrystalModifiedSpellDamage). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Forbidden")
-	float ForbiddenCastSelfDamagePercent = 0.25f; // 25% of spell damage to self
+	float ForbiddenCastSelfDamagePercent = 0.25f;
+
+	/** Self-status-buildup fraction of spell base damage on a forbidden cast.
+	 *  Final buildup = SpellBaseDamage × this, fed into AddStatusBuildup which
+	 *  applies the caster's StatusMultiplier amplification and the caster's
+	 *  own Resistance reduction internally. Element = the forbidden element
+	 *  being cast (the attempted-absorb element per locked design). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Forbidden")
+	float ForbiddenCastSelfBuildupPercent = 0.25f;
 };
