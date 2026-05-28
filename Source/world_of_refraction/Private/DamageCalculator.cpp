@@ -236,15 +236,15 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionTy
 		return 1.0f;
 	}
 
-	// Crystal-aware Spell/Raw damage multiplier — uses GetCrystalModifiedMind/Body
+	// Crystal-aware Spell/Raw damage multiplier — uses GetEvolutionModifiedMind/Body
 	// so the slotted primary evolution crystal's pillar modifier feeds the curve.
 	if (ActionType == EActionType::Spell)
 	{
-		return AttackerComp->GetCrystalModifiedSpellDamage();
+		return AttackerComp->GetEvolutionModifiedSpellDamage();
 	}
 	else
 	{
-		return AttackerComp->GetCrystalModifiedRawDamage();
+		return AttackerComp->GetEvolutionModifiedRawDamage();
 	}
 }
 
@@ -261,9 +261,9 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		return 0;
 	}
 
-	// Crystal-aware flat defense — uses GetCrystalModifiedBody so the slotted
+	// Crystal-aware flat defense — uses GetEvolutionModifiedBody so the slotted
 	// primary evolution crystal's Body pillar modifier feeds the curve.
-	int32 BaseDefense = DefenderComp->GetCrystalModifiedFlatDefense();
+	int32 BaseDefense = DefenderComp->GetEvolutionModifiedFlatDefense();
 
 	// Equipment stat bonus — flat additive to defense. Direct read from the
 	// defender's active loadout (the bonus is an int rolled per-instance).
@@ -306,9 +306,9 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 		return DamageConstants::BASE_CRIT_CHANCE;
 	}
 
-	// Crystal-aware crit chance — uses GetCrystalModifiedMind so the slotted
+	// Crystal-aware crit chance — uses GetEvolutionModifiedMind so the slotted
 	// primary evolution crystal's Mind pillar modifier feeds the curve.
-	float BaseCrit = AttackerComp->GetCrystalModifiedCritChance();
+	float BaseCrit = AttackerComp->GetEvolutionModifiedCritChance();
 
 	// Equipment stat bonus — BonusCritChance is already a float percentage,
 	// so divide by 100 to convert to the 0-1 crit-chance space.
@@ -375,14 +375,14 @@ int32 UDamageCalculator::CalculateHealing(
 
 	// Apply healer's SpellDamage multiplier. Healing is a spell-class effect — it
 	// scales with the caster's spell power (Mind), not status-buildup amplification.
-	// Crystal-aware: GetCrystalModifiedSpellDamageForHealing reads
-	// GetCrystalModifiedMind, so the slotted primary evolution crystal's Mind
+	// Crystal-aware: GetEvolutionModifiedSpellDamageForHealing reads
+	// GetEvolutionModifiedMind, so the slotted primary evolution crystal's Mind
 	// pillar modifier feeds the curve.
 	if (Healer)
 	{
 		if (UCharacterDataComponent *HealerComp = Healer->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Healing *= HealerComp->GetCrystalModifiedSpellDamageForHealing();
+			Healing *= HealerComp->GetEvolutionModifiedSpellDamageForHealing();
 		}
 	}
 

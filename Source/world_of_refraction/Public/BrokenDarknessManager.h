@@ -415,7 +415,7 @@ protected:
 
 	/** Self-damage fraction of spell base damage on a forbidden cast. Final
 	 *  self-damage = SpellBaseDamage × this × caster's spell-damage multiplier
-	 *  (UCharacterDataComponent::GetCrystalModifiedSpellDamage). */
+	 *  (UCharacterDataComponent::GetEvolutionModifiedSpellDamage). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Forbidden")
 	float ForbiddenCastSelfDamagePercent = 0.25f;
 

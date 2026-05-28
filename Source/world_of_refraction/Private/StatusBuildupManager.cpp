@@ -253,7 +253,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 
 	// Apply attacker StatusMultiplier amplification — crystal-aware path.
 	// Inlines the StatusMultiplier formula (1 + EffectiveSpirit × points × per-point)
-	// against the component's GetCrystalModifiedSpirit so a slotted primary
+	// against the component's GetEvolutionModifiedSpirit so a slotted primary
 	// evolution crystal's pillar modifier feeds the buildup curve.
 	// Mirrors UCharacterData::CalculateStatusMultiplier shape; if that formula
 	// changes, update here too.
@@ -270,7 +270,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 			UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
 			if (SourceComp && SourceComp->CharacterData)
 			{
-				const float ModifiedSpirit = SourceComp->GetCrystalModifiedSpirit();
+				const float ModifiedSpirit = SourceComp->GetEvolutionModifiedSpirit();
 				const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
 
 				// Equipment stat bonus — additive to the asset-driven per-point

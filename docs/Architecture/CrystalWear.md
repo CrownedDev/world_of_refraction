@@ -34,7 +34,7 @@ ceiling        = (tier_gap < ONE_SHOT_GAP) ? CEIL_FRAC × max_durability_for_cry
 `base == 0` short-circuits to `final = 0` — substats cannot manufacture wear
 out of nothing. `tier_gap ≥ ONE_SHOT_GAP` lifts the ceiling so extreme
 mismatch can shatter in one cast. `EfficiencyFrac` is **inverted**: callers
-pass `1 - GetCrystalModifiedEfficiencyMultiplier()` so a disciplined caster's
+pass `1 - GetEvolutionModifiedEfficiencyMultiplier()` so a disciplined caster's
 *lower* multiplier reads as *positive* control input.
 
 ## Constants (`Durabilityconstants.h`)
@@ -116,7 +116,7 @@ bypasses tier math and Luck-skip).
 
 - `BrokenDarkness.md` — full BD energy model and the wear-as-cost rationale.
 - `CharacterDataSystem.md` — the four crystal-modified pillar accessors and
-  case-B `ApplyCrystalPillarModifier` branch.
+  case-B `ApplyEvolutionPillarModifier` branch.
 - `LoadoutSystem.md` — `ApplyWearToActivePrimaryEvolution` / `ClearBrokenPrimaryEvolution`
   writers and `FCombatLoadout::PrimaryEvolution` shape.
 - `CombatOrchestrator.md` — between-combat destruction + repair sweep.

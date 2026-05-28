@@ -57,9 +57,9 @@ Requires a non-null `Attack` (`UWeaponAttackData`) and resolvable `UCharacterDat
 
 ### Component calculations
 
-- `GetAttackerDamageMultiplier` — `GetCrystalModifiedSpellDamage` or `GetCrystalModifiedRawDamage` from `UCharacterDataComponent`; `1.0` if missing.
-- `GetDefenderFlatDefense` — `GetCrystalModifiedFlatDefense`, plus flat `BonusDefense` from the loadout, then a multiplicative percentage modifier from `DefenseBuff − DefenseDebuff` skill effects.
-- `GetCriticalChance` — `GetCrystalModifiedCritChance`, plus `BonusCritChance/100` from the loadout, plus `(CritChanceBuff − CritChanceDebuff + ModifyCritChance)/100` from skill effects; clamped to `[0, MAX_CRIT_CHANCE]`.
+- `GetAttackerDamageMultiplier` — `GetEvolutionModifiedSpellDamage` or `GetEvolutionModifiedRawDamage` from `UCharacterDataComponent`; `1.0` if missing.
+- `GetDefenderFlatDefense` — `GetEvolutionModifiedFlatDefense`, plus flat `BonusDefense` from the loadout, then a multiplicative percentage modifier from `DefenseBuff − DefenseDebuff` skill effects.
+- `GetCriticalChance` — `GetEvolutionModifiedCritChance`, plus `BonusCritChance/100` from the loadout, plus `(CritChanceBuff − CritChanceDebuff + ModifyCritChance)/100` from skill effects; clamped to `[0, MAX_CRIT_CHANCE]`.
 - `RollCriticalHit` — `FRand() < (OverrideChance or GetCriticalChance)`.
 - `GetElementInteractionMultiplier` — uses `IsWeakTo` / `ResistsElement`, both of which currently return `false`, so this always returns `NEUTRAL_MULTIPLIER` (`1.0`).
 
@@ -67,7 +67,7 @@ Requires a non-null `Attack` (`UWeaponAttackData`) and resolvable `UCharacterDat
 
 - *`CalculateStatusBuildup` — removed (sweep-3, dead code).* The live status-buildup pipeline is `UStatusBuildupManager::AddStatusBuildup` — it applies the attacker's crystal-aware `StatusMultiplier` + equipment bonus, then (sweep-3) the `StatusMultiplierBuff`/`Debuff` skill-effect deltas, then the defender's element-filtered `Resistance` reduction. See `StatusBuildupSystem.md`.
 - `GetBDStackStatusMultiplier` — `1.0` unless the attacker's `UBrokenDarknessManager` is transformed and the spell element matches `GetCurrentAlignment`; then returns `GetStackStatusMultiplier`. This is a **status-buildup** multiplier (1×/1×/2×/4× at stacks 0-3, matching-element only) — not a damage buff. Still consumed by the BD damage path.
-- `CalculateHealing(Healer, Target, BaseHealing)` — scales by `GetCrystalModifiedSpellDamageForHealing` (Mind-based) and by `ModifyHealing` passive skill effect (`1 + ModifyHeal/100`).
+- `CalculateHealing(Healer, Target, BaseHealing)` — scales by `GetEvolutionModifiedSpellDamageForHealing` (Mind-based) and by `ModifyHealing` passive skill effect (`1 + ModifyHeal/100`).
 
 ### Private helpers
 
@@ -83,7 +83,7 @@ Requires a non-null `Attack` (`UWeaponAttackData`) and resolvable `UCharacterDat
 ### Subsystems / components it depends on
 - `USkillEffectManager` (`UGameInstanceSubsystem`) — buff/debuff and passive stat modifiers (`GetTotalStatModifier`, `HasEffectOfType`), accessed via lazy-cached `CachedSkillEffectManager`.
 - `UCombatGridSubsystem` (`UGameInstanceSubsystem`) — `GetDamageModifier` / `GetDefenseModifier`, via lazy-cached `CachedCombatGridSubsystem`.
-- `UCharacterDataComponent` / `UCharacterData` — crystal-aware stat curves (`GetCrystalModifiedRawDamage`, `GetCrystalModifiedSpellDamage`, `GetCrystalModifiedCritChance`, `GetCrystalModifiedFlatDefense`, `GetCrystalModifiedSpellDamageForHealing`, `GetEquipmentModifiedLuck`).
+- `UCharacterDataComponent` / `UCharacterData` — crystal-aware stat curves (`GetEvolutionModifiedRawDamage`, `GetEvolutionModifiedSpellDamage`, `GetEvolutionModifiedCritChance`, `GetEvolutionModifiedFlatDefense`, `GetEvolutionModifiedSpellDamageForHealing`, `GetEquipmentModifiedLuck`).
 - `ULoadoutComponent` — `GetActiveStatBonus` returning `FEquipmentStatBonus`.
 - `UBrokenDarknessManager` (actor component) — BD transform state for status-buildup amplification.
 - `UWeaponAttackData` — base damage / hit count / requirement penalty for `CalculateAttackDamage`.

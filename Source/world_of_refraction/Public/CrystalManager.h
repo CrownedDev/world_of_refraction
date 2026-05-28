@@ -60,7 +60,7 @@ public:
     /** Apply post-cast wear to the active loadout's standalone primary-slot
      *  evolution (PrimarySlotType==Evolution, e.g. Broken Darkness). Reads
      *  the crystal-modified substat fractions off the caster's
-     *  UCharacterDataComponent (case-B aware via ApplyCrystalPillarModifier),
+     *  UCharacterDataComponent (case-B aware via ApplyEvolutionPillarModifier),
      *  computes wear via UBreakCalculator::CalculateDurabilityWearWithSubstats,
      *  and writes live storage via ULoadoutComponent::ApplyWearToActivePrimaryEvolution.
      *  Leaner than the refined path: NO luck-skip roll, NO OnCrystalBroken

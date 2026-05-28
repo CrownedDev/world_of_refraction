@@ -31,7 +31,7 @@ void UCharacterDataComponent::BeginPlay()
     if (CharacterData)
     {
         // Auto-initialize Inventory and Loadout BEFORE computing HP/EP so the
-        // crystal-aware pillar reads in GetCrystalModifiedBody/Spirit can see
+        // crystal-aware pillar reads in GetEvolutionModifiedBody/Spirit can see
         // the slotted primary evolution crystal.
         AActor *Owner = GetOwner();
         if (Owner)
@@ -396,7 +396,7 @@ bool UCharacterDataComponent::HasUsableEPTarget() const
 
 namespace
 {
-    /** Shared body for the three GetCrystalModifiedX helpers. Layers TWO
+    /** Shared body for the three GetEvolutionModifiedX helpers. Layers TWO
      *  pillar-modifier sources on top of the supplied base value:
      *   1. Crystal — primary-weapon-slot evolution crystal's Pillar/SubStats
      *      modifier via UEvolutionItemData::CalculateModified{Mind,Body,Spirit}.
@@ -407,7 +407,7 @@ namespace
      *  equipment percent still applies. */
     enum class ECrystalPillar : uint8 { Mind, Body, Spirit };
 
-    float ApplyCrystalPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
+    float ApplyEvolutionPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
     {
         if (!Owner)
         {
@@ -470,31 +470,31 @@ namespace
     }
 }
 
-float UCharacterDataComponent::GetCrystalModifiedMind() const
+float UCharacterDataComponent::GetEvolutionModifiedMind() const
 {
     if (!CharacterData)
     {
         return 0.0f;
     }
-    return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveMind(), ECrystalPillar::Mind);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveMind(), ECrystalPillar::Mind);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedBody() const
+float UCharacterDataComponent::GetEvolutionModifiedBody() const
 {
     if (!CharacterData)
     {
         return 0.0f;
     }
-    return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveBody(), ECrystalPillar::Body);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveBody(), ECrystalPillar::Body);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedSpirit() const
+float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
 {
     if (!CharacterData)
     {
         return 0.0f;
     }
-    return ApplyCrystalPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
 }
 
 void UCharacterDataComponent::RecomputeMaxPools()
@@ -516,13 +516,13 @@ void UCharacterDataComponent::RecomputeMaxPools()
         }
     }
 
-    const float ModifiedBody = GetCrystalModifiedBody();
+    const float ModifiedBody = GetEvolutionModifiedBody();
     MaxHP = FMath::RoundToInt(
         CombatConstants::MAX_HEALTH_BASE +
         (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT))
         + BonusMaxHP;
 
-    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     MaxEP = FMath::RoundToInt(
         CombatConstants::MAX_ENERGY_BASE +
         (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT))
@@ -536,10 +536,10 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         return 0.0f;
     }
 
-    // Crystal-aware Luck: pillar-scaled against GetCrystalModifiedSpirit
+    // Crystal-aware Luck: pillar-scaled against GetEvolutionModifiedSpirit
     // instead of the raw asset's GetEffectiveSpirit. Mirrors the asset's
     // CalculateLuck formula shape (no LUCK_BASE constant — bare per-point).
-    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 LuckPoints = CharacterData->GetTotalLuck();
     float Luck = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
 
@@ -570,35 +570,35 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
     return FMath::Min(Luck, CombatConstants::LUCK_RAW_MAX);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedSpellDamage() const
+float UCharacterDataComponent::GetEvolutionModifiedSpellDamage() const
 {
     if (!CharacterData)
     {
         return 1.0f;
     }
-    const float ModifiedMind = GetCrystalModifiedMind();
+    const float ModifiedMind = GetEvolutionModifiedMind();
     const int32 TotalPoints = CharacterData->GetTotalSpellDamage();
     return 1.0f + (ModifiedMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedRawDamage() const
+float UCharacterDataComponent::GetEvolutionModifiedRawDamage() const
 {
     if (!CharacterData)
     {
         return 1.0f;
     }
-    const float ModifiedBody = GetCrystalModifiedBody();
+    const float ModifiedBody = GetEvolutionModifiedBody();
     const int32 TotalPoints = CharacterData->GetTotalRawDamage();
     return 1.0f + (ModifiedBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedCritChance() const
+float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
 {
     if (!CharacterData)
     {
         return CombatConstants::CRIT_CHANCE_BASE;
     }
-    const float ModifiedMind = GetCrystalModifiedMind();
+    const float ModifiedMind = GetEvolutionModifiedMind();
     const int32 TotalPoints = CharacterData->GetTotalCritChance();
     return FMath::Clamp(
         CombatConstants::CRIT_CHANCE_BASE + (ModifiedMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
@@ -606,29 +606,29 @@ float UCharacterDataComponent::GetCrystalModifiedCritChance() const
         CombatConstants::CRIT_CHANCE_MAX);
 }
 
-int32 UCharacterDataComponent::GetCrystalModifiedFlatDefense() const
+int32 UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
 {
     if (!CharacterData)
     {
         return 0;
     }
-    const float ModifiedBody = GetCrystalModifiedBody();
+    const float ModifiedBody = GetEvolutionModifiedBody();
     const int32 TotalPoints = CharacterData->GetTotalDefense();
     return FMath::RoundToInt(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedSpellDamageForHealing() const
+float UCharacterDataComponent::GetEvolutionModifiedSpellDamageForHealing() const
 {
-    return GetCrystalModifiedSpellDamage();
+    return GetEvolutionModifiedSpellDamage();
 }
 
-float UCharacterDataComponent::GetCrystalModifiedEfficiencyMultiplier() const
+float UCharacterDataComponent::GetEvolutionModifiedEfficiencyMultiplier() const
 {
     if (!CharacterData)
     {
         return 1.0f;
     }
-    const float ModifiedMind = GetCrystalModifiedMind();
+    const float ModifiedMind = GetEvolutionModifiedMind();
     const int32 TotalPoints = CharacterData->GetTotalEfficiency();
     return FMath::Clamp(
         1.0f - (ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT),
@@ -636,24 +636,24 @@ float UCharacterDataComponent::GetCrystalModifiedEfficiencyMultiplier() const
         1.0f);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedStatusMultiplier() const
+float UCharacterDataComponent::GetEvolutionModifiedStatusMultiplier() const
 {
     if (!CharacterData)
     {
         return 1.0f;
     }
-    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 TotalPoints = CharacterData->GetTotalStatusMultiplier();
     return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 }
 
-float UCharacterDataComponent::GetCrystalModifiedResistance() const
+float UCharacterDataComponent::GetEvolutionModifiedResistance() const
 {
     if (!CharacterData)
     {
         return 0.0f;
     }
-    const float ModifiedSpirit = GetCrystalModifiedSpirit();
+    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 TotalPoints = CharacterData->GetTotalResistance();
     return FMath::Clamp(
         ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,

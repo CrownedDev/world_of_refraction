@@ -1018,8 +1018,8 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	if (CharComp && CharComp->CharacterData)
 	{
 		// Crystal-aware StatusMultiplier — inlined formula against
-		// GetCrystalModifiedSpirit (Spirit-driven post pillar move).
-		const float ModifiedSpirit = CharComp->GetCrystalModifiedSpirit();
+		// GetEvolutionModifiedSpirit (Spirit-driven post pillar move).
+		const float ModifiedSpirit = CharComp->GetEvolutionModifiedSpirit();
 		const int32 StatusMultPoints = CharComp->CharacterData->GetTotalStatusMultiplier();
 		StatusMultiplierBonus = 1.0f + (ModifiedSpirit * StatusMultPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 
@@ -1028,7 +1028,7 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 		// Clamp shape preserved from UCharacterData::CalculateEfficiencyMultiplier.
 		// Passed straight through (drop the prior × 100 / × 0.01 round-trip;
 		// ProcessOverloadTick now takes the multiplier directly — named correctly).
-		const float ModifiedMind = CharComp->GetCrystalModifiedMind();
+		const float ModifiedMind = CharComp->GetEvolutionModifiedMind();
 		const int32 EfficiencyPoints = CharComp->CharacterData->GetTotalEfficiency();
 		EfficiencyMult = FMath::Clamp(
 			1.0f - (ModifiedMind * EfficiencyPoints * CombatConstants::EFFICIENCY_PER_POINT),

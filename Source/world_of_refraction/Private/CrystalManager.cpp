@@ -67,10 +67,10 @@ void UCrystalManager::ProcessPostCastWear(
     int32 Wear = 0;
     if (CasterCharComp && CasterCharComp->CharacterData)
     {
-        const float SpellDmgFrac    = CasterCharComp->GetCrystalModifiedSpellDamage() - 1.0f;
-        const float StatusMultFrac  = CasterCharComp->GetCrystalModifiedStatusMultiplier() - 1.0f;
-        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetCrystalModifiedEfficiencyMultiplier();
-        const float ResistanceFrac  = CasterCharComp->GetCrystalModifiedResistance();
+        const float SpellDmgFrac    = CasterCharComp->GetEvolutionModifiedSpellDamage() - 1.0f;
+        const float StatusMultFrac  = CasterCharComp->GetEvolutionModifiedStatusMultiplier() - 1.0f;
+        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetEvolutionModifiedEfficiencyMultiplier();
+        const float ResistanceFrac  = CasterCharComp->GetEvolutionModifiedResistance();
         Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
             Attachment.Refined.Id.Tier,
             ActionTier,
@@ -165,10 +165,10 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     int32 Wear = 0;
     if (CasterCharComp && CasterCharComp->CharacterData)
     {
-        const float SpellDmgFrac    = CasterCharComp->GetCrystalModifiedSpellDamage() - 1.0f;
-        const float StatusMultFrac  = CasterCharComp->GetCrystalModifiedStatusMultiplier() - 1.0f;
-        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetCrystalModifiedEfficiencyMultiplier();
-        const float ResistanceFrac  = CasterCharComp->GetCrystalModifiedResistance();
+        const float SpellDmgFrac    = CasterCharComp->GetEvolutionModifiedSpellDamage() - 1.0f;
+        const float StatusMultFrac  = CasterCharComp->GetEvolutionModifiedStatusMultiplier() - 1.0f;
+        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetEvolutionModifiedEfficiencyMultiplier();
+        const float ResistanceFrac  = CasterCharComp->GetEvolutionModifiedResistance();
         Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
             EvoTier,
             ActionTier,
@@ -458,10 +458,10 @@ void UCrystalManager::WOR_WearTable()
         return;
     }
 
-    const float SpellDmgFrac   = CharComp->GetCrystalModifiedSpellDamage()           - 1.0f;
-    const float StatusMultFrac = CharComp->GetCrystalModifiedStatusMultiplier()      - 1.0f;
-    const float EfficiencyFrac = 1.0f - CharComp->GetCrystalModifiedEfficiencyMultiplier();
-    const float ResistanceFrac = CharComp->GetCrystalModifiedResistance();
+    const float SpellDmgFrac   = CharComp->GetEvolutionModifiedSpellDamage()           - 1.0f;
+    const float StatusMultFrac = CharComp->GetEvolutionModifiedStatusMultiplier()      - 1.0f;
+    const float EfficiencyFrac = 1.0f - CharComp->GetEvolutionModifiedEfficiencyMultiplier();
+    const float ResistanceFrac = CharComp->GetEvolutionModifiedResistance();
 
     UE_LOG(LogTemp, Display,
            TEXT("[WOR_WearTable] Actor=%s — substat-modified wear prediction (worst-case envelope: Action=S L2 Spell)"),
@@ -533,10 +533,10 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
     constexpr bool bIsSpell = true;
 
     UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    const float SpellDmgFrac   = CharComp ? (CharComp->GetCrystalModifiedSpellDamage()      - 1.0f) : 0.0f;
-    const float StatusMultFrac = CharComp ? (CharComp->GetCrystalModifiedStatusMultiplier() - 1.0f) : 0.0f;
-    const float EfficiencyFrac = CharComp ? (1.0f - CharComp->GetCrystalModifiedEfficiencyMultiplier()) : 0.0f;
-    const float ResistanceFrac = CharComp ? CharComp->GetCrystalModifiedResistance() : 0.0f;
+    const float SpellDmgFrac   = CharComp ? (CharComp->GetEvolutionModifiedSpellDamage()      - 1.0f) : 0.0f;
+    const float StatusMultFrac = CharComp ? (CharComp->GetEvolutionModifiedStatusMultiplier() - 1.0f) : 0.0f;
+    const float EfficiencyFrac = CharComp ? (1.0f - CharComp->GetEvolutionModifiedEfficiencyMultiplier()) : 0.0f;
+    const float ResistanceFrac = CharComp ? CharComp->GetEvolutionModifiedResistance() : 0.0f;
 
     const FDurabilityWearWithSubstatsResult Predict =
         UBreakCalculator::CalculateDurabilityWearWithSubstatsDetailed(

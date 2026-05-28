@@ -3127,7 +3127,7 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 	// shouldn't happen in practice since GetCharacterData already requires it).
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	const float CharMult = CharComp
-							   ? CharComp->GetCrystalModifiedEfficiencyMultiplier()
+							   ? CharComp->GetEvolutionModifiedEfficiencyMultiplier()
 							   : CharData->CalculateEfficiencyMultiplier();
 
 	// Equipment-side multiplier — mirrors the asset formula shape but reads
@@ -4527,7 +4527,7 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 	if (PrimaryEvolutionCrystal)
 	{
 		// TODO: Apply Crystal->StatBonus persistent bonuses via the equipment-bonus
-		// channel (ApplyCrystalPillarModifier for the pillar percent fields;
+		// channel (ApplyEvolutionPillarModifier for the pillar percent fields;
 		// per-action substat flow for primary-slotted crystals is GONE in the
 		// StatBonus migration — substat values now apply via infusion only,
 		// see GetInfusionStatModifiers below). This block previously called

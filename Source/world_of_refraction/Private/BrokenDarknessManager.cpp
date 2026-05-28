@@ -277,13 +277,13 @@ float UBrokenDarknessManager::CalculateForbiddenCastDamage(float SpellBaseDamage
 {
 	// Spell-damage-scaled self-cost — mirrors the convention at
 	// DamageCalculator::GetAttackerDamageMultiplier (:226-249) where
-	// GetCrystalModifiedSpellDamage is used as a direct multiplier on damage.
+	// GetEvolutionModifiedSpellDamage is used as a direct multiplier on damage.
 	// The multiplier returns 1.0 + (ModifiedMind × points × SPELL_DAMAGE_PER_POINT),
 	// so an unleveled caster gets the flat percent and a stat-invested one scales up.
 	float SpellDamageMult = 1.0f;
 	if (const UCharacterDataComponent *CharComp = GetCharComp())
 	{
-		SpellDamageMult = CharComp->GetCrystalModifiedSpellDamage();
+		SpellDamageMult = CharComp->GetEvolutionModifiedSpellDamage();
 	}
 	return SpellBaseDamage * ForbiddenCastSelfDamagePercent * SpellDamageMult;
 }
@@ -538,10 +538,10 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	UCharacterDataComponent *CharComp = GetCharComp();
 
 	// Unified HP-damage path: both aura (enemies) and self-damage scale by the BD's
-	// SpellDamage stat (4.2 forbidden-cast convention — GetCrystalModifiedSpellDamage
+	// SpellDamage stat (4.2 forbidden-cast convention — GetEvolutionModifiedSpellDamage
 	// is a direct multiplier ≥ 1.0 mirroring DamageCalculator::GetAttackerDamageMultiplier
 	// at :226-249). ApplyDamageToActor stays the shared apply primitive.
-	const float SpellDamageMult = CharComp ? CharComp->GetCrystalModifiedSpellDamage() : 1.0f;
+	const float SpellDamageMult = CharComp ? CharComp->GetEvolutionModifiedSpellDamage() : 1.0f;
 
 	// 1. Aura HP damage to combatants in range — same SpellDamage scaling as self.
 	const float AuraDamage = BaseOverloadAuraDamage * SpellDamageMult;
