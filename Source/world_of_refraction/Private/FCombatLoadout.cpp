@@ -299,7 +299,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                     CrystalDesc = Att.Evolution.Item->ItemName;
                 }
             }
-            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
+            UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Weapon '%s' HasCrystal=%d Crystal=%s"),
                    *SavedLoadout.PrimaryWeapon->Name,
                    Result.PrimaryWeapon.WeaponEntry.HasCrystal(),
                    *CrystalDesc);
