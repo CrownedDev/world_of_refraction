@@ -2,17 +2,17 @@
 // World of Refraction - Combat UI
 
 #include "UI/Combat/FCombatCapabilities.h"
-#include "LoadoutComponent.h"
-#include "FCombatLoadout.h"
-#include "FWeaponLoadoutEntry.h"
-#include "FRingLoadoutEntry.h"
-#include "SpellData.h"
-#include "AbilityData.h"
-#include "RingData.h"
-#include "EvolutionItemData.h"
-#include "FItemLoadoutSlot.h"
-#include "CharacterDataComponent.h"
-#include "BrokenDarknessManager.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
+#include "Loadout/Entries/FRingLoadoutEntry.h"
+#include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Equipment/Rings/RingData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Loadout/Entries/FItemLoadoutSlot.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "UI/Combat/PieMenuButtonData.h"
 
 const TArray<USpellData *> FCombatCapabilities::EmptySpells = TArray<USpellData *>();

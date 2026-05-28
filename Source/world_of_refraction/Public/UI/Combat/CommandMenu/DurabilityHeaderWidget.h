@@ -7,7 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "FBrokenCrystalPayload.h"
+#include "Equipment/Crystals/FBrokenCrystalPayload.h"
 #include "DurabilityHeaderWidget.generated.h"
 
 class UTextBlock;

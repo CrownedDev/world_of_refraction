@@ -2,7 +2,7 @@
 
 #include "UI/Combat/TurnOrderStripWidget.h"
 #include "UI/Combat/TurnOrderSlotWidget.h"
-#include "TurnManager.h"
+#include "Combat/TurnManager.h"
 #include "Components/PanelWidget.h"
 #include "Engine/GameInstance.h"
 

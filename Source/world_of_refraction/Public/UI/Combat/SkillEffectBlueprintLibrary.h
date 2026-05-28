@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "ActiveSkillEffect.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
 #include "SkillEffectBlueprintLibrary.generated.h"
 
 UCLASS()
