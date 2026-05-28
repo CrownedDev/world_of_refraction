@@ -133,7 +133,7 @@ Evaluated in priority order; the first that returns an action wins:
 
 ## Known Limitations / TODOs
 
-- **`Action.SpellSource` hardcoded** — in `BuildOffensiveAction`'s Spell branch, `SpellSource` is set to `ESpellSource::Innate` with an inline `// TODO: Determine actual source`. The AI never selects Reality/Evolution spell sources.
+- *(resolved sweep-2)* `Action.SpellSource` resolution — `BuildOffensiveAction`, `CanAffordSpell`, `EstimateSpellDamage`, `TrySurvivalBranch` (heal), and `TryCleanseBranch` now call `ULoadoutComponent::ResolveSpellSource(Spell)` at all six AI cost/damage-evaluation sites (`AIDecisionManager.cpp:691, 862, 1008, 1021, 1095, 1417`). AI casts now route through the correct cost model (`Innate` → full EP, `Evolution` → wear-as-cost with BD carve-outs, `RingCrystal`/`WeaponCrystal` → 0 EP). Probe-then-OutAction pairs in the survival/cleanse branches resolve source once and reuse so affordability and submission stay consistent.
 - **Offensive spell filter is Destruction-only** — `BuildOffensiveAction` and its scoring loop skip any spell whose `School != ESpellSchool::Destruction`, so non-Destruction offensive spells are never used offensively.
 - **Easy-difficulty action data is simplified** — the Easy branch picks random spells/abilities with no affordability or target-quality checks; it can pick actions the actor cannot pay for.
 - **`IsValuableStatus` / pending-trigger default** — when `UStatusBuildupManager::GetPendingTrigger` returns `None`, infusion logic defaults the assumed status to `DOT`; the comment notes abilities apply physical status rather than a specific type, so the assumption is approximate.
@@ -146,3 +146,4 @@ Evaluated in priority order; the first that returns an action wins:
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-28 | Sweep-2 — AI now resolves spell source via `ULoadoutComponent::ResolveSpellSource(Spell)` at all six previously-hardcoded `ESpellSource::Innate` sites in `AIDecisionManager`. Casts route through the correct cost model. | feature/integration-gaps-sweep-2 |

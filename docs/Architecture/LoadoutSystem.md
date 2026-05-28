@@ -198,6 +198,16 @@ While in combat, callers query the component:
   / `GetSecondarySlotSpells`, `GetActiveSlotSpells` (respects the Generic
   dual-weapon toggle), `GetCombatSpells`, `GetWeaponResonateSpells`,
   `GetRingResonateSpells`.
+- **Spell source resolution** *(sweep-2)* — `ResolveSpellSource(USpellData*) const`
+  walks the active loadout's spell lists in precedence order and returns which
+  `ESpellSource` a spell originates from: **Innate** (including BD per-element
+  pools) → **RingCrystal** (primary ring + Resonator ring loadout) →
+  **WeaponCrystal** (primary + secondary weapon spell lists) → **Evolution**.
+  Defaults to `Innate` with a warning if the spell isn't in any loadout
+  source — a data inconsistency the AI shouldn't normally hit. Used by
+  `AIDecisionManager` at the six AI cost/damage-evaluation sites so probes
+  route through the correct cost model; semantically parallel to the player
+  path's `UCombatCommandMenuSubsystem::MapCategoryToSpellSource`.
 - **Ability access** — `GetAvailableAbilities`.
 - **Item use** — `UseItem(SlotIndex)` decrements an item slot's uses (gated by
   `bIsReadyForBattle`) and broadcasts `OnItemUsed`. `GetItemRemainingUses`,
@@ -313,3 +323,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-05-19 | Documented the `bRequiresDualWeapon` hard-fail in `FWeaponLoadoutEntry::ValidateAbilities` (dual-only abilities reject `Single` weapons). | feature/weapon-sockets-dual-flag |
 | 2026-05-21 | Inventory redesign merged — `ULoadoutData` and `UCharacterData::DefaultLoadout` deleted; `UInventoryData` is the sole authoring surface and owns the inline `FSavedLoadout` array. `SavedLoadouts` / `ActiveLoadoutIndex` / `MaxSavedLoadouts` moved from `ULoadoutComponent` to `UInventoryComponent`; the loadout component now reads them via `GetInventoryComponent()`. `InitializeFromAsset` and the `bInitializedFromAsset` validation-bypass field removed; `FCombatLoadout::CreateFromSavedLoadout` is the sole runtime factory. Initialization, Validation, Field-table and Integration-Points sections updated. | feature/inventory-refactor |
 | 2026-05-27 | Two new BlueprintCallable wear/clear helpers — `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution()` — for the case-B standalone primary-slot evolution (BD wear path). Both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage. Also corrected the `FCombatLoadout::PrimaryEvolution` field-shape note (it's `FEvolutionAttachment`, not a raw `UEvolutionItemData*` — pre-existing drift surfaced by this branch). | feature/crystal-wear-substat-modifier |
+| 2026-05-28 | Sweep-2 — added `ResolveSpellSource(USpellData*) const` for AI spell-source determination (precedence: Innate → RingCrystal → WeaponCrystal → Evolution). Removed dead struct-side `FCombatLoadout::Validate`/`ValidateGeneric`/`ValidateCaster`/`ValidateResonator` (`ULoadoutComponent::GetValidationErrors` is the live path; `ValidateBDSpellLoadout` retained — still shared with `FSavedLoadout::GetValidationErrors`). | feature/integration-gaps-sweep-2 |

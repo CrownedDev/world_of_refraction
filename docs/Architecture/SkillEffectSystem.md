@@ -93,6 +93,25 @@ A large `switch` on `EffectType`, using `GetStackedValue()`:
 - `CleanseSelf` — `RemoveAllDebuffs(self)`; `CleanseAllies` — `RemoveAllDebuffs` on each ally via `UTurnManager::GetTeamMembers`.
 - `ExtraAction` — calls `UTurnManager::RequestExtraTurn`.
 - `RandomSkill`, `GuaranteedCrit`, `IgnoreDefense`, `DoubleHit`, `Revive` — currently log-only stubs (see Known Limitations).
+- *(sweep-4)* `StatusIncrease` — instant status-bar gauge build on the target; routes through `UStatusBuildupManager::AddStatusBuildup(SourceActor, Actor, Effect.Value, Effect.Element, None)`. Attacker `StatusMultiplier` amplification + target `Resistance` apply via the normal pipeline. `Effect.Value` is the absolute buildup amount (not a percentage). Classified as a debuff.
+- *(sweep-4)* `StatusDecrease` — instant status-bar gauge drain on the target; routes through `UStatusBuildupManager::ReduceStatusBuildupByAmount(Actor, Effect.Value)`. Pure subtraction — no amplification/resistance. Classified as a buff (reducing your own buildup is beneficial).
+
+#### `StatusIncrease` / `StatusDecrease` element resolution
+
+`Effect.Element` for these two effect types is set by `ActionExecutor::ApplySkillEffects` from the resolved cast element of the source skill — passed through as the `ResolvedCastElement` parameter. The rule is **four-branch**, capturing the infusion-override:
+
+| Source skill | Infused? | `ResolvedCastElement` |
+|---|---|---|
+| Spell | Yes | `GetElementForSourceOption(Executor, SelectedSource)` (infused source's element) |
+| Spell | No  | `SpellData->Element` (the spell's inherent element) |
+| Ability / Attack | Yes | `GetElementForSourceOption(Executor, SelectedSource)` (infused source's element) |
+| Ability / Attack | No  | `Generic` (abilities/attacks have no inherent element) |
+
+Every **other** effect type stays `Generic` inside the loop — sweep-4 deliberately did not change historical behaviour for existing effects (`DOT`, `ResistanceBuff`, etc.).
+
+#### Runtime `Value` handling
+
+For `StatusIncrease`/`StatusDecrease`, `ApplySkillEffects` passes `Effect.Value` directly as the runtime value (absolute buildup amount). Every other effect type uses the existing `Magnitude × 100` percentage conversion. The branch is per-effect inside the loop in `ActionExecutor::ApplySkillEffects`.
 
 ### On-hit effects — `OnDamageDealtHandler`
 
@@ -147,3 +166,4 @@ Bound to `UActionExecutor::OnDamageDealt` at `Initialize`. When the attacker car
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-28 | Sweep-4 — added `StatusIncrease`/`StatusDecrease` effect types (instant status-bar gauge manipulators routing through `UStatusBuildupManager`). Element on these two types is the four-branch resolved cast element (spell/ability × infused/uninfused) plumbed via `ApplySkillEffects(..., ResolvedCastElement)`; every other effect type stays `Generic`. Runtime `Value` is the absolute buildup amount for these two (bypasses the `Magnitude × 100` percentage shape). | feature/integration-gaps-sweep-4 |

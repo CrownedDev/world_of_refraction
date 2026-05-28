@@ -46,6 +46,7 @@ Per-actor bar state:
    - Per-element immunity — `GetElementImmunityType(Element)` maps the incoming element to its `GrantXxxImmunity` flag; if the target holds it, buildup is absorbed regardless of resolved trigger.
 4. Get or create the `FStatusBarState` via `FindOrAdd`.
 5. **Attacker amplification.** If `Source` has a `UCharacterDataComponent` + `CharacterData`: `Amount *= 1 + (ModifiedSpirit × TotalPoints × STATUS_MULTIPLIER_PER_POINT) + (BonusPoints × STATUS_MULTIPLIER_PER_POINT)`, where `ModifiedSpirit` is `GetCrystalModifiedSpirit`, `TotalPoints` is `CharacterData->GetTotalStatusMultiplier`, and `BonusPoints` is `BonusStatusMultiplier` from the source's `ULoadoutComponent`. This inlines the `UCharacterData::CalculateStatusMultiplier` formula shape (kept in sync manually).
+5b. **Skill-effect StatusMultiplier aggregation (sweep-3).** Via `USkillEffectManager::GetTotalStatModifier` for both `StatusMultiplierBuff` and `StatusMultiplierDebuff`, then `Amount *= max(0, 1 + (SmBuff − SmDebuff) / 100)`. Element-agnostic — `StatusMultiplier` is caster-output amplification, not per-element. Mirrors the damage-side `DamageBuff`/`Debuff` math in `DamageCalculator::GetStatusEffectDamageModifier` (`:521-523`). Sits between attacker-stat amplification and target resistance — same layering as damage.
 6. **Target resistance reduction.** If `Target` has a `UCharacterDataComponent` + `CharacterData`: start with `CharacterData->CalculateResistance()`, add `BonusResistance × RESISTANCE_PER_POINT` from the target loadout, add `GetTotalElementResistance(Target, Element)`, add `ModifyStatusResist/100` from skill effects, clamp to `[0, RESISTANCE_MAX]`, then `Amount *= (1 - Resistance)`.
 7. Update bar state — most recent hit wins on `PendingElement` / `PendingPhysicalType`; set `LastSource`; reset `TurnsSinceLastHit` to 0.
 8. Add `Amount` to `CurrentBuildup`; broadcast `OnStatusBuildupChanged` (with `MaxBuildup = STATUS_EFFECT_THRESHOLD`).
@@ -56,6 +57,15 @@ Per-actor bar state:
 ### Resistance query — `GetTotalElementResistance(Target, Element)`
 
 Pulls `ResistanceBuff` and `ResistanceDebuff` effects from `USkillEffectManager::GetEffectsByType`. Sums `GetStackedValue()` only for effects whose `Element` matches the queried element (mismatched elements contribute zero). Returns `(BuffSum − DebuffSum) / STAT_PERCENT_DIVISOR`. Although the effects are stored in `USkillEffectManager`, this query lives here because element resistance is a buildup-side concept (it reduces buildup, not damage).
+
+### Reducing buildup — `ReduceStatusBuildup(Target, Fraction)` and `ReduceStatusBuildupByAmount(Target, Amount)`
+
+Two reduction surfaces with different shapes:
+
+- `ReduceStatusBuildup(Target, Fraction)` — fraction-based (0–1) reduction; `CurrentBuildup *= (1 - Fraction)`. Used by Quartz items.
+- `ReduceStatusBuildupByAmount(Target, Amount)` *(sweep-4)* — flat absolute subtraction; `CurrentBuildup = max(0, CurrentBuildup - Amount)`. **No** amplification or resistance modulation — pure subtraction clamped at 0. This is the apply-path for the sweep-4 `StatusDecrease` effect type (parallel to `AddStatusBuildup` being the apply-path for `StatusIncrease`).
+
+Both broadcast `OnStatusBuildupChanged` with the current `PendingElement` so UI keeps its tint, and both are no-ops when the target has no active bar state.
 
 ### Decay — `ProcessStatusBarDecay(Target)`
 
@@ -100,10 +110,11 @@ No-op if `Target` null or `StatusType` is `None`. Resolves `USkillEffectManager`
 - No `// TODO`, `// FIXME`, `// HACK`, or deprecated markers are present in either file.
 - **Manually-synced formula.** The attacker amplification in `AddStatusBuildup` inlines the `UCharacterData::CalculateStatusMultiplier` shape. The comment explicitly warns that if that asset-side formula changes, this copy must be updated too — a known maintenance hazard.
 - **Held-cap state.** When the bar reaches cap but the resolved trigger is `None` (e.g. a `Generic`-element, `None`-physical-type hit), the bar stays at/above cap indefinitely until a hit with a real trigger consumes it. This is intentional ("phantom cap" prevention) but means `CurrentBuildup` can exceed `STATUS_EFFECT_THRESHOLD`; `GetStatusBarPercent` clamps the displayed value.
-- The buildup amount itself is computed by the caller (or `UDamageCalculator::CalculateStatusBuildup`) and passed in; this manager only amplifies/resists/accumulates it.
+- The buildup amount itself is computed by the caller and passed in; this manager only amplifies/resists/accumulates it. (`UDamageCalculator::CalculateStatusBuildup` was removed in sweep-3 — see `DamageCalculator.md`.)
 
 ## Changelog
 
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-28 | Sweep-3 — added `StatusMultiplierBuff`/`Debuff` skill-effect aggregation as step 5b in `AddStatusBuildup`, sitting between attacker-stat amplification and target resistance. Sweep-4 — added `ReduceStatusBuildupByAmount` (flat subtraction; apply-path for the new `StatusDecrease` effect type). | feature/integration-gaps-sweep-3, feature/integration-gaps-sweep-4 |

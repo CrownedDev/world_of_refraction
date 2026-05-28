@@ -79,7 +79,10 @@ data:
   below), `PhysicalDamageType` (`EPhysicalDamageType`, default `Slash`; drives
   the bar-cap trigger when no elemental infusion is active and must not be
   `None`), `WeaponAttack` (`UWeaponAttackData*`, replaces base attack when
-  equipped), `PresetAbilities` (`TArray<UAbilityData*>`), `bAbilitiesLocked`
+  equipped; carries `BaseSize` *(sweep-1; default 0.0)* for the defense-window
+  hitbox — read by `ActionExecutor::ExecuteAttackAsync` with no fallback
+  constant, warns at execution time if zero so the authoring gap stays visible),
+  `PresetAbilities` (`TArray<UAbilityData*>`), `bAbilitiesLocked`
   (bool — when true abilities cannot be customised; used for conjured weapons),
   `WeaponStance` (`UStanceData*`).
 - **Animations** — `DrawMontage`, `SheatheMontage`, `ParryMontage`
@@ -155,7 +158,16 @@ magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
   casting).
 - **Visuals** — `CastAnimation`, `SpellVFX`, `ImpactVFX`, `MuzzleVFX`.
 - **Delivery extensions** — `HomingStrength` (Homing-only, 0–1),
-  `BeamDuration` (Beam-only).
+  `BeamDuration` (Beam-only), `BeamTickInterval` *(Beam-only, sweep-1; default
+  0.5s)*. Beam damage runs on a discrete-tick cadence: `TickCount = max(1,
+  RoundToInt(BeamDuration / BeamTickInterval))`, per-tick = `BaseDamage /
+  TickCount` with the integer remainder distributed across the first
+  `BaseDamage % TickCount` ticks so totals stay exact. Implementation on
+  `ASpellProjectile`: `BeamTickIntervalSec`/`BeamTickCount`/`BeamTickIndex`/
+  `BeamBaseDmgPerTick`/`BeamRemainder`/`BeamTimeUntilNextTick`. The
+  `OnBeamTick` broadcast signature is `(AActor* Target, int32 TickDamage,
+  bool bTargetInBeam)` — VFX/sound stay per-frame; this delegate is the
+  damage-side surface only.
 - **Size** — `BaseSize`, `HitboxRatio` (0.5–1.2).
 - **Defense helpers** — `CanBeBlocked()`, `CanBeParried()`,
   `CanBeDodgedByMoving()`, `CanBeDodgedByTiming()`, `GetAvailableDefenses()`.
@@ -338,3 +350,4 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-19 | Added `EWeaponWieldMode` (Single / Dual / OffHandShield) and the *Wield modes and mesh attachment* section; documented the left-hand mesh fields on `UWeaponData`, enum-driven socket resolution in `UWeaponMeshComponent`, and `UAbilityData::bRequiresDualWeapon`. Noted removal of `EWeaponType::DualBlades` and the `Fists` → `Gauntlets` rename. | feature/weapon-sockets-dual-flag |
+| 2026-05-28 | Sweep-1 — `USpellData::BeamTickInterval` field + `ASpellProjectile` discrete-tick model documented (`BeamTickIntervalSec`/`BeamTickCount`/`BeamTickIndex`/`BeamBaseDmgPerTick`/`BeamRemainder`/`BeamTimeUntilNextTick`); `OnBeamTick` signature is `(Target, int32 TickDamage, bool bTargetInBeam)`. `UWeaponAttackData::BaseSize` field added — ActionExecutor reads the raw asset value with no fallback constant. Infused attack EP cost now read from `BaseEnergyCost` instead of hardcoded `5`. | feature/integration-gaps-sweep-1 |

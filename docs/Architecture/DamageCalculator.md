@@ -65,8 +65,8 @@ Requires a non-null `Attack` (`UWeaponAttackData`) and resolvable `UCharacterDat
 
 ### Status / healing helpers
 
-- `CalculateStatusBuildup(Attacker, Target, BaseBuildup, Element)` — multiplies `BaseBuildup` by `GetBDStackStatusMultiplier` only. Skill-effect status modifiers are a pending TODO.
-- `GetBDStackStatusMultiplier` — `1.0` unless the attacker's `UBrokenDarknessManager` is transformed and the spell element matches `GetCurrentAlignment`; then returns `GetStackStatusMultiplier`.
+- *`CalculateStatusBuildup` — removed (sweep-3, dead code).* The live status-buildup pipeline is `UStatusBuildupManager::AddStatusBuildup` — it applies the attacker's crystal-aware `StatusMultiplier` + equipment bonus, then (sweep-3) the `StatusMultiplierBuff`/`Debuff` skill-effect deltas, then the defender's element-filtered `Resistance` reduction. See `StatusBuildupSystem.md`.
+- `GetBDStackStatusMultiplier` — `1.0` unless the attacker's `UBrokenDarknessManager` is transformed and the spell element matches `GetCurrentAlignment`; then returns `GetStackStatusMultiplier`. This is a **status-buildup** multiplier (1×/1×/2×/4× at stacks 0-3, matching-element only) — not a damage buff. Still consumed by the BD damage path.
 - `CalculateHealing(Healer, Target, BaseHealing)` — scales by `GetCrystalModifiedSpellDamageForHealing` (Mind-based) and by `ModifyHealing` passive skill effect (`1 + ModifyHeal/100`).
 
 ### Private helpers
@@ -94,7 +94,6 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
 
 ## Known Limitations / TODOs
 
-- **Explicit TODO** in `CalculateStatusBuildup` (`DamageCalculator.cpp` ~line 389): skill-effect modifiers (`StatusMultiplierBuff` / `StatusMultiplierDebuff` aggregation, target-side `ResistanceBuff/Debuff`) are not yet applied. Equipment `BonusStatusMultiplier` is migrated for damage but status-buildup symmetry is still pending.
 - **Duplicated Step 7.** `CalculateDamage` computes `Result.FinalDamage` twice in identical back-to-back statements (`DamageCalculator.cpp` lines 166–170). Harmless but redundant.
 - **No element advantage system.** `IsWeakTo` and `ResistsElement` always return `false`; `GetElementInteractionMultiplier` always returns `1.0`. The `WEAKNESS_MULTIPLIER` / `RESISTANCE_MULTIPLIER` constants and `MAX_RESISTANCE` are presently unused for elemental interaction.
 - **Unused input fields.** `FDamageCalculationInput::HitCount`, `InfusionLevel`, `bWasInfused`, `bIsRawMode`, and `bIgnoreResistance` are not consumed by `CalculateDamage`. Multi-hit (`HitCount`) and infusion-level multipliers (`GetInfusionDamageMultiplier`) are not wired into the main path.
@@ -106,3 +105,4 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-28 | Sweep-3 — removed dead `CalculateStatusBuildup` (zero callers). Status-buildup amplification (Spirit-driven, equipment bonus, `StatusMultiplierBuff`/`Debuff` aggregation, target-side `Resistance`) now lives entirely on `UStatusBuildupManager::AddStatusBuildup`. `GetBDStackStatusMultiplier` retained — still the BD status-buildup leaf accessor. | feature/integration-gaps-sweep-3 |

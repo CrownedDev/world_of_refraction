@@ -99,7 +99,7 @@ Runs item use in combat. Entry point `UseItem(User, Item, Target)`:
 
 1. Validates user/item; defaults `Target` to `User` if null.
 2. Switches on `Item->GetPrimaryEffectType()` to a per-effect handler (`ExecuteDamageEffect`, `ExecuteHealingEffect`, …, `ExecuteStatusClearEffect`).
-3. If the **target** is a Broken Darkness character, applies the BD energy absorption.
+3. If the **target** is a Broken Darkness character, applies the BD energy absorption — `ApplyBrokenDarknessBonus` grants energy scaled as **% of target MaxEP** *(sweep-1)*, tier-keyed F=10% .. S=70% via `CrystalEffectTable::GetBrokenDarknessEnergyPercent(Id) × TargetComp->MaxEP`. Routes through `BDManager->GrantAbsorptionEnergy` so the overload-aware ceiling (`MaxEP + 30%`) applies. Replaces the prior flat tier values (`BD_ENERGY_*` int constants).
 4. Sets `bSuccess` on the `FItemUseResult` and broadcasts `OnItemUsed`.
 
 `UseItemMultiTarget` loops `UseItem` and accumulates results. The executor applies effects
@@ -319,3 +319,4 @@ removed with the transform system.
 | 2026-05-26 | `UItemData` renamed to `UEvolutionItemData` (evolution-only); item-effect surface decoupled from the asset; `bImmuneToBreaking` flipped to `bCanBreak` (opt-in breaking, default false); dead asset-pointer slotting tower removed | feature/crystal-evolution-refactor |
 | 2026-05-26 | Final field removal — `bIsEvolutionCrystal` deleted (`UEvolutionItemData` is now structurally evolution-only); 5 dead category helpers removed; `UInventoryComponent::AddItem`/`AddItemInternal` flag-routed dispatch deleted (modern routing via `UInventoryData` field dispatch only); `UEquipmentDataBase::SlottedCrystal` removed with its `PostLoad` migration | feature/crystal-evolution-refactor |
 | 2026-05-27 | `bCanBreak` description note — overridable via `FEvolutionAttachment::ApplyWear(_, bForceWear=true)` for intrinsic mechanics (Broken Darkness). | feature/crystal-wear-substat-modifier |
+| 2026-05-28 | Sweep-1 — BD crystal absorption energy rescaled to **% of target MaxEP** (F=10% .. S=70%, `ItemConstants::BD_ENERGY_PERCENT_*`). `CrystalEffectTable::GetBrokenDarknessEnergyBonus` renamed to `GetBrokenDarknessEnergyPercent`; `ItemExecutor::ApplyBrokenDarknessBonus` resolves `MaxEP × Percent` at the call site. Scales correctly with target's energy pool instead of granting a flat lump. | refactor/bd-crystal-absorption-percent |

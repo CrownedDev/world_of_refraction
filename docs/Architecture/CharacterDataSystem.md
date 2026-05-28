@@ -54,6 +54,13 @@ Immutable design-time data. Key groups of fields:
 Class helpers: `IsGeneric/IsCaster/IsResonator`, `CanUseSpells`,
 `CanUseAbilities`, `HasInnateElement`, `UsesRings`, `CanDualWield`, `ShouldUseAI`,
 and `GetElement()` (Caster returns `InnateElement`, all others return `Generic`).
+On the component side, **`UCharacterDataComponent::GetDisplayElement()`** *(sweep-5,
+BlueprintPure)* is the UI-facing variant: returns `BrokenDarkness` whenever
+`IsBrokenDarkness()` is true (catching both runtime-transformed and char-created BD),
+else delegates to `CharacterData->GetElement()`. UI callers (panels, labels) should
+prefer this — gameplay-internal element reads (ActionExecutor element resolution,
+BD validation) continue to use existing paths because they reason about the
+underlying `CharacterData`, not the display identity.
 
 Stat-budget helpers: `GetTotalPool()` (`StatConstants::INITIAL_STAT_BUDGET` plus
 world-level points), `GetTotalSpent()`, `GetPointsRemaining()`,
@@ -210,6 +217,12 @@ set false and `OnDied` broadcasts.
 `BrokenDarkness`. All BD-aware code must use this helper rather than checking
 either source directly.
 
+`GetDisplayElement()` *(sweep-5)* is the BD-aware element accessor for UI:
+returns `BrokenDarkness` whenever `IsBrokenDarkness()` is true, else delegates
+to `CharacterData->GetElement()`. Panels and labels should prefer this over
+reading `InnateElement` directly so BD characters surface their BD identity
+rather than their pre-transform element.
+
 `ServerSetBrokenDarkness(bool)` (server-only) is called by
 `BrokenDarknessManager::TriggerTransformation` on a successful break roll; on
 transition to BD it zeroes `CurrentEP` and broadcasts `OnEPChanged`.
@@ -288,3 +301,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-21 | Inventory redesign merged — `UCharacterData::DefaultLoadout` (`ULoadoutData*`) replaced by `Inventory` (`UInventoryData*`); `IsDataValid` now warns on missing `Inventory` instead of missing `DefaultLoadout`. | feature/inventory-refactor |
 | 2026-05-27 | `ApplyCrystalPillarModifier` gains a case-B branch (`PrimarySlotType == Evolution`) so BD's primary-slot evolution stats flow through the crystal-modified pillars; two new accessors `GetCrystalModifiedStatusMultiplier` and `GetCrystalModifiedResistance` mirror the existing pattern. Consumed by the substat crystal-wear modifier — see `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
+| 2026-05-28 | Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` (BlueprintPure) UI-facing element accessor; returns `BrokenDarkness` for any `IsBrokenDarkness()` character, else delegates to `CharacterData->GetElement()`. Panels/labels should prefer this over reading `InnateElement` directly. | feature/integration-gaps-sweep-5 |

@@ -128,7 +128,10 @@ controlled actor.
      `OnEffectDurationChanged`.
    - `UStatusBuildupManager`: `OnStatusBuildupChanged`.
    - If the actor has a `UBrokenDarknessManager`: `OnEnergyAbsorbed`,
-     `OnOverloadStateChanged`.
+     `OnOverloadStateChanged`, plus *(sweep-5)* `OnStacksChanged`,
+     `OnAlignmentChanged`, and `OnTransformed` — the three BD-state broadcasts
+     the panel routes back through `RefreshEffectsList` so the synthetic
+     stack row stays in sync.
 4. It calls `RefreshEPBarVisibility()` (one-time), sets `bBound = true`, calls
    `ApplyStaticText()`, then seeds initial snapshots: `HandleHPChanged`,
    `RefreshEnergyBar`, `ApplyEnergyBarTint`, a manual status-bar seed to 0
@@ -145,12 +148,39 @@ controlled actor.
    absorbed-element hybrid colour (or pure `BrokenDarkness` black if no
    absorption), other characters get `ElementColors::GetColorForElement` of
    their `InnateElement`.
+   `RefreshEnergyBar` *(sweep-5)* additionally signals BD overload through
+   `EPText` colour: when `CurrentEP > MaxEP`, the text escalates white →
+   yellow (≥ 100%) → orange (≥ 110%) → red (≥ 120%) via
+   `CombatConstants::OVERLOAD_YELLOW_THRESHOLD` /
+   `OVERLOAD_ORANGE_THRESHOLD` / `OVERLOAD_RED_THRESHOLD`. These thresholds
+   sit inside the **real overload window of `[1.00, 1.30]`** — `CurrentEP`
+   is hard-capped at `MaxEP + 30%` by `OVERLOAD_CAPACITY_FRACTION` on the
+   BD side, so future tweaks must keep the bands within that range or
+   they become dead bands above the cap. The bar percent itself is clamped
+   at 1.0; the text colour is the only visual signal that the underlying
+   value has exceeded the cap. Resets to white when not overloaded.
 8. `RefreshEPBarVisibility` collapses the EP bar + text for a Resonator with no
    usable EP-spend target (`HasUsableEPTarget()` false — pool dormant when
    unarmed); all other classes show it. This is evaluated once at init only.
 9. Effect changes call `RefreshEffectsList`, which pulls
    `USkillEffectManager::GetActiveEffects(actor)` and passes it to the
    `RebuildEffectsList` Blueprint event.
+   *(sweep-5)* `RefreshEffectsList` additionally appends a **synthetic
+   `FActiveSkillEffect`** to that array when the bound character is a
+   transformed BD with `GetCurrentStackCount() > 0`: `EffectType =
+   StatusMultiplierBuff` (truthful — the stacks are a status-buildup
+   multiplier on matching-element spells, not a damage buff), `Element =
+   BDManager->GetCurrentAlignment()`, `bCanStack = true`, `CurrentStacks =
+   GetCurrentStackCount()`, `MaxStacks = GetMaxStacks()` (3), `bPermanent =
+   true`, `EffectName` = element display name. The BP row renders it via
+   the existing `SkillEffectBlueprintLibrary` helpers
+   (`GetEffectDisplayName`, `GetEffectStackString` → `"xN"` when stacks ≥ 2,
+   `IsEffectBuff` → `true`) — **no separate widget, no BP changes**. Auto-
+   clears: when stacks drop to 0 or alignment switches, the next refresh
+   simply doesn't append the entry. The three BD handlers
+   (`HandleBDStacksChanged` / `HandleBDAlignmentChanged` /
+   `HandleBDTransformed`) all route through `RefreshEffectsList` to keep
+   the synthetic row in sync.
 10. `HandleDied` (filtered to the bound actor) calls `TeardownPanel`; the visual
     death response is left to Blueprint.
 11. `NativeDestruct` and `BeginDestroy` both call `TeardownPanel` if still
@@ -237,10 +267,11 @@ controlled actor.
   called once from `InitialiseForActor`. The code comment explicitly states
   "runtime weapon-swap refresh is not currently wired", so a Resonator who
   equips/unequips a weapon mid-combat will not see the EP bar appear/disappear.
-- **Status-buildup tinting unfinished** — `HandleStatusBuildupChanged` receives
-  `PendingElement` (4-param delegate) but discards it via `(void)PendingElement`.
-  The comment ("Session Y") notes the parameter is plumbed through so the C++
-  binding compiles, but UI-side per-element bar tinting is a pending follow-up.
+- *(resolved)* **Status-buildup bar tinting is wired** — `HandleStatusBuildupChanged`
+  consumes `PendingElement` via `ApplyStatusBarTint`
+  (`CharacterPanelWidget.cpp:280-312`): tints the bar per pending-cap element;
+  BD attackers darken via `UHybridSpellColors::GetHybridSpellColors().BlendedColor`;
+  `Generic` (physical-only damage) falls back to neutral white.
 - **BD-without-manager fallback** — `RefreshEnergyBar` and `ApplyEnergyBarTint`
   both handle a Broken-Darkness character that has no `UBrokenDarknessManager`
   by showing an empty bar / pure black tint; this is a defensive fallback for
@@ -255,3 +286,4 @@ controlled actor.
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-05-28 | Sweep-5 — `CharacterPanelWidget` now binds the three BD-state broadcasts (`OnStacksChanged`/`OnAlignmentChanged`/`OnTransformed`), surfaces absorption stacks via a synthetic `StatusMultiplierBuff` row injected into `RefreshEffectsList` (no separate widget), and colours `EPText` for BD overload (yellow/orange/red at 100/110/120% within the `[1.00, 1.30]` cap). Also documented `ApplyStatusBarTint` (previously flagged as pending) — status bar now tints per pending-cap element, with BD attackers darkened. | feature/integration-gaps-sweep-5 |
