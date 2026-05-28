@@ -23,15 +23,15 @@
 
 | # | Decision | Resolution | Basis |
 |---|---|---|---|
-| Q1 | `Crystal*InventoryComponent` / `Evolution*InventoryComponent` home | → **`Crystals/`** (crystal-specific stores) | Phase-1 recommendation (default) |
-| Q1b | `FWeaponInventoryEntry` / `FRingInventoryEntry` home | → **`Loadout/Entries/`** (kept beside loadout-entry twins) | Phase-1 recommendation (default) |
-| Q2 | `EquipmentDataBase` + attachment-layer companions | → **`Gear/Equipment/`** (it is the shared base of `UWeaponData` + `URingData`, NOT crystal-specific) | **Mini-survey confirmed** |
-| Q3 | Presentation-data cluster (`MovementData`, `StanceData`, `CosmeticsData`) | **Distributed** per-system (no `Presentation/` catch-all): `MovementData`→`Combat/Grid/`, `StanceData(+Debug)`→`Skills/Definitions/`, `CosmeticsData`→`Character/` | Phase-1 recommendation (default) |
-| Q4 | `CombatPlayerController` | → **`Testing/`** (test scaffold; `Test*` UPROPERTYs + `DebugPrintState`; IntegrationGaps gap 1.1 "test scaffolding bypassing orchestrator" confirmed) | **Mini-survey confirmed** |
-| Q5 | Folding aggressiveness | **Keep named subfolders** even when <5 files (`Camera/`, `Defense/`, `Projectile/`, `Damage/`, `Rings/`) — each is a clear subsystem boundary | Phase-1 recommendation (default) |
-| Q6 | Casing fixes in scope | **Yes** — see §4 | **Mini-survey confirmed direction** |
+| Q1 | All crystal/evolution files (incl. `CrystalManager`, `Crystal*InventoryComponent`, `Evolution*InventoryComponent`, `EvolutionItemData`, `FCrystalId`, `FBrokenCrystalPayload`) | → **`Equipment/Crystals/`** — crystals ARE a type of equipment, so they nest under the Equipment umbrella (NOT their own top-level folder) | **Crown Q&A confirmed** |
+| Q1b | `FWeaponInventoryEntry` / `FRingInventoryEntry` home | → **`Loadout/Entries/`** (kept beside loadout-entry twins) | **Crown Q&A confirmed** (matched default) |
+| Q2 | Umbrella folder name + `EquipmentDataBase` + attachment-layer companions | Umbrella is **`Equipment/`** (Weapons, Rings, Crystals, Durability are children). The shared `EquipmentDataBase` + attachment layer (`FAttachedItem`, `EquipmentBonusGenerator`, etc.) sit at the **`Equipment/` ROOT**, above the subfolders | **Crown Q&A confirmed** |
+| Q3 | Movement / stance / cosmetic data cluster (`MovementData`, `StanceData`, `CosmeticsData`) | **All three → `Character/`** (kept together under Character, not split across systems) | **Crown Q&A confirmed** |
+| Q4 | `CombatPlayerController` | → **`Testing/`** (test scaffold; `Test*` UPROPERTYs + `DebugPrintState`; IntegrationGaps gap 1.1 "test scaffolding bypassing orchestrator" confirmed) | **Crown Q&A confirmed** |
+| Q5 | Folding aggressiveness | **Keep named subfolders** even when <5 files (`Camera/`, `Defense/`, `Projectile/`, `Damage/`, `Rings/`) — each is a clear subsystem boundary | **Crown Q&A confirmed** (matched default) |
+| Q6 | Casing fixes in scope | **Yes** — see §4 | **Crown Q&A confirmed** |
 
-> ⚠️ **Defaults (Q1, Q1b, Q3, Q5)** were not explicitly confirmed by Crown in-conversation; they adopt the Phase-1 recommendation. Crown may override any at the STEP-2 gate before moves run.
+> All six decisions now reflect Crown's explicit Q&A answers (correction commit). Q1b/Q4/Q5/Q6 matched the Phase-1 defaults; Q1/Q2/Q3 were corrected away from the defaults.
 
 ---
 
@@ -45,21 +45,23 @@ Public/  (and mirrored Private/)
 │   ├── Actions/       Action execution + action data structs/enums
 │   ├── Damage/        Damage calculation
 │   ├── Defense/       Defense windows (parry/block)
-│   ├── Grid/          Grid placement + combat movement (+ MovementData)
+│   ├── Grid/          Grid placement + combat movement
 │   ├── Camera/        Combat camera state machine
 │   ├── Projectile/    Spell projectile actor
 │   └── Mechanics/     Broken Darkness, Weather, Reality
-├── Character/         Stats, class, data component (+ CosmeticsData)
+├── Character/         Stats, class, data component + movement/stance/cosmetic data
+│                      (MovementData, StanceData[+Debug], CosmeticsData)
 ├── AI/                Enemy decision-making
 ├── Skills/
-│   ├── Definitions/   Spell/ability/school data assets (+ StanceData)
+│   ├── Definitions/   Spell/ability/school data assets
 │   └── Effects/       Runtime effect application, triggers, buildup
-├── Gear/
+├── Equipment/         Umbrella for ALL equipment. Shared EquipmentDataBase +
+│   │                  attachment layer (FAttachedItem, EquipmentBonusGenerator,
+│   │                  FEquipmentStatBonus, FRuntimeAttachedItem, …) live at ROOT.
 │   ├── Weapons/       Weapon manager, data, attacks, mesh
 │   ├── Rings/         Ring manager + data
 │   ├── Durability/    Break calc + durability constants
-│   └── Equipment/     EquipmentDataBase + attachment/runtime-item layer
-├── Crystals/          Crystals, evolutions, attachments, crystal stores
+│   └── Crystals/      Crystals, evolutions, crystal/evolution stores
 ├── Inventory/         General inventory storage + consumable-item execution
 ├── Loadout/
 │   └── Entries/       F* loadout/inventory entry structs
@@ -75,8 +77,8 @@ Public/  (and mirrored Private/)
 
 The durability-constants file is `Durabilityconstants.h` (lowercase 'c') on disk AND in git. But **5 of 6 consumers already include it as `"DurabilityConstants.h"` (capital C)** — they only resolve on Windows' case-insensitive FS and would break on a case-sensitive cooker. So the rename to capital C is a **correctness fix**, not cosmetic.
 
-- **Rename:** `Durabilityconstants.h` → **`DurabilityConstants.h`** (capital C) — do via `git mv` to the new `Gear/Durability/` location with corrected casing in one step.
-  - On case-insensitive Windows, a casing-only `git mv` may need the two-step dance (`git mv X tmp && git mv tmp Xcorrect`) — but since this file is ALSO changing directory, the single `git mv Public/Durabilityconstants.h Public/Gear/Durability/DurabilityConstants.h` changes the path enough that casing updates cleanly.
+- **Rename:** `Durabilityconstants.h` → **`DurabilityConstants.h`** (capital C) — do via `git mv` to the new `Equipment/Durability/` location with corrected casing in one step.
+  - On case-insensitive Windows, a casing-only `git mv` may need the two-step dance (`git mv X tmp && git mv tmp Xcorrect`) — but since this file is ALSO changing directory, the single `git mv Public/Durabilityconstants.h Public/Equipment/Durability/DurabilityConstants.h` changes the path enough that casing updates cleanly.
   - **One include edit required:** `Public/CrystalIdentity.h:18` — `#include "Durabilityconstants.h"` → `#include "DurabilityConstants.h"`. (The other 5 consumers are already capital-C and become correct automatically.)
 - **Casing fix (no include impact):** `Private/Combatorchestratortestactor.cpp` → `CombatOrchestratorTestActor.cpp` — implementation file, no `#include` references it by name; safe to correct during its move to `Combat/`.
 
@@ -87,7 +89,7 @@ No `.Build.cs` changes needed — verified no `PublicIncludePaths`/`PrivateInclu
 ## 5. Flagged for follow-up (NOT this branch's work)
 
 - **`ItemDataDebug.h/.cpp`** — debugs the renamed-away `ItemData` (now `EvolutionItemData`, commit `6ea8cd7`). May be stale/dead. Provisionally classified to `Inventory/`. **Do a dead-code check in a later pass** — do not let placement bless it as live.
-- Crystals ↔ Inventory ↔ Loadout ↔ Gear boundary (Q1/Q1b) is the one genuinely tangled domain; if PIE/use reveals a cleaner split later, revisit.
+- `Equipment/Crystals/` ↔ `Inventory/` ↔ `Loadout/` boundary (Q1/Q1b) is the one genuinely tangled domain; if PIE/use reveals a cleaner split later, revisit.
 
 ---
 
@@ -129,16 +131,16 @@ Grouped by destination. **HO** = header-only (no Private/ mirror file). Every `.
 | ActionStructs.h, ActionStatModifiers.h, ActionUtils.h, EActionType.h, EAbilityExecutionType.h (all HO) | Combat/Actions/ |
 | DamageCalculator.h/.cpp; EPhysicalDamageType.h (HO) | Combat/Damage/ |
 | DefenseSystem.h/.cpp; EDefenseDirection.h, EDefenseType.h (HO) | Combat/Defense/ |
-| CombatGridSubsystem.h/.cpp; CombatMovementComponent.h/.cpp; MovementData.h/.cpp; CombatGridConstants.h, FCombatGridPosition.h, ECombatRow.h, ECombatMovementType.h, EMovementCategory.h (HO) | Combat/Grid/ |
+| CombatGridSubsystem.h/.cpp; CombatMovementComponent.h/.cpp; CombatGridConstants.h, FCombatGridPosition.h, ECombatRow.h, ECombatMovementType.h, EMovementCategory.h (HO) | Combat/Grid/ |
 | CombatCameraManager.h/.cpp; EActionCameraPhase.h, ECombatCameraState.h (HO) | Combat/Camera/ |
 | SpellProjectile.h/.cpp; SpellProjectileTestActor.h/.cpp | Combat/Projectile/ |
-| BrokenDarknessManager.h/.cpp; WeatherStateManager.h/.cpp; RealityBoost.h, FBrokenCrystalPayload.h (HO) | Combat/Mechanics/ |
+| BrokenDarknessManager.h/.cpp; WeatherStateManager.h/.cpp; RealityBoost.h (HO) | Combat/Mechanics/ |
 
 ### Character/
 | File(s) | Dest |
 |---|---|
-| CharacterData.h/.cpp; CharacterDataComponent.h/.cpp; CharacterDataDebug.h/.cpp; CosmeticsData.h/.cpp | Character/ |
-| ECharacterClass.h, FPillarWeights.h, StatConstants.h (HO) | Character/ |
+| CharacterData.h/.cpp; CharacterDataComponent.h/.cpp; CharacterDataDebug.h/.cpp; CosmeticsData.h/.cpp; MovementData.h/.cpp; StanceDataDebug.h/.cpp | Character/ |
+| ECharacterClass.h, FPillarWeights.h, StatConstants.h, StanceData.h (HO) | Character/ |
 
 ### AI/
 | File(s) | Dest |
@@ -148,7 +150,7 @@ Grouped by destination. **HO** = header-only (no Private/ mirror file). Every `.
 ### Skills/Definitions/
 | File(s) | Dest |
 |---|---|
-| SkillDataBase.h/.cpp; CastableSkillDataBase.h/.cpp; SpellData.h/.cpp; SpellDataDebug.h/.cpp; AbilityData.h/.cpp; AbilityDataDebug.h/.cpp; WorldStatRequirements.h/.cpp; StanceData.h(HO); StanceDataDebug.h/.cpp | Skills/Definitions/ |
+| SkillDataBase.h/.cpp; CastableSkillDataBase.h/.cpp; SpellData.h/.cpp; SpellDataDebug.h/.cpp; AbilityData.h/.cpp; AbilityDataDebug.h/.cpp; WorldStatRequirements.h/.cpp | Skills/Definitions/ |
 | SpellSchool.h, ESpellElement.h, ESpellDeliveryType.h, ESpellSource.h, EStatScalingType.h, ElementHelpers.h (all HO) | Skills/Definitions/ |
 
 ### Skills/Effects/
@@ -157,21 +159,17 @@ Grouped by destination. **HO** = header-only (no Private/ mirror file). Every `.
 | SkillEffectManager.h/.cpp; SkillEffectManagerTestActor.h/.cpp; StatusBuildupManager.h/.cpp | Skills/Effects/ |
 | FSkillEffect.h, ActiveSkillEffect.h, BarCapTriggerResolver.h, SkillTriggerUtils.h, SkillEffectDisplayNames.h, ESkillEffectType.h, ESkillEffectTiming.h, ESkillTrigger.h (all HO) | Skills/Effects/ |
 
-### Gear/
+### Equipment/  (umbrella — crystals/weapons/rings/durability are children)
 | File(s) | Dest |
 |---|---|
-| WeaponManager.h/.cpp; WeaponData.h/.cpp; WeaponDataDebug.h/.cpp; WeaponAttackData.h/.cpp; WeaponAttackDataDebug.h/.cpp; WeaponMeshComponent.h/.cpp; EWeaponType.h, EWeaponSlotType.h, EWeaponWieldMode.h (HO) | Gear/Weapons/ |
-| RingManager.h/.cpp; RingData.h/.cpp | Gear/Rings/ |
-| BreakCalculator.h/.cpp; BreakCalculatorDebug.h/.cpp; Durabilityconstants.h → DurabilityConstants.h (HO, casing fix) | Gear/Durability/ |
-| EquipmentDataBase.h/.cpp; EquipmentBonusGenerator.h/.cpp; FEquipmentStatBonus.h/.cpp; FRuntimeAttachedItem.h/.cpp; IEquipmentGenerator.h, FAttachedItem.h, FRefinedAttachment.h, FEquippedItemSlot.h, EAttachedItemKind.h (HO) | Gear/Equipment/ |
+| EquipmentDataBase.h/.cpp; EquipmentBonusGenerator.h/.cpp; FEquipmentStatBonus.h/.cpp; FRuntimeAttachedItem.h/.cpp; IEquipmentGenerator.h, FAttachedItem.h, FRefinedAttachment.h, FEquippedItemSlot.h, EAttachedItemKind.h (HO) | **Equipment/ (ROOT)** — shared base + attachment layer |
+| WeaponManager.h/.cpp; WeaponData.h/.cpp; WeaponDataDebug.h/.cpp; WeaponAttackData.h/.cpp; WeaponAttackDataDebug.h/.cpp; WeaponMeshComponent.h/.cpp; EWeaponType.h, EWeaponSlotType.h, EWeaponWieldMode.h (HO) | Equipment/Weapons/ |
+| RingManager.h/.cpp; RingData.h/.cpp | Equipment/Rings/ |
+| BreakCalculator.h/.cpp; BreakCalculatorDebug.h/.cpp; Durabilityconstants.h → DurabilityConstants.h (HO, casing fix) | Equipment/Durability/ |
+| CrystalManager.h/.cpp; CrystalInventoryComponent.h/.cpp; CrystalEffectTable.h/.cpp; EvolutionItemData.h/.cpp; EvolutionInventoryComponent.h/.cpp; FEvolutionAttachment.h/.cpp | Equipment/Crystals/ |
+| CrystalDescription.h, CrystalIdentity.h, CrystalType.h, CrystalTypeHelpers.h, FCrystalId.h, EEvolutionType.h, FEvolutionInventoryEntry.h, FBrokenCrystalPayload.h (all HO) | Equipment/Crystals/ |
 
-### Crystals/
-| File(s) | Dest |
-|---|---|
-| CrystalManager.h/.cpp; CrystalInventoryComponent.h/.cpp; CrystalEffectTable.h/.cpp; EvolutionItemData.h/.cpp; EvolutionInventoryComponent.h/.cpp; FEvolutionAttachment.h/.cpp | Crystals/ |
-| CrystalDescription.h, CrystalIdentity.h, CrystalType.h, CrystalTypeHelpers.h, FCrystalId.h, EEvolutionType.h, FEvolutionInventoryEntry.h (all HO) | Crystals/ |
-
-> Note: `CrystalIdentity.h:18` include edit applies here (§4).
+> Note: the `CrystalIdentity.h:18` include edit (§4) applies to a file in `Equipment/Crystals/`.
 
 ### Inventory/
 | File(s) | Dest |
