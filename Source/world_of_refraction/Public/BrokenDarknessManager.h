@@ -172,11 +172,21 @@ public:
 	float GetOverloadCapacity() const;
 
 	/**
-	 * Process overload tick (call from turn manager at end of turn)
-	 * Applies aura damage to enemies, self-damage, energy drain
+	 * Process the per-turn overload tick. Three channels fire per call:
+	 *  - Aura HP damage to NearbyEnemies, scaled by SpellDamage (4.2 convention).
+	 *  - Self HP damage on the BD, same SpellDamage scaling.
+	 *  - Coupled energy leak: a single `released` quantity drains the absorption
+	 *    pool (ServerSpendEnergy) AND becomes self-status in the BD's current
+	 *    alignment element (AddStatusBuildup with bSkipBaseStatAmp=true since
+	 *    StatusMultiplier is already baked into `released`).
+	 * `released = BaseEnergyRelease × StatusMultiplierBonus × EfficiencyMult`
+	 * — only the base-stat layer of StatusMultiplier is folded in; transient
+	 * skill-effect buff/debuff stays live (step 5b on the status buildup).
+	 * @param StatusMultiplierBonus  Multiplier ≥ 1.0 from the BD's base StatusMultiplier stat (Spirit × points × per-point), pre-computed by the caller.
+	 * @param EfficiencyMult         Cost-fraction in [1 - EFFICIENCY_MAX, 1.0] from the BD's Mind stat (lower = better efficiency = smaller leak).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Overload")
-	void ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies, float StatusMultiplierBonus, float EfficiencyPercent);
+	void ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies, float StatusMultiplierBonus, float EfficiencyMult);
 
 	// ==================== ABSORPTION STACKS ====================
 
@@ -376,9 +386,12 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Overload")
 	float BaseOverloadSelfDamage = 15.0f;
 
-	/** Base energy drain per turn while overloaded */
+	/** Base energy released per turn while overloaded. The SAME `released`
+	 *  quantity drains the absorption pool AND becomes self-status in the BD's
+	 *  alignment element — one coupled flow, two faces. Scaled at runtime by
+	 *  StatusMultiplier (raises release) × Efficiency (lowers release). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Overload")
-	float BaseEnergyDrain = 15.0f;
+	float BaseEnergyRelease = 15.0f;
 
 	// ==================== ABSORPTION STACKS ====================
 
