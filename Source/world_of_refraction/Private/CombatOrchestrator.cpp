@@ -1007,9 +1007,12 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	// Find all combatants in range
 	TArray<AActor *> ActorsInRange = GetCombatantsInRange(Actor, AuraRange);
 
-	// Get character stats for damage/efficiency calculations
+	// Pre-compute the base-stat scalars the overload tick needs. Only the
+	// BASE-stat layer of StatusMultiplier is computed here — transient skill-
+	// effect StatusMultiplierBuff/Debuff is intentionally NOT folded in, so
+	// it applies live on the self-status pass via AddStatusBuildup step 5b.
 	float StatusMultiplierBonus = 1.0f;
-	float EfficiencyPercent = 0.0f;
+	float EfficiencyMult = 1.0f;
 
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
@@ -1020,20 +1023,24 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 		const int32 StatusMultPoints = CharComp->CharacterData->GetTotalStatusMultiplier();
 		StatusMultiplierBonus = 1.0f + (ModifiedSpirit * StatusMultPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 
-		// Crystal-aware EfficiencyMultiplier — inlined formula against
-		// GetCrystalModifiedMind. Clamp shape preserved from
-		// UCharacterData::CalculateEfficiencyMultiplier.
+		// Crystal-aware EfficiencyMultiplier — fraction-of-cost in
+		// [1 - EFFICIENCY_MAX, 1.0]. Lower = better efficiency = smaller leak.
+		// Clamp shape preserved from UCharacterData::CalculateEfficiencyMultiplier.
+		// Passed straight through (drop the prior × 100 / × 0.01 round-trip;
+		// ProcessOverloadTick now takes the multiplier directly — named correctly).
 		const float ModifiedMind = CharComp->GetCrystalModifiedMind();
 		const int32 EfficiencyPoints = CharComp->CharacterData->GetTotalEfficiency();
-		const float EfficiencyMult = FMath::Clamp(
+		EfficiencyMult = FMath::Clamp(
 			1.0f - (ModifiedMind * EfficiencyPoints * CombatConstants::EFFICIENCY_PER_POINT),
 			1.0f - CombatConstants::EFFICIENCY_MAX,
 			1.0f);
-		EfficiencyPercent = EfficiencyMult * 100.0f;
 	}
 
-	// Process the overflow tick (aura damage, self-damage, energy drain)
-	BDManager->ProcessOverloadTick(ActorsInRange, StatusMultiplierBonus, EfficiencyPercent);
+	// Process the overflow tick: aura HP damage (SpellDamage-scaled), self HP
+	// damage (same), and the coupled energy leak (released = BaseEnergyRelease
+	// × StatusMultiplier × Efficiency → drains absorption + becomes self-status
+	// in alignment element).
+	BDManager->ProcessOverloadTick(ActorsInRange, StatusMultiplierBonus, EfficiencyMult);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] BD Overflow processed for %s - Range: %.1f, Targets: %d"),
 		   *Actor->GetName(), AuraRange, ActorsInRange.Num());

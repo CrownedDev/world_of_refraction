@@ -190,7 +190,8 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 // ========================================
 
 bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
-											 ESpellElement Element, EPhysicalDamageType PhysicalType)
+											 ESpellElement Element, EPhysicalDamageType PhysicalType,
+											 bool bSkipBaseStatAmp)
 {
 	if (!Target || Amount <= 0.0f)
 	{
@@ -258,23 +259,32 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// changes, update here too.
 	if (Source)
 	{
-		UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
-		if (SourceComp && SourceComp->CharacterData)
+		// Step 5 — base-stat amp. Gated by bSkipBaseStatAmp for callers that
+		// already baked StatusMultiplier into the incoming Amount (e.g. BD
+		// overload aura, where `released = BaseRelease × StatusMult × Efficiency`
+		// is the single coupled quantity feeding both drain and self-status —
+		// re-applying the stat amp here would double-count). Steps 5b/5c/6
+		// always run regardless.
+		if (!bSkipBaseStatAmp)
 		{
-			const float ModifiedSpirit = SourceComp->GetCrystalModifiedSpirit();
-			const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
-
-			// Equipment stat bonus — additive to the asset-driven per-point
-			// amplification. Read from the source actor's active loadout.
-			int32 BonusPoints = 0;
-			if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
+			UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
+			if (SourceComp && SourceComp->CharacterData)
 			{
-				const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
-				BonusPoints = Bonus.BonusStatusMultiplier;
-			}
+				const float ModifiedSpirit = SourceComp->GetCrystalModifiedSpirit();
+				const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
 
-			Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
-			              + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+				// Equipment stat bonus — additive to the asset-driven per-point
+				// amplification. Read from the source actor's active loadout.
+				int32 BonusPoints = 0;
+				if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
+				{
+					const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
+					BonusPoints = Bonus.BonusStatusMultiplier;
+				}
+
+				Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
+				              + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+			}
 		}
 
 		// Skill-effect-driven StatusMultiplier buff/debuff — symmetric with

@@ -528,7 +528,7 @@ void UBrokenDarknessManager::ExitOverload()
 }
 
 void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies,
-												 float StatusMultiplierBonus, float EfficiencyPercent)
+												 float StatusMultiplierBonus, float EfficiencyMult)
 {
 	if (!bIsOverloaded || !bIsTransformed)
 	{
@@ -536,9 +536,16 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	}
 
 	AActor *Owner = GetOwner();
+	UCharacterDataComponent *CharComp = GetCharComp();
 
-	// 1. Apply aura damage to nearby enemies
-	float AuraDamage = BaseOverloadAuraDamage * StatusMultiplierBonus;
+	// Unified HP-damage path: both aura (enemies) and self-damage scale by the BD's
+	// SpellDamage stat (4.2 forbidden-cast convention — GetCrystalModifiedSpellDamage
+	// is a direct multiplier ≥ 1.0 mirroring DamageCalculator::GetAttackerDamageMultiplier
+	// at :226-249). ApplyDamageToActor stays the shared apply primitive.
+	const float SpellDamageMult = CharComp ? CharComp->GetCrystalModifiedSpellDamage() : 1.0f;
+
+	// 1. Aura HP damage to combatants in range — same SpellDamage scaling as self.
+	const float AuraDamage = BaseOverloadAuraDamage * SpellDamageMult;
 	for (AActor *Enemy : NearbyEnemies)
 	{
 		if (Enemy && Enemy != Owner)
@@ -551,24 +558,59 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 		}
 	}
 
-	// 2. Apply self-damage
-	float SelfDamage = BaseOverloadSelfDamage * StatusMultiplierBonus;
+	// 2. Self HP damage — same convention.
+	const float SelfDamage = BaseOverloadSelfDamage * SpellDamageMult;
 	ApplyDamageToActor(Owner, SelfDamage);
 	OnOverloadDamage.Broadcast(Owner, Owner, SelfDamage);
 
 	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Overload self-damage %.1f"), SelfDamage);
 
-	// 3. Drain energy (efficiency reduces drain). The ServerSpendEnergy
-	// broadcast re-evaluates overload via HandleOwnerEnergyChanged.
-	float DrainMultiplier = 1.0f - (EfficiencyPercent * 0.01f);
-	float EnergyDrain = BaseEnergyDrain * FMath::Max(0.1f, DrainMultiplier);
+	// 3. Coupled energy leak. ONE value drives both outflows — by design.
+	//   released  = BaseEnergyRelease × StatusMultiplier↑ × Efficiency↓
+	//             - StatusMultiplier raises release ("more flow")
+	//             - Efficiency lowers release ("smaller hole")
+	//             - Only the BASE-STAT layer of StatusMultiplier is baked in here;
+	//               transient skill-effect buff/debuff (step 5b of AddStatusBuildup)
+	//               applies live on the self-status pass, not on the drain.
+	//   drain     = ServerSpendEnergy(released) — the BD's absorption bleeds back
+	//               toward MaxEP; the OnEPChanged broadcast re-evaluates overload
+	//               via HandleOwnerEnergyChanged, so overload auto-exits when the
+	//               pool drops to MaxEP.
+	//   self-status = AddStatusBuildup(BD, BD, released, alignment, None,
+	//                                  bSkipBaseStatAmp=true). Steps 5b (buff/debuff),
+	//                 5c (BD stack multiplier), and 6 (target resistance) all still
+	//                 fire on this self-status. Only step 5 (base-stat) is skipped
+	//                 because `released` already includes it.
+	const float Released = BaseEnergyRelease * StatusMultiplierBonus * EfficiencyMult;
 
-	if (UCharacterDataComponent *CharComp = GetCharComp())
+	if (CharComp)
 	{
-		CharComp->ServerSpendEnergy(FMath::RoundToInt(EnergyDrain));
+		const int32 DrainAmount = FMath::RoundToInt(Released);
+		CharComp->ServerSpendEnergy(DrainAmount);
 
-		UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: Energy drained %.1f (Efficiency: %.0f%%), now at %d"),
-			   EnergyDrain, EfficiencyPercent, CharComp->CurrentEP);
+		UE_LOG(LogTemp, Log,
+			   TEXT("BrokenDarkness: Overload leak released %.1f (StatusMult=%.2f, EffMult=%.2f), absorption now %d"),
+			   Released, StatusMultiplierBonus, EfficiencyMult, CharComp->CurrentEP);
+	}
+
+	// Self-status — released energy becomes status buildup in the alignment element.
+	// Gated on a non-Generic alignment (defensive — overload entry normally implies
+	// at least one absorbed element, but a transformed BD with no absorption history
+	// would otherwise feed Generic into the buildup pipeline).
+	if (Released > 0.0f && CurrentAlignmentElement != ESpellElement::Generic)
+	{
+		if (UWorld *World = GetWorld())
+		{
+			if (UGameInstance *GI = World->GetGameInstance())
+			{
+				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
+				{
+					SBM->AddStatusBuildup(Owner, Owner, Released,
+										  CurrentAlignmentElement, EPhysicalDamageType::None,
+										  /*bSkipBaseStatAmp=*/true);
+				}
+			}
+		}
 	}
 }
 

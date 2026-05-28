@@ -151,6 +151,26 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Small-Medium — one new buildup call inside the existing forbidden-cast path, scaled correctly off StatusMultiplier; route via `UStatusBuildupManager::AddStatusBuildup(Caster, Caster, Amount, ForbiddenElement, None)` so the standard pipeline (resistance, trigger) applies.
 
 ### 4.3 BD overload aura per-turn tick — status-buildup + absorption-drain coupling unwired
+✅ **RESOLVED** on `feature/bd-overload-aura` (branched off `feature/fix-bd-stack-multiplier` for step 5c availability). The locked design is now wired in `UBrokenDarknessManager::ProcessOverloadTick`:
+
+- **Unified HP-damage path.** Both aura damage (to combatants in range) and self-damage now scale `Base × GetCrystalModifiedSpellDamage()` — the 4.2 forbidden-cast convention. Previously both scaled by `StatusMultiplierBonus`, which mixed channels (damage and status sharing one stat curve). `ApplyDamageToActor` stays the shared apply primitive. `OnOverloadDamage` broadcast preserved at the same three sites.
+
+- **Coupled energy leak.** `released = BaseEnergyRelease × StatusMultiplierBonus × EfficiencyMult` — single quantity feeding both outflows:
+  - **Drain:** `ServerSpendEnergy(RoundToInt(released))`, replacing the prior decoupled `BaseEnergyDrain × (1 - Eff%)` formula (which also had the Efficiency direction inverted relative to its inline comment — fixed in passing).
+  - **Self-status:** `AddStatusBuildup(BD, BD, released, GetCurrentAlignment(), None, /*bSkipBaseStatAmp=*/true)` — same `released` number, no recomputation.
+
+- **New `bSkipBaseStatAmp` flag on `AddStatusBuildup`** (default false). Gates ONLY step 5 (the base-stat `1 + (Spirit × points × per-point)` block). Steps 5b (skill-effect StatusMultiplierBuff/Debuff), 5c (BD absorption-stack amplification — restored on `feature/fix-bd-stack-multiplier`), and 6 (target resistance) all still fire on the self-status. Skip is correct because `released` already includes the base-stat StatusMultiplier — re-applying step 5 would double-count.
+
+- **Renames + signature cleanup:**
+  - `BaseEnergyDrain` → `BaseEnergyRelease` (semantic shift: now one constant drives both drain and self-status, per locked design).
+  - `ProcessOverloadTick(NearbyEnemies, StatusMultiplierBonus, EfficiencyPercent)` → `(..., EfficiencyMult)`. `CombatOrchestrator` drops the prior `× 100 / × 0.01` round-trip and passes the [`1 - EFFICIENCY_MAX`, `1.0`] multiplier directly.
+
+- **Auto-exit preserved.** `ServerSpendEnergy` broadcasts `OnEPChanged`, which `HandleOwnerEnergyChanged` consumes to call `UpdateOverloadState` → `ExitOverload` when `CurrentEP ≤ MaxEP`. The leak provides the self-recovery curve the design specified.
+
+- **Stack multiplier comes along for free.** A Fire-aligned BD at stacks 2/3 overloading on Fire gets the self-status amplified ×2/×4 via step 5c — automatic consequence of routing self-status through `AddStatusBuildup`. No manual stack-handling needed in `ProcessOverloadTick`.
+
+**Original gap below for history.**
+
 - **What:** When BD absorbs **past their absorption limit**, they enter overload — an unstable aura of the absorbed element that should, per turn while overloaded, release elemental energy. `OnOverloadDamage` already broadcasts (`BrokenDarknessManager.cpp:301, 511, 521`) so HP-damage may be partially wired; the **status-buildup release + absorption-drain coupling** is the missing core design.
 - **Where:** `UBrokenDarknessManager` overload state machine + `OnOverloadDamage` broadcast path; `UStatusBuildupManager::AddStatusBuildup` for the status half. Likely tick site is the existing overload-state per-turn processing (audit before adding to avoid double-wiring HP damage).
 - **Design (locked, key insight: status buildup IS released elemental energy — one flow, multiple faces):**
@@ -419,7 +439,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 3.1 | ActionExecutor `OnActionStarted`/`Completed`/`HealingDone`/`TargetKilled` no consumers | Medium | Medium | — |
 | 4.1 | **✅ RESOLVED partial (sweep-5)** — BD UI display: `GetDisplayElement` helper + stack-text wiring (single-alignment "Fire x3") + overload text color (yellow/orange/red); `OnTransformed` stinger still pending | Medium | Small | YES (if runtime BD transform happens on stage) |
 | 4.2 | **✅ RESOLVED (bd-forbidden-cast-self-cost)** — forbidden-cast self-buildup wired in `ProcessForbiddenCast`; self-damage corrected to scale off `GetCrystalModifiedSpellDamage` | Medium | Small-Medium | — |
-| 4.3 | BD overload aura per-turn tick — status-buildup release + absorption-drain coupling unwired; HP-damage half may be partially wired via `OnOverloadDamage` | Medium | Medium | — |
+| 4.3 | **✅ RESOLVED (bd-overload-aura)** — coupled `released` quantity drains absorption + becomes self-status; HP-damage unified on `GetCrystalModifiedSpellDamage`; `bSkipBaseStatAmp` flag on `AddStatusBuildup` prevents stat double-count | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |
 | 7.1 | SkillEffectManager Phase 2 passive-layer stubs | Medium | Medium | YES (if affected effects are demo'd) |
