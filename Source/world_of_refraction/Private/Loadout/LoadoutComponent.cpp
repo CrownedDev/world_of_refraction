@@ -1540,11 +1540,11 @@ EPrimarySlotType ULoadoutComponent::GetPrimarySlotType() const
     if (!Inv)
     {
         UE_LOG(LogTemp, Warning, TEXT("[ULoadoutComponent::GetPrimarySlotType] No InventoryComponent found on owner"));
-        return EPrimarySlotType::Weapon;
+        return EPrimarySlotType::None;
     }
     if (!Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
-        return EPrimarySlotType::Weapon;
+        return EPrimarySlotType::None;
     }
     return Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].PrimarySlotType;
 }

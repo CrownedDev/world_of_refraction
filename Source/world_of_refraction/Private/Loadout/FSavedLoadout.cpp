@@ -53,6 +53,10 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
             Errors.Add(TEXT("Primary slot set to Evolution but no evolution crystal assigned"));
         }
         break;
+
+    case EPrimarySlotType::None:
+        // Empty primary is valid — no primary equipment to validate.
+        break;
     }
 
     // ==================== GENERIC VALIDATION ====================

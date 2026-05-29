@@ -227,7 +227,7 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
         if (Loadout.RequiredClass == ECharacterClass::Resonator &&
             Loadout.PrimarySlotType == EPrimarySlotType::Ring)
         {
-            Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+            Loadout.PrimarySlotType = EPrimarySlotType::None;
             Loadout.PrimaryRing = nullptr;
         }
 

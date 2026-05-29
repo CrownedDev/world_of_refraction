@@ -94,7 +94,7 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     /** Primary slot type (Weapon/Ring/Evolution) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
-    EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
+    EPrimarySlotType PrimarySlotType = EPrimarySlotType::None;
 
     /** Primary weapon (when PrimarySlotType == Weapon) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
