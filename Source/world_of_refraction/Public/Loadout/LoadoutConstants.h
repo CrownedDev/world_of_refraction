@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "Equipment/Weapons/EWeaponSlotType.h"
+
 namespace LoadoutConstants
 {
     // Abilities
@@ -24,11 +26,28 @@ namespace LoadoutConstants
     constexpr int32 MAX_WEAPONS_GENERIC = 2;
     constexpr int32 MAX_WEAPONS_ELEMENTAL = 1;
 
-    constexpr int32 RESONATOR_RING_SLOTS_NORMAL = 5;
-    constexpr int32 RESONATOR_RING_SLOTS_EVOLVED = 3;
-    constexpr int32 RESONATOR_MAX_EVOLVED_RINGS_NORMAL = 2;
-    constexpr int32 RESONATOR_MAX_EVOLVED_RINGS_EVOLVED = 1;
+    // Unified loadout budget — primary slot cost + ring slot costs must not exceed this.
+    constexpr int32 LOADOUT_TOTAL_BUDGET = 5;
 
     // Evolution
     constexpr int32 MAX_EVOLUTION_SPELLS = 6;
+
+    /** Budget cost of occupying the primary slot.
+     *  None = 0 (empty primary), Weapon = 1, Evolution = 2.
+     *  Ring = 0: a ring is never a Resonator primary, and Generic/Caster
+     *  ring-primaries carry no ring-budget cost — treated as no adjustment. */
+    inline int32 GetPrimarySlotCost(EPrimarySlotType SlotType)
+    {
+        switch (SlotType)
+        {
+        case EPrimarySlotType::Weapon:
+            return 1;
+        case EPrimarySlotType::Evolution:
+            return 2;
+        case EPrimarySlotType::Ring:
+        case EPrimarySlotType::None:
+            return 0;
+        }
+        return 0;
+    }
 }

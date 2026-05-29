@@ -597,15 +597,14 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             }
         }
 
-        // Ring limits depend on evolution state
-        const bool bIsEvolved = (Loadout.PrimarySlotType == EPrimarySlotType::Evolution);
-        const int32 MaxSlots = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
-                                          : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
-
-        if (TotalSlotCost > MaxSlots)
+        // Unified budget: primary slot cost + ring slot costs must fit one budget.
+        const int32 PrimaryCost = LoadoutConstants::GetPrimarySlotCost(Loadout.PrimarySlotType);
+        const int32 TotalCost = PrimaryCost + TotalSlotCost;
+        if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
-            Errors.Add(FString::Printf(TEXT("Ring loadout exceeds slot capacity (%d/%d slots)"),
-                                       TotalSlotCost, MaxSlots));
+            Errors.Add(FString::Printf(
+                TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
 
@@ -825,14 +824,15 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
             }
         }
 
-        const bool bIsEvolved = (Loadout.PrimarySlotType == EPrimarySlotType::Evolution);
-        const int32 MaxSlots = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
-                                          : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
-        if (TotalSlotCost > MaxSlots)
+        // Unified budget: primary slot cost + ring slot costs must fit one budget.
+        const int32 PrimaryCost = LoadoutConstants::GetPrimarySlotCost(Loadout.PrimarySlotType);
+        const int32 TotalCost = PrimaryCost + TotalSlotCost;
+        if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
             AddFinding(ELoadoutSlotType::None, -1, false,
-                       FString::Printf(TEXT("Ring loadout exceeds slot capacity (%d/%d slots)"),
-                                       TotalSlotCost, MaxSlots));
+                       FString::Printf(
+                           TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                           PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
 
