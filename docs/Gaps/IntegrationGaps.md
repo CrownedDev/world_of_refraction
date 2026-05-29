@@ -47,6 +47,7 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Impact:** Player has no on-screen defense UI. The defense window opens silently — only AI defenders react (via `AIDecisionManager.cpp:388`); players have no countdown, no button prompts, no result feedback through C++.
 - **Priority:** High — pitch-blocker for any demo that includes a player defending.
 - **Scope:** Small — implement the seven TODOs, spawn from `BP_CombatOrchestrator` HUD init.
+- **Status:** Deferred pending design decisions — priority unchanged (still High, still a pitch-blocker), but implementation is blocked on Crown answering: which defense options are available per attack context (the full set always, or attack-specific subsets); the timing-indicator style (shrinking bar / ring / QTE / something else); the input scheme (keyboard / mouse / controller — couples to the new production PC from gap 1.1); the no-input fallback (auto-block / take the hit / something else); and the visual style plus how the prompt relates to the existing combat HUD. The seven TODOs can't be written truthfully until these are locked, so 2.1 waits on Crown rather than on engineering capacity.
 
 ### 2.2 `DefenseSystem::OnDefenseWindowOpened` has zero C++ subscribers
 - **What:** Broadcast on every defense window open but nothing in C++ listens.
