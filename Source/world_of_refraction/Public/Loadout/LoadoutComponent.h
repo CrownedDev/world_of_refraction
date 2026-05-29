@@ -74,6 +74,50 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
     UObject *Holder = nullptr;
 };
 
+/** Discriminates which loadout slot an FInvalidSlotFinding refers to.
+ *  `None` marks a non-slot diagnostic (guard failure, structural cap,
+ *  duplicate-type, BD pool issue) — surfaced but not individually clearable. */
+UENUM()
+enum class ELoadoutSlotType : uint8
+{
+    None,
+    PrimaryWeapon,
+    PrimaryRing,
+    PrimaryEvolution,
+    SecondaryWeapon,
+    ResonatorRing,
+    InnateSpell,
+    WeaponAbility,
+    WeaponSpell,
+    BDPoolSpell
+};
+
+/** One actionable validation finding, produced by
+ *  ULoadoutComponent::CollectInvalidSlotFindings — the structured counterpart to
+ *  the human-readable strings from GetValidationErrors. SlotType + SlotIndex make
+ *  a finding addressable so ClearInvalidSlots can null the exact slot.
+ *  bClearable == false marks diagnostics (guards, structural caps, BD pools) that
+ *  are reported but never auto-cleared. */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FInvalidSlotFinding
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    ELoadoutSlotType SlotType = ELoadoutSlotType::None;
+
+    /** Index within the slot category (ability index, spell index, ring index).
+     *  -1 for non-indexed / single slots (primary weapon, primary ring, etc.). */
+    UPROPERTY()
+    int32 SlotIndex = 0;
+
+    UPROPERTY()
+    FString Reason;
+
+    UPROPERTY()
+    bool bClearable = true;
+};
+
 /**
  * ULoadoutComponent
  * Manages active combat loadout and runtime battle state
@@ -171,6 +215,21 @@ public:
     /** Get validation errors for loadout */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Validation")
     TArray<FString> GetValidationErrors(int32 Index, UInventoryComponent *Inventory) const;
+
+    /** Slot-actionable counterpart to GetValidationErrors. Re-runs the same
+     *  validation against the ACTIVE saved loadout but returns structured,
+     *  addressable findings (SlotType + SlotIndex) instead of strings, so
+     *  ClearInvalidSlots can null the exact offending slots. GetValidationErrors
+     *  is intentionally left untouched for its existing callers.
+     *
+     *  Inventory is resolved via GetInventoryComponent(); operates on the active
+     *  loadout index. (C++ only — the BP-facing surface is the Phase 5 debug
+     *  helper / the eventual clear path.)
+     *
+     *  Phase 1: parity with GetValidationErrors (ownership + structural +
+     *  class-element-castability + BD pool). Element-source and weapon-type
+     *  detection are added in Phase 2. */
+    TArray<FInvalidSlotFinding> CollectInvalidSlotFindings() const;
 
     // ==================== BATTLE PREPARATION ====================
 
