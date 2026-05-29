@@ -80,6 +80,10 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ## 3. Combat lifecycle observability — broadcasts without consumers
 
 ### 3.1 `UActionExecutor` events `OnActionStarted` / `OnActionCompleted` / `OnHealingDone` / `OnTargetKilled` have no production C++ subscribers
+🔀 **SPLIT (2026-05-29 triage)** — two halves with different statuses:
+- **Camera half → BLOCKED-DESIGN.** Wiring `OnActionStarted`/`OnActionCompleted` to the camera (uncomment the bindings, flesh out the stub handlers) is a small implementation; the *work* is the design question — what should the camera DO when an action fires? Crown deferred pending **camera-feel direction**. Implementation scope is small; design scope (camera language/feel for combat actions) is the unresolved work. Defer until camera direction is decided. Pairs with [7.3].
+- **Asset half → BLOCKED-EXTERNAL.** Kill-feed (`OnTargetKilled`) and healing-VFX (`OnHealingDone`) consumers depend on a combat-log surface + VFX/SFX assets that don't exist yet. Same bucket as 5.1/5.2.
+
 - **What:** Four major action-event broadcasts go unconsumed. Camera bindings are present-but-commented-out.
 - **Where:** Declarations `ActionExecutor.h:53, 56, 62, 65`. Broadcasts: `ActionExecutor.cpp:352, 481` (OnActionStarted), `:408, 1597` (OnActionCompleted), `:2222, 4122` (OnHealingDone), `:1397` (OnTargetKilled).
 - **Evidence:** Camera bindings commented out: `CombatCameraManager.cpp:78` `// ActionExecutor->OnActionStarted.AddDynamic(this, &ACombatCameraManager::OnActionStarted);` and `:79` `// ActionExecutor->OnActionCompleted.AddDynamic(this, &ACombatCameraManager::OnActionCompleted);`. Plus `CombatCameraManager.cpp:77` `// TODO: Bind to ActionExecutor events when available`. The handler functions (`CombatCameraManager.cpp:464, 470`) exist as empty/log-only stubs.
@@ -96,6 +100,8 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Medium for the result UI; Low to delete `OnActorTurnStarted` if redundant.
 
 ### 3.3 `UCharacterDataComponent::OnResurrected` — broadcast, no subscribers
+⛔ **BLOCKED-EXTERNAL (2026-05-29 triage)** — Producer wired correctly; consumer-side is asset-blocked on revive VFX/SFX/UI/combat-log. The revive mechanic exists (S-tier healing item + effects) and `OnResurrected` fires correctly; what's missing is the *feedback*, and every plausible consumer (resurrection VFX, SFX, a UI flash, a combat-log entry) is itself blocked on assets/systems that don't exist. C++ side is complete. Same bucket as 5.1/5.2.
+
 - **What:** Revive intercept fires `OnResurrected` but nothing listens.
 - **Where:** `CharacterDataComponent.h:17` (decl); broadcasts at `:272, 289`.
 - **Evidence:** No `AddDynamic` to `OnResurrected` anywhere. Compare `OnDied` (`:250, 291`) which IS bound by CharacterPanelWidget and WeatherStateManager.
@@ -278,6 +284,8 @@ The original dead helpers (`ApplySelfStatusBuildup`, `ApplySelfDamage`, magic-nu
 > Buildup-on-self code path is unimplemented. TODOs at `ActionExecutor.cpp:3430` `// TODO: Implement status buildup on self`, `:3535` `// TODO: Integrate with SkillEffectManager when API is available`, and the adjacent magic number `:3532` `int32 BaseBuildup = 10 * HitCount`. Framing assumed a new "self-buildup channel" was needed; sweep-4 verification showed the right answer was two effect types that flow through the existing effect pipeline.
 
 ### 7.3 `UCombatCameraManager` TODO `// Get target from action and transition to Action camera`
+🎨 **BLOCKED-DESIGN (2026-05-29 triage)** — Implementation scope is small; design scope (camera language/feel for combat actions) is the unresolved work. Defer until camera direction is decided. Moves in lockstep with [3.1]'s camera half.
+
 - **What:** Action camera transition not wired.
 - **Where:** `Private/CombatCameraManager.cpp:466`.
 - **Evidence:** Quoted above; lives inside the `OnActionCompleted` handler which is itself unbound (item 3.1).
@@ -290,6 +298,10 @@ The original dead helpers (`ApplySelfStatusBuildup`, `ApplySelfDamage`, magic-nu
 ## 8. UI lifecycle lives only in BP / test actors
 
 ### 8.1 No production C++ spawns HUD widgets — only `AHUDTestActor`
+✅ **CLOSED (working as designed)** — BP-via-`OnCombatStartedUI` is the intentional extension point pattern, not a fragile workaround. `ACombatOrchestrator` declares `OnCombatStartedUI` as a `BlueprintImplementableEvent` (CombatOrchestrator.h, *"override in BP to create HUD"*) and calls it at `CombatOrchestrator.cpp:207` after `TurnManager` init (correct widget-lifecycle ordering); `BP_CombatOrchestrator` overrides it to spawn the HUD. The original framing below ("no production C++ spawns HUD widgets") was factually true but mischaracterized the design — BP-side spawn IS the intended architecture. `AHUDTestActor` is unrelated test-only scaffolding (an editor isolation harness, PIE-guarded, manual `CallInEditor` spawn). No port-to-C++ is required. The only residual is auditability (the C++ side can't grep-verify the BP wiring exists) — noted, not actioned.
+
+**Original framing below for history.**
+
 - **What:** `UCharacterPanelWidget`, `UTurnOrderStripWidget`, and (when implemented) `UDefensePromptWidget` are only instantiated by `AHUDTestActor`; production spawning must happen entirely in `BP_CombatOrchestrator`.
 - **Where:** `Source/world_of_refraction/Private/Testing/HUDTestActor.cpp:121` (`Strip->InitialiseForCombat()`); `:43-58` (TargetActor wiring). Per `UISystem.md:22-34`, the old `UCombatHUDRoot` was deleted and never replaced in C++.
 - **Evidence:** `grep -rn "InitialiseForCombat" Source/world_of_refraction` shows only `HUDTestActor.cpp` calling widget init outside of self-init sites.
@@ -410,13 +422,15 @@ Resistance side was NOT added: the live path's `GetTotalElementResistance` (`Sta
 - **Where:** `ULoadoutComponent::GetValidationErrors` (`LoadoutComponent.cpp:440-667`, currently `const`). Comprehensive ownership checks exist (primary weapon, weapon `AssignedAbilities`/`AssignedSpells`, primary ring, primary evolution via `UEvolutionInventoryComponent::HasInstance`, secondary weapon, ring loadout with slot-cost cap, innate spells with element-capability gate) but each finding becomes an error string — no slot is cleared. Called from `ValidateActiveLoadout`/`ValidateLoadout`/`PrepareForBattle`; `PrepareForBattle` is soft-fail (errors broadcast via `OnValidationFailed`, battle still starts).
 - **Impact:** Authored loadouts with unowned references pass through to combat. The character will attempt to use the unowned item at runtime — silent failure or potential crash depending on null-handling at the use site. Logged via `OnValidationFailed` broadcast but the slot itself is not cleared.
 - **Priority:** Medium — data-integrity, latent runtime bug.
-- **Scope:** Medium — contract change (validator becomes non-const, mutation semantics), plus careful audit of every `GetValidationErrors` caller (currently 3 in `LoadoutComponent.cpp` alone) to make sure mutation is safe at each call site.
-- **Status:** NOT in this sweep — separate future task.
+- **Scope:** Small *(downgraded from Medium — 2026-05-29 survey).* The detection logic is already in place and comprehensive for ownership-mismatch (Crown's only invalidity category — stat/class requirements are scaling-only, not eligibility-blocking). No validator redesign needed.
+- **Status:** ✅ **CONFIRMED DOABLE-NOW (2026-05-29 survey).** Reactive battle-prep clear (a separate `ClearInvalidSlots` method called after the `OnValidationFailed` broadcast in `PrepareForBattle`) is the minimum-viable fix — `GetValidationErrors` already pinpoints every bad reference, so the new method just nulls the flagged slots before combat starts. Item slots are already exempt (self-owning transfer model). ~30 min focused work. Survey confirmed: inventory removal paths (`RemoveWeapon`/`RemoveRing`/`RemoveCrystalFrom*`) do NOT clear loadout refs, and there are no runtime equip setters, so the battle-prep gate is the right (and only) chokepoint.
 
 #### Original framing (sweep-1 catalog entry)
 > Three TODOs in `FCombatLoadout.cpp` at lines 59, 97, 149: "Validate against inventory when component exists." Treated as a small fix wiring three inventory cross-checks. Sweep-2 verification: those three TODO sites were inside `FCombatLoadout::ValidateGeneric / ValidateCaster / ValidateResonator` — zero callers anywhere in the module. The dead functions were deleted; the real gap (soft-reject semantics on the live path) was reframed above.
 
 ### 10.7 `LoadoutComponent` auto-populate is dumb
+🎯 **BLOCKED-DESIGN (2026-05-29 triage)** — Likely tied to the character-to-enemy loadout source decision. Design question: when a player uploads a character without explicit loadouts, where does the loadout come from? Direction A (max power), B (thematic), C (constrained random), or hybrid? What "smart" means depends entirely on what auto-populate is *for*, and that isn't decided. **NOT** related to the loadout-as-difficulty model — authored enemies use hand-authored loadouts (see [`docs/Design/LoadoutDifficultyModel.md`](../Design/LoadoutDifficultyModel.md)).
+
 - **Where:** `Private/LoadoutComponent.cpp:1037` `// TODO: Implement smarter auto-population`.
 - **Impact:** `AutoPopulateLoadout` only assigns the first available weapon and skips items entirely.
 - **Priority:** Low — affects authoring UX, not gameplay.
@@ -436,7 +450,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 3.2 | Orchestrator `OnCombatResultReady` / `OnCombatStateChanged` no production C++ subscriber | Medium-High | Medium | YES (if no BP) |
 | 1.2 | Player defense input is BP-only | Medium | Small | — |
 | 2.3 | `OnDefenseInputReceived` / `OnParryReflect` / `OnDefenseCueTriggered` no subscribers | Medium | Small | — |
-| 3.1 | ActionExecutor `OnActionStarted`/`Completed`/`HealingDone`/`TargetKilled` no consumers | Medium | Medium | — |
+| 3.1 | **🔀 SPLIT (2026-05-29)** — camera half → BLOCKED-DESIGN (camera-feel direction); kill-feed/healing-VFX half → BLOCKED-EXTERNAL (combat-log + VFX) | Medium | Small (camera) | — |
 | 4.1 | **✅ RESOLVED partial (sweep-5)** — BD UI display: `GetDisplayElement` helper + stack-text wiring (single-alignment "Fire x3") + overload text color (yellow/orange/red); `OnTransformed` stinger still pending | Medium | Small | YES (if runtime BD transform happens on stage) |
 | 4.2 | **✅ RESOLVED (bd-forbidden-cast-self-cost)** — forbidden-cast self-buildup wired in `ProcessForbiddenCast`; self-damage corrected to scale off `GetEvolutionModifiedSpellDamage` | Medium | Small-Medium | — |
 | 4.3 | **✅ RESOLVED (bd-overload-aura)** — coupled `released` quantity drains absorption + becomes self-status; HP-damage unified on `GetEvolutionModifiedSpellDamage`; `bSkipBaseStatAmp` flag on `AddStatusBuildup` prevents stat double-count | Medium | Medium | — |
@@ -444,15 +458,15 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |
 | 7.1 | SkillEffectManager Phase 2 passive-layer stubs | Medium | Medium | YES (if affected effects are demo'd) |
 | 7.2 | **✅ RESOLVED (sweep-4)** — Status-buildup-on-self TODO — reframed: two new effect types `StatusIncrease`/`StatusDecrease` flow through existing effect system with element from resolved cast source | Medium | Small | — |
-| 7.3 | Action-camera transition TODO | Medium | Small | — |
-| 8.1 | HUD spawn only via test actor / BP | Medium | Medium | — |
+| 7.3 | **🎨 BLOCKED-DESIGN (2026-05-29)** — Action-camera transition; impl small, camera-feel direction is the work; pairs with 3.1 camera half | Medium | Small | — |
+| 8.1 | **✅ CLOSED (working as designed)** — BP-via-`OnCombatStartedUI` is the intentional extension-point pattern; `AHUDTestActor` is unrelated test scaffolding; no C++ port needed | — | — | — |
 | 9.2 | BD InnateSpells empty | Medium (if BD demoed) | Small (designer fix) | YES (if BD) |
 | 10.1 | **✅ RESOLVED (sweep-2)** — AI `SpellSource` defaults to Innate — new `ULoadoutComponent::ResolveSpellSource` helper; 6 AI sites updated; locked precedence Innate→Ring→Weapon→Evolution | Medium | Small | YES (AI casts will mis-charge) |
 | 10.4 | **✅ RESOLVED (sweep-1)** — Beam DOT placeholder 5/tick — discrete-tick model; new `USpellData::BeamTickInterval` field; remainder distributed across ticks | Medium | Small | YES (if beams demoed) |
 | 10.5 | **✅ RESOLVED (sweep-3)** — DamageCalculator StatusMultiplier modifiers — dead-code deletion + StatusMultiplierBuff/Debuff wired into live StatusBuildupManager path (resistance side already lived there) | Medium | Small | — |
-| 10.6 | **🔄 REFRAMED (sweep-2)** — loadout validation reports errors but doesn't clear bad slots — dead struct-side Validate* deleted; live `GetValidationErrors` needs mutation semantics (separate future task) | Medium | Medium | — |
+| 10.6 | **✅ CONFIRMED DOABLE-NOW (2026-05-29)** — detection already comprehensive; min fix is a reactive `ClearInvalidSlots` at battle-prep (~30 min), not a validator redesign | Medium | Small | — |
 | 2.4 | **✅ RESOLVED (sweep-1)** — `OnDefenseWindowRequested` pure dead | Low | Small | — |
-| 3.3 | `OnResurrected` no subscribers | Low | Small | — |
+| 3.3 | **⛔ BLOCKED-EXTERNAL (2026-05-29)** — `OnResurrected` producer wired; consumer-side asset-blocked (revive VFX/SFX/UI/combat-log) | Low | Small | — |
 | 6.1 | **✅ RESOLVED (sweep-1)** — Movement Approach/Return delegates never broadcast — dead bits deleted; `FOnApproachComplete` renamed to `FOnMovementComplete` to match the live field | Low | Small | — |
 | 6.2 | `OnMovementCancelled` no subscribers | Low | Small | — |
 | 6.3 | Teleport vanish/appear VFX TODOs | Low | Small (asset-bound) | — |
@@ -460,7 +474,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 9.1 | Verify cycle-source intent for other submenus | Low (verify) | Small | — |
 | 10.2 | **✅ RESOLVED (sweep-1)** — Attack tier/size hardcoded — read from asset; new `UWeaponAttackData::BaseSize` field | Low | Small | — |
 | 10.3 | `ESpellSource::Item` stub case (unreachable) | Low | Small | — |
-| 10.7 | LoadoutComponent auto-populate dumb | Low | Medium | — |
+| 10.7 | **🎯 BLOCKED-DESIGN (2026-05-29)** — auto-populate's home is the character-to-enemy loadout-source decision (max-power / thematic / constrained-random?); not authored-enemy difficulty | Low | Medium | — |
 
 **Totals:** 31 distinct gaps — **3 High**, **14 Medium / Medium-High**, **14 Low**.
 **Pitch-impacting (the subset most likely to bite the demo):** 1.1, 2.1, 2.2, 3.2, 4.1, 7.1, 9.2, 10.1, 10.4.
