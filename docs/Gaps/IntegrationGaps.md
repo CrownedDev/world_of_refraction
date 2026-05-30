@@ -294,6 +294,15 @@ The original dead helpers (`ApplySelfStatusBuildup`, `ApplySelfDamage`, magic-nu
 - **Priority:** Pair with 3.1 (Medium).
 - **Scope:** Small.
 
+### 7.4 `USkillEffectManager` has no `SkillEffectManagerDebug` pair — CLAUDE.md tooling gap
+- **What:** Every other C++ system ships a `<SystemName>Debug.h/.cpp` pair per the CLAUDE.md "Debug tools — required per system" rule (CharacterDataDebug, WeaponDataDebug, ItemDataDebug, SpellDataDebug, AbilityDataDebug, BreakCalculatorDebug, etc.). `USkillEffectManager` — a runtime subsystem holding per-actor `ActiveEffects` state — has no such pair. There is no `GetActiveEffectsString(Actor)` / `PrintEffectState(Actor)` / `GetXxxString()` snapshot inspector.
+- **Where:** `Source/world_of_refraction/Private/Skills/Effects/` and `.../Public/Skills/Effects/` — no `SkillEffectManagerDebug.*` present (confirmed by glob 2026-05-30).
+- **Evidence:** `SkillEffectManagerTestActor` currently fills the inspection role, but it's an editor isolation harness (PIE-guarded, manual `CallInEditor` spawn) — not the lightweight static-logging snapshot tool the CLAUDE.md pattern prescribes. Per the rule: *"If a system can't be inspected without launching PIE and triggering the exact path, debug tools are missing."* SkillEffect state today meets that bar.
+- **Impact:** Active-effect state (which buffs/debuffs are on an actor, stacks, remaining turns, summed stat modifiers) can't be dumped on demand without the test-actor flow. This bit the 7.1 survey directly — verifying `GetTotalStatModifier` returns live values had to be reasoned from the data flow rather than read off a snapshot. Diagnosing passive-effect issues in PIE is harder than it should be.
+- **Priority:** Low — tooling/compliance, not a runtime defect. No gameplay impact.
+- **Scope:** Small — a `SkillEffectManagerDebug.h/.cpp` pair: static `GetActiveEffectsString(AActor*)` + `PrintEffectState(AActor*)` logging via `UE_LOG` / `AddOnScreenDebugMessage`, mirroring the existing Debug pairs. Optionally a `CompareEffectState()` snapshot helper for the runtime-system variant of the pattern.
+- **Surfaced by:** 7.1 survey (2026-05-30) — flagged out-of-scope there and filed here.
+
 ---
 
 ## 8. UI lifecycle lives only in BP / test actors
@@ -473,6 +482,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 7.1 | **✅ RESOLVED (2026-05-30, docs-only)** — passive handling works as designed: effects enter `ActiveEffects` in `ApplyEffect`, `GetTotalStatModifier` reads them directly; log-only `ApplyEffectLogic` bodies are correct for query-driven types; on-hit triggers wired at `OnDamageDealtHandler:1357`. "Stubbed handlers blocking aggregation" framing was incorrect | Medium | — | — |
 | 7.2 | **✅ RESOLVED (sweep-4)** — Status-buildup-on-self TODO — reframed: two new effect types `StatusIncrease`/`StatusDecrease` flow through existing effect system with element from resolved cast source | Medium | Small | — |
 | 7.3 | **🎨 BLOCKED-DESIGN (2026-05-29)** — Action-camera transition; impl small, camera-feel direction is the work; pairs with 3.1 camera half | Medium | Small | — |
+| 7.4 | **🛠️ DOABLE-NOW (2026-05-30)** — no `SkillEffectManagerDebug` pair; CLAUDE.md "debug tools per system" compliance gap. Surfaced by 7.1 survey | Low | Small | — |
 | 8.1 | **✅ CLOSED (working as designed)** — BP-via-`OnCombatStartedUI` is the intentional extension-point pattern; `AHUDTestActor` is unrelated test scaffolding; no C++ port needed | — | — | — |
 | 9.2 | BD InnateSpells empty | Medium (if BD demoed) | Small (designer fix) | YES (if BD) |
 | 10.1 | **✅ RESOLVED (sweep-2)** — AI `SpellSource` defaults to Innate — new `ULoadoutComponent::ResolveSpellSource` helper; 6 AI sites updated; locked precedence Innate→Ring→Weapon→Evolution | Medium | Small | YES (AI casts will mis-charge) |
@@ -490,7 +500,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 10.3 | `ESpellSource::Item` stub case (unreachable) | Low | Small | — |
 | 10.7 | **🎯 BLOCKED-DESIGN (2026-05-29)** — auto-populate's home is the character-to-enemy loadout-source decision (max-power / thematic / constrained-random?); not authored-enemy difficulty | Low | Medium | — |
 
-**Totals:** 31 distinct gaps — **3 High**, **14 Medium / Medium-High**, **14 Low**.
+**Totals:** 32 distinct gaps — **3 High**, **14 Medium / Medium-High**, **15 Low**.
 **Pitch-impacting (the subset most likely to bite the demo):** 1.1, 2.1, 2.2, 3.2, 4.1, 7.1, 9.2, 10.1, 10.4.
 
 **Smallest fix-set to unblock a clean pitch demo:** 2.1 (implement DefensePromptWidget Phase 1) + 1.1 (gate or remove `CombatPlayerController` test path) + confirm BP-side coverage of 3.2 (or ship a minimal C++ result-overlay). Three focused fixes, ~one session each.
