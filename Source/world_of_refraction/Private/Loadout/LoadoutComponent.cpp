@@ -20,6 +20,7 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Engine/GameInstance.h"
+#include "Engine/Engine.h"
 
 #include "Equipment/Weapons/WeaponAttackData.h"
 
@@ -1208,6 +1209,11 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
     // error but its return value is intentionally ignored. Combat proceeds
     // with whatever's valid; validation surfaces warnings, not failures.
     ValidateActiveLoadout(Inventory);
+
+    // After surfacing the warnings, null every clearable invalidity so combat
+    // starts from a guaranteed-valid loadout. Runs before ApplyAutoEquip so the
+    // item-slot refill operates on the already-cleaned loadout.
+    ClearInvalidSlots();
 
     if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
     {
@@ -2742,6 +2748,68 @@ void ULoadoutComponent::DebugLogLoadout()
     }
 
     UE_LOG(LogTemp, Log, TEXT("=============================="));
+}
+
+void ULoadoutComponent::DebugClearAndReportValidation()
+{
+    auto Report = [](const FString &Line, const FColor &Color)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("%s"), *Line);
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 8.0f, Color, Line);
+        }
+    };
+
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        Report(TEXT("[DebugClearAndReportValidation] No valid active loadout"), FColor::Red);
+        return;
+    }
+
+    auto PrintSummary = [&](const TCHAR *Label)
+    {
+        const FCombatLoadout &L = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+        Report(FString::Printf(
+                   TEXT("%s '%s': Primary=%s  Rings=%d  EvoSpells=%d  Innate=%d  Items=%d"),
+                   Label, *L.LoadoutName,
+                   *UEnum::GetValueAsString(L.PrimarySlotType),
+                   L.RingLoadout.Num(), L.EvolutionSpells.Num(),
+                   L.InnateSpells.Num(), L.ItemSlots.Num()),
+               FColor::Cyan);
+    };
+
+    Report(TEXT("=== DebugClearAndReportValidation ==="), FColor::White);
+    PrintSummary(TEXT("PRE "));
+
+    const TArray<FInvalidSlotFinding> Before = CollectInvalidSlotFindings();
+    Report(FString::Printf(TEXT("Findings: %d"), Before.Num()), FColor::Yellow);
+    for (const FInvalidSlotFinding &F : Before)
+    {
+        Report(FString::Printf(TEXT("  %s[%d] (clearable=%s) - %s"),
+                               *UEnum::GetValueAsString(F.SlotType), F.SlotIndex,
+                               F.bClearable ? TEXT("true") : TEXT("false"),
+                               *F.Reason),
+               F.bClearable ? FColor::Orange : FColor::Silver);
+    }
+
+    ClearInvalidSlots();
+
+    const TArray<FInvalidSlotFinding> After = CollectInvalidSlotFindings();
+    int32 ClearableAfter = 0;
+    for (const FInvalidSlotFinding &F : After)
+    {
+        if (F.bClearable)
+        {
+            ++ClearableAfter;
+        }
+    }
+    Report(FString::Printf(TEXT("Post-clear: %d clearable findings remain (expect 0)"), ClearableAfter),
+           ClearableAfter == 0 ? FColor::Green : FColor::Red);
+
+    PrintSummary(TEXT("POST"));
+    Report(TEXT("====================================="), FColor::White);
 }
 
 bool ULoadoutComponent::ShouldUseWeaponParry() const

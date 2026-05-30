@@ -609,6 +609,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void DebugLogLoadout();
 
+    /** Debug: print the active loadout's validation findings, run
+     *  ClearInvalidSlots, then re-print to show the cleared result.
+     *  CallInEditor button in the Details panel. Counts only clearable
+     *  findings post-clear (expect 0; non-clearable BD/guard findings may
+     *  legitimately remain). */
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
+    void DebugClearAndReportValidation();
+
 private:
     /** Helper to get CharacterData from sibling component */
     UCharacterData *GetOwnerCharacterData() const;
