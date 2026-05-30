@@ -598,7 +598,21 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         }
 
         // Unified budget: primary slot cost + ring slot costs must fit one budget.
-        const int32 PrimaryCost = LoadoutConstants::GetPrimarySlotCost(Loadout.PrimarySlotType);
+        int32 PrimaryCost = 0;
+        switch (Loadout.PrimarySlotType)
+        {
+        case EPrimarySlotType::Weapon:
+            // Runtime path: cost reflects the actual attached crystal (bare 1 / refined 2 / evolution 3).
+            PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
+            break;
+        case EPrimarySlotType::Evolution:
+            PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
+            break;
+        case EPrimarySlotType::None:
+        case EPrimarySlotType::Ring:
+            PrimaryCost = 0;
+            break;
+        }
         const int32 TotalCost = PrimaryCost + TotalSlotCost;
         if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
@@ -922,7 +936,21 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         }
 
         // Unified budget: primary slot cost + ring slot costs must fit one budget.
-        const int32 PrimaryCost = LoadoutConstants::GetPrimarySlotCost(Loadout.PrimarySlotType);
+        int32 PrimaryCost = 0;
+        switch (Loadout.PrimarySlotType)
+        {
+        case EPrimarySlotType::Weapon:
+            // Runtime path: cost reflects the actual attached crystal (bare 1 / refined 2 / evolution 3).
+            PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
+            break;
+        case EPrimarySlotType::Evolution:
+            PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
+            break;
+        case EPrimarySlotType::None:
+        case EPrimarySlotType::Ring:
+            PrimaryCost = 0;
+            break;
+        }
         const int32 TotalCost = PrimaryCost + TotalSlotCost;
         if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {

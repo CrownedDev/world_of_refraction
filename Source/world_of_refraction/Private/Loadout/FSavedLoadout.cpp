@@ -100,7 +100,25 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
         // Unified budget: primary slot cost + ring slot costs must fit one budget.
         // Subsumes the old count cap and the separate max-evolved-rings cap —
         // evolved rings cost 2 each, so overflow is caught by the cost arithmetic.
-        const int32 PrimaryCost = LoadoutConstants::GetPrimarySlotCost(PrimarySlotType);
+        int32 PrimaryCost = 0;
+        switch (PrimarySlotType)
+        {
+        case EPrimarySlotType::Weapon:
+            // Saved/design-time path: cost reflects the asset's default crystal.
+            if (PrimaryWeapon)
+            {
+                PrimaryCost = InventoryConstants::GetWeaponSlotCost(
+                    PrimaryWeapon->HasCrystal(), PrimaryWeapon->IsEvolved());
+            }
+            break;
+        case EPrimarySlotType::Evolution:
+            PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
+            break;
+        case EPrimarySlotType::None:
+        case EPrimarySlotType::Ring:
+            PrimaryCost = 0;
+            break;
+        }
         int32 RingCost = 0;
         for (const FResonatorRingSlot &Slot : EquippedRings)
         {
