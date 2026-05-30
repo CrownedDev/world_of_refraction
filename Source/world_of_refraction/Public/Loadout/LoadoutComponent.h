@@ -89,6 +89,7 @@ enum class ELoadoutSlotType : uint8
     InnateSpell,
     WeaponAbility,
     WeaponSpell,
+    RingSpell,
     BDPoolSpell
 };
 
@@ -107,9 +108,15 @@ struct WORLD_OF_REFRACTION_API FInvalidSlotFinding
     ELoadoutSlotType SlotType = ELoadoutSlotType::None;
 
     /** Index within the slot category (ability index, spell index, ring index).
-     *  -1 for non-indexed / single slots (primary weapon, primary ring, etc.). */
+     *  -1 for non-indexed / single slots (primary weapon, primary ring, etc.).
+     *  For RingSpell: the ring-loadout index (-1 = Generic/Caster primary ring). */
     UPROPERTY()
     int32 SlotIndex = 0;
+
+    /** Secondary index for nested slots. For RingSpell: the spell index within
+     *  the ring's AssignedSpells. -1 when unused. */
+    UPROPERTY()
+    int32 SubIndex = -1;
 
     UPROPERTY()
     FString Reason;

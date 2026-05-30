@@ -679,6 +679,51 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         Findings.Add(MoveTemp(Finding));
     };
 
+    auto AddRingSpellFinding = [&Findings](int32 RingLoadoutIndex, int32 SpellIndex, const FString &Reason)
+    {
+        FInvalidSlotFinding Finding;
+        Finding.SlotType = ELoadoutSlotType::RingSpell;
+        Finding.SlotIndex = RingLoadoutIndex;
+        Finding.SubIndex = SpellIndex;
+        Finding.bClearable = true;
+        Finding.Reason = Reason;
+        Findings.Add(MoveTemp(Finding));
+    };
+
+    // Element coherence for a ring's customisable spells against its crystal.
+    // Shared by the Resonator ring loadout and the Generic/Caster primary ring.
+    auto CheckRingSpellCoherence = [&AddRingSpellFinding](const FRingInventoryEntry &Ring, int32 RingLoadoutIndex)
+    {
+        if (!Ring.Ring)
+        {
+            return;
+        }
+        for (int32 j = 0; j < Ring.AssignedSpells.Num(); ++j)
+        {
+            USpellData *Spell = Ring.AssignedSpells[j];
+            if (!Spell)
+            {
+                continue;
+            }
+            if (!Ring.HasCrystal())
+            {
+                AddRingSpellFinding(RingLoadoutIndex, j,
+                                    FString::Printf(TEXT("Ring spell '%s' requires a crystal but the ring has none"),
+                                                    *Spell->Name));
+                continue;
+            }
+            const ESpellElement RingElement = Ring.GetElement();
+            if (RingElement != ESpellElement::Reality && Spell->Element != RingElement)
+            {
+                AddRingSpellFinding(RingLoadoutIndex, j,
+                                    FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
+                                                    *Spell->Name,
+                                                    *UEnum::GetValueAsString(Spell->Element),
+                                                    *UEnum::GetValueAsString(RingElement)));
+            }
+        }
+    };
+
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
     {
@@ -717,23 +762,69 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
             AddFinding(ELoadoutSlotType::PrimaryWeapon, -1, true, TEXT("Primary weapon not in inventory"));
         }
 
+        const UWeaponData *EquippedWeapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon;
         for (int32 i = 0; i < Loadout.PrimaryWeapon.AssignedAbilities.Num(); ++i)
         {
             UAbilityData *Ability = Loadout.PrimaryWeapon.AssignedAbilities[i];
-            if (Ability && !Inventory->HasAbility(Ability))
+            if (!Ability)
+            {
+                continue;
+            }
+            if (!Inventory->HasAbility(Ability))
             {
                 AddFinding(ELoadoutSlotType::WeaponAbility, i, true,
                            FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name));
+                continue;
+            }
+
+            // Weapon-type coherence: ability must match the equipped weapon type.
+            if (Ability->RequiredWeaponType != EquippedWeapon->WeaponType)
+            {
+                AddFinding(ELoadoutSlotType::WeaponAbility, i, true,
+                           FString::Printf(TEXT("Ability '%s' requires weapon type %s, equipped weapon is %s"),
+                                           *Ability->Name,
+                                           *UEnum::GetValueAsString(Ability->RequiredWeaponType),
+                                           *UEnum::GetValueAsString(EquippedWeapon->WeaponType)));
+                continue;
+            }
+            if (Ability->bRequiresDualWeapon && !EquippedWeapon->IsDualWielded())
+            {
+                AddFinding(ELoadoutSlotType::WeaponAbility, i, true,
+                           FString::Printf(TEXT("Ability '%s' requires dual-wield but equipped weapon is single"),
+                                           *Ability->Name));
             }
         }
 
         for (int32 i = 0; i < Loadout.PrimaryWeapon.AssignedSpells.Num(); ++i)
         {
             USpellData *Spell = Loadout.PrimaryWeapon.AssignedSpells[i];
-            if (Spell && !Inventory->HasSpell(Spell))
+            if (!Spell)
+            {
+                continue;
+            }
+            if (!Inventory->HasSpell(Spell))
             {
                 AddFinding(ELoadoutSlotType::WeaponSpell, i, true,
                            FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name));
+                continue;
+            }
+
+            // Element coherence: weapon-sourced spell must match the weapon crystal.
+            if (!Loadout.PrimaryWeapon.WeaponEntry.HasCrystal())
+            {
+                AddFinding(ELoadoutSlotType::WeaponSpell, i, true,
+                           FString::Printf(TEXT("Weapon spell '%s' requires a crystal but equipped weapon has none"),
+                                           *Spell->Name));
+                continue;
+            }
+            const ESpellElement CrystalElement = Loadout.PrimaryWeapon.WeaponEntry.GetElement();
+            if (CrystalElement != ESpellElement::Reality && Spell->Element != CrystalElement)
+            {
+                AddFinding(ELoadoutSlotType::WeaponSpell, i, true,
+                           FString::Printf(TEXT("Weapon spell '%s' element %s does not match weapon crystal element %s"),
+                                           *Spell->Name,
+                                           *UEnum::GetValueAsString(Spell->Element),
+                                           *UEnum::GetValueAsString(CrystalElement)));
             }
         }
     }
@@ -754,6 +845,9 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         {
             AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
         }
+
+        // Element coherence for the primary ring's customisable spells (SlotIndex -1 = primary ring).
+        CheckRingSpellCoherence(Loadout.PrimaryRing.RingEntry, -1);
     }
 
     // Primary evolution
@@ -819,6 +913,9 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                 {
                     AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
                 }
+
+                // Element coherence for this ring's customisable spells (SlotIndex = ring-loadout index).
+                CheckRingSpellCoherence(RingEntry.RingEntry, i);
 
                 TotalSlotCost += InventoryConstants::GetRingSlotCost(RingEntry.IsEvolved());
             }
