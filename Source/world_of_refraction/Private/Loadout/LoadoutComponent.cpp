@@ -878,7 +878,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
 
         if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
         {
-            AddFinding(ELoadoutSlotType::None, -1, false,
+            AddFinding(ELoadoutSlotType::EvolutionOverflow, -1, true,
                        FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
                                        Loadout.EvolutionSpells.Num(), LoadoutConstants::MAX_EVOLUTION_SPELLS));
         }
@@ -954,7 +954,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         const int32 TotalCost = PrimaryCost + TotalSlotCost;
         if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
-            AddFinding(ELoadoutSlotType::None, -1, false,
+            AddFinding(ELoadoutSlotType::RingOverflow, -1, true,
                        FString::Printf(
                            TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
                            PrimaryCost, TotalSlotCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
@@ -1013,10 +1013,177 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
     // structural diagnostic only — reported, never cleared.
     if (Loadout.HasDuplicateItemTypes())
     {
-        AddFinding(ELoadoutSlotType::None, -1, false, TEXT("Duplicate item types in loadout"));
+        AddFinding(ELoadoutSlotType::DuplicateItems, -1, true, TEXT("Duplicate item types in loadout"));
     }
 
     return Findings;
+}
+
+void ULoadoutComponent::ClearInvalidSlots()
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        return;
+    }
+
+    const int32 Index = Inv->ActiveLoadoutIndex;
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
+    {
+        return;
+    }
+
+    // Single-pass: validate once, then mutate the live persistent storage in
+    // place (not a by-value accessor copy — see LoadoutComponent.h:536).
+    const TArray<FInvalidSlotFinding> Findings = CollectInvalidSlotFindings();
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Index];
+
+    for (const FInvalidSlotFinding &Finding : Findings)
+    {
+        if (!Finding.bClearable)
+        {
+            continue;
+        }
+
+        switch (Finding.SlotType)
+        {
+        case ELoadoutSlotType::PrimaryWeapon:
+            Loadout.PrimaryWeapon.Clear();
+            break;
+        case ELoadoutSlotType::PrimaryRing:
+            Loadout.PrimaryRing.Clear();
+            break;
+        case ELoadoutSlotType::PrimaryEvolution:
+            Loadout.PrimaryEvolution = FEvolutionAttachment();
+            break;
+        case ELoadoutSlotType::SecondaryWeapon:
+            Loadout.SecondaryWeapon.Clear();
+            break;
+        case ELoadoutSlotType::ResonatorRing:
+            if (Loadout.RingLoadout.IsValidIndex(Finding.SlotIndex))
+            {
+                Loadout.RingLoadout[Finding.SlotIndex].Clear();
+            }
+            break;
+        case ELoadoutSlotType::InnateSpell:
+            if (Loadout.InnateSpells.IsValidIndex(Finding.SlotIndex))
+            {
+                Loadout.InnateSpells[Finding.SlotIndex] = nullptr;
+            }
+            break;
+        case ELoadoutSlotType::WeaponAbility:
+            if (Loadout.PrimaryWeapon.AssignedAbilities.IsValidIndex(Finding.SlotIndex))
+            {
+                Loadout.PrimaryWeapon.AssignedAbilities[Finding.SlotIndex] = nullptr;
+            }
+            break;
+        case ELoadoutSlotType::WeaponSpell:
+            if (Loadout.PrimaryWeapon.AssignedSpells.IsValidIndex(Finding.SlotIndex))
+            {
+                Loadout.PrimaryWeapon.AssignedSpells[Finding.SlotIndex] = nullptr;
+            }
+            break;
+        case ELoadoutSlotType::RingSpell:
+        {
+            // SlotIndex -1 = Generic/Caster primary ring; otherwise the Resonator
+            // ring-loadout index. SubIndex addresses the spell within the ring.
+            TArray<USpellData *> *Spells = nullptr;
+            if (Finding.SlotIndex == -1)
+            {
+                Spells = &Loadout.PrimaryRing.RingEntry.AssignedSpells;
+            }
+            else if (Loadout.RingLoadout.IsValidIndex(Finding.SlotIndex))
+            {
+                Spells = &Loadout.RingLoadout[Finding.SlotIndex].RingEntry.AssignedSpells;
+            }
+            if (Spells && Spells->IsValidIndex(Finding.SubIndex))
+            {
+                (*Spells)[Finding.SubIndex] = nullptr;
+            }
+            break;
+        }
+        case ELoadoutSlotType::EvolutionOverflow:
+            // Keep the first MAX_EVOLUTION_SPELLS, drop the rest.
+            if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+            {
+                Loadout.EvolutionSpells.SetNum(LoadoutConstants::MAX_EVOLUTION_SPELLS);
+            }
+            break;
+        case ELoadoutSlotType::RingOverflow:
+        {
+            // Walk rings accumulating cost from the primary slot's cost; truncate
+            // from the first index where adding the next ring would exceed budget.
+            int32 PrimaryCost = 0;
+            switch (Loadout.PrimarySlotType)
+            {
+            case EPrimarySlotType::Weapon:
+                PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
+                break;
+            case EPrimarySlotType::Evolution:
+                PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
+                break;
+            case EPrimarySlotType::None:
+            case EPrimarySlotType::Ring:
+                PrimaryCost = 0;
+                break;
+            }
+
+            int32 RunningTotal = PrimaryCost;
+            int32 TruncateFromIndex = INDEX_NONE;
+            for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
+            {
+                if (!Loadout.RingLoadout[i].IsValid())
+                {
+                    continue;
+                }
+                const int32 NextCost = InventoryConstants::GetRingSlotCost(Loadout.RingLoadout[i].IsEvolved());
+                if (RunningTotal + NextCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
+                {
+                    TruncateFromIndex = i;
+                    break;
+                }
+                RunningTotal += NextCost;
+            }
+            if (TruncateFromIndex != INDEX_NONE)
+            {
+                Loadout.RingLoadout.SetNum(TruncateFromIndex);
+            }
+            break;
+        }
+        case ELoadoutSlotType::DuplicateItems:
+        {
+            // Keep the first occurrence of each crystal type; empty later ones
+            // in place so ItemSlots indices stay stable.
+            TSet<ECrystalType> Seen;
+            for (FItemLoadoutSlot &Slot : Loadout.ItemSlots)
+            {
+                if (Slot.IsEmpty())
+                {
+                    continue;
+                }
+                if (Seen.Contains(Slot.CrystalId.Type))
+                {
+                    Slot = FItemLoadoutSlot();
+                }
+                else
+                {
+                    Seen.Add(Slot.CrystalId.Type);
+                }
+            }
+            break;
+        }
+        case ELoadoutSlotType::None:
+        case ELoadoutSlotType::BDPoolSpell:
+            // Non-clearable categories (guard failures / BD pool) — never
+            // reach here because their findings are bClearable == false.
+            break;
+        }
+
+        UE_LOG(LogTemp, Warning,
+               TEXT("Cleared invalid loadout slot: %s[%d] — %s"),
+               *UEnum::GetValueAsString(Finding.SlotType),
+               Finding.SlotIndex, *Finding.Reason);
+    }
 }
 
 // ==================== BATTLE PREPARATION ====================

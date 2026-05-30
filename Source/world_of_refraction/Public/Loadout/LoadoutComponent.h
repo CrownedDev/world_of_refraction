@@ -75,8 +75,11 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 };
 
 /** Discriminates which loadout slot an FInvalidSlotFinding refers to.
- *  `None` marks a non-slot diagnostic (guard failure, structural cap,
- *  duplicate-type, BD pool issue) — surfaced but not individually clearable. */
+ *  `None` marks a non-slot guard failure (no inventory, invalid index) —
+ *  surfaced but not clearable. `BDPoolSpell` is a non-clearable BD-pool
+ *  diagnostic. The three *Overflow / DuplicateItems values are "category"
+ *  findings (no single slot) that ClearInvalidSlots re-derives the clearing
+ *  action for. */
 UENUM()
 enum class ELoadoutSlotType : uint8
 {
@@ -90,7 +93,12 @@ enum class ELoadoutSlotType : uint8
     WeaponAbility,
     WeaponSpell,
     RingSpell,
-    BDPoolSpell
+    BDPoolSpell,
+    // Category findings — bClearable, but cleared by re-derived rules rather
+    // than nulling one addressable slot.
+    EvolutionOverflow,
+    RingOverflow,
+    DuplicateItems
 };
 
 /** One actionable validation finding, produced by
@@ -237,6 +245,14 @@ public:
      *  class-element-castability + BD pool). Element-source and weapon-type
      *  detection are added in Phase 2. */
     TArray<FInvalidSlotFinding> CollectInvalidSlotFindings() const;
+
+    /** Clears every clearable finding from CollectInvalidSlotFindings on the
+     *  active loadout. Mutates Inv->SavedLoadouts[ActiveLoadoutIndex] in place
+     *  (the live runtime FCombatLoadout — see :536 note). Single-pass: validate
+     *  once, clear once; a clear that exposes a new invalidity persists until
+     *  the next validation. Logs one LogTemp Warning per cleared slot. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout")
+    void ClearInvalidSlots();
 
     // ==================== BATTLE PREPARATION ====================
 
