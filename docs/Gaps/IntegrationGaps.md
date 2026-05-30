@@ -257,12 +257,13 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ## 7. Status effect & buildup — stub branches and TODO-gated wiring
 
 ### 7.1 `USkillEffectManager` Phase 2 passive-layer effect handlers are switch-stubs
-- **What:** A block of effect types has empty handler branches.
-- **Where:** `Source/world_of_refraction/Private/SkillEffectManager.cpp:1112`.
-- **Evidence:** `// Stub cases for the new passive-layer effect types. Each needs its own [body]`. Followed by no-op branches (verified by file inspection in this session's prior survey).
-- **Impact:** Passive-layer buff/debuff effects authored in data may apply but produce no runtime effect; specific subset depends on which `ESkillEffectType` values the stub covers.
-- **Priority:** Medium — depends on whether any of the stubbed types are used by shipping crystals/spells.
-- **Scope:** Medium — implement each handler.
+✅ **RESOLVED** (2026-05-30, docs-only — no code change needed). Verified previously and re-confirmed in survey 2026-05-30: SkillEffectManager's passive effect handling works correctly via the query system. Effects enter `ActiveEffects` in `ApplyEffect` (`SkillEffectManager.cpp:134`); `GetTotalStatModifier` (`:1462`) reads them directly by summing `GetStackedValue()` over the matching `EffectType` — it never touches `ApplyEffectLogic`. The "stub" switch bodies in `ApplyEffectLogic` are intentionally log-only for query-driven effect types (stat modifiers `:1117-1128`, defensive passives `:1186-1193`, immunities `:1198-1213`) — that's the correct architecture, not a missing implementation. On-hit triggers (`ApplyBurn/Chill/StunToTarget`) are wired at `OnDamageDealtHandler:1357`. Resource percent/drain cases (`RestoreHPPercent`, `RestoreEnergyPercent`, `DrainHP`, `DrainEnergy`) already have real bodies. The gap's framing as "stubbed handlers blocking aggregation" was incorrect: 10.5's StatusMultiplierBuff/Debuff aggregation already reads live values the moment such an effect is applied — the `0.0f` observation was simply the correct return when no such effect is present, not a dormant-handler symptom.
+
+**No commits to reference** — closed as working-as-designed after survey; no code work performed.
+
+_(Separate, out-of-scope follow-up noted during survey: there is no dedicated `SkillEffectManagerDebug.h/.cpp` pair, unlike most other systems. That's CLAUDE.md debug-tooling compliance, not part of 7.1 — track as its own cleanup task. `SkillEffectManagerTestActor` currently serves as the inspection harness.)_
+
+- **Original framing (incorrect):** A block of effect types has empty handler branches at `SkillEffectManager.cpp:1112`; passive-layer buff/debuff effects authored in data may apply but produce no runtime effect.
 
 ### 7.2 ActionExecutor status-buildup self-application is a TODO
 ✅ **RESOLVED** on `feature/integration-gaps-sweep-4` (reframed). The original catalog entry conflated two distinct surfaces. Sweep-4 verification clarified:
@@ -469,7 +470,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 4.3 | **✅ RESOLVED (bd-overload-aura)** — coupled `released` quantity drains absorption + becomes self-status; HP-damage unified on `GetEvolutionModifiedSpellDamage`; `bSkipBaseStatAmp` flag on `AddStatusBuildup` prevents stat double-count | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |
-| 7.1 | SkillEffectManager Phase 2 passive-layer stubs | Medium | Medium | YES (if affected effects are demo'd) |
+| 7.1 | **✅ RESOLVED (2026-05-30, docs-only)** — passive handling works as designed: effects enter `ActiveEffects` in `ApplyEffect`, `GetTotalStatModifier` reads them directly; log-only `ApplyEffectLogic` bodies are correct for query-driven types; on-hit triggers wired at `OnDamageDealtHandler:1357`. "Stubbed handlers blocking aggregation" framing was incorrect | Medium | — | — |
 | 7.2 | **✅ RESOLVED (sweep-4)** — Status-buildup-on-self TODO — reframed: two new effect types `StatusIncrease`/`StatusDecrease` flow through existing effect system with element from resolved cast source | Medium | Small | — |
 | 7.3 | **🎨 BLOCKED-DESIGN (2026-05-29)** — Action-camera transition; impl small, camera-feel direction is the work; pairs with 3.1 camera half | Medium | Small | — |
 | 8.1 | **✅ CLOSED (working as designed)** — BP-via-`OnCombatStartedUI` is the intentional extension-point pattern; `AHUDTestActor` is unrelated test scaffolding; no C++ port needed | — | — | — |
