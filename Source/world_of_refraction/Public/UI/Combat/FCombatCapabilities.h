@@ -35,6 +35,10 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bHasWeaponCrystal = false;
 
+    /** Active weapon has a whetstone with abilities - show Resonate Weapon (ability mode) */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
+    bool bHasWhetstoneWeaponAbilities = false;
+
     /** Caster with innate spells - show Refractions */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bHasRefractions = false;
@@ -88,6 +92,11 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     /** Abilities for Abilities submenu (from active weapon) */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
     TArray<UAbilityData *> WeaponAbilities;
+
+    /** Abilities for the Resonate Weapon submenu when a whetstone is attached
+     *  (mutually exclusive with WeaponCrystalSpells — one attachment slot). */
+    UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
+    TArray<UAbilityData *> WhetstoneWeaponAbilities;
 
     // ==================== ITEM POOL ====================
 

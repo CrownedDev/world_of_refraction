@@ -67,6 +67,12 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             Out.WeaponCrystalColor = GetElementColorFn(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
         }
+
+        // Whetstone abilities — parallel to the crystal-spell branch above and
+        // mutually exclusive with it (one attachment slot). GetWhetstoneAbilities
+        // returns empty unless a whetstone is attached, so no extra guard.
+        Out.WhetstoneWeaponAbilities = ActiveWeapon->GetWhetstoneAbilities();
+        Out.bHasWhetstoneWeaponAbilities = Out.WhetstoneWeaponAbilities.Num() > 0;
     }
 
     // ==================== REFRACTIONS (Caster innate) ====================
@@ -199,12 +205,13 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Loadout.PrimaryWeapon.IsValid() &&
         Loadout.SecondaryWeapon.IsValid();
 
-    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d"),
+    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d WhetstoneAbilities=%d"),
            *UEnum::GetValueAsString(CharClass),
            Out.bCanAttack, Out.bCanUseAbilities, Out.bHasWeaponCrystal,
            Out.bHasRefractions, Out.bHasBreakthrough,
            Out.bHasPrimaryRing, Out.bHasRingLoadout,
-           Out.bCanSwitchWeapon, Out.bCanSwitchRing);
+           Out.bCanSwitchWeapon, Out.bCanSwitchRing,
+           Out.bHasWhetstoneWeaponAbilities);
 
     return Out;
 }
