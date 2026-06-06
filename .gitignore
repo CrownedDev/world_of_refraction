@@ -13,6 +13,8 @@ Intermediate/
 Saved/
 Content/Paragon/
 Content/Imports/
+Content/__ExternalObjects__
+Content/__ExternalActors__
 Content/SoStylized
 Content/CombatMasterAnimBundle
 
@@ -28,3 +30,4 @@ docs/PastDocumentation
 Config/Layouts/
 Content/Collections/
 Content/Developers/
+settings.local.json
