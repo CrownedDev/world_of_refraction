@@ -117,9 +117,6 @@ namespace InventoryConstants
     /** Maximum rings for Resonator class */
     constexpr int32 MAX_RESONATOR_RINGS = 5;
 
-    /** Slot capacity for Resonator ring loadout (not count) */
-    constexpr int32 RESONATOR_RING_LOADOUT_SLOT_CAPACITY = 5;
-
     /** Maximum evolved rings for Resonator class */
     constexpr int32 MAX_EVOLVED_RESONATOR_RINGS = 2;
 

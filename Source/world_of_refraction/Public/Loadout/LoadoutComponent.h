@@ -75,8 +75,11 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 };
 
 /** Discriminates which loadout slot an FInvalidSlotFinding refers to.
- *  `None` marks a non-slot diagnostic (guard failure, structural cap,
- *  duplicate-type, BD pool issue) — surfaced but not individually clearable. */
+ *  `None` marks a non-slot guard failure (no inventory, invalid index) —
+ *  surfaced but not clearable. `BDPoolSpell` is a non-clearable BD-pool
+ *  diagnostic. The three *Overflow / DuplicateItems values are "category"
+ *  findings (no single slot) that ClearInvalidSlots re-derives the clearing
+ *  action for. */
 UENUM()
 enum class ELoadoutSlotType : uint8
 {
@@ -89,7 +92,13 @@ enum class ELoadoutSlotType : uint8
     InnateSpell,
     WeaponAbility,
     WeaponSpell,
-    BDPoolSpell
+    RingSpell,
+    BDPoolSpell,
+    // Category findings — bClearable, but cleared by re-derived rules rather
+    // than nulling one addressable slot.
+    EvolutionOverflow,
+    RingOverflow,
+    DuplicateItems
 };
 
 /** One actionable validation finding, produced by
@@ -107,9 +116,15 @@ struct WORLD_OF_REFRACTION_API FInvalidSlotFinding
     ELoadoutSlotType SlotType = ELoadoutSlotType::None;
 
     /** Index within the slot category (ability index, spell index, ring index).
-     *  -1 for non-indexed / single slots (primary weapon, primary ring, etc.). */
+     *  -1 for non-indexed / single slots (primary weapon, primary ring, etc.).
+     *  For RingSpell: the ring-loadout index (-1 = Generic/Caster primary ring). */
     UPROPERTY()
     int32 SlotIndex = 0;
+
+    /** Secondary index for nested slots. For RingSpell: the spell index within
+     *  the ring's AssignedSpells. -1 when unused. */
+    UPROPERTY()
+    int32 SubIndex = -1;
 
     UPROPERTY()
     FString Reason;
@@ -226,10 +241,18 @@ public:
      *  loadout index. (C++ only — the BP-facing surface is the Phase 5 debug
      *  helper / the eventual clear path.)
      *
-     *  Phase 1: parity with GetValidationErrors (ownership + structural +
-     *  class-element-castability + BD pool). Element-source and weapon-type
-     *  detection are added in Phase 2. */
+     *  Parity with GetValidationErrors (ownership + structural +
+     *  class-element-castability + BD pool), plus element-source and weapon-type
+     *  coherence detection. */
     TArray<FInvalidSlotFinding> CollectInvalidSlotFindings() const;
+
+    /** Clears every clearable finding from CollectInvalidSlotFindings on the
+     *  active loadout. Mutates Inv->SavedLoadouts[ActiveLoadoutIndex] in place
+     *  (the live runtime FCombatLoadout — see :536 note). Single-pass: validate
+     *  once, clear once; a clear that exposes a new invalidity persists until
+     *  the next validation. Logs one LogTemp Warning per cleared slot. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout")
+    void ClearInvalidSlots();
 
     // ==================== BATTLE PREPARATION ====================
 
@@ -585,6 +608,14 @@ public:
     /** Debug: Log current loadout state */
     UFUNCTION(BlueprintCallable, Category = "Debug")
     void DebugLogLoadout();
+
+    /** Debug: print the active loadout's validation findings, run
+     *  ClearInvalidSlots, then re-print to show the cleared result.
+     *  CallInEditor button in the Details panel. Counts only clearable
+     *  findings post-clear (expect 0; non-clearable BD/guard findings may
+     *  legitimately remain). */
+    UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
+    void DebugClearAndReportValidation();
 
 private:
     /** Helper to get CharacterData from sibling component */

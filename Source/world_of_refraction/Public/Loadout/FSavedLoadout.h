@@ -103,7 +103,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     /** Primary slot type (Generic/Caster: Weapon/Ring/Evolution, Resonator: Weapon/Evolution only) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
               meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator", EditConditionHides))
-    EPrimarySlotType PrimarySlotType = EPrimarySlotType::Weapon;
+    EPrimarySlotType PrimarySlotType = EPrimarySlotType::None;
 
     /** Primary weapon (when PrimarySlotType == Weapon) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",

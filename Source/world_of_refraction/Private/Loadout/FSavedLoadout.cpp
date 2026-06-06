@@ -53,6 +53,10 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
             Errors.Add(TEXT("Primary slot set to Evolution but no evolution crystal assigned"));
         }
         break;
+
+    case EPrimarySlotType::None:
+        // Empty primary is valid — no primary equipment to validate.
+        break;
     }
 
     // ==================== GENERIC VALIDATION ====================
@@ -93,30 +97,42 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
 
     if (RequiredClass == ECharacterClass::Resonator)
     {
-        const bool bIsEvolved = (PrimarySlotType == EPrimarySlotType::Evolution);
-        const int32 MaxRings = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
-                                          : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
-        const int32 MaxEvolvedRings = bIsEvolved ? LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_EVOLVED
-                                                 : LoadoutConstants::RESONATOR_MAX_EVOLVED_RINGS_NORMAL;
-
-        if (EquippedRings.Num() > MaxRings)
+        // Unified budget: primary slot cost + ring slot costs must fit one budget.
+        // Subsumes the old count cap and the separate max-evolved-rings cap —
+        // evolved rings cost 2 each, so overflow is caught by the cost arithmetic.
+        int32 PrimaryCost = 0;
+        switch (PrimarySlotType)
         {
-            Errors.Add(FString::Printf(TEXT("Too many equipped rings (%d/%d)"),
-                                       EquippedRings.Num(), MaxRings));
+        case EPrimarySlotType::Weapon:
+            // Saved/design-time path: cost reflects the asset's default crystal.
+            if (PrimaryWeapon)
+            {
+                PrimaryCost = InventoryConstants::GetWeaponSlotCost(
+                    PrimaryWeapon->HasCrystal(), PrimaryWeapon->IsEvolved());
+            }
+            break;
+        case EPrimarySlotType::Evolution:
+            PrimaryCost = LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST;
+            break;
+        case EPrimarySlotType::None:
+        case EPrimarySlotType::Ring:
+            PrimaryCost = 0;
+            break;
         }
-
-        int32 EvolvedCount = 0;
+        int32 RingCost = 0;
         for (const FResonatorRingSlot &Slot : EquippedRings)
         {
-            if (Slot.Ring && Slot.Ring->IsEvolved())
+            if (Slot.Ring)
             {
-                EvolvedCount++;
+                RingCost += InventoryConstants::GetRingSlotCost(Slot.Ring->IsEvolved());
             }
         }
-        if (EvolvedCount > MaxEvolvedRings)
+        const int32 TotalCost = PrimaryCost + RingCost;
+        if (TotalCost > LoadoutConstants::LOADOUT_TOTAL_BUDGET)
         {
-            Errors.Add(FString::Printf(TEXT("Too many evolved rings (%d/%d)"),
-                                       EvolvedCount, MaxEvolvedRings));
+            Errors.Add(FString::Printf(
+                TEXT("Loadout exceeds budget: primary (cost %d) + rings (cost %d) = %d, max is %d"),
+                PrimaryCost, RingCost, TotalCost, LoadoutConstants::LOADOUT_TOTAL_BUDGET));
         }
     }
 

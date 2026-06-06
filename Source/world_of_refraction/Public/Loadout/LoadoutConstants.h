@@ -25,10 +25,11 @@ namespace LoadoutConstants
     constexpr int32 MAX_WEAPONS_GENERIC = 2;
     constexpr int32 MAX_WEAPONS_ELEMENTAL = 1;
 
-    constexpr int32 RESONATOR_RING_SLOTS_NORMAL = 5;
-    constexpr int32 RESONATOR_RING_SLOTS_EVOLVED = 3;
-    constexpr int32 RESONATOR_MAX_EVOLVED_RINGS_NORMAL = 2;
-    constexpr int32 RESONATOR_MAX_EVOLVED_RINGS_EVOLVED = 1;
+    // Unified loadout budget — primary slot cost + ring slot costs must not exceed this.
+    constexpr int32 LOADOUT_TOTAL_BUDGET = 5;
+
+    // Cost of an Evolution primary (the evolution crystal itself; no weapon platform).
+    constexpr int32 EVOLUTION_PRIMARY_SLOT_COST = 2;
 
     // Evolution
     constexpr int32 MAX_EVOLUTION_SPELLS = 6;

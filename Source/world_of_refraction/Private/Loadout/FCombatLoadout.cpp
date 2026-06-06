@@ -207,7 +207,7 @@ void FCombatLoadout::Clear()
 {
     LoadoutName = TEXT("Default Loadout");
 
-    PrimarySlotType = EPrimarySlotType::Weapon;
+    PrimarySlotType = EPrimarySlotType::None;
     PrimaryWeapon.Clear();
     PrimaryRing.Clear();
     PrimaryEvolution = FEvolutionAttachment();
@@ -233,19 +233,19 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
     {
     case ECharacterClass::Generic:
         // Generic: Primary weapon/ring/evolution, optional secondary weapon
-        PrimarySlotType = EPrimarySlotType::Weapon;
+        PrimarySlotType = EPrimarySlotType::None;
         SecondarySlotType = ESecondarySlotType::None;
         break;
 
     case ECharacterClass::Caster:
         // Caster: Primary weapon/ring/evolution, innate spells
-        PrimarySlotType = EPrimarySlotType::Weapon;
+        PrimarySlotType = EPrimarySlotType::None;
         InnateSpells.SetNum(0); // Empty, to be filled
         break;
 
     case ECharacterClass::Resonator:
         // Resonator: Primary weapon/evolution, ring loadout
-        PrimarySlotType = EPrimarySlotType::Weapon;
+        PrimarySlotType = EPrimarySlotType::None;
         RingLoadout.SetNum(0); // Empty, to be filled
         break;
     }
@@ -268,9 +268,9 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     if (SavedLoadout.RequiredClass == ECharacterClass::Resonator &&
         Result.PrimarySlotType == EPrimarySlotType::Ring)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Resonator saved loadout '%s' has invalid Ring primary - forcing Weapon"),
+        UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] Resonator saved loadout '%s' has invalid Ring primary - clearing to None"),
                *SavedLoadout.LoadoutName);
-        Result.PrimarySlotType = EPrimarySlotType::Weapon;
+        Result.PrimarySlotType = EPrimarySlotType::None;
     }
 
     // ==================== PRIMARY EQUIPMENT ====================
@@ -320,6 +320,10 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         Result.PrimaryEvolution.CurrentDurability =
             SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->MaxDurability : 0;
         Result.EvolutionSpells = SavedLoadout.EvolutionSpells;
+        break;
+
+    case EPrimarySlotType::None:
+        // Empty primary — equip nothing; PrimaryWeapon/Ring/Evolution stay default.
         break;
     }
 

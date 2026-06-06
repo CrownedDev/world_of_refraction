@@ -257,12 +257,13 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ## 7. Status effect & buildup — stub branches and TODO-gated wiring
 
 ### 7.1 `USkillEffectManager` Phase 2 passive-layer effect handlers are switch-stubs
-- **What:** A block of effect types has empty handler branches.
-- **Where:** `Source/world_of_refraction/Private/SkillEffectManager.cpp:1112`.
-- **Evidence:** `// Stub cases for the new passive-layer effect types. Each needs its own [body]`. Followed by no-op branches (verified by file inspection in this session's prior survey).
-- **Impact:** Passive-layer buff/debuff effects authored in data may apply but produce no runtime effect; specific subset depends on which `ESkillEffectType` values the stub covers.
-- **Priority:** Medium — depends on whether any of the stubbed types are used by shipping crystals/spells.
-- **Scope:** Medium — implement each handler.
+✅ **RESOLVED** (2026-05-30, docs-only — no code change needed). Verified previously and re-confirmed in survey 2026-05-30: SkillEffectManager's passive effect handling works correctly via the query system. Effects enter `ActiveEffects` in `ApplyEffect` (`SkillEffectManager.cpp:134`); `GetTotalStatModifier` (`:1462`) reads them directly by summing `GetStackedValue()` over the matching `EffectType` — it never touches `ApplyEffectLogic`. The "stub" switch bodies in `ApplyEffectLogic` are intentionally log-only for query-driven effect types (stat modifiers `:1117-1128`, defensive passives `:1186-1193`, immunities `:1198-1213`) — that's the correct architecture, not a missing implementation. On-hit triggers (`ApplyBurn/Chill/StunToTarget`) are wired at `OnDamageDealtHandler:1357`. Resource percent/drain cases (`RestoreHPPercent`, `RestoreEnergyPercent`, `DrainHP`, `DrainEnergy`) already have real bodies. The gap's framing as "stubbed handlers blocking aggregation" was incorrect: 10.5's StatusMultiplierBuff/Debuff aggregation already reads live values the moment such an effect is applied — the `0.0f` observation was simply the correct return when no such effect is present, not a dormant-handler symptom.
+
+**No commits to reference** — closed as working-as-designed after survey; no code work performed.
+
+_(Separate, out-of-scope follow-up noted during survey: there is no dedicated `SkillEffectManagerDebug.h/.cpp` pair, unlike most other systems. That's CLAUDE.md debug-tooling compliance, not part of 7.1 — track as its own cleanup task. `SkillEffectManagerTestActor` currently serves as the inspection harness.)_
+
+- **Original framing (incorrect):** A block of effect types has empty handler branches at `SkillEffectManager.cpp:1112`; passive-layer buff/debuff effects authored in data may apply but produce no runtime effect.
 
 ### 7.2 ActionExecutor status-buildup self-application is a TODO
 ✅ **RESOLVED** on `feature/integration-gaps-sweep-4` (reframed). The original catalog entry conflated two distinct surfaces. Sweep-4 verification clarified:
@@ -292,6 +293,15 @@ The original dead helpers (`ApplySelfStatusBuildup`, `ApplySelfDamage`, magic-nu
 - **Impact:** Even if 3.1 is fixed, the action-camera transition is a no-op until this is implemented.
 - **Priority:** Pair with 3.1 (Medium).
 - **Scope:** Small.
+
+### 7.4 `USkillEffectManager` has no `SkillEffectManagerDebug` pair — CLAUDE.md tooling gap
+- **What:** Every other C++ system ships a `<SystemName>Debug.h/.cpp` pair per the CLAUDE.md "Debug tools — required per system" rule (CharacterDataDebug, WeaponDataDebug, ItemDataDebug, SpellDataDebug, AbilityDataDebug, BreakCalculatorDebug, etc.). `USkillEffectManager` — a runtime subsystem holding per-actor `ActiveEffects` state — has no such pair. There is no `GetActiveEffectsString(Actor)` / `PrintEffectState(Actor)` / `GetXxxString()` snapshot inspector.
+- **Where:** `Source/world_of_refraction/Private/Skills/Effects/` and `.../Public/Skills/Effects/` — no `SkillEffectManagerDebug.*` present (confirmed by glob 2026-05-30).
+- **Evidence:** `SkillEffectManagerTestActor` currently fills the inspection role, but it's an editor isolation harness (PIE-guarded, manual `CallInEditor` spawn) — not the lightweight static-logging snapshot tool the CLAUDE.md pattern prescribes. Per the rule: *"If a system can't be inspected without launching PIE and triggering the exact path, debug tools are missing."* SkillEffect state today meets that bar.
+- **Impact:** Active-effect state (which buffs/debuffs are on an actor, stacks, remaining turns, summed stat modifiers) can't be dumped on demand without the test-actor flow. This bit the 7.1 survey directly — verifying `GetTotalStatModifier` returns live values had to be reasoned from the data flow rather than read off a snapshot. Diagnosing passive-effect issues in PIE is harder than it should be.
+- **Priority:** Low — tooling/compliance, not a runtime defect. No gameplay impact.
+- **Scope:** Small — a `SkillEffectManagerDebug.h/.cpp` pair: static `GetActiveEffectsString(AActor*)` + `PrintEffectState(AActor*)` logging via `UE_LOG` / `AddOnScreenDebugMessage`, mirroring the existing Debug pairs. Optionally a `CompareEffectState()` snapshot helper for the runtime-system variant of the pattern.
+- **Surfaced by:** 7.1 survey (2026-05-30) — flagged out-of-scope there and filed here.
 
 ---
 
@@ -416,6 +426,8 @@ Resistance side was NOT added: the live path's `GetTotalElementResistance` (`Sta
 - **Scope:** Small.
 
 ### 10.6 Loadout validation reports errors but doesn't clear bad slots
+✅ **RESOLVED (2026-05-30, scope rung C — full detection + clear).** The validator now detects ownership / element-coherence (weapon-crystal + ring-crystal) / weapon-type-ability / cap-violation invalidities, and `ULoadoutComponent::ClearInvalidSlots` auto-clears them at `PrepareForBattle` (after the `OnValidationFailed` broadcast, before combat starts) so combat always begins with a valid loadout. The structured path is `CollectInvalidSlotFindings() → TArray<FInvalidSlotFinding>` (each carries `ELoadoutSlotType` + slot/sub index + `bClearable`), the action-mappable counterpart the build-prep notes called for; BD-pool and guard findings stay non-clearable, item-slot ownership stays exempt (self-owning transfer model). A `DebugClearAndReportValidation` CallInEditor helper exercises the arc without staging PIE. Resolved in commits `31ba784`, `1df0f43`, `9bec6de`, `7bae871`, `1496169` (on `main`). Build-prep history below retained. See [`docs/Architecture/LoadoutSystem.md`](../Architecture/LoadoutSystem.md) §Validation.
+
 🔄 **REFRAMED (sweep-2)**. Original framing was "three TODO sites need wiring"; verification on `feature/integration-gaps-sweep-2` revealed the three sites were in **dead code** (`FCombatLoadout::Validate / ValidateGeneric / ValidateCaster / ValidateResonator`, zero callers). Option-(a) cleanup applied: the four dead functions were deleted (decl + impl, plus the in-block `// TODO: Validate against inventory when component exists` comments). `FCombatLoadout::ValidateBDSpellLoadout` stays — it's still shared with `FSavedLoadout::GetValidationErrors`. The real gap surfaces below.
 
 🎯 **RESCOPED → BLOCKED-DESIGN (2026-05-29 build-prep survey).** What looked like a SMALL "clear what the validator already flags" task widened once Crown clarified what *invalid* means. The "detect → don't clear" framing is true **only for ownership-mismatch**; Crown's actual concern is **element-source mismatch** and **weapon-type/ability mismatch**, neither of which the validator detects today. So this is a *build-detection* task, not a *clear-existing-findings* task — and its shape depends on design answers Crown hasn't given. (The morning's DOABLE-NOW assessment assumed ownership was the only invalidity; the build-prep survey overturned that. Earlier sweep-1 framing remains at the bottom for history.)
@@ -467,15 +479,16 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 4.3 | **✅ RESOLVED (bd-overload-aura)** — coupled `released` quantity drains absorption + becomes self-status; HP-damage unified on `GetEvolutionModifiedSpellDamage`; `bSkipBaseStatAmp` flag on `AddStatusBuildup` prevents stat double-count | Medium | Medium | — |
 | 5.1 | LoadoutComponent delegates no subscribers | Medium | Small | — |
 | 5.2 | `OnItemUsed` / `OnGambleResult` no subscribers | Medium | Small | — |
-| 7.1 | SkillEffectManager Phase 2 passive-layer stubs | Medium | Medium | YES (if affected effects are demo'd) |
+| 7.1 | **✅ RESOLVED (2026-05-30, docs-only)** — passive handling works as designed: effects enter `ActiveEffects` in `ApplyEffect`, `GetTotalStatModifier` reads them directly; log-only `ApplyEffectLogic` bodies are correct for query-driven types; on-hit triggers wired at `OnDamageDealtHandler:1357`. "Stubbed handlers blocking aggregation" framing was incorrect | Medium | — | — |
 | 7.2 | **✅ RESOLVED (sweep-4)** — Status-buildup-on-self TODO — reframed: two new effect types `StatusIncrease`/`StatusDecrease` flow through existing effect system with element from resolved cast source | Medium | Small | — |
 | 7.3 | **🎨 BLOCKED-DESIGN (2026-05-29)** — Action-camera transition; impl small, camera-feel direction is the work; pairs with 3.1 camera half | Medium | Small | — |
+| 7.4 | **🛠️ DOABLE-NOW (2026-05-30)** — no `SkillEffectManagerDebug` pair; CLAUDE.md "debug tools per system" compliance gap. Surfaced by 7.1 survey | Low | Small | — |
 | 8.1 | **✅ CLOSED (working as designed)** — BP-via-`OnCombatStartedUI` is the intentional extension-point pattern; `AHUDTestActor` is unrelated test scaffolding; no C++ port needed | — | — | — |
 | 9.2 | BD InnateSpells empty | Medium (if BD demoed) | Small (designer fix) | YES (if BD) |
 | 10.1 | **✅ RESOLVED (sweep-2)** — AI `SpellSource` defaults to Innate — new `ULoadoutComponent::ResolveSpellSource` helper; 6 AI sites updated; locked precedence Innate→Ring→Weapon→Evolution | Medium | Small | YES (AI casts will mis-charge) |
 | 10.4 | **✅ RESOLVED (sweep-1)** — Beam DOT placeholder 5/tick — discrete-tick model; new `USpellData::BeamTickInterval` field; remainder distributed across ticks | Medium | Small | YES (if beams demoed) |
 | 10.5 | **✅ RESOLVED (sweep-3)** — DamageCalculator StatusMultiplier modifiers — dead-code deletion + StatusMultiplierBuff/Debuff wired into live StatusBuildupManager path (resistance side already lived there) | Medium | Small | — |
-| 10.6 | **🎯 RESCOPED → BLOCKED-DESIGN (2026-05-29 build-prep)** — Crown's real concern (element-source + weapon-type/ability mismatch) is NOT detected today; build-detection task gated on scope rung A/B/C + Innate-fallback intent | Medium | A: Small · B: Small-Med · C: Medium | — |
+| 10.6 | **✅ RESOLVED (2026-05-30, rung C)** — validator now detects ownership / element-coherence / weapon-type-ability / cap-violation; `ClearInvalidSlots` auto-clears at `PrepareForBattle`. Commits `31ba784`/`1df0f43`/`9bec6de`/`7bae871`/`1496169` | Medium | C: Medium | — |
 | 2.4 | **✅ RESOLVED (sweep-1)** — `OnDefenseWindowRequested` pure dead | Low | Small | — |
 | 3.3 | **⛔ BLOCKED-EXTERNAL (2026-05-29)** — `OnResurrected` producer wired; consumer-side asset-blocked (revive VFX/SFX/UI/combat-log) | Low | Small | — |
 | 6.1 | **✅ RESOLVED (sweep-1)** — Movement Approach/Return delegates never broadcast — dead bits deleted; `FOnApproachComplete` renamed to `FOnMovementComplete` to match the live field | Low | Small | — |
@@ -487,7 +500,7 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 10.3 | `ESpellSource::Item` stub case (unreachable) | Low | Small | — |
 | 10.7 | **🎯 BLOCKED-DESIGN (2026-05-29)** — auto-populate's home is the character-to-enemy loadout-source decision (max-power / thematic / constrained-random?); not authored-enemy difficulty | Low | Medium | — |
 
-**Totals:** 31 distinct gaps — **3 High**, **14 Medium / Medium-High**, **14 Low**.
+**Totals:** 32 distinct gaps — **3 High**, **14 Medium / Medium-High**, **15 Low**.
 **Pitch-impacting (the subset most likely to bite the demo):** 1.1, 2.1, 2.2, 3.2, 4.1, 7.1, 9.2, 10.1, 10.4.
 
 **Smallest fix-set to unblock a clean pitch demo:** 2.1 (implement DefensePromptWidget Phase 1) + 1.1 (gate or remove `CombatPlayerController` test path) + confirm BP-side coverage of 3.2 (or ship a minimal C++ result-overlay). Three focused fixes, ~one session each.

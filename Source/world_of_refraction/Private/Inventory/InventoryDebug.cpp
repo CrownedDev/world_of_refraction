@@ -267,6 +267,10 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             UE_LOG(LogTemp, Display, TEXT("Primary Evolution: NONE"));
         }
         break;
+
+    case EPrimarySlotType::None:
+        UE_LOG(LogTemp, Display, TEXT("Primary: (none)"));
+        break;
     }
 
     // Secondary (Generic only - Weapon only now)
