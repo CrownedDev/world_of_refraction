@@ -29,14 +29,14 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
 
     /** Refined crystal type. Only visible when Kind == Refined. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Refined", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal", EditConditionHides))
     ECrystalType RefinedType = ECrystalType::Garnet;
 
     /** Tier of the attachment's crystal identity. Visible for Refined and
      *  Whetstone — a whetstone carries identity FCrystalId{Whetstone, RefinedTier}.
      *  RefinedType is hidden for Whetstone (the type is implied by Kind). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Refined || Kind == EAttachedItemKind::Whetstone", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::Whetstone", EditConditionHides))
     EItemTier RefinedTier = EItemTier::F_Tier;
 
     /** Evolution item asset. Only visible when Kind == Evolution.

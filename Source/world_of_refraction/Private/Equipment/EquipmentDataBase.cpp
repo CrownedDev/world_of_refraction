@@ -18,7 +18,7 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
 {
     switch (AttachedItem.Kind)
     {
-    case EAttachedItemKind::Refined:
+    case EAttachedItemKind::Crystal:
         return CrystalTypeHelpers::GetElement(AttachedItem.RefinedType);
     case EAttachedItemKind::Evolution:
         return AttachedItem.Evolution ? AttachedItem.Evolution->GetAssociatedElement()

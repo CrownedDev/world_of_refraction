@@ -1128,7 +1128,7 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 				FString CrystalName;
 				switch (Slot.Kind)
 				{
-				case EAttachedItemKind::Refined:
+				case EAttachedItemKind::Crystal:
 					CrystalName = CrystalIdentity::GetDisplayName(Slot.RefinedId);
 					break;
 				case EAttachedItemKind::Evolution:
@@ -1218,7 +1218,7 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 				// Kind == Refined captures the eligibility gate. Under the
 				// bCanBreak opt-in model, a refined crystal may or may not be
 				// breakable; repair still routes through the refined branch.
-				if (Slot.Kind != EAttachedItemKind::Refined)
+				if (Slot.Kind != EAttachedItemKind::Crystal)
 				{
 					continue;
 				}

@@ -12,7 +12,7 @@ UENUM(BlueprintType)
 enum class EAttachedItemKind : uint8
 {
     None      UMETA(DisplayName = "None"),
-    Refined   UMETA(DisplayName = "Refined"),
+    Crystal   UMETA(DisplayName = "Crystal"),
     Evolution UMETA(DisplayName = "Evolution"),
     // Appended after Evolution (=3); position is the serialized value, so do not
     // reorder/insert above — SaveGame Kind on disk must stay stable.

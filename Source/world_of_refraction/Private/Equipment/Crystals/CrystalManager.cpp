@@ -135,7 +135,7 @@ void UCrystalManager::ProcessPostCastWear(
                Holder ? *Holder->GetName() : TEXT("Unknown"));
 
         FBrokenCrystalPayload Payload;
-        Payload.Kind = EAttachedItemKind::Refined;
+        Payload.Kind = EAttachedItemKind::Crystal;
         Payload.RefinedId = Attachment.Refined.Id;
         OnCrystalBroken.Broadcast(Actor, Holder, Payload);
     }

@@ -57,7 +57,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         // carries (Type, Tier) directly; Evolution's tier lives on the asset.
         EItemTier CrystalTier = Tier;
         bool bHasCrystalTier = false;
-        if (AttachedItem.Kind == EAttachedItemKind::Refined)
+        if (AttachedItem.Kind == EAttachedItemKind::Crystal)
         {
             CrystalTier = AttachedItem.RefinedTier;
             bHasCrystalTier = true;

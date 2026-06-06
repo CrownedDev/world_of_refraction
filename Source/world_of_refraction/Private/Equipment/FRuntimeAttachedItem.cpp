@@ -156,7 +156,7 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
     {
     case EAttachedItemKind::None:
         return true;
-    case EAttachedItemKind::Refined:
+    case EAttachedItemKind::Crystal:
     case EAttachedItemKind::Whetstone:
         // Durability is per-instance state, not identity — compare by Id
         // only (identity match, not instance state). Whetstone stores its
@@ -175,8 +175,8 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
 
     switch (Source.Kind)
     {
-    case EAttachedItemKind::Refined:
-        Result.Kind = EAttachedItemKind::Refined;
+    case EAttachedItemKind::Crystal:
+        Result.Kind = EAttachedItemKind::Crystal;
         Result.Refined.Id = FCrystalId(Source.RefinedType, Source.RefinedTier);
         // Refined crystals carry no asset, so there is no per-asset MaxDurability
         // to read as FromAsset does. Seed from the tier-based max the runtime

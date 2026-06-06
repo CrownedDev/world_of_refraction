@@ -2047,7 +2047,7 @@ bool ULoadoutComponent::HasEquippedSourceForElement(AActor *Actor, ESpellElement
     {
         switch (Slot.Kind)
         {
-        case EAttachedItemKind::Refined:
+        case EAttachedItemKind::Crystal:
             if (CrystalIdentity::GetElement(Slot.RefinedId) == Element)
             {
                 return true;
