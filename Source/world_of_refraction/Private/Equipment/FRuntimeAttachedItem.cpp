@@ -14,14 +14,14 @@ bool FRuntimeAttachedItem::IsBroken() const
     {
         return false;
     }
+    // Whetstone carries no durability — it can never break, so ability
+    // gating (CanProvideSpells) always sees it as intact.
+    if (IsWhetstone())
+    {
+        return false;
+    }
     if (IsRefined())
     {
-        // Whetstone carries no durability — it can never break, so ability
-        // gating (CanProvideSpells) always sees it as intact.
-        if (Refined.Id.Type == ECrystalType::Whetstone)
-        {
-            return false;
-        }
         return Refined.IsBroken();
     }
     if (IsEvolution())
@@ -34,7 +34,7 @@ bool FRuntimeAttachedItem::IsBroken() const
 bool FRuntimeAttachedItem::CanProvideSpells() const
 {
     // A Whetstone is intact but grants abilities, not spells — never a spell source.
-    if (IsRefined() && Refined.Id.Type == ECrystalType::Whetstone)
+    if (IsWhetstone())
     {
         return false;
     }
@@ -43,6 +43,12 @@ bool FRuntimeAttachedItem::CanProvideSpells() const
 
 ESpellElement FRuntimeAttachedItem::GetElement() const
 {
+    // No element — matches the old Refined→CrystalIdentity::GetElement path,
+    // which resolved a Whetstone FCrystalId to Generic via its default arm.
+    if (IsWhetstone())
+    {
+        return ESpellElement::Generic;
+    }
     if (IsRefined())
     {
         return CrystalIdentity::GetElement(Refined.Id);
@@ -56,6 +62,11 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
 
 int32 FRuntimeAttachedItem::GetCurrentDurability() const
 {
+    // Whetstone has no durability concept — reports 0 (it never wears).
+    if (IsWhetstone())
+    {
+        return 0;
+    }
     if (IsRefined())
     {
         return Refined.CurrentDurability;
@@ -69,6 +80,11 @@ int32 FRuntimeAttachedItem::GetCurrentDurability() const
 
 int32 FRuntimeAttachedItem::GetMaxDurability() const
 {
+    // Whetstone has no durability concept — reports 0 (it never wears).
+    if (IsWhetstone())
+    {
+        return 0;
+    }
     if (IsRefined())
     {
         return CrystalIdentity::GetMaxDurability(Refined.Id);
@@ -96,13 +112,13 @@ FString FRuntimeAttachedItem::GetStatModifierSummary() const
 
 bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
 {
+    // Whetstone never wears — nothing to break.
+    if (IsWhetstone())
+    {
+        return false;
+    }
     if (IsRefined())
     {
-        // Whetstone never wears — nothing to break.
-        if (Refined.Id.Type == ECrystalType::Whetstone)
-        {
-            return false;
-        }
         return Refined.ApplyWear(Amount);
     }
     if (IsEvolution())
@@ -114,13 +130,13 @@ bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
 
 int32 FRuntimeAttachedItem::RepairBetweenCombats(int32 Amount)
 {
+    // Whetstone never wears, so there is nothing to repair.
+    if (IsWhetstone())
+    {
+        return 0;
+    }
     if (IsRefined())
     {
-        // Whetstone never wears, so there is nothing to repair.
-        if (Refined.Id.Type == ECrystalType::Whetstone)
-        {
-            return 0;
-        }
         return Refined.RepairBetweenCombats(Amount);
     }
     if (IsEvolution())
@@ -141,8 +157,10 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
     case EAttachedItemKind::None:
         return true;
     case EAttachedItemKind::Refined:
+    case EAttachedItemKind::Whetstone:
         // Durability is per-instance state, not identity — compare by Id
-        // only (identity match, not instance state).
+        // only (identity match, not instance state). Whetstone stores its
+        // FCrystalId{Whetstone, Tier} in the same Refined slot.
         return Refined.Id == Other.Refined.Id;
     case EAttachedItemKind::Evolution:
         return Evolution.Item == Other.Evolution.Item;
@@ -173,6 +191,15 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // Byte-for-byte parity with FromAsset's evolution branch
         // (Crystal->MaxDurability) — Source.Evolution is that same asset.
         Result.Evolution.CurrentDurability = Source.Evolution ? Source.Evolution->MaxDurability : 0;
+        break;
+
+    case EAttachedItemKind::Whetstone:
+        Result.Kind = EAttachedItemKind::Whetstone;
+        // Identity carrier is the Refined slot; force Whetstone type + the
+        // authored tier. No durability — a whetstone never wears, so seed 0
+        // (do NOT call GetMaxDurability, which is tier-based and nonzero).
+        Result.Refined.Id = FCrystalId(ECrystalType::Whetstone, Source.RefinedTier);
+        Result.Refined.CurrentDurability = 0;
         break;
 
     case EAttachedItemKind::None:
