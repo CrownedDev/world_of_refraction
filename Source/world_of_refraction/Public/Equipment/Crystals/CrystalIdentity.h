@@ -64,6 +64,8 @@ namespace CrystalIdentity
             return EItemEffectType::Cleanse;
         case ECrystalType::Quartz:
             return EItemEffectType::StatusClear;
+        case ECrystalType::Whetstone:
+            return EItemEffectType::BuffRawDamage;
         default:
             return EItemEffectType::Damage;
         }
@@ -107,6 +109,8 @@ namespace CrystalIdentity
             return TEXT("Iolite");
         case ECrystalType::Quartz:
             return TEXT("Quartz");
+        case ECrystalType::Whetstone:
+            return TEXT("Whetstone");
         default:
             return TEXT("Unknown");
         }

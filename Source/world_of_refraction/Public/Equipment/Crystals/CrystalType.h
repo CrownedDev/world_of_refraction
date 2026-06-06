@@ -25,5 +25,6 @@ enum class ECrystalType : uint8
     Onyx UMETA(DisplayName = "Onyx (Darkness - Silence)"),
     Amethyst UMETA(DisplayName = "Amethyst (Void - Gambling)"),
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
-    Quartz UMETA(DisplayName = "Quartz (None - Transform)")
+    Quartz UMETA(DisplayName = "Quartz (None - Transform)"),
+    Whetstone UMETA(DisplayName = "Whetstone")
 };

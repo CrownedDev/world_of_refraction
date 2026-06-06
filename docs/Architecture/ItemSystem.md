@@ -127,7 +127,7 @@ buff-vs-debuff (Amber, Opal) or cleanse-vs-strip (Iolite).
 
 ### EItemEffectType
 
-`Damage, Healing, EnergyRestore, BuffDamage, BuffDefense, BuffSpeed, BuffCrit, Silence,
+`Damage, Healing, EnergyRestore, BuffRawDamage, BuffDefense, BuffSpeed, BuffCrit, Silence,
 Cleanse, Gamble, StatusClear, Repair`. `GetPrimaryEffectType()` maps each `CrystalType` to
 one of these. `StatusClear` (Quartz) replaced the removed `Transform` value — a redirect
 maps old `Transform` data to `StatusClear`.
