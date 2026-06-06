@@ -356,6 +356,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		TArray<FActiveSkillEffect> Effects;
 		int32 BaseID = WeaponID * 100; // Offset for weapon bonuses
 
+		// TODO: dead (test-only / uncalled) AND double-counts the weapon BonusRawDamage applied in DamageCalculator; delete in cleanup, do not wire.
 		if (BonusRawDamage != 0)
 		{
 			FActiveSkillEffect Bonus = CreatePersistent(
@@ -438,6 +439,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		TArray<FActiveSkillEffect> Effects;
 		int32 BaseID = RingID * 100 + 50; // +50 offset isolates ring-bonus IDs from weapon-bonus IDs (+1..+6) in the same RingID*100 block
 
+		// TODO: dead (test-only / uncalled) AND double-counts the weapon BonusRawDamage applied in DamageCalculator; delete in cleanup, do not wire.
 		if (BonusRawDamage != 0)
 		{
 			FActiveSkillEffect Bonus = CreatePersistent(

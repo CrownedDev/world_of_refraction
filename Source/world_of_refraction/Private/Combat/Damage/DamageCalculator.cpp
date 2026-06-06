@@ -109,7 +109,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	}
 
 	// Step 2: Status effect modifiers (buffs/debuffs)
-	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender);
+	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
 	RunningDamage *= StatusMod;
 
 	// Step 3: Element interaction — no elemental advantage system; always neutral.
@@ -506,7 +506,7 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 	return 1.0f + FMath::Max(0.0f, Modify / 100.0f);
 }
 
-float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender) const
+float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const
 {
 	float Modifier = 1.0f;
 
@@ -526,6 +526,20 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		// Passive-layer ModifyDamageDealt: percent boost to outgoing damage.
 		float ModifyDealt = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyDamageDealt);
 		Modifier *= (1.0f + ModifyDealt / 100.0f);
+
+		// RawDamageBuff/Debuff: whole-number-percent boost to PHYSICAL outgoing
+		// damage only (ActionType != Spell). The Amethyst gamble is the only live
+		// producer and emits percent magnitudes; spell actions are unaffected.
+		if (ActionType != EActionType::Spell)
+		{
+			float RawBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageBuff);
+			float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageDebuff);
+			const float BeforeRaw = Modifier;
+			Modifier *= (1.0f + (RawBuff - RawDebuff) / 100.0f);
+			UE_LOG(LogTemp, Verbose,
+				   TEXT("[DamageCalculator] RawDamage status +%.1f%% / -%.1f%%: mult %.3f -> %.3f"),
+				   RawBuff, RawDebuff, BeforeRaw, Modifier);
+		}
 	}
 
 	// Defender-side damage-taken modifier — applies to incoming damage regardless

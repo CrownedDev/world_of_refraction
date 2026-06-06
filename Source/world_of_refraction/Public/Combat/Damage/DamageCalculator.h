@@ -258,8 +258,9 @@ private:
 	/** Get BrokenDarknessManager from actor */
 	UBrokenDarknessManager *GetBrokenDarknessManager(AActor *Actor) const;
 
-	/** Apply status effect modifiers to damage */
-	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender) const;
+	/** Apply status effect modifiers to damage. ActionType gates the
+	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
+	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
 
 	/** Skill-effect-driven crit damage multiplier — returns 1.0 + ModifyCritDamage% / 100. */
 	float GetCritDamageMultiplier(AActor *Attacker) const;
