@@ -14,7 +14,7 @@
 #include "CoreMinimal.h"
 #include "Equipment/EAttachedItemKind.h"
 #include "Skills/Definitions/ESpellElement.h"
-#include "Equipment/FRefinedAttachment.h"
+#include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Crystals/FEvolutionAttachment.h"
 #include "FRuntimeAttachedItem.generated.h"
 
@@ -34,7 +34,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     // Refined.Id unchanged. (Factory population lands in Cluster B.)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::Whetstone", EditConditionHides))
-    FRefinedAttachment Refined;
+    FCrystalAttachment Refined;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Evolution", EditConditionHides))

@@ -1,4 +1,4 @@
-// FRefinedAttachment.h
+// FCrystalAttachment.h
 // Runtime refined-crystal attachment. Identified by FCrystalId (Type + Tier)
 // with per-instance CurrentDurability. No asset pointer — refined crystals
 // post-refactor are enum pairs, not asset references. No GUID — refined
@@ -12,22 +12,22 @@
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/CrystalIdentity.h"
-#include "FRefinedAttachment.generated.h"
+#include "FCrystalAttachment.generated.h"
 
 USTRUCT(BlueprintType)
-struct WORLD_OF_REFRACTION_API FRefinedAttachment
+struct WORLD_OF_REFRACTION_API FCrystalAttachment
 {
     GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Refined")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Crystal")
     FCrystalId Id;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Refined")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Crystal")
     int32 CurrentDurability = 0;
 
-    FRefinedAttachment() = default;
+    FCrystalAttachment() = default;
 
-    FRefinedAttachment(const FCrystalId &InId, int32 InDurability)
+    FCrystalAttachment(const FCrystalId &InId, int32 InDurability)
         : Id(InId), CurrentDurability(InDurability) {}
 
     /** Refined crystals are never immune to breaking. Caller must gate this
