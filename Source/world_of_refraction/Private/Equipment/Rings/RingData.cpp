@@ -59,7 +59,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         bool bHasCrystalTier = false;
         if (AttachedItem.Kind == EAttachedItemKind::Crystal)
         {
-            CrystalTier = AttachedItem.RefinedTier;
+            CrystalTier = AttachedItem.CrystalTier;
             bHasCrystalTier = true;
         }
         else if (AttachedItem.Kind == EAttachedItemKind::Evolution && AttachedItem.Evolution)

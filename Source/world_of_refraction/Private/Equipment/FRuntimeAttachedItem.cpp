@@ -177,7 +177,7 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
     {
     case EAttachedItemKind::Crystal:
         Result.Kind = EAttachedItemKind::Crystal;
-        Result.Crystal.Id = FCrystalId(Source.RefinedType, Source.RefinedTier);
+        Result.Crystal.Id = FCrystalId(Source.CrystalType, Source.CrystalTier);
         // Refined crystals carry no asset, so there is no per-asset MaxDurability
         // to read as FromAsset does. Seed from the tier-based max the runtime
         // already treats as refined's source of truth (GetMaxDurability and
@@ -198,7 +198,7 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // Identity carrier is the Refined slot; force Whetstone type + the
         // authored tier. No durability — a whetstone never wears, so seed 0
         // (do NOT call GetMaxDurability, which is tier-based and nonzero).
-        Result.Crystal.Id = FCrystalId(ECrystalType::Whetstone, Source.RefinedTier);
+        Result.Crystal.Id = FCrystalId(ECrystalType::Whetstone, Source.CrystalTier);
         Result.Crystal.CurrentDurability = 0;
         break;
 
