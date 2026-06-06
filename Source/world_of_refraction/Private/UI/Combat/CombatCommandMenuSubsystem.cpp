@@ -274,9 +274,26 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         OpenItemsSubmenu();
         break;
 
+    case EPieMenuCategory::ResonateWeapon:
+        if (CurrentCapabilities.bHasWhetstoneWeaponAbilities)
+        {
+            // Whetstone: list whetstone abilities as Ability buttons under the
+            // same Resonate Weapon branch. Leaf buttons carry EPieMenuCategory::Ability
+            // so they exit via the ability action path — no spell source. ActiveSubmenuSource
+            // is deliberately left unset (the ability path never reads it).
+            CurrentDepth = ECombatMenuDepth::Submenu;
+            ActiveSubmenuType = EPieMenuCategory::ResonateWeapon;
+            OnCommandMenuReady.Broadcast(
+                BuildAbilityButtonsFrom(CurrentCapabilities.WhetstoneWeaponAbilities));
+        }
+        else
+        {
+            OpenSpellSubmenu(EPieMenuCategory::ResonateWeapon);
+        }
+        break;
+
     case EPieMenuCategory::Refractions:
     case EPieMenuCategory::Breakthrough:
-    case EPieMenuCategory::ResonateWeapon:
     case EPieMenuCategory::ResonateRing:
         OpenSpellSubmenu(ButtonData.Category);
         break;
@@ -442,9 +459,17 @@ void UCombatCommandMenuSubsystem::RebroadcastCurrentView()
         case EPieMenuCategory::Items:
             OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
             break;
+        case EPieMenuCategory::ResonateWeapon:
+            if (CurrentCapabilities.bHasWhetstoneWeaponAbilities)
+                OnCommandMenuReady.Broadcast(
+                    BuildAbilityButtonsFrom(CurrentCapabilities.WhetstoneWeaponAbilities));
+            else
+                OnCommandMenuReady.Broadcast(
+                    BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(EPieMenuCategory::ResonateWeapon)));
+            break;
+
         case EPieMenuCategory::Refractions:
         case EPieMenuCategory::Breakthrough:
-        case EPieMenuCategory::ResonateWeapon:
         case EPieMenuCategory::ResonateRing:
             OnCommandMenuReady.Broadcast(
                 BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource)));
@@ -513,7 +538,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateAttackButton());
     if (CurrentCapabilities.bCanUseAbilities)
         Buttons.Add(CreateAbilitiesButton());
-    if (CurrentCapabilities.bHasWeaponCrystal)
+    if (CurrentCapabilities.bHasWeaponCrystal || CurrentCapabilities.bHasWhetstoneWeaponAbilities)
         Buttons.Add(CreateResonateWeaponButton());
     if (CurrentCapabilities.bHasRefractions)
         Buttons.Add(CreateRefractionsButton());
@@ -561,10 +586,20 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateWeaponButton() con
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("ResonateWeapon");
     Button.DisplayName = FText::FromString(TEXT("Resonate (W)"));
-    Button.Description = FText::FromString(
-        FString::Printf(TEXT("%d spells"), CurrentCapabilities.WeaponCrystalSpells.Num()));
+    if (CurrentCapabilities.bHasWhetstoneWeaponAbilities && !CurrentCapabilities.bHasWeaponCrystal)
+    {
+        // Whetstone (ability mode): count is abilities, not spells. A whetstone has
+        // no spell-element color, so leave the default (neutral) tint.
+        Button.Description = FText::FromString(
+            FString::Printf(TEXT("%d abilities"), CurrentCapabilities.WhetstoneWeaponAbilities.Num()));
+    }
+    else
+    {
+        Button.Description = FText::FromString(
+            FString::Printf(TEXT("%d spells"), CurrentCapabilities.WeaponCrystalSpells.Num()));
+        Button.ButtonTint = CurrentCapabilities.WeaponCrystalColor;
+    }
     Button.Category = EPieMenuCategory::ResonateWeapon;
-    Button.ButtonTint = CurrentCapabilities.WeaponCrystalColor;
     Button.bEnabled = true;
     return Button;
 }
@@ -676,11 +711,17 @@ void UCombatCommandMenuSubsystem::OpenSpellSubmenu(EPieMenuCategory Source)
 
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilitySubmenu() const
 {
+    return BuildAbilityButtonsFrom(CurrentCapabilities.WeaponAbilities);
+}
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildAbilityButtonsFrom(
+    const TArray<UAbilityData *> &Abilities) const
+{
     TArray<FPieMenuButtonData> Buttons;
 
-    for (int32 i = 0; i < CurrentCapabilities.WeaponAbilities.Num(); i++)
+    for (int32 i = 0; i < Abilities.Num(); i++)
     {
-        UAbilityData *Ability = CurrentCapabilities.WeaponAbilities[i];
+        UAbilityData *Ability = Abilities[i];
         if (!Ability)
             continue;
 

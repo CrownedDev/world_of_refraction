@@ -20,6 +20,7 @@
 class ULoadoutComponent;
 class UCharacterData;
 class USpellData;
+class UAbilityData;
 class UBrokenDarknessManager;
 
 // ==================== DELEGATES ====================
@@ -175,6 +176,7 @@ private:
 
     TArray<FPieMenuButtonData> BuildSpellSubmenu(EPieMenuCategory Source) const;
     TArray<FPieMenuButtonData> BuildAbilitySubmenu() const;
+    TArray<FPieMenuButtonData> BuildAbilityButtonsFrom(const TArray<UAbilityData *> &Abilities) const;
     TArray<FPieMenuButtonData> BuildSchoolButtons(const TArray<USpellData *> &Spells) const;
     TArray<FPieMenuButtonData> BuildSpellButtons(const TArray<USpellData *> &Spells,
                                                  EPieMenuSpellSchool School) const;
