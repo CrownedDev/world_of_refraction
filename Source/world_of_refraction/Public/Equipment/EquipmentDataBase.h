@@ -65,17 +65,22 @@ public:
     /** Design-time attachment slot. Refined (Type+Tier) or Evolution (asset
      *  pointer), discriminated by Kind. Replaces the legacy SlottedCrystal
      *  pointer; inventory factories read this when building runtime entries. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item")
     FAttachedItem AttachedItem;
 
     /** Default spells for this equipment — copied to inventory entry when obtained.
-     *  Lost if crystal is removed; spell vendor reassigns them. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal", meta = (TitleProperty = "Name"))
+     *  Lost if crystal is removed; spell vendor reassigns them. Hidden in the
+     *  editor when the attachment is a whetstone (whetstones carry abilities,
+     *  not spells); the hidden value is inert and never read for a whetstone. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item",
+              meta = (TitleProperty = "Name", EditCondition = "!IsWhetstoneAttached", EditConditionHides))
     TArray<USpellData *> DefaultSpells;
 
     /** Default abilities seeded onto a whetstone-attached weapon's whetstone slots.
-     *  Parallels DefaultSpells; only meaningful when the attachment is a whetstone. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Whetstone")
+     *  Parallels DefaultSpells; only meaningful when the attachment is a whetstone,
+     *  so the editor shows it only then. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (DisplayName = "Extra Abilities", EditCondition = "IsWhetstoneAttached", EditConditionHides))
     TArray<UAbilityData *> DefaultAbilities;
 
     // ==================== INFUSION ====================
@@ -92,7 +97,7 @@ public:
      *  (which is on UEvolutionItemData and gates wear); a crystal can still break
      *  via the standard wear path when its bCanBreak is true. No runtime code
      *  consumes this flag yet — the vendor system will use it when built. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item")
     bool bLockSkills = false;
 
     /** Status buildup multiplier when this equipment is the infusion source
@@ -150,6 +155,12 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool HasCrystal() const { return AttachedItem.Kind != EAttachedItemKind::None; }
+
+    /** Editor-only discriminator for the contextual EditConditions on
+     *  DefaultSpells / DefaultAbilities. EditCondition cannot reach the nested
+     *  AttachedItem.Kind path, so it resolves this UFUNCTION instead. */
+    UFUNCTION()
+    bool IsWhetstoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::Whetstone; }
 
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;
