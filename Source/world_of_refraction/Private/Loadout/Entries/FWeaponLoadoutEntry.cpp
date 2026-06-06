@@ -143,21 +143,50 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
     // Whetstone abilities exist only while a whetstone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWhetstone = Attachment.IsWhetstone();
-    if (!bIsWhetstone)
+    if (!Attachment.IsWhetstone())
     {
         return TArray<UAbilityData *>();
     }
 
-    // No preset merge — whetstones are asset-less, so there are no preset
-    // abilities to fold in. Skip nulls, cap to MAX_WHETSTONE_ABILITIES.
-    TArray<UAbilityData *> Result;
-    for (UAbilityData *Ability : AssignedWhetstoneAbilities)
+    // Base layer: the weapon asset's DefaultAbilities — same role PresetAbilities
+    // plays in GetAllAbilities (read live from the asset, not a seeded array).
+    const TArray<UAbilityData *> Defaults = WeaponEntry.Weapon
+                                                ? WeaponEntry.Weapon->DefaultAbilities
+                                                : TArray<UAbilityData *>();
+
+    // Locked attachments ignore overrides entirely — defaults only. Mirrors
+    // GetAllAbilities's bAbilitiesLocked short-circuit, but keyed on the generic
+    // bLockSkills (the lock for whatever skills the attachment provides).
+    if (WeaponEntry.Weapon && WeaponEntry.Weapon->bLockSkills)
     {
-        if (Ability)
+        return Defaults;
+    }
+
+    // Sequential override merge: AssignedWhetstoneAbilities replace default slots
+    // in order; non-null entries beyond the default count are appended.
+    TArray<UAbilityData *> Result;
+    int32 OverrideIndex = 0;
+
+    for (int32 i = 0; i < Defaults.Num(); ++i)
+    {
+        if (OverrideIndex < AssignedWhetstoneAbilities.Num() && AssignedWhetstoneAbilities[OverrideIndex])
         {
-            Result.Add(Ability);
+            Result.Add(AssignedWhetstoneAbilities[OverrideIndex]);
+            ++OverrideIndex;
         }
+        else
+        {
+            Result.Add(Defaults[i]);
+        }
+    }
+
+    while (OverrideIndex < AssignedWhetstoneAbilities.Num())
+    {
+        if (AssignedWhetstoneAbilities[OverrideIndex])
+        {
+            Result.Add(AssignedWhetstoneAbilities[OverrideIndex]);
+        }
+        ++OverrideIndex;
     }
 
     if (Result.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)

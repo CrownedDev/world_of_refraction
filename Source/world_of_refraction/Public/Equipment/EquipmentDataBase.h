@@ -24,6 +24,7 @@
 
 class UEvolutionItemData;
 class USpellData;
+class UAbilityData;
 class UCharacterData;
 class UTexture2D;
 
@@ -72,6 +73,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal", meta = (TitleProperty = "Name"))
     TArray<USpellData *> DefaultSpells;
 
+    /** Default abilities seeded onto a whetstone-attached weapon's whetstone slots.
+     *  Parallels DefaultSpells; only meaningful when the attachment is a whetstone. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Whetstone")
+    TArray<UAbilityData *> DefaultAbilities;
+
     // ==================== INFUSION ====================
 
     /** When true, this equipment cannot serve as an infusion source and
@@ -80,13 +86,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion")
     bool bImmuneToInfusion = false;
 
-    /** When true, the player cannot unfuse this equipment's slotted crystal at
-     *  a vendor. Independent of bCanBreak (which is on UEvolutionItemData and gates
-     *  wear). bCrystalLocked is a player-side ergonomic gate; the crystal can still
-     *  break via the standard wear path when its bCanBreak is true. No runtime code
+    /** Generic lock for the attachment's provided skills (spells for crystals,
+     *  abilities for whetstones). When true, the player cannot unfuse the
+     *  attachment or reassign its skills at a vendor. Independent of bCanBreak
+     *  (which is on UEvolutionItemData and gates wear); a crystal can still break
+     *  via the standard wear path when its bCanBreak is true. No runtime code
      *  consumes this flag yet — the vendor system will use it when built. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Crystal")
-    bool bCrystalLocked = false;
+    bool bLockSkills = false;
 
     /** Status buildup multiplier when this equipment is the infusion source
      *  (higher = faster status). Applied at the infusion DOT gate. */

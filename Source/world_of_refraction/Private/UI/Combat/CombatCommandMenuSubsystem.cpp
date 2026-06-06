@@ -591,7 +591,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateWeaponButton() con
         // Whetstone (ability mode): count is abilities, not spells. A whetstone has
         // no spell-element color, so leave the default (neutral) tint.
         Button.Description = FText::FromString(
-            FString::Printf(TEXT("%d abilities"), CurrentCapabilities.WhetstoneWeaponAbilities.Num()));
+            FString::Printf(TEXT("%d extra abilities"), CurrentCapabilities.WhetstoneWeaponAbilities.Num()));
     }
     else
     {
