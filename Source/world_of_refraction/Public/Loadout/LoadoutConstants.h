@@ -7,6 +7,7 @@ namespace LoadoutConstants
 {
     // Abilities
     constexpr int32 MAX_WEAPON_ABILITIES = 6;
+    constexpr int32 MAX_WHETSTONE_ABILITIES = 6; // Whetstone Resonate-weapon ability slots
     constexpr int32 MAX_GRANTED_ABILITIES = 5; // +1 Cancel = 6 total
 
     // Spells

@@ -138,6 +138,37 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetCustomizableAbilities() const
     return AssignedAbilities;
 }
 
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
+{
+    // Whetstone abilities exist only while a whetstone is attached — gate the
+    // way GetAllSpells gates spells on a spell-capable attachment.
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const bool bIsWhetstone =
+        Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+    if (!bIsWhetstone)
+    {
+        return TArray<UAbilityData *>();
+    }
+
+    // No preset merge — whetstones are asset-less, so there are no preset
+    // abilities to fold in. Skip nulls, cap to MAX_WHETSTONE_ABILITIES.
+    TArray<UAbilityData *> Result;
+    for (UAbilityData *Ability : AssignedWhetstoneAbilities)
+    {
+        if (Ability)
+        {
+            Result.Add(Ability);
+        }
+    }
+
+    if (Result.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)
+    {
+        Result.SetNum(LoadoutConstants::MAX_WHETSTONE_ABILITIES);
+    }
+
+    return Result;
+}
+
 bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbilities) const
 {
     if (!WeaponEntry.Weapon)
@@ -182,6 +213,60 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
     return true;
 }
 
+bool FWeaponLoadoutEntry::ValidateWhetstoneAbilities(const FAbilityCollection &OwnedAbilities) const
+{
+    if (!WeaponEntry.Weapon)
+    {
+        return true; // No weapon = nothing to validate
+    }
+
+    // Whetstone abilities are orphaned without an attached whetstone — valid
+    // only when none are assigned.
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const bool bIsWhetstone =
+        Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+    if (!bIsWhetstone)
+    {
+        return AssignedWhetstoneAbilities.Num() == 0;
+    }
+
+    EWeaponType WeaponType = WeaponEntry.Weapon->WeaponType;
+
+    for (UAbilityData *Ability : AssignedWhetstoneAbilities)
+    {
+        if (!Ability)
+        {
+            continue; // Empty slots are OK
+        }
+
+        // Check ownership
+        if (!OwnedAbilities.HasAbility(Ability))
+        {
+            return false;
+        }
+
+        // Check weapon type match
+        if (Ability->RequiredWeaponType != WeaponType)
+        {
+            return false;
+        }
+
+        // Dual-weapon gate: dual-only abilities reject single-wield weapons.
+        if (Ability->bRequiresDualWeapon && !WeaponEntry.Weapon->IsDualWielded())
+        {
+            return false;
+        }
+    }
+
+    // Check count
+    if (AssignedWhetstoneAbilities.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) const
 {
     // A Whetstone grants no spells; its Generic element must not be read as a
@@ -219,4 +304,5 @@ void FWeaponLoadoutEntry::InitializeFromWeapon()
     // AssignedAbilities is a pure override list — it starts empty.
     // Preset abilities are merged in at query time by GetAllAbilities().
     AssignedAbilities.Empty();
+    AssignedWhetstoneAbilities.Empty();
 }

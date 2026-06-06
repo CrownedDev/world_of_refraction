@@ -39,6 +39,12 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
     TArray<UAbilityData *> AssignedAbilities;
 
+    /** Assigned whetstone abilities (max 6). Separate channel from
+     *  AssignedAbilities — surfaced under the Resonate Weapon menu, valid only
+     *  while a whetstone is attached. Does not touch the main Abilities grid. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
+    TArray<UAbilityData *> AssignedWhetstoneAbilities;
+
     /** Assigned spells (max 6, only valid if weapon has crystal).
      *  Sequential override list — see GetAllSpells(). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
@@ -89,6 +95,10 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Get all abilities (locked + customizable) */
     TArray<UAbilityData *> GetAllAbilities() const;
 
+    /** Get assigned whetstone abilities (Resonate Weapon menu). Empty unless a
+     *  whetstone is attached. No preset merge — whetstones are asset-less. */
+    TArray<UAbilityData *> GetWhetstoneAbilities() const;
+
     /** Get only the locked/preset abilities */
     TArray<UAbilityData *> GetLockedAbilities() const;
 
@@ -119,6 +129,10 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Validate abilities match weapon type and are owned */
     bool ValidateAbilities(const struct FAbilityCollection &OwnedAbilities) const;
 
+    /** Validate whetstone abilities match weapon type and are owned. With no
+     *  whetstone attached, valid only when none are assigned. */
+    bool ValidateWhetstoneAbilities(const struct FAbilityCollection &OwnedAbilities) const;
+
     /** Validate spells match crystal element and are owned */
     bool ValidateSpells(const struct FSpellCollection &OwnedSpells) const;
 
@@ -138,6 +152,7 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     {
         WeaponEntry = FWeaponInventoryEntry();
         AssignedAbilities.Empty();
+        AssignedWhetstoneAbilities.Empty();
         AssignedSpells.Empty();
         OverrideAttack = nullptr;
         bUseWeaponParryAnimation = true;
