@@ -666,6 +666,234 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
     return Errors;
 }
 
+TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() const
+{
+    TArray<FInvalidSlotFinding> Findings;
+
+    auto AddFinding = [&Findings](ELoadoutSlotType Type, int32 SlotIndex, bool bClearable, const FString &Reason)
+    {
+        FInvalidSlotFinding Finding;
+        Finding.SlotType = Type;
+        Finding.SlotIndex = SlotIndex;
+        Finding.bClearable = bClearable;
+        Finding.Reason = Reason;
+        Findings.Add(MoveTemp(Finding));
+    };
+
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv)
+    {
+        AddFinding(ELoadoutSlotType::None, -1, false, TEXT("No inventory component on owner"));
+        return Findings;
+    }
+
+    const int32 Index = Inv->ActiveLoadoutIndex;
+    if (!Inv->SavedLoadouts.IsValidIndex(Index))
+    {
+        AddFinding(ELoadoutSlotType::None, -1, false, TEXT("Invalid loadout index"));
+        return Findings;
+    }
+
+    // Ownership checks query the owner's inventory component. GetValidationErrors
+    // takes Inventory as a separate param, but is always passed the owner's
+    // component in practice — so the single resolved Inv is used for both.
+    UInventoryComponent *Inventory = Inv;
+
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Index];
+
+    // Primary weapon
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
+    {
+        bool bFound = false;
+        for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
+        {
+            if (Entry.Weapon == Loadout.PrimaryWeapon.WeaponEntry.Weapon)
+            {
+                bFound = true;
+                break;
+            }
+        }
+        if (!bFound)
+        {
+            AddFinding(ELoadoutSlotType::PrimaryWeapon, -1, true, TEXT("Primary weapon not in inventory"));
+        }
+
+        for (int32 i = 0; i < Loadout.PrimaryWeapon.AssignedAbilities.Num(); ++i)
+        {
+            UAbilityData *Ability = Loadout.PrimaryWeapon.AssignedAbilities[i];
+            if (Ability && !Inventory->HasAbility(Ability))
+            {
+                AddFinding(ELoadoutSlotType::WeaponAbility, i, true,
+                           FString::Printf(TEXT("Ability '%s' not learned"), *Ability->Name));
+            }
+        }
+
+        for (int32 i = 0; i < Loadout.PrimaryWeapon.AssignedSpells.Num(); ++i)
+        {
+            USpellData *Spell = Loadout.PrimaryWeapon.AssignedSpells[i];
+            if (Spell && !Inventory->HasSpell(Spell))
+            {
+                AddFinding(ELoadoutSlotType::WeaponSpell, i, true,
+                           FString::Printf(TEXT("Spell '%s' not learned"), *Spell->Name));
+            }
+        }
+    }
+
+    // Primary ring (Generic/Caster)
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
+    {
+        bool bFound = false;
+        for (const FRingInventoryEntry &Entry : Inventory->Rings)
+        {
+            if (Entry.Ring == Loadout.PrimaryRing.RingEntry.Ring)
+            {
+                bFound = true;
+                break;
+            }
+        }
+        if (!bFound)
+        {
+            AddFinding(ELoadoutSlotType::PrimaryRing, -1, true, TEXT("Primary ring not in inventory"));
+        }
+    }
+
+    // Primary evolution
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    {
+        const UEvolutionInventoryComponent *EvolutionInv =
+            Inventory->GetOwner()
+                ? Inventory->GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>()
+                : nullptr;
+        if (!EvolutionInv || !EvolutionInv->HasInstance(Loadout.PrimaryEvolution.Item))
+        {
+            AddFinding(ELoadoutSlotType::PrimaryEvolution, -1, true, TEXT("Primary evolution crystal not in inventory"));
+        }
+
+        if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+        {
+            AddFinding(ELoadoutSlotType::None, -1, false,
+                       FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
+                                       Loadout.EvolutionSpells.Num(), LoadoutConstants::MAX_EVOLUTION_SPELLS));
+        }
+    }
+
+    // Secondary weapon (Generic)
+    if (CharacterClass == ECharacterClass::Generic)
+    {
+        if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
+        {
+            bool bFound = false;
+            for (const FWeaponInventoryEntry &Entry : Inventory->Weapons)
+            {
+                if (Entry.Weapon == Loadout.SecondaryWeapon.WeaponEntry.Weapon)
+                {
+                    bFound = true;
+                    break;
+                }
+            }
+            if (!bFound)
+            {
+                AddFinding(ELoadoutSlotType::SecondaryWeapon, -1, true, TEXT("Secondary weapon not in inventory"));
+            }
+        }
+    }
+
+    // Resonator ring loadout
+    if (CharacterClass == ECharacterClass::Resonator)
+    {
+        int32 TotalSlotCost = 0;
+        for (int32 i = 0; i < Loadout.RingLoadout.Num(); ++i)
+        {
+            const FRingLoadoutEntry &RingEntry = Loadout.RingLoadout[i];
+            if (RingEntry.IsValid())
+            {
+                bool bFound = false;
+                for (const FRingInventoryEntry &Entry : Inventory->Rings)
+                {
+                    if (Entry.Ring == RingEntry.RingEntry.Ring)
+                    {
+                        bFound = true;
+                        break;
+                    }
+                }
+                if (!bFound)
+                {
+                    AddFinding(ELoadoutSlotType::ResonatorRing, i, true, TEXT("Ring in loadout not in inventory"));
+                }
+
+                TotalSlotCost += InventoryConstants::GetRingSlotCost(RingEntry.IsEvolved());
+            }
+        }
+
+        const bool bIsEvolved = (Loadout.PrimarySlotType == EPrimarySlotType::Evolution);
+        const int32 MaxSlots = bIsEvolved ? LoadoutConstants::RESONATOR_RING_SLOTS_EVOLVED
+                                          : LoadoutConstants::RESONATOR_RING_SLOTS_NORMAL;
+        if (TotalSlotCost > MaxSlots)
+        {
+            AddFinding(ELoadoutSlotType::None, -1, false,
+                       FString::Printf(TEXT("Ring loadout exceeds slot capacity (%d/%d slots)"),
+                                       TotalSlotCost, MaxSlots));
+        }
+    }
+
+    // Innate spells (Caster)
+    if (CharacterClass == ECharacterClass::Caster)
+    {
+        AActor *OwnerActor = GetOwner();
+        UCharacterDataComponent *CharComp = nullptr;
+        UBrokenDarknessManager *BDManager = nullptr;
+        if (OwnerActor)
+        {
+            CharComp = OwnerActor->FindComponentByClass<UCharacterDataComponent>();
+            BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
+        }
+
+        if (CharComp && CharComp->IsBrokenDarkness())
+        {
+            // BD pool element-matching is owned by ValidateBDSpellLoadout. Surface
+            // its findings for parity, but mark them non-clearable — this build
+            // does not auto-clear BD pool entries (per locked spec).
+            for (const FString &Err : FCombatLoadout::ValidateBDSpellLoadout(Loadout.InnateSpells, Loadout.BDSpellPools))
+            {
+                AddFinding(ELoadoutSlotType::BDPoolSpell, -1, false, Err);
+            }
+        }
+        else
+        {
+            for (int32 i = 0; i < Loadout.InnateSpells.Num(); ++i)
+            {
+                USpellData *Spell = Loadout.InnateSpells[i];
+                if (!Spell)
+                {
+                    continue;
+                }
+
+                if (!Inventory->HasSpell(Spell))
+                {
+                    AddFinding(ELoadoutSlotType::InnateSpell, i, true,
+                               FString::Printf(TEXT("Innate spell '%s' not learned"), *Spell->Name));
+                    continue;
+                }
+
+                if (!UBrokenDarknessManager::IsElementCastable(OwnerActor, CharComp, BDManager, Spell->Element))
+                {
+                    AddFinding(ELoadoutSlotType::InnateSpell, i, true,
+                               FString::Printf(TEXT("Innate spell '%s' element not castable by this character"), *Spell->Name));
+                }
+            }
+        }
+    }
+
+    // Item slots are exempt (self-owning transfer model). Duplicate-type is a
+    // structural diagnostic only — reported, never cleared.
+    if (Loadout.HasDuplicateItemTypes())
+    {
+        AddFinding(ELoadoutSlotType::None, -1, false, TEXT("Duplicate item types in loadout"));
+    }
+
+    return Findings;
+}
+
 // ==================== BATTLE PREPARATION ====================
 
 bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
