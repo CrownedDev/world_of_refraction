@@ -2494,13 +2494,13 @@ void ACombatOrchestrator::DebugSimCast_Matched_L1()
 		return;
 	}
 
-	if (!Attachment->IsRefined())
+	if (!Attachment->IsCrystal())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] DebugSimCast_Matched_L1: %s's crystal is not refined (no tier to match)."), *Actor->GetName());
 		return;
 	}
 
-	const int32 CrystalTier = static_cast<int32>(Attachment->Refined.Id.Tier);
+	const int32 CrystalTier = static_cast<int32>(Attachment->Crystal.Id.Tier);
 
 	if (UCrystalManager *CM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCrystalManager>() : nullptr)
 	{

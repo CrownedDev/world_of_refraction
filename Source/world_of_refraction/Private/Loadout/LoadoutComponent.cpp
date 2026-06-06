@@ -1967,15 +1967,15 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
         FEquippedCrystalSlot Slot;
         Slot.Holder = Holder;
         Slot.Kind = Attachment.Kind;
-        if (Attachment.IsRefined())
+        if (Attachment.IsCrystal())
         {
-            Slot.RefinedId = Attachment.Refined.Id;
+            Slot.RefinedId = Attachment.Crystal.Id;
         }
         else if (Attachment.IsWhetstone())
         {
             // Whetstone stores its FCrystalId{Whetstone, Tier} in the Refined
             // slot — carry it so the emitted crystal slot keeps its identity.
-            Slot.RefinedId = Attachment.Refined.Id;
+            Slot.RefinedId = Attachment.Crystal.Id;
         }
         else if (Attachment.IsEvolution())
         {

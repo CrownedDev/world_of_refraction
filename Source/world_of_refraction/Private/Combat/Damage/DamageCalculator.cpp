@@ -87,7 +87,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 				if (bIsWhetstone)
 				{
 					const float WhetstonePercent =
-						CrystalEffectTable::GetWhetstoneBasePercent(Attachment.Refined.Id) +
+						CrystalEffectTable::GetWhetstoneBasePercent(Attachment.Crystal.Id) +
 						CombatConstants::WHETSTONE_ATTACHED_BONUS;
 					const float BeforeWhetstone = RunningDamage;
 					RunningDamage *= (1.0f + WhetstonePercent / 100.0f);

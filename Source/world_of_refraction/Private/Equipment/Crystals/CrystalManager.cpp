@@ -44,7 +44,7 @@ void UCrystalManager::ProcessPostCastWear(
 
     // Only refined attachments wear/break. Evolution items default to unbreakable
     // (see FEvolutionAttachment::IsBroken — checks bCanBreak).
-    if (!Attachment.IsRefined())
+    if (!Attachment.IsCrystal())
     {
         return;
     }
@@ -72,7 +72,7 @@ void UCrystalManager::ProcessPostCastWear(
         const float EfficiencyFrac  = 1.0f - CasterCharComp->GetEvolutionModifiedEfficiencyMultiplier();
         const float ResistanceFrac  = CasterCharComp->GetEvolutionModifiedResistance();
         Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
-            Attachment.Refined.Id.Tier,
+            Attachment.Crystal.Id.Tier,
             ActionTier,
             InfusionLevel,
             bIsSpell,
@@ -84,7 +84,7 @@ void UCrystalManager::ProcessPostCastWear(
     else
     {
         Wear = UBreakCalculator::CalculateDurabilityWear(
-            Attachment.Refined.Id.Tier,
+            Attachment.Crystal.Id.Tier,
             ActionTier,
             InfusionLevel,
             bIsSpell);
@@ -106,7 +106,7 @@ void UCrystalManager::ProcessPostCastWear(
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
                    *Actor->GetName(),
-                   *CrystalIdentity::GetDisplayName(Attachment.Refined.Id),
+                   *CrystalIdentity::GetDisplayName(Attachment.Crystal.Id),
                    Wear, SkipChance);
             return;
         }
@@ -119,7 +119,7 @@ void UCrystalManager::ProcessPostCastWear(
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d wear to crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
            *Actor->GetName(), Wear,
-           *CrystalIdentity::GetDisplayName(Attachment.Refined.Id),
+           *CrystalIdentity::GetDisplayName(Attachment.Crystal.Id),
            NewDur, MaxDur,
            static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
@@ -130,13 +130,13 @@ void UCrystalManager::ProcessPostCastWear(
     {
         UE_LOG(LogTemp, Log,
                TEXT("[CrystalManager] Crystal '%s' broke on %s (holder: %s)"),
-               *CrystalIdentity::GetDisplayName(Attachment.Refined.Id),
+               *CrystalIdentity::GetDisplayName(Attachment.Crystal.Id),
                *Actor->GetName(),
                Holder ? *Holder->GetName() : TEXT("Unknown"));
 
         FBrokenCrystalPayload Payload;
         Payload.Kind = EAttachedItemKind::Crystal;
-        Payload.RefinedId = Attachment.Refined.Id;
+        Payload.RefinedId = Attachment.Crystal.Id;
         OnCrystalBroken.Broadcast(Actor, Holder, Payload);
     }
 }
@@ -282,8 +282,8 @@ void UCrystalManager::DebugBreakActiveCrystal()
         return;
     }
 
-    const FString CrystalName = Attachment->IsRefined()
-                                    ? CrystalIdentity::GetDisplayName(Attachment->Refined.Id)
+    const FString CrystalName = Attachment->IsCrystal()
+                                    ? CrystalIdentity::GetDisplayName(Attachment->Crystal.Id)
                                     : (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"));
 
     if (Attachment->IsBroken())
@@ -293,7 +293,7 @@ void UCrystalManager::DebugBreakActiveCrystal()
                *Actor->GetName(), *CrystalName);
         return;
     }
-    if (!Attachment->IsRefined())
+    if (!Attachment->IsCrystal())
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is not refined (evolution / immune — does not wear/break)."),
@@ -390,7 +390,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION") : TEXT("REFINED");
     const FString CrystalName = bIsEvolutionBranch
                                     ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
-                                    : CrystalIdentity::GetDisplayName(Attachment->Refined.Id);
+                                    : CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
 
     // Evolution-only: bCanBreak is what the refactor flipped. Refined branch
     // is always wearable (no gate), so log "n/a" there for clarity.
@@ -512,7 +512,7 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
                *Actor->GetName());
         return;
     }
-    if (!Attachment->IsRefined())
+    if (!Attachment->IsCrystal())
     {
         UE_LOG(LogTemp, Warning,
                TEXT("[WOR_SimCast] %s's primary weapon crystal is not refined (evolution / immune — does not wear)."),
@@ -540,17 +540,17 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
 
     const FDurabilityWearWithSubstatsResult Predict =
         UBreakCalculator::CalculateDurabilityWearWithSubstatsDetailed(
-            Attachment->Refined.Id.Tier, ActionTierE, InfClamped, bIsSpell,
+            Attachment->Crystal.Id.Tier, ActionTierE, InfClamped, bIsSpell,
             SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac);
 
-    const FString CrystalName = CrystalIdentity::GetDisplayName(Attachment->Refined.Id);
+    const FString CrystalName = CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
     const int32 BeforeDur = Attachment->GetCurrentDurability();
     const int32 MaxDur    = Attachment->GetMaxDurability();
 
     UE_LOG(LogTemp, Display,
            TEXT("[WOR_SimCast] BEFORE — Actor=%s, Crystal='%s' (Tier=%s), Action=%s L%d Spell, Dur=%d/%d"),
            *Actor->GetName(), *CrystalName,
-           *TierHelpers::GetTierName(Attachment->Refined.Id.Tier),
+           *TierHelpers::GetTierName(Attachment->Crystal.Id.Tier),
            *TierHelpers::GetTierName(ActionTierE),
            InfClamped, BeforeDur, MaxDur);
 
@@ -621,13 +621,13 @@ void UCrystalManager::WOR_CrystalState()
     const bool bEvolution = Attachment->IsEvolution();
     const TCHAR *TypeStr = bEvolution
                                ? TEXT("Evolution")
-                               : (Attachment->IsRefined() ? TEXT("Refined") : TEXT("None"));
+                               : (Attachment->IsCrystal() ? TEXT("Refined") : TEXT("None"));
     const FString Name = bEvolution
                              ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
-                             : CrystalIdentity::GetDisplayName(Attachment->Refined.Id);
+                             : CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
     const FString TierStr = bEvolution
                                 ? FString(TEXT("n/a"))
-                                : TierHelpers::GetTierName(Attachment->Refined.Id.Tier);
+                                : TierHelpers::GetTierName(Attachment->Crystal.Id.Tier);
     const FString CanBreakStr = bEvolution
                                     ? (Attachment->Evolution.Item
                                            ? (Attachment->Evolution.Item->bCanBreak ? TEXT("true") : TEXT("false"))

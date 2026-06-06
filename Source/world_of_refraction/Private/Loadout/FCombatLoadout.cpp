@@ -291,9 +291,9 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             if (Result.PrimaryWeapon.WeaponEntry.HasCrystal())
             {
                 const FRuntimeAttachedItem &Att = Result.PrimaryWeapon.WeaponEntry.AttachedItem;
-                if (Att.IsRefined())
+                if (Att.IsCrystal())
                 {
-                    CrystalDesc = CrystalIdentity::GetDisplayName(Att.Refined.Id);
+                    CrystalDesc = CrystalIdentity::GetDisplayName(Att.Crystal.Id);
                 }
                 else if (Att.IsEvolution() && Att.Evolution.Item)
                 {

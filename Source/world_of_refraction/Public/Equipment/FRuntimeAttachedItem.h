@@ -34,14 +34,14 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     // Refined.Id unchanged. (Factory population lands in Cluster B.)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::Whetstone", EditConditionHides))
-    FCrystalAttachment Refined;
+    FCrystalAttachment Crystal;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Evolution", EditConditionHides))
     FEvolutionAttachment Evolution;
 
     bool IsEmpty() const { return Kind == EAttachedItemKind::None; }
-    bool IsRefined() const { return Kind == EAttachedItemKind::Crystal; }
+    bool IsCrystal() const { return Kind == EAttachedItemKind::Crystal; }
     bool IsEvolution() const { return Kind == EAttachedItemKind::Evolution; }
     bool IsWhetstone() const { return Kind == EAttachedItemKind::Whetstone; }
 

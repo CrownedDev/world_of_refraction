@@ -20,9 +20,9 @@ bool FRuntimeAttachedItem::IsBroken() const
     {
         return false;
     }
-    if (IsRefined())
+    if (IsCrystal())
     {
-        return Refined.IsBroken();
+        return Crystal.IsBroken();
     }
     if (IsEvolution())
     {
@@ -49,9 +49,9 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
     {
         return ESpellElement::Generic;
     }
-    if (IsRefined())
+    if (IsCrystal())
     {
-        return CrystalIdentity::GetElement(Refined.Id);
+        return CrystalIdentity::GetElement(Crystal.Id);
     }
     if (IsEvolution() && Evolution.Item)
     {
@@ -67,9 +67,9 @@ int32 FRuntimeAttachedItem::GetCurrentDurability() const
     {
         return 0;
     }
-    if (IsRefined())
+    if (IsCrystal())
     {
-        return Refined.CurrentDurability;
+        return Crystal.CurrentDurability;
     }
     if (IsEvolution())
     {
@@ -85,9 +85,9 @@ int32 FRuntimeAttachedItem::GetMaxDurability() const
     {
         return 0;
     }
-    if (IsRefined())
+    if (IsCrystal())
     {
-        return CrystalIdentity::GetMaxDurability(Refined.Id);
+        return CrystalIdentity::GetMaxDurability(Crystal.Id);
     }
     if (IsEvolution() && Evolution.Item)
     {
@@ -117,9 +117,9 @@ bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
     {
         return false;
     }
-    if (IsRefined())
+    if (IsCrystal())
     {
-        return Refined.ApplyWear(Amount);
+        return Crystal.ApplyWear(Amount);
     }
     if (IsEvolution())
     {
@@ -135,9 +135,9 @@ int32 FRuntimeAttachedItem::RepairBetweenCombats(int32 Amount)
     {
         return 0;
     }
-    if (IsRefined())
+    if (IsCrystal())
     {
-        return Refined.RepairBetweenCombats(Amount);
+        return Crystal.RepairBetweenCombats(Amount);
     }
     if (IsEvolution())
     {
@@ -161,7 +161,7 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
         // Durability is per-instance state, not identity — compare by Id
         // only (identity match, not instance state). Whetstone stores its
         // FCrystalId{Whetstone, Tier} in the same Refined slot.
-        return Refined.Id == Other.Refined.Id;
+        return Crystal.Id == Other.Crystal.Id;
     case EAttachedItemKind::Evolution:
         return Evolution.Item == Other.Evolution.Item;
     default:
@@ -177,12 +177,12 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
     {
     case EAttachedItemKind::Crystal:
         Result.Kind = EAttachedItemKind::Crystal;
-        Result.Refined.Id = FCrystalId(Source.RefinedType, Source.RefinedTier);
+        Result.Crystal.Id = FCrystalId(Source.RefinedType, Source.RefinedTier);
         // Refined crystals carry no asset, so there is no per-asset MaxDurability
         // to read as FromAsset does. Seed from the tier-based max the runtime
         // already treats as refined's source of truth (GetMaxDurability and
         // FRefinedAttachment::RepairBetweenCombats both resolve via CrystalIdentity).
-        Result.Refined.CurrentDurability = CrystalIdentity::GetMaxDurability(Result.Refined.Id);
+        Result.Crystal.CurrentDurability = CrystalIdentity::GetMaxDurability(Result.Crystal.Id);
         break;
 
     case EAttachedItemKind::Evolution:
@@ -198,8 +198,8 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // Identity carrier is the Refined slot; force Whetstone type + the
         // authored tier. No durability — a whetstone never wears, so seed 0
         // (do NOT call GetMaxDurability, which is tier-based and nonzero).
-        Result.Refined.Id = FCrystalId(ECrystalType::Whetstone, Source.RefinedTier);
-        Result.Refined.CurrentDurability = 0;
+        Result.Crystal.Id = FCrystalId(ECrystalType::Whetstone, Source.RefinedTier);
+        Result.Crystal.CurrentDurability = 0;
         break;
 
     case EAttachedItemKind::None:
