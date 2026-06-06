@@ -184,7 +184,14 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
 
 bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) const
 {
-    if (!CanHaveSpells())
+    // A Whetstone grants no spells; its Generic element must not be read as a
+    // spell-element mismatch. Treat it like a no-spell attachment — valid only
+    // when nothing is assigned (same return as the !CanHaveSpells gate).
+    const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
+    const bool bIsWhetstone =
+        Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+
+    if (!CanHaveSpells() || bIsWhetstone)
     {
         return WeaponEntry.AssignedSpells.Num() == 0;
     }

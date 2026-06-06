@@ -16,6 +16,12 @@ bool FRuntimeAttachedItem::IsBroken() const
     }
     if (IsRefined())
     {
+        // Whetstone carries no durability — it can never break, so ability
+        // gating (CanProvideSpells) always sees it as intact.
+        if (Refined.Id.Type == ECrystalType::Whetstone)
+        {
+            return false;
+        }
         return Refined.IsBroken();
     }
     if (IsEvolution())
@@ -27,6 +33,11 @@ bool FRuntimeAttachedItem::IsBroken() const
 
 bool FRuntimeAttachedItem::CanProvideSpells() const
 {
+    // A Whetstone is intact but grants abilities, not spells — never a spell source.
+    if (IsRefined() && Refined.Id.Type == ECrystalType::Whetstone)
+    {
+        return false;
+    }
     return !IsEmpty() && !IsBroken();
 }
 
@@ -87,6 +98,11 @@ bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
 {
     if (IsRefined())
     {
+        // Whetstone never wears — nothing to break.
+        if (Refined.Id.Type == ECrystalType::Whetstone)
+        {
+            return false;
+        }
         return Refined.ApplyWear(Amount);
     }
     if (IsEvolution())
@@ -100,6 +116,11 @@ int32 FRuntimeAttachedItem::RepairBetweenCombats(int32 Amount)
 {
     if (IsRefined())
     {
+        // Whetstone never wears, so there is nothing to repair.
+        if (Refined.Id.Type == ECrystalType::Whetstone)
+        {
+            return 0;
+        }
         return Refined.RepairBetweenCombats(Amount);
     }
     if (IsEvolution())
