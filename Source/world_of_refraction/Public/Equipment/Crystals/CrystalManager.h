@@ -148,7 +148,7 @@ public:
     void WOR_SimCast(int32 ActionTier, int32 InfusionLevel);
 
     /** Print the active combatant's equipped primary weapon crystal: type
-     *  (Refined / Evolution), tier, bCanBreak, and current/max durability. */
+     *  (Crystal / Evolution), tier, bCanBreak, and current/max durability. */
     void WOR_CrystalState();
 
 private:

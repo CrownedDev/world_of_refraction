@@ -387,7 +387,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     // Identify the branch + the crystal — used in every log line below so the
     // bCanBreak flip is unambiguous in the Output Log.
     const bool bIsEvolutionBranch = Attachment->IsEvolution();
-    const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION") : TEXT("REFINED");
+    const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION") : TEXT("CRYSTAL");
     const FString CrystalName = bIsEvolutionBranch
                                     ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
                                     : CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
@@ -621,7 +621,7 @@ void UCrystalManager::WOR_CrystalState()
     const bool bEvolution = Attachment->IsEvolution();
     const TCHAR *TypeStr = bEvolution
                                ? TEXT("Evolution")
-                               : (Attachment->IsCrystal() ? TEXT("Refined") : TEXT("None"));
+                               : (Attachment->IsCrystal() ? TEXT("Crystal") : TEXT("None"));
     const FString Name = bEvolution
                              ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
                              : CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);

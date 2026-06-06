@@ -603,7 +603,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
         switch (Loadout.PrimarySlotType)
         {
         case EPrimarySlotType::Weapon:
-            // Runtime path: cost reflects the actual attached crystal (bare 1 / refined 2 / evolution 3).
+            // Runtime path: cost reflects the actual attached crystal (bare 1 / crystal 2 / evolution 3).
             PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
             break;
         case EPrimarySlotType::Evolution:
@@ -941,7 +941,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         switch (Loadout.PrimarySlotType)
         {
         case EPrimarySlotType::Weapon:
-            // Runtime path: cost reflects the actual attached crystal (bare 1 / refined 2 / evolution 3).
+            // Runtime path: cost reflects the actual attached crystal (bare 1 / crystal 2 / evolution 3).
             PrimaryCost = Loadout.PrimaryWeapon.WeaponEntry.GetSlotCost();
             break;
         case EPrimarySlotType::Evolution:

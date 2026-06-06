@@ -24,7 +24,7 @@ class USpellData;
 /**
  * FWeaponInventoryEntry
  * Represents a single weapon INSTANCE in inventory with its attached crystal state
- * Slot cost varies based on crystal: Base=1, Refined=2, Evolution=3
+ * Slot cost varies based on crystal: Base=1, Crystal=2, Evolution=3
  *
  * This is RUNTIME STATE - the actual crystal attached to this specific weapon instance.
  * Multiple characters can reference the same WeaponData but have different crystals attached.
