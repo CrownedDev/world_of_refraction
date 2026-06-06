@@ -12,7 +12,9 @@
 #include "Equipment/Weapons/WeaponManager.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 
 void UDamageCalculator::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -68,6 +70,35 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
+
+	// Step 1.25: Attached-whetstone raw-damage multiplier. Live-resolves the
+	// active weapon's attachment from the attacker's loadout — physical actions
+	// only, matching the equipment-bonus gate above. Tiered base% + flat attached
+	// bonus, applied as a DIRECT multiplier (these are whole-number percentages,
+	// not per-point fractions, so RAW_DAMAGE_PER_POINT does not apply).
+	if (Attacker && Input.ActionType != EActionType::Spell)
+	{
+		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		{
+			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			{
+				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const bool bIsWhetstone =
+					Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+				if (bIsWhetstone)
+				{
+					const float WhetstonePercent =
+						CrystalEffectTable::GetWhetstoneBasePercent(Attachment.Refined.Id) +
+						CombatConstants::WHETSTONE_ATTACHED_BONUS;
+					const float BeforeWhetstone = RunningDamage;
+					RunningDamage *= (1.0f + WhetstonePercent / 100.0f);
+					UE_LOG(LogTemp, Verbose,
+						   TEXT("[DamageCalculator] Whetstone +%.0f%% raw: %.1f -> %.1f"),
+						   WhetstonePercent, BeforeWhetstone, RunningDamage);
+				}
+			}
+		}
+	}
 
 	// Step 1.5: Grid position damage modifier (attacker)
 	UCombatGridSubsystem *Grid = GetCombatGridSubsystem();
