@@ -73,6 +73,8 @@ enum class ESkillEffectType : uint8
     DefenseBuff UMETA(DisplayName = "Defense Buff"),
     ActionSpeedBuff UMETA(DisplayName = "Action Speed Buff"),
     ActionSpeedDebuff UMETA(DisplayName = "Action Speed Debuff"),
+    // TODO: spell-only counterpart (SpellDamageBuff) pending — see forward list. DamageBuff=all,
+    //       RawDamageBuff=physical, SpellDamageBuff=spell would be the symmetric trio.
     RawDamageBuff UMETA(DisplayName = "Raw Damage Buff"),
     RawDamageDebuff UMETA(DisplayName = "Raw Damage Debuff"),
 

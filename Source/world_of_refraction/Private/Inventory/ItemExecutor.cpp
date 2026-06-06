@@ -10,6 +10,7 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Equipment/Crystals/CrystalIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Combat/CombatConstants.h"
 
 void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -74,6 +75,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 
 	case EItemEffectType::BuffCrit:
 		ExecuteCritBuffEffect(User, Target, Id, Result);
+		break;
+
+	case EItemEffectType::BuffRawDamage:
+		ExecuteRawDamageBuffEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::Silence:
@@ -354,6 +359,38 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrysta
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: Applied %.0f%% turn-speed buff for %d turns to %s"),
 		   BuffPercent, Duration, *Target->GetName());
+}
+
+void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Whetstone consumable - SELF-buff: raise the User's raw (physical) damage by
+	// the base whetstone curve for a fixed duration. The attached +5% bonus is
+	// attach-only and deliberately NOT added here. Magnitude is a whole-number
+	// percent, consumed physical-only by GetStatusEffectDamageModifier.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const float BuffPercent = CrystalEffectTable::GetWhetstoneBasePercent(Id);
+	const int32 Duration = CombatConstants::WHETSTONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
+	FActiveSkillEffect RawBuff = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Raw Damage"), *DisplayName),
+		CrystalIdentity::GetEffectSourceID(Id), ESkillEffectType::RawDamageBuff, BuffPercent, Duration);
+	RawBuff.Element = CrystalIdentity::GetElement(Id);
+
+	// Self-buff: apply to the User (NOT Target — unlike ExecuteSpeedBuffEffect,
+	// which targets the chosen Target).
+	SEM->ApplyEffect(User, RawBuff, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Whetstone: Applied %.0f%% raw-damage self-buff for %d turns to %s"),
+		   BuffPercent, Duration, *User->GetName());
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
