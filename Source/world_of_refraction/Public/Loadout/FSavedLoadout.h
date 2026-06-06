@@ -127,6 +127,12 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponAbilities;
 
+    /** Per-loadout override for the whetstone's extra abilities (base = weapon DefaultAbilities).
+     *  Only meaningful when the primary weapon has a whetstone attached. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+    TArray<UAbilityData *> PrimaryWeaponWhetstoneAbilities;
+
     /** Evolution spells (player-found world drops with RequiredEvolutionCrystal validation) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
@@ -158,6 +164,13 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryWeaponAbilities;
+
+    /** Per-loadout override for the secondary weapon's whetstone extra abilities
+     *  (base = weapon DefaultAbilities). Generic only; meaningful only when the
+     *  secondary weapon has a whetstone attached. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+    TArray<UAbilityData *> SecondaryWeaponWhetstoneAbilities;
 
     /** Override secondary weapon stance (Generic only, nullptr = use weapon default).
      *  Same propagation path as PrimaryWeaponStanceOverride. */

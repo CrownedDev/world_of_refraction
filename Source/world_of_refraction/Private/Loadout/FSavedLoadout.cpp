@@ -75,6 +75,12 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
                 Errors.Add(FString::Printf(TEXT("Secondary weapon has too many abilities (%d/%d)"),
                                            SecondaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
             }
+
+            if (SecondaryWeaponWhetstoneAbilities.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)
+            {
+                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many whetstone abilities (%d/%d)"),
+                                           SecondaryWeaponWhetstoneAbilities.Num(), LoadoutConstants::MAX_WHETSTONE_ABILITIES));
+            }
         }
     }
 
@@ -144,6 +150,12 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
         {
             Errors.Add(FString::Printf(TEXT("Primary weapon has too many abilities (%d/%d)"),
                                        PrimaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
+        }
+
+        if (PrimaryWeaponWhetstoneAbilities.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)
+        {
+            Errors.Add(FString::Printf(TEXT("Primary weapon has too many whetstone abilities (%d/%d)"),
+                                       PrimaryWeaponWhetstoneAbilities.Num(), LoadoutConstants::MAX_WHETSTONE_ABILITIES));
         }
     }
 
@@ -238,11 +250,13 @@ TArray<UAbilityData *> FSavedLoadout::GetAllAbilities() const
     if (PrimarySlotType == EPrimarySlotType::Weapon)
     {
         Result.Append(PrimaryWeaponAbilities);
+        Result.Append(PrimaryWeaponWhetstoneAbilities);
     }
 
     if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon)
     {
         Result.Append(SecondaryWeaponAbilities);
+        Result.Append(SecondaryWeaponWhetstoneAbilities);
     }
 
     return Result;
