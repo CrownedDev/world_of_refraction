@@ -29,6 +29,7 @@
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/CrystalIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Combat/CombatConstants.h"
 
 namespace CrystalDescription
 {
@@ -150,6 +151,12 @@ namespace CrystalDescription
                 TEXT("Clears %.0f%% of the target's status bar and grants matching elemental resistance for %s."),
                 CrystalEffectTable::GetStatusClearPercent(Id),
                 *FormatTurns(CrystalEffectTable::GetResistanceDuration(Id)));
+
+        case ECrystalType::Whetstone:
+            return FString::Printf(
+                TEXT("Sharpens the weapon to raise raw attack damage by %.0f%% for %s; when attached, also unlocks the weapon's abilities via Resonate."),
+                CrystalEffectTable::GetWhetstoneBasePercent(Id),
+                *FormatTurns(CombatConstants::WHETSTONE_CONSUMABLE_DURATION));
 
         default:
             return TEXT("Unknown effect.");

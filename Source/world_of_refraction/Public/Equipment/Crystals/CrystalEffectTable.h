@@ -498,7 +498,7 @@ namespace CrystalEffectTable
      *  Tier-only — Id.Type is ignored (other than the None early-out). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None)
+        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::Whetstone)
         {
             return 0.0f;
         }
@@ -518,6 +518,36 @@ namespace CrystalEffectTable
             return ItemConstants::BD_ENERGY_PERCENT_A;
         case EItemTier::S_Tier:
             return ItemConstants::BD_ENERGY_PERCENT_S;
+        default:
+            return 0.0f;
+        }
+    }
+
+    /** Raw-attack-damage increase (%) a Whetstone grants. This is the consumable
+     *  value AND the attached base; the attached flat +5 is added at the
+     *  damage-calc site, not here. 0 for any non-Whetstone crystal. */
+    inline float GetWhetstoneBasePercent(const FCrystalId &Id)
+    {
+        if (Id.Type != ECrystalType::Whetstone)
+        {
+            return 0.0f;
+        }
+        switch (Id.Tier)
+        {
+        case EItemTier::F_Tier:
+            return 3.0f;
+        case EItemTier::E_Tier:
+            return 5.0f;
+        case EItemTier::D_Tier:
+            return 7.0f;
+        case EItemTier::C_Tier:
+            return 9.0f;
+        case EItemTier::B_Tier:
+            return 11.0f;
+        case EItemTier::A_Tier:
+            return 13.0f;
+        case EItemTier::S_Tier:
+            return 15.0f;
         default:
             return 0.0f;
         }

@@ -112,6 +112,10 @@ namespace CombatConstants
     // Raw Damage - Physical/non-elemental damage multiplier
     constexpr float RAW_DAMAGE_PER_POINT = 0.0008f; // 0.08% per point
 
+    // Whetstone - raw-attack-damage sharpening crystal
+    constexpr float WHETSTONE_ATTACHED_BONUS      = 5.0f; // flat +5% added to base when attached
+    constexpr int32 WHETSTONE_CONSUMABLE_DURATION = 3;    // turns, flat across tiers
+
     // Max Health - HP pool size (NOW BODY, was Spirit)
     constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
     constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
