@@ -83,8 +83,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
 			{
 				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
-				const bool bIsWhetstone =
-					Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+				const bool bIsWhetstone = Attachment.IsWhetstone();
 				if (bIsWhetstone)
 				{
 					const float WhetstonePercent =

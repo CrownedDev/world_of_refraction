@@ -143,8 +143,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
     // Whetstone abilities exist only while a whetstone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWhetstone =
-        Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+    const bool bIsWhetstone = Attachment.IsWhetstone();
     if (!bIsWhetstone)
     {
         return TArray<UAbilityData *>();
@@ -223,8 +222,7 @@ bool FWeaponLoadoutEntry::ValidateWhetstoneAbilities(const FAbilityCollection &O
     // Whetstone abilities are orphaned without an attached whetstone — valid
     // only when none are assigned.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWhetstone =
-        Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+    const bool bIsWhetstone = Attachment.IsWhetstone();
     if (!bIsWhetstone)
     {
         return AssignedWhetstoneAbilities.Num() == 0;
@@ -273,8 +271,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
     // spell-element mismatch. Treat it like a no-spell attachment — valid only
     // when nothing is assigned (same return as the !CanHaveSpells gate).
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWhetstone =
-        Attachment.IsRefined() && Attachment.Refined.Id.Type == ECrystalType::Whetstone;
+    const bool bIsWhetstone = Attachment.IsWhetstone();
 
     if (!CanHaveSpells() || bIsWhetstone)
     {
