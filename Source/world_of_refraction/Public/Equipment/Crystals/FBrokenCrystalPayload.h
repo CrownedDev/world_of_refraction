@@ -26,7 +26,7 @@ struct WORLD_OF_REFRACTION_API FBrokenCrystalPayload
 
     /** Meaningful when Kind == Refined. */
     UPROPERTY(BlueprintReadOnly, Category = "Broken Crystal")
-    FCrystalId RefinedId;
+    FCrystalId CrystalId;
 
     /** Meaningful when Kind == Evolution. */
     UPROPERTY(BlueprintReadOnly, Category = "Broken Crystal")

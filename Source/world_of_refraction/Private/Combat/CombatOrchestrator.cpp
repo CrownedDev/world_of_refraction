@@ -1129,7 +1129,7 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 				switch (Slot.Kind)
 				{
 				case EAttachedItemKind::Crystal:
-					CrystalName = CrystalIdentity::GetDisplayName(Slot.RefinedId);
+					CrystalName = CrystalIdentity::GetDisplayName(Slot.CrystalId);
 					break;
 				case EAttachedItemKind::Evolution:
 					CrystalName = Slot.Item ? Slot.Item->GetFullItemName() : TEXT("(null)");
@@ -1241,7 +1241,7 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 					const int32 MaxDur = Before.GetMaxDurability();
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
-						   *CrystalIdentity::GetDisplayName(Slot.RefinedId), *Actor->GetName(),
+						   *CrystalIdentity::GetDisplayName(Slot.CrystalId), *Actor->GetName(),
 						   BeforeDur, NewDur, MaxDur);
 					CrystalsRepaired++;
 				}

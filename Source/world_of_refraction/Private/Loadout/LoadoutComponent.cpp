@@ -1969,13 +1969,13 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
         Slot.Kind = Attachment.Kind;
         if (Attachment.IsCrystal())
         {
-            Slot.RefinedId = Attachment.Crystal.Id;
+            Slot.CrystalId = Attachment.Crystal.Id;
         }
         else if (Attachment.IsWhetstone())
         {
             // Whetstone stores its FCrystalId{Whetstone, Tier} in the Refined
             // slot — carry it so the emitted crystal slot keeps its identity.
-            Slot.RefinedId = Attachment.Crystal.Id;
+            Slot.CrystalId = Attachment.Crystal.Id;
         }
         else if (Attachment.IsEvolution())
         {
@@ -2048,7 +2048,7 @@ bool ULoadoutComponent::HasEquippedSourceForElement(AActor *Actor, ESpellElement
         switch (Slot.Kind)
         {
         case EAttachedItemKind::Crystal:
-            if (CrystalIdentity::GetElement(Slot.RefinedId) == Element)
+            if (CrystalIdentity::GetElement(Slot.CrystalId) == Element)
             {
                 return true;
             }

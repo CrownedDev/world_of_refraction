@@ -64,7 +64,7 @@ struct WORLD_OF_REFRACTION_API FEquippedCrystalSlot
 
     /** Meaningful when Kind == Refined. */
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")
-    FCrystalId RefinedId;
+    FCrystalId CrystalId;
 
     /** Meaningful when Kind == Evolution. */
     UPROPERTY(BlueprintReadOnly, Category = "Crystal")

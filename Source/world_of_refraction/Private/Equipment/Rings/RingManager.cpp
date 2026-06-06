@@ -122,7 +122,7 @@ void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCr
 	switch (Payload.Kind)
 	{
 	case EAttachedItemKind::Crystal:
-		CrystalName = CrystalIdentity::GetDisplayName(Payload.RefinedId);
+		CrystalName = CrystalIdentity::GetDisplayName(Payload.CrystalId);
 		break;
 	case EAttachedItemKind::Evolution:
 		CrystalName = Payload.Item ? Payload.Item->GetFullItemName() : TEXT("(null)");
