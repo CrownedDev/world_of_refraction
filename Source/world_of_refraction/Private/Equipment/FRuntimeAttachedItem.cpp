@@ -195,10 +195,11 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
 
     case EAttachedItemKind::WeaponStone:
         Result.Kind = EAttachedItemKind::WeaponStone;
-        // Identity carrier is the Refined slot; force Whetstone type + the
-        // authored tier. No durability — a whetstone never wears, so seed 0
-        // (do NOT call GetMaxDurability, which is tier-based and nonzero).
-        Result.Crystal.Id = FCrystalId(ECrystalType::Whetstone, Source.CrystalTier);
+        // Identity carrier is the Crystal slot; read the authored sub-type
+        // (Whetstone or AbilityStone) + tier, mirroring the Crystal case. No
+        // durability — a weapon stone never wears, so seed 0 (do NOT call
+        // GetMaxDurability, which is tier-based and nonzero).
+        Result.Crystal.Id = FCrystalId(Source.CrystalType, Source.CrystalTier);
         Result.Crystal.CurrentDurability = 0;
         break;
 

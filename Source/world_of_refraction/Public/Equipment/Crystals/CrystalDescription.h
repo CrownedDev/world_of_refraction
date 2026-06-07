@@ -158,6 +158,10 @@ namespace CrystalDescription
                 CrystalEffectTable::GetWhetstoneBasePercent(Id),
                 *FormatTurns(CombatConstants::WHETSTONE_CONSUMABLE_DURATION));
 
+        case ECrystalType::AbilityStone:
+            // Attach-only weapon stone; per-tier slot text refines in Cluster 4.
+            return TEXT("A weapon stone that grants additional ability slots when attached.");
+
         default:
             return TEXT("Unknown effect.");
         }

@@ -27,9 +27,10 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item")
     EAttachedItemKind Kind = EAttachedItemKind::None;
 
-    /** Refined crystal type. Only visible when Kind == Refined. */
+    /** Crystal sub-type. Visible for Crystal (Garnet…Quartz) and WeaponStone
+     *  (Whetstone vs AbilityStone) — lets the designer pick the stone variant. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides))
     ECrystalType CrystalType = ECrystalType::Garnet;
 
     /** Tier of the attachment's crystal identity. Visible for Refined and

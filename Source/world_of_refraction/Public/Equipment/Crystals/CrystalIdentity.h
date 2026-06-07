@@ -66,6 +66,10 @@ namespace CrystalIdentity
             return EItemEffectType::StatusClear;
         case ECrystalType::Whetstone:
             return EItemEffectType::BuffRawDamage;
+        case ECrystalType::AbilityStone:
+            // Attach-only — no consumable effect, so UseItem dispatch finds no
+            // case and falls to its "not a usable consumable" default arm.
+            return EItemEffectType::None;
         default:
             return EItemEffectType::Damage;
         }
@@ -111,6 +115,8 @@ namespace CrystalIdentity
             return TEXT("Quartz");
         case ECrystalType::Whetstone:
             return TEXT("Whetstone");
+        case ECrystalType::AbilityStone:
+            return TEXT("AbilityStone");
         default:
             return TEXT("Unknown");
         }

@@ -26,5 +26,9 @@ enum class ECrystalType : uint8
     Amethyst UMETA(DisplayName = "Amethyst (Void - Gambling)"),
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
     Quartz UMETA(DisplayName = "Quartz (None - Transform)"),
-    Whetstone UMETA(DisplayName = "Whetstone")
+    Whetstone UMETA(DisplayName = "Whetstone"),
+    // Appended after Whetstone (=12); weapon-stone sub-type that grants ability
+    // slots. Attach-only (never a consumable). Do NOT reorder/insert above —
+    // value is the serialized .uasset/SaveGame identity.
+    AbilityStone UMETA(DisplayName = "Ability Stone")
 };

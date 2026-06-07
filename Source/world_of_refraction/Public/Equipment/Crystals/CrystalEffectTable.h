@@ -498,7 +498,8 @@ namespace CrystalEffectTable
      *  Tier-only — Id.Type is ignored (other than the None early-out). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::Whetstone)
+        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::Whetstone ||
+            Id.Type == ECrystalType::AbilityStone)
         {
             return 0.0f;
         }
