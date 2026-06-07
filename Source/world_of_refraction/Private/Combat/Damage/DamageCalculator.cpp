@@ -124,8 +124,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::CritChance);
 
 		// Luck-driven crit bonus. Linearly scaled from raw Luck (0.0-LUCK_RAW_MAX)
-		// to consumer cap LUCK_CRIT_BONUS_MAX. Additive on top — matches locked
-		// design where Luck grants extra crit chance ON TOP OF CritChance.
+		// to consumer cap LUCK_CRIT_BONUS_MAX, yielding a 0..0.20 fraction.
+		// Multiplicative (crit conversion C1): compounds as ×(1 + LuckCritBonus)
+		// on the running crit value — no longer a flat additive bonus.
 		// GetEquipmentModifiedLuck folds in crystal Spirit modifier and
 		// active-loadout BonusLuck.
 		if (Attacker)
@@ -134,7 +135,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			{
 				const float RawLuck = AttackerComp->GetEquipmentModifiedLuck();
 				const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
-				CritChance += LuckCritBonus;
+				CritChance *= (1.0f + LuckCritBonus);
 			}
 		}
 
@@ -340,14 +341,14 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	// primary evolution crystal's Mind pillar modifier feeds the curve.
 	float BaseCrit = AttackerComp->GetEvolutionModifiedCritChance();
 
-	// Equipment stat bonus — BonusCritChance is already a float percentage,
-	// so divide by 100 to convert to the 0-1 crit-chance space.
+	// Equipment stat bonus — BonusCritChance is a float percentage; it compounds
+	// multiplicatively as ×(1 + BonusCritChance/100) on the running crit value.
 	if (Attacker)
 	{
 		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
 		{
 			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
-			BaseCrit += Bonus.BonusCritChance / 100.0f;
+			BaseCrit *= (1.0f + Bonus.BonusCritChance / 100.0f);
 		}
 	}
 
@@ -358,11 +359,15 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 		float CritBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceBuff);
 		float CritDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritChanceDebuff);
 
-		BaseCrit += (CritBuff - CritDebuff) / 100.0f;
+		// Multiplicative compounding: GetTotalStatModifier already sums within each
+		// category, so each category applies as one factor on the running crit value.
+		// Debuff is ×(1 − pct), NOT ×(1 + pct) — a 30% crit debuff is ×0.7.
+		BaseCrit *= (1.0f + CritBuff / 100.0f);
+		BaseCrit *= (1.0f - CritDebuff / 100.0f);
 
-		// Passive-layer ModifyCritChance: additive percent on top of buff/debuff.
+		// Passive-layer ModifyCritChance: compounds as another multiplicative factor.
 		float ModifyCrit = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritChance);
-		BaseCrit += ModifyCrit / 100.0f;
+		BaseCrit *= (1.0f + ModifyCrit / 100.0f);
 	}
 
 	return FMath::Clamp(BaseCrit, 0.0f, 1.0f);
