@@ -412,9 +412,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	FString GetEffectsSummary(AActor *Actor) const;
 
-	/** Apply immediate (on-hit) skill effect */
-	void ApplyImmediateSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element);
-
 	/** Apply triggered (bar-full) skill effect.
 	 *
 	 *  CONNECTION POINT: this is the single buildup → effect entry point.

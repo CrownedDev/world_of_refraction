@@ -254,7 +254,7 @@ void USkillEffectManager::RemoveEquipmentEffects(AActor *Target, int32 SourceID)
 	constexpr int32 EFFECT_INDEX_RANGE = 100;
 	for (int32 i = 0; i < EFFECT_INDEX_RANGE; ++i)
 	{
-		RemoveEffectByID(Target, SourceID * 100 + i);
+		RemoveEffectByID(Target, SourceID * EFFECT_INDEX_RANGE + i);
 	}
 }
 
@@ -1828,85 +1828,6 @@ void USkillEffectManager::NotifySpeedChanged(AActor *Actor)
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Notified TurnManager of speed change for %s"),
 			   *Actor->GetName());
 	}
-}
-
-void USkillEffectManager::ApplyImmediateSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element)
-{
-	if (!Target || StatusType == ESkillEffectType::None)
-	{
-		return;
-	}
-
-	FActiveSkillEffect Effect;
-	Effect.Element = Element;
-	Effect.EffectID = FMath::Rand();
-	Effect.EffectType = StatusType; // Set directly to the generic type
-
-	// Generate element-aware display name
-	Effect.EffectName = SkillEffectDisplayNames::GetDisplayName(StatusType, Element);
-
-	// Immediate effects: Weak, longer duration
-	switch (StatusType)
-	{
-	case ESkillEffectType::DOT:
-		Effect.EffectValue = 10.0f;
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
-		break;
-
-	case ESkillEffectType::DefenseDebuff:
-		Effect.EffectValue = 15.0f; // 15%
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::SpeedDebuff:
-		Effect.EffectValue = 25.0f; // 25%
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::CritDebuff:
-		Effect.EffectValue = 15.0f; // 15%
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::EnergyDebuff:
-		Effect.EffectValue = 25.0f; // 25% locked
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-		break;
-
-	case ESkillEffectType::RandomDebuff:
-	{
-		// Pick a random debuff type
-		TArray<ESkillEffectType> Debuffs = {
-			ESkillEffectType::DamageDebuff,
-			ESkillEffectType::DefenseDebuff,
-			ESkillEffectType::SpeedDebuff,
-			ESkillEffectType::CritDebuff};
-		Effect.EffectType = Debuffs[FMath::RandRange(0, Debuffs.Num() - 1)];
-		Effect.EffectValue = 15.0f; // 15%
-		Effect.RemainingTurns = 3;
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-	}
-	break;
-
-	case ESkillEffectType::SkipTurn:
-	case ESkillEffectType::BurstDamage:
-		// These have no immediate effect
-		return;
-
-	default:
-		return;
-	}
-
-	Effect.InitialDuration = Effect.RemainingTurns;
-	ApplyEffect(Target, Effect, Source, TEXT("Immediate Status"), -1);
-
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied immediate %s to %s"),
-		   *Effect.EffectName, *Target->GetName());
 }
 
 void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Target, ESkillEffectType StatusType, ESpellElement Element)
