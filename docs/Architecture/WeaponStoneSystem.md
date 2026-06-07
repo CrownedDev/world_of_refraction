@@ -16,13 +16,13 @@ The defining design constraint is that stones and gems share **one identity
 type** (`ECrystalType` / `FCrystalId`) and **one attachment slot**
 (`FAttachedItem` / `FRuntimeAttachedItem`, discriminated by `EAttachedItemKind`).
 The enum is deliberately *not* split into "gems" and "stones" — the planned
-Mastery stone (see *Design / Phase 2*) fuses **any two attachables**, so both
-fusion inputs need a common identity type.
+FusionStone (see *Design / Phase 2*; formerly *MasteryStone* in earlier design)
+fuses **any two attachables**, so both fusion inputs need a common identity type.
 
 > This document covers the **shipped** weapon-stone work on `feature/weapon-stones`
 > (per-tier ability-stone slots, the whole-percent damage channel, the Kind/type
 > dropdown filter + validation backstop) **and** a large body of **designed but
-> not-yet-built** follow-on work (Mastery, fusion matrix, stat-stone family,
+> not-yet-built** follow-on work (FusionStone fusion model, stat-stone family,
 > rings-carrying-augments). The two are kept in strictly separate sections.
 > **Anything under *Design / Phase 2* is not in the code.**
 >
@@ -259,7 +259,7 @@ misread as an omission.)
 > whole-percent channel exists specifically because `BonusRawDamage` can't do
 > this job.
 
-**Why the enum stays unified (no gem/stone split).** The planned Mastery stone
+**Why the enum stays unified (no gem/stone split).** The planned FusionStone
 fuses **any two attachables** — including a stone fused with a gem crystal. Both
 fusion inputs must share one identity type, so `ECrystalType` / `FCrystalId`
 stays unified and the gem/stone distinction is expressed by predicates
@@ -272,17 +272,21 @@ temporary effect — there is no coherent "use" semantics for a slot grant, so
 
 **Cap decisions (rationale, carried forward for the stat-stone family below).**
 These are the reasons certain stats are safe (or unsafe) to push past their
-nominal caps when a future stone/Mastery targets them:
+nominal caps when a future stone/FusionStone targets them:
 
-- **Crit — safe to leave fully uncapped.** The crit roll is `FRand() < chance`;
-  a `chance > 1.0` simply always crits, which is harmless. *Current code state:*
-  `GetCriticalChance` still clamps to `[0, MAX_CRIT_CHANCE]` (`0.60`) — a
-  crit-targeting stat-stone would need that clamp lifted/raised. Flagged so the
-  design intent (uncapped) and the present clamp are reconciled when built.
-- **Resistance — bound at `1.0` for correctness only.** A resistance `> 1.0`
-  flips the damage-reduction term negative and **heals** the target. The cap is
-  a correctness floor, not a balance lever. *Current code state:*
-  `MAX_RESISTANCE = 0.50`.
+- **Crit — uncapped (done, commit `7afd0d09`).** The crit roll is `FRand() <
+  chance`; a `chance > 1.0` simply always crits, which is harmless. The design
+  caps were removed: `GetCriticalChance` and the two crit-curve getters now clamp
+  to `[base, 1.0]`, and the `MAX_CRIT_CHANCE` (0.60) / `CRIT_CHANCE_MAX` (0.40)
+  constants were deleted. The `1.0` upper bound is kept **deliberately** — the AI
+  expected-value scorer reads crit as `1 + CritChance·(CRIT_MULTIPLIER−1)`, which
+  assumes `CritChance ≤ 1.0`; unbounded crit would corrupt AI action scoring.
+- **Resistance — bound at `1.0` for correctness only (done, commit `7afd0d09`).**
+  A resistance `> 1.0` flips the buildup term `Amount *= (1 − Resistance)`
+  negative and **heals** the gauge. The design cap was removed by raising
+  `CombatConstants::RESISTANCE_MAX` `0.40 → 1.0`; it is now a hard correctness
+  ceiling, not a balance knob. (The separate dead `DamageConstants::MAX_RESISTANCE
+  = 0.50` is unrelated element-interaction leftover, still pending deletion.)
 - **Luck — untouched.** Luck's "cap" (`LUCK_RAW_MAX`) is a **normalisation
   basis** for the crit-bonus curve (`RawLuck / LUCK_RAW_MAX × LUCK_CRIT_BONUS_MAX`),
   not a ceiling on luck itself. Nothing to lift.
@@ -311,40 +315,80 @@ Do not document these as behaviour; do not treat them as bugs where they
 contradict shipped code (the contradictions are deliberate future changes,
 flagged as such).
 
-### Mastery Stone
+> Terminology: the stone described here was called **MasteryStone** in earlier
+> design notes. It is now **FusionStone** — created by *fusion*, and parallel in
+> the family with `DamageStone` / `AbilityStone`.
 
-- Its **own** `EAttachedItemKind` (and `ECrystalType` identity), attach-only.
-- **Fuses any two attachables** (stones and/or crystals) into one stone whose
-  effect is the **concatenation of both source contributions** plus an intrinsic
+### FusionStone
+
+- **Player-created, not designer-authored.** A fusion action consumes **two
+  owned attachables** (stones and/or crystals) and produces one FusionStone.
+- **Symmetric** — both halves contribute their full effects; the FusionStone's
+  effect is the **concatenation of both halves' contributions** plus an intrinsic
   **fusion bonus**.
-- Identity = a **composite key** of the two source `(type, tier)` pairs.
-- This is the reason the enum stays unified — a Mastery stone must be able to
-  hold a stone+crystal pair under one identity type.
+- **Attach-only** (like `AbilityStone` — there is no "use" semantics for a fused
+  stone's persistent contributions).
+- This is the reason the enum stays unified — a FusionStone must hold a
+  stone+crystal pair under one identity type.
 
-### The 7×7 tier matrix → overall tier → fusion bonus
+#### Identity — `FFusionId` (composite, symmetric)
 
-- A **symmetric 7×7** matrix over the two sources' tiers (F…S) yields the fused
-  stone's **overall tier**, which sets the magnitude of the intrinsic fusion
-  bonus.
-- The **same matrix doubles as the crafting cost matrix** (Phase 3) — one table,
-  two uses.
+```cpp
+FFusionId { FCrystalId HalfA; FCrystalId HalfB; ESubStat BonusStat; }
+```
 
-### Fusion bonus targets a selectable substat
+- Countable / stackable: two identical fusions are the **same item type**.
+- **Equality is symmetric** — `HalfA + HalfB` must equal `HalfB + HalfA`.
+  Normalize the pair (e.g. sort the two `FCrystalId`s by type) **before** compare
+  and hash.
+- **`FCrystalId` itself is unchanged** (stays a single `type + tier` for normal
+  stones/crystals) — *Option A*. The composite lives only in `FFusionId`.
 
-- The intrinsic fusion bonus is **not damage-only** — it targets a
-  **designer/player-selectable substat**.
-- **Restricted to wired substats**: a fusion bonus may only target a stat that
-  has a working read site. The "no read site" stats (see *stat-stone family*)
-  are ineligible until their read is wired.
+#### Fusion bonus — a formula, not a hand-authored table
+
+The intrinsic bonus is a **percentage to one substat**, computed from the two
+halves' tiers:
+
+```
+bonus%  =  (TierValue(A) + TierValue(B)) / 2
+TierValue:  F=0  E=1  D=2  C=3  B=4  A=5  S=6
+```
+
+So `F+F = 0%` (lowest fusion = effects only, **no bonus**), `S+S = 6%`,
+`S+F = 3%`. Symmetry is free — addition commutes. The 7×7 grid below is the
+**visualisation**; the **implementation is the formula** (no 49-cell table is
+authored):
+
+| A\B | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|
+| **F** | 0.0 | 0.5 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 |
+| **E** | 0.5 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 | 3.5 |
+| **D** | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 |
+| **C** | 1.5 | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 4.5 |
+| **B** | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 4.5 | 5.0 |
+| **A** | 2.5 | 3.0 | 3.5 | 4.0 | 4.5 | 5.0 | 5.5 |
+| **S** | 3.0 | 3.5 | 4.0 | 4.5 | 5.0 | 5.5 | 6.0 |
+
+(Cells are bonus %, i.e. `(TierValue(A)+TierValue(B))/2`.) The same tier-value
+basis is intended to also feed the **Phase-3 crafting cost** — one valuation,
+two uses.
+
+#### Bonus target — player-chosen, wired substats only
+
+- The fusion bonus applies to a **substat the player chooses at fusion time**
+  (`FFusionId::BonusStat`) — not damage-only.
+- **Restricted to wired substats** (see *Wired-substat audit* below) so a fusion
+  bonus can never silently do nothing.
 
 ### Fusion restrictions
 
-Valid and invalid input pairings for a Mastery fusion:
+Valid and invalid input pairings for a fusion (the validity guard):
 
 | Pair | Allowed? | Reason |
 |---|---|---|
 | stat-stone + crystal | ✅ | stat bonus + element/spells |
 | stat-stone + `AbilityStone` | ✅ | stat bonus + slots |
+| stat-stone + stat-stone | ✅ | two stat bonuses — both halves contribute |
 | `AbilityStone` + `AbilityStone` | ❌ | two slot-grants, nothing to combine meaningfully |
 | crystal + crystal | ❌ | element + element |
 | `AbilityStone` + crystal | ❌ | slots + element |
@@ -356,16 +400,16 @@ Valid and invalid input pairings for a Mastery fusion:
 
 **Planned Phase 2 change (designed, not built):**
 
-- A ring **may** carry an augment stone **only if** it is a **Mastery stone that
+- A ring **may** carry an augment stone **only if** it is a **FusionStone that
   contains an elemental crystal** — the crystal supplies spells the ring can use.
 - A **bare stat-stone** (`DamageStone`, etc.) or an **`AbilityStone`** on a ring
   stays **rejected** — a ring has no weapon damage and no use for ability slots.
 
 > **Deliberate future contradiction of committed code.** This **loosens / will
 > replace** the current hard ring-guard above. It is intentional, not a bug:
-> the guard exists today because no valid ring-stone case existed yet; Mastery
-> introduces one. Cross-references the *Fusion restrictions* table — only the
-> `stat-stone + crystal` Mastery (which carries an element) qualifies for a ring.
+> the guard exists today because no valid ring-stone case existed yet; FusionStone
+> introduces one. Cross-references the *Fusion restrictions* table — only a
+> `stat-stone + crystal` FusionStone (which carries an element) qualifies for a ring.
 
 ### Planned rename: `WeaponStone` → `AugmentStone`
 
@@ -378,16 +422,82 @@ alongside the broad `Crystal → Item` rename (see *Parked cleanup*).
 > Docs use the **current** name (`WeaponStone`) throughout. **Do not rename in
 > code or docs now** — this is recorded intent only.
 
-### The stat-stone family
+### The stat-stone family — dual-form model
 
-- Future stones, **one per substat**, each granting its substat via the
-  **whole-percent channel** + **one per-read-site hook**.
-- **Crit is the exception** — it is additive and capped, with its own hook shape
-  (not a whole-percent multiplier).
-- **"No read site" stats** — `SpellDamage`, `Resistance`, `ActionSpeed`,
-  `MaxEnergy` — currently have **no read wired**. A stone (or a Mastery fusion
-  bonus) targeting one of these does **nothing** until its read site is built.
-  Wiring the read is a prerequisite, not part of authoring the stone.
+Every stat-stone mirrors `DamageStone`'s **two forms**:
+
+- **Attached form — permanent self-passive.** `+X%` of that stat to the
+  **holder**, via the whole-percent channel (the `DamageStone` attached path).
+  **Self-only** — it buffs the wielder, nothing else.
+- **Consumable form — single-target, directional, timed.** The player picks
+  **one target** (same duration as the `DamageStone` consumable, 3 turns):
+  - **ally target → `+X%` buff** of that stat;
+  - **enemy target → `−X%` debuff** of that stat.
+  - Same magnitude both directions; the **sign flips on target allegiance**.
+  - Applies via the status/buff system (`SkillEffectManager`), which already
+    supports timed buffs/debuffs.
+
+**Crit is the exception to the channel shape** — it is **additive** (not a
+whole-percent multiplier) and, since commit `7afd0d09`, **uncapped** (bounded at
+`1.0` for the AI scorer). A crit stone uses crit's own additive hook, not the
+multiplicative whole-percent one.
+
+#### `DamageStone` consumable — planned change ⚠️ MODIFIES SHIPPED BEHAVIOUR
+
+`DamageStone` is the template the dual-form model generalises from, and its
+**consumable form changes** under this design:
+
+| Form | Shipped today | Planned |
+|---|---|---|
+| **Attached** | self-passive `+damage` (Step 1.25 multiplier) | **unchanged** |
+| **Consumable** | self-only: `RawDamageBuff` on the **user** (3 turns) | **targeted directional**: pick a target — ally → `+damage` buff, enemy → `−damage` debuff |
+
+> **Flag — re-verify when built.** The attached path is unchanged; the
+> **consumable** path gains (a) **target selection** and (b) an **enemy-debuff
+> direction** (negative application to an enemy target) it does not have today.
+> Both are **new mechanics to build**, and this contradicts the currently-shipped
+> self-only consumable — record both states so the change isn't read as a
+> regression.
+
+#### Wired-substat audit
+
+This table gates **both** stat-stones **and** the FusionStone bonus dropdown — a
+stat is eligible only if it has a working read site (otherwise the stone/bonus
+silently does nothing).
+
+**Wired (buildable now):**
+
+| Substat | Note |
+|---|---|
+| RawDamage | the `DamageStone` channel |
+| Defense | clean whole-percent target — the proving ground (see *Build order*) |
+| TurnSpeed | wired |
+| StatusMultiplier | wired |
+| Efficiency | cost reduction |
+| CritChance | **additive + now-uncapped**; uses crit's own hook shape, not the multiplicative channel |
+| Luck | wired but **balance-risky** — it is the normalization basis for luck-derived chances |
+| SpellSpeed | wired but **visual-only** play-rate — not worth a stone |
+
+**Unwired (need a read site built first — a stone/bonus does nothing until then):**
+
+| Substat | Blocker |
+|---|---|
+| SpellDamage ("spell power") | no read site wired |
+| Resistance (element / spell-type) | the **unbuilt** `ResistsElement` system — distinct from the status-buildup `Resistance` uncapped in `7afd0d09` |
+| ActionSpeed | no read site, and unclear vs `TurnSpeed` — needs definition first |
+
+**Pool stats (different code path — `RecomputeMaxPools`, not the whole-percent channel):**
+
+| Substat | Status |
+|---|---|
+| MaxHP / MaxEnergy | "health/energy item" intent **undecided** (raise-max stone vs restore consumable) — parked |
+
+#### Build order (design intent, not a commitment)
+
+1. **Generic attached stat channel, proven on `Defense`** — low-risk,
+   self-passive, whole-percent. Establishes the reusable attached hook.
+2. **Directional consumable** — target select + ally-buff / enemy-debuff —
+   retrofitted onto `DamageStone` first, then inherited by every stat-stone.
 
 ### Forward risk — single-field `GetRestrictedEnumValues`
 
@@ -436,3 +546,4 @@ hard guarantee survives; only the editor affordance degrades.
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-06-07 | Initial documentation — shipped weapon-stone system (unified `ECrystalType`/`FCrystalId` identity; `EAttachedItemKind::WeaponStone`; `DamageStone` whole-percent channel + 3-turn consumable; `AbilityStone` per-tier slots 2/3/3/4/4/5/6; `GetRestrictedEnumValues` grey-out + `IsDataValid` backstop; `CrystalTypeHelpers` gem/stone predicates). Recorded the `BonusRawDamage` trap, the unified-enum and attach-only rationale, and the cap decisions. Captured the Design/Phase-2 plan (Mastery stone, 7×7 fusion/cost matrix, selectable-substat fusion bonus, fusion restrictions, rings+AugmentStone rule, planned `WeaponStone→AugmentStone` rename, stat-stone family + read-site hooks, single-field grey-out risk) and parked cleanup. | feature/weapon-stones |
+| 2026-06-07 | Phase-2 design revision — **Mastery → FusionStone** rename throughout; FusionStone is player-created (fusion consumes two owned attachables), `FFusionId{HalfA,HalfB,BonusStat}` composite with symmetric equality, `FCrystalId` unchanged (Option A); fusion bonus is the formula `(TierValue(A)+TierValue(B))/2` (7×7 shown as visualisation only); added `stat-stone+stat-stone` valid pairing; expanded the **stat-stone family** into the dual-form model (attached self-passive / directional timed consumable) with the `DamageStone`-consumable change flagged as a shipped-behaviour modification; added the **wired-substat audit** (wired/unwired/pool-stats) and the Defense-first **build order**. Refreshed the cap-decisions notes to reflect the now-shipped crit/resistance cap removal (commit `7afd0d09`). | feature/weapon-stones |
