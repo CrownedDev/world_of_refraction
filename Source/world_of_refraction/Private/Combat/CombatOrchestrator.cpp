@@ -1707,7 +1707,7 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Damage)
+		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Damage)
 		{
 			DamageId = Slot.CrystalId;
 			bFoundDamage = true;
@@ -1763,7 +1763,7 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
 		{
 			HealId = Slot.CrystalId;
 			bFoundHeal = true;
@@ -1839,7 +1839,7 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
 		{
 			HealId = Slot.CrystalId;
 			bFoundHeal = true;

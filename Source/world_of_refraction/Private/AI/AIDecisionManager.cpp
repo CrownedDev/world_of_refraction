@@ -1155,7 +1155,7 @@ FCrystalId UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout, bool 
         {
             continue;
         }
-        if (ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
         {
             bOutFound = true;
             return Slot.CrystalId;
@@ -1182,7 +1182,7 @@ FCrystalId UAIDecisionManager::FindCleanseItem(ULoadoutComponent *Loadout, bool 
         {
             continue;
         }
-        if (ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Cleanse)
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Cleanse)
         {
             bOutFound = true;
             return Slot.CrystalId;
@@ -1206,7 +1206,7 @@ FCrystalId UAIDecisionManager::FindEnergyItem(ULoadoutComponent *Loadout, bool &
         {
             continue;
         }
-        if (ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::EnergyRestore)
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::EnergyRestore)
         {
             bOutFound = true;
             return Slot.CrystalId;

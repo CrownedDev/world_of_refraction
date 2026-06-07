@@ -50,7 +50,7 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 
 	// Execute based on effect type. AbilityStone maps to EItemEffectType::None
 	// (attach-only) — no case matches, so it falls to the default failure arm.
-	EItemEffectType EffectType = ItemIdentity::GetPrimaryEffectType(Id);
+	EItemEffectType EffectType = ItemIdentity::GetItemEffectType(Id);
 
 	switch (EffectType)
 	{

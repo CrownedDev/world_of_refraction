@@ -36,7 +36,7 @@ namespace ItemIdentity
      *  (Damage / Healing / EnergyRestore / BuffSpeed / BuffDefense /
      *  BuffCrit / Silence / Gamble / Cleanse / StatusClear). Type-only —
      *  Id.Tier is ignored. */
-    inline EItemEffectType GetPrimaryEffectType(const FCrystalId &Id)
+    inline EItemEffectType GetItemEffectType(const FCrystalId &Id)
     {
         if (Id.Type == ECrystalType::None)
         {
