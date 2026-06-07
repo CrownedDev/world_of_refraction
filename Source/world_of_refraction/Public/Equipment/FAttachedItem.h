@@ -30,7 +30,8 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     /** Crystal sub-type. Visible for Crystal (Garnet…Quartz) and WeaponStone
      *  (DamageStone vs AbilityStone) — lets the designer pick the stone variant. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides,
+                      GetRestrictedEnumValues = "GetRestrictedCrystalTypes"))
     ECrystalType CrystalType = ECrystalType::Garnet;
 
     /** Tier of the attachment's crystal identity. Visible for Crystal and

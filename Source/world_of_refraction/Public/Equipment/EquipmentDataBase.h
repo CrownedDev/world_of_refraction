@@ -162,6 +162,17 @@ public:
     UFUNCTION()
     bool IsWeaponStoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::WeaponStone; }
 
+    /** Supplies the dropdown grey-out set for AttachedItem.CrystalType via
+     *  meta=(GetRestrictedEnumValues). Resolved on this owning asset (not the
+     *  struct), so it can read AttachedItem.Kind — the same reason
+     *  IsWeaponStoneAttached above works for EditCondition. Returns the
+     *  wrong-kind enum value names (short form, e.g. "Garnet"/"DamageStone")
+     *  to restrict: stones when a gem crystal is attached, gems when a weapon
+     *  stone is attached, none otherwise. Editor affordance only — the hard
+     *  guarantee is the IsDataValid backstop. */
+    UFUNCTION()
+    TArray<FString> GetRestrictedCrystalTypes() const;
+
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;
 
