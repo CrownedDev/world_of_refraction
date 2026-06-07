@@ -162,6 +162,11 @@ namespace CrystalDescription
             // Attach-only weapon stone; per-tier slot text refines in Cluster 4.
             return TEXT("A weapon stone that grants additional ability slots when attached.");
 
+        case ECrystalType::DefenseStone:
+            // Magnitude curve lands in C2, the directional consumable in C4 —
+            // placeholder text until then.
+            return TEXT("A stone that bolsters Defense — passively when attached, or on a target when used.");
+
         default:
             return TEXT("Unknown effect.");
         }

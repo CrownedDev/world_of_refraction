@@ -70,6 +70,10 @@ namespace ItemIdentity
             // Attach-only — no consumable effect, so UseItem dispatch finds no
             // case and falls to its "not a usable consumable" default arm.
             return EItemEffectType::None;
+        case ECrystalType::DefenseStone:
+            // Directional defense consumable — routes to ExecuteDefenseBuffEffect
+            // (the same handler Amber uses). Magnitude/hook land in later clusters.
+            return EItemEffectType::BuffDefense;
         default:
             return EItemEffectType::Damage;
         }
@@ -117,6 +121,8 @@ namespace ItemIdentity
             return TEXT("DamageStone");
         case ECrystalType::AbilityStone:
             return TEXT("AbilityStone");
+        case ECrystalType::DefenseStone:
+            return TEXT("DefenseStone");
         default:
             return TEXT("Unknown");
         }

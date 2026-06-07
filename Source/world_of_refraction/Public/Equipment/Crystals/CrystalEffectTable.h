@@ -506,7 +506,7 @@ namespace CrystalEffectTable
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
         if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
-            Id.Type == ECrystalType::AbilityStone)
+            Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone)
         {
             return 0.0f;
         }
