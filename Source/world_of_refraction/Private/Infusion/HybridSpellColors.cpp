@@ -3,6 +3,37 @@
 
 #include "Infusion/HybridSpellColors.h"
 
+namespace
+{
+	// ---- Darkness overlay ----
+	constexpr float DARKNESS_OVERLAY_ELEMENT_TINT = 0.1f;
+
+	// ---- Particle colours ----
+	constexpr float PARTICLE_SPAWN_BRIGHTNESS_BOOST = 1.2f;
+	constexpr float PARTICLE_DEATH_DARKNESS_BLEND   = 0.7f;
+
+	// ---- Material emissive intensity ----
+	constexpr float EMISSIVE_INTENSITY_FORBIDDEN = 2.5f;
+	constexpr float EMISSIVE_INTENSITY_NORMAL    = 1.5f;
+
+	// ---- Pure Broken Darkness colours ----
+	constexpr FLinearColor PURE_BD_PRIMARY   = FLinearColor(0.08f, 0.02f, 0.12f, 1.0f);
+	constexpr FLinearColor PURE_BD_SECONDARY = FLinearColor(0.02f, 0.02f, 0.02f, 1.0f);
+	constexpr float        PURE_BD_DARKNESS_BLEND = 0.9f;
+
+	// ---- Overload ----
+	constexpr float OVERLOAD_COLOR_BOOST = 1.4f;
+	constexpr float OVERLOAD_RED_TINT    = 0.15f;
+
+	// ---- Forbidden-element blend bonus (weapon + ability paths) ----
+	constexpr float FORBIDDEN_BLEND_BONUS = 0.15f;
+
+	// ---- Weapon trail / glow ----
+	constexpr float WEAPON_TRAIL_DIM         = 0.6f;
+	constexpr float BD_WEAPON_GLOW_FORBIDDEN = 1.8f;
+	constexpr float BD_WEAPON_GLOW_NORMAL    = 1.3f;
+}
+
 // ==================== CORE FUNCTIONS ====================
 
 FHybridSpellColorData UHybridSpellColors::GetHybridSpellColors(ESpellElement AbsorbedElement)
@@ -43,9 +74,9 @@ FLinearColor UHybridSpellColors::GetDarknessOverlayColor(ESpellElement Element)
 	
 	// Very subtle tint (10% element, 90% pure black)
 	return FLinearColor(
-		DarknessBase.R + (ElementColor.R * 0.1f),
-		DarknessBase.G + (ElementColor.G * 0.1f),
-		DarknessBase.B + (ElementColor.B * 0.1f),
+		DarknessBase.R + (ElementColor.R * DARKNESS_OVERLAY_ELEMENT_TINT),
+		DarknessBase.G + (ElementColor.G * DARKNESS_OVERLAY_ELEMENT_TINT),
+		DarknessBase.B + (ElementColor.B * DARKNESS_OVERLAY_ELEMENT_TINT),
 		1.0f
 	);
 }
@@ -96,9 +127,9 @@ FLinearColor UHybridSpellColors::GetParticleSpawnColor(ESpellElement Element)
 	
 	// Boost brightness slightly
 	return FLinearColor(
-		FMath::Min(Base.R * 1.2f, 1.0f),
-		FMath::Min(Base.G * 1.2f, 1.0f),
-		FMath::Min(Base.B * 1.2f, 1.0f),
+		FMath::Min(Base.R * PARTICLE_SPAWN_BRIGHTNESS_BOOST, 1.0f),
+		FMath::Min(Base.G * PARTICLE_SPAWN_BRIGHTNESS_BOOST, 1.0f),
+		FMath::Min(Base.B * PARTICLE_SPAWN_BRIGHTNESS_BOOST, 1.0f),
 		1.0f
 	);
 }
@@ -107,7 +138,7 @@ FLinearColor UHybridSpellColors::GetParticleDeathColor(ESpellElement Element)
 {
 	// Fade to darkness (70% toward black)
 	FLinearColor Base = ElementColors::GetColorForElement(Element);
-	return CalculateBlendedColor(Base, 0.7f);
+	return CalculateBlendedColor(Base, PARTICLE_DEATH_DARKNESS_BLEND);
 }
 
 // ==================== MATERIAL HELPERS ====================
@@ -130,7 +161,7 @@ void UHybridSpellColors::GetMaterialParams(ESpellElement AbsorbedElement,
 	OutDarknessAmount = Data.DarknessBlend;
 	
 	// Emissive intensity: Forbidden elements glow more ominously
-	OutEmissiveIntensity = Data.bIsForbidden ? 2.5f : 1.5f;
+	OutEmissiveIntensity = Data.bIsForbidden ? EMISSIVE_INTENSITY_FORBIDDEN : EMISSIVE_INTENSITY_NORMAL;
 }
 
 // ==================== SPECIAL CASES ====================
@@ -138,15 +169,15 @@ void UHybridSpellColors::GetMaterialParams(ESpellElement AbsorbedElement,
 FHybridSpellColorData UHybridSpellColors::GetPureBrokenDarknessColors()
 {
 	// Pure BD = deep black with subtle purple tint
-	FLinearColor PureDark = FLinearColor(0.08f, 0.02f, 0.12f, 1.0f);  // Very dark purple
-	FLinearColor PureBlack = FLinearColor(0.02f, 0.02f, 0.02f, 1.0f);
+	FLinearColor PureDark = PURE_BD_PRIMARY;  // Very dark purple
+	FLinearColor PureBlack = PURE_BD_SECONDARY;
 
 	return FHybridSpellColorData(
 		ESpellElement::BrokenDarkness,
 		PureDark,      // Primary: dark purple
 		PureBlack,     // Secondary: near black
 		PureDark,      // Blended: same as primary
-		0.9f,          // Heavy darkness
+		PURE_BD_DARKNESS_BLEND, // Heavy darkness
 		false          // Not forbidden
 	);
 }
@@ -159,15 +190,15 @@ FHybridSpellColorData UHybridSpellColors::GetOverloadColors(ESpellElement Absorb
 	// Overload = more intense, crackling energy
 	// Boost primary color intensity
 	Data.PrimaryColor = FLinearColor(
-		FMath::Min(Data.PrimaryColor.R * 1.4f, 1.0f),
-		FMath::Min(Data.PrimaryColor.G * 1.4f, 1.0f),
-		FMath::Min(Data.PrimaryColor.B * 1.4f, 1.0f),
+		FMath::Min(Data.PrimaryColor.R * OVERLOAD_COLOR_BOOST, 1.0f),
+		FMath::Min(Data.PrimaryColor.G * OVERLOAD_COLOR_BOOST, 1.0f),
+		FMath::Min(Data.PrimaryColor.B * OVERLOAD_COLOR_BOOST, 1.0f),
 		1.0f
 	);
 
 	// Add red tint to secondary (danger/overflow feel)
 	Data.SecondaryColor = FLinearColor(
-		Data.SecondaryColor.R + 0.15f,
+		Data.SecondaryColor.R + OVERLOAD_RED_TINT,
 		Data.SecondaryColor.G,
 		Data.SecondaryColor.B,
 		1.0f
@@ -224,7 +255,7 @@ FHybridSpellColorData UHybridSpellColors::GetWeaponInfusionColors(ESpellElement 
 
 	// BD: Less darkness than spells for weapon visibility
 	bool bForbidden = IsForbiddenElement(Element);
-	float BlendAmount = bForbidden ? (WeaponDarknessBlend + 0.15f) : WeaponDarknessBlend;
+	float BlendAmount = bForbidden ? (WeaponDarknessBlend + FORBIDDEN_BLEND_BONUS) : WeaponDarknessBlend;
 
 	FLinearColor Primary = GetPrimaryColor(Element);
 	FLinearColor Secondary = GetDarknessOverlayColor(Element);
@@ -258,7 +289,7 @@ FHybridSpellColorData UHybridSpellColors::GetAbilityInfusionColors(ESpellElement
 
 	// BD: Medium darkness (between weapon and spell)
 	bool bForbidden = IsForbiddenElement(Element);
-	float BlendAmount = bForbidden ? (AbilityDarknessBlend + 0.15f) : AbilityDarknessBlend;
+	float BlendAmount = bForbidden ? (AbilityDarknessBlend + FORBIDDEN_BLEND_BONUS) : AbilityDarknessBlend;
 
 	FLinearColor Primary = GetPrimaryColor(Element);
 	FLinearColor Secondary = GetDarknessOverlayColor(Element);
@@ -294,9 +325,9 @@ void UHybridSpellColors::GetWeaponInfusionNiagaraParams(ESpellElement Element, b
 	{
 		// Normal: dimmer version of element color
 		OutTrailColor = FLinearColor(
-			Data.PrimaryColor.R * 0.6f,
-			Data.PrimaryColor.G * 0.6f,
-			Data.PrimaryColor.B * 0.6f,
+			Data.PrimaryColor.R * WEAPON_TRAIL_DIM,
+			Data.PrimaryColor.G * WEAPON_TRAIL_DIM,
+			Data.PrimaryColor.B * WEAPON_TRAIL_DIM,
 			1.0f
 		);
 	}
@@ -308,7 +339,7 @@ void UHybridSpellColors::GetWeaponInfusionNiagaraParams(ESpellElement Element, b
 	if (bIsBrokenDarkness)
 	{
 		// BD: Slightly more intense to show through darkness
-		OutGlowIntensity = Data.bIsForbidden ? 1.8f : 1.3f;
+		OutGlowIntensity = Data.bIsForbidden ? BD_WEAPON_GLOW_FORBIDDEN : BD_WEAPON_GLOW_NORMAL;
 	}
 	else
 	{
