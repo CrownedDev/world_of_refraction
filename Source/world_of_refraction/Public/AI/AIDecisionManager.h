@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "AI/EAIDifficulty.h"
+#include "AI/AIDecisionConstants.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Skills/Effects/ESkillEffectType.h"
@@ -215,7 +216,7 @@ private:
     // ==================== STATUS BAR QUERIES ====================
 
     /** Check if target's status bar is near triggering */
-    bool IsStatusBarNearTrigger(AActor *Target, float Threshold = 0.70f) const;
+    bool IsStatusBarNearTrigger(AActor *Target, float Threshold = AIConstants::STATUS_BAR_NEAR_TRIGGER_THRESHOLD) const;
 
     /** Would this spell/ability trigger the status bar? */
     bool WouldTriggerStatusBar(AActor *Attacker, AActor *Target, float BuildupAmount) const;

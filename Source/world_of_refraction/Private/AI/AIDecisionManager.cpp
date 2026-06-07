@@ -448,7 +448,7 @@ EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float Attac
     }
 
     // Parry vs Block: Higher difficulty = more parry attempts
-    float ParryChance = (Difficulty == EAIDifficulty::Expert) ? 0.7f : 0.4f;
+    float ParryChance = (Difficulty == EAIDifficulty::Expert) ? AIConstants::EXPERT_PARRY_CHANCE : AIConstants::HARD_PARRY_CHANCE;
     if (FMath::FRand() < ParryChance)
     {
         return EDefenseType::Parry;
@@ -501,24 +501,24 @@ float UAIDecisionManager::CalculateDefenseReactionDelay(EAIDifficulty Difficulty
     switch (Difficulty)
     {
     case EAIDifficulty::Easy:
-        MinFraction = 0.7f;
-        MaxFraction = 0.9f;
+        MinFraction = AIConstants::EASY_REACTION_FRACTION_MIN;
+        MaxFraction = AIConstants::EASY_REACTION_FRACTION_MAX;
         break;
     case EAIDifficulty::Medium:
-        MinFraction = 0.4f;
-        MaxFraction = 0.7f;
+        MinFraction = AIConstants::MEDIUM_REACTION_FRACTION_MIN;
+        MaxFraction = AIConstants::MEDIUM_REACTION_FRACTION_MAX;
         break;
     case EAIDifficulty::Hard:
-        MinFraction = 0.2f;
-        MaxFraction = 0.5f;
+        MinFraction = AIConstants::HARD_REACTION_FRACTION_MIN;
+        MaxFraction = AIConstants::HARD_REACTION_FRACTION_MAX;
         break;
     case EAIDifficulty::Expert:
-        MinFraction = 0.1f;
-        MaxFraction = 0.3f;
+        MinFraction = AIConstants::EXPERT_REACTION_FRACTION_MIN;
+        MaxFraction = AIConstants::EXPERT_REACTION_FRACTION_MAX;
         break;
     default:
-        MinFraction = 0.4f;
-        MaxFraction = 0.7f;
+        MinFraction = AIConstants::MEDIUM_REACTION_FRACTION_MIN;
+        MaxFraction = AIConstants::MEDIUM_REACTION_FRACTION_MAX;
     }
 
     float Fraction = FMath::FRandRange(MinFraction, MaxFraction);
@@ -1002,7 +1002,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
 
     // HP threshold based on difficulty
     EAIDifficulty Difficulty = GetCurrentDifficulty();
-    float HealThreshold = (Difficulty == EAIDifficulty::Hard || Difficulty == EAIDifficulty::Expert) ? 0.4f : 0.25f;
+    float HealThreshold = (Difficulty == EAIDifficulty::Hard || Difficulty == EAIDifficulty::Expert) ? AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD : AIConstants::EASYMED_HEAL_HP_THRESHOLD;
 
     // Priority 1: Low HP - need healing
     if (HPPercent <= HealThreshold)
@@ -1726,7 +1726,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
 
         // Hard+: Use L1 if bar is high (>70%) and we have good energy
         if (Difficulty >= EAIDifficulty::Hard &&
-            IsStatusBarNearTrigger(Target, 0.70f) &&
+            IsStatusBarNearTrigger(Target) &&
             EnergyPercent > AIConstants::ENERGY_ABUNDANT_THRESHOLD &&
             IsValuableStatus(PendingTrigger, Target))
         {
@@ -1814,7 +1814,7 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
 
         // Hard+: Use L1 if bar is high (>70%) and we have good energy
         if (Difficulty >= EAIDifficulty::Hard &&
-            IsStatusBarNearTrigger(Target, 0.70f) &&
+            IsStatusBarNearTrigger(Target) &&
             EnergyPercent > AIConstants::ENERGY_ABUNDANT_THRESHOLD &&
             IsValuableStatus(PendingTrigger, Target))
         {
