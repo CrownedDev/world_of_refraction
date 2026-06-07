@@ -73,14 +73,14 @@ public:
      *  editor when the attachment is a whetstone (whetstones carry abilities,
      *  not spells); the hidden value is inert and never read for a whetstone. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item",
-              meta = (TitleProperty = "Name", EditCondition = "!IsWhetstoneAttached", EditConditionHides))
+              meta = (TitleProperty = "Name", EditCondition = "!IsWeaponStoneAttached", EditConditionHides))
     TArray<USpellData *> DefaultSpells;
 
     /** Default abilities seeded onto a whetstone-attached weapon's whetstone slots.
      *  Parallels DefaultSpells; only meaningful when the attachment is a whetstone,
      *  so the editor shows it only then. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (DisplayName = "Extra Abilities", EditCondition = "IsWhetstoneAttached", EditConditionHides))
+              meta = (DisplayName = "Extra Abilities", EditCondition = "IsWeaponStoneAttached", EditConditionHides))
     TArray<UAbilityData *> DefaultAbilities;
 
     // ==================== INFUSION ====================
@@ -160,7 +160,7 @@ public:
      *  DefaultSpells / DefaultAbilities. EditCondition cannot reach the nested
      *  AttachedItem.Kind path, so it resolves this UFUNCTION instead. */
     UFUNCTION()
-    bool IsWhetstoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::WeaponStone; }
+    bool IsWeaponStoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::WeaponStone; }
 
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;

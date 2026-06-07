@@ -139,7 +139,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetCustomizableAbilities() const
     return AssignedAbilities;
 }
 
-TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetWeaponStoneAbilities() const
 {
     // Whetstone abilities exist only while a whetstone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
@@ -163,16 +163,16 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
         return Defaults;
     }
 
-    // Sequential override merge: AssignedWhetstoneAbilities replace default slots
+    // Sequential override merge: AssignedWeaponStoneAbilities replace default slots
     // in order; non-null entries beyond the default count are appended.
     TArray<UAbilityData *> Result;
     int32 OverrideIndex = 0;
 
     for (int32 i = 0; i < Defaults.Num(); ++i)
     {
-        if (OverrideIndex < AssignedWhetstoneAbilities.Num() && AssignedWhetstoneAbilities[OverrideIndex])
+        if (OverrideIndex < AssignedWeaponStoneAbilities.Num() && AssignedWeaponStoneAbilities[OverrideIndex])
         {
-            Result.Add(AssignedWhetstoneAbilities[OverrideIndex]);
+            Result.Add(AssignedWeaponStoneAbilities[OverrideIndex]);
             ++OverrideIndex;
         }
         else
@@ -181,11 +181,11 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
         }
     }
 
-    while (OverrideIndex < AssignedWhetstoneAbilities.Num())
+    while (OverrideIndex < AssignedWeaponStoneAbilities.Num())
     {
-        if (AssignedWhetstoneAbilities[OverrideIndex])
+        if (AssignedWeaponStoneAbilities[OverrideIndex])
         {
-            Result.Add(AssignedWhetstoneAbilities[OverrideIndex]);
+            Result.Add(AssignedWeaponStoneAbilities[OverrideIndex]);
         }
         ++OverrideIndex;
     }
@@ -245,7 +245,7 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
     return true;
 }
 
-bool FWeaponLoadoutEntry::ValidateWhetstoneAbilities(const FAbilityCollection &OwnedAbilities) const
+bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection &OwnedAbilities) const
 {
     if (!WeaponEntry.Weapon)
     {
@@ -258,12 +258,12 @@ bool FWeaponLoadoutEntry::ValidateWhetstoneAbilities(const FAbilityCollection &O
     const bool bIsWhetstone = Attachment.IsWeaponStone();
     if (!bIsWhetstone)
     {
-        return AssignedWhetstoneAbilities.Num() == 0;
+        return AssignedWeaponStoneAbilities.Num() == 0;
     }
 
     EWeaponType WeaponType = WeaponEntry.Weapon->WeaponType;
 
-    for (UAbilityData *Ability : AssignedWhetstoneAbilities)
+    for (UAbilityData *Ability : AssignedWeaponStoneAbilities)
     {
         if (!Ability)
         {
@@ -291,7 +291,7 @@ bool FWeaponLoadoutEntry::ValidateWhetstoneAbilities(const FAbilityCollection &O
 
     // Check count — per-tier slot cap from the attachment's identity.
     const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
-    if (AssignedWhetstoneAbilities.Num() > SlotLimit)
+    if (AssignedWeaponStoneAbilities.Num() > SlotLimit)
     {
         return false;
     }
@@ -335,5 +335,5 @@ void FWeaponLoadoutEntry::InitializeFromWeapon()
     // AssignedAbilities is a pure override list — it starts empty.
     // Preset abilities are merged in at query time by GetAllAbilities().
     AssignedAbilities.Empty();
-    AssignedWhetstoneAbilities.Empty();
+    AssignedWeaponStoneAbilities.Empty();
 }

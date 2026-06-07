@@ -69,10 +69,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         }
 
         // Whetstone abilities — parallel to the crystal-spell branch above and
-        // mutually exclusive with it (one attachment slot). GetWhetstoneAbilities
+        // mutually exclusive with it (one attachment slot). GetWeaponStoneAbilities
         // returns empty unless a whetstone is attached, so no extra guard.
-        Out.WhetstoneWeaponAbilities = ActiveWeapon->GetWhetstoneAbilities();
-        Out.bHasWhetstoneWeaponAbilities = Out.WhetstoneWeaponAbilities.Num() > 0;
+        Out.WeaponStoneAbilities = ActiveWeapon->GetWeaponStoneAbilities();
+        Out.bHasWeaponStoneAbilities = Out.WeaponStoneAbilities.Num() > 0;
     }
 
     // ==================== REFRACTIONS (Caster innate) ====================
@@ -211,7 +211,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
            Out.bHasRefractions, Out.bHasBreakthrough,
            Out.bHasPrimaryRing, Out.bHasRingLoadout,
            Out.bCanSwitchWeapon, Out.bCanSwitchRing,
-           Out.bHasWhetstoneWeaponAbilities);
+           Out.bHasWeaponStoneAbilities);
 
     return Out;
 }

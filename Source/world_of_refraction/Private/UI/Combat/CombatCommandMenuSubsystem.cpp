@@ -275,7 +275,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
 
     case EPieMenuCategory::ResonateWeapon:
-        if (CurrentCapabilities.bHasWhetstoneWeaponAbilities)
+        if (CurrentCapabilities.bHasWeaponStoneAbilities)
         {
             // Whetstone: list whetstone abilities as Ability buttons under the
             // same Resonate Weapon branch. Leaf buttons carry EPieMenuCategory::Ability
@@ -284,7 +284,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
             CurrentDepth = ECombatMenuDepth::Submenu;
             ActiveSubmenuType = EPieMenuCategory::ResonateWeapon;
             OnCommandMenuReady.Broadcast(
-                BuildAbilityButtonsFrom(CurrentCapabilities.WhetstoneWeaponAbilities));
+                BuildAbilityButtonsFrom(CurrentCapabilities.WeaponStoneAbilities));
         }
         else
         {
@@ -460,9 +460,9 @@ void UCombatCommandMenuSubsystem::RebroadcastCurrentView()
             OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
             break;
         case EPieMenuCategory::ResonateWeapon:
-            if (CurrentCapabilities.bHasWhetstoneWeaponAbilities)
+            if (CurrentCapabilities.bHasWeaponStoneAbilities)
                 OnCommandMenuReady.Broadcast(
-                    BuildAbilityButtonsFrom(CurrentCapabilities.WhetstoneWeaponAbilities));
+                    BuildAbilityButtonsFrom(CurrentCapabilities.WeaponStoneAbilities));
             else
                 OnCommandMenuReady.Broadcast(
                     BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(EPieMenuCategory::ResonateWeapon)));
@@ -538,7 +538,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateAttackButton());
     if (CurrentCapabilities.bCanUseAbilities)
         Buttons.Add(CreateAbilitiesButton());
-    if (CurrentCapabilities.bHasWeaponCrystal || CurrentCapabilities.bHasWhetstoneWeaponAbilities)
+    if (CurrentCapabilities.bHasWeaponCrystal || CurrentCapabilities.bHasWeaponStoneAbilities)
         Buttons.Add(CreateResonateWeaponButton());
     if (CurrentCapabilities.bHasRefractions)
         Buttons.Add(CreateRefractionsButton());
@@ -586,12 +586,12 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateWeaponButton() con
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("ResonateWeapon");
     Button.DisplayName = FText::FromString(TEXT("Resonate (W)"));
-    if (CurrentCapabilities.bHasWhetstoneWeaponAbilities && !CurrentCapabilities.bHasWeaponCrystal)
+    if (CurrentCapabilities.bHasWeaponStoneAbilities && !CurrentCapabilities.bHasWeaponCrystal)
     {
         // Whetstone (ability mode): count is abilities, not spells. A whetstone has
         // no spell-element color, so leave the default (neutral) tint.
         Button.Description = FText::FromString(
-            FString::Printf(TEXT("%d extra abilities"), CurrentCapabilities.WhetstoneWeaponAbilities.Num()));
+            FString::Printf(TEXT("%d extra abilities"), CurrentCapabilities.WeaponStoneAbilities.Num()));
     }
     else
     {
