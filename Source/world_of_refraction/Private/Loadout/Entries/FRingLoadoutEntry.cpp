@@ -6,6 +6,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Skills/Definitions/ElementHelpers.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 
 int32 FRingLoadoutEntry::GetLockedSpellCount() const
 {
@@ -24,7 +25,10 @@ int32 FRingLoadoutEntry::GetLockedSpellCount() const
 
 int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
 {
-    return LoadoutConstants::MAX_RING_SPELLS - GetLockedSpellCount();
+    return FMath::Max(0,
+                      CrystalEffectTable::ResolveSpellSlotCap(
+                          RingEntry.GetAttachedItem(), LoadoutConstants::MAX_RING_SPELLS)
+                          - GetLockedSpellCount());
 }
 
 TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
@@ -69,9 +73,12 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
         ++OverrideIndex;
     }
 
-    if (Result.Num() > LoadoutConstants::MAX_RING_SPELLS)
+    // Gem crystals gate spell slots by tier; evolution keeps the flat ceiling.
+    const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
+        RingEntry.GetAttachedItem(), LoadoutConstants::MAX_RING_SPELLS);
+    if (Result.Num() > SlotCap)
     {
-        Result.SetNum(LoadoutConstants::MAX_RING_SPELLS);
+        Result.SetNum(SlotCap);
     }
 
     return Result;

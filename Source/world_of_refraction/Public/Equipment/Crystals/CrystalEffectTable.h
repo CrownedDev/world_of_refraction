@@ -12,8 +12,10 @@
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/CrystalType.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Inventory/ItemTier.h"
 #include "Inventory/ItemConstants.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 
 namespace CrystalEffectTable
 {
@@ -554,15 +556,15 @@ namespace CrystalEffectTable
         }
     }
 
-    /** Skill-slots an attachment grants at its tier. Generic across attachment
-     *  kinds so refined crystals can adopt it for spell-slots later; for now only
-     *  weapon stones grant slots:
-     *    DamageStone  -> 0  (damage stone, grants no slots)
-     *    AbilityStone -> F=2, E=3, D=3, C=4, B=4, A=5, S=6  (non-sequential)
-     *  Crystals / evolution / none -> 0 (no slot contribution yet). */
+    /** Skill-slots an attachment grants at its tier — one shared per-tier curve:
+     *    AbilityStone -> ability slots,  gem crystal (IsGemType) -> spell slots.
+     *    F=2, E=3, D=3, C=4, B=4, A=5, S=6  (non-sequential)
+     *  DamageStone -> 0 (grants no slots). Evolution / none -> 0 here; an
+     *  evolution attachment keeps the flat spell ceiling, resolved by the caller
+     *  (ResolveSpellSlotCap), not this type-keyed table. */
     inline int32 GetAttachmentSlotsForTier(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::AbilityStone)
+        if (Id.Type == ECrystalType::AbilityStone || CrystalTypeHelpers::IsGemType(Id.Type))
         {
             switch (Id.Tier)
             {
@@ -586,5 +588,19 @@ namespace CrystalEffectTable
         }
         // DamageStone and every other type grant no slots.
         return 0;
+    }
+
+    /** Spell-slot cap for a spell-capable attachment. Gem crystals gate by tier
+     *  (the shared GetAttachmentSlotsForTier curve); evolution — and any other
+     *  spell-capable attachment — keep the caller's flat ceiling. The caller
+     *  supplies its own flat constant (MAX_SPELL_SLOTS for weapons,
+     *  MAX_RING_SPELLS for rings). */
+    inline int32 ResolveSpellSlotCap(const FRuntimeAttachedItem &Attachment, int32 FlatCeiling)
+    {
+        if (Attachment.IsCrystal() && CrystalTypeHelpers::IsGemType(Attachment.Crystal.Id.Type))
+        {
+            return GetAttachmentSlotsForTier(Attachment.Crystal.Id);
+        }
+        return FlatCeiling;
     }
 }

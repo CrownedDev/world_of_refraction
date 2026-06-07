@@ -108,9 +108,12 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
         ++OverrideIndex;
     }
 
-    if (Result.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
+    // Gem crystals gate spell slots by tier; evolution keeps the flat ceiling.
+    const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
+        WeaponEntry.GetAttachedItem(), LoadoutConstants::MAX_SPELL_SLOTS);
+    if (Result.Num() > SlotCap)
     {
-        Result.SetNum(LoadoutConstants::MAX_SPELL_SLOTS);
+        Result.SetNum(SlotCap);
     }
 
     return Result;
@@ -325,7 +328,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
             return false;
     }
 
-    if (WeaponEntry.AssignedSpells.Num() > LoadoutConstants::MAX_SPELL_SLOTS)
+    if (WeaponEntry.AssignedSpells.Num() > CrystalEffectTable::ResolveSpellSlotCap(Attachment, LoadoutConstants::MAX_SPELL_SLOTS))
         return false;
     return true;
 }
