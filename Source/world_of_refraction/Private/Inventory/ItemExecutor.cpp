@@ -46,11 +46,11 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] %s using %s on %s"),
-		   *User->GetName(), *CrystalIdentity::GetDisplayName(Id), *Target->GetName());
+		   *User->GetName(), *ItemIdentity::GetDisplayName(Id), *Target->GetName());
 
 	// Execute based on effect type. AbilityStone maps to EItemEffectType::None
 	// (attach-only) — no case matches, so it falls to the default failure arm.
-	EItemEffectType EffectType = CrystalIdentity::GetPrimaryEffectType(Id);
+	EItemEffectType EffectType = ItemIdentity::GetPrimaryEffectType(Id);
 
 	switch (EffectType)
 	{
@@ -348,11 +348,11 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrysta
 	const float BuffPercent = CrystalEffectTable::GetSpeedBuffPercent(Id);
 	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
-	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect SpeedBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Speed"), *DisplayName),
-		CrystalIdentity::GetEffectSourceID(Id), ESkillEffectType::TurnSpeedBuff, BuffPercent, Duration);
-	SpeedBuff.Element = CrystalIdentity::GetElement(Id);
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::TurnSpeedBuff, BuffPercent, Duration);
+	SpeedBuff.Element = ItemIdentity::GetElement(Id);
 
 	SEM->ApplyEffect(Target, SpeedBuff, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
@@ -377,11 +377,11 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 	const float BuffPercent = CrystalEffectTable::GetDamageStoneBasePercent(Id);
 	const int32 Duration = CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION;
 
-	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect RawBuff = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Raw Damage"), *DisplayName),
-		CrystalIdentity::GetEffectSourceID(Id), ESkillEffectType::RawDamageBuff, BuffPercent, Duration);
-	RawBuff.Element = CrystalIdentity::GetElement(Id);
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::RawDamageBuff, BuffPercent, Duration);
+	RawBuff.Element = ItemIdentity::GetElement(Id);
 
 	// Self-buff: apply to the User (NOT Target — unlike ExecuteSpeedBuffEffect,
 	// which targets the chosen Target).
@@ -408,11 +408,11 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 	const float Magnitude = CrystalEffectTable::GetBuffPercentage(Id);
 	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
-	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Defense"), *DisplayName),
-		CrystalIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = CrystalIdentity::GetElement(Id);
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
 
 	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
@@ -437,11 +437,11 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 	const float Magnitude = CrystalEffectTable::GetCritBuffPercent(Id);
 	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
 
-	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Crit"), *DisplayName),
-		CrystalIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = CrystalIdentity::GetElement(Id);
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
 
 	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
@@ -471,11 +471,11 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 		}
 
 		// S-rank: binary silence gate for 1 turn.
-		const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
+		const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 		FActiveSkillEffect Silence = FActiveSkillEffect::CreateBuff(
 			FString::Printf(TEXT("%s Silence"), *DisplayName),
-			CrystalIdentity::GetEffectSourceID(Id), ESkillEffectType::Silenced, 1.0f, 1);
-		Silence.Element = CrystalIdentity::GetElement(Id);
+			ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::Silenced, 1.0f, 1);
+		Silence.Element = ItemIdentity::GetElement(Id);
 		SEM->ApplyEffect(Target, Silence, User, DisplayName, -1);
 		OutResult.BuffsApplied++;
 
@@ -559,10 +559,10 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 	const int32 Duration = CrystalEffectTable::GetGambleDuration(Id);
 
 	FActiveSkillEffect GambleEffect = FActiveSkillEffect::CreateBuff(
-		TEXT("Gamble Result"), CrystalIdentity::GetEffectSourceID(Id), ChosenType, Magnitude, Duration);
+		TEXT("Gamble Result"), ItemIdentity::GetEffectSourceID(Id), ChosenType, Magnitude, Duration);
 	GambleEffect.Element = ESpellElement::Void;
 
-	SEM->ApplyEffect(Target, GambleEffect, User, CrystalIdentity::GetDisplayName(Id), -1);
+	SEM->ApplyEffect(Target, GambleEffect, User, ItemIdentity::GetDisplayName(Id), -1);
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 

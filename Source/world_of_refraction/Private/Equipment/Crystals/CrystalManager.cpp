@@ -106,7 +106,7 @@ void UCrystalManager::ProcessPostCastWear(
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
                    *Actor->GetName(),
-                   *CrystalIdentity::GetDisplayName(Attachment.Crystal.Id),
+                   *ItemIdentity::GetDisplayName(Attachment.Crystal.Id),
                    Wear, SkipChance);
             return;
         }
@@ -119,7 +119,7 @@ void UCrystalManager::ProcessPostCastWear(
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d wear to crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
            *Actor->GetName(), Wear,
-           *CrystalIdentity::GetDisplayName(Attachment.Crystal.Id),
+           *ItemIdentity::GetDisplayName(Attachment.Crystal.Id),
            NewDur, MaxDur,
            static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
@@ -130,7 +130,7 @@ void UCrystalManager::ProcessPostCastWear(
     {
         UE_LOG(LogTemp, Log,
                TEXT("[CrystalManager] Crystal '%s' broke on %s (holder: %s)"),
-               *CrystalIdentity::GetDisplayName(Attachment.Crystal.Id),
+               *ItemIdentity::GetDisplayName(Attachment.Crystal.Id),
                *Actor->GetName(),
                Holder ? *Holder->GetName() : TEXT("Unknown"));
 
@@ -283,7 +283,7 @@ void UCrystalManager::DebugBreakActiveCrystal()
     }
 
     const FString CrystalName = Attachment->IsCrystal()
-                                    ? CrystalIdentity::GetDisplayName(Attachment->Crystal.Id)
+                                    ? ItemIdentity::GetDisplayName(Attachment->Crystal.Id)
                                     : (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"));
 
     if (Attachment->IsBroken())
@@ -390,7 +390,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION") : TEXT("CRYSTAL");
     const FString CrystalName = bIsEvolutionBranch
                                     ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
-                                    : CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
+                                    : ItemIdentity::GetDisplayName(Attachment->Crystal.Id);
 
     // Evolution-only: bCanBreak is what the refactor flipped. Refined branch
     // is always wearable (no gate), so log "n/a" there for clarity.
@@ -543,7 +543,7 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
             Attachment->Crystal.Id.Tier, ActionTierE, InfClamped, bIsSpell,
             SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac);
 
-    const FString CrystalName = CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
+    const FString CrystalName = ItemIdentity::GetDisplayName(Attachment->Crystal.Id);
     const int32 BeforeDur = Attachment->GetCurrentDurability();
     const int32 MaxDur    = Attachment->GetMaxDurability();
 
@@ -624,7 +624,7 @@ void UCrystalManager::WOR_CrystalState()
                                : (Attachment->IsCrystal() ? TEXT("Crystal") : TEXT("None"));
     const FString Name = bEvolution
                              ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
-                             : CrystalIdentity::GetDisplayName(Attachment->Crystal.Id);
+                             : ItemIdentity::GetDisplayName(Attachment->Crystal.Id);
     const FString TierStr = bEvolution
                                 ? FString(TEXT("n/a"))
                                 : TierHelpers::GetTierName(Attachment->Crystal.Id.Tier);

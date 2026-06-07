@@ -273,7 +273,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         if (SlotIndex >= Loadout.ItemSlots.Num())
         {
             UE_LOG(LogTemp, Warning, TEXT("[LoadoutComponent] Item slots full (%d) - skipping '%s'"),
-                   Loadout.ItemSlots.Num(), *CrystalIdentity::GetDisplayName(Entry.CrystalId));
+                   Loadout.ItemSlots.Num(), *ItemIdentity::GetDisplayName(Entry.CrystalId));
             break;
         }
 
@@ -285,7 +285,7 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
             ItemsAdded++;
         }
         UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Equipped '%s' x%d (requested %d) to slot %d"),
-               *CrystalIdentity::GetDisplayName(Entry.CrystalId), Debited, Entry.Quantity, SlotIndex);
+               *ItemIdentity::GetDisplayName(Entry.CrystalId), Debited, Entry.Quantity, SlotIndex);
         SlotIndex++;
     }
 
@@ -2048,7 +2048,7 @@ bool ULoadoutComponent::HasEquippedSourceForElement(AActor *Actor, ESpellElement
         switch (Slot.Kind)
         {
         case EAttachedItemKind::Crystal:
-            if (CrystalIdentity::GetElement(Slot.CrystalId) == Element)
+            if (ItemIdentity::GetElement(Slot.CrystalId) == Element)
             {
                 return true;
             }

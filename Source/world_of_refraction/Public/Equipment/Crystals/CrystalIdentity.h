@@ -4,7 +4,7 @@
 // without holding any UEvolutionItemData / UEvolutionItemData asset pointer.
 //
 // Sits one layer above CrystalTypeHelpers: where CrystalTypeHelpers operates
-// on raw ECrystalType, CrystalIdentity operates on the (Type, Tier) pair via
+// on raw ECrystalType, ItemIdentity operates on the (Type, Tier) pair via
 // FCrystalId — the API surface that subsequent refactor commits consume.
 
 #pragma once
@@ -17,7 +17,7 @@
 #include "Inventory/ItemEffectType.h"
 #include "Equipment/Durability/DurabilityConstants.h"
 
-namespace CrystalIdentity
+namespace ItemIdentity
 {
     /** Returns the spell element this crystal grants. Pure delegation to
      *  CrystalTypeHelpers::GetElement — accepts FCrystalId for caller

@@ -55,7 +55,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
      *  this attachment can fire. */
     bool CanProvideSpells() const;
 
-    /** Element of the active branch. Refined resolves via CrystalIdentity;
+    /** Element of the active branch. Refined resolves via ItemIdentity;
      *  evolution resolves via the item's GetAssociatedElement. Empty returns
      *  Generic. */
     ESpellElement GetElement() const;
@@ -64,7 +64,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     int32 GetCurrentDurability() const;
 
     /** Max durability of the active branch. Refined resolves via
-     *  CrystalIdentity::GetMaxDurability; evolution reads Item->MaxDurability.
+     *  ItemIdentity::GetMaxDurability; evolution reads Item->MaxDurability.
      *  0 when empty or item is null. */
     int32 GetMaxDurability() const;
 
@@ -104,7 +104,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
      *
      *  Refined branch: builds FCrystalId from Source.RefinedType +
      *  Source.RefinedTier, seeds CurrentDurability from
-     *  CrystalIdentity::GetMaxDurability — the tier-based max the runtime
+     *  ItemIdentity::GetMaxDurability — the tier-based max the runtime
      *  already treats as refined's source of truth (refined crystals carry no
      *  asset, so there is no per-asset MaxDurability to read as FromAsset does).
      *

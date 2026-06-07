@@ -1117,7 +1117,7 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Executing item async: %s by %s"),
-		   *CrystalIdentity::GetDisplayName(Action.ItemData), *Actor->GetName());
+		   *ItemIdentity::GetDisplayName(Action.ItemData), *Actor->GetName());
 
 	// Face target (if not self)
 	AActor *Target = Action.Targets.Num() > 0 ? Action.Targets[0] : Actor;
@@ -1880,7 +1880,7 @@ FActionResult UActionExecutor::ExecuteItem(
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s used item %s - delegated to ItemExecutor"),
-		   *User->GetName(), *CrystalIdentity::GetDisplayName(Id));
+		   *User->GetName(), *ItemIdentity::GetDisplayName(Id));
 
 	return Result;
 }

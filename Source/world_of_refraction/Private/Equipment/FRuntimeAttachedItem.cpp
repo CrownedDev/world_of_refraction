@@ -43,7 +43,7 @@ bool FRuntimeAttachedItem::CanProvideSpells() const
 
 ESpellElement FRuntimeAttachedItem::GetElement() const
 {
-    // No element — matches the old Refined→CrystalIdentity::GetElement path,
+    // No element — matches the old Refined→ItemIdentity::GetElement path,
     // which resolved a weapon-stone FCrystalId to Generic via its default arm.
     if (IsWeaponStone())
     {
@@ -51,7 +51,7 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
     }
     if (IsCrystal())
     {
-        return CrystalIdentity::GetElement(Crystal.Id);
+        return ItemIdentity::GetElement(Crystal.Id);
     }
     if (IsEvolution() && Evolution.Item)
     {
@@ -87,7 +87,7 @@ int32 FRuntimeAttachedItem::GetMaxDurability() const
     }
     if (IsCrystal())
     {
-        return CrystalIdentity::GetMaxDurability(Crystal.Id);
+        return ItemIdentity::GetMaxDurability(Crystal.Id);
     }
     if (IsEvolution() && Evolution.Item)
     {
@@ -181,8 +181,8 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // Refined crystals carry no asset, so there is no per-asset MaxDurability
         // to read as FromAsset does. Seed from the tier-based max the runtime
         // already treats as refined's source of truth (GetMaxDurability and
-        // FRefinedAttachment::RepairBetweenCombats both resolve via CrystalIdentity).
-        Result.Crystal.CurrentDurability = CrystalIdentity::GetMaxDurability(Result.Crystal.Id);
+        // FRefinedAttachment::RepairBetweenCombats both resolve via ItemIdentity).
+        Result.Crystal.CurrentDurability = ItemIdentity::GetMaxDurability(Result.Crystal.Id);
         break;
 
     case EAttachedItemKind::Evolution:

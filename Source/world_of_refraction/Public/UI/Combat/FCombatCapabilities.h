@@ -101,7 +101,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     // ==================== ITEM POOL ====================
 
     /** Usable items in the active loadout's item slots (CrystalId only —
-     *  resolve display name via CrystalIdentity::GetDisplayName). */
+     *  resolve display name via ItemIdentity::GetDisplayName). */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Items")
     TArray<FCrystalId> AvailableItems;
 

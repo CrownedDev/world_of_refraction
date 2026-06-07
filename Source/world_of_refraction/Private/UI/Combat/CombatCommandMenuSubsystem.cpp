@@ -758,7 +758,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
 
             const FString DisplayName = FString::Printf(TEXT("%dx %s"),
                                                         Slot.Quantity,
-                                                        *CrystalIdentity::GetDisplayName(Slot.CrystalId));
+                                                        *ItemIdentity::GetDisplayName(Slot.CrystalId));
 
             // Carry the slot index (DataIndex), not a UObject* — consumables have
             // no asset identity now; the click handler reads the live CrystalId

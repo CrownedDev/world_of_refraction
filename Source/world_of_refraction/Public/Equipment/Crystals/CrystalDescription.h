@@ -57,7 +57,7 @@ namespace CrystalDescription
         return FString::Printf(
             TEXT("A %s %s crystal."),
             *GetTierDescriptor(Id.Tier),
-            *CrystalIdentity::GetTypeName(Id.Type).ToLower());
+            *ItemIdentity::GetTypeName(Id.Type).ToLower());
     }
 
     /** Mechanical effect sentence for item/refined crystals. Per-CrystalType

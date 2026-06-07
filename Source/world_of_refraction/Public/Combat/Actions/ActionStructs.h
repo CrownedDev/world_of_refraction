@@ -111,7 +111,7 @@ struct WORLD_OF_REFRACTION_API FAction
 		case EActionType::Ability:
 			return AbilityData ? TEXT("Ability") : TEXT("Unknown Ability");
 		case EActionType::Item:
-			return CrystalIdentity::GetDisplayName(ItemData);
+			return ItemIdentity::GetDisplayName(ItemData);
 		case EActionType::Attack:
 			return AttackData ? TEXT("Attack") : TEXT("Basic Attack");
 		case EActionType::Defend:

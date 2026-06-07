@@ -1124,12 +1124,12 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 				}
 
 				// Branch-aware display name. Refined crystals have no asset
-				// pointer; resolve via CrystalIdentity.
+				// pointer; resolve via ItemIdentity.
 				FString CrystalName;
 				switch (Slot.Kind)
 				{
 				case EAttachedItemKind::Crystal:
-					CrystalName = CrystalIdentity::GetDisplayName(Slot.CrystalId);
+					CrystalName = ItemIdentity::GetDisplayName(Slot.CrystalId);
 					break;
 				case EAttachedItemKind::Evolution:
 					CrystalName = Slot.Item ? Slot.Item->GetFullItemName() : TEXT("(null)");
@@ -1241,7 +1241,7 @@ void ACombatOrchestrator::ApplyBetweenCombatRepair()
 					const int32 MaxDur = Before.GetMaxDurability();
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[CombatOrchestrator] Repaired '%s' on %s: %d -> %d / %d"),
-						   *CrystalIdentity::GetDisplayName(Slot.CrystalId), *Actor->GetName(),
+						   *ItemIdentity::GetDisplayName(Slot.CrystalId), *Actor->GetName(),
 						   BeforeDur, NewDur, MaxDur);
 					CrystalsRepaired++;
 				}
@@ -1707,7 +1707,7 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Damage)
+		if (!Slot.IsEmpty() && ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Damage)
 		{
 			DamageId = Slot.CrystalId;
 			bFoundDamage = true;
@@ -1729,7 +1729,7 @@ void ACombatOrchestrator::DebugTestItemOnEnemy()
 	ItemAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnEnemy] %s using %s on enemy %s"),
-		   *Actor->GetName(), *CrystalIdentity::GetDisplayName(DamageId), *Target->GetName());
+		   *Actor->GetName(), *ItemIdentity::GetDisplayName(DamageId), *Target->GetName());
 
 	// Execute
 	if (ActionExecutorRef)
@@ -1763,7 +1763,7 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+		if (!Slot.IsEmpty() && ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
 		{
 			HealId = Slot.CrystalId;
 			bFoundHeal = true;
@@ -1785,7 +1785,7 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 	ItemAction.Targets.Add(Actor); // Self-target
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnSelf] %s using %s on SELF"),
-		   *Actor->GetName(), *CrystalIdentity::GetDisplayName(HealId));
+		   *Actor->GetName(), *ItemIdentity::GetDisplayName(HealId));
 
 	// Execute
 	if (ActionExecutorRef)
@@ -1839,7 +1839,7 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && CrystalIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+		if (!Slot.IsEmpty() && ItemIdentity::GetPrimaryEffectType(Slot.CrystalId) == EItemEffectType::Healing)
 		{
 			HealId = Slot.CrystalId;
 			bFoundHeal = true;
@@ -1861,7 +1861,7 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 	ItemAction.Targets.Add(Ally);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestItemOnAlly] %s using %s on ally %s"),
-		   *Actor->GetName(), *CrystalIdentity::GetDisplayName(HealId), *Ally->GetName());
+		   *Actor->GetName(), *ItemIdentity::GetDisplayName(HealId), *Ally->GetName());
 
 	// Execute
 	if (ActionExecutorRef)

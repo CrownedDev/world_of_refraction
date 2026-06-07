@@ -55,7 +55,7 @@ struct WORLD_OF_REFRACTION_API FCrystalAttachment
         return Before > 0 && CurrentDurability == 0;
     }
 
-    /** Repair between combats. Clamp to CrystalIdentity::GetMaxDurability(Id).
+    /** Repair between combats. Clamp to ItemIdentity::GetMaxDurability(Id).
      *  Returns actual amount repaired. No-op when Amount <= 0. */
     int32 RepairBetweenCombats(int32 Amount)
     {
@@ -64,7 +64,7 @@ struct WORLD_OF_REFRACTION_API FCrystalAttachment
             return 0;
         }
 
-        const int32 MaxDur = CrystalIdentity::GetMaxDurability(Id);
+        const int32 MaxDur = ItemIdentity::GetMaxDurability(Id);
         const int32 Before = CurrentDurability;
         CurrentDurability = FMath::Min(MaxDur, CurrentDurability + Amount);
 

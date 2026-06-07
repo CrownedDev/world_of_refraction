@@ -204,7 +204,7 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Crystal Type: %s"), *GetCrystalTypeName(Item->CrystalType));
     UE_LOG(LogTemp, Display, TEXT("Tier: %s"), *Item->GetTierName());
     UE_LOG(LogTemp, Display, TEXT("Element: %d"), static_cast<int32>(Item->GetAssociatedElement()));
-    UE_LOG(LogTemp, Display, TEXT("Effect Type: %d"), static_cast<int32>(CrystalIdentity::GetPrimaryEffectType(FCrystalId{Item->CrystalType, Item->Tier})));
+    UE_LOG(LogTemp, Display, TEXT("Effect Type: %d"), static_cast<int32>(ItemIdentity::GetPrimaryEffectType(FCrystalId{Item->CrystalType, Item->Tier})));
     UE_LOG(LogTemp, Display, TEXT(""));
 
     // ADD: Crystal state
