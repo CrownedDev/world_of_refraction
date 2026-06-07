@@ -364,7 +364,7 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 		BaseCrit += ModifyCrit / 100.0f;
 	}
 
-	return FMath::Clamp(BaseCrit, 0.0f, DamageConstants::MAX_CRIT_CHANCE);
+	return FMath::Clamp(BaseCrit, 0.0f, 1.0f);
 }
 
 bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) const

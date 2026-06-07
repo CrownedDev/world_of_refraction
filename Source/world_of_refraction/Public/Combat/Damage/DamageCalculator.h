@@ -25,7 +25,6 @@ namespace DamageConstants
 	// Critical hits
 	constexpr float CRIT_MULTIPLIER = 1.5f;
 	constexpr float BASE_CRIT_CHANCE = 0.05f; // 5%
-	constexpr float MAX_CRIT_CHANCE = 0.60f;  // 60%
 
 	// Defense
 	constexpr float MAX_RESISTANCE = 0.50f; // 50% cap

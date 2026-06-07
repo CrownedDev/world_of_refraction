@@ -361,7 +361,7 @@ public:
 		return FMath::Clamp(
 			CombatConstants::CRIT_CHANCE_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
 			CombatConstants::CRIT_CHANCE_BASE,
-			CombatConstants::CRIT_CHANCE_MAX);
+			1.0f);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")

@@ -603,7 +603,7 @@ float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
     return FMath::Clamp(
         CombatConstants::CRIT_CHANCE_BASE + (ModifiedMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
         CombatConstants::CRIT_CHANCE_BASE,
-        CombatConstants::CRIT_CHANCE_MAX);
+        1.0f);
 }
 
 int32 UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const

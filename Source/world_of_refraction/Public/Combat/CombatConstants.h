@@ -90,7 +90,6 @@ namespace CombatConstants
     // Crit Chance - Critical hit probability (all actions)
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
     constexpr float CRIT_CHANCE_PER_POINT = 0.0013f; // 0.13% per point
-    constexpr float CRIT_CHANCE_MAX = 0.40f;         // 40% max
     constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit
 
     // Spell Speed - Projectile travel speed (affects defender reaction time)
@@ -130,7 +129,10 @@ namespace CombatConstants
 
     // Resistance - Reduces status effect damage & buildup (NOT elemental damage)
     constexpr float RESISTANCE_PER_POINT = 0.0015f; // 0.15% per point
-    constexpr float RESISTANCE_MAX = 0.40f;         // 40% max
+    // Correctness bound, NOT a design/balance cap: status resistance must stay
+    // <= 1.0, else the consumer `Amount *= (1 - Resistance)` goes negative and
+    // heals the gauge. Do not "tune" this down — it is a hard ceiling, not a knob.
+    constexpr float RESISTANCE_MAX = 1.0f;
 
     // Turn Speed - Turn order priority (NOW SPIRIT, was Mind, no longer uses WorldBody)
     constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed
