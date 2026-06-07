@@ -16,6 +16,7 @@
 #include "Inventory/ItemTier.h"
 #include "Inventory/ItemConstants.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Combat/Actions/ActionStatModifiers.h"
 
 namespace CrystalEffectTable
 {
@@ -531,16 +532,22 @@ namespace CrystalEffectTable
         }
     }
 
-    /** Raw-attack-damage increase (%) a Damage Stone grants. This is the consumable
-     *  value AND the attached base (the attached path applies it directly, no flat
-     *  bonus). 0 for any non-DamageStone crystal. */
-    inline float GetDamageStoneBasePercent(const FCrystalId &Id)
+    /** General stone base-percent curve, keyed by stone type + tier. The whole
+     *  stat-stone family shares ONE curve (Balance framework — uniform numbers):
+     *    DamageStone  -> 3/5/7/9/11/13/15 (F..S)
+     *    DefenseStone -> 3/5/7/9/11/13/15 (F..S)  (same shared curve)
+     *  0 for any non-stat-stone type. */
+    inline float GetStoneBasePercent(ECrystalType Type, EItemTier Tier)
     {
-        if (Id.Type != ECrystalType::DamageStone)
+        switch (Type)
         {
+        case ECrystalType::DamageStone:
+        case ECrystalType::DefenseStone:
+            break;
+        default:
             return 0.0f;
         }
-        switch (Id.Tier)
+        switch (Tier)
         {
         case EItemTier::F_Tier:
             return 3.0f;
@@ -559,6 +566,53 @@ namespace CrystalEffectTable
         default:
             return 0.0f;
         }
+    }
+
+    /** The sub-stat a stone amplifies. ESubStat::None for non-stat-stones
+     *  (AbilityStone and any non-stone). Consumed by GetAttachedStonePercent and
+     *  the per-read-site stat-stone hooks. */
+    inline ESubStat StoneTargetStat(ECrystalType Type)
+    {
+        switch (Type)
+        {
+        case ECrystalType::DamageStone:
+            return ESubStat::RawDamage;
+        case ECrystalType::DefenseStone:
+            return ESubStat::Defense;
+        default:
+            return ESubStat::None;
+        }
+    }
+
+    /** Percent a stone ATTACHMENT grants for a specific sub-stat — the hook each
+     *  read-site calls (e.g. Defense in GetDefenderFlatDefense, RawDamage in the
+     *  Step 1.25 damage path). 0 unless the attachment is a weapon stone whose
+     *  target stat matches Stat. */
+    inline float GetAttachedStonePercent(const FRuntimeAttachedItem &Att, ESubStat Stat)
+    {
+        if (!Att.IsWeaponStone())
+        {
+            return 0.0f;
+        }
+        if (StoneTargetStat(Att.Crystal.Id.Type) != Stat)
+        {
+            return 0.0f;
+        }
+        return GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier);
+    }
+
+    /** Raw-attack-damage increase (%) a Damage Stone grants. Thin wrapper over the
+     *  shared GetStoneBasePercent curve, preserving the DamageStone-only guard so
+     *  callers see byte-identical values (a DefenseStone Id still returns 0 here —
+     *  the general curve is reached via GetStoneBasePercent / GetAttachedStonePercent).
+     *  This is the consumable value AND the attached base. */
+    inline float GetDamageStoneBasePercent(const FCrystalId &Id)
+    {
+        if (Id.Type != ECrystalType::DamageStone)
+        {
+            return 0.0f;
+        }
+        return GetStoneBasePercent(ECrystalType::DamageStone, Id.Tier);
     }
 
     /** Skill-slots an attachment grants at its tier — one shared per-tier curve:

@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "ActionStatModifiers.generated.h"
 
-/** Action-time sub-stats (11). Pool stats (MaxHealth, MaxEnergy) are intentionally not represented. */
+/** Action-time sub-stats (11) plus a None sentinel ("targets no sub-stat"). Pool stats (MaxHealth, MaxEnergy) are intentionally not represented. */
 UENUM(BlueprintType)
 enum class ESubStat : uint8
 {
@@ -24,7 +24,10 @@ enum class ESubStat : uint8
 	// Spirit
 	Resistance UMETA(DisplayName = "Resistance"),
 	TurnSpeed UMETA(DisplayName = "Turn Speed"),
-	Luck UMETA(DisplayName = "Luck")
+	Luck UMETA(DisplayName = "Luck"),
+	// Appended (serialization-safe) — "targets no sub-stat" sentinel, e.g.
+	// StoneTargetStat for a non-stat-stone. GetModifier's default returns 0 for it.
+	None UMETA(DisplayName = "None")
 };
 
 /** Per-action stat modifier accumulator. Values are percentages (5.0f = +5%).
