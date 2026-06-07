@@ -73,9 +73,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	// Step 1.25: Attached-whetstone raw-damage multiplier. Live-resolves the
 	// active weapon's attachment from the attacker's loadout — physical actions
-	// only, matching the equipment-bonus gate above. Tiered base% + flat attached
-	// bonus, applied as a DIRECT multiplier (these are whole-number percentages,
-	// not per-point fractions, so RAW_DAMAGE_PER_POINT does not apply).
+	// only, matching the equipment-bonus gate above. Tiered base% only, applied as
+	// a DIRECT multiplier (these are whole-number percentages, not per-point
+	// fractions, so RAW_DAMAGE_PER_POINT does not apply).
 	if (Attacker && Input.ActionType != EActionType::Spell)
 	{
 		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
@@ -87,8 +87,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 				if (bIsWhetstone)
 				{
 					const float WhetstonePercent =
-						CrystalEffectTable::GetWhetstoneBasePercent(Attachment.Crystal.Id) +
-						CombatConstants::WHETSTONE_ATTACHED_BONUS;
+						CrystalEffectTable::GetWhetstoneBasePercent(Attachment.Crystal.Id);
 					const float BeforeWhetstone = RunningDamage;
 					RunningDamage *= (1.0f + WhetstonePercent / 100.0f);
 					UE_LOG(LogTemp, Verbose,
