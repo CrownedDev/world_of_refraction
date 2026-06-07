@@ -382,7 +382,19 @@ two uses.
 
 ### Fusion restrictions
 
-Valid and invalid input pairings for a fusion (the validity guard):
+**Underlying principle (the "why" behind the pair list).** A valid fusion is a
+**stat-stone + one other contributor** (a gem crystal *or* an `AbilityStone`).
+
+- **Valid inputs (contributors):** stat-stones (`DamageStone` / `DefenseStone` /
+  …), `AbilityStone`, gem crystals.
+- **Never an input: evolution crystals** — excluded from fusion *entirely* (not
+  merely "no evolution + evolution"; an evolution crystal can never be a fusion
+  half at all). Evolution is a **transformation** mechanic, not a stat/element
+  **contributor** — it has no contribution to concatenate into a fused stone.
+
+Every banned pair below falls out of that principle (each one either lacks a
+stat-stone or pairs two non-stat contributors). The explicit table is kept for
+quick reference:
 
 | Pair | Allowed? | Reason |
 |---|---|---|
@@ -392,6 +404,7 @@ Valid and invalid input pairings for a fusion (the validity guard):
 | `AbilityStone` + `AbilityStone` | ❌ | two slot-grants, nothing to combine meaningfully |
 | crystal + crystal | ❌ | element + element |
 | `AbilityStone` + crystal | ❌ | slots + element |
+| *anything* + evolution crystal | ❌ | evolution is a transformation, not a contributor — never a fusion input |
 
 ### Rings + AugmentStones (loosens the current ring-guard)
 
@@ -649,3 +662,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-06-07 | Initial documentation — shipped weapon-stone system (unified `ECrystalType`/`FCrystalId` identity; `EAttachedItemKind::WeaponStone`; `DamageStone` whole-percent channel + 3-turn consumable; `AbilityStone` per-tier slots 2/3/3/4/4/5/6; `GetRestrictedEnumValues` grey-out + `IsDataValid` backstop; `CrystalTypeHelpers` gem/stone predicates). Recorded the `BonusRawDamage` trap, the unified-enum and attach-only rationale, and the cap decisions. Captured the Design/Phase-2 plan (Mastery stone, 7×7 fusion/cost matrix, selectable-substat fusion bonus, fusion restrictions, rings+AugmentStone rule, planned `WeaponStone→AugmentStone` rename, stat-stone family + read-site hooks, single-field grey-out risk) and parked cleanup. | feature/weapon-stones |
 | 2026-06-07 | Phase-2 design revision — **Mastery → FusionStone** rename throughout; FusionStone is player-created (fusion consumes two owned attachables), `FFusionId{HalfA,HalfB,BonusStat}` composite with symmetric equality, `FCrystalId` unchanged (Option A); fusion bonus is the formula `(TierValue(A)+TierValue(B))/2` (7×7 shown as visualisation only); added `stat-stone+stat-stone` valid pairing; expanded the **stat-stone family** into the dual-form model (attached self-passive / directional timed consumable) with the `DamageStone`-consumable change flagged as a shipped-behaviour modification; added the **wired-substat audit** (wired/unwired/pool-stats) and the Defense-first **build order**. Refreshed the cap-decisions notes to reflect the now-shipped crit/resistance cap removal (commit `7afd0d09`). | feature/weapon-stones |
 | 2026-06-07 | Stat-stone family extension + audit fixes — added the **pool-stat variant** (`MaxHP`/`MaxEnergy` raise/decrease-max, ceiling-only, overcapped-not-clamped, `RecomputeMaxPools` hook); the **Defense / Resistance mitigation model** (Defense already covers raw+spell, flat/subtractive — no change; Resistance gains a net-new slight spell-damage shave `×(1 − RESISTANCE_SPELL_SHAVE_FACTOR·Resistance)`, factor `0.2`, the **one** new combat hook, gated on `ActionType==Spell` via the unconsumed `bIgnoreResistance`); reclassified **Speed stones** as blocked on a net-new variable-defense-window feature (window is a fixed `0.3s`, play-rate-independent; dead `FDefenseWindowConfig`). **Audit corrections (factual):** `SpellDamage` moved unwired→wired (3 attacker reads, `Spell`-gated); `ActionSpeed` corrected (has a play-rate read; missing the window link, not the read); per-element resistance marked not-needed. Reworked build-order into a readiness classification (buildable-now / build-with-care / blocked / not-needed). | feature/weapon-stones |
+| 2026-06-07 | Fusion restriction — **evolution crystals excluded from fusion entirely** (never a valid fusion half: a transformation mechanic, not a stat/element contributor). Recorded the underlying **valid-fusion principle** (stat-stone + one contributor — gem crystal or `AbilityStone`) from which the banned-pair list falls out; kept the explicit table and added the `anything + evolution` ❌ row. | feature/weapon-stones |
