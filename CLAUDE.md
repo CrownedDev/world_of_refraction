@@ -127,6 +127,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/StatusBuildupSystem.md`
 - `docs/Architecture/TurnManager.md`
 - `docs/Architecture/UISystem.md`
+- `docs/Architecture/WeaponStoneSystem.md`
 - `docs/Architecture/WeaponSystem.md`
 - `docs/Architecture/WeatherSystem.md`
 
