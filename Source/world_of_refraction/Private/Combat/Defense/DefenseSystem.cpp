@@ -335,14 +335,14 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	case EDefenseType::Block:
 		// Block always works, 50% reduction
 		Result.bSuccess = true;
-		Result.FinalDamage = FMath::RoundToInt(BaseDamage * 0.5f);
+		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - BlockReduction));
 		break;
 
 	case EDefenseType::Parry:
 		// Parry: 70% reduction + 30% reflect
 		Result.bSuccess = true;
-		Result.FinalDamage = FMath::RoundToInt(BaseDamage * 0.3f);
-		Result.ReflectedDamage = FMath::RoundToInt(BaseDamage * 0.3f);
+		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - ParryReduction));
+		Result.ReflectedDamage = FMath::RoundToInt(BaseDamage * ParryReflect);
 		break;
 
 	case EDefenseType::Dodge:

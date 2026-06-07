@@ -172,7 +172,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 		return;
 	}
 
-	const float DamagePerTurn = TargetComp->MaxHP * DamagePercent / 100.0f;
+	const float DamagePerTurn = TargetComp->MaxHP * DamagePercent / CombatConstants::STAT_PERCENT_DIVISOR;
 	const int32 DamagePerTurnInt = FMath::Max(1, FMath::RoundToInt(DamagePerTurn));
 
 	USkillEffectManager *SEM = GetSkillEffectManager();
@@ -190,7 +190,7 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		BuildupPerEvent = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / 100.0f;
+		BuildupPerEvent = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / CombatConstants::STAT_PERCENT_DIVISOR;
 	}
 
 	// Immediate Fire hit on use — equal to one DOT tick.
@@ -244,7 +244,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 		return;
 	}
 
-	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / 100.0f));
+	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / CombatConstants::STAT_PERCENT_DIVISOR));
 
 	// S-rank: revive a dead target at 30% MaxHP
 	if (!TargetComp->bIsAlive && Id.Tier == EItemTier::S_Tier)
@@ -293,7 +293,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 		return;
 	}
 
-	const int32 EnergyAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxEP * EPPercent / 100.0f));
+	const int32 EnergyAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxEP * EPPercent / CombatConstants::STAT_PERCENT_DIVISOR));
 	const int32 EPBefore = TargetComp->CurrentEP;
 	TargetComp->ServerGainEnergy(EnergyAmount);
 	OutResult.EnergyRestored = TargetComp->CurrentEP - EPBefore;
@@ -304,7 +304,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	{
 		const float BuildupPercent = CrystalEffectTable::GetElementalBuildupPercent(Id);
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		const float BuildupAmount = BarMax * BuildupPercent / 100.0f;
+		const float BuildupAmount = BarMax * BuildupPercent / CombatConstants::STAT_PERCENT_DIVISOR;
 		if (BuildupAmount > 0.0f)
 		{
 			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
@@ -495,7 +495,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 		}
 
 		const float SilencePercent = CrystalEffectTable::GetSilencePercentage(Id);
-		const int32 DrainAmount = FMath::RoundToInt(TargetComp->MaxEP * SilencePercent / 100.0f);
+		const int32 DrainAmount = FMath::RoundToInt(TargetComp->MaxEP * SilencePercent / CombatConstants::STAT_PERCENT_DIVISOR);
 		const int32 EPBefore = TargetComp->CurrentEP;
 		TargetComp->ServerSpendEnergy(DrainAmount);
 
@@ -510,7 +510,7 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		const float BuildupAmount = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / 100.0f;
+		const float BuildupAmount = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / CombatConstants::STAT_PERCENT_DIVISOR;
 		if (BuildupAmount > 0.0f)
 		{
 			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
@@ -549,7 +549,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 		ESkillEffectType::ResistanceDebuff,
 		ESkillEffectType::LuckDebuff};
 
-	const bool bIsBuff = FMath::FRand() < (CrystalEffectTable::GetBuffChancePercent(Id) / 100.0f);
+	const bool bIsBuff = FMath::FRand() < (CrystalEffectTable::GetBuffChancePercent(Id) / CombatConstants::STAT_PERCENT_DIVISOR);
 	OutResult.bGambleWon = bIsBuff;
 
 	const TArray<ESkillEffectType> &Pool = bIsBuff ? BuffPool : DebuffPool;
@@ -571,7 +571,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 	if (SBM)
 	{
 		const float BarMax = SBM->GetStatusBarBuildup(Target) + SBM->GetBuildupToTrigger(Target);
-		const float BuildupAmount = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / 100.0f;
+		const float BuildupAmount = BarMax * CrystalEffectTable::GetElementalBuildupPercent(Id) / CombatConstants::STAT_PERCENT_DIVISOR;
 		if (BuildupAmount > 0.0f)
 		{
 			SBM->AddStatusBuildup(User, Target, FMath::RoundToInt(BuildupAmount),
@@ -641,7 +641,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 
 	const float StatusClearPercent = CrystalEffectTable::GetStatusClearPercent(Id);
 	const int32 ResistanceDurationTurns = CrystalEffectTable::GetResistanceDuration(Id);
-	const float ClearFraction = StatusClearPercent / 100.0f;
+	const float ClearFraction = StatusClearPercent / CombatConstants::STAT_PERCENT_DIVISOR;
 	const ESpellElement ResistElement = SBM->GetPendingElement(Target);
 	SBM->ReduceStatusBuildup(Target, ClearFraction);
 

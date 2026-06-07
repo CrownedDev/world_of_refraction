@@ -297,7 +297,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		{
 			const float SmBuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierBuff);
 			const float SmDebuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierDebuff);
-			Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / 100.0f);
+			Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 		}
 
 		// 5c. BD absorption-stack amplification (matching-element only).
@@ -342,7 +342,7 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		if (USkillEffectManager *EffectMgr = GetEffectManager())
 		{
 			const float ResistModify = EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist);
-			Resistance += ResistModify / 100.0f;
+			Resistance += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
 		}
 
 		Resistance = FMath::Clamp(Resistance, 0.0f, CombatConstants::RESISTANCE_MAX);

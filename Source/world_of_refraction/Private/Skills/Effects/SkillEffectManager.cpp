@@ -1132,7 +1132,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	{
 		if (CharComp->MaxHP > 0)
 		{
-			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / 100.0f);
+			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
 			if (Amount > 0)
 			{
 				CharComp->ServerHeal(Amount);
@@ -1146,7 +1146,7 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	{
 		if (CharComp->MaxEP > 0)
 		{
-			const int32 Amount = FMath::RoundToInt(CharComp->MaxEP * Value / 100.0f);
+			const int32 Amount = FMath::RoundToInt(CharComp->MaxEP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
 			if (Amount > 0)
 			{
 				CharComp->ServerGainEnergy(Amount);
@@ -1342,7 +1342,7 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	// Lifesteal — heal the attacker for a percent of damage dealt.
 	if (HasEffectOfType(Attacker, ESkillEffectType::Lifesteal))
 	{
-		const float LifestealPct = GetTotalStatModifier(Attacker, ESkillEffectType::Lifesteal) / 100.0f;
+		const float LifestealPct = GetTotalStatModifier(Attacker, ESkillEffectType::Lifesteal) / CombatConstants::STAT_PERCENT_DIVISOR;
 		const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(Damage * LifestealPct));
 		if (UCharacterDataComponent *Comp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{

@@ -2,6 +2,7 @@
 // CORRECTED VERSION - Turn debt accumulates per ROUND, not per TURN
 
 #include "Combat/TurnManager.h"
+#include "Combat/CombatConstants.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
@@ -158,7 +159,7 @@ void UTurnManager::CalculateSpeedRatios()
 		const float TurnMod = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::ModifyTurnSpeed);
 		const float TurnBuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedBuff);
 		const float TurnDebuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedDebuff);
-		const float Multiplier = 1.0f + (TurnMod + TurnBuff - TurnDebuff) / 100.0f;
+		const float Multiplier = 1.0f + (TurnMod + TurnBuff - TurnDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
 		return FMath::Max(1, FMath::RoundToInt(Combatant.CachedSpeed * Multiplier));
 	};
 

@@ -2,6 +2,7 @@
 // Centralized damage calculation implementation
 
 #include "Combat/Damage/DamageCalculator.h"
+#include "Combat/CombatConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponAttackData.h"
@@ -89,7 +90,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 					const float DamageStonePercent =
 						CrystalEffectTable::GetDamageStoneBasePercent(Attachment.Crystal.Id);
 					const float BeforeDamageStone = RunningDamage;
-					RunningDamage *= (1.0f + DamageStonePercent / 100.0f);
+					RunningDamage *= (1.0f + DamageStonePercent / CombatConstants::STAT_PERCENT_DIVISOR);
 					UE_LOG(LogTemp, Verbose,
 						   TEXT("[DamageCalculator] Damage stone +%.0f%% raw: %.1f -> %.1f"),
 						   DamageStonePercent, BeforeDamageStone, RunningDamage);
@@ -315,7 +316,7 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
 
 		// Buffs/debuffs are percentage modifiers
-		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / 100.0f;
+		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
 		BaseDefense = FMath::RoundToInt(BaseDefense * FMath::Max(0.0f, Modifier));
 	}
 
@@ -421,7 +422,7 @@ int32 UDamageCalculator::CalculateHealing(
 		if (USkillEffectManager *StatusManager = GetSkillEffectManager())
 		{
 			float ModifyHeal = StatusManager->GetTotalStatModifier(Healer, ESkillEffectType::ModifyHealing);
-			Healing *= (1.0f + ModifyHeal / 100.0f);
+			Healing *= (1.0f + ModifyHeal / CombatConstants::STAT_PERCENT_DIVISOR);
 		}
 	}
 
@@ -501,7 +502,7 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 		return 1.0f;
 	}
 	const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
-	return 1.0f + FMath::Max(0.0f, Modify / 100.0f);
+	return 1.0f + FMath::Max(0.0f, Modify / CombatConstants::STAT_PERCENT_DIVISOR);
 }
 
 float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const
@@ -519,11 +520,11 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 	{
 		float DamageBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageBuff);
 		float DamageDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::DamageDebuff);
-		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / 100.0f);
+		Modifier *= (1.0f + (DamageBuff - DamageDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 
 		// Passive-layer ModifyDamageDealt: percent boost to outgoing damage.
 		float ModifyDealt = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyDamageDealt);
-		Modifier *= (1.0f + ModifyDealt / 100.0f);
+		Modifier *= (1.0f + ModifyDealt / CombatConstants::STAT_PERCENT_DIVISOR);
 
 		// RawDamageBuff/Debuff: whole-number-percent boost to PHYSICAL outgoing
 		// damage only (ActionType != Spell). The Amethyst gamble is the only live
@@ -533,7 +534,7 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 			float RawBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageBuff);
 			float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageDebuff);
 			const float BeforeRaw = Modifier;
-			Modifier *= (1.0f + (RawBuff - RawDebuff) / 100.0f);
+			Modifier *= (1.0f + (RawBuff - RawDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 			UE_LOG(LogTemp, Verbose,
 				   TEXT("[DamageCalculator] RawDamage status +%.1f%% / -%.1f%%: mult %.3f -> %.3f"),
 				   RawBuff, RawDebuff, BeforeRaw, Modifier);
@@ -554,8 +555,8 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		float Increase = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::IncreaseDamageTaken);
 		// Reduction capped at 90%, increase uncapped
 		Reduction = FMath::Min(Reduction, 90.0f);
-		Modifier *= (1.0f - Reduction / 100.0f);
-		Modifier *= (1.0f + Increase / 100.0f);
+		Modifier *= (1.0f - Reduction / CombatConstants::STAT_PERCENT_DIVISOR);
+		Modifier *= (1.0f + Increase / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
 	return FMath::Max(0.0f, Modifier);
