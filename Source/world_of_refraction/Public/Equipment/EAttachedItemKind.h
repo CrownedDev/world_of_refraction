@@ -1,7 +1,7 @@
 // EAttachedItemKind.h
 // Discriminator enum for FAttachedItem (design-time) and FRuntimeAttachedItem
 // (runtime). Distinguishes empty slots from refined-crystal, evolution-item, and
-// whetstone attachments. Mutually exclusive — a slot is exactly one Kind.
+// weapon-stone attachments. Mutually exclusive — a slot is exactly one Kind.
 
 #pragma once
 
@@ -16,5 +16,5 @@ enum class EAttachedItemKind : uint8
     Evolution UMETA(DisplayName = "Evolution"),
     // Appended after Evolution (=3); position is the serialized value, so do not
     // reorder/insert above — SaveGame Kind on disk must stay stable.
-    Whetstone UMETA(DisplayName = "Whetstone")
+    WeaponStone UMETA(DisplayName = "Weapon Stone")
 };

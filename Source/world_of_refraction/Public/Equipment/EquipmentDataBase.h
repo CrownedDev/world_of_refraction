@@ -160,7 +160,7 @@ public:
      *  DefaultSpells / DefaultAbilities. EditCondition cannot reach the nested
      *  AttachedItem.Kind path, so it resolves this UFUNCTION instead. */
     UFUNCTION()
-    bool IsWhetstoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::Whetstone; }
+    bool IsWhetstoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::WeaponStone; }
 
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;

@@ -25,7 +25,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         // Whetstones are weapon-only attachments — a ring must never carry one.
         // The attachment struct is shared with weapons, so this is reachable by
         // mis-authoring; flag it as a hard error.
-        if (AttachedItem.Kind == EAttachedItemKind::Whetstone)
+        if (AttachedItem.Kind == EAttachedItemKind::WeaponStone)
         {
             Context.AddError(FText::FromString(TEXT(
                 "Whetstone cannot be attached to a ring — whetstones are weapon-only attachments")));

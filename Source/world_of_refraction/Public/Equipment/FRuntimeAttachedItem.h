@@ -33,7 +33,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     // FCrystalId{Whetstone, Tier} here so existing consumers keep reading
     // Refined.Id unchanged. (Factory population lands in Cluster B.)
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::Whetstone", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides))
     FCrystalAttachment Crystal;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
@@ -43,7 +43,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     bool IsEmpty() const { return Kind == EAttachedItemKind::None; }
     bool IsCrystal() const { return Kind == EAttachedItemKind::Crystal; }
     bool IsEvolution() const { return Kind == EAttachedItemKind::Evolution; }
-    bool IsWhetstone() const { return Kind == EAttachedItemKind::Whetstone; }
+    bool IsWeaponStone() const { return Kind == EAttachedItemKind::WeaponStone; }
 
     // ==================== STATE QUERIES ====================
 

@@ -36,7 +36,7 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
      *  Whetstone — a whetstone carries identity FCrystalId{Whetstone, RefinedTier}.
      *  RefinedType is hidden for Whetstone (the type is implied by Kind). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::Whetstone", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides))
     EItemTier CrystalTier = EItemTier::F_Tier;
 
     /** Evolution item asset. Only visible when Kind == Evolution.
