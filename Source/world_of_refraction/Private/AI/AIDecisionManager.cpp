@@ -22,7 +22,7 @@
 #include "Loadout/Entries/FItemLoadoutSlot.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 
 USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const

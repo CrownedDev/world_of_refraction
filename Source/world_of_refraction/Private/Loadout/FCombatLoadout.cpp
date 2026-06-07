@@ -10,7 +10,7 @@
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/Entries/FAbilityCollection.h"
 #include "Equipment/FRuntimeAttachedItem.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "GameFramework/Actor.h"
 

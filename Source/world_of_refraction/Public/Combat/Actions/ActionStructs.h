@@ -12,7 +12,7 @@
 #include "Infusion/EChargeInfusionType.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/Crystals/FCrystalId.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;

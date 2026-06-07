@@ -17,7 +17,7 @@
 #include "Loadout/Entries/FItemLoadoutSlot.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Equipment/Crystals/CrystalType.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Infusion/InfusionVFXComponent.h"

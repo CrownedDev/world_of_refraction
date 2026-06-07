@@ -8,7 +8,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/CombatConstants.h"
 

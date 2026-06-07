@@ -4,7 +4,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Durability/BreakCalculator.h"
 #include "Equipment/Durability/BreakCalculatorDebug.h"
 #include "Character/CharacterDataComponent.h"

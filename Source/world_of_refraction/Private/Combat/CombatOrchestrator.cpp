@@ -21,7 +21,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Equipment/FRuntimeAttachedItem.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Durability/DurabilityConstants.h"
 #include "Inventory/ItemEffectType.h"

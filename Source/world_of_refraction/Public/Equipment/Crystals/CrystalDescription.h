@@ -27,7 +27,7 @@
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Inventory/ItemTier.h"
 #include "Equipment/Crystals/CrystalType.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/CombatConstants.h"
 

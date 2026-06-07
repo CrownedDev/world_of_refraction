@@ -10,7 +10,7 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Equipment/Crystals/CrystalManager.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 
 void URingManager::Initialize(FSubsystemCollectionBase &Collection)
 {

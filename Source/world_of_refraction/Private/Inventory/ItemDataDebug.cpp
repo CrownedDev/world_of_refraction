@@ -4,7 +4,7 @@
 #include "Inventory/ItemDataDebug.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 
 bool UItemDataDebug::ValidateAllItemCombinations()
 {

@@ -15,7 +15,7 @@
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Character/StanceData.h"
 #include "Combat/TurnManager.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"

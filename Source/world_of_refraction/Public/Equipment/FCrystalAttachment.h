@@ -11,7 +11,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
-#include "Equipment/Crystals/CrystalIdentity.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "FCrystalAttachment.generated.h"
 
 USTRUCT(BlueprintType)
