@@ -450,10 +450,84 @@ Every stat-stone mirrors `DamageStone`'s **two forms**:
   - Applies via the status/buff system (`SkillEffectManager`), which already
     supports timed buffs/debuffs.
 
-**Crit is the exception to the channel shape** — it is **additive** (not a
-whole-percent multiplier) and, since commit `7afd0d09`, **uncapped** (bounded at
-`1.0` for the AI scorer). A crit stone uses crit's own additive hook, not the
-multiplicative whole-percent one.
+**Crit — currently additive (shipped), being converted to multiplicative.** Today
+crit is **additive** (not a whole-percent multiplier) and, since commit `7afd0d09`,
+**uncapped** (bounded at `1.0` for the AI scorer). Under the **Balance framework**
+below (#2 — ⚠️ modifies shipped behaviour) it is being **converted to
+multiplicative** like every other stat, so crit stops being an exception. Until that
+conversion lands, the shipped hook is still additive.
+
+#### Balance framework — the crystal/stone number model
+
+The whole stat-stone family — and the three stat *crystals* that have stone
+analogues — runs on one small set of rules. All of this is **design / not built**;
+two parts (**#2 crit conversion**, **#5 stat-crystal rebalance**) **modify shipped
+behaviour** and are flagged inline.
+
+**1. Everything multiplicative.** Every stat-stone and stat-crystal applies
+`×(1 + pct/100)` on the stat's **current value** — no additive stat effects.
+Defense, Speed, and raw Damage already work this way; this makes it the **universal
+rule** for the family.
+
+**2. Crit becomes multiplicative — across the board. ⚠️ MODIFIES SHIPPED BEHAVIOUR.**
+- *Today (shipped):* crit is **additive** everywhere — `GetCriticalChance`
+  (`DamageCalculator.cpp:~341-368`) does `BaseCrit += pct/100` for the skill-effect
+  `CritChanceBuff` / `CritChanceDebuff`, equipment `BonusCritChance`, and
+  `ModifyCritChance`; Opal applies `GetCritBuffPercent` additively.
+- *Planned:* crit becomes **multiplicative** everywhere — stones, Opal, the
+  `CritChanceBuff` / `Debuff` skill effects, and equipment `BonusCritChance` all
+  apply as `×(1 + pct/100)` on the crit value, not `+=` points.
+- *Why:* a multiplicative bonus **self-scales** — `+30%` is worth more to a
+  high-crit build and less to a low one — so it can't dump flat points that
+  trivially fill the (now-uncapped, commit `7afd0d09`) bar, and it makes crit
+  consistent with every other stat. This is what lets the **uniform numbers** (#3)
+  work without crit being overpowered.
+- *Consequence (intended):* reaching 100% crit from item bonuses alone becomes
+  mathematically hard — multipliers approach but don't easily reach `1.0`. Crit
+  builds invest in the **base crit stat**; items amplify it.
+- *Touches:* the shipped additive sites above **+** Opal's `GetCritBuffPercent`
+  application; rebalances Opal. **To-build + re-verify.**
+
+**3. Uniform numbers — one shared stone curve.** All stat-stones share **one**
+per-tier curve: the current `DamageStone` curve **3 / 5 / 7 / 9 / 11 / 13 / 15**
+(F..S). Because the operator is multiplicative (#1), uniform numbers do **not** mean
+uniform power — the multiply scales each stat by its own value. No per-stat stone
+curves.
+
+**4. Crystal = stone × 2 (stat crystals only).** A stat crystal's magnitude is its
+stone's value **×2** — the single knob for the "stones weaker than crystals"
+principle. With the shared stone curve `3..15`, the stat-crystal curve is
+**6 / 10 / 14 / 18 / 22 / 26 / 30**. Applies **only** to the three stat crystals that
+have stone analogues: **Amber** (Defense), **Opal** (Crit), **Emerald** (Speed).
+
+**5. Stat-crystal rebalance. ⚠️ MODIFIES SHIPPED BEHAVIOUR.** The three stat crystals
+re-tune to the stone×2 curve:
+
+| Crystal (stat) | Shipped today | → Planned (stone×2) | Operator |
+|---|---|---|---|
+| Amber (Defense) | 15/20/25/30/35/40/50 | 6/10/14/18/22/26/30 | stays `×(1+pct)` |
+| Emerald (Speed) | 10/15/20/25/30/35/40 | 6/10/14/18/22/26/30 | stays `×(1+pct)` |
+| Opal (Crit) | 5/8/10/12/15/18/25 (**additive**) | 6/10/14/18/22/26/30 | **→ multiplicative** (per #2) |
+
+All three converge to the **same** numbers — their power differs through the
+multiplicative operator acting on different base stats, not through different numbers.
+
+**6. Ability crystals untouched (the framework boundary).** The other **seven**
+crystals have **no stone analogue** and are **not** part of this framework — their
+values stay exactly as audited: Garnet (DOT), Sapphire (heal), Citrine (EP), Onyx
+(silence), Amethyst (gamble), Iolite (cleanse), Quartz (status-clear). The framework
+applies to **exactly the three stat crystals** above and nothing else.
+
+**7. Attached vs consumable — OPEN.** Is the shared `3..15` curve the **consumable**
+value (timed), with the **attached** form discounted for permanence — or **one curve
+for both** forms (as `DamageStone` does today)? **To-decide at build time**, leaning
+toward `DamageStone`'s one-curve-both precedent unless permanence proves too strong
+in play.
+
+**8. Build order.** (1) **Crit additive → multiplicative conversion** — core combat;
+survey-first, re-verify. (2) **Stat-crystal rebalance** to stone×2. (3) **Stat-stone
+family** on the shared curve. Crit conversion is **first** because everything else
+assumes the multiplicative model.
 
 #### `DamageStone` consumable — planned change ⚠️ MODIFIES SHIPPED BEHAVIOUR
 
@@ -548,7 +622,7 @@ silently does nothing).
 | TurnSpeed | wired |
 | StatusMultiplier | wired |
 | Efficiency | cost reduction |
-| CritChance | **additive + now-uncapped**; uses crit's own hook shape, not the multiplicative channel |
+| CritChance | **today additive + now-uncapped**; uses crit's own additive hook *(planned → multiplicative across the board — see Balance framework #2, ⚠️ shipped-behaviour change)* |
 | Luck | wired but **balance-risky** — it is the normalization basis for luck-derived chances |
 | **SpellDamage** ("spell power") | **WIRED — corrected.** Three attacker-side reads, all `ActionType==Spell`-gated: `GetEvolutionModifiedSpellDamage` (Mind curve), equipment `BonusSpellDamage`, `ActionMods` spell-power. **Buildable now.** *(The earlier audit wrongly listed this unwired — it conflated offensive spell-power, wired, with defensive spell-resistance, the net-new hook above.)* |
 | Resistance (status) | **wired** (`StatusBuildupManager`) for status buildup; the **spell-damage shave** is the net-new extension (see *Defense / Resistance*) |
@@ -608,7 +682,7 @@ onto `DamageStone` and inherited by the rest. The full set, by readiness:
 
 | Class | Stones |
 |---|---|
-| **Buildable now** | `DamageStone` (consumable directional retrofit), `Defense`, `TurnSpeed`, `StatusMultiplier`, `Efficiency`, `CritChance` (additive hook), **`SpellDamage`** (confirmed wired), `Resistance` (status + the `0.2` spell-shave hook), `MaxHP` / `MaxEnergy` (pool-recompute path) |
+| **Buildable now** | `DamageStone` (consumable directional retrofit), `Defense`, `TurnSpeed`, `StatusMultiplier`, `Efficiency`, `CritChance` (additive today → multiplicative, Balance framework #2), **`SpellDamage`** (confirmed wired), `Resistance` (status + the `0.2` spell-shave hook), `MaxHP` / `MaxEnergy` (pool-recompute path) |
 | **Build with care (later)** | `Luck` — the normalization basis for luck-derived chances; balance-risky |
 | **Blocked on a system** | `ActionSpeed` / `SpellSpeed` — need the variable-defense-window feature above |
 | **Not needed** | per-element resistance — the status-buildup + flat-Defense + slight-shave model is chosen instead |
@@ -638,6 +712,15 @@ hard guarantee survives; only the editor affordance degrades.
   sweep.
 - **`FRuntimeAttachedItem.h` "Refined" comment drift** (see *Architecture*) —
   stale code comments to clean up when the rename pass touches that file.
+- **Opal crit double-table bug** — `GetCritBuffPercent` (the live crit handler)
+  tops at **S=25**, but the vestigial Opal arm inside `GetBuffPercentage` tops at
+  **S=20** — two different S values for the same crystal. Reconcile when the crit
+  rebalance (*Balance framework #5*) touches Opal. *(Surfaced by the crystal
+  magnitude audit.)*
+- **Duplicate duration tables** — `GetCrystalDuration`, `GetGambleDuration`, and
+  `GetResistanceDuration` are three byte-identical `4/4/3/3/3/2/2` tables; and
+  `GetBuffPercentage` carries a redundant Emerald arm duplicating
+  `GetSpeedBuffPercent`. DRY-collapse when touched.
 
 ---
 
@@ -663,3 +746,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-06-07 | Phase-2 design revision — **Mastery → FusionStone** rename throughout; FusionStone is player-created (fusion consumes two owned attachables), `FFusionId{HalfA,HalfB,BonusStat}` composite with symmetric equality, `FCrystalId` unchanged (Option A); fusion bonus is the formula `(TierValue(A)+TierValue(B))/2` (7×7 shown as visualisation only); added `stat-stone+stat-stone` valid pairing; expanded the **stat-stone family** into the dual-form model (attached self-passive / directional timed consumable) with the `DamageStone`-consumable change flagged as a shipped-behaviour modification; added the **wired-substat audit** (wired/unwired/pool-stats) and the Defense-first **build order**. Refreshed the cap-decisions notes to reflect the now-shipped crit/resistance cap removal (commit `7afd0d09`). | feature/weapon-stones |
 | 2026-06-07 | Stat-stone family extension + audit fixes — added the **pool-stat variant** (`MaxHP`/`MaxEnergy` raise/decrease-max, ceiling-only, overcapped-not-clamped, `RecomputeMaxPools` hook); the **Defense / Resistance mitigation model** (Defense already covers raw+spell, flat/subtractive — no change; Resistance gains a net-new slight spell-damage shave `×(1 − RESISTANCE_SPELL_SHAVE_FACTOR·Resistance)`, factor `0.2`, the **one** new combat hook, gated on `ActionType==Spell` via the unconsumed `bIgnoreResistance`); reclassified **Speed stones** as blocked on a net-new variable-defense-window feature (window is a fixed `0.3s`, play-rate-independent; dead `FDefenseWindowConfig`). **Audit corrections (factual):** `SpellDamage` moved unwired→wired (3 attacker reads, `Spell`-gated); `ActionSpeed` corrected (has a play-rate read; missing the window link, not the read); per-element resistance marked not-needed. Reworked build-order into a readiness classification (buildable-now / build-with-care / blocked / not-needed). | feature/weapon-stones |
 | 2026-06-07 | Fusion restriction — **evolution crystals excluded from fusion entirely** (never a valid fusion half: a transformation mechanic, not a stat/element contributor). Recorded the underlying **valid-fusion principle** (stat-stone + one contributor — gem crystal or `AbilityStone`) from which the banned-pair list falls out; kept the explicit table and added the `anything + evolution` ❌ row. | feature/weapon-stones |
+| 2026-06-07 | **Balance framework** for the stat-stone/crystal number model — everything multiplicative `×(1+pct/100)` on current value; one shared stone curve `3/5/7/9/11/13/15`; **crystal = stone×2** (`6/10/14/18/22/26/30`) for the three stat crystals only. **⚠️ shipped-behaviour changes flagged:** crit converts additive→multiplicative across the board (#2), and Amber/Opal/Emerald rebalance to the stone×2 curve (#5, Opal also flips to multiplicative). Ability crystals (other 7) explicitly out of scope (#6); attached-vs-consumable curve left OPEN (#7); build order crit-conversion → crystal-rebalance → stat-stone family (#8). Reframed the crit-exception note (today-additive + planned-multiplicative) and annotated the wired-audit crit row / build-order cell. Banked crystal cleanup: Opal double-table bug + duplicate duration tables. | feature/weapon-stones |
