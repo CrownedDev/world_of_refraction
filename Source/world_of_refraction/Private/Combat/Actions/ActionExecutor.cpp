@@ -3401,7 +3401,7 @@ float UActionExecutor::GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) 
 	switch (SpellInfusionLevel)
 	{
 	case 1:
-		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.5f - status boost
+		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.25f - status boost
 	case 2:
 		return 1.0f; // L2 gets BASE status, not boosted
 	default:
@@ -3427,7 +3427,7 @@ float UActionExecutor::GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLev
 	switch (AbilityInfusionLevel)
 	{
 	case 1:
-		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.5f - status boost
+		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.25f - status boost
 	case 2:
 		return 0.0f; // L2 gets NO status
 	default:

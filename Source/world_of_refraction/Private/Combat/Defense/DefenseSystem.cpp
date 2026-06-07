@@ -333,13 +333,13 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	switch (DefenseType)
 	{
 	case EDefenseType::Block:
-		// Block always works, 50% reduction
+		// Block: partial damage reduction (BlockReduction)
 		Result.bSuccess = true;
 		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - BlockReduction));
 		break;
 
 	case EDefenseType::Parry:
-		// Parry: 70% reduction + 30% reflect
+		// Parry: damage reduction (ParryReduction) + reflect (ParryReflect)
 		Result.bSuccess = true;
 		Result.FinalDamage = FMath::RoundToInt(BaseDamage * (1.0f - ParryReduction));
 		Result.ReflectedDamage = FMath::RoundToInt(BaseDamage * ParryReflect);
