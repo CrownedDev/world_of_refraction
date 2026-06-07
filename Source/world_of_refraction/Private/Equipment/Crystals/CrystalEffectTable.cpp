@@ -1,7 +1,7 @@
 // CrystalEffectTable.cpp
 // Out-of-line bodies for CrystalEffectTable helpers whose switch bodies are
-// too large to inline in the header. Currently: GetBuffPercentage (nested
-// type+tier switches across Emerald/Amber).
+// too large to inline in the header. Currently: GetBuffPercentage (Amber
+// defense tier switch; Emerald/Opal duplicate arms removed — see header).
 
 #include "Equipment/Crystals/CrystalEffectTable.h"
 
@@ -11,44 +11,28 @@ namespace CrystalEffectTable
     {
         switch (Id.Type)
         {
-        case ECrystalType::Emerald: // Attack Speed
-            switch (Id.Tier)
-            {
-            case EItemTier::F_Tier:
-                return 10.0f;
-            case EItemTier::E_Tier:
-                return 15.0f;
-            case EItemTier::D_Tier:
-                return 20.0f;
-            case EItemTier::C_Tier:
-                return 25.0f;
-            case EItemTier::B_Tier:
-                return 30.0f;
-            case EItemTier::A_Tier:
-                return 35.0f;
-            case EItemTier::S_Tier:
-                return 40.0f;
-            default:
-                return 0.0f;
-            }
+        // Emerald (speed) intentionally omitted — the live, non-duplicated Emerald
+        // source is GetSpeedBuffPercent (header). An Emerald Id falls to the default.
 
         case ECrystalType::Amber: // Defense
+            // Stone×2 uniform curve (Balance framework). Applied multiplicatively
+            // as ×(1 + pct/100) by GetDefenderFlatDefense.
             switch (Id.Tier)
             {
             case EItemTier::F_Tier:
-                return 15.0f;
+                return 6.0f;
             case EItemTier::E_Tier:
-                return 20.0f;
+                return 10.0f;
             case EItemTier::D_Tier:
-                return 25.0f;
+                return 14.0f;
             case EItemTier::C_Tier:
-                return 30.0f;
+                return 18.0f;
             case EItemTier::B_Tier:
-                return 35.0f;
+                return 22.0f;
             case EItemTier::A_Tier:
-                return 40.0f;
+                return 26.0f;
             case EItemTier::S_Tier:
-                return 50.0f;
+                return 30.0f;
             default:
                 return 0.0f;
             }

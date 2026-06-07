@@ -139,7 +139,9 @@ namespace CrystalEffectTable
 
     // ==================== EMERALD SPEED ====================
 
-    /** Emerald: turn-speed buff percent. 0 for non-Emerald. */
+    /** Emerald: turn-speed buff percent. 0 for non-Emerald. Stone×2 uniform curve
+     *  (Balance framework); applied multiplicatively as ×(1 + pct/100) by
+     *  TurnManager's effective-speed calc. */
     inline float GetSpeedBuffPercent(const FCrystalId &Id)
     {
         if (Id.Type != ECrystalType::Emerald)
@@ -149,19 +151,19 @@ namespace CrystalEffectTable
         switch (Id.Tier)
         {
         case EItemTier::F_Tier:
-            return 10.0f;
+            return 6.0f;
         case EItemTier::E_Tier:
-            return 15.0f;
+            return 10.0f;
         case EItemTier::D_Tier:
-            return 20.0f;
+            return 14.0f;
         case EItemTier::C_Tier:
-            return 25.0f;
+            return 18.0f;
         case EItemTier::B_Tier:
-            return 30.0f;
+            return 22.0f;
         case EItemTier::A_Tier:
-            return 35.0f;
+            return 26.0f;
         case EItemTier::S_Tier:
-            return 40.0f;
+            return 30.0f;
         default:
             return 0.0f;
         }
@@ -446,10 +448,10 @@ namespace CrystalEffectTable
 
     // ==================== BUFF PERCENTAGE (nested type+tier table) ====================
 
-    /** Emerald/Amber: buff magnitude. 0 for any other type. (Opal crit moved to
-     *  GetCritBuffPercent — the single, non-duplicated Opal source.)
-     *  Out-of-line (nested type+tier switches make the body too large for
-     *  inline). See CrystalEffectTable.cpp. */
+    /** Amber (defense): buff magnitude. 0 for any other type. Opal crit and
+     *  Emerald speed each have a single live source (GetCritBuffPercent /
+     *  GetSpeedBuffPercent); their duplicate arms were removed from this table.
+     *  Out-of-line — tier switch body in CrystalEffectTable.cpp. */
     WORLD_OF_REFRACTION_API float GetBuffPercentage(const FCrystalId &Id);
 
     // ==================== ONYX SILENCE ====================
