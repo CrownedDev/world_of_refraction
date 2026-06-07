@@ -304,6 +304,19 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		{
 			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Defender);
 			BaseDefense += Bonus.BonusDefense;
+
+			// Attached DefenseStone — a PERMANENT, equipment-derived defense
+			// multiplier from the defender's OWN active weapon attachment
+			// (live-resolved, not cached). Distinct from the timed DefenseBuff/
+			// DefenseDebuff layer below. Inert (×1) unless a DefenseStone is
+			// attached — GetAttachedStonePercent returns 0 for any other attachment.
+			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			{
+				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const float StonePct =
+					CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
+				BaseDefense = FMath::RoundToInt(BaseDefense * (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR));
+			}
 		}
 	}
 
