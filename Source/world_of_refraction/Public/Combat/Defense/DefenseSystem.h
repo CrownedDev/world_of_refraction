@@ -259,7 +259,7 @@ public:
 	 * @param DodgeThreshold Defender's dodge threshold
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Damage")
-	static FDefenseResult CalculateDefenseResult(
+	FDefenseResult CalculateDefenseResult(
 		int32 BaseDamage,
 		EDefenseType DefenseType,
 		bool bDefenseSuccessful,
