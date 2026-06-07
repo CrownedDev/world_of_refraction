@@ -45,8 +45,10 @@ Key fields:
 A lightweight pairing of a crystal and its holder, returned by
 `GetEquippedCrystals()`:
 
-- `Kind` — `EAttachedItemKind`, the discriminator (`None` / `Refined` / `Evolution`).
-- `RefinedId` — `FCrystalId` (meaningful when `Kind == Refined`).
+- `Kind` — `EAttachedItemKind`, the discriminator (`None` / `Crystal` /
+  `Evolution` / `WeaponStone`).
+- `RefinedId` — `FCrystalId` (meaningful when `Kind == Crystal` or
+  `Kind == WeaponStone` — both carry an `FCrystalId` identity).
 - `Item` — `UEvolutionItemData*` (meaningful when `Kind == Evolution`).
 - `Holder` — `UObject*` (the `UWeaponData` or `URingData` bearing it; `UObject*`
   because weapons and rings share no base beyond `UPrimaryDataAsset`). For an
@@ -65,6 +67,10 @@ Fields:
   crystal/evolution state.
 - `AssignedAbilities` — `TArray<UAbilityData*>`; a **pure sequential override
   list** (max 6 via `LoadoutConstants::MAX_WEAPON_ABILITIES`). Empty by default.
+- `AssignedWeaponStoneAbilities` — `TArray<UAbilityData*>`; a **separate**
+  sequential override list for the slots an attached `AbilityStone` grants
+  (parallel to `AssignedAbilities`, not merged with it). Its cap is **per-tier**,
+  not a flat constant — see *stone-ability slots* below.
 - `AssignedSpells` — `TArray<USpellData*>`; sequential override list, valid only
   if the weapon has a crystal/evolution.
 - `OverrideAttack` — `UWeaponAttackData*`; per-loadout attack override that, if
@@ -98,8 +104,24 @@ Notable behavior:
   "any-element" crystal sources via `ElementHelpers::IsAnySpellSource`). Note:
   this method validates `WeaponEntry.AssignedSpells`, not the entry's own
   `AssignedSpells` field.
-- `InitializeFromWeapon()` — simply empties `AssignedAbilities`; presets are
-  merged in at query time.
+- **Stone-ability slots** — when an `AbilityStone` is attached, the weapon gains
+  a tier-scaled pool of extra ability slots, filled from
+  `AssignedWeaponStoneAbilities` (distinct from the weapon's own
+  `PresetAbilities`/`AssignedAbilities`):
+  - `GetWeaponStoneAbilities()` — sequential override merge over the
+    stone-granted slots, same shape as `GetAllAbilities()`.
+  - `ValidateWeaponStoneAbilities(OwnedAbilities)` — validates ownership and caps
+    the count at `CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id)`
+    (AbilityStone F=2, E=3, D=3, C=4, B=4, A=5, S=6; **0** when no weapon stone is
+    attached, so any assigned stone-abilities are then rejected).
+  - Authored storage is `FSavedLoadout::PrimaryWeaponStoneAbilities` /
+    `SecondaryWeaponStoneAbilities`, copied by `FCombatLoadout::CreateFromSavedLoadout`
+    into the loadout entries' `AssignedWeaponStoneAbilities`.
+
+  See `WeaponStoneSystem.md` for the slot table and the generic
+  `GetAttachmentSlotsForTier` helper (reusable for crystal spell-slots later).
+- `InitializeFromWeapon()` — empties `AssignedAbilities` (and
+  `AssignedWeaponStoneAbilities`); presets are merged in at query time.
 
 ### `FRingLoadoutEntry` (`USTRUCT`)
 
@@ -324,3 +346,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-05-21 | Inventory redesign merged — `ULoadoutData` and `UCharacterData::DefaultLoadout` deleted; `UInventoryData` is the sole authoring surface and owns the inline `FSavedLoadout` array. `SavedLoadouts` / `ActiveLoadoutIndex` / `MaxSavedLoadouts` moved from `ULoadoutComponent` to `UInventoryComponent`; the loadout component now reads them via `GetInventoryComponent()`. `InitializeFromAsset` and the `bInitializedFromAsset` validation-bypass field removed; `FCombatLoadout::CreateFromSavedLoadout` is the sole runtime factory. Initialization, Validation, Field-table and Integration-Points sections updated. | feature/inventory-refactor |
 | 2026-05-27 | Two new BlueprintCallable wear/clear helpers — `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution()` — for the case-B standalone primary-slot evolution (BD wear path). Both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage. Also corrected the `FCombatLoadout::PrimaryEvolution` field-shape note (it's `FEvolutionAttachment`, not a raw `UEvolutionItemData*` — pre-existing drift surfaced by this branch). | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-2 — added `ResolveSpellSource(USpellData*) const` for AI spell-source determination (precedence: Innate → RingCrystal → WeaponCrystal → Evolution). Removed dead struct-side `FCombatLoadout::Validate`/`ValidateGeneric`/`ValidateCaster`/`ValidateResonator` (`ULoadoutComponent::GetValidationErrors` is the live path; `ValidateBDSpellLoadout` retained — still shared with `FSavedLoadout::GetValidationErrors`). | feature/integration-gaps-sweep-2 |
+| 2026-06-07 | Weapon-stone alignment — `FEquippedCrystalSlot.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (`RefinedId` carries `WeaponStone` identity too); documented the per-tier stone-ability slots (`AssignedWeaponStoneAbilities`, `GetWeaponStoneAbilities`, `ValidateWeaponStoneAbilities` capped by `GetAttachmentSlotsForTier`) and the `FSavedLoadout`/`FCombatLoadout` plumbing. See new `WeaponStoneSystem.md`. | feature/weapon-stones |

@@ -40,7 +40,8 @@ Output struct. Fields: `FinalDamage`, `DamageBeforeDefense`, `bWasCritical`, `Da
 
 1. Initialize `Result`, set `EffectiveElement = Input.Element`. Return early if `BaseDamage <= 0`.
 2. **Step 1 — Attacker damage multiplier.** `GetAttackerDamageMultiplier` returns the crystal-aware Spell or Raw damage multiplier (branched on `ActionType`). `ActionMods.ApplyTo` boosts the matching sub-stat (`SpellDamage` or `RawDamage`). Equipment stat bonus is read directly from the attacker's `ULoadoutComponent` (`GetActiveStatBonus`) and folded into `AttackerMult` as a fractional multiplier (`BonusRawDamage * RAW_DAMAGE_PER_POINT` or `BonusSpellDamage * SPELL_DAMAGE_PER_POINT`). `RunningDamage *= AttackerMult`.
-3. **Step 1.5 — Grid attacker modifier.** Multiply by `UCombatGridSubsystem::GetDamageModifier(Attacker)`.
+3. **Step 1.25 — Attached weapon-stone raw-damage multiplier.** Physical actions only (`ActionType != Spell`). Live-resolves the attacker's active weapon attachment (`Loadout->GetActiveWeaponLoadout()->WeaponEntry.GetAttachedItem()`); if it `IsWeaponStone()`, multiplies `RunningDamage *= (1 + GetDamageStoneBasePercent(Crystal.Id)/100)`. These are **whole-number percentages applied as a direct multiplier** — *not* per-point fractions (`RAW_DAMAGE_PER_POINT` does **not** apply here). `DamageStone` tiers: F=3, E=5, D=7, C=9, B=11, A=13, S=15 (%). See *the BonusRawDamage trap* in Known Limitations and `WeaponStoneSystem.md`.
+4. **Step 1.5 — Grid attacker modifier.** Multiply by `UCombatGridSubsystem::GetDamageModifier(Attacker)`.
 4. **Step 2 — Status-effect modifier.** Multiply by `GetStatusEffectDamageModifier(Attacker, Defender)` (see below).
 5. **Step 3 — Element interaction.** If `Element != Generic` and a defender exists, multiply by `GetElementInteractionMultiplier(Element, Defender InnateElement)`. Currently always `1.0` (no weakness/resistance system).
 6. **Step 4 — Critical hit.** If `bCanCrit`: take `OverrideCritChance` if non-negative, else `GetCriticalChance(Attacker)`; apply `ActionMods.CritChance` (deliberately not re-clamped here). Add a Luck-driven bonus: `(RawLuck / LUCK_RAW_MAX) * LUCK_CRIT_BONUS_MAX`, where `RawLuck` comes from `UCharacterDataComponent::GetEquipmentModifiedLuck`. A `GuaranteedCrit` skill effect forces a crit. On crit, multiply by `CRIT_MULTIPLIER * GetCritDamageMultiplier(Attacker)`.
@@ -94,6 +95,15 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
 
 ## Known Limitations / TODOs
 
+- **⚠️ The `BonusRawDamage` trap — do not re-route stone damage through it.**
+  Stone raw-damage uses the whole-percent channel (Step 1.25,
+  `RunningDamage *= 1 + pct/100`) and must **never** be migrated onto
+  `FEquipmentStatBonus::BonusRawDamage`. That field is folded as
+  `BonusRawDamage × RAW_DAMAGE_PER_POINT` with `RAW_DAMAGE_PER_POINT = 0.0008`
+  (0.08%/pt) and a **±21 clamp**, so its entire range is `21 × 0.0008 ≈ **1.7%**`
+  — it physically cannot express a stone's up-to-15% bonus. This is a
+  **ruled-out refactor**, recorded so it isn't re-attempted. Full reasoning in
+  `WeaponStoneSystem.md`.
 - **Duplicated Step 7.** `CalculateDamage` computes `Result.FinalDamage` twice in identical back-to-back statements (`DamageCalculator.cpp` lines 166–170). Harmless but redundant.
 - **No element advantage system.** `IsWeakTo` and `ResistsElement` always return `false`; `GetElementInteractionMultiplier` always returns `1.0`. The `WEAKNESS_MULTIPLIER` / `RESISTANCE_MULTIPLIER` constants and `MAX_RESISTANCE` are presently unused for elemental interaction.
 - **Unused input fields.** `FDamageCalculationInput::HitCount`, `InfusionLevel`, `bWasInfused`, `bIsRawMode`, and `bIgnoreResistance` are not consumed by `CalculateDamage`. Multi-hit (`HitCount`) and infusion-level multipliers (`GetInfusionDamageMultiplier`) are not wired into the main path.
@@ -106,3 +116,4 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-3 — removed dead `CalculateStatusBuildup` (zero callers). Status-buildup amplification (Spirit-driven, equipment bonus, `StatusMultiplierBuff`/`Debuff` aggregation, target-side `Resistance`) now lives entirely on `UStatusBuildupManager::AddStatusBuildup`. `GetBDStackStatusMultiplier` retained — still the BD status-buildup leaf accessor. | feature/integration-gaps-sweep-3 |
+| 2026-06-07 | Documented **Step 1.25** — the attached weapon-stone whole-percent raw-damage multiplier (`DamageStone` F=3..S=15%, physical-only, direct multiplier). Added the **`BonusRawDamage` trap** to Known Limitations (ruled-out refactor; ±21 × 0.0008 ≈ 1.7% can't express a stone). See new `WeaponStoneSystem.md`. | feature/weapon-stones |
