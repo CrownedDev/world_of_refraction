@@ -2684,7 +2684,7 @@ void UActionExecutor::SpawnAOEEffect(
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
 	if (DefenseSys)
 	{
-		float WindowDuration = 0.5f; // AOE has longer window
+		float WindowDuration = DefenseSys->AoeWindowDuration; // AOE uses a longer window
 
 		DefenseSys->OpenDefenseWindow(
 			Caster,

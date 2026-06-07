@@ -309,6 +309,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float DefaultWindowDuration = 0.3f;
 
+	/** Defense window duration for AOE attacks (longer than default) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float AoeWindowDuration = 0.5f;
+
 private:
 	// ========================================
 	// INTERNAL STATE
