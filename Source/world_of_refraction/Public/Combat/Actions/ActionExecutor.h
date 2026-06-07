@@ -126,27 +126,13 @@ public:
 	// INFUSION SYSTEM
 	// ========================================
 
-	/** Get spell infusion size multiplier (1.0, 1.5, 2.0) - LEGACY, use GetSpellSizeMultiplier */
+	/** Spell infusion size multiplier — 1.0 / 1.5 / 2.0 for infusion L0 / L1 / L2. */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionSizeMultiplier(int32 InfusionLevel);
 
-	/** Get spell infusion cost multiplier (1.0, 1.3, 1.6) - LEGACY, use GetSpellSizeEnergyCostMultiplier */
+	/** Spell infusion energy-cost multiplier — 1.0 / 1.3 / 1.6 for infusion L0 / L1 / L2. */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Infusion")
 	static float GetSpellInfusionCostMultiplier(int32 InfusionLevel);
-
-	// ---- NEW INFUSION TYPE SYSTEM ----
-
-	/** Get energy cost multiplier for infusion level */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	static float GetInfusionEnergyCostMultiplier(int32 InfusionLevel);
-
-	/** Get spell size multiplier for spell size infusion level */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	static float GetSpellSizeMultiplier(int32 SpellSizeInfusionLevel);
-
-	/** Get energy cost multiplier for spell size infusion */
-	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
-	static float GetSpellSizeEnergyCostMultiplier(int32 SpellSizeInfusionLevel);
 
 	/** Get available infusion sources for character based on class and loadout */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")

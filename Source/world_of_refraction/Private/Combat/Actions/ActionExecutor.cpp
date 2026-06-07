@@ -3237,49 +3237,6 @@ FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, c
 	}
 }
 
-// ========================================
-// INFUSION MULTIPLIERS
-// ========================================
-
-float UActionExecutor::GetInfusionEnergyCostMultiplier(int32 InfusionLevel)
-{
-	switch (InfusionLevel)
-	{
-	case 1:
-		return InfusionConstants::L1_ENERGY_MULT;
-	case 2:
-		return InfusionConstants::L2_ENERGY_MULT;
-	default:
-		return 1.0f;
-	}
-}
-
-float UActionExecutor::GetSpellSizeMultiplier(int32 SpellSizeInfusionLevel)
-{
-	switch (SpellSizeInfusionLevel)
-	{
-	case 1:
-		return InfusionConstants::SPELL_L1_SIZE_MULT;
-	case 2:
-		return InfusionConstants::SPELL_L2_SIZE_MULT;
-	default:
-		return 1.0f;
-	}
-}
-
-float UActionExecutor::GetSpellSizeEnergyCostMultiplier(int32 SpellSizeInfusionLevel)
-{
-	switch (SpellSizeInfusionLevel)
-	{
-	case 1:
-		return InfusionConstants::SPELL_L1_ENERGY_MULT;
-	case 2:
-		return InfusionConstants::SPELL_L2_ENERGY_MULT;
-	default:
-		return 1.0f;
-	}
-}
-
 // ============================================================
 //  - Get BrokenDarknessManager
 // ============================================================
