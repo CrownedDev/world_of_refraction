@@ -553,4 +553,38 @@ namespace CrystalEffectTable
             return 0.0f;
         }
     }
+
+    /** Skill-slots an attachment grants at its tier. Generic across attachment
+     *  kinds so refined crystals can adopt it for spell-slots later; for now only
+     *  weapon stones grant slots:
+     *    Whetstone    -> 0  (damage stone, grants no slots)
+     *    AbilityStone -> F=2, E=3, D=3, C=4, B=4, A=5, S=6  (non-sequential)
+     *  Crystals / evolution / none -> 0 (no slot contribution yet). */
+    inline int32 GetAttachmentSlotsForTier(const FCrystalId &Id)
+    {
+        if (Id.Type == ECrystalType::AbilityStone)
+        {
+            switch (Id.Tier)
+            {
+            case EItemTier::F_Tier:
+                return 2;
+            case EItemTier::E_Tier:
+                return 3;
+            case EItemTier::D_Tier:
+                return 3;
+            case EItemTier::C_Tier:
+                return 4;
+            case EItemTier::B_Tier:
+                return 4;
+            case EItemTier::A_Tier:
+                return 5;
+            case EItemTier::S_Tier:
+                return 6;
+            default:
+                return 0;
+            }
+        }
+        // Whetstone (damage stone) and every other type grant no slots.
+        return 0;
+    }
 }

@@ -8,6 +8,7 @@
 #include "Loadout/Entries/FAbilityCollection.h"
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Skills/Definitions/ElementHelpers.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 
 int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
 {
@@ -189,9 +190,12 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWhetstoneAbilities() const
         ++OverrideIndex;
     }
 
-    if (Result.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)
+    // Per-tier slot cap from the attachment's identity (Whetstone -> 0, so a
+    // damage stone yields zero abilities; only AbilityStone grants slots).
+    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
+    if (Result.Num() > SlotLimit)
     {
-        Result.SetNum(LoadoutConstants::MAX_WHETSTONE_ABILITIES);
+        Result.SetNum(SlotLimit);
     }
 
     return Result;
@@ -285,8 +289,9 @@ bool FWeaponLoadoutEntry::ValidateWhetstoneAbilities(const FAbilityCollection &O
         }
     }
 
-    // Check count
-    if (AssignedWhetstoneAbilities.Num() > LoadoutConstants::MAX_WHETSTONE_ABILITIES)
+    // Check count — per-tier slot cap from the attachment's identity.
+    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
+    if (AssignedWhetstoneAbilities.Num() > SlotLimit)
     {
         return false;
     }
