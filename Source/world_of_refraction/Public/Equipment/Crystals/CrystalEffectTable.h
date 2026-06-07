@@ -204,7 +204,9 @@ namespace CrystalEffectTable
 
     // ==================== OPAL CRIT ====================
 
-    /** Opal: crit-chance buff/debuff percent. 0 for non-Opal. */
+    /** Opal: crit-chance buff/debuff percent. 0 for non-Opal. Stone×2 uniform
+     *  curve (Balance framework): applied multiplicatively as ×(1 + pct/100) by
+     *  GetCriticalChance after the crit additive→multiplicative conversion. */
     inline float GetCritBuffPercent(const FCrystalId &Id)
     {
         if (Id.Type != ECrystalType::Opal)
@@ -214,19 +216,19 @@ namespace CrystalEffectTable
         switch (Id.Tier)
         {
         case EItemTier::F_Tier:
-            return 5.0f;
+            return 6.0f;
         case EItemTier::E_Tier:
-            return 8.0f;
-        case EItemTier::D_Tier:
             return 10.0f;
+        case EItemTier::D_Tier:
+            return 14.0f;
         case EItemTier::C_Tier:
-            return 12.0f;
-        case EItemTier::B_Tier:
-            return 15.0f;
-        case EItemTier::A_Tier:
             return 18.0f;
+        case EItemTier::B_Tier:
+            return 22.0f;
+        case EItemTier::A_Tier:
+            return 26.0f;
         case EItemTier::S_Tier:
-            return 25.0f;
+            return 30.0f;
         default:
             return 0.0f;
         }
@@ -444,7 +446,8 @@ namespace CrystalEffectTable
 
     // ==================== BUFF PERCENTAGE (nested type+tier table) ====================
 
-    /** Emerald/Amber/Opal: buff magnitude. 0 for any other type.
+    /** Emerald/Amber: buff magnitude. 0 for any other type. (Opal crit moved to
+     *  GetCritBuffPercent — the single, non-duplicated Opal source.)
      *  Out-of-line (nested type+tier switches make the body too large for
      *  inline). See CrystalEffectTable.cpp. */
     WORLD_OF_REFRACTION_API float GetBuffPercentage(const FCrystalId &Id);
