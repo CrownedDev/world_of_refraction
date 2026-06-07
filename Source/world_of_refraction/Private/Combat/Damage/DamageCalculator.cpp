@@ -71,7 +71,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
-	// Step 1.25: Attached-whetstone raw-damage multiplier. Live-resolves the
+	// Step 1.25: Attached weapon-stone raw-damage multiplier. Live-resolves the
 	// active weapon's attachment from the attacker's loadout — physical actions
 	// only, matching the equipment-bonus gate above. Tiered base% only, applied as
 	// a DIRECT multiplier (these are whole-number percentages, not per-point
@@ -83,16 +83,16 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
 			{
 				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
-				const bool bIsWhetstone = Attachment.IsWeaponStone();
-				if (bIsWhetstone)
+				const bool bIsWeaponStone = Attachment.IsWeaponStone();
+				if (bIsWeaponStone)
 				{
-					const float WhetstonePercent =
-						CrystalEffectTable::GetWhetstoneBasePercent(Attachment.Crystal.Id);
-					const float BeforeWhetstone = RunningDamage;
-					RunningDamage *= (1.0f + WhetstonePercent / 100.0f);
+					const float DamageStonePercent =
+						CrystalEffectTable::GetDamageStoneBasePercent(Attachment.Crystal.Id);
+					const float BeforeDamageStone = RunningDamage;
+					RunningDamage *= (1.0f + DamageStonePercent / 100.0f);
 					UE_LOG(LogTemp, Verbose,
-						   TEXT("[DamageCalculator] Whetstone +%.0f%% raw: %.1f -> %.1f"),
-						   WhetstonePercent, BeforeWhetstone, RunningDamage);
+						   TEXT("[DamageCalculator] Damage stone +%.0f%% raw: %.1f -> %.1f"),
+						   DamageStonePercent, BeforeDamageStone, RunningDamage);
 				}
 			}
 		}

@@ -70,14 +70,14 @@ public:
 
     /** Default spells for this equipment — copied to inventory entry when obtained.
      *  Lost if crystal is removed; spell vendor reassigns them. Hidden in the
-     *  editor when the attachment is a whetstone (whetstones carry abilities,
-     *  not spells); the hidden value is inert and never read for a whetstone. */
+     *  editor when the attachment is a weapon stone (weapon stones carry abilities,
+     *  not spells); the hidden value is inert and never read for a weapon stone. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item",
               meta = (TitleProperty = "Name", EditCondition = "!IsWeaponStoneAttached", EditConditionHides))
     TArray<USpellData *> DefaultSpells;
 
-    /** Default abilities seeded onto a whetstone-attached weapon's whetstone slots.
-     *  Parallels DefaultSpells; only meaningful when the attachment is a whetstone,
+    /** Default abilities seeded onto a weapon-stone-attached weapon's ability slots.
+     *  Parallels DefaultSpells; only meaningful when the attachment is a weapon stone,
      *  so the editor shows it only then. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (DisplayName = "Extra Abilities", EditCondition = "IsWeaponStoneAttached", EditConditionHides))
@@ -92,7 +92,7 @@ public:
     bool bImmuneToInfusion = false;
 
     /** Generic lock for the attachment's provided skills (spells for crystals,
-     *  abilities for whetstones). When true, the player cannot unfuse the
+     *  abilities for weapon stones). When true, the player cannot unfuse the
      *  attachment or reassign its skills at a vendor. Independent of bCanBreak
      *  (which is on UEvolutionItemData and gates wear); a crystal can still break
      *  via the standard wear path when its bCanBreak is true. No runtime code

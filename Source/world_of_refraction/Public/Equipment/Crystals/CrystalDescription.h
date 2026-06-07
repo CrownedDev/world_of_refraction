@@ -152,11 +152,11 @@ namespace CrystalDescription
                 CrystalEffectTable::GetStatusClearPercent(Id),
                 *FormatTurns(CrystalEffectTable::GetResistanceDuration(Id)));
 
-        case ECrystalType::Whetstone:
+        case ECrystalType::DamageStone:
             return FString::Printf(
                 TEXT("Sharpens the weapon to raise raw attack damage by %.0f%% for %s; when attached, also unlocks the weapon's abilities via Resonate."),
-                CrystalEffectTable::GetWhetstoneBasePercent(Id),
-                *FormatTurns(CombatConstants::WHETSTONE_CONSUMABLE_DURATION));
+                CrystalEffectTable::GetDamageStoneBasePercent(Id),
+                *FormatTurns(CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION));
 
         case ECrystalType::AbilityStone:
             // Attach-only weapon stone; per-tier slot text refines in Cluster 4.

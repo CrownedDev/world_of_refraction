@@ -364,9 +364,8 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrysta
 
 void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Whetstone consumable - SELF-buff: raise the User's raw (physical) damage by
-	// the base whetstone curve for a fixed duration. The attached +5% bonus is
-	// attach-only and deliberately NOT added here. Magnitude is a whole-number
+	// Damage stone consumable - SELF-buff: raise the User's raw (physical) damage by
+	// the base damage-stone curve for a fixed duration. Magnitude is a whole-number
 	// percent, consumed physical-only by GetStatusEffectDamageModifier.
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
@@ -375,8 +374,8 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 		return;
 	}
 
-	const float BuffPercent = CrystalEffectTable::GetWhetstoneBasePercent(Id);
-	const int32 Duration = CombatConstants::WHETSTONE_CONSUMABLE_DURATION;
+	const float BuffPercent = CrystalEffectTable::GetDamageStoneBasePercent(Id);
+	const int32 Duration = CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION;
 
 	const FString DisplayName = CrystalIdentity::GetDisplayName(Id);
 	FActiveSkillEffect RawBuff = FActiveSkillEffect::CreateBuff(
@@ -390,7 +389,7 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Whetstone: Applied %.0f%% raw-damage self-buff for %d turns to %s"),
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Damage stone: Applied %.0f%% raw-damage self-buff for %d turns to %s"),
 		   BuffPercent, Duration, *User->GetName());
 }
 

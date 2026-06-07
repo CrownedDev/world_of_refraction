@@ -144,7 +144,7 @@ private:
 	/** Emerald - Speed buff */
 	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
-	/** Whetstone - self-buff raw (physical) damage % for a fixed duration */
+	/** Damage stone - self-buff raw (physical) damage % for a fixed duration */
 	void ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Amber - Defense buff */

@@ -28,14 +28,14 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     EAttachedItemKind Kind = EAttachedItemKind::None;
 
     /** Crystal sub-type. Visible for Crystal (Garnet…Quartz) and WeaponStone
-     *  (Whetstone vs AbilityStone) — lets the designer pick the stone variant. */
+     *  (DamageStone vs AbilityStone) — lets the designer pick the stone variant. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides))
     ECrystalType CrystalType = ECrystalType::Garnet;
 
-    /** Tier of the attachment's crystal identity. Visible for Refined and
-     *  Whetstone — a whetstone carries identity FCrystalId{Whetstone, RefinedTier}.
-     *  RefinedType is hidden for Whetstone (the type is implied by Kind). */
+    /** Tier of the attachment's crystal identity. Visible for Crystal and
+     *  WeaponStone — a weapon stone carries identity FCrystalId{sub-type, Tier},
+     *  with the sub-type (Damage/Ability) picked via CrystalType above. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::WeaponStone", EditConditionHides))
     EItemTier CrystalTier = EItemTier::F_Tier;

@@ -127,8 +127,8 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponAbilities;
 
-    /** Per-loadout override for the whetstone's extra abilities (base = weapon DefaultAbilities).
-     *  Only meaningful when the primary weapon has a whetstone attached. */
+    /** Per-loadout override for the weapon stone's extra abilities (base = weapon DefaultAbilities).
+     *  Only meaningful when the primary weapon has a weapon stone attached. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryWeaponStoneAbilities;
@@ -165,9 +165,9 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryWeaponAbilities;
 
-    /** Per-loadout override for the secondary weapon's whetstone extra abilities
+    /** Per-loadout override for the secondary weapon's weapon-stone extra abilities
      *  (base = weapon DefaultAbilities). Generic only; meaningful only when the
-     *  secondary weapon has a whetstone attached. */
+     *  secondary weapon has a weapon stone attached. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryWeaponStoneAbilities;

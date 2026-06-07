@@ -64,7 +64,7 @@ namespace CrystalIdentity
             return EItemEffectType::Cleanse;
         case ECrystalType::Quartz:
             return EItemEffectType::StatusClear;
-        case ECrystalType::Whetstone:
+        case ECrystalType::DamageStone:
             return EItemEffectType::BuffRawDamage;
         case ECrystalType::AbilityStone:
             // Attach-only — no consumable effect, so UseItem dispatch finds no
@@ -113,8 +113,8 @@ namespace CrystalIdentity
             return TEXT("Iolite");
         case ECrystalType::Quartz:
             return TEXT("Quartz");
-        case ECrystalType::Whetstone:
-            return TEXT("Whetstone");
+        case ECrystalType::DamageStone:
+            return TEXT("DamageStone");
         case ECrystalType::AbilityStone:
             return TEXT("AbilityStone");
         default:

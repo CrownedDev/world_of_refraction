@@ -277,7 +277,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     case EPieMenuCategory::ResonateWeapon:
         if (CurrentCapabilities.bHasWeaponStoneAbilities)
         {
-            // Whetstone: list whetstone abilities as Ability buttons under the
+            // Weapon stone: list weapon-stone abilities as Ability buttons under the
             // same Resonate Weapon branch. Leaf buttons carry EPieMenuCategory::Ability
             // so they exit via the ability action path — no spell source. ActiveSubmenuSource
             // is deliberately left unset (the ability path never reads it).
@@ -588,7 +588,7 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateResonateWeaponButton() con
     Button.DisplayName = FText::FromString(TEXT("Resonate (W)"));
     if (CurrentCapabilities.bHasWeaponStoneAbilities && !CurrentCapabilities.bHasWeaponCrystal)
     {
-        // Whetstone (ability mode): count is abilities, not spells. A whetstone has
+        // Weapon stone (ability mode): count is abilities, not spells. A weapon stone has
         // no spell-element color, so leave the default (neutral) tint.
         Button.Description = FText::FromString(
             FString::Printf(TEXT("%d extra abilities"), CurrentCapabilities.WeaponStoneAbilities.Num()));

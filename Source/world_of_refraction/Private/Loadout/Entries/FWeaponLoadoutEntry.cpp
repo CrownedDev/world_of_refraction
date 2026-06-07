@@ -141,7 +141,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetCustomizableAbilities() const
 
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetWeaponStoneAbilities() const
 {
-    // Whetstone abilities exist only while a whetstone is attached — gate the
+    // Weapon-stone abilities exist only while a weapon stone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
     if (!Attachment.IsWeaponStone())
@@ -190,7 +190,7 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWeaponStoneAbilities() const
         ++OverrideIndex;
     }
 
-    // Per-tier slot cap from the attachment's identity (Whetstone -> 0, so a
+    // Per-tier slot cap from the attachment's identity (DamageStone -> 0, so a
     // damage stone yields zero abilities; only AbilityStone grants slots).
     const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
     if (Result.Num() > SlotLimit)
@@ -252,11 +252,11 @@ bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection 
         return true; // No weapon = nothing to validate
     }
 
-    // Whetstone abilities are orphaned without an attached whetstone — valid
+    // Weapon-stone abilities are orphaned without an attached weapon stone — valid
     // only when none are assigned.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWhetstone = Attachment.IsWeaponStone();
-    if (!bIsWhetstone)
+    const bool bIsWeaponStone = Attachment.IsWeaponStone();
+    if (!bIsWeaponStone)
     {
         return AssignedWeaponStoneAbilities.Num() == 0;
     }
@@ -301,13 +301,13 @@ bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection 
 
 bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) const
 {
-    // A Whetstone grants no spells; its Generic element must not be read as a
+    // A weapon stone grants no spells; its Generic element must not be read as a
     // spell-element mismatch. Treat it like a no-spell attachment — valid only
     // when nothing is assigned (same return as the !CanHaveSpells gate).
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWhetstone = Attachment.IsWeaponStone();
+    const bool bIsWeaponStone = Attachment.IsWeaponStone();
 
-    if (!CanHaveSpells() || bIsWhetstone)
+    if (!CanHaveSpells() || bIsWeaponStone)
     {
         return WeaponEntry.AssignedSpells.Num() == 0;
     }

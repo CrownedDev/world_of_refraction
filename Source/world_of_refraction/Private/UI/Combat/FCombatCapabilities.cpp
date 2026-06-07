@@ -68,9 +68,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
         }
 
-        // Whetstone abilities — parallel to the crystal-spell branch above and
+        // Weapon-stone abilities — parallel to the crystal-spell branch above and
         // mutually exclusive with it (one attachment slot). GetWeaponStoneAbilities
-        // returns empty unless a whetstone is attached, so no extra guard.
+        // returns empty unless a weapon stone is attached, so no extra guard.
         Out.WeaponStoneAbilities = ActiveWeapon->GetWeaponStoneAbilities();
         Out.bHasWeaponStoneAbilities = Out.WeaponStoneAbilities.Num() > 0;
     }
@@ -205,7 +205,7 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
         Loadout.PrimaryWeapon.IsValid() &&
         Loadout.SecondaryWeapon.IsValid();
 
-    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d WhetstoneAbilities=%d"),
+    UE_LOG(LogTemp, Log, TEXT("[FCombatCapabilities] Built for %s: Attack=%d Abilities=%d WeaponCrystal=%d Refractions=%d Breakthrough=%d PrimaryRing=%d RingLoadout=%d SwitchWeapon=%d SwitchRing=%d WeaponStoneAbilities=%d"),
            *UEnum::GetValueAsString(CharClass),
            Out.bCanAttack, Out.bCanUseAbilities, Out.bHasWeaponCrystal,
            Out.bHasRefractions, Out.bHasBreakthrough,

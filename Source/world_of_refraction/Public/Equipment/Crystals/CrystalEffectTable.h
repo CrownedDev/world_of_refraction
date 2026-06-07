@@ -498,7 +498,7 @@ namespace CrystalEffectTable
      *  Tier-only — Id.Type is ignored (other than the None early-out). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::Whetstone ||
+        if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
             Id.Type == ECrystalType::AbilityStone)
         {
             return 0.0f;
@@ -524,12 +524,12 @@ namespace CrystalEffectTable
         }
     }
 
-    /** Raw-attack-damage increase (%) a Whetstone grants. This is the consumable
-     *  value AND the attached base; the attached flat +5 is added at the
-     *  damage-calc site, not here. 0 for any non-Whetstone crystal. */
-    inline float GetWhetstoneBasePercent(const FCrystalId &Id)
+    /** Raw-attack-damage increase (%) a Damage Stone grants. This is the consumable
+     *  value AND the attached base (the attached path applies it directly, no flat
+     *  bonus). 0 for any non-DamageStone crystal. */
+    inline float GetDamageStoneBasePercent(const FCrystalId &Id)
     {
-        if (Id.Type != ECrystalType::Whetstone)
+        if (Id.Type != ECrystalType::DamageStone)
         {
             return 0.0f;
         }
@@ -557,7 +557,7 @@ namespace CrystalEffectTable
     /** Skill-slots an attachment grants at its tier. Generic across attachment
      *  kinds so refined crystals can adopt it for spell-slots later; for now only
      *  weapon stones grant slots:
-     *    Whetstone    -> 0  (damage stone, grants no slots)
+     *    DamageStone  -> 0  (damage stone, grants no slots)
      *    AbilityStone -> F=2, E=3, D=3, C=4, B=4, A=5, S=6  (non-sequential)
      *  Crystals / evolution / none -> 0 (no slot contribution yet). */
     inline int32 GetAttachmentSlotsForTier(const FCrystalId &Id)
@@ -584,7 +584,7 @@ namespace CrystalEffectTable
                 return 0;
             }
         }
-        // Whetstone (damage stone) and every other type grant no slots.
+        // DamageStone and every other type grant no slots.
         return 0;
     }
 }

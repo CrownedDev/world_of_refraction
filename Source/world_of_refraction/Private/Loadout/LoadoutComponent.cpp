@@ -1973,7 +1973,7 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
         }
         else if (Attachment.IsWeaponStone())
         {
-            // Whetstone stores its FCrystalId{Whetstone, Tier} in the Refined
+            // A weapon stone stores its FCrystalId{sub-type, Tier} in the Crystal
             // slot — carry it so the emitted crystal slot keeps its identity.
             Slot.CrystalId = Attachment.Crystal.Id;
         }

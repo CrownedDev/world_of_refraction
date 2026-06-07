@@ -78,7 +78,7 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
 
             if (SecondaryWeaponStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
             {
-                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many whetstone abilities (%d/%d)"),
+                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many weapon stone abilities (%d/%d)"),
                                            SecondaryWeaponStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
             }
         }
@@ -154,7 +154,7 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
 
         if (PrimaryWeaponStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
         {
-            Errors.Add(FString::Printf(TEXT("Primary weapon has too many whetstone abilities (%d/%d)"),
+            Errors.Add(FString::Printf(TEXT("Primary weapon has too many weapon stone abilities (%d/%d)"),
                                        PrimaryWeaponStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
         }
     }
