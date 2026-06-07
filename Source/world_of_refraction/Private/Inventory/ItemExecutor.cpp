@@ -364,9 +364,10 @@ void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrysta
 
 void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Damage stone consumable - SELF-buff: raise the User's raw (physical) damage by
-	// the base damage-stone curve for a fixed duration. Magnitude is a whole-number
-	// percent, consumed physical-only by GetStatusEffectDamageModifier.
+	// Damage stone consumable - DIRECTIONAL (Cluster 4): buff an ally's raw
+	// (physical) damage, or debuff an enemy's, for a fixed duration. Magnitude is a
+	// whole-number percent, consumed physical-only by GetStatusEffectDamageModifier.
+	// CHANGED in C4: was a self-only buff before — shipped-behaviour modification.
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -374,28 +375,30 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 		return;
 	}
 
-	const float BuffPercent = CrystalEffectTable::GetDamageStoneBasePercent(Id);
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::RawDamageBuff : ESkillEffectType::RawDamageDebuff;
+	const float Magnitude = CrystalEffectTable::GetDamageStoneBasePercent(Id);
 	const int32 Duration = CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION;
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect RawBuff = FActiveSkillEffect::CreateBuff(
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Raw Damage"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::RawDamageBuff, BuffPercent, Duration);
-	RawBuff.Element = ItemIdentity::GetElement(Id);
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
 
-	// Self-buff: apply to the User (NOT Target — unlike ExecuteSpeedBuffEffect,
-	// which targets the chosen Target).
-	SEM->ApplyEffect(User, RawBuff, User, DisplayName, -1);
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Damage stone: Applied %.0f%% raw-damage self-buff for %d turns to %s"),
-		   BuffPercent, Duration, *User->GetName());
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Damage stone: Applied %s %.0f%% raw-damage for %d turns to %s"),
+		   bAlly ? TEXT("RawDamageBuff") : TEXT("RawDamageDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Amber (Phase 2) - buff an ally's defense, or debuff an enemy's.
+	// Directional defense consumable: buff an ally's defense, or debuff an enemy's.
+	// Shared by Amber (crystal) and DefenseStone (weapon stone) — both map to
+	// EItemEffectType::BuffDefense.
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -405,8 +408,16 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff;
-	const float Magnitude = CrystalEffectTable::GetBuffPercentage(Id);
-	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
+
+	// DefenseStone sources the shared stone curve + flat stone duration; Amber keeps
+	// its own GetBuffPercentage + GetCrystalDuration. Direction (IsAlly) is identical.
+	const bool bIsStone = CrystalTypeHelpers::IsWeaponStoneType(Id.Type);
+	const float Magnitude = bIsStone
+		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
+		: CrystalEffectTable::GetBuffPercentage(Id);
+	const int32 Duration = bIsStone
+		? CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION
+		: CrystalEffectTable::GetCrystalDuration(Id);
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
