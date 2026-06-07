@@ -3,7 +3,7 @@
 // Holds per-instance crystal state (identity + durability) for an equipped
 // weapon or ring.
 //
-// Discriminated by Kind: when Refined, the Refined branch holds the live
+// Discriminated by Kind: when Crystal, the Crystal branch holds the live
 // state (FCrystalId + CurrentDurability); when Evolution, the Evolution
 // branch holds the live state (UEvolutionItemData* + CurrentDurability). Branches
 // other than Kind are hidden in the editor via EditConditionHides and not
@@ -55,7 +55,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
      *  this attachment can fire. */
     bool CanProvideSpells() const;
 
-    /** Element of the active branch. Refined resolves via ItemIdentity;
+    /** Element of the active branch. Crystal resolves via ItemIdentity;
      *  evolution resolves via the item's GetAssociatedElement. Empty returns
      *  Generic. */
     ESpellElement GetElement() const;
@@ -63,16 +63,16 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     /** Current durability of the active branch. 0 when empty. */
     int32 GetCurrentDurability() const;
 
-    /** Max durability of the active branch. Refined resolves via
+    /** Max durability of the active branch. Crystal resolves via
      *  ItemIdentity::GetMaxDurability; evolution reads Item->MaxDurability.
      *  0 when empty or item is null. */
     int32 GetMaxDurability() const;
 
-    /** Stat-modifier query — evolution-only. Refined attachments and empty
+    /** Stat-modifier query — evolution-only. Crystal attachments and empty
      *  return false. Evolution branch delegates to the item asset. */
     bool HasStatModifiers() const;
 
-    /** Stat-modifier summary string — evolution-only. Refined attachments and
+    /** Stat-modifier summary string — evolution-only. Crystal attachments and
      *  empty return an empty string. */
     FString GetStatModifierSummary() const;
 
@@ -88,7 +88,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
 
     // ==================== COMPARISON ====================
 
-    /** Same Kind, and the active branch matches. Refined compares Id only
+    /** Same Kind, and the active branch matches. Crystal compares Id only
      *  (durability is per-instance state, not identity). Evolution compares
      *  Item pointer only. */
     bool operator==(const FRuntimeAttachedItem &Other) const;
@@ -98,12 +98,12 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
 
     /** Bridge factory — given the design-time FAttachedItem struct carried on
      *  UEquipmentDataBase, produce the discriminated runtime attachment.
-     *  Source.Kind directly carries the refined-vs-evolution decision; this
+     *  Source.Kind directly carries the crystal-vs-evolution decision; this
      *  just copies identity and seeds initial durability. Returns a default
      *  (Empty) attachment when Source.Kind is None.
      *
-     *  Refined branch: builds FCrystalId from Source.RefinedType +
-     *  Source.RefinedTier, seeds CurrentDurability from
+     *  Crystal branch: builds FCrystalId from Source.CrystalType +
+     *  Source.CrystalTier, seeds CurrentDurability from
      *  ItemIdentity::GetMaxDurability — the tier-based max the runtime
      *  already treats as refined's source of truth (refined crystals carry no
      *  asset, so there is no per-asset MaxDurability to read as FromAsset does).
