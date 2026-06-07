@@ -19,6 +19,7 @@
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Infusion/InfusionConstants.h"
+#include "Combat/CombatConstants.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
@@ -1703,7 +1704,7 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     {
         // Calculate L1 buildup
         float BaseBuildup = Spell->StatusBuildup;
-        float L1Buildup = BaseBuildup * 1.5f; // L1 boost
+        float L1Buildup = BaseBuildup * CombatConstants::SPELL_L1_BUILDUP_MULT; // L1 boost
 
         // Would L1 trigger the bar?
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
@@ -1790,7 +1791,9 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     {
         // Calculate L1 status buildup
         int32 BaseBuildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
-        float L1Buildup = BaseBuildup * 1.5f; // L1: +50% status buildup
+        // TODO: shares spell L1 buildup rule by analogy; give ability its own
+        // constant if ability buildup ever diverges from spells.
+        float L1Buildup = BaseBuildup * CombatConstants::SPELL_L1_BUILDUP_MULT; // L1: +50% status buildup
 
         // Would L1 trigger the bar?
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);

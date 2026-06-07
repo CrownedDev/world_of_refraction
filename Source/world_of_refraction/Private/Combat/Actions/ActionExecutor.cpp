@@ -14,6 +14,7 @@
 #include "Skills/Definitions/ESpellSource.h"
 #include "Combat/Actions/ActionUtils.h"
 #include "Combat/CombatConstants.h"
+#include "Infusion/InfusionConstants.h"
 #include "Inventory/ItemExecutor.h"
 #include "Equipment/Weapons/WeaponManager.h"
 #include "Equipment/Crystals/CrystalManager.h"
@@ -81,9 +82,9 @@ float UActionExecutor::GetSpellInfusionSizeMultiplier(int32 InfusionLevel)
 	switch (InfusionLevel)
 	{
 	case 1:
-		return 1.5f; // Level 1: 50% size increase
+		return InfusionConstants::SPELL_L1_SIZE_MULT; // Level 1: 50% size increase
 	case 2:
-		return 2.0f; // Level 2: 100% size increase
+		return InfusionConstants::SPELL_L2_SIZE_MULT; // Level 2: 100% size increase
 	default:
 		return 1.0f; // No infusion
 	}
@@ -94,9 +95,9 @@ float UActionExecutor::GetSpellInfusionCostMultiplier(int32 InfusionLevel)
 	switch (InfusionLevel)
 	{
 	case 1:
-		return 1.3f; // Level 1: 30% cost increase
+		return InfusionConstants::SPELL_L1_ENERGY_MULT; // Level 1: 30% cost increase
 	case 2:
-		return 1.6f; // Level 2: 60% cost increase
+		return InfusionConstants::SPELL_L2_ENERGY_MULT; // Level 2: 60% cost increase
 	default:
 		return 1.0f; // No infusion
 	}
