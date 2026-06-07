@@ -459,45 +459,146 @@ multiplicative whole-percent one.
 > self-only consumable — record both states so the change isn't read as a
 > regression.
 
+#### Pool-stat variant — `MaxHP` / `MaxEnergy` (raise/decrease-max, not heal)
+
+Pool stats are stat-stones too, but they are **raise/decrease-max** stones — they
+move the **ceiling**, not current HP/EP. They are **not** restore/heal potions.
+
+- **Attached (self):** `+X%` max HP/EP, permanent.
+- **Consumable (single-target, directional)** — same shape as the other
+  stat-stone consumables:
+  - **ally → `+X%` max (ceiling only).** Current HP/EP is **unchanged** — it gives
+    *room to heal / regen into*, no instant gain.
+  - **enemy → `−X%` max.** If the lowered max drops **below** the target's current
+    HP/EP, **leave it overcapped** — *no instant loss*. They simply can't recover
+    above the new cap, and it bites over time.
+
+> **Rule (b): overcapped, not clamped.** Lowering max never deals instant damage by
+> clamping current-down-to-new-max — that would make it disguised burst. Keeping
+> the target overcapped preserves it as a **true debuff** that pressures sustain,
+> not a damage spell.
+
+**Mechanism — a different hook shape.** Pool stats flow through
+`RecomputeMaxPools`, a **separate code path** from the whole-percent combat-stat
+channel. Their hook lives in the pool-recompute path, **not** alongside the
+Defense/damage hooks — so they are **not** part of the first generic-channel proof;
+they are their own hook.
+
+#### Defense / Resistance — the mitigation model
+
+Two defensive stats with **non-overlapping** roles, grounded in the damage-pipeline
+survey of `UDamageCalculator::CalculateDamage`:
+
+**Defense — broad damage reduction, raw AND spell. ✅ Already shipped.** Pipeline
+Step 5 subtracts flat `GetDefenderFlatDefense` from incoming damage with **no
+`ActionType` gate** — spell damage already passes through Defense exactly like
+physical. A **Defense stone just scales the existing stat** (whole-percent boost to
+the defender's flat-defense value); **no new combat hook**. *Flat / subtractive.*
+
+**Resistance — status-buildup reduction (shipped) + a slight spell-damage shave (NET-NEW).**
+
+- Primary job unchanged: reduces status buildup in
+  `StatusBuildupManager::AddStatusBuildup` (`Amount *= (1 − Resistance)`).
+- **New, to build** — a slight spell-*damage* reduction:
+
+  ```
+  spellDamage *= (1 − RESISTANCE_SPELL_SHAVE_FACTOR · Resistance)
+  RESISTANCE_SPELL_SHAVE_FACTOR = 0.2     // named tunable, not a magic number
+  ```
+
+  So 100% Resistance → **20%** spell reduction; 50% → 10%; 40% → 8%. **Slight by
+  design** — Resistance stays primarily a *status* stat; nobody builds it *for*
+  spell defense (Defense is the spell shield). *Percentage / multiplicative.*
+- **Placement:** a **new defender-side step gated on `ActionType == Spell`**, near
+  Step 5, using the **existing-but-currently-unconsumed `bIgnoreResistance`** field
+  on `FDamageCalculationInput` to gate it. This is the **one new combat hook** in
+  the entire stat-stone family.
+
+> **Design rationale — flat vs percentage.** Defense is **flat** (subtractive):
+> strong against many small hits, weak against one big hit. The Resistance shave is
+> **percentage**: scales with hit size. The two reductions are legibly different and
+> **non-overlapping** — Defense is the spell shield, Resistance a minor top-up that
+> scales with burst.
+
 #### Wired-substat audit
 
 This table gates **both** stat-stones **and** the FusionStone bonus dropdown — a
 stat is eligible only if it has a working read site (otherwise the stone/bonus
 silently does nothing).
 
-**Wired (buildable now):**
+**Wired (have a working read site — buildable now):**
 
 | Substat | Note |
 |---|---|
 | RawDamage | the `DamageStone` channel |
-| Defense | clean whole-percent target — the proving ground (see *Build order*) |
+| Defense | flat subtractive mitigation (pipeline Step 5); **already covers raw AND spell** (no `ActionType` gate). A Defense stone scales the stat via the whole-percent channel — the proving ground (see *Build order*) |
 | TurnSpeed | wired |
 | StatusMultiplier | wired |
 | Efficiency | cost reduction |
 | CritChance | **additive + now-uncapped**; uses crit's own hook shape, not the multiplicative channel |
 | Luck | wired but **balance-risky** — it is the normalization basis for luck-derived chances |
-| SpellSpeed | wired but **visual-only** play-rate — not worth a stone |
+| **SpellDamage** ("spell power") | **WIRED — corrected.** Three attacker-side reads, all `ActionType==Spell`-gated: `GetEvolutionModifiedSpellDamage` (Mind curve), equipment `BonusSpellDamage`, `ActionMods` spell-power. **Buildable now.** *(The earlier audit wrongly listed this unwired — it conflated offensive spell-power, wired, with defensive spell-resistance, the net-new hook above.)* |
+| Resistance (status) | **wired** (`StatusBuildupManager`) for status buildup; the **spell-damage shave** is the net-new extension (see *Defense / Resistance*) |
 
-**Unwired (need a read site built first — a stone/bonus does nothing until then):**
+**Visual-only read site (animation play-rate — intended effect not wired; see *Speed stones*):**
 
-| Substat | Blocker |
+| Substat | Note |
 |---|---|
-| SpellDamage ("spell power") | no read site wired |
-| Resistance (element / spell-type) | the **unbuilt** `ResistsElement` system — distinct from the status-buildup `Resistance` uncapped in `7afd0d09` |
-| ActionSpeed | no read site, and unclear vs `TurnSpeed` — needs definition first |
+| SpellSpeed | has a montage play-rate read (`CalculateSpellSpeed`), commented **"purely visual"**; its *intended* defense-window-pressure effect is **unwired** |
+| ActionSpeed | **corrected** — it **has** a read site (`CalculateAnimationSpeed` / `ANIMATION_SPEED_PER_POINT`, drives ability/attack montage PlayRate). What's missing is the **defense-window link**, not the read |
 
-**Pool stats (different code path — `RecomputeMaxPools`, not the whole-percent channel):**
+**Not needed / unbuilt:**
 
 | Substat | Status |
 |---|---|
-| MaxHP / MaxEnergy | "health/energy item" intent **undecided** (raise-max stone vs restore consumable) — parked |
+| per-element / spell-type Resistance | the unbuilt `ResistsElement` system — **not pursued**; the status-buildup + flat-Defense + slight-spell-shave model is chosen instead |
 
-#### Build order (design intent, not a commitment)
+**Pool stats (separate `RecomputeMaxPools` path — see *Pool-stat variant*):**
 
-1. **Generic attached stat channel, proven on `Defense`** — low-risk,
-   self-passive, whole-percent. Establishes the reusable attached hook.
-2. **Directional consumable** — target select + ally-buff / enemy-debuff —
-   retrofitted onto `DamageStone` first, then inherited by every stat-stone.
+| Substat | Status |
+|---|---|
+| MaxHP / MaxEnergy | **settled** — raise/decrease-max stones (ceiling-only, overcapped-not-clamped); pool-recompute hook |
+
+#### Speed stones (`ActionSpeed` / `SpellSpeed`) — blocked on a prerequisite system
+
+Their **intended** effect is **defense-window pressure**: a faster attacker
+animation gives the defender a **tighter reaction window**; slower gives more. This
+**does not work today.**
+
+**Why it doesn't work (factual, from the defense-window survey):** the real-time
+defense window is a **fixed `0.3s` constant** (`0.5s` for AOE), **hardcoded at the
+`ActionExecutor` call sites** and **independent of animation play-rate**. The
+data-driven `FDefenseWindowConfig` (`WindowStartTime` / `WindowDuration`) exists in
+`DefenseSystem.h` but is **dead / unwired** — never read. So changing a montage's
+play-rate (which `ActionSpeed` / `SpellSpeed` already do) changes only the visual,
+not the window.
+
+**The prerequisite — a net-new "variable-defense-window" feature:**
+- Thread the attacker's effective `PlayRate` into the window-open path.
+- Replace the hardcoded `0.3f` with `WindowDuration = BaseWindow / AttackerPlayRate`
+  (faster → tighter). Optionally revive `FDefenseWindowConfig` for per-attack
+  authoring of `BaseWindow`.
+- Mostly touches **`ActionExecutor`** (the 3 execute paths + the
+  `OpenDefenseWindowsForTargets` signature). **`DefenseSystem` needs no core
+  change** — it already takes a per-call duration. Downstream: the AI defense
+  scheduler gets variable timing **for free** (intended).
+
+> **Status: BLOCKED.** Speed stones are deferred until the variable-defense-window
+> feature exists (its own future task). Until then a speed stone would only alter
+> animation visuals, not the reaction window — not worth shipping.
+
+#### Build order & final classification
+
+The attached/consumable channel is still proven on **`Defense` first** (low-risk,
+self-passive, whole-percent), then the **directional consumable** is retrofitted
+onto `DamageStone` and inherited by the rest. The full set, by readiness:
+
+| Class | Stones |
+|---|---|
+| **Buildable now** | `DamageStone` (consumable directional retrofit), `Defense`, `TurnSpeed`, `StatusMultiplier`, `Efficiency`, `CritChance` (additive hook), **`SpellDamage`** (confirmed wired), `Resistance` (status + the `0.2` spell-shave hook), `MaxHP` / `MaxEnergy` (pool-recompute path) |
+| **Build with care (later)** | `Luck` — the normalization basis for luck-derived chances; balance-risky |
+| **Blocked on a system** | `ActionSpeed` / `SpellSpeed` — need the variable-defense-window feature above |
+| **Not needed** | per-element resistance — the status-buildup + flat-Defense + slight-shave model is chosen instead |
 
 ### Forward risk — single-field `GetRestrictedEnumValues`
 
@@ -547,3 +648,4 @@ hard guarantee survives; only the editor affordance degrades.
 |------|--------|--------|
 | 2026-06-07 | Initial documentation — shipped weapon-stone system (unified `ECrystalType`/`FCrystalId` identity; `EAttachedItemKind::WeaponStone`; `DamageStone` whole-percent channel + 3-turn consumable; `AbilityStone` per-tier slots 2/3/3/4/4/5/6; `GetRestrictedEnumValues` grey-out + `IsDataValid` backstop; `CrystalTypeHelpers` gem/stone predicates). Recorded the `BonusRawDamage` trap, the unified-enum and attach-only rationale, and the cap decisions. Captured the Design/Phase-2 plan (Mastery stone, 7×7 fusion/cost matrix, selectable-substat fusion bonus, fusion restrictions, rings+AugmentStone rule, planned `WeaponStone→AugmentStone` rename, stat-stone family + read-site hooks, single-field grey-out risk) and parked cleanup. | feature/weapon-stones |
 | 2026-06-07 | Phase-2 design revision — **Mastery → FusionStone** rename throughout; FusionStone is player-created (fusion consumes two owned attachables), `FFusionId{HalfA,HalfB,BonusStat}` composite with symmetric equality, `FCrystalId` unchanged (Option A); fusion bonus is the formula `(TierValue(A)+TierValue(B))/2` (7×7 shown as visualisation only); added `stat-stone+stat-stone` valid pairing; expanded the **stat-stone family** into the dual-form model (attached self-passive / directional timed consumable) with the `DamageStone`-consumable change flagged as a shipped-behaviour modification; added the **wired-substat audit** (wired/unwired/pool-stats) and the Defense-first **build order**. Refreshed the cap-decisions notes to reflect the now-shipped crit/resistance cap removal (commit `7afd0d09`). | feature/weapon-stones |
+| 2026-06-07 | Stat-stone family extension + audit fixes — added the **pool-stat variant** (`MaxHP`/`MaxEnergy` raise/decrease-max, ceiling-only, overcapped-not-clamped, `RecomputeMaxPools` hook); the **Defense / Resistance mitigation model** (Defense already covers raw+spell, flat/subtractive — no change; Resistance gains a net-new slight spell-damage shave `×(1 − RESISTANCE_SPELL_SHAVE_FACTOR·Resistance)`, factor `0.2`, the **one** new combat hook, gated on `ActionType==Spell` via the unconsumed `bIgnoreResistance`); reclassified **Speed stones** as blocked on a net-new variable-defense-window feature (window is a fixed `0.3s`, play-rate-independent; dead `FDefenseWindowConfig`). **Audit corrections (factual):** `SpellDamage` moved unwired→wired (3 attacker reads, `Spell`-gated); `ActionSpeed` corrected (has a play-rate read; missing the window link, not the read); per-element resistance marked not-needed. Reworked build-order into a readiness classification (buildable-now / build-with-care / blocked / not-needed). | feature/weapon-stones |
