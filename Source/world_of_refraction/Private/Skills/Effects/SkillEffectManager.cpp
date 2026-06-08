@@ -1050,6 +1050,8 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::SpellDamageDebuff:
 	case ESkillEffectType::StatusMultiplierBuff:
 	case ESkillEffectType::StatusMultiplierDebuff:
+	case ESkillEffectType::EfficiencyBuff:
+	case ESkillEffectType::EfficiencyDebuff:
 	case ESkillEffectType::SpellCostBuff:
 	case ESkillEffectType::SpellCostDebuff:
 	case ESkillEffectType::ResistanceBuff:

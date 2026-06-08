@@ -654,6 +654,24 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
                              / CombatConstants::STAT_PERCENT_DIVISOR;
             }
         }
+
+        // Transient Efficiency buff/debuff — skill-effect layer (mirrors StatusMultiplier's
+        // transient accessor). A BUFF adds to the reduction → smaller multiplier → cheaper
+        // EP / slower BD drain / less wear (the favourable direction). 0 when none active,
+        // so byte-identical to the pre-H0 getter then. Distinct effect type from EP's
+        // SpellCostBuff/Debuff, so no double-count with the EP SkillEffectMult layer.
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                {
+                    const float EffBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyBuff);
+                    const float EffDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyDebuff);
+                    Reduction += (EffBuff - EffDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+                }
+            }
+        }
     }
 
     return FMath::Clamp(1.0f - Reduction, 1.0f - CombatConstants::EFFICIENCY_MAX, 1.0f);

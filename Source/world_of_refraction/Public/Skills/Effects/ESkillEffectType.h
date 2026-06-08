@@ -215,5 +215,12 @@ enum class ESkillEffectType : uint8
      *  UStatusBuildupManager::ReduceStatusBuildupByAmount (parallel to AddStatusBuildup;
      *  the existing fraction-based ReduceStatusBuildup stays for Quartz items).
      *  Classified as a buff (reducing your own buildup is beneficial). */
-    StatusDecrease UMETA(DisplayName = "Status Decrease (Reduce Gauge)")
+    StatusDecrease UMETA(DisplayName = "Status Decrease (Reduce Gauge)"),
+
+    // ==================== EFFICIENCY (transient — H0) ====================
+    // Appended (not mid-inserted) to preserve enum-by-value stamping. Transient
+    // Mind-substat Efficiency buff/debuff — summed via GetTotalStatModifier and folded
+    // into GetEffectiveEfficiencyMultiplier, so it reaches BD drain / EP cost / durability.
+    EfficiencyBuff UMETA(DisplayName = "Efficiency Buff"),
+    EfficiencyDebuff UMETA(DisplayName = "Efficiency Debuff")
 };

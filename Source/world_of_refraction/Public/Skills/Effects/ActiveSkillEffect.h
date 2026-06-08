@@ -650,6 +650,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::RawDamageBuff:
 		case ESkillEffectType::SpellDamageBuff:
 		case ESkillEffectType::StatusMultiplierBuff:
+		case ESkillEffectType::EfficiencyBuff:
 		case ESkillEffectType::SpellCostBuff:
 		case ESkillEffectType::ResistanceBuff:
 		case ESkillEffectType::SpellSizeBuff:
@@ -718,6 +719,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::RawDamageDebuff:
 		case ESkillEffectType::SpellDamageDebuff:
 		case ESkillEffectType::StatusMultiplierDebuff:
+		case ESkillEffectType::EfficiencyDebuff:
 		case ESkillEffectType::SpellCostDebuff:
 		case ESkillEffectType::ResistanceDebuff:
 		case ESkillEffectType::SpellSizeDebuff:

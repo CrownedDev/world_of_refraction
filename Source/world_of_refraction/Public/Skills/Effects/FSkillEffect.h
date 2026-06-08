@@ -164,6 +164,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::SpellCostBuff:
         case ESkillEffectType::SpellDamageBuff:
         case ESkillEffectType::StatusMultiplierBuff:
+        case ESkillEffectType::EfficiencyBuff:
         case ESkillEffectType::CritChanceBuff:
         case ESkillEffectType::SpellSpeedBuff:
         case ESkillEffectType::DefenseBuff:
@@ -228,6 +229,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::SpellCostDebuff:
         case ESkillEffectType::SpellDamageDebuff:
         case ESkillEffectType::StatusMultiplierDebuff:
+        case ESkillEffectType::EfficiencyDebuff:
         case ESkillEffectType::CritChanceDebuff:
         case ESkillEffectType::SpellSpeedDebuff:
         case ESkillEffectType::DefenseDebuff:
