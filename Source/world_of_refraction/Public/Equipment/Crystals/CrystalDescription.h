@@ -187,6 +187,12 @@ namespace CrystalDescription
                 CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
                 *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
 
+        case ECrystalType::ResistanceStone:
+            return FString::Printf(
+                TEXT("Wards against status buildup. When attached, grants %.0f%% blanket status resistance; when used, raises an ally's resistance or curses an enemy into amplified vulnerability for %s."),
+                CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
+                *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
+
         default:
             return TEXT("Unknown effect.");
         }

@@ -54,5 +54,9 @@ enum class EItemEffectType : uint8
     // buff/debuff, read SPELL-only in GetStatusEffectDamageModifier (the magical mirror
     // of BuffRawDamage). Runtime-derived only (never serialized), so the append needs
     // no CoreRedirect.
-    BuffSpellDamage UMETA(DisplayName = "Buff Spell Damage (stone spell-damage buff/debuff)")
+    BuffSpellDamage UMETA(DisplayName = "Buff Spell Damage (stone spell-damage buff/debuff)"),
+    // Appended (=19). Directional ResistanceStone consumable — blanket ModifyStatusResist
+    // (ally +mag = more status resist; enemy -mag = vulnerability/amplified buildup).
+    // Runtime-derived only (never serialized), so the append needs no CoreRedirect.
+    BuffResistance UMETA(DisplayName = "Buff Resistance (stone status-resist buff/debuff)")
 };

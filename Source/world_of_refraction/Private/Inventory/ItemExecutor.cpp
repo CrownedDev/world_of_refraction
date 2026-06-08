@@ -106,6 +106,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteSpellDamageBuffEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::BuffResistance:
+		ExecuteResistanceBuffEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::Silence:
 		ExecuteSilenceEffect(User, Target, Id, Result);
 		break;
@@ -610,6 +614,41 @@ void UItemExecutor::ExecuteSpellDamageBuffEffect(AActor *User, AActor *Target, F
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Spell damage stone: Applied %s %.0f%% spell-damage for %d turns to %s"),
 		   bAlly ? TEXT("SpellDamageBuff") : TEXT("SpellDamageDebuff"), Magnitude, Duration, *Target->GetName());
+}
+
+void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Resistance stone consumable - DIRECTIONAL, BLANKET: raise an ally's status
+	// resistance, or curse an enemy into amplified vulnerability. Uses ModifyStatusResist
+	// (element-agnostic, summed into StatusBuildupManager's resistance aggregate) so it
+	// matches the attached form's blanket behaviour. Direction is encoded by SIGN: ally =
+	// +magnitude (more resist), enemy = -magnitude (drives resist below 0 -> amplified
+	// buildup, capped at RESISTANCE_MIN = 2x). ModifyStatusResist is sign-aware classified
+	// (+ -> buff, - -> debuff) so cleanse/UI read the direction correctly.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const bool bAlly = IsAlly(User, Target);
+	const float StonePct = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const float Magnitude = bAlly ? StonePct : -StonePct;
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Status Resistance"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::ModifyStatusResist, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
+
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Resistance stone: Applied ModifyStatusResist %+.0f%% for %d turns to %s (%s)"),
+		   Magnitude, Duration, *Target->GetName(), bAlly ? TEXT("ally buff") : TEXT("enemy vulnerability"));
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

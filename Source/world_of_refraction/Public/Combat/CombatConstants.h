@@ -133,6 +133,11 @@ namespace CombatConstants
     // <= 1.0, else the consumer `Amount *= (1 - Resistance)` goes negative and
     // heals the gauge. Do not "tune" this down — it is a hard ceiling, not a knob.
     constexpr float RESISTANCE_MAX = 1.0f;
+    // Negative resistance amplifies status buildup; -1.0 = double (2x) at full
+    // vulnerability. Lower bound of the buildup-resistance clamp — resistance
+    // debuffs strip through 0 into amplification, capped here. Paired with
+    // RESISTANCE_MAX as the [MIN, MAX] clamp in StatusBuildupManager.
+    constexpr float RESISTANCE_MIN = -1.0f;
 
     // Turn Speed - Turn order priority (NOW SPIRIT, was Mind, no longer uses WorldBody)
     constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed

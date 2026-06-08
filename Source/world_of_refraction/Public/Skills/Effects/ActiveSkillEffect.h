@@ -696,6 +696,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		// sweep-4: status-bar manipulation buff (reduces target's gauge)
 		case ESkillEffectType::StatusDecrease:
 			return true;
+		// ModifyStatusResist is sign-aware: +magnitude raises status resistance (a
+		// buff), -magnitude lowers it (a debuff). Classified by sign so cleanse/UI/
+		// GetBuffCount treat the directional ResistanceStone consumable correctly.
+		case ESkillEffectType::ModifyStatusResist:
+			return EffectValue > 0.0f;
 		default:
 			return false;
 		}
@@ -742,7 +747,6 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::IncreaseDamageTaken:
 		case ESkillEffectType::ModifyEnergyCost:
 		case ESkillEffectType::ModifyTurnSpeed:
-		case ESkillEffectType::ModifyStatusResist:
 		case ESkillEffectType::DrainHP:
 		case ESkillEffectType::DrainEnergy:
 		case ESkillEffectType::ApplyBurnToTarget:
@@ -751,6 +755,10 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		// sweep-4: status-bar manipulation debuff (builds target's gauge)
 		case ESkillEffectType::StatusIncrease:
 			return true;
+		// ModifyStatusResist sign-aware (see IsBuff): -magnitude = a resistance debuff
+		// (the enemy-vulnerability direction of the ResistanceStone consumable).
+		case ESkillEffectType::ModifyStatusResist:
+			return EffectValue < 0.0f;
 		default:
 			return false;
 		}

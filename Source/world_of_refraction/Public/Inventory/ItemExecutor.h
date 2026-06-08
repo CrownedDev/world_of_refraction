@@ -150,6 +150,9 @@ private:
 	/** Spell-damage stone - directional spell (magical) damage % for a fixed duration */
 	void ExecuteSpellDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** Resistance stone - directional blanket status-resist (ModifyStatusResist; enemy side amplifies) */
+	void ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
 	/** Amber - Defense buff */
 	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 

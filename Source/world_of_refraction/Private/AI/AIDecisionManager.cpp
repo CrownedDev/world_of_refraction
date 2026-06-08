@@ -1621,6 +1621,12 @@ bool UAIDecisionManager::WouldTriggerStatusBar(AActor *Attacker, AActor *Target,
     // Get remaining buildup needed to trigger
     float RemainingBuildup = BuildupManager->GetBuildupToTrigger(Target);
 
+    // TODO (vulnerability awareness): BuildupAmount here is the RAW attacker-side
+    // buildup — the target's resistance shave is NOT applied. Since resistance can now
+    // go negative (amplification) or positive (reduction), this scorer won't perceive
+    // a vulnerability-debuffed target taking up to 2x buildup, nor a resistant target
+    // taking less. To exploit/avoid it, project BuildupAmount through the target's
+    // resistance before comparing (mirror StatusBuildupManager's resistance aggregate).
     // Check if this hit would trigger the bar
     return BuildupAmount >= RemainingBuildup;
 }

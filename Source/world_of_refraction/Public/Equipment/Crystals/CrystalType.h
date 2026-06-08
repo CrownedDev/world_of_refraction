@@ -50,5 +50,10 @@ enum class ECrystalType : uint8
     // DamageStone (DamageStone = physical via RawDamage; SpellDamageStone = magical
     // via SpellDamage). Same append-only serialized-identity rule — do NOT
     // reorder/insert above.
-    SpellDamageStone UMETA(DisplayName = "Spell Damage Stone")
+    SpellDamageStone UMETA(DisplayName = "Spell Damage Stone"),
+    // Appended after SpellDamageStone; stat-stone sub-type — defender-side status
+    // resistance. Attached = blanket resist; consumable = directional (ally raises
+    // resist, enemy's goes negative -> amplified status buildup). Same append-only
+    // serialized-identity rule — do NOT reorder/insert above.
+    ResistanceStone UMETA(DisplayName = "Resistance Stone")
 };

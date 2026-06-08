@@ -458,7 +458,7 @@ namespace CrystalEffectTable
             Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
             Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||
             Id.Type == ECrystalType::MaxHPStone || Id.Type == ECrystalType::MaxEPStone ||
-            Id.Type == ECrystalType::SpellDamageStone)
+            Id.Type == ECrystalType::SpellDamageStone || Id.Type == ECrystalType::ResistanceStone)
         {
             return 0.0f;
         }
@@ -501,6 +501,7 @@ namespace CrystalEffectTable
         case ECrystalType::MaxHPStone:
         case ECrystalType::MaxEPStone:
         case ECrystalType::SpellDamageStone:
+        case ECrystalType::ResistanceStone:
             break;
         default:
             return 0.0f;
@@ -534,6 +535,8 @@ namespace CrystalEffectTable
             return ESubStat::Efficiency;
         case ECrystalType::SpellDamageStone:
             return ESubStat::SpellDamage;
+        case ECrystalType::ResistanceStone:
+            return ESubStat::Resistance;
         default:
             return ESubStat::None;
         }

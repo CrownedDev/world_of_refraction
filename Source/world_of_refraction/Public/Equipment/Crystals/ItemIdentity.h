@@ -108,6 +108,11 @@ namespace ItemIdentity
             // (transient SpellDamageBuff/Debuff, stone magnitude; read SPELL-only in
             // GetStatusEffectDamageModifier). The magical mirror of DamageStone's BuffRawDamage.
             return EItemEffectType::BuffSpellDamage;
+        case ECrystalType::ResistanceStone:
+            // Directional status-resistance consumable — routes to ExecuteResistanceBuffEffect
+            // (blanket ModifyStatusResist; ally +mag raises resist, enemy -mag goes negative ->
+            // amplified status buildup). Read element-agnostic in StatusBuildupManager's aggregate.
+            return EItemEffectType::BuffResistance;
         default:
             return EItemEffectType::Damage;
         }
@@ -183,6 +188,8 @@ namespace ItemIdentity
             return TEXT("MaxEPStone");
         case ECrystalType::SpellDamageStone:
             return TEXT("SpellDamageStone");
+        case ECrystalType::ResistanceStone:
+            return TEXT("ResistanceStone");
         default:
             return TEXT("Unknown");
         }

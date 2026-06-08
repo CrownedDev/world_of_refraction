@@ -356,6 +356,17 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		{
 			const FEquipmentStatBonus TargetBonus = TargetLoadout->GetActiveStatBonus(Target);
 			Resistance += TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
+
+			// Attached ResistanceStone — the DEFENDER's OWN active weapon attachment
+			// (live-resolved, fusion-aware via GetAttachedStonePercent). A positive
+			// self-buff added into the aggregate BEFORE the [MIN, MAX] clamp, so it
+			// raises resistance toward the cap. Never amplifies — only DEBUFFS push the
+			// aggregate negative. Mirrors the DefenseStone's defender-side resolution.
+			if (const FWeaponLoadoutEntry *ActiveWeapon = TargetLoadout->GetActiveWeaponLoadout())
+			{
+				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				Resistance += CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
+			}
 		}
 
 		Resistance += GetTotalElementResistance(Target, Element);
@@ -369,7 +380,11 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 			Resistance += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
 		}
 
-		Resistance = FMath::Clamp(Resistance, 0.0f, CombatConstants::RESISTANCE_MAX);
+		// Floor is RESISTANCE_MIN (-1.0), NOT 0: a resistance debuff strips through 0
+		// into negative, where (1 - Resistance) exceeds 1.0 and AMPLIFIES buildup —
+		// capped at -1.0 = 2x (double) at full vulnerability. Upper RESISTANCE_MAX is
+		// the correctness ceiling (resistance > 1.0 would heal the gauge); untouched.
+		Resistance = FMath::Clamp(Resistance, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
 		Amount *= (1.0f - Resistance);
 	}
 
