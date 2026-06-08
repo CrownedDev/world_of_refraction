@@ -297,7 +297,7 @@ nominal caps when a future stone/FusionStone targets them:
 
 - **`DamageCalculator`** — Step 1.25 reads the active weapon attachment and
   applies the `DamageStone` multiplier (physical actions only).
-- **`ItemExecutor`** — the `DamageStone` consumable self-buff path.
+- **`ItemExecutor`** — the directional stone-consumable handlers (`ExecuteRawDamageBuffEffect` for DamageStone, `ExecuteDefenseBuffEffect` for DefenseStone + Amber).
 - **`LoadoutSystem`** — `FWeaponLoadoutEntry` stone-ability slots; `FSavedLoadout`
   / `FCombatLoadout` plumbing; `GetEquippedCrystals` surfaces `WeaponStone` slots.
 - **`WeaponSystem`** — `UEquipmentDataBase` owns `AttachedItem`,
@@ -308,12 +308,44 @@ nominal caps when a future stone/FusionStone targets them:
 
 ---
 
-## ⚠️ Design / Phase 2 — NOT IMPLEMENTED
+## Implemented this cycle — DefenseStone (first dual-form stat-stone)
 
-Everything below is **design intent only**. None of it is in the committed code.
-Do not document these as behaviour; do not treat them as bugs where they
-contradict shipped code (the contradictions are deliberate future changes,
-flagged as such).
+The **dual-form stat-stone mechanism is now shipped**, proven end-to-end on
+**DefenseStone** across four clusters on `feature/weapon-stones`:
+
+| Cluster | What | Commit |
+|---|---|---|
+| C1 | `ECrystalType::DefenseStone` + add-a-stone checklist (predicate, `BuffDefense` effect type, type name, BD-energy guard, description) — treated as a weapon stone, grants nothing yet | `28fb8818` |
+| C2 | generic getter trio — `GetStoneBasePercent(type,tier)` (shared `3-15` curve, DamageStone + DefenseStone), `StoneTargetStat` (DamageStone→RawDamage, DefenseStone→Defense, else `ESubStat::None`), `GetAttachedStonePercent(att,stat)`; `ESubStat::None` appended; `GetDamageStoneBasePercent` → byte-identical wrapper | `715e54d8` |
+| C3 | **attached** Defense hook — `GetDefenderFlatDefense ×(1 + GetAttachedStonePercent(defenderAtt, Defense)/STAT_PERCENT_DIVISOR)`; permanent, defender's own live-resolved attachment; inert for non-DefenseStone | `db4f4832` |
+| C4 | **directional consumable** — `ExecuteDefenseBuffEffect` generalised (branch `IsWeaponStoneType`: stone → `GetStoneBasePercent` + flat duration; Amber byte-identical); ally `DefenseBuff` / enemy `DefenseDebuff`. **Plus DamageStone consumable self→directional** (`RawDamageBuff`/`RawDamageDebuff`) — shipped-behaviour change | `9ffc2681` |
+
+This is the **reusable template** for the rest of the stat-stone family (design
+below): a per-read-site `GetAttachedStonePercent` hook for the attached form + a
+directional `IsAlly` consumable. The next stat-stone is mostly the C1 checklist +
+`StoneTargetStat`/`GetStoneBasePercent` rows + its own read-site hook.
+
+**Also shipped this cycle (the multiplicative crystal/stone model — framework #2 & #5):**
+- **Crit additive → multiplicative** across the board — `GetCriticalChance`'s
+  equip/buff/debuff/modify factors **and** the Luck bonus compound `×(1+pct/100)`
+  (debuff `×(1−pct)`). Commit `7e27f0ea`.
+- **Stat-crystal rebalance** to the stone×2 curve `6/10/14/18/22/26/30` — Opal
+  (`680e9d5a`), Amber + Emerald (`3e1c86d0`); both vestigial double-table arms
+  (Opal, Emerald) removed.
+
+> **All of the above is committed but not yet PIE-verified** at time of writing.
+
+---
+
+## ⚠️ Design / Phase 2 — mostly NOT IMPLEMENTED
+
+Everything below is **design intent** for the **unbuilt** parts of the family.
+**Already shipped this cycle** (see *Implemented this cycle* above and the ✅ markers
+below): the DefenseStone dual-form mechanism, the crit additive→multiplicative
+conversion (#2), the stat-crystal rebalance (#5), and the DamageStone-consumable
+directional change. Those are kept below for rationale, marked ✅ where built. The
+rest (FusionStone, the other stat-stones, pool/speed variants) is **not** in the
+committed code.
 
 > Terminology: the stone described here was called **MasteryStone** in earlier
 > design notes. It is now **FusionStone** — created by *fusion*, and parallel in
@@ -437,6 +469,10 @@ alongside the broad `Crystal → Item` rename (see *Parked cleanup*).
 
 ### The stat-stone family — dual-form model
 
+> ✅ **The dual-form mechanism is implemented** (proven on DefenseStone — see
+> *Implemented this cycle*). The model below describes the whole family; only
+> **Defense** is built so far.
+
 Every stat-stone mirrors `DamageStone`'s **two forms**:
 
 - **Attached form — permanent self-passive.** `+X%` of that stat to the
@@ -450,26 +486,26 @@ Every stat-stone mirrors `DamageStone`'s **two forms**:
   - Applies via the status/buff system (`SkillEffectManager`), which already
     supports timed buffs/debuffs.
 
-**Crit — currently additive (shipped), being converted to multiplicative.** Today
-crit is **additive** (not a whole-percent multiplier) and, since commit `7afd0d09`,
-**uncapped** (bounded at `1.0` for the AI scorer). Under the **Balance framework**
-below (#2 — ⚠️ modifies shipped behaviour) it is being **converted to
-multiplicative** like every other stat, so crit stops being an exception. Until that
-conversion lands, the shipped hook is still additive.
+**Crit — now multiplicative (shipped, commit `7e27f0ea`).** Crit is uncapped
+(bounded at `1.0` for the AI scorer, commit `7afd0d09`) **and multiplicative** —
+`GetCriticalChance`'s equip / buff / debuff / modify factors and the Luck bonus all
+compound `×(1+pct/100)` (debuff `×(1−pct)`). Crit is no longer an exception; it now
+follows the universal multiplicative rule (#1). See Balance framework #2.
 
 #### Balance framework — the crystal/stone number model
 
 The whole stat-stone family — and the three stat *crystals* that have stone
-analogues — runs on one small set of rules. All of this is **design / not built**;
-two parts (**#2 crit conversion**, **#5 stat-crystal rebalance**) **modify shipped
-behaviour** and are flagged inline.
+analogues — runs on one small set of rules. **#1–#5 are now implemented** (crit
+conversion #2 → `7e27f0ea`; crystal rebalance #5 → `680e9d5a` / `3e1c86d0`); #6–#8
+describe scope, the open question, and order. Items that modified shipped behaviour
+are marked **✅ DONE** inline.
 
 **1. Everything multiplicative.** Every stat-stone and stat-crystal applies
 `×(1 + pct/100)` on the stat's **current value** — no additive stat effects.
 Defense, Speed, and raw Damage already work this way; this makes it the **universal
 rule** for the family.
 
-**2. Crit becomes multiplicative — across the board. ⚠️ MODIFIES SHIPPED BEHAVIOUR.**
+**2. Crit becomes multiplicative — across the board. ✅ DONE (commit `7e27f0ea`).**
 - *Today (shipped):* crit is **additive** everywhere — `GetCriticalChance`
   (`DamageCalculator.cpp:~341-368`) does `BaseCrit += pct/100` for the skill-effect
   `CritChanceBuff` / `CritChanceDebuff`, equipment `BonusCritChance`, and
@@ -486,7 +522,7 @@ rule** for the family.
   mathematically hard — multipliers approach but don't easily reach `1.0`. Crit
   builds invest in the **base crit stat**; items amplify it.
 - *Touches:* the shipped additive sites above **+** Opal's `GetCritBuffPercent`
-  application; rebalances Opal. **To-build + re-verify.**
+  application; rebalanced Opal. **✅ Done (commit `7e27f0ea`) — re-verify in PIE.**
 
 **3. Uniform numbers — one shared stone curve.** All stat-stones share **one**
 per-tier curve: the current `DamageStone` curve **3 / 5 / 7 / 9 / 11 / 13 / 15**
@@ -500,8 +536,8 @@ principle. With the shared stone curve `3..15`, the stat-crystal curve is
 **6 / 10 / 14 / 18 / 22 / 26 / 30**. Applies **only** to the three stat crystals that
 have stone analogues: **Amber** (Defense), **Opal** (Crit), **Emerald** (Speed).
 
-**5. Stat-crystal rebalance. ⚠️ MODIFIES SHIPPED BEHAVIOUR.** The three stat crystals
-re-tune to the stone×2 curve:
+**5. Stat-crystal rebalance. ✅ DONE** (Opal `680e9d5a`; Amber + Emerald `3e1c86d0`).
+The three stat crystals re-tuned to the stone×2 curve:
 
 | Crystal (stat) | Shipped today | → Planned (stone×2) | Operator |
 |---|---|---|---|
@@ -518,33 +554,30 @@ values stay exactly as audited: Garnet (DOT), Sapphire (heal), Citrine (EP), Ony
 (silence), Amethyst (gamble), Iolite (cleanse), Quartz (status-clear). The framework
 applies to **exactly the three stat crystals** above and nothing else.
 
-**7. Attached vs consumable — OPEN.** Is the shared `3..15` curve the **consumable**
-value (timed), with the **attached** form discounted for permanence — or **one curve
-for both** forms (as `DamageStone` does today)? **To-decide at build time**, leaning
-toward `DamageStone`'s one-curve-both precedent unless permanence proves too strong
-in play.
+**7. Attached vs consumable — RESOLVED: one curve for both. ✅** DefenseStone shipped
+with the shared `3..15` curve for **both** forms (attached + consumable), matching the
+`DamageStone` precedent. Revisit only if permanence proves too strong in PIE.
 
-**8. Build order.** (1) **Crit additive → multiplicative conversion** — core combat;
-survey-first, re-verify. (2) **Stat-crystal rebalance** to stone×2. (3) **Stat-stone
-family** on the shared curve. Crit conversion is **first** because everything else
-assumes the multiplicative model.
+**8. Build order — done.** (1) ✅ Crit additive→multiplicative (`7e27f0ea`).
+(2) ✅ Stat-crystal rebalance (`680e9d5a`, `3e1c86d0`). (3) ✅ Stat-stone family
+proven on **DefenseStone** (`28fb8818` … `9ffc2681`). Remaining stat-stones repeat
+step (3)'s template.
 
-#### `DamageStone` consumable — planned change ⚠️ MODIFIES SHIPPED BEHAVIOUR
+#### `DamageStone` consumable — ✅ DONE: self→directional (commit `9ffc2681`)
 
-`DamageStone` is the template the dual-form model generalises from, and its
-**consumable form changes** under this design:
+`DamageStone` is the template the dual-form model generalises from; its
+**consumable form changed** under this design (shipped in C4):
 
-| Form | Shipped today | Planned |
+| Form | Before | Now |
 |---|---|---|
 | **Attached** | self-passive `+damage` (Step 1.25 multiplier) | **unchanged** |
-| **Consumable** | self-only: `RawDamageBuff` on the **user** (3 turns) | **targeted directional**: pick a target — ally → `+damage` buff, enemy → `−damage` debuff |
+| **Consumable** | self-only: `RawDamageBuff` on the **user** (3 turns) | **targeted directional**: ally → `RawDamageBuff`, enemy → `RawDamageDebuff` (`IsAlly`, applied to the chosen Target) |
 
-> **Flag — re-verify when built.** The attached path is unchanged; the
-> **consumable** path gains (a) **target selection** and (b) an **enemy-debuff
-> direction** (negative application to an enemy target) it does not have today.
-> Both are **new mechanics to build**, and this contradicts the currently-shipped
-> self-only consumable — record both states so the change isn't read as a
-> regression.
+> **Shipped-behaviour change (now landed).** The attached path is unchanged; the
+> **consumable** gained target selection + an enemy-debuff direction. `RawDamageDebuff`
+> already existed with a correct read-path (`DamageCalculator.cpp:555`,
+> physical-only). **Re-verify in PIE** that the old self-buff usage now requires
+> targeting self — record so the change isn't read as a regression.
 
 #### Pool-stat variant — `MaxHP` / `MaxEnergy` (raise/decrease-max, not heal)
 
@@ -712,15 +745,17 @@ hard guarantee survives; only the editor affordance degrades.
   sweep.
 - **`FRuntimeAttachedItem.h` "Refined" comment drift** (see *Architecture*) —
   stale code comments to clean up when the rename pass touches that file.
-- **Opal crit double-table bug** — `GetCritBuffPercent` (the live crit handler)
-  tops at **S=25**, but the vestigial Opal arm inside `GetBuffPercentage` tops at
-  **S=20** — two different S values for the same crystal. Reconcile when the crit
-  rebalance (*Balance framework #5*) touches Opal. *(Surfaced by the crystal
-  magnitude audit.)*
+- ~~**Opal crit double-table bug**~~ — ✅ **done**: the vestigial Opal arm was removed
+  from `GetBuffPercentage` during the rebalance (`680e9d5a`); `GetCritBuffPercent` is
+  now the single Opal source.
 - **Duplicate duration tables** — `GetCrystalDuration`, `GetGambleDuration`, and
-  `GetResistanceDuration` are three byte-identical `4/4/3/3/3/2/2` tables; and
-  `GetBuffPercentage` carries a redundant Emerald arm duplicating
-  `GetSpeedBuffPercent`. DRY-collapse when touched.
+  `GetResistanceDuration` are three byte-identical `4/4/3/3/3/2/2` tables — DRY-collapse
+  when touched. *(The `GetBuffPercentage` Emerald arm was already removed in `3e1c86d0`;
+  the table is now Amber-only.)*
+- **`DAMAGESTONE_CONSUMABLE_DURATION` is now the generic stone-consumable duration**
+  (used by both DamageStone and DefenseStone consumables). Rename to a neutral name
+  (e.g. `STONE_CONSUMABLE_DURATION`) when convenient — the `DAMAGESTONE_` prefix is
+  now misleading.
 
 ---
 
@@ -734,7 +769,9 @@ hard guarantee survives; only the editor affordance degrades.
   until the designer picks a stone — intended, but it lights up an `IsDataValid`
   error on first authoring.
 - **Stone-ability UI** for the per-tier slots is not covered here (UI pass).
-- All *Design / Phase 2* content above is unbuilt.
+- Most *Design / Phase 2* content is unbuilt, **except** the items marked ✅ (the
+  DefenseStone dual-form, crit conversion #2, crystal rebalance #5, DamageStone
+  consumable) — see *Implemented this cycle*. Those are committed but PIE-unverified.
 
 ---
 
@@ -747,3 +784,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-06-07 | Stat-stone family extension + audit fixes — added the **pool-stat variant** (`MaxHP`/`MaxEnergy` raise/decrease-max, ceiling-only, overcapped-not-clamped, `RecomputeMaxPools` hook); the **Defense / Resistance mitigation model** (Defense already covers raw+spell, flat/subtractive — no change; Resistance gains a net-new slight spell-damage shave `×(1 − RESISTANCE_SPELL_SHAVE_FACTOR·Resistance)`, factor `0.2`, the **one** new combat hook, gated on `ActionType==Spell` via the unconsumed `bIgnoreResistance`); reclassified **Speed stones** as blocked on a net-new variable-defense-window feature (window is a fixed `0.3s`, play-rate-independent; dead `FDefenseWindowConfig`). **Audit corrections (factual):** `SpellDamage` moved unwired→wired (3 attacker reads, `Spell`-gated); `ActionSpeed` corrected (has a play-rate read; missing the window link, not the read); per-element resistance marked not-needed. Reworked build-order into a readiness classification (buildable-now / build-with-care / blocked / not-needed). | feature/weapon-stones |
 | 2026-06-07 | Fusion restriction — **evolution crystals excluded from fusion entirely** (never a valid fusion half: a transformation mechanic, not a stat/element contributor). Recorded the underlying **valid-fusion principle** (stat-stone + one contributor — gem crystal or `AbilityStone`) from which the banned-pair list falls out; kept the explicit table and added the `anything + evolution` ❌ row. | feature/weapon-stones |
 | 2026-06-07 | **Balance framework** for the stat-stone/crystal number model — everything multiplicative `×(1+pct/100)` on current value; one shared stone curve `3/5/7/9/11/13/15`; **crystal = stone×2** (`6/10/14/18/22/26/30`) for the three stat crystals only. **⚠️ shipped-behaviour changes flagged:** crit converts additive→multiplicative across the board (#2), and Amber/Opal/Emerald rebalance to the stone×2 curve (#5, Opal also flips to multiplicative). Ability crystals (other 7) explicitly out of scope (#6); attached-vs-consumable curve left OPEN (#7); build order crit-conversion → crystal-rebalance → stat-stone family (#8). Reframed the crit-exception note (today-additive + planned-multiplicative) and annotated the wired-audit crit row / build-order cell. Banked crystal cleanup: Opal double-table bug + duplicate duration tables. | feature/weapon-stones |
+| 2026-06-07 | **Implemented this cycle** — marked the now-shipped work and moved it above the design fence. **DefenseStone** dual-form built C1–C4 (`28fb8818` type+checklist; `715e54d8` generic getter `GetStoneBasePercent`/`StoneTargetStat`/`GetAttachedStonePercent` + `ESubStat::None`; `db4f4832` attached `GetDefenderFlatDefense` hook; `9ffc2681` directional consumable + DamageStone self→directional). **Crit additive→multiplicative** shipped (`7e27f0ea`) and **stat-crystal rebalance** shipped (Opal `680e9d5a`, Amber/Emerald `3e1c86d0`, both vestigial double-table arms removed). Flipped framework #2/#5/#7/#8 + the DamageStone-consumable subsection to ✅ DONE; updated parked cleanup (Opal double-table done; Emerald arm done; added `DAMAGESTONE_CONSUMABLE_DURATION` rename). All committed, **not yet PIE-verified**. | feature/weapon-stones |
