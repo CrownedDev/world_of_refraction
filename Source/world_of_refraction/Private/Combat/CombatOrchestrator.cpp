@@ -1027,17 +1027,13 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 			StatusMultiplierBonus = SBM->GetSourceStatusMultiplierFactor(Actor);
 		}
 
-		// Crystal-aware EfficiencyMultiplier — fraction-of-cost in
-		// [1 - EFFICIENCY_MAX, 1.0]. Lower = better efficiency = smaller leak.
-		// Clamp shape preserved from UCharacterData::CalculateEfficiencyMultiplier.
-		// Passed straight through (drop the prior × 100 / × 0.01 round-trip;
-		// ProcessOverloadTick now takes the multiplier directly — named correctly).
-		const float ModifiedMind = CharComp->GetEvolutionModifiedMind();
-		const int32 EfficiencyPoints = CharComp->CharacterData->GetTotalEfficiency();
-		EfficiencyMult = FMath::Clamp(
-			1.0f - (ModifiedMind * EfficiencyPoints * CombatConstants::EFFICIENCY_PER_POINT),
-			1.0f - CombatConstants::EFFICIENCY_MAX,
-			1.0f);
+		// Crystal-aware EfficiencyMultiplier — canonical getter (single source of
+		// truth, equipment-aware via GetEvolutionModifiedMind). Byte-identical to the
+		// former inline clamp; routing through it kills the shadow-formula so a future
+		// equipment / Efficiency-stone term reaches BD automatically instead of
+		// silently desyncing. Fraction-of-cost in [1 - EFFICIENCY_MAX, 1.0]; lower =
+		// better efficiency = smaller leak.
+		EfficiencyMult = CharComp->GetEvolutionModifiedEfficiencyMultiplier();
 	}
 
 	// Process the overflow tick: aura HP damage (SpellDamage-scaled), self HP
