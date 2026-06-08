@@ -40,5 +40,10 @@ enum class ECrystalType : uint8
     CritStone UMETA(DisplayName = "Crit Stone"),
     TurnSpeedStone UMETA(DisplayName = "Turn Speed Stone"),
     StatusStone UMETA(DisplayName = "Status Stone"),
-    EfficiencyStone UMETA(DisplayName = "Efficiency Stone")
+    EfficiencyStone UMETA(DisplayName = "Efficiency Stone"),
+    // Appended after EfficiencyStone (=18); pool stones (MaxHP=19, MaxEP=20) — raise the
+    // MaxHP/MaxEP ceiling via RecomputeMaxPools (Option B; not ESubStat-backed). Same
+    // append-only serialized-identity rule — do NOT reorder/insert above.
+    MaxHPStone UMETA(DisplayName = "Max HP Stone"),
+    MaxEPStone UMETA(DisplayName = "Max EP Stone")
 };

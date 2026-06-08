@@ -176,6 +176,10 @@ namespace CrystalDescription
             return TEXT("A stone that raises Status Multiplier when attached.");
         case ECrystalType::EfficiencyStone:
             return TEXT("A stone that improves Efficiency when attached.");
+        case ECrystalType::MaxHPStone:
+            return TEXT("A stone that raises Max HP when attached.");
+        case ECrystalType::MaxEPStone:
+            return TEXT("A stone that raises Max EP when attached.");
 
         default:
             return TEXT("Unknown effect.");

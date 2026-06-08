@@ -508,6 +508,8 @@ void UCharacterDataComponent::RecomputeMaxPools()
 
     int32 BonusMaxHP = 0;
     int32 BonusMaxEnergy = 0;
+    float HPStonePct = 0.0f; // attached MaxHPStone % (Option B; type-keyed, not ESubStat)
+    float EPStonePct = 0.0f; // attached MaxEPStone %
     if (AActor *Owner = GetOwner())
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
@@ -515,20 +517,36 @@ void UCharacterDataComponent::RecomputeMaxPools()
             const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
             BonusMaxHP = Bonus.BonusMaxHP;
             BonusMaxEnergy = Bonus.BonusMaxEnergy;
+
+            // Attached pool stones — a % of the computed max, read from the active weapon
+            // attachment (0 unless the matching stone is attached). Applied as a final
+            // multiplier below.
+            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            {
+                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                HPStonePct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxHPStone);
+                EPStonePct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxEPStone);
+            }
         }
     }
 
+    // Subtotal (base + pillar points + equipment flat), then the attached pool stone
+    // applies as a final % of the WHOLE max — single RoundToInt on the product (no
+    // double-round). Byte-neutral when no stone (pct 0 -> x1.0; BonusMax* is integer, so
+    // folding it inside the round doesn't change the result).
     const float ModifiedBody = GetEvolutionModifiedBody();
-    MaxHP = FMath::RoundToInt(
+    const float HPSubtotal =
         CombatConstants::MAX_HEALTH_BASE +
-        (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT))
-        + BonusMaxHP;
+        (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT) +
+        BonusMaxHP;
+    MaxHP = FMath::RoundToInt(HPSubtotal * (1.0f + HPStonePct / CombatConstants::STAT_PERCENT_DIVISOR));
 
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
-    MaxEP = FMath::RoundToInt(
+    const float EPSubtotal =
         CombatConstants::MAX_ENERGY_BASE +
-        (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT))
-        + BonusMaxEnergy;
+        (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT) +
+        BonusMaxEnergy;
+    MaxEP = FMath::RoundToInt(EPSubtotal * (1.0f + EPStonePct / CombatConstants::STAT_PERCENT_DIVISOR));
 }
 
 float UCharacterDataComponent::GetEquipmentModifiedLuck() const

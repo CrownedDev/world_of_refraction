@@ -481,7 +481,8 @@ namespace CrystalEffectTable
         if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
             Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone ||
             Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
-            Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone)
+            Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||
+            Id.Type == ECrystalType::MaxHPStone || Id.Type == ECrystalType::MaxEPStone)
         {
             return 0.0f;
         }
@@ -521,6 +522,8 @@ namespace CrystalEffectTable
         case ECrystalType::TurnSpeedStone:
         case ECrystalType::StatusStone:
         case ECrystalType::EfficiencyStone:
+        case ECrystalType::MaxHPStone:
+        case ECrystalType::MaxEPStone:
             break;
         default:
             return 0.0f;
@@ -585,6 +588,17 @@ namespace CrystalEffectTable
             return 0.0f;
         }
         return GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier);
+    }
+
+    /** Percent a stone ATTACHMENT grants, keyed by the stone's TYPE rather than an
+     *  ESubStat — for pool stones (MaxHP/MaxEP) which deliberately have no ESubStat
+     *  representation (Option B). RecomputeMaxPools calls this with MaxHPStone / MaxEPStone.
+     *  Mirrors GetAttachedStonePercent's field path; 0 unless Att is exactly StoneType. */
+    inline float GetAttachedStonePercentForType(const FRuntimeAttachedItem &Att, ECrystalType StoneType)
+    {
+        return (Att.IsAugmentStone() && Att.Crystal.Id.Type == StoneType)
+                   ? GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier)
+                   : 0.0f;
     }
 
     /** Raw-attack-damage increase (%) a Damage Stone grants. Thin wrapper over the

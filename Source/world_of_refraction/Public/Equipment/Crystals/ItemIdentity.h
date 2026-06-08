@@ -94,6 +94,11 @@ namespace ItemIdentity
             // (transient EfficiencyBuff/Debuff, stone magnitude; folded into the unified
             // getter so it reaches BD/EP/durability). Buff an ally / debuff an enemy.
             return EItemEffectType::BuffEfficiency;
+        case ECrystalType::MaxHPStone:
+        case ECrystalType::MaxEPStone:
+            // Attached-only for now — pool stones raise MaxHP/MaxEP via RecomputeMaxPools
+            // (P1). No consumable dispatch yet (P2); falls to UseItem's default arm.
+            return EItemEffectType::None;
         default:
             return EItemEffectType::Damage;
         }
@@ -151,6 +156,10 @@ namespace ItemIdentity
             return TEXT("StatusStone");
         case ECrystalType::EfficiencyStone:
             return TEXT("EfficiencyStone");
+        case ECrystalType::MaxHPStone:
+            return TEXT("MaxHPStone");
+        case ECrystalType::MaxEPStone:
+            return TEXT("MaxEPStone");
         default:
             return TEXT("Unknown");
         }

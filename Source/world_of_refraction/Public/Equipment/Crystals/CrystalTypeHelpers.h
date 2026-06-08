@@ -56,7 +56,8 @@ namespace CrystalTypeHelpers
         return Type == ECrystalType::DamageStone || Type == ECrystalType::AbilityStone ||
                Type == ECrystalType::DefenseStone || Type == ECrystalType::CritStone ||
                Type == ECrystalType::TurnSpeedStone || Type == ECrystalType::StatusStone ||
-               Type == ECrystalType::EfficiencyStone;
+               Type == ECrystalType::EfficiencyStone || Type == ECrystalType::MaxHPStone ||
+               Type == ECrystalType::MaxEPStone;
     }
 
     /** True for gem sub-types (Garnet..Quartz). None is neither gem nor stone,
