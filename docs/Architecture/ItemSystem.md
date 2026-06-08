@@ -45,17 +45,17 @@ stores instances, not counts.
 **Attachment slot (`FAttachedItem` / `FRuntimeAttachedItem`).** The attachment
 point on equipment is a discriminated union, not a pointer:
 - `FAttachedItem` (design-time, on `UEquipmentDataBase::AttachedItem`):
-  `Kind ∈ {None, Crystal, Evolution, WeaponStone}` + `CrystalType` /
-  `CrystalTier` (for `Crystal` **and** `WeaponStone` — both carry an `FCrystalId`
+  `Kind ∈ {None, Crystal, Evolution, AugmentStone}` + `CrystalType` /
+  `CrystalTier` (for `Crystal` **and** `AugmentStone` — both carry an `FCrystalId`
   identity) or `Evolution` (`UEvolutionItemData*`, for `Evolution`).
 - `FRuntimeAttachedItem` (runtime, on `FWeaponInventoryEntry::AttachedItem`
   and `FRingInventoryEntry::AttachedItem`): same shape plus per-instance
   durability and a `FGuid` for evolution identity.
 
-The `WeaponStone` Kind is the **weapon-stone family** (`DamageStone` /
+The `AugmentStone` Kind is the **augment-stone family** (`DamageStone` /
 `AbilityStone`) — a second attachment family sharing this slot and the
 `FCrystalId` identity with crystals. It is documented separately in
-`WeaponStoneSystem.md`; this doc covers the crystal (gem) and evolution tracks.
+`AugmentStoneSystem.md`; this doc covers the crystal (gem) and evolution tracks.
 
 Routing into these tracks happens structurally at inventory build time:
 `UInventoryComponent::InitializeFromInventoryAsset` reads the three ownership
@@ -118,8 +118,8 @@ buff-vs-debuff (Amber, Opal) or cleanse-vs-strip (Iolite).
 
 `ECrystalType` is a **single unified enum** of 12 values: the ten gem crystals
 below (`Garnet … Quartz`) plus `DamageStone` and `AbilityStone`, the
-weapon-stone family. The stones share the enum and `FCrystalId` identity but are
-**not** consumable crystals — see `WeaponStoneSystem.md`. The table below is the
+augment-stone family. The stones share the enum and `FCrystalId` identity but are
+**not** consumable crystals — see `AugmentStoneSystem.md`. The table below is the
 ten gems.
 
 | Crystal | Element | Effect role |
@@ -334,4 +334,4 @@ removed with the transform system.
 | 2026-05-26 | Final field removal — `bIsEvolutionCrystal` deleted (`UEvolutionItemData` is now structurally evolution-only); 5 dead category helpers removed; `UInventoryComponent::AddItem`/`AddItemInternal` flag-routed dispatch deleted (modern routing via `UInventoryData` field dispatch only); `UEquipmentDataBase::SlottedCrystal` removed with its `PostLoad` migration | feature/crystal-evolution-refactor |
 | 2026-05-27 | `bCanBreak` description note — overridable via `FEvolutionAttachment::ApplyWear(_, bForceWear=true)` for intrinsic mechanics (Broken Darkness). | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-1 — BD crystal absorption energy rescaled to **% of target MaxEP** (F=10% .. S=70%, `ItemConstants::BD_ENERGY_PERCENT_*`). `CrystalEffectTable::GetBrokenDarknessEnergyBonus` renamed to `GetBrokenDarknessEnergyPercent`; `ItemExecutor::ApplyBrokenDarknessBonus` resolves `MaxEP × Percent` at the call site. Scales correctly with target's energy pool instead of granting a flat lump. | refactor/bd-crystal-absorption-percent |
-| 2026-06-07 | Weapon-stone alignment — corrected the attachment-slot block (`Kind ∈ {None, Crystal, Evolution, WeaponStone}`, `CrystalType`/`CrystalTier` shared by `Crystal`+`WeaponStone`); reframed `ECrystalType` as 10 gems + 2 stones in one unified enum; `GetPrimaryEffectType` → `ItemIdentity::GetItemEffectType`; `EItemEffectType` gains `None` (`AbilityStone`). Weapon-stone family documented in new `WeaponStoneSystem.md`. | feature/weapon-stones |
+| 2026-06-07 | Weapon-stone alignment — corrected the attachment-slot block (`Kind ∈ {None, Crystal, Evolution, WeaponStone}`, `CrystalType`/`CrystalTier` shared by `Crystal`+`WeaponStone`); reframed `ECrystalType` as 10 gems + 2 stones in one unified enum; `GetPrimaryEffectType` → `ItemIdentity::GetItemEffectType`; `EItemEffectType` gains `None` (`AbilityStone`). Weapon-stone family documented in new `AugmentStoneSystem.md`. | feature/weapon-stones |

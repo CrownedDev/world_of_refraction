@@ -34,20 +34,20 @@ ring assets. Key fields and members:
   `Description` (multi-line), `Icon` (`UTexture2D*`).
 - **Crystal / attachment** — `AttachedItem` (`FAttachedItem`): design-time
   attachment slot, discriminated by `Kind ∈ {None, Crystal, Evolution,
-  WeaponStone}`. `Crystal` and `WeaponStone` both carry an `FCrystalId`
+  AugmentStone}`. `Crystal` and `AugmentStone` both carry an `FCrystalId`
   (`CrystalType` + `CrystalTier`); `Evolution` carries a `UEvolutionItemData*`
   pointer; `None` is the empty default. Determines the equipment's element via
-  `GetCrystalElement()` (a `WeaponStone` is non-elemental — see note below).
-  The `WeaponStone` family (`DamageStone` / `AbilityStone`) is documented in
-  `WeaponStoneSystem.md`.
+  `GetCrystalElement()` (a `AugmentStone` is non-elemental — see note below).
+  The `AugmentStone` family (`DamageStone` / `AbilityStone`) is documented in
+  `AugmentStoneSystem.md`.
   - `DefaultSpells` (`TArray<USpellData*>`): default spells copied to the
     inventory entry when obtained; lost if the crystal is removed. Hidden in the
-    editor when a weapon stone is attached (`EditCondition = "!IsWeaponStoneAttached"`).
+    editor when a augment stone is attached (`EditCondition = "!IsAugmentStoneAttached"`).
   - `DefaultAbilities` (`TArray<UAbilityData*>`, "Extra Abilities"): abilities
-    seeded onto a weapon-stone-attached weapon's ability slots; shown only when a
-    weapon stone is attached (`EditCondition = "IsWeaponStoneAttached"`).
+    seeded onto a augment-stone-attached weapon's ability slots; shown only when a
+    augment stone is attached (`EditCondition = "IsAugmentStoneAttached"`).
   - `bLockSkills` (bool): generic lock for the attachment's provided skills
-    (spells for crystals, abilities for weapon stones); no runtime consumer yet.
+    (spells for crystals, abilities for augment stones); no runtime consumer yet.
 - **Infusion** — `bImmuneToInfusion` (bool): when true the equipment cannot be
   an infusion source and infusion-requesting actions are rejected (ORed with
   action-level immunity at the infusion gate). `InfusionStatusMultiplier`
@@ -74,15 +74,15 @@ ring assets. Key fields and members:
   hooks: `GetEditableStatBonus()` returns `GeneratedStatBonus`,
   `GetGeneratorTier()` returns `Tier`.
 - **Crystal helpers** — `HasCrystal()`, `IsEvolved()`, `GetCrystalElement()`,
-  `IsWeaponStoneAttached()` (`Kind == WeaponStone` — drives the contextual
+  `IsAugmentStoneAttached()` (`Kind == AugmentStone` — drives the contextual
   `EditCondition`s on `DefaultSpells` / `DefaultAbilities`), and
   `GetRestrictedCrystalTypes()` (supplies the `GetRestrictedEnumValues` grey-out
   set for `AttachedItem.CrystalType`; see *Attachment type filter* below).
-  - **Note — `GetCrystalElement()` and weapon stones.** The switch handles
-    `Crystal` / `Evolution` / `None`; a `WeaponStone` attachment falls through to
+  - **Note — `GetCrystalElement()` and augment stones.** The switch handles
+    `Crystal` / `Evolution` / `None`; a `AugmentStone` attachment falls through to
     the `Generic` default. This is intended (stones grant mechanics, not an
     element), but is expressed as a `default:` fall-through rather than an
-    explicit `WeaponStone` case.
+    explicit `AugmentStone` case.
 - **`GetMaxSpells()`** — virtual cap on `DefaultSpells`, used by validation;
   the base returns `TNumericLimits<int32>::Max()` (no cap), subclasses
   override.
@@ -260,10 +260,10 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 
 1. **Authoring.** A designer creates a `UWeaponData` or `URingData` asset, sets
    identity/tier, fills `AttachedItem` (`FAttachedItem`) with Kind = `Crystal`
-   (FCrystalId), `WeaponStone` (FCrystalId — weapons only), or `Evolution`
+   (FCrystalId), `AugmentStone` (FCrystalId — weapons only), or `Evolution`
    (UEvolutionItemData*), and authors a `BaseStatBonus` baseline plus
    `PresetAbilities`/`PresetSpells` and `DefaultSpells`. When the slot is a
-   weapon stone, the `CrystalType` dropdown is filtered to the stone sub-types
+   augment stone, the `CrystalType` dropdown is filtered to the stone sub-types
    and `DefaultAbilities` ("Extra Abilities") is used instead of `DefaultSpells`.
 2. **Rolling stat bonuses.** In the editor the designer fills the
    `SubstatPoints` / `PillarPoints` pending pools to the tier budget, then
@@ -287,20 +287,20 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 4. **Editor validation (`IsDataValid`).** The base checks `Name` is non-empty,
    that `DefaultSpells.Num()` does not exceed `GetMaxSpells()`, and the
    **attachment Kind/type backstop**: `Kind==Crystal` requires a gem
-   `CrystalType` (Garnet..Quartz) and `Kind==WeaponStone` requires a stone
+   `CrystalType` (Garnet..Quartz) and `Kind==AugmentStone` requires a stone
    `CrystalType` (DamageStone / AbilityStone) — either mismatch is a hard error
-   (`CrystalTypeHelpers::IsGemType` / `IsWeaponStoneType`). Subclasses add their
+   (`CrystalTypeHelpers::IsGemType` / `IsAugmentStoneType`). Subclasses add their
    own validation (e.g. `UWeaponData` rejects `PhysicalDamageType::None`;
-   `URingData` additionally **hard-rejects any `WeaponStone` on a ring** — weapon
+   `URingData` additionally **hard-rejects any `AugmentStone` on a ring** — weapon
    stones are weapon-only; `UAbilityData`, `USpellData`, and `URingData` each
    override `IsDataValid`).
 
    **Attachment type filter (editor).** `AttachedItem.CrystalType` carries
    `meta=(GetRestrictedEnumValues="GetRestrictedCrystalTypes")`, which greys out
    (non-selectable, not hidden) the wrong-Kind values in the dropdown — stones
-   when `Kind==Crystal`, gems when `Kind==WeaponStone`. The `IsDataValid`
+   when `Kind==Crystal`, gems when `Kind==AugmentStone`. The `IsDataValid`
    backstop above is the hard guarantee; the grey-out is the editor affordance.
-   See `WeaponStoneSystem.md` for the engine mechanism and the single-field
+   See `AugmentStoneSystem.md` for the engine mechanism and the single-field
    forward-risk.
 5. **Live editor reactivity (`PostEditChangeChainProperty`).** On any property
    chain edit, the base re-derives the threshold-visibility flags
@@ -333,7 +333,7 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
   (`GetAssociatedElement`) and `RequiredEvolutionCrystal` spell gate. Equipment
   reads its own `AttachedItem` for element via `GetCrystalElement()` (dispatches
   by `Kind`: `Crystal` → `FCrystalId` → element table; `Evolution` → asset's
-  `GetAssociatedElement`; `WeaponStone` / `None` → `Generic`).
+  `GetAssociatedElement`; `AugmentStone` / `None` → `Generic`).
 - `IEquipmentGenerator` — interface implemented by `UEquipmentDataBase`,
   letting a generic generator target the editable bonus layer.
 - `UCharacterData` — passed into the skill `CalculateXxx` methods.
@@ -385,4 +385,4 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-19 | Added `EWeaponWieldMode` (Single / Dual / OffHandShield) and the *Wield modes and mesh attachment* section; documented the left-hand mesh fields on `UWeaponData`, enum-driven socket resolution in `UWeaponMeshComponent`, and `UAbilityData::bRequiresDualWeapon`. Noted removal of `EWeaponType::DualBlades` and the `Fists` → `Gauntlets` rename. | feature/weapon-sockets-dual-flag |
 | 2026-05-28 | Sweep-1 — `USpellData::BeamTickInterval` field + `ASpellProjectile` discrete-tick model documented (`BeamTickIntervalSec`/`BeamTickCount`/`BeamTickIndex`/`BeamBaseDmgPerTick`/`BeamRemainder`/`BeamTimeUntilNextTick`); `OnBeamTick` signature is `(Target, int32 TickDamage, bool bTargetInBeam)`. `UWeaponAttackData::BaseSize` field added — ActionExecutor reads the raw asset value with no fallback constant. Infused attack EP cost now read from `BaseEnergyCost` instead of hardcoded `5`. | feature/integration-gaps-sweep-1 |
-| 2026-06-07 | Weapon-stone alignment — `AttachedItem.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (3 spots); documented `DefaultAbilities`/`bLockSkills` fields, `IsWeaponStoneAttached()`/`GetRestrictedCrystalTypes()` helpers, the `IsDataValid` Kind/type backstop + `URingData` weapon-stone rejection, and the `GetRestrictedEnumValues` attachment-type filter. Flagged `GetCrystalElement()` `WeaponStone → Generic` fall-through. Weapon-stone family in new `WeaponStoneSystem.md`. | feature/weapon-stones |
+| 2026-06-07 | Weapon-stone alignment — `AttachedItem.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (3 spots); documented `DefaultAbilities`/`bLockSkills` fields, `IsWeaponStoneAttached()`/`GetRestrictedCrystalTypes()` helpers, the `IsDataValid` Kind/type backstop + `URingData` weapon-stone rejection, and the `GetRestrictedEnumValues` attachment-type filter. Flagged `GetCrystalElement()` `WeaponStone → Generic` fall-through. Weapon-stone family in new `AugmentStoneSystem.md`. | feature/weapon-stones |

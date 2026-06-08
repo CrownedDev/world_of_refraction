@@ -1,10 +1,10 @@
-# Weapon Stone System
+# Augment Stone System
 
 ## Overview
 
-Weapon stones are a second family of equipment **attachments**, sitting alongside
+Augment stones are a second family of equipment **attachments**, sitting alongside
 crystals and evolution items in the same attachment slot. Where a gem crystal
-grants an element and spells, a weapon stone grants a **mechanical bonus** to the
+grants an element and spells, a augment stone grants a **mechanical bonus** to the
 weapon it is fused into:
 
 - **`DamageStone`** — a flat whole-percent raw-damage increase. Doubles as a
@@ -19,7 +19,7 @@ The enum is deliberately *not* split into "gems" and "stones" — the planned
 FusionStone (see *Design / Phase 2*; formerly *MasteryStone* in earlier design)
 fuses **any two attachables**, so both fusion inputs need a common identity type.
 
-> This document covers the **shipped** weapon-stone work on `feature/weapon-stones`
+> This document covers the **shipped** augment-stone work on `feature/weapon-stones`
 > (per-tier ability-stone slots, the whole-percent damage channel, the Kind/type
 > dropdown filter + validation backstop) **and** a large body of **designed but
 > not-yet-built** follow-on work (FusionStone fusion model, stat-stone family,
@@ -57,10 +57,10 @@ a `DamageStone (B)` is `FCrystalId{DamageStone, B_Tier}` — and every consumer
 | `None` | 0 | empty slot |
 | `Crystal` | 1 | gem crystal (element + spells) |
 | `Evolution` | 2 | evolution item asset |
-| `WeaponStone` | 3 | weapon stone (appended last; serialized value is stable) |
+| `AugmentStone` | 3 | augment stone (appended last; serialized value is stable) |
 
 A slot is exactly one `Kind`. Note the **serialized order is `None, Crystal,
-Evolution, WeaponStone`** — `WeaponStone` was appended after `Evolution` to keep
+Evolution, AugmentStone`** — `AugmentStone` was appended after `Evolution` to keep
 on-disk `Kind` values stable, so it is value `3`, not `2`.
 
 ### `FAttachedItem` (design-time) vs `FRuntimeAttachedItem` (runtime)
@@ -74,11 +74,11 @@ equipment asset and inflated to a runtime struct on the owned inventory entry.
 | Field | Type | Visible when |
 |---|---|---|
 | `Kind` | `EAttachedItemKind` | always |
-| `CrystalType` | `ECrystalType` | `Kind == Crystal \|\| WeaponStone` |
-| `CrystalTier` | `EItemTier` | `Kind == Crystal \|\| WeaponStone` |
+| `CrystalType` | `ECrystalType` | `Kind == Crystal \|\| AugmentStone` |
+| `CrystalTier` | `EItemTier` | `Kind == Crystal \|\| AugmentStone` |
 | `Evolution` | `UEvolutionItemData*` | `Kind == Evolution` |
 
-`CrystalType` / `CrystalTier` are shared by gems and stones — a weapon stone's
+`CrystalType` / `CrystalTier` are shared by gems and stones — a augment stone's
 identity is `FCrystalId{CrystalType (= DamageStone/AbilityStone), CrystalTier}`.
 The `CrystalType` dropdown is filtered by `Kind` (see *Kind/type filter* below).
 
@@ -88,11 +88,11 @@ The `CrystalType` dropdown is filtered by `Kind` (see *Kind/type filter* below).
 | Field | Type | Notes |
 |---|---|---|
 | `Kind` | `EAttachedItemKind` | `SaveGame` |
-| `Crystal` | `FCrystalAttachment` | identity (`Crystal.Id`) + per-instance durability — carries **both** `Crystal` and `WeaponStone` Kinds |
+| `Crystal` | `FCrystalAttachment` | identity (`Crystal.Id`) + per-instance durability — carries **both** `Crystal` and `AugmentStone` Kinds |
 | `Evolution` | `FEvolutionAttachment` | evolution branch |
 
-Predicates: `IsEmpty()`, `IsCrystal()`, `IsEvolution()`, `IsWeaponStone()`.
-`FromAttachedItem(const FAttachedItem&)` is the bridge factory. A weapon stone
+Predicates: `IsEmpty()`, `IsCrystal()`, `IsEvolution()`, `IsAugmentStone()`.
+`FromAttachedItem(const FAttachedItem&)` is the bridge factory. A augment stone
 stores its `FCrystalId` in `Crystal.Id` so downstream code reads stone identity
 through the same `Crystal` branch a gem uses.
 
@@ -101,10 +101,10 @@ through the same `Crystal` branch a gem uses.
 > `FromAttachedItem` doc-comment, ~lines 6–10 and 99–114) still say
 > "Refined" / `Source.RefinedType` / `Source.RefinedTier`. The fields are
 > actually `Crystal` / `CrystalType` / `CrystalTier`, and `Kind` no longer has a
-> `Refined` value. The comments predate the Crystal/WeaponStone rename and are
+> `Refined` value. The comments predate the Crystal/AugmentStone rename and are
 > stale; the *behaviour* is correct.
 
-### The WeaponStone family
+### The AugmentStone family
 
 #### `DamageStone` — raw-damage percent
 
@@ -141,21 +141,21 @@ and falls to its "not a usable consumable" default. It is attach-only.
 The slots an `AbilityStone` grants are a **separate ability list** from the
 weapon's own `PresetAbilities`, threaded through the loadout layer:
 
-- `FWeaponLoadoutEntry::AssignedWeaponStoneAbilities` — the per-loadout override
+- `FWeaponLoadoutEntry::AssignedAugmentStoneAbilities` — the per-loadout override
   list for stone-granted slots (parallel to `AssignedAbilities`).
-- `FWeaponLoadoutEntry::GetWeaponStoneAbilities()` — sequential override merge,
+- `FWeaponLoadoutEntry::GetAugmentStoneAbilities()` — sequential override merge,
   same shape as `GetAllAbilities()`.
-- `FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(OwnedAbilities)` — validates
+- `FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(OwnedAbilities)` — validates
   ownership and caps the count at `GetAttachmentSlotsForTier(Attachment.Crystal.Id)`.
-  With no weapon stone attached the slot limit is `0`, so any assigned
+  With no augment stone attached the slot limit is `0`, so any assigned
   stone-abilities are rejected.
-- `FSavedLoadout::PrimaryWeaponStoneAbilities` / `SecondaryWeaponStoneAbilities`
+- `FSavedLoadout::PrimaryAugmentStoneAbilities` / `SecondaryAugmentStoneAbilities`
   — the authored storage; `FCombatLoadout::CreateFromSavedLoadout` copies them
-  into `PrimaryWeapon` / `SecondaryWeapon.AssignedWeaponStoneAbilities`.
+  into `PrimaryWeapon` / `SecondaryWeapon.AssignedAugmentStoneAbilities`.
 
 ### Kind/type dropdown filter + `IsDataValid` backstop
 
-The single `CrystalType` field serves both `Crystal` and `WeaponStone` Kinds, so
+The single `CrystalType` field serves both `Crystal` and `AugmentStone` Kinds, so
 its raw dropdown would offer all 12 enum values for either Kind. Two mechanisms
 constrain it (full engine trace recorded in the `feature/weapon-stones` survey):
 
@@ -163,25 +163,25 @@ constrain it (full engine trace recorded in the `feature/weapon-stones` survey):
    on `FAttachedItem::CrystalType`. `UEquipmentDataBase::GetRestrictedCrystalTypes()`
    runs on the owning asset (UE resolves `GetRestrictedEnumValues` against the
    outer `UObject`, not the struct — which is why it can read the sibling
-   `AttachedItem.Kind`, exactly like `IsWeaponStoneAttached()` does for its
+   `AttachedItem.Kind`, exactly like `IsAugmentStoneAttached()` does for its
    `EditCondition`). It returns the **wrong-Kind** value names (short form, e.g.
    `"Garnet"` / `"DamageStone"`) to restrict: stones greyed when `Kind==Crystal`,
-   gems greyed when `Kind==WeaponStone`. Restricted values are **greyed and
+   gems greyed when `Kind==AugmentStone`. Restricted values are **greyed and
    non-selectable, not hidden** — true hiding would need an `IDetailCustomization`
    editor module, which the project declines. The list is built from the
    `CrystalTypeHelpers` predicates via enum reflection, so it cannot drift.
 2. **Hard backstop — `UEquipmentDataBase::IsDataValid`.** Editor-independent
    enforcement: `Kind==Crystal` with a non-gem `CrystalType` → error;
-   `Kind==WeaponStone` with a non-stone `CrystalType` → error. Lives on the base
+   `Kind==AugmentStone` with a non-stone `CrystalType` → error. Lives on the base
    so both `UWeaponData` and `URingData` inherit it (both call
    `Super::IsDataValid`). `URingData::IsDataValid` keeps its complementary hard
-   rejection of *any* `WeaponStone` on a ring.
+   rejection of *any* `AugmentStone` on a ring.
 
 The gem/stone split is centralised in `CrystalTypeHelpers`:
 
 ```cpp
-inline bool IsWeaponStoneType(ECrystalType T)  // DamageStone || AbilityStone
-inline bool IsGemType(ECrystalType T)           // != None && !IsWeaponStoneType (Garnet..Quartz)
+inline bool IsAugmentStoneType(ECrystalType T)  // DamageStone || AbilityStone
+inline bool IsGemType(ECrystalType T)           // != None && !IsAugmentStoneType (Garnet..Quartz)
 ```
 
 `None` is neither. These predicates are the single source of truth for both the
@@ -197,13 +197,13 @@ In `UDamageCalculator::CalculateDamage` (`Combat/Damage/DamageCalculator.cpp`),
 **Step 1.25** runs immediately after the Step-1 attacker multiplier:
 
 ```cpp
-// Step 1.25: Attached weapon-stone raw-damage multiplier (physical actions only)
+// Step 1.25: Attached augment-stone raw-damage multiplier (physical actions only)
 RunningDamage *= (1.0f + DamageStonePercent / 100.0f);
 ```
 
 It live-resolves the attacker's active weapon attachment
 (`Loadout->GetActiveWeaponLoadout()->WeaponEntry.GetAttachedItem()`), gates on
-`Attachment.IsWeaponStone()` and `ActionType != Spell` (physical only, matching
+`Attachment.IsAugmentStone()` and `ActionType != Spell` (physical only, matching
 the equipment-bonus gate), and applies the tier base% as a **direct multiplier**.
 These are whole-number percentages, **not** per-point fractions — see the
 *BonusRawDamage trap* below.
@@ -223,18 +223,18 @@ either way.
 
 An attached `AbilityStone` raises the active weapon's stone-ability slot limit to
 `GetAttachmentSlotsForTier(Crystal.Id)`. The loadout merge
-(`GetWeaponStoneAbilities`) and validation (`ValidateWeaponStoneAbilities`) fill
-and police those slots from `AssignedWeaponStoneAbilities`.
+(`GetAugmentStoneAbilities`) and validation (`ValidateAugmentStoneAbilities`) fill
+and police those slots from `AssignedAugmentStoneAbilities`.
 
 ### Stones are non-elemental
 
 `UEquipmentDataBase::GetCrystalElement()` switches `Crystal` / `Evolution` /
-`None` only; a `WeaponStone` attachment falls through to the `Generic` default.
+`None` only; a `AugmentStone` attachment falls through to the `Generic` default.
 The runtime `FRuntimeAttachedItem::GetElement()` resolves a stone's identity
 through `ItemIdentity::GetElement`, which has no case for `DamageStone` /
 `AbilityStone` and likewise returns `Generic`. **Intended:** stones grant
 mechanics, not an element. (Flagged because the code expresses it as a `default:`
-fall-through rather than an explicit `WeaponStone` case — correct, but easy to
+fall-through rather than an explicit `AugmentStone` case — correct, but easy to
 misread as an omission.)
 
 ---
@@ -263,7 +263,7 @@ misread as an omission.)
 fuses **any two attachables** — including a stone fused with a gem crystal. Both
 fusion inputs must share one identity type, so `ECrystalType` / `FCrystalId`
 stays unified and the gem/stone distinction is expressed by predicates
-(`IsGemType` / `IsWeaponStoneType`), not by separate types.
+(`IsGemType` / `IsAugmentStoneType`), not by separate types.
 
 **Why `AbilityStone` is attach-only with effect `None`.** Ability slots are a
 **persistent** property of the equipped weapon. A consumable is a one-shot,
@@ -299,9 +299,9 @@ nominal caps when a future stone/FusionStone targets them:
   applies the `DamageStone` multiplier (physical actions only).
 - **`ItemExecutor`** — the directional stone-consumable handlers (`ExecuteRawDamageBuffEffect` for DamageStone, `ExecuteDefenseBuffEffect` for DefenseStone + Amber).
 - **`LoadoutSystem`** — `FWeaponLoadoutEntry` stone-ability slots; `FSavedLoadout`
-  / `FCombatLoadout` plumbing; `GetEquippedCrystals` surfaces `WeaponStone` slots.
+  / `FCombatLoadout` plumbing; `GetEquippedCrystals` surfaces `AugmentStone` slots.
 - **`WeaponSystem`** — `UEquipmentDataBase` owns `AttachedItem`,
-  `IsWeaponStoneAttached()`, `GetRestrictedCrystalTypes()`, the `IsDataValid`
+  `IsAugmentStoneAttached()`, `GetRestrictedCrystalTypes()`, the `IsDataValid`
   backstop, and the `DefaultAbilities` field seeded onto stone-granted slots.
 - **`CrystalEffectTable` / `CrystalTypeHelpers` / `ItemIdentity`** — the value
   tables and the gem/stone predicates.
@@ -315,10 +315,10 @@ The **dual-form stat-stone mechanism is now shipped**, proven end-to-end on
 
 | Cluster | What | Commit |
 |---|---|---|
-| C1 | `ECrystalType::DefenseStone` + add-a-stone checklist (predicate, `BuffDefense` effect type, type name, BD-energy guard, description) — treated as a weapon stone, grants nothing yet | `28fb8818` |
+| C1 | `ECrystalType::DefenseStone` + add-a-stone checklist (predicate, `BuffDefense` effect type, type name, BD-energy guard, description) — treated as a augment stone, grants nothing yet | `28fb8818` |
 | C2 | generic getter trio — `GetStoneBasePercent(type,tier)` (shared `3-15` curve, DamageStone + DefenseStone), `StoneTargetStat` (DamageStone→RawDamage, DefenseStone→Defense, else `ESubStat::None`), `GetAttachedStonePercent(att,stat)`; `ESubStat::None` appended; `GetDamageStoneBasePercent` → byte-identical wrapper | `715e54d8` |
 | C3 | **attached** Defense hook — `GetDefenderFlatDefense ×(1 + GetAttachedStonePercent(defenderAtt, Defense)/STAT_PERCENT_DIVISOR)`; permanent, defender's own live-resolved attachment; inert for non-DefenseStone | `db4f4832` |
-| C4 | **directional consumable** — `ExecuteDefenseBuffEffect` generalised (branch `IsWeaponStoneType`: stone → `GetStoneBasePercent` + flat duration; Amber byte-identical); ally `DefenseBuff` / enemy `DefenseDebuff`. **Plus DamageStone consumable self→directional** (`RawDamageBuff`/`RawDamageDebuff`) — shipped-behaviour change | `9ffc2681` |
+| C4 | **directional consumable** — `ExecuteDefenseBuffEffect` generalised (branch `IsAugmentStoneType`: stone → `GetStoneBasePercent` + flat duration; Amber byte-identical); ally `DefenseBuff` / enemy `DefenseDebuff`. **Plus DamageStone consumable self→directional** (`RawDamageBuff`/`RawDamageDebuff`) — shipped-behaviour change | `9ffc2681` |
 
 This is the **reusable template** for the rest of the stat-stone family (design
 below): a per-read-site `GetAttachedStonePercent` hook for the attached form + a
@@ -441,7 +441,7 @@ quick reference:
 ### Rings + AugmentStones (loosens the current ring-guard)
 
 **Current committed behaviour (implemented):** `URingData::IsDataValid`
-**hard-rejects any `WeaponStone` on a ring** — weapon stones are weapon-only.
+**hard-rejects any `AugmentStone` on a ring** — augment stones are weapon-only.
 
 **Planned Phase 2 change (designed, not built):**
 
@@ -456,16 +456,17 @@ quick reference:
 > introduces one. Cross-references the *Fusion restrictions* table — only a
 > `stat-stone + crystal` FusionStone (which carries an element) qualifies for a ring.
 
-### Planned rename: `WeaponStone` → `AugmentStone`
+### Rename: `WeaponStone` → `AugmentStone` — ✅ DONE (clusters C1–C4)
 
-The family was named "**Weapon**Stone" when stones were weapon-only. The
-rings-carrying-augments change above makes "Weapon" inaccurate, so
-`EAttachedItemKind::WeaponStone` (and the surrounding `WeaponStone*` surface) is
-**slated to be renamed `AugmentStone`**. Parked for the **naming phase**,
-alongside the broad `Crystal → Item` rename (see *Parked cleanup*).
-
-> Docs use the **current** name (`WeaponStone`) throughout. **Do not rename in
-> code or docs now** — this is recorded intent only.
+The family was named "**Weapon**Stone" when stones were weapon-only; the
+rings-carrying-augments design above made "Weapon" inaccurate, so the whole
+concept was renamed `WeaponStone` → `AugmentStone` across enum, properties, code
+symbols, and this doc. Shipped in four clusters on `feature/weapon-stones`:
+`e9d22103` (serialized `EAttachedItemKind` value + EnumRedirect), `4e85fae0`
+(5 serialized ability-fields + PropertyRedirects), `ebdaef45` (code symbols +
+EditCondition meta strings + comment sweep), and this doc rename (file + content).
+The CoreRedirects chain `Whetstone → WeaponStone → AugmentStone`, so saved
+attachments/loadouts from any era still resolve.
 
 ### The stat-stone family — dual-form model
 
@@ -735,8 +736,8 @@ hard guarantee survives; only the editor affordance degrades.
 
 - **Broad `Crystal → Item` rename** — `ECrystalType`, `FCrystalId`,
   `CrystalEffectTable`, etc. Pending a decision on the crystal-vs-item naming
-  line. Bundled with the `WeaponStone → AugmentStone` rename above for a single
-  naming pass.
+  line. *(The `WeaponStone → AugmentStone` rename it was bundled with is now
+  done — see the Rename section above.)*
 - **`CrystalIdentity.h` file rename** — the file already hosts the `ItemIdentity`
   namespace; the filename lags.
 - **`GetPrimaryEffectType` doc mentions** — `ItemSystem.md` historically referred
@@ -764,8 +765,8 @@ hard guarantee survives; only the editor affordance degrades.
 - **Editor grey-out, not hide.** Wrong-Kind `CrystalType` values are greyed and
   non-selectable, not hidden. True hiding would need an `IDetailCustomization`
   editor module (declined per the `UEquipmentDataBase` cosmetic-limitation note).
-- **Fresh `WeaponStone` slot trips validation immediately.** `CrystalType`
-  defaults to `Garnet`, so a slot newly set to `Kind==WeaponStone` is invalid
+- **Fresh `AugmentStone` slot trips validation immediately.** `CrystalType`
+  defaults to `Garnet`, so a slot newly set to `Kind==AugmentStone` is invalid
   until the designer picks a stone — intended, but it lights up an `IsDataValid`
   error on first authoring.
 - **Stone-ability UI** for the per-tier slots is not covered here (UI pass).
@@ -785,3 +786,4 @@ hard guarantee survives; only the editor affordance degrades.
 | 2026-06-07 | Fusion restriction — **evolution crystals excluded from fusion entirely** (never a valid fusion half: a transformation mechanic, not a stat/element contributor). Recorded the underlying **valid-fusion principle** (stat-stone + one contributor — gem crystal or `AbilityStone`) from which the banned-pair list falls out; kept the explicit table and added the `anything + evolution` ❌ row. | feature/weapon-stones |
 | 2026-06-07 | **Balance framework** for the stat-stone/crystal number model — everything multiplicative `×(1+pct/100)` on current value; one shared stone curve `3/5/7/9/11/13/15`; **crystal = stone×2** (`6/10/14/18/22/26/30`) for the three stat crystals only. **⚠️ shipped-behaviour changes flagged:** crit converts additive→multiplicative across the board (#2), and Amber/Opal/Emerald rebalance to the stone×2 curve (#5, Opal also flips to multiplicative). Ability crystals (other 7) explicitly out of scope (#6); attached-vs-consumable curve left OPEN (#7); build order crit-conversion → crystal-rebalance → stat-stone family (#8). Reframed the crit-exception note (today-additive + planned-multiplicative) and annotated the wired-audit crit row / build-order cell. Banked crystal cleanup: Opal double-table bug + duplicate duration tables. | feature/weapon-stones |
 | 2026-06-07 | **Implemented this cycle** — marked the now-shipped work and moved it above the design fence. **DefenseStone** dual-form built C1–C4 (`28fb8818` type+checklist; `715e54d8` generic getter `GetStoneBasePercent`/`StoneTargetStat`/`GetAttachedStonePercent` + `ESubStat::None`; `db4f4832` attached `GetDefenderFlatDefense` hook; `9ffc2681` directional consumable + DamageStone self→directional). **Crit additive→multiplicative** shipped (`7e27f0ea`) and **stat-crystal rebalance** shipped (Opal `680e9d5a`, Amber/Emerald `3e1c86d0`, both vestigial double-table arms removed). Flipped framework #2/#5/#7/#8 + the DamageStone-consumable subsection to ✅ DONE; updated parked cleanup (Opal double-table done; Emerald arm done; added `DAMAGESTONE_CONSUMABLE_DURATION` rename). All committed, **not yet PIE-verified**. | feature/weapon-stones |
+| 2026-06-08 | **WeaponStone → AugmentStone** full-concept rename ("Weapon" inaccurate now that rings can carry these). Four clusters: `e9d22103` serialized `EAttachedItemKind` enum value + EnumRedirect (chains Whetstone→WeaponStone→AugmentStone); `4e85fae0` 5 serialized ability-fields + PropertyRedirects; `ebdaef45` code symbols (`IsAugmentStone*`, `Get/ValidateAugmentStoneAbilities`, `MAX_AUGMENTSTONE_ABILITIES`) + EditCondition meta strings + comment sweep; this doc renamed (`WeaponStoneSystem.md` → `AugmentStoneSystem.md` + content sweep) and the planned-rename note marked DONE. `DAMAGESTONE_CONSUMABLE_DURATION` left as a separate cleanup. | feature/weapon-stones |
