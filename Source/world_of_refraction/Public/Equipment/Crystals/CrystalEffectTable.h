@@ -172,19 +172,12 @@ namespace CrystalEffectTable
 
     // ==================== SHARED BUFF DURATION ====================
 
-    /** Shared duration table for Emerald/Amber/Opal buffs. 0 otherwise. */
-    inline int32 GetCrystalDuration(const FCrystalId &Id)
+    /** Shared consumable buff/debuff duration curve (turns) by tier: F/E=4,
+     *  D/C/B=3, A/S=2. 0 for any unmapped tier. The per-crystal-type gate lives
+     *  in each caller (GetCrystal/Gamble/ResistanceDuration). */
+    inline int32 GetStandardConsumableDurationForTier(EItemTier Tier)
     {
-        switch (Id.Type)
-        {
-        case ECrystalType::Emerald:
-        case ECrystalType::Amber:
-        case ECrystalType::Opal:
-            break;
-        default:
-            return 0;
-        }
-        switch (Id.Tier)
+        switch (Tier)
         {
         case EItemTier::F_Tier:
             return 4;
@@ -203,6 +196,21 @@ namespace CrystalEffectTable
         default:
             return 0;
         }
+    }
+
+    /** Shared duration table for Emerald/Amber/Opal buffs. 0 otherwise. */
+    inline int32 GetCrystalDuration(const FCrystalId &Id)
+    {
+        switch (Id.Type)
+        {
+        case ECrystalType::Emerald:
+        case ECrystalType::Amber:
+        case ECrystalType::Opal:
+            break;
+        default:
+            return 0;
+        }
+        return GetStandardConsumableDurationForTier(Id.Tier);
     }
 
     // ==================== OPAL CRIT ====================
@@ -302,25 +310,7 @@ namespace CrystalEffectTable
         {
             return 0;
         }
-        switch (Id.Tier)
-        {
-        case EItemTier::F_Tier:
-            return 4;
-        case EItemTier::E_Tier:
-            return 4;
-        case EItemTier::D_Tier:
-            return 3;
-        case EItemTier::C_Tier:
-            return 3;
-        case EItemTier::B_Tier:
-            return 3;
-        case EItemTier::A_Tier:
-            return 2;
-        case EItemTier::S_Tier:
-            return 2;
-        default:
-            return 0;
-        }
+        return GetStandardConsumableDurationForTier(Id.Tier);
     }
 
     // ==================== IOLITE CLEANSE ====================
@@ -390,25 +380,7 @@ namespace CrystalEffectTable
         {
             return 0;
         }
-        switch (Id.Tier)
-        {
-        case EItemTier::F_Tier:
-            return 4;
-        case EItemTier::E_Tier:
-            return 4;
-        case EItemTier::D_Tier:
-            return 3;
-        case EItemTier::C_Tier:
-            return 3;
-        case EItemTier::B_Tier:
-            return 3;
-        case EItemTier::A_Tier:
-            return 2;
-        case EItemTier::S_Tier:
-            return 2;
-        default:
-            return 0;
-        }
+        return GetStandardConsumableDurationForTier(Id.Tier);
     }
 
     // ==================== ELEMENTAL BUILDUP ====================
