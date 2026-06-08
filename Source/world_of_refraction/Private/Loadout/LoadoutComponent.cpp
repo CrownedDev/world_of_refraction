@@ -2144,6 +2144,14 @@ void ULoadoutComponent::ToggleEquipment()
             }
         }
     }
+
+    // Active equipment changed → recompute the stat-derived pools (equipment
+    // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
+    // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
+    if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        CharComp->RecomputeMaxPools();
+    }
 }
 
 bool ULoadoutComponent::HasWeaponAccess() const
@@ -2727,6 +2735,14 @@ void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
                 TurnManager->OnActorSpeedChanged(GetOwner());
             }
         }
+    }
+
+    // Active equipment changed → recompute the stat-derived pools (equipment
+    // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
+    // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
+    if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        CharComp->RecomputeMaxPools();
     }
 }
 
