@@ -6,7 +6,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Engine/GameInstance.h"
@@ -160,7 +162,23 @@ void UTurnManager::CalculateSpeedRatios()
 		const float TurnBuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedBuff);
 		const float TurnDebuff = SEM->GetTotalStatModifier(Combatant.Actor, ESkillEffectType::TurnSpeedDebuff);
 		const float Multiplier = 1.0f + (TurnMod + TurnBuff - TurnDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
-		return FMath::Max(1, FMath::RoundToInt(Combatant.CachedSpeed * Multiplier));
+
+		// Attached TurnSpeedStone — a PERMANENT, equipment-derived turn-speed multiplier
+		// from the combatant's OWN active weapon attachment (live-resolved). Multiplies
+		// EFFECTIVE speed alongside the buff/debuff Multiplier — deliberately NOT folded
+		// into CachedSpeed, which stays the pristine tie-break base. Inert (×1) unless a
+		// TurnSpeedStone is attached (GetAttachedStonePercent stat-match guard).
+		float StoneFactor = 1.0f;
+		if (ULoadoutComponent *Loadout = Combatant.Actor->FindComponentByClass<ULoadoutComponent>())
+		{
+			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			{
+				const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const float StonePct = CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::TurnSpeed);
+				StoneFactor = 1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR;
+			}
+		}
+		return FMath::Max(1, FMath::RoundToInt(Combatant.CachedSpeed * Multiplier * StoneFactor));
 	};
 
 	// Find slowest effective speed among living combatants.
