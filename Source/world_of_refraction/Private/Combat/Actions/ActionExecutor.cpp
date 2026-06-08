@@ -3121,30 +3121,15 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 		return 1.0f;
 	}
 
-	// Character-side multiplier — already clamped to [1 - EFFICIENCY_MAX, 1.0].
-	// Prefers the crystal-aware path on UCharacterDataComponent so the slotted
-	// primary evolution crystal's Mind pillar modifier feeds the curve. Falls
-	// back to the raw asset formula if no component is resolvable (defensive —
-	// shouldn't happen in practice since GetCharacterData already requires it).
+	// Efficiency multiplier — the unified getter (innate crystal-aware Mind + equipment
+	// BonusEfficiency + attached EfficiencyStone, one clamp); the SAME source BD drain
+	// and durability use, so all three Efficiency consumers share one shape. Falls back
+	// to the raw asset formula only if no component is resolvable (defensive — shouldn't
+	// happen since GetCharacterData already requires it; the asset path is innate-only).
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	const float CharMult = CharComp
-							   ? CharComp->GetEvolutionModifiedEfficiencyMultiplier()
+							   ? CharComp->GetEffectiveEfficiencyMultiplier()
 							   : CharData->CalculateEfficiencyMultiplier();
-
-	// Equipment-side multiplier — mirrors the asset formula shape but reads
-	// BonusEfficiency (capacity points from active loadout) instead of the
-	// character substat. No EffectiveMind multiplication (asset path is
-	// quadratic in points; this is linear). Separately clamped so the two
-	// caps stack multiplicatively rather than fight each other.
-	float EquipmentMult = 1.0f;
-	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
-	{
-		const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Actor);
-		EquipmentMult = FMath::Clamp(
-			1.0f - (Bonus.BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT),
-			1.0f - CombatConstants::EFFICIENCY_MAX,
-			1.0f);
-	}
 
 	// Skill-effect-driven cost modifiers: SpellCostBuff reduces cost,
 	// SpellCostDebuff increases it, ModifyEnergyCost contributes per the
@@ -3162,7 +3147,7 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 			0.1f, 2.0f);
 	}
 
-	return CharMult * EquipmentMult * SkillEffectMult;
+	return CharMult * SkillEffectMult;
 }
 
 FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, const FAction &Action) const
