@@ -160,7 +160,7 @@ public:
      *  DefaultSpells / DefaultAbilities. EditCondition cannot reach the nested
      *  AttachedItem.Kind path, so it resolves this UFUNCTION instead. */
     UFUNCTION()
-    bool IsWeaponStoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::WeaponStone; }
+    bool IsWeaponStoneAttached() const { return AttachedItem.Kind == EAttachedItemKind::AugmentStone; }
 
     /** Supplies the dropdown grey-out set for AttachedItem.CrystalType via
      *  meta=(GetRestrictedEnumValues). Resolved on this owning asset (not the

@@ -34,7 +34,7 @@ TArray<FString> UEquipmentDataBase::GetRestrictedCrystalTypes() const
     TArray<FString> Restricted;
 
     const bool bRestrictStones = (AttachedItem.Kind == EAttachedItemKind::Crystal);
-    const bool bRestrictGems   = (AttachedItem.Kind == EAttachedItemKind::WeaponStone);
+    const bool bRestrictGems   = (AttachedItem.Kind == EAttachedItemKind::AugmentStone);
     if (!bRestrictStones && !bRestrictGems)
     {
         // Kind None / Evolution — no crystal-sub-type dropdown to constrain.
@@ -184,7 +184,7 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
         Result = EDataValidationResult::Invalid;
     }
 
-    if (AttachedItem.Kind == EAttachedItemKind::WeaponStone
+    if (AttachedItem.Kind == EAttachedItemKind::AugmentStone
         && !CrystalTypeHelpers::IsWeaponStoneType(AttachedItem.CrystalType))
     {
         Context.AddError(FText::FromString(TEXT(

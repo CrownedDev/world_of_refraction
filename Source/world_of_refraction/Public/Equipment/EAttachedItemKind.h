@@ -16,5 +16,5 @@ enum class EAttachedItemKind : uint8
     Evolution UMETA(DisplayName = "Evolution"),
     // Appended after Evolution (=3); position is the serialized value, so do not
     // reorder/insert above — SaveGame Kind on disk must stay stable.
-    WeaponStone UMETA(DisplayName = "Weapon Stone")
+    AugmentStone UMETA(DisplayName = "Augment Stone")
 };

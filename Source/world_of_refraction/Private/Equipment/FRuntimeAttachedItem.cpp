@@ -157,7 +157,7 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
     case EAttachedItemKind::None:
         return true;
     case EAttachedItemKind::Crystal:
-    case EAttachedItemKind::WeaponStone:
+    case EAttachedItemKind::AugmentStone:
         // Durability is per-instance state, not identity — compare by Id
         // only (identity match, not instance state). A weapon stone stores its
         // FCrystalId{sub-type, Tier} in the same Crystal slot.
@@ -193,8 +193,8 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         Result.Evolution.CurrentDurability = Source.Evolution ? Source.Evolution->MaxDurability : 0;
         break;
 
-    case EAttachedItemKind::WeaponStone:
-        Result.Kind = EAttachedItemKind::WeaponStone;
+    case EAttachedItemKind::AugmentStone:
+        Result.Kind = EAttachedItemKind::AugmentStone;
         // Identity carrier is the Crystal slot; read the authored sub-type
         // (DamageStone or AbilityStone) + tier, mirroring the Crystal case. No
         // durability — a weapon stone never wears, so seed 0 (do NOT call
