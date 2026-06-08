@@ -48,11 +48,44 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
               meta = (EditCondition = "Kind == EAttachedItemKind::Evolution", EditConditionHides))
     UEvolutionItemData *Evolution = nullptr;
 
-    /** Fusion halves + bonus stat. Only visible when Kind == Fusion. The half/pair
-     *  rules (>=1 stat-stone, <=1 crystal, no evolution half) are enforced by
-     *  author-time validation, not editor grey-out (mirrors the project's
-     *  EditCondition-plus-validation stance over IDetailCustomization). */
+    // ---- Fusion authoring (flat). Visible only when Kind == Fusion. ----
+    // Authored here as flat fields (mirrors CrystalType/CrystalTier above) so each
+    // half's Type dropdown can grey out the wrong category via GetRestrictedEnumValues
+    // — a per-half affordance FFusionId's nested FCrystalId halves can't carry. The
+    // runtime pass maps these flat fields into FFusionId later (FFusionId is untouched).
+
+    /** Fusion Half A — augment-stone only. Its Type dropdown greys gems (only stones
+     *  selectable). Authoring convention: the stat-stone half. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides,
+                      GetRestrictedEnumValues = "GetRestrictedFusionHalfATypes"))
+    ECrystalType FusionHalfAType = ECrystalType::DamageStone;
+
+    /** Tier of Fusion Half A. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
-    FFusionId Fusion;
+    EItemTier FusionHalfATier = EItemTier::F_Tier;
+
+    /** Fusion Half B kind selector — true = crystal (gem) half, false = augment stone.
+     *  Drives Half B's Type grey-out below. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
+    bool bFusionHalfBIsCrystal = true;
+
+    /** Fusion Half B — crystal OR augment stone, per bFusionHalfBIsCrystal. Its Type
+     *  dropdown greys the other category (stones when crystal, gems when stone). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides,
+                      GetRestrictedEnumValues = "GetRestrictedFusionHalfBTypes"))
+    ECrystalType FusionHalfBType = ECrystalType::Garnet;
+
+    /** Tier of Fusion Half B. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
+    EItemTier FusionHalfBTier = EItemTier::F_Tier;
+
+    /** The wired sub-stat the fusion bonus targets. None is rejected by validation. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
+    ESubStat FusionBonusStat = ESubStat::None;
 };

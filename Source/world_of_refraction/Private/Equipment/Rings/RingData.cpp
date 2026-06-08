@@ -38,7 +38,7 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         // checked well-formedness — this is the ring-specific loosening of the blanket
         // stone reject above for the elemental case.
         if (AttachedItem.Kind == EAttachedItemKind::Fusion
-            && !CrystalTypeHelpers::IsElementalFusion(AttachedItem.Fusion.HalfA.Type, AttachedItem.Fusion.HalfB.Type))
+            && !CrystalTypeHelpers::IsElementalFusion(AttachedItem.FusionHalfAType, AttachedItem.FusionHalfBType))
         {
             Context.AddError(FText::FromString(TEXT(
                 "Augmented fusions (two stones) are weapon-only — a ring accepts only elemental fusions (with a crystal half)")));

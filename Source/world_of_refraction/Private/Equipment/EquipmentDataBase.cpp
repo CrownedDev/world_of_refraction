@@ -65,6 +65,57 @@ TArray<FString> UEquipmentDataBase::GetRestrictedCrystalTypes() const
     return Restricted;
 }
 
+TArray<FString> UEquipmentDataBase::GetRestrictedFusionHalfATypes() const
+{
+    TArray<FString> Restricted;
+
+    const UEnum *Enum = StaticEnum<ECrystalType>();
+    if (!Enum)
+    {
+        return Restricted;
+    }
+
+    // Half A is augment-stone only — grey every gem. Same loop shape as
+    // GetRestrictedCrystalTypes; NumEnums() - 1 skips the implicit _MAX sentinel.
+    for (int32 Index = 0; Index < Enum->NumEnums() - 1; ++Index)
+    {
+        const ECrystalType Type = static_cast<ECrystalType>(Enum->GetValueByIndex(Index));
+        if (CrystalTypeHelpers::IsGemType(Type))
+        {
+            Restricted.Add(Enum->GetNameStringByIndex(Index));
+        }
+    }
+    return Restricted;
+}
+
+TArray<FString> UEquipmentDataBase::GetRestrictedFusionHalfBTypes() const
+{
+    TArray<FString> Restricted;
+
+    const UEnum *Enum = StaticEnum<ECrystalType>();
+    if (!Enum)
+    {
+        return Restricted;
+    }
+
+    // Keyed off the sibling kind selector (mirrors GetRestrictedCrystalTypes reading
+    // AttachedItem.Kind): crystal half -> grey stones, stone half -> grey gems.
+    const bool bRestrictStones = AttachedItem.bFusionHalfBIsCrystal;
+    const bool bRestrictGems   = !AttachedItem.bFusionHalfBIsCrystal;
+    for (int32 Index = 0; Index < Enum->NumEnums() - 1; ++Index)
+    {
+        const ECrystalType Type = static_cast<ECrystalType>(Enum->GetValueByIndex(Index));
+        const bool bRestrictThis =
+            (bRestrictStones && CrystalTypeHelpers::IsAugmentStoneType(Type)) ||
+            (bRestrictGems && CrystalTypeHelpers::IsGemType(Type));
+        if (bRestrictThis)
+        {
+            Restricted.Add(Enum->GetNameStringByIndex(Index));
+        }
+    }
+    return Restricted;
+}
+
 void UEquipmentDataBase::RollSubstatPoints()
 {
     const int32 Budget = EquipmentBonusGen::GetSubstatBudget(Tier);
@@ -197,14 +248,25 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     // placement rule (augmented = weapon-only) is enforced in URingData::IsDataValid.
     if (AttachedItem.Kind == EAttachedItemKind::Fusion)
     {
-        if (!CrystalTypeHelpers::IsValidFusionPair(AttachedItem.Fusion.HalfA.Type, AttachedItem.Fusion.HalfB.Type))
+        if (!CrystalTypeHelpers::IsValidFusionPair(AttachedItem.FusionHalfAType, AttachedItem.FusionHalfBType))
         {
             Context.AddError(FText::FromString(TEXT(
                 "Invalid fusion halves — a fusion needs at least one stat-stone and at most one crystal "
                 "(no crystal+crystal, no AbilityStone+AbilityStone, no AbilityStone+crystal)")));
             Result = EDataValidationResult::Invalid;
         }
-        if (AttachedItem.Fusion.BonusStat == ESubStat::None)
+        // Half B kind/type consistency backstop (mirrors the CrystalType/Kind backstop
+        // above). The dropdown greys the wrong category, but flipping bFusionHalfBIsCrystal
+        // after picking a Type can desync the two — this is the hard guarantee.
+        if ((AttachedItem.bFusionHalfBIsCrystal && CrystalTypeHelpers::IsAugmentStoneType(AttachedItem.FusionHalfBType))
+            || (!AttachedItem.bFusionHalfBIsCrystal && CrystalTypeHelpers::IsGemType(AttachedItem.FusionHalfBType)))
+        {
+            Context.AddError(FText::FromString(TEXT(
+                "Half B kind/type mismatch — bFusionHalfBIsCrystal says crystal but the type is an augment "
+                "stone (or vice versa). Set the type to match the selected half kind")));
+            Result = EDataValidationResult::Invalid;
+        }
+        if (AttachedItem.FusionBonusStat == ESubStat::None)
         {
             Context.AddError(FText::FromString(TEXT(
                 "Fusion bonus stat must be set to a wired sub-stat (not None)")));

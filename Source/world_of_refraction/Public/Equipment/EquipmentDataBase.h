@@ -173,6 +173,19 @@ public:
     UFUNCTION()
     TArray<FString> GetRestrictedCrystalTypes() const;
 
+    /** Grey-out set for AttachedItem.FusionHalfAType. Half A is augment-stone only,
+     *  so this restricts every gem (IsGemType) — fixed, no sibling read. Same owning-
+     *  asset resolution + short-name shape as GetRestrictedCrystalTypes. */
+    UFUNCTION()
+    TArray<FString> GetRestrictedFusionHalfATypes() const;
+
+    /** Grey-out set for AttachedItem.FusionHalfBType. Reads sibling
+     *  AttachedItem.bFusionHalfBIsCrystal: crystal -> restrict stones (IsAugmentStoneType),
+     *  stone -> restrict gems (IsGemType). Mirrors how GetRestrictedCrystalTypes keys
+     *  off AttachedItem.Kind. */
+    UFUNCTION()
+    TArray<FString> GetRestrictedFusionHalfBTypes() const;
+
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;
 
