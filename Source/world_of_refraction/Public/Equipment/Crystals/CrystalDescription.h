@@ -156,7 +156,7 @@ namespace CrystalDescription
             return FString::Printf(
                 TEXT("Sharpens the weapon to raise raw attack damage by %.0f%% for %s; when attached, also unlocks the weapon's abilities via Resonate."),
                 CrystalEffectTable::GetDamageStoneBasePercent(Id),
-                *FormatTurns(CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION));
+                *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
 
         case ECrystalType::AbilityStone:
             // Attach-only augment stone; per-tier slot text refines in Cluster 4.

@@ -111,8 +111,8 @@ namespace CombatConstants
     // Raw Damage - Physical/non-elemental damage multiplier
     constexpr float RAW_DAMAGE_PER_POINT = 0.0008f; // 0.08% per point
 
-    // Damage Stone - raw-attack-damage sharpening crystal
-    constexpr int32 DAMAGESTONE_CONSUMABLE_DURATION = 3; // turns, flat across tiers
+    // Augment-stone consumable buff/debuff duration (DamageStone, DefenseStone, ...)
+    constexpr int32 AUGMENT_STONE_CONSUMABLE_DURATION = 3; // turns, flat across tiers
 
     // Max Health - HP pool size (NOW BODY, was Spirit)
     constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP

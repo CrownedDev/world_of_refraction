@@ -378,7 +378,7 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::RawDamageBuff : ESkillEffectType::RawDamageDebuff;
 	const float Magnitude = CrystalEffectTable::GetDamageStoneBasePercent(Id);
-	const int32 Duration = CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION;
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
@@ -416,7 +416,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
 		: CrystalEffectTable::GetBuffPercentage(Id);
 	const int32 Duration = bIsStone
-		? CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION
+		? CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION
 		: CrystalEffectTable::GetCrystalDuration(Id);
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
