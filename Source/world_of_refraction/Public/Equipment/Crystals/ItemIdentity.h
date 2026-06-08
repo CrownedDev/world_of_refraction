@@ -113,6 +113,15 @@ namespace ItemIdentity
             // (blanket ModifyStatusResist; ally +mag raises resist, enemy -mag goes negative ->
             // amplified status buildup). Read element-agnostic in StatusBuildupManager's aggregate.
             return EItemEffectType::BuffResistance;
+        case ECrystalType::SpellSpeedStone:
+            // Directional spell-speed consumable — routes to ExecuteSpellSpeedBuffEffect
+            // (SpellSpeedBuff/Debuff; read on the cast-montage PlayRate path). Visual now;
+            // combat teeth via the Real-Time Defense Rework.
+            return EItemEffectType::BuffSpellSpeed;
+        case ECrystalType::ActionSpeedStone:
+            // Directional action-speed consumable — routes to ExecuteActionSpeedBuffEffect
+            // (ActionSpeedBuff/Debuff; read on the ability/attack montage PlayRate path).
+            return EItemEffectType::BuffActionSpeed;
         default:
             return EItemEffectType::Damage;
         }
@@ -190,6 +199,10 @@ namespace ItemIdentity
             return TEXT("SpellDamageStone");
         case ECrystalType::ResistanceStone:
             return TEXT("ResistanceStone");
+        case ECrystalType::SpellSpeedStone:
+            return TEXT("SpellSpeedStone");
+        case ECrystalType::ActionSpeedStone:
+            return TEXT("ActionSpeedStone");
         default:
             return TEXT("Unknown");
         }

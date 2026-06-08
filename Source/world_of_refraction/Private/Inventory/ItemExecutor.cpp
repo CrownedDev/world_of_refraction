@@ -110,6 +110,14 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteResistanceBuffEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::BuffSpellSpeed:
+		ExecuteSpellSpeedBuffEffect(User, Target, Id, Result);
+		break;
+
+	case EItemEffectType::BuffActionSpeed:
+		ExecuteActionSpeedBuffEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::Silence:
 		ExecuteSilenceEffect(User, Target, Id, Result);
 		break;
@@ -649,6 +657,70 @@ void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FC
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Resistance stone: Applied ModifyStatusResist %+.0f%% for %d turns to %s (%s)"),
 		   Magnitude, Duration, *Target->GetName(), bAlly ? TEXT("ally buff") : TEXT("enemy vulnerability"));
+}
+
+void UItemExecutor::ExecuteSpellSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Spell-speed stone consumable - DIRECTIONAL: buff an ally's cast speed, or debuff an
+	// enemy's. Read on the cast-montage PlayRate path (PlaySpellAnimation, SpellSpeedBuff/
+	// Debuff). Visual now; the COMBAT effect (defender reaction window) lands with the
+	// Real-Time Defense Rework (docs/Design/RealTimeDefenseRework.md).
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::SpellSpeedBuff : ESkillEffectType::SpellSpeedDebuff;
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Spell Speed"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
+
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Spell speed stone: Applied %s %.0f%% spell-speed for %d turns to %s"),
+		   bAlly ? TEXT("SpellSpeedBuff") : TEXT("SpellSpeedDebuff"), Magnitude, Duration, *Target->GetName());
+}
+
+void UItemExecutor::ExecuteActionSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Action-speed stone consumable - DIRECTIONAL: buff an ally's action speed, or debuff
+	// an enemy's. Read on the ability/attack montage PlayRate path (ActionSpeedBuff/Debuff;
+	// read-site added in PlayAbility/PlayAttackAnimation). Visual now; the COMBAT effect
+	// lands with the Real-Time Defense Rework (docs/Design/RealTimeDefenseRework.md).
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::ActionSpeedBuff : ESkillEffectType::ActionSpeedDebuff;
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Action Speed"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
+
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Action speed stone: Applied %s %.0f%% action-speed for %d turns to %s"),
+		   bAlly ? TEXT("ActionSpeedBuff") : TEXT("ActionSpeedDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

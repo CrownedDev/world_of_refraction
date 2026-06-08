@@ -153,6 +153,12 @@ private:
 	/** Resistance stone - directional blanket status-resist (ModifyStatusResist; enemy side amplifies) */
 	void ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** Spell-speed stone - directional cast-montage speed (SpellSpeedBuff/Debuff; visual until the defense rework) */
+	void ExecuteSpellSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
+	/** Action-speed stone - directional ability/attack-montage speed (ActionSpeedBuff/Debuff; visual until the defense rework) */
+	void ExecuteActionSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
 	/** Amber - Defense buff */
 	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 

@@ -193,6 +193,18 @@ namespace CrystalDescription
                 CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
                 *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
 
+        case ECrystalType::SpellSpeedStone:
+            return FString::Printf(
+                TEXT("Quickens spellcasting — raises spell speed by %.0f%% for %s. Speeds the cast animation now; tighter defense windows arrive with the real-time defense rework."),
+                CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
+                *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
+
+        case ECrystalType::ActionSpeedStone:
+            return FString::Printf(
+                TEXT("Quickens weapon strikes — raises action speed by %.0f%% for %s. Speeds the attack animation now; tighter defense windows arrive with the real-time defense rework."),
+                CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
+                *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
+
         default:
             return TEXT("Unknown effect.");
         }

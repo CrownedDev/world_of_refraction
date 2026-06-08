@@ -58,5 +58,10 @@ enum class EItemEffectType : uint8
     // Appended (=19). Directional ResistanceStone consumable — blanket ModifyStatusResist
     // (ally +mag = more status resist; enemy -mag = vulnerability/amplified buildup).
     // Runtime-derived only (never serialized), so the append needs no CoreRedirect.
-    BuffResistance UMETA(DisplayName = "Buff Resistance (stone status-resist buff/debuff)")
+    BuffResistance UMETA(DisplayName = "Buff Resistance (stone status-resist buff/debuff)"),
+    // Appended. Directional SpellSpeedStone / ActionSpeedStone consumables —
+    // SpellSpeedBuff/Debuff (cast montage) and ActionSpeedBuff/Debuff (ability/attack
+    // montage) PlayRate. Runtime-derived only, so the appends need no CoreRedirect.
+    BuffSpellSpeed UMETA(DisplayName = "Buff Spell Speed (stone cast-speed buff/debuff)"),
+    BuffActionSpeed UMETA(DisplayName = "Buff Action Speed (stone action-speed buff/debuff)")
 };

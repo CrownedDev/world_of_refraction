@@ -55,5 +55,11 @@ enum class ECrystalType : uint8
     // resistance. Attached = blanket resist; consumable = directional (ally raises
     // resist, enemy's goes negative -> amplified status buildup). Same append-only
     // serialized-identity rule — do NOT reorder/insert above.
-    ResistanceStone UMETA(DisplayName = "Resistance Stone")
+    ResistanceStone UMETA(DisplayName = "Resistance Stone"),
+    // Appended after ResistanceStone; the final two stat-stones — SpellSpeed and
+    // ActionSpeed. They speed the visible montage PlayRate today; their COMBAT effect
+    // (shrinking the defender's reaction window) is deferred to the Real-Time Defense
+    // Rework (docs/Design/RealTimeDefenseRework.md). Append-only — do NOT reorder above.
+    SpellSpeedStone UMETA(DisplayName = "Spell Speed Stone"),
+    ActionSpeedStone UMETA(DisplayName = "Action Speed Stone")
 };
