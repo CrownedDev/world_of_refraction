@@ -415,17 +415,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateLuck() const
 	{
-		// Multi-system fortune stat. Returns raw 0.0-LUCK_RAW_MAX multiplier.
-		// Consumers apply their own per-system caps (LUCK_CRIT_BONUS_MAX,
-		// LUCK_DODGE_MAX, LUCK_BREAK_SKIP_MAX, LUCK_DROP_CHANCE_MAX,
-		// LUCK_DROP_QUALITY_MAX) at their respective sites.
-		// Same shape as Resistance.
+		// Multi-system fortune stat. Returns raw luck multiplier (0.0+, no upper
+		// cap on input). LUCK_RAW_MAX is the per-consumer NORMALIZATION basis
+		// (the "fully lucky" point), not an input ceiling — each consumer clamps
+		// its own normalized fraction (LUCK_CRIT_BONUS_MAX, LUCK_DODGE_MAX,
+		// LUCK_BREAK_SKIP_MAX, LUCK_DROP_CHANCE_MAX, LUCK_DROP_QUALITY_MAX).
+		// Same shape as Resistance, minus the upper clamp.
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalLuck();
-		return FMath::Clamp(
-			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT,
+		return FMath::Max(
 			0.0f,
-			CombatConstants::LUCK_RAW_MAX);
+			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT);
 	}
 
 	// ==================== HELPER FUNCTIONS ====================

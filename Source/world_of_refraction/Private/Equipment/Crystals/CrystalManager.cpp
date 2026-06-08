@@ -100,7 +100,10 @@ void UCrystalManager::ProcessPostCastWear(
     if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
     {
         const float RawLuck = CharComp->GetEquipmentModifiedLuck();
-        const float SkipChance = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_BREAK_SKIP_MAX;
+        // Upper-clamp only (positive luck plateaus at LUCK_BREAK_SKIP_MAX); negative
+        // luck (curse) yields a negative SkipChance, and FRand() in [0,1) is never
+        // < negative, so a cursed wielder never lucky-skips — no lower clamp needed.
+        const float SkipChance = FMath::Min(RawLuck / CombatConstants::LUCK_RAW_MAX, 1.0f) * CombatConstants::LUCK_BREAK_SKIP_MAX;
         if (FMath::FRand() < SkipChance)
         {
             UE_LOG(LogTemp, Log,

@@ -126,10 +126,13 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		// behaviour (Reality boost was deliberately uncapped at this site).
 		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::CritChance);
 
-		// Luck-driven crit bonus. Linearly scaled from raw Luck (0.0-LUCK_RAW_MAX)
-		// to consumer cap LUCK_CRIT_BONUS_MAX, yielding a 0..0.20 fraction.
-		// Multiplicative (crit conversion C1): compounds as ×(1 + LuckCritBonus)
-		// on the running crit value — no longer a flat additive bonus.
+		// Luck-driven crit bonus. RawLuck/LUCK_RAW_MAX is upper-clamped to 1 (positive
+		// luck plateaus at +LUCK_CRIT_BONUS_MAX) but NOT lower-clamped: negative luck
+		// (curse) flows through as a negative bonus, so ×(1 + LuckCritBonus) reduces
+		// crit. An extremely negative bonus can drive the local CritChance below 0;
+		// the roll (FRand() in [0,1) < CritChance) then never crits — the correct
+		// cursed outcome. This local never escapes Step 4, so the negative cannot
+		// reach the AI scorer (which reads GetCriticalChance, sans luck).
 		// GetEquipmentModifiedLuck folds in crystal Spirit modifier and
 		// active-loadout BonusLuck.
 		if (Attacker)
@@ -137,7 +140,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 			{
 				const float RawLuck = AttackerComp->GetEquipmentModifiedLuck();
-				const float LuckCritBonus = (RawLuck / CombatConstants::LUCK_RAW_MAX) * CombatConstants::LUCK_CRIT_BONUS_MAX;
+				const float LuckCritBonus = FMath::Min(RawLuck / CombatConstants::LUCK_RAW_MAX, 1.0f) * CombatConstants::LUCK_CRIT_BONUS_MAX;
 				CritChance *= (1.0f + LuckCritBonus);
 			}
 		}

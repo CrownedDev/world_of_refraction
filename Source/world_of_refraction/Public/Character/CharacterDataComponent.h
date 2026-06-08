@@ -208,8 +208,11 @@ public:
     float GetEvolutionModifiedSpirit() const;
 
     /** Crystal-aware Luck: pillar-scaled against GetEvolutionModifiedSpirit plus
-     *  the active loadout's BonusLuck contribution, clamped to LUCK_RAW_MAX.
-     *  Use in place of CharacterData->CalculateLuck() for any consumer that
+     *  the active loadout's BonusLuck contribution. Input is UNBOUNDED (no upper
+     *  cap) and may go negative (debuff curse); LUCK_RAW_MAX is the per-consumer
+     *  normalization basis, not a cap here. Each consumer upper-clamps its own
+     *  normalized fraction (FMath::Min(RawLuck/LUCK_RAW_MAX, 1)) and lets negatives
+     *  pass. Use in place of CharacterData->CalculateLuck() for any consumer that
      *  should respect crystal Spirit modifier AND equipment-driven bonuses
      *  (crit bonus, break skip, dodge, drops). */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")

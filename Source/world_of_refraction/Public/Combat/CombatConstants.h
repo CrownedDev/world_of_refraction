@@ -148,6 +148,14 @@ namespace CombatConstants
     constexpr float LUCK_BREAK_SKIP_MAX = 0.50f;   // 50% chance to skip crystal wear
     constexpr float LUCK_DROP_CHANCE_MAX = 1.00f;  // 100% extra drop chance (out-of-combat)
     constexpr float LUCK_DROP_QUALITY_MAX = 1.00f; // 100% tier upgrade chance (out-of-combat)
+    // TODO: LUCK_DODGE_MAX / LUCK_DROP_CHANCE_MAX / LUCK_DROP_QUALITY_MAX have no
+    // consumer code yet. When built, each MUST upper-clamp the normalized fraction
+    // FMath::Min(RawLuck / LUCK_RAW_MAX, 1.f) before scaling — clamp only the TOP,
+    // letting negatives pass (curse-below-baseline model). RawLuck is unbounded
+    // (input cap removed); positive luck plateaus at the consumer MAX, negative
+    // luck curses below it. Mirror the crit (DamageCalculator) / break-skip
+    // (CrystalManager) pattern, and confirm the consumer handles a negative result
+    // gracefully (e.g. a roll FRand() < negative simply never fires).
 
     // ==================== TURN SYSTEM ====================
 

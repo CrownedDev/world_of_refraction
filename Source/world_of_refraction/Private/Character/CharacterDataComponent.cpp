@@ -661,7 +661,9 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         }
     }
 
-    return FMath::Min(Luck, CombatConstants::LUCK_RAW_MAX);
+    // No upper clamp: input is unbounded, each consumer clamps its own
+    // normalized fraction (RawLuck / LUCK_RAW_MAX) to [0,1] before scaling.
+    return Luck;
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedSpellDamage() const
