@@ -15,6 +15,7 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Inventory/ItemTier.h"
 #include "Inventory/ItemConstants.h"
+#include "Equipment/Crystals/AugmentStoneConstants.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 
@@ -149,25 +150,12 @@ namespace CrystalEffectTable
         {
             return 0.0f;
         }
-        switch (Id.Tier)
+        const int32 i = TierHelpers::GetTierValue(Id.Tier);
+        if (i < 0 || i >= 7)
         {
-        case EItemTier::F_Tier:
-            return 6.0f;
-        case EItemTier::E_Tier:
-            return 10.0f;
-        case EItemTier::D_Tier:
-            return 14.0f;
-        case EItemTier::C_Tier:
-            return 18.0f;
-        case EItemTier::B_Tier:
-            return 22.0f;
-        case EItemTier::A_Tier:
-            return 26.0f;
-        case EItemTier::S_Tier:
-            return 30.0f;
-        default:
             return 0.0f;
         }
+        return AugmentStoneConstants::STAT_CRYSTAL_BUFF_PERCENT[i];
     }
 
     // ==================== SHARED BUFF DURATION ====================
@@ -224,25 +212,12 @@ namespace CrystalEffectTable
         {
             return 0.0f;
         }
-        switch (Id.Tier)
+        const int32 i = TierHelpers::GetTierValue(Id.Tier);
+        if (i < 0 || i >= 7)
         {
-        case EItemTier::F_Tier:
-            return 6.0f;
-        case EItemTier::E_Tier:
-            return 10.0f;
-        case EItemTier::D_Tier:
-            return 14.0f;
-        case EItemTier::C_Tier:
-            return 18.0f;
-        case EItemTier::B_Tier:
-            return 22.0f;
-        case EItemTier::A_Tier:
-            return 26.0f;
-        case EItemTier::S_Tier:
-            return 30.0f;
-        default:
             return 0.0f;
         }
+        return AugmentStoneConstants::STAT_CRYSTAL_BUFF_PERCENT[i];
     }
 
     // ==================== AMETHYST GAMBLE ====================
@@ -528,25 +503,12 @@ namespace CrystalEffectTable
         default:
             return 0.0f;
         }
-        switch (Tier)
+        const int32 i = TierHelpers::GetTierValue(Tier);
+        if (i < 0 || i >= 7)
         {
-        case EItemTier::F_Tier:
-            return 3.0f;
-        case EItemTier::E_Tier:
-            return 5.0f;
-        case EItemTier::D_Tier:
-            return 7.0f;
-        case EItemTier::C_Tier:
-            return 9.0f;
-        case EItemTier::B_Tier:
-            return 11.0f;
-        case EItemTier::A_Tier:
-            return 13.0f;
-        case EItemTier::S_Tier:
-            return 15.0f;
-        default:
             return 0.0f;
         }
+        return AugmentStoneConstants::STONE_BASE_PERCENT[i];
     }
 
     /** The sub-stat a stone amplifies. ESubStat::None for non-stat-stones
@@ -666,25 +628,12 @@ namespace CrystalEffectTable
     {
         if (Id.Type == ECrystalType::AbilityStone || CrystalTypeHelpers::IsGemType(Id.Type))
         {
-            switch (Id.Tier)
+            const int32 i = TierHelpers::GetTierValue(Id.Tier);
+            if (i < 0 || i >= 7)
             {
-            case EItemTier::F_Tier:
-                return 2;
-            case EItemTier::E_Tier:
-                return 3;
-            case EItemTier::D_Tier:
-                return 3;
-            case EItemTier::C_Tier:
-                return 4;
-            case EItemTier::B_Tier:
-                return 4;
-            case EItemTier::A_Tier:
-                return 5;
-            case EItemTier::S_Tier:
-                return 6;
-            default:
                 return 0;
             }
+            return AugmentStoneConstants::ATTACHMENT_SLOTS[i];
         }
         // DamageStone and every other type grant no slots.
         return 0;

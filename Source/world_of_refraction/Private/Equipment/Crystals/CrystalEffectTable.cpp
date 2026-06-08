@@ -16,25 +16,15 @@ namespace CrystalEffectTable
 
         case ECrystalType::Amber: // Defense
             // Stone×2 uniform curve (Balance framework). Applied multiplicatively
-            // as ×(1 + pct/100) by GetDefenderFlatDefense.
-            switch (Id.Tier)
+            // as ×(1 + pct/100) by GetDefenderFlatDefense. Shares the consolidated
+            // AugmentStoneConstants curve with Emerald/Opal.
             {
-            case EItemTier::F_Tier:
-                return 6.0f;
-            case EItemTier::E_Tier:
-                return 10.0f;
-            case EItemTier::D_Tier:
-                return 14.0f;
-            case EItemTier::C_Tier:
-                return 18.0f;
-            case EItemTier::B_Tier:
-                return 22.0f;
-            case EItemTier::A_Tier:
-                return 26.0f;
-            case EItemTier::S_Tier:
-                return 30.0f;
-            default:
-                return 0.0f;
+                const int32 i = TierHelpers::GetTierValue(Id.Tier);
+                if (i < 0 || i >= 7)
+                {
+                    return 0.0f;
+                }
+                return AugmentStoneConstants::STAT_CRYSTAL_BUFF_PERCENT[i];
             }
 
         // Opal (crit) intentionally omitted — the live, non-duplicated Opal source
