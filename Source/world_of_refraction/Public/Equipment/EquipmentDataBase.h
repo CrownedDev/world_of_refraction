@@ -186,6 +186,14 @@ public:
     UFUNCTION()
     TArray<FString> GetRestrictedFusionHalfBTypes() const;
 
+    /** Grey-out set for AttachedItem.FusionBonusStat. Restricts every ESubStat NOT
+     *  in the wired six (RawDamage, Defense, CritChance, TurnSpeed, StatusMultiplier,
+     *  Efficiency) — the only stats a read-site actually queries — plus None, so a
+     *  fusion bonus can only target a stat it will actually affect. Same owning-asset
+     *  resolution + short-name shape as GetRestrictedCrystalTypes. */
+    UFUNCTION()
+    TArray<FString> GetRestrictedFusionBonusStats() const;
+
     UFUNCTION(BlueprintPure, Category = "Equipment|Crystal")
     bool IsEvolved() const;
 

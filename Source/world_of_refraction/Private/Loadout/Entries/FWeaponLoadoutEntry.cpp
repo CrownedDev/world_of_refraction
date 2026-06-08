@@ -147,7 +147,10 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAugmentStoneAbilities() const
     // Augment-stone abilities exist only while a augment stone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    if (!Attachment.IsAugmentStone())
+    // A direct augment stone, OR a fusion carrying an AbilityStone half, can grant
+    // augment-stone abilities. The slot cap (below) resolves to 0 when there is no
+    // AbilityStone identity, so a non-AbilityStone attachment still yields nothing.
+    if (!Attachment.IsAugmentStone() && !Attachment.IsFusion())
     {
         return TArray<UAbilityData *>();
     }
@@ -193,9 +196,11 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetAugmentStoneAbilities() const
         ++OverrideIndex;
     }
 
-    // Per-tier slot cap from the attachment's identity (DamageStone -> 0, so a
-    // damage stone yields zero abilities; only AbilityStone grants slots).
-    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
+    // Per-tier slot cap from the attachment's ABILITY identity — its own Id for a
+    // direct augment stone, or the AbilityStone half for a fusion. DamageStone /
+    // no-AbilityStone-half -> 0, so only an AbilityStone grants slots.
+    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(
+        CrystalEffectTable::AbilityStoneSlotIdentity(Attachment));
     if (Result.Num() > SlotLimit)
     {
         Result.SetNum(SlotLimit);
@@ -255,11 +260,12 @@ bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection
         return true; // No weapon = nothing to validate
     }
 
-    // Augment-stone abilities are orphaned without an attached augment stone — valid
-    // only when none are assigned.
+    // Augment-stone abilities are orphaned without an attached augment stone or a
+    // fusion (which may carry an AbilityStone half) — valid only when none are
+    // assigned. The slot cap below rejects any beyond the AbilityStone identity's
+    // tier (0 when there is no AbilityStone half).
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsAugmentStone = Attachment.IsAugmentStone();
-    if (!bIsAugmentStone)
+    if (!Attachment.IsAugmentStone() && !Attachment.IsFusion())
     {
         return AssignedAugmentStoneAbilities.Num() == 0;
     }
@@ -292,8 +298,10 @@ bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection
         }
     }
 
-    // Check count — per-tier slot cap from the attachment's identity.
-    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
+    // Check count — per-tier slot cap from the attachment's ABILITY identity (own Id
+    // for a direct augment stone, the AbilityStone half for a fusion; 0 otherwise).
+    const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(
+        CrystalEffectTable::AbilityStoneSlotIdentity(Attachment));
     if (AssignedAugmentStoneAbilities.Num() > SlotLimit)
     {
         return false;

@@ -579,6 +579,29 @@ namespace CrystalEffectTable
      *  target stat matches Stat. */
     inline float GetAttachedStonePercent(const FRuntimeAttachedItem &Att, ESubStat Stat)
     {
+        if (Att.IsFusion())
+        {
+            // Both halves contribute: each stat-stone half whose target == Stat adds
+            // its tiered %; a gem half (StoneTargetStat -> None) contributes nothing.
+            // Plus the fusion STAT bonus (TV(A)+TV(B))/2 when it targets Stat. (This
+            // /2 STAT bonus is distinct from the Stage-A durability bonus formula.)
+            float Total = 0.0f;
+            const FCrystalId &A = Att.Fusion.Id.HalfA;
+            const FCrystalId &B = Att.Fusion.Id.HalfB;
+            if (StoneTargetStat(A.Type) == Stat)
+            {
+                Total += GetStoneBasePercent(A.Type, A.Tier);
+            }
+            if (StoneTargetStat(B.Type) == Stat)
+            {
+                Total += GetStoneBasePercent(B.Type, B.Tier);
+            }
+            if (Att.Fusion.Id.BonusStat == Stat)
+            {
+                Total += (TierHelpers::GetTierValue(A.Tier) + TierHelpers::GetTierValue(B.Tier)) / 2.0f;
+            }
+            return Total;
+        }
         if (!Att.IsAugmentStone())
         {
             return 0.0f;
@@ -596,6 +619,24 @@ namespace CrystalEffectTable
      *  Mirrors GetAttachedStonePercent's field path; 0 unless Att is exactly StoneType. */
     inline float GetAttachedStonePercentForType(const FRuntimeAttachedItem &Att, ECrystalType StoneType)
     {
+        if (Att.IsFusion())
+        {
+            // Sum any half matching StoneType. No bonus term: the fusion bonus is an
+            // ESubStat and pools have no ESubStat (Option B), so only a literal
+            // MaxHP/MaxEP stone half ever feeds a pool, never the bonus.
+            float Total = 0.0f;
+            const FCrystalId &A = Att.Fusion.Id.HalfA;
+            const FCrystalId &B = Att.Fusion.Id.HalfB;
+            if (A.Type == StoneType)
+            {
+                Total += GetStoneBasePercent(StoneType, A.Tier);
+            }
+            if (B.Type == StoneType)
+            {
+                Total += GetStoneBasePercent(StoneType, B.Tier);
+            }
+            return Total;
+        }
         return (Att.IsAugmentStone() && Att.Crystal.Id.Type == StoneType)
                    ? GetStoneBasePercent(Att.Crystal.Id.Type, Att.Crystal.Id.Tier)
                    : 0.0f;
@@ -669,5 +710,30 @@ namespace CrystalEffectTable
             return GetAttachmentSlotsForTier(Attachment.Fusion.GemHalf());
         }
         return FlatCeiling;
+    }
+
+    /** The FCrystalId whose tier keys an attachment's AUGMENT-STONE ability-slot cap:
+     *  a direct augment stone's own Id, or a fusion's AbilityStone half (the only
+     *  ability-granting fusion half — other pairs are banned by validation). Returns
+     *  a default (None) Id otherwise, for which GetAttachmentSlotsForTier yields 0.
+     *  The ability analog of ResolveSpellSlotCap's gem-half resolution. */
+    inline FCrystalId AbilityStoneSlotIdentity(const FRuntimeAttachedItem &Att)
+    {
+        if (Att.IsAugmentStone())
+        {
+            return Att.Crystal.Id;
+        }
+        if (Att.IsFusion())
+        {
+            if (Att.Fusion.Id.HalfA.Type == ECrystalType::AbilityStone)
+            {
+                return Att.Fusion.Id.HalfA;
+            }
+            if (Att.Fusion.Id.HalfB.Type == ECrystalType::AbilityStone)
+            {
+                return Att.Fusion.Id.HalfB;
+            }
+        }
+        return FCrystalId();
     }
 }

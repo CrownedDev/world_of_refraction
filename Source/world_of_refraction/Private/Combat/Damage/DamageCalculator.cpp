@@ -84,11 +84,14 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
 			{
 				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
-				const bool bIsAugmentStone = Attachment.IsAugmentStone();
-				if (bIsAugmentStone)
+				// Route through the fusion-aware chokepoint. For a plain DamageStone this
+				// is byte-identical to GetDamageStoneBasePercent (StoneTargetStat(DamageStone)
+				// == RawDamage, same GetStoneBasePercent curve); a fusion's DamageStone
+				// half(s) + RawDamage bonus now contribute via GetAttachedStonePercent.
+				if (Attachment.IsAugmentStone() || Attachment.IsFusion())
 				{
 					const float DamageStonePercent =
-						CrystalEffectTable::GetDamageStoneBasePercent(Attachment.Crystal.Id);
+						CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::RawDamage);
 					const float BeforeDamageStone = RunningDamage;
 					RunningDamage *= (1.0f + DamageStonePercent / CombatConstants::STAT_PERCENT_DIVISOR);
 					UE_LOG(LogTemp, Verbose,

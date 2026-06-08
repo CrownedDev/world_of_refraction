@@ -84,8 +84,11 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
               meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
     EItemTier FusionHalfBTier = EItemTier::F_Tier;
 
-    /** The wired sub-stat the fusion bonus targets. None is rejected by validation. */
+    /** The wired sub-stat the fusion bonus targets. The dropdown greys every sub-stat
+     *  no read-site queries (only the wired six are selectable); None is also greyed
+     *  and still rejected by validation as the backstop. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
-              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides,
+                      GetRestrictedEnumValues = "GetRestrictedFusionBonusStats"))
     ESubStat FusionBonusStat = ESubStat::None;
 };

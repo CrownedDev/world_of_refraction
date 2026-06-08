@@ -129,6 +129,36 @@ TArray<FString> UEquipmentDataBase::GetRestrictedFusionHalfBTypes() const
     return Restricted;
 }
 
+TArray<FString> UEquipmentDataBase::GetRestrictedFusionBonusStats() const
+{
+    TArray<FString> Restricted;
+
+    const UEnum *Enum = StaticEnum<ESubStat>();
+    if (!Enum)
+    {
+        return Restricted;
+    }
+
+    // Only the wired six are queried by a read-site (they are exactly the non-None
+    // outputs of CrystalEffectTable::StoneTargetStat). Grey everything else (and None)
+    // so a fusion bonus can never target an inert sub-stat.
+    auto IsWired = [](ESubStat S)
+    {
+        return S == ESubStat::RawDamage || S == ESubStat::Defense ||
+               S == ESubStat::CritChance || S == ESubStat::TurnSpeed ||
+               S == ESubStat::StatusMultiplier || S == ESubStat::Efficiency;
+    };
+    for (int32 Index = 0; Index < Enum->NumEnums() - 1; ++Index)
+    {
+        const ESubStat Stat = static_cast<ESubStat>(Enum->GetValueByIndex(Index));
+        if (!IsWired(Stat))
+        {
+            Restricted.Add(Enum->GetNameStringByIndex(Index));
+        }
+    }
+    return Restricted;
+}
+
 void UEquipmentDataBase::RollSubstatPoints()
 {
     const int32 Budget = EquipmentBonusGen::GetSubstatBudget(Tier);
