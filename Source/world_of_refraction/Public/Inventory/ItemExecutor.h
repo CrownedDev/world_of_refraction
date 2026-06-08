@@ -163,6 +163,11 @@ private:
 	 *  attached form's base-stat getter. */
 	void ExecuteStatusBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** EfficiencyStone - directional Efficiency buff (ally) / debuff (enemy) at the
+	 *  stone's 3-15 magnitude. Transient EfficiencyBuff/Debuff (H0) folded into the
+	 *  unified getter, so it reaches BD drain / EP cost / durability automatically. */
+	void ExecuteEfficiencyBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
 	/** Onyx - Silence */
 	void ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 

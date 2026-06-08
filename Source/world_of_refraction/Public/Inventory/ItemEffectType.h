@@ -40,5 +40,9 @@ enum class EItemEffectType : uint8
     // Appended (=14). Directional StatusStone consumable — transient StatusMultiplier
     // buff/debuff (Step-5b layer, separate from the attached form's base-stat getter).
     // Runtime-derived only (never serialized), so the append needs no CoreRedirect.
-    BuffStatusMultiplier UMETA(DisplayName = "Buff Status Multiplier (stone status buff/debuff)")
+    BuffStatusMultiplier UMETA(DisplayName = "Buff Status Multiplier (stone status buff/debuff)"),
+    // Appended (=15). Directional EfficiencyStone consumable — transient Efficiency
+    // buff/debuff (folded into GetEffectiveEfficiencyMultiplier; reaches BD/EP/durability).
+    // Runtime-derived only (never serialized), so the append needs no CoreRedirect.
+    BuffEfficiency UMETA(DisplayName = "Buff Efficiency (stone efficiency buff/debuff)")
 };

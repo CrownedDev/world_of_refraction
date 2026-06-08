@@ -90,10 +90,10 @@ namespace ItemIdentity
             // from the attached form's base-stat getter). Buff an ally / debuff an enemy.
             return EItemEffectType::BuffStatusMultiplier;
         case ECrystalType::EfficiencyStone:
-            // Attach-only for now — no consumable dispatch yet (falls to UseItem's
-            // "not a usable consumable" default arm, like AbilityStone).
-            // EfficiencyStone needs a NEW EItemEffectType row entirely.
-            return EItemEffectType::None;
+            // Directional efficiency consumable — routes to ExecuteEfficiencyBuffEffect
+            // (transient EfficiencyBuff/Debuff, stone magnitude; folded into the unified
+            // getter so it reaches BD/EP/durability). Buff an ally / debuff an enemy.
+            return EItemEffectType::BuffEfficiency;
         default:
             return EItemEffectType::Damage;
         }
