@@ -8,7 +8,9 @@
 #include "Combat/CombatConstants.h"
 #include "Skills/Effects/BarCapTriggerResolver.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
 
@@ -205,17 +207,28 @@ float UStatusBuildupManager::GetSourceStatusMultiplierFactor(AActor *Source) con
 	const float ModifiedSpirit = SourceComp->GetEvolutionModifiedSpirit();
 	const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
 
-	// Equipment stat bonus — additive to the asset-driven per-point amplification,
-	// read from the source actor's active loadout.
+	// Equipment BonusStatusMultiplier + attached StatusStone — both read from the
+	// source's active loadout. BonusStatusMultiplier is point-based (× per-point); the
+	// StatusStone is a whole-percent curve (÷ STAT_PERCENT_DIVISOR). Both add as terms
+	// in the SAME 1 + ... sum (StatusMultiplier sums, never compounds). 0 for non-StatusStone.
 	int32 BonusPoints = 0;
+	float StonePct = 0.0f;
 	if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
 	{
 		const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
 		BonusPoints = Bonus.BonusStatusMultiplier;
+
+		// Attached StatusStone — the source's OWN active weapon attachment.
+		if (const FWeaponLoadoutEntry *ActiveWeapon = SourceLoadout->GetActiveWeaponLoadout())
+		{
+			const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+			StonePct = CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier);
+		}
 	}
 
 	return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
-	            + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+	            + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
+	            + (StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
 }
 
 bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
