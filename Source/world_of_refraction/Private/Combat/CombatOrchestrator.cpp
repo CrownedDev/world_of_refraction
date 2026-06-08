@@ -3,6 +3,7 @@
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
+#include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Character/CharacterDataComponent.h"
@@ -1007,24 +1008,31 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	// Find all combatants in range
 	TArray<AActor *> ActorsInRange = GetCombatantsInRange(Actor, AuraRange);
 
-	// Pre-compute the base-stat scalars the overload tick needs. Only the
-	// BASE-stat layer of StatusMultiplier is computed here — transient skill-
-	// effect StatusMultiplierBuff/Debuff is intentionally NOT folded in, so
-	// it applies live on the self-status pass via AddStatusBuildup step 5b.
+	// Pre-compute the source-side scalars the overload tick needs. StatusMultiplier
+	// folds in BOTH the base-stat layer (innate+equip+stone, shared getter) AND the
+	// transient StatusMultiplierBuff/Debuff layer — so a transient buff burns BD faster /
+	// a debuff slower, matching base-stat. The self-status pass skips BOTH (bSkipBaseStatAmp)
+	// to avoid double-counting, since both are baked here.
 	float StatusMultiplierBonus = 1.0f;
 	float EfficiencyMult = 1.0f;
 
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		// Crystal-aware StatusMultiplier — shared getter (innate Spirit×points +
-		// equipment BonusStatusMultiplier), the single source of truth also used by
-		// AddStatusBuildup's Step-5 base-stat amp. Equipment now folds into Released,
-		// so it scales BOTH the BD self-status AND the energy drain (Option A;
-		// Efficiency is the counter-stat).
+		// Crystal-aware StatusMultiplier — shared base-stat getter (innate Spirit×points +
+		// equipment BonusStatusMultiplier + attached StatusStone) COMPOUNDED with the
+		// transient buff/debuff (×(1+(buff−debuff)/100) + max(0) floor, same form as
+		// AddStatusBuildup Step 5b). Both scale the BD drain AND self-status.
 		if (UStatusBuildupManager *SBM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
 		{
-			StatusMultiplierBonus = SBM->GetSourceStatusMultiplierFactor(Actor);
+			float StatusFactor = SBM->GetSourceStatusMultiplierFactor(Actor);
+			if (SkillEffectManagerRef)
+			{
+				const float SmBuff = SkillEffectManagerRef->GetTotalStatModifier(Actor, ESkillEffectType::StatusMultiplierBuff);
+				const float SmDebuff = SkillEffectManagerRef->GetTotalStatModifier(Actor, ESkillEffectType::StatusMultiplierDebuff);
+				StatusFactor *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+			}
+			StatusMultiplierBonus = StatusFactor;
 		}
 
 		// EfficiencyMultiplier — unified getter (innate crystal-aware Mind + equipment

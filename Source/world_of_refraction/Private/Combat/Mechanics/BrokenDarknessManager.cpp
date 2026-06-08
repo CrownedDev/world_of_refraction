@@ -568,18 +568,18 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	//   released  = BaseEnergyRelease × StatusMultiplier↑ × Efficiency↓
 	//             - StatusMultiplier raises release ("more flow")
 	//             - Efficiency lowers release ("smaller hole")
-	//             - Only the BASE-STAT layer of StatusMultiplier is baked in here;
-	//               transient skill-effect buff/debuff (step 5b of AddStatusBuildup)
-	//               applies live on the self-status pass, not on the drain.
+	//             - StatusMultiplier here folds in BOTH the base-stat layer AND the
+	//               transient skill-effect buff/debuff (step 5b), so both feed the
+	//               drain — a buff burns faster, a debuff slower.
 	//   drain     = ServerSpendEnergy(released) — the BD's absorption bleeds back
 	//               toward MaxEP; the OnEPChanged broadcast re-evaluates overload
 	//               via HandleOwnerEnergyChanged, so overload auto-exits when the
 	//               pool drops to MaxEP.
 	//   self-status = AddStatusBuildup(BD, BD, released, alignment, None,
-	//                                  bSkipBaseStatAmp=true). Steps 5b (buff/debuff),
-	//                 5c (BD stack multiplier), and 6 (target resistance) all still
-	//                 fire on this self-status. Only step 5 (base-stat) is skipped
-	//                 because `released` already includes it.
+	//                                  bSkipBaseStatAmp=true). Steps 5 (base-stat) AND
+	//                 5b (transient buff/debuff) are both skipped because `released`
+	//                 already includes both. Steps 5c (BD stack multiplier) and 6
+	//                 (target resistance) still fire on this self-status.
 	const float Released = BaseEnergyRelease * StatusMultiplierBonus * EfficiencyMult;
 
 	if (CharComp)

@@ -100,15 +100,14 @@ public:
 	 *  (Element wins over PhysicalType when non-Generic) and fired through the
 	 *  effect manager.
 	 *
-	 *  bSkipBaseStatAmp — when true, skips ONLY the source's base StatusMultiplier-
-	 *  stat amplification (step 5). The transient skill-effect buff/debuff layer
-	 *  (5b), BD absorption-stack amplification (5c), and target resistance (6)
-	 *  all still apply. Used by callers that have already baked the source's
-	 *  base-stat StatusMultiplier into the Amount they're passing (e.g. the BD
-	 *  overload aura, where `released = BaseRelease × StatusMult × Efficiency`
-	 *  is the same number that drains absorption AND becomes self-status —
-	 *  re-applying the stat amp here would double-count it). Defaults false so
-	 *  all existing callers keep the full pipeline. */
+	 *  bSkipBaseStatAmp — when true, skips the source's StatusMultiplier amplification —
+	 *  BOTH the base-stat layer (step 5) AND the transient skill-effect buff/debuff layer
+	 *  (step 5b). The BD absorption-stack amplification (5c) and target resistance (6)
+	 *  still apply. Used by callers that have already baked both into the Amount they pass
+	 *  (e.g. the BD overload aura, where `released = BaseRelease × StatusMult × Efficiency`
+	 *  — StatusMult now including transient — is the same number that drains absorption AND
+	 *  becomes self-status, so re-applying here would double-count). Defaults false so all
+	 *  existing callers keep the full pipeline. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	bool AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
 	                      ESpellElement Element, EPhysicalDamageType PhysicalType,

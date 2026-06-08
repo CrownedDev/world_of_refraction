@@ -301,30 +301,27 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// changes, update here too.
 	if (Source)
 	{
-		// Step 5 — base-stat amp. Gated by bSkipBaseStatAmp for callers that
-		// already baked StatusMultiplier into the incoming Amount (e.g. BD
-		// overload aura, where `released = BaseRelease × StatusMult × Efficiency`
-		// is the single coupled quantity feeding both drain and self-status —
-		// re-applying the stat amp here would double-count). Steps 5b/5c/6
-		// always run regardless.
+		// Steps 5 + 5b — source StatusMultiplier amplification (base-stat AND transient
+		// buff/debuff). Gated by bSkipBaseStatAmp for callers that already baked BOTH
+		// into the incoming Amount (the BD overload aura: `released = BaseRelease ×
+		// StatusMult × Efficiency` is the single coupled quantity feeding both drain and
+		// self-status — re-applying here would double-count). Steps 5c/6 still run below.
 		if (!bSkipBaseStatAmp)
 		{
-			// Base-stat amp — single source of truth (shared with the BD overload
-			// bake in CombatOrchestrator). 1.0 when the source has no CharacterData.
+			// Step 5 — base-stat amp (single source of truth, shared with the BD
+			// overload bake in CombatOrchestrator). 1.0 when no CharacterData.
 			Amount *= GetSourceStatusMultiplierFactor(Source);
-		}
 
-		// Skill-effect-driven StatusMultiplier buff/debuff — symmetric with
-		// DamageCalculator's DamageBuff/Debuff at GetStatusEffectDamageModifier
-		// (:521-523). Aggregated via GetTotalStatModifier (non-element-specific:
-		// StatusMultiplier is caster output amplification, not per-element). Sits
-		// between the character-stat amplification above and the defender-side
-		// resistance reduction below — mirrors the layering in damage.
-		if (USkillEffectManager *EffectMgr = GetEffectManager())
-		{
-			const float SmBuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierBuff);
-			const float SmDebuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierDebuff);
-			Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+			// Step 5b — skill-effect transient StatusMultiplier buff/debuff. NOW gated
+			// alongside Step 5: the BD self-status bakes both into Released, so it skips
+			// both here; normal callers run both. Aggregated via GetTotalStatModifier
+			// (non-element-specific — caster output amplification, not per-element).
+			if (USkillEffectManager *EffectMgr = GetEffectManager())
+			{
+				const float SmBuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierBuff);
+				const float SmDebuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierDebuff);
+				Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+			}
 		}
 
 		// 5c. BD absorption-stack amplification (matching-element only).
