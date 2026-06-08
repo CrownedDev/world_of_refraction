@@ -43,7 +43,7 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
      *  AssignedAbilities — surfaced under the Resonate Weapon menu, valid only
      *  while a weapon stone is attached. Does not touch the main Abilities grid. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
-    TArray<UAbilityData *> AssignedWeaponStoneAbilities;
+    TArray<UAbilityData *> AssignedAugmentStoneAbilities;
 
     /** Assigned spells (max 6, only valid if weapon has crystal).
      *  Sequential override list — see GetAllSpells(). */
@@ -152,7 +152,7 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     {
         WeaponEntry = FWeaponInventoryEntry();
         AssignedAbilities.Empty();
-        AssignedWeaponStoneAbilities.Empty();
+        AssignedAugmentStoneAbilities.Empty();
         AssignedSpells.Empty();
         OverrideAttack = nullptr;
         bUseWeaponParryAnimation = true;

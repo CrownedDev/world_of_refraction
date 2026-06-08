@@ -131,7 +131,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
      *  Only meaningful when the primary weapon has a weapon stone attached. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
-    TArray<UAbilityData *> PrimaryWeaponStoneAbilities;
+    TArray<UAbilityData *> PrimaryAugmentStoneAbilities;
 
     /** Evolution spells (player-found world drops with RequiredEvolutionCrystal validation) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
@@ -170,7 +170,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
      *  secondary weapon has a weapon stone attached. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
-    TArray<UAbilityData *> SecondaryWeaponStoneAbilities;
+    TArray<UAbilityData *> SecondaryAugmentStoneAbilities;
 
     /** Override secondary weapon stance (Generic only, nullptr = use weapon default).
      *  Same propagation path as PrimaryWeaponStanceOverride. */

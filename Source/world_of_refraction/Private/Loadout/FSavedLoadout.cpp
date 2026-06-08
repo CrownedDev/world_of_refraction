@@ -76,10 +76,10 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
                                            SecondaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
             }
 
-            if (SecondaryWeaponStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
+            if (SecondaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
             {
                 Errors.Add(FString::Printf(TEXT("Secondary weapon has too many weapon stone abilities (%d/%d)"),
-                                           SecondaryWeaponStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
+                                           SecondaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
             }
         }
     }
@@ -152,10 +152,10 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
                                        PrimaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
         }
 
-        if (PrimaryWeaponStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
+        if (PrimaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
         {
             Errors.Add(FString::Printf(TEXT("Primary weapon has too many weapon stone abilities (%d/%d)"),
-                                       PrimaryWeaponStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
+                                       PrimaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
         }
     }
 
@@ -250,13 +250,13 @@ TArray<UAbilityData *> FSavedLoadout::GetAllAbilities() const
     if (PrimarySlotType == EPrimarySlotType::Weapon)
     {
         Result.Append(PrimaryWeaponAbilities);
-        Result.Append(PrimaryWeaponStoneAbilities);
+        Result.Append(PrimaryAugmentStoneAbilities);
     }
 
     if (RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon)
     {
         Result.Append(SecondaryWeaponAbilities);
-        Result.Append(SecondaryWeaponStoneAbilities);
+        Result.Append(SecondaryAugmentStoneAbilities);
     }
 
     return Result;

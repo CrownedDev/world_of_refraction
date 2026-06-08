@@ -166,16 +166,16 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWeaponStoneAbilities() const
         return Defaults;
     }
 
-    // Sequential override merge: AssignedWeaponStoneAbilities replace default slots
+    // Sequential override merge: AssignedAugmentStoneAbilities replace default slots
     // in order; non-null entries beyond the default count are appended.
     TArray<UAbilityData *> Result;
     int32 OverrideIndex = 0;
 
     for (int32 i = 0; i < Defaults.Num(); ++i)
     {
-        if (OverrideIndex < AssignedWeaponStoneAbilities.Num() && AssignedWeaponStoneAbilities[OverrideIndex])
+        if (OverrideIndex < AssignedAugmentStoneAbilities.Num() && AssignedAugmentStoneAbilities[OverrideIndex])
         {
-            Result.Add(AssignedWeaponStoneAbilities[OverrideIndex]);
+            Result.Add(AssignedAugmentStoneAbilities[OverrideIndex]);
             ++OverrideIndex;
         }
         else
@@ -184,11 +184,11 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetWeaponStoneAbilities() const
         }
     }
 
-    while (OverrideIndex < AssignedWeaponStoneAbilities.Num())
+    while (OverrideIndex < AssignedAugmentStoneAbilities.Num())
     {
-        if (AssignedWeaponStoneAbilities[OverrideIndex])
+        if (AssignedAugmentStoneAbilities[OverrideIndex])
         {
-            Result.Add(AssignedWeaponStoneAbilities[OverrideIndex]);
+            Result.Add(AssignedAugmentStoneAbilities[OverrideIndex]);
         }
         ++OverrideIndex;
     }
@@ -261,12 +261,12 @@ bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection 
     const bool bIsWeaponStone = Attachment.IsWeaponStone();
     if (!bIsWeaponStone)
     {
-        return AssignedWeaponStoneAbilities.Num() == 0;
+        return AssignedAugmentStoneAbilities.Num() == 0;
     }
 
     EWeaponType WeaponType = WeaponEntry.Weapon->WeaponType;
 
-    for (UAbilityData *Ability : AssignedWeaponStoneAbilities)
+    for (UAbilityData *Ability : AssignedAugmentStoneAbilities)
     {
         if (!Ability)
         {
@@ -294,7 +294,7 @@ bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection 
 
     // Check count — per-tier slot cap from the attachment's identity.
     const int32 SlotLimit = CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id);
-    if (AssignedWeaponStoneAbilities.Num() > SlotLimit)
+    if (AssignedAugmentStoneAbilities.Num() > SlotLimit)
     {
         return false;
     }
@@ -338,5 +338,5 @@ void FWeaponLoadoutEntry::InitializeFromWeapon()
     // AssignedAbilities is a pure override list — it starts empty.
     // Preset abilities are merged in at query time by GetAllAbilities().
     AssignedAbilities.Empty();
-    AssignedWeaponStoneAbilities.Empty();
+    AssignedAugmentStoneAbilities.Empty();
 }
