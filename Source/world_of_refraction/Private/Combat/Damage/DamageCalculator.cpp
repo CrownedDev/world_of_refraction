@@ -102,6 +102,32 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		}
 	}
 
+	// Step 1.25b: Attached augment-stone SPELL-damage multiplier — the magical mirror
+	// of the physical block above, gated to Spell actions (mutually exclusive with the
+	// != Spell gate above, so a given action runs at most one of the two). Reads through
+	// the same fusion-aware GetAttachedStonePercent chokepoint, so a fusion's
+	// SpellDamageStone half(s) + SpellDamage bonus contribute for free.
+	if (Attacker && Input.ActionType == EActionType::Spell)
+	{
+		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		{
+			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			{
+				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				if (Attachment.IsAugmentStone() || Attachment.IsFusion())
+				{
+					const float SpellDamageStonePercent =
+						CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::SpellDamage);
+					const float BeforeSpellDamageStone = RunningDamage;
+					RunningDamage *= (1.0f + SpellDamageStonePercent / CombatConstants::STAT_PERCENT_DIVISOR);
+					UE_LOG(LogTemp, Verbose,
+						   TEXT("[DamageCalculator] Spell damage stone +%.0f%% spell: %.1f -> %.1f"),
+						   SpellDamageStonePercent, BeforeSpellDamageStone, RunningDamage);
+				}
+			}
+		}
+	}
+
 	// Step 1.5: Grid position damage modifier (attacker)
 	UCombatGridSubsystem *Grid = GetCombatGridSubsystem();
 	if (Grid)
@@ -576,6 +602,22 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 			UE_LOG(LogTemp, Verbose,
 				   TEXT("[DamageCalculator] RawDamage status +%.1f%% / -%.1f%%: mult %.3f -> %.3f"),
 				   RawBuff, RawDebuff, BeforeRaw, Modifier);
+		}
+
+		// SpellDamageBuff/Debuff: the magical mirror — whole-number-percent boost to
+		// SPELL outgoing damage only (ActionType == Spell). Symmetric with the physical
+		// RawDamageBuff block above. This is the read-site that gives the SpellDamageStone
+		// CONSUMABLE its teeth; it also activates any other SpellDamageBuff producer (e.g.
+		// the Amethyst gamble's spell-damage arm, previously emitted but unread).
+		if (ActionType == EActionType::Spell)
+		{
+			float SpellBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::SpellDamageBuff);
+			float SpellDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::SpellDamageDebuff);
+			const float BeforeSpell = Modifier;
+			Modifier *= (1.0f + (SpellBuff - SpellDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+			UE_LOG(LogTemp, Verbose,
+				   TEXT("[DamageCalculator] SpellDamage status +%.1f%% / -%.1f%%: mult %.3f -> %.3f"),
+				   SpellBuff, SpellDebuff, BeforeSpell, Modifier);
 		}
 	}
 

@@ -103,6 +103,11 @@ namespace ItemIdentity
             // Directional MaxEP consumable — routes to ExecuteMaxEPBuffEffect (transient
             // MaxEnergyBuff/Debuff). Raise an ally's MaxEP / lower an enemy's.
             return EItemEffectType::BuffMaxEP;
+        case ECrystalType::SpellDamageStone:
+            // Directional spell-damage consumable — routes to ExecuteSpellDamageBuffEffect
+            // (transient SpellDamageBuff/Debuff, stone magnitude; read SPELL-only in
+            // GetStatusEffectDamageModifier). The magical mirror of DamageStone's BuffRawDamage.
+            return EItemEffectType::BuffSpellDamage;
         default:
             return EItemEffectType::Damage;
         }
@@ -176,6 +181,8 @@ namespace ItemIdentity
             return TEXT("MaxHPStone");
         case ECrystalType::MaxEPStone:
             return TEXT("MaxEPStone");
+        case ECrystalType::SpellDamageStone:
+            return TEXT("SpellDamageStone");
         default:
             return TEXT("Unknown");
         }

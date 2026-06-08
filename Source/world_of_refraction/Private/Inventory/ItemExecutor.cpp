@@ -102,6 +102,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteRawDamageBuffEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::BuffSpellDamage:
+		ExecuteSpellDamageBuffEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::Silence:
 		ExecuteSilenceEffect(User, Target, Id, Result);
 		break;
@@ -574,6 +578,38 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Damage stone: Applied %s %.0f%% raw-damage for %d turns to %s"),
 		   bAlly ? TEXT("RawDamageBuff") : TEXT("RawDamageDebuff"), Magnitude, Duration, *Target->GetName());
+}
+
+void UItemExecutor::ExecuteSpellDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Spell-damage stone consumable - DIRECTIONAL: buff an ally's spell (magical)
+	// damage, or debuff an enemy's, for a fixed duration. Magnitude is a whole-number
+	// percent, consumed SPELL-only by GetStatusEffectDamageModifier (== Spell gate).
+	// The magical mirror of ExecuteRawDamageBuffEffect.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::SpellDamageBuff : ESkillEffectType::SpellDamageDebuff;
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Spell Damage"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
+
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Spell damage stone: Applied %s %.0f%% spell-damage for %d turns to %s"),
+		   bAlly ? TEXT("SpellDamageBuff") : TEXT("SpellDamageDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

@@ -45,5 +45,10 @@ enum class ECrystalType : uint8
     // MaxHP/MaxEP ceiling via RecomputeMaxPools (Option B; not ESubStat-backed). Same
     // append-only serialized-identity rule — do NOT reorder/insert above.
     MaxHPStone UMETA(DisplayName = "Max HP Stone"),
-    MaxEPStone UMETA(DisplayName = "Max EP Stone")
+    MaxEPStone UMETA(DisplayName = "Max EP Stone"),
+    // Appended after MaxEPStone; stat-stone sub-type — the magical-damage mirror of
+    // DamageStone (DamageStone = physical via RawDamage; SpellDamageStone = magical
+    // via SpellDamage). Same append-only serialized-identity rule — do NOT
+    // reorder/insert above.
+    SpellDamageStone UMETA(DisplayName = "Spell Damage Stone")
 };

@@ -49,5 +49,10 @@ enum class EItemEffectType : uint8
     // buff/debuff (folded into RecomputeMaxPools via the P2b subscribe trigger). Runtime-
     // derived only (never serialized), so the appends need no CoreRedirect.
     BuffMaxHP UMETA(DisplayName = "Buff Max HP (stone max-HP buff/debuff)"),
-    BuffMaxEP UMETA(DisplayName = "Buff Max EP (stone max-EP buff/debuff)")
+    BuffMaxEP UMETA(DisplayName = "Buff Max EP (stone max-EP buff/debuff)"),
+    // Appended (=18). Directional SpellDamageStone consumable — transient SpellDamage
+    // buff/debuff, read SPELL-only in GetStatusEffectDamageModifier (the magical mirror
+    // of BuffRawDamage). Runtime-derived only (never serialized), so the append needs
+    // no CoreRedirect.
+    BuffSpellDamage UMETA(DisplayName = "Buff Spell Damage (stone spell-damage buff/debuff)")
 };

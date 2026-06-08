@@ -181,6 +181,12 @@ namespace CrystalDescription
         case ECrystalType::MaxEPStone:
             return TEXT("A stone that raises Max EP when attached.");
 
+        case ECrystalType::SpellDamageStone:
+            return FString::Printf(
+                TEXT("Attunes the weapon to raise spell (magical) damage by %.0f%% for %s — passively when attached, or on a target when used. The magical mirror of the Damage Stone."),
+                CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
+                *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
+
         default:
             return TEXT("Unknown effect.");
         }
