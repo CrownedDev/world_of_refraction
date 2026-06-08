@@ -660,6 +660,14 @@ namespace CrystalEffectTable
         {
             return GetAttachmentSlotsForTier(Attachment.Crystal.Id);
         }
+        // An elemental fusion's gem half supplies spell slots exactly like a gem
+        // crystal of that half's tier — keyed on the gem half, not the (empty)
+        // Crystal slot. An augmented fusion (no gem half) falls through to the flat
+        // ceiling, same as any non-gem attachment.
+        if (Attachment.IsFusion() && Attachment.Fusion.HasGemHalf())
+        {
+            return GetAttachmentSlotsForTier(Attachment.Fusion.GemHalf());
+        }
         return FlatCeiling;
     }
 }

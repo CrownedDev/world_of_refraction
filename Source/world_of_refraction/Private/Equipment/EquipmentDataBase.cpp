@@ -23,6 +23,19 @@ ESpellElement UEquipmentDataBase::GetCrystalElement() const
     case EAttachedItemKind::Evolution:
         return AttachedItem.Evolution ? AttachedItem.Evolution->GetAssociatedElement()
                                       : ESpellElement::Generic;
+    case EAttachedItemKind::Fusion:
+        // Mirror the runtime GetElement gem-half logic on the flat authored fields,
+        // for design-time/preview parity. The gem half drives the element; an
+        // augmented fusion (two stones, no gem) is Generic. Check both halves.
+        if (CrystalTypeHelpers::IsGemType(AttachedItem.FusionHalfAType))
+        {
+            return CrystalTypeHelpers::GetElement(AttachedItem.FusionHalfAType);
+        }
+        if (CrystalTypeHelpers::IsGemType(AttachedItem.FusionHalfBType))
+        {
+            return CrystalTypeHelpers::GetElement(AttachedItem.FusionHalfBType);
+        }
+        return ESpellElement::Generic;
     case EAttachedItemKind::None:
     default:
         return ESpellElement::Generic;

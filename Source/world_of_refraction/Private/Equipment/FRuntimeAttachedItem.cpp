@@ -63,6 +63,20 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
     {
         return Evolution.Item->GetAssociatedElement();
     }
+    if (IsFusion())
+    {
+        // The gem half drives an elemental fusion's element. Don't assume HalfA is
+        // the stone — check both; an augmented fusion (two stones, no gem) is Generic.
+        if (CrystalTypeHelpers::IsGemType(Fusion.Id.HalfA.Type))
+        {
+            return ItemIdentity::GetElement(Fusion.Id.HalfA);
+        }
+        if (CrystalTypeHelpers::IsGemType(Fusion.Id.HalfB.Type))
+        {
+            return ItemIdentity::GetElement(Fusion.Id.HalfB);
+        }
+        return ESpellElement::Generic;
+    }
     return ESpellElement::Generic;
 }
 
