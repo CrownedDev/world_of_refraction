@@ -237,6 +237,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedEfficiencyMultiplier() const;
 
+    /** Effective Efficiency cost/drain multiplier: innate (crystal-aware Mind) +
+     *  equipment BonusEfficiency + attached EfficiencyStone, all as reductions under
+     *  ONE clamp. The equipment+stone-aware source for BD drain / durability / EP cost.
+     *  Byte-identical to GetEvolutionModifiedEfficiencyMultiplier when the owner has no
+     *  BonusEfficiency and no EfficiencyStone. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveEfficiencyMultiplier() const;
+
     /** Crystal-aware StatusMultiplier — mirrors
      *  UCharacterData::CalculateStatusMultiplier but uses
      *  GetEvolutionModifiedSpirit() in place of GetEffectiveSpirit().

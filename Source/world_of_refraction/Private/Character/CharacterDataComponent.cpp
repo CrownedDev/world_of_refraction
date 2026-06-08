@@ -7,7 +7,9 @@
 #include "Character/StanceData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Engine/GameInstance.h"
@@ -634,6 +636,41 @@ float UCharacterDataComponent::GetEvolutionModifiedEfficiencyMultiplier() const
         1.0f - (ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT),
         1.0f - CombatConstants::EFFICIENCY_MAX,
         1.0f);
+}
+
+float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+
+    // Innate reduction — byte-identical to GetEvolutionModifiedEfficiencyMultiplier.
+    const float ModifiedMind = GetEvolutionModifiedMind();
+    const int32 TotalPoints = CharacterData->GetTotalEfficiency();
+    float Reduction = ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT;
+
+    // Equipment BonusEfficiency + attached EfficiencyStone — both from the owner's
+    // active loadout (one lookup, reused). Same BonusEfficiency the EP-cost
+    // EquipmentMult reads; stone is the owner's active-weapon attachment. Each adds 0
+    // when absent, so the result stays byte-identical to the canonical getter for a
+    // character with no BonusEfficiency and no EfficiencyStone.
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            Reduction += Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT;
+
+            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            {
+                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                Reduction += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Efficiency)
+                             / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+    }
+
+    return FMath::Clamp(1.0f - Reduction, 1.0f - CombatConstants::EFFICIENCY_MAX, 1.0f);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedStatusMultiplier() const
