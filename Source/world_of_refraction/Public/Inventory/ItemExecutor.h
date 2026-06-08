@@ -153,6 +153,11 @@ private:
 	/** Opal - Crit buff (+ S-tier reveals) */
 	void ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** TurnSpeedStone - directional turn-speed buff (ally) / debuff (enemy) at the
+	 *  stone's 3-15 magnitude. Pure stat; no turn mechanic (separate from Emerald's
+	 *  ExecuteSpeedBuffEffect). */
+	void ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
 	/** Onyx - Silence */
 	void ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 

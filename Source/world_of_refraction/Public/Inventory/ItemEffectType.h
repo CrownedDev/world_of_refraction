@@ -32,5 +32,9 @@ enum class EItemEffectType : uint8
     // AbilityStone so UseItem's dispatch finds no case and falls to the default
     // "not a usable consumable" arm. Runtime-derived only (never serialized),
     // so the append needs no CoreRedirect.
-    None UMETA(DisplayName = "None (no consumable effect)")
+    None UMETA(DisplayName = "None (no consumable effect)"),
+    // Appended (=13). Directional TurnSpeedStone consumable — pure-stat turn-speed
+    // buff/debuff (no turn mechanic; distinct from Emerald's BuffSpeed). Runtime-
+    // derived only (never serialized), so the append needs no CoreRedirect.
+    BuffTurnSpeed UMETA(DisplayName = "Buff Turn Speed (stone turn-speed buff/debuff)")
 };

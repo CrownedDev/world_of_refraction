@@ -80,11 +80,14 @@ namespace ItemIdentity
             // path unchanged). Buff an ally's crit / debuff an enemy's.
             return EItemEffectType::BuffCrit;
         case ECrystalType::TurnSpeedStone:
+            // Directional turn-speed consumable — routes to ExecuteTurnSpeedStoneEffect
+            // (pure-stat buff/debuff, stone magnitude, NO turn mechanic; separate from
+            // Emerald's BuffSpeed handler). Buff an ally's turn speed / debuff an enemy's.
+            return EItemEffectType::BuffTurnSpeed;
         case ECrystalType::StatusStone:
         case ECrystalType::EfficiencyStone:
             // Attach-only for now — no consumable dispatch yet (falls to UseItem's
-            // "not a usable consumable" default arm, like AbilityStone). TurnSpeedStone
-            // could reuse BuffSpeed but Emerald's handler has an S-tier extra-turn;
+            // "not a usable consumable" default arm, like AbilityStone).
             // StatusStone/EfficiencyStone need NEW EItemEffectType rows entirely.
             return EItemEffectType::None;
         default:
