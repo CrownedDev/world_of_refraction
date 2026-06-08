@@ -1027,13 +1027,12 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 			StatusMultiplierBonus = SBM->GetSourceStatusMultiplierFactor(Actor);
 		}
 
-		// Crystal-aware EfficiencyMultiplier — canonical getter (single source of
-		// truth, equipment-aware via GetEvolutionModifiedMind). Byte-identical to the
-		// former inline clamp; routing through it kills the shadow-formula so a future
-		// equipment / Efficiency-stone term reaches BD automatically instead of
-		// silently desyncing. Fraction-of-cost in [1 - EFFICIENCY_MAX, 1.0]; lower =
-		// better efficiency = smaller leak.
-		EfficiencyMult = CharComp->GetEvolutionModifiedEfficiencyMultiplier();
+		// EfficiencyMultiplier — unified getter (innate crystal-aware Mind + equipment
+		// BonusEfficiency + attached EfficiencyStone, one clamp). Byte-neutral vs the
+		// canonical getter for characters with no BonusEfficiency and no stone; equipment
+		// and the stone now reach the BD drain through it. Fraction-of-cost in
+		// [1 - EFFICIENCY_MAX, 1.0]; lower = better efficiency = smaller leak.
+		EfficiencyMult = CharComp->GetEffectiveEfficiencyMultiplier();
 	}
 
 	// Process the overflow tick: aura HP damage (SpellDamage-scaled), self HP
