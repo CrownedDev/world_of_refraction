@@ -171,6 +171,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::ActionSpeedBuff:
         case ESkillEffectType::RawDamageBuff:
         case ESkillEffectType::MaxEnergyBuff:
+        case ESkillEffectType::MaxHPBuff:
         case ESkillEffectType::ResistanceBuff:
         case ESkillEffectType::SpellSizeBuff:
         case ESkillEffectType::TurnSpeedBuff:
@@ -236,6 +237,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::ActionSpeedDebuff:
         case ESkillEffectType::RawDamageDebuff:
         case ESkillEffectType::MaxEnergyDebuff:
+        case ESkillEffectType::MaxHPDebuff:
         case ESkillEffectType::ResistanceDebuff:
         case ESkillEffectType::SpellSizeDebuff:
         case ESkillEffectType::TurnSpeedDebuff:

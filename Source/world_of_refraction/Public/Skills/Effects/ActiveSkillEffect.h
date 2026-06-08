@@ -655,6 +655,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::ResistanceBuff:
 		case ESkillEffectType::SpellSizeBuff:
 		case ESkillEffectType::MaxEnergyBuff:
+		case ESkillEffectType::MaxHPBuff:
 		case ESkillEffectType::TurnSpeedBuff:
 		case ESkillEffectType::LuckBuff:
 		case ESkillEffectType::HealthRestore:
@@ -724,6 +725,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case ESkillEffectType::ResistanceDebuff:
 		case ESkillEffectType::SpellSizeDebuff:
 		case ESkillEffectType::MaxEnergyDebuff:
+		case ESkillEffectType::MaxHPDebuff:
 		case ESkillEffectType::TurnSpeedDebuff:
 		case ESkillEffectType::LuckDebuff:
 		case ESkillEffectType::DOT:

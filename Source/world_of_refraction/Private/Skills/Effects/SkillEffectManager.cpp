@@ -1060,6 +1060,8 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::SpellSizeDebuff:
 	case ESkillEffectType::MaxEnergyBuff:
 	case ESkillEffectType::MaxEnergyDebuff:
+	case ESkillEffectType::MaxHPBuff:
+	case ESkillEffectType::MaxHPDebuff:
 	case ESkillEffectType::TurnSpeedBuff:
 	case ESkillEffectType::TurnSpeedDebuff:
 	case ESkillEffectType::LuckBuff:

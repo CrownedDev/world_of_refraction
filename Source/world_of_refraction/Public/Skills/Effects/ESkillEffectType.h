@@ -222,5 +222,12 @@ enum class ESkillEffectType : uint8
     // Mind-substat Efficiency buff/debuff — summed via GetTotalStatModifier and folded
     // into GetEffectiveEfficiencyMultiplier, so it reaches BD drain / EP cost / durability.
     EfficiencyBuff UMETA(DisplayName = "Efficiency Buff"),
-    EfficiencyDebuff UMETA(DisplayName = "Efficiency Debuff")
+    EfficiencyDebuff UMETA(DisplayName = "Efficiency Debuff"),
+
+    // ==================== POOL — MAX HP (transient — P2a) ====================
+    // Appended (not mid-inserted) to preserve enum-by-value stamping. Transient MaxHP
+    // buff/debuff — summed via GetTotalStatModifier and folded into RecomputeMaxPools
+    // (P2b), raising/lowering the MaxHP ceiling. MaxEnergyBuff/Debuff already exist above.
+    MaxHPBuff UMETA(DisplayName = "Max HP Buff"),
+    MaxHPDebuff UMETA(DisplayName = "Max HP Debuff")
 };
