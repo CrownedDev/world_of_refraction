@@ -82,6 +82,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteTurnSpeedStoneEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::BuffStatusMultiplier:
+		ExecuteStatusBuffEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::BuffRawDamage:
 		ExecuteRawDamageBuffEffect(User, Target, Id, Result);
 		break;
@@ -395,6 +399,38 @@ void UItemExecutor::ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FC
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Turn Speed Stone: Applied %s %.0f%% for %d turns to %s"),
 		   bAlly ? TEXT("TurnSpeedBuff") : TEXT("TurnSpeedDebuff"), Magnitude, Duration, *Target->GetName());
+}
+
+void UItemExecutor::ExecuteStatusBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// StatusStone consumable - DIRECTIONAL: buff an ally's status multiplier, or debuff
+	// an enemy's, at the stone's 3-15 magnitude for the flat stone duration. This is a
+	// TRANSIENT StatusMultiplierBuff/Debuff (the Step-5b layer in AddStatusBuildup) —
+	// SEPARATE from the attached StatusStone's base-stat getter (B3). Applied via SEM.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::StatusMultiplierBuff : ESkillEffectType::StatusMultiplierDebuff;
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Status Multiplier"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
+
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Status Stone: Applied %s %.0f%% for %d turns to %s"),
+		   bAlly ? TEXT("StatusMultiplierBuff") : TEXT("StatusMultiplierDebuff"), Magnitude, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

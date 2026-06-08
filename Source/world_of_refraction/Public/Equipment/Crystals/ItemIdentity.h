@@ -85,10 +85,14 @@ namespace ItemIdentity
             // Emerald's BuffSpeed handler). Buff an ally's turn speed / debuff an enemy's.
             return EItemEffectType::BuffTurnSpeed;
         case ECrystalType::StatusStone:
+            // Directional status consumable — routes to ExecuteStatusBuffEffect (transient
+            // StatusMultiplierBuff/Debuff, stone magnitude; the Step-5b layer, separate
+            // from the attached form's base-stat getter). Buff an ally / debuff an enemy.
+            return EItemEffectType::BuffStatusMultiplier;
         case ECrystalType::EfficiencyStone:
             // Attach-only for now — no consumable dispatch yet (falls to UseItem's
             // "not a usable consumable" default arm, like AbilityStone).
-            // StatusStone/EfficiencyStone need NEW EItemEffectType rows entirely.
+            // EfficiencyStone needs a NEW EItemEffectType row entirely.
             return EItemEffectType::None;
         default:
             return EItemEffectType::Damage;

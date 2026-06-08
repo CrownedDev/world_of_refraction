@@ -36,5 +36,9 @@ enum class EItemEffectType : uint8
     // Appended (=13). Directional TurnSpeedStone consumable — pure-stat turn-speed
     // buff/debuff (no turn mechanic; distinct from Emerald's BuffSpeed). Runtime-
     // derived only (never serialized), so the append needs no CoreRedirect.
-    BuffTurnSpeed UMETA(DisplayName = "Buff Turn Speed (stone turn-speed buff/debuff)")
+    BuffTurnSpeed UMETA(DisplayName = "Buff Turn Speed (stone turn-speed buff/debuff)"),
+    // Appended (=14). Directional StatusStone consumable — transient StatusMultiplier
+    // buff/debuff (Step-5b layer, separate from the attached form's base-stat getter).
+    // Runtime-derived only (never serialized), so the append needs no CoreRedirect.
+    BuffStatusMultiplier UMETA(DisplayName = "Buff Status Multiplier (stone status buff/debuff)")
 };
