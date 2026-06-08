@@ -1017,11 +1017,15 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		// Crystal-aware StatusMultiplier — inlined formula against
-		// GetEvolutionModifiedSpirit (Spirit-driven post pillar move).
-		const float ModifiedSpirit = CharComp->GetEvolutionModifiedSpirit();
-		const int32 StatusMultPoints = CharComp->CharacterData->GetTotalStatusMultiplier();
-		StatusMultiplierBonus = 1.0f + (ModifiedSpirit * StatusMultPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+		// Crystal-aware StatusMultiplier — shared getter (innate Spirit×points +
+		// equipment BonusStatusMultiplier), the single source of truth also used by
+		// AddStatusBuildup's Step-5 base-stat amp. Equipment now folds into Released,
+		// so it scales BOTH the BD self-status AND the energy drain (Option A;
+		// Efficiency is the counter-stat).
+		if (UStatusBuildupManager *SBM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
+		{
+			StatusMultiplierBonus = SBM->GetSourceStatusMultiplierFactor(Actor);
+		}
 
 		// Crystal-aware EfficiencyMultiplier — fraction-of-cost in
 		// [1 - EFFICIENCY_MAX, 1.0]. Lower = better efficiency = smaller leak.

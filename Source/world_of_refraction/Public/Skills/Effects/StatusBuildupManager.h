@@ -114,6 +114,14 @@ public:
 	                      ESpellElement Element, EPhysicalDamageType PhysicalType,
 	                      bool bSkipBaseStatAmp = false);
 
+	/** Total source-side StatusMultiplier amplification factor:
+	 *  1 + (innate Spirit×StatusMultiplier-points + equipment BonusStatusMultiplier) × per-point.
+	 *  Single source of truth shared by AddStatusBuildup's Step-5 base-stat amp and the
+	 *  BD overload bake (CombatOrchestrator). Returns 1.0 when Source or its
+	 *  CharacterData is missing (no amplification). */
+	UFUNCTION(BlueprintPure, Category = "Status|Bar")
+	float GetSourceStatusMultiplierFactor(AActor *Source) const;
+
 	/** Reset status bar for target */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
 	void ResetStatusBar(AActor *Target);

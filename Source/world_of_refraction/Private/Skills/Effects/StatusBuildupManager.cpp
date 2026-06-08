@@ -189,6 +189,35 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 // STATUS BAR MUTATION
 // ========================================
 
+float UStatusBuildupManager::GetSourceStatusMultiplierFactor(AActor *Source) const
+{
+	if (!Source)
+	{
+		return 1.0f;
+	}
+
+	UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
+	if (!SourceComp || !SourceComp->CharacterData)
+	{
+		return 1.0f;
+	}
+
+	const float ModifiedSpirit = SourceComp->GetEvolutionModifiedSpirit();
+	const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
+
+	// Equipment stat bonus — additive to the asset-driven per-point amplification,
+	// read from the source actor's active loadout.
+	int32 BonusPoints = 0;
+	if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
+	{
+		const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
+		BonusPoints = Bonus.BonusStatusMultiplier;
+	}
+
+	return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
+	            + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+}
+
 bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
 											 ESpellElement Element, EPhysicalDamageType PhysicalType,
 											 bool bSkipBaseStatAmp)
@@ -267,24 +296,9 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		// always run regardless.
 		if (!bSkipBaseStatAmp)
 		{
-			UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
-			if (SourceComp && SourceComp->CharacterData)
-			{
-				const float ModifiedSpirit = SourceComp->GetEvolutionModifiedSpirit();
-				const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
-
-				// Equipment stat bonus — additive to the asset-driven per-point
-				// amplification. Read from the source actor's active loadout.
-				int32 BonusPoints = 0;
-				if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
-				{
-					const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
-					BonusPoints = Bonus.BonusStatusMultiplier;
-				}
-
-				Amount *= 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
-				              + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
-			}
+			// Base-stat amp — single source of truth (shared with the BD overload
+			// bake in CombatOrchestrator). 1.0 when the source has no CharacterData.
+			Amount *= GetSourceStatusMultiplierFactor(Source);
 		}
 
 		// Skill-effect-driven StatusMultiplier buff/debuff — symmetric with
