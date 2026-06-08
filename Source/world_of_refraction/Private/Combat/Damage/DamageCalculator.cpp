@@ -72,7 +72,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
-	// Step 1.25: Attached weapon-stone raw-damage multiplier. Live-resolves the
+	// Step 1.25: Attached augment-stone raw-damage multiplier. Live-resolves the
 	// active weapon's attachment from the attacker's loadout — physical actions
 	// only, matching the equipment-bonus gate above. Tiered base% only, applied as
 	// a DIRECT multiplier (these are whole-number percentages, not per-point
@@ -84,8 +84,8 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
 			{
 				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
-				const bool bIsWeaponStone = Attachment.IsWeaponStone();
-				if (bIsWeaponStone)
+				const bool bIsAugmentStone = Attachment.IsAugmentStone();
+				if (bIsAugmentStone)
 				{
 					const float DamageStonePercent =
 						CrystalEffectTable::GetDamageStoneBasePercent(Attachment.Crystal.Id);

@@ -55,7 +55,7 @@ TArray<FString> UEquipmentDataBase::GetRestrictedCrystalTypes() const
     {
         const ECrystalType Type = static_cast<ECrystalType>(Enum->GetValueByIndex(Index));
         const bool bRestrictThis =
-            (bRestrictStones && CrystalTypeHelpers::IsWeaponStoneType(Type)) ||
+            (bRestrictStones && CrystalTypeHelpers::IsAugmentStoneType(Type)) ||
             (bRestrictGems && CrystalTypeHelpers::IsGemType(Type));
         if (bRestrictThis)
         {
@@ -180,15 +180,15 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
         && !CrystalTypeHelpers::IsGemType(AttachedItem.CrystalType))
     {
         Context.AddError(FText::FromString(TEXT(
-            "Crystal attachment requires a gem CrystalType (Garnet..Quartz) — a weapon stone is not valid here")));
+            "Crystal attachment requires a gem CrystalType (Garnet..Quartz) — an augment stone is not valid here")));
         Result = EDataValidationResult::Invalid;
     }
 
     if (AttachedItem.Kind == EAttachedItemKind::AugmentStone
-        && !CrystalTypeHelpers::IsWeaponStoneType(AttachedItem.CrystalType))
+        && !CrystalTypeHelpers::IsAugmentStoneType(AttachedItem.CrystalType))
     {
         Context.AddError(FText::FromString(TEXT(
-            "Weapon stone attachment requires a stone CrystalType (DamageStone / AbilityStone) — a gem is not valid here")));
+            "Augment stone attachment requires a stone CrystalType (DamageStone / AbilityStone) — a gem is not valid here")));
         Result = EDataValidationResult::Invalid;
     }
 

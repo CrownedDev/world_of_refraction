@@ -35,7 +35,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bHasWeaponCrystal = false;
 
-    /** Active weapon has a weapon stone with abilities - show Resonate Weapon (ability mode) */
+    /** Active weapon has a augment stone with abilities - show Resonate Weapon (ability mode) */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Actions")
     bool bHasAugmentStoneAbilities = false;
 
@@ -93,7 +93,7 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
     TArray<UAbilityData *> WeaponAbilities;
 
-    /** Abilities for the Resonate Weapon submenu when a weapon stone is attached
+    /** Abilities for the Resonate Weapon submenu when a augment stone is attached
      *  (mutually exclusive with WeaponCrystalSpells — one attachment slot). */
     UPROPERTY(BlueprintReadOnly, Category = "Capabilities|Abilities")
     TArray<UAbilityData *> AugmentStoneAbilities;

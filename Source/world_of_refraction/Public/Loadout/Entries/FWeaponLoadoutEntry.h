@@ -39,9 +39,9 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
     TArray<UAbilityData *> AssignedAbilities;
 
-    /** Assigned weapon-stone abilities (max 6). Separate channel from
+    /** Assigned augment-stone abilities (max 6). Separate channel from
      *  AssignedAbilities — surfaced under the Resonate Weapon menu, valid only
-     *  while a weapon stone is attached. Does not touch the main Abilities grid. */
+     *  while a augment stone is attached. Does not touch the main Abilities grid. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
     TArray<UAbilityData *> AssignedAugmentStoneAbilities;
 
@@ -95,9 +95,9 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Get all abilities (locked + customizable) */
     TArray<UAbilityData *> GetAllAbilities() const;
 
-    /** Get assigned weapon-stone abilities (Resonate Weapon menu). Empty unless a
-     *  weapon stone is attached. No preset merge — weapon stones are asset-less. */
-    TArray<UAbilityData *> GetWeaponStoneAbilities() const;
+    /** Get assigned augment-stone abilities (Resonate Weapon menu). Empty unless a
+     *  augment stone is attached. No preset merge — augment stones are asset-less. */
+    TArray<UAbilityData *> GetAugmentStoneAbilities() const;
 
     /** Get only the locked/preset abilities */
     TArray<UAbilityData *> GetLockedAbilities() const;
@@ -129,9 +129,9 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Validate abilities match weapon type and are owned */
     bool ValidateAbilities(const struct FAbilityCollection &OwnedAbilities) const;
 
-    /** Validate weapon-stone abilities match weapon type and are owned. With no
-     *  weapon stone attached, valid only when none are assigned. */
-    bool ValidateWeaponStoneAbilities(const struct FAbilityCollection &OwnedAbilities) const;
+    /** Validate augment-stone abilities match weapon type and are owned. With no
+     *  augment stone attached, valid only when none are assigned. */
+    bool ValidateAugmentStoneAbilities(const struct FAbilityCollection &OwnedAbilities) const;
 
     /** Validate spells match crystal element and are owned */
     bool ValidateSpells(const struct FSpellCollection &OwnedSpells) const;

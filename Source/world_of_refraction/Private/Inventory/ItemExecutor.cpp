@@ -397,7 +397,7 @@ void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCr
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Directional defense consumable: buff an ally's defense, or debuff an enemy's.
-	// Shared by Amber (crystal) and DefenseStone (weapon stone) — both map to
+	// Shared by Amber (crystal) and DefenseStone (augment stone) — both map to
 	// EItemEffectType::BuffDefense.
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
@@ -411,7 +411,7 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 
 	// DefenseStone sources the shared stone curve + flat stone duration; Amber keeps
 	// its own GetBuffPercentage + GetCrystalDuration. Direction (IsAlly) is identical.
-	const bool bIsStone = CrystalTypeHelpers::IsWeaponStoneType(Id.Type);
+	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
 	const float Magnitude = bIsStone
 		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
 		: CrystalEffectTable::GetBuffPercentage(Id);

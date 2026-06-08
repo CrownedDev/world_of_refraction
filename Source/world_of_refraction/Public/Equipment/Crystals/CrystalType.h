@@ -1,5 +1,5 @@
 // CrystalType.h
-// Defines the crystal + weapon-stone types for the Items System
+// Defines the crystal + augment-stone types for the Items System
 
 #pragma once
 
@@ -7,7 +7,7 @@
 #include "CrystalType.generated.h"
 
 /**
- * Enum representing the crystal and weapon-stone types in World of Refraction
+ * Enum representing the crystal and augment-stone types in World of Refraction
  * Each crystal has a unique effect and color theme
  * Raw crystals = consumable items
  * Refined crystals = slot into weapons/rings
@@ -27,11 +27,11 @@ enum class ECrystalType : uint8
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
     Quartz UMETA(DisplayName = "Quartz (None - Transform)"),
     DamageStone UMETA(DisplayName = "Damage Stone"),
-    // Appended after DamageStone (=12); weapon-stone sub-type that grants ability
+    // Appended after DamageStone (=12); augment-stone sub-type that grants ability
     // slots. Attach-only (never a consumable). Do NOT reorder/insert above —
     // value is the serialized .uasset/SaveGame identity.
     AbilityStone UMETA(DisplayName = "Ability Stone"),
-    // Appended after AbilityStone (=13); weapon-stone sub-type that buffs Defense.
+    // Appended after AbilityStone (=13); augment-stone sub-type that buffs Defense.
     // Same append-only serialized-identity rule — do NOT reorder/insert above.
     DefenseStone UMETA(DisplayName = "Defense Stone")
 };

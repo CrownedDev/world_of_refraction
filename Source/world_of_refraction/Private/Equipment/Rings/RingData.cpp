@@ -22,13 +22,13 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
     }
     else
     {
-        // Weapon stones are weapon-only attachments — a ring must never carry one.
+        // Augment stones are weapon-only attachments — a ring must never carry one.
         // The attachment struct is shared with weapons, so this is reachable by
         // mis-authoring; flag it as a hard error.
         if (AttachedItem.Kind == EAttachedItemKind::AugmentStone)
         {
             Context.AddError(FText::FromString(TEXT(
-                "Weapon stones cannot be attached to a ring — weapon stones are weapon-only attachments")));
+                "Augment stones cannot be attached to a ring — augment stones are weapon-only attachments")));
             Result = EDataValidationResult::Invalid;
         }
 

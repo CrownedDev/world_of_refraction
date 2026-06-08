@@ -68,10 +68,10 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
                 static_cast<int32>(ActiveWeapon->WeaponEntry.GetElement()));
         }
 
-        // Weapon-stone abilities — parallel to the crystal-spell branch above and
-        // mutually exclusive with it (one attachment slot). GetWeaponStoneAbilities
-        // returns empty unless a weapon stone is attached, so no extra guard.
-        Out.AugmentStoneAbilities = ActiveWeapon->GetWeaponStoneAbilities();
+        // Augment-stone abilities — parallel to the crystal-spell branch above and
+        // mutually exclusive with it (one attachment slot). GetAugmentStoneAbilities
+        // returns empty unless a augment stone is attached, so no extra guard.
+        Out.AugmentStoneAbilities = ActiveWeapon->GetAugmentStoneAbilities();
         Out.bHasAugmentStoneAbilities = Out.AugmentStoneAbilities.Num() > 0;
     }
 

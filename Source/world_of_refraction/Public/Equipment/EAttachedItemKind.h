@@ -1,7 +1,7 @@
 // EAttachedItemKind.h
 // Discriminator enum for FAttachedItem (design-time) and FRuntimeAttachedItem
 // (runtime). Distinguishes empty slots from refined-crystal, evolution-item, and
-// weapon-stone attachments. Mutually exclusive — a slot is exactly one Kind.
+// augment-stone attachments. Mutually exclusive — a slot is exactly one Kind.
 
 #pragma once
 

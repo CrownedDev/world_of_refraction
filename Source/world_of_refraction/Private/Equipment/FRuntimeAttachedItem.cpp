@@ -14,9 +14,9 @@ bool FRuntimeAttachedItem::IsBroken() const
     {
         return false;
     }
-    // A weapon stone carries no durability — it can never break, so ability
+    // A augment stone carries no durability — it can never break, so ability
     // gating (CanProvideSpells) always sees it as intact.
-    if (IsWeaponStone())
+    if (IsAugmentStone())
     {
         return false;
     }
@@ -33,8 +33,8 @@ bool FRuntimeAttachedItem::IsBroken() const
 
 bool FRuntimeAttachedItem::CanProvideSpells() const
 {
-    // A weapon stone is intact but grants abilities, not spells — never a spell source.
-    if (IsWeaponStone())
+    // A augment stone is intact but grants abilities, not spells — never a spell source.
+    if (IsAugmentStone())
     {
         return false;
     }
@@ -44,8 +44,8 @@ bool FRuntimeAttachedItem::CanProvideSpells() const
 ESpellElement FRuntimeAttachedItem::GetElement() const
 {
     // No element — matches the old Refined→ItemIdentity::GetElement path,
-    // which resolved a weapon-stone FCrystalId to Generic via its default arm.
-    if (IsWeaponStone())
+    // which resolved a augment-stone FCrystalId to Generic via its default arm.
+    if (IsAugmentStone())
     {
         return ESpellElement::Generic;
     }
@@ -62,8 +62,8 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
 
 int32 FRuntimeAttachedItem::GetCurrentDurability() const
 {
-    // A weapon stone has no durability concept — reports 0 (it never wears).
-    if (IsWeaponStone())
+    // A augment stone has no durability concept — reports 0 (it never wears).
+    if (IsAugmentStone())
     {
         return 0;
     }
@@ -80,8 +80,8 @@ int32 FRuntimeAttachedItem::GetCurrentDurability() const
 
 int32 FRuntimeAttachedItem::GetMaxDurability() const
 {
-    // A weapon stone has no durability concept — reports 0 (it never wears).
-    if (IsWeaponStone())
+    // A augment stone has no durability concept — reports 0 (it never wears).
+    if (IsAugmentStone())
     {
         return 0;
     }
@@ -112,8 +112,8 @@ FString FRuntimeAttachedItem::GetStatModifierSummary() const
 
 bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
 {
-    // A weapon stone never wears — nothing to break.
-    if (IsWeaponStone())
+    // A augment stone never wears — nothing to break.
+    if (IsAugmentStone())
     {
         return false;
     }
@@ -130,8 +130,8 @@ bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
 
 int32 FRuntimeAttachedItem::RepairBetweenCombats(int32 Amount)
 {
-    // A weapon stone never wears, so there is nothing to repair.
-    if (IsWeaponStone())
+    // A augment stone never wears, so there is nothing to repair.
+    if (IsAugmentStone())
     {
         return 0;
     }
@@ -159,7 +159,7 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
     case EAttachedItemKind::Crystal:
     case EAttachedItemKind::AugmentStone:
         // Durability is per-instance state, not identity — compare by Id
-        // only (identity match, not instance state). A weapon stone stores its
+        // only (identity match, not instance state). A augment stone stores its
         // FCrystalId{sub-type, Tier} in the same Crystal slot.
         return Crystal.Id == Other.Crystal.Id;
     case EAttachedItemKind::Evolution:
@@ -197,7 +197,7 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         Result.Kind = EAttachedItemKind::AugmentStone;
         // Identity carrier is the Crystal slot; read the authored sub-type
         // (DamageStone or AbilityStone) + tier, mirroring the Crystal case. No
-        // durability — a weapon stone never wears, so seed 0 (do NOT call
+        // durability — a augment stone never wears, so seed 0 (do NOT call
         // GetMaxDurability, which is tier-based and nonzero).
         Result.Crystal.Id = FCrystalId(Source.CrystalType, Source.CrystalTier);
         Result.Crystal.CurrentDurability = 0;

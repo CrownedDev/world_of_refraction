@@ -142,12 +142,12 @@ TArray<UAbilityData *> FWeaponLoadoutEntry::GetCustomizableAbilities() const
     return AssignedAbilities;
 }
 
-TArray<UAbilityData *> FWeaponLoadoutEntry::GetWeaponStoneAbilities() const
+TArray<UAbilityData *> FWeaponLoadoutEntry::GetAugmentStoneAbilities() const
 {
-    // Weapon-stone abilities exist only while a weapon stone is attached — gate the
+    // Augment-stone abilities exist only while a augment stone is attached — gate the
     // way GetAllSpells gates spells on a spell-capable attachment.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    if (!Attachment.IsWeaponStone())
+    if (!Attachment.IsAugmentStone())
     {
         return TArray<UAbilityData *>();
     }
@@ -248,18 +248,18 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
     return true;
 }
 
-bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection &OwnedAbilities) const
+bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection &OwnedAbilities) const
 {
     if (!WeaponEntry.Weapon)
     {
         return true; // No weapon = nothing to validate
     }
 
-    // Weapon-stone abilities are orphaned without an attached weapon stone — valid
+    // Augment-stone abilities are orphaned without an attached augment stone — valid
     // only when none are assigned.
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWeaponStone = Attachment.IsWeaponStone();
-    if (!bIsWeaponStone)
+    const bool bIsAugmentStone = Attachment.IsAugmentStone();
+    if (!bIsAugmentStone)
     {
         return AssignedAugmentStoneAbilities.Num() == 0;
     }
@@ -304,13 +304,13 @@ bool FWeaponLoadoutEntry::ValidateWeaponStoneAbilities(const FAbilityCollection 
 
 bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) const
 {
-    // A weapon stone grants no spells; its Generic element must not be read as a
+    // A augment stone grants no spells; its Generic element must not be read as a
     // spell-element mismatch. Treat it like a no-spell attachment — valid only
     // when nothing is assigned (same return as the !CanHaveSpells gate).
     const FRuntimeAttachedItem &Attachment = WeaponEntry.GetAttachedItem();
-    const bool bIsWeaponStone = Attachment.IsWeaponStone();
+    const bool bIsAugmentStone = Attachment.IsAugmentStone();
 
-    if (!CanHaveSpells() || bIsWeaponStone)
+    if (!CanHaveSpells() || bIsAugmentStone)
     {
         return WeaponEntry.AssignedSpells.Num() == 0;
     }

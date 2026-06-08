@@ -29,7 +29,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item")
     EAttachedItemKind Kind = EAttachedItemKind::None;
 
-    // Identity carrier for Crystal AND weapon stones — a weapon stone stores its
+    // Identity carrier for Crystal AND augment stones — a augment stone stores its
     // FCrystalId{sub-type, Tier} here so consumers read Crystal.Id uniformly.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::AugmentStone", EditConditionHides))
@@ -42,7 +42,7 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
     bool IsEmpty() const { return Kind == EAttachedItemKind::None; }
     bool IsCrystal() const { return Kind == EAttachedItemKind::Crystal; }
     bool IsEvolution() const { return Kind == EAttachedItemKind::Evolution; }
-    bool IsWeaponStone() const { return Kind == EAttachedItemKind::AugmentStone; }
+    bool IsAugmentStone() const { return Kind == EAttachedItemKind::AugmentStone; }
 
     // ==================== STATE QUERIES ====================
 

@@ -1971,9 +1971,9 @@ TArray<FEquippedCrystalSlot> ULoadoutComponent::GetEquippedCrystals() const
         {
             Slot.CrystalId = Attachment.Crystal.Id;
         }
-        else if (Attachment.IsWeaponStone())
+        else if (Attachment.IsAugmentStone())
         {
-            // A weapon stone stores its FCrystalId{sub-type, Tier} in the Crystal
+            // A augment stone stores its FCrystalId{sub-type, Tier} in the Crystal
             // slot — carry it so the emitted crystal slot keeps its identity.
             Slot.CrystalId = Attachment.Crystal.Id;
         }

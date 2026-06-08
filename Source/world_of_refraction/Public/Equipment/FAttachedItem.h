@@ -27,7 +27,7 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item")
     EAttachedItemKind Kind = EAttachedItemKind::None;
 
-    /** Crystal sub-type. Visible for Crystal (Garnet…Quartz) and WeaponStone
+    /** Crystal sub-type. Visible for Crystal (Garnet…Quartz) and AugmentStone
      *  (DamageStone vs AbilityStone) — lets the designer pick the stone variant. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::AugmentStone", EditConditionHides,
@@ -35,7 +35,7 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     ECrystalType CrystalType = ECrystalType::Garnet;
 
     /** Tier of the attachment's crystal identity. Visible for Crystal and
-     *  WeaponStone — a weapon stone carries identity FCrystalId{sub-type, Tier},
+     *  AugmentStone — a augment stone carries identity FCrystalId{sub-type, Tier},
      *  with the sub-type (Damage/Ability) picked via CrystalType above. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Crystal || Kind == EAttachedItemKind::AugmentStone", EditConditionHides))

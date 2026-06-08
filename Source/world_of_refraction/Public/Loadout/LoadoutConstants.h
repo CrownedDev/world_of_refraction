@@ -7,7 +7,7 @@ namespace LoadoutConstants
 {
     // Abilities
     constexpr int32 MAX_WEAPON_ABILITIES = 6;
-    constexpr int32 MAX_WEAPONSTONE_ABILITIES = 6; // Absolute weapon-stone ability-slot ceiling (AbilityStone S-tier = 6)
+    constexpr int32 MAX_AUGMENTSTONE_ABILITIES = 6; // Absolute augment-stone ability-slot ceiling (AbilityStone S-tier = 6)
     constexpr int32 MAX_GRANTED_ABILITIES = 5; // +1 Cancel = 6 total
 
     // Spells

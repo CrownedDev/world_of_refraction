@@ -586,11 +586,11 @@ namespace CrystalEffectTable
 
     /** Percent a stone ATTACHMENT grants for a specific sub-stat — the hook each
      *  read-site calls (e.g. Defense in GetDefenderFlatDefense, RawDamage in the
-     *  Step 1.25 damage path). 0 unless the attachment is a weapon stone whose
+     *  Step 1.25 damage path). 0 unless the attachment is a augment stone whose
      *  target stat matches Stat. */
     inline float GetAttachedStonePercent(const FRuntimeAttachedItem &Att, ESubStat Stat)
     {
-        if (!Att.IsWeaponStone())
+        if (!Att.IsAugmentStone())
         {
             return 0.0f;
         }

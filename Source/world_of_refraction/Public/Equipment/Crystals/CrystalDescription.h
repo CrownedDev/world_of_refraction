@@ -159,8 +159,8 @@ namespace CrystalDescription
                 *FormatTurns(CombatConstants::DAMAGESTONE_CONSUMABLE_DURATION));
 
         case ECrystalType::AbilityStone:
-            // Attach-only weapon stone; per-tier slot text refines in Cluster 4.
-            return TEXT("A weapon stone that grants additional ability slots when attached.");
+            // Attach-only augment stone; per-tier slot text refines in Cluster 4.
+            return TEXT("A augment stone that grants additional ability slots when attached.");
 
         case ECrystalType::DefenseStone:
             // Magnitude curve lands in C2, the directional consumable in C4 —

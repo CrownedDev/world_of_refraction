@@ -76,10 +76,10 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
                                            SecondaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
             }
 
-            if (SecondaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
+            if (SecondaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
             {
-                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many weapon stone abilities (%d/%d)"),
-                                           SecondaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
+                Errors.Add(FString::Printf(TEXT("Secondary weapon has too many augment stone abilities (%d/%d)"),
+                                           SecondaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
             }
         }
     }
@@ -152,10 +152,10 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
                                        PrimaryWeaponAbilities.Num(), LoadoutConstants::MAX_WEAPON_ABILITIES));
         }
 
-        if (PrimaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_WEAPONSTONE_ABILITIES)
+        if (PrimaryAugmentStoneAbilities.Num() > LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES)
         {
-            Errors.Add(FString::Printf(TEXT("Primary weapon has too many weapon stone abilities (%d/%d)"),
-                                       PrimaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_WEAPONSTONE_ABILITIES));
+            Errors.Add(FString::Printf(TEXT("Primary weapon has too many augment stone abilities (%d/%d)"),
+                                       PrimaryAugmentStoneAbilities.Num(), LoadoutConstants::MAX_AUGMENTSTONE_ABILITIES));
         }
     }
 
