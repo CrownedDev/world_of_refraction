@@ -28,6 +28,12 @@ bool FRuntimeAttachedItem::IsBroken() const
     {
         return Evolution.IsBroken();
     }
+    if (IsFusion())
+    {
+        // Elemental fusion wears and can break; augmented fusion never wears
+        // (FFusionAttachment::IsBroken returns false when there is no gem half).
+        return Fusion.IsBroken();
+    }
     return false;
 }
 
@@ -75,6 +81,10 @@ int32 FRuntimeAttachedItem::GetCurrentDurability() const
     {
         return Evolution.CurrentDurability;
     }
+    if (IsFusion())
+    {
+        return Fusion.CurrentDurability;
+    }
     return 0;
 }
 
@@ -92,6 +102,13 @@ int32 FRuntimeAttachedItem::GetMaxDurability() const
     if (IsEvolution() && Evolution.Item)
     {
         return Evolution.Item->MaxDurability;
+    }
+    if (IsFusion())
+    {
+        // Whole-fusion max: gem half's tier max + two-tier bonus (stubbed). 0 for
+        // an augmented fusion (no gem). Logic lives on FFusionAttachment (DRY with
+        // its RepairBetweenCombats clamp).
+        return Fusion.GetMaxDurability();
     }
     return 0;
 }
@@ -125,6 +142,12 @@ bool FRuntimeAttachedItem::ApplyWear(int32 Amount)
     {
         return Evolution.ApplyWear(Amount);
     }
+    if (IsFusion())
+    {
+        // Elemental fusion wears as a unit; augmented fusion is a no-op
+        // (FFusionAttachment::ApplyWear gates on having a gem half).
+        return Fusion.ApplyWear(Amount);
+    }
     return false;
 }
 
@@ -142,6 +165,12 @@ int32 FRuntimeAttachedItem::RepairBetweenCombats(int32 Amount)
     if (IsEvolution())
     {
         return Evolution.RepairBetweenCombats(Amount);
+    }
+    if (IsFusion())
+    {
+        // Augmented fusion is a no-op (FFusionAttachment::RepairBetweenCombats
+        // gates on having a gem half).
+        return Fusion.RepairBetweenCombats(Amount);
     }
     return 0;
 }
@@ -164,6 +193,10 @@ bool FRuntimeAttachedItem::operator==(const FRuntimeAttachedItem &Other) const
         return Crystal.Id == Other.Crystal.Id;
     case EAttachedItemKind::Evolution:
         return Evolution.Item == Other.Evolution.Item;
+    case EAttachedItemKind::Fusion:
+        // Identity = the fusion's FFusionId (order-agnostic ==); per-instance
+        // durability is state, not identity, so it is excluded.
+        return Fusion.Id == Other.Fusion.Id;
     default:
         return false;
     }
@@ -201,6 +234,21 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // GetMaxDurability, which is tier-based and nonzero).
         Result.Crystal.Id = FCrystalId(Source.CrystalType, Source.CrystalTier);
         Result.Crystal.CurrentDurability = 0;
+        break;
+
+    case EAttachedItemKind::Fusion:
+        Result.Kind = EAttachedItemKind::Fusion;
+        // Map the six flat authored fields into the runtime fusion identity. The
+        // authoring-only bFusionHalfBIsCrystal is NOT stored — gem/stone nature is
+        // recovered at runtime via CrystalTypeHelpers::IsGemType on each half.
+        Result.Fusion.Id.HalfA     = FCrystalId(Source.FusionHalfAType, Source.FusionHalfATier);
+        Result.Fusion.Id.HalfB     = FCrystalId(Source.FusionHalfBType, Source.FusionHalfBTier);
+        Result.Fusion.Id.BonusStat = Source.FusionBonusStat;
+        // Seed whole-fusion durability: an elemental fusion (gem half present)
+        // starts at its gem-seeded max (incl. the two-tier bonus); an augmented
+        // fusion seeds 0 and never wears. GetMaxDurability() returns 0 when there
+        // is no gem half, so this single call covers both cases.
+        Result.Fusion.CurrentDurability = Result.Fusion.GetMaxDurability();
         break;
 
     case EAttachedItemKind::None:

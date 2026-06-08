@@ -35,7 +35,27 @@ struct WORLD_OF_REFRACTION_API FFusionId
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fusion")
     ESubStat BonusStat = ESubStat::None;
 
-    // TODO(runtime): symmetric operator== + GetTypeHash (sort halves so A+B == B+A) —
-    // needed for fusion stacking/countability at runtime, NOT for authoring. Deferred to
-    // the runtime-resolution follow-up; do not add the operators here.
+    /** Order-agnostic identity: same BonusStat AND the two halves match in either
+     *  order (A+B == B+A), so fusion stacking/countability treats half order as
+     *  irrelevant. Composes FCrystalId's own operator==. */
+    bool operator==(const FFusionId &Other) const
+    {
+        return BonusStat == Other.BonusStat &&
+               ((HalfA == Other.HalfA && HalfB == Other.HalfB) ||
+                (HalfA == Other.HalfB && HalfB == Other.HalfA));
+    }
+
+    bool operator!=(const FFusionId &Other) const { return !(*this == Other); }
 };
+
+/** Symmetric hash — Min/Max of the two half hashes makes it order-independent
+ *  (A+B and B+A hash identically), consistent with the order-agnostic
+ *  operator==. Composes FCrystalId's GetTypeHash + the bonus sub-stat. */
+FORCEINLINE uint32 GetTypeHash(const FFusionId &Id)
+{
+    const uint32 HashA = GetTypeHash(Id.HalfA);
+    const uint32 HashB = GetTypeHash(Id.HalfB);
+    return HashCombine(
+        HashCombine(FMath::Min(HashA, HashB), FMath::Max(HashA, HashB)),
+        ::GetTypeHash(static_cast<uint8>(Id.BonusStat)));
+}

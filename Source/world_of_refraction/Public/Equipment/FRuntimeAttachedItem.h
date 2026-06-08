@@ -16,6 +16,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/FCrystalAttachment.h"
 #include "Equipment/Crystals/FEvolutionAttachment.h"
+#include "Equipment/FFusionAttachment.h"
 #include "FRuntimeAttachedItem.generated.h"
 
 class UEvolutionItemData;
@@ -39,10 +40,16 @@ struct WORLD_OF_REFRACTION_API FRuntimeAttachedItem
               meta = (EditCondition = "Kind == EAttachedItemKind::Evolution", EditConditionHides))
     FEvolutionAttachment Evolution;
 
+    // Fusion identity + whole-fusion durability. Active only when Kind == Fusion.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
+    FFusionAttachment Fusion;
+
     bool IsEmpty() const { return Kind == EAttachedItemKind::None; }
     bool IsCrystal() const { return Kind == EAttachedItemKind::Crystal; }
     bool IsEvolution() const { return Kind == EAttachedItemKind::Evolution; }
     bool IsAugmentStone() const { return Kind == EAttachedItemKind::AugmentStone; }
+    bool IsFusion() const { return Kind == EAttachedItemKind::Fusion; }
 
     // ==================== STATE QUERIES ====================
 

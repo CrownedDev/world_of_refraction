@@ -119,6 +119,18 @@ namespace ItemIdentity
         return DurabilityConstants::GetMaxDurabilityForTier(Id.Tier);
     }
 
+    /** Bonus durability a fusion's whole-unit pool gains on top of the gem half's
+     *  tier max — keyed on BOTH halves' tiers (symmetric, like the bonus-stat
+     *  formula). ((TVA + TVB) * 2) + 1 with TV = F=0..S=6: F+F = 1, S+S = 25.
+     *  Added in GetMaxDurability() for an elemental fusion only (augmented fusions
+     *  have no gem half and never reach this). */
+    inline int32 GetFusionBonusDurability(EItemTier TierA, EItemTier TierB)
+    {
+        const int32 TVA = TierHelpers::GetTierValue(TierA);
+        const int32 TVB = TierHelpers::GetTierValue(TierB);
+        return ((TVA + TVB) * 2) + 1;
+    }
+
     /** Returns the bare crystal name, e.g. "Garnet", "Sapphire", "Quartz".
      *  Independent of the UMETA display-name strings (which are verbose
      *  "Garnet (Fire - Damage)" forms intended for the editor dropdown). */
