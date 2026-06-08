@@ -46,14 +46,17 @@ namespace CrystalTypeHelpers
         }
     }
 
-    /** True for augment-stone sub-types (DamageStone, AbilityStone, DefenseStone) —
-     *  the attach-only stones that grant raw damage / ability slots / defense.
-     *  Single source of truth for the gem/stone split; the editor dropdown filter,
-     *  IsGemType, and the IsDataValid backstop all key off this. */
+    /** True for augment-stone sub-types (DamageStone, AbilityStone, DefenseStone,
+     *  CritStone, TurnSpeedStone, StatusStone, EfficiencyStone) — the attach-only
+     *  stones that grant raw damage / ability slots / a stat. Single source of truth
+     *  for the gem/stone split; the editor dropdown filter, IsGemType, and the
+     *  IsDataValid backstop all key off this. */
     inline bool IsAugmentStoneType(ECrystalType Type)
     {
         return Type == ECrystalType::DamageStone || Type == ECrystalType::AbilityStone ||
-               Type == ECrystalType::DefenseStone;
+               Type == ECrystalType::DefenseStone || Type == ECrystalType::CritStone ||
+               Type == ECrystalType::TurnSpeedStone || Type == ECrystalType::StatusStone ||
+               Type == ECrystalType::EfficiencyStone;
     }
 
     /** True for gem sub-types (Garnet..Quartz). None is neither gem nor stone,

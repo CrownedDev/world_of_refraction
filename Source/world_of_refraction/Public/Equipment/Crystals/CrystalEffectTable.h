@@ -479,7 +479,9 @@ namespace CrystalEffectTable
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
         if (Id.Type == ECrystalType::None || Id.Type == ECrystalType::DamageStone ||
-            Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone)
+            Id.Type == ECrystalType::AbilityStone || Id.Type == ECrystalType::DefenseStone ||
+            Id.Type == ECrystalType::CritStone || Id.Type == ECrystalType::TurnSpeedStone ||
+            Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone)
         {
             return 0.0f;
         }
@@ -515,6 +517,10 @@ namespace CrystalEffectTable
         {
         case ECrystalType::DamageStone:
         case ECrystalType::DefenseStone:
+        case ECrystalType::CritStone:
+        case ECrystalType::TurnSpeedStone:
+        case ECrystalType::StatusStone:
+        case ECrystalType::EfficiencyStone:
             break;
         default:
             return 0.0f;
@@ -551,6 +557,14 @@ namespace CrystalEffectTable
             return ESubStat::RawDamage;
         case ECrystalType::DefenseStone:
             return ESubStat::Defense;
+        case ECrystalType::CritStone:
+            return ESubStat::CritChance;
+        case ECrystalType::TurnSpeedStone:
+            return ESubStat::TurnSpeed;
+        case ECrystalType::StatusStone:
+            return ESubStat::StatusMultiplier;
+        case ECrystalType::EfficiencyStone:
+            return ESubStat::Efficiency;
         default:
             return ESubStat::None;
         }

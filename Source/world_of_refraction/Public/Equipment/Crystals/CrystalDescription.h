@@ -167,6 +167,16 @@ namespace CrystalDescription
             // placeholder text until then.
             return TEXT("A stone that bolsters Defense — passively when attached, or on a target when used.");
 
+        case ECrystalType::CritStone:
+            // Placeholder until the attached crit hook + consumable land.
+            return TEXT("A stone that raises Crit Chance when attached.");
+        case ECrystalType::TurnSpeedStone:
+            return TEXT("A stone that raises Turn Speed when attached.");
+        case ECrystalType::StatusStone:
+            return TEXT("A stone that raises Status Multiplier when attached.");
+        case ECrystalType::EfficiencyStone:
+            return TEXT("A stone that improves Efficiency when attached.");
+
         default:
             return TEXT("Unknown effect.");
         }

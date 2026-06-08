@@ -74,6 +74,17 @@ namespace ItemIdentity
             // Directional defense consumable — routes to ExecuteDefenseBuffEffect
             // (the same handler Amber uses). Magnitude/hook land in later clusters.
             return EItemEffectType::BuffDefense;
+        case ECrystalType::CritStone:
+        case ECrystalType::TurnSpeedStone:
+        case ECrystalType::StatusStone:
+        case ECrystalType::EfficiencyStone:
+            // Attach-only for B0 — no consumable dispatch yet (falls to UseItem's
+            // "not a usable consumable" default arm, like AbilityStone). The per-stone
+            // consumable effect type + handler + magnitude land in their hook clusters.
+            // Note: CritStone/TurnSpeedStone could reuse BuffCrit/BuffSpeed but those
+            // handlers are gem-specific (Opal magnitude; Emerald S-tier extra-turn);
+            // StatusStone/EfficiencyStone need NEW EItemEffectType rows entirely.
+            return EItemEffectType::None;
         default:
             return EItemEffectType::Damage;
         }
@@ -123,6 +134,14 @@ namespace ItemIdentity
             return TEXT("AbilityStone");
         case ECrystalType::DefenseStone:
             return TEXT("DefenseStone");
+        case ECrystalType::CritStone:
+            return TEXT("CritStone");
+        case ECrystalType::TurnSpeedStone:
+            return TEXT("TurnSpeedStone");
+        case ECrystalType::StatusStone:
+            return TEXT("StatusStone");
+        case ECrystalType::EfficiencyStone:
+            return TEXT("EfficiencyStone");
         default:
             return TEXT("Unknown");
         }

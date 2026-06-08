@@ -33,5 +33,12 @@ enum class ECrystalType : uint8
     AbilityStone UMETA(DisplayName = "Ability Stone"),
     // Appended after AbilityStone (=13); augment-stone sub-type that buffs Defense.
     // Same append-only serialized-identity rule — do NOT reorder/insert above.
-    DefenseStone UMETA(DisplayName = "Defense Stone")
+    DefenseStone UMETA(DisplayName = "Defense Stone"),
+    // Appended after DefenseStone (=14); stat-stone sub-types (Crit=15, TurnSpeed=16,
+    // Status=17, Efficiency=18). Same append-only serialized-identity rule — do NOT
+    // reorder/insert above.
+    CritStone UMETA(DisplayName = "Crit Stone"),
+    TurnSpeedStone UMETA(DisplayName = "Turn Speed Stone"),
+    StatusStone UMETA(DisplayName = "Status Stone"),
+    EfficiencyStone UMETA(DisplayName = "Efficiency Stone")
 };
