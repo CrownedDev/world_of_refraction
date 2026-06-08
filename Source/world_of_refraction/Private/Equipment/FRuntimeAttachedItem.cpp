@@ -44,6 +44,13 @@ bool FRuntimeAttachedItem::CanProvideSpells() const
     {
         return false;
     }
+    // An augmented fusion (two stones, no gem half) carries no element and grants no
+    // spells — only an elemental fusion's gem half is a spell source. An elemental
+    // fusion (HasGemHalf) passes through to the empty/broken check below.
+    if (IsFusion() && !Fusion.HasGemHalf())
+    {
+        return false;
+    }
     return !IsEmpty() && !IsBroken();
 }
 
