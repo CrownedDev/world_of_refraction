@@ -229,19 +229,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedSpellDamageForHealing() const;
 
-    /** Crystal-aware Efficiency multiplier — mirrors
-     *  UCharacterData::CalculateEfficiencyMultiplier but uses
-     *  GetEvolutionModifiedMind() in place of GetEffectiveMind() so the
-     *  slotted primary evolution crystal's Mind pillar modifier feeds the
-     *  cost-reduction curve. Same clamp shape as the asset formula. */
-    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetEvolutionModifiedEfficiencyMultiplier() const;
-
     /** Effective Efficiency cost/drain multiplier: innate (crystal-aware Mind) +
      *  equipment BonusEfficiency + attached EfficiencyStone, all as reductions under
-     *  ONE clamp. The equipment+stone-aware source for BD drain / durability / EP cost.
-     *  Byte-identical to GetEvolutionModifiedEfficiencyMultiplier when the owner has no
-     *  BonusEfficiency and no EfficiencyStone. */
+     *  ONE clamp. The sole Efficiency getter — drives BD drain / durability / EP cost.
+     *  Collapses to the innate-only term when the owner has no BonusEfficiency and no
+     *  EfficiencyStone. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveEfficiencyMultiplier() const;
 

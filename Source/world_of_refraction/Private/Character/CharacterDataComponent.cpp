@@ -624,20 +624,6 @@ float UCharacterDataComponent::GetEvolutionModifiedSpellDamageForHealing() const
     return GetEvolutionModifiedSpellDamage();
 }
 
-float UCharacterDataComponent::GetEvolutionModifiedEfficiencyMultiplier() const
-{
-    if (!CharacterData)
-    {
-        return 1.0f;
-    }
-    const float ModifiedMind = GetEvolutionModifiedMind();
-    const int32 TotalPoints = CharacterData->GetTotalEfficiency();
-    return FMath::Clamp(
-        1.0f - (ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT),
-        1.0f - CombatConstants::EFFICIENCY_MAX,
-        1.0f);
-}
-
 float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
 {
     if (!CharacterData)
@@ -645,7 +631,7 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
         return 1.0f;
     }
 
-    // Innate reduction — byte-identical to GetEvolutionModifiedEfficiencyMultiplier.
+    // Innate reduction — the crystal-aware Mind × Efficiency-points cost-reduction term.
     const float ModifiedMind = GetEvolutionModifiedMind();
     const int32 TotalPoints = CharacterData->GetTotalEfficiency();
     float Reduction = ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT;
