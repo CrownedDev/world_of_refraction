@@ -2,6 +2,7 @@
 
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Loadout/LoadoutConstants.h"
 
 int32 URingData::GetMaxSpells() const
@@ -29,6 +30,18 @@ EDataValidationResult URingData::IsDataValid(FDataValidationContext &Context) co
         {
             Context.AddError(FText::FromString(TEXT(
                 "Augment stones cannot be attached to a ring — augment stones are weapon-only attachments")));
+            Result = EDataValidationResult::Invalid;
+        }
+
+        // Fusion placement guard: augmented fusions (two stones) are weapon-only; a ring
+        // accepts only ELEMENTAL fusions (one crystal half). The base IsDataValid already
+        // checked well-formedness — this is the ring-specific loosening of the blanket
+        // stone reject above for the elemental case.
+        if (AttachedItem.Kind == EAttachedItemKind::Fusion
+            && !CrystalTypeHelpers::IsElementalFusion(AttachedItem.Fusion.HalfA.Type, AttachedItem.Fusion.HalfB.Type))
+        {
+            Context.AddError(FText::FromString(TEXT(
+                "Augmented fusions (two stones) are weapon-only — a ring accepts only elemental fusions (with a crystal half)")));
             Result = EDataValidationResult::Invalid;
         }
 

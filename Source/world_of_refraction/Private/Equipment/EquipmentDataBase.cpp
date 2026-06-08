@@ -192,6 +192,26 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
         Result = EDataValidationResult::Invalid;
     }
 
+    // Fusion well-formedness (shared by weapon + ring). The half/pair rules aren't
+    // editor-enforced (plain FCrystalId halves), so this is the hard guarantee. The
+    // placement rule (augmented = weapon-only) is enforced in URingData::IsDataValid.
+    if (AttachedItem.Kind == EAttachedItemKind::Fusion)
+    {
+        if (!CrystalTypeHelpers::IsValidFusionPair(AttachedItem.Fusion.HalfA.Type, AttachedItem.Fusion.HalfB.Type))
+        {
+            Context.AddError(FText::FromString(TEXT(
+                "Invalid fusion halves — a fusion needs at least one stat-stone and at most one crystal "
+                "(no crystal+crystal, no AbilityStone+AbilityStone, no AbilityStone+crystal)")));
+            Result = EDataValidationResult::Invalid;
+        }
+        if (AttachedItem.Fusion.BonusStat == ESubStat::None)
+        {
+            Context.AddError(FText::FromString(TEXT(
+                "Fusion bonus stat must be set to a wired sub-stat (not None)")));
+            Result = EDataValidationResult::Invalid;
+        }
+    }
+
     return Result;
 }
 

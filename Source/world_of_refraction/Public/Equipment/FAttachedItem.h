@@ -15,6 +15,7 @@
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Inventory/ItemTier.h"
+#include "Equipment/Crystals/FFusionId.h"
 #include "FAttachedItem.generated.h"
 
 class UEvolutionItemData;
@@ -46,4 +47,12 @@ struct WORLD_OF_REFRACTION_API FAttachedItem
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
               meta = (EditCondition = "Kind == EAttachedItemKind::Evolution", EditConditionHides))
     UEvolutionItemData *Evolution = nullptr;
+
+    /** Fusion halves + bonus stat. Only visible when Kind == Fusion. The half/pair
+     *  rules (>=1 stat-stone, <=1 crystal, no evolution half) are enforced by
+     *  author-time validation, not editor grey-out (mirrors the project's
+     *  EditCondition-plus-validation stance over IDetailCustomization). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attached Item",
+              meta = (EditCondition = "Kind == EAttachedItemKind::Fusion", EditConditionHides))
+    FFusionId Fusion;
 };
