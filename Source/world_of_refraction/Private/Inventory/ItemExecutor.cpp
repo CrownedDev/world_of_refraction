@@ -445,8 +445,17 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 
 	const bool bAlly = IsAlly(User, Target);
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
-	const float Magnitude = CrystalEffectTable::GetCritBuffPercent(Id);
-	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
+
+	// CritStone sources the shared stone curve + flat stone duration; Opal keeps its own
+	// GetCritBuffPercent + GetCrystalDuration. Direction (IsAlly) is identical — mirrors
+	// the DefenseStone/Amber branch in ExecuteDefenseBuffEffect.
+	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
+	const float Magnitude = bIsStone
+		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
+		: CrystalEffectTable::GetCritBuffPercent(Id);
+	const int32 Duration = bIsStone
+		? CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION
+		: CrystalEffectTable::GetCrystalDuration(Id);
 
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(

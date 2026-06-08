@@ -75,14 +75,16 @@ namespace ItemIdentity
             // (the same handler Amber uses). Magnitude/hook land in later clusters.
             return EItemEffectType::BuffDefense;
         case ECrystalType::CritStone:
+            // Directional crit consumable — routes to ExecuteCritBuffEffect, which
+            // branches on IsAugmentStoneType for the stone curve + flat duration (Opal's
+            // path unchanged). Buff an ally's crit / debuff an enemy's.
+            return EItemEffectType::BuffCrit;
         case ECrystalType::TurnSpeedStone:
         case ECrystalType::StatusStone:
         case ECrystalType::EfficiencyStone:
-            // Attach-only for B0 — no consumable dispatch yet (falls to UseItem's
-            // "not a usable consumable" default arm, like AbilityStone). The per-stone
-            // consumable effect type + handler + magnitude land in their hook clusters.
-            // Note: CritStone/TurnSpeedStone could reuse BuffCrit/BuffSpeed but those
-            // handlers are gem-specific (Opal magnitude; Emerald S-tier extra-turn);
+            // Attach-only for now — no consumable dispatch yet (falls to UseItem's
+            // "not a usable consumable" default arm, like AbilityStone). TurnSpeedStone
+            // could reuse BuffSpeed but Emerald's handler has an S-tier extra-turn;
             // StatusStone/EfficiencyStone need NEW EItemEffectType rows entirely.
             return EItemEffectType::None;
         default:
