@@ -362,6 +362,20 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 		{
 			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
 			BaseCrit *= (1.0f + Bonus.BonusCritChance / 100.0f);
+
+			// Attached CritStone — a PERMANENT, equipment-derived crit multiplier from
+			// the ATTACKER's OWN active weapon attachment (live-resolved, not cached).
+			// Multiplicative ×(1 + pct/100), consistent with the rest of this chain.
+			// Inert (×1) unless a CritStone is attached — GetAttachedStonePercent returns
+			// 0 for any other attachment (stat-match guard). Mirrors the DefenseStone
+			// hook in GetDefenderFlatDefense, applied on the attacker side.
+			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			{
+				const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const float StonePct =
+					CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::CritChance);
+				BaseCrit *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
+			}
 		}
 	}
 
