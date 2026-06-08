@@ -168,6 +168,16 @@ private:
 	 *  unified getter, so it reaches BD drain / EP cost / durability automatically. */
 	void ExecuteEfficiencyBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** MaxHPStone - directional MaxHP buff (ally) / debuff (enemy) at the stone's 3-15
+	 *  magnitude. Transient MaxHPBuff/Debuff (P2a) folded into RecomputeMaxPools and the
+	 *  P2b subscribe trigger recomputes the pool — no per-consumer pool wiring here. */
+	void ExecuteMaxHPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
+	/** MaxEPStone - directional MaxEnergy buff (ally) / debuff (enemy) at the stone's
+	 *  3-15 magnitude. Transient MaxEnergyBuff/Debuff folded into RecomputeMaxPools via
+	 *  the P2b trigger. */
+	void ExecuteMaxEPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
 	/** Onyx - Silence */
 	void ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 

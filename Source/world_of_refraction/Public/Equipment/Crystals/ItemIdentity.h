@@ -95,10 +95,14 @@ namespace ItemIdentity
             // getter so it reaches BD/EP/durability). Buff an ally / debuff an enemy.
             return EItemEffectType::BuffEfficiency;
         case ECrystalType::MaxHPStone:
+            // Directional MaxHP consumable — routes to ExecuteMaxHPBuffEffect (transient
+            // MaxHPBuff/Debuff, stone magnitude; folded into RecomputeMaxPools via the P2b
+            // trigger). Raise an ally's MaxHP / lower an enemy's.
+            return EItemEffectType::BuffMaxHP;
         case ECrystalType::MaxEPStone:
-            // Attached-only for now — pool stones raise MaxHP/MaxEP via RecomputeMaxPools
-            // (P1). No consumable dispatch yet (P2); falls to UseItem's default arm.
-            return EItemEffectType::None;
+            // Directional MaxEP consumable — routes to ExecuteMaxEPBuffEffect (transient
+            // MaxEnergyBuff/Debuff). Raise an ally's MaxEP / lower an enemy's.
+            return EItemEffectType::BuffMaxEP;
         default:
             return EItemEffectType::Damage;
         }

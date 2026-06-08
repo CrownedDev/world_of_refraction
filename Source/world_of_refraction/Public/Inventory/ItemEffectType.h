@@ -44,5 +44,10 @@ enum class EItemEffectType : uint8
     // Appended (=15). Directional EfficiencyStone consumable — transient Efficiency
     // buff/debuff (folded into GetEffectiveEfficiencyMultiplier; reaches BD/EP/durability).
     // Runtime-derived only (never serialized), so the append needs no CoreRedirect.
-    BuffEfficiency UMETA(DisplayName = "Buff Efficiency (stone efficiency buff/debuff)")
+    BuffEfficiency UMETA(DisplayName = "Buff Efficiency (stone efficiency buff/debuff)"),
+    // Appended (=16/=17). Directional pool-stone consumables — transient MaxHP/MaxEnergy
+    // buff/debuff (folded into RecomputeMaxPools via the P2b subscribe trigger). Runtime-
+    // derived only (never serialized), so the appends need no CoreRedirect.
+    BuffMaxHP UMETA(DisplayName = "Buff Max HP (stone max-HP buff/debuff)"),
+    BuffMaxEP UMETA(DisplayName = "Buff Max EP (stone max-EP buff/debuff)")
 };
