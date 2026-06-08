@@ -6,6 +6,7 @@
 #include "Components/ActorComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "Character/CharacterData.h"
+#include "Skills/Effects/ActiveSkillEffect.h"
 #include "CharacterDataComponent.generated.h"
 
 /**
@@ -31,7 +32,14 @@ public:
     UCharacterDataComponent();
 
     virtual void BeginPlay() override;
+    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const override;
+
+    /** Re-runs RecomputeMaxPools when a transient pool (MaxHP/MaxEnergy) buff/debuff
+     *  applies or expires on this owner. Bound to the SkillEffectManager's OnEffectApplied
+     *  + OnEffectRemoved in BeginPlay; gated to this owner + pool effect types. */
+    UFUNCTION()
+    void HandlePoolEffectChanged(AActor *Target, const FActiveSkillEffect &Effect);
 
     // ========================================
     // CHARACTER TEMPLATE

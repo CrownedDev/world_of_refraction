@@ -67,6 +67,61 @@ void UCharacterDataComponent::BeginPlay()
             CurrentEP = 0;
         }
     }
+
+    // Subscribe to pool-affecting effect changes so MaxHP/MaxEP recompute when a transient
+    // MaxHP/MaxEnergy buff/debuff applies or expires (Max is a stored field — it won't
+    // update otherwise). Gated to this owner + pool types in the handler. Mirrors how BD
+    // binds OnEPChanged; unbound in EndPlay.
+    if (UWorld *World = GetWorld())
+    {
+        if (UGameInstance *GI = World->GetGameInstance())
+        {
+            if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+            {
+                SEM->OnEffectApplied.AddDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
+                SEM->OnEffectRemoved.AddDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
+            }
+        }
+    }
+}
+
+void UCharacterDataComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    if (UWorld *World = GetWorld())
+    {
+        if (UGameInstance *GI = World->GetGameInstance())
+        {
+            if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+            {
+                SEM->OnEffectApplied.RemoveDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
+                SEM->OnEffectRemoved.RemoveDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
+            }
+        }
+    }
+    Super::EndPlay(EndPlayReason);
+}
+
+namespace
+{
+    // The transient pool effect types — a change to any of these on this actor means the
+    // stored MaxHP/MaxEP must be recomputed. Everything else is ignored (no recompute).
+    bool IsPoolEffect(ESkillEffectType Type)
+    {
+        return Type == ESkillEffectType::MaxHPBuff || Type == ESkillEffectType::MaxHPDebuff ||
+               Type == ESkillEffectType::MaxEnergyBuff || Type == ESkillEffectType::MaxEnergyDebuff;
+    }
+}
+
+void UCharacterDataComponent::HandlePoolEffectChanged(AActor *Target, const FActiveSkillEffect &Effect)
+{
+    // Only recompute for THIS owner and only for pool-affecting effects — unrelated
+    // effects (the vast majority) must not trigger a pool recompute. RecomputeMaxPools
+    // writes only Max; CurrentHP/EP are untouched (overcap on a debuff/expiry, no heal
+    // on a buff) — consistent with P0/P1 and the overcap-not-clamp design.
+    if (Target == GetOwner() && IsPoolEffect(Effect.EffectType))
+    {
+        RecomputeMaxPools();
+    }
 }
 
 void UCharacterDataComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
@@ -508,8 +563,10 @@ void UCharacterDataComponent::RecomputeMaxPools()
 
     int32 BonusMaxHP = 0;
     int32 BonusMaxEnergy = 0;
-    float HPStonePct = 0.0f; // attached MaxHPStone % (Option B; type-keyed, not ESubStat)
-    float EPStonePct = 0.0f; // attached MaxEPStone %
+    // Pool % bonus = attached pool stone (P1) + transient pool buff/debuff (P2b), summed
+    // into one factor (additive in the %, like the StatusMultiplier getter sums buff-debuff).
+    float HPPct = 0.0f;
+    float EPPct = 0.0f;
     if (AActor *Owner = GetOwner())
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
@@ -519,13 +576,30 @@ void UCharacterDataComponent::RecomputeMaxPools()
             BonusMaxEnergy = Bonus.BonusMaxEnergy;
 
             // Attached pool stones — a % of the computed max, read from the active weapon
-            // attachment (0 unless the matching stone is attached). Applied as a final
-            // multiplier below.
+            // attachment (0 unless the matching stone is attached).
             if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
             {
                 const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
-                HPStonePct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxHPStone);
-                EPStonePct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxEPStone);
+                HPPct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxHPStone);
+                EPPct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxEPStone);
+            }
+        }
+
+        // Transient pool buff/debuff (P2b) — skill-effect layer, summed via
+        // GetTotalStatModifier (same SEM idiom as the Luck/Efficiency reads in this file).
+        // Added to the stone % so both stack additively; 0 when none active or SEM
+        // unavailable (byte-neutral vs P1). MaxHP/MaxEnergy Buff raise, Debuff lower.
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                {
+                    HPPct += SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxHPBuff) -
+                             SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxHPDebuff);
+                    EPPct += SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxEnergyBuff) -
+                             SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxEnergyDebuff);
+                }
             }
         }
     }
@@ -539,14 +613,14 @@ void UCharacterDataComponent::RecomputeMaxPools()
         CombatConstants::MAX_HEALTH_BASE +
         (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT) +
         BonusMaxHP;
-    MaxHP = FMath::RoundToInt(HPSubtotal * (1.0f + HPStonePct / CombatConstants::STAT_PERCENT_DIVISOR));
+    MaxHP = FMath::RoundToInt(HPSubtotal * (1.0f + HPPct / CombatConstants::STAT_PERCENT_DIVISOR));
 
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const float EPSubtotal =
         CombatConstants::MAX_ENERGY_BASE +
         (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT) +
         BonusMaxEnergy;
-    MaxEP = FMath::RoundToInt(EPSubtotal * (1.0f + EPStonePct / CombatConstants::STAT_PERCENT_DIVISOR));
+    MaxEP = FMath::RoundToInt(EPSubtotal * (1.0f + EPPct / CombatConstants::STAT_PERCENT_DIVISOR));
 }
 
 float UCharacterDataComponent::GetEquipmentModifiedLuck() const
