@@ -18,7 +18,7 @@ enum class EItemEffectType : uint8
     EnergyRestore UMETA(DisplayName = "Energy Restore (Energy gain)"),
     BuffRawDamage UMETA(DisplayName = "Buff Raw Damage (increase outgoing attack/physical damage)"),
     BuffDefense UMETA(DisplayName = "Buff Defense (Reduce incoming damage)"),
-    BuffSpeed UMETA(DisplayName = "Buff Speed (Increase turn speed)"),
+    GrantBonusTurn UMETA(DisplayName = "Grant Bonus Turn (delayed extra turn — Emerald)"),
     BuffCrit UMETA(DisplayName = "Buff Crit (Increase crit chance)"),
     Silence UMETA(DisplayName = "Silence (Prevent energy gain)"),
     Cleanse UMETA(DisplayName = "Cleanse (Remove debuffs)"),
@@ -34,7 +34,7 @@ enum class EItemEffectType : uint8
     // so the append needs no CoreRedirect.
     None UMETA(DisplayName = "None (no consumable effect)"),
     // Appended (=13). Directional TurnSpeedStone consumable — pure-stat turn-speed
-    // buff/debuff (no turn mechanic; distinct from Emerald's BuffSpeed). Runtime-
+    // buff/debuff (no turn mechanic; distinct from Emerald's GrantBonusTurn). Runtime-
     // derived only (never serialized), so the append needs no CoreRedirect.
     BuffTurnSpeed UMETA(DisplayName = "Buff Turn Speed (stone turn-speed buff/debuff)"),
     // Appended (=14). Directional StatusStone consumable — transient StatusMultiplier

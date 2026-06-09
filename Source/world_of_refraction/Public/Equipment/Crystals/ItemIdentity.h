@@ -34,7 +34,7 @@ namespace ItemIdentity
     }
 
     /** Returns the primary effect category for this crystal type
-     *  (Damage / Healing / EnergyRestore / BuffSpeed / BuffDefense /
+     *  (Damage / Healing / EnergyRestore / GrantBonusTurn / BuffDefense /
      *  BuffCrit / Silence / Gamble / Cleanse / StatusClear). Type-only —
      *  Id.Tier is ignored. */
     inline EItemEffectType GetItemEffectType(const FCrystalId &Id)
@@ -52,7 +52,7 @@ namespace ItemIdentity
         case ECrystalType::Citrine:
             return EItemEffectType::EnergyRestore;
         case ECrystalType::Emerald:
-            return EItemEffectType::BuffSpeed;
+            return EItemEffectType::GrantBonusTurn;
         case ECrystalType::Amber:
             return EItemEffectType::BuffDefense;
         case ECrystalType::Opal:
@@ -83,7 +83,7 @@ namespace ItemIdentity
         case ECrystalType::TurnSpeedStone:
             // Directional turn-speed consumable — routes to ExecuteTurnSpeedStoneEffect
             // (pure-stat buff/debuff, stone magnitude, NO turn mechanic; separate from
-            // Emerald's BuffSpeed handler). Buff an ally's turn speed / debuff an enemy's.
+            // Emerald's GrantBonusTurn handler). Buff an ally's turn speed / debuff an enemy's.
             return EItemEffectType::BuffTurnSpeed;
         case ECrystalType::StatusStone:
             // Directional status consumable — routes to ExecuteStatusBuffEffect (transient

@@ -151,8 +151,8 @@ private:
 							   ESkillEffectType BuffType, ESkillEffectType DebuffType,
 							   const FString &DisplaySuffix, FItemUseResult &OutResult);
 
-	/** Emerald - Speed buff */
-	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+	/** Emerald - grant the target a delayed bonus turn (tier-scaled delay; S=0 immediate) */
+	void ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Damage stone - self-buff raw (physical) damage % for a fixed duration */
 	void ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
@@ -177,7 +177,7 @@ private:
 
 	/** TurnSpeedStone - directional turn-speed buff (ally) / debuff (enemy) at the
 	 *  stone's 3-15 magnitude. Pure stat; no turn mechanic (separate from Emerald's
-	 *  ExecuteSpeedBuffEffect). */
+	 *  ExecuteBonusTurnEffect). */
 	void ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** StatusStone - directional StatusMultiplier buff (ally) / debuff (enemy) at the

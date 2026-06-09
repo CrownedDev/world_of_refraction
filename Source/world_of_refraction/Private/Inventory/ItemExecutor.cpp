@@ -66,8 +66,8 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteEnergyRestoreEffect(User, Target, Id, Result);
 		break;
 
-	case EItemEffectType::BuffSpeed:
-		ExecuteSpeedBuffEffect(User, Target, Id, Result);
+	case EItemEffectType::GrantBonusTurn:
+		ExecuteBonusTurnEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::BuffDefense:
@@ -389,18 +389,14 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 		   *DisplaySuffix, bAlly ? TEXT("buff") : TEXT("debuff"), Magnitude, Duration, *Target->GetName());
 }
 
-void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Emerald (reworked): grant the TARGET a full bonus turn after a tier-scaled delay
-	// (F=6 … S=0 turns). Self-target = tempo; enemy-target = force their turn (their DoTs
-	// tick + they act — the gamble). Emerald itself applies NOTHING else: the DoT is whatever
-	// the player already stacked. The user forfeits the current turn for free — using the item
-	// IS the turn-ending action (OnActionCompleted → AdvanceToNextTurn). N==0 (S) fires
-	// immediately via RequestExtraTurn; N>=1 defers via the bonus-turn scheduler.
-	// ⚠️ NAMING: this function (ExecuteSpeedBuffEffect) and its dispatch enum
-	// (EItemEffectType::BuffSpeed) are now misnomers — Emerald is no longer a speed crystal
-	// (that's TurnSpeedStone). Flagged for a coordinated rename pass (the enum is serialized →
-	// needs a redirect), out of scope for this cluster.
+	// Emerald: grant the TARGET a full bonus turn after a tier-scaled delay (F=6 … S=0 turns).
+	// Self-target = tempo; enemy-target = force their turn (their DoTs tick + they act — the
+	// gamble). Emerald itself applies NOTHING else: the DoT is whatever the player already
+	// stacked. The user forfeits the current turn for free — using the item IS the turn-ending
+	// action (OnActionCompleted → AdvanceToNextTurn). N==0 (S) fires immediately via
+	// RequestExtraTurn; N>=1 defers via the bonus-turn scheduler.
 	if (!Target)
 	{
 		OutResult.ErrorMessage = TEXT("Emerald: no target");
@@ -440,7 +436,7 @@ void UItemExecutor::ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FC
 {
 	// TurnSpeedStone consumable - DIRECTIONAL pure stat: buff an ally's turn speed, or
 	// debuff an enemy's, at the stone's 3-15 magnitude for the flat stone duration. NO
-	// turn mechanic (no extra-turn/skip) — that lives in Emerald's ExecuteSpeedBuffEffect.
+	// turn mechanic (no extra-turn/skip) — that lives in Emerald's ExecuteBonusTurnEffect.
 	ApplyStoneBuffEffect(User, Target, Id,
 						 ESkillEffectType::TurnSpeedBuff, ESkillEffectType::TurnSpeedDebuff,
 						 TEXT("Turn Speed"), OutResult);

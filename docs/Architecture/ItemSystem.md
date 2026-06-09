@@ -139,7 +139,7 @@ ten gems.
 
 ### EItemEffectType
 
-`Damage, Healing, EnergyRestore, BuffRawDamage, BuffDefense, BuffSpeed, BuffCrit, Silence,
+`Damage, Healing, EnergyRestore, BuffRawDamage, BuffDefense, GrantBonusTurn, BuffCrit, Silence,
 Cleanse, Gamble, StatusClear, Repair, None`. `ItemIdentity::GetItemEffectType()` maps each
 `CrystalType` to one of these. `StatusClear` (Quartz) replaced the removed `Transform` value
 — a redirect maps old `Transform` data to `StatusClear`. `DamageStone` maps to
