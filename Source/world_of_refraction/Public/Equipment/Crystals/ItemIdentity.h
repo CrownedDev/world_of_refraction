@@ -16,6 +16,7 @@
 #include "Inventory/ItemTier.h"
 #include "Inventory/ItemEffectType.h"
 #include "Equipment/Durability/DurabilityConstants.h"
+#include "Equipment/Crystals/AugmentStoneConstants.h"
 
 namespace ItemIdentity
 {
@@ -122,6 +123,12 @@ namespace ItemIdentity
             // Directional action-speed consumable — routes to ExecuteActionSpeedBuffEffect
             // (ActionSpeedBuff/Debuff; read on the ability/attack montage PlayRate path).
             return EItemEffectType::BuffActionSpeed;
+        case ECrystalType::DurabilityStone:
+            // Attach-only — durability is a fusion-attachment property, not a transient
+            // combat buff, so there is no meaningful consumable form. Like AbilityStone,
+            // returns None: UseItem dispatch finds no case and falls to its "not a usable
+            // consumable" default arm. No Execute…Effect handler, no new EItemEffectType.
+            return EItemEffectType::None;
         default:
             return EItemEffectType::Damage;
         }
@@ -148,6 +155,17 @@ namespace ItemIdentity
         const int32 TVA = TierHelpers::GetTierValue(TierA);
         const int32 TVB = TierHelpers::GetTierValue(TierB);
         return ((TVA + TVB) * 2) + 1;
+    }
+
+    /** Flat durability a DurabilityStone half contributes to an elemental fusion's
+     *  whole-unit max, ADDED ON TOP of GetFusionBonusDurability (the matrix) — it
+     *  does not replace it. Tier-keyed (F=8 .. S=50, even +7 steps) via the flat
+     *  DURABILITY_STONE_BONUS curve. 0 for an out-of-range tier. Caller gates on the
+     *  half actually being a DurabilityStone; this getter is type-agnostic. */
+    inline int32 GetDurabilityStoneBonus(EItemTier Tier)
+    {
+        const int32 i = TierHelpers::GetTierValue(Tier);
+        return (i >= 0 && i < 7) ? AugmentStoneConstants::DURABILITY_STONE_BONUS[i] : 0;
     }
 
     /** Returns the bare crystal name, e.g. "Garnet", "Sapphire", "Quartz".
@@ -203,6 +221,8 @@ namespace ItemIdentity
             return TEXT("SpellSpeedStone");
         case ECrystalType::ActionSpeedStone:
             return TEXT("ActionSpeedStone");
+        case ECrystalType::DurabilityStone:
+            return TEXT("DurabilityStone");
         default:
             return TEXT("Unknown");
         }

@@ -205,6 +205,11 @@ namespace CrystalDescription
                 CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
                 *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
 
+        case ECrystalType::DurabilityStone:
+            return FString::Printf(
+                TEXT("Reinforces an elemental fusion — adds %d flat durability when fused with a crystal. Inert on its own or in a stone-only fusion."),
+                ItemIdentity::GetDurabilityStoneBonus(Id.Tier));
+
         default:
             return TEXT("Unknown effect.");
         }

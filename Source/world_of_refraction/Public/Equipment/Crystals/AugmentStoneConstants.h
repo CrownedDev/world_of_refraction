@@ -32,12 +32,21 @@ namespace AugmentStoneConstants
      *  Non-sequential (F=2, E=3, D=3, C=4, B=4, A=5, S=6). */
     constexpr int32 ATTACHMENT_SLOTS[7] = {2, 3, 3, 4, 4, 5, 6};
 
+    /** Flat durability points a DurabilityStone adds to an ELEMENTAL fusion's
+     *  whole-unit max when it is the stone half — additive ON TOP of the gem base
+     *  and the two-tier matrix bonus (GetFusionBonusDurability). Even +7 steps
+     *  F..S. No %-curve: durability is a flat pool, not a stat percent, so this is
+     *  deliberately NOT routed through STONE_BASE_PERCENT. */
+    constexpr int32 DURABILITY_STONE_BONUS[7] = {8, 15, 22, 29, 36, 43, 50};
+
     static_assert(sizeof(STONE_BASE_PERCENT) / sizeof(float) == 7,
                   "STONE_BASE_PERCENT must have one entry per tier (F..S)");
     static_assert(sizeof(STAT_CRYSTAL_BUFF_PERCENT) / sizeof(float) == 7,
                   "STAT_CRYSTAL_BUFF_PERCENT must have one entry per tier (F..S)");
     static_assert(sizeof(ATTACHMENT_SLOTS) / sizeof(int32) == 7,
                   "ATTACHMENT_SLOTS must have one entry per tier (F..S)");
+    static_assert(sizeof(DURABILITY_STONE_BONUS) / sizeof(int32) == 7,
+                  "DURABILITY_STONE_BONUS must have one entry per tier (F..S)");
 
     // Spot checks pinning the curve endpoints to the pre-extraction literals.
     static_assert(STONE_BASE_PERCENT[0] == 3.0f && STONE_BASE_PERCENT[6] == 15.0f,
@@ -46,4 +55,6 @@ namespace AugmentStoneConstants
                   "STAT_CRYSTAL_BUFF_PERCENT endpoints drifted from 6..30");
     static_assert(ATTACHMENT_SLOTS[0] == 2 && ATTACHMENT_SLOTS[6] == 6,
                   "ATTACHMENT_SLOTS endpoints drifted from 2..6");
+    static_assert(DURABILITY_STONE_BONUS[0] == 8 && DURABILITY_STONE_BONUS[6] == 50,
+                  "DURABILITY_STONE_BONUS endpoints drifted from 8..50");
 }

@@ -58,8 +58,15 @@ struct WORLD_OF_REFRACTION_API FFusionAttachment
         return FCrystalId();
     }
 
-    /** Whole-fusion max durability: the gem half's tier-based max plus the
-     *  two-tier fusion bonus. 0 for an augmented fusion (no gem = never wears). */
+    /** Whole-fusion max durability: the gem half's tier-based max, plus the
+     *  two-tier matrix bonus, plus a flat DurabilityStone bonus when a half is a
+     *  DurabilityStone. 0 for an augmented fusion (no gem = never wears).
+     *
+     *  The DurabilityStone term STACKS on the matrix (additive, does not replace
+     *  it) and only fires for an actual DurabilityStone half — both halves are
+     *  summed because in a legal elemental fusion only one half can be the stone,
+     *  so summing is harmless. Reached only past the HasGemHalf gate, so an
+     *  augmented (stone+stone) fusion never reaches the term and stays 0/inert. */
     int32 GetMaxDurability() const
     {
         if (!HasGemHalf())
@@ -67,7 +74,13 @@ struct WORLD_OF_REFRACTION_API FFusionAttachment
             return 0;
         }
         return ItemIdentity::GetMaxDurability(GemHalf()) +
-               ItemIdentity::GetFusionBonusDurability(Id.HalfA.Tier, Id.HalfB.Tier);
+               ItemIdentity::GetFusionBonusDurability(Id.HalfA.Tier, Id.HalfB.Tier) +
+               (Id.HalfA.Type == ECrystalType::DurabilityStone
+                    ? ItemIdentity::GetDurabilityStoneBonus(Id.HalfA.Tier)
+                    : 0) +
+               (Id.HalfB.Type == ECrystalType::DurabilityStone
+                    ? ItemIdentity::GetDurabilityStoneBonus(Id.HalfB.Tier)
+                    : 0);
     }
 
     /** A wearing (elemental) fusion is broken at 0 durability. An augmented

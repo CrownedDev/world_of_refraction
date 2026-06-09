@@ -459,7 +459,8 @@ namespace CrystalEffectTable
             Id.Type == ECrystalType::StatusStone || Id.Type == ECrystalType::EfficiencyStone ||
             Id.Type == ECrystalType::MaxHPStone || Id.Type == ECrystalType::MaxEPStone ||
             Id.Type == ECrystalType::SpellDamageStone || Id.Type == ECrystalType::ResistanceStone ||
-            Id.Type == ECrystalType::SpellSpeedStone || Id.Type == ECrystalType::ActionSpeedStone)
+            Id.Type == ECrystalType::SpellSpeedStone || Id.Type == ECrystalType::ActionSpeedStone ||
+            Id.Type == ECrystalType::DurabilityStone)
         {
             return 0.0f;
         }

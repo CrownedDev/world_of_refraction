@@ -61,5 +61,11 @@ enum class ECrystalType : uint8
     // (shrinking the defender's reaction window) is deferred to the Real-Time Defense
     // Rework (docs/Design/RealTimeDefenseRework.md). Append-only — do NOT reorder above.
     SpellSpeedStone UMETA(DisplayName = "Spell Speed Stone"),
-    ActionSpeedStone UMETA(DisplayName = "Action Speed Stone")
+    ActionSpeedStone UMETA(DisplayName = "Action Speed Stone"),
+    // Appended after ActionSpeedStone; a no-substat, attach-only stone. Its ONLY
+    // effect is adding flat durability to an ELEMENTAL fusion it is the stone half
+    // of (stacks on the matrix bonus). Contributes 0 to every stat (StoneTargetStat
+    // -> None, like the pool stones). Inert alone or in a stone-only fusion. Same
+    // append-only serialized-identity rule — do NOT reorder/insert above.
+    DurabilityStone UMETA(DisplayName = "Durability Stone")
 };
