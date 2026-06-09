@@ -134,6 +134,29 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
 	RunningDamage *= StatusMod;
 
+	// Step 2.5: [-100%, +100%] normalization — cap the CHARACTER SpellDamage modifier to [0, 2]
+	// (SPELL only). Recompose the getter's exact (L1+L2)×L3×L4 product as a standalone UNCLAMPED
+	// scalar from the same layer helpers (GetEffectiveSpellDamage itself now clamps, so we read
+	// its components directly) — RawCharMod equals GetEffectiveSpellDamage()'s pre-clamp value,
+	// so the cast and BD/wear cap the IDENTICAL quantity. Apply clamped/raw as a scalar correction
+	// on RunningDamage. Below 2.0, clamped == raw → Correction is EXACTLY 1.0f → RunningDamage
+	// unchanged → byte-identical normal casts. ActionMods (folded into L1 with the multiplier),
+	// Grid, and defender terms are deliberately OUTSIDE this product — call-specific, left uncapped.
+	// A scalar correction commutes with those, so placement right after Step 2 is purely for clarity.
+	if (Input.ActionType == EActionType::Spell && Attacker)
+	{
+		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+		{
+			const float RawCharMod =
+				(AttackerComp->GetEvolutionModifiedSpellDamage() + AttackerComp->GetEquipmentSpellDamageTerm())
+				* AttackerComp->GetStoneSpellDamageFactor() * AttackerComp->GetTransientSpellDamageFactor();
+			const float ClampedCharMod =
+				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
+			RunningDamage *= Correction;
+		}
+	}
+
 	// Step 3: Element interaction — no elemental advantage system; always neutral.
 	Result.ElementMultiplier = 1.0f;
 

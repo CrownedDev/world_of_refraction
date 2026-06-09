@@ -795,7 +795,12 @@ float UCharacterDataComponent::GetEffectiveSpellDamage() const
     // No ActionMods / Grid / defender — those are damage-call-specific and have no
     // analogue here. DamageCalculator DRY-sources the SAME three helpers at its own
     // (unchanged) step order, so a normal cast stays byte-identical.
-    return (GetEvolutionModifiedSpellDamage() + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
+    const float Composed = (GetEvolutionModifiedSpellDamage() + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
+    // [-100%, +100%] normalization — cap the composed SpellDamage modifier to [0, 2] for this
+    // getter's consumers (BD overload/self-cost, crystal-wear). The damage pipeline applies the
+    // SAME cap via a correction factor (DamageCalculator Step 2+) on the identical (L1+L2)×L3×L4
+    // product, so cast + BD/wear bound the same quantity. Byte-identical below 2.0.
+    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
@@ -935,7 +940,11 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         }
     }
 
-    return Factor;
+    // [-100%, +100%] normalization — cap the composed StatusMultiplier (base × transient) to
+    // [0, 2]. This getter is the SOLE composition point (BD, crystal-wear, and the re-pointed
+    // CombatOrchestrator site all read it), so one clamp bounds every consumer. Byte-identical
+    // below 2.0; the inner Max(0,…) transient floor above is unchanged and additional to this.
+    return FMath::Clamp(Factor, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
 float UCharacterDataComponent::GetEffectiveResistance() const
