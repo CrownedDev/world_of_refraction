@@ -435,15 +435,18 @@ bool UCharacterDataComponent::HasUsableEPTarget() const
 
 namespace
 {
-    /** Shared body for the three GetEvolutionModifiedX helpers. Layers TWO
-     *  pillar-modifier sources on top of the supplied base value:
-     *   1. Crystal — primary-weapon-slot evolution crystal's Pillar/SubStats
-     *      modifier via UEvolutionItemData::CalculateModified{Mind,Body,Spirit}.
+    /** Shared body for the three GetEvolutionModifiedX helpers. Layers THREE
+     *  pillar-modifier sources, each multiplicative, on top of the supplied base value:
+     *   1. Crystal — primary slot's evolution crystal pillar percent, read from its
+     *      BaseStatBonus.Bonus{Mind,Body,Spirit}ModifierPercent.
      *   2. Equipment — active loadout's BonusMindModifierPercent /
      *      BonusBodyModifierPercent / BonusSpiritModifierPercent, applied
      *      multiplicatively after the crystal layer.
-     *  Either layer is independently optional; if no crystal is slotted the
-     *  equipment percent still applies. */
+     *   3. Transient — pillar-wide skill-effect buff/debuff (MindBuff/MindDebuff etc.),
+     *      the broad "scale all of this pillar's sub-stats" channel, with a Max(0,…)
+     *      negative floor and no upper clamp (deferred).
+     *  Every layer is independently optional; each collapses to ×1.0 when absent, so a
+     *  character with none is byte-identical to the raw base value. */
     enum class ECrystalPillar : uint8 { Mind, Body, Spirit };
 
     float ApplyEvolutionPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
@@ -504,6 +507,36 @@ namespace
         case ECrystalPillar::Spirit: EquipmentPercent = Bonus.BonusSpiritModifierPercent; break;
         }
         Result *= (1.0f + EquipmentPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+
+        // Transient layer — pillar-wide buff/debuff (MindBuff/BodyBuff/SpiritBuff and their
+        // Debuffs): the broad "scale ALL of this pillar's sub-stats" skill-effect channel.
+        // Distinct effect types from the stat-specific transients (SpellDamageBuff etc.),
+        // which scale the derived OUTPUT — these scale the pillar INPUT, so both apply with
+        // no double-count. Multiplicative ×(1+(buff−debuff)/100), matching the crystal +
+        // equipment layers and GetTransientSpellDamageFactor's source pattern. The Max(0,…)
+        // floor prevents a ≥100% debuff inverting the pillar; NO upper clamp (deferred —
+        // consistent with the unclamped crystal/equipment layers above). Collapses to ×1.0
+        // when no pillar buff/debuff is active, so a bare character stays byte-identical.
+        if (UWorld *World = Owner->GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                {
+                    ESkillEffectType BuffType = ESkillEffectType::MindBuff;
+                    ESkillEffectType DebuffType = ESkillEffectType::MindDebuff;
+                    switch (Pillar)
+                    {
+                    case ECrystalPillar::Mind:   BuffType = ESkillEffectType::MindBuff;   DebuffType = ESkillEffectType::MindDebuff;   break;
+                    case ECrystalPillar::Body:   BuffType = ESkillEffectType::BodyBuff;   DebuffType = ESkillEffectType::BodyDebuff;   break;
+                    case ECrystalPillar::Spirit: BuffType = ESkillEffectType::SpiritBuff; DebuffType = ESkillEffectType::SpiritDebuff; break;
+                    }
+                    const float PillarBuff = SEM->GetTotalStatModifier(Owner, BuffType);
+                    const float PillarDebuff = SEM->GetTotalStatModifier(Owner, DebuffType);
+                    Result *= FMath::Max(0.0f, 1.0f + (PillarBuff - PillarDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+                }
+            }
+        }
 
         return Result;
     }
