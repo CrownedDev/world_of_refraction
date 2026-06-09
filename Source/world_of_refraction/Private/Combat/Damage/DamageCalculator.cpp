@@ -462,15 +462,17 @@ int32 UDamageCalculator::CalculateHealing(
 	float Healing = static_cast<float>(BaseHealing);
 
 	// Apply healer's SpellDamage multiplier. Healing is a spell-class effect — it
-	// scales with the caster's spell power (Mind), not status-buildup amplification.
-	// Crystal-aware: GetEvolutionModifiedSpellDamageForHealing reads
-	// GetEvolutionModifiedMind, so the slotted primary evolution crystal's Mind
-	// pillar modifier feeds the curve.
+	// scales with the caster's FULL composed spell power, not status-buildup amplification.
+	// GetEffectiveSpellDamage = innate (crystal-aware Mind) + equipment BonusSpellDamage,
+	// ×SpellDamageStone ×SpellDamageBuff transient — so spell gear/buffs now boost heals
+	// (Crown's call). Byte-identical to the prior pillar-only …ForHealing read for a bare
+	// healer (no equipment/stone/buff). The ModifyHealing layer below is a DISTINCT
+	// heal-specific transient — applied on top, no double-count.
 	if (Healer)
 	{
 		if (UCharacterDataComponent *HealerComp = Healer->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Healing *= HealerComp->GetEvolutionModifiedSpellDamageForHealing();
+			Healing *= HealerComp->GetEffectiveSpellDamage();
 		}
 	}
 

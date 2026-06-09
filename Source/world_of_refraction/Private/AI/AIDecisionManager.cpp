@@ -915,8 +915,10 @@ int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
     // StatusMultiplier stat points (Spirit-side — status buildup strength).
     Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
 
-    // Spell power — crystal/equipment-aware SpellDamage (Mind-side).
-    Threat += FMath::RoundToInt(CharComp->GetEvolutionModifiedSpellDamage() * AIConstants::SPELL_POWER_THREAT_MULT);
+    // Spell power — FULL composed SpellDamage (innate + equipment + stone + transient), so a
+    // spell-geared/buffed combatant self-scores its threat more accurately. AI heuristic,
+    // non-critical. (The RawDamage read above stays pillar — no composed RawDamage getter.)
+    Threat += FMath::RoundToInt(CharComp->GetEffectiveSpellDamage() * AIConstants::SPELL_POWER_THREAT_MULT);
 
     return Threat;
 }

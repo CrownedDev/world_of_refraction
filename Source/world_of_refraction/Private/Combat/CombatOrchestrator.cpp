@@ -1019,21 +1019,15 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		// Crystal-aware StatusMultiplier — shared base-stat getter (innate Spirit×points +
-		// equipment BonusStatusMultiplier + attached StatusStone) COMPOUNDED with the
-		// transient buff/debuff (×(1+(buff−debuff)/100) + max(0) floor, same form as
-		// AddStatusBuildup Step 5b). Both scale the BD drain AND self-status.
-		if (UStatusBuildupManager *SBM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UStatusBuildupManager>() : nullptr)
-		{
-			float StatusFactor = SBM->GetSourceStatusMultiplierFactor(Actor);
-			if (SkillEffectManagerRef)
-			{
-				const float SmBuff = SkillEffectManagerRef->GetTotalStatModifier(Actor, ESkillEffectType::StatusMultiplierBuff);
-				const float SmDebuff = SkillEffectManagerRef->GetTotalStatModifier(Actor, ESkillEffectType::StatusMultiplierDebuff);
-				StatusFactor *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-			StatusMultiplierBonus = StatusFactor;
-		}
+		// Crystal-aware StatusMultiplier — the composed getter (innate Spirit×points +
+		// equipment BonusStatusMultiplier + attached StatusStone, COMPOUNDED with the
+		// transient StatusMultiplierBuff/Debuff ×Max(0,1+(buff−debuff)/100)). Equals the
+		// prior inline GetSourceStatusMultiplierFactor × transient BY CONSTRUCTION when the
+		// SBM subsystem is present; unlike that inline it also computes the base when SBM is
+		// null (the old path left it at 1.0 — a latent footgun, now fixed). Scales the BD
+		// drain AND self-status. (GetSourceStatusMultiplierFactor stays — AddStatusBuildup
+		// still uses it.)
+		StatusMultiplierBonus = CharComp->GetEffectiveStatusMultiplier();
 
 		// EfficiencyMultiplier — unified getter (innate crystal-aware Mind + equipment
 		// BonusEfficiency + attached EfficiencyStone, one clamp). Byte-neutral vs the
