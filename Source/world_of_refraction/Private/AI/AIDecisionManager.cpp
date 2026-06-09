@@ -24,6 +24,9 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Inventory/ItemEffectType.h"
+#include "Combat/TurnManager.h"
 
 USkillEffectManager *
 UAIDecisionManager::GetSkillEffectManager() const
@@ -1278,6 +1281,11 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         return Action;
     }
 
+    // Track the best UNAFFORDABLE spell/ability score (and its EP cost) for the
+    // self-target Emerald valuation — "I hold a strong action I can't pay for now".
+    float UnaffordableBest = 0.0f;
+    int32 UnaffordableBestCost = 0;
+
     // Score each action type
     for (EActionType ActionType : AvailableActions)
     {
@@ -1313,13 +1321,25 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                 {
                     continue;
                 }
-                if (!CanAffordSpell(AIActor, Spell))
-                {
-                    continue; // Skip spells the AI cannot pay for.
-                }
                 const float SpellScore = EstimateSpellDamage(AIActor, BestTarget, Spell) +
                                          EstimateStatusScore(AIActor, BestTarget, Spell) * AIConstants::STATUS_SCORE_WEIGHT;
-                BestSpellScore = FMath::Max(BestSpellScore, SpellScore);
+                if (CanAffordSpell(AIActor, Spell))
+                {
+                    BestSpellScore = FMath::Max(BestSpellScore, SpellScore);
+                }
+                else if (SpellScore > UnaffordableBest)
+                {
+                    // Strong action the AI can't pay for this turn — candidate to hold for an Emerald bonus turn.
+                    UnaffordableBest = SpellScore;
+                    if (UActionExecutor *Exec = GetActionExecutor())
+                    {
+                        FAction CostProbe;
+                        CostProbe.ActionType = EActionType::Spell;
+                        CostProbe.SpellData = Spell;
+                        CostProbe.SpellSource = Loadout->ResolveSpellSource(Spell);
+                        UnaffordableBestCost = Exec->CalculateActionEnergyCost(AIActor, CostProbe);
+                    }
+                }
             }
             Score = FMath::RoundToInt(BestSpellScore);
             break;
@@ -1335,13 +1355,24 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                 {
                     continue;
                 }
-                if (!CanAffordAbility(AIActor, Ability))
-                {
-                    continue; // Skip abilities the AI cannot pay for.
-                }
                 const float AbilityScore = EstimateAbilityDamage(AIActor, BestTarget, Ability) +
                                            EstimateStatusScore(AIActor, BestTarget, Ability) * AIConstants::STATUS_SCORE_WEIGHT;
-                BestAbilityScore = FMath::Max(BestAbilityScore, AbilityScore);
+                if (CanAffordAbility(AIActor, Ability))
+                {
+                    BestAbilityScore = FMath::Max(BestAbilityScore, AbilityScore);
+                }
+                else if (AbilityScore > UnaffordableBest)
+                {
+                    // Strong action the AI can't pay for this turn — candidate to hold for an Emerald bonus turn.
+                    UnaffordableBest = AbilityScore;
+                    if (UActionExecutor *Exec = GetActionExecutor())
+                    {
+                        FAction CostProbe;
+                        CostProbe.ActionType = EActionType::Ability;
+                        CostProbe.AbilityData = Ability;
+                        UnaffordableBestCost = Exec->CalculateActionEnergyCost(AIActor, CostProbe);
+                    }
+                }
             }
             Score = FMath::RoundToInt(BestAbilityScore);
             break;
@@ -1363,6 +1394,72 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
             BestScore = Pair.Value;
             BestActionType = Pair.Key;
+        }
+    }
+
+    // ===== Emerald (bonus-turn item) valuation — Medium+ only =====
+    // Slots in HERE because this is the only point where BestScore (best AFFORDABLE
+    // action this turn, in HP-damage units) and the chosen BestTarget both exist.
+    // Every Emerald score below is in the SAME HP-damage units as BestScore.
+    if (GetCurrentDifficulty() != EAIDifficulty::Easy)
+    {
+        bool bFoundEmerald = false;
+        const FCrystalId EmeraldId = FindBonusTurnItem(Loadout, bFoundEmerald);
+        if (bFoundEmerald)
+        {
+            const int32 EmeraldDelay = CrystalEffectTable::GetEmeraldBonusTurnDelay(EmeraldId);
+
+            // --- ENEMY-TARGET: force a guaranteed one-tick-lethal DoT kill now, before
+            //     the target's team gets turns to heal/cleanse it away. ---
+            const float LethalPerTick = GetLethalDoTPerTick(BestTarget);          // GATE 1
+            const bool bAlreadyKillable = CanKillTarget(AIActor, BestTarget, BestScore); // GATE 2
+            if (LethalPerTick > 0.0f && !bAlreadyKillable)
+            {
+                // Target's best expected damage against the AI — its per-turn threat,
+                // natively in the same HP-damage units as ActionScores (no scale factor).
+                const float ThreatPerTurnHP =
+                    static_cast<float>(EstimateBestDamage(BestTarget, AIActor));
+                const int32 ExposureTurns = GetRescueExposureTurns(AIActor, BestTarget);
+                const float EmeraldEnemyScore =
+                    GetCurrentHP(BestTarget) * AIConstants::KILL_SECURE_FACTOR +
+                    ThreatPerTurnHP * ExposureTurns -
+                    ThreatPerTurnHP * AIConstants::FREE_ACTION_FACTOR;
+
+                if (EmeraldEnemyScore > BestScore)
+                {
+                    FAction Emerald;
+                    Emerald.ActionType = EActionType::Item;
+                    Emerald.ItemData = EmeraldId;
+                    Emerald.Targets.Add(BestTarget);
+                    UE_LOG(LogTemp, Log,
+                           TEXT("[AI Emerald] ENEMY-target %s: score %.0f > best %d (lethalTick %.0f, exposure %d)"),
+                           *BestTarget->GetName(), EmeraldEnemyScore, BestScore, LethalPerTick, ExposureTurns);
+                    return Emerald;
+                }
+            }
+
+            // --- SELF-TARGET: EP-starved — hold a stronger action for the bonus turn. ---
+            if (UnaffordableBest > BestScore * AIConstants::STARVE_MARGIN)
+            {
+                const int32 ProjectedEP =
+                    GetCurrentEP(AIActor) + AIConstants::ESTIMATED_EP_REGEN_PER_TURN * EmeraldDelay;
+                if (ProjectedEP >= UnaffordableBestCost)
+                {
+                    const float DelayDiscount = 1.0f / (1.0f + AIConstants::DELAY_DECAY * EmeraldDelay);
+                    const float EmeraldSelfScore = UnaffordableBest * DelayDiscount - BestScore;
+                    if (EmeraldSelfScore > BestScore)
+                    {
+                        FAction Emerald;
+                        Emerald.ActionType = EActionType::Item;
+                        Emerald.ItemData = EmeraldId;
+                        Emerald.Targets.Add(AIActor);
+                        UE_LOG(LogTemp, Log,
+                               TEXT("[AI Emerald] SELF-target: held %.0f (disc %.2f) vs best %d -> self-score %.0f"),
+                               UnaffordableBest, DelayDiscount, BestScore, EmeraldSelfScore);
+                        return Emerald;
+                    }
+                }
+            }
         }
     }
 
@@ -1530,6 +1627,105 @@ bool UAIDecisionManager::HasDangerousDebuff(AActor *Actor)
     }
 
     return false;
+}
+
+// ==================== EMERALD (BONUS-TURN ITEM) VALUATION ====================
+
+FCrystalId UAIDecisionManager::FindBonusTurnItem(ULoadoutComponent *Loadout, bool &bOutFound)
+{
+    bOutFound = false;
+    if (!Loadout)
+    {
+        return FCrystalId{};
+    }
+
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
+    {
+        if (Slot.IsEmpty())
+        {
+            continue;
+        }
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::GrantBonusTurn)
+        {
+            bOutFound = true;
+            return Slot.CrystalId;
+        }
+    }
+
+    return FCrystalId{};
+}
+
+float UAIDecisionManager::GetLethalDoTPerTick(AActor *Target)
+{
+    if (!Target)
+    {
+        return 0.0f;
+    }
+
+    USkillEffectManager *StatusManager = GetSkillEffectManager();
+    if (!StatusManager)
+    {
+        return 0.0f;
+    }
+
+    const int32 TargetHP = GetCurrentHP(Target);
+    if (TargetHP <= 0)
+    {
+        return 0.0f;
+    }
+
+    // One-tick-lethal: a SINGLE DoT tick (EffectValue) alone reaches/exceeds current
+    // HP. Only then does forcing ONE bonus turn guarantee the kill at that turn's
+    // end-of-turn tick. (Accumulated-lethal — EffectValue*RemainingTurns — is the
+    // self-preservation test in HasDangerousDebuff; NOT enough here, since one bonus
+    // turn triggers only ONE tick.)
+    float BestPerTick = 0.0f;
+    for (const FActiveSkillEffect &Effect : StatusManager->GetActiveEffects(Target))
+    {
+        if (Effect.EffectType == ESkillEffectType::DOT &&
+            Effect.EffectValue >= static_cast<float>(TargetHP) &&
+            Effect.EffectValue > BestPerTick)
+        {
+            BestPerTick = Effect.EffectValue;
+        }
+    }
+
+    return BestPerTick;
+}
+
+int32 UAIDecisionManager::GetRescueExposureTurns(AActor *AIActor, AActor *Target) const
+{
+    if (!AIActor || !Target || !CurrentCombat)
+    {
+        return 0;
+    }
+
+    UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+    if (!TurnMgr)
+    {
+        return 0;
+    }
+
+    // The AI's enemies == the target's team — the combatants who could heal/cleanse
+    // the target before the DoT kills it. Count their turn-slots that fall BEFORE the
+    // target's own next slot (when the DoT ticks and the kill resolves).
+    const TArray<AActor *> Enemies = CurrentCombat->GetLivingEnemies(AIActor);
+    const TSet<AActor *> EnemySet(Enemies);
+
+    int32 Exposure = 0;
+    for (const FPreviewTurnEntry &Entry : TurnMgr->PreviewTurnOrder(AIConstants::EMERALD_EXPOSURE_LOOKAHEAD))
+    {
+        if (Entry.Actor == Target)
+        {
+            break; // reached the target's next turn — rescue window closes here
+        }
+        if (Entry.Actor && Entry.Actor != Target && EnemySet.Contains(Entry.Actor))
+        {
+            ++Exposure;
+        }
+    }
+
+    return Exposure;
 }
 
 USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)

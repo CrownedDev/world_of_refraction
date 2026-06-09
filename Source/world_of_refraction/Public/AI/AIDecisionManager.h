@@ -207,6 +207,19 @@ private:
     // Energy detection
     FCrystalId FindEnergyItem(ULoadoutComponent *Loadout, bool &bOutFound);
 
+    // Emerald (bonus-turn item) valuation — Medium+ only, scored in BuildOffensiveAction.
+    /** GrantBonusTurn (Emerald) item slot if the loadout holds one. Mirrors FindHealingItem. */
+    FCrystalId FindBonusTurnItem(ULoadoutComponent *Loadout, bool &bOutFound);
+
+    /** Per-tick EffectValue of a ONE-TICK-LETHAL DoT on Target (EffectValue >= CurrentHP),
+     *  else 0. The enemy-target Emerald gate — a single forced turn guarantees the kill. */
+    float GetLethalDoTPerTick(AActor *Target);
+
+    /** Enemy (target-team) turn-slots before Target's next appearance in the turn-order
+     *  preview — the rescue window their team has to heal/cleanse before the DoT kills.
+     *  Queries UTurnManager::PreviewTurnOrder; never caches the subsystem. */
+    int32 GetRescueExposureTurns(AActor *AIActor, AActor *Target) const;
+
     // Energy helpers
     int32 GetCurrentEP(AActor *Actor) const;
     int32 GetMaxEP(AActor *Actor) const;

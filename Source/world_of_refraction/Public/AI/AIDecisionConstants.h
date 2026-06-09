@@ -94,4 +94,37 @@ namespace AIConstants
     // number, different knob).
     constexpr float HARDEXPERT_HEAL_HP_THRESHOLD = 0.4f;
     constexpr float EASYMED_HEAL_HP_THRESHOLD = 0.25f;
+
+    // ==================== EMERALD (BONUS-TURN ITEM) VALUATION ====================
+    // All Emerald scores are in HP-DAMAGE UNITS so they compare directly against
+    // BuildOffensiveAction's ActionScores (~50-300). Do NOT reuse KILL_POTENTIAL_SCORE
+    // (=2000) here — that is target-SELECTION scale and would dominate the action argmax.
+
+    // Enemy-target: value of banking the DoT-secured kill, as a fraction of the
+    // target's current HP (the damage the DoT pays "for free").
+    constexpr float KILL_SECURE_FACTOR = 1.0f;
+
+    // The target gets ONE free action before the DoT kills them at end-of-turn —
+    // subtract this many turns of their threat.
+    constexpr float FREE_ACTION_FACTOR = 1.0f;
+
+    // How many upcoming turn-slots to scan for the target's next appearance when
+    // sizing the rescue-exposure window (enemy turns before the target acts again).
+    constexpr int32 EMERALD_EXPOSURE_LOOKAHEAD = 10;
+
+    // Self-target: only fire when a held (unaffordable) action outscores the best
+    // affordable one by at least this margin.
+    constexpr float STARVE_MARGIN = 1.3f;
+
+    // Discount on the held action's value because it is deferred DelayTurns turns:
+    // DelayDiscount = 1 / (1 + DELAY_DECAY * DelayTurns).
+    constexpr float DELAY_DECAY = 0.15f;
+
+    // Estimated EP regained per turn, used by the self-target EP-regen lookahead
+    // (CurrentEP + this*DelayTurns >= heldCost). The combat model has NO passive
+    // per-turn EP regen (EP is gained only via absorption / items / skill effects),
+    // so self-target Emerald-AI is DORMANT until passive EP regen exists; set >0 to
+    // activate (the self-target premise depends on EP regenerating before the bonus
+    // turn). Do NOT set a fabricated value — keep 0 until a real regen mechanic lands.
+    constexpr int32 ESTIMATED_EP_REGEN_PER_TURN = 0;
 }
