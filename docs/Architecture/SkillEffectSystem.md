@@ -81,7 +81,7 @@ Helpers: `IsBuff`, `IsDebuff`, `IsDOT`, `DealsDamage`, `GetStackedValue` (`Effec
 ### Effect resolution — `ApplyEffectLogic`
 
 A large `switch` on `EffectType`, using `GetStackedValue()`:
-- `DOT` — damage clamped so it can never kill (leaves ≥1 HP), via `CharComp->ServerTakeDamage`.
+- `DOT` — full tick damage via `CharComp->ServerTakeDamage`; **lethal** (the leave-≥1-HP clamp was removed, `a9bb3e8c`). A tick can drop the target to 0 and route through the normal death path (`ServerTakeDamage` → `CheckDeath` → `OnDied`), identical to a killing blow. Because DOTs tick at the owner's `EndOfOwnTurn`, a lethal DoT kills the actor on their **own** turn *after* they act — the turn flow handles it (the now-dead current actor is skipped at the next `AdvanceToNextTurn`).
 - `HealthRestore` / `EnergyRestore` / `EnergyDrain` — route through `ServerHeal` / `ServerGainEnergy` / `ServerSpendEnergy`.
 - All stat-modifier types — **passive no-ops**; other systems query them via `GetTotalStatModifier`.
 - `RemoveSpeedDebuff` / `RemoveDamageDebuff` / `RemoveDefenseDebuff` — call `RemoveEffectsByType`.
@@ -122,7 +122,7 @@ Bound to `UActionExecutor::OnDamageDealt` at `Initialize`. When the attacker car
 
 ### Buildup-triggered effects
 
-`ApplyTriggeredSkillEffect` is the bar-cap entry point: it builds a full-power `FActiveSkillEffect` per `StatusType` using bar-cap-design magnitudes (e.g. `DOT` = 8% of target MaxHP/tick, `BurstDamage` = 25% MaxHP one-shot clamped non-lethal, `Stun`/`Silenced`/`HealBlock`/`RandomSkill` gates) and applies it. `ApplyImmediateSkillEffect` is the weaker immediate-status variant.
+`ApplyTriggeredSkillEffect` is the bar-cap entry point: it builds a full-power `FActiveSkillEffect` per `StatusType` using bar-cap-design magnitudes (e.g. `DOT` = 8% of target MaxHP/tick, `BurstDamage` = 25% MaxHP one-shot, **lethal** (its 1-HP clamp was removed, `a9bb3e8c`; routes through the same `ServerTakeDamage` → `CheckDeath` death path), `Stun`/`Silenced`/`HealBlock`/`RandomSkill` gates) and applies it. `ApplyImmediateSkillEffect` is the weaker immediate-status variant.
 
 ## Integration Points
 

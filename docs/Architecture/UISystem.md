@@ -96,6 +96,13 @@ start and reused; each `OnTurnStarted` only refreshes slot data from
 `TransBuffer` leak caused by creating new slot widgets per turn — consistent
 with the project's documented TransBuffer crash gotcha.
 
+Each refresh also passes a **bonus-turn flag** (Emerald) to every slot: upcoming
+slots read `FPreviewTurnEntry::bIsBonusTurn` (scheduled bonus turns appear inline,
+rendered with a distinct tint), while **slot 0** (the current actor) reads
+`UTurnManager::GetCurrentTurnIsBonus()` instead — an immediate/self-target Emerald
+bonus *is* the current turn, so it never shows as an upcoming slot. On slot 0 the
+bonus tint takes priority over the active-turn highlight.
+
 ### `UDefensePromptWidget`
 
 `UCLASS(Abstract)`, native base for `WBP_DefensePrompt`. Shows the defense
@@ -197,7 +204,9 @@ controlled actor.
    `HandleTurnStarted` to `UTurnManager::OnTurnStarted`.
 2. Each `OnTurnStarted` broadcast invokes `HandleTurnStarted(actor, turnNumber)`,
    which calls `RefreshSlots()` to update the pre-spawned slots from
-   `UTurnManager::PreviewTurnOrder`. Slots are never recreated per turn.
+   `UTurnManager::PreviewTurnOrder` — passing each slot a bonus-turn flag
+   (`bIsBonusTurn` for upcoming slots; `GetCurrentTurnIsBonus()` for slot 0). Slots
+   are never recreated per turn.
 3. `TeardownStrip()` (also reached from `NativeDestruct`/`BeginDestroy`)
    unbinds and clears the slots.
 

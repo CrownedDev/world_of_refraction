@@ -43,10 +43,11 @@ Internal subsystem accessors: `GetSkillEffectManager()`, `GetActionExecutor()`.
 - `CalculateThreatLevel`, `CanKillTarget`.
 - HP/EP helpers: `GetHPPercent`, `GetCurrentHP`, `GetMaxHP`, `GetCurrentEP`, `GetMaxEP`, `GetCharacterData`.
 - `HasDangerousDebuff` — detects stun (`SkipTurn`) or a lethal DOT.
+- `GetLethalDoTPerTick` — per-tick value of a **one-tick-lethal** DOT on a target (Emerald enemy-gate), else 0; `GetRescueExposureTurns` — target-team turn-slots before the target's next turn via `UTurnManager::PreviewTurnOrder` (Emerald exposure window).
 
 #### Loadout detection helpers
 
-`FindHealingSpell` (Restoration school + `Heal`/`HealthRestore` effect), `FindCleanseSpell` (`Cleanse` effect), `FindHealingItem` (Sapphire crystal), `FindCleanseItem` (Iolite crystal), `FindEnergyItem` (Citrine crystal).
+`FindHealingSpell` (Restoration school + `Heal`/`HealthRestore` effect), `FindCleanseSpell` (`Cleanse` effect), `FindHealingItem` (Sapphire crystal), `FindCleanseItem` (Iolite crystal), `FindEnergyItem` (Citrine crystal), `FindBonusTurnItem` (Emerald — `GrantBonusTurn` item).
 
 #### Defense logic
 
@@ -64,6 +65,7 @@ All tunable values are `constexpr` in this namespace:
 - **Thinking delays** — per-difficulty min/max ranges (`EASY_THINK_*` 2.0–3.5s … `EXPERT_THINK_*` 0.2–0.3s).
 - **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (0.40–0.95) and `*_DEFENSE_ACCURACY` (0.50–0.98).
 - **Survival thresholds** — `SURVIVAL_HP_THRESHOLD` (0.25), `ENERGY_CONSERVATION_THRESHOLD` (0.50), `ENERGY_ABUNDANT_THRESHOLD` (0.70).
+- **Emerald valuation** — `KILL_SECURE_FACTOR` (1.0), `FREE_ACTION_FACTOR` (1.0), `EMERALD_EXPOSURE_LOOKAHEAD` (10), `STARVE_MARGIN` (1.3), `DELAY_DECAY` (0.15), `ESTIMATED_EP_REGEN_PER_TURN` (0 — self-target dormant; no passive EP regen exists).
 
 ## How It Works
 
@@ -90,6 +92,14 @@ Evaluated in priority order; the first that returns an action wins:
    - **Ability** — same combined score among affordable abilities.
 3. The highest-scoring action type is chosen; the concrete spell/ability/attack is then re-selected by the same combined-score metric. If no affordable spell/ability exists, the action falls through to Defend.
 4. For spells/abilities, `DecideSpellInfusionLevel` / `DecideAbilityInfusionLevel` picks an infusion level (0/1/2); if the infused cost is unaffordable it drops to L0.
+
+### Emerald (bonus-turn item) valuation (`BuildOffensiveAction`, Medium+)
+
+After `BestScore` (the best **affordable** action this turn, in HP-damage units) and `BestTarget` are both known — and only there, since both are needed — `BuildOffensiveAction` evaluates whether to instead spend the turn on an **Emerald** bonus-turn item. Easy never reaches here. `FindBonusTurnItem` locates a usable `GrantBonusTurn` (Emerald) item; `CrystalEffectTable::GetEmeraldBonusTurnDelay` gives its tier delay (F=6 … S=0). All Emerald scores are in the **same HP-damage units** as `BestScore`, so they slot directly into the `> BestScore` comparison — `KILL_POTENTIAL_SCORE` (target-selection scale) is deliberately **not** reused.
+
+**Enemy-target (the gamble) — secure a one-tick-lethal DoT kill before the target's team can rescue it.** Gated on `GetLethalDoTPerTick(BestTarget) > 0` (a DoT whose **single next tick** alone ≥ target HP — the *one-tick-lethal* test, distinct from `HasDangerousDebuff`'s accumulated-lethal check, because Emerald forces only one extra turn = one extra tick) **AND** `!CanKillTarget(AIActor, BestTarget, BestScore)` (the AI can't already kill it this turn). Score: `TargetCurrentHP × KILL_SECURE_FACTOR + ThreatPerTurnHP × ExposureTurns − ThreatPerTurnHP × FREE_ACTION_FACTOR`, where `ThreatPerTurnHP = EstimateBestDamage(BestTarget, AIActor)` (the target's own best damage against the AI, natively in HP units) and `ExposureTurns = GetRescueExposureTurns(AIActor, BestTarget)` (target-team turn-slots before the target's next appearance in `UTurnManager::PreviewTurnOrder` — the window their team has to heal/cleanse the pending kill). If the score beats `BestScore`, emit an `Item` action (Emerald) at `BestTarget`. Only `BestTarget` is considered — a one-tick-lethal target is near-dead, so `HP_MISSING_WEIGHT` makes it the selected target in practice.
+
+**Self-target (tempo) — DORMANT.** The intended trigger is EP-starvation: hold a high-value action the AI can't afford this turn (`UnaffordableBest`, tracked alongside `BestScore` in the scoring loop, with its cost) for a bonus turn after EP regenerates. Gate: `CurrentEP + ESTIMATED_EP_REGEN_PER_TURN × DelayTurns ≥ heldCost`, then `UnaffordableBest × (1/(1+DELAY_DECAY×DelayTurns)) − BestScore > BestScore`. **The combat model has no passive per-turn EP regen**, so `ESTIMATED_EP_REGEN_PER_TURN = 0` keeps this path inert — the machinery is wired and correct but never fires until a real EP-regen mechanic exists.
 
 ### Damage / status estimation
 
@@ -147,3 +157,4 @@ Evaluated in priority order; the first that returns an action wins:
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-2 — AI now resolves spell source via `ULoadoutComponent::ResolveSpellSource(Spell)` at all six previously-hardcoded `ESpellSource::Innate` sites in `AIDecisionManager`. Casts route through the correct cost model. | feature/integration-gaps-sweep-2 |
+| 2026-06-09 | Emerald (bonus-turn item) enemy-target valuation added to `BuildOffensiveAction` (Medium+): one-tick-lethal-DoT gate (`GetLethalDoTPerTick`) + not-already-killable, scored in HP units (`KILL_SECURE` + threat×exposure − threat×freeAction; threat = `EstimateBestDamage`, exposure = `GetRescueExposureTurns`/`PreviewTurnOrder`); `FindBonusTurnItem`. Self-target valuation wired but DORMANT (`ESTIMATED_EP_REGEN_PER_TURN=0` — no passive EP regen). | feature/weapon-stones |

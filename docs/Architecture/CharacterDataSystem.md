@@ -185,6 +185,39 @@ clamped to `LUCK_RAW_MAX`.
 All crystal-aware getters fall back to the raw asset value (or a sensible
 default) if no `LoadoutComponent` or `CharacterData` is present.
 
+### Stat-modifier normalization (`[-100%, +100%]`)
+
+Every **composed multiplicative stat modifier** is hard-capped to
+`[STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] = [0, 2]` (`CombatConstants`) — the
+`[-100%, +100%]` normalization. The cap applies to the **composed modifier alone**
+(crystal × equipment × stone × transient, multiplied together), **not** to the base
+stat or the final value: `0.0` means "−100% → contributes nothing", `2.0` means
+"+100% → at most doubles". Capped getters: `GetEffectiveSpellDamage`
+(`CharacterDataComponent.cpp:798`), `GetEffectiveRawDamage` (`:862`),
+`GetEvolutionModifiedStatusMultiplier` (`:1006`), the `Mind/Body/Spirit` pillar
+modifier in `ApplyEvolutionPillarModifier` (`:553`), and the transient `FlatDefense`
+modifier. Below the cap the result is **byte-identical** to the pre-normalization
+composition — the clamp only bites at the extremes.
+
+**Special-cased / excluded** (own bounds, not the shared `[0,2]` cap):
+- **CritChance** — a probability bounded `[0, 1]` (AI scorer treats `1.0` as the
+  ceiling); not a `[0,2]` multiplier.
+- **Resistance** — its own `[-1, +1]` fraction (equivalent to a `[0, 2]` damage
+  multiplier), via `[0, RESISTANCE_MAX]`-style clamps.
+- **Efficiency** — inverted (lower = cheaper); normalized on its own curve, not the
+  shared cap.
+- **Luck** — its own basis, clamped to `LUCK_RAW_MAX` (it is the normalization basis
+  for luck-derived chances).
+- **MaxHP / MaxEP pools** — excluded; pool stones recompute the pool directly rather
+  than scaling through a `[0,2]` modifier.
+
+**Model (Option C):** the **pillars** and each **derived stat** clamp
+**independently** — pillar modifiers normalize first, then the derived `Calculate*`
+formulas run on the normalized pillar and their *own* output modifier normalizes
+separately. The two **compound** (a buffed pillar feeding a buffed derived stat) but
+neither source can individually exceed `[0,2]`, keeping any single contribution within
+`[-100%, +100%]` for fair-play.
+
 ### Server-authoritative state mutation
 
 All mutators check `HasServerAuthority()` first (which returns true unconditionally
@@ -302,3 +335,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | 2026-05-21 | Inventory redesign merged — `UCharacterData::DefaultLoadout` (`ULoadoutData*`) replaced by `Inventory` (`UInventoryData*`); `IsDataValid` now warns on missing `Inventory` instead of missing `DefaultLoadout`. | feature/inventory-refactor |
 | 2026-05-27 | `ApplyEvolutionPillarModifier` gains a case-B branch (`PrimarySlotType == Evolution`) so BD's primary-slot evolution stats flow through the crystal-modified pillars; two new accessors `GetEvolutionModifiedStatusMultiplier` and `GetEvolutionModifiedResistance` mirror the existing pattern. Consumed by the substat crystal-wear modifier — see `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` (BlueprintPure) UI-facing element accessor; returns `BrokenDarkness` for any `IsBrokenDarkness()` character, else delegates to `CharacterData->GetElement()`. Panels/labels should prefer this over reading `InnateElement` directly. | feature/integration-gaps-sweep-5 |
+| 2026-06-09 | Documented the `[-100%, +100%]` stat-modifier normalization: composed multiplicative modifiers hard-capped to `[STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] = [0,2]` for SpellDamage/RawDamage/StatusMultiplier/FlatDefense + Mind/Body/Spirit pillars (byte-identical below cap); CritChance/Resistance/Efficiency/Luck/pools special-cased or excluded; pillars + derived stats clamp independently and compound (Option C). | feature/weapon-stones |

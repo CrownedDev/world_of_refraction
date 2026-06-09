@@ -127,7 +127,7 @@ ten gems.
 | Garnet | Fire | Fire DOT |
 | Sapphire | Water | Healing / revive |
 | Citrine | Lightning | Energy restore |
-| Emerald | Wind | Turn-speed buff / extra turn |
+| Emerald | Wind | Delayed bonus turn (tier-scaled delay; S = immediate) |
 | Amber | Earth | Defense buff / debuff |
 | Opal | Light | Crit buff / debuff |
 | Onyx | Darkness | Silence (energy-lock / binary) |
@@ -162,10 +162,10 @@ table: **F / E / D / C / B / A / S**.
 | Garnet | DOT duration (turns) | 3 | 3 | 3 | 2 | 2 | 2 | 1 |
 | Sapphire | Heal % of MaxHP | 15 | 20 | 25 | 30 | 35 | 45 | 60 |
 | Citrine | EP restore % of MaxEP | 30 | 40 | 50 | 60 | 70 | 85 | 100 |
-| Emerald | Turn-speed buff % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
+| Emerald | Bonus-turn delay (global turns) — `GetEmeraldBonusTurnDelay` | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
 | Amber | Defense buff/debuff % | 15 | 20 | 25 | 30 | 35 | 40 | 50 |
 | Opal | Crit buff/debuff % | 5 | 8 | 10 | 12 | 15 | 18 | 25 |
-| Emerald/Amber/Opal | Duration — `GetCrystalDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| Amber/Opal | Duration — `GetCrystalDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
 | Onyx | Silence % (energy-lock) | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
 | Onyx | Energy-lock duration, F–A — `GetSilenceDurationNew` | 3 | 3 | 2 | 2 | 2 | 1 | — |
 | Amethyst | Buff/debuff magnitude % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
@@ -240,7 +240,7 @@ Final implemented S-rank behaviour for all 10 crystals:
 - **Garnet S** — DOT at 30%/turn for **1 turn** (a hard single-turn burst vs the long low-tier burn).
 - **Sapphire S** — revives a **dead** target at 30% MaxHP via `ServerResurrect`; heals a living target for 60% MaxHP.
 - **Citrine S** — restores 100% of target MaxEP; adds 60% Lightning buildup (shared table).
-- **Emerald S** — grants the target an **immediate extra turn** via `UTurnManager::RequestExtraTurn`, instead of the turn-speed buff.
+- **Emerald S** — the granted bonus turn fires **immediately** (tier delay 0) via `UTurnManager::RequestExtraTurn`; lower tiers schedule the *same* bonus turn **delayed** (F=6 … A=1 global turns) via `ScheduleBonusTurn`. All tiers grant a (delayed/immediate) **bonus turn**, not a turn-speed buff. Using Emerald **forfeits the user's current turn** (the item use *is* the turn-ending action). Self-target = tempo (act again sooner); enemy-target = **force their turn** — their DoTs tick *and* they act, the gamble.
 - **Amber S** — 50% defense buff (ally) or debuff (enemy).
 - **Opal S** — 25% crit buff (ally) or debuff (enemy). *(A stat-reveal special is designed but unimplemented — see TODOs.)*
 - **Onyx S** — applies the binary `ESkillEffectType::Silenced` effect (full spell lockout) for 1 turn, instead of the F–A percentage energy-lock.

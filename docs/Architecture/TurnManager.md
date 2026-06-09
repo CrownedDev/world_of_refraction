@@ -29,6 +29,11 @@ Internal state:
 - `bool bCombatActive` — whether an encounter is in progress.
 - `mutable USkillEffectManager* SkillEffectManagerRef` — lazily acquired via
   `GetSkillEffectManager()`; used to fold turn-speed modifiers into effective speed.
+- `TArray<FScheduledTurn> PendingTurns` — delayed bonus turns (Emerald) counting down
+  to their fire boundary; see *Delayed bonus turns*.
+- `bool bCurrentTurnIsBonus` — true when the current turn is an Emerald bonus turn being
+  taken. Recomputed every `AdvanceToNextTurn` at the consume point; surfaced to the
+  turn-order UI via `GetCurrentTurnIsBonus()`. Reset on `InitializeCombat`/`EndCombat`.
 
 ### `FCombatantTurnDebt` (USTRUCT)
 
@@ -39,13 +44,26 @@ Per-combatant scheduling record:
 - `float SpeedRatio` — recomputed by `CalculateSpeedRatios()`.
 - Cached tie-break stats: `CachedSpeed`, `CachedActionSpeed`, `CachedMind`,
   `CachedBody`, `CachedSpirit`.
+- `int32 UntakenBonusTurns` — granted-but-not-yet-taken Emerald bonus turns. The next
+  pick for this combatant consumes one and flags the turn as a bonus; the count is held
+  on the combatant so the flag survives the `PendingTurns` entry being removed at fire
+  time (the consume-before-observe fix).
+
+### `FScheduledTurn` (USTRUCT)
+
+A delayed bonus turn awaiting its fire boundary (Emerald):
+- `AActor* Actor` — who receives the bonus turn.
+- `int32 TurnsRemaining` — global turn boundaries until it fires; decremented once per
+  `AdvanceToNextTurn`, fires at 0.
 
 ## How It Works
 
 ### Initialization (`InitializeCombat`)
 
 1. If combat is already active, calls `EndCombat()` first.
-2. Clears `Combatants`, resets `GlobalTurnCount`, `CurrentActor`, `PreviousActor`.
+2. Clears `Combatants`, resets `GlobalTurnCount`, `CurrentActor`, `PreviousActor`,
+   `bCurrentTurnIsBonus` (and `PendingTurns` is not re-seeded — bonus turns are
+   combat-scoped).
 3. Builds an `FCombatantTurnDebt` for each non-null actor — Team1 actors get
    `TeamIndex = 0`, Team2 actors get `TeamIndex = 1` — and calls
    `CacheActorStats()` on each.
@@ -83,7 +101,16 @@ combatant's `SpeedRatio = EffectiveSpeed / SlowestSpeed`.
 2. `GetNextCombatant()` picks the next combatant.
 3. If none found, logs an error and calls `EndCombat()`.
 4. Otherwise sets `CurrentActor`, increments that combatant's `TurnsTaken` and
-   `GlobalTurnCount`, and broadcasts `OnTurnStarted(CurrentActor, GlobalTurnCount)`.
+   `GlobalTurnCount`. Sets `bCurrentTurnIsBonus = (UntakenBonusTurns > 0)` and, when
+   true, decrements `UntakenBonusTurns` — this pick consumes a granted bonus turn. Then
+   broadcasts `OnTurnStarted(CurrentActor, GlobalTurnCount)`. (The consume happens
+   *before* the broadcast so the UI's refresh reads the result, not the pre-consume
+   count.)
+5. **Bonus-turn fire loop** (after the broadcast) — decrements every
+   `PendingTurns[i].TurnsRemaining` once; any entry reaching 0 is removed and, if its
+   actor is still alive, granted its bonus turn via
+   `RequestExtraTurn(Actor, bIsBonusTurn=true)`. Dead/invalid actors are dropped
+   silently. Runs exactly once per global turn boundary.
 
 ### Picking the next combatant (`GetNextCombatant`)
 
@@ -106,7 +133,11 @@ Ordered cascade:
 
 Copies `Combatants` into a temp array and simulates `NumTurns` iterations of the
 same round-accumulation + highest-debt selection logic (without mutating real
-state). Returns the projected actor sequence. Used by UI and `DebugPrintTurnOrder`.
+state). Returns the projected sequence as `FPreviewTurnEntry` rows (`Actor` +
+`bIsBonusTurn`). The simulation also walks a copy of `PendingTurns` and each
+combatant's `UntakenBonusTurns`, so scheduled/granted Emerald bonus turns appear
+**inline at their projected slot** flagged `bIsBonusTurn=true` (false for every slot
+in the common no-bonus case). Used by UI and `DebugPrintTurnOrder`.
 
 ### Speed/life-state changes
 
@@ -114,13 +145,31 @@ state). Returns the projected actor sequence. Used by UI and `DebugPrintTurnOrde
   ratios, broadcasts `OnSpeedChanged`.
 - `OnActorDied(Actor)` / `OnActorResurrected(Actor)` — recalculate ratios (the
   slowest combatant may have changed); they do NOT re-cache stats.
-- `RequestExtraTurn(Actor)` — credits `+1.0` to that combatant's `TurnsOwed`, so the
-  debt scheduler picks it again soon.
+- `RequestExtraTurn(Actor, bIsBonusTurn=false)` — credits `+1.0` to that combatant's
+  `TurnsOwed`, so the debt scheduler picks it again soon. `bIsBonusTurn=true` (Emerald)
+  additionally flags the granted turn via `UntakenBonusTurns` — see *Delayed bonus turns*.
+
+### Delayed bonus turns (`ScheduleBonusTurn`, Emerald)
+
+Emerald grants a combatant a **bonus turn** after a tier-scaled delay (F=6 … S=0 global
+turns). `ScheduleBonusTurn(Actor, DelayTurns)` (DelayTurns ≥ 1) appends an
+`FScheduledTurn`; the bonus-turn fire loop in `AdvanceToNextTurn` counts it down and, at
+0, credits the bonus via `RequestExtraTurn(Actor, bIsBonusTurn=true)`. S-tier (delay 0)
+bypasses the scheduler — the Emerald handler calls `RequestExtraTurn` immediately.
+
+`bIsBonusTurn=true` increments the combatant's `UntakenBonusTurns`, marking the granted
+turn so it is flagged as a bonus *when taken* — this survives the originating
+`PendingTurns` entry being removed at fire time. `AdvanceToNextTurn`'s consume step then
+clears one `UntakenBonusTurns` and sets `bCurrentTurnIsBonus`, which the turn-order UI
+reads via `GetCurrentTurnIsBonus()` (an immediate/self-target bonus *is* the current
+turn, so it never shows as an upcoming slot — only the current-actor slot tint reflects
+it). `PendingTurns` is cleared on `InitializeCombat`/`EndCombat`.
 
 ### Ending combat (`EndCombat`)
 
 Broadcasts `OnCombatEnded(GlobalTurnCount)`, then clears `bCombatActive`,
-`Combatants`, `CurrentActor`, `PreviousActor`, and resets `GlobalTurnCount`.
+`Combatants`, `CurrentActor`, `PreviousActor`, `PendingTurns`, resets
+`GlobalTurnCount`, and clears `bCurrentTurnIsBonus`.
 
 ## Integration Points
 
@@ -149,7 +198,11 @@ Broadcasts `OnCombatEnded(GlobalTurnCount)`, then clears `bCombatActive`,
   `EndCombat`; binds `OnTurnStarted` / `OnTurnEnded` / `OnCombatEnded`.
 - `ULoadoutComponent` — calls `OnActorSpeedChanged` on weapon/ring hot-swap (per
   the comment in `CacheActorStats`).
-- UI — consumes `PreviewTurnOrder` for turn-order display.
+- UI — consumes `PreviewTurnOrder` for turn-order display (including the `bIsBonusTurn`
+  slot flag) and `GetCurrentTurnIsBonus()` for the current-actor slot tint.
+- `UItemExecutor` (Emerald) — calls `ScheduleBonusTurn` (delayed tiers) or
+  `RequestExtraTurn(..., bIsBonusTurn=true)` (S-tier immediate) from
+  `ExecuteBonusTurnEffect`.
 
 ## Known Limitations / TODOs
 
@@ -176,3 +229,4 @@ Observations from the code:
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
+| 2026-06-09 | Delayed bonus-turn scheduler (Emerald): `FScheduledTurn`/`PendingTurns`, `ScheduleBonusTurn`, decrement-and-fire loop in `AdvanceToNextTurn` (reuses `RequestExtraTurn`), dead-actor skip, combat-scoped clear. Bonus-flag surfacing: `UntakenBonusTurns` + `bCurrentTurnIsBonus` + the `FPreviewTurnEntry::bIsBonusTurn` preview flag (inline scheduled bonuses + current-actor slot tint). | feature/weapon-stones |
