@@ -353,6 +353,42 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 		   OutResult.EnergyRestored, *Target->GetName());
 }
 
+void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,
+										 ESkillEffectType BuffType, ESkillEffectType DebuffType,
+										 const FString &DisplaySuffix, FItemUseResult &OutResult)
+{
+	// Shared body for the standard directional stone-consumable buffs. Ally → BuffType,
+	// enemy → DebuffType (IsAlly direction), at the stone's GetStoneBasePercent magnitude
+	// for the flat AUGMENT_STONE_CONSUMABLE_DURATION. Byte-identical to each delegating
+	// handler's prior inline body (same effect construction); only the diagnostic log line
+	// is now generic. Outliers do NOT route here (different magnitude/duration source,
+	// sign-encoded type, or extra-turn branch).
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const bool bAlly = IsAlly(User, Target);
+	const ESkillEffectType EffectType = bAlly ? BuffType : DebuffType;
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s %s"), *DisplayName, *DisplaySuffix),
+		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
+	Effect.Element = ItemIdentity::GetElement(Id);
+
+	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
+	OutResult.BuffsApplied++;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] %s stone: Applied %s %.0f%% for %d turns to %s"),
+		   *DisplaySuffix, bAlly ? TEXT("buff") : TEXT("debuff"), Magnitude, Duration, *Target->GetName());
+}
+
 void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Emerald (Phase 2) - F-A apply a turn-speed buff; S grants an extra turn.
@@ -403,30 +439,9 @@ void UItemExecutor::ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FC
 	// TurnSpeedStone consumable - DIRECTIONAL pure stat: buff an ally's turn speed, or
 	// debuff an enemy's, at the stone's 3-15 magnitude for the flat stone duration. NO
 	// turn mechanic (no extra-turn/skip) — that lives in Emerald's ExecuteSpeedBuffEffect.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::TurnSpeedBuff : ESkillEffectType::TurnSpeedDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Turn Speed"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Turn Speed Stone: Applied %s %.0f%% for %d turns to %s"),
-		   bAlly ? TEXT("TurnSpeedBuff") : TEXT("TurnSpeedDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::TurnSpeedBuff, ESkillEffectType::TurnSpeedDebuff,
+						 TEXT("Turn Speed"), OutResult);
 }
 
 void UItemExecutor::ExecuteStatusBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -435,30 +450,9 @@ void UItemExecutor::ExecuteStatusBuffEffect(AActor *User, AActor *Target, FCryst
 	// an enemy's, at the stone's 3-15 magnitude for the flat stone duration. This is a
 	// TRANSIENT StatusMultiplierBuff/Debuff (the Step-5b layer in AddStatusBuildup) —
 	// SEPARATE from the attached StatusStone's base-stat getter (B3). Applied via SEM.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::StatusMultiplierBuff : ESkillEffectType::StatusMultiplierDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Status Multiplier"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Status Stone: Applied %s %.0f%% for %d turns to %s"),
-		   bAlly ? TEXT("StatusMultiplierBuff") : TEXT("StatusMultiplierDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::StatusMultiplierBuff, ESkillEffectType::StatusMultiplierDebuff,
+						 TEXT("Status Multiplier"), OutResult);
 }
 
 void UItemExecutor::ExecuteEfficiencyBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -469,30 +463,9 @@ void UItemExecutor::ExecuteEfficiencyBuffEffect(AActor *User, AActor *Target, FC
 	// EfficiencyBuff/Debuff (H0); GetEffectiveEfficiencyMultiplier folds it in, so it
 	// reaches BD drain + EP cost + durability with no per-consumer wiring here. The
 	// getter's sign handles direction; this handler just picks buff-ally / debuff-enemy.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::EfficiencyBuff : ESkillEffectType::EfficiencyDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Efficiency"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Efficiency Stone: Applied %s %.0f%% for %d turns to %s"),
-		   bAlly ? TEXT("EfficiencyBuff") : TEXT("EfficiencyDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::EfficiencyBuff, ESkillEffectType::EfficiencyDebuff,
+						 TEXT("Efficiency"), OutResult);
 }
 
 void UItemExecutor::ExecuteMaxHPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -502,30 +475,9 @@ void UItemExecutor::ExecuteMaxHPBuffEffect(AActor *User, AActor *Target, FCrysta
 	// MaxHPBuff/Debuff (P2a); RecomputeMaxPools folds it in and the P2b subscribe trigger
 	// recomputes the pool on apply/expire — no per-consumer pool wiring here. Current HP is
 	// untouched (raise = no heal; expiry = overcap, no damage).
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::MaxHPBuff : ESkillEffectType::MaxHPDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Max HP"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Max HP Stone: Applied %s %.0f%% for %d turns to %s"),
-		   bAlly ? TEXT("MaxHPBuff") : TEXT("MaxHPDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::MaxHPBuff, ESkillEffectType::MaxHPDebuff,
+						 TEXT("Max HP"), OutResult);
 }
 
 void UItemExecutor::ExecuteMaxEPBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -534,30 +486,9 @@ void UItemExecutor::ExecuteMaxEPBuffEffect(AActor *User, AActor *Target, FCrysta
 	// the stone's 3-15 magnitude for the flat stone duration. Applies the TRANSIENT
 	// MaxEnergyBuff/Debuff; RecomputeMaxPools folds it in via the P2b trigger. Current EP
 	// untouched; a raised MaxEP also lifts the BD overload entry/ceiling (intended).
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::MaxEnergyBuff : ESkillEffectType::MaxEnergyDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Max EP"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Max EP Stone: Applied %s %.0f%% for %d turns to %s"),
-		   bAlly ? TEXT("MaxEnergyBuff") : TEXT("MaxEnergyDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::MaxEnergyBuff, ESkillEffectType::MaxEnergyDebuff,
+						 TEXT("Max EP"), OutResult);
 }
 
 void UItemExecutor::ExecuteRawDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -598,30 +529,9 @@ void UItemExecutor::ExecuteSpellDamageBuffEffect(AActor *User, AActor *Target, F
 	// damage, or debuff an enemy's, for a fixed duration. Magnitude is a whole-number
 	// percent, consumed SPELL-only by GetStatusEffectDamageModifier (== Spell gate).
 	// The magical mirror of ExecuteRawDamageBuffEffect.
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::SpellDamageBuff : ESkillEffectType::SpellDamageDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Spell Damage"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Spell damage stone: Applied %s %.0f%% spell-damage for %d turns to %s"),
-		   bAlly ? TEXT("SpellDamageBuff") : TEXT("SpellDamageDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::SpellDamageBuff, ESkillEffectType::SpellDamageDebuff,
+						 TEXT("Spell Damage"), OutResult);
 }
 
 void UItemExecutor::ExecuteResistanceBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -665,30 +575,9 @@ void UItemExecutor::ExecuteSpellSpeedBuffEffect(AActor *User, AActor *Target, FC
 	// enemy's. Read on the cast-montage PlayRate path (PlaySpellAnimation, SpellSpeedBuff/
 	// Debuff). Visual now; the COMBAT effect (defender reaction window) lands with the
 	// Real-Time Defense Rework (docs/Design/RealTimeDefenseRework.md).
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::SpellSpeedBuff : ESkillEffectType::SpellSpeedDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Spell Speed"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Spell speed stone: Applied %s %.0f%% spell-speed for %d turns to %s"),
-		   bAlly ? TEXT("SpellSpeedBuff") : TEXT("SpellSpeedDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::SpellSpeedBuff, ESkillEffectType::SpellSpeedDebuff,
+						 TEXT("Spell Speed"), OutResult);
 }
 
 void UItemExecutor::ExecuteActionSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
@@ -697,30 +586,9 @@ void UItemExecutor::ExecuteActionSpeedBuffEffect(AActor *User, AActor *Target, F
 	// an enemy's. Read on the ability/attack montage PlayRate path (ActionSpeedBuff/Debuff;
 	// read-site added in PlayAbility/PlayAttackAnimation). Visual now; the COMBAT effect
 	// lands with the Real-Time Defense Rework (docs/Design/RealTimeDefenseRework.md).
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
-	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
-	}
-
-	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::ActionSpeedBuff : ESkillEffectType::ActionSpeedDebuff;
-	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
-	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Action Speed"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
-	Effect.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, Effect, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
-	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Action speed stone: Applied %s %.0f%% action-speed for %d turns to %s"),
-		   bAlly ? TEXT("ActionSpeedBuff") : TEXT("ActionSpeedDebuff"), Magnitude, Duration, *Target->GetName());
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::ActionSpeedBuff, ESkillEffectType::ActionSpeedDebuff,
+						 TEXT("Action Speed"), OutResult);
 }
 
 void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

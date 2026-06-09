@@ -141,6 +141,16 @@ private:
 	/** Citrine - restore target EP %, apply Lightning buildup to the user */
 	void ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** Shared body for the standard directional stone-consumable buff handlers: ally gets
+	 *  BuffType, enemy gets DebuffType, at the stone's GetStoneBasePercent magnitude for the
+	 *  flat AUGMENT_STONE_CONSUMABLE_DURATION. The 8 template-able Execute*Buff handlers
+	 *  delegate here passing their enum pair + display suffix. Outliers (RawDamage's
+	 *  DamageStone curve, Resistance's sign-encoded single type, Defense/Crit dual-source,
+	 *  Emerald's extra-turn branch) keep their own bodies. */
+	void ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,
+							   ESkillEffectType BuffType, ESkillEffectType DebuffType,
+							   const FString &DisplaySuffix, FItemUseResult &OutResult);
+
 	/** Emerald - Speed buff */
 	void ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
