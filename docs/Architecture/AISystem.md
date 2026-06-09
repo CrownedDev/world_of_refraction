@@ -101,6 +101,8 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 
 **Self-target (tempo) — DORMANT.** The intended trigger is EP-starvation: hold a high-value action the AI can't afford this turn (`UnaffordableBest`, tracked alongside `BestScore` in the scoring loop, with its cost) for a bonus turn after EP regenerates. Gate: `CurrentEP + ESTIMATED_EP_REGEN_PER_TURN × DelayTurns ≥ heldCost`, then `UnaffordableBest × (1/(1+DELAY_DECAY×DelayTurns)) − BestScore > BestScore`. **The combat model has no passive per-turn EP regen**, so `ESTIMATED_EP_REGEN_PER_TURN = 0` keeps this path inert — the machinery is wired and correct but never fires until a real EP-regen mechanic exists.
 
+**Future — activating self-target.** The gate is `CurrentEP + ESTIMATED_EP_REGEN_PER_TURN × DelayTurns ≥ heldCost` (the AI must be able to afford the held action by the time the bonus turn fires). To activate, set `ESTIMATED_EP_REGEN_PER_TURN` > 0 — modelling the EP the caster reclaims per turn — **only once a real passive per-turn EP-regen mechanic lands**; otherwise the projection would be fiction. Tracked in `docs/TODO.md`.
+
 ### Damage / status estimation
 
 `EstimateSpellDamage` / `EstimateAbilityDamage` build a full `FAction`, call `UActionExecutor::ComputeActionStatModifiers` to fold in Reality/Evolution sources, then run `UDamageCalculator::CalculateDamage` with `bCanCrit=false` and fold expected crit back in (`1 + CritChance * (CRIT_MULTIPLIER - 1)`). L2 infusion multiplies by `InfusionConstants::CHARGE_L2_DAMAGE_MULT`. If subsystems are unavailable they fall back to the raw asset damage value.

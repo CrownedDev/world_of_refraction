@@ -114,6 +114,24 @@ Key internal state fields:
 `HandleAsyncActionCompleted(FActionResult)` — clears `bWaitingForAsyncAction`,
 broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
 
+### Infusion HP cost — lethal, paid at finalize
+
+> Note (lives in `ActionExecutor`, surfaced here since it owns no doc): the Charge
+> infusion **HP cost is now lethal** — both non-lethal clamps were removed
+> (`InfusionCostHelper::CalculateHPCost` and the `SafeCost` re-clamp in
+> `ActionExecutor::ApplyHPCostInternal`). The deduction is **relocated** from action
+> commit (`ApplyCommitCosts`) to `ActionExecutor::FinalizeAsyncAction`, so the infused
+> effect / damage / animation resolves **before** the cost can kill the caster
+> (sacrifice play). EP and crystal-wear costs still pay at commit; **only the HP cost
+> moved.** To keep the value identical to commit-time, the cost is computed at commit
+> (from commit-time HP — immune to mid-action reflect damage) and stashed on the
+> execution context (`PendingInfusionHPCost`), then applied at finalize. The deduction
+> sits on the **always-run** finalize path (fires on hit / miss / fail-to-land /
+> timeout / cancel), so **pay-on-miss is preserved**. A caster that dies to its own
+> finalize cost is handled like a death-on-own-turn DoT — nothing after the deduction
+> assumes the caster is alive (the now-dead actor is skipped at the next
+> `TurnManager::AdvanceToNextTurn`).
+
 ### Turn completion (`OnActionCompleted`)
 
 1. Bails if still waiting on an async action or combat not in progress.
