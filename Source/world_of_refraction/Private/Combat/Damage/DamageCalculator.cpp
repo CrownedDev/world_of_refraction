@@ -378,9 +378,13 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
 
-		// Buffs/debuffs are percentage modifiers
+		// Buffs/debuffs are percentage modifiers. [-100%,+100%] normalization — the inner
+		// Max(0,…) floors a ≥100% debuff; the outer [0,2] clamp caps the transient MODIFIER
+		// (the multiplier only — the flat pillar/equip/stone defense additions above are NOT
+		// a multiplier and stay uncapped). Byte-identical below 2.0 (a <+100% buff is inert).
 		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
-		BaseDefense = FMath::RoundToInt(BaseDefense * FMath::Max(0.0f, Modifier));
+		Modifier = FMath::Clamp(FMath::Max(0.0f, Modifier), CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+		BaseDefense = FMath::RoundToInt(BaseDefense * Modifier);
 	}
 
 	return BaseDefense;
