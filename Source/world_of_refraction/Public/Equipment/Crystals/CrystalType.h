@@ -19,7 +19,7 @@ enum class ECrystalType : uint8
     Garnet UMETA(DisplayName = "Garnet (Fire - Damage)"),
     Sapphire UMETA(DisplayName = "Sapphire (Water - Healing)"),
     Citrine UMETA(DisplayName = "Citrine (Lightning - Energy)"),
-    Emerald UMETA(DisplayName = "Emerald (Wind - Speed)"),
+    Emerald UMETA(DisplayName = "Emerald (Wind - Bonus Turn)"),
     Amber UMETA(DisplayName = "Amber (Earth - Defense)"),
     Opal UMETA(DisplayName = "Opal (Light - Crit/Info)"),
     Onyx UMETA(DisplayName = "Onyx (Darkness - Silence)"),
