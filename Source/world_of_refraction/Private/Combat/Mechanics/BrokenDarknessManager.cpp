@@ -608,6 +608,11 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 			{
 				if (UStatusBuildupManager *SBM = GI->GetSubsystem<UStatusBuildupManager>())
 				{
+					// bSkipBaseStatAmp=true: `Released` is ALREADY StatusMultiplier-amplified (pre-baked in
+					// ProcessOverloadTick so the energy DRAIN sees the amplified value too — "one value, two
+					// outflows"). Letting AddStatusBuildup re-apply the source amplification here would
+					// double-count it on the self-status. Do NOT remove: the pre-bake is required by the
+					// drain, so the amplification cannot be deferred to AddStatusBuildup.
 					SBM->AddStatusBuildup(Owner, Owner, Released,
 										  CurrentAlignmentElement, EPhysicalDamageType::None,
 										  /*bSkipBaseStatAmp=*/true);
