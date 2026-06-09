@@ -178,6 +178,8 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         case ESkillEffectType::LuckBuff:
         case ESkillEffectType::DamageBuff:
         case ESkillEffectType::SpeedBuff:
+        case ESkillEffectType::HealthRestore:
+        case ESkillEffectType::EnergyRestore:
         // Phase 2 passive-layer buffs
         case ESkillEffectType::ModifyDamageDealt:
         case ESkillEffectType::ReduceDamageTaken:
