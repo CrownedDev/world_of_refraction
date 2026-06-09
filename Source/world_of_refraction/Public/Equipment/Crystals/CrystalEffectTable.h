@@ -158,6 +158,23 @@ namespace CrystalEffectTable
         return AugmentStoneConstants::STAT_CRYSTAL_BUFF_PERCENT[i];
     }
 
+    /** Emerald (reworked): delay in turns before the target receives a full bonus turn.
+     *  0 for non-Emerald and for S-tier (S=0 = immediate); lower tiers wait longer. Indexed
+     *  by tier — mirrors GetSpeedBuffPercent's gate + bounds shape. */
+    inline int32 GetEmeraldBonusTurnDelay(const FCrystalId &Id)
+    {
+        if (Id.Type != ECrystalType::Emerald)
+        {
+            return 0;
+        }
+        const int32 i = TierHelpers::GetTierValue(Id.Tier);
+        if (i < 0 || i >= 7)
+        {
+            return 0;
+        }
+        return AugmentStoneConstants::EMERALD_BONUS_TURN_DELAY[i];
+    }
+
     // ==================== SHARED BUFF DURATION ====================
 
     /** Shared consumable buff/debuff duration curve (turns) by tier: F/E=4,

@@ -391,47 +391,49 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 
 void UItemExecutor::ExecuteSpeedBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Emerald (Phase 2) - F-A apply a turn-speed buff; S grants an extra turn.
-	if (Id.Tier == EItemTier::S_Tier)
+	// Emerald (reworked): grant the TARGET a full bonus turn after a tier-scaled delay
+	// (F=6 … S=0 turns). Self-target = tempo; enemy-target = force their turn (their DoTs
+	// tick + they act — the gamble). Emerald itself applies NOTHING else: the DoT is whatever
+	// the player already stacked. The user forfeits the current turn for free — using the item
+	// IS the turn-ending action (OnActionCompleted → AdvanceToNextTurn). N==0 (S) fires
+	// immediately via RequestExtraTurn; N>=1 defers via the bonus-turn scheduler.
+	// ⚠️ NAMING: this function (ExecuteSpeedBuffEffect) and its dispatch enum
+	// (EItemEffectType::BuffSpeed) are now misnomers — Emerald is no longer a speed crystal
+	// (that's TurnSpeedStone). Flagged for a coordinated rename pass (the enum is serialized →
+	// needs a redirect), out of scope for this cluster.
+	if (!Target)
 	{
-		UTurnManager *TurnMgr = nullptr;
-		if (UGameInstance *GI = GetGameInstance())
-		{
-			TurnMgr = GI->GetSubsystem<UTurnManager>();
-		}
-		if (!TurnMgr)
-		{
-			OutResult.ErrorMessage = TEXT("TurnManager not available");
-			return;
-		}
+		OutResult.ErrorMessage = TEXT("Emerald: no target");
+		return;
+	}
+
+	UTurnManager *TurnMgr = nullptr;
+	if (UGameInstance *GI = GetGameInstance())
+	{
+		TurnMgr = GI->GetSubsystem<UTurnManager>();
+	}
+	if (!TurnMgr)
+	{
+		OutResult.ErrorMessage = TEXT("TurnManager not available");
+		return;
+	}
+
+	const int32 DelayTurns = CrystalEffectTable::GetEmeraldBonusTurnDelay(Id);
+	if (DelayTurns == 0)
+	{
+		// S-tier — immediate (handler-side, per design: the scheduler only handles N>=1).
 		TurnMgr->RequestExtraTurn(Target);
-		OutResult.bSuccess = true;
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald S: Granted %s an extra turn"), *Target->GetName());
-		return;
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald (S): granted %s an immediate bonus turn"),
+			   *Target->GetName());
 	}
-
-	USkillEffectManager *SEM = GetSkillEffectManager();
-	if (!SEM)
+	else
 	{
-		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
-		return;
+		TurnMgr->ScheduleBonusTurn(Target, DelayTurns);
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: scheduled a bonus turn for %s in %d turn(s)"),
+			   *Target->GetName(), DelayTurns);
 	}
 
-	const float BuffPercent = CrystalEffectTable::GetSpeedBuffPercent(Id);
-	const int32 Duration = CrystalEffectTable::GetCrystalDuration(Id);
-
-	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
-	FActiveSkillEffect SpeedBuff = FActiveSkillEffect::CreateBuff(
-		FString::Printf(TEXT("%s Speed"), *DisplayName),
-		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::TurnSpeedBuff, BuffPercent, Duration);
-	SpeedBuff.Element = ItemIdentity::GetElement(Id);
-
-	SEM->ApplyEffect(Target, SpeedBuff, User, DisplayName, -1);
-	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: Applied %.0f%% turn-speed buff for %d turns to %s"),
-		   BuffPercent, Duration, *Target->GetName());
 }
 
 void UItemExecutor::ExecuteTurnSpeedStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
