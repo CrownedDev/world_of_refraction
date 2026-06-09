@@ -311,6 +311,30 @@ public:
      *  gamble's spell arm). Single source for the transient layer. 1.0 when none. */
     float GetTransientSpellDamageFactor() const;
 
+    /** Physical mirror of GetEffectiveSpellDamage — fully-layered RawDamage scalar:
+     *  (innate GetEvolutionModifiedRawDamage + equipment BonusRawDamage) × stone × transient,
+     *  then the [0,2] normalization clamp. Composed from the three per-layer helpers below,
+     *  which DamageCalculator DRY-sources at its own (unchanged) physical step order. For
+     *  non-pipeline / future composed consumers (e.g. AI threat scoring); the pipeline does
+     *  NOT read it (it composes per-layer with call-specific terms interleaved). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveRawDamage() const;
+
+    /** L2 — additive equipment RawDamage term (BonusRawDamage × per-point), the value Step 1
+     *  of CalculateDamage adds into AttackerMult. Physical mirror of GetEquipmentSpellDamageTerm.
+     *  0 when no loadout / no BonusRawDamage. */
+    float GetEquipmentRawDamageTerm() const;
+
+    /** L3 — fusion-aware attached-stone RawDamage MULTIPLIER (1 + stone%/100), the factor
+     *  Step 1.25 applies to RunningDamage. Physical mirror of GetStoneSpellDamageFactor.
+     *  1.0 when none. */
+    float GetStoneRawDamageFactor() const;
+
+    /** L4 — transient RawDamage MULTIPLIER (1 + (RawDamageBuff − RawDamageDebuff)/100), the
+     *  factor Step 2 applies (physical arm) inside GetStatusEffectDamageModifier. Physical
+     *  mirror of GetTransientSpellDamageFactor. 1.0 when none. */
+    float GetTransientRawDamageFactor() const;
+
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot
      *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers

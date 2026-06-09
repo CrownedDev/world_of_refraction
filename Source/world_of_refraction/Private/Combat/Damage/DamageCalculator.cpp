@@ -59,8 +59,13 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		{
 			if (Input.ActionType != EActionType::Spell)
 			{
-				const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
-				AttackerMult += Bonus.BonusRawDamage * CombatConstants::RAW_DAMAGE_PER_POINT;
+				// L2 (physical) — DRY-sourced from the shared helper, which returns the
+				// IDENTICAL BonusRawDamage × RAW_DAMAGE_PER_POINT. Mirrors the spell branch
+				// below; the outer Loadout guard is kept so the add only fires with a loadout.
+				if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+				{
+					AttackerMult += AttackerComp->GetEquipmentRawDamageTerm();
+				}
 			}
 			// L2 (spell) — DRY-sourced from the shared helper, which returns the
 			// IDENTICAL BonusSpellDamage × SPELL_DAMAGE_PER_POINT. Same additive op,
@@ -76,33 +81,17 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
-	// Step 1.25: Attached augment-stone raw-damage multiplier. Live-resolves the
-	// active weapon's attachment from the attacker's loadout — physical actions
-	// only, matching the equipment-bonus gate above. Tiered base% only, applied as
-	// a DIRECT multiplier (these are whole-number percentages, not per-point
-	// fractions, so RAW_DAMAGE_PER_POINT does not apply).
+	// Step 1.25: Attached augment-stone raw-damage multiplier — DRY-sourced from
+	// GetStoneRawDamageFactor() (physical actions only; the magical mirror is Step 1.25b).
+	// Byte-identical to the prior inline IsAugmentStone()||IsFusion() guard: GetAttachedStonePercent
+	// returns 0 for any non-stone / non-fusion attachment (and the 1.0 fallbacks cover no-loadout /
+	// no-active-weapon), so the factor is 1.0 exactly where the inline guard skipped. Same
+	// multiplicative op, same spot. A fusion's DamageStone half(s) still flow.
 	if (Attacker && Input.ActionType != EActionType::Spell)
 	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
-			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
-				// Route through the fusion-aware chokepoint. For a plain DamageStone this
-				// is byte-identical to GetDamageStoneBasePercent (StoneTargetStat(DamageStone)
-				// == RawDamage, same GetStoneBasePercent curve); a fusion's DamageStone
-				// half(s) + RawDamage bonus now contribute via GetAttachedStonePercent.
-				if (Attachment.IsAugmentStone() || Attachment.IsFusion())
-				{
-					const float DamageStonePercent =
-						CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::RawDamage);
-					const float BeforeDamageStone = RunningDamage;
-					RunningDamage *= (1.0f + DamageStonePercent / CombatConstants::STAT_PERCENT_DIVISOR);
-					UE_LOG(LogTemp, Verbose,
-						   TEXT("[DamageCalculator] Damage stone +%.0f%% raw: %.1f -> %.1f"),
-						   DamageStonePercent, BeforeDamageStone, RunningDamage);
-				}
-			}
+			RunningDamage *= AttackerComp->GetStoneRawDamageFactor();
 		}
 	}
 
@@ -150,6 +139,27 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 			const float RawCharMod =
 				(AttackerComp->GetEvolutionModifiedSpellDamage() + AttackerComp->GetEquipmentSpellDamageTerm())
 				* AttackerComp->GetStoneSpellDamageFactor() * AttackerComp->GetTransientSpellDamageFactor();
+			const float ClampedCharMod =
+				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
+			RunningDamage *= Correction;
+		}
+	}
+
+	// Step 2.6: [-100%, +100%] normalization — physical mirror of Step 2.5, gated != Spell (the
+	// complement of the spell correction, so exactly one of the two fires per action). Recompose
+	// the getter's (L1+L2)×L3×L4 product as a standalone UNCLAMPED scalar from the same RawDamage
+	// layer helpers — RawCharMod equals GetEffectiveRawDamage()'s pre-clamp value, so the attack
+	// and BD/wear/AI(future) cap the IDENTICAL quantity. Below 2.0, clamped == raw → Correction is
+	// EXACTLY 1.0f → byte-identical normal physical attacks. ActionMods (folded into L1), Grid, and
+	// defender terms stay OUTSIDE this product — call-specific, left uncapped.
+	if (Input.ActionType != EActionType::Spell && Attacker)
+	{
+		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+		{
+			const float RawCharMod =
+				(AttackerComp->GetEvolutionModifiedRawDamage() + AttackerComp->GetEquipmentRawDamageTerm())
+				* AttackerComp->GetStoneRawDamageFactor() * AttackerComp->GetTransientRawDamageFactor();
 			const float ClampedCharMod =
 				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
@@ -613,18 +623,17 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 		float ModifyDealt = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyDamageDealt);
 		Modifier *= (1.0f + ModifyDealt / CombatConstants::STAT_PERCENT_DIVISOR);
 
-		// RawDamageBuff/Debuff: whole-number-percent boost to PHYSICAL outgoing
-		// damage only (ActionType != Spell). The Amethyst gamble is the only live
-		// producer and emits percent magnitudes; spell actions are unaffected.
+		// RawDamageBuff/Debuff: whole-number-percent boost to PHYSICAL outgoing damage only
+		// (ActionType != Spell). DRY-sourced from GetTransientRawDamageFactor(), which returns
+		// the IDENTICAL (1 + (RawDamageBuff − RawDamageDebuff)/100) via the same SEM reads on the
+		// same actor. Same multiplicative op, same spot/order (symmetric with the spell arm
+		// below). The Amethyst gamble is the only live producer; spell actions are unaffected.
 		if (ActionType != EActionType::Spell)
 		{
-			float RawBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageBuff);
-			float RawDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::RawDamageDebuff);
-			const float BeforeRaw = Modifier;
-			Modifier *= (1.0f + (RawBuff - RawDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
-			UE_LOG(LogTemp, Verbose,
-				   TEXT("[DamageCalculator] RawDamage status +%.1f%% / -%.1f%%: mult %.3f -> %.3f"),
-				   RawBuff, RawDebuff, BeforeRaw, Modifier);
+			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+			{
+				Modifier *= AttackerComp->GetTransientRawDamageFactor();
+			}
 		}
 
 		// SpellDamageBuff/Debuff: the magical mirror — whole-number-percent boost to

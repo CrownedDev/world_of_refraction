@@ -803,6 +803,70 @@ float UCharacterDataComponent::GetEffectiveSpellDamage() const
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
+float UCharacterDataComponent::GetEquipmentRawDamageTerm() const
+{
+    // L2 — additive equipment contribution. Byte-identical to the inline term in
+    // DamageCalculator Step 1 (Bonus.BonusRawDamage × RAW_DAMAGE_PER_POINT). 0 when the
+    // owner has no loadout / no BonusRawDamage. Physical mirror of GetEquipmentSpellDamageTerm.
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            return Loadout->GetActiveStatBonus(Owner).BonusRawDamage * CombatConstants::RAW_DAMAGE_PER_POINT;
+        }
+    }
+    return 0.0f;
+}
+
+float UCharacterDataComponent::GetStoneRawDamageFactor() const
+{
+    // L3 — fusion-aware attached-stone multiplier (1 + stone%/100). Byte-identical to
+    // DamageCalculator Step 1.25: GetAttachedStonePercent returns 0 for any non-stone /
+    // non-fusion attachment (and the 1.0 fallbacks cover no-loadout / no-active-weapon), so
+    // the factor collapses to 1.0 exactly as the inline IsAugmentStone()||IsFusion() skip did.
+    // Physical mirror of GetStoneSpellDamageFactor.
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            {
+                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                return 1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::RawDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+    }
+    return 1.0f;
+}
+
+float UCharacterDataComponent::GetTransientRawDamageFactor() const
+{
+    // L4 — transient buff/debuff multiplier (1 + (RawDamageBuff − RawDamageDebuff)/100).
+    // Byte-identical to the physical arm of GetStatusEffectDamageModifier (same SEM reads,
+    // same actor). 1.0 when none active or SEM unavailable. Physical mirror of
+    // GetTransientSpellDamageFactor; also carries the Amethyst gamble's physical-damage arm.
+    if (AActor *Owner = GetOwner())
+    {
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float RawBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::RawDamageBuff);
+            const float RawDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::RawDamageDebuff);
+            return 1.0f + (RawBuff - RawDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+        }
+    }
+    return 1.0f;
+}
+
+float UCharacterDataComponent::GetEffectiveRawDamage() const
+{
+    // Physical mirror of GetEffectiveSpellDamage: (L1 innate/evolution + L2 equipment) × L3
+    // stone × L4 transient, then the [-100%,+100%] [0,2] normalization cap. No ActionMods /
+    // Grid / defender (damage-call-specific). The pipeline DRY-sources the same three helpers;
+    // a future AI-threat re-point can read this composed+clamped getter.
+    const float Composed = (GetEvolutionModifiedRawDamage() + GetEquipmentRawDamageTerm()) * GetStoneRawDamageFactor() * GetTransientRawDamageFactor();
+    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+}
+
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
 {
     // Pure snapshot — each field is the verbatim return of an existing getter, no
