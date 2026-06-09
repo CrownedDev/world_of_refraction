@@ -219,9 +219,9 @@ float UStatusBuildupManager::GetSourceStatusMultiplierFactor(AActor *Source) con
 		BonusPoints = Bonus.BonusStatusMultiplier;
 
 		// Attached StatusStone — the source's OWN active weapon attachment.
-		if (const FWeaponLoadoutEntry *ActiveWeapon = SourceLoadout->GetActiveWeaponLoadout())
+		if (const FRuntimeAttachedItem *AttPtr = SourceLoadout->GetActiveWeaponAttachment())
 		{
-			const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+			const FRuntimeAttachedItem &Att = *AttPtr;
 			StonePct = CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier);
 		}
 	}
@@ -362,9 +362,9 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 			// self-buff added into the aggregate BEFORE the [MIN, MAX] clamp, so it
 			// raises resistance toward the cap. Never amplifies — only DEBUFFS push the
 			// aggregate negative. Mirrors the DefenseStone's defender-side resolution.
-			if (const FWeaponLoadoutEntry *ActiveWeapon = TargetLoadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = TargetLoadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Attachment = *AttPtr;
 				Resistance += CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
 			}
 		}

@@ -171,9 +171,9 @@ void UTurnManager::CalculateSpeedRatios()
 		float StoneFactor = 1.0f;
 		if (ULoadoutComponent *Loadout = Combatant.Actor->FindComponentByClass<ULoadoutComponent>())
 		{
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Att = *AttPtr;
 				const float StonePct = CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::TurnSpeed);
 				StoneFactor = 1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR;
 			}

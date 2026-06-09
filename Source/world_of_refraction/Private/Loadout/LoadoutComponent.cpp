@@ -2494,6 +2494,18 @@ const FWeaponLoadoutEntry *ULoadoutComponent::GetActiveWeaponLoadout() const
     return Loadout.PrimaryWeapon.IsValid() ? &Loadout.PrimaryWeapon : nullptr;
 }
 
+const FRuntimeAttachedItem *ULoadoutComponent::GetActiveWeaponAttachment() const
+{
+    // Single source for the GetActiveWeaponLoadout()->WeaponEntry.GetAttachedItem() idiom.
+    // Returns a pointer into the live loadout entry, or nullptr when no active weapon — so
+    // callers null-check exactly where they previously guarded the active-weapon lookup.
+    if (const FWeaponLoadoutEntry *ActiveWeapon = GetActiveWeaponLoadout())
+    {
+        return &ActiveWeapon->WeaponEntry.GetAttachedItem();
+    }
+    return nullptr;
+}
+
 const FWeaponLoadoutEntry *ULoadoutComponent::GetPrimaryWeaponLoadout() const
 {
     UInventoryComponent *Inv = GetInventoryComponent();

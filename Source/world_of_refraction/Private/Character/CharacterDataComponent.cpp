@@ -605,9 +605,9 @@ void UCharacterDataComponent::RecomputeMaxPools()
 
             // Attached pool stones — a % of the computed max, read from the active weapon
             // attachment (0 unless the matching stone is attached).
-            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
-                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                const FRuntimeAttachedItem &Att = *AttPtr;
                 HPPct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxHPStone);
                 EPPct = CrystalEffectTable::GetAttachedStonePercentForType(Att, ECrystalType::MaxEPStone);
             }
@@ -755,9 +755,9 @@ float UCharacterDataComponent::GetStoneSpellDamageFactor() const
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
-                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                const FRuntimeAttachedItem &Att = *AttPtr;
                 return 1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::SpellDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
             }
         }
@@ -824,9 +824,9 @@ float UCharacterDataComponent::GetStoneRawDamageFactor() const
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
-                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                const FRuntimeAttachedItem &Att = *AttPtr;
                 return 1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::RawDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
             }
         }
@@ -916,9 +916,9 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
         {
             Reduction += Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT;
 
-            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
-                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                const FRuntimeAttachedItem &Att = *AttPtr;
                 Reduction += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Efficiency)
                              / CombatConstants::STAT_PERCENT_DIVISOR;
             }
@@ -982,9 +982,9 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         {
             Factor += Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT;
 
-            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
-                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                const FRuntimeAttachedItem &Att = *AttPtr;
                 Factor += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR;
             }
         }
@@ -1029,9 +1029,9 @@ float UCharacterDataComponent::GetEffectiveResistance() const
         {
             Resistance += Loadout->GetActiveStatBonus(Owner).BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
 
-            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
-                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                const FRuntimeAttachedItem &Att = *AttPtr;
                 Resistance += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
             }
         }

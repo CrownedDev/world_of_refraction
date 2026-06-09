@@ -474,6 +474,13 @@ public:
     /** Get active weapon loadout entry (full access to crystal, abilities, spells) */
     const FWeaponLoadoutEntry *GetActiveWeaponLoadout() const;
 
+    /** The active weapon's attached item, or nullptr if there is no active weapon.
+     *  Consolidates the GetActiveWeaponLoadout()->WeaponEntry.GetAttachedItem() idiom.
+     *  The returned pointer is into the live loadout entry (valid while the loadout is
+     *  unchanged). Null exactly when GetActiveWeaponLoadout() is null — callers null-check
+     *  it the same way they guarded the active-weapon lookup. */
+    const FRuntimeAttachedItem *GetActiveWeaponAttachment() const;
+
     /** Get primary weapon loadout entry */
     const FWeaponLoadoutEntry *GetPrimaryWeaponLoadout() const;
 

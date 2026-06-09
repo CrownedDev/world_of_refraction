@@ -369,9 +369,9 @@ int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 			// (live-resolved, not cached). Distinct from the timed DefenseBuff/
 			// DefenseDebuff layer below. Inert (×1) unless a DefenseStone is
 			// attached — GetAttachedStonePercent returns 0 for any other attachment.
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Attachment = *AttPtr;
 				const float StonePct =
 					CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
 				BaseDefense = FMath::RoundToInt(BaseDefense * (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR));
@@ -432,9 +432,9 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 			// Inert (×1) unless a CritStone is attached — GetAttachedStonePercent returns
 			// 0 for any other attachment (stat-match guard). Mirrors the DefenseStone
 			// hook in GetDefenderFlatDefense, applied on the attacker side.
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Att = *AttPtr;
 				const float StonePct =
 					CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::CritChance);
 				BaseCrit *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);

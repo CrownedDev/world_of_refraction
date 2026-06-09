@@ -2428,9 +2428,9 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 			// TODO(docs/Design/RealTimeDefenseRework.md): this stat's COMBAT effect
 			// (shrinking the defender's reaction window) is unwired — the stone speeds the
 			// cast animation today; defensive teeth land with the defense rework.
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Attachment = *AttPtr;
 				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
 			}
 		}
@@ -2883,9 +2883,9 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 			// Attached ActionSpeedStone — user's OWN active weapon attachment, fusion-aware.
 			// TODO(docs/Design/RealTimeDefenseRework.md): combat effect (shrinking the
 			// defender's reaction window) is unwired — speeds the ability animation now only.
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Attachment = *AttPtr;
 				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
 			}
 		}
@@ -2945,9 +2945,9 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 			// Attached ActionSpeedStone — attacker's OWN active weapon attachment, fusion-aware.
 			// TODO(docs/Design/RealTimeDefenseRework.md): combat effect (shrinking the
 			// defender's reaction window) is unwired — speeds the attack animation now only.
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
+				const FRuntimeAttachedItem &Attachment = *AttPtr;
 				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
 			}
 		}
