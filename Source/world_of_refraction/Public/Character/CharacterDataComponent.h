@@ -281,11 +281,6 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     int32 GetEvolutionModifiedFlatDefense() const;
 
-    /** Same formula as GetEvolutionModifiedSpellDamage — separate entry point
-     *  for clarity at healing call sites (healing scales with spell power). */
-    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetEvolutionModifiedSpellDamageForHealing() const;
-
     /** Fully-layered SpellDamage scalar: innate (GetEvolutionModifiedSpellDamage)
      *  + equipment BonusSpellDamage, then ×stone ×transient. This is the SAME value
      *  DamageCalculator's spell path produces MINUS the call-specific ActionMods,

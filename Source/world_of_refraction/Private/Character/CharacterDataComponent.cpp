@@ -729,11 +729,6 @@ int32 UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
     return FMath::RoundToInt(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
 }
 
-float UCharacterDataComponent::GetEvolutionModifiedSpellDamageForHealing() const
-{
-    return GetEvolutionModifiedSpellDamage();
-}
-
 float UCharacterDataComponent::GetEquipmentSpellDamageTerm() const
 {
     // L2 — additive equipment contribution. Byte-identical to the inline term in
