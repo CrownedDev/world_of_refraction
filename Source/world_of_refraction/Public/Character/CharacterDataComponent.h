@@ -240,6 +240,31 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedSpellDamageForHealing() const;
 
+    /** Fully-layered SpellDamage scalar: innate (GetEvolutionModifiedSpellDamage)
+     *  + equipment BonusSpellDamage, then ×stone ×transient. This is the SAME value
+     *  DamageCalculator's spell path produces MINUS the call-specific ActionMods,
+     *  Grid, and defender terms (which have no analogue outside a damage call) — so
+     *  it is the correct scalar for non-pipeline consumers (Broken Darkness overload
+     *  / forbidden-cast self-cost). Composed from the three per-layer helpers below,
+     *  which DamageCalculator DRY-sources at its own (unchanged) step order. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveSpellDamage() const;
+
+    /** L2 — additive equipment SpellDamage term (BonusSpellDamage × per-point), the
+     *  value Step 1 of CalculateDamage adds into AttackerMult AFTER ActionMods. Single
+     *  source for the equipment layer. 0 when no loadout / no BonusSpellDamage. */
+    float GetEquipmentSpellDamageTerm() const;
+
+    /** L3 — fusion-aware attached-stone SpellDamage MULTIPLIER (1 + stone%/100), the
+     *  factor Step 1.25b applies to RunningDamage. Reads through GetAttachedStonePercent
+     *  so a SpellDamageStone — direct or as a fusion half — flows. 1.0 when none. */
+    float GetStoneSpellDamageFactor() const;
+
+    /** L4 — transient SpellDamage MULTIPLIER (1 + (SpellDamageBuff − SpellDamageDebuff)/100),
+     *  the factor Step 2 applies inside GetStatusEffectDamageModifier (also the Amethyst
+     *  gamble's spell arm). Single source for the transient layer. 1.0 when none. */
+    float GetTransientSpellDamageFactor() const;
+
     /** Effective Efficiency cost/drain multiplier: innate (crystal-aware Mind) +
      *  equipment BonusEfficiency + attached EfficiencyStone, all as reductions under
      *  ONE clamp. The sole Efficiency getter — drives BD drain / durability / EP cost.

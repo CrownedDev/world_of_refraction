@@ -57,14 +57,18 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	{
 		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
 		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
 			if (Input.ActionType != EActionType::Spell)
 			{
+				const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
 				AttackerMult += Bonus.BonusRawDamage * CombatConstants::RAW_DAMAGE_PER_POINT;
 			}
-			else
+			// L2 (spell) — DRY-sourced from the shared helper, which returns the
+			// IDENTICAL BonusSpellDamage × SPELL_DAMAGE_PER_POINT. Same additive op,
+			// same spot (after ActionMods on L1). The outer Loadout guard is kept so
+			// the add only fires when a loadout exists, matching prior behaviour.
+			else if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 			{
-				AttackerMult += Bonus.BonusSpellDamage * CombatConstants::SPELL_DAMAGE_PER_POINT;
+				AttackerMult += AttackerComp->GetEquipmentSpellDamageTerm();
 			}
 		}
 	}
@@ -104,27 +108,17 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	// Step 1.25b: Attached augment-stone SPELL-damage multiplier — the magical mirror
 	// of the physical block above, gated to Spell actions (mutually exclusive with the
-	// != Spell gate above, so a given action runs at most one of the two). Reads through
-	// the same fusion-aware GetAttachedStonePercent chokepoint, so a fusion's
-	// SpellDamageStone half(s) + SpellDamage bonus contribute for free.
+	// != Spell gate above, so a given action runs at most one of the two). DRY-sourced
+	// from GetStoneSpellDamageFactor(), which returns the IDENTICAL fusion-aware
+	// (1 + GetAttachedStonePercent(.., SpellDamage)/100): for a non-stone / non-fusion
+	// attachment (or no active weapon) GetAttachedStonePercent is 0, so the factor is
+	// 1.0 exactly as the prior IsAugmentStone()||IsFusion() guard's skip. Same
+	// multiplicative op, same spot. A fusion's SpellDamageStone half(s) still flow.
 	if (Attacker && Input.ActionType == EActionType::Spell)
 	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
-			if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
-			{
-				const FRuntimeAttachedItem &Attachment = ActiveWeapon->WeaponEntry.GetAttachedItem();
-				if (Attachment.IsAugmentStone() || Attachment.IsFusion())
-				{
-					const float SpellDamageStonePercent =
-						CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::SpellDamage);
-					const float BeforeSpellDamageStone = RunningDamage;
-					RunningDamage *= (1.0f + SpellDamageStonePercent / CombatConstants::STAT_PERCENT_DIVISOR);
-					UE_LOG(LogTemp, Verbose,
-						   TEXT("[DamageCalculator] Spell damage stone +%.0f%% spell: %.1f -> %.1f"),
-						   SpellDamageStonePercent, BeforeSpellDamageStone, RunningDamage);
-				}
-			}
+			RunningDamage *= AttackerComp->GetStoneSpellDamageFactor();
 		}
 	}
 
@@ -606,18 +600,18 @@ float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor 
 
 		// SpellDamageBuff/Debuff: the magical mirror — whole-number-percent boost to
 		// SPELL outgoing damage only (ActionType == Spell). Symmetric with the physical
-		// RawDamageBuff block above. This is the read-site that gives the SpellDamageStone
-		// CONSUMABLE its teeth; it also activates any other SpellDamageBuff producer (e.g.
-		// the Amethyst gamble's spell-damage arm, previously emitted but unread).
+		// RawDamageBuff block above. DRY-sourced from GetTransientSpellDamageFactor(),
+		// which returns the IDENTICAL (1 + (SpellDamageBuff − SpellDamageDebuff)/100) via
+		// the same SEM reads on the same actor. Same multiplicative op, same spot — still
+		// bundled here in the SAME order with the other Step-2 terms (generic DamageBuff /
+		// ModifyDamageDealt before, defender-side after). This is the read-site that gives
+		// the SpellDamageStone CONSUMABLE its teeth and the Amethyst gamble's spell arm.
 		if (ActionType == EActionType::Spell)
 		{
-			float SpellBuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::SpellDamageBuff);
-			float SpellDebuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::SpellDamageDebuff);
-			const float BeforeSpell = Modifier;
-			Modifier *= (1.0f + (SpellBuff - SpellDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
-			UE_LOG(LogTemp, Verbose,
-				   TEXT("[DamageCalculator] SpellDamage status +%.1f%% / -%.1f%%: mult %.3f -> %.3f"),
-				   SpellBuff, SpellDebuff, BeforeSpell, Modifier);
+			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+			{
+				Modifier *= AttackerComp->GetTransientSpellDamageFactor();
+			}
 		}
 	}
 

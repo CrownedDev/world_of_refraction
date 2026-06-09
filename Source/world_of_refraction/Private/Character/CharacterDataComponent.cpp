@@ -718,6 +718,76 @@ float UCharacterDataComponent::GetEvolutionModifiedSpellDamageForHealing() const
     return GetEvolutionModifiedSpellDamage();
 }
 
+float UCharacterDataComponent::GetEquipmentSpellDamageTerm() const
+{
+    // L2 — additive equipment contribution. Byte-identical to the inline term in
+    // DamageCalculator Step 1 (Bonus.BonusSpellDamage × SPELL_DAMAGE_PER_POINT).
+    // 0 when the owner has no loadout / no BonusSpellDamage. Sourced exactly like
+    // GetEffectiveEfficiencyMultiplier's equipment read.
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            return Loadout->GetActiveStatBonus(Owner).BonusSpellDamage * CombatConstants::SPELL_DAMAGE_PER_POINT;
+        }
+    }
+    return 0.0f;
+}
+
+float UCharacterDataComponent::GetStoneSpellDamageFactor() const
+{
+    // L3 — fusion-aware attached-stone multiplier (1 + stone%/100). Byte-identical to
+    // DamageCalculator Step 1.25b: GetAttachedStonePercent returns 0 for any non-stone /
+    // non-fusion attachment (and the 1.0 fallbacks cover no-loadout / no-active-weapon),
+    // so the factor collapses to 1.0 exactly as the inline guard's skip did.
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            {
+                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                return 1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::SpellDamage) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+    }
+    return 1.0f;
+}
+
+float UCharacterDataComponent::GetTransientSpellDamageFactor() const
+{
+    // L4 — transient buff/debuff multiplier (1 + (SpellDamageBuff − SpellDamageDebuff)/100).
+    // Byte-identical to the spell arm of GetStatusEffectDamageModifier (same SEM reads, same
+    // actor). 1.0 when none active or SEM unavailable. Also carries the Amethyst gamble's
+    // spell-damage arm, since that emits SpellDamageBuff.
+    if (AActor *Owner = GetOwner())
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                {
+                    const float SpellBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageBuff);
+                    const float SpellDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageDebuff);
+                    return 1.0f + (SpellBuff - SpellDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+                }
+            }
+        }
+    }
+    return 1.0f;
+}
+
+float UCharacterDataComponent::GetEffectiveSpellDamage() const
+{
+    // Full layered SpellDamage scalar for non-pipeline consumers (Broken Darkness):
+    //   (L1 innate/evolution + L2 equipment) × L3 stone × L4 transient.
+    // No ActionMods / Grid / defender — those are damage-call-specific and have no
+    // analogue here. DamageCalculator DRY-sources the SAME three helpers at its own
+    // (unchanged) step order, so a normal cast stays byte-identical.
+    return (GetEvolutionModifiedSpellDamage() + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
+}
+
 float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
 {
     if (!CharacterData)

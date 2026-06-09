@@ -283,7 +283,10 @@ float UBrokenDarknessManager::CalculateForbiddenCastDamage(float SpellBaseDamage
 	float SpellDamageMult = 1.0f;
 	if (const UCharacterDataComponent *CharComp = GetCharComp())
 	{
-		SpellDamageMult = CharComp->GetEvolutionModifiedSpellDamage();
+		// Fully-layered SpellDamage (innate + equipment + stone + transient/gamble) —
+		// the unified getter, so BD's forbidden-cast self-cost inherits all four layers
+		// the spell pipeline applies, not just the innate term.
+		SpellDamageMult = CharComp->GetEffectiveSpellDamage();
 	}
 	return SpellBaseDamage * ForbiddenCastSelfDamagePercent * SpellDamageMult;
 }
@@ -538,10 +541,11 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	UCharacterDataComponent *CharComp = GetCharComp();
 
 	// Unified HP-damage path: both aura (enemies) and self-damage scale by the BD's
-	// SpellDamage stat (4.2 forbidden-cast convention — GetEvolutionModifiedSpellDamage
-	// is a direct multiplier ≥ 1.0 mirroring DamageCalculator::GetAttackerDamageMultiplier
-	// at :226-249). ApplyDamageToActor stays the shared apply primitive.
-	const float SpellDamageMult = CharComp ? CharComp->GetEvolutionModifiedSpellDamage() : 1.0f;
+	// fully-layered SpellDamage (innate + equipment + stone + transient/gamble) via the
+	// shared GetEffectiveSpellDamage getter — the SAME layered value the spell pipeline
+	// applies (minus the call-specific ActionMods/Grid/defender terms). ApplyDamageToActor
+	// stays the shared apply primitive; only the SpellDamage scalar gained the layers.
+	const float SpellDamageMult = CharComp ? CharComp->GetEffectiveSpellDamage() : 1.0f;
 
 	// 1. Aura HP damage to combatants in range — same SpellDamage scaling as self.
 	const float AuraDamage = BaseOverloadAuraDamage * SpellDamageMult;
