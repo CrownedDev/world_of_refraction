@@ -97,14 +97,16 @@ namespace CrystalDescription
                 CrystalEffectTable::GetEPRestorePercent(Id));
 
         case ECrystalType::Emerald:
-            if (Id.Tier == EItemTier::S_Tier)
+        {
+            const int32 BonusTurnDelay = CrystalEffectTable::GetEmeraldBonusTurnDelay(Id);
+            if (BonusTurnDelay == 0)
             {
-                return TEXT("Grants the target an extra turn.");
+                return TEXT("Sacrifice your turn to grant the target a bonus turn immediately.");
             }
             return FString::Printf(
-                TEXT("Increases turn speed by %.0f%% for %s."),
-                CrystalEffectTable::GetSpeedBuffPercent(Id),
-                *FormatTurns(CrystalEffectTable::GetCrystalDuration(Id)));
+                TEXT("Sacrifice your turn to grant the target a bonus turn after %d turns."),
+                BonusTurnDelay);
+        }
 
         case ECrystalType::Amber:
             return FString::Printf(
