@@ -129,6 +129,15 @@ void UTurnManager::AdvanceToNextTurn()
 	NextCombatant->TurnsTaken++;
 	GlobalTurnCount++;
 
+	// If this pick consumes a granted-but-not-yet-taken bonus turn (Emerald), mark it spent —
+	// THIS turn is the bonus being taken. The preview's marker read mirrors this, so a flagged
+	// upcoming slot clears once the bonus turn is taken. (Single-Emerald: one untaken bonus →
+	// the actor's next pick consumes it.)
+	if (NextCombatant->UntakenBonusTurns > 0)
+	{
+		NextCombatant->UntakenBonusTurns--;
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
 		   GlobalTurnCount,
 		   *CurrentActor->GetName(),
@@ -157,7 +166,7 @@ void UTurnManager::AdvanceToNextTurn()
 			UCharacterDataComponent *CharComp = BonusActor->FindComponentByClass<UCharacterDataComponent>();
 			if (CharComp && CharComp->bIsAlive)
 			{
-				RequestExtraTurn(BonusActor);
+				RequestExtraTurn(BonusActor, /*bIsBonusTurn=*/true);
 			}
 			else
 			{
@@ -250,7 +259,7 @@ USkillEffectManager *UTurnManager::GetSkillEffectManager() const
 	return SkillEffectManagerRef;
 }
 
-void UTurnManager::RequestExtraTurn(AActor *Actor)
+void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 {
 	if (!Actor) return;
 	for (FCombatantTurnDebt &Combatant : Combatants)
@@ -258,8 +267,15 @@ void UTurnManager::RequestExtraTurn(AActor *Actor)
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.TurnsOwed += 1.0f;
-			UE_LOG(LogTemp, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
-				   *Actor->GetName(), Combatant.TurnsOwed);
+			// Emerald bonus grants flag the granted-not-yet-taken turn so the preview keeps
+			// showing it after the PendingTurns entry is consumed. Non-bonus callers (e.g.
+			// the ExtraAction skill effect) leave this 0 and are never flagged.
+			if (bIsBonusTurn)
+			{
+				Combatant.UntakenBonusTurns++;
+			}
+			UE_LOG(LogTemp, Log, TEXT("[TurnManager] %s turn granted to %s (TurnsOwed now %.2f, UntakenBonus %d)"),
+				   bIsBonusTurn ? TEXT("Bonus") : TEXT("Extra"), *Actor->GetName(), Combatant.TurnsOwed, Combatant.UntakenBonusTurns);
 			return;
 		}
 	}
@@ -475,10 +491,11 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 	TArray<FCombatantTurnDebt> TempCombatants = Combatants;
 	TArray<FScheduledTurn> TempPending = PendingTurns;
 
-	// Actors that received a (sim-only) bonus-turn debt credit but whose bonus turn has not
-	// yet been picked. The NEXT pick of such an actor is its bonus turn — flag that slot, then
-	// consume one credit. Count-keyed so multiple pending bonuses each flag a distinct slot.
-	TMap<AActor *, int32> BonusCreditsAwaitingPick;
+	// Bonus-turn flagging is driven by FCombatantTurnDebt::UntakenBonusTurns (copied into
+	// TempCombatants). It covers the FULL lifecycle: a granted-but-not-taken bonus arrives
+	// already non-zero (copied live, survives PendingTurns consumption), and a still-pending
+	// bonus that FIRES inside this sim increments it below. Either way, the pick step flags +
+	// decrements it. No separate awaiting-pick map needed.
 
 	for (int32 i = 0; i < NumTurns; i++)
 	{
@@ -534,25 +551,24 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 			break;
 		}
 
-		// Record the slot. If this actor has an awaiting bonus credit, THIS pick is the bonus
-		// turn (the first pick following the credit) — flag it and consume one credit.
+		// Record the slot. If this combatant has an untaken bonus turn — either copied live
+		// (granted, not yet taken) or credited by a TempPending fire below — THIS pick is the
+		// bonus turn: flag it and consume one (mirrors the live take-side decrement).
 		FPreviewTurnEntry Entry;
 		Entry.Actor = NextCombatant->Actor;
-		if (int32 *Awaiting = BonusCreditsAwaitingPick.Find(NextCombatant->Actor))
+		if (NextCombatant->UntakenBonusTurns > 0)
 		{
-			if (*Awaiting > 0)
-			{
-				Entry.bIsBonusTurn = true;
-				--(*Awaiting);
-			}
+			Entry.bIsBonusTurn = true;
+			NextCombatant->UntakenBonusTurns--;
 		}
 		Preview.Add(Entry);
 		NextCombatant->TurnsTaken++;
 
 		// Sim-mirror of AdvanceToNextTurn's fire-loop — AFTER the pick, once per boundary.
 		// Decrement each pending entry; at 0, credit +1.0 debt on the matching temp combatant
-		// (sim copy ONLY) with the same IsValid + alive guard the live fire uses, and record
-		// the credit so this actor's NEXT pick is flagged the bonus turn.
+		// (sim copy ONLY) with the same IsValid + alive guard the live fire uses, and bump its
+		// UntakenBonusTurns so this actor's NEXT pick is flagged the bonus turn (same marker the
+		// live grant sets — so a still-pending bonus flags exactly like an already-granted one).
 		if (TempPending.Num() > 0)
 		{
 			for (int32 p = TempPending.Num() - 1; p >= 0; --p)
@@ -580,10 +596,10 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 					if (TC.Actor == BonusActor)
 					{
 						TC.TurnsOwed += 1.0f;
+						TC.UntakenBonusTurns++;
 						break;
 					}
 				}
-				BonusCreditsAwaitingPick.FindOrAdd(BonusActor)++;
 			}
 		}
 	}

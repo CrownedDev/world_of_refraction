@@ -34,6 +34,15 @@ struct FCombatantTurnDebt
 	UPROPERTY()
 	float SpeedRatio = 1.0f;
 
+	// Granted-but-not-yet-taken bonus turns (Emerald). Set when a bonus is GRANTED
+	// (RequestExtraTurn with bIsBonusTurn=true — the scheduled fire-loop or the S-tier
+	// immediate handler), decremented when the combatant is next picked (the bonus turn is
+	// taken). The preview reads this so a granted bonus turn keeps its flag after the
+	// PendingTurns entry is consumed. Count-keyed (>1 possible). Resets with Combatants on
+	// InitializeCombat. 0 = no bonus owed (the common case → preview unflagged).
+	UPROPERTY()
+	int32 UntakenBonusTurns = 0;
+
 	// Cached stats for tie-breaking
 	UPROPERTY()
 	int32 CachedSpeed = 0;
@@ -165,9 +174,13 @@ public:
 
 	/** Grant an additional turn to the specified actor by crediting one unit of
 	 *  TurnsOwed. The debt-based scheduler will pick this actor on the next
-	 *  AdvanceToNextTurn call (or shortly after, depending on relative debt). */
+	 *  AdvanceToNextTurn call (or shortly after, depending on relative debt).
+	 *  bIsBonusTurn=true additionally marks the grant as an Emerald bonus turn
+	 *  (UntakenBonusTurns++), so the turn-order preview flags it — pass true ONLY from the
+	 *  Emerald paths (scheduled fire-loop, S-tier immediate handler), false (default) for
+	 *  every other extra-turn grant (e.g. the ExtraAction skill effect). */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void RequestExtraTurn(AActor *Actor);
+	void RequestExtraTurn(AActor *Actor, bool bIsBonusTurn = false);
 
 	/** Schedule a bonus turn for Actor to fire after DelayTurns global turn boundaries
 	 *  (Emerald's delayed grant). DelayTurns must be >= 1 — N==0 (immediate) is handled

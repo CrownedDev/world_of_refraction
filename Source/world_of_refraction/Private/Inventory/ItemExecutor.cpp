@@ -418,7 +418,7 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 	if (DelayTurns == 0)
 	{
 		// S-tier — immediate (handler-side, per design: the scheduler only handles N>=1).
-		TurnMgr->RequestExtraTurn(Target);
+		TurnMgr->RequestExtraTurn(Target, /*bIsBonusTurn=*/true);
 		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald (S): granted %s an immediate bonus turn"),
 			   *Target->GetName());
 	}
