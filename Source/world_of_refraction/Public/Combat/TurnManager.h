@@ -189,6 +189,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintTurnOrder();
 
+	/** Formatted snapshot of the delayed bonus-turn queue (Emerald) — each scheduled
+	 *  actor + its TurnsRemaining. Notes that immediate (N==0) grants bypass the queue
+	 *  via RequestExtraTurn, so only N>=1 entries appear here. For log/screen inspection. */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager|Debug")
+	FString GetPendingTurnsString() const;
+
+	/** Dump the bonus-turn queue to the log + on-screen (mirrors DebugPrintTurnOrder).
+	 *  Inspect the scheduler mid-combat without constructing the Emerald-use path. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
+	void DebugPrintPendingTurns();
+
 private:
 	// ========================================
 	// INTERNAL STATE

@@ -3,6 +3,7 @@
 
 #include "Combat/TurnManager.h"
 #include "Combat/CombatConstants.h"
+#include "Engine/Engine.h" // GEngine for on-screen debug (DebugPrintPendingTurns)
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
@@ -567,4 +568,30 @@ void UTurnManager::DebugPrintTurnOrder()
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("======================"));
+}
+
+FString UTurnManager::GetPendingTurnsString() const
+{
+	if (PendingTurns.Num() == 0)
+	{
+		return TEXT("PendingTurns: (none). Immediate (N==0) grants bypass the queue via RequestExtraTurn.");
+	}
+
+	FString Out = FString::Printf(TEXT("PendingTurns (%d scheduled, N>=1):"), PendingTurns.Num());
+	for (const FScheduledTurn &Entry : PendingTurns)
+	{
+		const FString Name = Entry.Actor ? Entry.Actor->GetName() : TEXT("<invalid>");
+		Out += FString::Printf(TEXT("\n  %s - fires in %d turn(s)"), *Name, Entry.TurnsRemaining);
+	}
+	return Out;
+}
+
+void UTurnManager::DebugPrintPendingTurns()
+{
+	const FString Str = GetPendingTurnsString();
+	UE_LOG(LogTemp, Display, TEXT("=== SCHEDULED BONUS TURNS ===\n%s\n============================="), *Str);
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, Str);
+	}
 }
