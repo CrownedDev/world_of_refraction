@@ -444,9 +444,12 @@ namespace
      *      multiplicatively after the crystal layer.
      *   3. Transient — pillar-wide skill-effect buff/debuff (MindBuff/MindDebuff etc.),
      *      the broad "scale all of this pillar's sub-stats" channel, with a Max(0,…)
-     *      negative floor and no upper clamp (deferred).
-     *  Every layer is independently optional; each collapses to ×1.0 when absent, so a
-     *  character with none is byte-identical to the raw base value. */
+     *      negative floor.
+     *  The composed product of the three factors is then hard-capped to
+     *  [STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] = [0, 2] (the [-100%,+100%] normalization
+     *  model) before applying to the base. Every layer is independently optional; each
+     *  collapses to ×1.0 when absent, so a character with none is byte-identical to the
+     *  raw base value (the cap is inert below 2.0). */
     enum class ECrystalPillar : uint8 { Mind, Body, Spirit };
 
     float ApplyEvolutionPillarModifier(AActor *Owner, float BaseValue, ECrystalPillar Pillar)
@@ -468,7 +471,10 @@ namespace
         // Case B: evolution slotted as the primary slot itself (PrimarySlotType==Evolution,
         // e.g. Broken Darkness). The two cases are mutually exclusive on PrimarySlotType,
         // so the else-if cannot double-apply.
-        float Result = BaseValue;
+        // Compose the MODIFIER (product of the layer factors) separately from BaseValue, so
+        // the [STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] cap below applies to the modifier alone —
+        // the per-character base (the source of build uniqueness) is never clamped.
+        float Modifier = 1.0f;
         if (UEvolutionItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
         {
             float CrystalPercent = 0.0f;
@@ -478,7 +484,7 @@ namespace
             case ECrystalPillar::Body:   CrystalPercent = Crystal->BaseStatBonus.BonusBodyModifierPercent;   break;
             case ECrystalPillar::Spirit: CrystalPercent = Crystal->BaseStatBonus.BonusSpiritModifierPercent; break;
             }
-            Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+            Modifier *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
         }
         else
         {
@@ -493,7 +499,7 @@ namespace
                 case ECrystalPillar::Body:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusBodyModifierPercent;   break;
                 case ECrystalPillar::Spirit: CrystalPercent = PrimaryEvo->BaseStatBonus.BonusSpiritModifierPercent; break;
                 }
-                Result *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+                Modifier *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
             }
         }
 
@@ -506,7 +512,7 @@ namespace
         case ECrystalPillar::Body:   EquipmentPercent = Bonus.BonusBodyModifierPercent;   break;
         case ECrystalPillar::Spirit: EquipmentPercent = Bonus.BonusSpiritModifierPercent; break;
         }
-        Result *= (1.0f + EquipmentPercent / CombatConstants::STAT_PERCENT_DIVISOR);
+        Modifier *= (1.0f + EquipmentPercent / CombatConstants::STAT_PERCENT_DIVISOR);
 
         // Transient layer — pillar-wide buff/debuff (MindBuff/BodyBuff/SpiritBuff and their
         // Debuffs): the broad "scale ALL of this pillar's sub-stats" skill-effect channel.
@@ -514,9 +520,9 @@ namespace
         // which scale the derived OUTPUT — these scale the pillar INPUT, so both apply with
         // no double-count. Multiplicative ×(1+(buff−debuff)/100), matching the crystal +
         // equipment layers and GetTransientSpellDamageFactor's source pattern. The Max(0,…)
-        // floor prevents a ≥100% debuff inverting the pillar; NO upper clamp (deferred —
-        // consistent with the unclamped crystal/equipment layers above). Collapses to ×1.0
-        // when no pillar buff/debuff is active, so a bare character stays byte-identical.
+        // floor prevents a ≥100% debuff inverting THIS layer; the composed-product cap below
+        // bounds the COMBINED modifier. Collapses to ×1.0 when no pillar buff/debuff is
+        // active, so a bare character stays byte-identical.
         if (UWorld *World = Owner->GetWorld())
         {
             if (UGameInstance *GI = World->GetGameInstance())
@@ -533,12 +539,19 @@ namespace
                     }
                     const float PillarBuff = SEM->GetTotalStatModifier(Owner, BuffType);
                     const float PillarDebuff = SEM->GetTotalStatModifier(Owner, DebuffType);
-                    Result *= FMath::Max(0.0f, 1.0f + (PillarBuff - PillarDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+                    Modifier *= FMath::Max(0.0f, 1.0f + (PillarBuff - PillarDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
                 }
             }
         }
 
-        return Result;
+        // [-100%, +100%] normalization — hard-cap the COMPOSED modifier (crystal × equipment
+        // × transient) to [0, 2], additional to the inner Max(0,…) transient floor. Byte-
+        // identical below 2.0 (a bare/normally-geared character's product is < 2.0, so the
+        // clamp is inert). The lower bound (0) is the safety floor: the transient is already
+        // Max(0,…)-floored, but a ≤−100% crystal/equipment modifier percent would make its
+        // factor negative — the Clamp guarantees the modifier never goes below 0 regardless.
+        Modifier = FMath::Clamp(Modifier, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+        return BaseValue * Modifier;
     }
 }
 

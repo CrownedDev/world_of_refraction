@@ -203,6 +203,13 @@ namespace CombatConstants
     // a raw sub-stat point value drives a percentage-style multiplier.
     constexpr float STAT_PERCENT_DIVISOR = 100.0f;
 
+    // [-100%, +100%] normalization range for a composed stat modifier, expressed as a
+    // [0, 2] multiplier (0.0 = −100% / fully nullified, 1.0 = unchanged, 2.0 = +100% /
+    // doubled). The hard cap on a modifier-bearing stat's COMPOSED product (the product of
+    // its layer factors, excluding the per-character base). Byte-identical below the cap.
+    constexpr float STAT_MODIFIER_MIN = 0.0f;
+    constexpr float STAT_MODIFIER_MAX = 2.0f;
+
     // ==================== BD OVERLOAD UI THRESHOLDS ====================
     // CharacterPanelWidget tints the EP text when CurrentEP > MaxEP (BD
     // overload). Thresholds are CurrentEP / MaxEP ratios; the bar percent
