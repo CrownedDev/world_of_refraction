@@ -67,10 +67,15 @@ void UCrystalManager::ProcessPostCastWear(
     int32 Wear = 0;
     if (CasterCharComp && CasterCharComp->CharacterData)
     {
-        const float SpellDmgFrac    = CasterCharComp->GetEvolutionModifiedSpellDamage() - 1.0f;
-        const float StatusMultFrac  = CasterCharComp->GetEvolutionModifiedStatusMultiplier() - 1.0f;
-        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetEffectiveEfficiencyMultiplier();
-        const float ResistanceFrac  = CasterCharComp->GetEvolutionModifiedResistance();
+        // Snapshot the wear-input stats in one call. SpellDamage is the FULL composed
+        // scalar (innate + equipment + stone + transient); wear is a POWER term, so a
+        // geared/buffed caster wears crystals faster — more spell power = more strain.
+        // (StatusMultiplier/Resistance here are still the L1 pillar getters — see note.)
+        const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
+        const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
+        const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
+        const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
+        const float ResistanceFrac  = Stats.Resistance;
         Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
             Attachment.Crystal.Id.Tier,
             ActionTier,
@@ -168,10 +173,15 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     int32 Wear = 0;
     if (CasterCharComp && CasterCharComp->CharacterData)
     {
-        const float SpellDmgFrac    = CasterCharComp->GetEvolutionModifiedSpellDamage() - 1.0f;
-        const float StatusMultFrac  = CasterCharComp->GetEvolutionModifiedStatusMultiplier() - 1.0f;
-        const float EfficiencyFrac  = 1.0f - CasterCharComp->GetEffectiveEfficiencyMultiplier();
-        const float ResistanceFrac  = CasterCharComp->GetEvolutionModifiedResistance();
+        // Snapshot the wear-input stats in one call. SpellDamage is the FULL composed
+        // scalar (innate + equipment + stone + transient); wear is a POWER term, so a
+        // geared/buffed caster wears crystals faster — more spell power = more strain.
+        // (StatusMultiplier/Resistance here are still the L1 pillar getters — see note.)
+        const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
+        const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
+        const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
+        const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
+        const float ResistanceFrac  = Stats.Resistance;
         Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
             EvoTier,
             ActionTier,
@@ -461,10 +471,13 @@ void UCrystalManager::WOR_WearTable()
         return;
     }
 
-    const float SpellDmgFrac   = CharComp->GetEvolutionModifiedSpellDamage()           - 1.0f;
-    const float StatusMultFrac = CharComp->GetEvolutionModifiedStatusMultiplier()      - 1.0f;
-    const float EfficiencyFrac = 1.0f - CharComp->GetEffectiveEfficiencyMultiplier();
-    const float ResistanceFrac = CharComp->GetEvolutionModifiedResistance();
+    // Wear-input snapshot (one call). SpellDamage = the FULL composed scalar (innate +
+    // equipment + stone + transient); wear is a POWER term, so more spell power = more wear.
+    const FEffectiveStats Stats = CharComp->GetEffectiveStats();
+    const float SpellDmgFrac   = Stats.SpellDamage            - 1.0f;
+    const float StatusMultFrac = Stats.StatusMultiplier       - 1.0f;
+    const float EfficiencyFrac = 1.0f - Stats.EfficiencyMultiplier;
+    const float ResistanceFrac = Stats.Resistance;
 
     UE_LOG(LogTemp, Display,
            TEXT("[WOR_WearTable] Actor=%s — substat-modified wear prediction (worst-case envelope: Action=S L2 Spell)"),
@@ -536,10 +549,15 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
     constexpr bool bIsSpell = true;
 
     UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    const float SpellDmgFrac   = CharComp ? (CharComp->GetEvolutionModifiedSpellDamage()      - 1.0f) : 0.0f;
-    const float StatusMultFrac = CharComp ? (CharComp->GetEvolutionModifiedStatusMultiplier() - 1.0f) : 0.0f;
-    const float EfficiencyFrac = CharComp ? (1.0f - CharComp->GetEffectiveEfficiencyMultiplier()) : 0.0f;
-    const float ResistanceFrac = CharComp ? CharComp->GetEvolutionModifiedResistance() : 0.0f;
+    // Wear-input snapshot. A null CharComp yields a default FEffectiveStats
+    // (SpellDamage/StatusMultiplier/EfficiencyMultiplier = 1, Resistance = 0), so the
+    // fracs below resolve to 0/0/0/0 — the same no-substat baseline as the prior
+    // `: 0.0f` branch. SpellDamage = the FULL composed scalar (wear is a POWER term).
+    const FEffectiveStats Stats = CharComp ? CharComp->GetEffectiveStats() : FEffectiveStats();
+    const float SpellDmgFrac   = Stats.SpellDamage - 1.0f;
+    const float StatusMultFrac = Stats.StatusMultiplier - 1.0f;
+    const float EfficiencyFrac = 1.0f - Stats.EfficiencyMultiplier;
+    const float ResistanceFrac = Stats.Resistance;
 
     const FDurabilityWearWithSubstatsResult Predict =
         UBreakCalculator::CalculateDurabilityWearWithSubstatsDetailed(

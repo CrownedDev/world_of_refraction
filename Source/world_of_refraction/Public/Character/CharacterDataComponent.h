@@ -17,6 +17,52 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEPChanged, int32, CurrentEP, int
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDied, AActor *, DeadActor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResurrected, AActor *, ResurrectedActor);
 
+class USkillEffectManager;
+
+/**
+ * FEffectiveStats — a one-call snapshot of a character's effective (layered) stats,
+ * packed by UCharacterDataComponent::GetEffectiveStats. Each field is the VERBATIM
+ * return of an existing getter — no recompute, no reorder — so a consumer reading a
+ * field gets the same value as calling that getter directly, in one call. Additive
+ * convenience: existing direct-getter callers are unaffected.
+ *
+ * ⚠️ SpellDamage is the COMPOSED scalar — read freely by Broken Darkness and the
+ * crystal-wear power term, but DamageCalculator MUST keep its own per-layer sourcing
+ * (see the field note). It is the only field with a consumer restriction.
+ */
+USTRUCT(BlueprintType)
+struct FEffectiveStats
+{
+    GENERATED_BODY()
+
+    /** Composed 4-layer SpellDamage scalar = GetEffectiveSpellDamage()
+     *  ((innate+equipment) × stone × transient). This is the value the non-pipeline
+     *  consumers read: Broken Darkness overload / forbidden-cast scaling AND the
+     *  crystal-wear POWER term (more spell power = more strain = more wear), plus UI.
+     *  ⚠️ DamageCalculator MUST keep its per-layer sourcing — do NOT read this field in
+     *     the damage pipeline: it interleaves ActionMods / Grid / defender terms, so
+     *     reading the pre-composed value would reintroduce the byte-identity break.
+     *     Wear and BD use it freely; only the damage pipeline is off-limits. */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Stats")
+    float SpellDamage = 1.0f;
+
+    /** = GetEffectiveStatusMultiplier() — composed (innate + equipment + StatusStone)
+     *  × transient buff/debuff. */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Stats")
+    float StatusMultiplier = 1.0f;
+
+    /** = GetEffectiveEfficiencyMultiplier() — composed (innate + equipment + EfficiencyStone
+     *  + transient). */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Stats")
+    float EfficiencyMultiplier = 1.0f;
+
+    /** = GetEffectiveResistance() — composed, element-AGNOSTIC self-resistance (innate +
+     *  equipment + ResistanceStone + transient ModifyStatusResist). NOT the SBM element-
+     *  matched defense value. */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Stats")
+    float Resistance = 0.0f;
+};
+
 /**
  * CharacterDataComponent
  * Runtime character state (HP, EP, alive/dead)
@@ -265,6 +311,14 @@ public:
      *  gamble's spell arm). Single source for the transient layer. 1.0 when none. */
     float GetTransientSpellDamageFactor() const;
 
+    /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
+     *  is the verbatim return of an existing getter. Additive convenience for snapshot
+     *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers
+     *  are unaffected. See the struct's SpellDamage field note — it is the composed
+     *  scalar (BD + wear read it; the damage pipeline must not). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    FEffectiveStats GetEffectiveStats() const;
+
     /** Effective Efficiency cost/drain multiplier: innate (crystal-aware Mind) +
      *  equipment BonusEfficiency + attached EfficiencyStone, all as reductions under
      *  ONE clamp. The sole Efficiency getter — drives BD drain / durability / EP cost.
@@ -286,6 +340,24 @@ public:
      *  Returns the raw fraction clamped to [0, RESISTANCE_MAX]. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedResistance() const;
+
+    /** Fully-composed StatusMultiplier = base × transient, where base is the
+     *  (innate + equipment + StatusStone) factor composed inline to match
+     *  UStatusBuildupManager::GetSourceStatusMultiplierFactor term-for-term, and transient
+     *  is Max(0, 1 + (StatusMultiplierBuff − StatusMultiplierDebuff)/100). Equals the
+     *  BD/CombatOrchestrator inline value BY CONSTRUCTION (BD is NOT re-pointed). Used by
+     *  the crystal-wear POWER term so a StatusStone/Status-buff raises wear. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveStatusMultiplier() const;
+
+    /** Element-AGNOSTIC composed self-resistance for the crystal-wear CONTROL term:
+     *  innate (raw, unclamped) + equipment BonusResistance + attached ResistanceStone +
+     *  transient ModifyStatusResist (the blanket channel — NOT the element-matched
+     *  ResistanceBuff/Debuff). Deliberately NOT the StatusBuildupManager element-matched
+     *  defense aggregate, and NO inner [0/-1, MAX] clamp (wear's ControlFactor bounds it).
+     *  A ResistanceStone/resist-buff raises this → more control → less wear. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveResistance() const;
 
     // ========================================
     // BROKEN DARKNESS STATE
@@ -356,4 +428,15 @@ private:
     bool HasServerAuthority() const;
     int32 CalculateMaxHealth() const;
     int32 CalculateMaxEnergy() const;
+
+    /** Cached SkillEffectManager accessor — lazily resolves the GameInstance subsystem
+     *  and re-resolves whenever the cache is null. Honours "never cache subsystem
+     *  pointers across PIE sessions": a fresh component starts with a null cache and
+     *  re-fetches. Mirrors UDamageCalculator::GetSkillEffectManager. Same subsystem
+     *  pointer as the prior inline GetWorld()->GetGameInstance()->GetSubsystem reads,
+     *  so every routed site stays byte-identical. */
+    USkillEffectManager *GetSkillEffectManager() const;
+
+    UPROPERTY()
+    mutable USkillEffectManager *CachedSkillEffectManager = nullptr;
 };

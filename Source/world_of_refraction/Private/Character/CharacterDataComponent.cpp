@@ -72,31 +72,19 @@ void UCharacterDataComponent::BeginPlay()
     // MaxHP/MaxEnergy buff/debuff applies or expires (Max is a stored field — it won't
     // update otherwise). Gated to this owner + pool types in the handler. Mirrors how BD
     // binds OnEPChanged; unbound in EndPlay.
-    if (UWorld *World = GetWorld())
+    if (USkillEffectManager *SEM = GetSkillEffectManager())
     {
-        if (UGameInstance *GI = World->GetGameInstance())
-        {
-            if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
-            {
-                SEM->OnEffectApplied.AddDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
-                SEM->OnEffectRemoved.AddDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
-            }
-        }
+        SEM->OnEffectApplied.AddDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
+        SEM->OnEffectRemoved.AddDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
     }
 }
 
 void UCharacterDataComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (UWorld *World = GetWorld())
+    if (USkillEffectManager *SEM = GetSkillEffectManager())
     {
-        if (UGameInstance *GI = World->GetGameInstance())
-        {
-            if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
-            {
-                SEM->OnEffectApplied.RemoveDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
-                SEM->OnEffectRemoved.RemoveDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
-            }
-        }
+        SEM->OnEffectApplied.RemoveDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
+        SEM->OnEffectRemoved.RemoveDynamic(this, &UCharacterDataComponent::HandlePoolEffectChanged);
     }
     Super::EndPlay(EndPlayReason);
 }
@@ -281,24 +269,18 @@ void UCharacterDataComponent::CheckDeath()
     {
         // Revive intercept — when the actor holds a Revive skill-effect, restore
         // HP to 30% of MaxHP, consume the effect, and skip the death broadcast.
-        if (UWorld *World = GetWorld())
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            if (UGameInstance *GI = World->GetGameInstance())
+            if (AActor *Owner = GetOwner())
             {
-                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+                if (SEM->HasEffectOfType(Owner, ESkillEffectType::Revive))
                 {
-                    if (AActor *Owner = GetOwner())
-                    {
-                        if (SEM->HasEffectOfType(Owner, ESkillEffectType::Revive))
-                        {
-                            CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * 0.3f));
-                            SEM->RemoveEffectsByType(Owner, ESkillEffectType::Revive);
-                            OnHPChanged.Broadcast(CurrentHP, MaxHP);
-                            UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (30%% of MaxHP)"),
-                                   *Owner->GetName(), CurrentHP);
-                            return;
-                        }
-                    }
+                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * 0.3f));
+                    SEM->RemoveEffectsByType(Owner, ESkillEffectType::Revive);
+                    OnHPChanged.Broadcast(CurrentHP, MaxHP);
+                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (30%% of MaxHP)"),
+                           *Owner->GetName(), CurrentHP);
+                    return;
                 }
             }
         }
@@ -589,18 +571,12 @@ void UCharacterDataComponent::RecomputeMaxPools()
         // GetTotalStatModifier (same SEM idiom as the Luck/Efficiency reads in this file).
         // Added to the stone % so both stack additively; 0 when none active or SEM
         // unavailable (byte-neutral vs P1). MaxHP/MaxEnergy Buff raise, Debuff lower.
-        if (UWorld *World = GetWorld())
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
-                {
-                    HPPct += SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxHPBuff) -
-                             SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxHPDebuff);
-                    EPPct += SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxEnergyBuff) -
-                             SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxEnergyDebuff);
-                }
-            }
+            HPPct += SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxHPBuff) -
+                     SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxHPDebuff);
+            EPPct += SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxEnergyBuff) -
+                     SEM->GetTotalStatModifier(Owner, ESkillEffectType::MaxEnergyDebuff);
         }
     }
 
@@ -647,17 +623,11 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         }
 
         // Skill-effect-driven LuckBuff / LuckDebuff (flat additive, percent-space).
-        if (UWorld *World = GetWorld())
+        if (USkillEffectManager *SkillMgr = GetSkillEffectManager())
         {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (USkillEffectManager *SkillMgr = GI->GetSubsystem<USkillEffectManager>())
-                {
-                    const float LuckBuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckBuff);
-                    const float LuckDebuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckDebuff);
-                    Luck += (LuckBuff - LuckDebuff);
-                }
-            }
+            const float LuckBuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckBuff);
+            const float LuckDebuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckDebuff);
+            Luck += (LuckBuff - LuckDebuff);
         }
     }
 
@@ -762,17 +732,11 @@ float UCharacterDataComponent::GetTransientSpellDamageFactor() const
     // spell-damage arm, since that emits SpellDamageBuff.
     if (AActor *Owner = GetOwner())
     {
-        if (UWorld *World = GetWorld())
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
-                {
-                    const float SpellBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageBuff);
-                    const float SpellDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageDebuff);
-                    return 1.0f + (SpellBuff - SpellDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
-                }
-            }
+            const float SpellBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageBuff);
+            const float SpellDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellDamageDebuff);
+            return 1.0f + (SpellBuff - SpellDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
     return 1.0f;
@@ -786,6 +750,37 @@ float UCharacterDataComponent::GetEffectiveSpellDamage() const
     // analogue here. DamageCalculator DRY-sources the SAME three helpers at its own
     // (unchanged) step order, so a normal cast stays byte-identical.
     return (GetEvolutionModifiedSpellDamage() + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
+}
+
+FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
+{
+    // Pure snapshot — each field is the verbatim return of an existing getter, no
+    // recompute / reorder. SpellDamage is the COMPOSED scalar, read by BD and the
+    // crystal-wear power term (NOT the damage pipeline — see struct doc).
+    FEffectiveStats Stats;
+    Stats.SpellDamage          = GetEffectiveSpellDamage();
+    Stats.StatusMultiplier     = GetEffectiveStatusMultiplier();
+    Stats.EfficiencyMultiplier = GetEffectiveEfficiencyMultiplier();
+    Stats.Resistance           = GetEffectiveResistance();
+    return Stats;
+}
+
+USkillEffectManager *UCharacterDataComponent::GetSkillEffectManager() const
+{
+    // Lazy re-resolve: re-fetch whenever the cache is null, so a fresh component in a
+    // new PIE session starts clean. Returns the same subsystem pointer the prior inline
+    // GetWorld()->GetGameInstance()->GetSubsystem<USkillEffectManager>() reads did.
+    if (!CachedSkillEffectManager)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                CachedSkillEffectManager = GI->GetSubsystem<USkillEffectManager>();
+            }
+        }
+    }
+    return CachedSkillEffectManager;
 }
 
 float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
@@ -824,17 +819,11 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
         // EP / slower BD drain / less wear (the favourable direction). 0 when none active,
         // so byte-identical to the pre-H0 getter then. Distinct effect type from EP's
         // SpellCostBuff/Debuff, so no double-count with the EP SkillEffectMult layer.
-        if (UWorld *World = GetWorld())
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            if (UGameInstance *GI = World->GetGameInstance())
-            {
-                if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
-                {
-                    const float EffBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyBuff);
-                    const float EffDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyDebuff);
-                    Reduction += (EffBuff - EffDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
-                }
-            }
+            const float EffBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyBuff);
+            const float EffDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyDebuff);
+            Reduction += (EffBuff - EffDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
         }
     }
 
@@ -864,6 +853,85 @@ float UCharacterDataComponent::GetEvolutionModifiedResistance() const
         ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
         0.0f,
         CombatConstants::RESISTANCE_MAX);
+}
+
+float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
+{
+    // Base (innate + equipment + attached StatusStone), composed inline to MATCH
+    // UStatusBuildupManager::GetSourceStatusMultiplierFactor term-for-term (StatusMultiplier
+    // SUMS, never compounds), then the transient buff/debuff compounded on top — so this
+    // equals the BD/CombatOrchestrator inline value (base × transient) BY CONSTRUCTION.
+    // We do NOT re-point BD; this getter just gives wear (and future consumers) the same
+    // composed value. ⚠️ Mirrors GetSourceStatusMultiplierFactor — if its layer set changes,
+    // update here too. Structurally parallel to GetEffectiveEfficiencyMultiplier.
+    float Factor = GetEvolutionModifiedStatusMultiplier(); // innate: 1 + ModifiedSpirit × points × per-pt
+
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            Factor += Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT;
+
+            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            {
+                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                Factor += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+
+        // Transient StatusMultiplierBuff/Debuff — same Max(0, 1 + (buff − debuff)/100) the
+        // inline call sites apply (AddStatusBuildup step 5b, CombatOrchestrator BD bake).
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float SmBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::StatusMultiplierBuff);
+            const float SmDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::StatusMultiplierDebuff);
+            Factor *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+        }
+    }
+
+    return Factor;
+}
+
+float UCharacterDataComponent::GetEffectiveResistance() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+
+    // Element-AGNOSTIC self-resistance for the crystal-wear CONTROL term — NOT the
+    // StatusBuildupManager element-matched defense value. Same layer sources as that
+    // defense block (innate + equipment BonusResistance + ResistanceStone + the blanket
+    // ModifyStatusResist transient), but element-AGNOSTIC: NO GetTotalElementResistance
+    // (element-matched), and NO inner [0/-1, MAX] clamp — wear's ControlFactor
+    // [SUBSTAT_POWER_FACTOR_MIN, MAX] bounds the result. Innate is summed RAW (unclamped).
+    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
+    const int32 TotalPoints = CharacterData->GetTotalResistance();
+    float Resistance = ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT;
+
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            Resistance += Loadout->GetActiveStatBonus(Owner).BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
+
+            if (const FWeaponLoadoutEntry *ActiveWeapon = Loadout->GetActiveWeaponLoadout())
+            {
+                const FRuntimeAttachedItem &Att = ActiveWeapon->WeaponEntry.GetAttachedItem();
+                Resistance += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+
+        // Transient — ModifyStatusResist ONLY (the element-agnostic blanket channel the
+        // ResistanceStone consumable feeds). Deliberately NOT ResistanceBuff/Debuff, which
+        // are element-matched and belong only to the SBM defense aggregate.
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            Resistance += SEM->GetTotalStatModifier(Owner, ESkillEffectType::ModifyStatusResist) / CombatConstants::STAT_PERCENT_DIVISOR;
+        }
+    }
+
+    return Resistance;
 }
 
 void UCharacterDataComponent::DebugToggleWeapon()
