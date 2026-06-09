@@ -147,6 +147,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	AActor *GetCurrentActor() const;
 
+	/** True when the CURRENT turn is a bonus turn being taken (Emerald). Per-turn transient:
+	 *  recomputed every AdvanceToNextTurn at the consume point, so it always describes the
+	 *  current turn (never a stale prior value). Lets the turn-order strip's current-actor
+	 *  slot show the bonus tint — the immediate/self-target bonus IS the current turn, so it
+	 *  never appears in the upcoming-slots preview. Upcoming bonuses use PreviewTurnOrder. */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	bool GetCurrentTurnIsBonus() const { return bCurrentTurnIsBonus; }
+
 	/** Preview next N turns. Each entry is the combatant at that slot + a bonus-turn flag
 	 *  (scheduled Emerald bonus turns appear inline at their future slot, flagged). */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
@@ -248,6 +256,13 @@ private:
 
 	UPROPERTY()
 	AActor *CurrentActor;
+
+	/** Whether the current turn is a bonus turn being taken (Emerald). Set every
+	 *  AdvanceToNextTurn at the consume point — true only when the picked combatant had an
+	 *  untaken bonus turn (which this pick consumes), false otherwise. Surfaced via
+	 *  GetCurrentTurnIsBonus() for the current-actor slot. Reset on InitializeCombat. */
+	UPROPERTY()
+	bool bCurrentTurnIsBonus = false;
 
 	UPROPERTY()
 	AActor *PreviousActor;

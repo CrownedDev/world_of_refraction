@@ -129,10 +129,12 @@ void UTurnOrderStripWidget::RefreshSlots()
 	AActor *CurrentActor = TurnMgr->GetCurrentActor();
 	TArray<FPreviewTurnEntry> Upcoming = TurnMgr->PreviewTurnOrder(PreviewCount);
 
-	// Slot 0 = current actor
+	// Slot 0 = current actor. The current turn can itself BE a bonus turn (Emerald immediate /
+	// self-target, where the bonus is taken now rather than appearing as an upcoming slot) — so
+	// read the TurnManager's per-turn transient instead of hardcoding false.
 	if (Slots[0])
 	{
-		Slots[0]->InitialiseSlot(CurrentActor, CurrentTurnNumber, /*bIsActive=*/true, /*bIsBonus=*/false);
+		Slots[0]->InitialiseSlot(CurrentActor, CurrentTurnNumber, /*bIsActive=*/true, /*bIsBonus=*/TurnMgr->GetCurrentTurnIsBonus());
 	}
 
 	// Slots 1..N = upcoming
