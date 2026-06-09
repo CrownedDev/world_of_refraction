@@ -633,135 +633,16 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	// HELPER FUNCTIONS
 	// ========================================
 
-	/** Check if this is a buff (positive effect) */
+	/** Check if this is a buff (positive effect)? Delegates to the shared classifier. */
 	bool IsBuff() const
 	{
-		switch (EffectType)
-		{
-		case ESkillEffectType::MindBuff:
-		case ESkillEffectType::BodyBuff:
-		case ESkillEffectType::SpiritBuff:
-		case ESkillEffectType::DamageBuff:
-		case ESkillEffectType::DefenseBuff:
-		case ESkillEffectType::SpeedBuff:
-		case ESkillEffectType::CritChanceBuff:
-		case ESkillEffectType::SpellSpeedBuff:
-		case ESkillEffectType::ActionSpeedBuff:
-		case ESkillEffectType::RawDamageBuff:
-		case ESkillEffectType::SpellDamageBuff:
-		case ESkillEffectType::StatusMultiplierBuff:
-		case ESkillEffectType::EfficiencyBuff:
-		case ESkillEffectType::SpellCostBuff:
-		case ESkillEffectType::ResistanceBuff:
-		case ESkillEffectType::SpellSizeBuff:
-		case ESkillEffectType::MaxEnergyBuff:
-		case ESkillEffectType::MaxHPBuff:
-		case ESkillEffectType::TurnSpeedBuff:
-		case ESkillEffectType::LuckBuff:
-		case ESkillEffectType::HealthRestore:
-		case ESkillEffectType::EnergyRestore:
-		// Phase 2 passive-layer buffs
-		case ESkillEffectType::ModifyDamageDealt:
-		case ESkillEffectType::ReduceDamageTaken:
-		case ESkillEffectType::ModifyHealing:
-		case ESkillEffectType::ModifyCritChance:
-		case ESkillEffectType::ModifyCritDamage:
-		case ESkillEffectType::RestoreHPPercent:
-		case ESkillEffectType::RestoreEnergyPercent:
-		case ESkillEffectType::DamageReflect:
-		case ESkillEffectType::ReflectPhysicalDamage:
-		case ESkillEffectType::ReflectSpellDamage:
-		case ESkillEffectType::Lifesteal:
-		case ESkillEffectType::AbsorbDamage:
-		case ESkillEffectType::GrantDOTImmunity:
-		case ESkillEffectType::GrantStunImmunity:
-		case ESkillEffectType::GrantSilenceImmunity:
-		case ESkillEffectType::GrantAllStatusImmunity:
-		case ESkillEffectType::GrantFireImmunity:
-		case ESkillEffectType::GrantWaterImmunity:
-		case ESkillEffectType::GrantEarthImmunity:
-		case ESkillEffectType::GrantWindImmunity:
-		case ESkillEffectType::GrantLightImmunity:
-		case ESkillEffectType::GrantDarknessImmunity:
-		case ESkillEffectType::GrantLightningImmunity:
-		case ESkillEffectType::GrantVoidImmunity:
-		case ESkillEffectType::GrantRealityImmunity:
-		case ESkillEffectType::CleanseSelf:
-		case ESkillEffectType::CleanseAllies:
-		case ESkillEffectType::ExtraAction:
-		case ESkillEffectType::GuaranteedCrit:
-		case ESkillEffectType::IgnoreDefense:
-		case ESkillEffectType::DoubleHit:
-		case ESkillEffectType::Revive:
-		// sweep-4: status-bar manipulation buff (reduces target's gauge)
-		case ESkillEffectType::StatusDecrease:
-			return true;
-		// ModifyStatusResist is sign-aware: +magnitude raises status resistance (a
-		// buff), -magnitude lowers it (a debuff). Classified by sign so cleanse/UI/
-		// GetBuffCount treat the directional ResistanceStone consumable correctly.
-		case ESkillEffectType::ModifyStatusResist:
-			return EffectValue > 0.0f;
-		default:
-			return false;
-		}
+		return SkillEffectClassification::IsBuff(EffectType, EffectValue);
 	}
 
-	/** Check if this is a debuff (negative effect) */
+	/** Check if this is a debuff (negative effect)? Delegates to the shared classifier. */
 	bool IsDebuff() const
 	{
-		switch (EffectType)
-		{
-		case ESkillEffectType::MindDebuff:
-		case ESkillEffectType::BodyDebuff:
-		case ESkillEffectType::SpiritDebuff:
-		case ESkillEffectType::DamageDebuff:
-		case ESkillEffectType::DefenseDebuff:
-		case ESkillEffectType::SpeedDebuff:
-		case ESkillEffectType::CritDebuff:
-		case ESkillEffectType::CritChanceDebuff:
-		case ESkillEffectType::SpellSpeedDebuff:
-		case ESkillEffectType::EnergyDebuff:
-		case ESkillEffectType::ActionSpeedDebuff:
-		case ESkillEffectType::RawDamageDebuff:
-		case ESkillEffectType::SpellDamageDebuff:
-		case ESkillEffectType::StatusMultiplierDebuff:
-		case ESkillEffectType::EfficiencyDebuff:
-		case ESkillEffectType::SpellCostDebuff:
-		case ESkillEffectType::ResistanceDebuff:
-		case ESkillEffectType::SpellSizeDebuff:
-		case ESkillEffectType::MaxEnergyDebuff:
-		case ESkillEffectType::MaxHPDebuff:
-		case ESkillEffectType::TurnSpeedDebuff:
-		case ESkillEffectType::LuckDebuff:
-		case ESkillEffectType::DOT:
-		case ESkillEffectType::SkipTurn:
-		case ESkillEffectType::RandomDebuff:
-		case ESkillEffectType::Stun:
-		case ESkillEffectType::HealBlock:
-		case ESkillEffectType::Silenced:
-		case ESkillEffectType::RandomSkill:
-		// item-system-redesign Phase 1 — SelfDamage classified as a debuff.
-		// (DOT/SkipTurn/Stun/HealBlock/Silenced/CritDebuff/EnergyDebuff already present.)
-		case ESkillEffectType::SelfDamage:
-		// Phase 2 passive-layer debuffs
-		case ESkillEffectType::IncreaseDamageTaken:
-		case ESkillEffectType::ModifyEnergyCost:
-		case ESkillEffectType::ModifyTurnSpeed:
-		case ESkillEffectType::DrainHP:
-		case ESkillEffectType::DrainEnergy:
-		case ESkillEffectType::ApplyBurnToTarget:
-		case ESkillEffectType::ApplyChillToTarget:
-		case ESkillEffectType::ApplyStunToTarget:
-		// sweep-4: status-bar manipulation debuff (builds target's gauge)
-		case ESkillEffectType::StatusIncrease:
-			return true;
-		// ModifyStatusResist sign-aware (see IsBuff): -magnitude = a resistance debuff
-		// (the enemy-vulnerability direction of the ResistanceStone consumable).
-		case ESkillEffectType::ModifyStatusResist:
-			return EffectValue < 0.0f;
-		default:
-			return false;
-		}
+		return SkillEffectClassification::IsDebuff(EffectType, EffectValue);
 	}
 
 	/** Check if this is DOT damage */

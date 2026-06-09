@@ -153,134 +153,16 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return EffectType != ESkillEffectType::None;
     }
 
-    /** Is this a buff effect? */
+    /** Is this a buff effect? Delegates to the shared single-source classifier. */
     bool IsBuff() const
     {
-        switch (EffectType)
-        {
-        case ESkillEffectType::MindBuff:
-        case ESkillEffectType::BodyBuff:
-        case ESkillEffectType::SpiritBuff:
-        case ESkillEffectType::SpellCostBuff:
-        case ESkillEffectType::SpellDamageBuff:
-        case ESkillEffectType::StatusMultiplierBuff:
-        case ESkillEffectType::EfficiencyBuff:
-        case ESkillEffectType::CritChanceBuff:
-        case ESkillEffectType::SpellSpeedBuff:
-        case ESkillEffectType::DefenseBuff:
-        case ESkillEffectType::ActionSpeedBuff:
-        case ESkillEffectType::RawDamageBuff:
-        case ESkillEffectType::MaxEnergyBuff:
-        case ESkillEffectType::MaxHPBuff:
-        case ESkillEffectType::ResistanceBuff:
-        case ESkillEffectType::SpellSizeBuff:
-        case ESkillEffectType::TurnSpeedBuff:
-        case ESkillEffectType::LuckBuff:
-        case ESkillEffectType::DamageBuff:
-        case ESkillEffectType::SpeedBuff:
-        case ESkillEffectType::HealthRestore:
-        case ESkillEffectType::EnergyRestore:
-        // Phase 2 passive-layer buffs
-        case ESkillEffectType::ModifyDamageDealt:
-        case ESkillEffectType::ReduceDamageTaken:
-        case ESkillEffectType::ModifyHealing:
-        case ESkillEffectType::ModifyCritChance:
-        case ESkillEffectType::ModifyCritDamage:
-        case ESkillEffectType::RestoreHPPercent:
-        case ESkillEffectType::RestoreEnergyPercent:
-        case ESkillEffectType::DamageReflect:
-        case ESkillEffectType::ReflectPhysicalDamage:
-        case ESkillEffectType::ReflectSpellDamage:
-        case ESkillEffectType::Lifesteal:
-        case ESkillEffectType::AbsorbDamage:
-        case ESkillEffectType::GrantDOTImmunity:
-        case ESkillEffectType::GrantStunImmunity:
-        case ESkillEffectType::GrantSilenceImmunity:
-        case ESkillEffectType::GrantAllStatusImmunity:
-        case ESkillEffectType::GrantFireImmunity:
-        case ESkillEffectType::GrantWaterImmunity:
-        case ESkillEffectType::GrantEarthImmunity:
-        case ESkillEffectType::GrantWindImmunity:
-        case ESkillEffectType::GrantLightImmunity:
-        case ESkillEffectType::GrantDarknessImmunity:
-        case ESkillEffectType::GrantLightningImmunity:
-        case ESkillEffectType::GrantVoidImmunity:
-        case ESkillEffectType::GrantRealityImmunity:
-        case ESkillEffectType::CleanseSelf:
-        case ESkillEffectType::CleanseAllies:
-        case ESkillEffectType::ExtraAction:
-        case ESkillEffectType::GuaranteedCrit:
-        case ESkillEffectType::IgnoreDefense:
-        case ESkillEffectType::DoubleHit:
-        case ESkillEffectType::Revive:
-        // sweep-4: status-bar manipulation buff (reduces target's gauge)
-        case ESkillEffectType::StatusDecrease:
-            return true;
-        // ModifyStatusResist is sign-aware: +magnitude raises status resistance (a
-        // buff), -magnitude lowers it (a debuff). Classified by sign so authored
-        // resistance modifiers categorise correctly (mirrors FActiveSkillEffect).
-        case ESkillEffectType::ModifyStatusResist:
-            return Magnitude > 0.0f;
-        default:
-            return false;
-        }
+        return SkillEffectClassification::IsBuff(EffectType, Magnitude);
     }
 
-    /** Is this a debuff effect? */
+    /** Is this a debuff effect? Delegates to the shared single-source classifier. */
     bool IsDebuff() const
     {
-        switch (EffectType)
-        {
-        case ESkillEffectType::MindDebuff:
-        case ESkillEffectType::BodyDebuff:
-        case ESkillEffectType::SpiritDebuff:
-        case ESkillEffectType::SpellCostDebuff:
-        case ESkillEffectType::SpellDamageDebuff:
-        case ESkillEffectType::StatusMultiplierDebuff:
-        case ESkillEffectType::EfficiencyDebuff:
-        case ESkillEffectType::CritChanceDebuff:
-        case ESkillEffectType::SpellSpeedDebuff:
-        case ESkillEffectType::DefenseDebuff:
-        case ESkillEffectType::ActionSpeedDebuff:
-        case ESkillEffectType::RawDamageDebuff:
-        case ESkillEffectType::MaxEnergyDebuff:
-        case ESkillEffectType::MaxHPDebuff:
-        case ESkillEffectType::ResistanceDebuff:
-        case ESkillEffectType::SpellSizeDebuff:
-        case ESkillEffectType::TurnSpeedDebuff:
-        case ESkillEffectType::LuckDebuff:
-        case ESkillEffectType::DamageDebuff:
-        case ESkillEffectType::SpeedDebuff:
-        // Misclassified detrimental types — item-system-redesign Phase 1.
-        // These are clearly negative status effects and must count as debuffs:
-        // cleanse targeting, GetDebuffCount, and AI threat scoring all rely on
-        // IsDebuff() to recognise them.
-        case ESkillEffectType::Stun:
-        case ESkillEffectType::Silenced:
-        case ESkillEffectType::HealBlock:
-        case ESkillEffectType::SkipTurn:
-        case ESkillEffectType::DOT:
-        case ESkillEffectType::CritDebuff:
-        case ESkillEffectType::EnergyDebuff:
-        case ESkillEffectType::SelfDamage:
-        // Phase 2 passive-layer debuffs
-        case ESkillEffectType::IncreaseDamageTaken:
-        case ESkillEffectType::ModifyEnergyCost:
-        case ESkillEffectType::ModifyTurnSpeed:
-        case ESkillEffectType::DrainHP:
-        case ESkillEffectType::DrainEnergy:
-        case ESkillEffectType::ApplyBurnToTarget:
-        case ESkillEffectType::ApplyChillToTarget:
-        case ESkillEffectType::ApplyStunToTarget:
-        // sweep-4: status-bar manipulation debuff (builds target's gauge)
-        case ESkillEffectType::StatusIncrease:
-            return true;
-        // ModifyStatusResist sign-aware (see IsBuff): -magnitude = a resistance debuff.
-        case ESkillEffectType::ModifyStatusResist:
-            return Magnitude < 0.0f;
-        default:
-            return false;
-        }
+        return SkillEffectClassification::IsDebuff(EffectType, Magnitude);
     }
 
     /** Is this a restore effect? */
