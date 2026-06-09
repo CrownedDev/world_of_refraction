@@ -67,10 +67,10 @@ void UCrystalManager::ProcessPostCastWear(
     int32 Wear = 0;
     if (CasterCharComp && CasterCharComp->CharacterData)
     {
-        // Snapshot the wear-input stats in one call. SpellDamage is the FULL composed
-        // scalar (innate + equipment + stone + transient); wear is a POWER term, so a
-        // geared/buffed caster wears crystals faster — more spell power = more strain.
-        // (StatusMultiplier/Resistance here are still the L1 pillar getters — see note.)
+        // Snapshot the wear-input stats in one call. All four substats are the FULL
+        // composed values (innate + equipment + stone + transient) via GetEffectiveStats;
+        // wear is a POWER term, so a geared/buffed caster wears crystals faster — more
+        // spell power / status amp / control = more strain.
         const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
         const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
         const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
@@ -173,10 +173,10 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     int32 Wear = 0;
     if (CasterCharComp && CasterCharComp->CharacterData)
     {
-        // Snapshot the wear-input stats in one call. SpellDamage is the FULL composed
-        // scalar (innate + equipment + stone + transient); wear is a POWER term, so a
-        // geared/buffed caster wears crystals faster — more spell power = more strain.
-        // (StatusMultiplier/Resistance here are still the L1 pillar getters — see note.)
+        // Snapshot the wear-input stats in one call. All four substats are the FULL
+        // composed values (innate + equipment + stone + transient) via GetEffectiveStats;
+        // wear is a POWER term, so a geared/buffed caster wears crystals faster — more
+        // spell power / status amp / control = more strain.
         const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
         const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
         const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
