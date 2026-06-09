@@ -909,8 +909,10 @@ int32 UAIDecisionManager::CalculateThreatLevel(AActor *Actor)
     UCharacterData *Data = CharComp->CharacterData;
     int32 Threat = 0;
 
-    // Raw damage stat points — crystal/equipment-aware.
-    Threat += FMath::RoundToInt(CharComp->GetEvolutionModifiedRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
+    // Raw damage — FULL composed RawDamage (innate + equipment + stone + transient), capped
+    // [0,2], so a geared/buffed combatant self-scores its physical threat accurately. Consistent
+    // with the SpellDamage threat read below. AI heuristic, non-critical.
+    Threat += FMath::RoundToInt(CharComp->GetEffectiveRawDamage() * AIConstants::RAW_DAMAGE_THREAT_MULT);
 
     // StatusMultiplier stat points (Spirit-side — status buildup strength).
     Threat += FMath::RoundToInt(Data->GetTotalStatusMultiplier() * AIConstants::STATUS_MULTIPLIER_THREAT_MULT);
