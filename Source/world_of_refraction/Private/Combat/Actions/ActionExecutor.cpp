@@ -1561,6 +1561,12 @@ void UActionExecutor::FinalizeAsyncAction()
 		}
 	}
 
+	// Deferred infusion HP cost — deducted HERE, on the ALWAYS-RUN finalize path
+	// (outside the bSuccess block above), so it pays on hit AND miss, mirroring the
+	// commit path's unconditional charge. Runs after the infused effect, damage and
+	// animation have resolved; a lethal cost kills the caster now, post-action.
+	ApplyPendingInfusionHPCost(Executor);
+
 	// Mark complete
 	CurrentExecutionContext->bInProgress = false;
 
@@ -4226,8 +4232,13 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 	case EInfusionSourceOption::Raw:
 	case EInfusionSourceOption::Innate:
-		// Raw and Innate both pay HP. Same formula via UInfusionCostHelper.
-		ApplyHPCostInternal(Actor, Level);
+		// Raw/Innate pay HP. Cost computed now (commit-time HP) but DEFERRED to
+		// FinalizeAsyncAction via PendingInfusionHPCost — identical value, applied
+		// after the infused effect resolves so a lethal cost lands post-action.
+		if (CurrentExecutionContext.IsSet())
+		{
+			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+		}
 		break;
 
 	case EInfusionSourceOption::ActiveRing:
@@ -4406,7 +4417,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// Phase 6 — Evolution backlash:
 		//   L1: 5% HP + 15 self-status build (using evolution element)
 		//   L2: 10% HP + 25 self-status build
-		// HP percentages match Innate/Raw, so ApplyHPCostInternal works unchanged.
+		// HP percentages match Innate/Raw; the cost is deferred to finalize too.
 		// Self-status build is logged as intent — actual application pending the
 		// element-to-status mapping system (separate workstream).
 
@@ -4429,8 +4440,13 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		const ESpellElement EvolutionElement = WeaponCrystal->GetAssociatedElement();
 
-		// 2. HP cost — same percentages as Innate/Raw (5% L1, 10% L2).
-		ApplyHPCostInternal(Actor, Level);
+		// 2. HP cost — same percentages as Innate/Raw (5% L1, 10% L2). Computed now
+		//    (commit-time HP) but DEFERRED to FinalizeAsyncAction via
+		//    PendingInfusionHPCost so a lethal backlash lands after the action.
+		if (CurrentExecutionContext.IsSet())
+		{
+			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+		}
 
 		// 3. Self-status build (logged intent, not yet applied — pending element-to-status mapping)
 		const float SelfStatusAmount = (Level == 1)
@@ -4452,14 +4468,17 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	}
 }
 
-void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
+void UActionExecutor::ApplyPendingInfusionHPCost(AActor *Actor)
 {
-	if (!Actor || Level <= 0)
+	if (!Actor || !CurrentExecutionContext.IsSet())
 	{
 		return;
 	}
 
-	const int32 Cost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+	// Cost was computed and stashed at commit (ApplyCommitCosts) from commit-time
+	// HP — apply that exact value, NOT a recompute, so reflected damage taken
+	// mid-action cannot change what the caster pays.
+	const int32 Cost = CurrentExecutionContext->PendingInfusionHPCost;
 	if (Cost <= 0)
 	{
 		return;
@@ -4469,25 +4488,23 @@ void UActionExecutor::ApplyHPCostInternal(AActor *Actor, int32 Level)
 	if (!CharComp)
 	{
 		UE_LOG(LogTemp, Warning,
-			   TEXT("[ActionExecutor] %s: HP cost calculation returned %d but no CharacterDataComponent — cost lost"),
+			   TEXT("[ActionExecutor] %s: deferred infusion HP cost %d but no CharacterDataComponent — cost lost"),
 			   *Actor->GetName(), Cost);
 		return;
 	}
 
 	const int32 Before = CharComp->CurrentHP;
 
-	// Clamp cost to leave at least 1 HP — infusion cannot directly kill the caster.
-	// CalculateHPCost already enforces this, but we re-clamp here as defence in depth.
-	const int32 SafeCost = FMath::Min(Cost, FMath::Max(0, CharComp->CurrentHP - 1));
-
-	// Route through ServerTakeDamage so OnHPChanged broadcasts and the
-	// CharacterPanelWidget HP bar refreshes. Direct CurrentHP mutation bypasses
-	// the delegate and leaves the UI stale.
-	CharComp->ServerTakeDamage(SafeCost);
+	// No clamp — design changed: infusion CAN kill. Full cost routes through
+	// ServerTakeDamage so OnHPChanged broadcasts AND a lethal cost trips
+	// CheckDeath -> OnDied (same death path as any killing blow). Runs at
+	// finalize, so the infused effect has already resolved.
+	CharComp->ServerTakeDamage(Cost);
 
 	UE_LOG(LogTemp, Log,
-		   TEXT("[ActionExecutor] %s paid %d HP for L%d infusion (HP: %d -> %d)"),
-		   *Actor->GetName(), SafeCost, Level, Before, CharComp->CurrentHP);
+		   TEXT("[ActionExecutor] %s paid %d HP for infusion at finalize (HP: %d -> %d)%s"),
+		   *Actor->GetName(), Cost, Before, CharComp->CurrentHP,
+		   CharComp->bIsAlive ? TEXT("") : TEXT(" — LETHAL"));
 }
 FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &Action, AActor *Actor) const
 {

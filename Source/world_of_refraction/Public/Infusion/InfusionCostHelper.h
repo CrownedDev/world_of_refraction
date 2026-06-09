@@ -33,9 +33,10 @@ public:
      * Computed as a percent of the actor's CURRENT HP (not max HP) — matches
      * the original DeductHPCost formula.
      *
-     * Floored at 1 HP — infusion cannot kill the caster directly. Use WouldKill
-     * to check whether the cost is high enough to require the kill confirmation
-     * modal (Phase 5) before committing.
+     * NOT floored — infusion CAN kill the caster (design changed). The full cost
+     * is returned here and deducted at FinalizeAsyncAction (after the infused
+     * effect resolves). Use WouldKill to check whether the cost is lethal and
+     * require the kill confirmation modal (Phase 5) before committing.
      *
      * @param Actor  Actor that would pay the cost. Must have UCharacterDataComponent.
      * @param Level  Infusion level (0/1/2). Level 0 returns 0.
@@ -47,9 +48,9 @@ public:
     /**
      * Would applying the HP cost at this level reduce the actor's HP to 0 or below?
      *
-     * The actual CalculateHPCost is floored at 1 HP, so the actor never literally
-     * dies from the cost. This function reports the *underlying* threat — i.e.
-     * "this cost is large enough that we should warn the player." Used by the
+     * CalculateHPCost is no longer floored, so a cost reported here as lethal WILL
+     * kill the caster (at finalize). This function reports that threat up-front —
+     * i.e. "this cost is large enough that we should warn the player." Used by the
      * HP-kill confirmation modal in Phase 5.
      *
      * @param Actor  Actor that would pay the cost.

@@ -190,9 +190,11 @@ public:
 	 */
 	void ApplyCommitCosts(AActor *Actor, const FAction &Action);
 
-	/** HP cost deduction helper. Reads cost from UInfusionCostHelper, mutates
-	 *  CharacterDataComponent::CurrentHP. Floored at 1 HP by the helper. */
-	void ApplyHPCostInternal(AActor *Actor, int32 Level);
+	/** Deduct the deferred infusion HP cost stashed at commit
+	 *  (FActionExecutionContext::PendingInfusionHPCost). Called from
+	 *  FinalizeAsyncAction, AFTER the infused effect resolves. No clamp — a
+	 *  lethal cost routes through ServerTakeDamage -> CheckDeath -> OnDied. */
+	void ApplyPendingInfusionHPCost(AActor *Actor);
 
 	/** Compute the full per-action stat modifier accumulator for an action.
 	 *  Walks Reality innate, Reality slotted, Reality infused, Evolution slotted,

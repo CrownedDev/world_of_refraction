@@ -970,15 +970,15 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// ==================== DOT EFFECTS ====================
 	case ESkillEffectType::DOT:
 	{
-		// Locked design: DOTs can't kill - clamped to leave 1 HP minimum
+		// DOTs can kill — design changed (1-HP clamp removed). Full tick damage
+		// applies; CurrentHP can reach 0 and route through the normal death path
+		// (ServerTakeDamage -> CheckDeath -> OnDied), identical to a killing blow.
 		int32 DamageToApply = FMath::RoundToInt(Value);
-		int32 MaxAllowed = FMath::Max(0, CharComp->CurrentHP - 1);
-		DamageToApply = FMath::Min(DamageToApply, MaxAllowed);
 
 		if (DamageToApply > 0)
 		{
 			CharComp->ServerTakeDamage(DamageToApply);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (clamped, can't kill)"),
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s took %d DOT damage from %s (can be lethal)"),
 				   *Actor->GetName(), DamageToApply, *Effect.EffectName);
 		}
 
@@ -1957,18 +1957,18 @@ void USkillEffectManager::ApplyTriggeredSkillEffect(AActor *Source, AActor *Targ
 
 	case ESkillEffectType::BurstDamage:
 	{
-		// Locked design: 25% MaxHP target-scaled, clamped can't-kill (leaves >=1 HP)
+		// Design changed: 25% MaxHP target-scaled, can kill (1-HP clamp removed).
+		// Full damage routes through the normal death path (ServerTakeDamage ->
+		// CheckDeath -> OnDied), identical to a killing blow / the DoT change.
 		UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
 		if (TargetComp)
 		{
 			int32 BurstDamage = FMath::RoundToInt(TargetComp->MaxHP * 0.25f);
-			int32 MaxAllowed = FMath::Max(0, TargetComp->CurrentHP - 1);
-			BurstDamage = FMath::Min(BurstDamage, MaxAllowed);
 
 			if (BurstDamage > 0)
 			{
 				TargetComp->ServerTakeDamage(BurstDamage);
-				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, clamped) to %s"),
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Reality Burst dealt %d (25%% MaxHP, can be lethal) to %s"),
 					   BurstDamage, *Target->GetName());
 			}
 		}

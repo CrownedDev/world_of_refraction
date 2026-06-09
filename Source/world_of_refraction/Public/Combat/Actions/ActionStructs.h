@@ -401,6 +401,14 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  Evolution infused). Read by damage/status/animation/movement consumers. */
 	FActionStatModifiers ActionMods;
 
+	/** Infusion HP cost computed at COMMIT (commit-time CurrentHP, unclamped) and
+	 *  deducted at FinalizeAsyncAction — after the infused effect, damage and
+	 *  animation resolve — so a lethal cost kills the caster only once the action
+	 *  has landed. Stashed (not recomputed at finalize) so the deducted value is
+	 *  identical to commit even if the caster loses HP mid-action (e.g. reflected
+	 *  damage). 0 when the action pays no infusion HP. */
+	int32 PendingInfusionHPCost = 0;
+
 	FActionExecutionContext()
 	{
 		ExecutionId = FGuid::NewGuid();

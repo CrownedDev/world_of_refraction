@@ -39,10 +39,10 @@ int32 UInfusionCostHelper::CalculateHPCost(AActor *Actor, int32 Level)
     const float CostPercent = GetHPCostPercentForLevel(Level);
     const float RawCost = CharComp->CurrentHP * CostPercent;
 
-    // Floor at 1 HP remaining — infusion cannot directly kill the caster.
-    const int32 Rounded = FMath::RoundToInt(RawCost);
-    const int32 MaxAllowed = FMath::Max(0, CharComp->CurrentHP - 1);
-    return FMath::Min(Rounded, MaxAllowed);
+    // Design changed: infusion CAN kill the caster (1-HP floor removed). The full
+    // cost is deducted at FinalizeAsyncAction — AFTER the infused effect resolves —
+    // so a lethal cost lands only once the action has fired.
+    return FMath::RoundToInt(RawCost);
 }
 
 bool UInfusionCostHelper::WouldKill(AActor *Actor, int32 Level)
