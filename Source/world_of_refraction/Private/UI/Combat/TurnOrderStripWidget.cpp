@@ -127,7 +127,7 @@ void UTurnOrderStripWidget::RefreshSlots()
 	}
 
 	AActor *CurrentActor = TurnMgr->GetCurrentActor();
-	TArray<AActor *> Upcoming = TurnMgr->PreviewTurnOrder(PreviewCount);
+	TArray<FPreviewTurnEntry> Upcoming = TurnMgr->PreviewTurnOrder(PreviewCount);
 
 	// Slot 0 = current actor
 	if (Slots[0])
@@ -144,7 +144,8 @@ void UTurnOrderStripWidget::RefreshSlots()
 			continue;
 		}
 
-		AActor *PreviewActor = Upcoming.IsValidIndex(i) ? Upcoming[i] : nullptr;
+		// Cluster 1: read .Actor only — visual for bIsBonusTurn lands in Cluster 2.
+		AActor *PreviewActor = Upcoming.IsValidIndex(i) ? Upcoming[i].Actor : nullptr;
 		Slots[SlotIndex]->InitialiseSlot(PreviewActor, CurrentTurnNumber + i + 1, /*bIsActive=*/false);
 	}
 }

@@ -71,6 +71,25 @@ struct FScheduledTurn
 };
 
 /**
+ * One slot of a turn-order preview. Actor is the combatant at that future slot;
+ * bIsBonusTurn marks a slot produced by a scheduled bonus turn (Emerald) rather than a
+ * normal debt-driven turn, so the UI can render it distinctly. False for every slot when
+ * no bonus turns are pending (the common case) — the preview is then identical to the
+ * plain actor order.
+ */
+USTRUCT(BlueprintType)
+struct FPreviewTurnEntry
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
+	AActor *Actor = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
+	bool bIsBonusTurn = false;
+};
+
+/**
  * Delegate signatures
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor *, Actor, int32, TurnNumber);
@@ -119,9 +138,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	AActor *GetCurrentActor() const;
 
-	/** Preview next N turns */
+	/** Preview next N turns. Each entry is the combatant at that slot + a bonus-turn flag
+	 *  (scheduled Emerald bonus turns appear inline at their future slot, flagged). */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
-	TArray<AActor *> PreviewTurnOrder(int32 NumTurns) const;
+	TArray<FPreviewTurnEntry> PreviewTurnOrder(int32 NumTurns) const;
 
 	/** Is combat active */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")

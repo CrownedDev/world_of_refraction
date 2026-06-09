@@ -467,12 +467,18 @@ AActor *UTurnManager::GetCurrentActor() const
 	return CurrentActor;
 }
 
-TArray<AActor *> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
+TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 {
-	TArray<AActor *> Preview;
+	TArray<FPreviewTurnEntry> Preview;
 
-	// Create temp copy of state
+	// Create temp copies of state — the forward sim mutates these, never the live state.
 	TArray<FCombatantTurnDebt> TempCombatants = Combatants;
+	TArray<FScheduledTurn> TempPending = PendingTurns;
+
+	// Actors that received a (sim-only) bonus-turn debt credit but whose bonus turn has not
+	// yet been picked. The NEXT pick of such an actor is its bonus turn — flag that slot, then
+	// consume one credit. Count-keyed so multiple pending bonuses each flag a distinct slot.
+	TMap<AActor *, int32> BonusCreditsAwaitingPick;
 
 	for (int32 i = 0; i < NumTurns; i++)
 	{
@@ -523,14 +529,62 @@ TArray<AActor *> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 			}
 		}
 
-		if (NextCombatant)
-		{
-			Preview.Add(NextCombatant->Actor);
-			NextCombatant->TurnsTaken++;
-		}
-		else
+		if (!NextCombatant)
 		{
 			break;
+		}
+
+		// Record the slot. If this actor has an awaiting bonus credit, THIS pick is the bonus
+		// turn (the first pick following the credit) — flag it and consume one credit.
+		FPreviewTurnEntry Entry;
+		Entry.Actor = NextCombatant->Actor;
+		if (int32 *Awaiting = BonusCreditsAwaitingPick.Find(NextCombatant->Actor))
+		{
+			if (*Awaiting > 0)
+			{
+				Entry.bIsBonusTurn = true;
+				--(*Awaiting);
+			}
+		}
+		Preview.Add(Entry);
+		NextCombatant->TurnsTaken++;
+
+		// Sim-mirror of AdvanceToNextTurn's fire-loop — AFTER the pick, once per boundary.
+		// Decrement each pending entry; at 0, credit +1.0 debt on the matching temp combatant
+		// (sim copy ONLY) with the same IsValid + alive guard the live fire uses, and record
+		// the credit so this actor's NEXT pick is flagged the bonus turn.
+		if (TempPending.Num() > 0)
+		{
+			for (int32 p = TempPending.Num() - 1; p >= 0; --p)
+			{
+				if (--TempPending[p].TurnsRemaining > 0)
+				{
+					continue;
+				}
+
+				AActor *BonusActor = TempPending[p].Actor;
+				TempPending.RemoveAt(p);
+
+				if (!IsValid(BonusActor))
+				{
+					continue;
+				}
+				UCharacterDataComponent *BonusComp = BonusActor->FindComponentByClass<UCharacterDataComponent>();
+				if (!BonusComp || !BonusComp->bIsAlive)
+				{
+					continue;
+				}
+
+				for (FCombatantTurnDebt &TC : TempCombatants)
+				{
+					if (TC.Actor == BonusActor)
+					{
+						TC.TurnsOwed += 1.0f;
+						break;
+					}
+				}
+				BonusCreditsAwaitingPick.FindOrAdd(BonusActor)++;
+			}
 		}
 	}
 
@@ -560,11 +614,13 @@ void UTurnManager::DebugPrintTurnOrder()
 			   NetDebt);
 	}
 
-	TArray<AActor *> Preview = PreviewTurnOrder(10);
+	TArray<FPreviewTurnEntry> Preview = PreviewTurnOrder(10);
 	UE_LOG(LogTemp, Display, TEXT("\nNext 10 turns:"));
 	for (int32 i = 0; i < Preview.Num(); i++)
 	{
-		UE_LOG(LogTemp, Display, TEXT("  %d. %s"), i + 1, *Preview[i]->GetName());
+		UE_LOG(LogTemp, Display, TEXT("  %d. %s%s"), i + 1,
+			   Preview[i].Actor ? *Preview[i].Actor->GetName() : TEXT("<none>"),
+			   Preview[i].bIsBonusTurn ? TEXT(" [BONUS]") : TEXT(""));
 	}
 
 	UE_LOG(LogTemp, Display, TEXT("======================"));
