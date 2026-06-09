@@ -132,7 +132,7 @@ void UTurnOrderStripWidget::RefreshSlots()
 	// Slot 0 = current actor
 	if (Slots[0])
 	{
-		Slots[0]->InitialiseSlot(CurrentActor, CurrentTurnNumber, /*bIsActive=*/true);
+		Slots[0]->InitialiseSlot(CurrentActor, CurrentTurnNumber, /*bIsActive=*/true, /*bIsBonus=*/false);
 	}
 
 	// Slots 1..N = upcoming
@@ -144,8 +144,8 @@ void UTurnOrderStripWidget::RefreshSlots()
 			continue;
 		}
 
-		// Cluster 1: read .Actor only — visual for bIsBonusTurn lands in Cluster 2.
+		const bool bIsBonus = Upcoming.IsValidIndex(i) && Upcoming[i].bIsBonusTurn;
 		AActor *PreviewActor = Upcoming.IsValidIndex(i) ? Upcoming[i].Actor : nullptr;
-		Slots[SlotIndex]->InitialiseSlot(PreviewActor, CurrentTurnNumber + i + 1, /*bIsActive=*/false);
+		Slots[SlotIndex]->InitialiseSlot(PreviewActor, CurrentTurnNumber + i + 1, /*bIsActive=*/false, bIsBonus);
 	}
 }
