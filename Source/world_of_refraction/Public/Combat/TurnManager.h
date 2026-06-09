@@ -52,6 +52,25 @@ struct FCombatantTurnDebt
 };
 
 /**
+ * A bonus turn scheduled to fire after a delay (Emerald). TurnsRemaining counts down once
+ * per global turn boundary (AdvanceToNextTurn); at 0 the actor is granted an extra turn via
+ * the existing RequestExtraTurn debt-credit. Actor is a raw UPROPERTY ref (matching
+ * FCombatantTurnDebt) — GC-tracked; a liveness check guards the fire, so a dead/invalid
+ * actor's entry is silently dropped.
+ */
+USTRUCT()
+struct FScheduledTurn
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	AActor *Actor = nullptr;
+
+	UPROPERTY()
+	int32 TurnsRemaining = 0;
+};
+
+/**
  * Delegate signatures
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor *, Actor, int32, TurnNumber);
@@ -130,6 +149,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void RequestExtraTurn(AActor *Actor);
 
+	/** Schedule a bonus turn for Actor to fire after DelayTurns global turn boundaries
+	 *  (Emerald's delayed grant). DelayTurns must be >= 1 — N==0 (immediate) is handled
+	 *  caller-side via RequestExtraTurn directly; a <1 delay here is ignored + logged. On
+	 *  expiry the scheduler calls RequestExtraTurn(Actor) if the actor is still a living
+	 *  combatant, otherwise drops the entry. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void ScheduleBonusTurn(AActor *Actor, int32 DelayTurns);
+
 	// ========================================
 	// EVENTS
 	// ========================================
@@ -169,6 +196,11 @@ private:
 
 	UPROPERTY()
 	TArray<FCombatantTurnDebt> Combatants;
+
+	/** Pending delayed bonus turns (Emerald). Decremented once per AdvanceToNextTurn;
+	 *  fired via RequestExtraTurn at 0. Cleared on InitializeCombat / EndCombat. */
+	UPROPERTY()
+	TArray<FScheduledTurn> PendingTurns;
 
 	UPROPERTY()
 	AActor *CurrentActor;

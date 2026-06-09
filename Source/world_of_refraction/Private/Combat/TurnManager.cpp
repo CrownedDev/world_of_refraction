@@ -30,6 +30,7 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &Team1, const TArray<
 	}
 
 	Combatants.Empty();
+	PendingTurns.Empty();
 	GlobalTurnCount = 0;
 	CurrentActor = nullptr;
 	PreviousActor = nullptr;
@@ -94,6 +95,7 @@ void UTurnManager::EndCombat()
 
 	bCombatActive = false;
 	Combatants.Empty();
+	PendingTurns.Empty();
 	CurrentActor = nullptr;
 	PreviousActor = nullptr;
 	GlobalTurnCount = 0;
@@ -132,6 +134,37 @@ void UTurnManager::AdvanceToNextTurn()
 		   NextCombatant->TeamIndex);
 
 	OnTurnStarted.Broadcast(CurrentActor, GlobalTurnCount);
+
+	// Tick scheduled bonus turns (Emerald) — exactly once per global turn boundary. Each
+	// entry's countdown drops by 1; at 0 the actor is granted an extra turn via the existing
+	// RequestExtraTurn debt-credit (honored by the NEXT GetNextCombatant). Dead/invalid actors
+	// are dropped silently — an enemy DoT may have killed the target before the bonus fires —
+	// using the same living-combatant check as GetNextCombatant. Reverse iteration so RemoveAt
+	// is safe.
+	for (int32 i = PendingTurns.Num() - 1; i >= 0; --i)
+	{
+		if (--PendingTurns[i].TurnsRemaining > 0)
+		{
+			continue;
+		}
+
+		AActor *BonusActor = PendingTurns[i].Actor;
+		PendingTurns.RemoveAt(i);
+
+		if (IsValid(BonusActor))
+		{
+			UCharacterDataComponent *CharComp = BonusActor->FindComponentByClass<UCharacterDataComponent>();
+			if (CharComp && CharComp->bIsAlive)
+			{
+				RequestExtraTurn(BonusActor);
+			}
+			else
+			{
+				UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled bonus turn for %s dropped — not a living combatant"),
+					   *BonusActor->GetName());
+			}
+		}
+	}
 }
 
 // ========================================
@@ -231,6 +264,32 @@ void UTurnManager::RequestExtraTurn(AActor *Actor)
 	}
 	UE_LOG(LogTemp, Warning, TEXT("[TurnManager] RequestExtraTurn: %s not in current combat"),
 		   *Actor->GetName());
+}
+
+void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns)
+{
+	if (!Actor)
+	{
+		return;
+	}
+
+	// N==0 (immediate) is handled caller-side (RequestExtraTurn directly); the scheduler
+	// only handles a genuine delay (N>=1). A <1 delay here is a misuse — log and drop
+	// rather than silently firing at the wrong boundary.
+	if (DelayTurns < 1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] ScheduleBonusTurn: DelayTurns %d < 1 for %s — ignored (N==0 is caller-side immediate)"),
+			   DelayTurns, *Actor->GetName());
+		return;
+	}
+
+	FScheduledTurn Entry;
+	Entry.Actor = Actor;
+	Entry.TurnsRemaining = DelayTurns;
+	PendingTurns.Add(Entry);
+
+	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled bonus turn for %s in %d turn(s)"),
+		   *Actor->GetName(), DelayTurns);
 }
 
 // ========================================
