@@ -19,6 +19,8 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Damage/EPhysicalDamageType.h"
 #include "ResistanceProfileDebug.generated.h"
 
 class UCharacterData;
@@ -51,4 +53,19 @@ public:
 	/** Log the DESIGN-TIME profile for a data asset to the output log. */
 	UFUNCTION(BlueprintCallable, Category = "Resistances|Debug")
 	static void LogResistanceProfile(UCharacterData *Character);
+
+	/** Combined DEFENDER-side resistance for a live actor vs an incoming
+	 *  (Element, PhysicalType): the unified GetTotalStatusResistance total PLUS the
+	 *  per-source breakdown (all 6 sources), the pre-final-clamp sum, and the
+	 *  post-clamp total — so the clamp's effect and each source's contribution are
+	 *  visible together. Every term is read via the SAME function the getter uses,
+	 *  and cross-checked against GetTotalStatusResistance (MATCH/MISMATCH). Runtime
+	 *  (reflects live gear / effects / BD-transform). */
+	UFUNCTION(BlueprintCallable, Category = "Resistances|Debug")
+	static FString GetCombinedResistanceString(AActor *Actor, ESpellElement Element, EPhysicalDamageType PhysicalType);
+
+	/** Screen-print GetCombinedResistanceString (line-split, reverse-ordered). */
+	UFUNCTION(BlueprintCallable, Category = "Resistances|Debug")
+	static void PrintCombinedResistance(AActor *Actor, ESpellElement Element, EPhysicalDamageType PhysicalType,
+										float Duration = 10.0f, FLinearColor TextColor = FLinearColor::Yellow);
 };

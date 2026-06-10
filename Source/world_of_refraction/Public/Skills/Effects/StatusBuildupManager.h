@@ -147,17 +147,35 @@ public:
 	// RESISTANCE QUERY
 	// ========================================
 
-	/** Net element-matching resistance fraction from active ResistanceBuff −
-	 *  ResistanceDebuff effects on Target. Returns 0.0–0.5+ (caller clamps).
-	 *  Used internally by AddStatusBuildup so per-element resistance buffs
-	 *  (e.g., Fire Resistance from items) reduce Fire buildup only, not
-	 *  Lightning buildup. Effects with mismatched Element contribute zero.
+	/** Net resistance fraction from active ResistanceBuff − ResistanceDebuff
+	 *  effects on Target, matched per effect on EITHER axis: a physical-keyed
+	 *  effect (PhysicalType != None) matches the incoming PhysicalType; otherwise
+	 *  the effect's Element matches the incoming Element. So a Fire-Resistance buff
+	 *  reduces Fire buildup only, and a Slash-Resistance buff reduces Slash buildup
+	 *  only. Mismatched effects contribute zero. Returns (ΣBuff − ΣDebuff)/100
+	 *  (caller clamps). PhysicalType defaults to None (= EPhysicalDamageType(3)) so
+	 *  existing element-only callers are unchanged.
 	 *
 	 *  Implementation queries USkillEffectManager::GetEffectsByType for
-	 *  ResistanceBuff and ResistanceDebuff — element filtering and aggregation
-	 *  happen here. */
+	 *  ResistanceBuff and ResistanceDebuff — axis matching + aggregation happen here. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	float GetTotalElementResistance(AActor *Target, ESpellElement Element) const;
+	float GetTotalElementResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType = EPhysicalDamageType(3)) const;
+
+	/** Unified DEFENDER-side status resistance for an incoming (Element, PhysicalType)
+	 *  hit — the single value AddStatusBuildup applies as Amount *= (1 - this).
+	 *  Composes all six resistance sources, then clamps to [RESISTANCE_MIN,
+	 *  RESISTANCE_MAX] and returns the POST-clamp value:
+	 *    1. base Spirit CalculateResistance()      (itself pre-clamped to [0, MAX])
+	 *    2. equipment BonusResistance substat
+	 *    3. attached ResistanceStone
+	 *    4. GetTotalElementResistance (element + physical effects)
+	 *    5. GetClassInnateResistance (class/innate profile)
+	 *    6. ModifyStatusResist skill-effect
+	 *  Offense-side amplification (StatusMultiplier, BD absorption stack) is NOT
+	 *  here — that is source-side and applied separately. Returns 0.0 when Target
+	 *  or its CharacterData is absent (caller's Amount stays unchanged). */
+	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
+	float GetTotalStatusResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType) const;
 
 	// ========================================
 	// EVENTS

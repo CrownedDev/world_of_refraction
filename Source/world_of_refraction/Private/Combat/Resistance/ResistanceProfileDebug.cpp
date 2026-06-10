@@ -6,6 +6,16 @@
 #include "Character/CharacterDataComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "Combat/CombatConstants.h"
+#include "Skills/Effects/StatusBuildupManager.h"
+#include "Skills/Effects/SkillEffectManager.h"
+#include "Skills/Effects/ESkillEffectType.h"
+#include "Loadout/LoadoutComponent.h"
+#include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 
 namespace
 {
@@ -134,4 +144,107 @@ void UResistanceProfileDebug::PrintResistanceProfile(AActor *Actor, float Durati
 void UResistanceProfileDebug::LogResistanceProfile(UCharacterData *Character)
 {
 	UE_LOG(LogTemp, Display, TEXT("\n%s"), *GetResistanceProfileString(Character));
+}
+
+FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpellElement Element, EPhysicalDamageType PhysicalType)
+{
+	if (!Actor)
+	{
+		return TEXT("ERROR: Actor is NULL");
+	}
+
+	UWorld *World = Actor->GetWorld();
+	UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UStatusBuildupManager *SBM = GI ? GI->GetSubsystem<UStatusBuildupManager>() : nullptr;
+	if (!SBM)
+	{
+		return TEXT("ERROR: StatusBuildupManager unavailable");
+	}
+
+	const UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (!Comp || !Comp->CharacterData)
+	{
+		return FString::Printf(TEXT("ERROR: %s has no CharacterData"), *Actor->GetName());
+	}
+
+	// Per-source terms — each read via the SAME function GetTotalStatusResistance
+	// calls, so the breakdown values cannot drift from the getter.
+	// 1. base Spirit (already pre-clamped to [0, RESISTANCE_MAX] inside CalculateResistance).
+	const float BaseSpirit = Comp->CharacterData->CalculateResistance();
+
+	// 2 + 3. equipment BonusResistance substat + attached ResistanceStone.
+	float EquipBonus = 0.0f;
+	float StonePct = 0.0f;
+	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
+	{
+		const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Actor);
+		EquipBonus = Bonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
+		if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
+		{
+			StonePct = CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
+		}
+	}
+
+	// 4. element + physical effects.  5. class/innate profile.  6. ModifyStatusResist.
+	const float EffectResist = SBM->GetTotalElementResistance(Actor, Element, PhysicalType);
+	const float ClassResist = ClassInnateResistanceTable::GetClassInnateResistance(Actor, Element, PhysicalType);
+	float ModifyResist = 0.0f;
+	if (USkillEffectManager *SEM = GI->GetSubsystem<USkillEffectManager>())
+	{
+		ModifyResist = SEM->GetTotalStatModifier(Actor, ESkillEffectType::ModifyStatusResist) / CombatConstants::STAT_PERCENT_DIVISOR;
+	}
+
+	const float PreClampSum = BaseSpirit + EquipBonus + StonePct + EffectResist + ClassResist + ModifyResist;
+	const float PostClampManual = FMath::Clamp(PreClampSum, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
+
+	// Authoritative total straight from the getter — must equal PostClampManual.
+	const float Authoritative = SBM->GetTotalStatusResistance(Actor, Element, PhysicalType);
+	const bool bMatch = FMath::IsNearlyEqual(PostClampManual, Authoritative, KINDA_SMALL_NUMBER);
+
+	auto Leaf = [](const FString &Full, const TCHAR *Prefix) -> FString
+	{
+		FString L = Full;
+		L.RemoveFromStart(Prefix);
+		return L;
+	};
+
+	FString Out;
+	Out += TEXT("======= COMBINED STATUS RESISTANCE =======\n");
+	Out += FString::Printf(TEXT("Actor: %s   vs Element: %s   Physical: %s\n"),
+						   *Actor->GetName(),
+						   *Leaf(UEnum::GetValueAsString(Element), TEXT("ESpellElement::")),
+						   *Leaf(UEnum::GetValueAsString(PhysicalType), TEXT("EPhysicalDamageType::")));
+	Out += TEXT("--- Per-source (fraction; +resist / -weak) ---\n");
+	Out += FString::Printf(TEXT("  1. base Spirit (CalculateResistance):  %+.3f\n"), BaseSpirit);
+	Out += FString::Printf(TEXT("  2. equipment BonusResistance:          %+.3f\n"), EquipBonus);
+	Out += FString::Printf(TEXT("  3. attached ResistanceStone:           %+.3f\n"), StonePct);
+	Out += FString::Printf(TEXT("  4. element + physical effects:         %+.3f\n"), EffectResist);
+	Out += FString::Printf(TEXT("  5. class/innate profile:               %+.3f\n"), ClassResist);
+	Out += FString::Printf(TEXT("  6. ModifyStatusResist:                 %+.3f\n"), ModifyResist);
+	Out += TEXT("  ----------------------------------------\n");
+	Out += FString::Printf(TEXT("  Sum (pre-final-clamp):                 %+.3f\n"), PreClampSum);
+	Out += FString::Printf(TEXT("  Clamp [%+.2f, %+.2f] ->                 %+.3f\n"),
+						   CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX, PostClampManual);
+	Out += FString::Printf(TEXT("  Getter total (authoritative):          %+.3f   [%s]\n"),
+						   Authoritative, bMatch ? TEXT("MATCH") : TEXT("MISMATCH"));
+	Out += FString::Printf(TEXT("  Applied to buildup: Amount x %.3f\n"), 1.0f - Authoritative);
+	Out += TEXT("==========================================\n");
+	return Out;
+}
+
+void UResistanceProfileDebug::PrintCombinedResistance(AActor *Actor, ESpellElement Element, EPhysicalDamageType PhysicalType,
+													  float Duration, FLinearColor TextColor)
+{
+	const FString CombinedString = GetCombinedResistanceString(Actor, Element, PhysicalType);
+
+	if (GEngine)
+	{
+		// Line-split + reverse so on-screen messages read top-to-bottom.
+		TArray<FString> Lines;
+		CombinedString.ParseIntoArray(Lines, TEXT("\n"));
+		for (int32 i = Lines.Num() - 1; i >= 0; --i)
+		{
+			GEngine->AddOnScreenDebugMessage(-1, Duration, TextColor.ToFColor(true), Lines[i]);
+		}
+	}
 }

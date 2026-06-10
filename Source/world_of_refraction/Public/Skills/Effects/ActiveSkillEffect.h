@@ -7,6 +7,7 @@
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Combat/Damage/EPhysicalDamageType.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "ActiveSkillEffect.generated.h"
 
@@ -121,6 +122,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** Element for elemental DOTs and resistance calculations */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	ESpellElement Element = ESpellElement::Generic;
+
+	/** Physical-damage type this effect keys on (for physical-type status
+	 *  resistance). None = effect keys on Element instead. A resistance effect
+	 *  targets EITHER an element OR a physical type, never both. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	EPhysicalDamageType PhysicalType = EPhysicalDamageType::None;
 
 	/** Status-bar buildup contributed per damage event. Set by the effect's
 	 *  source (e.g. Garnet) so each DOT tick mirrors the buildup of the

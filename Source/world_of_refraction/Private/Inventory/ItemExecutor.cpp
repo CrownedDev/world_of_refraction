@@ -775,7 +775,33 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 
 	FActiveSkillEffect GambleEffect = FActiveSkillEffect::CreateBuff(
 		TEXT("Gamble Result"), ItemIdentity::GetEffectSourceID(Id), ChosenType, Magnitude, Duration);
-	GambleEffect.Element = ESpellElement::Void;
+
+	// Resistance rolls target a RANDOM category across all 12 buildup categories
+	// (9 elements + 3 physical types) — replacing the old hard-coded Void, which
+	// made a gambled resistance buff/debuff only ever apply to Void attacks.
+	// Element-keyed effects leave PhysicalType None; physical-keyed effects set
+	// PhysicalType and leave Element Generic (unused). Non-resistance stat rolls
+	// don't read Element/PhysicalType, so they keep CreateBuff's defaults.
+	if (ChosenType == ESkillEffectType::ResistanceBuff || ChosenType == ESkillEffectType::ResistanceDebuff)
+	{
+		static const ESpellElement kGambleElements[9] = {
+			ESpellElement::Fire, ESpellElement::Water, ESpellElement::Earth,
+			ESpellElement::Wind, ESpellElement::Light, ESpellElement::Darkness,
+			ESpellElement::Lightning, ESpellElement::Void, ESpellElement::Reality}; // 9 — excl. Generic/BrokenDarkness
+		static const EPhysicalDamageType kGamblePhysicals[3] = {
+			EPhysicalDamageType::Slash, EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact};
+
+		const int32 cat = FMath::RandRange(0, 11);
+		if (cat < 9)
+		{
+			GambleEffect.Element = kGambleElements[cat]; // element-keyed; PhysicalType stays None
+		}
+		else
+		{
+			GambleEffect.PhysicalType = kGamblePhysicals[cat - 9]; // physical-keyed
+			GambleEffect.Element = ESpellElement::Generic;         // Element unused for physical effects
+		}
+	}
 
 	SEM->ApplyEffect(Target, GambleEffect, User, ItemIdentity::GetDisplayName(Id), -1);
 	OutResult.BuffsApplied++;

@@ -148,7 +148,7 @@ ESpellElement UStatusBuildupManager::GetPendingElement(AActor *Target) const
 // RESISTANCE QUERY
 // ========================================
 
-float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellElement Element) const
+float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType) const
 {
 	if (!Target)
 	{
@@ -162,15 +162,26 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 	}
 
 	// Pull both effect types from the effect manager. The plumbing (ActiveEffects
-	// map) lives there; the element filter + aggregation belong here, on the
+	// map) lives there; the axis filter + aggregation belong here, on the
 	// buildup-side query.
 	const TArray<FActiveSkillEffect> Buffs = EffectMgr->GetEffectsByType(Target, ESkillEffectType::ResistanceBuff);
 	const TArray<FActiveSkillEffect> Debuffs = EffectMgr->GetEffectsByType(Target, ESkillEffectType::ResistanceDebuff);
 
+	// Match per effect on EITHER axis: a physical-keyed effect (PhysicalType != None)
+	// matches the incoming physical type; otherwise the effect is element-keyed and
+	// matches the incoming element. With no physical-keyed effects in play every
+	// effect has PhysicalType == None, so this reduces to the original element match.
+	const auto MatchesAxis = [Element, PhysicalType](const FActiveSkillEffect &Effect) -> bool
+	{
+		return (Effect.PhysicalType != EPhysicalDamageType::None)
+				   ? (Effect.PhysicalType == PhysicalType)
+				   : (Effect.Element == Element);
+	};
+
 	float BuffSum = 0.0f;
 	for (const FActiveSkillEffect &Effect : Buffs)
 	{
-		if (Effect.Element == Element)
+		if (MatchesAxis(Effect))
 		{
 			BuffSum += Effect.GetStackedValue();
 		}
@@ -179,13 +190,74 @@ float UStatusBuildupManager::GetTotalElementResistance(AActor *Target, ESpellEle
 	float DebuffSum = 0.0f;
 	for (const FActiveSkillEffect &Effect : Debuffs)
 	{
-		if (Effect.Element == Element)
+		if (MatchesAxis(Effect))
 		{
 			DebuffSum += Effect.GetStackedValue();
 		}
 	}
 
 	return (BuffSum - DebuffSum) / CombatConstants::STAT_PERCENT_DIVISOR;
+}
+
+float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType) const
+{
+	if (!Target)
+	{
+		return 0.0f;
+	}
+
+	// Guard moved inside: no CharacterData -> 0 resistance, so the caller's
+	// Amount *= (1 - 0) is unchanged (same as the old block being skipped).
+	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
+	if (!TargetComp || !TargetComp->CharacterData)
+	{
+		return 0.0f;
+	}
+
+	// Base Spirit-Resistance. Already clamped to [0, RESISTANCE_MAX] inside
+	// CalculateResistance — this pre-clamp is INTENTIONAL (a later weakness term
+	// then bites off the capped value rather than being absorbed by over-cap
+	// headroom). Do not remove it.
+	float Resistance = TargetComp->CharacterData->CalculateResistance();
+
+	// Equipment stat bonus — flat additive to resistance using the same
+	// per-point shape as the asset-side CalculateResistance formula.
+	if (ULoadoutComponent *TargetLoadout = Target->FindComponentByClass<ULoadoutComponent>())
+	{
+		const FEquipmentStatBonus TargetBonus = TargetLoadout->GetActiveStatBonus(Target);
+		Resistance += TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
+
+		// Attached ResistanceStone — the DEFENDER's OWN active weapon attachment
+		// (live-resolved, fusion-aware via GetAttachedStonePercent). A self-buff
+		// added before the [MIN, MAX] clamp. Mirrors the DefenseStone resolution.
+		if (const FRuntimeAttachedItem *AttPtr = TargetLoadout->GetActiveWeaponAttachment())
+		{
+			const FRuntimeAttachedItem &Attachment = *AttPtr;
+			Resistance += CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
+		}
+	}
+
+	// Element + physical effect resistance (ResistanceBuff/Debuff, matched on the
+	// incoming axis — see GetTotalElementResistance).
+	Resistance += GetTotalElementResistance(Target, Element, PhysicalType);
+
+	// Class / innate-element innate resistance — element column (incoming Element,
+	// BD-aliased) + physical column (incoming PhysicalType). +0 for all-zero cells.
+	// Gear-side resistance (future arc) slots in additively right here too.
+	Resistance += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType);
+
+	// Skill-effect-driven ModifyStatusResist — flat percent-space additive.
+	if (USkillEffectManager *EffectMgr = GetEffectManager())
+	{
+		const float ResistModify = EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist);
+		Resistance += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
+	}
+
+	// Floor is RESISTANCE_MIN (-1.0), NOT 0: a resistance debuff strips through 0
+	// into negative, where (1 - Resistance) exceeds 1.0 and AMPLIFIES buildup —
+	// capped at -1.0 = 2x at full vulnerability. Upper RESISTANCE_MAX is the
+	// correctness ceiling (resistance > 1.0 would heal the gauge).
+	return FMath::Clamp(Resistance, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
 }
 
 // ========================================
@@ -341,60 +413,13 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		}
 	}
 
-	// Apply target's resistance reduction. Effective = base Spirit-Resistance plus
-	// element-matching ResistanceBuff/Debuff stack (so a Fire Resistance item buff
-	// reduces Fire buildup only). Re-clamped after addition since base CalculateResistance
-	// is already clamped to RESISTANCE_MAX.
-	UCharacterDataComponent *TargetComp = Target->FindComponentByClass<UCharacterDataComponent>();
-	if (TargetComp && TargetComp->CharacterData)
-	{
-		float Resistance = TargetComp->CharacterData->CalculateResistance();
-
-		// Equipment stat bonus — flat additive to resistance using the same
-		// per-point shape as the asset-side CalculateResistance formula.
-		// Layered before the element-buff stack and re-clamped together.
-		if (ULoadoutComponent *TargetLoadout = Target->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus TargetBonus = TargetLoadout->GetActiveStatBonus(Target);
-			Resistance += TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
-
-			// Attached ResistanceStone — the DEFENDER's OWN active weapon attachment
-			// (live-resolved, fusion-aware via GetAttachedStonePercent). A positive
-			// self-buff added into the aggregate BEFORE the [MIN, MAX] clamp, so it
-			// raises resistance toward the cap. Never amplifies — only DEBUFFS push the
-			// aggregate negative. Mirrors the DefenseStone's defender-side resolution.
-			if (const FRuntimeAttachedItem *AttPtr = TargetLoadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				Resistance += CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
-			}
-		}
-
-		Resistance += GetTotalElementResistance(Target, Element);
-
-		// Class / innate-element innate resistance — one additive term combining
-		// the target's element column (incoming Element, BD-aliased) and physical
-		// column (incoming PhysicalType). +0 for all-zero profile cells, so neutral
-		// matchups are byte-identical to the pre-table behaviour. Gear-side
-		// resistance (future arc) slots in additively right here too.
-		Resistance += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType);
-
-		// Skill-effect-driven ModifyStatusResist — flat percent-space additive
-		// to total resistance. Applied before the final clamp so it cannot
-		// push past RESISTANCE_MAX.
-		if (USkillEffectManager *EffectMgr = GetEffectManager())
-		{
-			const float ResistModify = EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist);
-			Resistance += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
-		}
-
-		// Floor is RESISTANCE_MIN (-1.0), NOT 0: a resistance debuff strips through 0
-		// into negative, where (1 - Resistance) exceeds 1.0 and AMPLIFIES buildup —
-		// capped at -1.0 = 2x (double) at full vulnerability. Upper RESISTANCE_MAX is
-		// the correctness ceiling (resistance > 1.0 would heal the gauge); untouched.
-		Resistance = FMath::Clamp(Resistance, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
-		Amount *= (1.0f - Resistance);
-	}
+	// Apply target's DEFENDER-side resistance reduction — the full six-source
+	// composition (base Spirit + equipment + attached stone + element/physical
+	// effects + class/innate profile + ModifyStatusResist), clamped, as one value.
+	// Offense-side amps (StatusMultiplier, BD absorption stack) are applied ABOVE
+	// and deliberately stay out of this. Returns 0 when Target has no CharacterData,
+	// so Amount *= (1 - 0) leaves it unchanged (same as the old guarded block).
+	Amount *= (1.0f - GetTotalStatusResistance(Target, Element, PhysicalType));
 
 	// Update bar state - most recent hit wins on element + physical type
 	State.PendingElement = Element;
