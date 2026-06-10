@@ -12,6 +12,10 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
+#include "Inventory/InventoryComponent.h"
+#include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Rings/RingData.h"
 #include "GameFramework/Actor.h"
 
 // ==================== VALIDATION ====================
@@ -259,6 +263,84 @@ void FCombatLoadout::InitializeForClass(ECharacterClass CharClass)
 
 FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout)
 {
+    // Zero-context form — null inventories mean every instance ref takes the
+    // asset fallback below, so this is byte-identical to the pre-shape-B path.
+    return CreateFromSavedLoadout(SavedLoadout, nullptr, nullptr);
+}
+
+FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout,
+                                                      const UInventoryComponent *OwnedInventory,
+                                                      const UEvolutionInventoryComponent *OwnedEvolutions)
+{
+    // Shape-B resolvers. A slot resolves to its OWNED entry (wholesale copy —
+    // carries roll, pools, PersistentID, and the instance's real crystal/spell
+    // state) only when the ref is valid, the context exists, the guid is found,
+    // AND the found entry's asset matches the slot's asset. Anything else falls
+    // back to the asset build — today's path exactly. Logging: Verbose for
+    // unset refs / no-context (the normal cases), Warning only for a SET ref
+    // that fails to resolve (a real dangling or mismatched reference).
+    const auto ResolveWeaponEntry = [OwnedInventory](UWeaponData *Asset, const FGuid &Ref, const TCHAR *SlotName) -> FWeaponInventoryEntry
+    {
+        if (Ref.IsValid())
+        {
+            if (OwnedInventory)
+            {
+                for (const FWeaponInventoryEntry &Owned : OwnedInventory->Weapons)
+                {
+                    if (Owned.PersistentID == Ref)
+                    {
+                        if (Owned.Weapon != Asset)
+                        {
+                            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s resolves to a DIFFERENT asset ('%s' != slot '%s') — falling back to asset build"),
+                                   SlotName, *Ref.ToString(), Owned.Weapon ? *Owned.Weapon->Name : TEXT("null"), Asset ? *Asset->Name : TEXT("null"));
+                            break;
+                        }
+                        UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s resolved owned weapon instance %s"), SlotName, *Ref.ToString());
+                        return Owned;
+                    }
+                }
+                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s set but NOT FOUND in owned weapons — falling back to asset build"),
+                       SlotName, *Ref.ToString());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
+            }
+        }
+        return FWeaponInventoryEntry::CreateFromWeapon(Asset, true);
+    };
+
+    const auto ResolveRingEntry = [OwnedInventory](URingData *Asset, const FGuid &Ref, const TCHAR *SlotName) -> FRingInventoryEntry
+    {
+        if (Ref.IsValid())
+        {
+            if (OwnedInventory)
+            {
+                for (const FRingInventoryEntry &Owned : OwnedInventory->Rings)
+                {
+                    if (Owned.PersistentID == Ref)
+                    {
+                        if (Owned.Ring != Asset)
+                        {
+                            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s resolves to a DIFFERENT asset ('%s' != slot '%s') — falling back to asset build"),
+                                   SlotName, *Ref.ToString(), Owned.Ring ? *Owned.Ring->Name : TEXT("null"), Asset ? *Asset->Name : TEXT("null"));
+                            break;
+                        }
+                        UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s resolved owned ring instance %s"), SlotName, *Ref.ToString());
+                        return Owned;
+                    }
+                }
+                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] %s instance ref %s set but NOT FOUND in owned rings — falling back to asset build"),
+                       SlotName, *Ref.ToString());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] %s instance ref set but no inventory context — asset build"), SlotName);
+            }
+        }
+        return FRingInventoryEntry::CreateFromRing(Asset, true);
+    };
+
     FCombatLoadout Result;
 
     Result.LoadoutName = SavedLoadout.LoadoutName;
@@ -280,8 +362,8 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     case EPrimarySlotType::Weapon:
         if (SavedLoadout.PrimaryWeapon)
         {
-            Result.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
-                SavedLoadout.PrimaryWeapon, true);
+            Result.PrimaryWeapon.WeaponEntry = ResolveWeaponEntry(
+                SavedLoadout.PrimaryWeapon, SavedLoadout.PrimaryWeaponInstance, TEXT("PrimaryWeapon"));
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = SavedLoadout.PrimaryWeaponAbilities;
             Result.PrimaryWeapon.AssignedAugmentStoneAbilities = SavedLoadout.PrimaryAugmentStoneAbilities;
@@ -310,8 +392,8 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     case EPrimarySlotType::Ring:
         if (SavedLoadout.PrimaryRing)
         {
-            Result.PrimaryRing.RingEntry = FRingInventoryEntry::CreateFromRing(
-                SavedLoadout.PrimaryRing, true); // true = copy default crystal (AttachedItem) from RingData
+            Result.PrimaryRing.RingEntry = ResolveRingEntry(
+                SavedLoadout.PrimaryRing, SavedLoadout.PrimaryRingInstance, TEXT("PrimaryRing"));
             Result.PrimaryRing.InitializeFromRing();
         }
         break;
@@ -320,6 +402,53 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         Result.PrimaryEvolution.Item = SavedLoadout.PrimaryEvolution;
         Result.PrimaryEvolution.CurrentDurability =
             SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->MaxDurability : 0;
+
+        // Shape-B: a valid + found evolution instance ref carries the OWNED
+        // entry's rolled state (Generated stats/resistance + pools) onto the
+        // attachment. Item/durability/spells handling above and below is
+        // identical on both branches — only the rolled state is sourced.
+        if (SavedLoadout.PrimaryEvolutionInstance.IsValid())
+        {
+            const FEvolutionInventoryEntry *Found = nullptr;
+            if (OwnedEvolutions)
+            {
+                for (const FEvolutionInventoryEntry &Owned : OwnedEvolutions->Entries)
+                {
+                    if (Owned.InstanceID == SavedLoadout.PrimaryEvolutionInstance)
+                    {
+                        Found = &Owned;
+                        break;
+                    }
+                }
+            }
+            if (Found && Found->Item != SavedLoadout.PrimaryEvolution)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] PrimaryEvolution instance ref %s resolves to a DIFFERENT asset — ignoring instance roll"),
+                       *SavedLoadout.PrimaryEvolutionInstance.ToString());
+                Found = nullptr;
+            }
+            if (Found)
+            {
+                Result.PrimaryEvolution.GeneratedStatBonus = Found->GeneratedStatBonus;
+                Result.PrimaryEvolution.GeneratedResistance = Found->GeneratedResistance;
+                Result.PrimaryEvolution.StatPool = Found->StatPool;
+                Result.PrimaryEvolution.StatMaxPool = Found->StatMaxPool;
+                Result.PrimaryEvolution.ResistancePool = Found->ResistancePool;
+                Result.PrimaryEvolution.ResistanceMaxPool = Found->ResistanceMaxPool;
+                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] PrimaryEvolution resolved owned instance %s"),
+                       *SavedLoadout.PrimaryEvolutionInstance.ToString());
+            }
+            else if (OwnedEvolutions)
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] PrimaryEvolution instance ref %s set but NOT FOUND in owned evolutions — asset state only"),
+                       *SavedLoadout.PrimaryEvolutionInstance.ToString());
+            }
+            else
+            {
+                UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] PrimaryEvolution instance ref set but no evolution-inventory context — asset state only"));
+            }
+        }
+
         Result.EvolutionSpells = SavedLoadout.EvolutionSpells;
         break;
 
@@ -336,8 +465,8 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
         if (SavedLoadout.SecondarySlotType == ESecondarySlotType::Weapon && SavedLoadout.SecondaryWeapon)
         {
-            Result.SecondaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(
-                SavedLoadout.SecondaryWeapon, true);
+            Result.SecondaryWeapon.WeaponEntry = ResolveWeaponEntry(
+                SavedLoadout.SecondaryWeapon, SavedLoadout.SecondaryWeaponInstance, TEXT("SecondaryWeapon"));
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = SavedLoadout.SecondaryWeaponAbilities;
             Result.SecondaryWeapon.AssignedAugmentStoneAbilities = SavedLoadout.SecondaryAugmentStoneAbilities;
@@ -354,7 +483,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             if (Slot.Ring)
             {
                 FRingLoadoutEntry RingEntry;
-                RingEntry.RingEntry = FRingInventoryEntry::CreateFromRing(Slot.Ring, true);
+                RingEntry.RingEntry = ResolveRingEntry(Slot.Ring, Slot.RingInstance, TEXT("ResonatorRingSlot"));
                 RingEntry.InitializeFromRing();
                 // Per-loadout spell overrides flow through to the inventory
                 // entry's AssignedSpells override list (empty list = use the

@@ -76,8 +76,22 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     // ==================== FACTORY ====================
 
     /** Build a runtime combat loadout from a designer-authored FSavedLoadout
-     *  struct (inline on UInventoryData). Sole factory for runtime loadouts. */
+     *  struct (inline on UInventoryData). Zero-context form: delegates to the
+     *  context overload below with null inventories, so every instance ref takes
+     *  the asset fallback — byte-identical to the pre-shape-B behaviour. */
     static FCombatLoadout CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout);
+
+    /** Context overload (shape B): when a slot's instance ref (FGuid) is valid
+     *  AND found in the owned inventories — PersistentID for weapon/ring,
+     *  InstanceID for evolution — the owned entry is copied wholesale into the
+     *  combat loadout (carrying its roll, pools, and guid) instead of being
+     *  rebuilt from the asset. Invalid or unfound refs fall back to the asset
+     *  build (today's path). SavedLoadout-sourced per-slot config (abilities,
+     *  stances, spell overrides) is applied identically on either branch.
+     *  Null contexts disable resolution entirely (= the zero-context form). */
+    static FCombatLoadout CreateFromSavedLoadout(const FSavedLoadout &SavedLoadout,
+                                                 const class UInventoryComponent *OwnedInventory,
+                                                 const class UEvolutionInventoryComponent *OwnedEvolutions);
 
     /** Refill item slots from the owner's UCrystalInventoryComponent when
      *  bAutoEquipItemsOnCombatStart is true. No-op when the flag is false,

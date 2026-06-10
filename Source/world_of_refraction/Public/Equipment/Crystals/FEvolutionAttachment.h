@@ -12,6 +12,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "FEvolutionAttachment.generated.h"
 
 class UEvolutionItemData;
@@ -28,6 +30,30 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     /** Per-instance durability. Only meaningful when the item's bCanBreak is true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     int32 CurrentDurability = 0;
+
+    // ==================== PER-INSTANCE ROLL STATE ====================
+    // Carried from FEvolutionInventoryEntry when slotted (U3) — the slotted crystal
+    // keeps its instance roll. Gameplay reads (resistance / pillar / infusion) will
+    // read THIS plus the asset's Base in U3. Default-zero = inert until rolled.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    FEquipmentStatBonus GeneratedStatBonus;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    FResistanceBonus GeneratedResistance;
+
+    // Roll pools — stats + resistance, two independent economies. STORAGE ONLY (U0);
+    // default 0 = inert. Seeded/carried in U3.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    int32 StatPool = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    int32 StatMaxPool = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    int32 ResistancePool = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    int32 ResistanceMaxPool = 0;
 
     /** True iff the item exists, can break, and current durability has reached zero. */
     bool IsBroken() const;

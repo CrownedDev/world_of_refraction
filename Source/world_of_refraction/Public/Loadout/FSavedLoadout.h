@@ -37,6 +37,13 @@ struct WORLD_OF_REFRACTION_API FResonatorRingSlot
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
     URingData* Ring = nullptr;
 
+    /** Optional owned-instance reference (shape B): pairs with Ring — the asset
+     *  says WHICH ring type, this (when valid) says WHICH owned copy, matched
+     *  against FRingInventoryEntry::PersistentID at inflation (U1c). Invalid
+     *  (default) = no instance reference, inflate from the asset as today. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Ring")
+    FGuid RingInstance;
+
     /** Spells assigned to this ring's slots in this loadout (overrides the ring's defaults).
      *  Empty array means use the ring's DefaultSpells. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
@@ -110,15 +117,36 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     UWeaponData *PrimaryWeapon = nullptr;
 
+    /** Optional owned-instance reference (shape B): pairs with PrimaryWeapon —
+     *  the asset says WHICH weapon type, this (when valid) says WHICH owned copy,
+     *  matched against FWeaponInventoryEntry::PersistentID at inflation (U1c).
+     *  Invalid (default) = inflate from the asset as today. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "3. Primary",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
+    FGuid PrimaryWeaponInstance;
+
     /** Primary ring (Generic/Caster only, when PrimarySlotType == Ring) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
               meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
     URingData *PrimaryRing = nullptr;
 
+    /** Optional owned-instance reference pairing with PrimaryRing (see
+     *  PrimaryWeaponInstance). Invalid = asset inflation. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "3. Primary",
+              meta = (EditCondition = "RequiredClass != ECharacterClass::Resonator && PrimarySlotType == EPrimarySlotType::Ring", EditConditionHides))
+    FGuid PrimaryRingInstance;
+
     /** Primary evolution crystal (when PrimarySlotType == Evolution) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
     UEvolutionItemData *PrimaryEvolution = nullptr;
+
+    /** Optional owned-instance reference pairing with PrimaryEvolution — matched
+     *  against FEvolutionInventoryEntry::InstanceID (evolution's existing FGuid)
+     *  at inflation (U1c). Invalid = asset inflation. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "3. Primary",
+              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
+    FGuid PrimaryEvolutionInstance;
 
     // ==================== PRIMARY EQUIPMENT CONFIGURATION ====================
 
@@ -157,6 +185,12 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     UWeaponData *SecondaryWeapon = nullptr;
+
+    /** Optional owned-instance reference pairing with SecondaryWeapon (see
+     *  PrimaryWeaponInstance). Invalid = asset inflation. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "4. Secondary",
+              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
+    FGuid SecondaryWeaponInstance;
 
     // ==================== SECONDARY WEAPON CONFIGURATION (Generic only) ====================
 

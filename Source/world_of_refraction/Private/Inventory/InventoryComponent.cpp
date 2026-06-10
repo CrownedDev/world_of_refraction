@@ -85,6 +85,10 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
     }
 
     FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon, bCopyDefaultCrystal);
+    // Acquisition is the ONE mint point for the persistent owned-instance guid —
+    // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
+    // that factory and must not mint).
+    Entry.PersistentID = FGuid::NewGuid();
     Weapons.Add(Entry);
     return true;
 }
@@ -166,6 +170,8 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
     }
 
     FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, bCopyDefaultCrystal);
+    // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
+    Entry.PersistentID = FGuid::NewGuid();
     Rings.Add(Entry);
     return true;
 }
@@ -462,10 +468,15 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     // ---------- SavedLoadouts ----------
     // Inflate each FSavedLoadout into a runtime FCombatLoadout. Stance
     // overrides flow through CreateFromSavedLoadout (commit 1.5).
+    // Shape-B context: this component's owned Weapons/Rings plus the sibling
+    // evolution inventory let valid instance refs resolve to owned entries
+    // (unset/unfound refs fall back to the asset build — pre-shape-B path).
     SavedLoadouts.Empty();
+    const UEvolutionInventoryComponent *OwnedEvolutions =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     for (const FSavedLoadout &SavedLoadout : InventoryAsset->SavedLoadouts)
     {
-        SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout));
+        SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, OwnedEvolutions));
     }
 
     // Active index — clamp to valid range. Empty SavedLoadouts is soft-fail

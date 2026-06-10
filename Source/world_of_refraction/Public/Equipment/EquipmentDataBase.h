@@ -65,8 +65,12 @@ public:
 
     /** Design-time attachment slot. Refined (Type+Tier) or Evolution (asset
      *  pointer), discriminated by Kind. Replaces the legacy SlottedCrystal
-     *  pointer; inventory factories read this when building runtime entries. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item")
+     *  pointer; inventory factories read this when building runtime entries.
+     *  ShowOnlyInnerProperties collapses the duplicate "Attached Item" member
+     *  row under the same-named category (inner EditConditions on Kind still
+     *  resolve within the struct). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attached Item",
+              meta = (ShowOnlyInnerProperties))
     FAttachedItem AttachedItem;
 
     /** Default spells for this equipment — copied to inventory entry when obtained.
@@ -119,14 +123,16 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Bonuses")
     FEquipmentStatBonus BaseStatBonus;
 
-    /** Generator-rolled values. Rerollable. Zero-sum per roll. Read-only
-     *  in editor — only modified by Roll/Reroll buttons. */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Bonuses")
+    /** DESIGNER PREVIEW (simulated sample) — a rollable example so designers can
+     *  eyeball the spread. From U2 on, the REAL roll happens per-instance at
+     *  acquisition (into the inventory entry); this asset layer is NOT the gameplay
+     *  source for rolled instances. Read-only in editor (Roll/Reroll buttons). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview Roll",
+              meta = (DisplayName = "Bonuses"))
     FEquipmentStatBonus GeneratedStatBonus;
 
-    /** Field-wise sum of BaseStatBonus + GeneratedStatBonus. Read by
-     *  inventory factories and any code needing the asset's final
-     *  per-instance roll template. */
+    /** Field-wise sum of BaseStatBonus + GeneratedStatBonus. Preview-side template
+     *  (currently copied by CreateFrom*; reframed to per-instance roll in U2). */
     FEquipmentStatBonus GetCombinedStatBonus() const;
 
     // ==================== RESISTANCE ROLL ====================
@@ -139,14 +145,36 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Resistance")
     FResistanceBonus BaseResistance;
 
-    /** Generator-rolled resistance layer. Read-only in editor — written only by
-     *  the Roll Resistance button (RollResistance). */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistance")
+    /** DESIGNER PREVIEW (simulated sample) — written by the Roll Resistance button
+     *  so designers can eyeball a roll. From U2 on, the REAL roll is per-instance at
+     *  acquisition; this asset layer is NOT the gameplay source for rolled instances. */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview Roll",
+              meta = (DisplayName = "Resistance"))
     FResistanceBonus GeneratedResistance;
 
-    /** Field-wise sum of BaseResistance + GeneratedResistance — the asset's final
-     *  per-instance resistance template (mirrors GetCombinedStatBonus). */
+    /** Field-wise sum of BaseResistance + GeneratedResistance. Preview-side template
+     *  (currently copied by CreateFrom*; reframed to per-instance roll in U2). */
     FResistanceBonus GetCombinedResistance() const;
+
+    // ==================== GENERATION (per-instance roll) ====================
+    // Controls the per-instance roll at acquisition (U2). Inert in U0 — no
+    // acquisition path reads these yet.
+
+    /** When true, a fresh instance of this item ROLLS its StatBonus/ResistanceBonus
+     *  at acquisition (from the tier budget or the overrides below). When false, the
+     *  instance ships authored Base only (fixed/designed item). Default false =
+     *  migration-safe; designers opt in. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation")
+    bool bRandomGenerateOnPickup = false;
+
+    /** Per-asset MaxPool override for the stat roll. 0 = use the tier-derived budget
+     *  (the sentinel; named constant added where consumed in U2). >0 overrides it. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation", meta = (ClampMin = "0"))
+    int32 StatMaxPoolOverride = 0;
+
+    /** Per-asset MaxPool override for the resistance roll. 0 = use the tier budget. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation", meta = (ClampMin = "0"))
+    int32 ResistanceMaxPoolOverride = 0;
 
     // ==================== EFFECTS ====================
     // Equipment-level skill effects (passives + triggered). Applied via
@@ -168,7 +196,11 @@ public:
 
     // ==================== REQUIREMENTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    // ShowOnlyInnerProperties: inline the struct's fields under the category
+    // header — without it the panel shows "Requirements" twice (category +
+    // identically-named member row).
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
+              meta = (ShowOnlyInnerProperties))
     FWorldStatRequirements Requirements;
 
     // ==================== CRYSTAL HELPERS ====================
@@ -248,37 +280,39 @@ public:
     // wraps the writes so they hit the transaction stack (undo / redo /
     // asset-dirty propagation).
 
-    UPROPERTY(EditAnywhere, Category = "Bonuses",
+    UPROPERTY(EditAnywhere, Category = "Preview Roll",
         meta=(ClampMin="0"))
     int32 SubstatPoints = 0;
     // Set to tier budget max to unlock Roll Substat Points
 
-    UPROPERTY(EditAnywhere, Category = "Bonuses",
+    UPROPERTY(EditAnywhere, Category = "Preview Roll",
         meta=(ClampMin="0.0"))
     float PillarPoints = 0.0f;
     // Set to tier budget max to unlock Roll Pillar Points
 
-    UFUNCTION(CallInEditor, Category = "Bonuses")
+    UFUNCTION(CallInEditor, Category = "Preview Roll")
     virtual void RollSubstatPoints() override;
     // Only fires when SubstatPoints >= tier substat budget
     // Distributes points into stats using zero-sum broken-stick
     // Resets SubstatPoints to 0 after roll
     // Logs warning if insufficient points
 
-    UFUNCTION(CallInEditor, Category = "Bonuses")
+    UFUNCTION(CallInEditor, Category = "Preview Roll")
     virtual void RollPillarPoints() override;
     // Only fires when PillarPoints >= tier pillar budget
     // Distributes points into pillar percent fields
     // Resets PillarPoints to 0 after roll
     // Logs warning if insufficient points
 
-    UFUNCTION(CallInEditor, Category = "Bonuses")
+    UFUNCTION(CallInEditor, Category = "Preview Roll")
     virtual void ClearAllBonuses() override;
-    // Resets all stat fields and both point fields to 0 (incl. GeneratedResistance)
+    // Resets the GENERATED (preview) layers + both pending point fields to 0;
+    // authored BaseStatBonus / BaseResistance are preserved — preview-only, so
+    // it lives in Preview Roll with the rolls it clears.
 
     // Roll a fresh GeneratedResistance from the tier budget (own zero-sum pool).
     // No point-gate — resistance has no pending-pool surface; one click = one roll.
-    UFUNCTION(CallInEditor, Category = "Resistance")
+    UFUNCTION(CallInEditor, Category = "Preview Roll")
     virtual void RollResistance() override;
 
     // IEquipmentGenerator: target the generator layer (BaseStatBonus is the

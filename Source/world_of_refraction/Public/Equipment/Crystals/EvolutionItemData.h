@@ -133,20 +133,42 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
         FResistanceBonus BaseResistance;
 
-        /** Generator-rolled resistance layer — written only by the Roll Resistance button. */
-        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
+        /** DESIGNER PREVIEW (simulated sample) — written by the Roll Resistance button
+         *  so designers can eyeball a roll. From U3 on, the REAL roll is per-instance
+         *  (on FEvolutionInventoryEntry/FEvolutionAttachment) at acquisition; this asset
+         *  layer is NOT the gameplay source for rolled instances. */
+        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview Roll",
+                  meta = (DisplayName = "Resistance"))
         FResistanceBonus GeneratedResistance;
 
-        /** Field-wise sum of BaseResistance + GeneratedResistance (mirrors
-         *  UEquipmentDataBase::GetCombinedResistance). The read path consumes this. */
+        /** Field-wise sum of BaseResistance + GeneratedResistance. Preview-side template
+         *  (currently read by GetActiveResistanceBonus; reframed to per-instance in U3). */
         FResistanceBonus GetCombinedResistance() const;
 
         /** Roll a fresh GeneratedResistance from this crystal's Tier budget (own
          *  zero-sum pool). Standalone CallInEditor button — UEvolutionItemData does
          *  NOT implement IEquipmentGenerator (it has no stat roll), so this avoids
-         *  the full interface burden while giving the same one-click roll. */
-        UFUNCTION(CallInEditor, Category = "Stats|Evolution")
+         *  the full interface burden while giving the same one-click roll.
+         *  PREVIEW only (writes the preview layer above), per U0's reframe. */
+        UFUNCTION(CallInEditor, Category = "Preview Roll")
         void RollResistance();
+
+        // ==================== GENERATION (per-instance roll) ====================
+        // Controls the per-instance roll at acquisition (U3). Inert in U0.
+
+        /** When true, a fresh owned instance ROLLS its Generated stat/resistance at
+         *  acquisition (AddInstance). When false, the instance ships authored Base
+         *  only. Default false = migration-safe; designers opt in. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation")
+        bool bRandomGenerateOnPickup = false;
+
+        /** Per-asset MaxPool override for the stat roll. 0 = use the tier budget. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation", meta = (ClampMin = "0"))
+        int32 StatMaxPoolOverride = 0;
+
+        /** Per-asset MaxPool override for the resistance roll. 0 = use the tier budget. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Generation", meta = (ClampMin = "0"))
+        int32 ResistanceMaxPoolOverride = 0;
 
         // ==================== LEGACY PILLAR FIELDS (Deprecated) ====================
         // Kept for one transition release to support PostLoad migration of

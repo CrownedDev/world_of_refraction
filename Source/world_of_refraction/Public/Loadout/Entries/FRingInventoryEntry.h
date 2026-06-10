@@ -55,6 +55,15 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(BlueprintReadOnly, Category = "Identity")
     int32 InstanceID = 0;
 
+    /** Persistent owned-instance identity (shape-B loadout referencing). Minted
+     *  ONCE at acquisition (UInventoryComponent::AddRing) — NOT by
+     *  CreateFromRing, so loadout-inflated ephemeral entries carry an INVALID
+     *  guid (= "not an owned instance") and a U1c copy of an owned entry carries
+     *  the owned guid verbatim. Distinct from the session-local int32 InstanceID
+     *  above (load-bearing for skill-effect ID packing — never repurpose it). */
+    UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
+    FGuid PersistentID;
+
     /** Attached refined crystal or evolution item, discriminated by Kind. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     FRuntimeAttachedItem AttachedItem;
@@ -77,6 +86,24 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
      *  ULoadoutComponent::GetActiveResistanceBonus. */
     UPROPERTY(BlueprintReadWrite, Category = "Engravings")
     FResistanceBonus ResistanceBonus;
+
+    // ==================== ROLL POOLS (per-instance) ====================
+    // Two independent roll economies — stats and resistance. MaxPool = the point
+    // budget this instance's roll distributes (seeded at acquisition in U2). Pool =
+    // reroll charge meter (future economy: rewards fill it, reroll unlocks at
+    // Pool == MaxPool, spends to 0). STORAGE ONLY (U0) — nothing reads these yet;
+    // all default 0 = inert.
+    UPROPERTY(BlueprintReadWrite, Category = "Engravings")
+    int32 StatPool = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Engravings")
+    int32 StatMaxPool = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Engravings")
+    int32 ResistancePool = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = "Engravings")
+    int32 ResistanceMaxPool = 0;
 
     // ==================== FACTORY ====================
 

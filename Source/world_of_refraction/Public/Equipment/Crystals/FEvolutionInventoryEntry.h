@@ -14,6 +14,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "FEvolutionInventoryEntry.generated.h"
 
 class UEvolutionItemData;
@@ -31,6 +33,31 @@ struct WORLD_OF_REFRACTION_API FEvolutionInventoryEntry
     /** Evolution item asset. Null in default-constructed entries. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
     UEvolutionItemData *Item = nullptr;
+
+    // ==================== PER-INSTANCE ROLL STATE ====================
+    // The rolled stat/resistance layers live HERE on the instance (not the asset —
+    // the asset's Generated* is preview-only). Rolled at acquisition in U3; copied
+    // to FEvolutionAttachment on slot. Default-zero = inert until rolled.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    FEquipmentStatBonus GeneratedStatBonus;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    FResistanceBonus GeneratedResistance;
+
+    // Roll pools — stats + resistance, two independent economies. MaxPool = the
+    // budget the roll distributes (seeded at acquisition, U3); Pool = reroll charge
+    // meter (future). STORAGE ONLY (U0); default 0 = inert.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    int32 StatPool = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    int32 StatMaxPool = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    int32 ResistancePool = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    int32 ResistanceMaxPool = 0;
 
     FEvolutionInventoryEntry() = default;
 

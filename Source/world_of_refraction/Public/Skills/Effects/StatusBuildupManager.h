@@ -153,13 +153,14 @@ public:
 	 *  the effect's Element matches the incoming Element. So a Fire-Resistance buff
 	 *  reduces Fire buildup only, and a Slash-Resistance buff reduces Slash buildup
 	 *  only. Mismatched effects contribute zero. Returns (ΣBuff − ΣDebuff)/100
-	 *  (caller clamps). PhysicalType defaults to None (= EPhysicalDamageType(3)) so
-	 *  existing element-only callers are unchanged.
+	 *  (caller clamps). Element-only queries pass PhysicalType = None — no C++
+	 *  default (UHT rejects enum defaults on UFUNCTION params); Blueprint callers
+	 *  must set the pin explicitly (None for element-only).
 	 *
 	 *  Implementation queries USkillEffectManager::GetEffectsByType for
 	 *  ResistanceBuff and ResistanceDebuff — axis matching + aggregation happen here. */
 	UFUNCTION(BlueprintCallable, Category = "Status|Bar")
-	float GetTotalElementResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType = EPhysicalDamageType(3)) const;
+	float GetTotalElementResistance(AActor *Target, ESpellElement Element, EPhysicalDamageType PhysicalType) const;
 
 	/** Unified DEFENDER-side status resistance for an incoming (Element, PhysicalType)
 	 *  hit — the single value AddStatusBuildup applies as Amount *= (1 - this).
