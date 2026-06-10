@@ -19,6 +19,11 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 ## Diagnostics & cleanup
 
 - **CLEANUP** — Strip `[AI Emerald]` + `[BONUSDIAG]` diagnostic logs after final PIE verification of Emerald-AI + the bonus-turn visual.
+- **CLEANUP** — `SpellData.h` + `CastableSkillDataBase.h` embed `FWorldStatRequirements` with the same Requirements▸Requirements double-header collapsed on `UEquipmentDataBase`; same one-line `ShowOnlyInnerProperties` fix available if wanted.
+
+## Loadout — instance bridge
+
+- **WATCH** — Future equip UI must forbid referencing the same owned instance in TWO slots of one loadout (e.g. primary + secondary weapon): both combat entries would share an effect-ID window (int32 `InstanceID`, `ID*100+i`) → apply/remove collisions. Cross-loadout sharing is safe (one active at a time). Enforce in the equip UI when built.
 
 ## Refactor — banked
 

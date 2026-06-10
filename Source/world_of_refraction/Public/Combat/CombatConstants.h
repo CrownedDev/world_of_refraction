@@ -85,6 +85,11 @@ namespace CombatConstants
     constexpr float RESISTANCE_BONUS_MIN = -15.0f;
     constexpr float RESISTANCE_BONUS_MAX = 15.0f;
 
+    // Per-asset MaxPool override sentinel: Stat/ResistanceMaxPoolOverride == this
+    // means "use the tier-derived budget"; any positive value overrides it.
+    // Consumed by the pickup roll (UInventoryComponent::AddWeapon/AddRing).
+    constexpr int32 POOL_OVERRIDE_USE_TIER = 0;
+
     // Tier→budget switch helpers live in EquipmentBonusGenerator.h to keep
     // this header free of EItemTier (ItemTier.h) so it can stay a leaf-level
     // header included everywhere without ramifying game-type dependencies.

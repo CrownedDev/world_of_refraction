@@ -166,10 +166,10 @@ namespace
         return NetApplied;
     }
 
-    /** Internal substat distribution body — shared by Spend (pending → 0)
-     *  and Reroll (wipe + redistribute full tier budget). Returns net
+    /** Internal substat distribution body — shared by the tier and explicit-
+     *  budget rerolls (wipe + redistribute the given points). Returns net
      *  points distributed. */
-    int32 SpendOrRerollSubstatsCore(FEquipmentStatBonus &Bonus, EItemTier Tier, const FPillarWeights &Weights, int32 PointsToDistribute, FRandomStream &RNG)
+    int32 SpendOrRerollSubstatsCore(FEquipmentStatBonus &Bonus, const FPillarWeights &Weights, int32 PointsToDistribute, FRandomStream &RNG)
     {
         if (PointsToDistribute <= 0)
         {
@@ -290,7 +290,11 @@ int32 FEquipmentStatBonus::GetSubstatBudget(EItemTier Tier)
 
 int32 FEquipmentStatBonus::RerollSubstats(EItemTier Tier, const FPillarWeights &Weights)
 {
-    const int32 Budget = GetSubstatBudget(Tier);
+    return RerollSubstats(GetSubstatBudget(Tier), Weights);
+}
+
+int32 FEquipmentStatBonus::RerollSubstats(int32 Budget, const FPillarWeights &Weights)
+{
     if (Budget <= 0)
     {
         return 0;
@@ -299,9 +303,29 @@ int32 FEquipmentStatBonus::RerollSubstats(EItemTier Tier, const FPillarWeights &
     WipeSubstats(*this);
 
     FRandomStream RNG(FMath::Rand());
-    SpendOrRerollSubstatsCore(*this, Tier, Weights, Budget, RNG);
+    SpendOrRerollSubstatsCore(*this, Weights, Budget, RNG);
 
     return Budget;
+}
+
+void FEquipmentStatBonus::Accumulate(const FEquipmentStatBonus &Other)
+{
+    BonusRawDamage             += Other.BonusRawDamage;
+    BonusSpellDamage           += Other.BonusSpellDamage;
+    BonusEfficiency            += Other.BonusEfficiency;
+    BonusStatusMultiplier      += Other.BonusStatusMultiplier;
+    BonusCritChance            += Other.BonusCritChance;
+    BonusSpellSpeed            += Other.BonusSpellSpeed;
+    BonusDefense               += Other.BonusDefense;
+    BonusActionSpeed           += Other.BonusActionSpeed;
+    BonusMaxHP                 += Other.BonusMaxHP;
+    BonusMaxEnergy             += Other.BonusMaxEnergy;
+    BonusResistance            += Other.BonusResistance;
+    BonusTurnSpeed             += Other.BonusTurnSpeed;
+    BonusLuck                  += Other.BonusLuck;
+    BonusMindModifierPercent   += Other.BonusMindModifierPercent;
+    BonusBodyModifierPercent   += Other.BonusBodyModifierPercent;
+    BonusSpiritModifierPercent += Other.BonusSpiritModifierPercent;
 }
 
 float FEquipmentStatBonus::RerollPillars(EItemTier Tier)

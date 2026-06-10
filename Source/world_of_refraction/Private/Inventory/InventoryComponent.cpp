@@ -14,6 +14,45 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Combat/CombatConstants.h"
+#include "Character/FPillarWeights.h"
+
+namespace
+{
+    /** U2 pickup roll — when the asset opts in (bRandomGenerateOnPickup), a fresh
+     *  instance ROLLS its stat/resistance layers at acquisition:
+     *    - MaxPools seed from the per-asset override (when set) or the tier budget
+     *      (POOL_OVERRIDE_USE_TIER sentinel); the roll then consumes the STORED
+     *      MaxPool, so a future add/subtract lever mutates the pool and re-rolls.
+     *    - Pillar percents roll alongside on the tier budget (not separately metered).
+     *    - The result OVERWRITES the CreateFrom* copy as authored Base + fresh roll,
+     *      so the asset's PREVIEW Generated layer cannot leak into a real instance.
+     *    - Stat/ResistancePool (charge meters) stay 0 — start empty per design.
+     *  Toggle-off assets never reach here; their entries keep the CreateFrom* copy. */
+    void ApplyPickupRoll(const UEquipmentDataBase *Asset,
+                         FEquipmentStatBonus &StatBonus, FResistanceBonus &ResistanceBonus,
+                         int32 &StatMaxPool, int32 &ResistanceMaxPool)
+    {
+        StatMaxPool = (Asset->StatMaxPoolOverride != CombatConstants::POOL_OVERRIDE_USE_TIER)
+                          ? Asset->StatMaxPoolOverride
+                          : FEquipmentStatBonus::GetSubstatBudget(Asset->Tier);
+        ResistanceMaxPool = (Asset->ResistanceMaxPoolOverride != CombatConstants::POOL_OVERRIDE_USE_TIER)
+                                ? Asset->ResistanceMaxPoolOverride
+                                : FResistanceBonus::GetResistanceBudget(Asset->Tier);
+
+        FEquipmentStatBonus FreshStats;
+        FreshStats.RerollSubstats(StatMaxPool, FPillarWeights());
+        FreshStats.RerollPillars(Asset->Tier);
+
+        FResistanceBonus FreshResistance;
+        FreshResistance.RerollResistance(ResistanceMaxPool);
+
+        StatBonus = Asset->BaseStatBonus;
+        StatBonus.Accumulate(FreshStats);
+        ResistanceBonus = Asset->BaseResistance;
+        ResistanceBonus.Accumulate(FreshResistance);
+    }
+}
 
 UInventoryComponent::UInventoryComponent()
 {
@@ -89,6 +128,10 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
     // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
     // that factory and must not mint).
     Entry.PersistentID = FGuid::NewGuid();
+    if (Weapon->bRandomGenerateOnPickup)
+    {
+        ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+    }
     Weapons.Add(Entry);
     return true;
 }
@@ -172,6 +215,10 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
     FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, bCopyDefaultCrystal);
     // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
     Entry.PersistentID = FGuid::NewGuid();
+    if (Ring->bRandomGenerateOnPickup)
+    {
+        ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+    }
     Rings.Add(Entry);
     return true;
 }

@@ -67,7 +67,11 @@ int32 FResistanceBonus::GetResistanceBudget(EItemTier Tier)
 
 int32 FResistanceBonus::RerollResistance(EItemTier Tier)
 {
-	const int32 Budget = GetResistanceBudget(Tier);
+	return RerollResistance(GetResistanceBudget(Tier));
+}
+
+int32 FResistanceBonus::RerollResistance(int32 Budget)
+{
 	if (Budget <= 0)
 	{
 		return 0;
@@ -85,4 +89,20 @@ int32 FResistanceBonus::RerollResistance(EItemTier Tier)
 	}
 
 	return Budget;
+}
+
+void FResistanceBonus::Accumulate(const FResistanceBonus &Other)
+{
+	Fire      += Other.Fire;
+	Water     += Other.Water;
+	Earth     += Other.Earth;
+	Wind      += Other.Wind;
+	Light     += Other.Light;
+	Darkness  += Other.Darkness;
+	Lightning += Other.Lightning;
+	Void      += Other.Void;
+	Reality   += Other.Reality;
+	Slash     += Other.Slash;
+	Pierce    += Other.Pierce;
+	Impact    += Other.Impact;
 }

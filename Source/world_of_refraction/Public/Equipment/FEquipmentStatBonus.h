@@ -123,8 +123,19 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
      *    3. Each field's |delta| capped at (pillar_share × SUBSTAT_CAP_FRACTION).
      *       Resulting field value clamped to CRYSTAL_BONUS_MIN/MAX (±21).
      *
-     *  Returns the budget redistributed (0 on no-op). */
+     *  Returns the budget redistributed (0 on no-op). Delegates to the
+     *  explicit-budget overload below with the tier's SUBSTAT_BUDGET. */
     int32 RerollSubstats(EItemTier Tier, const struct FPillarWeights &Weights);
+
+    /** Explicit-budget reroll — same wipe + zero-sum distribution, but the point
+     *  budget is supplied by the caller (the per-instance roll consumes the
+     *  instance's STORED MaxPool, so a future add/subtract lever just mutates
+     *  the pool and re-rolls; per-asset overrides also land here). */
+    int32 RerollSubstats(int32 Budget, const struct FPillarWeights &Weights);
+
+    /** Field-wise add Other onto this (all 16 fields, unclamped). Composes the
+     *  authored Base with a fresh per-instance roll at acquisition. */
+    void Accumulate(const FEquipmentStatBonus &Other);
 
     /** Wipe the 3 pillar fields and redistribute one full tier pillar budget
      *  using zero-sum broken-stick:

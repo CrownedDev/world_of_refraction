@@ -72,6 +72,16 @@ struct WORLD_OF_REFRACTION_API FResistanceBonus
 	/** Wipe the 12 fields and redistribute one full tier resistance budget using
 	 *  the shared zero-sum broken-stick (flat 12-slot pool, no pillar split).
 	 *  Per-category |delta| capped at RESISTANCE_CATEGORY_CAP; final value clamped
-	 *  to RESISTANCE_BONUS_MIN/MAX. Returns the budget redistributed (0 on no-op). */
+	 *  to RESISTANCE_BONUS_MIN/MAX. Returns the budget redistributed (0 on no-op).
+	 *  Delegates to the explicit-budget overload with the tier's budget. */
 	int32 RerollResistance(EItemTier Tier);
+
+	/** Explicit-budget reroll — same wipe + distribution, caller-supplied budget
+	 *  (the per-instance roll consumes the instance's STORED ResistanceMaxPool;
+	 *  per-asset overrides also land here). */
+	int32 RerollResistance(int32 Budget);
+
+	/** Field-wise add Other onto this (12 categories, unclamped). Composes the
+	 *  authored Base with a fresh per-instance roll at acquisition. */
+	void Accumulate(const FResistanceBonus &Other);
 };
