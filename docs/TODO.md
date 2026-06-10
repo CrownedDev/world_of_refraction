@@ -27,4 +27,4 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 
 ## Resistances — gear arc
 
-- **POSSIBLE/DESIGN** — Gear resistance: rings, weapons, and evolutions granting status-buildup resistance (element + physical). Own design pass needed: how much each grants, fixed-vs-rolled, per-element-vs-general, whether evolutions confer element affinity. Stacks additively on the class/innate-element profile (the `AddStatusBuildup` composition already supports more terms). Separate arc from the class-resistance system (which is built).
+- **DONE** — Gear resistance: rings, weapons, and evolutions granting status-buildup resistance (element + physical). Two paths shipped — authored effect (`FSkillEffect` Element/PhysicalType) + rolled `FResistanceBonus` (own zero-sum pool, per-instance for weapon/ring, always-on for evolution). Composes as term #6 in `GetTotalStatusResistance`. See `Architecture/ResistanceSystem.md` → *Gear resistance*. **Open balance knob:** `RESISTANCE_CATEGORY_CAP` (PIE-tune).
