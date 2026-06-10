@@ -61,24 +61,35 @@ Resolves to exactly one row, in strict precedence:
 - **BD target row** (*which row*): a Broken-Darkness character uses the BD row regardless of underlying class/element (arm 1). Runtime path keys this on `IsBrokenDarkness()`.
 - **BD incoming alias** (*which column*): an incoming attack whose element is `BrokenDarkness` reads the **Darkness** column of whatever the target's row is (`GetElementColumn`). These are independent — a BD attacker hitting a BD target reads the BD row's Darkness column (`−5`).
 
-## How it composes (the buildup-side resistance step)
+## How it composes — `GetTotalStatusResistance` (the single source of truth)
 
-Inside `UStatusBuildupManager::AddStatusBuildup`, the target-resistance `Resistance` accumulator (all percent-space fractions) sums, then clamps once to `[RESISTANCE_MIN, RESISTANCE_MAX]` (`[−1, +1]`) and applies `Amount *= (1 − Resistance)`:
+Total defender-side status resistance is computed in **one place**: `UStatusBuildupManager::GetTotalStatusResistance(Target, Element, PhysicalType)`. `AddStatusBuildup` just calls it: `Amount *= (1 − GetTotalStatusResistance(...))`. The class/innate profile is **one of six** additive sources it composes (all percent-space fractions):
 
 ```
-Resistance  = CharacterData->CalculateResistance()          // base Spirit resistance
-            + BonusResistance × RESISTANCE_PER_POINT          // equipment (loadout)
-            + attached ResistanceStone %                      // weapon attachment
-            + GetTotalElementResistance(Target, Element)      // element ResistanceBuff/Debuff effects
-            + ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType)  // ← this system
-            + ModifyStatusResist / 100                        // skill-effect flat modifier
-Resistance  = clamp(Resistance, RESISTANCE_MIN, RESISTANCE_MAX)
-Amount     *= (1 − Resistance)
+Resistance  = CharacterData->CalculateResistance()                       // 1. base Spirit (pre-clamped [0, MAX])
+            + BonusResistance × RESISTANCE_PER_POINT                       // 2. equipment substat (loadout)
+            + attached ResistanceStone %                                   // 3. weapon attachment
+            + GetTotalElementResistance(Target, Element, PhysicalType)     // 4. element + physical effects
+            + ClassInnateResistanceTable::GetClassInnateResistance(...)    // 5. class/innate profile (this system)
+            + ModifyStatusResist / 100                                     // 6. skill-effect flat modifier
+Resistance  = clamp(Resistance, RESISTANCE_MIN, RESISTANCE_MAX)            // single FINAL clamp [−1, +1]
+return Resistance                                                         // POST-clamp value the caller applies
 ```
 
-The class/innate term is **one additive line** ([`StatusBuildupManager.cpp`], right after `GetTotalElementResistance`). It is sign-preserving and shares the single clamp, so a strong weakness can push `Resistance` negative (amplifying buildup, capped at `−1` = ×2) and a strong resist adds toward the `+1` ceiling.
+- **Guard inside:** returns `0.0` when `Target` has no `UCharacterDataComponent`/`CharacterData`, so `Amount *= (1 − 0)` is unchanged (behaviour-preserving for the no-data case).
+- **Base pre-clamp is intentional and preserved.** `CalculateResistance()` clamps the base to `[0, MAX]` *before* the other terms are summed. Net effect: a later weakness term bites off the capped base rather than being absorbed by over-cap headroom — **weaknesses always bite** (a locked design decision, not a cleanup candidate). The aggregate then gets the single final clamp.
+- **Sign-preserving / shared clamp:** a strong weakness pushes `Resistance` negative (amplifying buildup, capped at `−1` = ×2); a strong resist adds toward the `+1` ceiling.
+- **Offense stays out.** Source-side amplification (`GetSourceStatusMultiplierFactor`, transient StatusMultiplier buff/debuff, BD absorption-stack multiplier) is applied to `Amount` *before* this call and is **not** part of resistance. This getter is the defender's resistance only.
+- **Byte-identical for neutral matchups:** where a resolved column / effect contributes `0` (a Resonator hit by any element, a Caster hit by a neutral element with `None` physical, any `Generic`-element / `None`-physical hit), the term is an exact `0.0f` and `Resistance` is unchanged.
 
-**Byte-identical for neutral matchups:** where the resolved column is `0` (e.g. a Resonator hit by any element, a Caster hit by a neutral element with `None` physical, any `Generic`-element / `None`-physical hit), the term is an exact `0.0f` and `Resistance` is unchanged — no behaviour change vs. before this system.
+### Effect-based resistance keys on EITHER axis (element OR physical)
+
+Source #4, `GetTotalElementResistance(Target, Element, PhysicalType)`, queries the active `ResistanceBuff` / `ResistanceDebuff` effects and returns `(ΣBuff − ΣDebuff)/100`. Each effect matches on **one** axis, decided by `FActiveSkillEffect::PhysicalType`:
+
+- `PhysicalType != None` → **physical-keyed**: matches the incoming `PhysicalType` (a Slash-resistance buff reduces Slash buildup only).
+- `PhysicalType == None` → **element-keyed**: matches the incoming `Element` (a Fire-resistance buff reduces Fire buildup only).
+
+This is what lets resistance *effects* (items, spells) target a physical type, not just an element — previously the effect path was element-only and the class table was the sole physical-resistance source. The `PhysicalType` field defaults to `None`, so every pre-existing effect stays element-keyed (byte-identical until a physical-keyed effect is created). `FActiveSkillEffect` is a runtime-only struct (not in `.uasset`/SaveGame), so appending the field is serialization-safe.
 
 ## Inspection & display
 
@@ -90,6 +101,8 @@ On-demand inspection of a character's full resolved 12-value profile without ent
 - `GetActorResistanceProfileString(AActor*)` / `PrintResistanceProfile(AActor*, ...)` — **runtime** view (BD signal = component `IsBrokenDarkness()`), i.e. the row the buildup path actually uses (shows a transformed-BD character's real row mid-transform).
 
 Each print labels the selection arm that fired (BD/Generic/Resonator/Caster-element) and all 12 values; the arm precedence mirrors `ResolveRow` exactly.
+
+**Combined-resistance breakdown** (`GetCombinedResistanceString` / `PrintCombinedResistance`, runtime): for a live actor + incoming `(Element, PhysicalType)`, prints the unified `GetTotalStatusResistance` total **plus the per-source breakdown** — all six sources labelled `1–6` with their fractions, the **pre-final-clamp sum**, the **post-clamp total**, and the clamp bounds, so the clamp's effect and each source's contribution are visible together (the "are they all noticed?" check). Every term is read via the *same* function the getter uses, and the manually-summed-then-clamped value is cross-checked against `GetTotalStatusResistance` with a `MATCH`/`MISMATCH` flag — so the breakdown cannot silently drift from the getter.
 
 ### `FResistanceProfileDisplay` on `UCharacterData` (read-only Details panel)
 
@@ -103,14 +116,25 @@ A transient, read-only mirror of the resolved row for the editor:
 
 ## Integration Points
 
-- **`UStatusBuildupManager::AddStatusBuildup`** — the sole runtime consumer; one additive term in the target-resistance step. See `StatusBuildupSystem.md`.
+- **`UStatusBuildupManager::GetTotalStatusResistance`** — the single composition point for all six defender sources; called by `AddStatusBuildup`. The class/innate term (source #5) is one line here. See `StatusBuildupSystem.md`.
+- **`UStatusBuildupManager::GetTotalElementResistance`** — source #4; the element-OR-physical effect query (`ResistanceBuff`/`ResistanceDebuff`).
 - **`UCharacterDataComponent`** — `IsBrokenDarkness()` (runtime BD signal), `CharacterData` (class + `GetElement()`), via `FindComponentByClass`.
 - **`UCharacterData`** — hosts the display struct, the lifecycle hooks, and the `BlueprintPure` getters; `ResolveRow` reads `CharacterClass` + `GetElement()`.
 - **Enums** — `ECharacterClass`, `ESpellElement` (incl. `BrokenDarkness` alias + `Generic` → 0), `EPhysicalDamageType` (`None` → 0).
 
+### Effect-source application paths (who creates resistance effects)
+
+Resistance *effects* (source #4) are created element- or physical-tagged by item/spell paths:
+
+- **Quartz item** — applies an element-tagged `ResistanceBuff` for the bar's pending element (F–A) or element immunity (S).
+- **Resistance Stone consumable** — applies general `ModifyStatusResist` (source #6, element-agnostic, sign-encoded ally/enemy), **not** an element-tagged effect.
+- **Amethyst gamble** (`ItemExecutor.cpp`) — a gambled `ResistanceBuff`/`ResistanceDebuff` now picks a **random category across all 12** (9 elements: Fire/Water/Earth/Wind/Light/Darkness/Lightning/Void/Reality — excluding `Generic`/`BrokenDarkness` — and 3 physical: Slash/Pierce/Impact), gated to resistance rolls only. Element-keyed rolls set `Element`; physical-keyed rolls set `PhysicalType` (and leave `Element = Generic`). Previously hard-coded to `Void`, which meant a gambled resistance effect only ever applied to Void attacks. The Amethyst's separate Void *status-buildup* (its flavor) is unchanged.
+
 ## Known Limitations / TODOs
 
 - **Gear resistance not built.** Rings / weapons / evolutions granting resistance is a separate design arc; the additive composition already supports more terms (banked in `TODO.md`).
+- ⚠️ **Gear-arc prerequisite — authored `FSkillEffect` has no element/physical field.** Only the *runtime* `FActiveSkillEffect` carries `Element` and (now) `PhysicalType`; the *authored* `FSkillEffect` (the type weapons/rings/evolutions embed for their effects) has **neither**. So `CreateFromSkillEffect` produces `Element = Generic` effects today. Authored gear effects that grant element- **or** physical-type resistance would first need `Element` + `PhysicalType` mirrored onto `FSkillEffect` (and carried through `CreateFromSkillEffect`). Item paths (Quartz/Amethyst) don't hit this — they build `FActiveSkillEffect` directly and set the tag — but the gear arc does. Capture this before building gear resistance so it isn't rediscovered.
+- **Physical-type resistance has no per-type effect outside this work.** Before the `FActiveSkillEffect::PhysicalType` addition, the class table was the only physical-resistance source; `ModifyStatusResist` is general (affects physical too) but cannot target a specific physical type.
 - **Design-time display can't see runtime transforms.** The `UCharacterData` panel shows the innate row only (asset has no runtime BD state); the runtime debug view covers the transformed case. This divergence is surfaced via tooltips, not hidden.
 - **Asset-side BD = `InnateElement == BrokenDarkness`.** Only character-created BD is design-time-visible; runtime-transformed BD is reflected solely through `IsBrokenDarkness()` on the component path.
 
@@ -119,3 +143,4 @@ A transient, read-only mirror of the resolved row for the editor:
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-06-10 | Initial documentation — table, selection order, two BD rules, two-axis composition, buildup integration, debug library, transient editor display. | feature/class-innate-resistance |
+| 2026-06-10 | Effect-based physical-type resistance (`FActiveSkillEffect::PhysicalType`; `GetTotalElementResistance` matches either axis). Unified `GetTotalStatusResistance` getter (6-source composition, pre-clamp preserved, post-clamp return; `AddStatusBuildup` calls it). Combined-resistance debug breakdown (per-source + pre/post-clamp + MATCH guard). Amethyst gamble: random 12-category tag (resistance rolls). Gear-arc prerequisite noted (`FSkillEffect` lacks element/physical fields). | feature/class-innate-resistance |
