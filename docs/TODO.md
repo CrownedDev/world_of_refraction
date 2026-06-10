@@ -24,6 +24,9 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 ## Loadout — instance bridge
 
 - **WATCH** — Future equip UI must forbid referencing the same owned instance in TWO slots of one loadout (e.g. primary + secondary weapon): both combat entries would share an effect-ID window (int32 `InstanceID`, `ID*100+i`) → apply/remove collisions. Cross-loadout sharing is safe (one active at a time). Enforce in the equip UI when built.
+- **BLOCKED** — Player equip UI: the runtime flow that binds a loadout slot to an owned instance (sets the `FSavedLoadout` instance-ref FGuids). The U1 bridge is built and inert until this exists — it's what makes per-instance rolls carry into combat. See `Architecture/PerInstanceRollSystem.md`.
+- **BLOCKED** — Reroll economy: Pool charging (rewards fill `Stat/ResistancePool`), the reroll trigger (unlock at Pool==MaxPool, spend to 0, re-roll from the stored MaxPool), and its UI. Storage shipped (U0); economy not built.
+- **BLOCKED** — Cross-session persistence of instance rolls: the owned pool is rebuilt from the asset every spawn (GUIDs re-mint, toggle-ON gear re-rolls). Needs the save system before per-instance rolls (and instance refs) survive a session. SaveGame tags already in place on the persistent fields.
 
 ## Refactor — banked
 
