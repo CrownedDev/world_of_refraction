@@ -95,9 +95,6 @@ public:
 	void Test_SourceTracking();
 
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
-	void Test_WeaponBonuses();
-
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")
 	void Test_PhysicalDamageEffects();
 
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Skill Effect Tests|Individual")

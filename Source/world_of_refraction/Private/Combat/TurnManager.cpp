@@ -142,9 +142,6 @@ void UTurnManager::AdvanceToNextTurn()
 	if (bCurrentTurnIsBonus)
 	{
 		NextCombatant->UntakenBonusTurns--;
-		// [BONUSDIAG] temp — remove after diagnosis.
-		UE_LOG(LogTemp, Warning, TEXT("[BONUSDIAG] take-side: %s took a bonus turn, live marker now=%d, bCurrentTurnIsBonus=1"),
-			   *GetNameSafe(NextCombatant->Actor), NextCombatant->UntakenBonusTurns);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
@@ -500,23 +497,6 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 	TArray<FCombatantTurnDebt> TempCombatants = Combatants;
 	TArray<FScheduledTurn> TempPending = PendingTurns;
 
-	// [BONUSDIAG] temp — remove after diagnosis. Logs the bonus-flag INPUT state at the moment
-	// this preview runs: how many pending entries + any combatant already carrying a live marker.
-	{
-		int32 LiveMarkers = 0;
-		for (const FCombatantTurnDebt &C : TempCombatants)
-		{
-			if (C.UntakenBonusTurns > 0)
-			{
-				LiveMarkers++;
-				UE_LOG(LogTemp, Warning, TEXT("[BONUSDIAG] preview-in: %s carries UntakenBonusTurns=%d"),
-					   *GetNameSafe(C.Actor), C.UntakenBonusTurns);
-			}
-		}
-		UE_LOG(LogTemp, Warning, TEXT("[BONUSDIAG] PreviewTurnOrder start: TempPending=%d, liveMarkers=%d"),
-			   TempPending.Num(), LiveMarkers);
-	}
-
 	// Bonus-turn flagging is driven by FCombatantTurnDebt::UntakenBonusTurns (copied into
 	// TempCombatants). It covers the FULL lifecycle: a granted-but-not-taken bonus arrives
 	// already non-zero (copied live, survives PendingTurns consumption), and a still-pending
@@ -582,15 +562,11 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 		// bonus turn: flag it and consume one (mirrors the live take-side decrement).
 		FPreviewTurnEntry Entry;
 		Entry.Actor = NextCombatant->Actor;
-		const int32 MarkerBefore = NextCombatant->UntakenBonusTurns; // [BONUSDIAG] temp
 		if (NextCombatant->UntakenBonusTurns > 0)
 		{
 			Entry.bIsBonusTurn = true;
 			NextCombatant->UntakenBonusTurns--;
 		}
-		// [BONUSDIAG] temp — remove after diagnosis.
-		UE_LOG(LogTemp, Warning, TEXT("[BONUSDIAG] sim pick %d: %s marker=%d flagged=%d"),
-			   i, *GetNameSafe(Entry.Actor), MarkerBefore, Entry.bIsBonusTurn ? 1 : 0);
 		Preview.Add(Entry);
 		NextCombatant->TurnsTaken++;
 
@@ -627,9 +603,6 @@ TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 					{
 						TC.TurnsOwed += 1.0f;
 						TC.UntakenBonusTurns++;
-						// [BONUSDIAG] temp — remove after diagnosis.
-						UE_LOG(LogTemp, Warning, TEXT("[BONUSDIAG] sim fire: %s pending->granted, marker now=%d"),
-							   *GetNameSafe(BonusActor), TC.UntakenBonusTurns);
 						break;
 					}
 				}

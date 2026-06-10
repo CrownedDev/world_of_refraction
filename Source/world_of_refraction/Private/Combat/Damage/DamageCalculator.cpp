@@ -50,7 +50,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 	// Equipment stat bonus — direct read from the attacker's active loadout.
 	// Replaces the prior RawDamageBuff/StatusMultiplierBuff status-effect path
-	// (which depended on ApplyWeaponBonuses, never wired in production).
+	// (never wired in production; that dead chain was deleted in cleanup).
 	// Folded into AttackerMult so each rolled point contributes a small
 	// fractional multiplier rather than flat damage.
 	if (Attacker)

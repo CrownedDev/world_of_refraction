@@ -1431,9 +1431,6 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                     Emerald.ActionType = EActionType::Item;
                     Emerald.ItemData = EmeraldId;
                     Emerald.Targets.Add(BestTarget);
-                    UE_LOG(LogTemp, Log,
-                           TEXT("[AI Emerald] ENEMY-target %s: score %.0f > best %d (lethalTick %.0f, exposure %d)"),
-                           *BestTarget->GetName(), EmeraldEnemyScore, BestScore, LethalPerTick, ExposureTurns);
                     return Emerald;
                 }
             }
@@ -1453,9 +1450,6 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                         Emerald.ActionType = EActionType::Item;
                         Emerald.ItemData = EmeraldId;
                         Emerald.Targets.Add(AIActor);
-                        UE_LOG(LogTemp, Log,
-                               TEXT("[AI Emerald] SELF-target: held %.0f (disc %.2f) vs best %d -> self-score %.0f"),
-                               UnaffordableBest, DelayDiscount, BestScore, EmeraldSelfScore);
                         return Emerald;
                     }
                 }

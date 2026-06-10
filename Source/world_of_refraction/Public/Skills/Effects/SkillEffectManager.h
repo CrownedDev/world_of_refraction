@@ -158,59 +158,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
 	void RemoveEquipmentEffects(AActor *Target, int32 SourceID);
 
-	// ========================================
-	// WEAPON EFFECT APPLICATION
-	// ========================================
-
-	/**
-	 * Apply weapon stat bonuses as permanent effects
-	 * Call when weapon is equipped
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
-	void ApplyWeaponBonuses(
-		AActor *Target,
-		const FString &WeaponName,
-		int32 WeaponID,
-		int32 BonusRawDamage,
-		int32 BonusDefense,
-		int32 BonusSpellDamage,
-		int32 BonusActionSpeed,
-		float BonusCritChance);
-
-	/**
-	 * Remove weapon bonuses when weapon is unequipped
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Weapons")
-	void RemoveWeaponBonuses(AActor *Target, int32 WeaponID);
-
-	// ========================================
-	// RING EFFECT APPLICATION
-	// ========================================
-
-	/**
-	 * Apply ring stat bonuses as permanent effects (mirrors ApplyWeaponBonuses).
-	 * Reads bonus values directly from the supplied StatBonus — pass the
-	 * per-instance FRingInventoryEntry::StatBonus so equipped bonuses reflect
-	 * runtime rolls rather than the asset's BaseStatBonus / GeneratedStatBonus.
-	 * Call when ring is equipped.
-	 *
-	 * @param Target Actor to apply bonuses to
-	 * @param StatBonus Per-instance bonus values — pass Entry.StatBonus
-	 * @param RingName Display name for the bonus effects — pass Entry.Ring->Name
-	 * @param RingInstanceID Stable per-instance identifier — pass
-	 *        FRingInventoryEntry::InstanceID. Must match the value passed
-	 *        to RemoveRingBonuses on unequip.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Rings")
-	void ApplyRingBonuses(AActor *Target, const FEquipmentStatBonus &StatBonus, const FString &RingName, int32 RingInstanceID);
-
-	/**
-	 * Remove ring bonuses when ring is unequipped. RingInstanceID must
-	 * match the value passed to ApplyRingBonuses at equip time.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Rings")
-	void RemoveRingBonuses(AActor *Target, int32 RingInstanceID);
-
 	/**
 	 * Apply physical damage type skill effect (Generic character weapon attacks)
 	 * Slash → Bleed, Pierce → Armor Break, Impact → Stun

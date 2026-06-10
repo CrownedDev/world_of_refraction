@@ -62,7 +62,6 @@ void ASkillEffectManagerTestActor::RunAllTests()
 	Test_PermanentEffects();
 	Test_StatModifierQuery();
 	Test_SourceTracking();
-	Test_WeaponBonuses();
 	Test_PhysicalDamageEffects();
 	Test_SpeedBuffTurnManagerNotification();
 
@@ -680,60 +679,6 @@ void ASkillEffectManagerTestActor::Test_SourceTracking()
 	LogTestResult(TEXT("Source Tracking"), bPassed);
 
 	Manager->RemoveAllEffects(Target);
-}
-
-void ASkillEffectManagerTestActor::Test_WeaponBonuses()
-{
-	UE_LOG(LogTemp, Display, TEXT("[TEST] Weapon Bonuses"));
-
-	USkillEffectManager *Manager = GetSkillEffectManager();
-	if (!Manager)
-		return;
-
-	AActor *TestActor = CreateTestActor(TEXT("WeaponBonusTest"));
-	if (!TestActor)
-		return;
-
-	// Simulate equipping "Iron Sword" with bonuses:
-	// +5 Attack, +2 Speed, +3% Crit Chance
-	Manager->ApplyWeaponBonuses(
-		TestActor,
-		TEXT("Iron Sword"),
-		1001,  // WeaponID
-		5,	   // BonusRawDamage
-		0,	   // BonusDefense
-		0,	   // BonusSpellDamage
-		2,	   // BonusActionSpeed
-		3.0f); // BonusCritChance
-
-	bool bPassed = true;
-
-	// Should have 3 effects (Attack, Speed, CritChance)
-	bPassed &= AssertEqual(3, Manager->GetEffectCount(TestActor), TEXT("Has 3 weapon bonus effects"));
-
-	// Check stat modifiers are queryable
-	float AttackMod = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::RawDamageBuff);
-	float SpeedMod = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::SpeedBuff);
-	float CritMod = Manager->GetTotalStatModifier(TestActor, ESkillEffectType::CritChanceBuff);
-
-	bPassed &= AssertEqualFloat(5.0f, AttackMod, TEXT("Attack bonus is +5"));
-	bPassed &= AssertEqualFloat(2.0f, SpeedMod, TEXT("Speed bonus is +2"));
-	bPassed &= AssertEqualFloat(3.0f, CritMod, TEXT("Crit chance bonus is +3%"));
-
-	// All weapon bonuses should be permanent
-	for (int32 i = 0; i < 5; ++i)
-	{
-		Manager->ProcessEndOfTurnEffects(TestActor);
-	}
-	bPassed &= AssertEqual(3, Manager->GetEffectCount(TestActor), TEXT("Bonuses persist after 5 turns (permanent)"));
-
-	// Remove weapon bonuses (simulate unequipping)
-	Manager->RemoveWeaponBonuses(TestActor, 1001);
-	bPassed &= AssertEqual(0, Manager->GetEffectCount(TestActor), TEXT("No effects after removing weapon bonuses"));
-
-	LogTestResult(TEXT("Weapon Bonuses"), bPassed);
-
-	Manager->RemoveAllEffects(TestActor);
 }
 
 void ASkillEffectManagerTestActor::Test_PhysicalDamageEffects()

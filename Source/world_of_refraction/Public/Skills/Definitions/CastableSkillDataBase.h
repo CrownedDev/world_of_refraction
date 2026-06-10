@@ -73,7 +73,11 @@ public:
 
     // ==================== REQUIREMENTS ====================
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
+    // ShowOnlyInnerProperties: inline the struct's fields under the category
+    // header — without it the panel shows "Requirements" twice (category +
+    // identically-named member row). Inherited by USpellData / UAbilityData.
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements",
+              meta = (ShowOnlyInnerProperties))
     FWorldStatRequirements Requirements;
 
     // ==================== REQUIREMENT QUERIES ====================

@@ -43,24 +43,21 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     URingData *Ring = nullptr;
 
-    /** Stable per-instance identifier. Generated at CreateFromRing time
-     *  via a static atomic counter (see FRingInventoryEntry.cpp). Two
-     *  entries referencing the same URingData asset get distinct IDs.
-     *
-     *  Callers of USkillEffectManager::ApplyRingBonuses must pass this
-     *  field as RingInstanceID — never a fabricated literal, and never a
-     *  hash of the asset name (would collide across duplicate-asset
-     *  entries). RemoveRingBonuses must be paired with the same value
-     *  used at apply time. */
+    /** Stable per-entry session ID. Generated at CreateFromRing time via a
+     *  static atomic counter (see FRingInventoryEntry.cpp); two entries
+     *  referencing the same URingData asset get distinct IDs. Reserved for
+     *  future equip/effect wiring (any ID-keyed effect ranges must use this,
+     *  never a fabricated literal or an asset-name hash — those collide across
+     *  duplicate-asset entries). */
     UPROPERTY(BlueprintReadOnly, Category = "Identity")
     int32 InstanceID = 0;
 
     /** Persistent owned-instance identity (shape-B loadout referencing). Minted
      *  ONCE at acquisition (UInventoryComponent::AddRing) — NOT by
      *  CreateFromRing, so loadout-inflated ephemeral entries carry an INVALID
-     *  guid (= "not an owned instance") and a U1c copy of an owned entry carries
-     *  the owned guid verbatim. Distinct from the session-local int32 InstanceID
-     *  above (load-bearing for skill-effect ID packing — never repurpose it). */
+     *  guid (= "not an owned instance") and a resolved-ref copy of an owned
+     *  entry carries the owned guid verbatim. Distinct from the session-local
+     *  int32 InstanceID above. */
     UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
     FGuid PersistentID;
 

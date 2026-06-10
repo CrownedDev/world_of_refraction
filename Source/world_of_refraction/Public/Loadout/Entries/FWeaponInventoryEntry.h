@@ -39,24 +39,21 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     UWeaponData *Weapon = nullptr;
 
-    /** Stable per-instance identifier. Generated at CreateFromWeapon time
-     *  via a static atomic counter (see FWeaponInventoryEntry.cpp). Two
-     *  entries referencing the same UWeaponData asset get distinct IDs.
-     *
-     *  Callers of USkillEffectManager::ApplyWeaponBonuses must pass this
-     *  field as WeaponID — never a fabricated literal, and never a hash
-     *  of the asset name (would collide across duplicate-asset entries).
-     *  RemoveWeaponBonuses must be paired with the same value used at
-     *  apply time. */
+    /** Stable per-entry session ID. Generated at CreateFromWeapon time via a
+     *  static atomic counter (see FWeaponInventoryEntry.cpp); two entries
+     *  referencing the same UWeaponData asset get distinct IDs. Reserved for
+     *  future equip/effect wiring (any ID-keyed effect ranges must use this,
+     *  never a fabricated literal or an asset-name hash — those collide across
+     *  duplicate-asset entries). */
     UPROPERTY(BlueprintReadOnly, Category = "Identity")
     int32 InstanceID = 0;
 
     /** Persistent owned-instance identity (shape-B loadout referencing). Minted
      *  ONCE at acquisition (UInventoryComponent::AddWeapon) — NOT by
      *  CreateFromWeapon, so loadout-inflated ephemeral entries carry an INVALID
-     *  guid (= "not an owned instance") and a U1c copy of an owned entry carries
-     *  the owned guid verbatim. Distinct from the session-local int32 InstanceID
-     *  above (load-bearing for skill-effect ID packing — never repurpose it). */
+     *  guid (= "not an owned instance") and a resolved-ref copy of an owned
+     *  entry carries the owned guid verbatim. Distinct from the session-local
+     *  int32 InstanceID above. */
     UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
     FGuid PersistentID;
 
