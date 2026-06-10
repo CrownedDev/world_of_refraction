@@ -31,6 +31,7 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
     if (InWeapon)
     {
         Entry.StatBonus = InWeapon->GetCombinedStatBonus();
+        Entry.ResistanceBonus = InWeapon->GetCombinedResistance();
     }
 
     return Entry;

@@ -192,12 +192,21 @@ void UEquipmentDataBase::RollPillarPoints()
 
 void UEquipmentDataBase::ClearAllBonuses()
 {
-    // Clears the generator layer only — BaseStatBonus (designer baseline)
-    // is intentionally preserved.
+    // Clears the generator layer only — BaseStatBonus / BaseResistance (designer
+    // baselines) are intentionally preserved.
     Modify();
     GeneratedStatBonus = FEquipmentStatBonus();
+    GeneratedResistance = FResistanceBonus();
     SubstatPoints = 0;
     PillarPoints = 0.0f;
+}
+
+void UEquipmentDataBase::RollResistance()
+{
+    // No point-gate (resistance has no pending-pool surface) — roll a full tier
+    // budget straight into the generator layer. BaseResistance is preserved.
+    Modify();
+    GeneratedResistance.RerollResistance(GetGeneratorTier());
 }
 
 TArray<FSkillEffect> UEquipmentDataBase::GetAlwaysActiveEffects() const
@@ -245,6 +254,24 @@ FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
     Combined.BonusMindModifierPercent   = BaseStatBonus.BonusMindModifierPercent   + GeneratedStatBonus.BonusMindModifierPercent;
     Combined.BonusBodyModifierPercent   = BaseStatBonus.BonusBodyModifierPercent   + GeneratedStatBonus.BonusBodyModifierPercent;
     Combined.BonusSpiritModifierPercent = BaseStatBonus.BonusSpiritModifierPercent + GeneratedStatBonus.BonusSpiritModifierPercent;
+    return Combined;
+}
+
+FResistanceBonus UEquipmentDataBase::GetCombinedResistance() const
+{
+    FResistanceBonus Combined;
+    Combined.Fire      = BaseResistance.Fire      + GeneratedResistance.Fire;
+    Combined.Water     = BaseResistance.Water     + GeneratedResistance.Water;
+    Combined.Earth     = BaseResistance.Earth     + GeneratedResistance.Earth;
+    Combined.Wind      = BaseResistance.Wind      + GeneratedResistance.Wind;
+    Combined.Light     = BaseResistance.Light     + GeneratedResistance.Light;
+    Combined.Darkness  = BaseResistance.Darkness  + GeneratedResistance.Darkness;
+    Combined.Lightning = BaseResistance.Lightning + GeneratedResistance.Lightning;
+    Combined.Void      = BaseResistance.Void      + GeneratedResistance.Void;
+    Combined.Reality   = BaseResistance.Reality   + GeneratedResistance.Reality;
+    Combined.Slash     = BaseResistance.Slash     + GeneratedResistance.Slash;
+    Combined.Pierce    = BaseResistance.Pierce    + GeneratedResistance.Pierce;
+    Combined.Impact    = BaseResistance.Impact    + GeneratedResistance.Impact;
     return Combined;
 }
 

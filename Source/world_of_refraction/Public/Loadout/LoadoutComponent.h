@@ -18,6 +18,7 @@
 #include "Loadout/Entries/FItemLoadoutSlot.h"
 #include "Equipment/FEquippedItemSlot.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/EAttachedItemKind.h"
@@ -506,6 +507,15 @@ public:
      *  Actor parameter is for caller clarity (always == GetOwner()). */
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FEquipmentStatBonus GetActiveStatBonus(AActor *Actor) const;
+
+    /** Aggregated per-instance status-buildup resistance across the actor's active
+     *  equipment — same per-class resolution as GetActiveStatBonus, summing the
+     *  ResistanceBonus of each contributing weapon/ring entry. Read at buildup by
+     *  UStatusBuildupManager::GetTotalStatusResistance (source #6). Returns an
+     *  all-zero FResistanceBonus when no equipment carries resistance.
+     *  NOTE: evolution-crystal resistance is added in C-3 (via GetActivePrimaryEvolutionCrystal). */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
+    FResistanceBonus GetActiveResistanceBonus(AActor *Actor) const;
 
     /** Equipment-level skill effects from the actor's currently active equipment.
      *  Per-class resolution:

@@ -10,6 +10,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
@@ -243,8 +244,24 @@ float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElem
 
 	// Class / innate-element innate resistance — element column (incoming Element,
 	// BD-aliased) + physical column (incoming PhysicalType). +0 for all-zero cells.
-	// Gear-side resistance (future arc) slots in additively right here too.
 	Resistance += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType);
+
+	// Gear per-category resistance (source #6) — rolled/authored FResistanceBonus
+	// aggregated across equipped pieces. Read through the SAME class-table column
+	// helpers (GetElementColumn carries the BD->Darkness alias; GetPhysicalColumn
+	// handles None) by viewing the gear bonus as an FResistanceRow, so the BD alias
+	// and the (element + physical)/100 composition cannot drift from the class path.
+	if (ULoadoutComponent *GearLoadout = Target->FindComponentByClass<ULoadoutComponent>())
+	{
+		const FResistanceBonus GearResist = GearLoadout->GetActiveResistanceBonus(Target);
+		const ClassInnateResistanceTable::FResistanceRow GearRow{
+			GearResist.Fire, GearResist.Water, GearResist.Earth, GearResist.Wind,
+			GearResist.Light, GearResist.Darkness, GearResist.Lightning, GearResist.Void,
+			GearResist.Reality, GearResist.Slash, GearResist.Pierce, GearResist.Impact};
+		Resistance += (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
+		               ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
+		              ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
+	}
 
 	// Skill-effect-driven ModifyStatusResist — flat percent-space additive.
 	if (USkillEffectManager *EffectMgr = GetEffectManager())

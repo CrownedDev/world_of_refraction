@@ -40,6 +40,7 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool 
     if (InRing)
     {
         Entry.StatBonus = InRing->GetCombinedStatBonus();
+        Entry.ResistanceBonus = InRing->GetCombinedResistance();
     }
 
     return Entry;

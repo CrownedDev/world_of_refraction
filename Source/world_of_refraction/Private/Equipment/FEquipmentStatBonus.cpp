@@ -8,6 +8,7 @@
 #include "Character/FPillarWeights.h"
 #include "Combat/CombatConstants.h"
 #include "Equipment/EquipmentBonusGenerator.h" // EquipmentBonusGen::GetSubstatBudget / GetPillarBudget
+#include "Equipment/ZeroSumBrokenStick.h"      // shared zero-sum core (also used by FResistanceBonus)
 
 namespace
 {
@@ -150,59 +151,11 @@ namespace
         const int32 SlotCount  = SlotsInPillar(Pillar);
         const int32 PerSlotCap = FMath::Max(1, FMath::FloorToInt(Share * CombatConstants::SUBSTAT_CAP_FRACTION));
 
-        // Random negative offset: 0..Share/2. With weights (1,1,1) on F-tier this
-        // resolves to 0 most of the time (Share=2 → max_neg=1), so low-tier rolls
-        // stay mostly positive while higher tiers see meaningful negative spread.
-        const int32 MaxNeg = Share / 2;
-        const int32 NegPool = (MaxNeg > 0) ? RNG.RandRange(0, MaxNeg) : 0;
-        int32 RemainingPos = Share + NegPool;
-        int32 RemainingNeg = NegPool;
-
+        // Delta computation is the shared zero-sum core (same offset-pool + cap +
+        // RNG draw order as before — byte-identical for a given seed). Only the
+        // field application + CRYSTAL_BONUS clamp below is substat-specific.
         int32 SlotDeltas[MAX_PILLAR_SLOTS] = {0};
-
-        auto PickSlot = [&](int32 SignWanted) -> int32
-        {
-            // 20 random retries, then linear-scan fallback. SignWanted is +1
-            // (want a slot whose delta can still grow) or -1 (whose delta can
-            // still shrink).
-            for (int32 Retry = 0; Retry < 20; ++Retry)
-            {
-                const int32 Cand = RNG.RandRange(0, SlotCount - 1);
-                const bool bFits = (SignWanted > 0)
-                    ? (SlotDeltas[Cand] < PerSlotCap)
-                    : (SlotDeltas[Cand] > -PerSlotCap);
-                if (bFits)
-                {
-                    return Cand;
-                }
-            }
-            for (int32 i = 0; i < SlotCount; ++i)
-            {
-                const bool bFits = (SignWanted > 0)
-                    ? (SlotDeltas[i] < PerSlotCap)
-                    : (SlotDeltas[i] > -PerSlotCap);
-                if (bFits)
-                {
-                    return i;
-                }
-            }
-            return -1;
-        };
-
-        while (RemainingPos > 0)
-        {
-            const int32 Slot = PickSlot(+1);
-            if (Slot < 0) { break; }
-            SlotDeltas[Slot] += 1;
-            --RemainingPos;
-        }
-        while (RemainingNeg > 0)
-        {
-            const int32 Slot = PickSlot(-1);
-            if (Slot < 0) { break; }
-            SlotDeltas[Slot] -= 1;
-            --RemainingNeg;
-        }
+        ZeroSumRoll::Distribute(SlotCount, PerSlotCap, Share, RNG, SlotDeltas);
 
         int32 NetApplied = 0;
         for (int32 i = 0; i < SlotCount; ++i)

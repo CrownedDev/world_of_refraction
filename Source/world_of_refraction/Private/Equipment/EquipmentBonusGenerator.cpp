@@ -38,6 +38,13 @@ FEquipmentStatBonus UEquipmentBonusGenerator::Reroll(const FEquipmentStatBonus &
     return Result;
 }
 
+FResistanceBonus UEquipmentBonusGenerator::GenerateResistance(EItemTier Tier)
+{
+    FResistanceBonus Result;
+    Result.RerollResistance(Tier);
+    return Result;
+}
+
 int32 UEquipmentBonusGenerator::GetSubstatBudgetForTier(EItemTier Tier)
 {
     return EquipmentBonusGen::GetSubstatBudget(Tier);

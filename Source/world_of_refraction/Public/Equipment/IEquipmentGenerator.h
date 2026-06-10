@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Inventory/ItemTier.h"
 #include "Character/FPillarWeights.h"
 #include "IEquipmentGenerator.generated.h"
@@ -36,6 +37,13 @@ public:
 
     // Access the stat bonus being generated
     virtual FEquipmentStatBonus& GetEditableStatBonus() = 0;
+
+    // Roll a full tier resistance budget into GeneratedResistance (own pool —
+    // no pending-point gate; resistance rolls a full budget directly).
+    virtual void RollResistance() = 0;
+
+    // Access the resistance bonus being generated
+    virtual FResistanceBonus& GetEditableResistance() = 0;
 
     // Get the tier for budget calculations
     virtual EItemTier GetGeneratorTier() const = 0;

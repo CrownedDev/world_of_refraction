@@ -14,6 +14,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 
@@ -173,8 +174,11 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 	const float BaseSpirit = Comp->CharacterData->CalculateResistance();
 
 	// 2 + 3. equipment BonusResistance substat + attached ResistanceStone.
+	// 6. gear per-category resistance — read via the SAME column helpers the getter
+	//    uses (incl. the BD->Darkness alias), so the breakdown can't drift.
 	float EquipBonus = 0.0f;
 	float StonePct = 0.0f;
+	float GearResist = 0.0f;
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Actor);
@@ -183,9 +187,18 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 		{
 			StonePct = CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
 		}
+
+		const FResistanceBonus GearBonus = Loadout->GetActiveResistanceBonus(Actor);
+		const ClassInnateResistanceTable::FResistanceRow GearRow{
+			GearBonus.Fire, GearBonus.Water, GearBonus.Earth, GearBonus.Wind,
+			GearBonus.Light, GearBonus.Darkness, GearBonus.Lightning, GearBonus.Void,
+			GearBonus.Reality, GearBonus.Slash, GearBonus.Pierce, GearBonus.Impact};
+		GearResist = (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
+		              ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
+		             ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 
-	// 4. element + physical effects.  5. class/innate profile.  6. ModifyStatusResist.
+	// 4. element + physical effects.  5. class/innate profile.  7. ModifyStatusResist.
 	const float EffectResist = SBM->GetTotalElementResistance(Actor, Element, PhysicalType);
 	const float ClassResist = ClassInnateResistanceTable::GetClassInnateResistance(Actor, Element, PhysicalType);
 	float ModifyResist = 0.0f;
@@ -194,7 +207,7 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 		ModifyResist = SEM->GetTotalStatModifier(Actor, ESkillEffectType::ModifyStatusResist) / CombatConstants::STAT_PERCENT_DIVISOR;
 	}
 
-	const float PreClampSum = BaseSpirit + EquipBonus + StonePct + EffectResist + ClassResist + ModifyResist;
+	const float PreClampSum = BaseSpirit + EquipBonus + StonePct + EffectResist + ClassResist + GearResist + ModifyResist;
 	const float PostClampManual = FMath::Clamp(PreClampSum, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
 
 	// Authoritative total straight from the getter — must equal PostClampManual.
@@ -220,7 +233,8 @@ FString UResistanceProfileDebug::GetCombinedResistanceString(AActor *Actor, ESpe
 	Out += FString::Printf(TEXT("  3. attached ResistanceStone:           %+.3f\n"), StonePct);
 	Out += FString::Printf(TEXT("  4. element + physical effects:         %+.3f\n"), EffectResist);
 	Out += FString::Printf(TEXT("  5. class/innate profile:               %+.3f\n"), ClassResist);
-	Out += FString::Printf(TEXT("  6. ModifyStatusResist:                 %+.3f\n"), ModifyResist);
+	Out += FString::Printf(TEXT("  6. rolled gear resistance:             %+.3f\n"), GearResist);
+	Out += FString::Printf(TEXT("  7. ModifyStatusResist:                 %+.3f\n"), ModifyResist);
 	Out += TEXT("  ----------------------------------------\n");
 	Out += FString::Printf(TEXT("  Sum (pre-final-clamp):                 %+.3f\n"), PreClampSum);
 	Out += FString::Printf(TEXT("  Clamp [%+.2f, %+.2f] ->                 %+.3f\n"),

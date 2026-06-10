@@ -3002,6 +3002,24 @@ namespace
         Out.BonusBodyModifierPercent   += In.BonusBodyModifierPercent;
         Out.BonusSpiritModifierPercent += In.BonusSpiritModifierPercent;
     }
+
+    /** Field-wise accumulator for FResistanceBonus (12 categories). Mirrors
+     *  AccumulateBonus — read-only snapshot for the buildup resistance query. */
+    void AccumulateResistance(FResistanceBonus &Out, const FResistanceBonus &In)
+    {
+        Out.Fire      += In.Fire;
+        Out.Water     += In.Water;
+        Out.Earth     += In.Earth;
+        Out.Wind      += In.Wind;
+        Out.Light     += In.Light;
+        Out.Darkness  += In.Darkness;
+        Out.Lightning += In.Lightning;
+        Out.Void      += In.Void;
+        Out.Reality   += In.Reality;
+        Out.Slash     += In.Slash;
+        Out.Pierce    += In.Pierce;
+        Out.Impact    += In.Impact;
+    }
 }
 
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
@@ -3082,6 +3100,95 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         }
         break;
     }
+    }
+
+    return Combined;
+}
+
+FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) const
+{
+    (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
+
+    FResistanceBonus Combined;
+
+    const FCombatLoadout Loadout = GetActiveLoadout();
+
+    // Mirrors GetActiveStatBonus's per-class slot resolution exactly, summing
+    // each contributing entry's ResistanceBonus instead of StatBonus.
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+    {
+        const bool bHasSecondaryWeapon =
+            Loadout.SecondarySlotType == ESecondarySlotType::Weapon &&
+            Loadout.SecondaryWeapon.IsValid();
+
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (bHasSecondaryWeapon)
+            {
+                if (const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout())
+                {
+                    Combined = Active->WeaponEntry.ResistanceBonus;
+                }
+            }
+            else if (Loadout.PrimaryWeapon.IsValid())
+            {
+                Combined = Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus;
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            if (Loadout.PrimaryRing.IsValid())
+            {
+                AccumulateResistance(Combined, Loadout.PrimaryRing.RingEntry.ResistanceBonus);
+            }
+            if (bHasSecondaryWeapon)
+            {
+                AccumulateResistance(Combined, Loadout.SecondaryWeapon.WeaponEntry.ResistanceBonus);
+            }
+        }
+        break;
+    }
+
+    case ECharacterClass::Resonator:
+    {
+        if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
+        {
+            AccumulateResistance(Combined, ActiveRing->RingEntry.ResistanceBonus);
+        }
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+            Loadout.PrimaryWeapon.IsValid())
+        {
+            AccumulateResistance(Combined, Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus);
+        }
+        break;
+    }
+
+    case ECharacterClass::Caster:
+    default:
+    {
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
+            Loadout.PrimaryWeapon.IsValid())
+        {
+            Combined = Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus;
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
+                 Loadout.PrimaryRing.IsValid())
+        {
+            Combined = Loadout.PrimaryRing.RingEntry.ResistanceBonus;
+        }
+        break;
+    }
+    }
+
+    // Evolution-crystal resistance — a PERMANENT equipped bonus (always-on while
+    // slotted), read directly from the active primary evolution crystal. Note this
+    // deliberately diverges from evolution's StatBonus, which is infusion-scaled and
+    // NOT aggregated here — resistance is a defensive layer, not an infusion effect.
+    if (UEvolutionItemData *Evo = GetActivePrimaryEvolutionCrystal(Actor))
+    {
+        AccumulateResistance(Combined, Evo->GetCombinedResistance());
     }
 
     return Combined;

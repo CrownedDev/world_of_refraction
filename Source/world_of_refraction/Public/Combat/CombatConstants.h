@@ -59,6 +59,32 @@ namespace CombatConstants
     constexpr float SUBSTAT_CAP_FRACTION = 0.40f;
     constexpr float PILLAR_CAP_FRACTION  = 0.40f;
 
+    // ==================== GEAR RESISTANCE ROLL (own pool) ====================
+    // Per-tier net point budget for the gear resistance roll (FResistanceBonus),
+    // distributed zero-sum across the 12 resistance categories (9 elements + 3
+    // physical types). SEPARATE pool from SUBSTAT_BUDGET — rolling resistance does
+    // NOT compete with stat substats. Values are percent points (the class table's
+    // 15/10/5 scale). Conservative first pass — tune in PIE.
+    constexpr int32 RESISTANCE_BUDGET_F = 8;
+    constexpr int32 RESISTANCE_BUDGET_E = 12;
+    constexpr int32 RESISTANCE_BUDGET_D = 16;
+    constexpr int32 RESISTANCE_BUDGET_C = 20;
+    constexpr int32 RESISTANCE_BUDGET_B = 25;
+    constexpr int32 RESISTANCE_BUDGET_A = 30;
+    constexpr int32 RESISTANCE_BUDGET_S = 36;
+
+    // Per-category |delta| cap for a single resistance roll. THE key balance knob:
+    // sized so stacked gear (weapon+ring+evolution = up to 3 pieces, each ≤ this)
+    // plus the class profile (single-category max 15) cannot trivially reach the
+    // +100% status-immunity ceiling — 3×10 + 15 = 45, a wide margin from +100.
+    // Conservative default; tune in PIE.
+    constexpr int32 RESISTANCE_CATEGORY_CAP = 10;
+
+    // Hard per-category field clamp on the stored value (BaseResistance +
+    // GeneratedResistance), mirroring CRYSTAL_BONUS_MIN/MAX's role. Percent.
+    constexpr float RESISTANCE_BONUS_MIN = -15.0f;
+    constexpr float RESISTANCE_BONUS_MAX = 15.0f;
+
     // Tier→budget switch helpers live in EquipmentBonusGenerator.h to keep
     // this header free of EItemTier (ItemTier.h) so it can stay a leaf-level
     // header included everywhere without ramifying game-type dependencies.

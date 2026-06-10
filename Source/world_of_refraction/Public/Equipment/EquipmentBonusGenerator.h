@@ -19,6 +19,7 @@
 #include "Inventory/ItemTier.h"
 #include "Combat/CombatConstants.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Character/FPillarWeights.h"
 #include "EquipmentBonusGenerator.generated.h"
 
@@ -88,6 +89,11 @@ public:
     /** Reroll everything — substat + pillar — preserving lock flags. */
     UFUNCTION(BlueprintCallable, Category = "Equipment|Generator")
     static FEquipmentStatBonus Reroll(const FEquipmentStatBonus &Current, EItemTier Tier);
+
+    /** Roll a fresh FResistanceBonus for the given tier — own zero-sum pool,
+     *  separate from the stat substats. Runtime loot-path mirror of Generate. */
+    UFUNCTION(BlueprintCallable, Category = "Equipment|Generator")
+    static FResistanceBonus GenerateResistance(EItemTier Tier);
 
     /** Tier → substat budget delegate. */
     UFUNCTION(BlueprintPure, Category = "Equipment|Generator")

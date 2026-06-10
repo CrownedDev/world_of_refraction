@@ -16,6 +16,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "FWeaponInventoryEntry.generated.h"
 
 class UWeaponData;
@@ -65,6 +66,13 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
      *  layers. */
     UPROPERTY(BlueprintReadWrite, Category = "Mastery")
     FEquipmentStatBonus StatBonus;
+
+    /** Per-instance status-buildup resistance (per-category, own zero-sum pool).
+     *  Seeded from the asset's GetCombinedResistance() at CreateFromWeapon time —
+     *  same template→instance flow as StatBonus. Read at buildup via
+     *  ULoadoutComponent::GetActiveResistanceBonus. */
+    UPROPERTY(BlueprintReadWrite, Category = "Mastery")
+    FResistanceBonus ResistanceBonus;
 
     // ==================== FACTORY ====================
 

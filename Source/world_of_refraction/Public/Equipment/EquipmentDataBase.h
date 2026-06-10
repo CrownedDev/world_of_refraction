@@ -12,6 +12,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Equipment/FAttachedItem.h"
 #include "Equipment/IEquipmentGenerator.h"
@@ -127,6 +128,25 @@ public:
      *  inventory factories and any code needing the asset's final
      *  per-instance roll template. */
     FEquipmentStatBonus GetCombinedStatBonus() const;
+
+    // ==================== RESISTANCE ROLL ====================
+    // Per-category status-buildup resistance (9 elements + 3 physical), an OWN
+    // zero-sum pool separate from the stat substats above. Same template→instance
+    // model: BaseResistance (authored) + GeneratedResistance (rolled) summed by
+    // GetCombinedResistance(), copied to the inventory entry at CreateFrom* time.
+
+    /** Designer-authored baseline resistance. Permanent per-category +resist/-weak. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Resistance")
+    FResistanceBonus BaseResistance;
+
+    /** Generator-rolled resistance layer. Read-only in editor — written only by
+     *  the Roll Resistance button (RollResistance). */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistance")
+    FResistanceBonus GeneratedResistance;
+
+    /** Field-wise sum of BaseResistance + GeneratedResistance — the asset's final
+     *  per-instance resistance template (mirrors GetCombinedStatBonus). */
+    FResistanceBonus GetCombinedResistance() const;
 
     // ==================== EFFECTS ====================
     // Equipment-level skill effects (passives + triggered). Applied via
@@ -254,11 +274,17 @@ public:
 
     UFUNCTION(CallInEditor, Category = "Bonuses")
     virtual void ClearAllBonuses() override;
-    // Resets all stat fields and both point fields to 0
+    // Resets all stat fields and both point fields to 0 (incl. GeneratedResistance)
+
+    // Roll a fresh GeneratedResistance from the tier budget (own zero-sum pool).
+    // No point-gate — resistance has no pending-pool surface; one click = one roll.
+    UFUNCTION(CallInEditor, Category = "Resistance")
+    virtual void RollResistance() override;
 
     // IEquipmentGenerator: target the generator layer (BaseStatBonus is the
     // designer baseline and stays untouched).
     virtual FEquipmentStatBonus& GetEditableStatBonus() override { return GeneratedStatBonus; }
+    virtual FResistanceBonus& GetEditableResistance() override { return GeneratedResistance; }
     virtual EItemTier GetGeneratorTier() const override { return Tier; }
 
 #if WITH_EDITOR

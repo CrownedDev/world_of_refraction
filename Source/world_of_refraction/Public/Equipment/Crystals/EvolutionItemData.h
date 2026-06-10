@@ -21,6 +21,7 @@
 #include "Equipment/Crystals/EEvolutionType.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 #include "Combat/TargetType.h"
 #include "EvolutionItemData.generated.h"
 
@@ -118,6 +119,34 @@ public:
         // vary per subclass, so the header label stays generic.
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
         FEquipmentStatBonus BaseStatBonus;
+
+        // ==================== RESISTANCE (Evolution only) ====================
+        // Per-category status-buildup resistance granted while this evolution is
+        // slotted. PERMANENT equipped bonus (always-on whenever slotted) — read by
+        // ULoadoutComponent::GetActiveResistanceBonus via GetActivePrimaryEvolutionCrystal,
+        // deliberately distinct from the infusion-scaled BaseStatBonus above
+        // (evolution's offensive stats stay on their own conditional path). Full
+        // rolled trio mirroring UEquipmentDataBase: Base (authored) + Generated
+        // (rolled) summed by GetCombinedResistance().
+
+        /** Designer-authored baseline resistance. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
+        FResistanceBonus BaseResistance;
+
+        /** Generator-rolled resistance layer — written only by the Roll Resistance button. */
+        UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
+        FResistanceBonus GeneratedResistance;
+
+        /** Field-wise sum of BaseResistance + GeneratedResistance (mirrors
+         *  UEquipmentDataBase::GetCombinedResistance). The read path consumes this. */
+        FResistanceBonus GetCombinedResistance() const;
+
+        /** Roll a fresh GeneratedResistance from this crystal's Tier budget (own
+         *  zero-sum pool). Standalone CallInEditor button — UEvolutionItemData does
+         *  NOT implement IEquipmentGenerator (it has no stat roll), so this avoids
+         *  the full interface burden while giving the same one-click roll. */
+        UFUNCTION(CallInEditor, Category = "Stats|Evolution")
+        void RollResistance();
 
         // ==================== LEGACY PILLAR FIELDS (Deprecated) ====================
         // Kept for one transition release to support PostLoad migration of

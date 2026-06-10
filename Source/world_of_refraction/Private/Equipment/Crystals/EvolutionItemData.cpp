@@ -96,6 +96,32 @@ int32 UEvolutionItemData::GetTierValue() const
     return static_cast<int32>(Tier);
 }
 
+FResistanceBonus UEvolutionItemData::GetCombinedResistance() const
+{
+    FResistanceBonus Combined;
+    Combined.Fire      = BaseResistance.Fire      + GeneratedResistance.Fire;
+    Combined.Water     = BaseResistance.Water     + GeneratedResistance.Water;
+    Combined.Earth     = BaseResistance.Earth     + GeneratedResistance.Earth;
+    Combined.Wind      = BaseResistance.Wind      + GeneratedResistance.Wind;
+    Combined.Light     = BaseResistance.Light     + GeneratedResistance.Light;
+    Combined.Darkness  = BaseResistance.Darkness  + GeneratedResistance.Darkness;
+    Combined.Lightning = BaseResistance.Lightning + GeneratedResistance.Lightning;
+    Combined.Void      = BaseResistance.Void      + GeneratedResistance.Void;
+    Combined.Reality   = BaseResistance.Reality   + GeneratedResistance.Reality;
+    Combined.Slash     = BaseResistance.Slash     + GeneratedResistance.Slash;
+    Combined.Pierce    = BaseResistance.Pierce    + GeneratedResistance.Pierce;
+    Combined.Impact    = BaseResistance.Impact    + GeneratedResistance.Impact;
+    return Combined;
+}
+
+void UEvolutionItemData::RollResistance()
+{
+    // Standalone roll (no IEquipmentGenerator) — full tier budget into the
+    // generator layer; BaseResistance preserved. Tier is this crystal's own Tier.
+    Modify();
+    GeneratedResistance.RerollResistance(Tier);
+}
+
 ESpellElement UEvolutionItemData::GetAssociatedElement() const
 {
     return CrystalTypeHelpers::GetElement(CrystalType);

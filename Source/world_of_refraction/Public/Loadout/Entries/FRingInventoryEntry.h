@@ -19,6 +19,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Equipment/FResistanceBonus.h"
 
 #include "FRingInventoryEntry.generated.h"
 
@@ -69,6 +70,13 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
      *  layers. */
     UPROPERTY(BlueprintReadWrite, Category = "Engravings")
     FEquipmentStatBonus StatBonus;
+
+    /** Per-instance status-buildup resistance (per-category, own zero-sum pool).
+     *  Seeded from the asset's GetCombinedResistance() at CreateFromRing time —
+     *  same template→instance flow as StatBonus. Read at buildup via
+     *  ULoadoutComponent::GetActiveResistanceBonus. */
+    UPROPERTY(BlueprintReadWrite, Category = "Engravings")
+    FResistanceBonus ResistanceBonus;
 
     // ==================== FACTORY ====================
 
