@@ -3264,12 +3264,16 @@ FRuntimeAttachedItem UActionExecutor::ResolveInfusionAttachment(AActor *Actor, c
 		}
 		const FCombatLoadout Loadout = LC->GetActiveLoadout();
 		// Evolution primary slot is its own thing — wrap it as an evolution attachment.
+		// Whole-struct copy: the per-instance rolled state (GeneratedStatBonus/
+		// GeneratedResistance + pools) must travel with the attachment so the
+		// infusion read at the call site sees the roll — a field-by-field copy
+		// here previously dropped Generated*, silencing rolled ints for the
+		// standalone slot (the only slot path that can carry a roll today).
 		FRuntimeAttachedItem Result;
 		if (Loadout.PrimaryEvolution.Item)
 		{
 			Result.Kind = EAttachedItemKind::Evolution;
-			Result.Evolution.Item = Loadout.PrimaryEvolution.Item;
-			Result.Evolution.CurrentDurability = Loadout.PrimaryEvolution.CurrentDurability;
+			Result.Evolution = Loadout.PrimaryEvolution;
 		}
 		return Result;
 	}
