@@ -233,9 +233,17 @@ FString UEvolutionItemData::GetEvolutionStatSummary() const
 
 FActionStatModifiers UEvolutionItemData::GetInfusionStatModifiers(float InfusionMultiplier) const
 {
+    // Delegates the asset's authored Base ints through the shared mapping; the
+    // caller adds the slotted attachment's GeneratedStatBonus through the SAME
+    // mapping (U3c) so rolled ints scale identically.
+    return MapToInfusionModifiers(BaseStatBonus, InfusionMultiplier);
+}
+
+FActionStatModifiers UEvolutionItemData::MapToInfusionModifiers(const FEquipmentStatBonus &Bonus, float InfusionMultiplier)
+{
     FActionStatModifiers Out;
 
-    // Map BaseStatBonus int fields 1:1 onto FActionStatModifiers, scaled by the
+    // Map int substat fields 1:1 onto FActionStatModifiers, scaled by the
     // infusion magnitude (L1 = 0.5, L2 = 1.0). Int values are interpreted as
     // percentages at this boundary — numerically equivalent to the old SubStats
     // authoring path, just integer-typed.
@@ -244,17 +252,17 @@ FActionStatModifiers UEvolutionItemData::GetInfusionStatModifiers(float Infusion
     //  - Pillar percent (BonusMind/Body/SpiritModifierPercent) — character-
     //    persistent via UCharacterDataComponent::ApplyEvolutionPillarModifier.
     //  - Effects — character-only via a separate system.
-    Out.Efficiency       = BaseStatBonus.BonusEfficiency        * InfusionMultiplier;
-    Out.SpellDamage      = BaseStatBonus.BonusSpellDamage       * InfusionMultiplier;
-    Out.StatusMultiplier = BaseStatBonus.BonusStatusMultiplier  * InfusionMultiplier;
-    Out.CritChance       = BaseStatBonus.BonusCritChance        * InfusionMultiplier;
-    Out.SpellSpeed       = BaseStatBonus.BonusSpellSpeed        * InfusionMultiplier;
-    Out.Defense          = BaseStatBonus.BonusDefense           * InfusionMultiplier;
-    Out.ActionSpeed      = BaseStatBonus.BonusActionSpeed       * InfusionMultiplier;
-    Out.RawDamage        = BaseStatBonus.BonusRawDamage         * InfusionMultiplier;
-    Out.Resistance       = BaseStatBonus.BonusResistance        * InfusionMultiplier;
-    Out.TurnSpeed        = BaseStatBonus.BonusTurnSpeed         * InfusionMultiplier;
-    Out.Luck             = BaseStatBonus.BonusLuck              * InfusionMultiplier;
+    Out.Efficiency       = Bonus.BonusEfficiency        * InfusionMultiplier;
+    Out.SpellDamage      = Bonus.BonusSpellDamage       * InfusionMultiplier;
+    Out.StatusMultiplier = Bonus.BonusStatusMultiplier  * InfusionMultiplier;
+    Out.CritChance       = Bonus.BonusCritChance        * InfusionMultiplier;
+    Out.SpellSpeed       = Bonus.BonusSpellSpeed        * InfusionMultiplier;
+    Out.Defense          = Bonus.BonusDefense           * InfusionMultiplier;
+    Out.ActionSpeed      = Bonus.BonusActionSpeed       * InfusionMultiplier;
+    Out.RawDamage        = Bonus.BonusRawDamage         * InfusionMultiplier;
+    Out.Resistance       = Bonus.BonusResistance        * InfusionMultiplier;
+    Out.TurnSpeed        = Bonus.BonusTurnSpeed         * InfusionMultiplier;
+    Out.Luck             = Bonus.BonusLuck              * InfusionMultiplier;
 
     return Out;
 }

@@ -474,15 +474,20 @@ namespace
         // Compose the MODIFIER (product of the layer factors) separately from BaseValue, so
         // the [STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] cap below applies to the modifier alone —
         // the per-character base (the source of build uniqueness) is never clamped.
+        // U3c: pillar percent = asset Base (authored, stays) + the slotted
+        // attachment's Generated (the per-instance roll) — rolled pillars are
+        // PERMANENT (always-on), inheriting Base pillars' permanence per the
+        // locked option-(a) split. All-zero Generated falls back to Base only.
         float Modifier = 1.0f;
-        if (UEvolutionItemData *Crystal = Loadout->GetActivePrimaryEvolutionCrystal(Owner))
+        const FEvolutionAttachment WeaponEvo = Loadout->GetActivePrimaryEvolutionAttachment(Owner);
+        if (WeaponEvo.Item)
         {
             float CrystalPercent = 0.0f;
             switch (Pillar)
             {
-            case ECrystalPillar::Mind:   CrystalPercent = Crystal->BaseStatBonus.BonusMindModifierPercent;   break;
-            case ECrystalPillar::Body:   CrystalPercent = Crystal->BaseStatBonus.BonusBodyModifierPercent;   break;
-            case ECrystalPillar::Spirit: CrystalPercent = Crystal->BaseStatBonus.BonusSpiritModifierPercent; break;
+            case ECrystalPillar::Mind:   CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusMindModifierPercent   + WeaponEvo.GeneratedStatBonus.BonusMindModifierPercent;   break;
+            case ECrystalPillar::Body:   CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusBodyModifierPercent   + WeaponEvo.GeneratedStatBonus.BonusBodyModifierPercent;   break;
+            case ECrystalPillar::Spirit: CrystalPercent = WeaponEvo.Item->BaseStatBonus.BonusSpiritModifierPercent + WeaponEvo.GeneratedStatBonus.BonusSpiritModifierPercent; break;
             }
             Modifier *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
         }
@@ -495,9 +500,9 @@ namespace
                 float CrystalPercent = 0.0f;
                 switch (Pillar)
                 {
-                case ECrystalPillar::Mind:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusMindModifierPercent;   break;
-                case ECrystalPillar::Body:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusBodyModifierPercent;   break;
-                case ECrystalPillar::Spirit: CrystalPercent = PrimaryEvo->BaseStatBonus.BonusSpiritModifierPercent; break;
+                case ECrystalPillar::Mind:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusMindModifierPercent   + Active.PrimaryEvolution.GeneratedStatBonus.BonusMindModifierPercent;   break;
+                case ECrystalPillar::Body:   CrystalPercent = PrimaryEvo->BaseStatBonus.BonusBodyModifierPercent   + Active.PrimaryEvolution.GeneratedStatBonus.BonusBodyModifierPercent;   break;
+                case ECrystalPillar::Spirit: CrystalPercent = PrimaryEvo->BaseStatBonus.BonusSpiritModifierPercent + Active.PrimaryEvolution.GeneratedStatBonus.BonusSpiritModifierPercent; break;
                 }
                 Modifier *= (1.0f + CrystalPercent / CombatConstants::STAT_PERCENT_DIVISOR);
             }

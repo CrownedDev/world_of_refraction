@@ -1,5 +1,8 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Combat/CombatConstants.h"
+#include "Character/FPillarWeights.h"
 
 UEvolutionInventoryComponent::UEvolutionInventoryComponent()
 {
@@ -12,7 +15,30 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
     {
         return false;
     }
-    Entries.Add(FEvolutionInventoryEntry(Item));
+
+    FEvolutionInventoryEntry Entry(Item);
+
+    // U3a pickup roll — mirrors UInventoryComponent::ApplyPickupRoll for evolution:
+    // when the asset opts in, the fresh OWNED instance rolls its Generated layers
+    // from its own stored MaxPools (per-asset override or tier budget); pillar
+    // percents roll alongside on the tier budget. The rolled state reaches the
+    // slotted FEvolutionAttachment via the slot-time copy (U3b). Pools (charge
+    // meters) start 0. Toggle-off: Generated* stay zero — authored Base only.
+    if (Item->bRandomGenerateOnPickup)
+    {
+        Entry.StatMaxPool = (Item->StatMaxPoolOverride != CombatConstants::POOL_OVERRIDE_USE_TIER)
+                                ? Item->StatMaxPoolOverride
+                                : FEquipmentStatBonus::GetSubstatBudget(Item->Tier);
+        Entry.ResistanceMaxPool = (Item->ResistanceMaxPoolOverride != CombatConstants::POOL_OVERRIDE_USE_TIER)
+                                      ? Item->ResistanceMaxPoolOverride
+                                      : FResistanceBonus::GetResistanceBudget(Item->Tier);
+
+        Entry.GeneratedStatBonus.RerollSubstats(Entry.StatMaxPool, FPillarWeights());
+        Entry.GeneratedStatBonus.RerollPillars(Item->Tier);
+        Entry.GeneratedResistance.RerollResistance(Entry.ResistanceMaxPool);
+    }
+
+    Entries.Add(Entry);
     return true;
 }
 

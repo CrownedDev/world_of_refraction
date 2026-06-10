@@ -4578,7 +4578,12 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		if (InfusionAttachment.IsEvolution() && InfusionAttachment.Evolution.Item)
 		{
 			const float InfusionMultiplier = (InfusionLevel == 1) ? 0.5f : 1.0f;
+			// Asset Base ints (authored, stays) + the attachment's per-instance
+			// GeneratedStatBonus ints — both through the SAME mapping/multiplier,
+			// so rolled ints inherit the infusion-conditional split (U3c).
+			// All-zero Generated adds nothing (no rolled instance slotted).
 			Result.Accumulate(InfusionAttachment.Evolution.Item->GetInfusionStatModifiers(InfusionMultiplier));
+			Result.Accumulate(UEvolutionItemData::MapToInfusionModifiers(InfusionAttachment.Evolution.GeneratedStatBonus, InfusionMultiplier));
 		}
 	}
 

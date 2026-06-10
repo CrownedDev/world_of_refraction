@@ -533,6 +533,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     UEvolutionItemData *GetActivePrimaryEvolutionCrystal(AActor *Actor) const;
 
+    /** The full FEvolutionAttachment behind GetActivePrimaryEvolutionCrystal —
+     *  same weapon-slot resolution, but returns the ATTACHMENT (by value), which
+     *  carries the per-instance rolled state (GeneratedStatBonus/Resistance +
+     *  pools) that the bare asset pointer cannot. Item == nullptr means none.
+     *  U3c read sites combine asset Base + this attachment's Generated. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
+    FEvolutionAttachment GetActivePrimaryEvolutionAttachment(AActor *Actor) const;
+
     /** Returns the FRuntimeAttachedItem for the given holder by value.
      *  Searches primary/secondary weapon entries, primary ring entry, and
      *  the Resonator RingLoadout array. Returns a default-constructed

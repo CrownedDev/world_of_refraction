@@ -279,6 +279,13 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Evolution|Stats")
         FActionStatModifiers GetInfusionStatModifiers(float InfusionMultiplier) const;
 
+        /** The shared int-substat → FActionStatModifiers mapping behind
+         *  GetInfusionStatModifiers (which delegates with BaseStatBonus). Exposed
+         *  so the per-instance GeneratedStatBonus (on the slotted attachment) is
+         *  infusion-scaled IDENTICALLY to Base — rolled ints inherit the
+         *  infusion-conditional split (U3c). Pillar percents not applied here. */
+        static FActionStatModifiers MapToInfusionModifiers(const FEquipmentStatBonus &Bonus, float InfusionMultiplier);
+
         // ==================== EXISTING UTILITY FUNCTIONS ====================
 
         UFUNCTION(BlueprintPure, Category = "Item")

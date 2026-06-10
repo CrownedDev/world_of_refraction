@@ -3182,13 +3182,26 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
     }
     }
 
-    // Evolution-crystal resistance — a PERMANENT equipped bonus (always-on while
-    // slotted), read directly from the active primary evolution crystal. Note this
-    // deliberately diverges from evolution's StatBonus, which is infusion-scaled and
-    // NOT aggregated here — resistance is a defensive layer, not an infusion effect.
-    if (UEvolutionItemData *Evo = GetActivePrimaryEvolutionCrystal(Actor))
+    // Evolution resistance — a PERMANENT equipped bonus (always-on while slotted):
+    // authored Base from the ASSET + rolled Generated from the slotted ATTACHMENT
+    // (the per-instance roll; the asset's GeneratedResistance is preview-only as
+    // of U3c). Two mutually-exclusive cases mirroring the pillar read:
+    //   A: evolution attached to the active weapon (PrimarySlotType==Weapon)
+    //   B: evolution as the standalone primary slot (PrimarySlotType==Evolution) —
+    //      where the U1c instance bridge lands the roll. (B was previously not
+    //      aggregated at all — coverage aligned with the pillar read here.)
+    const FEvolutionAttachment WeaponEvo = GetActivePrimaryEvolutionAttachment(Actor);
+    if (WeaponEvo.Item)
     {
-        AccumulateResistance(Combined, Evo->GetCombinedResistance());
+        FResistanceBonus EvoResist = WeaponEvo.Item->BaseResistance;
+        EvoResist.Accumulate(WeaponEvo.GeneratedResistance);
+        AccumulateResistance(Combined, EvoResist);
+    }
+    else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    {
+        FResistanceBonus EvoResist = Loadout.PrimaryEvolution.Item->BaseResistance;
+        EvoResist.Accumulate(Loadout.PrimaryEvolution.GeneratedResistance);
+        AccumulateResistance(Combined, EvoResist);
     }
 
     return Combined;
@@ -3255,4 +3268,19 @@ UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *
 
     const FRuntimeAttachedItem &Attachment = Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
     return Attachment.IsEvolution() ? Attachment.Evolution.Item : nullptr;
+}
+
+FEvolutionAttachment ULoadoutComponent::GetActivePrimaryEvolutionAttachment(AActor *Actor) const
+{
+    (void)Actor;
+
+    // Same resolution as GetActivePrimaryEvolutionCrystal, returning the whole
+    // attachment (by value — GetActiveLoadout copies, so no stable pointer exists).
+    const FCombatLoadout Loadout = GetActiveLoadout();
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Weapon || !Loadout.PrimaryWeapon.IsValid())
+    {
+        return FEvolutionAttachment();
+    }
+    const FRuntimeAttachedItem &Attachment = Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
+    return Attachment.IsEvolution() ? Attachment.Evolution : FEvolutionAttachment();
 }
