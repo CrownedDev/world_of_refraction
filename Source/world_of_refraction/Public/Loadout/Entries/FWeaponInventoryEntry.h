@@ -68,18 +68,18 @@ struct WORLD_OF_REFRACTION_API FWeaponInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
     TArray<USpellData *> AssignedSpells;
 
-    /** Per-instance stat bonus state. Seeded from the asset's
-     *  GetCombinedStatBonus() (BaseStatBonus + GeneratedStatBonus) at
-     *  CreateFromWeapon time. This is what runtime damage and stat queries
-     *  should read — not the asset's BaseStatBonus / GeneratedStatBonus
-     *  layers. */
+    /** Per-instance stat bonus state. Seeded from the asset's authored
+     *  BaseStatBonus at CreateFromWeapon time (the asset's Generated layer is
+     *  designer PREVIEW, never copied); toggle-ON acquisitions replace this with
+     *  Base + a fresh per-instance roll (ApplyPickupRoll). This is what runtime
+     *  damage and stat queries should read — not the asset layers. */
     UPROPERTY(BlueprintReadWrite, Category = "Mastery")
     FEquipmentStatBonus StatBonus;
 
     /** Per-instance status-buildup resistance (per-category, own zero-sum pool).
-     *  Seeded from the asset's GetCombinedResistance() at CreateFromWeapon time —
-     *  same template→instance flow as StatBonus. Read at buildup via
-     *  ULoadoutComponent::GetActiveResistanceBonus. */
+     *  Seeded from the asset's authored BaseResistance at CreateFromWeapon time;
+     *  toggle-ON acquisitions replace with Base + a fresh roll — same flow as
+     *  StatBonus. Read at buildup via ULoadoutComponent::GetActiveResistanceBonus. */
     UPROPERTY(BlueprintReadWrite, Category = "Mastery")
     FResistanceBonus ResistanceBonus;
 

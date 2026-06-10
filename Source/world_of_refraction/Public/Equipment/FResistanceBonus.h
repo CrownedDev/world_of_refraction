@@ -5,9 +5,10 @@
 // resistance has its OWN per-tier budget and does not compete with stats.
 //
 // Field order mirrors ClassInnateResistanceTable::FResistanceRow so the
-// column-read logic is shareable (CLUSTER C). Lives template->instance like
-// FEquipmentStatBonus: asset BaseResistance + GeneratedResistance -> copied to
-// the inventory entry at CreateFrom* time (CLUSTER C).
+// column-read logic is shareable. Flow (per-instance roll model): the asset's
+// authored BaseResistance is copied to the inventory entry at CreateFrom* time;
+// the instance's rolled layer is generated at acquisition (toggle-ON assets) —
+// the asset's GeneratedResistance is designer PREVIEW only, never gameplay-read.
 //
 // NOTE: the ClampMin/ClampMax meta literals below must mirror
 // CombatConstants::RESISTANCE_BONUS_MIN / RESISTANCE_BONUS_MAX (UHT meta tags

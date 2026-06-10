@@ -112,10 +112,10 @@ public:
     float InfusionStatusMultiplier = 1.0f;
 
     // ==================== BONUSES ====================
-    // Roll template for per-instance stat bonuses is the field-wise sum of
-    // the two layers below, exposed via GetCombinedStatBonus(). The
-    // inventory entry copies that sum at CreateFromWeapon / CreateFromRing
-    // time.
+    // Two layers: BaseStatBonus (authored, the real shipped stats — copied to
+    // the inventory entry at CreateFrom* time) and GeneratedStatBonus (designer
+    // PREVIEW, gameplay-inert as of U4). Toggle-ON acquisitions replace the
+    // instance copy with Base + a fresh per-instance roll (ApplyPickupRoll).
 
     /** Designer-authored baseline. Never touched by the generator.
      *  Positive or negative; per-field clamp -21..21 (substats) /
@@ -131,15 +131,17 @@ public:
               meta = (DisplayName = "Bonuses"))
     FEquipmentStatBonus GeneratedStatBonus;
 
-    /** Field-wise sum of BaseStatBonus + GeneratedStatBonus. Preview-side template
-     *  (currently copied by CreateFrom*; reframed to per-instance roll in U2). */
+    /** Field-wise sum of BaseStatBonus + GeneratedStatBonus. PREVIEW-side combine
+     *  only — no gameplay caller as of U4 (CreateFrom* copies Base only); kept for
+     *  preview/editor tooling that wants "what would this preview total look like". */
     FEquipmentStatBonus GetCombinedStatBonus() const;
 
     // ==================== RESISTANCE ROLL ====================
     // Per-category status-buildup resistance (9 elements + 3 physical), an OWN
-    // zero-sum pool separate from the stat substats above. Same template→instance
-    // model: BaseResistance (authored) + GeneratedResistance (rolled) summed by
-    // GetCombinedResistance(), copied to the inventory entry at CreateFrom* time.
+    // zero-sum pool separate from the stat substats above. BaseResistance
+    // (authored) is copied to the inventory entry at CreateFrom* time;
+    // GeneratedResistance is designer PREVIEW (gameplay-inert as of U4) — real
+    // rolls are per-instance at acquisition.
 
     /** Designer-authored baseline resistance. Permanent per-category +resist/-weak. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Resistance")
@@ -152,8 +154,9 @@ public:
               meta = (DisplayName = "Resistance"))
     FResistanceBonus GeneratedResistance;
 
-    /** Field-wise sum of BaseResistance + GeneratedResistance. Preview-side template
-     *  (currently copied by CreateFrom*; reframed to per-instance roll in U2). */
+    /** Field-wise sum of BaseResistance + GeneratedResistance. PREVIEW-side combine
+     *  only — no gameplay caller as of U4 (CreateFrom* copies Base only); kept for
+     *  preview/editor tooling. */
     FResistanceBonus GetCombinedResistance() const;
 
     // ==================== GENERATION (per-instance roll) ====================

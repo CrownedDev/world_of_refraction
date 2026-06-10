@@ -30,8 +30,11 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
 
     if (InWeapon)
     {
-        Entry.StatBonus = InWeapon->GetCombinedStatBonus();
-        Entry.ResistanceBonus = InWeapon->GetCombinedResistance();
+        // BASE ONLY (U4) — the asset's Generated layers are designer PREVIEW and
+        // must not leak into real instances. Toggle-ON acquisitions overwrite
+        // these with Base + a fresh per-instance roll (ApplyPickupRoll, U2).
+        Entry.StatBonus = InWeapon->BaseStatBonus;
+        Entry.ResistanceBonus = InWeapon->BaseResistance;
     }
 
     return Entry;

@@ -72,18 +72,18 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
     TArray<USpellData *> AssignedSpells;
 
-    /** Per-instance stat bonus state. Seeded from the asset's
-     *  GetCombinedStatBonus() (BaseStatBonus + GeneratedStatBonus) at
-     *  CreateFromRing time. This is what runtime damage and stat queries
-     *  should read — not the asset's BaseStatBonus / GeneratedStatBonus
-     *  layers. */
+    /** Per-instance stat bonus state. Seeded from the asset's authored
+     *  BaseStatBonus at CreateFromRing time (the asset's Generated layer is
+     *  designer PREVIEW, never copied); toggle-ON acquisitions replace this with
+     *  Base + a fresh per-instance roll (ApplyPickupRoll). This is what runtime
+     *  damage and stat queries should read — not the asset layers. */
     UPROPERTY(BlueprintReadWrite, Category = "Engravings")
     FEquipmentStatBonus StatBonus;
 
     /** Per-instance status-buildup resistance (per-category, own zero-sum pool).
-     *  Seeded from the asset's GetCombinedResistance() at CreateFromRing time —
-     *  same template→instance flow as StatBonus. Read at buildup via
-     *  ULoadoutComponent::GetActiveResistanceBonus. */
+     *  Seeded from the asset's authored BaseResistance at CreateFromRing time;
+     *  toggle-ON acquisitions replace with Base + a fresh roll — same flow as
+     *  StatBonus. Read at buildup via ULoadoutComponent::GetActiveResistanceBonus. */
     UPROPERTY(BlueprintReadWrite, Category = "Engravings")
     FResistanceBonus ResistanceBonus;
 

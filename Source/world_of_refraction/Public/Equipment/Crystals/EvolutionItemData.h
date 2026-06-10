@@ -123,11 +123,11 @@ public:
         // ==================== RESISTANCE (Evolution only) ====================
         // Per-category status-buildup resistance granted while this evolution is
         // slotted. PERMANENT equipped bonus (always-on whenever slotted) — read by
-        // ULoadoutComponent::GetActiveResistanceBonus via GetActivePrimaryEvolutionCrystal,
-        // deliberately distinct from the infusion-scaled BaseStatBonus above
-        // (evolution's offensive stats stay on their own conditional path). Full
-        // rolled trio mirroring UEquipmentDataBase: Base (authored) + Generated
-        // (rolled) summed by GetCombinedResistance().
+        // ULoadoutComponent::GetActiveResistanceBonus as asset BaseResistance +
+        // the slotted FEvolutionAttachment's per-instance GeneratedResistance
+        // (U3c). Deliberately distinct from the infusion-scaled BaseStatBonus
+        // above (evolution's offensive stats stay on their own conditional path).
+        // The asset's GeneratedResistance below is designer PREVIEW only.
 
         /** Designer-authored baseline resistance. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Evolution")
@@ -140,10 +140,6 @@ public:
         UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Preview Roll",
                   meta = (DisplayName = "Resistance"))
         FResistanceBonus GeneratedResistance;
-
-        /** Field-wise sum of BaseResistance + GeneratedResistance. Preview-side template
-         *  (currently read by GetActiveResistanceBonus; reframed to per-instance in U3). */
-        FResistanceBonus GetCombinedResistance() const;
 
         /** Roll a fresh GeneratedResistance from this crystal's Tier budget (own
          *  zero-sum pool). Standalone CallInEditor button — UEvolutionItemData does

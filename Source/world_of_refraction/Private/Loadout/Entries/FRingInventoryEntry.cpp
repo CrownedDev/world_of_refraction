@@ -39,8 +39,10 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool 
 
     if (InRing)
     {
-        Entry.StatBonus = InRing->GetCombinedStatBonus();
-        Entry.ResistanceBonus = InRing->GetCombinedResistance();
+        // BASE ONLY (U4) — see CreateFromWeapon: asset Generated = preview,
+        // never copied; toggle-ON acquisitions roll fresh via ApplyPickupRoll.
+        Entry.StatBonus = InRing->BaseStatBonus;
+        Entry.ResistanceBonus = InRing->BaseResistance;
     }
 
     return Entry;
