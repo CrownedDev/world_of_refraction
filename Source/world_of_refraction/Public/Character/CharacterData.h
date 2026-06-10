@@ -7,6 +7,8 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Character/ECharacterClass.h"
 #include "Character/StatConstants.h"
+#include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include <Combat/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -39,6 +41,62 @@ struct WORLD_OF_REFRACTION_API FEvolutionCostResult
 
 	UPROPERTY(BlueprintReadOnly, Category = "Evolution")
 	TArray<FString> Warnings;
+};
+
+/**
+ * Read-only Details-panel mirror of a character's resolved class / innate-element
+ * resistance row. Percent values (+resist / -weak), one field per column
+ * (Fire..Reality | Slash Pierce Impact). VisibleAnywhere -> greyed, non-editable.
+ *
+ * NOT a gameplay data source: this is populated FROM
+ * ClassInnateResistanceTable::ResolveRow (the single source of truth); the
+ * buildup path reads ResolveRow directly, never this struct. Held transient on
+ * UCharacterData so it is never serialized into the .uasset.
+ *
+ * DESIGN-TIME view: the BD signal is the asset's InnateElement == BrokenDarkness.
+ * A live Broken Darkness transform resolves the BD row at runtime instead.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FResistanceProfileDisplay
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Fire = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Water = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Earth = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Wind = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Light = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances",
+			  meta = (ToolTip = "Incoming Broken Darkness attacks alias to this Darkness column."))
+	float Darkness = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Lightning = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Void = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Reality = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Slash = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Pierce = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Resistances")
+	float Impact = 0.0f;
 };
 
 /**
@@ -185,6 +243,42 @@ public:
 	ESpellElement GetElement() const
 	{
 		return IsCaster() ? InnateElement : ESpellElement::Generic;
+	}
+
+	// ==================== RESISTANCES (read-only inspection) ====================
+	// Display-layer query over the code-side ClassInnateResistanceTable. Resolves
+	// this character's profile row (BD > Generic > Resonator > Caster-by-element)
+	// and returns the resistance fraction for a given incoming axis. Asset-side BD
+	// is the character-created case (InnateElement == BrokenDarkness); the runtime
+	// transform flag lives on UCharacterDataComponent and is honoured by the
+	// actor-level ClassInnateResistanceTable::GetClassInnateResistance instead.
+
+	/** Read-only Details-panel mirror of the resolved profile row. Transient —
+	 *  never serialized; the C++ table stays the single source of truth. Refreshed
+	 *  from ResolveRow on load and whenever CharacterClass / InnateElement change.
+	 *  DISPLAY ONLY — no code path reads this as data. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = "Resistances",
+			  meta = (ToolTip = "Innate class/element resistance profile (percent, +resist / -weak). Design-time view: a live Broken Darkness transform resolves the BD row at runtime."))
+	FResistanceProfileDisplay ResistanceProfile;
+
+	/** Resistance fraction (+resist / -weak) to an incoming attack ELEMENT.
+	 *  Incoming BrokenDarkness aliases to the Darkness column. */
+	UFUNCTION(BlueprintPure, Category = "Resistances")
+	float GetElementResistance(ESpellElement IncomingElement) const
+	{
+		const ClassInnateResistanceTable::FResistanceRow Row =
+			ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), InnateElement == ESpellElement::BrokenDarkness);
+		return ClassInnateResistanceTable::GetElementColumn(Row, IncomingElement) / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
+	}
+
+	/** Resistance fraction (+resist / -weak) to an incoming PHYSICAL type.
+	 *  None contributes 0. */
+	UFUNCTION(BlueprintPure, Category = "Resistances")
+	float GetPhysicalResistance(EPhysicalDamageType PhysicalType) const
+	{
+		const ClassInnateResistanceTable::FResistanceRow Row =
+			ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), InnateElement == ESpellElement::BrokenDarkness);
+		return ClassInnateResistanceTable::GetPhysicalColumn(Row, PhysicalType) / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 
 	// ==================== STAT BUDGET VALIDATION ====================
@@ -479,7 +573,21 @@ public:
 			CombatConstants::RESISTANCE_MAX);
 	}
 
+	//~ UObject lifecycle — keep the transient ResistanceProfile display mirror in
+	//~ sync with the code-side table. Populate on construct + load; the editor
+	//~ live-update is in PostEditChangeProperty below. Display only.
+	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
 	virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 #endif
+
+private:
+	/** Repopulate the transient ResistanceProfile mirror from
+	 *  ClassInnateResistanceTable::ResolveRow (the single source of truth).
+	 *  Design-time BD signal = InnateElement == BrokenDarkness. Display only —
+	 *  never feeds GetClassInnateResistance or the buildup path. */
+	void RefreshResistanceProfileDisplay();
 };

@@ -11,9 +11,45 @@
 #include "Character/StatConstants.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Inventory/InventoryData.h"
+#include "Combat/Resistance/ClassInnateResistanceTable.h"
+#include "UObject/UnrealType.h"
 
 // Implementation is mostly in header (inline functions)
 // Add any non-inline implementations here if needed
+
+void UCharacterData::RefreshResistanceProfileDisplay()
+{
+	// Single source of truth: ResolveRow. Design-time BD signal is the asset's
+	// InnateElement == BrokenDarkness (no runtime transform state on the asset).
+	const bool bAssetBrokenDarkness = InnateElement == ESpellElement::BrokenDarkness;
+	const ClassInnateResistanceTable::FResistanceRow Row =
+		ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), bAssetBrokenDarkness);
+
+	ResistanceProfile.Fire = Row.Fire;
+	ResistanceProfile.Water = Row.Water;
+	ResistanceProfile.Earth = Row.Earth;
+	ResistanceProfile.Wind = Row.Wind;
+	ResistanceProfile.Light = Row.Light;
+	ResistanceProfile.Darkness = Row.Darkness;
+	ResistanceProfile.Lightning = Row.Lightning;
+	ResistanceProfile.Void = Row.Void;
+	ResistanceProfile.Reality = Row.Reality;
+	ResistanceProfile.Slash = Row.Slash;
+	ResistanceProfile.Pierce = Row.Pierce;
+	ResistanceProfile.Impact = Row.Impact;
+}
+
+void UCharacterData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	RefreshResistanceProfileDisplay();
+}
+
+void UCharacterData::PostLoad()
+{
+	Super::PostLoad();
+	RefreshResistanceProfileDisplay();
+}
 
 #if WITH_EDITOR
 EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Context) const
@@ -49,5 +85,18 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
     }
 
     return Result;
+}
+
+void UCharacterData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    // Live-refresh the greyed display only when the row-selecting fields change.
+    const FName ChangedProp = PropertyChangedEvent.GetPropertyName();
+    if (ChangedProp == GET_MEMBER_NAME_CHECKED(UCharacterData, CharacterClass) ||
+        ChangedProp == GET_MEMBER_NAME_CHECKED(UCharacterData, InnateElement))
+    {
+        RefreshResistanceProfileDisplay();
+    }
 }
 #endif

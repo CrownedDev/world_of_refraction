@@ -24,3 +24,7 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).
 - **POSSIBLE** — `StatusMultiplier` base-extract: only if base composition grows beyond ~3 terms (currently keep-both).
+
+## Resistances — gear arc
+
+- **POSSIBLE/DESIGN** — Gear resistance: rings, weapons, and evolutions granting status-buildup resistance (element + physical). Own design pass needed: how much each grants, fixed-vs-rolled, per-element-vs-general, whether evolutions confer element affinity. Stacks additively on the class/innate-element profile (the `AddStatusBuildup` composition already supports more terms). Separate arc from the class-resistance system (which is built).

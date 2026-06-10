@@ -12,6 +12,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
+#include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Engine/GameInstance.h"
 
 // ========================================
@@ -370,6 +371,13 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		}
 
 		Resistance += GetTotalElementResistance(Target, Element);
+
+		// Class / innate-element innate resistance — one additive term combining
+		// the target's element column (incoming Element, BD-aliased) and physical
+		// column (incoming PhysicalType). +0 for all-zero profile cells, so neutral
+		// matchups are byte-identical to the pre-table behaviour. Gear-side
+		// resistance (future arc) slots in additively right here too.
+		Resistance += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType);
 
 		// Skill-effect-driven ModifyStatusResist — flat percent-space additive
 		// to total resistance. Applied before the final clamp so it cannot
