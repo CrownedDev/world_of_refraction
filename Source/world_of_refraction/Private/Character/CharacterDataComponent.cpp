@@ -6,6 +6,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Character/StanceData.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/ItemConstants.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Equipment/FEquipmentStatBonus.h"
@@ -275,7 +276,7 @@ void UCharacterDataComponent::CheckDeath()
             {
                 if (SEM->HasEffectOfType(Owner, ESkillEffectType::Revive))
                 {
-                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * 0.3f));
+                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * ItemConstants::REVIVE_HP_PERCENT));
                     SEM->RemoveEffectsByType(Owner, ESkillEffectType::Revive);
                     OnHPChanged.Broadcast(CurrentHP, MaxHP);
                     UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (30%% of MaxHP)"),

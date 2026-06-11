@@ -11,6 +11,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/CombatConstants.h"
+#include "Inventory/ItemConstants.h"
 
 void UItemExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -285,7 +286,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 	// S-rank: revive a dead target at 30% MaxHP
 	if (!TargetComp->bIsAlive && Id.Tier == EItemTier::S_Tier)
 	{
-		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * 0.3f);
+		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * ItemConstants::REVIVE_HP_PERCENT);
 		TargetComp->ServerResurrect(ReviveHP);
 		OutResult.HealingDone = ReviveHP;
 		OutResult.bSuccess = true;
@@ -845,7 +846,7 @@ void UItemExecutor::ExecuteCleanseEffect(AActor *User, AActor *Target, FCrystalI
 	int32 Removed = 0;
 	for (const FActiveSkillEffect &Effect : Effects)
 	{
-		if (Count < 99 && Removed >= Count)
+		if (Count < ItemConstants::IOLITE_REMOVE_ALL && Removed >= Count)
 		{
 			break;
 		}
@@ -894,7 +895,7 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 			const bool bUseImmunity = (Id.Tier == EItemTier::S_Tier) && (ImmunityType != ESkillEffectType::None);
 
 			const ESkillEffectType EffectType = bUseImmunity ? ImmunityType : ESkillEffectType::ResistanceBuff;
-			const float Magnitude = bUseImmunity ? 1.0f : 30.0f;
+			const float Magnitude = bUseImmunity ? 1.0f : ItemConstants::QUARTZ_RESIST_PERCENT;
 			const int32 EffectID = static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(EffectType);
 
 			FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(

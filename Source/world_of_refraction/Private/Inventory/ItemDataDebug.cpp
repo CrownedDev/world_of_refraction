@@ -228,7 +228,7 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("Silence %%: %.1f (one-shot drain on use)"), CrystalEffectTable::GetSilencePercentage(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Buff Chance %%: %.1f"), CrystalEffectTable::GetBuffChancePercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Gamble Magnitude %%: %.1f for %d turns"), CrystalEffectTable::GetGambleMagnitudePercent(FCrystalId{Item->CrystalType, Item->Tier}), CrystalEffectTable::GetGambleDuration(FCrystalId{Item->CrystalType, Item->Tier}));
-    UE_LOG(LogTemp, Display, TEXT("Effects To Remove: %d (99=all)"), CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Effects To Remove: %d (IOLITE_REMOVE_ALL sentinel = all)"), CrystalEffectTable::GetEffectsToRemoveCount(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Status Clear %%: %.1f, Resistance: %d turns"), CrystalEffectTable::GetStatusClearPercent(FCrystalId{Item->CrystalType, Item->Tier}), CrystalEffectTable::GetResistanceDuration(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Elemental Buildup %%: %.1f"), CrystalEffectTable::GetElementalBuildupPercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Reveals HP/Stats: %s"), CrystalEffectTable::GetRevealsHP(FCrystalId{Item->CrystalType, Item->Tier}) ? TEXT("Yes") : TEXT("No"));

@@ -307,7 +307,8 @@ namespace CrystalEffectTable
 
     // ==================== IOLITE CLEANSE ====================
 
-    /** Iolite: number of effects to remove (99 = all). 0 for non-Iolite. */
+    /** Iolite: number of effects to remove (ItemConstants::IOLITE_REMOVE_ALL = all).
+     *  0 for non-Iolite. */
     inline int32 GetEffectsToRemoveCount(const FCrystalId &Id)
     {
         if (Id.Type != ECrystalType::Iolite)
@@ -329,7 +330,7 @@ namespace CrystalEffectTable
         case EItemTier::A_Tier:
             return 3;
         case EItemTier::S_Tier:
-            return 99;
+            return ItemConstants::IOLITE_REMOVE_ALL;
         default:
             return 0;
         }
