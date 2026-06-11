@@ -2979,49 +2979,6 @@ UInventoryComponent *ULoadoutComponent::GetInventoryComponent() const
 
 // ==================== EQUIPMENT STAT QUERIES ====================
 
-namespace
-{
-    /** Field-wise accumulator for FEquipmentStatBonus. The result is a
-     *  read-only snapshot consumed by stat queries, not a roll target. */
-    void AccumulateBonus(FEquipmentStatBonus &Out, const FEquipmentStatBonus &In)
-    {
-        Out.BonusRawDamage             += In.BonusRawDamage;
-        Out.BonusSpellDamage           += In.BonusSpellDamage;
-        Out.BonusEfficiency            += In.BonusEfficiency;
-        Out.BonusStatusMultiplier      += In.BonusStatusMultiplier;
-        Out.BonusCritChance            += In.BonusCritChance;
-        Out.BonusSpellSpeed            += In.BonusSpellSpeed;
-        Out.BonusDefense               += In.BonusDefense;
-        Out.BonusActionSpeed           += In.BonusActionSpeed;
-        Out.BonusMaxHP                 += In.BonusMaxHP;
-        Out.BonusMaxEnergy             += In.BonusMaxEnergy;
-        Out.BonusResistance            += In.BonusResistance;
-        Out.BonusTurnSpeed             += In.BonusTurnSpeed;
-        Out.BonusLuck                  += In.BonusLuck;
-        Out.BonusMindModifierPercent   += In.BonusMindModifierPercent;
-        Out.BonusBodyModifierPercent   += In.BonusBodyModifierPercent;
-        Out.BonusSpiritModifierPercent += In.BonusSpiritModifierPercent;
-    }
-
-    /** Field-wise accumulator for FResistanceBonus (12 categories). Mirrors
-     *  AccumulateBonus — read-only snapshot for the buildup resistance query. */
-    void AccumulateResistance(FResistanceBonus &Out, const FResistanceBonus &In)
-    {
-        Out.Fire      += In.Fire;
-        Out.Water     += In.Water;
-        Out.Earth     += In.Earth;
-        Out.Wind      += In.Wind;
-        Out.Light     += In.Light;
-        Out.Darkness  += In.Darkness;
-        Out.Lightning += In.Lightning;
-        Out.Void      += In.Void;
-        Out.Reality   += In.Reality;
-        Out.Slash     += In.Slash;
-        Out.Pierce    += In.Pierce;
-        Out.Impact    += In.Impact;
-    }
-}
-
 FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 {
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
@@ -3058,11 +3015,11 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
             // Ring primary; weapon-secondary (if any) sums in.
             if (Loadout.PrimaryRing.IsValid())
             {
-                AccumulateBonus(Combined, Loadout.PrimaryRing.RingEntry.StatBonus);
+                Combined.Accumulate(Loadout.PrimaryRing.RingEntry.StatBonus);
             }
             if (bHasSecondaryWeapon)
             {
-                AccumulateBonus(Combined, Loadout.SecondaryWeapon.WeaponEntry.StatBonus);
+                Combined.Accumulate(Loadout.SecondaryWeapon.WeaponEntry.StatBonus);
             }
         }
         // Evolution primary slots have no StatBonus on the crystal itself —
@@ -3075,12 +3032,12 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         // Active ring (from RingLoadout) + primary weapon (if equipped).
         if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
         {
-            AccumulateBonus(Combined, ActiveRing->RingEntry.StatBonus);
+            Combined.Accumulate(ActiveRing->RingEntry.StatBonus);
         }
         if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
             Loadout.PrimaryWeapon.IsValid())
         {
-            AccumulateBonus(Combined, Loadout.PrimaryWeapon.WeaponEntry.StatBonus);
+            Combined.Accumulate(Loadout.PrimaryWeapon.WeaponEntry.StatBonus);
         }
         break;
     }
@@ -3141,11 +3098,11 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
         {
             if (Loadout.PrimaryRing.IsValid())
             {
-                AccumulateResistance(Combined, Loadout.PrimaryRing.RingEntry.ResistanceBonus);
+                Combined.Accumulate(Loadout.PrimaryRing.RingEntry.ResistanceBonus);
             }
             if (bHasSecondaryWeapon)
             {
-                AccumulateResistance(Combined, Loadout.SecondaryWeapon.WeaponEntry.ResistanceBonus);
+                Combined.Accumulate(Loadout.SecondaryWeapon.WeaponEntry.ResistanceBonus);
             }
         }
         break;
@@ -3155,12 +3112,12 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
     {
         if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
         {
-            AccumulateResistance(Combined, ActiveRing->RingEntry.ResistanceBonus);
+            Combined.Accumulate(ActiveRing->RingEntry.ResistanceBonus);
         }
         if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
             Loadout.PrimaryWeapon.IsValid())
         {
-            AccumulateResistance(Combined, Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus);
+            Combined.Accumulate(Loadout.PrimaryWeapon.WeaponEntry.ResistanceBonus);
         }
         break;
     }
@@ -3195,13 +3152,13 @@ FResistanceBonus ULoadoutComponent::GetActiveResistanceBonus(AActor *Actor) cons
     {
         FResistanceBonus EvoResist = WeaponEvo.Item->BaseResistance;
         EvoResist.Accumulate(WeaponEvo.GeneratedResistance);
-        AccumulateResistance(Combined, EvoResist);
+        Combined.Accumulate(EvoResist);
     }
     else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
         FResistanceBonus EvoResist = Loadout.PrimaryEvolution.Item->BaseResistance;
         EvoResist.Accumulate(Loadout.PrimaryEvolution.GeneratedResistance);
-        AccumulateResistance(Combined, EvoResist);
+        Combined.Accumulate(EvoResist);
     }
 
     return Combined;

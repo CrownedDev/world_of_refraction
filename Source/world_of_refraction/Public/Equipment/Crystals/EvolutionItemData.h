@@ -306,6 +306,18 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Targeting")
         ETargetType GetItemTargetType() const;
 
+        // ==================== LIFECYCLE ====================
+        // Deliberately OUTSIDE WITH_EDITOR — the PostLoad migrations (durability
+        // auto-init, legacy pillar → BaseStatBonus) must run in packaged builds
+        // too, so assets not re-saved in-editor still load correct values.
+
+        virtual void PostInitProperties() override;
+
+        /** Migration hook: initialise durability from tier for assets saved before Phase 2a
+         *  (old assets loaded with MaxDurability == 0 get auto-fixed), and copy legacy
+         *  pillar percent fields into BaseStatBonus. */
+        virtual void PostLoad() override;
+
         // ==================== EDITOR SUPPORT ====================
 
 #if WITH_EDITOR
@@ -314,13 +326,5 @@ public:
         virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
         virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
         virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-
-        // ==================== LIFECYCLE ====================
-
-        virtual void PostInitProperties() override;
-
-        /** Migration hook: initialise durability from tier for assets saved before Phase 2a.
-         *  Old assets loaded with MaxDurability == 0 get auto-fixed here. */
-        virtual void PostLoad() override;
 #endif
 };
