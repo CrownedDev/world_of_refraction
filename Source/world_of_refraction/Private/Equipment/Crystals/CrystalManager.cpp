@@ -42,9 +42,12 @@ void UCrystalManager::ProcessPostCastWear(
         return;
     }
 
-    // Only refined attachments wear/break. Evolution items default to unbreakable
-    // (see FEvolutionAttachment::IsBroken — checks bCanBreak).
-    if (!Attachment.IsCrystal())
+    // Refined crystals and ELEMENTAL fusions (gem half) wear/break. Augmented
+    // (stone+stone) fusions never wear — excluded here, preserving the
+    // augment-stone no-wear semantics. Evolution items have their own path
+    // (ProcessPostCastEvolutionWear).
+    if (!Attachment.IsCrystal() &&
+        !(Attachment.IsFusion() && Attachment.Fusion.HasGemHalf()))
     {
         return;
     }
@@ -58,7 +61,22 @@ void UCrystalManager::ProcessPostCastWear(
         return;
     }
 
-    // Wear math reads the source crystal's tier. For refined: from FCrystalId.
+    // Wear math reads the source crystal's tier. Refined: from FCrystalId.
+    // Elemental fusion: the GEM half drives wear (matches GetMaxDurability's
+    // keying); the stone half's tier already feeds durability via the two-tier
+    // matrix bonus — keying wear on it too would double-count.
+    const EItemTier WearTier = Attachment.IsFusion()
+                                   ? Attachment.Fusion.GemHalf().Tier
+                                   : Attachment.Crystal.Id.Tier;
+
+    // Log identity — a fusion labels as both halves, not as a bare crystal.
+    const FString WearDisplayName =
+        Attachment.IsFusion()
+            ? FString::Printf(TEXT("FUSION %s+%s"),
+                              *ItemIdentity::GetDisplayName(Attachment.Fusion.Id.HalfA),
+                              *ItemIdentity::GetDisplayName(Attachment.Fusion.Id.HalfB))
+            : ItemIdentity::GetDisplayName(Attachment.Crystal.Id);
+
     // Substat-modified path when the caster's UCharacterData is reachable —
     // wear tracks real power output (gear-inclusive via crystal-modified
     // pillar accessors). Falls back to the base formula if the asset is
@@ -77,7 +95,7 @@ void UCrystalManager::ProcessPostCastWear(
         const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
         const float ResistanceFrac  = Stats.Resistance;
         Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
-            Attachment.Crystal.Id.Tier,
+            WearTier,
             ActionTier,
             InfusionLevel,
             bIsSpell,
@@ -89,7 +107,7 @@ void UCrystalManager::ProcessPostCastWear(
     else
     {
         Wear = UBreakCalculator::CalculateDurabilityWear(
-            Attachment.Crystal.Id.Tier,
+            WearTier,
             ActionTier,
             InfusionLevel,
             bIsSpell);
@@ -114,7 +132,7 @@ void UCrystalManager::ProcessPostCastWear(
             UE_LOG(LogTemp, Log,
                    TEXT("[CrystalManager] %s LUCKY break skip on crystal '%s' (would have applied %d wear, skip chance %.2f)"),
                    *Actor->GetName(),
-                   *ItemIdentity::GetDisplayName(Attachment.Crystal.Id),
+                   *WearDisplayName,
                    Wear, SkipChance);
             return;
         }
@@ -127,7 +145,7 @@ void UCrystalManager::ProcessPostCastWear(
     UE_LOG(LogTemp, Verbose,
            TEXT("[CrystalManager] %s applies %d wear to crystal '%s' (%d/%d) [ActionTier=%d L%d bIsSpell=%d]"),
            *Actor->GetName(), Wear,
-           *ItemIdentity::GetDisplayName(Attachment.Crystal.Id),
+           *WearDisplayName,
            NewDur, MaxDur,
            static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
 
@@ -138,13 +156,23 @@ void UCrystalManager::ProcessPostCastWear(
     {
         UE_LOG(LogTemp, Log,
                TEXT("[CrystalManager] Crystal '%s' broke on %s (holder: %s)"),
-               *ItemIdentity::GetDisplayName(Attachment.Crystal.Id),
+               *WearDisplayName,
                *Actor->GetName(),
                Holder ? *Holder->GetName() : TEXT("Unknown"));
 
         FBrokenCrystalPayload Payload;
-        Payload.Kind = EAttachedItemKind::Crystal;
-        Payload.CrystalId = Attachment.Crystal.Id;
+        if (Attachment.IsFusion())
+        {
+            Payload.Kind = EAttachedItemKind::Fusion;
+            Payload.FusionId = Attachment.Fusion.Id;
+            // Gem half doubles as the display identity for Kind-unaware listeners.
+            Payload.CrystalId = Attachment.Fusion.GemHalf();
+        }
+        else
+        {
+            Payload.Kind = EAttachedItemKind::Crystal;
+            Payload.CrystalId = Attachment.Crystal.Id;
+        }
         OnCrystalBroken.Broadcast(Actor, Holder, Payload);
     }
 }

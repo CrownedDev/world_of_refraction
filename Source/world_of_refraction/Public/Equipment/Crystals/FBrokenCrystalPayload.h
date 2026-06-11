@@ -12,6 +12,7 @@
 #include "CoreMinimal.h"
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Crystals/FFusionId.h"
 #include "FBrokenCrystalPayload.generated.h"
 
 class UEvolutionItemData;
@@ -24,11 +25,16 @@ struct WORLD_OF_REFRACTION_API FBrokenCrystalPayload
     UPROPERTY(BlueprintReadOnly, Category = "Broken Crystal")
     EAttachedItemKind Kind = EAttachedItemKind::None;
 
-    /** Meaningful when Kind == Refined. */
+    /** Meaningful when Kind == Refined. For Kind == Fusion it carries the GEM
+     *  half as a display-identity fallback for Kind-unaware listeners. */
     UPROPERTY(BlueprintReadOnly, Category = "Broken Crystal")
     FCrystalId CrystalId;
 
     /** Meaningful when Kind == Evolution. */
     UPROPERTY(BlueprintReadOnly, Category = "Broken Crystal")
     UEvolutionItemData *Item = nullptr;
+
+    /** Meaningful when Kind == Fusion (appended — existing field layout undisturbed). */
+    UPROPERTY(BlueprintReadOnly, Category = "Broken Crystal")
+    FFusionId FusionId;
 };
