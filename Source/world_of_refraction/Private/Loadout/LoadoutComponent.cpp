@@ -102,6 +102,29 @@ bool ULoadoutComponent::SetActiveLoadoutIndex(int32 Index)
     Inv->ActiveLoadoutIndex = Index;
     bIsReadyForBattle = false; // local field, stays
     OnLoadoutChanged.Broadcast(Index); // local delegate, broadcast preserved
+
+    // Notify TurnManager so cached BonusTurnSpeed re-reads for this actor.
+    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
+    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
+    if (UWorld *World = GetWorld())
+    {
+        if (UGameInstance *GI = World->GetGameInstance())
+        {
+            if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+            {
+                TurnManager->OnActorSpeedChanged(GetOwner());
+            }
+        }
+    }
+
+    // Active equipment changed → recompute the stat-derived pools (equipment
+    // BonusMaxHP/BonusMaxEnergy; the active weapon's pool-stone in P1). Does NOT
+    // touch CurrentHP/EP (overcap-not-clamp) — see RecomputeMaxPools doc.
+    if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+    {
+        CharComp->RecomputeMaxPools();
+    }
+
     return true;
 }
 

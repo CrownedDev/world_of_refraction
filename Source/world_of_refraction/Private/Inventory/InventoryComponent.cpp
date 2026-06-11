@@ -15,6 +15,10 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/TurnManager.h" // speed-notify on speed-relevant crystal detach
+#include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Character/FPillarWeights.h"
 
 namespace
@@ -193,7 +197,32 @@ bool UInventoryComponent::RemoveCrystalFromWeapon(int32 WeaponIndex)
     }
 
     const bool bHadAttachment = !Weapons[WeaponIndex].AttachedItem.IsEmpty();
+    // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
+    // (plain TurnSpeedStone or a fusion with a TurnSpeed half/bonus — same
+    // GetAttachedStonePercent read CalculateSpeedRatios uses) feeds the stone factor,
+    // so its removal must recalc turn order. Non-speed stones skip the notify.
+    const bool bWasSpeedStone =
+        CrystalEffectTable::GetAttachedStonePercent(Weapons[WeaponIndex].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
+
     Weapons[WeaponIndex].RemoveCrystal();
+
+    // Notify TurnManager so the stone factor re-reads for this actor.
+    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
+    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
+    if (bWasSpeedStone)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+                {
+                    TurnManager->OnActorSpeedChanged(GetOwner());
+                }
+            }
+        }
+    }
+
     return bHadAttachment;
 }
 
@@ -280,7 +309,32 @@ bool UInventoryComponent::RemoveCrystalFromRing(int32 RingIndex)
     }
 
     const bool bHadAttachment = !Rings[RingIndex].AttachedItem.IsEmpty();
+    // Same speed-relevance gate as RemoveCrystalFromWeapon. NOTE: ring attachments do
+    // not feed the turn-speed read path today (CalculateSpeedRatios reads the active
+    // WEAPON attachment only) — this notify is defensive symmetry; the gated recalc is
+    // a no-op until rings join that read path.
+    const bool bWasSpeedStone =
+        CrystalEffectTable::GetAttachedStonePercent(Rings[RingIndex].AttachedItem, ESubStat::TurnSpeed) > 0.0f;
+
     Rings[RingIndex].RemoveCrystal();
+
+    // Notify TurnManager so the stone factor re-reads for this actor.
+    // Out-of-combat / pre-combat case: actor isn't in Combatants, the loop in
+    // OnActorSpeedChanged simply finds no match and returns — safe no-op.
+    if (bWasSpeedStone)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (UTurnManager *TurnManager = GI->GetSubsystem<UTurnManager>())
+                {
+                    TurnManager->OnActorSpeedChanged(GetOwner());
+                }
+            }
+        }
+    }
+
     return bHadAttachment;
 }
 
