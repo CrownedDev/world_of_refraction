@@ -174,6 +174,25 @@ void UCrystalManager::ProcessPostCastWear(
             Payload.CrystalId = Attachment.Crystal.Id;
         }
         OnCrystalBroken.Broadcast(Actor, Holder, Payload);
+
+        // Fusion break is the production trigger the broken-stat guards were waiting
+        // on (speed: GetAttachedStonePercent IsBroken guard; pools: the ForType
+        // sibling). The attachment is ALREADY broken here, so its stat reads return
+        // 0 — recompute UNCONDITIONALLY (cheap, idempotent; a no-stat fusion
+        // recomputes to the same values). Weapon breaks need this explicitly; ring
+        // breaks also recompute via RingManager's auto-switch (idempotent double).
+        // Plain crystals (gems) carry no stat percents — no hook on their break.
+        if (Attachment.IsFusion())
+        {
+            if (UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr)
+            {
+                TurnMgr->OnActorSpeedChanged(Actor);
+            }
+            if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
+            {
+                CharComp->RecomputeMaxPools();
+            }
+        }
     }
 }
 
