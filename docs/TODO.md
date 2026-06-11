@@ -51,6 +51,6 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).
 - **POSSIBLE** — `StatusMultiplier` base-extract: only if base composition grows beyond ~3 terms (currently keep-both).
 
-## feature/always-active-effects
+## feature/starting-effects (in flight)
 
-- **BLOCKED** — `GetAlwaysActiveEffects()` has zero callers (weapon `UEquipmentDataBase` + evolution `UEvolutionItemData`) — dormant/unbuilt. Wire when the always-active passive system is built; speed-type effects will then notify for free via the `IsSpeedEffect` apply/remove gates.
+- **WATCH** — Clusters 1+2 shipped and PIE-verified (filter to non-conditional, coverage mirrors `GetActiveStatBonus`, AlwaysActive→StartingEffect rename, `WOR_StartingEffects` debug Exec, caller-less appliers deleted). Promote to DONE at merge.

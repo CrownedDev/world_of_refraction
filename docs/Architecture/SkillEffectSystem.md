@@ -23,8 +23,8 @@ Important internal fields:
 - `int32 NextInstanceID` — counter for `GenerateInstanceID()`, used to distinguish same-type effects.
 
 Public-facing API groups (all `UFUNCTION(BlueprintCallable)` unless noted):
-- **Application** — `ApplyEffect`, `ApplyEffects`, `ApplyInfusionDOT`, `ApplyEvolutionEffects`, `ApplyEquipmentEffects`, `ApplyWeaponBonuses`, `ApplyRingBonuses`, `ApplyPhysicalDamageEffect`, `ApplyWeaponInfusionDOT`.
-- **Removal** — `RemoveEffectByID`, `RemoveEffectsByName`, `RemoveEffectsByType`, `RemoveAllBuffs`, `RemoveAllDebuffs`, `RemoveAllDOTs`, `RemoveAllEffects`, `ClearAllEffects`, `RemoveEffectsBySource`, `RemoveEquipmentEffects`, `RemoveWeaponBonuses`, `RemoveRingBonuses`.
+- **Application** — `ApplyEffect`, `ApplyEffects`, `ApplyInfusionDOT`, `ApplyEquipmentEffects`, `ApplyWeaponBonuses`, `ApplyRingBonuses`, `ApplyPhysicalDamageEffect`, `ApplyWeaponInfusionDOT`.
+- **Removal** — `RemoveEffectByID`, `RemoveEffectsByName`, `RemoveEffectsByType`, `RemoveAllBuffs`, `RemoveAllDebuffs`, `RemoveAllDOTs`, `RemoveAllEffects`, `ClearAllEffects`, `RemoveEffectsBySource`, `RemoveWeaponBonuses`, `RemoveRingBonuses`.
 - **Turn processing** — `ProcessStartOfTurnEffects`, `ProcessEndOfTurnEffects`, `ProcessTriggerEffects`.
 - **Queries** — `GetActiveEffects`, `GetEffectsByType`, `HasEffectByID`, `HasEffectOfType`, `GetTotalStatModifier`, `GetEffectCount`, `GetBuffCount`, `GetDebuffCount`.
 - **Status checks** — `IsStunned`, `IsSilenced`, `HasActiveDOT`, `IsImmuneToEffectType`.
@@ -161,9 +161,33 @@ Bound to `UActionExecutor::OnDamageDealt` at `Initialize`. When the attacker car
 - **`ApplyEvolutionEffects` / `ApplyEquipmentEffects` ID collision risk** — IDs are packed `SourceID*100 + index`; the header explicitly warns callers to pass non-colliding `SourceID` ranges. Removal scans a fixed 100-slot window.
 - **No cached subsystem pointers** — consistent with the project rule; subsystems are fetched per call.
 
+## Starting effects (gear, combat start)
+
+A **starting effect** is a gear-authored `FSkillEffect` with no trigger condition —
+the complement of `FSkillEffect::IsConditionalEffect()` (`Condition != Always ||
+TargetCondition != None`). NOTE: distinct from the older `IsConditional()`, which
+additionally counts `SecondaryCondition` — a secondary-condition-only effect is
+conditional there but still a starting effect.
+
+At combat start, `ACombatOrchestrator::PrepareAllLoadoutsForBattle` applies each
+combatant's `ULoadoutComponent::GetActiveEffects` (the starting subset only —
+`GetStartingEffects()` per source asset) via `ApplyEquipmentEffects`. They land
+through the normal `ApplyEffect` path as ordinary clearable effects (cleansable,
+wiped by `ClearAllEffects` at combat end). Conditional gear effects are NOT
+auto-applied — they await their triggers. No mid-combat re-application: gear
+swapped after combat start neither adds nor removes starting effects.
+
+Coverage mirrors `GetActiveStatBonus` per class (Generic active weapon /
+ring-primary's ring + secondary weapon; Resonator active ring + primary weapon;
+Caster primary slot) **plus the innate (primary-slot) evolution** — with the
+deliberate exception that an evolution ATTACHED to a weapon/ring contributes no
+effects. Debug: `WOR_StartingEffects` (Exec, this subsystem) prints the per-source
+PRE list with a coverage cross-check and the POST equipment-window contents.
+
 ## Changelog
 
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-4 — added `StatusIncrease`/`StatusDecrease` effect types (instant status-bar gauge manipulators routing through `UStatusBuildupManager`). Element on these two types is the four-branch resolved cast element (spell/ability × infused/uninfused) plumbed via `ApplySkillEffects(..., ResolvedCastElement)`; every other effect type stays `Generic`. Runtime `Value` is the absolute buildup amount for these two (bypasses the `Magnitude × 100` percentage shape). | feature/integration-gaps-sweep-4 |
+| 2026-06-11 | Starting effects: combat-start gear application filtered to non-conditional effects (`IsAlwaysActive` → inverted `IsConditionalEffect`; `GetAlwaysActiveEffects`/`GetTriggeredEffects` → `GetStartingEffects`/`GetConditionalEffects`). Coverage mirrors `GetActiveStatBonus` + innate evolution; attached evolutions excluded (orchestrator's raw-Effects evolution block removed). Caller-less `ApplyEvolutionEffects` + `RemoveEquipmentEffects` deleted. `WOR_StartingEffects` debug Exec added. | feature/starting-effects |

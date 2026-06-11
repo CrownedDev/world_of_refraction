@@ -122,41 +122,21 @@ public:
 		AActor *Source = nullptr,
 		int32 SourceTeam = -1);
 
-	/**
-	 * Apply all FSkillEffect-authored effects from an evolution crystal.
-	 * Call when evolution is activated on a character.
-	 *
-	 * @param Target Actor receiving the effects
-	 * @param EvolutionName Display prefix for effect names
-	 * @param EvolutionID Source identifier; effects are tracked at EvolutionID*100 + index
-	 * @param Effects Effects to apply (UEvolutionItemData::Effects)
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
-	void ApplyEvolutionEffects(
-		AActor *Target,
-		const FString &EvolutionName,
-		int32 EvolutionID,
-		const TArray<FSkillEffect> &Effects);
-
 	// ========================================
 	// EQUIPMENT EFFECT APPLICATION
 	// ========================================
 
 	/**
-	 * Apply equipment-level skill effects (weapon/ring Effects array).
+	 * Apply STARTING gear effects (the non-conditional subset, once at combat start).
 	 *
 	 * @param Target Actor to apply effects to
-	 * @param Effects Equipment effects to apply (from ULoadoutComponent::GetActiveEffects)
-	 * @param SourceID Per-source identifier (e.g. weapon/ring instance ID).
+	 * @param Effects Starting effects to apply (from ULoadoutComponent::GetActiveEffects)
+	 * @param SourceID Per-source identifier (the combatant's UniqueID today).
 	 *        Effects are tracked at SourceID*100 + index — pass a value that
-	 *        won't collide with evolution effect IDs.
+	 *        won't collide with other effect-ID windows.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
 	void ApplyEquipmentEffects(AActor *Target, const TArray<FSkillEffect> &Effects, int32 SourceID);
-
-	/** Remove equipment effects applied with the given SourceID. */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
-	void RemoveEquipmentEffects(AActor *Target, int32 SourceID);
 
 	/**
 	 * Apply physical damage type skill effect (Generic character weapon attacks)
@@ -262,6 +242,19 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Turn Processing")
 	void ProcessTriggerEffects(AActor *Actor, ESkillTrigger Trigger, float TriggerValue = 0.0f);
+
+	// ========================================
+	// WOR_ DEBUG SUITE
+	// ========================================
+
+	/** Starting-effects inspector for the ACTIVE combatant. PRE: per gear source
+	 *  (weapon / ring / innate evolution), the starting effects that WILL apply
+	 *  (GetStartingEffects off each source asset), plus a GetActiveEffects total
+	 *  cross-check so coverage drift in this tool is self-reporting. POST: effects
+	 *  currently present in the actor's equipment SourceID window
+	 *  (Actor->GetUniqueID()*100 + i). Console: "WOR_StartingEffects" in PIE. */
+	UFUNCTION(Exec)
+	void WOR_StartingEffects();
 
 	// ========================================
 	// QUERIES

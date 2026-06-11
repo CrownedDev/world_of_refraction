@@ -10,6 +10,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Skills/Effects/SkillEffectDisplayNames.h"
 #include "Equipment/Rings/RingData.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Loadout/LoadoutComponent.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Engine/GameInstance.h"
 
@@ -187,32 +190,6 @@ void USkillEffectManager::ApplyInfusionDOT(
 	ApplyEffect(Target, InfusionEffect, Source, AbilityName + TEXT(" (Infused)"), SourceTeam);
 }
 
-void USkillEffectManager::ApplyEvolutionEffects(
-	AActor *Target,
-	const FString &EvolutionName,
-	int32 EvolutionID,
-	const TArray<FSkillEffect> &Effects)
-{
-	if (!Target)
-	{
-		return;
-	}
-
-	for (int32 i = 0; i < Effects.Num(); ++i)
-	{
-		const FSkillEffect &Source = Effects[i];
-		if (Source.EffectType == ESkillEffectType::None)
-		{
-			continue;
-		}
-
-		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
-			EvolutionName, EvolutionID, Source, i);
-
-		ApplyEffect(Target, Runtime, nullptr, EvolutionName, -1);
-	}
-}
-
 // ========================================
 // EQUIPMENT EFFECT APPLICATION
 // ========================================
@@ -242,20 +219,133 @@ void USkillEffectManager::ApplyEquipmentEffects(
 	}
 }
 
-void USkillEffectManager::RemoveEquipmentEffects(AActor *Target, int32 SourceID)
+void USkillEffectManager::WOR_StartingEffects()
 {
-	if (!Target)
+	UTurnManager *TurnMgr = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+	if (!TurnMgr)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[WOR_StartingEffects] No TurnManager subsystem."));
 		return;
 	}
 
-	// CreateFromSkillEffect packs EffectID as SourceID*100 + EffectIndex.
-	// Clear every slot in that window; missing IDs are a no-op in RemoveEffectByID.
-	constexpr int32 EFFECT_INDEX_RANGE = 100;
-	for (int32 i = 0; i < EFFECT_INDEX_RANGE; ++i)
+	AActor *Actor = TurnMgr->GetCurrentActor();
+	if (!Actor)
 	{
-		RemoveEffectByID(Target, SourceID * EFFECT_INDEX_RANGE + i);
+		UE_LOG(LogTemp, Warning, TEXT("[WOR_StartingEffects] No active character (combat not active?)."));
+		return;
 	}
+
+	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
+	if (!LC)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WOR_StartingEffects] No LoadoutComponent on %s."), *Actor->GetName());
+		return;
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("=== STARTING EFFECTS — %s ==="), *Actor->GetName());
+
+	auto PrintSpecs = [](const TCHAR *SourceLabel, const TArray<FSkillEffect> &Specs) -> int32
+	{
+		for (const FSkillEffect &E : Specs)
+		{
+			UE_LOG(LogTemp, Display, TEXT("  PRE [%s] %s — %s (Mag=%.2f Val=%d Dur=%d)"),
+				   SourceLabel,
+				   E.EffectName.IsEmpty() ? TEXT("(unnamed)") : *E.EffectName,
+				   *UEnum::GetValueAsString(E.EffectType),
+				   E.Magnitude, E.Value, E.Duration);
+		}
+		return Specs.Num();
+	};
+
+	// PRE — per gear source, mirroring GetActiveEffects' per-class coverage.
+	// Debug-only re-enumeration; the TOTAL cross-check below self-reports drift.
+	int32 Labeled = 0;
+	const FCombatLoadout Loadout = LC->GetActiveLoadout();
+	switch (LC->CharacterClass)
+	{
+	case ECharacterClass::Generic:
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+		{
+			if (UWeaponData *Weapon = LC->GetActiveWeapon())
+			{
+				Labeled += PrintSpecs(TEXT("ActiveWeapon"), Weapon->GetStartingEffects());
+			}
+		}
+		else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+		{
+			if (URingData *Ring = LC->GetPrimaryRing())
+			{
+				Labeled += PrintSpecs(TEXT("PrimaryRing"), Ring->GetStartingEffects());
+			}
+			if (UWeaponData *Weapon = LC->GetActiveWeapon())
+			{
+				Labeled += PrintSpecs(TEXT("SecondaryWeapon"), Weapon->GetStartingEffects());
+			}
+		}
+		break;
+
+	case ECharacterClass::Resonator:
+		if (URingData *Ring = LC->GetActiveRing())
+		{
+			Labeled += PrintSpecs(TEXT("ActiveRing"), Ring->GetStartingEffects());
+		}
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+		{
+			if (UWeaponData *Weapon = LC->GetPrimaryWeapon())
+			{
+				Labeled += PrintSpecs(TEXT("PrimaryWeapon"), Weapon->GetStartingEffects());
+			}
+		}
+		break;
+
+	case ECharacterClass::Caster:
+	default:
+		if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+		{
+			if (UWeaponData *Weapon = LC->GetPrimaryWeapon())
+			{
+				Labeled += PrintSpecs(TEXT("PrimaryWeapon"), Weapon->GetStartingEffects());
+			}
+		}
+		else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+		{
+			if (URingData *Ring = LC->GetPrimaryRing())
+			{
+				Labeled += PrintSpecs(TEXT("PrimaryRing"), Ring->GetStartingEffects());
+			}
+		}
+		break;
+	}
+	if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+	{
+		Labeled += PrintSpecs(TEXT("InnateEvolution"), Loadout.PrimaryEvolution.Item->GetStartingEffects());
+	}
+
+	const int32 Total = LC->GetActiveEffects(Actor).Num();
+	UE_LOG(LogTemp, Display, TEXT("  PRE total: %d labeled vs %d from GetActiveEffects%s"),
+		   Labeled, Total,
+		   Labeled == Total ? TEXT(" — MATCH") : TEXT(" — MISMATCH (coverage drift; fix this tool)"));
+
+	// POST — effects currently present in the equipment SourceID window
+	// (CreateFromSkillEffect packs EffectID = SourceID*100 + index). NOTE: the
+	// window keys on Actor->GetUniqueID() — the TODO WATCH collision hazard
+	// applies; an unrelated source sharing the window would show here too.
+	const int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
+	const int32 WindowLo = SourceID * 100;
+	const int32 WindowHi = WindowLo + 99;
+	int32 PostCount = 0;
+	for (const FActiveSkillEffect &E : GetActiveEffects(Actor))
+	{
+		if (E.EffectID >= WindowLo && E.EffectID <= WindowHi)
+		{
+			UE_LOG(LogTemp, Display, TEXT("  POST %s — %s (ID=%d)"),
+				   *E.EffectName, *UEnum::GetValueAsString(E.EffectType), E.EffectID);
+			PostCount++;
+		}
+	}
+	UE_LOG(LogTemp, Display, TEXT("  POST applied in equipment window [%d..%d]: %d"),
+		   WindowLo, WindowHi, PostCount);
+	UE_LOG(LogTemp, Display, TEXT("======================"));
 }
 
 void USkillEffectManager::ApplyPhysicalDamageEffect(
