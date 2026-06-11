@@ -59,9 +59,9 @@ fractions off the caster's `UCharacterDataComponent` (gear-inclusive) and
 fall back to the base formula if `CharacterData` is missing.
 
 - `ProcessPostCastWear(Actor, Holder, FRuntimeAttachedItem &Attachment, ActionTier, InfusionLevel, bIsSpell)`
-  — refined / weapon- or ring-attached crystals. Called from three sites in
-  `UActionExecutor::ApplyCommitCosts`. Includes a Luck-skip roll and broadcasts
-  `OnCrystalBroken` / `OnCrystalDurabilityChanged` per cast.
+  — refined crystals AND elemental fusions (see *Fusion wear* below). Called from
+  three sites in `UActionExecutor::ApplyCommitCosts`. Includes a Luck-skip roll and
+  broadcasts `OnCrystalBroken` / `OnCrystalDurabilityChanged` per cast.
 - `ProcessPostCastEvolutionWear(Actor, ULoadoutComponent*, ActionTier, InfusionLevel, bIsSpell)`
   — standalone primary-slot evolution (`PrimarySlotType == Evolution`, e.g.
   Broken Darkness). Called from `UActionExecutor::ExecuteSpellAsync` after
@@ -70,6 +70,32 @@ fall back to the base formula if `CharacterData` is missing.
   broken slots via `ClearBrokenPrimaryEvolution`). The `bForceWear` flag
   bypasses the per-asset `bCanBreak` gate — BD's mechanic is intrinsic, so
   per-asset opt-in would silently fail.
+
+## Fusion wear
+
+Elemental fusions (gem + stone half) wear and break in production. The
+`ProcessPostCastWear` gate is `IsCrystal() || (IsFusion() && Fusion.HasGemHalf())`
+— augmented (stone+stone) fusions never wear, preserving augment-stone no-wear
+semantics. Wear math keys off the **gem half's tier** (matching
+`FFusionAttachment::GetMaxDurability`'s keying — the stone half's tier already
+feeds durability via the two-tier matrix bonus, so wear-keying it too would
+double-count). Cadence is identical to crystals: per infused action through that
+catalyst.
+
+**Break = dead stat, at the break instant.** The `bBroke` branch fires, for
+fusions only, `UTurnManager::OnActorSpeedChanged` + `RecomputeMaxPools`
+unconditionally — the attachment is already broken there, so the stat-read
+guards (`GetAttachedStonePercent` / `...ForType` IsBroken early-returns) read 0
+and the recompute lands the loss immediately. Weapon breaks need this hook;
+ring breaks also recompute via RingManager's auto-switch (idempotent double).
+Plain crystals carry no stat percents, so their breaks need no hook.
+
+`FBrokenCrystalPayload` carries an appended `FFusionId` (Kind == Fusion; the
+gem half doubles as `CrystalId` for Kind-unaware listeners). RingManager's
+break consumer resolves the `FUSION gem+stone` name, and both debug commands
+handle fusions: `DebugBreakActiveCrystal` accepts elemental fusions (same gate
+as production), `DebugForceWearActiveCrystal` labels the FUSION branch with a
+truthful wears/never-wears string.
 
 ## EP-vs-wear cost split
 
@@ -126,3 +152,4 @@ bypasses tier math and Luck-skip).
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-27 | Initial documentation — substat wear modifier, two-path entry points (refined vs case-B primary evolution), BD EP-vs-wear cost split with Innate-conversion carve-out, WOR_ debug suite | feature/crystal-wear-substat-modifier |
+| 2026-06-11 | Fusion wear pipeline: elemental fusions wear + break in production (gate widened, gem-half tier keys wear, augmented fusions stay never-wear). Break fires speed-notify + `RecomputeMaxPools` at the break instant — the production trigger for the broken-fusion stat guards. `FBrokenCrystalPayload.FusionId` appended; RingManager + both debug commands fusion-aware. | feature/fusion-wear-pipeline |

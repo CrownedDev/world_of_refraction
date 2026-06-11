@@ -14,6 +14,7 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **DONE** — `[AI Emerald]` + `[BONUSDIAG]` diagnostic logs stripped (verified zero occurrences in Source).
 - **DONE** — Infusion lethal-at-finalize documented (`CombatOrchestrator.md` → *Infusion HP cost — lethal, paid at finalize*).
 - **DONE** — feature/evolution-pillar-turnspeed: innate evolution flat stats feed `GetActiveStatBonus` (pillar % zeroed); turn speed reads pillar-modified Spirit (`CalculateTurnSpeedWithSpirit` + `GetEvolutionModifiedSpirit`); SpiritBuff/Debuff notify; TurnSpeed dropped from all three infusion writers. See `Architecture/TurnManager.md` changelog. | 2026-06-11
+- **DONE** — feature/fusion-wear-pipeline: elemental fusions wear + break in production (gem-half tier keys wear; augmented never wears); break fires speed-notify + `RecomputeMaxPools` at the break instant; `FBrokenCrystalPayload.FusionId`; RingManager + debug commands fusion-aware. See `Architecture/CrystalWear.md` → *Fusion wear*. | 2026-06-11
 
 ## Small / unblocked
 
@@ -50,9 +51,6 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).
 - **POSSIBLE** — `StatusMultiplier` base-extract: only if base composition grows beyond ~3 terms (currently keep-both).
 
-## feature/fusion-wear-pipeline
-
-- **BLOCKED** — Elemental fusions never wear in production: `ProcessPostCastWear` early-returns on `!IsCrystal()` (CrystalManager.cpp:47), so `FFusionAttachment::ApplyWear`/whole-fusion durability is dispatch-reachable but unrouted (only `DebugForceWearActiveCrystal` can break one). Building it needs: fusion tier source for the wear math (gem half), fusion-aware `FBrokenCrystalPayload`, and a speed notify on break gated on `GetAttachedStonePercent(..., TurnSpeed) > 0` evaluated pre-break (read returns 0 post-break since the IsBroken guard landed). `OnCrystalBroken(Actor, ...)` is the clean hook — Actor is in the signature.
 ## feature/always-active-effects
 
 - **BLOCKED** — `GetAlwaysActiveEffects()` has zero callers (weapon `UEquipmentDataBase` + evolution `UEvolutionItemData`) — dormant/unbuilt. Wire when the always-active passive system is built; speed-type effects will then notify for free via the `IsSpeedEffect` apply/remove gates.
