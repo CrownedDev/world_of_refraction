@@ -53,8 +53,6 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 ## feature/fusion-wear-pipeline
 
 - **BLOCKED** — Elemental fusions never wear in production: `ProcessPostCastWear` early-returns on `!IsCrystal()` (CrystalManager.cpp:47), so `FFusionAttachment::ApplyWear`/whole-fusion durability is dispatch-reachable but unrouted (only `DebugForceWearActiveCrystal` can break one). Building it needs: fusion tier source for the wear math (gem half), fusion-aware `FBrokenCrystalPayload`, and a speed notify on break gated on `GetAttachedStonePercent(..., TurnSpeed) > 0` evaluated pre-break (read returns 0 post-break since the IsBroken guard landed). `OnCrystalBroken(Actor, ...)` is the clean hook — Actor is in the signature.
-- **CLEANUP** — `GetAttachedStonePercentForType` (pool stones, CrystalEffectTable.h:614) fusion branch needs the same `IsBroken` guard as `GetAttachedStonePercent` ("broken = dead stat" for MaxHP/MaxEP halves too). Sibling flagged during Cluster D, deliberately not expanded mid-cluster.
-
 ## feature/always-active-effects
 
 - **BLOCKED** — `GetAlwaysActiveEffects()` has zero callers (weapon `UEquipmentDataBase` + evolution `UEvolutionItemData`) — dormant/unbuilt. Wire when the always-active passive system is built; speed-type effects will then notify for free via the `IsSpeedEffect` apply/remove gates.

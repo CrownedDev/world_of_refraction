@@ -622,6 +622,14 @@ namespace CrystalEffectTable
     {
         if (Att.IsFusion())
         {
+            // Broken = dead stat: an elemental fusion at 0 durability stops contributing
+            // ALL its stat percents — pool stones included (mirrors the
+            // GetAttachedStonePercent guard). Augmented (stone+stone) fusions never wear,
+            // so their IsBroken is always false — exempt automatically (HasGemHalf gate).
+            if (Att.Fusion.IsBroken())
+            {
+                return 0.0f;
+            }
             // Sum any half matching StoneType. No bonus term: the fusion bonus is an
             // ESubStat and pools have no ESubStat (Option B), so only a literal
             // MaxHP/MaxEP stone half ever feeds a pool, never the bonus.
