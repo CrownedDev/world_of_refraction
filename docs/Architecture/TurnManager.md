@@ -80,16 +80,36 @@ A pinned bonus turn (Emerald) — fires at its slot regardless of debt:
 ### Stat caching (`CacheActorStats`)
 
 Reads the actor's `UCharacterDataComponent` / `UCharacterData`:
-- `CachedSpeed` = `CharacterData->CalculateTurnSpeed()` (pillar-scaled, rounded),
-  plus the actor's active equipment `FEquipmentStatBonus::BonusTurnSpeed` from
-  `ULoadoutComponent`.
+- `CachedSpeed` = `CharacterData->CalculateTurnSpeedWithSpirit(CharComp->GetEvolutionModifiedSpirit())`
+  (rounded), plus the actor's active equipment `FEquipmentStatBonus::BonusTurnSpeed`
+  from `ULoadoutComponent::GetActiveStatBonus` — which now includes an innate
+  (primary-slot) evolution's flat substats.
 - `CachedActionSpeed` = `GetTotalActionSpeed()`.
 - `CachedMind/Body/Spirit` = `WorldMindLevel/WorldBodyLevel/WorldSpiritLevel`.
 - Fallback defaults (Speed 5, ActionSpeed 5, Mind/Body/Spirit 3) when no character
   data is present (testing).
 
-`CachedSpeed` is always the *pristine base* — turn-speed status effects are not
-baked in here.
+**Turn speed reads pillar-MODIFIED Spirit** (deliberate balance change): the formula
+lives on the asset as `CalculateTurnSpeedWithSpirit(Spirit)`; `CacheActorStats`
+supplies the component's `GetEvolutionModifiedSpirit()` (evolution crystal % ×
+equipment % × transient Spirit buff/debuff), so gear Spirit% paces turn order like
+every other Spirit-derived stat. The asset's `CalculateTurnSpeed()` remains the
+raw-Spirit wrapper (debug prints). Two consequences: `CachedSpeed` is no longer the
+pristine base — the level-1 tie-break can shift with Spirit% gear/buffs — and
+`SpiritBuff`/`SpiritDebuff` are in `IsSpeedEffect`, so their apply/expiry fires the
+speed recompute. TurnSpeed-specific effects (`ModifyTurnSpeed`/`TurnSpeedBuff`/
+`TurnSpeedDebuff`) still apply in `CalculateSpeedRatios`, not here — the two layers
+are distinct effect types, no double-count.
+
+**Evolution boundaries**: innate (primary-slot) evolutions feed turn speed through
+`GetActiveStatBonus` (Base + Generated, pillar percents zeroed there to avoid
+double-applying `ApplyEvolutionPillarModifier`'s crystal layer); ATTACHED-to-gear
+evolutions are infusion-only and never feed pacing — a stricter primary-only gate
+than the pillar-modifier/resistance reads, which allow attached too (deliberate).
+**Infusion never alters turn speed**: TurnSpeed is dropped from all three
+`FActionStatModifiers` writers (the evolution mapping, Reality `AddFlatPercent`,
+pillar-mode `AddPillarPercent`); the field is kept as an explicit never-applied
+marker.
 
 ### Speed ratios (`CalculateSpeedRatios`)
 
@@ -247,3 +267,5 @@ Observations from the code:
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-06-09 | Delayed bonus-turn scheduler (Emerald): `FScheduledTurn`/`PendingTurns`, `ScheduleBonusTurn`, decrement-and-fire loop in `AdvanceToNextTurn` (reuses `RequestExtraTurn`), dead-actor skip, combat-scoped clear. Bonus-flag surfacing: `UntakenBonusTurns` + `bCurrentTurnIsBonus` + the `FPreviewTurnEntry::bIsBonusTurn` preview flag (inline scheduled bonuses + current-actor slot tint). | feature/weapon-stones |
 | 2026-06-11 | Turn-order migrated to materialized belt. `AdvanceSimState` is the single scheduler step driving both live turns and the belt; `PreviewTurnOrder` now slices `TurnBelt`. Bonus turns are positional (pinned `PendingTurns` entries with `Count`), not debt credits: delay N = N normal turns then fire, S-rank = delay0 count2 (two back-to-back). Bonus = borrow-from-future (`TurnsTaken++` no `TurnsOwed` credit, so grantee's next normal turn slips one slot per bonus). Dead grantee's pinned turn is skipped. Retired: `GetNextCombatant`, `UntakenBonusTurns`, debt-soft `RequestExtraTurn` bonus path (now warn-no-op). | feature/weapon-stones |
+| 2026-06-11 | Turn-invalidation signals: `ModifyTurnSpeed` + `RemoveEffectsByName` notify (SkillEffectManager); `SetActiveLoadoutIndex` notify + `RecomputeMaxPools`; gated speed notify on crystal detach (InventoryComponent); TurnManager binds `OnDied`/`OnResurrected` per combatant in `InitializeCombat` (unbound in `EndCombat`) so REAL death/revive recalcs ratios; accumulate is alive-filtered — dead actors stop banking debt (no revive turn-burst); `AccumulateDebtRound` deleted; broken elemental fusion contributes no stats (`GetAttachedStonePercent` IsBroken guard). | fix/turn-invalidation-signals |
+| 2026-06-11 | Evolution + pillar turn speed: turn speed reads pillar-MODIFIED Spirit via `CalculateTurnSpeedWithSpirit(Spirit)` on the asset, `CacheActorStats` supplying `GetEvolutionModifiedSpirit()` — gear Spirit% (weapon/ring/evolution) now paces (balance change). Innate (primary-slot) evolution flat stats feed `GetActiveStatBonus` (pillar % zeroed there; attached evolutions stay infusion-only). `SpiritBuff`/`SpiritDebuff` added to `IsSpeedEffect`. Infusion never alters turn speed: TurnSpeed dropped from all three `FActionStatModifiers` writers; field kept as never-applied marker. | feature/evolution-pillar-turnspeed |
