@@ -210,12 +210,15 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     const int32 MaxDur = Loadout.PrimaryEvolution.Item->MaxDurability;
     const FString EvoName = Loadout.PrimaryEvolution.Item->GetFullItemName();
 
-    // BD's mechanic is intrinsic — bypass the per-asset bCanBreak gate so the
-    // evolution can wear even when the asset wasn't explicitly opted-in. This
-    // function is only called from the BD branch of ApplyCommitCosts, so the
-    // force flag is safe to hard-code here. FEvolutionAttachment itself stays
-    // BD-agnostic; the override is expressed via the bForceWear parameter.
-    const bool bBroke = LC->ApplyWearToActivePrimaryEvolution(Wear, /*bForceWear=*/true);
+    // Force wear only when intrinsic wear is the caster's mechanic — Broken
+    // Darkness (canonical IsBrokenDarkness read) or Reality innate. Everyone
+    // else, including a null component, respects the asset's bCanBreak gate.
+    const bool bForceWear =
+        CasterCharComp && (CasterCharComp->IsBrokenDarkness() ||
+                           (CasterCharComp->CharacterData &&
+                            CasterCharComp->CharacterData->InnateElement == ESpellElement::Reality));
+
+    const bool bBroke = LC->ApplyWearToActivePrimaryEvolution(Wear, bForceWear);
 
     const FCombatLoadout AfterLoadout = LC->GetActiveLoadout();
     const int32 AfterDur = AfterLoadout.PrimaryEvolution.CurrentDurability;

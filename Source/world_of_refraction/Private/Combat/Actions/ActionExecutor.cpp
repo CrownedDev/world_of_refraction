@@ -4461,6 +4461,32 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			   *Actor->GetName(), Level, SelfStatusAmount,
 			   *UEnum::GetValueAsString(EvolutionElement));
 
+		// 4. Durability wear on the primary-slot evolution. Non-spell actions
+		//    only — spells pay via the ExecuteSpellAsync evolution hook, so an
+		//    unconditional charge here would double-bill an evolution-source
+		//    spell. Tier follows the non-spell sibling convention (active
+		//    weapon's tier, as in the ActiveRing/WeaponCrystal cases). The
+		//    BD/Reality breakable gate lives inside ProcessPostCastEvolutionWear.
+		if (Action.ActionType != EActionType::Spell)
+		{
+			EItemTier ActionTier = EItemTier::F_Tier;
+			if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			{
+				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+				{
+					ActionTier = Weapon->Tier;
+				}
+			}
+
+			if (UCrystalManager *CrystalMgr = GetGameInstance()
+												  ? GetGameInstance()->GetSubsystem<UCrystalManager>()
+												  : nullptr)
+			{
+				CrystalMgr->ProcessPostCastEvolutionWear(
+					Actor, LC, ActionTier, Level, /*bIsSpell=*/false);
+			}
+		}
+
 		break;
 	}
 
