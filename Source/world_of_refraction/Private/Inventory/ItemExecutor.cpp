@@ -391,12 +391,13 @@ void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalI
 
 void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Emerald: grant the TARGET a full bonus turn after a tier-scaled delay (F=6 … S=0 turns).
-	// Self-target = tempo; enemy-target = force their turn (their DoTs tick + they act — the
-	// gamble). Emerald itself applies NOTHING else: the DoT is whatever the player already
-	// stacked. The user forfeits the current turn for free — using the item IS the turn-ending
-	// action (OnActionCompleted → AdvanceToNextTurn). N==0 (S) fires immediately via
-	// RequestExtraTurn; N>=1 defers via the bonus-turn scheduler.
+	// Emerald: grant the TARGET a PINNED bonus turn after a tier-scaled delay in normal
+	// turns (F=6 … S=0). Self-target = tempo; enemy-target = force their turn (their DoTs
+	// tick + they act — the gamble). Emerald itself applies NOTHING else: the DoT is
+	// whatever the player already stacked. The user forfeits the current turn for free —
+	// using the item IS the turn-ending action (OnActionCompleted → AdvanceToNextTurn).
+	// All tiers route through ScheduleBonusTurn; S (delay 0) fires on the very next
+	// scheduler step and grants TWO back-to-back turns.
 	if (!Target)
 	{
 		OutResult.ErrorMessage = TEXT("Emerald: no target");
@@ -414,20 +415,17 @@ void UItemExecutor::ExecuteBonusTurnEffect(AActor *User, AActor *Target, FCrysta
 		return;
 	}
 
+	// S is the delay-0 entry of EMERALD_BONUS_TURN_DELAY (the existing tier identification
+	// in this handler) and is the only tier granting more than one turn. NOTE: delay==0 is
+	// the trigger for count 2 — if a future tier were ever given delay 0, it would also
+	// grant two back-to-back turns.
+	constexpr int32 SRankBonusCount = 2;
 	const int32 DelayTurns = CrystalEffectTable::GetEmeraldBonusTurnDelay(Id);
-	if (DelayTurns == 0)
-	{
-		// S-tier — immediate (handler-side, per design: the scheduler only handles N>=1).
-		TurnMgr->RequestExtraTurn(Target, /*bIsBonusTurn=*/true);
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald (S): granted %s an immediate bonus turn"),
-			   *Target->GetName());
-	}
-	else
-	{
-		TurnMgr->ScheduleBonusTurn(Target, DelayTurns);
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: scheduled a bonus turn for %s in %d turn(s)"),
-			   *Target->GetName(), DelayTurns);
-	}
+	const int32 Count = (DelayTurns == 0) ? SRankBonusCount : 1;
+
+	TurnMgr->ScheduleBonusTurn(Target, DelayTurns, Count);
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Emerald: scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
+		   Count, *Target->GetName(), DelayTurns);
 
 	OutResult.bSuccess = true;
 }

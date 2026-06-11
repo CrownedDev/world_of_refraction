@@ -39,9 +39,9 @@ namespace AugmentStoneConstants
      *  deliberately NOT routed through STONE_BASE_PERCENT. */
     constexpr int32 DURABILITY_STONE_BONUS[7] = {8, 15, 22, 29, 36, 43, 50};
 
-    /** Emerald bonus-turn delay (global turn boundaries) by tier: F=6, E=5, D=4, C=3,
-     *  B=2, A=1, S=0. Emerald grants the TARGET a full bonus turn after this many turns
-     *  (TurnManager::ScheduleBonusTurn); S=0 fires immediately (RequestExtraTurn). Lower
+    /** Emerald bonus-turn delay (NORMAL turns until fire) by tier: F=6, E=5, D=4, C=3,
+     *  B=2, A=1, S=0. All tiers schedule a pinned bonus via TurnManager::ScheduleBonusTurn;
+     *  S = delay 0 count 2 (two back-to-back pinned turns), F-A = delay N count 1. Lower
      *  tier = longer wait. */
     constexpr int32 EMERALD_BONUS_TURN_DELAY[7] = {6, 5, 4, 3, 2, 1, 0};
     static_assert(sizeof(EMERALD_BONUS_TURN_DELAY) / sizeof(int32) == 7,

@@ -34,15 +34,6 @@ struct FCombatantTurnDebt
 	UPROPERTY()
 	float SpeedRatio = 1.0f;
 
-	// Granted-but-not-yet-taken bonus turns (Emerald). Set when a bonus is GRANTED
-	// (RequestExtraTurn with bIsBonusTurn=true — the scheduled fire-loop or the S-tier
-	// immediate handler), decremented when the combatant is next picked (the bonus turn is
-	// taken). The preview reads this so a granted bonus turn keeps its flag after the
-	// PendingTurns entry is consumed. Count-keyed (>1 possible). Resets with Combatants on
-	// InitializeCombat. 0 = no bonus owed (the common case → preview unflagged).
-	UPROPERTY()
-	int32 UntakenBonusTurns = 0;
-
 	// Cached stats for tie-breaking
 	UPROPERTY()
 	int32 CachedSpeed = 0;
@@ -61,11 +52,12 @@ struct FCombatantTurnDebt
 };
 
 /**
- * A bonus turn scheduled to fire after a delay (Emerald). TurnsRemaining counts down once
- * per global turn boundary (AdvanceToNextTurn); at 0 the actor is granted an extra turn via
- * the existing RequestExtraTurn debt-credit. Actor is a raw UPROPERTY ref (matching
+ * A pinned bonus turn (Emerald). Pinned bonus: fires at its slot regardless of debt;
+ * decremented ONLY by normal turns, not by other bonus turns. TurnsRemaining is the delay
+ * in NORMAL turns until fire; at <= 0 the entry preempts the debt pick in AdvanceSimState
+ * and emits Count back-to-back bonus turns. Actor is a raw UPROPERTY ref (matching
  * FCombatantTurnDebt) — GC-tracked; a liveness check guards the fire, so a dead/invalid
- * actor's entry is silently dropped.
+ * actor's entry is dropped without emitting a turn.
  */
 USTRUCT()
 struct FScheduledTurn
@@ -77,6 +69,9 @@ struct FScheduledTurn
 
 	UPROPERTY()
 	int32 TurnsRemaining = 0;
+
+	UPROPERTY()
+	int32 Count = 1; // bonus turns this entry grants when it fires (S-rank=2)
 };
 
 /**
@@ -96,6 +91,11 @@ struct FPreviewTurnEntry
 
 	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
 	bool bIsBonusTurn = false;
+
+	// RESERVED: hard-pinned positional turns (feel pass). Always false until then —
+	// no producer sets it; appended at the END so existing BP reads stay layout-safe.
+	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
+	bool bIsForced = false;
 };
 
 /**
@@ -156,7 +156,9 @@ public:
 	bool GetCurrentTurnIsBonus() const { return bCurrentTurnIsBonus; }
 
 	/** Preview next N turns. Each entry is the combatant at that slot + a bonus-turn flag
-	 *  (scheduled Emerald bonus turns appear inline at their future slot, flagged). */
+	 *  (scheduled Emerald bonus turns appear inline at their future slot, flagged).
+	 *  Cluster 2a: a slice of TurnBelt — no forward sim; N beyond the belt horizon
+	 *  returns what's available. */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	TArray<FPreviewTurnEntry> PreviewTurnOrder(int32 NumTurns) const;
 
@@ -180,23 +182,20 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void OnActorResurrected(AActor *Actor);
 
-	/** Grant an additional turn to the specified actor by crediting one unit of
-	 *  TurnsOwed. The debt-based scheduler will pick this actor on the next
-	 *  AdvanceToNextTurn call (or shortly after, depending on relative debt).
-	 *  bIsBonusTurn=true additionally marks the grant as an Emerald bonus turn
-	 *  (UntakenBonusTurns++), so the turn-order preview flags it — pass true ONLY from the
-	 *  Emerald paths (scheduled fire-loop, S-tier immediate handler), false (default) for
-	 *  every other extra-turn grant (e.g. the ExtraAction skill effect). */
+	/** Grant an additional NON-bonus turn by crediting one unit of TurnsOwed (debt-soft) —
+	 *  the ExtraAction skill effect path. Cluster 2b: the bonus path is RETIRED — Emerald
+	 *  bonuses are pinned entries via ScheduleBonusTurn. bIsBonusTurn is kept only so
+	 *  existing call sites compile; passing true is a warn-and-ignore no-op. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void RequestExtraTurn(AActor *Actor, bool bIsBonusTurn = false);
 
-	/** Schedule a bonus turn for Actor to fire after DelayTurns global turn boundaries
-	 *  (Emerald's delayed grant). DelayTurns must be >= 1 — N==0 (immediate) is handled
-	 *  caller-side via RequestExtraTurn directly; a <1 delay here is ignored + logged. On
-	 *  expiry the scheduler calls RequestExtraTurn(Actor) if the actor is still a living
-	 *  combatant, otherwise drops the entry. */
+	/** Schedule Count pinned bonus turn(s) for Actor, firing after DelayTurns NORMAL turns
+	 *  (Emerald). DelayTurns >= 0 is valid: 0 fires on the very next scheduler step (the
+	 *  S-rank immediate case, Count=2 → two back-to-back). Pinned: the fire preempts the
+	 *  debt pick at its slot; only normal turns burn the delay. A dead/invalid grantee's
+	 *  entry is dropped at fire time without emitting a turn. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
-	void ScheduleBonusTurn(AActor *Actor, int32 DelayTurns);
+	void ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count = 1);
 
 	// ========================================
 	// EVENTS
@@ -230,9 +229,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintTurnOrder();
 
-	/** Formatted snapshot of the delayed bonus-turn queue (Emerald) — each scheduled
-	 *  actor + its TurnsRemaining. Notes that immediate (N==0) grants bypass the queue
-	 *  via RequestExtraTurn, so only N>=1 entries appear here. For log/screen inspection. */
+	/** Formatted snapshot of the pinned bonus-turn queue (Emerald) — each scheduled
+	 *  actor + its remaining normal-turn delay + count. For log/screen inspection. */
 	UFUNCTION(BlueprintPure, Category = "Turn Manager|Debug")
 	FString GetPendingTurnsString() const;
 
@@ -240,6 +238,10 @@ public:
 	 *  Inspect the scheduler mid-combat without constructing the Emerald-use path. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager|Debug")
 	void DebugPrintPendingTurns();
+
+	/** Log TurnBelt in DebugPrintTurnOrder's slot format so output diffs by eye. */
+	UFUNCTION(Exec, BlueprintCallable, Category = "Turn Manager|Debug")
+	void DebugPrintBelt();
 
 private:
 	// ========================================
@@ -249,10 +251,19 @@ private:
 	UPROPERTY()
 	TArray<FCombatantTurnDebt> Combatants;
 
-	/** Pending delayed bonus turns (Emerald). Decremented once per AdvanceToNextTurn;
-	 *  fired via RequestExtraTurn at 0. Cleared on InitializeCombat / EndCombat. */
+	/** Pinned pending bonus turns (Emerald). Delay burns down on NORMAL turns only;
+	 *  ready entries (TurnsRemaining <= 0) fire from AdvanceSimState's pinned-fire step,
+	 *  preempting the debt pick. Cleared on InitializeCombat / EndCombat. */
 	UPROPERTY()
 	TArray<FScheduledTurn> PendingTurns;
+
+	/** Materialized upcoming turns (excludes the current turn). Filled by RebuildBelt
+	 *  running AdvanceSimState forward on scratch state; rebuilt every AdvanceToNextTurn
+	 *  before OnTurnStarted fires. PreviewTurnOrder is a slice of this. */
+	// ONLINE: server owns this rebuild and replicates TurnBelt + CurrentActor; clients
+	// consume belt[0] instead of recomputing. Not implemented (single-player).
+	UPROPERTY()
+	TArray<FPreviewTurnEntry> TurnBelt;
 
 	UPROPERTY()
 	AActor *CurrentActor;
@@ -283,8 +294,18 @@ private:
 	/** Add one round of debt to all combatants based on their SpeedRatio */
 	void AccumulateDebtRound();
 
-	/** Find combatant with highest net debt (TurnsOwed - TurnsTaken) */
-	FCombatantTurnDebt *GetNextCombatant();
+	/** The single scheduler step both the live path and the belt fill share (Cluster 2a:
+	 *  this IS the live step — AdvanceToNextTurn passes real state, RebuildBelt scratch).
+	 *  Advances ONE turn on the passed state: round-check+accumulate, select+tiebreak,
+	 *  TurnsTaken++, bonus-consume -> OutEntry.bIsBonusTurn, pending-countdown -> debt
+	 *  credit. Returns false if no living combatant remains. const: touches only the
+	 *  passed refs. */
+	bool AdvanceSimState(TArray<FCombatantTurnDebt> &State,
+						 TArray<FScheduledTurn> &Pending,
+						 FPreviewTurnEntry &OutEntry) const;
+
+	/** Refill TurnBelt (up to TURN_BELT_HORIZON) from a scratch copy of live state. */
+	void RebuildBelt();
 
 	/** Determine tie-breaker winner between two combatants */
 	bool ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const;

@@ -198,6 +198,10 @@ namespace CombatConstants
     constexpr float TURN_SPEED_THRESHOLD_DOUBLE = 15.0f; // Need +15 for 2:1 ratio
     constexpr int32 MAX_TURN_RATIO = 2;                  // Capped at 2:1
 
+    // Materialized upcoming-turn depth (UTurnManager::TurnBelt). Largest live
+    // consumer asks for 10 (AI Emerald lookahead, debug print); 16 gives headroom.
+    constexpr int32 TURN_BELT_HORIZON = 16;
+
     // ==================== ABILITY SYSTEM ====================
 
     // Requirement Penalties

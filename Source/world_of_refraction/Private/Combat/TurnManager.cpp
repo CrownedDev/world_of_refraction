@@ -77,7 +77,7 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &Team1, const TArray<
 
 	bCombatActive = true;
 
-	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in GetNextCombatant)
+	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in AdvanceSimState)
 	CalculateSpeedRatios();
 
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Combat initialized with %d combatants"), Combatants.Num());
@@ -114,73 +114,35 @@ void UTurnManager::AdvanceToNextTurn()
 
 	PreviousActor = CurrentActor;
 
-	// // Diagnostic: dump debt state before picking next actor
-	// DebugPrintTurnOrder();
-
-	// Find next actor
-	FCombatantTurnDebt *NextCombatant = GetNextCombatant();
-
-	if (!NextCombatant)
+	// The single shared scheduler step runs on REAL state. AdvanceSimState owns pinned
+	// bonus fire, round-check+accumulate, select+tiebreak, TurnsTaken++ and the normal-turn
+	// delay countdown — none of those may be repeated here or they would double-apply.
+	FPreviewTurnEntry Picked;
+	if (!AdvanceSimState(Combatants, PendingTurns, Picked))
 	{
 		UE_LOG(LogTemp, Error, TEXT("[TurnManager] No valid combatant found for next turn"));
 		EndCombat();
 		return;
 	}
 
-	CurrentActor = NextCombatant->Actor;
-	NextCombatant->TurnsTaken++;
+	CurrentActor = Picked.Actor;
+	// Per-turn transient, set EVERY turn (true OR false) so it describes THIS turn. The
+	// consume happened inside AdvanceSimState; captured here — before OnTurnStarted.Broadcast
+	// — so the widget's refresh reads the result (the consume-before-observe fix).
+	bCurrentTurnIsBonus = Picked.bIsBonusTurn;
 	GlobalTurnCount++;
-
-	// If this pick consumes a granted-but-not-yet-taken bonus turn (Emerald), mark it spent —
-	// THIS turn is the bonus being taken. The preview's marker read mirrors this, so a flagged
-	// upcoming slot clears once the bonus turn is taken. (Single-Emerald: one untaken bonus →
-	// the actor's next pick consumes it.)
-	// Set the per-turn transient EVERY turn (true OR false) so it describes THIS turn, never a
-	// stale prior value. Captured here — before OnTurnStarted.Broadcast — so the widget's
-	// refresh reads the result, not the already-zeroed count (the consume-before-observe fix).
-	bCurrentTurnIsBonus = (NextCombatant->UntakenBonusTurns > 0);
-	if (bCurrentTurnIsBonus)
-	{
-		NextCombatant->UntakenBonusTurns--;
-	}
 
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Turn %d: %s (Team %d)"),
 		   GlobalTurnCount,
 		   *CurrentActor->GetName(),
-		   NextCombatant->TeamIndex);
+		   GetActorTeam(CurrentActor));
+
+	// Belt reflects post-advance state. Rebuilt BEFORE the broadcast: the turn-order strip
+	// refreshes synchronously inside OnTurnStarted and reads PreviewTurnOrder — now a belt
+	// slice — so a post-broadcast rebuild would hand it last turn's belt, one slot stale.
+	RebuildBelt();
 
 	OnTurnStarted.Broadcast(CurrentActor, GlobalTurnCount);
-
-	// Tick scheduled bonus turns (Emerald) — exactly once per global turn boundary. Each
-	// entry's countdown drops by 1; at 0 the actor is granted an extra turn via the existing
-	// RequestExtraTurn debt-credit (honored by the NEXT GetNextCombatant). Dead/invalid actors
-	// are dropped silently — an enemy DoT may have killed the target before the bonus fires —
-	// using the same living-combatant check as GetNextCombatant. Reverse iteration so RemoveAt
-	// is safe.
-	for (int32 i = PendingTurns.Num() - 1; i >= 0; --i)
-	{
-		if (--PendingTurns[i].TurnsRemaining > 0)
-		{
-			continue;
-		}
-
-		AActor *BonusActor = PendingTurns[i].Actor;
-		PendingTurns.RemoveAt(i);
-
-		if (IsValid(BonusActor))
-		{
-			UCharacterDataComponent *CharComp = BonusActor->FindComponentByClass<UCharacterDataComponent>();
-			if (CharComp && CharComp->bIsAlive)
-			{
-				RequestExtraTurn(BonusActor, /*bIsBonusTurn=*/true);
-			}
-			else
-			{
-				UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled bonus turn for %s dropped — not a living combatant"),
-					   *BonusActor->GetName());
-			}
-		}
-	}
 }
 
 // ========================================
@@ -268,20 +230,25 @@ USkillEffectManager *UTurnManager::GetSkillEffectManager() const
 void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 {
 	if (!Actor) return;
+
+	// Cluster 2b: bonus turns are pinned belt entries (ScheduleBonusTurn), not debt
+	// credits. The bonus path here is retired; the param survives only so existing
+	// call sites compile. True is a no-op so a stray call can't silently re-create
+	// the old debt-soft bonus behaviour.
+	if (bIsBonusTurn)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] RequestExtraTurn(bIsBonusTurn=true) for %s ignored — use ScheduleBonusTurn for bonuses"),
+			   *Actor->GetName());
+		return;
+	}
+
 	for (FCombatantTurnDebt &Combatant : Combatants)
 	{
 		if (Combatant.Actor == Actor)
 		{
 			Combatant.TurnsOwed += 1.0f;
-			// Emerald bonus grants flag the granted-not-yet-taken turn so the preview keeps
-			// showing it after the PendingTurns entry is consumed. Non-bonus callers (e.g.
-			// the ExtraAction skill effect) leave this 0 and are never flagged.
-			if (bIsBonusTurn)
-			{
-				Combatant.UntakenBonusTurns++;
-			}
-			UE_LOG(LogTemp, Log, TEXT("[TurnManager] %s turn granted to %s (TurnsOwed now %.2f, UntakenBonus %d)"),
-				   bIsBonusTurn ? TEXT("Bonus") : TEXT("Extra"), *Actor->GetName(), Combatant.TurnsOwed, Combatant.UntakenBonusTurns);
+			UE_LOG(LogTemp, Log, TEXT("[TurnManager] Extra turn granted to %s (TurnsOwed now %.2f)"),
+				   *Actor->GetName(), Combatant.TurnsOwed);
 			return;
 		}
 	}
@@ -289,30 +256,21 @@ void UTurnManager::RequestExtraTurn(AActor *Actor, bool bIsBonusTurn)
 		   *Actor->GetName());
 }
 
-void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns)
+void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count)
 {
 	if (!Actor)
 	{
 		return;
 	}
 
-	// N==0 (immediate) is handled caller-side (RequestExtraTurn directly); the scheduler
-	// only handles a genuine delay (N>=1). A <1 delay here is a misuse — log and drop
-	// rather than silently firing at the wrong boundary.
-	if (DelayTurns < 1)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[TurnManager] ScheduleBonusTurn: DelayTurns %d < 1 for %s — ignored (N==0 is caller-side immediate)"),
-			   DelayTurns, *Actor->GetName());
-		return;
-	}
-
 	FScheduledTurn Entry;
 	Entry.Actor = Actor;
-	Entry.TurnsRemaining = DelayTurns;
+	Entry.TurnsRemaining = DelayTurns; // 0 = ready: fires on the very next scheduler step
+	Entry.Count = FMath::Max(1, Count);
 	PendingTurns.Add(Entry);
 
-	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled bonus turn for %s in %d turn(s)"),
-		   *Actor->GetName(), DelayTurns);
+	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
+		   Entry.Count, *Actor->GetName(), DelayTurns);
 }
 
 // ========================================
@@ -324,62 +282,6 @@ void UTurnManager::AccumulateDebtRound()
 	{
 		Combatant.TurnsOwed += Combatant.SpeedRatio;
 	}
-}
-
-// ========================================
-// CORRECTED: Only adds debt when a new round starts
-// ========================================
-FCombatantTurnDebt *UTurnManager::GetNextCombatant()
-{
-	// Check if we need a new round (no living combatant has positive net debt)
-	float MaxNetDebt = -FLT_MAX;
-	for (const FCombatantTurnDebt &Combatant : Combatants)
-	{
-		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
-		if (CharComp && CharComp->bIsAlive)
-		{
-			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-			MaxNetDebt = FMath::Max(MaxNetDebt, NetDebt);
-		}
-	}
-
-	// If no one has positive debt, start a new round
-	if (MaxNetDebt <= KINDA_SMALL_NUMBER)
-	{
-		AccumulateDebtRound();
-	}
-
-	// Find combatant with highest net debt
-	FCombatantTurnDebt *BestCombatant = nullptr;
-	float HighestDebt = -FLT_MAX;
-
-	for (FCombatantTurnDebt &Combatant : Combatants)
-	{
-		// Skip dead combatants
-		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
-		if (!CharComp || !CharComp->bIsAlive)
-			continue;
-
-		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-
-		if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
-		{
-			HighestDebt = NetDebt;
-			BestCombatant = &Combatant;
-		}
-		else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
-		{
-			// Tie-breaking
-			if (BestCombatant && ShouldBreakTieInFavor(Combatant, *BestCombatant))
-			{
-				BestCombatant = &Combatant;
-			}
-		}
-	}
-
-	// NOTE: No longer calling CalculateTurnDebts() here - that was the bug!
-
-	return BestCombatant;
 }
 
 bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const
@@ -491,126 +393,163 @@ AActor *UTurnManager::GetCurrentActor() const
 
 TArray<FPreviewTurnEntry> UTurnManager::PreviewTurnOrder(int32 NumTurns) const
 {
-	TArray<FPreviewTurnEntry> Preview;
-
-	// Create temp copies of state — the forward sim mutates these, never the live state.
-	TArray<FCombatantTurnDebt> TempCombatants = Combatants;
-	TArray<FScheduledTurn> TempPending = PendingTurns;
-
-	// Bonus-turn flagging is driven by FCombatantTurnDebt::UntakenBonusTurns (copied into
-	// TempCombatants). It covers the FULL lifecycle: a granted-but-not-taken bonus arrives
-	// already non-zero (copied live, survives PendingTurns consumption), and a still-pending
-	// bonus that FIRES inside this sim increments it below. Either way, the pick step flags +
-	// decrements it. No separate awaiting-pick map needed.
-
-	for (int32 i = 0; i < NumTurns; i++)
+	// Cluster 2a: a slice of the materialized belt — no forward sim. Callers ask <= 10 and
+	// the belt horizon is 16 (TURN_BELT_HORIZON), so the slice always covers them; asking
+	// beyond the belt returns what's available.
+	TArray<FPreviewTurnEntry> Out;
+	const int32 Count = FMath::Min(NumTurns, TurnBelt.Num());
+	for (int32 i = 0; i < Count; ++i)
 	{
-		// Check if we need a new round
-		float MaxNetDebt = -FLT_MAX;
-		for (const FCombatantTurnDebt &Combatant : TempCombatants)
+		Out.Add(TurnBelt[i]);
+	}
+	return Out;
+}
+
+bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
+								   TArray<FScheduledTurn> &Pending,
+								   FPreviewTurnEntry &OutEntry) const
+{
+	// THE scheduler step: the live path (AdvanceToNextTurn, real state) and the belt fill
+	// (RebuildBelt, scratch state) both run through here — the only place a turn is
+	// selected. Deliberately log-free: RebuildBelt replays it 16x per rebuild.
+
+	// Pinned-fire (Cluster 2b) — BEFORE the debt machinery. A ready entry
+	// (TurnsRemaining <= 0) preempts the debt pick: the bonus lands at its guaranteed
+	// slot regardless of debt. FIFO by Pending order. A fired bonus does NOT burn other
+	// entries' delay — only normal turns do (countdown after the debt pick below).
+	for (int32 p = 0; p < Pending.Num();)
+	{
+		if (Pending[p].TurnsRemaining > 0)
 		{
-			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
-			if (CharComp && CharComp->bIsAlive)
-			{
-				float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
-				MaxNetDebt = FMath::Max(MaxNetDebt, NetDebt);
-			}
+			++p;
+			continue;
 		}
 
-		// If no one has positive debt, add a round
-		if (MaxNetDebt <= KINDA_SMALL_NUMBER)
+		AActor *BonusActor = Pending[p].Actor;
+
+		bool bGranteeAlive = false;
+		if (IsValid(BonusActor))
 		{
-			for (FCombatantTurnDebt &Combatant : TempCombatants)
-			{
-				Combatant.TurnsOwed += Combatant.SpeedRatio;
-			}
+			UCharacterDataComponent *BonusComp = BonusActor->FindComponentByClass<UCharacterDataComponent>();
+			bGranteeAlive = BonusComp && BonusComp->bIsAlive;
 		}
 
-		// Find highest debt
-		FCombatantTurnDebt *NextCombatant = nullptr;
-		float HighestDebt = -FLT_MAX;
-
-		for (FCombatantTurnDebt &Combatant : TempCombatants)
+		if (!bGranteeAlive)
 		{
-			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
-			if (!CharComp || !CharComp->bIsAlive)
-				continue;
+			// Dead/invalid grantee: drop the entry WITHOUT emitting a turn, keep scanning
+			// for the next ready entry (or fall through to the debt pick).
+			Pending.RemoveAt(p);
+			continue;
+		}
 
+		OutEntry.Actor = BonusActor;
+		OutEntry.bIsBonusTurn = true;
+		OutEntry.bIsForced = false;
+
+		if (--Pending[p].Count <= 0)
+		{
+			Pending.RemoveAt(p);
+		}
+
+		// Bonus turns still count as taken (matching pre-2b). NOTE: no TurnsOwed credit —
+		// the pinned turn deliberately costs one slot of future normal priority.
+		for (FCombatantTurnDebt &Combatant : State)
+		{
+			if (Combatant.Actor == BonusActor)
+			{
+				Combatant.TurnsTaken++;
+				break;
+			}
+		}
+		return true;
+	}
+
+	// Check if we need a new round
+	float MaxNetDebt = -FLT_MAX;
+	for (const FCombatantTurnDebt &Combatant : State)
+	{
+		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+		if (CharComp && CharComp->bIsAlive)
+		{
 			float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+			MaxNetDebt = FMath::Max(MaxNetDebt, NetDebt);
+		}
+	}
 
-			if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
+	// If no one has positive debt, add a round — on ALL entries including dead ones,
+	// matching AccumulateDebtRound exactly (dead combatants accrue catch-up debt).
+	if (MaxNetDebt <= KINDA_SMALL_NUMBER)
+	{
+		for (FCombatantTurnDebt &Combatant : State)
+		{
+			Combatant.TurnsOwed += Combatant.SpeedRatio;
+		}
+	}
+
+	// Find highest debt
+	FCombatantTurnDebt *NextCombatant = nullptr;
+	float HighestDebt = -FLT_MAX;
+
+	for (FCombatantTurnDebt &Combatant : State)
+	{
+		UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+		if (!CharComp || !CharComp->bIsAlive)
+			continue;
+
+		float NetDebt = Combatant.TurnsOwed - Combatant.TurnsTaken;
+
+		if (NetDebt > HighestDebt + KINDA_SMALL_NUMBER)
+		{
+			HighestDebt = NetDebt;
+			NextCombatant = &Combatant;
+		}
+		else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
+		{
+			if (NextCombatant && ShouldBreakTieInFavor(Combatant, *NextCombatant))
 			{
-				HighestDebt = NetDebt;
 				NextCombatant = &Combatant;
-			}
-			else if (FMath::IsNearlyEqual(NetDebt, HighestDebt, KINDA_SMALL_NUMBER))
-			{
-				if (NextCombatant && ShouldBreakTieInFavor(Combatant, *NextCombatant))
-				{
-					NextCombatant = &Combatant;
-				}
-			}
-		}
-
-		if (!NextCombatant)
-		{
-			break;
-		}
-
-		// Record the slot. If this combatant has an untaken bonus turn — either copied live
-		// (granted, not yet taken) or credited by a TempPending fire below — THIS pick is the
-		// bonus turn: flag it and consume one (mirrors the live take-side decrement).
-		FPreviewTurnEntry Entry;
-		Entry.Actor = NextCombatant->Actor;
-		if (NextCombatant->UntakenBonusTurns > 0)
-		{
-			Entry.bIsBonusTurn = true;
-			NextCombatant->UntakenBonusTurns--;
-		}
-		Preview.Add(Entry);
-		NextCombatant->TurnsTaken++;
-
-		// Sim-mirror of AdvanceToNextTurn's fire-loop — AFTER the pick, once per boundary.
-		// Decrement each pending entry; at 0, credit +1.0 debt on the matching temp combatant
-		// (sim copy ONLY) with the same IsValid + alive guard the live fire uses, and bump its
-		// UntakenBonusTurns so this actor's NEXT pick is flagged the bonus turn (same marker the
-		// live grant sets — so a still-pending bonus flags exactly like an already-granted one).
-		if (TempPending.Num() > 0)
-		{
-			for (int32 p = TempPending.Num() - 1; p >= 0; --p)
-			{
-				if (--TempPending[p].TurnsRemaining > 0)
-				{
-					continue;
-				}
-
-				AActor *BonusActor = TempPending[p].Actor;
-				TempPending.RemoveAt(p);
-
-				if (!IsValid(BonusActor))
-				{
-					continue;
-				}
-				UCharacterDataComponent *BonusComp = BonusActor->FindComponentByClass<UCharacterDataComponent>();
-				if (!BonusComp || !BonusComp->bIsAlive)
-				{
-					continue;
-				}
-
-				for (FCombatantTurnDebt &TC : TempCombatants)
-				{
-					if (TC.Actor == BonusActor)
-					{
-						TC.TurnsOwed += 1.0f;
-						TC.UntakenBonusTurns++;
-						break;
-					}
-				}
 			}
 		}
 	}
 
-	return Preview;
+	if (!NextCombatant)
+	{
+		return false;
+	}
+
+	// Record the slot — a NORMAL turn. Bonus identity now comes solely from the
+	// pinned-fire step above; the debt pick never flags.
+	OutEntry.Actor = NextCombatant->Actor;
+	OutEntry.bIsBonusTurn = false;
+	OutEntry.bIsForced = false;
+	NextCombatant->TurnsTaken++;
+
+	// Normal-turn delay countdown (Cluster 2b): a NORMAL turn was picked, so every pinned
+	// entry burns one turn of delay. Deliberately NOT run on the pinned-fire path above —
+	// bonus turns don't decrement other bonuses' delay.
+	for (FScheduledTurn &Entry : Pending)
+	{
+		Entry.TurnsRemaining--;
+	}
+
+	return true;
+}
+
+void UTurnManager::RebuildBelt()
+{
+	TArray<FCombatantTurnDebt> Scratch = Combatants;
+	TArray<FScheduledTurn> ScratchPending = PendingTurns;
+
+	TurnBelt.Reset();
+	for (int32 i = 0; i < CombatConstants::TURN_BELT_HORIZON; ++i)
+	{
+		FPreviewTurnEntry Entry;
+		if (!AdvanceSimState(Scratch, ScratchPending, Entry))
+		{
+			break;
+		}
+		TurnBelt.Add(Entry);
+	}
 }
 
 void UTurnManager::DebugPrintTurnOrder()
@@ -652,14 +591,15 @@ FString UTurnManager::GetPendingTurnsString() const
 {
 	if (PendingTurns.Num() == 0)
 	{
-		return TEXT("PendingTurns: (none). Immediate (N==0) grants bypass the queue via RequestExtraTurn.");
+		return TEXT("PendingTurns: (none).");
 	}
 
-	FString Out = FString::Printf(TEXT("PendingTurns (%d scheduled, N>=1):"), PendingTurns.Num());
+	FString Out = FString::Printf(TEXT("PendingTurns (%d pinned):"), PendingTurns.Num());
 	for (const FScheduledTurn &Entry : PendingTurns)
 	{
 		const FString Name = Entry.Actor ? Entry.Actor->GetName() : TEXT("<invalid>");
-		Out += FString::Printf(TEXT("\n  %s - fires in %d turn(s)"), *Name, Entry.TurnsRemaining);
+		Out += FString::Printf(TEXT("\n  %s - fires after %d normal turn(s), count %d"),
+							   *Name, Entry.TurnsRemaining, Entry.Count);
 	}
 	return Out;
 }
@@ -672,4 +612,16 @@ void UTurnManager::DebugPrintPendingTurns()
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Cyan, Str);
 	}
+}
+
+void UTurnManager::DebugPrintBelt()
+{
+	UE_LOG(LogTemp, Display, TEXT("=== TURN BELT (%d entries) ==="), TurnBelt.Num());
+	for (int32 i = 0; i < TurnBelt.Num(); i++)
+	{
+		UE_LOG(LogTemp, Display, TEXT("  %d. %s%s"), i + 1,
+			   TurnBelt[i].Actor ? *TurnBelt[i].Actor->GetName() : TEXT("<none>"),
+			   TurnBelt[i].bIsBonusTurn ? TEXT(" [BONUS]") : TEXT(""));
+	}
+	UE_LOG(LogTemp, Display, TEXT("======================"));
 }
