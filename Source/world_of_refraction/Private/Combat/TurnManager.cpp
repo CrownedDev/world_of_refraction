@@ -77,6 +77,20 @@ void UTurnManager::InitializeCombat(const TArray<AActor *> &Team1, const TArray<
 
 	bCombatActive = true;
 
+	// Liveness binds — TurnManager owns its invalidation: every combatant's REAL
+	// death/revive (CheckDeath / ServerResurrect broadcasts) recalcs speed ratios
+	// without each death-site needing to know about us. AddUnique so a re-init
+	// can't double-bind. Mirrors WeatherStateManager's bind/unbind-per-member
+	// pattern; unbound in EndCombat.
+	for (const FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>())
+		{
+			CharComp->OnDied.AddUniqueDynamic(this, &UTurnManager::OnActorDied);
+			CharComp->OnResurrected.AddUniqueDynamic(this, &UTurnManager::OnActorResurrected);
+		}
+	}
+
 	// Calculate speed ratios (but don't add to TurnsOwed yet - that happens in AdvanceSimState)
 	CalculateSpeedRatios();
 
@@ -94,6 +108,22 @@ void UTurnManager::EndCombat()
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Combat ended at turn %d"), GlobalTurnCount);
 
 	OnCombatEnded.Broadcast(GlobalTurnCount);
+
+	// Unbind the liveness delegates added in InitializeCombat — must run BEFORE
+	// Combatants empties (it holds the actor refs). Defensive guards: an actor
+	// may have been destroyed mid-combat without notifying us.
+	for (const FCombatantTurnDebt &Combatant : Combatants)
+	{
+		if (!IsValid(Combatant.Actor))
+		{
+			continue;
+		}
+		if (UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>())
+		{
+			CharComp->OnDied.RemoveDynamic(this, &UTurnManager::OnActorDied);
+			CharComp->OnResurrected.RemoveDynamic(this, &UTurnManager::OnActorResurrected);
+		}
+	}
 
 	bCombatActive = false;
 	Combatants.Empty();
@@ -271,17 +301,6 @@ void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Coun
 
 	UE_LOG(LogTemp, Log, TEXT("[TurnManager] Scheduled %d pinned bonus turn(s) for %s after %d normal turn(s)"),
 		   Entry.Count, *Actor->GetName(), DelayTurns);
-}
-
-// ========================================
-// NEW: Adds one round of debt to all combatants
-// ========================================
-void UTurnManager::AccumulateDebtRound()
-{
-	for (FCombatantTurnDebt &Combatant : Combatants)
-	{
-		Combatant.TurnsOwed += Combatant.SpeedRatio;
-	}
 }
 
 bool UTurnManager::ShouldBreakTieInFavor(const FCombatantTurnDebt &A, const FCombatantTurnDebt &B) const
@@ -476,13 +495,18 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 		}
 	}
 
-	// If no one has positive debt, add a round — on ALL entries including dead ones,
-	// matching AccumulateDebtRound exactly (dead combatants accrue catch-up debt).
+	// If no one has positive debt, add a round — LIVING combatants only. Dead actors
+	// don't accrue debt (no revive catch-up turn-burst): a revived actor re-enters
+	// near its death-time net debt. Same live bIsAlive read as the selection below.
 	if (MaxNetDebt <= KINDA_SMALL_NUMBER)
 	{
 		for (FCombatantTurnDebt &Combatant : State)
 		{
-			Combatant.TurnsOwed += Combatant.SpeedRatio;
+			UCharacterDataComponent *CharComp = Combatant.Actor->FindComponentByClass<UCharacterDataComponent>();
+			if (CharComp && CharComp->bIsAlive)
+			{
+				Combatant.TurnsOwed += Combatant.SpeedRatio;
+			}
 		}
 	}
 

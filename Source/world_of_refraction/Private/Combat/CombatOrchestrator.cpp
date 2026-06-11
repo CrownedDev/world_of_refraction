@@ -1375,8 +1375,9 @@ void ACombatOrchestrator::DebugKillActor(AActor *Actor)
 	UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (Comp)
 	{
+		// ServerTakeDamage -> CheckDeath -> OnDied; TurnManager's per-combat bind
+		// hears the broadcast — no explicit OnActorDied call (was a double-notify).
 		Comp->ServerTakeDamage(9999);
-		TurnManagerRef->OnActorDied(Actor);
 		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] DEBUG: Killed %s"), *Actor->GetName());
 
 		// Update facing for remaining actors
@@ -1399,8 +1400,8 @@ void ACombatOrchestrator::DebugHealAllTeam(int32 TeamIndex)
 		{
 			if (!Comp->bIsAlive)
 			{
+				// ServerResurrect broadcasts OnResurrected; TurnManager's bind hears it.
 				Comp->ServerResurrect(100);
-				TurnManagerRef->OnActorResurrected(Actor);
 			}
 			else
 			{

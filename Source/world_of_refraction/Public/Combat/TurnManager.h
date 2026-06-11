@@ -291,9 +291,6 @@ private:
 	/** Calculate speed ratios relative to slowest combatant (does NOT add debt) */
 	void CalculateSpeedRatios();
 
-	/** Add one round of debt to all combatants based on their SpeedRatio */
-	void AccumulateDebtRound();
-
 	/** The single scheduler step both the live path and the belt fill share (Cluster 2a:
 	 *  this IS the live step — AdvanceToNextTurn passes real state, RebuildBelt scratch).
 	 *  Advances ONE turn on the passed state: round-check+accumulate, select+tiebreak,

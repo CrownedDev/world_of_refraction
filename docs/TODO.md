@@ -48,3 +48,14 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).
 - **POSSIBLE** — `StatusMultiplier` base-extract: only if base composition grows beyond ~3 terms (currently keep-both).
+
+## feature/evolution-pillar-turnspeed (NEXT FEATURE, after this branch merges)
+
+- **BLOCKED** — Job 1: innate (primary-slot) evolution flat TurnSpeed feeds turn order. Gate: `PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item` — NOT `GetActivePrimaryEvolutionCrystal` (that resolves the ATTACHED-to-primary-weapon case, the opposite). Two-branch precedent: `ApplyEvolutionPillarModifier` (CharacterDataComponent.cpp:482).
+- **BLOCKED** — Job 2: `CalculateTurnSpeed` should read pillar-MODIFIED Spirit (`GetEvolutionModifiedSpirit` family) instead of raw `GetEffectiveSpirit`, so gear Spirit% (weapon/ring/evolution) feeds turn speed like every other Spirit-stat. BALANCE CHANGE — activates the whole equipment stack at once.
+- **BLOCKED** — Infusion carve-out: make "TurnSpeed never infuses" EXPLICIT — drop TurnSpeed from `MapToInfusionModifiers` (EvolutionItemData.cpp:246) + comment the exclusion at mapping and struct. Today it's only unenforced-by-missing-reader; a generic re-wire would pull it in.
+- Known asymmetry (deliberate per design): the turn-speed primary-only gate is stricter than pillar-modifier/resistance, which allow both primary AND attached evolutions.
+
+## feature/always-active-effects
+
+- **BLOCKED** — `GetAlwaysActiveEffects()` has zero callers (weapon `UEquipmentDataBase` + evolution `UEvolutionItemData`) — dormant/unbuilt. Wire when the always-active passive system is built; speed-type effects will then notify for free via the `IsSpeedEffect` apply/remove gates.
