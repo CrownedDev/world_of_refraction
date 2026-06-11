@@ -346,10 +346,14 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	{
 		UCharacterData *CharData = CharComp->CharacterData;
 
-		// Pillar-scaled turn speed (TURN_SPEED_BASE + EffectiveSpirit × points × per-point),
-		// rounded for int storage. Replaces the earlier raw WorldBodyLevel + TurnSpeed
-		// sum which ignored both world scaling and the pillar move from Mind to Spirit.
-		Combatant.CachedSpeed = FMath::RoundToInt(CharData->CalculateTurnSpeed());
+		// Pillar-scaled turn speed (TURN_SPEED_BASE + Spirit × points × per-point),
+		// rounded for int storage. BALANCE CHANGE (Job 2): the Spirit input is the
+		// component's pillar-MODIFIED Spirit (evolution crystal % × equipment % ×
+		// transient pillar buffs) — gear Spirit% now shifts pacing like every other
+		// Spirit-derived stat. The formula stays on the asset
+		// (CalculateTurnSpeedWithSpirit); this site only supplies WHICH Spirit.
+		Combatant.CachedSpeed = FMath::RoundToInt(
+			CharData->CalculateTurnSpeedWithSpirit(CharComp->GetEvolutionModifiedSpirit()));
 
 		// Equipment stat bonus — flat additive to cached turn speed. Read from
 		// the actor's active loadout. Hot-swap re-cache is driven by

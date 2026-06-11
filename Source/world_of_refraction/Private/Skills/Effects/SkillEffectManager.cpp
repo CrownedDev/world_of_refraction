@@ -1696,6 +1696,11 @@ bool USkillEffectManager::IsSpeedEffect(ESkillEffectType EffectType) const
 	case ESkillEffectType::TurnSpeedBuff:
 	case ESkillEffectType::TurnSpeedDebuff:
 	case ESkillEffectType::ModifyTurnSpeed: // folded into effective speed by CalculateSpeedRatios
+	// SpiritBuff/Debuff feed turn speed via the modified-Spirit read in CacheActorStats
+	// (Job 2), so speed must recompute on their apply/expiry. Mind/Body pillar buffs
+	// deliberately absent — they don't touch turn speed.
+	case ESkillEffectType::SpiritBuff:
+	case ESkillEffectType::SpiritDebuff:
 		return true;
 	default:
 		return false;

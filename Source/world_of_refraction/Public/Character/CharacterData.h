@@ -497,13 +497,22 @@ public:
 	// ==================== SPIRIT CALCULATIONS ====================
 	// Spirit (5): MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
 
+	/** Turn-speed formula with the Spirit input supplied by the caller — the asset
+	 *  owns the math; the caller picks WHICH Spirit. The turn-order path
+	 *  (TurnManager::CacheActorStats) passes the component's pillar-MODIFIED Spirit;
+	 *  CalculateTurnSpeed below passes raw GetEffectiveSpirit(). */
+	float CalculateTurnSpeedWithSpirit(float SpiritValue) const
+	{
+		return CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT);
+	}
+
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
 	float CalculateTurnSpeed() const
 	{
-		// NOTE: Moved from Mind to Spirit
-		float EffectiveSpirit = GetEffectiveSpirit();
-		int32 TotalPoints = GetTotalTurnSpeed();
-		return CombatConstants::TURN_SPEED_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::TURN_SPEED_PER_POINT);
+		// NOTE: Moved from Mind to Spirit. Raw-Spirit wrapper (asset-intrinsic value,
+		// used by debug prints); combat pacing uses CalculateTurnSpeedWithSpirit with
+		// the component's pillar-modified Spirit.
+		return CalculateTurnSpeedWithSpirit(GetEffectiveSpirit());
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")

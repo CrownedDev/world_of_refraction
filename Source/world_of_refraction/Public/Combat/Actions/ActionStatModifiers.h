@@ -7,7 +7,12 @@
 #include "CoreMinimal.h"
 #include "ActionStatModifiers.generated.h"
 
-/** Action-time sub-stats (11) plus a None sentinel ("targets no sub-stat"). Pool stats (MaxHealth, MaxEnergy) are intentionally not represented. */
+/** Action-time sub-stats (11) plus a None sentinel ("targets no sub-stat"). Pool stats
+ *  (MaxHealth, MaxEnergy) are intentionally not represented. TurnSpeed IS a represented
+ *  ESubStat (the attached-stone reads key off it elsewhere) but is DELIBERATELY never
+ *  written into FActionStatModifiers by any infusion path (mapping, Reality flat,
+ *  pillar-mode) — turn speed comes only from the slot-level paths (innate evolution
+ *  stats / pillar-modified Spirit), never from infusion. */
 UENUM(BlueprintType)
 enum class ESubStat : uint8
 {
@@ -98,7 +103,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		ActionSpeed += Percent;
 		RawDamage += Percent;
 		Resistance += Percent;
-		TurnSpeed += Percent;
+		// TurnSpeed excluded — infused/Reality contributions must not alter turn order.
 		Luck += Percent;
 	}
 
@@ -120,7 +125,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		RawDamage += BodyPct;
 		// Spirit sub-stats — MaxEnergy is a pool stat, not represented here.
 		Resistance += SpiritPct;
-		TurnSpeed += SpiritPct;
+		// TurnSpeed excluded — evolution pillar-mode infusion must not alter turn order.
 		Luck += SpiritPct;
 	}
 

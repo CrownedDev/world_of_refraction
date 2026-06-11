@@ -243,7 +243,9 @@ FActionStatModifiers UEvolutionItemData::MapToInfusionModifiers(const FEquipment
     Out.ActionSpeed      = Bonus.BonusActionSpeed       * InfusionMultiplier;
     Out.RawDamage        = Bonus.BonusRawDamage         * InfusionMultiplier;
     Out.Resistance       = Bonus.BonusResistance        * InfusionMultiplier;
-    Out.TurnSpeed        = Bonus.BonusTurnSpeed         * InfusionMultiplier;
+    // TurnSpeed intentionally NOT mapped — pacing never infuses. Turn speed comes
+    // only from the slot-level paths (innate evolution stats / pillar-modified
+    // Spirit); see the FActionStatModifiers struct doc.
     Out.Luck             = Bonus.BonusLuck              * InfusionMultiplier;
 
     return Out;
