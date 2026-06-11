@@ -376,6 +376,7 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 	}
 
 	int32 RemovedCount = 0;
+	bool bSpeedChanged = false;
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Target];
 
 	for (int32 i = Effects.Num() - 1; i >= 0; --i)
@@ -383,6 +384,12 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 		if (Effects[i].EffectName == EffectName)
 		{
 			FActiveSkillEffect RemovedEffect = Effects[i];
+
+			if (IsSpeedEffect(RemovedEffect.EffectType))
+			{
+				bSpeedChanged = true;
+			}
+
 			Effects.RemoveAt(i);
 			RemovedCount++;
 
@@ -394,6 +401,12 @@ int32 USkillEffectManager::RemoveEffectsByName(AActor *Target, const FString &Ef
 	{
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Removed %d effects named '%s' from %s"),
 			   RemovedCount, *EffectName, *Target->GetName());
+	}
+
+	// Notify TurnManager if any speed effects were removed
+	if (bSpeedChanged)
+	{
+		NotifySpeedChanged(Target);
 	}
 
 	return RemovedCount;
@@ -1682,6 +1695,7 @@ bool USkillEffectManager::IsSpeedEffect(ESkillEffectType EffectType) const
 	case ESkillEffectType::ActionSpeedDebuff:
 	case ESkillEffectType::TurnSpeedBuff:
 	case ESkillEffectType::TurnSpeedDebuff:
+	case ESkillEffectType::ModifyTurnSpeed: // folded into effective speed by CalculateSpeedRatios
 		return true;
 	default:
 		return false;
