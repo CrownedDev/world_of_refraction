@@ -3045,8 +3045,8 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
                 Combined.Accumulate(Loadout.SecondaryWeapon.WeaponEntry.StatBonus);
             }
         }
-        // Evolution primary slots have no StatBonus on the crystal itself —
-        // their contribution flows through GetActivePrimaryEvolutionCrystal.
+        // Evolution primary slots contribute via the innate-evolution sum after
+        // this switch (Base + Generated, pillar percents excluded).
         break;
     }
 
@@ -3080,6 +3080,25 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         }
         break;
     }
+    }
+
+    // Innate (primary-slot) evolution — its flat substats are slot-level stats,
+    // summed like a weapon/ring entry's (asset Base + per-instance Generated roll).
+    // ATTACHED-to-gear evolutions stay infusion-only — deliberately not summed here.
+    // Mutually exclusive with the weapon/ring primary branches on PrimarySlotType
+    // (same two-branch precedent as ApplyEvolutionPillarModifier).
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    {
+        FEquipmentStatBonus EvoBonus = Loadout.PrimaryEvolution.Item->BaseStatBonus;
+        EvoBonus.Accumulate(Loadout.PrimaryEvolution.GeneratedStatBonus);
+        // Pillar percents deliberately NOT summed: the evolution's pillar % already
+        // applies as ApplyEvolutionPillarModifier's CRYSTAL layer; leaving them in
+        // would double-apply through that function's EQUIPMENT layer, which reads
+        // this return value.
+        EvoBonus.BonusMindModifierPercent = 0.0f;
+        EvoBonus.BonusBodyModifierPercent = 0.0f;
+        EvoBonus.BonusSpiritModifierPercent = 0.0f;
+        Combined.Accumulate(EvoBonus);
     }
 
     return Combined;
