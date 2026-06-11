@@ -345,9 +345,14 @@ void UCrystalManager::DebugBreakActiveCrystal()
         return;
     }
 
-    const FString CrystalName = Attachment->IsCrystal()
-                                    ? ItemIdentity::GetDisplayName(Attachment->Crystal.Id)
-                                    : (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"));
+    const FString CrystalName =
+        Attachment->IsCrystal()
+            ? ItemIdentity::GetDisplayName(Attachment->Crystal.Id)
+        : Attachment->IsFusion()
+            ? FString::Printf(TEXT("FUSION %s+%s"),
+                              *ItemIdentity::GetDisplayName(Attachment->Fusion.Id.HalfA),
+                              *ItemIdentity::GetDisplayName(Attachment->Fusion.Id.HalfB))
+            : (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"));
 
     if (Attachment->IsBroken())
     {
@@ -356,10 +361,15 @@ void UCrystalManager::DebugBreakActiveCrystal()
                *Actor->GetName(), *CrystalName);
         return;
     }
-    if (!Attachment->IsCrystal())
+    // Refined crystals and ELEMENTAL fusions exercise the production wear/break
+    // path (matches ProcessPostCastWear's gate). Evolution, augment stones and
+    // augmented (stone+stone) fusions never wear/break.
+    const bool bWearable = Attachment->IsCrystal() ||
+                           (Attachment->IsFusion() && Attachment->Fusion.HasGemHalf());
+    if (!bWearable)
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' is not refined (evolution / immune — does not wear/break)."),
+               TEXT("[Debug.BreakActiveCrystal] %s's primary weapon crystal '%s' does not wear/break (evolution / augment stone / augmented fusion)."),
                *Actor->GetName(), *CrystalName);
         return;
     }
@@ -450,17 +460,27 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     // Identify the branch + the crystal — used in every log line below so the
     // bCanBreak flip is unambiguous in the Output Log.
     const bool bIsEvolutionBranch = Attachment->IsEvolution();
-    const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION") : TEXT("CRYSTAL");
-    const FString CrystalName = bIsEvolutionBranch
-                                    ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
-                                    : ItemIdentity::GetDisplayName(Attachment->Crystal.Id);
+    const bool bIsFusionBranch = Attachment->IsFusion();
+    const TCHAR *BranchLabel = bIsEvolutionBranch ? TEXT("EVOLUTION")
+                             : bIsFusionBranch    ? TEXT("FUSION")
+                                                  : TEXT("CRYSTAL");
+    const FString CrystalName =
+        bIsEvolutionBranch
+            ? (Attachment->Evolution.Item ? Attachment->Evolution.Item->GetFullItemName() : TEXT("(null)"))
+        : bIsFusionBranch
+            ? FString::Printf(TEXT("%s+%s"),
+                              *ItemIdentity::GetDisplayName(Attachment->Fusion.Id.HalfA),
+                              *ItemIdentity::GetDisplayName(Attachment->Fusion.Id.HalfB))
+            : ItemIdentity::GetDisplayName(Attachment->Crystal.Id);
 
-    // Evolution-only: bCanBreak is what the refactor flipped. Refined branch
-    // is always wearable (no gate), so log "n/a" there for clarity.
+    // Evolution: bCanBreak is what the refactor flipped. Fusion: only elemental
+    // (gem half) fusions wear. Refined branch is always wearable (no gate).
     const FString CanBreakStr = bIsEvolutionBranch
                                     ? (Attachment->Evolution.Item
                                            ? (Attachment->Evolution.Item->bCanBreak ? TEXT("true") : TEXT("false"))
                                            : TEXT("(null item)"))
+                                : bIsFusionBranch
+                                    ? (Attachment->Fusion.HasGemHalf() ? TEXT("elemental — wears") : TEXT("augmented — never wears"))
                                     : TEXT("n/a (refined — always wearable)");
 
     const int32 BeforeDur = Attachment->GetCurrentDurability();

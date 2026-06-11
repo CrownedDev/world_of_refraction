@@ -127,6 +127,11 @@ void URingManager::HandleCrystalBroken(AActor *Actor, UObject *Holder, FBrokenCr
 	case EAttachedItemKind::Evolution:
 		CrystalName = Payload.Item ? Payload.Item->GetFullItemName() : TEXT("(null)");
 		break;
+	case EAttachedItemKind::Fusion:
+		CrystalName = FString::Printf(TEXT("FUSION %s+%s"),
+									  *ItemIdentity::GetDisplayName(Payload.FusionId.HalfA),
+									  *ItemIdentity::GetDisplayName(Payload.FusionId.HalfB));
+		break;
 	default:
 		CrystalName = TEXT("(none)");
 		break;
