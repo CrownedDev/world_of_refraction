@@ -1544,6 +1544,22 @@ void UActionExecutor::FinalizeAsyncAction()
 				ResolvedElement = GetElementForSourceOption(Executor, Action.SelectedSource);
 			}
 
+			// Physical type for the ability/attack authored-DoT branch — the wielded
+			// weapon's declared type (staff=Impact, dagger=Pierce, sword=Slash). None
+			// when no weapon resolves (e.g. ring-primary caster): the branch then
+			// falls back to the legacy Generic shape.
+			EPhysicalDamageType ActionPhysicalType = EPhysicalDamageType::None;
+			if (Action.ActionType != EActionType::Spell)
+			{
+				if (UWeaponManager *WeaponMgr = GetWeaponManager())
+				{
+					if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Executor))
+					{
+						ActionPhysicalType = Weapon->PhysicalDamageType;
+					}
+				}
+			}
+
 			ApplySkillEffects(
 				Executor,
 				FinalResult.AffectedTargets,
@@ -1551,7 +1567,9 @@ void UActionExecutor::FinalizeAsyncAction()
 				SourceName,
 				FinalResult,
 				FinalResult.bCausedDeath,
-				ResolvedElement);
+				ResolvedElement,
+				Action.ActionType,
+				ActionPhysicalType);
 		}
 
 		// Process post-cast by source (durability wear, etc.)
@@ -4042,7 +4060,9 @@ void UActionExecutor::ApplySkillEffects(
 	const FString &SourceName,
 	FActionResult &Result,
 	bool bCausedDeath,
-	ESpellElement ResolvedCastElement)
+	ESpellElement ResolvedCastElement,
+	EActionType ActionKind,
+	EPhysicalDamageType PhysicalType)
 {
 	if (Effects.Num() == 0)
 	{
@@ -4146,26 +4166,69 @@ void UActionExecutor::ApplySkillEffects(
 
 		// Per-effect element: status-bar manipulation effects (sweep-4
 		// StatusIncrease/StatusDecrease) use the resolved cast element so the
-		// gauge fills/drains in the correct element. Every other effect type
-		// stays Generic to preserve historical behaviour (abilities have no
-		// inherent element; existing DOT / ResistanceBuff / etc. on spells
-		// have historically been applied as Generic — this branch keeps that
-		// invariant rather than silently changing them).
+		// gauge fills/drains in the correct element. SPELL-authored DOTs now
+		// inherit the cast element too (feature/authored-skill-dots — deliberate
+		// change from the historical always-Generic invariant): a Fire spell's
+		// authored burn is Fire. Ability/attack DOTs route through the
+		// physical-type mapping below instead. Every OTHER effect type stays
+		// Generic to preserve historical behaviour.
 		const ESpellElement EffectElement =
 			(Effect.EffectType == ESkillEffectType::StatusIncrease ||
-			 Effect.EffectType == ESkillEffectType::StatusDecrease)
+			 Effect.EffectType == ESkillEffectType::StatusDecrease ||
+			 (ActionKind == EActionType::Spell && Effect.EffectType == ESkillEffectType::DOT))
 				? ResolvedCastElement
 				: ESpellElement::Generic;
 
 		// For instant gauge manipulators (Value > 0, no need to persist the
 		// effect on the target's active list), the runtime Value field carries
-		// the absolute buildup amount. Use Effect.Value directly instead of
-		// the percentage conversion used for stat-modifier effects.
+		// the absolute buildup amount. DOTs also pass authored Value through —
+		// FSkillEffect documents Value as the flat per-tick amount, and the
+		// factory's (Value != 0 ? Value : Magnitude×100) fallback keeps the
+		// Magnitude-authored shape working. Stat-modifier effects keep the
+		// percentage conversion.
 		const int32 RuntimeValue =
 			(Effect.EffectType == ESkillEffectType::StatusIncrease ||
-			 Effect.EffectType == ESkillEffectType::StatusDecrease)
+			 Effect.EffectType == ESkillEffectType::StatusDecrease ||
+			 Effect.EffectType == ESkillEffectType::DOT)
 				? Effect.Value
 				: FMath::RoundToInt(Effect.Magnitude * 100.0f); // existing percentage shape
+
+		// ABILITY/ATTACK authored DoT → physical-type status (Slash→Bleed,
+		// Pierce→ArmorBreak, Impact→Stun) via the existing weapon mapping — NOT
+		// an elemental DoT. The factory owns the status shape (durations 3/2/1,
+		// value derivation); the authored value feeds its buildup input. None
+		// (no weapon resolved) falls through to the legacy Generic shape below.
+		if (ActionKind != EActionType::Spell &&
+			Effect.EffectType == ESkillEffectType::DOT &&
+			PhysicalType != EPhysicalDamageType::None)
+		{
+			const int32 PhysValue = (Effect.Value != 0)
+										? Effect.Value
+										: FMath::RoundToInt(Effect.Magnitude * 100.0f);
+			for (AActor *EffectTarget : EffectTargets)
+			{
+				// Authored path: ALWAYS pass a >0 override so the factory's canonical
+				// per-status defaults (passive-proc territory) can never apply here.
+				// Authored Duration=0 resolves to 1 turn — a visibly-wrong nub that
+				// surfaces the authoring mistake instead of masking it as a plausible
+				// 3-turn bleed. Mirrors the spell path's (Duration > 0 ? Duration : 1).
+				FActiveSkillEffect PhysEffect = FActiveSkillEffect::CreateFromPhysicalDamageType(
+					SourceName,
+					GetUniqueEffectID(),
+					static_cast<uint8>(PhysicalType),
+					PhysValue,
+					/*InfusionMultiplier*/ 1.0f,
+					/*HitCount*/ 1,
+					/*DurationOverride*/ FMath::Max(1, Effect.Duration));
+
+				StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
+				Result.StatusEffectsApplied++;
+
+				UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s (physical-type DoT) to %s"),
+					   *PhysEffect.EffectName, *EffectTarget->GetName());
+			}
+			continue;
+		}
 
 		// Apply effect to each target as a status effect
 		for (AActor *EffectTarget : EffectTargets)

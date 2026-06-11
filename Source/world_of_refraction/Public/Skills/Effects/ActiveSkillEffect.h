@@ -362,8 +362,18 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		uint8 PhysicalType,
 		int32 StatusBuildup,
 		float InfusionMultiplier,
-		int32 HitCount)
+		int32 HitCount,
+		int32 DurationOverride = 0)
 	{
+		// Canonical per-status durations — PASSIVE-proc territory only (the
+		// weapon-attack caller, ApplyPhysicalDamageEffect, has no authored spec
+		// and passes no override). The AUTHORED ability-DoT path always passes a
+		// >0 override (max(1, authored Duration)), so these defaults can never
+		// mask an authoring mistake there.
+		constexpr int32 BLEED_DEFAULT_DURATION = 3;
+		constexpr int32 ARMOR_BREAK_DEFAULT_DURATION = 2;
+		constexpr int32 STUN_DEFAULT_DURATION = 1;
+
 		FActiveSkillEffect Effect;
 		Effect.EffectID = WeaponID * 10 + 7; // +7 offset for physical status
 
@@ -378,7 +388,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.EffectType = ESkillEffectType::DOT;
 			Effect.Element = ESpellElement::Generic;  // Physical damage
 			Effect.EffectValue = TotalBuildup * 0.5f; // DOT damage = half of buildup
-			Effect.RemainingTurns = 3;
+			Effect.RemainingTurns = BLEED_DEFAULT_DURATION;
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 			Effect.bCanStack = true;
 			break;
@@ -387,7 +397,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.EffectName = WeaponName + TEXT(" Armor Break");
 			Effect.EffectType = ESkillEffectType::DefenseDebuff;
 			Effect.EffectValue = TotalBuildup * 0.3f; // Defense reduction
-			Effect.RemainingTurns = 2;
+			Effect.RemainingTurns = ARMOR_BREAK_DEFAULT_DURATION;
 			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 			Effect.bCanStack = true;
 			Effect.MaxStacks = 3;
@@ -397,7 +407,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.EffectName = WeaponName + TEXT(" Stun");
 			Effect.EffectType = ESkillEffectType::Stun;
 			Effect.EffectValue = 1.0f;					// Stun duration multiplier
-			Effect.RemainingTurns = 1;
+			Effect.RemainingTurns = STUN_DEFAULT_DURATION;
 			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
 			Effect.bCanStack = false; // Stun doesn't stack, refreshes
 			Effect.bRefreshDurationOnReapply = true;
@@ -407,6 +417,13 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.EffectName = TEXT("Unknown Physical Effect");
 			Effect.EffectType = ESkillEffectType::None;
 			break;
+		}
+
+		// Authored duration wins over the canonical default; only the duration —
+		// the per-status value shaping above is untouched.
+		if (DurationOverride > 0 && Effect.EffectType != ESkillEffectType::None)
+		{
+			Effect.RemainingTurns = DurationOverride;
 		}
 
 		Effect.InitialDuration = Effect.RemainingTurns;

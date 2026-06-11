@@ -387,6 +387,12 @@ private:
 	 *  the FActiveSkillEffect.EffectName ("<SourceName> Effect"). Passed as
 	 *  FString so the caller picks the right name from whichever data
 	 *  asset it's iterating (Ability->Name, Spell->Name, etc).
+	 *
+	 *  Authored-DoT routing (feature/authored-skill-dots): a SPELL's DOT-type
+	 *  effect inherits ResolvedCastElement; an ABILITY/ATTACK's DOT-type effect
+	 *  routes through the physical-type mapping (Slash->Bleed, Pierce->ArmorBreak,
+	 *  Impact->Stun) using PhysicalType — the wielded weapon's declared type,
+	 *  resolved by the caller; None falls back to the legacy Generic shape.
 	 */
 	void ApplySkillEffects(
 		AActor *User,
@@ -395,7 +401,9 @@ private:
 		const FString &SourceName,
 		FActionResult &Result,
 		bool bCausedDeath,
-		ESpellElement ResolvedCastElement = ESpellElement::Generic);
+		ESpellElement ResolvedCastElement = ESpellElement::Generic,
+		EActionType ActionKind = EActionType::Ability,
+		EPhysicalDamageType PhysicalType = EPhysicalDamageType::None);
 
 	/** Get targets for an effect based on ETargetType */
 	void GetEffectTargets(
