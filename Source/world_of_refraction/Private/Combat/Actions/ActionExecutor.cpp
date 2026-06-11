@@ -3198,9 +3198,10 @@ float UActionExecutor::GetEffectiveEnergyCostEfficiencyMultiplier(AActor *Actor)
 
 	// Efficiency multiplier — the unified getter (innate crystal-aware Mind + equipment
 	// BonusEfficiency + attached EfficiencyStone, one clamp); the SAME source BD drain
-	// and durability use, so all three Efficiency consumers share one shape. Falls back
-	// to the raw asset formula only if no component is resolvable (defensive — shouldn't
-	// happen since GetCharacterData already requires it; the asset path is innate-only).
+	// and durability use, so all three Efficiency consumers share one shape. The raw
+	// asset-formula fallback below is defensive and UNREACHABLE in practice
+	// (GetCharacterData above already required the component); innate-only, NOT a
+	// live alternate read path — kept purely as a guard.
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	const float CharMult = CharComp
 							   ? CharComp->GetEffectiveEfficiencyMultiplier()

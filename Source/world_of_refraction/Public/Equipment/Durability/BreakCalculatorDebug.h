@@ -53,7 +53,9 @@ public:
      * the live path.
      *
      * Pass the four substat values as fractions ("0.20" = +20%). Reminder on
-     * efficiency: EfficiencyFrac = 1.0 - CalculateEfficiencyMultiplier().
+     * efficiency: EfficiencyFrac = 1.0 - GetEffectiveEfficiencyMultiplier() (the
+     * COMPOSED multiplier — innate + equipment + EfficiencyStone + transients;
+     * matches what the live wear path feeds the calculator).
      */
     UFUNCTION(BlueprintCallable, Category = "Debug|Durability")
     static void PrintWearTableWithSubstats(

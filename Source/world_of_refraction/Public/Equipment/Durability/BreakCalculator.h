@@ -125,8 +125,10 @@ public:
 	//   final = base x power_factor / control_factor
 	// with a floor of FLOOR_FRAC x base and (for tier_gap < ONE_SHOT_GAP) a
 	// ceiling of CEIL_FRAC x max_durability. Pure — no state, no CharacterData ref.
-	// Callers pass already-normalized fractions; see CharacterData.h notes on
-	// the efficiency inversion (EfficiencyFrac = 1 - CalculateEfficiencyMultiplier()).
+	// Callers pass already-normalized fractions. Efficiency inversion: the live
+	// caller passes EfficiencyFrac = 1 - GetEffectiveEfficiencyMultiplier() — the
+	// COMPOSED multiplier (innate + equipment BonusEfficiency + attached
+	// EfficiencyStone + transients), so geared efficiency DOES reduce wear.
 
 	UFUNCTION(BlueprintPure, Category = "Durability")
 	static int32 CalculateDurabilityWearWithSubstats(
