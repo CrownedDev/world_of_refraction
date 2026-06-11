@@ -180,10 +180,10 @@ public:
     int32 ResistanceMaxPoolOverride = 0;
 
     // ==================== EFFECTS ====================
-    // Equipment-level skill effects (passives + triggered). Applied via
-    // USkillEffectManager::ApplyEquipmentEffects at combat start. Distinct
-    // from evolution crystal effects on UEvolutionItemData::Effects — those flow
-    // through their own application path.
+    // Equipment-level skill effects (starting + conditional). The STARTING subset
+    // (no condition) is applied once at combat start via
+    // USkillEffectManager::ApplyEquipmentEffects (sourced through
+    // ULoadoutComponent::GetActiveEffects). Conditional effects await their trigger.
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
     TArray<FSkillEffect> Effects;
@@ -191,11 +191,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Effects")
     int32 GetEffectCount() const { return Effects.Num(); }
 
+    /** Non-conditional effects — applied once at combat start. */
     UFUNCTION(BlueprintPure, Category = "Effects")
-    TArray<FSkillEffect> GetAlwaysActiveEffects() const;
+    TArray<FSkillEffect> GetStartingEffects() const;
 
+    /** Condition-gated effects — never auto-applied at combat start. */
     UFUNCTION(BlueprintPure, Category = "Effects")
-    TArray<FSkillEffect> GetTriggeredEffects() const;
+    TArray<FSkillEffect> GetConditionalEffects() const;
 
     // ==================== REQUIREMENTS ====================
 

@@ -851,25 +851,19 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 			{
 				UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Prepared loadout for %s"), *Actor->GetName());
 
-				// Apply FSkillEffect-authored bonuses for evolution crystal + equipment.
+				// Apply STARTING effects (non-conditional gear effects, once per combat).
+				// GetActiveEffects covers all contributing gear — weapon/ring per class
+				// plus the innate (primary-slot) evolution; ATTACHED evolutions
+				// deliberately contribute no effects.
 				if (SkillEffectManagerRef)
 				{
-					UEvolutionItemData *EvoCrystal = Loadout->GetActivePrimaryEvolutionCrystal(Actor);
-					if (EvoCrystal && EvoCrystal->Effects.Num() > 0)
-					{
-						SkillEffectManagerRef->ApplyEvolutionEffects(
-							Actor, EvoCrystal->GetName(), static_cast<int32>(EvoCrystal->GetUniqueID()), EvoCrystal->Effects);
-						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d evolution effects from %s to %s"),
-							   EvoCrystal->Effects.Num(), *EvoCrystal->GetName(), *Actor->GetName());
-					}
-
-					TArray<FSkillEffect> EquipmentEffects = Loadout->GetActiveEffects(Actor);
-					if (EquipmentEffects.Num() > 0)
+					TArray<FSkillEffect> StartingEffects = Loadout->GetActiveEffects(Actor);
+					if (StartingEffects.Num() > 0)
 					{
 						int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
-						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, EquipmentEffects, SourceID);
-						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d equipment effects to %s"),
-							   EquipmentEffects.Num(), *Actor->GetName());
+						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, StartingEffects, SourceID);
+						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d starting effects to %s"),
+							   StartingEffects.Num(), *Actor->GetName());
 					}
 				}
 			}

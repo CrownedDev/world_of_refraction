@@ -517,13 +517,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FResistanceBonus GetActiveResistanceBonus(AActor *Actor) const;
 
-    /** Equipment-level skill effects from the actor's currently active equipment.
-     *  Per-class resolution:
-     *   - Generic   → active weapon's Effects (whichever slot is shown)
-     *   - Caster    → primary-slot Effects (weapon OR ring, not both)
-     *   - Resonator → active-ring Effects
-     *  Evolution crystal Effects are handled separately and are NOT included
-     *  here. Actor parameter is for caller clarity (always == GetOwner()). */
+    /** STARTING effects (non-conditional) from the actor's currently active gear,
+     *  applied once at combat start. Coverage mirrors GetActiveStatBonus:
+     *   - Generic   → active weapon; ring-primary adds primary ring + secondary weapon
+     *   - Caster    → primary-slot gear (weapon OR ring, not both)
+     *   - Resonator → active ring + primary weapon
+     *   - Innate (primary-slot) evolution included; ATTACHED evolutions contribute
+     *     NO effects (deliberate exception).
+     *  Actor parameter is for caller clarity (always == GetOwner()). */
     UFUNCTION(BlueprintPure, Category = "Loadout|Effects")
     TArray<FSkillEffect> GetActiveEffects(AActor *Actor) const;
 

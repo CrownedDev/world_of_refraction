@@ -243,13 +243,13 @@ public:
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         int32 GetEffectCount() const { return Effects.Num(); }
 
-        /** Get always-active effects (Condition == Always, no target condition) */
+        /** Get starting effects (no condition — applied once at combat start) */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        TArray<FSkillEffect> GetAlwaysActiveEffects() const;
+        TArray<FSkillEffect> GetStartingEffects() const;
 
-        /** Get triggered effects (anything not always-active) */
+        /** Get conditional effects (condition-gated — never auto-applied at start) */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        TArray<FSkillEffect> GetTriggeredEffects() const;
+        TArray<FSkillEffect> GetConditionalEffects() const;
 
         // ==================== EVOLUTION HELPER FUNCTIONS ====================
 

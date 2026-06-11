@@ -251,9 +251,9 @@ FActionStatModifiers UEvolutionItemData::MapToInfusionModifiers(const FEquipment
     return Out;
 }
 
-// ==================== PASSIVE HELPER FUNCTIONS ====================
+// ==================== EFFECT HELPER FUNCTIONS ====================
 
-TArray<FSkillEffect> UEvolutionItemData::GetAlwaysActiveEffects() const
+TArray<FSkillEffect> UEvolutionItemData::GetStartingEffects() const
 {
     TArray<FSkillEffect> Result;
 
@@ -262,7 +262,7 @@ TArray<FSkillEffect> UEvolutionItemData::GetAlwaysActiveEffects() const
     // so the loop yields an empty Result for them.
     for (const FSkillEffect &Effect : Effects)
     {
-        if (Effect.IsAlwaysActive())
+        if (!Effect.IsConditionalEffect())
         {
             Result.Add(Effect);
         }
@@ -271,13 +271,13 @@ TArray<FSkillEffect> UEvolutionItemData::GetAlwaysActiveEffects() const
     return Result;
 }
 
-TArray<FSkillEffect> UEvolutionItemData::GetTriggeredEffects() const
+TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
 {
     TArray<FSkillEffect> Result;
 
     for (const FSkillEffect &Effect : Effects)
     {
-        if (!Effect.IsAlwaysActive())
+        if (Effect.IsConditionalEffect())
         {
             Result.Add(Effect);
         }

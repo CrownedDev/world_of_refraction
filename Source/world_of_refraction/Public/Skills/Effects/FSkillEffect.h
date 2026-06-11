@@ -218,11 +218,16 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return SecondaryCondition != ESkillTrigger::None;
     }
 
-    /** Permanent / unconditional: no source-side or target-side trigger gating. */
-    bool IsAlwaysActive() const
+    /** Has a trigger condition (source-side non-Always or target-side). The complement
+     *  is a STARTING effect: gear effects with no condition apply once at combat start
+     *  (GetStartingEffects), then live as normal clearable effects. NOTE: distinct from
+     *  IsConditional() above, which additionally counts SecondaryCondition — a
+     *  secondary-condition-only effect is conditional there but still a starting
+     *  effect here. */
+    bool IsConditionalEffect() const
     {
-        return Condition == ESkillTrigger::Always
-            && TargetCondition == ESkillTrigger::None;
+        return Condition != ESkillTrigger::Always
+            || TargetCondition != ESkillTrigger::None;
     }
 
     /** Does this effect target self? */

@@ -209,12 +209,12 @@ void UEquipmentDataBase::RollResistance()
     GeneratedResistance.RerollResistance(GetGeneratorTier());
 }
 
-TArray<FSkillEffect> UEquipmentDataBase::GetAlwaysActiveEffects() const
+TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
 {
     TArray<FSkillEffect> Result;
     for (const FSkillEffect &Effect : Effects)
     {
-        if (Effect.IsAlwaysActive())
+        if (!Effect.IsConditionalEffect())
         {
             Result.Add(Effect);
         }
@@ -222,12 +222,12 @@ TArray<FSkillEffect> UEquipmentDataBase::GetAlwaysActiveEffects() const
     return Result;
 }
 
-TArray<FSkillEffect> UEquipmentDataBase::GetTriggeredEffects() const
+TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
 {
     TArray<FSkillEffect> Result;
     for (const FSkillEffect &Effect : Effects)
     {
-        if (!Effect.IsAlwaysActive())
+        if (Effect.IsConditionalEffect())
         {
             Result.Add(Effect);
         }

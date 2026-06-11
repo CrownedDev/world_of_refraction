@@ -3210,24 +3210,56 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
 {
     (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
 
+    // STARTING effects only (no condition — FSkillEffect::IsConditionalEffect's
+    // complement), applied once at combat start. Coverage mirrors
+    // GetActiveStatBonus's per-class gear selection — if gear's stats count for
+    // you, its starting effects apply — EXCEPT evolutions ATTACHED to a
+    // weapon/ring contribute NO effects; only the innate (primary-slot)
+    // evolution does (the deliberate exception).
     TArray<FSkillEffect> Result;
+
+    const FCombatLoadout Loadout = GetActiveLoadout();
 
     switch (CharacterClass)
     {
     case ECharacterClass::Generic:
     {
-        if (UWeaponData *Weapon = GetActiveWeapon())
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
         {
-            Result.Append(Weapon->Effects);
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffects());
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            // Ring primary; weapon-secondary sums in (GetActiveWeapon resolves
+            // to the secondary weapon here) — matching the stat sum.
+            if (URingData *Ring = GetPrimaryRing())
+            {
+                Result.Append(Ring->GetStartingEffects());
+            }
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffects());
+            }
         }
         break;
     }
 
     case ECharacterClass::Resonator:
     {
+        // Active ring + primary weapon (if equipped) — matching the stat sum.
         if (URingData *Ring = GetActiveRing())
         {
-            Result.Append(Ring->Effects);
+            Result.Append(Ring->GetStartingEffects());
+        }
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetPrimaryWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffects());
+            }
         }
         break;
     }
@@ -3236,16 +3268,30 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     default:
     {
         // Primary slot only (weapon OR ring, not both).
-        if (UWeaponData *Weapon = GetPrimaryWeapon())
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
         {
-            Result.Append(Weapon->Effects);
+            if (UWeaponData *Weapon = GetPrimaryWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffects());
+            }
         }
-        else if (URingData *Ring = GetPrimaryRing())
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
         {
-            Result.Append(Ring->Effects);
+            if (URingData *Ring = GetPrimaryRing())
+            {
+                Result.Append(Ring->GetStartingEffects());
+            }
         }
         break;
     }
+    }
+
+    // Innate (primary-slot) evolution starting effects. ATTACHED evolutions are
+    // deliberately excluded — same two-branch exclusivity on PrimarySlotType as
+    // ApplyEvolutionPillarModifier and the stat sum above.
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    {
+        Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffects());
     }
 
     return Result;
