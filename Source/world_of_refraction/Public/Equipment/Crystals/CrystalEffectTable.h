@@ -575,6 +575,13 @@ namespace CrystalEffectTable
     {
         if (Att.IsFusion())
         {
+            // Broken = dead stat: an elemental fusion at 0 durability stops contributing
+            // ALL its stat percents. Augmented (stone+stone) fusions never wear, so
+            // their IsBroken is always false — exempt automatically (HasGemHalf gate).
+            if (Att.Fusion.IsBroken())
+            {
+                return 0.0f;
+            }
             // Both halves contribute: each stat-stone half whose target == Stat adds
             // its tiered %; a gem half (StoneTargetStat -> None) contributes nothing.
             // Plus the fusion STAT bonus (TV(A)+TV(B))/2 when it targets Stat. (This
