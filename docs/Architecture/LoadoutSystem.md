@@ -262,8 +262,9 @@ While in combat, callers query the component:
 - `GetActiveStatBonus(AActor*)` returns a combined `FEquipmentStatBonus` with
   per-class resolution (Generic dual weapon uses the active weapon; Generic
   ring+weapon sums both; Caster uses the primary slot only; Resonator sums the
-  active ring plus the primary weapon). It uses a private `AccumulateBonus`
-  helper to add field-wise.
+  active ring plus the primary weapon). Field-wise summing goes through the
+  `FEquipmentStatBonus::Accumulate` struct member (the former file-private
+  `AccumulateBonus`/`AccumulateResistance` duplicates were deleted).
 - `GetActiveEffects(AActor*)` returns equipment-level `FSkillEffect`s per class
   (Generic active weapon; Caster primary slot; Resonator active ring). Evolution
   crystal effects are explicitly *not* included here.
@@ -347,3 +348,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-05-27 | Two new BlueprintCallable wear/clear helpers — `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution()` — for the case-B standalone primary-slot evolution (BD wear path). Both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage. Also corrected the `FCombatLoadout::PrimaryEvolution` field-shape note (it's `FEvolutionAttachment`, not a raw `UEvolutionItemData*` — pre-existing drift surfaced by this branch). | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-2 — added `ResolveSpellSource(USpellData*) const` for AI spell-source determination (precedence: Innate → RingCrystal → WeaponCrystal → Evolution). Removed dead struct-side `FCombatLoadout::Validate`/`ValidateGeneric`/`ValidateCaster`/`ValidateResonator` (`ULoadoutComponent::GetValidationErrors` is the live path; `ValidateBDSpellLoadout` retained — still shared with `FSavedLoadout::GetValidationErrors`). | feature/integration-gaps-sweep-2 |
 | 2026-06-07 | Weapon-stone alignment — `FEquippedCrystalSlot.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (`RefinedId` carries `WeaponStone` identity too); documented the per-tier stone-ability slots (`AssignedWeaponStoneAbilities`, `GetWeaponStoneAbilities`, `ValidateWeaponStoneAbilities` capped by `GetAttachmentSlotsForTier`) and the `FSavedLoadout`/`FCombatLoadout` plumbing. See new `AugmentStoneSystem.md`. | feature/weapon-stones |
+| 2026-06-11 | Accumulate cleanup — `LoadoutComponent.cpp`'s anon-namespace `AccumulateBonus`/`AccumulateResistance` replaced at all 10 call sites by the `FEquipmentStatBonus::Accumulate` / `FResistanceBonus::Accumulate` struct members (behaviour-identical field-wise add); the duplicate helpers deleted. | chore/legacy-cleanup |

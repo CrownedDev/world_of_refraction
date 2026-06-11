@@ -88,7 +88,13 @@ Immutable design-time definition of an evolution crystal. Key fields:
 - `BaseStatBonus` (`FEquipmentStatBonus`) — evolution stat modifiers. The
   embedded struct's `ClampMin=0` UPROPERTY meta can't be overridden at the
   embedding site, so out-of-range values (crystals permit negatives down to
-  `CRYSTAL_BONUS_MIN`) surface as `IsDataValid` warnings.
+  `CRYSTAL_BONUS_MIN`) surface as `IsDataValid` warnings. Supersedes the
+  deprecated legacy pillar fields (`Mind/Body/SpiritModifierPercent`):
+  `PostLoad` copies legacy values into `BaseStatBonus` on load (in-memory;
+  persists only on asset re-save). `PostLoad`/`PostInitProperties` are
+  declared **outside** `WITH_EDITOR` so the migration runs in packaged builds
+  too. The legacy fields are deletion-pending once all crystal assets are
+  confirmed re-saved.
 - `Effects` (`TArray<FSkillEffect>`) — skill effects granted by the evolution
   crystal (passives + triggered).
 
@@ -335,3 +341,4 @@ removed with the transform system.
 | 2026-05-27 | `bCanBreak` description note — overridable via `FEvolutionAttachment::ApplyWear(_, bForceWear=true)` for intrinsic mechanics (Broken Darkness). | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-1 — BD crystal absorption energy rescaled to **% of target MaxEP** (F=10% .. S=70%, `ItemConstants::BD_ENERGY_PERCENT_*`). `CrystalEffectTable::GetBrokenDarknessEnergyBonus` renamed to `GetBrokenDarknessEnergyPercent`; `ItemExecutor::ApplyBrokenDarknessBonus` resolves `MaxEP × Percent` at the call site. Scales correctly with target's energy pool instead of granting a flat lump. | refactor/bd-crystal-absorption-percent |
 | 2026-06-07 | Weapon-stone alignment — corrected the attachment-slot block (`Kind ∈ {None, Crystal, Evolution, WeaponStone}`, `CrystalType`/`CrystalTier` shared by `Crystal`+`WeaponStone`); reframed `ECrystalType` as 10 gems + 2 stones in one unified enum; `GetPrimaryEffectType` → `ItemIdentity::GetItemEffectType`; `EItemEffectType` gains `None` (`AbilityStone`). Weapon-stone family documented in new `AugmentStoneSystem.md`. | feature/weapon-stones |
+| 2026-06-11 | `WITH_EDITOR` guard fix — `UEvolutionItemData::PostLoad`/`PostInitProperties` were declared inside `#if WITH_EDITOR` but defined outside it: packaged builds failed to compile, and guarding the definitions instead would have skipped the legacy pillar→`BaseStatBonus` migration in shipping (dropping un-re-saved assets' pillar data). Declarations moved out of the guard — the pillar + durability migrations now run in all build configs. Legacy pillar fields remain deprecated, deletion-pending on confirmed content re-save. | chore/legacy-cleanup |
