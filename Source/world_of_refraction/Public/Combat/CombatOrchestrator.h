@@ -10,6 +10,7 @@
 #include "AI/AIDecisionManager.h"
 #include "Combat/Camera/CombatCameraManager.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
+#include "Skills/Definitions/SkillVFXEntry.h"
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
@@ -80,16 +81,8 @@ class UNiagaraSystem;
 class USpellData;
 class ASkillProjectile;
 
-/** SPIKE (throwaway): where a notify-driven VFX/SFX entry spawns. */
-UENUM(BlueprintType)
-enum class EVFXAttach : uint8
-{
-	Caster       UMETA(DisplayName = "Caster"),
-	Target       UMETA(DisplayName = "Target"),
-	ImpactPoint  UMETA(DisplayName = "Impact Point"),
-	CasterSocket UMETA(DisplayName = "Caster Socket"),
-	World        UMETA(DisplayName = "World Location")
-};
+// EVFXAttach hoisted to Skills/Definitions/SkillVFXEntry.h (Stage 10A) —
+// the spike structs below now use the production enum.
 
 /** SPIKE (throwaway): crude VFX library entry — array index matches the "VFX<N>" notify. */
 USTRUCT(BlueprintType)

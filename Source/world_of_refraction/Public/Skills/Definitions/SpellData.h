@@ -62,15 +62,23 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UAnimMontage *CastAnimation = nullptr;
 
-    /** Main spell VFX (projectile traveling, AOE expanding, etc.) */
+    /** Main spell VFX (projectile traveling, AOE expanding, etc.)
+     *  (D5) becomes the Cast-entry Trail at Stage 11 — stays loose, NOT
+     *  migrated to VFXArray. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UNiagaraSystem *SpellVFX = nullptr;
 
-    /** Impact/explosion VFX (optional - plays on hit) */
+    /** Impact/explosion VFX (optional - plays on hit)
+     *  DEPRECATED (D5): mirrors to VFXArray (Role=Impact) via PostLoad;
+     *  readers switch + DeprecatedProperty meta at Stage 12. Still
+     *  runtime-authoritative — keep authoring here until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UNiagaraSystem *ImpactVFX = nullptr;
 
-    /** Muzzle/cast flash VFX (optional - plays at caster on cast) */
+    /** Muzzle/cast flash VFX (optional - plays at caster on cast)
+     *  DEPRECATED (D5): mirrors to VFXArray (Role=Muzzle) via PostLoad;
+     *  readers switch + DeprecatedProperty meta at Stage 12. Still
+     *  runtime-authoritative — keep authoring here until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UNiagaraSystem *MuzzleVFX = nullptr;
 

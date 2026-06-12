@@ -17,6 +17,32 @@ void USpellData::PostLoad()
     {
         SkillMontage = CastAnimation;
     }
+
+    // D5: mirror the loose VFX fields into the role-classified array. Triggered
+    // only while VFXArray is unauthored; the loose fields stay the runtime
+    // source of truth until the Stage 12 reader switch. SpellVFX does NOT
+    // migrate — it becomes the Cast-entry Trail at Stage 11. Attach modes match
+    // today's spawn behavior exactly: muzzle spawns at caster origin (no socket,
+    // OnSpellAnimNotify), impact bursts on the target. Transient until resaved.
+    if (VFXArray.IsEmpty())
+    {
+        if (MuzzleVFX)
+        {
+            FSkillVFXEntry &Entry = VFXArray.AddDefaulted_GetRef();
+            Entry.Label = TEXT("Muzzle (migrated)");
+            Entry.Role = EVFXRole::Muzzle;
+            Entry.VFX = MuzzleVFX;
+            Entry.Attach = EVFXAttach::Caster;
+        }
+        if (ImpactVFX)
+        {
+            FSkillVFXEntry &Entry = VFXArray.AddDefaulted_GetRef();
+            Entry.Label = TEXT("Impact (migrated)");
+            Entry.Role = EVFXRole::Impact;
+            Entry.VFX = ImpactVFX;
+            Entry.Attach = EVFXAttach::Target;
+        }
+    }
 }
 
 // ==================== DAMAGE CALCULATIONS ====================

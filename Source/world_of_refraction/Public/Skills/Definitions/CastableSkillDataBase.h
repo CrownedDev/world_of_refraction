@@ -11,6 +11,7 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
+#include "Skills/Definitions/SkillVFXEntry.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
 #if WITH_EDITOR
@@ -107,6 +108,17 @@ public:
      *  rate (Stage 12). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.5", ClampMax = "2.0"))
     float BaseAnimSpeed = 1.0f;
+
+    // ==================== VISUALS ====================
+
+    /** Role-classified VFX entries (D5). INDEX-ORDERED: a UCombatNotify
+     *  (Family=VFX, Index=N) selects entry N — array position IS identity.
+     *  Role drives code-spawned visuals (e.g. projectile impact fires
+     *  Impact-role entries). Consumed by the fused-montage runner (Stage 12);
+     *  populated via PostLoad migration from the loose spell VFX fields
+     *  (Stage 10B). All three skill types inherit it. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals", meta = (TitleProperty = "Label"))
+    TArray<FSkillVFXEntry> VFXArray;
 
     // ==================== REQUIREMENTS ====================
 
