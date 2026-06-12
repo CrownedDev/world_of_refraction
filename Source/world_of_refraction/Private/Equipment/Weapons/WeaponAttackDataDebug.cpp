@@ -65,18 +65,9 @@ FString UWeaponAttackDataDebug::GetAttackStatsString(UWeaponAttackData *Attack)
     Output += TEXT("\nCOMBAT:\n");
     Output += FString::Printf(TEXT("  Base Damage:    %d\n"), Attack->BaseDamage);
     Output += FString::Printf(TEXT("  Energy Cost:    %d\n"), Attack->BaseEnergyCost);
-    if (Attack->HitCount == 1)
-    {
-        Output += TEXT("  Hits: 1 (100%)\n");
-    }
-    else
-    {
-        Output += FString::Printf(TEXT("  Hits: %d (%.0f%% + %.0f%% = %.0f%%)\n"),
-                                  Attack->HitCount,
-                                  Attack->FirstHitPercent,
-                                  Attack->SecondHitPercent,
-                                  Attack->GetTotalDamagePercent());
-    }
+    // Per-hit distribution is authored via DamageSplit on the base (D1) —
+    // inspect it with UDamageSplitDebug::PrintDamageSplitTable.
+    Output += FString::Printf(TEXT("  Hits: %d\n"), Attack->HitCount);
     Output += FString::Printf(TEXT("  Status Buildup: %d\n"), Attack->StatusBuildup);
     Output += FString::Printf(TEXT("  Raw Mode:       %s\n"), Attack->bIsRawMode ? TEXT("Yes") : TEXT("No"));
     Output += FString::Printf(TEXT("  Immune Infuse:  %s\n"), Attack->bImmuneToInfusion ? TEXT("Yes") : TEXT("No"));
@@ -122,7 +113,6 @@ void UWeaponAttackDataDebug::CompareAttacks(UWeaponAttackData *Attack1, UWeaponA
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Energy Cost"), Attack1->BaseEnergyCost, Attack2->BaseEnergyCost);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Hit Count"), Attack1->HitCount, Attack2->HitCount);
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20d | %-20d"), TEXT("Status Buildup"), Attack1->StatusBuildup, Attack2->StatusBuildup);
-    UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.0f%% | %-20.0f%%"), TEXT("Total Damage"), Attack1->GetTotalDamagePercent(), Attack2->GetTotalDamagePercent());
     UE_LOG(LogTemp, Display, TEXT("%-20s | %-20.2fx | %-20.2fx"), TEXT("Anim Speed"), Attack1->BaseAnimSpeed, Attack2->BaseAnimSpeed);
     UE_LOG(LogTemp, Display, TEXT("=========================================="));
 }

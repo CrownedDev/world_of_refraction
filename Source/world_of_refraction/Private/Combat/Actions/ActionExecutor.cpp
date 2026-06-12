@@ -763,10 +763,16 @@ bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
 	return false;
 }
 
-void UActionExecutor::FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
+void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
+
+	// REGRESSION GUARD (D1 Stage 9a): the legacy even split below is unchanged —
+	// the resolved table is stashed for the runner (Stage 12), not consumed yet.
 	OutDamagePerHit = FinalDamage / FMath::Max(1, HitCount);
+
+	CurrentExecutionContext->ResolvedDamageSplit = ResolveDamageSplit(
+		HitCount, Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>());
 }
 
 void UActionExecutor::LogActionDispatch(
@@ -929,7 +935,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
 	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup);
 
-	FinalizeDamageInputs(FinalDamage, Spell->HitCount, DamagePerHit);
+	FinalizeDamageInputs(Spell, FinalDamage, Spell->HitCount, DamagePerHit);
 	PendingSpellDamage = FinalDamage; // Spell-specific: cached for VFX notify
 
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
@@ -1070,7 +1076,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
 
 	int32 DamagePerHit = 0;
-	FinalizeDamageInputs(FinalDamage, Ability->HitCount, DamagePerHit);
+	FinalizeDamageInputs(Ability, FinalDamage, Ability->HitCount, DamagePerHit);
 
 	// Ability buildup-bar source resolution (per locked design):
 	//   - PhysicalDamageType: from active weapon (matches the weapon being
@@ -1231,7 +1237,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup);
 
 	int32 DamagePerHit = 0;
-	FinalizeDamageInputs(BaseDamage, Attack->HitCount, DamagePerHit);
+	FinalizeDamageInputs(Attack, BaseDamage, Attack->HitCount, DamagePerHit);
 
 	OpenDefenseWindowsForTargets(
 		Attacker,

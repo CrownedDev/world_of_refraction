@@ -31,6 +31,7 @@
 class UCharacterDataComponent;
 class UCharacterData;
 class USkillEffectManager;
+class USkillDataBase;
 class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
@@ -737,9 +738,11 @@ private:
 
 	/** Sync PartialResult.BaseDamageBeforeDefense and compute DamagePerHit after
 	 *  raw-mode redirect has folded any buildup into damage. Shared post-redirect
-	 *  cleanup across all three async paths.
+	 *  cleanup across all three async paths. Also resolves the skill's DamageSplit
+	 *  into ResolvedDamageSplit on the context (D1) — stash only; OutDamagePerHit
+	 *  stays the legacy even split until the runner consumes the table (Stage 12).
 	 *  Assumes CurrentExecutionContext.IsSet(). */
-	void FinalizeDamageInputs(int32 FinalDamage, int32 HitCount, int32& OutDamagePerHit);
+	void FinalizeDamageInputs(const USkillDataBase *Skill, int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit);
 
 	/** Unified log line for async action dispatch. Replaces three near-identical
 	 *  trailing UE_LOG calls in the async executors. Spell size is dropped from

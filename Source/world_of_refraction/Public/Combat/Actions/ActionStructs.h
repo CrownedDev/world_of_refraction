@@ -409,6 +409,12 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  damage). 0 when the action pays no infusion HP. */
 	int32 PendingInfusionHPCost = 0;
 
+	/** Per-hit damage percent table (length HitCount, sums to 100), resolved
+	 *  once in FinalizeDamageInputs from the skill's DamageSplit (D1). Stash
+	 *  only for now — the fused-montage runner (Stage 12) consumes it; the
+	 *  legacy even-split paths ignore it. */
+	TArray<float> ResolvedDamageSplit;
+
 	FActionExecutionContext()
 	{
 		ExecutionId = FGuid::NewGuid();

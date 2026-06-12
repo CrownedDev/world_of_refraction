@@ -31,15 +31,6 @@ class WORLD_OF_REFRACTION_API UWeaponAttackData : public UCastableSkillDataBase
     GENERATED_BODY()
 
 public:
-    // ==================== COMBAT (Attack-specific) ====================
-
-    /** Damage distribution per hit (percentages, should sum to ~100 for balance). */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (EditCondition = "HitCount == 2"))
-    float FirstHitPercent = 50.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (EditCondition = "HitCount == 2"))
-    float SecondHitPercent = 50.0f;
-
     // ==================== SIZE ====================
 
     /** Hitbox / defense-window size scalar for this attack. 0 = unauthored
@@ -80,12 +71,6 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     bool IsMultiHit() const { return HitCount > 1; }
-
-    UFUNCTION(BlueprintPure, Category = "Attack")
-    float GetHitDamagePercent(int32 HitIndex) const;
-
-    UFUNCTION(BlueprintPure, Category = "Attack")
-    float GetTotalDamagePercent() const;
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     float CalculateAnimSpeed(float AnimationSpeedMultiplier) const;

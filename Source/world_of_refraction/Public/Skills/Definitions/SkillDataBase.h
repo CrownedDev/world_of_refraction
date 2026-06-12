@@ -16,6 +16,33 @@
 #include "SkillDataBase.generated.h"
 
 /**
+ * One authored per-hit damage exception (D1). HitNumber is 1-based.
+ * Hits without an entry share the remaining percent evenly.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDamageSplitEntry
+{
+    GENERATED_BODY()
+
+    /** Which hit this entry applies to (1 = first hit). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Split", meta = (ClampMin = "1"))
+    int32 HitNumber = 1;
+
+    /** Percent of total damage this hit carries (0-100 scale). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Split", meta = (ClampMin = "0.0", ClampMax = "100.0"))
+    float Percent = 0.0f;
+};
+
+/** Resolve authored split entries into a full per-hit percent table (length
+ *  HitCount, 0-100 scale, summing to 100). Empty Split → even 100/N per hit —
+ *  identical to the legacy even split. Invalid entries (out-of-range /
+ *  duplicate / non-positive) warn and are skipped; a table that can't sum to
+ *  100 warns and is normalized (redistribute, never amplify). Shared by the
+ *  runtime resolution (FinalizeDamageInputs) and UDamageSplitDebug so the
+ *  debug output is exactly what executes. */
+WORLD_OF_REFRACTION_API TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split);
+
+/**
  * USkillDataBase
  * Truly-shared fields for abilities, spells, and weapon attacks.
  * Subclasses extend with asset-specific data (cost, requirements, delivery, etc.).
@@ -38,6 +65,13 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "1"))
     int32 HitCount = 1;
+
+    /** Per-hit damage exceptions (D1). Empty = even split across HitCount —
+     *  the current behavior. Authored hits take their Percent; unassigned hits
+     *  share the remainder evenly. Resolved once at action start via
+     *  ResolveDamageSplit; consumed by the fused-montage runner (Stage 12). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "HitNumber"))
+    TArray<FDamageSplitEntry> DamageSplit;
 
     /** Raw mode: folds StatusBuildup into damage at the orchestrator boundary; status bar doesn't move. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")

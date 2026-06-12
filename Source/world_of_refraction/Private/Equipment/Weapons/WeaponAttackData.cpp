@@ -4,33 +4,6 @@
 #include "Equipment/Weapons/WeaponAttackData.h"
 #include "Equipment/Weapons/WeaponData.h"
 
-float UWeaponAttackData::GetHitDamagePercent(int32 HitIndex) const
-{
-    if (HitCount == 1)
-    {
-        return (HitIndex == 0) ? 100.0f : 0.0f;
-    }
-
-    switch (HitIndex)
-    {
-    case 0:
-        return FirstHitPercent;
-    case 1:
-        return SecondHitPercent;
-    default:
-        return 0.0f;
-    }
-}
-
-float UWeaponAttackData::GetTotalDamagePercent() const
-{
-    if (HitCount == 1)
-    {
-        return 100.0f;
-    }
-    return FirstHitPercent + SecondHitPercent;
-}
-
 float UWeaponAttackData::CalculateAnimSpeed(float AnimationSpeedMultiplier) const
 {
     return BaseAnimSpeed * AnimationSpeedMultiplier;
@@ -42,11 +15,12 @@ FString UWeaponAttackData::GetAttackSummary() const
 
     if (HitCount == 1)
     {
-        Summary = TEXT("Single Hit (100%)");
+        Summary = TEXT("Single Hit");
     }
     else
     {
-        Summary = FString::Printf(TEXT("Double Hit (%.0f%% + %.0f%%)"), FirstHitPercent, SecondHitPercent);
+        // Per-hit distribution is authored via DamageSplit on the base (D1).
+        Summary = FString::Printf(TEXT("%d Hits"), HitCount);
     }
 
     Summary += FString::Printf(TEXT(" | Buildup: %d"), StatusBuildup);
@@ -75,23 +49,6 @@ EDataValidationResult UWeaponAttackData::IsDataValid(FDataValidationContext &Con
         Context.AddWarning(NSLOCTEXT("WeaponAttackData",
                                      "HitCountWarning",
                                      "HitCount above 2 is unusual for attacks."));
-    }
-
-    // Multi-hit damage distribution validation
-    if (HitCount == 2)
-    {
-        float Total = FirstHitPercent + SecondHitPercent;
-        if (Total < 80.0f || Total > 120.0f)
-        {
-            Context.AddWarning(FText::FromString(FString::Printf(
-                TEXT("Damage distribution total is %.0f%% (expected ~100%%)"), Total)));
-        }
-
-        if (FirstHitPercent <= 0.0f || SecondHitPercent <= 0.0f)
-        {
-            Context.AddError(FText::FromString(TEXT("Both hits must have positive damage percent")));
-            Result = EDataValidationResult::Invalid;
-        }
     }
 
     // Animation validation
