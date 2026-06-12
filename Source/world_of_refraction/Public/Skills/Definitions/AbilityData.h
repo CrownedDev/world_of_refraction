@@ -6,7 +6,6 @@
 
 #include "CoreMinimal.h"
 #include "Skills/Definitions/CastableSkillDataBase.h"
-#include "NiagaraSystem.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Combat/CombatConstants.h"
 #include "Character/MovementData.h"
@@ -69,19 +68,6 @@ public:
     /** Animation to play during ability execution */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UAnimMontage *ExecutionMontage = nullptr;
-
-    /** VFX for normal (non-infused) ability */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UNiagaraSystem *NormalVFX = nullptr;
-
-    /** VFX for infused ability */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
-    UNiagaraSystem *InfusedVFX = nullptr;
-
-    /** Projectile VFX (Ranged only). Ability-specific; spells use SpellVFX. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals",
-              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Ranged", EditConditionHides))
-    UNiagaraSystem *ProjectileVFX = nullptr;
 
     // ==================== DAMAGE CALCULATIONS ====================
 

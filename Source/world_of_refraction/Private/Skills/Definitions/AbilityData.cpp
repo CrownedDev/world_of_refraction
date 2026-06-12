@@ -140,11 +140,6 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
         {
             Context.AddWarning(FText::FromString(TEXT("Ranged ability has very slow projectile speed")));
         }
-
-        if (!ProjectileVFX)
-        {
-            Context.AddWarning(FText::FromString(TEXT("Ranged ability has no ProjectileVFX assigned")));
-        }
     }
 
     // Support abilities should have effects
