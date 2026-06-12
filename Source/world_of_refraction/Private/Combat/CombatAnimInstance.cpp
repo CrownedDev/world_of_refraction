@@ -19,10 +19,14 @@ void UCombatAnimInstance::NativeInitializeAnimation()
 
     // Bind to montage notify events
     OnPlayMontageNotifyBegin.AddDynamic(this, &UCombatAnimInstance::HandleMontageNotify);
+    UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] NativeInit ran, notify bound for %s"),
+           *GetName());
 }
 
 void UCombatAnimInstance::HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload)
 {
+    UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] >>> HandleMontageNotify ENTERED: %s"),
+           *NotifyName.ToString());
     UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
     OnActionNotify.Broadcast(NotifyName);
 }

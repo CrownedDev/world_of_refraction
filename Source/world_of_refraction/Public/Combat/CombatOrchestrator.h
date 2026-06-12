@@ -9,12 +9,14 @@
 #include "AI/EAIDifficulty.h"
 #include "AI/AIDecisionManager.h"
 #include "Combat/Camera/CombatCameraManager.h"
+#include "Skills/Definitions/ESpellDeliveryType.h"
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
 class UCharacterDataComponent;
 class USkillEffectManager;
 class UActionExecutor;
+class UAnimMontage;
 
 /**
  * Combat state enum
@@ -52,6 +54,100 @@ struct FCombatResult
 
 	UPROPERTY(BlueprintReadOnly)
 	AActor *LastActorStanding = nullptr;
+};
+
+class UNiagaraSystem;
+class USpellData;
+class ASpellProjectile;
+
+/** SPIKE (throwaway): where a notify-driven VFX/SFX entry spawns. */
+UENUM(BlueprintType)
+enum class EVFXAttach : uint8
+{
+	Caster       UMETA(DisplayName = "Caster"),
+	Target       UMETA(DisplayName = "Target"),
+	ImpactPoint  UMETA(DisplayName = "Impact Point"),
+	CasterSocket UMETA(DisplayName = "Caster Socket"),
+	World        UMETA(DisplayName = "World Location")
+};
+
+/** SPIKE (throwaway): crude VFX library entry — array index matches the "VFX<N>" notify. */
+USTRUCT(BlueprintType)
+struct FSpikeVFXEntry
+{
+	GENERATED_BODY()
+
+	/** Human note, unused by code. */
+	UPROPERTY(EditAnywhere)
+	FString Label;
+
+	UPROPERTY(EditAnywhere)
+	UNiagaraSystem *VFX = nullptr;
+
+	UPROPERTY(EditAnywhere)
+	EVFXAttach Attach = EVFXAttach::Target;
+
+	UPROPERTY(EditAnywhere, meta = (EditCondition = "Attach==EVFXAttach::CasterSocket"))
+	FName SocketName;
+};
+
+class USoundBase;
+
+/** SPIKE (throwaway): crude SFX library entry — array index matches the "SFX<N>" notify. */
+USTRUCT(BlueprintType)
+struct FSpikeSFXEntry
+{
+	GENERATED_BODY()
+
+	/** Human note, unused by code. */
+	UPROPERTY(EditAnywhere)
+	FString Label;
+
+	UPROPERTY(EditAnywhere)
+	USoundBase *Sound = nullptr;
+
+	UPROPERTY(EditAnywhere)
+	EVFXAttach Attach = EVFXAttach::Target;
+
+	UPROPERTY(EditAnywhere, meta = (EditCondition = "Attach==EVFXAttach::CasterSocket"))
+	FName SocketName;
+};
+
+/** SPIKE (throwaway): notify-driven spell cast — array index matches the "Cast<N>" notify.
+ *  Projectile/Homing/Beam spawn the real ASpellProjectile; AOE/Instant fake-resolve with VFX. */
+USTRUCT(BlueprintType)
+struct FSpikeCastEntry
+{
+	GENERATED_BODY()
+
+	/** Human note, unused by code. */
+	UPROPERTY(EditAnywhere)
+	FString Label;
+
+	UPROPERTY(EditAnywhere)
+	ESpellDeliveryType Delivery = ESpellDeliveryType::Projectile;
+
+	/** Required for Projectile/Homing/Beam. */
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<ASpellProjectile> ProjectileClass;
+
+	/** Optional — drives Init sizing + projectile VFX when set. */
+	UPROPERTY(EditAnywhere)
+	USpellData *Spell = nullptr;
+
+	/** For AOE/Instant (no projectile actor). */
+	UPROPERTY(EditAnywhere)
+	UNiagaraSystem *AOEVFX = nullptr;
+
+	/** Barrage = >1, staggered by BurstInterval. */
+	UPROPERTY(EditAnywhere)
+	int32 Count = 1;
+
+	UPROPERTY(EditAnywhere)
+	float BurstInterval = 0.15f;
+
+	UPROPERTY(EditAnywhere)
+	int32 TestDamage = 50;
 };
 
 /**
@@ -221,6 +317,85 @@ public:
 	// ========================================
 	// DEBUG TOOLS
 	// ========================================
+
+	// --- SPIKE (throwaway: fused-montage warp test) ---
+	/** Approach + strike (warps to target). */
+	UPROPERTY(EditAnywhere, Category = "Spike")
+	UAnimMontage *SpikeMontage = nullptr;
+
+	/** Warps back to origin. Optional — loop ends after the strike if unset. */
+	UPROPERTY(EditAnywhere, Category = "Spike")
+	UAnimMontage *SpikeReturnMontage = nullptr;
+
+	/** Crude VFX library — entry [N] fires on a "VFX<N>" notify (bare "VFX" = 0). */
+	UPROPERTY(EditAnywhere, Category = "Spike")
+	TArray<FSpikeVFXEntry> SpikeVFXArray;
+
+	/** Crude SFX library — entry [N] fires on an "SFX<N>" notify (bare "SFX" = 0). */
+	UPROPERTY(EditAnywhere, Category = "Spike")
+	TArray<FSpikeSFXEntry> SpikeSFXArray;
+
+	/** Crude cast library — entry [N] fires on a "Cast<N>" notify (bare "Cast" = 0). */
+	UPROPERTY(EditAnywhere, Category = "Spike")
+	TArray<FSpikeCastEntry> SpikeCastArray;
+
+	// Diagnostic: warp this far in front of the actor instead of the enemy.
+	// 0 = warp to the actual enemy (real behavior). >0 = fixed-distance probe.
+	UPROPERTY(EditAnywhere, Category = "Spike")
+	float SpikeWarpDistanceOverride = 300.0f;
+
+	UFUNCTION(CallInEditor, Category = "Spike")
+	void DebugWarpSpike();
+
+	UFUNCTION(CallInEditor, Category = "Spike")
+	void DebugWarpSpikeReset();
+
+	/** Montage notify re-broadcast handler — fake hit + VFX, no damage. */
+	UFUNCTION()
+	void OnSpikeNotify(FName NotifyName);
+
+	/** Chains approach-end -> return, return-end -> loop complete. */
+	UFUNCTION()
+	void OnSpikeMontageEnded(UAnimMontage *Montage, bool bInterrupted);
+
+	void PlaySpikeReturn();
+	void SpikeUnbind();
+
+	/** Cast-entry dispatch — branches on Delivery (actor vs fake AOE resolve). */
+	void SpikeExecuteCast(const FSpikeCastEntry &Entry);
+
+	/** Spawns one real ASpellProjectile at the caster, aimed at the spike target. */
+	void SpikeSpawnProjectile(const FSpikeCastEntry &Entry);
+
+	/** Burst timer chain — mirrors SpellProjectileTestActor::SpawnNextBurst. */
+	void SpikeSpawnNextBurst();
+
+	/** Resolves an entry's attach mode to a world location.
+	 *  Returns false when the entry must be skipped (Target mode, no target). */
+	bool ResolveSpikeAttachLocation(EVFXAttach Attach, FName SocketName, FName Tag, FVector &OutLoc) const;
+
+	/** Projectile impact handler — fake hit log only, no damage. */
+	UFUNCTION()
+	void OnSpikeCastImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage);
+
+	/** One burst chain at a time — last Cast entry with Count>1 wins. */
+	UPROPERTY(Transient)
+	FSpikeCastEntry SpikeBurstEntry;
+	int32 SpikeBurstRemaining = 0;
+	FTimerHandle SpikeBurstTimerHandle;
+
+	/** Pre-warp pose cache so the reset button can undo root motion. */
+	UPROPERTY(Transient)
+	AActor *SpikeCachedActor = nullptr;
+	UPROPERTY(Transient)
+	AActor *SpikeCachedTarget = nullptr;
+	FVector SpikeCachedLoc = FVector::ZeroVector;
+	FRotator SpikeCachedRot = FRotator::ZeroRotator;
+
+	/** True end-of-approach pose, captured at montage-end before the deferred return tick. */
+	FVector SpikeApproachEndLoc = FVector::ZeroVector;
+	FRotator SpikeApproachEndRot = FRotator::ZeroRotator;
+	// --- END SPIKE ---
 
 	/** Override actor for debug commands (if set, uses this instead of CurrentActor) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
