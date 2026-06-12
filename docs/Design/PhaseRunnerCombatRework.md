@@ -222,6 +222,163 @@ montages even have root motion to make warp work?"
 
 ---
 
+## 7.5 UNIFIED SKILL MODEL — locked decisions (from the disposition survey)
+
+Decisions made walking the field-disposition table (47 fields across the 5 classes). These
+supersede earlier sketches where they conflict. Remaining open forks listed at the end.
+
+### D1 — Hits → `HitCount` + `DamageSplit` (author by exception)
+`HitCount` (int) STAYS. Add a **`DamageSplit`** array of `{ HitNumber, Percent }` — **exceptions
+only**. Resolution: at action start (BEFORE any hit fires), resolve the full per-hit table —
+authored hits take their %, the REMAINING hits split the leftover evenly. Hit notifies then just
+**index the precomputed table** (no per-hit math, no waiting).
+- Example: 4 hits, `DamageSplit=[{3, 70}]` → table `[10,10,70,10]`.
+- Empty `DamageSplit` → even split = **current behavior** (migration-safe).
+- Over-100% authored → warn (debug checker).
+- Supersedes the §8 flat per-hit-weight array. Attack's dead `FirstHitPercent`/`SecondHitPercent`
+  (never applied at runtime — even split always ran) → migrate to `DamageSplit` entries if
+  honoring authored intent, else leave empty.
+
+### D2 — `SkillMontage` on the base class (Option A)
+`CastAnimation` / `ExecutionMontage` / `AttackMontage` → ONE `SkillMontage` field on
+`UCastableSkillDataBase` (all three inherit). §0's "no shared base" applies to MERGING THE TYPES
+and complex behavior — NOT plain shared fields like a montage ref (the base already holds
+`Tier`/`BaseDamage`/`DeliveryType`). Migration: `PostLoad` copies each old field → `SkillMontage`
+(wrap-don't-rip: keep old fields deprecated, remove later once verified). Three animation readers
+collapse to one `Skill->SkillMontage` read.
+
+### D3 — `ExecutionType` becomes DESCRIPTIVE metadata
+The animation (root motion + warp) handles movement now, so `ExecutionType` (melee/ranged) STOPS
+controlling approach. Keep it as a **descriptive tag** for UI / AI filtering / categorization.
+Unhook from `RequiresApproach()`. Now generic → moves to the base (an attack is "melee", a
+projectile spell "ranged" — uniform tagging).
+
+### D4 — Approach system REMOVED (animation owns movement)
+`ApproachData` / `ExecutionRange` / `RequiresApproach()` are superseded by the fused montage
+(warp-in) + return montage. Approach = **cast + return** now. DEAD-REMOVE — but migration-gated:
+delete only AFTER the fused runner handles movement (wrap-don't-rip).
+
+### D5 — VFX roles + Trail split
+VFX entries carry a **Role** classifying what kind they are:
+- **Muzzle** — launch flash (caster/socket)
+- **Impact** — hit/landing burst (target). **Doubles as the melee hit visual** — unifies melee +
+  ranged hit feedback (projectile landing AND `Hit` notify both fire Impact-role VFX on target).
+- **Cosmetic** — auras, charge glows, ambient visuals; no mechanical tie.
+- **Trail** is NOT a VFX-array role — it lives on the **Cast entry / projectile** (it must follow
+  the moving projectile, which a location-spawned array entry can't).
+
+Role CLASSIFIES; **index DISTINGUISHES** — many entries per role, notifies pick which (`VFX0` =
+normal hit spark, `VFX1` = finisher burst; hit 3's frame gets a `VFX1` notify). Damage and visual
+stay independent notifies (`Hit` does damage, a `VFX` notify at the same frame does the visual).
+Replaces all old loose VFX fields: old `MuzzleVFX`→Muzzle, `ImpactVFX`→Impact, `SpellVFX`(travel)
+→Trail on Cast entry; dead ability `NormalVFX`/`InfusedVFX`/`ProjectileVFX` removed.
+
+### D6 — Size is per-Cast-entry, shaped by delivery type
+Skill-wide `BaseSize`/`HitboxRatio` → **REMOVED**. Size splits two ways:
+- **Hitbox / impact radius (mechanical)** → on the **Cast entry**; its MEANING follows the
+  entry's delivery type — Projectile = moving collision (travels with the actor), AOE = static
+  ground radius (instant). Both already built in `ASpellProjectile`. So fireball-then-pillar =
+  two Cast entries: `{Projectile, hitbox}` (moving) + `{AOE, radius}` (ground). Delivery type
+  encodes moving-vs-static; the entry carries the numbers.
+- **Visual scale (cosmetic)** → travels with its visual: trail scale on the Cast entry,
+  muzzle/impact scale on the VFX entries. Decouples spectacle from hitbox (big-looking, small
+  hitbox is now possible).
+
+### D7 — `BaseAnimSpeed` generalizes to the base
+Attack-only designer play-rate scalar → **base** (`UCastableSkillDataBase`), a per-skill montage
+play-rate scalar; stat scaling layers on top. Uniform with `SkillMontage`. A slow heavy spell or
+a quick jab ability now get the same authoring lever.
+
+### D8 — `TurnCost` → base, NET-NEW feature (implement)
+`TurnCost` is currently authored but UNREAD (never implemented). Promote to the **base** (all
+three) AND **build the multi-turn-cost mechanic** — wire it into the turn system. This is net-new
+work, not cleanup.
+
+### D9 — Tier-gap DAMAGE scaling (separate from wear) — UNIFORM across all three
+
+**The damage mechanic stands alone — wear is a SEPARATE, pre-existing system; do not conflate.**
+
+An action's **own tier** is compared to the tier of the **channel it's used through**, scaling its
+damage. Applies UNIFORMLY to all three (attacks swap too — `FWeaponLoadoutEntry::OverrideAttack`
+proves attacks are not intrinsic to their weapon):
+
+| Action  | Action tier (its OWN)                                           | Channel (gaps against)            |
+| ------- | --------------------------------------------------------------- | --------------------------------- |
+| Spell   | `SpellData->Tier`                                               | the **crystal** it's cast through |
+| Ability | `AbilityData->Tier`                                             | the **weapon**                    |
+| Attack  | the attack's own `Tier` (exists, currently UNREAD — wire it up) | the **weapon**                    |
+
+Weapon TYPE must already match (hard `ValidateAbilities` gate — a sword ability only goes on a
+sword); the gap is about TIER, not type. A high-tier skill on a low-tier (but correct-type) weapon
+is weakened; a low-tier skill on a high-tier weapon is boosted.
+
+Symmetric, both directions:
+- Action tier BELOW channel (weak action, strong channel) → **boosted** (×>1)
+- Action tier ABOVE channel (strong action, weak channel) → **weakened** (×<1)
+- Equal → **neutral** (×1.0)
+
+**Balance guardrail:** the boost **nudges toward** the channel's tier but does NOT equalize — a true
+high-tier action still out-damages a boosted low-tier one (higher base). Weak-through-strong = good
+*utility*; high-tier = raw *power*. Both viable; neither dominates.
+
+**Replaces** the hard `RequiredWeaponType`→penalty framing entirely — tier-gap is the "wrong fit =
+weaker" mechanic. (Weapon-TYPE matching stays a hard gate; tier is the soft scaling axis.)
+
+**Convention ruling (fixes a pre-existing contradiction):** the code disagreed — wear path used
+`Weapon->Tier` as the ability's action tier (`ActionExecutor.cpp:4338-4349`, "action tier inherits
+from weapon"), BD-break used `AbilityData->Tier`. **For the DAMAGE mechanic, action tier = the
+skill's OWN tier, always.** WEAR keeps its existing convention (untouched — separate system). We are
+NOT changing wear; we are defining the damage mechanic's convention cleanly.
+
+**Reuse:** mirrors the tier-keyed table pattern (`GetSubstatBudget`/`GetBaseBreakChance` — inline
+switch in a `*Constants.h`). The multiplier is a tier-gap-keyed lookup; applies multiplicatively at
+damage assembly (the `× (1 − RequirementPenalty)` precedent — `AbilityData.cpp:20`, attack `:1017`,
+spell `:719`). Sits beside `GetTierGap` (`TierHelpers`, only 3 callers, all in `BreakCalculator`).
+
+**Prerequisites (from the gap survey):**
+1. **Channel-tier resolution per cast.** Ability/attack: `Weapon->Tier` accessible at cast time
+   (read 4× already). Spell: crystal tier resolved ONLY on the infused path today — uninfused casts
+   never look up their crystal. Build a per-cast channel-tier resolver (machinery exists:
+   `FindAttachedItemByHolder` + `Crystal.Id.Tier`; just not invoked uninfused). De-dups the 4×
+   copied channel-resolution block in `ApplyCommitCosts` (:4333/:4390/:4469/:4536).
+2. **AI preview parity** — AI previews damage via `UDamageCalculator` (`AIDecisionManager.cpp:714/
+   :769`); the multiplier must be visible to the AI's damage input.
+3. **Attack tier** — `WeaponAttackData`'s `Tier` exists but is unread; wire it up.
+
+**NOTE on wear:** wear is its OWN system (action vs CRYSTAL, commit-time, luck-skippable). NOT part
+of this. Both use tier comparisons but are independent.
+
+**ANIMATION PHASE TODO:** rituals currently fire using the skill's normal animation. A distinct
+ritual visual (an arming gesture at cast, and/or a bespoke eruption when it fires at turn-start) is
+DEFERRED to the animation phase (Phase 2) — built with the runner + spike notify system as
+reference, not ad-hoc now. The mechanic works without it; this is feel/polish.
+
+**NEW design, not unification cleanup. Build first.**
+
+### D10 — Infused weapon glow → on the WEAPON (re-home)
+Ability `InfusedVFX` is dead → **removed**. The CONCEPT (a glowing weapon when infused) re-homes
+as a **new VFX on the WEAPON** (a weapon property: "when infused, show this glow"), not the
+skill. Different field, different owner.
+
+### D11 — Dead-field cleanup (confirmed dispositions)
+- **REMOVE:** `RequiredEvolutionCrystal`? → **KEEP** (spell-only, planned validation slot);
+  ability `NormalVFX` → remove (concept = VFX roles); ability `InfusedVFX` → remove (re-homed to
+  weapon, D10); ability `ProjectileVFX` → remove (replaced by Cast-entry VFX).
+- **KEEP:** `Icon` (BP-read risk, keep); construct cluster `bIsConstruct`/`ConstructedWeapon`/
+  `bSealsSpells` (type-specific, kept — constructs are a committed/door-open feature; sealing
+  may extend to abilities later).
+
+### Open forks (still to decide)
+- **SFX array** — DEFERRED. Same pattern as VFX (sound + attach + index), would likely mirror
+  VFX roles (Muzzle/Impact/Cosmetic) + a non-positional `TwoD` attach option. Not needed for the
+  pitch demo; spec when audio work begins. The spike already has a throwaway `FSpikeSFXEntry`.
+- **`bRequiresDualWeapon`** — RESOLVED by the type-hard lock. Since weapon TYPE matching stays a
+  hard gate (only TIER is the soft tier-gap axis), `bRequiresDualWeapon` stays a hard check like its
+  parent gate (LoadoutComponent.cpp:828). No soft-penalty path — a dual-only ability on a
+  single-wield weapon is blocked, not penalized. The earlier "soft-only" framing was superseded.
+
+---
+
 ## 8. Hit resolution — the `Hit` array with authored damage weights
 
 **Validated direction (real-system feature; spike does FAKE hits only).**
