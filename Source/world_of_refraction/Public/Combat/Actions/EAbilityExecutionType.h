@@ -31,31 +31,14 @@ enum class EAbilityExecutionType : uint8
  */
 namespace AbilityExecutionTypeHelper
 {
-    /** Does this execution type require approaching the target? */
+    /** Does this execution type require approaching the target?
+     *  Legacy approach path — unhook is runner-gated (D4). */
     inline bool RequiresApproach(EAbilityExecutionType Type)
     {
         return Type == EAbilityExecutionType::Melee;
     }
 
-    /** Does this execution type spawn a projectile? */
-    inline bool SpawnsProjectile(EAbilityExecutionType Type)
-    {
-        return Type == EAbilityExecutionType::Ranged;
-    }
-
-    /** Does this execution type keep the user stationary? */
-    inline bool IsStationary(EAbilityExecutionType Type)
-    {
-        return Type != EAbilityExecutionType::Melee;
-    }
-
-    /** Is this a support-style ability (no direct attack on enemy)? */
-    inline bool IsSupportStyle(EAbilityExecutionType Type)
-    {
-        return Type == EAbilityExecutionType::SelfCast;
-    }
-
-    /** Get display name for UI */
+    /** Get display name for UI (serves the D3 descriptive-tag filtering) */
     inline FString GetDisplayName(EAbilityExecutionType Type)
     {
         switch (Type)

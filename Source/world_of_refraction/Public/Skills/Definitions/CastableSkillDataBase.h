@@ -11,6 +11,7 @@
 #include "Inventory/ItemTier.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
+#include "Combat/Actions/EAbilityExecutionType.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -55,6 +56,17 @@ public:
     /** Default 0 means free. Attacks are free unless designers set a cost. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseEnergyCost = 0;
+
+    // ==================== EXECUTION ====================
+
+    /** DESCRIPTIVE tag (D3): how this skill executes, for UI / AI filtering /
+     *  categorization — uniform across abilities, spells, and weapon attacks.
+     *  Still read by the legacy approach path (RequiresApproach/IsMelee) until
+     *  the fused-montage runner owns movement (D4); the unhook is runner-gated.
+     *  Default Melee preserves existing ability assets (serialize-by-name);
+     *  USpellData overrides to Ranged in its constructor. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution")
+    EAbilityExecutionType ExecutionType = EAbilityExecutionType::Melee;
 
     // ==================== DELIVERY ====================
 

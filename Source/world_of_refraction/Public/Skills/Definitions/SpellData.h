@@ -38,6 +38,10 @@ class WORLD_OF_REFRACTION_API USpellData : public UCastableSkillDataBase
     GENERATED_BODY()
 
 public:
+    /** Spells default to the Ranged descriptive tag (D3) — the field is never
+     *  serialized on existing spell assets, so the ctor default applies to all. */
+    USpellData() { ExecutionType = EAbilityExecutionType::Ranged; }
+
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")

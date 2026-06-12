@@ -46,10 +46,7 @@ public:
     bool bRequiresDualWeapon = false;
 
     // ==================== EXECUTION ====================
-
-    /** How this ability executes (determines movement, animation style, delivery) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution")
-    EAbilityExecutionType ExecutionType = EAbilityExecutionType::Melee;
+    // ExecutionType hoisted to UCastableSkillDataBase (D3 descriptive tag).
 
     // --- Melee Only ---
 
