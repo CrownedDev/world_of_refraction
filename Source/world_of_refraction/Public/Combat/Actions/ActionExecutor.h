@@ -26,6 +26,9 @@
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Inventory/ItemTier.h"
+#include "Combat/CombatNotify.h"
+#include "Skills/Definitions/SkillVFXEntry.h"
+#include "Skills/Definitions/SkillCastEntry.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -46,6 +49,7 @@ struct FDefenseResult;
 struct FActionExecutionContext;
 struct FPendingDefenseContext;
 class UCombatAnimInstance;
+class UCastableSkillDataBase;
 
 // ========================================
 // DELEGATES
@@ -428,6 +432,39 @@ private:
 	/** Clear cached spell data */
 	void ClearPendingSpellData();
 
+	// ==================== FUSED-MONTAGE RUNNER (Stage 12) ====================
+
+	/** Runner notify spine: receives UCombatNotify (Family, Index) from the
+	 *  actor's UCombatAnimInstance and routes by family. VFX → VFXArray[Index]
+	 *  spawn; Hit (SC4) / Cast (SC3) / SFX (deferred) are log-only stubs this
+	 *  sub-cluster. Coexists with the name-based OnSpellAnimNotify path until
+	 *  montages carry UCombatNotify instances (content-gated retirement). */
+	UFUNCTION()
+	void OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 Index);
+
+	void BindCombatNotify(AActor *Actor);
+	void UnbindCombatNotify(AActor *Actor);
+
+	/** The executing action's skill data (spell/ability/attack); null for
+	 *  items or outside an action. */
+	UCastableSkillDataBase *GetCurrentSkillData() const;
+
+	/** First VFXArray entry of the given role with a non-null asset, or null
+	 *  (callers fall back to the loose VFX fields — D5 reader switch, SC5). */
+	static const FSkillVFXEntry *GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role);
+
+	/** Family=VFX: spawn VFXArray[Index] honoring Attach/tint/Scale — the
+	 *  spike's VFX spawn productionized (socket attach follows the hand). */
+	void SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Index);
+
+	/** Resolve a non-attached spawn location for a VFX entry. False = skip
+	 *  (warned) — e.g. Target attach with no valid target. */
+	bool ResolveVFXAttachLocation(EVFXAttach Attach, FName SocketName, int32 Index, FVector &OutLoc) const;
+
+	/** True while the post-cast ReturnMontage leg plays — the animation phase
+	 *  (bWaitingForAnimationEnd gating) stays open until the return leg ends. */
+	bool bPlayingReturnMontage = false;
+
 	// ==================== SKILL EFFECT APPLICATION ====================
 
 	/** Apply all effects from an action's Effects[] array.
@@ -668,6 +705,13 @@ private:
 	UFUNCTION()
 	void OnMovementComplete();
 
+	/** Movement-independent "execution begins" (SC2.5): start-facing (nearest
+	 *  living enemy), notify/anim-end binding, dispatch to the three
+	 *  Execute*Async paths, failsafe timer. Approach-less actions enter here
+	 *  directly from ExecuteActionAsync; melee-with-ApproachData enters via
+	 *  OnMovementComplete after the approach leg. */
+	void BeginSkillExecution(AActor *Actor);
+
 private:
 	// ==================== ACTION ANIMATION BINDING ====================
 
@@ -877,7 +921,9 @@ protected:
 		int32 FinalDamage,
 		bool bIsBrokenDarkness);
 
-	/** Spawn projectile actor (Projectile/Homing/Beam) */
+	/** Spawn projectile actor (Projectile/Homing/Beam). Entry non-null = the
+	 *  Cast-entry dispatch path (D6): entry class/speed/Trail/homing/beam win;
+	 *  null = legacy loose-field path. ONE spawn site for both. */
 	void SpawnProjectileActor(
 		AActor *Caster,
 		AActor *Target,
@@ -885,9 +931,11 @@ protected:
 		float FinalImpactRadius,
 		float FinalVisualScale,
 		int32 FinalDamage,
-		bool bIsBrokenDarkness);
+		bool bIsBrokenDarkness,
+		const FSkillCastEntry *Entry = nullptr);
 
-	/** Spawn AOE effect (no projectile) */
+	/** Spawn AOE effect (no projectile). Entry non-null = ground visual from
+	 *  the entry's Trail; null = loose SpellVFX. */
 	void SpawnAOEEffect(
 		AActor *Caster,
 		AActor *Target,
@@ -895,16 +943,53 @@ protected:
 		float FinalImpactRadius,
 		float FinalVisualScale,
 		int32 FinalDamage,
-		bool bIsBrokenDarkness);
+		bool bIsBrokenDarkness,
+		const FSkillCastEntry *Entry = nullptr);
 
-	/** Resolve instant spell (immediate hit) */
+	/** Resolve instant spell (immediate hit). Entry non-null = visual from the
+	 *  entry's Trail; null = loose SpellVFX. */
 	void ResolveInstantSpell(
 		AActor *Caster,
 		AActor *Target,
 		USpellData *Spell,
 		float FinalImpactRadius,
 		int32 FinalDamage,
-		bool bIsBrokenDarkness);
+		bool bIsBrokenDarkness,
+		const FSkillCastEntry *Entry = nullptr);
+
+	/** Entry-based delivery dispatch (D6 Stage 12) — the ONE spawn site both
+	 *  trigger paths share (UCombatNotify Family=Cast AND the legacy
+	 *  SpellRelease name-notify). Sizing comes from the ENTRY (Size = hitbox,
+	 *  TrailScale = visual) × the infusion SpellSize multiplier — for migrated
+	 *  content this reproduces the legacy BaseSize math exactly. Count>1
+	 *  staggers via the burst chain. */
+	void DispatchSpellCast(
+		AActor *Caster,
+		USpellData *Spell,
+		const FSkillCastEntry &Entry,
+		float SpellSize,
+		const TArray<AActor *> &ExplicitTargets,
+		int32 Damage);
+
+	/** Burst stagger (Count>1): first spawn immediate, remainder queued and
+	 *  spawned one per BurstInterval (the spike's SpawnNextBurst pattern;
+	 *  multi-target bursts queue per target in dispatch order). */
+	void SpawnNextBurstProjectile();
+
+	// Burst chain state — one active burst per action lifecycle; cleared in
+	// CancelAsyncAction and when the queue drains.
+	FSkillCastEntry ActiveBurstEntry;
+
+	UPROPERTY()
+	USpellData *ActiveBurstSpell = nullptr;
+
+	TWeakObjectPtr<AActor> ActiveBurstCaster;
+	TArray<TWeakObjectPtr<AActor>> BurstSpawnQueue;
+	float ActiveBurstImpactRadius = 1.0f;
+	float ActiveBurstVisualScale = 1.0f;
+	int32 ActiveBurstDamage = 0;
+	bool bActiveBurstIsBD = false;
+	FTimerHandle BurstTimerHandle;
 
 	/** Spawn support spell VFX (Self/Ally - no defense window) */
 	void SpawnSupportSpellEffect(

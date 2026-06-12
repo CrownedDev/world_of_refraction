@@ -828,20 +828,32 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 			   ActionMods.SpellDamage, ActionMods.StatusMultiplier, ActionMods.ActionSpeed);
 	}
 
-	// Attack / Ability / Spell — bind movement complete and start approach
-	BindMovementComplete(Actor);
-
 	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
-	if (Movement)
+
+	// Movement-independent execution start (SC2.5): approach-less actions
+	// (all spells, ranged abilities, attacks without ApproachData) skip the
+	// StartApproach round-trip — the movement component only records the
+	// Executing state (so the return-leg cleanup behaves identically), then
+	// execution begins directly. Melee-with-ApproachData keeps the movement
+	// leg; BeginSkillExecution fires on its completion.
+	if (!MovementData || !Movement)
 	{
-		Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter, ActionMods);
+		if (Movement)
+		{
+			Movement->EnterExecutingState(PrimaryTarget, CachedArenaCenter);
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No CombatMovementComponent on %s - executing immediately"),
+				   *Actor->GetName());
+		}
+		BeginSkillExecution(Actor);
+		return;
 	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No CombatMovementComponent on %s - executing immediately"),
-			   *Actor->GetName());
-		OnMovementComplete();
-	}
+
+	// Melee with approach data — bind movement complete and start approach
+	BindMovementComplete(Actor);
+	Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter, ActionMods);
 }
 
 // ========================================
@@ -900,8 +912,10 @@ void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 Fi
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
 
-	// REGRESSION GUARD (D1 Stage 9a): the legacy even split below is unchanged —
-	// the resolved table is stashed for the runner (Stage 12), not consumed yet.
+	// The even DamagePerHit out-param feeds the PRE-defense consumers only
+	// (defense-window/AI heuristic inputs) — a representative average. The
+	// APPLIED per-hit damage consumes ResolvedDamageSplit below in
+	// ApplyDamageAfterDefense (D1 reader switch, Stage 12 SC4).
 	OutDamagePerHit = FinalDamage / FMath::Max(1, HitCount);
 
 	CurrentExecutionContext->ResolvedDamageSplit = ResolveDamageSplit(
@@ -1645,7 +1659,19 @@ void UActionExecutor::ApplyDamageAfterDefense(
 		// Buildup reduction by block/parry happens here — multipliers parallel
 		// DefenseSystem's hardcoded damage multipliers. Dodge already short-circuited
 		// above; "no defense" / failed defense → EffectiveBuildup = base.
-		const int32 DamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
+		//
+		// D1 reader switch (Stage 12 SC4): per-hit damage consumes the resolved
+		// DamageSplit table (even fractions when un-authored). FloorToInt
+		// reproduces the legacy FinalDamage / HitCount truncation exactly
+		// (remainder dropped, as today). The 0.01 epsilon absorbs the float
+		// representation error of even fractions (100/3 stored as 33.333332)
+		// so exact-integer quotients never floor one short (30000×33.33% must
+		// give 10000, not 9999) — sized for damage up to ~5e5 while staying
+		// far from authored percent boundaries.
+		// Size-mismatched table (defensive) → legacy even split.
+		const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
+		const bool bUseSplit = (Split.Num() == Context.HitCount) && Context.HitCount > 0;
+		const int32 EvenDamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
 
 		int32 EffectiveBuildup = Context.BaseStatusBuildup;
 		if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Block)
@@ -1663,7 +1689,9 @@ void UActionExecutor::ApplyDamageAfterDefense(
 			Input.Attacker = Attacker;
 			Input.Target = Target;
 			Input.ActionType = Context.ActionType;
-			Input.BaseDamage = DamagePerHit;
+			Input.BaseDamage = bUseSplit
+								   ? FMath::FloorToInt(DefenseResult.FinalDamage * (Split[i] / 100.0f) + 0.01f)
+								   : EvenDamagePerHit;
 			Input.bCanCrit = Context.bCanCrit;
 			Input.Element = Context.Element;
 			Input.InfusionLevel = Context.InfusionLevel;
@@ -1935,6 +1963,17 @@ void UActionExecutor::OnReturnComplete()
 
 void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 {
+	// Settle facing — the action is fully done (montage → ReturnMontage →
+	// return movement all complete); reassert the one rule so the actor ends
+	// facing the nearest living enemy (arena center when none alive).
+	if (Executor)
+	{
+		if (UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+		{
+			Grid->UpdateActorFacing(Executor, CachedArenaCenter);
+		}
+	}
+
 	// Fire callback
 	if (AsyncActionCallback.IsBound())
 	{
@@ -1994,20 +2033,25 @@ void UActionExecutor::CancelAsyncAction()
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Cancelling async action"));
 
-	// Clear timer
+	// Clear timers (failsafe + any pending burst chain)
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
+		World->GetTimerManager().ClearTimer(BurstTimerHandle);
 	}
+	BurstSpawnQueue.Empty();
+	ActiveBurstSpell = nullptr;
 
 	// Unbind approach delegate
 	if (PendingExecutionActor)
 	{
 		UnbindMovementComplete(PendingExecutionActor);
 		UnbindActionAnimationEnd(PendingExecutionActor);
+		UnbindCombatNotify(PendingExecutionActor);
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
 	}
+	bPlayingReturnMontage = false;
 
 	// Close any open defense windows
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
@@ -2710,9 +2754,11 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	if (!Spell->CastAnimation)
+	// D2 reader switch: SkillMontage is the unified field (PostLoad mirrored
+	// CastAnimation into it, so playback is byte-identical).
+	if (!Spell->SkillMontage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlaySpellAnimation - No CastAnimation on %s"),
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlaySpellAnimation - No SkillMontage on %s"),
 			   *Spell->Name);
 		return;
 	}
@@ -2758,10 +2804,10 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlayActionMontageOnActor(Caster, Spell->CastAnimation, PlayRate);
+	PlayActionMontageOnActor(Caster, Spell->SkillMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell animation %s at %.2fx"),
-		   *Spell->CastAnimation->GetName(), PlayRate);
+		   *Spell->SkillMontage->GetName(), PlayRate);
 }
 
 void UActionExecutor::SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage)
@@ -2900,7 +2946,8 @@ void UActionExecutor::SpawnProjectileActor(
 	float FinalImpactRadius,
 	float FinalVisualScale,
 	int32 FinalDamage,
-	bool bIsBrokenDarkness)
+	bool bIsBrokenDarkness,
+	const FSkillCastEntry *Entry)
 {
 	if (!Caster || !Target || !Spell)
 	{
@@ -2908,8 +2955,10 @@ void UActionExecutor::SpawnProjectileActor(
 		return;
 	}
 
-	// Check for projectile class
-	TSubclassOf<ASkillProjectile> ProjectileClass = DefaultProjectileClass;
+	// Check for projectile class — the Cast entry's class wins when set (D6);
+	// null entry class = executor default, as today.
+	TSubclassOf<ASkillProjectile> ProjectileClass =
+		(Entry && Entry->ProjectileClass) ? Entry->ProjectileClass : DefaultProjectileClass;
 	if (!ProjectileClass)
 	{
 		// Fallback to base class if no BP assigned
@@ -2929,26 +2978,37 @@ void UActionExecutor::SpawnProjectileActor(
 
 	if (Projectile)
 	{
-		// 1. Assign VFX assets FIRST
+		// 1. Assign VFX assets FIRST — D5/D6 reader switch: muzzle/impact from
+		// the VFXArray's role entries (loose fields as fallback, SC5); trail
+		// from the Cast entry (loose SpellVFX as fallback, SC3).
+		const FSkillVFXEntry *MuzzleEntry = GetVFXEntryByRole(Spell, EVFXRole::Muzzle);
+		const FSkillVFXEntry *ImpactEntry = GetVFXEntryByRole(Spell, EVFXRole::Impact);
 		Projectile->SetVFXAssets(
-			Spell->MuzzleVFX,
-			Spell->SpellVFX,
-			Spell->ImpactVFX);
+			MuzzleEntry ? MuzzleEntry->VFX.LoadSynchronous() : Spell->MuzzleVFX,
+			Entry ? Entry->Trail.LoadSynchronous() : Spell->SpellVFX,
+			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : Spell->ImpactVFX);
 
-		// 2. Initialize with combat data
-		Projectile->InitializeProjectile(
-			Spell,
-			Caster,
-			Target,
-			FinalImpactRadius,
-			FinalVisualScale,
-			FinalDamage);
+		// 2. Initialize with combat data (entry overload feeds the entry's
+		// delivery/speed/homing/beam values; legacy feeds the loose fields)
+		if (Entry)
+		{
+			Projectile->InitializeProjectile(
+				*Entry, Spell, Caster, Target,
+				FinalImpactRadius, FinalVisualScale, FinalDamage);
+		}
+		else
+		{
+			Projectile->InitializeProjectile(
+				Spell, Caster, Target,
+				FinalImpactRadius, FinalVisualScale, FinalDamage);
+		}
 
 		// 3. Bind to events
 		Projectile->OnSkillImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
 		Projectile->OnSkillDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
 
-		if (Spell->DeliveryType == ESpellDeliveryType::Beam)
+		const ESpellDeliveryType Delivery = Entry ? Entry->DeliveryType : Spell->DeliveryType;
+		if (Delivery == ESpellDeliveryType::Beam)
 		{
 			Projectile->OnBeamTick.AddDynamic(this, &UActionExecutor::OnBeamTick);
 		}
@@ -2957,7 +3017,8 @@ void UActionExecutor::SpawnProjectileActor(
 		Projectile->Launch();
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
-			   *Target->GetName(), (int32)Spell->DeliveryType, Spell->ProjectileSpeed);
+			   *Target->GetName(), (int32)Delivery,
+			   Entry ? Entry->ProjectileSpeed : Spell->ProjectileSpeed);
 	}
 }
 
@@ -2968,7 +3029,8 @@ void UActionExecutor::SpawnAOEEffect(
 	float FinalImpactRadius,
 	float FinalVisualScale,
 	int32 FinalDamage,
-	bool bIsBrokenDarkness)
+	bool bIsBrokenDarkness,
+	const FSkillCastEntry *Entry)
 {
 	if (!Target || !Spell)
 	{
@@ -2980,12 +3042,16 @@ void UActionExecutor::SpawnAOEEffect(
 	// Get colors for VFX
 	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
 
+	// Ground visual — entry path: the entry's Trail (doubles as the AOE
+	// visual, as the loose SpellVFX does today); legacy: loose SpellVFX.
+	UNiagaraSystem *GroundVFX = Entry ? Entry->Trail.LoadSynchronous() : Spell->SpellVFX;
+
 	// Spawn VFX at target location
-	if (Spell->SpellVFX)
+	if (GroundVFX)
 	{
 		UNiagaraComponent *NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			GetWorld(),
-			Spell->SpellVFX,
+			GroundVFX,
 			SpawnLocation,
 			FRotator::ZeroRotator,
 			FVector(FinalVisualScale),
@@ -3035,7 +3101,8 @@ void UActionExecutor::ResolveInstantSpell(
 	USpellData *Spell,
 	float FinalImpactRadius,
 	int32 FinalDamage,
-	bool bIsBrokenDarkness)
+	bool bIsBrokenDarkness,
+	const FSkillCastEntry *Entry)
 {
 	if (!Target || !Spell)
 	{
@@ -3045,12 +3112,15 @@ void UActionExecutor::ResolveInstantSpell(
 	// Get colors for VFX
 	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
 
+	// Visual — entry path: the entry's Trail; legacy: loose SpellVFX.
+	UNiagaraSystem *InstantVFX = Entry ? Entry->Trail.LoadSynchronous() : Spell->SpellVFX;
+
 	// Spawn VFX at target immediately
-	if (Spell->SpellVFX)
+	if (InstantVFX)
 	{
 		UNiagaraComponent *NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			GetWorld(),
-			Spell->SpellVFX,
+			InstantVFX,
 			Target->GetActorLocation(),
 			FRotator::ZeroRotator,
 			FVector(1.f),
@@ -3087,6 +3157,146 @@ void UActionExecutor::ResolveInstantSpell(
 		{
 			CurrentExecutionContext->PartialResult.bCausedDeath = true;
 		}
+	}
+}
+
+// ========================================
+// CAST-ENTRY DISPATCH (D6 Stage 12)
+// ========================================
+
+void UActionExecutor::DispatchSpellCast(
+	AActor *Caster,
+	USpellData *Spell,
+	const FSkillCastEntry &Entry,
+	float SpellSize,
+	const TArray<AActor *> &ExplicitTargets,
+	int32 Damage)
+{
+	if (!Caster || !Spell)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Runner] DispatchSpellCast - Invalid caster or spell"));
+		return;
+	}
+
+	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
+	const bool bIsBD = BDManager && BDManager->IsTransformed();
+
+	// Entry-sourced sizing. Migrated entries carry Size = BaseSize×HitboxRatio
+	// and TrailScale = BaseSize, so these reproduce the legacy
+	// BaseSize×HitboxRatio×SpellSize / BaseSize×SpellSize numbers exactly.
+	const float FinalImpactRadius = Entry.Size * SpellSize;
+	const float FinalVisualScale = Entry.TrailScale * SpellSize;
+
+	// Targets — same resolution as SpawnSpellVFX.
+	TArray<AActor *> Targets;
+	if (ExplicitTargets.Num() > 0)
+	{
+		Targets = ExplicitTargets;
+	}
+	else if (CurrentExecutionContext.IsSet())
+	{
+		for (const auto &Pair : CurrentExecutionContext->PendingDefenses)
+		{
+			if (Pair.Value.Target.IsValid())
+			{
+				Targets.Add(Pair.Value.Target.Get());
+			}
+		}
+	}
+
+	const int32 FinalDamage = (Damage > 0) ? Damage : (CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0);
+
+	// Support spells keep the legacy effect path (no delivery, no defense).
+	const bool bIsOffensive = (Spell->TargetType == ETargetType::SingleEnemy ||
+							   Spell->TargetType == ETargetType::AllEnemies);
+	if (!bIsOffensive)
+	{
+		SpawnSupportSpellEffect(Caster, Targets, Spell, FinalVisualScale, bIsBD);
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Runner] DispatchCastEntry '%s' - Type=%d, Targets=%d, Radius=%.2f, Count=%d"),
+		   *Entry.Label, (int32)Entry.DeliveryType, Targets.Num(), FinalImpactRadius, Entry.Count);
+
+	switch (Entry.DeliveryType)
+	{
+	case ESpellDeliveryType::Projectile:
+	case ESpellDeliveryType::Homing:
+	case ESpellDeliveryType::Beam:
+		for (AActor *Target : Targets)
+		{
+			// First spawn immediate; Count>1 queues the remainder on the
+			// burst chain (BurstInterval stagger, spike-validated).
+			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry);
+			for (int32 i = 1; i < Entry.Count; ++i)
+			{
+				BurstSpawnQueue.Add(Target);
+			}
+		}
+		if (BurstSpawnQueue.Num() > 0)
+		{
+			ActiveBurstEntry = Entry;
+			ActiveBurstSpell = Spell;
+			ActiveBurstCaster = Caster;
+			ActiveBurstImpactRadius = FinalImpactRadius;
+			ActiveBurstVisualScale = FinalVisualScale;
+			ActiveBurstDamage = FinalDamage;
+			bActiveBurstIsBD = bIsBD;
+			if (UWorld *World = GetWorld())
+			{
+				World->GetTimerManager().SetTimer(
+					BurstTimerHandle, this, &UActionExecutor::SpawnNextBurstProjectile,
+					FMath::Max(Entry.BurstInterval, 0.01f), true);
+			}
+		}
+		break;
+
+	case ESpellDeliveryType::AOE:
+		for (AActor *Target : Targets)
+		{
+			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry);
+		}
+		break;
+
+	case ESpellDeliveryType::Instant:
+		for (AActor *Target : Targets)
+		{
+			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBD, &Entry);
+		}
+		break;
+	}
+}
+
+void UActionExecutor::SpawnNextBurstProjectile()
+{
+	if (BurstSpawnQueue.IsEmpty() || !ActiveBurstCaster.IsValid() || !ActiveBurstSpell)
+	{
+		if (UWorld *World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(BurstTimerHandle);
+		}
+		BurstSpawnQueue.Empty();
+		ActiveBurstSpell = nullptr;
+		return;
+	}
+
+	const TWeakObjectPtr<AActor> NextTarget = BurstSpawnQueue[0];
+	BurstSpawnQueue.RemoveAt(0);
+
+	if (NextTarget.IsValid())
+	{
+		SpawnProjectileActor(ActiveBurstCaster.Get(), NextTarget.Get(), ActiveBurstSpell,
+							 ActiveBurstImpactRadius, ActiveBurstVisualScale,
+							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry);
+	}
+
+	if (BurstSpawnQueue.IsEmpty())
+	{
+		if (UWorld *World = GetWorld())
+		{
+			World->GetTimerManager().ClearTimer(BurstTimerHandle);
+		}
+		ActiveBurstSpell = nullptr;
 	}
 }
 
@@ -3166,9 +3376,11 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		return;
 	}
 
-	if (!Ability->ExecutionMontage)
+	// D2 reader switch: SkillMontage is the unified field (PostLoad mirrored
+	// ExecutionMontage into it, so playback is byte-identical).
+	if (!Ability->SkillMontage)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlayAbilityAnimation - No ExecutionMontage on %s"),
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] PlayAbilityAnimation - No SkillMontage on %s"),
 			   *Ability->Name);
 		return;
 	}
@@ -3216,10 +3428,10 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlayActionMontageOnActor(User, Ability->ExecutionMontage, PlayRate);
+	PlayActionMontageOnActor(User, Ability->SkillMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
-		   *Ability->ExecutionMontage->GetName(), *Ability->Name, PlayRate);
+		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
 }
 
 void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
@@ -3230,7 +3442,9 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		return;
 	}
 
-	if (!Attack->AttackMontage)
+	// D2 reader switch: SkillMontage is the unified field (PostLoad mirrored
+	// AttackMontage into it, so playback is byte-identical).
+	if (!Attack->SkillMontage)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - No montage on %s"),
 			   *Attack->Name);
@@ -3277,10 +3491,10 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlayActionMontageOnActor(Attacker, Attack->AttackMontage, PlayRate);
+	PlayActionMontageOnActor(Attacker, Attack->SkillMontage, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
-		   *Attack->AttackMontage->GetName(), PlayRate);
+		   *Attack->SkillMontage->GetName(), PlayRate);
 }
 
 // ========================================
@@ -3996,24 +4210,49 @@ void UActionExecutor::OnMovementComplete()
 		return;
 	}
 
-	AActor *Actor = PendingExecutionActor;
+	// Approach leg done — unbind and hand off to the movement-independent start.
+	if (PendingExecutionActor)
+	{
+		UnbindMovementComplete(PendingExecutionActor);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Approach complete - executing %s"),
+		   *CurrentExecutionContext->Action.GetActionName());
+
+	BeginSkillExecution(PendingExecutionActor);
+}
+
+void UActionExecutor::BeginSkillExecution(AActor *Actor)
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] BeginSkillExecution called but no active context"));
+		return;
+	}
+
 	UCharacterData *CharData = PendingExecutionCharData;
 	const FAction &Action = CurrentExecutionContext->Action;
 
 	if (!Actor || !CharData)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnMovementComplete - missing actor or char data"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] BeginSkillExecution - missing actor or char data"));
 		CancelAsyncAction();
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Approach complete - executing %s"), *Action.GetActionName());
-
-	// Unbind approach delegate
-	UnbindMovementComplete(Actor);
+	// Execution-start facing — ONE rule: nearest living enemy (same-column
+	// first, else closest alive; arena center when none). Movement-independent.
+	if (UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>())
+	{
+		Grid->UpdateActorFacing(Actor, CachedArenaCenter);
+	}
 
 	// Bind to action animation end BEFORE executing (so we catch the animation)
 	BindActionAnimationEnd(Actor);
+
+	// Runner notify spine (Stage 12): UCombatNotify Family/Index for all three
+	// paths. Additive — montages without UCombatNotify instances fire nothing.
+	BindCombatNotify(Actor);
 
 	// Execute the action (plays animation)
 	switch (Action.ActionType)
@@ -4028,8 +4267,9 @@ void UActionExecutor::OnMovementComplete()
 		ExecuteAttackAsync(Actor, Action, CharData);
 		break;
 	default:
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in OnMovementComplete"));
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in BeginSkillExecution"));
 		UnbindActionAnimationEnd(Actor);
+		UnbindCombatNotify(Actor);
 		FinalizeAsyncAction();
 		return;
 	}
@@ -4129,25 +4369,62 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 
 	AActor *Actor = PendingExecutionActor;
 
+	// ReturnMontage leg (Stage 12): a finished MAIN montage chains into the
+	// skill's ReturnMontage if authored; the animation phase stays open
+	// (bWaitingForAnimationEnd + the notify bindings stay live) until the
+	// return leg ends and this handler fires again.
+	if (bPlayingReturnMontage)
+	{
+		bPlayingReturnMontage = false; // return leg done — finish normally below
+	}
+	else if (!bInterrupted && Actor)
+	{
+		if (UCastableSkillDataBase *Skill = GetCurrentSkillData())
+		{
+			if (Skill->ReturnMontage)
+			{
+				bPlayingReturnMontage = true;
+				UAnimMontage *Return = Skill->ReturnMontage;
+				TWeakObjectPtr<AActor> WeakActor = Actor;
+				// Next tick, not same-frame: the anim instance resumes stance on
+				// montage end and stomps a same-frame action montage (spike finding).
+				GetWorld()->GetTimerManager().SetTimerForNextTick(
+					FTimerDelegate::CreateWeakLambda(this, [this, WeakActor, Return]()
+					{
+						if (bPlayingReturnMontage && WeakActor.IsValid())
+						{
+							PlayActionMontageOnActor(WeakActor.Get(), Return, 1.0f);
+						}
+					}));
+				UE_LOG(LogTemp, Log, TEXT("[Runner] Main montage ended - playing ReturnMontage %s (in place)"),
+					   *Return->GetName());
+				return;
+			}
+		}
+	}
+
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended%s - finalizing"),
 		   bInterrupted ? TEXT(" (interrupted)") : TEXT(""));
 
-	// Restore facing to enemy after action animation
+	// Montage-end facing reassert — same one rule (nearest living enemy).
+	// CachedArenaCenter, not ZeroVector: the no-enemies fallback faces the
+	// arena center, not world origin.
 	if (Actor)
 	{
 		UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
 		if (Grid)
 		{
-			Grid->UpdateActorFacing(Actor, FVector::ZeroVector);
+			Grid->UpdateActorFacing(Actor, CachedArenaCenter);
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Restored facing for %s after animation"),
 				   *Actor->GetName());
 		}
 	}
 
-	// Unbind action animation
+	// Unbind action animation + runner notify spine
 	if (Actor)
 	{
 		UnbindActionAnimationEnd(Actor);
+		UnbindCombatNotify(Actor);
 	}
 
 	// Cleanup spell notify binding
@@ -4198,38 +4475,303 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 
 	if (NotifyName == FName("SpellCastStart"))
 	{
-		// Spawn muzzle/charging VFX at caster
-		if (PendingSpellData->MuzzleVFX)
+		// D5 reader switch (SC5): the Muzzle-role VFXArray entry is
+		// authoritative when present; loose MuzzleVFX is the fallback. Entry
+		// Scale multiplies the action size (migrated entries carry Scale=1.0
+		// → byte-identical) and bElementTinted gates the tint. The spawn
+		// stays caster-anchored — "the muzzle" — exotic attach modes are the
+		// index-driven notify path's job (SC2).
+		const FSkillVFXEntry *MuzzleEntry = GetVFXEntryByRole(PendingSpellData, EVFXRole::Muzzle);
+		UNiagaraSystem *MuzzleSystem = MuzzleEntry ? MuzzleEntry->VFX.LoadSynchronous()
+												   : PendingSpellData->MuzzleVFX;
+		if (MuzzleSystem)
 		{
 			FVector SpawnLocation = PendingSpellCaster->GetActorLocation();
 			// TODO: Get hand socket location if available
+
+			const float EntryScale = MuzzleEntry ? MuzzleEntry->Scale : 1.0f;
+			const bool bTint = !MuzzleEntry || MuzzleEntry->bElementTinted;
 
 			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(
 				PendingSpellData->Element, bPendingSpellIsBrokenDarkness);
 
 			UNiagaraComponent *MuzzleComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 				GetWorld(),
-				PendingSpellData->MuzzleVFX,
+				MuzzleSystem,
 				SpawnLocation,
 				PendingSpellCaster->GetActorRotation(),
-				FVector(PendingSpellSize),
+				FVector(PendingSpellSize * EntryScale),
 				true, true);
 
-			if (MuzzleComp)
+			if (MuzzleComp && bTint)
 			{
 				MuzzleComp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
 			}
 
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellCastStart - Muzzle VFX spawned"));
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellCastStart - Muzzle VFX spawned%s"),
+				   MuzzleEntry ? TEXT(" (VFXArray)") : TEXT(" (loose)"));
 		}
 	}
 	else if (NotifyName == FName("SpellRelease"))
 	{
-		// Spawn projectile/main spell VFX
-		SpawnSpellVFX(PendingSpellCaster, PendingSpellData, PendingSpellSize,
-					  PendingSpellTargets, PendingSpellDamage);
+		// D6 bridge: a spell WITH Cast entries fires its PRIMARY entry through
+		// the same dispatch a UCombatNotify Family=Cast would — one spawn site
+		// for both trigger paths, so current content (SpellRelease-authored
+		// montages) delivers via the entry path. Empty CastArray → loose path.
+		if (PendingSpellData->CastArray.Num() > 0)
+		{
+			DispatchSpellCast(PendingSpellCaster, PendingSpellData,
+							  PendingSpellData->CastArray[0], PendingSpellSize,
+							  PendingSpellTargets, PendingSpellDamage);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
+		}
+		else
+		{
+			SpawnSpellVFX(PendingSpellCaster, PendingSpellData, PendingSpellSize,
+						  PendingSpellTargets, PendingSpellDamage);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned (loose path)"));
+		}
+	}
+}
 
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - Main spell VFX spawned"));
+// ==================== FUSED-MONTAGE RUNNER (Stage 12) ====================
+
+void UActionExecutor::BindCombatNotify(AActor *Actor)
+{
+	if (UCombatAnimInstance *CombatAnim = GetCombatAnimInstance(Actor))
+	{
+		// Remove first to prevent duplicate binding error
+		CombatAnim->OnCombatNotify.RemoveDynamic(this, &UActionExecutor::OnCombatNotifyReceived);
+		CombatAnim->OnCombatNotify.AddDynamic(this, &UActionExecutor::OnCombatNotifyReceived);
+	}
+}
+
+void UActionExecutor::UnbindCombatNotify(AActor *Actor)
+{
+	if (UCombatAnimInstance *CombatAnim = GetCombatAnimInstance(Actor))
+	{
+		CombatAnim->OnCombatNotify.RemoveDynamic(this, &UActionExecutor::OnCombatNotifyReceived);
+	}
+}
+
+const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role)
+{
+	if (!Skill)
+	{
+		return nullptr;
+	}
+	for (const FSkillVFXEntry &Entry : Skill->VFXArray)
+	{
+		// Null-asset entries don't mask the loose-field fallback.
+		if (Entry.Role == Role && !Entry.VFX.IsNull())
+		{
+			return &Entry;
+		}
+	}
+	return nullptr;
+}
+
+UCastableSkillDataBase *UActionExecutor::GetCurrentSkillData() const
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return nullptr;
+	}
+
+	const FAction &Action = CurrentExecutionContext->Action;
+	switch (Action.ActionType)
+	{
+	case EActionType::Spell:
+		return Action.SpellData;
+	case EActionType::Ability:
+		return Action.AbilityData;
+	case EActionType::Attack:
+		return Action.AttackData;
+	default:
+		return nullptr;
+	}
+}
+
+void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 Index)
+{
+	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		return; // stale notify outside an action
+	}
+
+	switch (Family)
+	{
+	case ECombatNotifyFamily::VFX:
+	{
+		UCastableSkillDataBase *Skill = GetCurrentSkillData();
+		if (!Skill)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX notify %d with no skill data — skipping"), Index);
+			return;
+		}
+		if (!Skill->VFXArray.IsValidIndex(Index))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX index %d out of range (%d entries)"),
+				   Index, Skill->VFXArray.Num());
+			return;
+		}
+		SpawnVFXArrayEntry(Skill->VFXArray[Index], Index);
+		return;
+	}
+
+	case ECombatNotifyFamily::Hit:
+		// Damage wiring lands at SC4 (ResolvedDamageSplit consumption).
+		UE_LOG(LogTemp, Log, TEXT("[Runner] Hit notify index %d (stub — damage wiring is SC4)"), Index);
+		return;
+
+	case ECombatNotifyFamily::Cast:
+	{
+		// Spell-context only this stage: the dispatch reads the pending-spell
+		// stash (caster/targets/size/damage). Ability/attack Cast entries are
+		// future authoring (TODO: non-spell dispatch context).
+		if (!PendingSpellData || !PendingSpellCaster)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] Cast notify %d outside a spell action — non-spell Cast entries not yet supported"), Index);
+			return;
+		}
+		if (PendingSpellData->CastArray.IsEmpty())
+		{
+			// Empty-CastArray fallback: the loose-field dispatch (delta-
+			// serialization limit — fully-default spells migrated no entry).
+			SpawnSpellVFX(PendingSpellCaster, PendingSpellData, PendingSpellSize,
+						  PendingSpellTargets, PendingSpellDamage);
+			return;
+		}
+		if (!PendingSpellData->CastArray.IsValidIndex(Index))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] Cast index %d out of range (%d entries)"),
+				   Index, PendingSpellData->CastArray.Num());
+			return;
+		}
+		DispatchSpellCast(PendingSpellCaster, PendingSpellData,
+						  PendingSpellData->CastArray[Index], PendingSpellSize,
+						  PendingSpellTargets, PendingSpellDamage);
+		return;
+	}
+
+	case ECombatNotifyFamily::SFX:
+		// No production SFX array yet (deferred).
+		UE_LOG(LogTemp, Verbose, TEXT("[Runner] SFX notify %d — no SFX array (deferred)"), Index);
+		return;
+	}
+}
+
+void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Index)
+{
+	AActor *Caster = PendingExecutionActor;
+	if (!Caster)
+	{
+		return;
+	}
+
+	// Soft ref — the runner resolves at spawn time.
+	UNiagaraSystem *System = Entry.VFX.LoadSynchronous();
+	if (!System)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX[%d] '%s' has no asset"), Index, *Entry.Label);
+		return;
+	}
+
+	UNiagaraComponent *Spawned = nullptr;
+
+	// CasterSocket attaches (follows the hand through the montage) — spike-proven.
+	if (Entry.Attach == EVFXAttach::CasterSocket)
+	{
+		ACharacter *Character = Cast<ACharacter>(Caster);
+		if (Character && Character->GetMesh() && Character->GetMesh()->DoesSocketExist(Entry.SocketName))
+		{
+			Spawned = UNiagaraFunctionLibrary::SpawnSystemAttached(
+				System, Character->GetMesh(), Entry.SocketName,
+				FVector::ZeroVector, FRotator::ZeroRotator, FVector(Entry.Scale),
+				EAttachLocation::SnapToTarget, true, ENCPoolMethod::None);
+		}
+	}
+
+	if (!Spawned)
+	{
+		FVector SpawnLoc;
+		if (!ResolveVFXAttachLocation(Entry.Attach, Entry.SocketName, Index, SpawnLoc))
+		{
+			return; // warned inside
+		}
+		Spawned = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			GetWorld(), System, SpawnLoc, FRotator::ZeroRotator, FVector(Entry.Scale),
+			true, true);
+	}
+
+	// Element tint — the action's resolved element (set by all three paths),
+	// BD-aware like the legacy spell VFX spawns.
+	if (Spawned && Entry.bElementTinted)
+	{
+		UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
+		const bool bIsBD = BDManager && BDManager->IsTransformed();
+		const ESpellElement Element = CurrentExecutionContext->PartialResult.AttackElement;
+		const FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Element, bIsBD);
+		Spawned->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
+		Spawned->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Runner] VFX[%d] '%s' spawned (attach=%d, scale=%.2f)"),
+		   Index, *Entry.Label, (int32)Entry.Attach, Entry.Scale);
+}
+
+bool UActionExecutor::ResolveVFXAttachLocation(EVFXAttach Attach, FName SocketName, int32 Index, FVector &OutLoc) const
+{
+	AActor *Caster = PendingExecutionActor;
+	if (!Caster)
+	{
+		return false;
+	}
+
+	// First valid action target (Target/ImpactPoint modes).
+	AActor *Target = nullptr;
+	if (CurrentExecutionContext.IsSet())
+	{
+		for (AActor *Candidate : CurrentExecutionContext->Action.Targets)
+		{
+			if (IsValid(Candidate))
+			{
+				Target = Candidate;
+				break;
+			}
+		}
+	}
+
+	switch (Attach)
+	{
+	case EVFXAttach::Target:
+		if (!Target)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX[%d] wants Target, none available — skipping"), Index);
+			return false;
+		}
+		OutLoc = Target->GetActorLocation();
+		return true;
+
+	case EVFXAttach::ImpactPoint:
+		// No warp yet — impacts land on the target, not under the caster
+		// (the spike mapped this to caster loc because it WAS warped onto
+		// the target; production isn't until the movement arc).
+		OutLoc = Target ? Target->GetActorLocation() : Caster->GetActorLocation();
+		return true;
+
+	case EVFXAttach::CasterSocket:
+		// Attached spawn already failed (missing socket) — actor-location fallback.
+		UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX[%d] socket '%s' invalid, using caster location"),
+			   Index, *SocketName.ToString());
+		OutLoc = Caster->GetActorLocation();
+		return true;
+
+	case EVFXAttach::Caster:
+	case EVFXAttach::World: // TODO: no authored world point yet — caster loc
+	default:
+		OutLoc = Caster->GetActorLocation();
+		return true;
 	}
 }
 

@@ -112,22 +112,15 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Appr
     // this action's lifecycle. Cleared in CompleteReturn / CancelMovement.
     ActiveActionMods = InActionMods;
 
-    // Handle no approach data (ranged) - no movement needed
+    // Handle no approach data (ranged) - no movement needed. Facing is NOT
+    // set here — execution-start facing (nearest living enemy) is owned by
+    // ActionExecutor::BeginSkillExecution (SC2.5).
     if (!Approach)
     {
         UE_LOG(LogTemp, Log, TEXT("[CombatMovement] %s: No approach data, ranged action"),
                *GetOwner()->GetName());
 
-        // Face target but don't move
-        if (Target)
-        {
-            FVector Direction = Target->GetActorLocation() - GetOwner()->GetActorLocation();
-            Direction.Z = 0;
-            UpdateFacingDirection(Direction);
-        }
-
-        // Immediately complete approach
-        MovementState = ECombatMovementState::Executing;
+        EnterExecutingState(Target, ArenaCenter);
         OnMovementComplete.Broadcast();
         return;
     }
@@ -160,12 +153,8 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Appr
 
         TeleportTo(TargetPosition);
 
-        if (Target)
-        {
-            FVector Direction = Target->GetActorLocation() - TargetPosition;
-            Direction.Z = 0;
-            UpdateFacingDirection(Direction);
-        }
+        // Facing handled by BeginSkillExecution (nearest living enemy) the
+        // same frame, via the OnMovementComplete broadcast below (SC2.5).
 
         // TODO: Play ArrivalVFX, ArrivalSound, ArrivalMontage (appear)
 
@@ -301,6 +290,24 @@ void UCombatMovementComponent::CancelMovement()
     ActiveActionMods = FActionStatModifiers();
 
     OnMovementCancelled.Broadcast();
+}
+
+void UCombatMovementComponent::EnterExecutingState(AActor *Target, const FVector &ArenaCenter)
+{
+    if (!GetOwner())
+    {
+        return;
+    }
+
+    // Pre-action state snapshot — the same writes StartApproach makes before
+    // moving, so the return-leg machinery (OnActionExecutionComplete →
+    // StartReturn → CompleteReturn cleanup) behaves identically whether or
+    // not an approach ran. Facing is owned by BeginSkillExecution.
+    GridPosition = GetOwner()->GetActorLocation();
+    bHasGridPosition = true;
+    CachedArenaCenter = ArenaCenter;
+    CurrentTarget = Target;
+    MovementState = ECombatMovementState::Executing;
 }
 
 void UCombatMovementComponent::OnActionExecutionComplete()
@@ -522,13 +529,8 @@ void UCombatMovementComponent::CompleteApproach()
     StopMovementMontage();
     SetComponentTickEnabled(false);
 
-    // Face target
-    if (CurrentTarget && GetOwner())
-    {
-        FVector Direction = CurrentTarget->GetActorLocation() - GetOwner()->GetActorLocation();
-        Direction.Z = 0;
-        UpdateFacingDirection(Direction);
-    }
+    // Facing handled by BeginSkillExecution (nearest living enemy) the same
+    // frame, via the OnMovementComplete broadcast below (SC2.5).
 
     OnMovementComplete.Broadcast();
 }

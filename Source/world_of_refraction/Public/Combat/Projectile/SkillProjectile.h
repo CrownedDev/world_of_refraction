@@ -14,6 +14,7 @@ class UNiagaraSystem;
 class UNiagaraComponent;
 class USphereComponent;
 class USpellData;
+struct FSkillCastEntry;
 
 // ==================== DELEGATES ====================
 
@@ -181,6 +182,18 @@ public:
         float FinalVisualScale,
         int32 FinalDamage);
 
+    /** Entry-based initialization (D6 Stage 12): delivery values (type, speed,
+     *  homing/beam params) come from the Cast ENTRY; Spell supplies element/
+     *  color context only. C++-only overload — the runner's dispatch path. */
+    void InitializeProjectile(
+        const FSkillCastEntry &Entry,
+        USpellData *Spell,
+        AActor *InCaster,
+        AActor *InTarget,
+        float FinalImpactRadius,
+        float FinalVisualScale,
+        int32 FinalDamage);
+
     /**
      * Set VFX assets (call after Initialize or set via defaults)
      *
@@ -259,6 +272,12 @@ protected:
     virtual void BeginPlay() override;
     virtual void Tick(float DeltaTime) override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+    /** Shared tail of both InitializeProjectile overloads: target capture,
+     *  collision sizing, positioning, colors/scale, beam tick schedule.
+     *  Callers set the per-source fields (delivery/speed/homing/beam +
+     *  BeamTickIntervalSec) first. */
+    void InitializeCommon();
 
     // ==================== MOVEMENT ====================
 

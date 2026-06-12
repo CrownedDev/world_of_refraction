@@ -106,7 +106,7 @@ public:
      *  + AOE). Consumed by the fused-montage runner (Stage 12); populated via
      *  PostLoad migration from the loose delivery fields. All three skill
      *  types inherit it. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery", meta = (TitleProperty = "Label"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|Delivery", meta = (TitleProperty = "Label"))
     TArray<FSkillCastEntry> CastArray;
 
     // ==================== ANIMATION ====================
@@ -117,6 +117,13 @@ public:
      *  readers switch; the leaf fields stay runtime-authoritative until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *SkillMontage = nullptr;
+
+    /** Optional post-cast return montage — the runner plays it after
+     *  SkillMontage IFF set (null = no return leg). Plays in-place this
+     *  stage; warp-to-origin movement is the deferred movement arc. All
+     *  three skill types inherit it. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    UAnimMontage *ReturnMontage = nullptr;
 
     /** Montage play-rate scalar (D7) — uniform across all three skill types;
      *  stat scaling layers on top. 1.0 = no change (the regression guard).
@@ -133,7 +140,7 @@ public:
      *  Impact-role entries). Consumed by the fused-montage runner (Stage 12);
      *  populated via PostLoad migration from the loose spell VFX fields
      *  (Stage 10B). All three skill types inherit it. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals", meta = (TitleProperty = "Label"))
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation|VFX", meta = (TitleProperty = "Label"))
     TArray<FSkillVFXEntry> VFXArray;
 
     // ==================== REQUIREMENTS ====================

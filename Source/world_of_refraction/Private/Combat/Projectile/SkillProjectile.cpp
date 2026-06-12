@@ -171,6 +171,7 @@ void ASkillProjectile::InitializeProjectile(
         Speed = Spell->ProjectileSpeed;
         HomingStrength = Spell->HomingStrength;
         BeamDuration = Spell->BeamDuration;
+        BeamTickIntervalSec = FMath::Max(Spell->BeamTickInterval, 0.01f);
     }
     else
     {
@@ -180,8 +181,42 @@ void ASkillProjectile::InitializeProjectile(
         Speed = SkillProjectileConstants::DEFAULT_SPEED;
         HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
         BeamDuration = SkillProjectileConstants::DEFAULT_BEAM_DURATION;
+        BeamTickIntervalSec = 0.5f;
     }
 
+    InitializeCommon();
+}
+
+void ASkillProjectile::InitializeProjectile(
+    const FSkillCastEntry &Entry,
+    USpellData *Spell,
+    AActor *InCaster,
+    AActor *InTarget,
+    float FinalImpactRadius,
+    float FinalVisualScale,
+    int32 FinalDamage)
+{
+    SourceSpell = Spell;
+    Caster = InCaster;
+    Target = InTarget;
+    ImpactRadius = FinalImpactRadius;
+    VisualScale = FinalVisualScale;
+    Damage = FinalDamage;
+
+    // Delivery values come from the Cast ENTRY (D6) — Spell supplies element/
+    // color context only.
+    DeliveryType = Entry.DeliveryType;
+    Element = Spell ? Spell->Element : ESpellElement::Generic;
+    Speed = Entry.ProjectileSpeed;
+    HomingStrength = Entry.HomingStrength;
+    BeamDuration = Entry.BeamDuration;
+    BeamTickIntervalSec = FMath::Max(Entry.BeamTickInterval, 0.01f);
+
+    InitializeCommon();
+}
+
+void ASkillProjectile::InitializeCommon()
+{
     // Capture target location at cast time (for Projectile type)
     if (Target)
     {
@@ -211,11 +246,11 @@ void ASkillProjectile::InitializeProjectile(
     // Beam: Initialize duration + discrete-tick schedule. BaseDamage is the
     // TOTAL across the beam; per-tick = BaseDamage / TickCount with the integer
     // remainder distributed across the first `Remainder` ticks so the sum
-    // exactly equals BaseDamage.
+    // exactly equals BaseDamage. BeamTickIntervalSec was set by the caller
+    // (spell field or Cast entry).
     if (DeliveryType == ESpellDeliveryType::Beam)
     {
         BeamTimeRemaining = BeamDuration;
-        BeamTickIntervalSec = Spell ? FMath::Max(Spell->BeamTickInterval, 0.01f) : 0.5f;
         BeamTickCount = FMath::Max(1, FMath::RoundToInt(BeamDuration / BeamTickIntervalSec));
         BeamBaseDmgPerTick = Damage / BeamTickCount;
         BeamRemainder = Damage % BeamTickCount;

@@ -67,6 +67,13 @@ public:
      */
     void StartApproach(AActor *Target, UMovementData *Approach, float ExecutionRange, const FVector &ArenaCenter, const FActionStatModifiers &InActionMods = FActionStatModifiers());
 
+    /** Enter the Executing state without an approach leg (SC2.5) — makes the
+     *  same pre-action state snapshot StartApproach makes (grid position,
+     *  arena center, target), so OnActionExecutionComplete/StartReturn behave
+     *  identically whether or not movement ran. Facing is NOT set here —
+     *  execution-start facing is owned by ActionExecutor::BeginSkillExecution. */
+    void EnterExecutingState(AActor *Target, const FVector &ArenaCenter);
+
     /**
      * Start return movement back to grid position
      * Must have a stored grid position from StartApproach
