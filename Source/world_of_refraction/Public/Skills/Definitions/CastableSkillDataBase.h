@@ -12,6 +12,7 @@
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
+#include "Skills/Definitions/SkillCastEntry.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
 #if WITH_EDITOR
@@ -82,6 +83,9 @@ public:
 
     /**
      * How the skill travels from user to target.
+     * DEPRECATED (D6): migrates to CastArray (spells mirror via PostLoad;
+     * abilities author entries directly); readers switch + DeprecatedProperty
+     * meta at Stage 12. Still runtime-authoritative until then.
      * Visibility is controlled by subclass-specific EditCondition meta:
      *   - AbilityData: visible when ExecutionType == Ranged
      *   - SpellData:   always visible
@@ -90,8 +94,20 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery")
     ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
 
+    /** DEPRECATED (D6): migrates to CastArray (per-entry speed); readers
+     *  switch + DeprecatedProperty meta at Stage 12. Still runtime-
+     *  authoritative until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery", meta = (ClampMin = "100.0"))
     float ProjectileSpeed = 1500.0f;
+
+    /** Cast deliveries (D6). INDEX-ORDERED: a UCombatNotify (Family=Cast,
+     *  Index=N) fires entry N — array position IS identity. Each entry is one
+     *  self-contained delivery (fireball-then-pillar = two entries: Projectile
+     *  + AOE). Consumed by the fused-montage runner (Stage 12); populated via
+     *  PostLoad migration from the loose delivery fields. All three skill
+     *  types inherit it. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery", meta = (TitleProperty = "Label"))
+    TArray<FSkillCastEntry> CastArray;
 
     // ==================== ANIMATION ====================
 

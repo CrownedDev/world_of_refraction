@@ -43,6 +43,46 @@ void USpellData::PostLoad()
             Entry.Attach = EVFXAttach::Target;
         }
     }
+
+    // D6: mirror the loose delivery fields into ONE Cast entry. Triggered only
+    // while CastArray is unauthored AND any delivery field differs from the
+    // class default (delta serialization can't tell authored-default from
+    // untouched — a fully-default spell stays empty until Stage 12 treats
+    // empty CastArray as "loose defaults"). Size carries today's ACTUAL
+    // hitbox (BaseSize × HitboxRatio) and TrailScale the visual scale —
+    // straight BaseSize→Size would inflate every hitbox by 1/HitboxRatio.
+    // SpellVFX migrates HERE as the entry's Trail (deferred from Stage 10).
+    // Loose fields stay runtime-authoritative until the Stage 12 reader
+    // switch. Transient until resaved.
+    if (CastArray.IsEmpty())
+    {
+        const USpellData *Defaults = GetDefault<USpellData>(GetClass());
+        const bool bHasDeliveryAuthoring =
+            SpellVFX != Defaults->SpellVFX ||
+            DeliveryType != Defaults->DeliveryType ||
+            ProjectileSpeed != Defaults->ProjectileSpeed ||
+            BaseSize != Defaults->BaseSize ||
+            HitboxRatio != Defaults->HitboxRatio ||
+            HomingStrength != Defaults->HomingStrength ||
+            BeamDuration != Defaults->BeamDuration ||
+            BeamTickInterval != Defaults->BeamTickInterval;
+
+        if (bHasDeliveryAuthoring)
+        {
+            FSkillCastEntry &Entry = CastArray.AddDefaulted_GetRef();
+            Entry.Label = TEXT("Migrated");
+            Entry.DeliveryType = DeliveryType;
+            Entry.ProjectileSpeed = ProjectileSpeed;
+            Entry.Size = BaseSize * HitboxRatio;
+            Entry.TrailScale = BaseSize;
+            Entry.Trail = SpellVFX;
+            Entry.HomingStrength = HomingStrength;
+            Entry.BeamDuration = BeamDuration;
+            Entry.BeamTickInterval = BeamTickInterval;
+            // ProjectileClass stays null (executor's DefaultProjectileClass,
+            // as today); Count/BurstInterval stay defaults (single delivery).
+        }
+    }
 }
 
 // ==================== DAMAGE CALCULATIONS ====================

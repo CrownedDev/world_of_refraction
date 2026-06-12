@@ -63,8 +63,9 @@ public:
     UAnimMontage *CastAnimation = nullptr;
 
     /** Main spell VFX (projectile traveling, AOE expanding, etc.)
-     *  (D5) becomes the Cast-entry Trail at Stage 11 — stays loose, NOT
-     *  migrated to VFXArray. */
+     *  DEPRECATED (D6): migrates to CastArray (the entry's Trail) via
+     *  PostLoad; readers switch + DeprecatedProperty meta at Stage 12. Still
+     *  runtime-authoritative — keep authoring here until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UNiagaraSystem *SpellVFX = nullptr;
 
@@ -84,19 +85,25 @@ public:
 
     // ==================== DELIVERY (spell-specific extensions) ====================
 
-    /** Homing tracking strength: 0 = no tracking, 1 = instant turn (Homing only) */
+    /** Homing tracking strength: 0 = no tracking, 1 = instant turn (Homing only)
+     *  DEPRECATED (D6): migrates to CastArray via PostLoad; readers switch +
+     *  DeprecatedProperty meta at Stage 12. Still runtime-authoritative. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
               meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
                       EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
     float HomingStrength = 0.5f;
 
-    /** Beam duration in seconds (Beam only) */
+    /** Beam duration in seconds (Beam only)
+     *  DEPRECATED (D6): migrates to CastArray via PostLoad; readers switch +
+     *  DeprecatedProperty meta at Stage 12. Still runtime-authoritative. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
               meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
                       EditConditionHides, ClampMin = "0.1"))
     float BeamDuration = 1.0f;
 
     /** Seconds between damage ticks while the beam is active (Beam only).
+     *  DEPRECATED (D6): migrates to CastArray via PostLoad; readers switch +
+     *  DeprecatedProperty meta at Stage 12. Still runtime-authoritative.
      *  TickCount = max(1, RoundToInt(BeamDuration / BeamTickInterval)).
      *  BaseDamage is the total dealt across all ticks; per-tick = BaseDamage /
      *  TickCount with the integer remainder distributed across the first
@@ -108,12 +115,19 @@ public:
 
     // ==================== SIZE ====================
 
-    /** Base VFX scale - set to match Niagara system's intended size */
+    /** Base VFX scale - set to match Niagara system's intended size
+     *  DEPRECATED (D6): migrates to CastArray via PostLoad (TrailScale =
+     *  BaseSize, Size = BaseSize × HitboxRatio); readers switch (incl. the
+     *  defense-window sizing) + DeprecatedProperty meta at Stage 12. Still
+     *  runtime-authoritative. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size",
               meta = (ClampMin = "0.1"))
     float BaseSize = 1.0f;
 
-    /** Hitbox as percentage of visual (0.8 = hitbox is 80% of visual, more forgiving) */
+    /** Hitbox as percentage of visual (0.8 = hitbox is 80% of visual, more forgiving)
+     *  DEPRECATED (D6): folded into the CastArray entry's Size (= BaseSize ×
+     *  HitboxRatio) via PostLoad; readers switch + DeprecatedProperty meta at
+     *  Stage 12. Still runtime-authoritative. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size",
               meta = (ClampMin = "0.5", ClampMax = "1.2"))
     float HitboxRatio = 0.8f;

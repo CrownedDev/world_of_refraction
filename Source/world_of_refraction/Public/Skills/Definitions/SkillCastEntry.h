@@ -1,0 +1,89 @@
+// SkillCastEntry.h
+// One self-contained delivery in a skill's Cast array (D6). Index-ordered:
+// a UCombatNotify (Family=Cast, Index=N) fires entry N — array position IS
+// identity. Size is the MECHANICAL hitbox, shaped by DeliveryType; visual
+// scale travels with the visual (TrailScale here, Scale on VFX entries).
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
+#include "Skills/Definitions/ESpellDeliveryType.h"
+#include "SkillCastEntry.generated.h"
+
+class UNiagaraSystem;
+class ASkillProjectile;
+
+/**
+ * One entry in a skill's Cast array. Each entry describes ONE delivery —
+ * its type, travel, hitbox, and trail. A skill mixes freely (fireball-then-
+ * pillar = a Projectile entry + an AOE entry). Consumed by the fused-montage
+ * runner (Stage 12); until then nothing reads it.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FSkillCastEntry
+{
+    GENERATED_BODY()
+
+    /** Designer note ("fireball volley") — never read by code. */
+    UPROPERTY(EditAnywhere, Category = "Cast")
+    FString Label;
+
+    UPROPERTY(EditAnywhere, Category = "Cast")
+    ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
+
+    /** Travel actor for Projectile/Homing/Beam. Null = the executor's
+     *  DefaultProjectileClass (today's fallback). */
+    UPROPERTY(EditAnywhere, Category = "Cast",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing || DeliveryType == ESpellDeliveryType::Beam",
+                      EditConditionHides))
+    TSubclassOf<ASkillProjectile> ProjectileClass;
+
+    UPROPERTY(EditAnywhere, Category = "Cast",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing || DeliveryType == ESpellDeliveryType::Beam",
+                      EditConditionHides, ClampMin = "100.0"))
+    float ProjectileSpeed = 1500.0f;
+
+    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile/Homing/
+     *  Beam = moving collision radius, AOE = static ground radius. Never the
+     *  visual (that's TrailScale / the VFX entries' Scale). */
+    UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
+    float Size = 1.0f;
+
+    /** Trail VFX — follows the moving projectile (which a location-spawned
+     *  VFXArray entry can't); doubles as the AOE/Instant ground visual, as
+     *  the loose SpellVFX does today. Soft ref — the runner resolves at
+     *  spawn time (Stage 12). */
+    UPROPERTY(EditAnywhere, Category = "Cast")
+    TSoftObjectPtr<UNiagaraSystem> Trail;
+
+    /** VISUAL scale of the Trail — cosmetic only, never the hitbox (D6). */
+    UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
+    float TrailScale = 1.0f;
+
+    /** Homing tracking strength: 0 = no tracking, 1 = instant turn. */
+    UPROPERTY(EditAnywhere, Category = "Cast",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
+                      EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
+    float HomingStrength = 0.5f;
+
+    /** Beam duration in seconds. */
+    UPROPERTY(EditAnywhere, Category = "Cast",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
+                      EditConditionHides, ClampMin = "0.1"))
+    float BeamDuration = 1.0f;
+
+    /** Seconds between damage ticks while the beam is active. */
+    UPROPERTY(EditAnywhere, Category = "Cast",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
+                      EditConditionHides, ClampMin = "0.01"))
+    float BeamTickInterval = 0.5f;
+
+    /** Barrage: >1 spawns Count deliveries staggered by BurstInterval. */
+    UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "1"))
+    int32 Count = 1;
+
+    UPROPERTY(EditAnywhere, Category = "Cast",
+              meta = (EditCondition = "Count > 1", ClampMin = "0.01"))
+    float BurstInterval = 0.15f;
+};
