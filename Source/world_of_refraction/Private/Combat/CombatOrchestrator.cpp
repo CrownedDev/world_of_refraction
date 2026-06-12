@@ -30,6 +30,15 @@
 #include "Combat/Mechanics/WeatherStateManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
+// --- SPIKE includes (throwaway: fused-montage warp test) ---
+#include "Combat/CombatAnimInstance.h"
+#include "Combat/Projectile/SpellProjectile.h"
+#include "GameFramework/Character.h"
+#include "MotionWarpingComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "TimerManager.h"
+// --- END SPIKE includes ---
 
 ACombatOrchestrator::ACombatOrchestrator()
 {
@@ -2296,6 +2305,480 @@ AActor *ACombatOrchestrator::GetDebugActor() const
 	}
 	return CurrentActor;
 }
+
+// --- SPIKE (throwaway: fused-montage warp test) ---
+
+static UCombatAnimInstance *ResolveSpikeAnim(AActor *Actor)
+{
+	ACharacter *Character = Cast<ACharacter>(Actor);
+	return (Character && Character->GetMesh())
+			   ? Cast<UCombatAnimInstance>(Character->GetMesh()->GetAnimInstance())
+			   : nullptr;
+}
+
+void ACombatOrchestrator::DebugWarpSpike()
+{
+	AActor *Actor = GetDebugActor();
+	if (!Actor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WarpSpike] no debug actor"));
+		return;
+	}
+
+	// Target = opposing team's [0] — same stand-in pattern as the other debug buttons.
+	AActor *Target = nullptr;
+	bool bActorInTeam0 = Team0Combatants.Contains(Actor);
+	if (bActorInTeam0 && Team1Combatants.Num() > 0)
+	{
+		Target = Team1Combatants[0];
+	}
+	else if (!bActorInTeam0 && Team0Combatants.Num() > 0)
+	{
+		Target = Team0Combatants[0];
+	}
+	if (!Target)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WarpSpike] no valid target"));
+		return;
+	}
+
+	if (!SpikeMontage)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WarpSpike] assign SpikeMontage in Details"));
+		return;
+	}
+
+	UCombatAnimInstance *Anim = ResolveSpikeAnim(Actor);
+	if (!Anim)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WarpSpike] %s has no UCombatAnimInstance"), *Actor->GetName());
+		return;
+	}
+
+	// Cache pose — root motion moves the capsule; the return leg warps back here.
+	SpikeCachedActor = Actor;
+	SpikeCachedTarget = Target;
+	SpikeCachedLoc = Actor->GetActorLocation();
+	SpikeCachedRot = Actor->GetActorRotation();
+
+	// Runtime warp component — combatants don't carry one.
+	UMotionWarpingComponent *Warp = Actor->FindComponentByClass<UMotionWarpingComponent>();
+	if (!Warp)
+	{
+		Warp = NewObject<UMotionWarpingComponent>(Actor, TEXT("SpikeWarp"));
+		Warp->RegisterComponent();
+	}
+
+	// Name must match the montage's Warp Target Name field exactly.
+	FVector WarpLoc;
+	FRotator WarpRot;
+	if (SpikeWarpDistanceOverride > 0.0f)
+	{
+		// probe: a point straight in front of the actor at the override distance
+		WarpLoc = SpikeCachedLoc + (Actor->GetActorForwardVector() * SpikeWarpDistanceOverride);
+		WarpRot = Actor->GetActorRotation();
+	}
+	else
+	{
+		// real behavior: the enemy
+		WarpLoc = Target->GetActorLocation();
+		WarpRot = (Target->GetActorLocation() - SpikeCachedLoc).Rotation();
+	}
+	Warp->AddOrUpdateWarpTargetFromLocationAndRotation(TEXT("WarpTarget"), WarpLoc, WarpRot);
+
+	// Bind before playing — remove-then-add so repeat button presses don't double-bind.
+	Anim->OnActionNotify.RemoveDynamic(this, &ACombatOrchestrator::OnSpikeNotify);
+	Anim->OnActionNotify.AddDynamic(this, &ACombatOrchestrator::OnSpikeNotify);
+	Anim->OnActionMontageEnded.RemoveDynamic(this, &ACombatOrchestrator::OnSpikeMontageEnded);
+	Anim->OnActionMontageEnded.AddDynamic(this, &ACombatOrchestrator::OnSpikeMontageEnded);
+
+	Anim->PlayActionMontage(SpikeMontage, 1.0f);
+
+	UE_LOG(LogTemp, Log,
+		   TEXT("[WarpSpike] mode=%s | %s -> warpLoc %s (from %s)"),
+		   SpikeWarpDistanceOverride > 0.0f ? TEXT("PROBE") : TEXT("ENEMY"),
+		   *Actor->GetName(),
+		   *WarpLoc.ToString(), *SpikeCachedLoc.ToString());
+}
+
+bool ACombatOrchestrator::ResolveSpikeAttachLocation(EVFXAttach Attach, FName SocketName, FName Tag, FVector &OutLoc) const
+{
+	const FVector CasterLoc = SpikeCachedActor->GetActorLocation();
+
+	switch (Attach)
+	{
+	case EVFXAttach::Target:
+		if (!IsValid(SpikeCachedTarget))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Spike] %s wants Target, none available, skipping"), *Tag.ToString());
+			return false;
+		}
+		OutLoc = SpikeCachedTarget->GetActorLocation();
+		return true;
+
+	case EVFXAttach::CasterSocket:
+	{
+		const ACharacter *Character = Cast<ACharacter>(SpikeCachedActor);
+		if (Character && Character->GetMesh() && Character->GetMesh()->DoesSocketExist(SocketName))
+		{
+			OutLoc = Character->GetMesh()->GetSocketLocation(SocketName);
+			return true;
+		}
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] %s socket '%s' invalid, falling back to actor location"),
+			   *Tag.ToString(), *SocketName.ToString());
+		OutLoc = CasterLoc;
+		return true;
+	}
+
+	// ImpactPoint is crudely the caster's current loc — he's warped onto the target.
+	// World is crudely the caster's loc too (no authored world point on a spike).
+	case EVFXAttach::Caster:
+	case EVFXAttach::ImpactPoint:
+	case EVFXAttach::World:
+	default:
+		OutLoc = CasterLoc;
+		return true;
+	}
+}
+
+/** SPIKE: notify name = <Family><Index>, e.g. "VFX0", "Cast1", "Hit". Bare family = index 0. */
+struct FSpikeNotifyParse
+{
+	FString Family;
+	int32 Index = 0;
+	bool bOk = false;
+};
+
+static FSpikeNotifyParse ParseSpikeNotify(FName NotifyName)
+{
+	FSpikeNotifyParse Result;
+	const FString Name = NotifyName.ToString();
+
+	int32 AlphaEnd = 0;
+	while (AlphaEnd < Name.Len() && FChar::IsAlpha(Name[AlphaEnd]))
+	{
+		++AlphaEnd;
+	}
+	Result.Family = Name.Left(AlphaEnd);
+
+	const FString Suffix = Name.Mid(AlphaEnd);
+	Result.Index = Suffix.IsEmpty() ? 0 : FCString::Atoi(*Suffix);
+
+	Result.bOk = Result.Family == TEXT("VFX") || Result.Family == TEXT("SFX") ||
+				 Result.Family == TEXT("Cast") || Result.Family == TEXT("Hit");
+	return Result;
+}
+
+void ACombatOrchestrator::OnSpikeNotify(FName NotifyName)
+{
+	if (NotifyName.IsNone() || !IsValid(SpikeCachedActor))
+	{
+		return;
+	}
+
+	const FSpikeNotifyParse Parsed = ParseSpikeNotify(NotifyName);
+	if (!Parsed.bOk)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] unrecognized notify '%s' (expected Hit/VFX<N>/SFX<N>/Cast<N>)"),
+			   *NotifyName.ToString());
+		return;
+	}
+
+	if (Parsed.Family == TEXT("Hit"))
+	{
+		// Hits are fake in the spike — pure log. Pair a VFX<N>/SFX<N> notify at the
+		// same frame for hit feel; Hit is deliberately not coupled to an array index.
+		UE_LOG(LogTemp, Log, TEXT("[Spike] HIT (fake) @ notify '%s'"), *NotifyName.ToString());
+		return;
+	}
+
+	if (Parsed.Family == TEXT("VFX"))
+	{
+		if (!SpikeVFXArray.IsValidIndex(Parsed.Index))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Spike] VFX index %d out of range (%d entries)"),
+				   Parsed.Index, SpikeVFXArray.Num());
+			return;
+		}
+		const FSpikeVFXEntry &Entry = SpikeVFXArray[Parsed.Index];
+		if (!Entry.VFX)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Spike] VFX[%d] has no asset"), Parsed.Index);
+			return;
+		}
+
+		bool bSpawnedAttached = false;
+		if (Entry.Attach == EVFXAttach::CasterSocket)
+		{
+			ACharacter *Character = Cast<ACharacter>(SpikeCachedActor);
+			if (Character && Character->GetMesh() && Character->GetMesh()->DoesSocketExist(Entry.SocketName))
+			{
+				// Attached, not at-location — follows the hand through the montage.
+				UNiagaraFunctionLibrary::SpawnSystemAttached(
+					Entry.VFX, Character->GetMesh(), Entry.SocketName,
+					FVector::ZeroVector, FRotator::ZeroRotator,
+					EAttachLocation::SnapToTarget, true);
+				UE_LOG(LogTemp, Log, TEXT("[Spike] VFX[%d] attached to socket '%s'"),
+					   Parsed.Index, *Entry.SocketName.ToString());
+				bSpawnedAttached = true;
+			}
+		}
+
+		FVector SpawnLoc;
+		if (!bSpawnedAttached &&
+			ResolveSpikeAttachLocation(Entry.Attach, Entry.SocketName, NotifyName, SpawnLoc))
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), Entry.VFX, SpawnLoc);
+			UE_LOG(LogTemp, Log, TEXT("[Spike] VFX[%d] (attach=%d) @ %s"),
+				   Parsed.Index, (int32)Entry.Attach, *SpawnLoc.ToCompactString());
+		}
+		return;
+	}
+
+	if (Parsed.Family == TEXT("SFX"))
+	{
+		if (!SpikeSFXArray.IsValidIndex(Parsed.Index))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Spike] SFX index %d out of range (%d entries)"),
+				   Parsed.Index, SpikeSFXArray.Num());
+			return;
+		}
+		const FSpikeSFXEntry &Entry = SpikeSFXArray[Parsed.Index];
+		if (!Entry.Sound)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Spike] SFX[%d] has no asset"), Parsed.Index);
+			return;
+		}
+
+		FVector SoundLoc;
+		if (ResolveSpikeAttachLocation(Entry.Attach, Entry.SocketName, NotifyName, SoundLoc))
+		{
+			UGameplayStatics::PlaySoundAtLocation(GetWorld(), Entry.Sound, SoundLoc);
+			UE_LOG(LogTemp, Log, TEXT("[Spike] SFX[%d] (attach=%d) @ %s"),
+				   Parsed.Index, (int32)Entry.Attach, *SoundLoc.ToCompactString());
+		}
+		return;
+	}
+
+	// Cast — the only family left after the bOk gate.
+	if (!SpikeCastArray.IsValidIndex(Parsed.Index))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] Cast index %d out of range (%d entries)"),
+			   Parsed.Index, SpikeCastArray.Num());
+		return;
+	}
+	SpikeExecuteCast(SpikeCastArray[Parsed.Index]);
+}
+
+void ACombatOrchestrator::SpikeExecuteCast(const FSpikeCastEntry &Entry)
+{
+	switch (Entry.Delivery)
+	{
+	case ESpellDeliveryType::Projectile:
+	case ESpellDeliveryType::Homing:
+	case ESpellDeliveryType::Beam:
+		if (Entry.Count > 1)
+		{
+			SpikeBurstEntry = Entry;
+			SpikeBurstRemaining = Entry.Count;
+			SpikeSpawnNextBurst();
+		}
+		else
+		{
+			SpikeSpawnProjectile(Entry);
+		}
+		break;
+
+	case ESpellDeliveryType::AOE:
+	case ESpellDeliveryType::Instant:
+	{
+		// No projectile actor — minimal echo of ActionExecutor::SpawnAOEEffect's shape.
+		if (!IsValid(SpikeCachedTarget))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Spike] Cast '%s' wants Target, none available, skipping"), *Entry.Label);
+			return;
+		}
+		const FVector TargetLoc = SpikeCachedTarget->GetActorLocation();
+		if (Entry.AOEVFX)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), Entry.AOEVFX, TargetLoc);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[Spike] AOE/INSTANT CAST (fake) on %s @ %s"),
+			   *SpikeCachedTarget->GetName(), *TargetLoc.ToCompactString());
+		break;
+	}
+
+	default:
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] Cast '%s' unhandled delivery %d"),
+			   *Entry.Label, (int32)Entry.Delivery);
+		break;
+	}
+}
+
+void ACombatOrchestrator::SpikeSpawnProjectile(const FSpikeCastEntry &Entry)
+{
+	if (!IsValid(SpikeCachedActor) || !IsValid(SpikeCachedTarget))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] Cast '%s' wants Target, none available, skipping"), *Entry.Label);
+		return;
+	}
+	if (!Entry.ProjectileClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] Cast '%s' has no ProjectileClass, skipping"), *Entry.Label);
+		return;
+	}
+
+	// Mirrors SpellProjectileTestActor::SpawnWithSpellData — the proven caller.
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = SpikeCachedActor;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ASpellProjectile *Projectile = GetWorld()->SpawnActor<ASpellProjectile>(
+		Entry.ProjectileClass,
+		SpikeCachedActor->GetActorLocation(),
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	if (!Projectile)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[Spike] Cast '%s' failed to spawn projectile"), *Entry.Label);
+		return;
+	}
+
+	const float FinalImpactRadius = Entry.Spell ? Entry.Spell->BaseSize * Entry.Spell->HitboxRatio : 1.0f;
+	const float FinalVisualScale = Entry.Spell ? Entry.Spell->BaseSize : 1.0f;
+
+	Projectile->InitializeProjectile(
+		Entry.Spell, // may be null — projectile falls back to its defaults
+		SpikeCachedActor,
+		SpikeCachedTarget,
+		FinalImpactRadius,
+		FinalVisualScale,
+		Entry.TestDamage);
+
+	if (Entry.Spell)
+	{
+		Projectile->SetVFXAssets(Entry.Spell->MuzzleVFX, Entry.Spell->SpellVFX, Entry.Spell->ImpactVFX);
+	}
+
+	Projectile->OnSpellImpact.AddDynamic(this, &ACombatOrchestrator::OnSpikeCastImpact);
+
+	// The test actor never calls Launch(), but Tick gates on bIsLaunched — without it the
+	// projectile sits at the caster forever. ActionExecutor's sequence ends with Launch().
+	Projectile->Launch();
+
+	UE_LOG(LogTemp, Log, TEXT("[Spike] CAST '%s' delivery=%d -> %s"),
+		   *Entry.Label, (int32)Entry.Delivery, *SpikeCachedTarget->GetName());
+}
+
+void ACombatOrchestrator::SpikeSpawnNextBurst()
+{
+	if (SpikeBurstRemaining <= 0)
+	{
+		return;
+	}
+
+	SpikeSpawnProjectile(SpikeBurstEntry);
+	SpikeBurstRemaining--;
+
+	if (SpikeBurstRemaining > 0)
+	{
+		GetWorld()->GetTimerManager().SetTimer(
+			SpikeBurstTimerHandle,
+			this,
+			&ACombatOrchestrator::SpikeSpawnNextBurst,
+			FMath::Max(SpikeBurstEntry.BurstInterval, 0.01f),
+			false);
+	}
+}
+
+void ACombatOrchestrator::OnSpikeCastImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
+{
+	UE_LOG(LogTemp, Log, TEXT("[Spike] CAST IMPACT (fake) on %s @ %s (radius=%.2f, dmg=%d)"),
+		   Target ? *Target->GetName() : TEXT("None"), *ImpactLocation.ToCompactString(), ImpactRadius, Damage);
+}
+
+void ACombatOrchestrator::OnSpikeMontageEnded(UAnimMontage *Montage, bool bInterrupted)
+{
+	if (Montage == SpikeMontage)
+	{
+		if (bInterrupted)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[Spike] approach interrupted - not chaining return"));
+			return;
+		}
+		// Capture the true end-of-approach pose NOW — this broadcast fires before the anim
+		// instance resumes its stance montage, so the actor is still where root motion left him.
+		SpikeApproachEndLoc = SpikeCachedActor ? SpikeCachedActor->GetActorLocation() : SpikeCachedLoc;
+		SpikeApproachEndRot = SpikeCachedActor ? SpikeCachedActor->GetActorRotation() : SpikeCachedRot;
+		UE_LOG(LogTemp, Log, TEXT("[Spike] approach ended at %s, returning to %s"),
+			   *SpikeApproachEndLoc.ToCompactString(), *SpikeCachedLoc.ToCompactString());
+
+		// Deferred one tick: the anim instance resumes its stance montage right after this
+		// broadcast, which would stomp a return montage started inline (same montage group).
+		GetWorld()->GetTimerManager().SetTimerForNextTick(this, &ACombatOrchestrator::PlaySpikeReturn);
+	}
+	else if (Montage == SpikeReturnMontage)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Spike] loop complete"));
+		SpikeUnbind();
+	}
+}
+
+void ACombatOrchestrator::PlaySpikeReturn()
+{
+	if (!SpikeReturnMontage)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Spike] no return montage, loop ends"));
+		SpikeUnbind();
+		return;
+	}
+
+	UCombatAnimInstance *Anim = ResolveSpikeAnim(SpikeCachedActor);
+	if (!Anim)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Spike] cached actor lost its anim instance - loop ends"));
+		return;
+	}
+
+	// Pin to the captured approach-end pose — anything that moved the capsule during the
+	// deferred tick (stance resume / blend-out) gets undone so the return starts at the enemy.
+	SpikeCachedActor->SetActorLocationAndRotation(SpikeApproachEndLoc, SpikeApproachEndRot);
+
+	// Warp target for the return leg = the cached origin.
+	if (UMotionWarpingComponent *Warp = SpikeCachedActor->FindComponentByClass<UMotionWarpingComponent>())
+	{
+		Warp->AddOrUpdateWarpTargetFromLocationAndRotation(TEXT("WarpTarget"), SpikeCachedLoc, SpikeCachedRot);
+	}
+
+	Anim->PlayActionMontage(SpikeReturnMontage, 1.0f);
+	UE_LOG(LogTemp, Log, TEXT("[Spike] return -> %s"), *SpikeCachedLoc.ToCompactString());
+}
+
+void ACombatOrchestrator::SpikeUnbind()
+{
+	if (UCombatAnimInstance *Anim = ResolveSpikeAnim(SpikeCachedActor))
+	{
+		Anim->OnActionNotify.RemoveDynamic(this, &ACombatOrchestrator::OnSpikeNotify);
+		Anim->OnActionMontageEnded.RemoveDynamic(this, &ACombatOrchestrator::OnSpikeMontageEnded);
+	}
+}
+
+void ACombatOrchestrator::DebugWarpSpikeReset()
+{
+	if (!SpikeCachedActor)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[WarpSpike] nothing cached - run DebugWarpSpike first"));
+		return;
+	}
+
+	SpikeUnbind();
+	SpikeCachedActor->SetActorLocationAndRotation(SpikeCachedLoc, SpikeCachedRot);
+	UE_LOG(LogTemp, Log, TEXT("[WarpSpike] %s reset to %s"),
+		   *SpikeCachedActor->GetName(), *SpikeCachedLoc.ToCompactString());
+}
+
+// --- END SPIKE ---
 
 #include "Combat/Camera/CombatCameraManager.h"
 
