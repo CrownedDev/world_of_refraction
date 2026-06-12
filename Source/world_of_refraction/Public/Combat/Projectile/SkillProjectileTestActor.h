@@ -1,26 +1,26 @@
-// SpellProjectileTestActor.h
-// Test actor for SpellProjectile spawning and behavior verification
+// SkillProjectileTestActor.h
+// Test actor for SkillProjectile spawning and behavior verification
 
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "SpellProjectileTestActor.generated.h"
+#include "SkillProjectileTestActor.generated.h"
 
-class ASpellProjectile;
+class ASkillProjectile;
 class USpellData;
 
 /**
- * Test actor for verifying SpellProjectile functionality
+ * Test actor for verifying SkillProjectile functionality
  * Place in level, assign Target, use context menu to spawn projectiles
  */
 UCLASS()
-class WORLD_OF_REFRACTION_API ASpellProjectileTestActor : public AActor
+class WORLD_OF_REFRACTION_API ASkillProjectileTestActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
-	ASpellProjectileTestActor();
+	ASkillProjectileTestActor();
 
 	// ==================== CONFIGURATION ====================
 
@@ -30,7 +30,7 @@ public:
 
 	/** Projectile class to spawn (assign BP_Projectile1) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Test Config")
-	TSubclassOf<ASpellProjectile> ProjectileClass;
+	TSubclassOf<ASkillProjectile> ProjectileClass;
 
 	/** Optional spell data for full test */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Test Config")

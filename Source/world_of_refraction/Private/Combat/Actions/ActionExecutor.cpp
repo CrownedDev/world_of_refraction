@@ -33,7 +33,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Infusion/HybridSpellColors.h"
-#include "Combat/Projectile/SpellProjectile.h"
+#include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
@@ -2909,11 +2909,11 @@ void UActionExecutor::SpawnProjectileActor(
 	}
 
 	// Check for projectile class
-	TSubclassOf<ASpellProjectile> ProjectileClass = DefaultProjectileClass;
+	TSubclassOf<ASkillProjectile> ProjectileClass = DefaultProjectileClass;
 	if (!ProjectileClass)
 	{
 		// Fallback to base class if no BP assigned
-		ProjectileClass = ASpellProjectile::StaticClass();
+		ProjectileClass = ASkillProjectile::StaticClass();
 	}
 
 	// Spawn projectile
@@ -2921,7 +2921,7 @@ void UActionExecutor::SpawnProjectileActor(
 	SpawnParams.Owner = Caster;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ASpellProjectile *Projectile = GetWorld()->SpawnActor<ASpellProjectile>(
+	ASkillProjectile *Projectile = GetWorld()->SpawnActor<ASkillProjectile>(
 		ProjectileClass,
 		Caster->GetActorLocation(),
 		FRotator::ZeroRotator,
@@ -2945,8 +2945,8 @@ void UActionExecutor::SpawnProjectileActor(
 			FinalDamage);
 
 		// 3. Bind to events
-		Projectile->OnSpellImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
-		Projectile->OnSpellDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
+		Projectile->OnSkillImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
+		Projectile->OnSkillDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
 
 		if (Spell->DeliveryType == ESpellDeliveryType::Beam)
 		{

@@ -32,7 +32,7 @@
 #include "Equipment/Crystals/CrystalManager.h"
 // --- SPIKE includes (throwaway: fused-montage warp test) ---
 #include "Combat/CombatAnimInstance.h"
-#include "Combat/Projectile/SpellProjectile.h"
+#include "Combat/Projectile/SkillProjectile.h"
 #include "GameFramework/Character.h"
 #include "MotionWarpingComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -2768,12 +2768,12 @@ void ACombatOrchestrator::SpikeSpawnProjectile(const FSpikeCastEntry &Entry)
 		return;
 	}
 
-	// Mirrors SpellProjectileTestActor::SpawnWithSpellData — the proven caller.
+	// Mirrors SkillProjectileTestActor::SpawnWithSpellData — the proven caller.
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = SpikeCachedActor;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ASpellProjectile *Projectile = GetWorld()->SpawnActor<ASpellProjectile>(
+	ASkillProjectile *Projectile = GetWorld()->SpawnActor<ASkillProjectile>(
 		Entry.ProjectileClass,
 		SpikeCachedActor->GetActorLocation(),
 		FRotator::ZeroRotator,
@@ -2801,7 +2801,7 @@ void ACombatOrchestrator::SpikeSpawnProjectile(const FSpikeCastEntry &Entry)
 		Projectile->SetVFXAssets(Entry.Spell->MuzzleVFX, Entry.Spell->SpellVFX, Entry.Spell->ImpactVFX);
 	}
 
-	Projectile->OnSpellImpact.AddDynamic(this, &ACombatOrchestrator::OnSpikeCastImpact);
+	Projectile->OnSkillImpact.AddDynamic(this, &ACombatOrchestrator::OnSpikeCastImpact);
 
 	// The test actor never calls Launch(), but Tick gates on bIsLaunched — without it the
 	// projectile sits at the caster forever. ActionExecutor's sequence ends with Launch().

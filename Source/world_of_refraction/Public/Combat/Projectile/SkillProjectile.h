@@ -1,4 +1,4 @@
-// SpellProjectile.h
+// SkillProjectile.h
 // Unified spell delivery actor - handles Projectile, Homing, and Beam types
 // AOE and Instant don't spawn this actor - use ActionExecutor directly
 
@@ -8,7 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/ESpellElement.h"
-#include "SpellProjectile.generated.h"
+#include "SkillProjectile.generated.h"
 
 class UNiagaraSystem;
 class UNiagaraComponent;
@@ -19,7 +19,7 @@ class USpellData;
 
 /** Broadcast when projectile hits target (or reaches target location) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
-    FOnSpellImpact,
+    FOnSkillImpact,
     AActor *, Target,
     FVector, ImpactLocation,
     float, ImpactRadius,
@@ -27,7 +27,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
 
 /** Broadcast when target successfully dodged (moved out of impact zone) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
-    FOnSpellDodged,
+    FOnSkillDodged,
     AActor *, Target,
     FVector, ImpactLocation);
 
@@ -46,7 +46,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
 // ==================== MAIN CLASS ====================
 
 /**
- * ASpellProjectile
+ * ASkillProjectile
  *
  * Unified spell delivery actor that handles:
  * - Projectile: Travels to fixed location, dodgeable by moving
@@ -59,15 +59,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
  * 1. Spawn via SpawnActor
  * 2. Call InitializeProjectile() with spell data
  * 3. Call SetVFXAssets() to assign Niagara systems
- * 4. Bind to OnSpellImpact/OnSpellDodged events
+ * 4. Bind to OnSkillImpact/OnSkillDodged events
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API ASpellProjectile : public AActor
+class WORLD_OF_REFRACTION_API ASkillProjectile : public AActor
 {
     GENERATED_BODY()
 
 public:
-    ASpellProjectile();
+    ASkillProjectile();
 
     // ==================== COMPONENTS ====================
 
@@ -97,11 +97,11 @@ public:
 
     /** Called when spell reaches target / impact point */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnSpellImpact OnSpellImpact;
+    FOnSkillImpact OnSkillImpact;
 
     /** Called when target successfully dodged */
     UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnSpellDodged OnSpellDodged;
+    FOnSkillDodged OnSkillDodged;
 
     /** Called each tick while beam is active */
     UPROPERTY(BlueprintAssignable, Category = "Events")
@@ -172,7 +172,7 @@ public:
      * @param FinalVisualScale Calculated visual scale for VFX
      * @param FinalDamage Calculated damage value
      */
-    UFUNCTION(BlueprintCallable, Category = "SpellProjectile")
+    UFUNCTION(BlueprintCallable, Category = "SkillProjectile")
     void InitializeProjectile(
         USpellData *Spell,
         AActor *InCaster,
@@ -188,7 +188,7 @@ public:
      * @param InProjectileFX Traveling projectile effect
      * @param InHitFX Impact explosion effect (optional)
      */
-    UFUNCTION(BlueprintCallable, Category = "SpellProjectile|VFX")
+    UFUNCTION(BlueprintCallable, Category = "SkillProjectile|VFX")
     void SetVFXAssets(
         UNiagaraSystem *InMuzzleFX,
         UNiagaraSystem *InProjectileFX,
@@ -199,20 +199,20 @@ public:
      * Call after SetVFXAssets and InitializeProjectile
      */
 
-    UFUNCTION(BlueprintCallable, Category = "SpellProjectile")
+    UFUNCTION(BlueprintCallable, Category = "SkillProjectile")
     void Launch();
     // ==================== GETTERS ====================
 
-    UFUNCTION(BlueprintPure, Category = "SpellProjectile")
+    UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE ESpellDeliveryType GetDeliveryType() const { return DeliveryType; }
 
-    UFUNCTION(BlueprintPure, Category = "SpellProjectile")
+    UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE AActor *GetCaster() const { return Caster; }
 
-    UFUNCTION(BlueprintPure, Category = "SpellProjectile")
+    UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE AActor *GetTarget() const { return Target; }
 
-    UFUNCTION(BlueprintPure, Category = "SpellProjectile")
+    UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE float GetImpactRadius() const { return ImpactRadius; }
 
     // ==================== RUNTIME STATE ====================
@@ -250,7 +250,7 @@ public:
      *  BeamTickIntervalSec after each tick. */
     float BeamTimeUntilNextTick = 0.f;
 
-    UFUNCTION(BlueprintPure, Category = "SpellProjectile")
+    UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE bool HasImpacted() const { return bHasImpacted; }
 
 protected:

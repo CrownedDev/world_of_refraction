@@ -13,7 +13,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Damage/DamageCalculator.h"
-#include "Combat/Projectile/SpellProjectile.h"
+#include "Combat/Projectile/SkillProjectile.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
@@ -163,7 +163,7 @@ public:
 
 	/** Default projectile class to spawn (set to BP_Projectile1) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spell Delivery")
-	TSubclassOf<ASpellProjectile> DefaultProjectileClass;
+	TSubclassOf<ASkillProjectile> DefaultProjectileClass;
 
 	/** Execute an item */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Execute")
@@ -865,7 +865,7 @@ private:
 protected:
 	/**
 	 * Spawn spell delivery based on DeliveryType
-	 * - Projectile/Homing/Beam: Spawns ASpellProjectile
+	 * - Projectile/Homing/Beam: Spawns ASkillProjectile
 	 * - AOE/Instant: Spawns VFX directly, opens defense window
 	 */
 	virtual void SpawnSpellDelivery(

@@ -78,7 +78,7 @@ struct FDeferredActivation
 
 class UNiagaraSystem;
 class USpellData;
-class ASpellProjectile;
+class ASkillProjectile;
 
 /** SPIKE (throwaway): where a notify-driven VFX/SFX entry spawns. */
 UENUM(BlueprintType)
@@ -134,7 +134,7 @@ struct FSpikeSFXEntry
 };
 
 /** SPIKE (throwaway): notify-driven spell cast — array index matches the "Cast<N>" notify.
- *  Projectile/Homing/Beam spawn the real ASpellProjectile; AOE/Instant fake-resolve with VFX. */
+ *  Projectile/Homing/Beam spawn the real ASkillProjectile; AOE/Instant fake-resolve with VFX. */
 USTRUCT(BlueprintType)
 struct FSpikeCastEntry
 {
@@ -149,7 +149,7 @@ struct FSpikeCastEntry
 
 	/** Required for Projectile/Homing/Beam. */
 	UPROPERTY(EditAnywhere)
-	TSubclassOf<ASpellProjectile> ProjectileClass;
+	TSubclassOf<ASkillProjectile> ProjectileClass;
 
 	/** Optional — drives Init sizing + projectile VFX when set. */
 	UPROPERTY(EditAnywhere)
@@ -384,10 +384,10 @@ public:
 	/** Cast-entry dispatch — branches on Delivery (actor vs fake AOE resolve). */
 	void SpikeExecuteCast(const FSpikeCastEntry &Entry);
 
-	/** Spawns one real ASpellProjectile at the caster, aimed at the spike target. */
+	/** Spawns one real ASkillProjectile at the caster, aimed at the spike target. */
 	void SpikeSpawnProjectile(const FSpikeCastEntry &Entry);
 
-	/** Burst timer chain — mirrors SpellProjectileTestActor::SpawnNextBurst. */
+	/** Burst timer chain — mirrors SkillProjectileTestActor::SpawnNextBurst. */
 	void SpikeSpawnNextBurst();
 
 	/** Resolves an entry's attach mode to a world location.

@@ -1,7 +1,7 @@
-// SpellProjectile.cpp
+// SkillProjectile.cpp
 // Unified spell delivery actor implementation
 
-#include "Combat/Projectile/SpellProjectile.h"
+#include "Combat/Projectile/SkillProjectile.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Components/SphereComponent.h"
 #include "NiagaraComponent.h"
@@ -19,7 +19,7 @@
 
 // ==================== CONSTANTS ====================
 
-namespace SpellProjectileConstants
+namespace SkillProjectileConstants
 {
     /** Default projectile speed (units/second) */
     constexpr float DEFAULT_SPEED = 1500.f;
@@ -45,7 +45,7 @@ namespace SpellProjectileConstants
 
 // ==================== CONSTRUCTOR ====================
 
-ASpellProjectile::ASpellProjectile()
+ASkillProjectile::ASkillProjectile()
 {
     PrimaryActorTick.bCanEverTick = true;
 
@@ -56,7 +56,7 @@ ASpellProjectile::ASpellProjectile()
     // Collision
     HitBox = CreateDefaultSubobject<USphereComponent>(TEXT("HitBox"));
     HitBox->SetupAttachment(Root);
-    HitBox->SetSphereRadius(SpellProjectileConstants::DEFAULT_COLLISION_RADIUS);
+    HitBox->SetSphereRadius(SkillProjectileConstants::DEFAULT_COLLISION_RADIUS);
     HitBox->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
     HitBox->SetGenerateOverlapEvents(true);
 
@@ -80,11 +80,11 @@ ASpellProjectile::ASpellProjectile()
     Caster = nullptr;
     Target = nullptr;
     TargetLocation = FVector::ZeroVector;
-    Speed = SpellProjectileConstants::DEFAULT_SPEED;
-    HomingStrength = SpellProjectileConstants::DEFAULT_HOMING_STRENGTH;
+    Speed = SkillProjectileConstants::DEFAULT_SPEED;
+    HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
     ImpactRadius = 1.0f;
     Damage = 0;
-    BeamDuration = SpellProjectileConstants::DEFAULT_BEAM_DURATION;
+    BeamDuration = SkillProjectileConstants::DEFAULT_BEAM_DURATION;
     VisualScale = 1.0f;
     bHasImpacted = false;
     BeamTimeRemaining = 0.f;
@@ -99,15 +99,15 @@ ASpellProjectile::ASpellProjectile()
 
 // ==================== LIFECYCLE ====================
 
-void ASpellProjectile::BeginPlay()
+void ASkillProjectile::BeginPlay()
 {
     Super::BeginPlay();
 
     // Bind collision event
-    HitBox->OnComponentBeginOverlap.AddDynamic(this, &ASpellProjectile::OnHitBoxOverlap);
+    HitBox->OnComponentBeginOverlap.AddDynamic(this, &ASkillProjectile::OnHitBoxOverlap);
 }
 
-void ASpellProjectile::Tick(float DeltaTime)
+void ASkillProjectile::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
@@ -133,13 +133,13 @@ void ASpellProjectile::Tick(float DeltaTime)
 
     default:
         // AOE and Instant don't use this actor
-        UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Invalid DeliveryType for projectile actor"));
+        UE_LOG(LogTemp, Warning, TEXT("[SkillProjectile] Invalid DeliveryType for projectile actor"));
         DestroyProjectile();
         break;
     }
 }
 
-void ASpellProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void ASkillProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     // Cleanup any bound delegates
     HitBox->OnComponentBeginOverlap.RemoveAll(this);
@@ -149,7 +149,7 @@ void ASpellProjectile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 // ==================== INITIALIZATION ====================
 
-void ASpellProjectile::InitializeProjectile(
+void ASkillProjectile::InitializeProjectile(
     USpellData *Spell,
     AActor *InCaster,
     AActor *InTarget,
@@ -177,9 +177,9 @@ void ASpellProjectile::InitializeProjectile(
         // Fallback defaults
         DeliveryType = ESpellDeliveryType::Projectile;
         Element = ESpellElement::Generic;
-        Speed = SpellProjectileConstants::DEFAULT_SPEED;
-        HomingStrength = SpellProjectileConstants::DEFAULT_HOMING_STRENGTH;
-        BeamDuration = SpellProjectileConstants::DEFAULT_BEAM_DURATION;
+        Speed = SkillProjectileConstants::DEFAULT_SPEED;
+        HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
+        BeamDuration = SkillProjectileConstants::DEFAULT_BEAM_DURATION;
     }
 
     // Capture target location at cast time (for Projectile type)
@@ -189,7 +189,7 @@ void ASpellProjectile::InitializeProjectile(
     }
 
     // Size collision to impact radius (convert to UE units)
-    float CollisionRadius = ImpactRadius * SpellProjectileConstants::UNITS_SCALE;
+    float CollisionRadius = ImpactRadius * SkillProjectileConstants::UNITS_SCALE;
     HitBox->SetSphereRadius(CollisionRadius);
 
     // Position at caster
@@ -223,18 +223,18 @@ void ASpellProjectile::InitializeProjectile(
         BeamTimeUntilNextTick = BeamTickIntervalSec;
 
         UE_LOG(LogTemp, Log,
-               TEXT("[SpellProjectile] Beam tick schedule: Total=%d, Ticks=%d, Base=%d/tick, Remainder=%d, Interval=%.2fs"),
+               TEXT("[SkillProjectile] Beam tick schedule: Total=%d, Ticks=%d, Base=%d/tick, Remainder=%d, Interval=%.2fs"),
                Damage, BeamTickCount, BeamBaseDmgPerTick, BeamRemainder, BeamTickIntervalSec);
     }
 
-    UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Initialized: Type=%d, Target=%s, Radius=%.2f, Speed=%.1f"),
+    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Initialized: Type=%d, Target=%s, Radius=%.2f, Speed=%.1f"),
            (int32)DeliveryType,
            Target ? *Target->GetName() : TEXT("None"),
            ImpactRadius,
            Speed);
 }
 
-void ASpellProjectile::SetVFXAssets(
+void ASkillProjectile::SetVFXAssets(
     UNiagaraSystem *InMuzzleFX,
     UNiagaraSystem *InProjectileFX,
     UNiagaraSystem *InHitFX)
@@ -259,18 +259,18 @@ void ASpellProjectile::SetVFXAssets(
     ApplyElementColors();
 }
 
-void ASpellProjectile::Launch()
+void ASkillProjectile::Launch()
 {
     // Validate setup
     if (!Caster || !Target)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Launch called without valid Caster/Target"));
+        UE_LOG(LogTemp, Warning, TEXT("[SkillProjectile] Launch called without valid Caster/Target"));
         return;
     }
 
     if (!ProjectileFX || !ProjectileFX->GetAsset())
     {
-        UE_LOG(LogTemp, Warning, TEXT("[SpellProjectile] Launch called without ProjectileFX asset"));
+        UE_LOG(LogTemp, Warning, TEXT("[SkillProjectile] Launch called without ProjectileFX asset"));
     }
 
     // Start muzzle effect
@@ -291,14 +291,14 @@ void ASpellProjectile::Launch()
 
     bIsLaunched = true;
 
-    UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Launched toward %s (VFX: %s)"),
+    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Launched toward %s (VFX: %s)"),
            *Target->GetName(),
            (ProjectileFX && ProjectileFX->GetAsset()) ? TEXT("Active") : TEXT("None"));
 }
 
 // ==================== MOVEMENT ====================
 
-void ASpellProjectile::TickProjectile(float DeltaTime)
+void ASkillProjectile::TickProjectile(float DeltaTime)
 {
     // Move toward FIXED target location (captured at cast time)
     FVector CurrentLocation = GetActorLocation();
@@ -317,13 +317,13 @@ void ASpellProjectile::TickProjectile(float DeltaTime)
 
     // Check if reached destination
     float DistanceRemaining = FVector::Dist(NewLocation, TargetLocation);
-    if (DistanceRemaining < SpellProjectileConstants::DESTINATION_THRESHOLD)
+    if (DistanceRemaining < SkillProjectileConstants::DESTINATION_THRESHOLD)
     {
         ResolveImpact();
     }
 }
 
-void ASpellProjectile::TickHoming(float DeltaTime)
+void ASkillProjectile::TickHoming(float DeltaTime)
 {
     if (!Target || !IsValid(Target))
     {
@@ -353,7 +353,7 @@ void ASpellProjectile::TickHoming(float DeltaTime)
     // Homing uses overlap detection, not distance check
 }
 
-void ASpellProjectile::TickBeam(float DeltaTime)
+void ASkillProjectile::TickBeam(float DeltaTime)
 {
     BeamTimeRemaining -= DeltaTime;
 
@@ -425,7 +425,7 @@ void ASpellProjectile::TickBeam(float DeltaTime)
 
 // ==================== COLLISION ====================
 
-void ASpellProjectile::OnHitBoxOverlap(
+void ASkillProjectile::OnHitBoxOverlap(
     UPrimitiveComponent *OverlappedComponent,
     AActor *OtherActor,
     UPrimitiveComponent *OtherComp,
@@ -443,7 +443,7 @@ void ASpellProjectile::OnHitBoxOverlap(
     if (bHasImpacted)
         return;
 
-    UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Overlap with target: %s"), *OtherActor->GetName());
+    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Overlap with target: %s"), *OtherActor->GetName());
 
     // For Homing, impact on overlap (can't dodge by moving)
     if (DeliveryType == ESpellDeliveryType::Homing)
@@ -456,13 +456,13 @@ void ASpellProjectile::OnHitBoxOverlap(
 
 // ==================== RESOLUTION ====================
 
-void ASpellProjectile::ResolveImpact()
+void ASkillProjectile::ResolveImpact()
 {
     if (bHasImpacted)
         return;
     bHasImpacted = true;
 
-    UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Resolving impact at %s"), *GetActorLocation().ToString());
+    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s"), *GetActorLocation().ToString());
 
     // Deactivate projectile VFX
     if (ProjectileFX)
@@ -474,16 +474,16 @@ void ASpellProjectile::ResolveImpact()
     if (DeliveryType == ESpellDeliveryType::Projectile && CheckMoveDodge())
     {
         // Target moved out of impact zone - DODGED
-        UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Target dodged by moving!"));
-        OnSpellDodged.Broadcast(Target, TargetLocation);
+        UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Target dodged by moving!"));
+        OnSkillDodged.Broadcast(Target, TargetLocation);
         PlayHitEffect(TargetLocation); // VFX at original location
     }
     else
     {
         // HIT - broadcast for defense window
         FVector ImpactLocation = GetActorLocation();
-        UE_LOG(LogTemp, Log, TEXT("[SpellProjectile] Impact! Damage=%d, Radius=%.2f"), Damage, ImpactRadius);
-        OnSpellImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage);
+        UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Impact! Damage=%d, Radius=%.2f"), Damage, ImpactRadius);
+        OnSkillImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage);
         PlayHitEffect(ImpactLocation);
     }
 
@@ -492,12 +492,12 @@ void ASpellProjectile::ResolveImpact()
     GetWorld()->GetTimerManager().SetTimer(
         TimerHandle,
         this,
-        &ASpellProjectile::DestroyProjectile,
-        SpellProjectileConstants::POST_IMPACT_LIFETIME,
+        &ASkillProjectile::DestroyProjectile,
+        SkillProjectileConstants::POST_IMPACT_LIFETIME,
         false);
 }
 
-bool ASpellProjectile::CheckMoveDodge() const
+bool ASkillProjectile::CheckMoveDodge() const
 {
     if (!Target || !IsValid(Target))
         return false;
@@ -507,18 +507,18 @@ bool ASpellProjectile::CheckMoveDodge() const
     float DistanceMoved = FVector::Dist(CurrentTargetLocation, TargetLocation);
 
     // Convert ImpactRadius to UE units for comparison
-    float ImpactRadiusUnits = ImpactRadius * SpellProjectileConstants::UNITS_SCALE;
+    float ImpactRadiusUnits = ImpactRadius * SkillProjectileConstants::UNITS_SCALE;
 
     // Dodged if moved beyond impact radius
     bool bDodged = DistanceMoved > ImpactRadiusUnits;
 
-    UE_LOG(LogTemp, Verbose, TEXT("[SpellProjectile] Dodge check: Moved=%.1f, Radius=%.1f, Dodged=%d"),
+    UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Dodge check: Moved=%.1f, Radius=%.1f, Dodged=%d"),
            DistanceMoved, ImpactRadiusUnits, bDodged);
 
     return bDodged;
 }
 
-void ASpellProjectile::PlayHitEffect(FVector Location)
+void ASkillProjectile::PlayHitEffect(FVector Location)
 {
     if (HitFX && HitFX->GetAsset())
     {
@@ -527,15 +527,15 @@ void ASpellProjectile::PlayHitEffect(FVector Location)
     }
 }
 
-void ASpellProjectile::DestroyProjectile()
+void ASkillProjectile::DestroyProjectile()
 {
-    UE_LOG(LogTemp, Verbose, TEXT("[SpellProjectile] Destroying projectile"));
+    UE_LOG(LogTemp, Verbose, TEXT("[SkillProjectile] Destroying projectile"));
     Destroy();
 }
 
 // ==================== VFX ====================
 
-void ASpellProjectile::ApplyElementColors()
+void ASkillProjectile::ApplyElementColors()
 {
     // Get element colors (supports BD hybrid colors)
     FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Element, false);
@@ -554,7 +554,7 @@ void ASpellProjectile::ApplyElementColors()
     }
 }
 
-void ASpellProjectile::ApplyVisualScale()
+void ASkillProjectile::ApplyVisualScale()
 {
     // Scale VFX components
     FVector Scale = FVector(VisualScale);
@@ -575,18 +575,18 @@ void ASpellProjectile::ApplyVisualScale()
 // ==================== DEBUG ====================
 
 #if WITH_EDITOR
-void ASpellProjectile::Debug_DrawCollision()
+void ASkillProjectile::Debug_DrawCollision()
 {
     if (HitBox)
     {
         float Radius = HitBox->GetScaledSphereRadius();
         DrawDebugSphere(GetWorld(), GetActorLocation(), Radius, 16, FColor::Green, false, 5.0f);
 
-        UE_LOG(LogTemp, Display, TEXT("[SpellProjectile] Collision radius: %.1f"), Radius);
+        UE_LOG(LogTemp, Display, TEXT("[SkillProjectile] Collision radius: %.1f"), Radius);
     }
 }
 
-void ASpellProjectile::Debug_PrintState()
+void ASkillProjectile::Debug_PrintState()
 {
     UE_LOG(LogTemp, Display, TEXT("=========================================="));
     UE_LOG(LogTemp, Display, TEXT("SPELL PROJECTILE STATE"));

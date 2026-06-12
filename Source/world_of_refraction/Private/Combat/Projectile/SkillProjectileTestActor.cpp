@@ -1,13 +1,13 @@
-// SpellProjectileTestActor.cpp
-// Test actor implementation for SpellProjectile verification
+// SkillProjectileTestActor.cpp
+// Test actor implementation for SkillProjectile verification
 
-#include "Combat/Projectile/SpellProjectileTestActor.h"
-#include "Combat/Projectile/SpellProjectile.h"
+#include "Combat/Projectile/SkillProjectileTestActor.h"
+#include "Combat/Projectile/SkillProjectile.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
-ASpellProjectileTestActor::ASpellProjectileTestActor()
+ASkillProjectileTestActor::ASkillProjectileTestActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -22,36 +22,36 @@ ASpellProjectileTestActor::ASpellProjectileTestActor()
 	BurstCount = 0;
 }
 
-void ASpellProjectileTestActor::BeginPlay()
+void ASkillProjectileTestActor::BeginPlay()
 {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Test actor ready. Assign Target and ProjectileClass, then use context menu."));
+	UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Test actor ready. Assign Target and ProjectileClass, then use context menu."));
 }
 
 // ==================== TEST FUNCTIONS ====================
 
-void ASpellProjectileTestActor::SpawnTestProjectile()
+void ASkillProjectileTestActor::SpawnTestProjectile()
 {
 	if (!TargetActor)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SpellProjectileTest] No TargetActor assigned!"));
+		UE_LOG(LogTemp, Error, TEXT("[SkillProjectileTest] No TargetActor assigned!"));
 		return;
 	}
 
 	if (!ProjectileClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SpellProjectileTest] No ProjectileClass assigned! Assign BP_Projectile1."));
+		UE_LOG(LogTemp, Error, TEXT("[SkillProjectileTest] No ProjectileClass assigned! Assign BP_Projectile1."));
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Spawning projectile toward %s"), *TargetActor->GetName());
+	UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Spawning projectile toward %s"), *TargetActor->GetName());
 
 	// Spawn projectile
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ASpellProjectile* Projectile = GetWorld()->SpawnActor<ASpellProjectile>(
+	ASkillProjectile* Projectile = GetWorld()->SpawnActor<ASkillProjectile>(
 		ProjectileClass,
 		GetActorLocation(),
 		FRotator::ZeroRotator,
@@ -71,47 +71,47 @@ void ASpellProjectileTestActor::SpawnTestProjectile()
 		);
 
 		// Bind to events
-		Projectile->OnSpellImpact.AddDynamic(this, &ASpellProjectileTestActor::OnProjectileImpact);
-		Projectile->OnSpellDodged.AddDynamic(this, &ASpellProjectileTestActor::OnProjectileDodged);
+		Projectile->OnSkillImpact.AddDynamic(this, &ASkillProjectileTestActor::OnProjectileImpact);
+		Projectile->OnSkillDodged.AddDynamic(this, &ASkillProjectileTestActor::OnProjectileDodged);
 
-		UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Projectile spawned! Speed=%.1f, Radius=%.2f, Damage=%d"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Projectile spawned! Speed=%.1f, Radius=%.2f, Damage=%d"),
 			TestSpeed, TestImpactRadius, TestDamage);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SpellProjectileTest] Failed to spawn projectile!"));
+		UE_LOG(LogTemp, Error, TEXT("[SkillProjectileTest] Failed to spawn projectile!"));
 	}
 }
 
-void ASpellProjectileTestActor::SpawnWithSpellData()
+void ASkillProjectileTestActor::SpawnWithSpellData()
 {
 	if (!TargetActor)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SpellProjectileTest] No TargetActor assigned!"));
+		UE_LOG(LogTemp, Error, TEXT("[SkillProjectileTest] No TargetActor assigned!"));
 		return;
 	}
 
 	if (!ProjectileClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SpellProjectileTest] No ProjectileClass assigned!"));
+		UE_LOG(LogTemp, Error, TEXT("[SkillProjectileTest] No ProjectileClass assigned!"));
 		return;
 	}
 
 	if (!TestSpell)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SpellProjectileTest] No TestSpell assigned - using SpawnTestProjectile instead"));
+		UE_LOG(LogTemp, Warning, TEXT("[SkillProjectileTest] No TestSpell assigned - using SpawnTestProjectile instead"));
 		SpawnTestProjectile();
 		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Spawning projectile with spell: %s"), *TestSpell->Name);
+	UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Spawning projectile with spell: %s"), *TestSpell->Name);
 
 	// Spawn projectile
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	ASpellProjectile* Projectile = GetWorld()->SpawnActor<ASpellProjectile>(
+	ASkillProjectile* Projectile = GetWorld()->SpawnActor<ASkillProjectile>(
 		ProjectileClass,
 		GetActorLocation(),
 		FRotator::ZeroRotator,
@@ -142,29 +142,29 @@ void ASpellProjectileTestActor::SpawnWithSpellData()
 		);
 
 		// Bind to events
-		Projectile->OnSpellImpact.AddDynamic(this, &ASpellProjectileTestActor::OnProjectileImpact);
-		Projectile->OnSpellDodged.AddDynamic(this, &ASpellProjectileTestActor::OnProjectileDodged);
+		Projectile->OnSkillImpact.AddDynamic(this, &ASkillProjectileTestActor::OnProjectileImpact);
+		Projectile->OnSkillDodged.AddDynamic(this, &ASkillProjectileTestActor::OnProjectileDodged);
 
-		UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Spell projectile spawned! Type=%d, Speed=%.1f, Radius=%.2f"),
+		UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Spell projectile spawned! Type=%d, Speed=%.1f, Radius=%.2f"),
 			(int32)TestSpell->DeliveryType, TestSpell->ProjectileSpeed, FinalImpactRadius);
 	}
 }
 
-void ASpellProjectileTestActor::SpawnBurst()
+void ASkillProjectileTestActor::SpawnBurst()
 {
 	if (!TargetActor || !ProjectileClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[SpellProjectileTest] Missing TargetActor or ProjectileClass!"));
+		UE_LOG(LogTemp, Error, TEXT("[SkillProjectileTest] Missing TargetActor or ProjectileClass!"));
 		return;
 	}
 
 	BurstCount = 3;
-	UE_LOG(LogTemp, Log, TEXT("[SpellProjectileTest] Starting burst of %d projectiles"), BurstCount);
+	UE_LOG(LogTemp, Log, TEXT("[SkillProjectileTest] Starting burst of %d projectiles"), BurstCount);
 	
 	SpawnNextBurst();
 }
 
-void ASpellProjectileTestActor::SpawnNextBurst()
+void ASkillProjectileTestActor::SpawnNextBurst()
 {
 	if (BurstCount <= 0) return;
 
@@ -177,7 +177,7 @@ void ASpellProjectileTestActor::SpawnNextBurst()
 		GetWorld()->GetTimerManager().SetTimer(
 			BurstTimerHandle,
 			this,
-			&ASpellProjectileTestActor::SpawnNextBurst,
+			&ASkillProjectileTestActor::SpawnNextBurst,
 			0.3f,
 			false
 		);
@@ -186,10 +186,10 @@ void ASpellProjectileTestActor::SpawnNextBurst()
 
 // ==================== EVENT HANDLERS ====================
 
-void ASpellProjectileTestActor::OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
+void ASkillProjectileTestActor::OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
 {
 	UE_LOG(LogTemp, Display, TEXT("========================================"));
-	UE_LOG(LogTemp, Display, TEXT("[SpellProjectileTest] IMPACT!"));
+	UE_LOG(LogTemp, Display, TEXT("[SkillProjectileTest] IMPACT!"));
 	UE_LOG(LogTemp, Display, TEXT("  Target: %s"), Target ? *Target->GetName() : TEXT("None"));
 	UE_LOG(LogTemp, Display, TEXT("  Location: %s"), *ImpactLocation.ToString());
 	UE_LOG(LogTemp, Display, TEXT("  Radius: %.2f"), ImpactRadius);
@@ -200,10 +200,10 @@ void ASpellProjectileTestActor::OnProjectileImpact(AActor* Target, FVector Impac
 	DrawDebugSphere(GetWorld(), ImpactLocation, ImpactRadius * 100.f, 16, FColor::Red, false, 3.0f);
 }
 
-void ASpellProjectileTestActor::OnProjectileDodged(AActor* Target, FVector ImpactLocation)
+void ASkillProjectileTestActor::OnProjectileDodged(AActor* Target, FVector ImpactLocation)
 {
 	UE_LOG(LogTemp, Display, TEXT("========================================"));
-	UE_LOG(LogTemp, Display, TEXT("[SpellProjectileTest] DODGED!"));
+	UE_LOG(LogTemp, Display, TEXT("[SkillProjectileTest] DODGED!"));
 	UE_LOG(LogTemp, Display, TEXT("  Target: %s"), Target ? *Target->GetName() : TEXT("None"));
 	UE_LOG(LogTemp, Display, TEXT("  Original Location: %s"), *ImpactLocation.ToString());
 	if (Target)
