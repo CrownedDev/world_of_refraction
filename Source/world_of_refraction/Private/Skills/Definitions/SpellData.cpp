@@ -4,6 +4,21 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Character/CharacterData.h"
 
+// ==================== MIGRATION ====================
+
+void USpellData::PostLoad()
+{
+    Super::PostLoad();
+
+    // D2: mirror the legacy montage into the unified base field. Triggered only
+    // while SkillMontage is unauthored; CastAnimation stays the runtime source
+    // of truth until the Stage 12 reader switch. Transient until resaved.
+    if (!SkillMontage && CastAnimation)
+    {
+        SkillMontage = CastAnimation;
+    }
+}
+
 // ==================== DAMAGE CALCULATIONS ====================
 
 int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods) const

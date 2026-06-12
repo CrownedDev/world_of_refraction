@@ -4,6 +4,21 @@
 #include "Equipment/Weapons/WeaponAttackData.h"
 #include "Equipment/Weapons/WeaponData.h"
 
+// ==================== MIGRATION ====================
+
+void UWeaponAttackData::PostLoad()
+{
+    Super::PostLoad();
+
+    // D2: mirror the legacy montage into the unified base field. Triggered only
+    // while SkillMontage is unauthored; AttackMontage stays the runtime source
+    // of truth until the Stage 12 reader switch. Transient until resaved.
+    if (!SkillMontage && AttackMontage)
+    {
+        SkillMontage = AttackMontage;
+    }
+}
+
 float UWeaponAttackData::CalculateAnimSpeed(float AnimationSpeedMultiplier) const
 {
     return BaseAnimSpeed * AnimationSpeedMultiplier;

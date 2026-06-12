@@ -20,6 +20,7 @@
 #include "CastableSkillDataBase.generated.h"
 
 class UCharacterData;
+class UAnimMontage;
 
 /**
  * UCastableSkillDataBase
@@ -90,6 +91,15 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery", meta = (ClampMin = "100.0"))
     float ProjectileSpeed = 1500.0f;
+
+    // ==================== ANIMATION ====================
+
+    /** The unified skill montage (D2) — the field the fused-montage runner
+     *  plays at Stage 12. Populated via PostLoad migration from the leaf
+     *  montage fields (CastAnimation / ExecutionMontage / AttackMontage) until
+     *  readers switch; the leaf fields stay runtime-authoritative until then. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    UAnimMontage *SkillMontage = nullptr;
 
     // ==================== REQUIREMENTS ====================
 

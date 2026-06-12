@@ -4,6 +4,21 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/CharacterData.h"
 
+// ==================== MIGRATION ====================
+
+void UAbilityData::PostLoad()
+{
+    Super::PostLoad();
+
+    // D2: mirror the legacy montage into the unified base field. Triggered only
+    // while SkillMontage is unauthored; ExecutionMontage stays the runtime
+    // source of truth until the Stage 12 reader switch. Transient until resaved.
+    if (!SkillMontage && ExecutionMontage)
+    {
+        SkillMontage = ExecutionMontage;
+    }
+}
+
 // ==================== DAMAGE CALCULATIONS ====================
 
 int32 UAbilityData::CalculateDamage(UCharacterData *Character, bool bIsInfused) const

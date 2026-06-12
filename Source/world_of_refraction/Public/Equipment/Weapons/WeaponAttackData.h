@@ -42,6 +42,9 @@ public:
 
     // ==================== ANIMATION ====================
 
+    /** DEPRECATED (D2): authored value mirrors to SkillMontage via PostLoad;
+     *  readers switch + DeprecatedProperty meta added at Stage 12. Still
+     *  runtime-authoritative — keep authoring here until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *AttackMontage = nullptr;
 
@@ -77,6 +80,11 @@ public:
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     FString GetAttackSummary() const;
+
+    // ==================== MIGRATION ====================
+
+    // Outside WITH_EDITOR — the D2 montage migration must run in all builds.
+    virtual void PostLoad() override;
 
     // ==================== EDITOR ====================
 

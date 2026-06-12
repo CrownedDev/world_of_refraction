@@ -56,6 +56,9 @@ public:
 
     // ==================== VISUALS ====================
 
+    /** DEPRECATED (D2): authored value mirrors to SkillMontage via PostLoad;
+     *  readers switch + DeprecatedProperty meta added at Stage 12. Still
+     *  runtime-authoritative — keep authoring here until then. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     UAnimMontage *CastAnimation = nullptr;
 
@@ -174,6 +177,11 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Construct", meta = (EditCondition = "bIsConstruct"))
     bool bSealsSpells = true;
+
+    // ==================== MIGRATION ====================
+
+    // Outside WITH_EDITOR — the D2 montage migration must run in all builds.
+    virtual void PostLoad() override;
 
     // ==================== EDITOR VALIDATION ====================
 
