@@ -465,6 +465,20 @@ private:
 	 *  (bWaitingForAnimationEnd gating) stays open until the return leg ends. */
 	bool bPlayingReturnMontage = false;
 
+	/** Start the montage chain for a skill: [RitualCastMontage] → SkillMontage
+	 *  (→ [ReturnMontage] via the montage-end handler). Presence-driven — a
+	 *  null RitualCastMontage starts straight on SkillMontage (SC9). */
+	void PlaySkillMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
+
+	/** True while the ritual lead-in plays — the montage-end handler chains
+	 *  into the stashed main montage instead of finishing the phase. */
+	bool bPlayingRitualLeadIn = false;
+
+	/** SkillMontage + rate stashed while the ritual lead-in plays. */
+	UPROPERTY()
+	UAnimMontage *PendingMainMontage = nullptr;
+	float PendingMainMontagePlayRate = 1.0f;
+
 	// ==================== SKILL EFFECT APPLICATION ====================
 
 	/** Apply all effects from an action's Effects[] array.

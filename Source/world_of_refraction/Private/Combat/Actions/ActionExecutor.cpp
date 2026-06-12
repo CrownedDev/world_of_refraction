@@ -2060,6 +2060,8 @@ void UActionExecutor::CancelAsyncAction()
 		PendingExecutionCharData = nullptr;
 	}
 	bPlayingReturnMontage = false;
+	bPlayingRitualLeadIn = false;
+	PendingMainMontage = nullptr;
 
 	// Close any open defense windows
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
@@ -2812,7 +2814,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlayActionMontageOnActor(Caster, Spell->SkillMontage, PlayRate);
+	PlaySkillMontageChain(Caster, Spell, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell animation %s at %.2fx"),
 		   *Spell->SkillMontage->GetName(), PlayRate);
@@ -3436,7 +3438,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlayActionMontageOnActor(User, Ability->SkillMontage, PlayRate);
+	PlaySkillMontageChain(User, Ability, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
 		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
@@ -3499,7 +3501,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlayActionMontageOnActor(Attacker, Attack->SkillMontage, PlayRate);
+	PlaySkillMontageChain(Attacker, Attack, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
 		   *Attack->SkillMontage->GetName(), PlayRate);
@@ -4377,6 +4379,35 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 
 	AActor *Actor = PendingExecutionActor;
 
+	// Ritual lead-in → SkillMontage transition (SC9) — first in the chain:
+	// [RitualCastMontage] → SkillMontage → [ReturnMontage]. The animation
+	// phase (bWaitingForAnimationEnd + bindings) stays open across all legs.
+	if (bPlayingRitualLeadIn)
+	{
+		bPlayingRitualLeadIn = false;
+		if (!bInterrupted && Actor && PendingMainMontage)
+		{
+			UAnimMontage *Main = PendingMainMontage;
+			const float Rate = PendingMainMontagePlayRate;
+			PendingMainMontage = nullptr;
+			TWeakObjectPtr<AActor> WeakActor = Actor;
+			// Next tick, not same-frame — the stance-resume stomp (spike finding).
+			GetWorld()->GetTimerManager().SetTimerForNextTick(
+				FTimerDelegate::CreateWeakLambda(this, [this, WeakActor, Main, Rate]()
+				{
+					if (bWaitingForAnimationEnd && WeakActor.IsValid())
+					{
+						PlayActionMontageOnActor(WeakActor.Get(), Main, Rate);
+					}
+				}));
+			UE_LOG(LogTemp, Log, TEXT("[Runner] Ritual lead-in ended - playing SkillMontage %s"),
+				   *Main->GetName());
+			return;
+		}
+		// Interrupted / lost actor — drop the stash and finish normally below.
+		PendingMainMontage = nullptr;
+	}
+
 	// ReturnMontage leg (Stage 12): a finished MAIN montage chains into the
 	// skill's ReturnMontage if authored; the animation phase stays open
 	// (bWaitingForAnimationEnd + the notify bindings stay live) until the
@@ -4560,6 +4591,30 @@ void UActionExecutor::UnbindCombatNotify(AActor *Actor)
 	{
 		CombatAnim->OnCombatNotify.RemoveDynamic(this, &UActionExecutor::OnCombatNotifyReceived);
 	}
+}
+
+void UActionExecutor::PlaySkillMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate)
+{
+	if (!Actor || !Skill)
+	{
+		return;
+	}
+
+	// Ritual lead-in (SC9): presence-driven — when authored it plays first and
+	// OnActionAnimationEnded chains into the stashed SkillMontage. Null = the
+	// chain starts on SkillMontage directly (today's behavior).
+	UAnimMontage *FirstMontage = Skill->SkillMontage;
+	if (Skill->RitualCastMontage)
+	{
+		bPlayingRitualLeadIn = true;
+		PendingMainMontage = Skill->SkillMontage;
+		PendingMainMontagePlayRate = PlayRate;
+		FirstMontage = Skill->RitualCastMontage;
+		UE_LOG(LogTemp, Log, TEXT("[Runner] Ritual lead-in %s before %s"),
+			   *FirstMontage->GetName(), *Skill->SkillMontage->GetName());
+	}
+
+	PlayActionMontageOnActor(Actor, FirstMontage, PlayRate);
 }
 
 const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role)

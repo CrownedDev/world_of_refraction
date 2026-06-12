@@ -114,6 +114,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *SkillMontage = nullptr;
 
+    /** Optional wind-up montage played BEFORE SkillMontage (the cast lead-in).
+     *  Null = skip straight to SkillMontage (opt-in, like ReturnMontage —
+     *  presence is the trigger, no flag/duration gate). Carries its own
+     *  UCombatNotify notifies like any montage. All three types inherit it.
+     *  Chain: [RitualCastMontage] → SkillMontage → [ReturnMontage]. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    UAnimMontage *RitualCastMontage = nullptr;
+
     /** Optional post-cast return montage — the runner plays it after
      *  SkillMontage IFF set (null = no return leg). Plays in-place this
      *  stage; warp-to-origin movement is the deferred movement arc. All
