@@ -101,6 +101,12 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character));
     Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character));
 
+    // D8: 0 = fires this turn; N = arms now, fires N turns ahead (8b/8c mechanism).
+    if (Spell->ActivationDelay > 0)
+    {
+        Output += FString::Printf(TEXT("  Activation Delay: %d turn(s)\n"), Spell->ActivationDelay);
+    }
+
     int32 Buildup = Spell->CalculateStatusBuildup(Character);
     if (Buildup > 0)
     {

@@ -57,6 +57,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseEnergyCost = 0;
 
+    /** Turns before this skill fires after arming. 0 = fires this turn (no
+     *  deferral). N = arms now, fires at the start of the turn N global turns
+     *  ahead (the deferral mechanism is D8 Stage 8b/8c). FIFO if multiple land
+     *  the same turn. Renamed/hoisted from SpellData.TurnCost (CoreRedirect);
+     *  old default-1 spell assets self-migrate to 0 via delta serialization. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats", meta = (ClampMin = "0"))
+    int32 ActivationDelay = 0;
+
     // ==================== EXECUTION ====================
 
     /** DESCRIPTIVE tag (D3): how this skill executes, for UI / AI filtering /

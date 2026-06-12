@@ -122,16 +122,22 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 		return FActionValidationResult(false, TEXT("Invalid action data"));
 	}
 
-	// Check if actor can act (not stunned)
-	if (!CanActorAct(Actor))
+	// D8 8c rev: a deferred fire is a committed last act — stun/silence gained
+	// after arming cannot stop it. Target validation below still applies: a
+	// ritual with no valid targets fizzles.
+	if (!Action.bIsDeferredFire)
 	{
-		return FActionValidationResult(false, TEXT("Cannot act (Stunned)"));
-	}
+		// Check if actor can act (not stunned)
+		if (!CanActorAct(Actor))
+		{
+			return FActionValidationResult(false, TEXT("Cannot act (Stunned)"));
+		}
 
-	// Check if actor can cast spells (not silenced)
-	if (Action.ActionType == EActionType::Spell && !CanActorCastSpells(Actor))
-	{
-		return FActionValidationResult(false, TEXT("Cannot cast spells (Silenced)"));
+		// Check if actor can cast spells (not silenced)
+		if (Action.ActionType == EActionType::Spell && !CanActorCastSpells(Actor))
+		{
+			return FActionValidationResult(false, TEXT("Cannot cast spells (Silenced)"));
+		}
 	}
 
 	// Check targets
@@ -140,12 +146,18 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 		return FActionValidationResult(false, TEXT("No targets selected"));
 	}
 
-	// Validate targets are alive
-	for (AActor *Target : Action.Targets)
+	// Validate targets are alive. Deferred fires bypass the strict
+	// any-target-dead rejection: FilterValidTargets in the execution path
+	// drops the dead and fires on survivors; zero survivors → fizzle there
+	// (single-target ritual whose target died → fizzles, as designed).
+	if (!Action.bIsDeferredFire)
 	{
-		if (!IsTargetAlive(Target))
+		for (AActor *Target : Action.Targets)
 		{
-			return FActionValidationResult(false, TEXT("Target is dead"));
+			if (!IsTargetAlive(Target))
+			{
+				return FActionValidationResult(false, TEXT("Target is dead"));
+			}
 		}
 	}
 
@@ -252,6 +264,13 @@ bool UActionExecutor::CanActorCastSpells(AActor *Actor) const
 
 int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const
 {
+	// D8: a deferred fire already paid its full cost at ARM — the fire-time
+	// resubmission is cost-free. Dormant until 8c sets the flag.
+	if (Action.bIsDeferredFire)
+	{
+		return 0;
+	}
+
 	UCharacterData *CharData = GetCharacterData(Actor);
 
 	switch (Action.ActionType)
@@ -475,6 +494,112 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 }
 
 // ========================================
+// DEFERRED ACTIVATION (D8)
+// ========================================
+
+int32 UActionExecutor::GetActionActivationDelay(AActor *Actor, const FAction &Action) const
+{
+	const UCastableSkillDataBase *Skill = nullptr;
+	switch (Action.ActionType)
+	{
+	case EActionType::Spell:
+		Skill = Action.SpellData;
+		break;
+	case EActionType::Ability:
+		Skill = Action.AbilityData;
+		break;
+	case EActionType::Attack:
+		Skill = Action.AttackData;
+		if (!Skill)
+		{
+			// Weapon-default attack: resolve read-only via the same chain
+			// ExecuteAttackAsync's fallback uses (OverrideAttack → weapon's
+			// WeaponAttack), so basic attacks can defer too.
+			if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			{
+				Skill = WeaponMgr->GetActiveAttack(Actor);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	return Skill ? Skill->ActivationDelay : 0;
+}
+
+bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Action, FOnActionComplete &OnComplete)
+{
+	const int32 Delay = GetActionActivationDelay(Actor, Action);
+	if (Delay <= 0 || Action.bIsDeferredFire)
+	{
+		// Regression guard: zero-delay actions and fire-time resubmissions
+		// never enter the deferral path.
+		return false;
+	}
+
+	// Freeze the intent: a weapon-default attack (null AttackData) resolves its
+	// effective attack NOW, so a weapon switch during the delay can't change
+	// what fires. Read-only — the same resolver ExecuteAttackAsync uses.
+	FAction ArmedAction = Action;
+	if (ArmedAction.ActionType == EActionType::Attack && !ArmedAction.AttackData)
+	{
+		if (UWeaponManager *WeaponMgr = GetWeaponManager())
+		{
+			ArmedAction.AttackData = WeaponMgr->GetActiveAttack(Actor);
+		}
+	}
+
+	// Arming consumes this turn's action and pays FULL costs now; the skill
+	// executes at fire time (8c) cost-free (bIsDeferredFire skips both paths).
+	const int32 EnergyCost = CalculateActionEnergyCost(Actor, ArmedAction);
+	if (!SpendEnergy(Actor, EnergyCost))
+	{
+		FActionResult FailResult;
+		FailResult.Executor = Actor;
+		FailResult.ActionType = Action.ActionType;
+		FailResult.bSuccess = false;
+		FailResult.ErrorMessage = TEXT("Failed to spend energy (arm)");
+		if (OnComplete.IsBound())
+		{
+			OnComplete.Execute(FailResult);
+		}
+		return true;
+	}
+
+	// ApplyCommitCosts stashes deferred infusion HP on the execution context —
+	// give it a minimal one, then settle the HP immediately: the arm IS the
+	// commit, no finalize is coming for this action.
+	FActionExecutionContext ArmContext;
+	ArmContext.Action = ArmedAction;
+	ArmContext.Executor = Actor;
+	ArmContext.bInProgress = true;
+	CurrentExecutionContext = ArmContext;
+	ApplyCommitCosts(Actor, ArmedAction);
+	ApplyPendingInfusionHPCost(Actor);
+	CurrentExecutionContext.Reset();
+
+	OnActionStarted.Broadcast(Actor, ArmedAction, EnergyCost);
+
+	UE_LOG(LogTemp, Log, TEXT("[Deferred] %s armed %s — fires in %d turn(s)"),
+		   *Actor->GetName(), *ArmedAction.GetActionName(), Delay);
+
+	// The orchestrator owns the queue (NOT TurnManager — its sim is replayed
+	// by belt preview) and registers via this broadcast.
+	OnActionDeferredArmed.Broadcast(Actor, ArmedAction, Delay);
+
+	FActionResult Result;
+	Result.Executor = Actor;
+	Result.ActionType = Action.ActionType;
+	Result.bSuccess = true;
+	Result.EnergySpent = EnergyCost;
+	if (OnComplete.IsBound())
+	{
+		OnComplete.Execute(Result);
+	}
+	return true;
+}
+
+// ========================================
 // EXECUTION - MAIN ENTRY POINT
 // ========================================
 
@@ -598,6 +723,14 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 		{
 			OnComplete.Execute(FailResult);
 		}
+		return;
+	}
+
+	// D8 Stage 8b: a skill with ActivationDelay > 0 ARMS instead of executing —
+	// costs paid now, queued on the orchestrator, fired in 8c. Zero-delay and
+	// fire-time resubmissions fall through to the normal path unchanged.
+	if (TryArmDeferredActivation(Actor, Action, OnComplete))
+	{
 		return;
 	}
 
@@ -1039,10 +1172,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
 
-	// Play animation
-	PlayAbilityAnimation(User, Ability, ActionMods);
-
-	// Get valid targets
+	// Get valid targets BEFORE animating — zero survivors fizzles cleanly
+	// without a wasted cast animation (matches the spell path's ordering).
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
 
 	if (ValidTargets.Num() == 0)
@@ -1052,6 +1183,9 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		FinalizeAsyncAction();
 		return;
 	}
+
+	// Play animation
+	PlayAbilityAnimation(User, Ability, ActionMods);
 
 	// Apply charge infusion status buildup (L1 = 1.25x, L2 = 0 — exclusive with damage)
 	float StatusMultiplier = GetAbilityChargeStatusMultiplier(Action.AbilityInfusionLevel);
@@ -1208,10 +1342,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
 
-	// Play animation
-	PlayAttackAnimation(Attacker, Attack, ActionMods);
-
-	// Get valid targets
+	// Get valid targets BEFORE animating — zero survivors fizzles cleanly
+	// without a wasted cast animation (matches the spell path's ordering).
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
 
 	if (ValidTargets.Num() == 0)
@@ -1221,6 +1353,9 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		FinalizeAsyncAction();
 		return;
 	}
+
+	// Play animation
+	PlayAttackAnimation(Attacker, Attack, ActionMods);
 
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Attacks pass the active weapon's PhysicalDamageType;
@@ -4417,6 +4552,13 @@ void UActionExecutor::ApplySkillEffects(
 void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 {
 	if (!Actor)
+	{
+		return;
+	}
+
+	// D8: a deferred fire already paid commit costs at ARM — skip on the
+	// fire-time resubmission. Dormant until 8c sets the flag.
+	if (Action.bIsDeferredFire)
 	{
 		return;
 	}

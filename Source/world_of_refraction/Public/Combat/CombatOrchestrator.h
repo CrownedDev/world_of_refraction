@@ -56,6 +56,26 @@ struct FCombatResult
 	AActor *LastActorStanding = nullptr;
 };
 
+/**
+ * One armed deferred activation (D8): a skill cast with ActivationDelay > 0.
+ * Costs were paid at arm; the FAction is the frozen intent (stats resolve at
+ * fire). Fired FIFO at turn start by the Stage 8c hook.
+ */
+USTRUCT()
+struct FDeferredActivation
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FAction Action;
+
+	UPROPERTY()
+	AActor *Caster = nullptr;
+
+	UPROPERTY()
+	int32 TurnsRemaining = 0;
+};
+
 class UNiagaraSystem;
 class USpellData;
 class ASpellProjectile;
@@ -580,6 +600,51 @@ private:
 
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
+
+	/** Armed deferred activations (D8). Lives HERE, not on TurnManager — its
+	 *  AdvanceSimState is replayed 16x per belt-preview rebuild, so a queue
+	 *  there would fire during preview. Fired once, for real, FIFO, in
+	 *  HandleTurnStarted (Stage 8c). Cleared on every combat-end path. */
+	UPROPERTY()
+	TArray<FDeferredActivation> DeferredActivations;
+
+	/** Bound to ActionExecutor::OnActionDeferredArmed — registers an armed
+	 *  skill in the queue. */
+	UFUNCTION()
+	void HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns);
+
+	/** Entries due THIS turn, moved out of DeferredActivations by
+	 *  TickDeferredActivations and consumed FIFO by the fire chain. */
+	UPROPERTY()
+	TArray<FDeferredActivation> DueDeferredFires;
+
+	/** Caster of the deferred fire currently executing — for the
+	 *  OnActionExecuted UI broadcast (the firing actor is the ritual's caster,
+	 *  not necessarily the turn owner). */
+	UPROPERTY()
+	AActor *CurrentDeferredFireCaster = nullptr;
+
+	/** Turn-start tick (8c): decrement EVERY queued entry (global countdown),
+	 *  move due entries (TurnsRemaining <= 0) into DueDeferredFires, FIFO. */
+	void TickDeferredActivations();
+
+	/** Fire the next due ritual via ExecuteActionAsync with bIsDeferredFire set
+	 *  (cost-free — paid at arm). Only drops casters ALREADY gone at turn start
+	 *  (removed in a prior turn) — rituals fire before this turn's DoT, so an
+	 *  about-to-die caster still fires. Drained (or empty) → the normal turn
+	 *  proceeds (ProceedWithTurnStart). Async-chained via
+	 *  HandleDeferredFireCompleted — never blocks. */
+	void FireNextDeferredActivation();
+
+	/** Completion of one deferred fire: broadcast for UI, divert to the normal
+	 *  end-of-combat flow if the ritual ended the fight, else chain the next. */
+	void HandleDeferredFireCompleted(const FActionResult &Result);
+
+	/** Normal turn-start flow AFTER rituals fire: start-of-turn effects (DoT),
+	 *  BD overflow, death check, turn broadcast, then RequestActionFromActor.
+	 *  Split from HandleTurnStarted (8c rev) so the deferred-fire chain can
+	 *  resume it once the due list drains. */
+	void ProceedWithTurnStart();
 
 	// ========================================
 	// TURN MANAGER EVENT HANDLERS

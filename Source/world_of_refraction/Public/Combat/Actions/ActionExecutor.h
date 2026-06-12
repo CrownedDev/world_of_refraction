@@ -66,6 +66,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHealingDone, AActor *, Healer,
 /** Broadcast when a target dies from action */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetKilled, AActor *, Killer, AActor *, Victim);
 
+/** Broadcast when a skill with ActivationDelay > 0 ARMS instead of executing
+ *  (D8). The orchestrator registers the deferred activation; firing is 8c. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionDeferredArmed, AActor *, Caster, const FAction &, Action, int32, DelayTurns);
+
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
@@ -304,6 +308,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnActionStarted OnActionStarted;
 
+	/** D8: a delayed skill armed (costs paid, queued on the orchestrator). */
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnActionDeferredArmed OnActionDeferredArmed;
+
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnActionCompleted OnActionCompleted;
 
@@ -376,6 +384,19 @@ private:
 	 *  plus the [TierGap] log line. Applied at the three assembly points as the
 	 *  FINAL multiplicative factor (B2). No channel → 1.0, damage unchanged. */
 	float ResolveTierGapMultiplier(AActor *Actor, const FAction &Action, const FString &ActionName) const;
+
+	// ==================== DEFERRED ACTIVATION (D8) ====================
+
+	/** The skill's ActivationDelay for this action (spell/ability/attack data).
+	 *  0 for non-castable action types. An attack with null AttackData resolves
+	 *  the effective attack read-only (active weapon's OverrideAttack/default —
+	 *  the same resolver ExecuteAttackAsync uses) so basic attacks can defer. */
+	int32 GetActionActivationDelay(AActor *Actor, const FAction &Action) const;
+
+	/** Stage 8b arm interception: pay costs now, broadcast OnActionDeferredArmed
+	 *  (orchestrator queues it), complete the turn WITHOUT executing the skill.
+	 *  Returns true if the action armed (caller returns immediately). */
+	bool TryArmDeferredActivation(AActor *Actor, const FAction &Action, FOnActionComplete &OnComplete);
 
 	// ==================== SPELL VFX NOTIFY STATE ====================
 

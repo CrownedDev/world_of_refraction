@@ -59,6 +59,14 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	UWeaponAttackData *AttackData = nullptr;
 
+	/** True only on the fire-time resubmission of a deferred activation (D8 —
+	 *  set by the Stage 8c fire path). Costs were paid at ARM: the cost paths
+	 *  (CalculateActionEnergyCost / ApplyCommitCosts) skip when this is set, and
+	 *  the arm interception ignores the action's ActivationDelay so the fire
+	 *  executes instead of re-arming. */
+	UPROPERTY()
+	bool bIsDeferredFire = false;
+
 	// ==================== INFUSION OPTIONS ====================
 
 	/** Selected infusion source - determines element and weapon stat trade-off

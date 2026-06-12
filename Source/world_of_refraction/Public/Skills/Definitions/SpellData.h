@@ -54,11 +54,6 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Requirements")
     UEvolutionItemData *RequiredEvolutionCrystal = nullptr;
 
-    // ==================== STATS ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats")
-    int32 TurnCost = 1; // Future: multi-turn casting
-
     // ==================== VISUALS ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
