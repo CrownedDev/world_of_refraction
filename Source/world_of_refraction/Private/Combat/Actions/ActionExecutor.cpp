@@ -2717,12 +2717,13 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	// Play rate = CalculateSpellSpeed() × ActionMods.SpellSpeed contribution.
-	float PlayRate = 1.0f;
+	// Play rate = BaseAnimSpeed × CalculateSpellSpeed() × ActionMods.SpellSpeed
+	// contribution — BaseAnimSpeed uniform across all three paths (D7).
+	float PlayRate = Spell->BaseAnimSpeed;
 	UCharacterData *CharData = GetCharacterData(Caster);
 	if (CharData)
 	{
-		PlayRate = CharData->CalculateSpellSpeed();
+		PlayRate *= CharData->CalculateSpellSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::SpellSpeed);
 
@@ -3172,10 +3173,11 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		return;
 	}
 
-	// Play rate = 1.0 × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
+	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed
+	// contribution — BaseAnimSpeed uniform across all three paths (D7), default 1.0.
 	// CalculateAnimationSpeed derives from the ActionSpeed sub-stat — same scaling channel
 	// as character movement. At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
-	float PlayRate = 1.0f;
+	float PlayRate = Ability->BaseAnimSpeed;
 	UCharacterData *CharData = GetCharacterData(User);
 	if (CharData)
 	{

@@ -48,9 +48,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *AttackMontage = nullptr;
 
-    /** Animation playback speed (1.0 = normal, affected by Animation Speed stat) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.5", ClampMax = "2.0"))
-    float BaseAnimSpeed = 1.0f;
+    // BaseAnimSpeed hoisted to UCastableSkillDataBase (D7) — same name/default/
+    // clamp, authored values load onto the inherited field (serialize-by-name).
 
     // ==================== MOVEMENT ====================
 

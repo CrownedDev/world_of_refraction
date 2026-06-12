@@ -101,6 +101,13 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *SkillMontage = nullptr;
 
+    /** Montage play-rate scalar (D7) — uniform across all three skill types;
+     *  stat scaling layers on top. 1.0 = no change (the regression guard).
+     *  Hoisted from WeaponAttackData; the runner plays SkillMontage at this
+     *  rate (Stage 12). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (ClampMin = "0.5", ClampMax = "2.0"))
+    float BaseAnimSpeed = 1.0f;
+
     // ==================== REQUIREMENTS ====================
 
     // ShowOnlyInnerProperties: inline the struct's fields under the category

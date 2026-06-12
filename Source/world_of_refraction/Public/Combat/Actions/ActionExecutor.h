@@ -340,12 +340,13 @@ public:
 	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage = 0);
 
 	/** Called when ability animation should play.
-	 *  Play rate = 1.0 × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	 *  (CalculateAnimationSpeed derives from the ActionSpeed sub-stat.) */
+	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
+	 *  (CalculateAnimationSpeed derives from the ActionSpeed sub-stat; BaseAnimSpeed is
+	 *  uniform across all three paths since D7.) */
 	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
 	/** Called when attack animation should play.
-	 *  Play rate = Attack->BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
+	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
 	 *  Preserves designer-tuned per-attack pacing; layers stat scaling on top. */
 	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
