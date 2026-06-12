@@ -311,8 +311,14 @@ Symmetric, both directions:
 high-tier action still out-damages a boosted low-tier one (higher base). Weak-through-strong = good
 *utility*; high-tier = raw *power*. Both viable; neither dominates.
 
-**Replaces** the hard `RequiredWeaponType` gate and the old flat affinity penalty — tier-gap is the
-"wrong fit = weaker" mechanic. The hard gate still goes (→ soft); tier-gap fills the role.
+**LOCKED refinement (type hard, tier soft):** weapon TYPE matching STAYS a hard gate —
+`RequiredWeaponType` enforced at `ValidateAbilities` / `GetValidationErrors` / `FAbilityCollection`.
+Tier-gap is the SOFT axis on TIER only: it replaced the flat-penalty *concept* on the tier axis;
+it did NOT soften the type gate.
+
+**STAGE 7 (D9) COMPLETE** — tier-gap shipped (commit 58dd504b: all three action types + AI parity)
+and satisfies D9 under this lock. No `PreferredWeapon`/`OffWeaponPenalty` field exists or should be
+built — tier-gap is the only soft axis.
 
 **Reuse:** mirrors the established tier-keyed table pattern (`GetSubstatBudget`/`GetBaseBreakChance`
 — inline switch in a `*Constants.h`). The damage multiplier is a tier-gap-keyed lookup; applies
@@ -359,9 +365,9 @@ skill. Different field, different owner.
 - **SFX array** — DEFERRED. Same pattern as VFX (sound + attach + index), would likely mirror
   VFX roles (Muzzle/Impact/Cosmetic) + a non-positional `TwoD` attach option. Not needed for the
   pitch demo; spec when audio work begins. The spike already has a throwaway `FSpikeSFXEntry`.
-- **`bRequiresDualWeapon`** — under soft-only weapon affinity, a dual-weapon ability used
-  one-handed is penalized not blocked; flag at migration if any are genuinely impossible
-  one-handed (animation needs two weapons) → that one edge may stay hard.
+- **`bRequiresDualWeapon`** — RESOLVED (stays hard). With weapon type locked as a hard gate,
+  this stays a HARD check like its parent (`LoadoutComponent.cpp:828`): a dual-only ability on a
+  single-wield weapon is blocked, not penalized.
 
 ---
 
