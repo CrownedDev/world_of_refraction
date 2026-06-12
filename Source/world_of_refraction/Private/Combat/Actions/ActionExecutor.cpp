@@ -41,6 +41,8 @@
 #include "Infusion/InfusionVFXComponent.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/FEquipmentStatBonus.h"
+#include "Combat/Damage/TierGapConstants.h"
+#include "Combat/Damage/TierGapDamageDebug.h"
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Combat/Grid/CombatMovementComponent.h"
@@ -339,6 +341,137 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	}
 
 	return 0;
+}
+
+// ========================================
+// TIER-GAP RESOLUTION (D9)
+// ========================================
+
+EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Action) const
+{
+	// Spell: the spell's own tier. Ability/attack: tier inherits from the active
+	// weapon. Same dispatch as the ApplyCommitCosts wear blocks (which keep
+	// their inline copies until the swap is approved separately).
+	if (Action.ActionType == EActionType::Spell && Action.SpellData)
+	{
+		return Action.SpellData->Tier;
+	}
+
+	if (UWeaponManager *WeaponMgr = GetWeaponManager())
+	{
+		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+		{
+			return Weapon->Tier;
+		}
+	}
+	return EItemTier::F_Tier;
+}
+
+TOptional<EItemTier> UActionExecutor::ResolveChannelTier(AActor *Actor, const FAction &Action) const
+{
+	// Attack/Ability channel through the active weapon.
+	if (Action.ActionType != EActionType::Spell)
+	{
+		if (UWeaponManager *WeaponMgr = GetWeaponManager())
+		{
+			if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
+			{
+				return Weapon->Tier;
+			}
+		}
+		return TOptional<EItemTier>(); // unarmed — no channel
+	}
+
+	switch (Action.SpellSource)
+	{
+	case ESpellSource::Innate:
+	// TODO: Item channel tier when spell items get tier data (consumption itself
+	// is still unimplemented — see ProcessPostCastBySource).
+	case ESpellSource::Item:
+		return TOptional<EItemTier>();
+
+	case ESpellSource::Evolution:
+	{
+		// Primary-slot evolution: same attachment read as the ApplyCommitCosts
+		// evolution block.
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		const FWeaponLoadoutEntry *ActiveWeaponLoadout = LC ? LC->GetActiveWeaponLoadout() : nullptr;
+		if (ActiveWeaponLoadout &&
+			ActiveWeaponLoadout->WeaponEntry.AttachedItem.IsEvolution() &&
+			ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Item)
+		{
+			return ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Item->Tier;
+		}
+		return TOptional<EItemTier>();
+	}
+
+	case ESpellSource::RingCrystal:
+	case ESpellSource::WeaponCrystal:
+	{
+		ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		UObject *Holder = LC ? LC->FindSpellCatalystHolder(Action.SpellData) : nullptr;
+		FRuntimeAttachedItem *Attachment = Holder ? LC->FindAttachedItemByHolder(Holder) : nullptr;
+		if (!Attachment || Attachment->IsEmpty())
+		{
+			return TOptional<EItemTier>();
+		}
+
+		// Fusion channels through the GEM half — same keying as the wear path.
+		// Broken is intentionally NOT excluded: crystals break at turn end, so
+		// the channel is intact for the cast being assembled.
+		if (Attachment->IsFusion())
+		{
+			return Attachment->Fusion.HasGemHalf()
+					   ? TOptional<EItemTier>(Attachment->Fusion.GemHalf().Tier)
+					   : TOptional<EItemTier>();
+		}
+		if (Attachment->IsCrystal())
+		{
+			return Attachment->Crystal.Id.Tier;
+		}
+		return TOptional<EItemTier>();
+	}
+	}
+
+	return TOptional<EItemTier>();
+}
+
+float UActionExecutor::GetTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const
+{
+	// Non-logging on purpose — the AI calls this once per candidate action while
+	// scoring. Execution-path logging lives in ResolveTierGapMultiplier.
+	const TOptional<EItemTier> ChannelTier = ResolveChannelTier(Actor, Action);
+	if (!ChannelTier.IsSet())
+	{
+		return TierGapDamage::MATCHED_TIER;
+	}
+	return TierGapDamage::GetTierGapDamageMultiplier(
+		ResolveActionTier(Actor, Action), ChannelTier.GetValue());
+}
+
+float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Action, const FString &ActionName) const
+{
+	// The APPLIED value comes from the shared accessor — the same one the AI
+	// preview uses — so real damage and AI estimates cannot diverge. The tiers
+	// are re-resolved below only to format the log line.
+	const float Multiplier = GetTierGapDamageMultiplier(Actor, Action);
+
+	const EItemTier ActionTier = ResolveActionTier(Actor, Action);
+	const TOptional<EItemTier> ChannelTier = ResolveChannelTier(Actor, Action);
+	if (!ChannelTier.IsSet())
+	{
+		UE_LOG(LogTemp, Display,
+			   TEXT("[TierGap] %s action=%s channel=NONE -> mult=1.00 (no channel, no scaling)"),
+			   *ActionName, *TierHelpers::GetTierName(ActionTier));
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display, TEXT("[TierGap] %s %s (applied)"),
+			   *ActionName,
+			   *UTierGapDamageDebug::GetMultiplierString(ActionTier, ChannelTier.GetValue()));
+	}
+
+	return Multiplier;
 }
 
 // ========================================
@@ -720,6 +853,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
+	// Tier-gap (B2): final multiplicative factor, stacking with the charge
+	// multiplier above. 1.0 (no channel / matched tier) leaves damage unchanged.
+	const float TierGapMult = ResolveTierGapMultiplier(Caster, Action, Spell->Name);
+	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
+
 	// Track status multiplier for later application
 	float StatusMultiplier = GetSpellChargeStatusMultiplier(Action.SpellInfusionLevel);
 
@@ -876,6 +1014,11 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	float DamageMultiplier = GetAbilityChargeDamageMultiplier(Action.AbilityInfusionLevel);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
+	// Tier-gap (B2): final multiplicative factor, stacking with the charge
+	// multiplier above (RequirementPenalty already sits inside CalculateDamage).
+	const float TierGapMult = ResolveTierGapMultiplier(User, Action, Ability->Name);
+	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
+
 	// Spell Size (fixed, no character scaling)
 	float AttackSize = 1.0f;
 
@@ -1016,6 +1159,10 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
 	const float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
 	int32 BaseDamage = FMath::RoundToInt(AttackBase);
+
+	// Tier-gap (B2): final multiplicative factor on the penalty-adjusted base.
+	const float TierGapMult = ResolveTierGapMultiplier(Attacker, Action, Attack->Name);
+	BaseDamage = FMath::RoundToInt(BaseDamage * TierGapMult);
 
 	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 

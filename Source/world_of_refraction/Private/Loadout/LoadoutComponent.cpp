@@ -1504,6 +1504,72 @@ ESpellSource ULoadoutComponent::ResolveSpellSource(USpellData *Spell) const
     return ESpellSource::Innate;
 }
 
+UObject *ULoadoutComponent::FindSpellCatalystHolder(USpellData *Spell) const
+{
+    if (!Spell)
+    {
+        return nullptr;
+    }
+
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return nullptr;
+    }
+
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+
+    // 1. Innate pool wins first (matches ResolveSpellSource precedence) — no
+    //    catalyst holder for the caster's own refraction or BD-pool spells.
+    if (Loadout.InnateSpells.Contains(Spell))
+    {
+        return nullptr;
+    }
+    for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+    {
+        if (Pool.Spells.Contains(Spell))
+        {
+            return nullptr;
+        }
+    }
+
+    // 2. Ring catalysts — primary ring (Generic/Caster) + Resonator ring loadout.
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
+    {
+        if (Loadout.PrimaryRing.GetAllSpells().Contains(Spell))
+        {
+            return Loadout.PrimaryRing.RingEntry.Ring;
+        }
+    }
+    for (const FRingLoadoutEntry &RingEntry : Loadout.RingLoadout)
+    {
+        if (RingEntry.IsValid() && RingEntry.GetAllSpells().Contains(Spell))
+        {
+            return RingEntry.RingEntry.Ring;
+        }
+    }
+
+    // 3. Weapon catalysts — primary weapon (when weapon-primary) + secondary
+    //    weapon (Generic only).
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
+    {
+        if (Loadout.PrimaryWeapon.GetAllSpells().Contains(Spell))
+        {
+            return Loadout.PrimaryWeapon.WeaponEntry.Weapon;
+        }
+    }
+    if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
+    {
+        if (Loadout.SecondaryWeapon.GetAllSpells().Contains(Spell))
+        {
+            return Loadout.SecondaryWeapon.WeaponEntry.Weapon;
+        }
+    }
+
+    // Evolution / Item / unmapped — no ring/weapon catalyst.
+    return nullptr;
+}
+
 TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;

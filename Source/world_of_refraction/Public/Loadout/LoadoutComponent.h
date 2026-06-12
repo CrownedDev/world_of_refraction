@@ -299,6 +299,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     ESpellSource ResolveSpellSource(USpellData *Spell) const;
 
+    /** Resolve which catalyst HOLDER (URingData* or UWeaponData*) grants a spell on
+     *  the active loadout. Walks the same precedence as ResolveSpellSource —
+     *  Innate (returns nullptr) → PrimaryRing → RingLoadout → PrimaryWeapon →
+     *  SecondaryWeapon — so the two always agree on which source wins. Returns
+     *  nullptr for Innate/BD-pool, Evolution, Item, and unmapped spells: those
+     *  have no ring/weapon catalyst. Pair with FindAttachedItemByHolder to reach
+     *  the slotted crystal (e.g. channel-tier resolution). */
+    UObject *FindSpellCatalystHolder(USpellData *Spell) const;
+
     /** Get spells from primary slot only (Ring or evolved Weapon) */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USpellData *> GetPrimarySlotSpells() const;

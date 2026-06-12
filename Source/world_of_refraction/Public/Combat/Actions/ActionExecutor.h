@@ -25,6 +25,7 @@
 #include "Infusion/InfusionCostHelper.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Inventory/ItemTier.h"
 #include "ActionExecutor.generated.h"
 
 class UCharacterDataComponent;
@@ -280,6 +281,13 @@ public:
 	/** Get the DamageCalculator subsystem */
 	UDamageCalculator *GetDamageCalculator() const;
 
+	/** Tier-gap damage multiplier for an action (D9): the action's own tier vs
+	 *  the channel it is used through. 1.0 when no channel resolves (innate/item
+	 *  spells, unarmed). Non-logging — safe for per-candidate AI scoring; the
+	 *  execution path logs via its private wrapper. Single source of truth for
+	 *  both real damage (B2 assembly points) and AI damage previews. */
+	float GetTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const;
+
 	/** Check if target is alive */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	bool IsTargetAlive(AActor *Target) const;
@@ -346,6 +354,28 @@ public:
 	void DebugForceResetAsync();
 
 private:
+	// ==================== TIER-GAP RESOLUTION (D9) ====================
+
+	/** The action's own tier: spell → SpellData->Tier; ability/attack → active
+	 *  weapon's Tier (F_Tier when unarmed). Shared extraction of the dispatch the
+	 *  ApplyCommitCosts wear blocks use — they keep their inline copies until the
+	 *  swap is approved separately. */
+	EItemTier ResolveActionTier(AActor *Actor, const FAction &Action) const;
+
+	/** The tier of the channel the action is used THROUGH: attack/ability →
+	 *  active weapon; spell → the catalyst crystal per Action.SpellSource
+	 *  (ring/weapon slotted crystal, fusion gem half, or evolution item). Unset =
+	 *  no channel (innate/item spells, unarmed) — callers skip scaling (1.0).
+	 *  Broken crystals still report their tier: breaks land at turn end, so the
+	 *  channel is intact for the cast being assembled. */
+	TOptional<EItemTier> ResolveChannelTier(AActor *Actor, const FAction &Action) const;
+
+	/** Execution-path wrapper around GetTierGapDamageMultiplier: same value
+	 *  (delegates for the math — real damage and AI previews share one source),
+	 *  plus the [TierGap] log line. Applied at the three assembly points as the
+	 *  FINAL multiplicative factor (B2). No channel → 1.0, damage unchanged. */
+	float ResolveTierGapMultiplier(AActor *Actor, const FAction &Action, const FString &ActionName) const;
+
 	// ==================== SPELL VFX NOTIFY STATE ====================
 
 	/** Cached spell data for notify-triggered VFX */

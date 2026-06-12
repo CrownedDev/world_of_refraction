@@ -724,6 +724,12 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
         Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
     }
 
+    // Tier-gap parity (Cluster D): the estimate sees the same multiplier
+    // execution applies at assembly (B2), resolved per-candidate from this
+    // spell's own SpellSource/catalyst. Non-logging accessor — no per-candidate
+    // Output Log spam.
+    Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
+
     return FMath::RoundToInt(Estimate);
 }
 
@@ -778,6 +784,11 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     {
         Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
     }
+
+    // Tier-gap parity (Cluster D): no-op today — abilities borrow the active
+    // weapon's tier for BOTH action and channel, so the gap is always 0. Kept so
+    // the estimate self-heals if abilities ever get their own tier.
+    Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
 
     return FMath::RoundToInt(Estimate);
 }
