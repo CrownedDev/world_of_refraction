@@ -56,8 +56,8 @@ FString USkillCastDebug::GetCastArrayString(const UCastableSkillDataBase *Skill)
         const FString TrailName = Entry.Trail.IsNull() ? TEXT("None") : Entry.Trail.GetAssetName();
 
         FString Line = FString::Printf(
-            TEXT("[%d] %s '%s' Size=%.2f TrailScale=%.2f Speed=%.1f Trail=%s Count=%d"),
-            i, *DeliveryName, *Entry.Label, Entry.Size, Entry.TrailScale,
+            TEXT("[%d] %s '%s' Size=%.2f VisualScale=%.2f Speed=%.1f Trail=%s Count=%d"),
+            i, *DeliveryName, *Entry.Label, Entry.Size, Entry.VisualScale,
             Entry.ProjectileSpeed, *TrailName, Entry.Count);
 
         if (Entry.DeliveryType == ESpellDeliveryType::Homing)

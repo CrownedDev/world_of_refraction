@@ -992,8 +992,16 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		}
 	}
 
-	// Spell size for VFX (BaseSize from SpellData, scaled by infusion)
-	float FinalSpellSize = Spell->BaseSize * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
+	// Spell size — D6 reader switch (SC6): the primary Cast entry's
+	// VisualScale (= old BaseSize for migrated content), scaled by infusion.
+	// VisualScale, NOT Size: Size is the hitbox (BaseSize×HitboxRatio) and
+	// would shrink every defense window ×0.8 — Size-keyed defense sizing is a
+	// banked future balance decision. Empty CastArray (necessarily all-default
+	// per the migration guard) → DEFAULT_SPELL_SIZE = the old BaseSize default.
+	const float BaseVisualScale = Spell->CastArray.Num() > 0
+									  ? Spell->CastArray[0].VisualScale
+									  : CombatConstants::DEFAULT_SPELL_SIZE;
+	float FinalSpellSize = BaseVisualScale * GetSpellInfusionSizeMultiplier(Action.SpellInfusionLevel);
 
 	// Per-action stat modifiers (Reality, Evolution, future buffs) — populated
 	// on the execution context by ExecuteActionAsync via ComputeActionStatModifiers.
@@ -3182,10 +3190,10 @@ void UActionExecutor::DispatchSpellCast(
 	const bool bIsBD = BDManager && BDManager->IsTransformed();
 
 	// Entry-sourced sizing. Migrated entries carry Size = BaseSize×HitboxRatio
-	// and TrailScale = BaseSize, so these reproduce the legacy
+	// and VisualScale = BaseSize, so these reproduce the legacy
 	// BaseSize×HitboxRatio×SpellSize / BaseSize×SpellSize numbers exactly.
 	const float FinalImpactRadius = Entry.Size * SpellSize;
-	const float FinalVisualScale = Entry.TrailScale * SpellSize;
+	const float FinalVisualScale = Entry.VisualScale * SpellSize;
 
 	// Targets — same resolution as SpawnSpellVFX.
 	TArray<AActor *> Targets;

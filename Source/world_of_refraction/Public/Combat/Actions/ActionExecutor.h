@@ -960,7 +960,7 @@ protected:
 	/** Entry-based delivery dispatch (D6 Stage 12) — the ONE spawn site both
 	 *  trigger paths share (UCombatNotify Family=Cast AND the legacy
 	 *  SpellRelease name-notify). Sizing comes from the ENTRY (Size = hitbox,
-	 *  TrailScale = visual) × the infusion SpellSize multiplier — for migrated
+	 *  VisualScale = visual) × the infusion SpellSize multiplier — for migrated
 	 *  content this reproduces the legacy BaseSize math exactly. Count>1
 	 *  staggers via the burst chain. */
 	void DispatchSpellCast(

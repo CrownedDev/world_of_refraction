@@ -116,7 +116,7 @@ public:
     // ==================== SIZE ====================
 
     /** Base VFX scale - set to match Niagara system's intended size
-     *  DEPRECATED (D6): migrates to CastArray via PostLoad (TrailScale =
+     *  DEPRECATED (D6): migrates to CastArray via PostLoad (VisualScale =
      *  BaseSize, Size = BaseSize × HitboxRatio); readers switch (incl. the
      *  defense-window sizing) + DeprecatedProperty meta at Stage 12. Still
      *  runtime-authoritative. */

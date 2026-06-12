@@ -14,6 +14,14 @@
 
 namespace CombatConstants
 {
+    // ==================== SPELL SIZE DEFAULTS (D6 Stage 12) ====================
+    // Empty-CastArray fallbacks. EXACT by construction: the Stage 11 PostLoad
+    // migration creates an entry whenever ANY delivery field is non-default,
+    // so an empty-CastArray spell necessarily carries the old defaults
+    // (BaseSize 1.0 / HitboxRatio 0.8) — these reproduce them.
+    constexpr float DEFAULT_SPELL_SIZE = 1.0f;         // old BaseSize default (visual / defense seed)
+    constexpr float DEFAULT_SPELL_HITBOX_RATIO = 0.8f; // old HitboxRatio default
+
     // ==================== WORLD STAT BONUSES ====================
     // Per-pillar scaling rates — applied by GetEffectiveMind/Body/Spirit as
     // BasePillar × (1 + WorldLevel × <PillarScalingBonus>). Split out of the

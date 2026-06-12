@@ -1,8 +1,8 @@
 // SkillCastEntry.h
 // One self-contained delivery in a skill's Cast array (D6). Index-ordered:
 // a UCombatNotify (Family=Cast, Index=N) fires entry N — array position IS
-// identity. Size is the MECHANICAL hitbox, shaped by DeliveryType; visual
-// scale travels with the visual (TrailScale here, Scale on VFX entries).
+// identity. Size is the MECHANICAL hitbox, shaped by DeliveryType; VisualScale
+// is the delivery's overall visual size (Scale on VFX entries for those).
 
 #pragma once
 
@@ -46,7 +46,7 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
 
     /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile/Homing/
      *  Beam = moving collision radius, AOE = static ground radius. Never the
-     *  visual (that's TrailScale / the VFX entries' Scale). */
+     *  visual (that's VisualScale / the VFX entries' Scale). */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
     float Size = 1.0f;
 
@@ -57,9 +57,12 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast")
     TSoftObjectPtr<UNiagaraSystem> Trail;
 
-    /** VISUAL scale of the Trail — cosmetic only, never the hitbox (D6). */
+    /** Overall VISUAL size of this delivery (feeds the defense-window size,
+     *  muzzle scale, dispatch radius multiplier, and trail) — NOT trail-
+     *  specific (Trail above is the VFX itself). Cosmetic axis; Size is the
+     *  mechanical hitbox (D6). */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
-    float TrailScale = 1.0f;
+    float VisualScale = 1.0f;
 
     /** Homing tracking strength: 0 = no tracking, 1 = instant turn. */
     UPROPERTY(EditAnywhere, Category = "Cast",

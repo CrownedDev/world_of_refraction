@@ -49,7 +49,7 @@ void USpellData::PostLoad()
     // class default (delta serialization can't tell authored-default from
     // untouched — a fully-default spell stays empty until Stage 12 treats
     // empty CastArray as "loose defaults"). Size carries today's ACTUAL
-    // hitbox (BaseSize × HitboxRatio) and TrailScale the visual scale —
+    // hitbox (BaseSize × HitboxRatio) and VisualScale the visual scale —
     // straight BaseSize→Size would inflate every hitbox by 1/HitboxRatio.
     // SpellVFX migrates HERE as the entry's Trail (deferred from Stage 10).
     // Loose fields stay runtime-authoritative until the Stage 12 reader
@@ -74,7 +74,7 @@ void USpellData::PostLoad()
             Entry.DeliveryType = DeliveryType;
             Entry.ProjectileSpeed = ProjectileSpeed;
             Entry.Size = BaseSize * HitboxRatio;
-            Entry.TrailScale = BaseSize;
+            Entry.VisualScale = BaseSize;
             Entry.Trail = SpellVFX;
             Entry.HomingStrength = HomingStrength;
             Entry.BeamDuration = BeamDuration;
