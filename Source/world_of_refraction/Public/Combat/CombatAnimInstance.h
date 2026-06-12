@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "Combat/CombatNotify.h" // ECombatNotifyFamily for the typed delegate
 #include "CombatAnimInstance.generated.h"
 
 class UCharacterDataComponent;
@@ -63,6 +64,14 @@ public:
 
     UPROPERTY(BlueprintAssignable, Category = "Combat")
     FOnActionNotify OnActionNotify;
+
+    /** Production notify contract (Stage 2): UCombatNotify broadcasts its
+     *  family + index here. The runner binds at Stage 12; coexists with the
+     *  name-based OnActionNotify path until then. */
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnCombatNotify, ECombatNotifyFamily, Family, int32, Index);
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat")
+    FOnCombatNotify OnCombatNotify;
 
     // ==================== MOVEMENT MONTAGE ====================
 
