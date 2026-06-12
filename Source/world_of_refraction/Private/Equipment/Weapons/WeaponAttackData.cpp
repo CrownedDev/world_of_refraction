@@ -19,11 +19,6 @@ void UWeaponAttackData::PostLoad()
     }
 }
 
-float UWeaponAttackData::CalculateAnimSpeed(float AnimationSpeedMultiplier) const
-{
-    return BaseAnimSpeed * AnimationSpeedMultiplier;
-}
-
 FString UWeaponAttackData::GetAttackSummary() const
 {
     FString Summary;
@@ -66,26 +61,16 @@ EDataValidationResult UWeaponAttackData::IsDataValid(FDataValidationContext &Con
                                      "HitCount above 2 is unusual for attacks."));
     }
 
-    // Animation validation
-    if (AttackMontage == nullptr)
+    // Animation validation — SkillMontage is the unified field (D2 reader
+    // switch); PostLoad mirrors the legacy AttackMontage into it, so a null
+    // here means neither was authored.
+    if (SkillMontage == nullptr)
     {
-        Context.AddWarning(FText::FromString(TEXT("No attack animation assigned")));
+        Context.AddWarning(FText::FromString(TEXT("No attack animation assigned (SkillMontage)")));
     }
 
     return Result;
 }
-
-bool UWeaponAttackData::CanEditChange(const FProperty *InProperty) const
-{
-    if (InProperty)
-    {
-        const FName PropertyName = InProperty->GetFName();
-        if (PropertyName == GET_MEMBER_NAME_CHECKED(UCastableSkillDataBase, DeliveryType) ||
-            PropertyName == GET_MEMBER_NAME_CHECKED(UCastableSkillDataBase, ProjectileSpeed))
-        {
-            return false;
-        }
-    }
-    return Super::CanEditChange(InProperty);
-}
+// CanEditChange override removed (Stage 12 SC7) — DeliveryType/ProjectileSpeed
+// are DeprecatedProperty now, hidden from the panel everywhere.
 #endif

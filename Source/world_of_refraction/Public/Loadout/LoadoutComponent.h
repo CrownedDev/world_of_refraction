@@ -429,9 +429,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     UWeaponAttackData *GetCurrentAttack() const;
 
-    /** Get current attack montage */
-    UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
-    UAnimMontage *GetCurrentAttackMontage() const;
+    // GetCurrentAttackMontage deleted (Stage 12 SC7) — superseded by
+    // SkillMontage on the attack data; zero C++ callers, BP scan clean.
 
     // ==================== SPELL ACCESS ====================
 

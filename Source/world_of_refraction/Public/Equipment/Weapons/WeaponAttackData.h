@@ -42,10 +42,10 @@ public:
 
     // ==================== ANIMATION ====================
 
-    /** DEPRECATED (D2): authored value mirrors to SkillMontage via PostLoad;
-     *  readers switch + DeprecatedProperty meta added at Stage 12. Still
-     *  runtime-authoritative — keep authoring here until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
+    /** DEPRECATED (D2, meta'd Stage 12 SC7): load-only — readers use
+     *  SkillMontage; only the PostLoad mirror still reads this. Hard-delete
+     *  at the post-SC8 resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (DeprecatedProperty))
     UAnimMontage *AttackMontage = nullptr;
 
     // BaseAnimSpeed hoisted to UCastableSkillDataBase (D7) — same name/default/
@@ -74,8 +74,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Attack")
     bool IsMultiHit() const { return HitCount > 1; }
 
-    UFUNCTION(BlueprintPure, Category = "Attack")
-    float CalculateAnimSpeed(float AnimationSpeedMultiplier) const;
+    // CalculateAnimSpeed deleted (Stage 12 SC7) — superseded by the D7
+    // BaseAnimSpeed direct read; zero C++ callers, BP binary-scan clean.
 
     UFUNCTION(BlueprintPure, Category = "Attack")
     FString GetAttackSummary() const;
@@ -89,8 +89,7 @@ public:
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-
-    /** Hide DeliveryType/ProjectileSpeed in the editor — attacks don't use projectile delivery. */
-    virtual bool CanEditChange(const FProperty *InProperty) const override;
+    // CanEditChange hiding override removed (SC7) — the delivery fields are
+    // DeprecatedProperty now, hidden everywhere.
 #endif
 };

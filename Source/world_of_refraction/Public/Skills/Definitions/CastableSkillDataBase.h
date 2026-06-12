@@ -81,23 +81,19 @@ public:
 
     // ==================== DELIVERY ====================
 
-    /**
-     * How the skill travels from user to target.
-     * DEPRECATED (D6): migrates to CastArray (spells mirror via PostLoad;
-     * abilities author entries directly); readers switch + DeprecatedProperty
-     * meta at Stage 12. Still runtime-authoritative until then.
-     * Visibility is controlled by subclass-specific EditCondition meta:
-     *   - AbilityData: visible when ExecutionType == Ranged
-     *   - SpellData:   always visible
-     *   - WeaponAttackData: hidden (handled by subclass override)
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery")
+    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — delivery is
+     *  per-entry on CastArray; only the migration, the empty-CastArray
+     *  fallback dispatch, and the async-decision fallback still read this.
+     *  (The AbilityData/WeaponAttackData CanEditChange hiding overrides were
+     *  removed — DeprecatedProperty hides it everywhere.) Hard-delete at the
+     *  post-SC8 resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
     ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
 
-    /** DEPRECATED (D6): migrates to CastArray (per-entry speed); readers
-     *  switch + DeprecatedProperty meta at Stage 12. Still runtime-
-     *  authoritative until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery", meta = (ClampMin = "100.0"))
+    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — per-entry on
+     *  CastArray; only the migration + empty-CastArray fallback still read
+     *  this. Hard-delete at the post-SC8 resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
     float ProjectileSpeed = 1500.0f;
 
     /** Cast deliveries (D6). INDEX-ORDERED: a UCombatNotify (Family=Cast,

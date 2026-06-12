@@ -56,80 +56,66 @@ public:
 
     // ==================== VISUALS ====================
 
-    /** DEPRECATED (D2): authored value mirrors to SkillMontage via PostLoad;
-     *  readers switch + DeprecatedProperty meta added at Stage 12. Still
-     *  runtime-authoritative — keep authoring here until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    /** DEPRECATED (D2, meta'd Stage 12 SC7): load-only — readers use
+     *  SkillMontage; only the PostLoad mirror still reads this. Hard-delete
+     *  at the post-SC8 resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Visuals", meta = (DeprecatedProperty))
     UAnimMontage *CastAnimation = nullptr;
 
-    /** Main spell VFX (projectile traveling, AOE expanding, etc.)
-     *  DEPRECATED (D6): migrates to CastArray (the entry's Trail) via
-     *  PostLoad; readers switch + DeprecatedProperty meta at Stage 12. Still
-     *  runtime-authoritative — keep authoring here until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — became the Cast
+     *  entry's Trail; readers use the entry (empty-CastArray fallback + the
+     *  PostLoad migration still read this). Hard-delete post-SC8. */
+    UPROPERTY(BlueprintReadOnly, Category = "Visuals", meta = (DeprecatedProperty))
     UNiagaraSystem *SpellVFX = nullptr;
 
-    /** Impact/explosion VFX (optional - plays on hit)
-     *  DEPRECATED (D5): mirrors to VFXArray (Role=Impact) via PostLoad;
-     *  readers switch + DeprecatedProperty meta at Stage 12. Still
-     *  runtime-authoritative — keep authoring here until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    /** DEPRECATED (D5, meta'd Stage 12 SC7): load-only — readers use the
+     *  VFXArray Impact-role entry (per-role fallback + PostLoad migration
+     *  still read this). Hard-delete post-SC8. */
+    UPROPERTY(BlueprintReadOnly, Category = "Visuals", meta = (DeprecatedProperty))
     UNiagaraSystem *ImpactVFX = nullptr;
 
-    /** Muzzle/cast flash VFX (optional - plays at caster on cast)
-     *  DEPRECATED (D5): mirrors to VFXArray (Role=Muzzle) via PostLoad;
-     *  readers switch + DeprecatedProperty meta at Stage 12. Still
-     *  runtime-authoritative — keep authoring here until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    /** DEPRECATED (D5, meta'd Stage 12 SC7): load-only — readers use the
+     *  VFXArray Muzzle-role entry (per-role fallback + PostLoad migration
+     *  still read this). Hard-delete post-SC8. */
+    UPROPERTY(BlueprintReadOnly, Category = "Visuals", meta = (DeprecatedProperty))
     UNiagaraSystem *MuzzleVFX = nullptr;
 
     // ==================== DELIVERY (spell-specific extensions) ====================
 
-    /** Homing tracking strength: 0 = no tracking, 1 = instant turn (Homing only)
-     *  DEPRECATED (D6): migrates to CastArray via PostLoad; readers switch +
-     *  DeprecatedProperty meta at Stage 12. Still runtime-authoritative. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
-                      EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
+    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — per-entry on
+     *  CastArray; only the migration + empty-CastArray fallback read this.
+     *  Hard-delete post-SC8. */
+    UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
     float HomingStrength = 0.5f;
 
-    /** Beam duration in seconds (Beam only)
-     *  DEPRECATED (D6): migrates to CastArray via PostLoad; readers switch +
-     *  DeprecatedProperty meta at Stage 12. Still runtime-authoritative. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
-                      EditConditionHides, ClampMin = "0.1"))
+    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — per-entry on
+     *  CastArray; only the migration + empty-CastArray fallback read this.
+     *  Hard-delete post-SC8. */
+    UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
     float BeamDuration = 1.0f;
 
-    /** Seconds between damage ticks while the beam is active (Beam only).
-     *  DEPRECATED (D6): migrates to CastArray via PostLoad; readers switch +
-     *  DeprecatedProperty meta at Stage 12. Still runtime-authoritative.
-     *  TickCount = max(1, RoundToInt(BeamDuration / BeamTickInterval)).
-     *  BaseDamage is the total dealt across all ticks; per-tick = BaseDamage /
-     *  TickCount with the integer remainder distributed across the first
-     *  `BaseDamage % TickCount` ticks so the total stays exact. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
-                      EditConditionHides, ClampMin = "0.01"))
+    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — per-entry on
+     *  CastArray; only the migration + empty-CastArray fallback read this.
+     *  Hard-delete post-SC8. (Tick math doc lives on FSkillCastEntry now.) */
+    UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
     float BeamTickInterval = 0.5f;
 
     // ==================== SIZE ====================
 
-    /** Base VFX scale - set to match Niagara system's intended size
-     *  DEPRECATED (D6): migrates to CastArray via PostLoad (VisualScale =
-     *  BaseSize, Size = BaseSize × HitboxRatio); readers switch (incl. the
-     *  defense-window sizing) + DeprecatedProperty meta at Stage 12. Still
-     *  runtime-authoritative. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size",
-              meta = (ClampMin = "0.1"))
+    /** DEPRECATED (D6 Stage 12 SC6): load-only — migrated to CastArray
+     *  (VisualScale = BaseSize, Size = BaseSize × HitboxRatio) and all
+     *  production readers re-pointed; only the PostLoad migration and the
+     *  empty-CastArray loose fallback still read it. Hard-delete (with the
+     *  migration block) after the post-SC8 spell-asset resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Size", meta = (DeprecatedProperty))
     float BaseSize = 1.0f;
 
-    /** Hitbox as percentage of visual (0.8 = hitbox is 80% of visual, more forgiving)
-     *  DEPRECATED (D6): folded into the CastArray entry's Size (= BaseSize ×
-     *  HitboxRatio) via PostLoad; readers switch + DeprecatedProperty meta at
-     *  Stage 12. Still runtime-authoritative. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size",
-              meta = (ClampMin = "0.5", ClampMax = "1.2"))
+    /** DEPRECATED (D6 Stage 12 SC6): load-only — folded into the CastArray
+     *  entry's Size (= BaseSize × HitboxRatio) and all production readers
+     *  re-pointed; only the PostLoad migration and the empty-CastArray loose
+     *  fallback still read it. Hard-delete (with the migration block) after
+     *  the post-SC8 spell-asset resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Size", meta = (DeprecatedProperty))
     float HitboxRatio = 0.8f;
 
     // ==================== DEFENSE HELPERS ====================

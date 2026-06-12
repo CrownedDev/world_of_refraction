@@ -62,11 +62,10 @@ public:
 
     // ==================== VISUALS ====================
 
-    /** Animation to play during ability execution.
-     *  DEPRECATED (D2): authored value mirrors to SkillMontage via PostLoad;
-     *  readers switch + DeprecatedProperty meta added at Stage 12. Still
-     *  runtime-authoritative — keep authoring here until then. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
+    /** DEPRECATED (D2, meta'd Stage 12 SC7): load-only — readers use
+     *  SkillMontage; only the PostLoad mirror still reads this. Hard-delete
+     *  at the post-SC8 resave bake. */
+    UPROPERTY(BlueprintReadOnly, Category = "Visuals", meta = (DeprecatedProperty))
     UAnimMontage *ExecutionMontage = nullptr;
 
     // ==================== DAMAGE CALCULATIONS ====================
@@ -133,8 +132,7 @@ public:
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-
-    /** Hide DeliveryType/ProjectileSpeed in editor when not in Ranged mode. */
-    virtual bool CanEditChange(const FProperty *InProperty) const override;
+    // CanEditChange hiding override removed (SC7) — the delivery fields are
+    // DeprecatedProperty now, hidden everywhere.
 #endif
 };

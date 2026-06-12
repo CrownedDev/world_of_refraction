@@ -151,7 +151,19 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
 
     if (ExecutionType == EAbilityExecutionType::Ranged)
     {
-        if (ProjectileSpeed < 100.0f)
+        // D6: Cast entries are authoritative when authored; the loose field
+        // (deprecated, load-only) is the legacy fallback check.
+        if (CastArray.Num() > 0)
+        {
+            for (const FSkillCastEntry &Entry : CastArray)
+            {
+                if (Entry.ProjectileSpeed < 100.0f)
+                {
+                    Context.AddWarning(FText::FromString(TEXT("Ranged ability Cast entry has very slow projectile speed")));
+                }
+            }
+        }
+        else if (ProjectileSpeed < 100.0f)
         {
             Context.AddWarning(FText::FromString(TEXT("Ranged ability has very slow projectile speed")));
         }
@@ -163,30 +175,16 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
         Context.AddWarning(FText::FromString(TEXT("Ability has no damage and no effects - is this intentional?")));
     }
 
-    if (!ExecutionMontage)
+    // SkillMontage is the unified field (D2 reader switch); PostLoad mirrors
+    // the legacy ExecutionMontage into it, so a null here means neither was
+    // authored.
+    if (!SkillMontage)
     {
-        Context.AddWarning(FText::FromString(TEXT("No ExecutionMontage assigned")));
+        Context.AddWarning(FText::FromString(TEXT("No montage assigned (SkillMontage)")));
     }
 
     return Result;
 }
-
-bool UAbilityData::CanEditChange(const FProperty *InProperty) const
-{
-    const bool bSuper = Super::CanEditChange(InProperty);
-    if (!bSuper || !InProperty)
-    {
-        return bSuper;
-    }
-
-    // Hide Delivery fields for Melee abilities (DeliveryType/ProjectileSpeed live on the base).
-    const FName PropertyName = InProperty->GetFName();
-    if (PropertyName == GET_MEMBER_NAME_CHECKED(UCastableSkillDataBase, DeliveryType) ||
-        PropertyName == GET_MEMBER_NAME_CHECKED(UCastableSkillDataBase, ProjectileSpeed))
-    {
-        return ExecutionType == EAbilityExecutionType::Ranged;
-    }
-
-    return true;
-}
+// CanEditChange override removed (Stage 12 SC7) — DeliveryType/ProjectileSpeed
+// are DeprecatedProperty now, hidden from the panel everywhere.
 #endif

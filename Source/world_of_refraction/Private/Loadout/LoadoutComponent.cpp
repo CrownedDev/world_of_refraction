@@ -2456,12 +2456,6 @@ UWeaponAttackData *ULoadoutComponent::GetCurrentAttack() const
     return WeaponEntry->WeaponEntry.Weapon ? WeaponEntry->WeaponEntry.Weapon->WeaponAttack : nullptr;
 }
 
-UAnimMontage *ULoadoutComponent::GetCurrentAttackMontage() const
-{
-    UWeaponAttackData *Attack = GetCurrentAttack();
-    return Attack ? Attack->AttackMontage : nullptr;
-}
-
 // ==================== SPELL ACCESS ====================
 
 TArray<USpellData *> ULoadoutComponent::GetWeaponResonateSpells() const
