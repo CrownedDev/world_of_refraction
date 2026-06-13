@@ -8,7 +8,6 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/Texture2D.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
-#include "Character/MovementData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -53,11 +52,7 @@ public:
 
     // ==================== MOVEMENT ====================
 
-    /** How the attacker approaches the target (nullptr = use character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement")
-    UMovementData *ApproachData = nullptr;
-
-    /** Distance from target to stop and execute attack (units) */
+    /** Distance from target to stop and execute — the warp striking offset (units) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
     float ExecutionRange = 100.0f;
 

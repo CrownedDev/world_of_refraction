@@ -19,7 +19,6 @@
 #include "Infusion/EInfusionSourceOption.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/Grid/CombatMovementComponent.h"
-#include "Character/MovementData.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Infusion/InfusionCostHelper.h"
@@ -51,6 +50,22 @@ struct FPendingDefenseContext;
 class UCombatAnimInstance;
 class UCastableSkillDataBase;
 class UMotionWarpingComponent;
+
+// ========================================
+// MONTAGE CHAIN
+// ========================================
+
+/** Leg of the explicit execution montage chain (Option B):
+ *  [Ritual] → Skill → [Return] → Done. None = no chain active. Internal
+ *  runner state, not Blueprint-exposed. */
+enum class EMontagePhase : uint8
+{
+	None,
+	Ritual,
+	Skill,
+	Return,
+	Done
+};
 
 // ========================================
 // DELEGATES
@@ -467,23 +482,25 @@ private:
 	 *  (warned) — e.g. Target attach with no valid target. */
 	bool ResolveVFXAttachLocation(EVFXAttach Attach, FName SocketName, int32 Index, FVector &OutLoc) const;
 
-	/** True while the post-cast ReturnMontage leg plays — the animation phase
-	 *  (bWaitingForAnimationEnd gating) stays open until the return leg ends. */
-	bool bPlayingReturnMontage = false;
+	/** Current leg of the explicit montage chain (Option B). OnActionAnimationEnded
+	 *  reads this to advance Ritual → Skill → Return → Done; finalize runs only on
+	 *  the Done transition (FinishMontageChain). Replaces the old
+	 *  bPlayingRitualLeadIn / bPlayingReturnMontage flag pair. */
+	EMontagePhase MontagePhase = EMontagePhase::None;
 
-	/** Start the montage chain for a skill: [RitualCastMontage] → SkillMontage
-	 *  (→ [ReturnMontage] via the montage-end handler). Presence-driven — a
-	 *  null RitualCastMontage starts straight on SkillMontage (SC9). */
-	void PlaySkillMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
+	/** Play-rate carried across the chain — ritual + skill play at this rate; the
+	 *  return leg plays at 1.0. Set by BeginMontageChain. */
+	float PendingMontagePlayRate = 1.0f;
 
-	/** True while the ritual lead-in plays — the montage-end handler chains
-	 *  into the stashed main montage instead of finishing the phase. */
-	bool bPlayingRitualLeadIn = false;
-
-	/** SkillMontage + rate stashed while the ritual lead-in plays. */
-	UPROPERTY()
-	UAnimMontage *PendingMainMontage = nullptr;
-	float PendingMainMontagePlayRate = 1.0f;
+	/** Explicit montage chain (Option B): [RitualCastMontage] → SkillMontage →
+	 *  [ReturnMontage], each step named + logged, advanced by the montage-end
+	 *  dispatcher. Presence-driven — null ritual/return legs skip to the next
+	 *  step. BeginMontageChain is the entry (replaces PlaySkillMontageChain). */
+	void BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
+	void PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill);
+	void PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill);
+	void PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill);
+	void FinishMontageChain(AActor *Actor);
 
 	// ==================== SKILL EFFECT APPLICATION ====================
 
@@ -701,35 +718,21 @@ private:
 	FTimerHandle AsyncTimeoutHandle;
 
 	// ========================================
-	// Movement BINDING
+	// ASYNC EXECUTION STATE
 	// ========================================
 
-	/** Handle for approach complete delegate binding */
-	FDelegateHandle MovementCompleteHandle;
-
-	/** Cached actor for approach completion */
+	/** Cached actor for the in-flight async action. */
 	UPROPERTY()
 	AActor *PendingExecutionActor = nullptr;
 
-	/** Cached character data for approach completion */
+	/** Cached character data for the in-flight async action. */
 	UPROPERTY()
 	UCharacterData *PendingExecutionCharData = nullptr;
 
-	/** Bind to movement component's OnMovementComplete */
-	void BindMovementComplete(AActor *Actor);
-
-	/** Unbind from movement component */
-	void UnbindMovementComplete(AActor *Actor);
-
-	/** Called when Movement completes - executes the actual action */
-	UFUNCTION()
-	void OnMovementComplete();
-
-	/** Movement-independent "execution begins" (SC2.5): start-facing (nearest
-	 *  living enemy), notify/anim-end binding, dispatch to the three
-	 *  Execute*Async paths, failsafe timer. Approach-less actions enter here
-	 *  directly from ExecuteActionAsync; melee-with-ApproachData enters via
-	 *  OnMovementComplete after the approach leg. */
+	/** Execution begins (W3): start-facing (nearest living enemy), approach-warp
+	 *  target, notify/anim-end binding, dispatch to the three Execute*Async
+	 *  paths, failsafe timer. ALL action types enter here directly from
+	 *  ExecuteActionAsync — there is no separate approach leg. */
 	void BeginSkillExecution(AActor *Actor);
 
 private:
@@ -839,19 +842,12 @@ private:
 		int32 FinalDamage,
 		int32 NumTargets) const;
 
-	// ==================== RETURN MOVEMENT TRACKING ====================
+	// ==================== ASYNC COMPLETION ====================
 
-	/** Track if we're waiting for return movement */
-	bool bWaitingForReturn = false;
-
-	/** Cached result to send after return completes */
+	/** Cached result sent when the action completes. */
 	FActionResult PendingFinalResult;
 
-	/** Called when return movement completes */
-	UFUNCTION()
-	void OnReturnComplete();
-
-	/** Final completion after return (or immediate if no return needed) */
+	/** Final completion — fires the async callback + completion broadcasts. */
 	void CompleteAsyncActionFinal(AActor *Executor);
 
 	/**
@@ -911,10 +907,7 @@ private:
 	void ProcessForbiddenElementCast(AActor *Actor, ESpellElement Element, float BaseDamage);
 
 	// ==================== MOVEMENT INTEGRATION ====================
-	/** Get approach data from action data */
-	UMovementData *GetMovementData(const FAction &Action) const;
-
-	/** Get execution range from action data */
+	/** Get execution range from action data (warp striking offset) */
 	float GetExecutionRange(const FAction &Action) const;
 
 	/** Get movement component from actor */

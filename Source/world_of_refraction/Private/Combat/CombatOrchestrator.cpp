@@ -400,13 +400,19 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 	}
 	else if (Action.ActionType == EActionType::Attack && Action.AttackData)
 	{
-		// Attacks with movement data need async
-		bRequiresAsync = (Action.AttackData->ApproachData != nullptr);
+		// Has a montage → async (W3): the runner owns the montage chain + warp +
+		// defense window. Replaces the old ApproachData gate — movement no longer
+		// decides async; the presence of an animation to play does.
+		bRequiresAsync = (Action.AttackData->SkillMontage != nullptr ||
+						  Action.AttackData->RitualCastMontage != nullptr ||
+						  Action.AttackData->ReturnMontage != nullptr);
 	}
 	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
 	{
-		// Abilities with movement data need async
-		bRequiresAsync = Action.AbilityData->RequiresApproach();
+		// Has a montage → async (W3): same rule as attacks (see above).
+		bRequiresAsync = (Action.AbilityData->SkillMontage != nullptr ||
+						  Action.AbilityData->RitualCastMontage != nullptr ||
+						  Action.AbilityData->ReturnMontage != nullptr);
 	}
 
 	if (bRequiresAsync)

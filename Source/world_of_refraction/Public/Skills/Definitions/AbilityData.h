@@ -8,7 +8,6 @@
 #include "Skills/Definitions/CastableSkillDataBase.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Combat/CombatConstants.h"
-#include "Character/MovementData.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
 #if WITH_EDITOR
@@ -49,11 +48,6 @@ public:
     // ExecutionType hoisted to UCastableSkillDataBase (D3 descriptive tag).
 
     // --- Melee Only ---
-
-    /** How the user approaches the target (Melee only, nullptr = use character default) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Melee",
-              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Melee", EditConditionHides))
-    UMovementData *ApproachData = nullptr;
 
     /** Distance from target to stop and execute ability (Melee only) */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Melee",
@@ -118,10 +112,6 @@ public:
     /** Is this a support ability (no damage, has buff effects)? */
     UFUNCTION(BlueprintPure, Category = "Ability|Execution")
     bool IsSupportAbility() const { return BaseDamage == 0 && HasBuffEffects(); }
-
-    /** Does this ability require approaching the target? */
-    UFUNCTION(BlueprintPure, Category = "Ability|Execution")
-    bool RequiresApproach() const { return AbilityExecutionTypeHelper::RequiresApproach(ExecutionType); }
 
     // ==================== MIGRATION ====================
 

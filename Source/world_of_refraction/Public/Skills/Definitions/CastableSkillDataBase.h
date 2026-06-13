@@ -72,10 +72,10 @@ public:
 
     /** DESCRIPTIVE tag (D3): how this skill executes, for UI / AI filtering /
      *  categorization — uniform across abilities, spells, and weapon attacks.
-     *  Still read by the legacy approach path (RequiresApproach/IsMelee) until
-     *  the fused-montage runner owns movement (D4); the unhook is runner-gated.
-     *  Default Melee preserves existing ability assets (serialize-by-name);
-     *  USpellData overrides to Ranged in its constructor. */
+     *  Movement is owned by the runner's montage chain + warp (W3); this tag no
+     *  longer gates an approach. IsMelee() still reads it for the melee
+     *  ExecutionRange (warp striking offset). Default Melee preserves existing
+     *  ability assets (serialize-by-name); USpellData overrides to Ranged. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution")
     EAbilityExecutionType ExecutionType = EAbilityExecutionType::Melee;
 

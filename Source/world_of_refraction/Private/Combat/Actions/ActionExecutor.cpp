@@ -770,10 +770,9 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Check for Broken Darkness break triggers
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
 
-	// Start Movement (if applicable)
+	// Primary target for the execution-start snapshot. Approach travel is now
+	// the skill montage's root motion (warped) — no lerp, no MovementData.
 	AActor *PrimaryTarget = Action.Targets.Num() > 0 ? Action.Targets[0] : nullptr;
-	UMovementData *MovementData = GetMovementData(Action);
-	float ExecutionRange = GetExecutionRange(Action);
 
 	// Cache for approach completion callback
 	PendingExecutionActor = Actor;
@@ -829,32 +828,21 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 			   ActionMods.SpellDamage, ActionMods.StatusMultiplier, ActionMods.ActionSpeed);
 	}
 
-	UCombatMovementComponent *Movement = GetMovementComponent(Actor);
-
-	// Movement-independent execution start (SC2.5): approach-less actions
-	// (all spells, ranged abilities, attacks without ApproachData) skip the
-	// StartApproach round-trip — the movement component only records the
-	// Executing state (so the return-leg cleanup behaves identically), then
-	// execution begins directly. Melee-with-ApproachData keeps the movement
-	// leg; BeginSkillExecution fires on its completion.
-	if (!MovementData || !Movement)
+	// Execution start (W3): ALL action types take one path — record the
+	// Executing-state origin snapshot (the warp origin), then begin the skill.
+	// No lerp-approach branch: the skill montage's root motion (warped, if the
+	// montage carries a window) carries melee to the target; the ReturnMontage
+	// carries it back. Un-warped montages attack in place (the interim).
+	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
 	{
-		if (Movement)
-		{
-			Movement->EnterExecutingState(PrimaryTarget, CachedArenaCenter);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No CombatMovementComponent on %s - executing immediately"),
-				   *Actor->GetName());
-		}
-		BeginSkillExecution(Actor);
-		return;
+		Movement->EnterExecutingState(PrimaryTarget, CachedArenaCenter);
 	}
-
-	// Melee with approach data — bind movement complete and start approach
-	BindMovementComplete(Actor);
-	Movement->StartApproach(PrimaryTarget, MovementData, ExecutionRange, CachedArenaCenter, ActionMods);
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No CombatMovementComponent on %s - executing immediately"),
+			   *Actor->GetName());
+	}
+	BeginSkillExecution(Actor);
 }
 
 // ========================================
@@ -1925,49 +1913,17 @@ void UActionExecutor::FinalizeAsyncAction()
 	// Clear context now (action is done, just waiting for return)
 	CurrentExecutionContext.Reset();
 
-	// Signal movement component to start return FIRST
+	// Return already happened (W3): the montage chain's ReturnMontage (via
+	// PlayReturnStep + warp) ran INSIDE the animation phase, before finalize —
+	// bWaitingForAnimationEnd spanned it. SignalActionComplete is now just the
+	// slim per-action state reset; there is no movement travel to wait for, so
+	// finalize falls straight to completion.
 	if (Executor)
 	{
 		SignalActionComplete(Executor);
-
-		// NOW check if return movement started
-		UCombatMovementComponent *Movement = GetMovementComponent(Executor);
-		if (Movement && Movement->GetMovementState() == ECombatMovementState::Returning)
-		{
-			// Return is in progress - wait for it
-			bWaitingForReturn = true;
-			Movement->OnMovementComplete.AddDynamic(this, &UActionExecutor::OnReturnComplete);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Waiting for return movement to complete"));
-			return; // Don't fire callback yet!
-		}
 	}
 
-	// No return needed (or no executor) - complete immediately
 	CompleteAsyncActionFinal(Executor);
-}
-
-void UActionExecutor::OnReturnComplete()
-{
-	if (!bWaitingForReturn)
-	{
-		return;
-	}
-
-	bWaitingForReturn = false;
-
-	// Unbind
-	if (PendingExecutionActor)
-	{
-		UCombatMovementComponent *Movement = GetMovementComponent(PendingExecutionActor);
-		if (Movement)
-		{
-			Movement->OnMovementComplete.RemoveDynamic(this, &UActionExecutor::OnReturnComplete);
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Return complete - firing completion callback"));
-
-	CompleteAsyncActionFinal(PendingExecutionActor);
 }
 
 void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
@@ -2051,18 +2007,16 @@ void UActionExecutor::CancelAsyncAction()
 	BurstSpawnQueue.Empty();
 	ActiveBurstSpell = nullptr;
 
-	// Unbind approach delegate
+	// Unbind animation + notify spine bindings
 	if (PendingExecutionActor)
 	{
-		UnbindMovementComplete(PendingExecutionActor);
 		UnbindActionAnimationEnd(PendingExecutionActor);
 		UnbindCombatNotify(PendingExecutionActor);
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
 	}
-	bPlayingReturnMontage = false;
-	bPlayingRitualLeadIn = false;
-	PendingMainMontage = nullptr;
+	MontagePhase = EMontagePhase::None;
+	PendingMontagePlayRate = 1.0f;
 
 	// Close any open defense windows
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
@@ -2815,7 +2769,7 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlaySkillMontageChain(Caster, Spell, PlayRate);
+	BeginMontageChain(Caster, Spell, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing spell animation %s at %.2fx"),
 		   *Spell->SkillMontage->GetName(), PlayRate);
@@ -3439,7 +3393,7 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlaySkillMontageChain(User, Ability, PlayRate);
+	BeginMontageChain(User, Ability, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
 		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
@@ -3502,7 +3456,7 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		PlayRate = FMath::Max(0.1f, PlayRate);
 	}
 
-	PlaySkillMontageChain(Attacker, Attack, PlayRate);
+	BeginMontageChain(Attacker, Attack, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
 		   *Attack->SkillMontage->GetName(), PlayRate);
@@ -4128,29 +4082,6 @@ bool UActionExecutor::CanUseSpell(AActor *Actor, USpellData *Spell) const
 
 // ==================== MOVEMENT INTEGRATION ====================
 
-UMovementData *UActionExecutor::GetMovementData(const FAction &Action) const
-{
-	switch (Action.ActionType)
-	{
-	case EActionType::Attack:
-		return Action.AttackData ? Action.AttackData->ApproachData : nullptr;
-
-	case EActionType::Ability:
-		// Only return movement data for Melee abilities
-		if (Action.AbilityData && Action.AbilityData->IsMelee())
-		{
-			return Action.AbilityData->ApproachData;
-		}
-		return nullptr;
-
-	case EActionType::Spell:
-		return nullptr; // Spells are always ranged
-
-	default:
-		return nullptr;
-	}
-}
-
 float UActionExecutor::GetExecutionRange(const FAction &Action) const
 {
 	switch (Action.ActionType)
@@ -4185,52 +4116,6 @@ void UActionExecutor::SignalActionComplete(AActor *Actor)
 	{
 		Movement->OnActionExecutionComplete();
 	}
-}
-
-// ========================================
-// Movement BINDING
-// ========================================
-
-void UActionExecutor::BindMovementComplete(AActor *Actor)
-{
-	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
-	{
-		// Unbind any existing
-		UnbindMovementComplete(Actor);
-
-		// Bind to approach complete
-		Movement->OnMovementComplete.AddDynamic(this, &UActionExecutor::OnMovementComplete);
-
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Bound to OnMovementComplete for %s"), *Actor->GetName());
-	}
-}
-
-void UActionExecutor::UnbindMovementComplete(AActor *Actor)
-{
-	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
-	{
-		Movement->OnMovementComplete.RemoveDynamic(this, &UActionExecutor::OnMovementComplete);
-	}
-}
-
-void UActionExecutor::OnMovementComplete()
-{
-	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnMovementComplete called but no active context"));
-		return;
-	}
-
-	// Approach leg done — unbind and hand off to the movement-independent start.
-	if (PendingExecutionActor)
-	{
-		UnbindMovementComplete(PendingExecutionActor);
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Approach complete - executing %s"),
-		   *CurrentExecutionContext->Action.GetActionName());
-
-	BeginSkillExecution(PendingExecutionActor);
 }
 
 void UActionExecutor::BeginSkillExecution(AActor *Actor)
@@ -4409,10 +4294,10 @@ void UActionExecutor::UnbindActionAnimationEnd(AActor *Actor)
 
 void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted)
 {
-	// ADD THIS BEFORE the bWaitingForAnimationEnd check:
-	UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] OnActionAnimationEnded called - bWaitingForAnimationEnd: %s, PendingActor: %s"),
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] OnActionAnimationEnded - bWaitingForAnimationEnd: %s, PendingActor: %s, Phase: %d"),
 		   bWaitingForAnimationEnd ? TEXT("TRUE") : TEXT("FALSE"),
-		   PendingExecutionActor ? *PendingExecutionActor->GetName() : TEXT("NULL"));
+		   PendingExecutionActor ? *PendingExecutionActor->GetName() : TEXT("NULL"),
+		   (int32)MontagePhase);
 
 	if (!bWaitingForAnimationEnd)
 	{
@@ -4420,121 +4305,58 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	}
 
 	AActor *Actor = PendingExecutionActor;
+	UCastableSkillDataBase *Skill = GetCurrentSkillData();
 
-	// Ritual lead-in → SkillMontage transition (SC9) — first in the chain:
-	// [RitualCastMontage] → SkillMontage → [ReturnMontage]. The animation
-	// phase (bWaitingForAnimationEnd + bindings) stays open across all legs.
-	if (bPlayingRitualLeadIn)
+	// Lost actor/skill or interrupted → close the chain immediately (finalize with
+	// the facing reassert). Matches today's interrupted/dropped-actor paths, which
+	// skipped the remaining legs and fell straight through to finalize.
+	if (bInterrupted || !Actor || !Skill)
 	{
-		bPlayingRitualLeadIn = false;
-		if (!bInterrupted && Actor && PendingMainMontage)
-		{
-			UAnimMontage *Main = PendingMainMontage;
-			const float Rate = PendingMainMontagePlayRate;
-			PendingMainMontage = nullptr;
-			TWeakObjectPtr<AActor> WeakActor = Actor;
-			// Next tick, not same-frame — the stance-resume stomp (spike finding).
-			GetWorld()->GetTimerManager().SetTimerForNextTick(
-				FTimerDelegate::CreateWeakLambda(this, [this, WeakActor, Main, Rate]()
-				{
-					if (bWaitingForAnimationEnd && WeakActor.IsValid())
-					{
-						PlayActionMontageOnActor(WeakActor.Get(), Main, Rate);
-					}
-				}));
-			UE_LOG(LogTemp, Log, TEXT("[Runner] Ritual lead-in ended - playing SkillMontage %s"),
-				   *Main->GetName());
-			return;
-		}
-		// Interrupted / lost actor — drop the stash and finish normally below.
-		PendingMainMontage = nullptr;
+		FinishMontageChain(Actor);
+		return;
 	}
 
-	// ReturnMontage leg (Stage 12): a finished MAIN montage chains into the
-	// skill's ReturnMontage if authored; the animation phase stays open
-	// (bWaitingForAnimationEnd + the notify bindings stay live) until the
-	// return leg ends and this handler fires again.
-	if (bPlayingReturnMontage)
+	// Advance the explicit chain. Chained montages play NEXT-TICK (not same-frame):
+	// the anim instance resumes stance on montage end and would stomp a same-frame
+	// action montage (spike finding). The first montage played immediately from
+	// BeginMontageChain; only these transitions are deferred.
+	switch (MontagePhase)
 	{
-		bPlayingReturnMontage = false; // return leg done — finish normally below
-	}
-	else if (!bInterrupted && Actor)
+	case EMontagePhase::Ritual:
 	{
-		if (UCastableSkillDataBase *Skill = GetCurrentSkillData())
-		{
-			if (Skill->ReturnMontage)
+		UE_LOG(LogTemp, Log, TEXT("[Montage] Ritual ended - advancing to Skill"));
+		TWeakObjectPtr<AActor> WeakActor = Actor;
+		GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
 			{
-				bPlayingReturnMontage = true;
-				UAnimMontage *Return = Skill->ReturnMontage;
-				TWeakObjectPtr<AActor> WeakActor = Actor;
-
-				// Warp return leg (W1): retarget "Warp" to the origin snapshot
-				// — a ReturnMontage with a Warp window travels back to the
-				// grid slot; without one it plays in place as before.
-				if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+				if (bWaitingForAnimationEnd && WeakActor.IsValid())
 				{
-					if (Movement->HasGridPosition())
-					{
-						if (UMotionWarpingComponent *Warp = GetOrCreateWarpComponent(Actor))
-						{
-							Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
-								CombatConstants::WARP_TARGET_NAME,
-								Movement->GetGridPosition(), Movement->GetGridRotation());
-							UE_LOG(LogTemp, Log, TEXT("[Warp] return target %s"),
-								   *Movement->GetGridPosition().ToCompactString());
-						}
-					}
+					PlaySkillStep(WeakActor.Get(), GetCurrentSkillData());
 				}
-				// Next tick, not same-frame: the anim instance resumes stance on
-				// montage end and stomps a same-frame action montage (spike finding).
-				GetWorld()->GetTimerManager().SetTimerForNextTick(
-					FTimerDelegate::CreateWeakLambda(this, [this, WeakActor, Return]()
-					{
-						if (bPlayingReturnMontage && WeakActor.IsValid())
-						{
-							PlayActionMontageOnActor(WeakActor.Get(), Return, 1.0f);
-						}
-					}));
-				UE_LOG(LogTemp, Log, TEXT("[Runner] Main montage ended - playing ReturnMontage %s"),
-					   *Return->GetName());
-				return;
-			}
-		}
+			}));
+		return;
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended%s - finalizing"),
-		   bInterrupted ? TEXT(" (interrupted)") : TEXT(""));
-
-	// Montage-end facing reassert — same one rule (nearest living enemy).
-	// CachedArenaCenter, not ZeroVector: the no-enemies fallback faces the
-	// arena center, not world origin.
-	if (Actor)
+	case EMontagePhase::Skill:
 	{
-		UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
-		if (Grid)
-		{
-			Grid->UpdateActorFacing(Actor, CachedArenaCenter);
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Restored facing for %s after animation"),
-				   *Actor->GetName());
-		}
+		UE_LOG(LogTemp, Log, TEXT("[Montage] Skill ended - advancing to Return"));
+		TWeakObjectPtr<AActor> WeakActor = Actor;
+		GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
+			{
+				if (bWaitingForAnimationEnd && WeakActor.IsValid())
+				{
+					PlayReturnStep(WeakActor.Get(), GetCurrentSkillData());
+				}
+			}));
+		return;
 	}
 
-	// Unbind action animation + runner notify spine
-	if (Actor)
-	{
-		UnbindActionAnimationEnd(Actor);
-		UnbindCombatNotify(Actor);
+	case EMontagePhase::Return:
+	default:
+		FinishMontageChain(Actor);
+		return;
 	}
-
-	// Cleanup spell notify binding
-	if (PendingSpellCaster)
-	{
-		UnbindSpellNotify(PendingSpellCaster);
-		ClearPendingSpellData();
-	}
-
-	// Animation done — gate on defenses too. TryFinalize fires only if defenses already resolved.
-	TryFinalizeAsyncAction();
 }
 
 void UActionExecutor::BindSpellNotify(AActor *Actor)
@@ -4675,28 +4497,129 @@ UMotionWarpingComponent *UActionExecutor::GetOrCreateWarpComponent(AActor *Actor
 	return Warp;
 }
 
-void UActionExecutor::PlaySkillMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate)
+void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate)
 {
 	if (!Actor || !Skill)
 	{
 		return;
 	}
 
-	// Ritual lead-in (SC9): presence-driven — when authored it plays first and
-	// OnActionAnimationEnded chains into the stashed SkillMontage. Null = the
-	// chain starts on SkillMontage directly (today's behavior).
-	UAnimMontage *FirstMontage = Skill->SkillMontage;
-	if (Skill->RitualCastMontage)
+	// Entry to the explicit chain (Option B). The first montage plays IMMEDIATELY
+	// (here, via PlayRitualStep or its skip-to-skill); every montage-end transition
+	// is scheduled NEXT-TICK by the dispatcher (the stance-resume stomp avoidance).
+	PendingMontagePlayRate = PlayRate;
+	PlayRitualStep(Actor, Skill);
+}
+
+void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill)
+{
+	if (!Actor || !Skill)
 	{
-		bPlayingRitualLeadIn = true;
-		PendingMainMontage = Skill->SkillMontage;
-		PendingMainMontagePlayRate = PlayRate;
-		FirstMontage = Skill->RitualCastMontage;
-		UE_LOG(LogTemp, Log, TEXT("[Runner] Ritual lead-in %s before %s"),
-			   *FirstMontage->GetName(), *Skill->SkillMontage->GetName());
+		return;
 	}
 
-	PlayActionMontageOnActor(Actor, FirstMontage, PlayRate);
+	// Presence-driven: a null RitualCastMontage skips straight to the skill leg.
+	if (Skill->RitualCastMontage)
+	{
+		MontagePhase = EMontagePhase::Ritual;
+		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayRitual %s"), *Skill->RitualCastMontage->GetName());
+		PlayActionMontageOnActor(Actor, Skill->RitualCastMontage, PendingMontagePlayRate);
+		return;
+	}
+
+	PlaySkillStep(Actor, Skill);
+}
+
+void UActionExecutor::PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill)
+{
+	if (!Actor || !Skill)
+	{
+		return;
+	}
+
+	// Always SkillMontage — bIsDeferredFire gates validation/cost, not montage
+	// choice; there is no ResolveActiveMontage.
+	MontagePhase = EMontagePhase::Skill;
+	UE_LOG(LogTemp, Log, TEXT("[Montage] PlaySkill %s"),
+		   Skill->SkillMontage ? *Skill->SkillMontage->GetName() : TEXT("None"));
+	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
+}
+
+void UActionExecutor::PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill)
+{
+	if (!Actor || !Skill)
+	{
+		return;
+	}
+
+	// Presence-driven: no ReturnMontage → finalize now (finalize-after-skill).
+	if (!Skill->ReturnMontage)
+	{
+		FinishMontageChain(Actor);
+		return;
+	}
+
+	MontagePhase = EMontagePhase::Return;
+
+	// Warp return leg (W1): retarget "Warp" to the origin snapshot — a ReturnMontage
+	// with a Warp window travels back to the grid slot; without one it plays in
+	// place. Must run BEFORE the montage plays.
+	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	{
+		if (Movement->HasGridPosition())
+		{
+			if (UMotionWarpingComponent *Warp = GetOrCreateWarpComponent(Actor))
+			{
+				Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
+					CombatConstants::WARP_TARGET_NAME,
+					Movement->GetGridPosition(), Movement->GetGridRotation());
+				UE_LOG(LogTemp, Log, TEXT("[Warp] return target %s"),
+					   *Movement->GetGridPosition().ToCompactString());
+			}
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
+	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
+}
+
+void UActionExecutor::FinishMontageChain(AActor *Actor)
+{
+	// Last leg done — close the animation phase. bWaitingForAnimationEnd is cleared
+	// HERE (inside UnbindActionAnimationEnd) and nowhere else, so finalize can only
+	// run after the final montage. The notify spine is unbound here too.
+	MontagePhase = EMontagePhase::Done;
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended - finalizing"));
+
+	// Montage-end facing reassert — nearest living enemy (arena center when none).
+	if (Actor)
+	{
+		UCombatGridSubsystem *Grid = GetWorld()->GetGameInstance()->GetSubsystem<UCombatGridSubsystem>();
+		if (Grid)
+		{
+			Grid->UpdateActorFacing(Actor, CachedArenaCenter);
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Restored facing for %s after animation"),
+				   *Actor->GetName());
+		}
+	}
+
+	// Unbind action animation + runner notify spine
+	if (Actor)
+	{
+		UnbindActionAnimationEnd(Actor);
+		UnbindCombatNotify(Actor);
+	}
+
+	// Cleanup spell notify binding
+	if (PendingSpellCaster)
+	{
+		UnbindSpellNotify(PendingSpellCaster);
+		ClearPendingSpellData();
+	}
+
+	// Animation done — gate on defenses too. TryFinalize fires only if defenses already resolved.
+	TryFinalizeAsyncAction();
 }
 
 const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role)

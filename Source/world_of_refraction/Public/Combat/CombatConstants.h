@@ -20,7 +20,7 @@ namespace CombatConstants
     // match the Warp Target Name field of the Motion Warping notify-state
     // window authored on root-motion montages. Montages without a window
     // ignore the target entirely (in-place content unaffected).
-    constexpr const TCHAR *WARP_TARGET_NAME = TEXT("Warp");
+    constexpr const TCHAR *WARP_TARGET_NAME = TEXT("WarpTarget");
 
     // ==================== SPELL SIZE DEFAULTS (D6 Stage 12) ====================
     // Empty-CastArray fallbacks. EXACT by construction: the Stage 11 PostLoad
