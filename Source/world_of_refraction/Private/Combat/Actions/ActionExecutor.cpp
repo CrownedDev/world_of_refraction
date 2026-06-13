@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Combat/Actions/ActionExecutor.h"
+#include "MotionWarpingComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Skills/Definitions/ElementHelpers.h"
@@ -4257,6 +4258,47 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		Grid->UpdateActorFacing(Actor, CachedArenaCenter);
 	}
 
+	// Warp approach target (W1, additive — the spike's warp productionized).
+	// One named target ("Warp") covers the whole montage chain; only montages
+	// authored with a Motion Warping window consume it — in-place content
+	// ignores it entirely. Striking position reuses the legacy approach
+	// formula: ExecutionRange short of the target, on the caster's Z plane.
+	{
+		AActor *PrimaryTarget = nullptr;
+		for (AActor *Candidate : Action.Targets)
+		{
+			if (IsValid(Candidate))
+			{
+				PrimaryTarget = Candidate;
+				break;
+			}
+		}
+
+		if (PrimaryTarget)
+		{
+			if (UMotionWarpingComponent *Warp = GetOrCreateWarpComponent(Actor))
+			{
+				const FVector CasterLoc = Actor->GetActorLocation();
+				const FVector TargetLoc = PrimaryTarget->GetActorLocation();
+				FVector DirToTarget = TargetLoc - CasterLoc;
+				DirToTarget.Z = 0;
+				DirToTarget.Normalize();
+
+				const float StrikeRange = GetExecutionRange(Action);
+				FVector WarpLoc = TargetLoc - (DirToTarget * StrikeRange);
+				WarpLoc.Z = CasterLoc.Z;
+				const FRotator WarpRot = DirToTarget.IsNearlyZero()
+											 ? Actor->GetActorRotation()
+											 : DirToTarget.Rotation();
+
+				Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
+					CombatConstants::WARP_TARGET_NAME, WarpLoc, WarpRot);
+				UE_LOG(LogTemp, Log, TEXT("[Warp] approach target %s (range %.0f)"),
+					   *WarpLoc.ToCompactString(), StrikeRange);
+			}
+		}
+	}
+
 	// Bind to action animation end BEFORE executing (so we catch the animation)
 	BindActionAnimationEnd(Actor);
 
@@ -4425,6 +4467,24 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 				bPlayingReturnMontage = true;
 				UAnimMontage *Return = Skill->ReturnMontage;
 				TWeakObjectPtr<AActor> WeakActor = Actor;
+
+				// Warp return leg (W1): retarget "Warp" to the origin snapshot
+				// — a ReturnMontage with a Warp window travels back to the
+				// grid slot; without one it plays in place as before.
+				if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+				{
+					if (Movement->HasGridPosition())
+					{
+						if (UMotionWarpingComponent *Warp = GetOrCreateWarpComponent(Actor))
+						{
+							Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
+								CombatConstants::WARP_TARGET_NAME,
+								Movement->GetGridPosition(), Movement->GetGridRotation());
+							UE_LOG(LogTemp, Log, TEXT("[Warp] return target %s"),
+								   *Movement->GetGridPosition().ToCompactString());
+						}
+					}
+				}
 				// Next tick, not same-frame: the anim instance resumes stance on
 				// montage end and stomps a same-frame action montage (spike finding).
 				GetWorld()->GetTimerManager().SetTimerForNextTick(
@@ -4435,7 +4495,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 							PlayActionMontageOnActor(WeakActor.Get(), Return, 1.0f);
 						}
 					}));
-				UE_LOG(LogTemp, Log, TEXT("[Runner] Main montage ended - playing ReturnMontage %s (in place)"),
+				UE_LOG(LogTemp, Log, TEXT("[Runner] Main montage ended - playing ReturnMontage %s"),
 					   *Return->GetName());
 				return;
 			}
@@ -4591,6 +4651,28 @@ void UActionExecutor::UnbindCombatNotify(AActor *Actor)
 	{
 		CombatAnim->OnCombatNotify.RemoveDynamic(this, &UActionExecutor::OnCombatNotifyReceived);
 	}
+}
+
+UMotionWarpingComponent *UActionExecutor::GetOrCreateWarpComponent(AActor *Actor) const
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+
+	if (UMotionWarpingComponent *Existing = Actor->FindComponentByClass<UMotionWarpingComponent>())
+	{
+		return Existing;
+	}
+
+	// Runtime fallback (the spike's pattern) — characters without an authored
+	// persistent component still warp.
+	UMotionWarpingComponent *Warp = NewObject<UMotionWarpingComponent>(Actor, TEXT("CombatWarp"));
+	if (Warp)
+	{
+		Warp->RegisterComponent();
+	}
+	return Warp;
 }
 
 void UActionExecutor::PlaySkillMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate)

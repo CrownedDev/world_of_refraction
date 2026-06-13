@@ -108,6 +108,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat Movement")
     bool IsIdle() const { return MovementState == ECombatMovementState::Idle; }
 
+    /** Origin snapshot accessors (W1) — the pre-action pose the return warp
+     *  targets. Valid while HasGridPosition() is true. */
+    bool HasGridPosition() const { return bHasGridPosition; }
+    FVector GetGridPosition() const { return GridPosition; }
+    FRotator GetGridRotation() const { return GridRotation; }
+
     // ==================== EVENTS ====================
 
     /** Fires when approach OR return completes — the active phase is the
@@ -177,6 +183,9 @@ private:
 
     /** Position to return to after action */
     FVector GridPosition = FVector::ZeroVector;
+
+    /** Rotation at execution start — the return-warp target rotation (W1). */
+    FRotator GridRotation = FRotator::ZeroRotator;
 
     /** Current destination */
     FVector TargetPosition = FVector::ZeroVector;

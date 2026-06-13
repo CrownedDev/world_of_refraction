@@ -50,6 +50,7 @@ struct FActionExecutionContext;
 struct FPendingDefenseContext;
 class UCombatAnimInstance;
 class UCastableSkillDataBase;
+class UMotionWarpingComponent;
 
 // ========================================
 // DELEGATES
@@ -452,6 +453,11 @@ private:
 	/** First VFXArray entry of the given role with a non-null asset, or null
 	 *  (callers fall back to the loose VFX fields — D5 reader switch, SC5). */
 	static const FSkillVFXEntry *GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role);
+
+	/** Find-or-create the actor's Motion Warping component (W1, the spike's
+	 *  pattern): a persistent component authored on the character BP is
+	 *  found; characters without one get a runtime "CombatWarp" fallback. */
+	UMotionWarpingComponent *GetOrCreateWarpComponent(AActor *Actor) const;
 
 	/** Family=VFX: spawn VFXArray[Index] honoring Attach/tint/Scale — the
 	 *  spike's VFX spawn productionized (socket attach follows the hand). */

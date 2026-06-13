@@ -100,8 +100,10 @@ void UCombatMovementComponent::StartApproach(AActor *Target, UMovementData *Appr
         return;
     }
 
-    // Store grid position before moving
+    // Store grid position + rotation before moving (rotation = the W1
+    // return-warp target rotation)
     GridPosition = GetOwner()->GetActorLocation();
+    GridRotation = GetOwner()->GetActorRotation();
     bHasGridPosition = true;
     CachedArenaCenter = ArenaCenter;
 
@@ -302,8 +304,10 @@ void UCombatMovementComponent::EnterExecutingState(AActor *Target, const FVector
     // Pre-action state snapshot — the same writes StartApproach makes before
     // moving, so the return-leg machinery (OnActionExecutionComplete →
     // StartReturn → CompleteReturn cleanup) behaves identically whether or
-    // not an approach ran. Facing is owned by BeginSkillExecution.
+    // not an approach ran. Facing is owned by BeginSkillExecution. Rotation
+    // is the W1 return-warp target rotation.
     GridPosition = GetOwner()->GetActorLocation();
+    GridRotation = GetOwner()->GetActorRotation();
     bHasGridPosition = true;
     CachedArenaCenter = ArenaCenter;
     CurrentTarget = Target;
