@@ -781,6 +781,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// (cleared by UnbindActionAnimationEnd in OnActionAnimationEnded).
 	bWaitingForAnimationEnd = false;
 	bAllDefensesResolved = false;
+	bAsyncCompletionFired = false;
 
 	// Broadcast start
 	OnActionStarted.Broadcast(Actor, Action, Validation.EnergyCost);
@@ -1975,11 +1976,21 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 		}
 	}
 
-	// Fire callback
-	if (AsyncActionCallback.IsBound())
+	// Fire callback — one-shot latch guarantees exactly one completion per action,
+	// so a double finalize (timeout failsafe + legitimate finalize) can neither
+	// double-fire nor swallow the advance.
+	if (!bAsyncCompletionFired)
 	{
-		AsyncActionCallback.Execute(PendingFinalResult);
+		bAsyncCompletionFired = true;
+		// Execute synchronously advances the turn, which can launch the next action (deferred fire) and RE-BIND
+		// AsyncActionCallback. Unbinding AFTER Execute would clobber that fresh binding — so capture a local,
+		// clear the member, then run the local. The re-entrant binding then survives to its own finalize.
+		FOnActionComplete PendingCallback = AsyncActionCallback;
 		AsyncActionCallback.Unbind();
+		if (PendingCallback.IsBound())
+		{
+			PendingCallback.Execute(PendingFinalResult);
+		}
 	}
 
 	// Broadcast completion

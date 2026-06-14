@@ -787,6 +787,12 @@ private:
 	 *  via TryFinalizeAsyncAction — finalize only when both are done. */
 	bool bAllDefensesResolved = false;
 
+	/** One-shot latch: the async completion callback fires EXACTLY ONCE per action.
+	 *  Reset in ExecuteActionAsync alongside the coordination flags; raised in
+	 *  CompleteAsyncActionFinal before Execute so a double finalize (e.g. timeout
+	 *  failsafe + legitimate finalize) cannot double-fire or no-op the advance. */
+	bool bAsyncCompletionFired = false;
+
 	/** Finalize iff both defenses resolved AND animation finished (or no animation). */
 	void TryFinalizeAsyncAction();
 
