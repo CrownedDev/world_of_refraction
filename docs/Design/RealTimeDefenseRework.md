@@ -398,6 +398,67 @@ harmless; `CloseDefenseWindow` on an already-closed window just warns and return
 **beam-target-leaving** (`bTargetInBeam==false` ticks don't land, `:3390`): `ExpectedImpacts` should
 count **scheduled** ticks, not in-beam ticks — a **Stage 6 refinement**.
 
+### §8b. Damage model — physical vs spell totals, per-cast-entry spell damage (STAGE 6)
+
+**Crown's decision (lands at Stage 6, with the spell-damage-on-impact convergence — NOT Stage 2).**
+Stage 2 (melee per-impact damage) builds on the **current** `BaseDamage`/`ResolvedDamageSplit` model,
+which this decision **confirms is the correct melee model**. The rename + physical/spell split +
+per-cast-entry spell damage are **one unit at Stage 6**, when spells need damage-on-impact — not
+piecemeal.
+
+**The model:**
+
+- **`BaseDamage` → `RawDamage`** (the total). A clearer name for "the action's total damage before
+  defense / before per-impact splitting."
+- **Separate PHYSICAL vs SPELL damage totals.** An action can carry **both** — e.g. *Force Slash* =
+  **physical** on the swing **+** **spell** on the projectile. Each is its own total, split and
+  delivered by its own mechanism.
+- **Physical / melee damage:** a total, split across `HitCount` via **`ResolvedDamageSplit`** — the
+  existing per-impact table, **KEPT** (this decision confirms it correct for melee). Each melee impact
+  deals its `ResolvedDamageSplit[ImpactIndex]` share (Stage 2).
+- **Spell damage:** a total, where **each cast entry (`FSkillCastEntry`) authors its own DAMAGE
+  PORTION** of the spell total — the entry says how much of the spell's total it deals. When that
+  entry's projectile **arrives**, it deals **that entry's authored portion**. Within a burst
+  (`Count > 1`), the entry's portion splits across its `Count` deliveries (equally by default, or per
+  the entry).
+- **This answers "how does a cast know its impact damage" — it is AUTHORED on the cast entry**, the
+  same place `Count`/`BurstInterval`/delivery type already live (`SkillCastEntry.h`). It supersedes
+  the open framing in §8a (where spell `ExpectedImpacts` summed entry impacts but the per-entry
+  *damage* was unstated): the **count** comes from `Count`, the **damage** comes from the entry's
+  authored portion.
+
+**Why Stage 6, not Stage 2:** spell damage today lands at the **cast-time lumped window**, not at
+impact (the collision trace, §7-projectile / Stage 6 row). Splitting `RawDamage` into physical/spell
+totals and routing spell damage to per-cast-entry impact portions is part of moving spell damage
+**onto the arrival** — the Stage 6 convergence. Doing it before then would churn the damage pipeline
+with no consumer. Stage 2 leaves `BaseDamage`/`ResolvedDamageSplit` as-is for melee; Stage 6 renames
+and splits.
+
+### §8c. Broken Darkness per-impact absorption (PLANNED — after Stage 3)
+
+Broken Darkness (BD) is a **defense-outcome consumer**: a BD-transformed defender that parries/blocks
+**absorbs ENERGY** from the attack. Today it absorbs once per action at window-close
+(`OnDefenseResolved`). Per-impact apply (Stage 2) + per-impact defense input (Stage 3) let it absorb
+**per landed parry/block**.
+
+- **Absorption is based on the attack's ENERGY COST, not damage.** It stays on the existing
+  `CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost)` — energy in = energy-cost × the defense
+  rate (`ParryAbsorptionRate` 1.0 / `BlockAbsorptionRate` 0.5). *(This corrects the earlier
+  "use the damage stash for BD consistency" framing — BD never followed the damage result; it follows
+  energy cost. The Stage 2 light damage stash is unrelated to and sufficient for BD.)*
+- **The change — split the attack's ENERGY COST across the impacts, PROPORTIONAL TO THE DAMAGE
+  SPLIT.** Energy follows damage: an impact carrying X% of the damage (`ResolvedDamageSplit[Index]`)
+  carries X% of the energy cost. When BD parries/blocks **that** impact, it absorbs *that share ×
+  rate*. So a bigger hit feeds more energy, and the **same `ResolvedDamageSplit` proportions drive
+  both per-impact damage AND per-impact energy absorption**. A multi-hit attack feeds BD energy **per
+  landed parry/block** instead of one lump. *(Resolved: proportional, not even ÷ HitCount.)*
+- **Enabled by:** Stage 2 (per-impact apply) **+** Stage 3 (per-impact input — *which* impacts were
+  parried vs blocked). Hooks into the per-impact path: on a parried/blocked impact for a BD defender,
+  grant `(AttackEnergyCost × ResolvedDamageSplit[Index]%) × rate`.
+- **BD = energy absorption, NOT damage reflection.** The stale reflection path is dropped; the Stage 2
+  lightweight damage stash is sufficient (BD reads energy cost, not the reflected-damage field).
+- **Sequencing:** **after Stage 3** — a BD-mechanic refinement, not core defense plumbing.
+
 ---
 
 ## 9. Risks / Notes
@@ -508,6 +569,26 @@ projectile source-threading, notify authoring) is net-new.
 
 ## Changelog
 
+- **2026-06-14** — **Broken Darkness per-impact absorption recorded (§8c) — after Stage 3.** BD
+  absorbs **ENERGY (attack ENERGY COST × rate), not damage** — stays on `CalculateAbsorptionEnergy`
+  (`ParryAbsorptionRate` 1.0 / `BlockAbsorptionRate` 0.5). Change: **split the energy cost across the
+  impacts** so each parried/blocked impact feeds BD its share (per-landed instead of one lump). Split
+  method **CONFIRMED proportional to the damage split** (energy follows `ResolvedDamageSplit` — the
+  same proportions drive per-impact damage and per-impact absorption; not even ÷ HitCount): grant
+  `(AttackEnergyCost × ResolvedDamageSplit[Index]%) × rate`. Enabled by Stage 2 (per-impact apply) +
+  Stage 3 (which impacts were parried/blocked); sequenced **after Stage 3**.
+  Corrects the earlier "use the damage stash for BD consistency" framing — BD follows energy cost, not
+  the damage result; the Stage 2 light stash is unrelated/sufficient. Reflection path dropped (BD =
+  energy absorption).
+- **2026-06-14** — **Damage-model decision recorded (§8b) — Stage 6.** `BaseDamage` → `RawDamage`
+  (the total); **separate PHYSICAL vs SPELL totals** (one action can carry both, e.g. Force Slash =
+  physical swing + spell projectile). **Physical/melee** = total split across `HitCount` via
+  `ResolvedDamageSplit` (existing table **KEPT** — confirmed the correct melee model). **Spell** =
+  total where **each `FSkillCastEntry` authors its own damage PORTION**; an entry's projectile deals
+  that portion on arrival, splitting across its `Count` burst. Answers "how does a cast know its impact
+  damage" — **authored on the cast entry** (alongside `Count`/`BurstInterval`). Sequenced as **one
+  unit at Stage 6** (the spell-damage-on-impact convergence), NOT piecemeal: **Stage 2 builds on the
+  current `BaseDamage`/`ResolvedDamageSplit`**, which this decision confirms correct for melee.
 - **2026-06-14** — **Corrected the "missing `ProjectileCount`" finding + recorded the spell
   `ExpectedImpacts` formula (§8a).** The barrage-count field **exists**: **`FSkillCastEntry::Count`**
   (`SkillCastEntry.h:87`, default 1) with **`BurstInterval`** (`:91`, 0.15s) the inter-burst stagger —

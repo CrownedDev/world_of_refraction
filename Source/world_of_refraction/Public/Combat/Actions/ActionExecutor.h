@@ -630,12 +630,24 @@ private:
 	/** Get CharacterData template from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 
-	/** Apply damage after defense resolution */
+	/** Apply damage after defense resolution. Stage 2: applies only the UNDRAINED TAIL
+	 *  [ImpactsLanded, HitCount) — melee drained the rest per-impact-frame; non-melee
+	 *  (ImpactsLanded==0) applies all, the unchanged lumped path. */
 	void ApplyDamageAfterDefense(
 		AActor *Attacker,
 		AActor *Target,
 		const FPendingDefenseContext &Context,
 		const FDefenseResult &DefenseResult);
+
+	/** Stage 2: lazily compute + stash the single action-level defense result for a
+	 *  defender (idempotent), via the public DefenseSystem API. Called at the first
+	 *  impact frame so each impact applies against a locked result. */
+	void EnsureResultResolved(AActor *Defender);
+
+	/** Stage 2: apply ONE impact's damage (ResolvedDamageSplit[ImpactIndex] of the
+	 *  stashed reduced total) and accumulate into PartialResult. Shared by the
+	 *  per-impact-frame path and the close-time undrained tail. */
+	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex);
 
 	/** Handle multi-hit abilities */
 	int32 ProcessMultiHit(

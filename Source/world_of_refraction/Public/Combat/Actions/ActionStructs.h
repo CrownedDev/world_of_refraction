@@ -8,6 +8,7 @@
 #include "Skills/Definitions/ESpellSource.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Defense/EDefenseType.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/EChargeInfusionType.h"
 #include "Combat/Actions/ActionStatModifiers.h"
@@ -330,6 +331,22 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	 *  BeamTickCount; barrage = FSkillCastEntry::Count (Stage 6). */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 ExpectedImpacts = 0;
+
+	/** Per-impact apply (Stage 2): the SINGLE action-level defense result, stashed at
+	 *  the first impact (or from the close result for non-melee) so each impact applies
+	 *  its ResolvedDamageSplit share against it. Light copy of FDefenseResult — avoids
+	 *  including DefenseSystem.h here. bResultResolved gates idempotent stashing. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseType ResolvedDefenseType = EDefenseType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 ResolvedFinalDamage = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResolvedSuccess = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResultResolved = false;
 
 	/** Can this attack crit? */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")

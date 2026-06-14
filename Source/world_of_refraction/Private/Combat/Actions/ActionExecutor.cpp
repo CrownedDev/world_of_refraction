@@ -1661,117 +1661,190 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 	CheckAndFinalizeAsyncAction();
 }
 
+void UActionExecutor::EnsureResultResolved(AActor *Defender)
+{
+	// Stage 2 ordering crux: the FDefenseResult is normally computed at CLOSE
+	// (DefenseSystem::CloseDefenseWindow), but per-impact apply needs it at the FIRST
+	// impact — before Skill-end. Compute it here from the current defense state via the
+	// public DefenseSystem API (no DefenseSystem change) and STASH it on the context.
+	// Idempotent: the single action-level result is LOCKED at the first impact and reused
+	// by every later impact (per-impact defense INPUT is Stage 3 — a defender must commit
+	// before the first impact for it to count this stage).
+	if (!CurrentExecutionContext.IsSet() || !Defender)
+	{
+		return;
+	}
+	FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+	if (!Ctx || Ctx->bResultResolved)
+	{
+		return;
+	}
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (!DefenseSys)
+	{
+		return;
+	}
+
+	const FDefenseState State = DefenseSys->GetDefenseState(Defender);
+	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
+		State.BaseDamage,
+		State.DefenseChosen,
+		State.bInputReceived,
+		State.AttackSize,
+		DefenseSys->GetDodgeThreshold(Defender));
+
+	Ctx->ResolvedDefenseType = Result.DefenseType;
+	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->bResolvedSuccess = Result.bSuccess;
+	Ctx->bResultResolved = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[Stage2] Defense result resolved for %s — Type: %d, ReducedTotal: %d, Success: %s"),
+		   *Defender->GetName(), static_cast<int32>(Result.DefenseType), Result.FinalDamage,
+		   Result.bSuccess ? TEXT("yes") : TEXT("no"));
+}
+
+void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex)
+{
+	if (!CurrentExecutionContext.IsSet() || !Target)
+	{
+		return;
+	}
+
+	// Death guard — a prior impact this combo may have killed the target; mirror the old
+	// loop's bTargetDied early-out so impacts after the kill don't apply.
+	if (!IsTargetAlive(Target))
+	{
+		return;
+	}
+
+	// Successful dodge — no damage, no buildup, no ApplyHit (parity with the lumped dodge
+	// skip). A FAILED dodge (attack too big) has bResolvedSuccess=false and ResolvedFinalDamage
+	// = base → falls through to a normal hit.
+	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Dodge)
+	{
+		return;
+	}
+
+	const int32 HitCount = FMath::Max(1, Context.HitCount);
+
+	// Bounds guard — Impact notifies must be authored 0..HitCount-1 (the authoring contract).
+	// A stray index would read the wrong / no split — skip it loudly.
+	if (ImpactIndex < 0 || ImpactIndex >= HitCount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Stage2] impact index %d out of range (HitCount %d) for %s — skipping stray (authoring-contract violation)"),
+			   ImpactIndex, HitCount, *Target->GetName());
+		return;
+	}
+
+	// Per-impact damage = this impact's slice of the post-defense reduced total.
+	// D1 reader switch: the resolved DamageSplit table (even fractions when un-authored).
+	// FloorToInt + 0.01 epsilon reproduces the legacy FinalDamage/HitCount truncation and
+	// absorbs even-fraction float error (100/3 = 33.333332) so exact quotients don't floor
+	// one short. Size-mismatched table → legacy even split.
+	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
+	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
+	const int32 ImpactDamage = bUseSplit
+								   ? FMath::FloorToInt(Context.ResolvedFinalDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
+								   : (Context.ResolvedFinalDamage / HitCount);
+
+	// Buildup rides impact 0 only (per-target, not per-impact). Block/parry reduce it;
+	// dodge already returned above.
+	int32 EffectiveBuildup = 0;
+	if (ImpactIndex == 0)
+	{
+		EffectiveBuildup = Context.BaseStatusBuildup;
+		if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Block)
+		{
+			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
+		}
+		else if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Parry)
+		{
+			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
+		}
+	}
+
+	FActionHitInput Input;
+	Input.Attacker = Attacker;
+	Input.Target = Target;
+	Input.ActionType = Context.ActionType;
+	Input.BaseDamage = ImpactDamage;
+	Input.bCanCrit = Context.bCanCrit;
+	Input.Element = Context.Element;
+	Input.InfusionLevel = Context.InfusionLevel;
+	Input.SelectedSource = Context.SelectedSource;
+	Input.BaseStatusBuildup = EffectiveBuildup;
+	Input.PhysicalDamageType = (ImpactIndex == 0) ? Context.PhysicalDamageType : EPhysicalDamageType::None;
+	Input.ActionMods = CurrentExecutionContext->ActionMods;
+
+	const FCombatHitResult HitResult = ApplyHit(Input);
+
+	// Incremental aggregation into the running PartialResult — spread across impact frames +
+	// the close-time tail, instead of one synchronous loop.
+	FActionResult &PartialResult = CurrentExecutionContext->PartialResult;
+	PartialResult.TotalDamageDealt += HitResult.DamageDealt;
+	PartialResult.DamagePerTarget.FindOrAdd(Target) += HitResult.DamageDealt;
+	PartialResult.AffectedTargets.AddUnique(Target);
+	if (HitResult.bWasCritical)
+	{
+		PartialResult.bWasCritical = true;
+	}
+
+	// Death — broadcast EXACTLY ONCE, at the killing impact. The death guard at the top
+	// prevents any later impact from re-entering ApplyHit for this target, so bTargetDied
+	// can only be true once.
+	if (HitResult.bTargetDied)
+	{
+		PartialResult.bCausedDeath = true;
+		OnTargetKilled.Broadcast(Attacker, Target);
+	}
+}
+
 void UActionExecutor::ApplyDamageAfterDefense(
 	AActor *Attacker,
 	AActor *Target,
 	const FPendingDefenseContext &Context,
 	const FDefenseResult &DefenseResult)
 {
-	if (!CurrentExecutionContext.IsSet())
+	if (!CurrentExecutionContext.IsSet() || !Target)
 	{
 		return;
 	}
 
-	int32 TotalDamage = 0;
-	bool bAnyCrit = false;
+	// Local mutable copy — callers pass a const-ref snapshot.
+	FPendingDefenseContext Ctx = Context;
 
-	if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Dodge)
+	// CONSISTENCY: melee already stashed the result at the first impact (EnsureResultResolved)
+	// and drained [0, ImpactsLanded) per-frame. Reuse THAT stash for the tail so a late
+	// defense input can't make per-frame and tail diverge. Non-melee (no frames fired,
+	// bResultResolved=false) stashes from the close result here — the unchanged lumped path.
+	if (!Ctx.bResultResolved)
 	{
-		// Dodge cancels damage entirely AND cancels buildup (Phase C1 — applies to
-		// spells only today; ability/attack buildup don't reach this path yet).
-		// The multi-hit loop is skipped — no ApplyHit calls = no damage + no buildup.
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s dodged attack - 0 damage, 0 buildup"), *Target->GetName());
+		Ctx.ResolvedDefenseType = DefenseResult.DefenseType;
+		Ctx.ResolvedFinalDamage = DefenseResult.FinalDamage;
+		Ctx.bResolvedSuccess = DefenseResult.bSuccess;
+		Ctx.bResultResolved = true;
 	}
-	else
-	{
-		// DefenseResult.FinalDamage already has block/parry reduction applied.
-		// Buildup reduction by block/parry happens here — multipliers parallel
-		// DefenseSystem's hardcoded damage multipliers. Dodge already short-circuited
-		// above; "no defense" / failed defense → EffectiveBuildup = base.
-		//
-		// D1 reader switch (Stage 12 SC4): per-hit damage consumes the resolved
-		// DamageSplit table (even fractions when un-authored). FloorToInt
-		// reproduces the legacy FinalDamage / HitCount truncation exactly
-		// (remainder dropped, as today). The 0.01 epsilon absorbs the float
-		// representation error of even fractions (100/3 stored as 33.333332)
-		// so exact-integer quotients never floor one short (30000×33.33% must
-		// give 10000, not 9999) — sized for damage up to ~5e5 while staying
-		// far from authored percent boundaries.
-		// Size-mismatched table (defensive) → legacy even split.
-		const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
-		const bool bUseSplit = (Split.Num() == Context.HitCount) && Context.HitCount > 0;
-		const int32 EvenDamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
 
-		int32 EffectiveBuildup = Context.BaseStatusBuildup;
-		if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Block)
+	// Apply only the UNDRAINED TAIL [ImpactsLanded, HitCount). Melee: all impacts drained
+	// per-frame → ImpactsLanded==HitCount → tail empty (no double-apply). Non-melee:
+	// ImpactsLanded==0 → tail = all → unchanged lumped behavior at the timer close.
+	const int32 HitCount = FMath::Max(1, Ctx.HitCount);
+	for (int32 i = Ctx.ImpactsLanded; i < HitCount; ++i)
+	{
+		if (!IsTargetAlive(Target))
 		{
-			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
+			break; // death stops the tail (mirror the per-impact death guard)
 		}
-		else if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Parry)
-		{
-			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
-		}
-
-		for (int32 i = 0; i < Context.HitCount; ++i)
-		{
-			FActionHitInput Input;
-			Input.Attacker = Attacker;
-			Input.Target = Target;
-			Input.ActionType = Context.ActionType;
-			Input.BaseDamage = bUseSplit
-								   ? FMath::FloorToInt(DefenseResult.FinalDamage * (Split[i] / 100.0f) + 0.01f)
-								   : EvenDamagePerHit;
-			Input.bCanCrit = Context.bCanCrit;
-			Input.Element = Context.Element;
-			Input.InfusionLevel = Context.InfusionLevel;
-			Input.SelectedSource = Context.SelectedSource;
-			// Buildup applies once per spell-per-target, not per-hit. First hit
-			// carries the buildup; subsequent hits carry zero. Audit's quirks table
-			// treats buildup as per-target, not per-hit.
-			Input.BaseStatusBuildup = (i == 0) ? EffectiveBuildup : 0;
-			Input.PhysicalDamageType = (i == 0) ? Context.PhysicalDamageType : EPhysicalDamageType::None;
-			Input.ActionMods = CurrentExecutionContext.IsSet()
-								   ? CurrentExecutionContext->ActionMods
-								   : FActionStatModifiers();
-
-			const FCombatHitResult HitResult = ApplyHit(Input);
-
-			TotalDamage += HitResult.DamageDealt;
-			bAnyCrit = bAnyCrit || HitResult.bWasCritical;
-
-			// Early-out on death — preserves existing ProcessMultiHit behaviour.
-			if (HitResult.bTargetDied)
-			{
-				break;
-			}
-		}
+		ApplyOneImpact(Attacker, Target, Ctx, i);
 	}
 
-	// Aggregate into the running PartialResult.
-	CurrentExecutionContext->PartialResult.TotalDamageDealt += TotalDamage;
-	CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, TotalDamage);
-	CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
-	if (bAnyCrit)
-	{
-		CurrentExecutionContext->PartialResult.bWasCritical = true;
-	}
-
-	// Death broadcast — once per killed target, after the multi-hit loop completes.
-	if (!IsTargetAlive(Target))
-	{
-		CurrentExecutionContext->PartialResult.bCausedDeath = true;
-		OnTargetKilled.Broadcast(Attacker, Target);
-	}
-
-	// Defense-outcome telemetry. FActionResult doesn't carry per-target Block/Parry/Dodge
-	// flags today; logging in Verbose preserves audit-risk-#10 signal until UI is wired.
-	if (DefenseResult.bSuccess)
+	// Defense-outcome telemetry (preserved; now logs the tail range applied here).
+	if (Ctx.bResolvedSuccess)
 	{
 		UE_LOG(LogTemp, Verbose,
-			   TEXT("[ApplyDamageAfterDefense] %s defended via %s — TotalDamage=%d"),
-			   *Target->GetName(),
-			   *UEnum::GetValueAsString(DefenseResult.DefenseType),
-			   TotalDamage);
+			   TEXT("[ApplyDamageAfterDefense] %s defended via %d — tail [%d, %d)"),
+			   *Target->GetName(), static_cast<int32>(Ctx.ResolvedDefenseType),
+			   Ctx.ImpactsLanded, HitCount);
 	}
 }
 
@@ -4897,23 +4970,21 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 			   Index, HitCount, *GetNameSafe(Executor));
 		OnImpactFrame.Broadcast(Executor, Index);
 
-		// Count-based window close (Stage 1, melee) — the "impacts done" half of the
-		// "later of (impacts-done, animation-done)" close. Each landed impact increments
-		// every active count-based defender's tally. A defender closes only once it has
-		// taken ALL its impacts AND the hitting animation has finished (bAnimationFinished).
-		// For melee the animation is normally the LATER signal, so this branch usually does
-		// NOT close — Skill-end (ReconcileCountBasedDefenseWindows) does. This handles the
-		// symmetric case where an impact lands AFTER the animation already ended. Counting
-		// continues regardless (the ++ is always evaluated) so the tally stays correct.
-		// Damage stays LUMPED at close this stage (per-hit splitting is Stage 2); the
-		// trigger is the COUNT, not the index — order-independent, and Stage 6 just adds
-		// more increment sources. ExpectedImpacts==0 ⇒ a timer-close window (non-attack) →
-		// left untouched. One swing hits all current defenders (melee cleave); each closes
-		// at its own count. Collect-then-close: CloseDefenseWindow re-entrantly removes the
-		// entry from PendingDefenses, so we must not close mid-iteration.
+		// Per-impact apply (Stage 2) + count-based "later of" close (Stage 1), melee.
+		// Each landed impact APPLIES ITS DAMAGE at its frame (ResolvedDamageSplit[Index] of
+		// the stashed reduced total) and increments the count. A defender closes only once it
+		// has taken ALL its impacts AND the hitting animation has finished (bAnimationFinished);
+		// for melee the animation is normally the LATER signal, so the close usually happens at
+		// Skill-end (ReconcileCountBasedDefenseWindows) — this branch handles the symmetric
+		// "impact after animation" case. ExpectedImpacts==0 ⇒ timer-close window (non-attack) →
+		// left untouched. One swing hits all current defenders (melee cleave).
+		// Three phases, all DEFERRED out of the iteration: ApplyOneImpact can broadcast
+		// OnTargetKilled (subscribers may mutate PendingDefenses) and CloseDefenseWindow
+		// re-entrantly removes the entry — neither is safe mid-iteration.
 		if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 		{
 			const bool bAnimationFinished = CurrentExecutionContext->bAnimationFinished;
+			TArray<AActor *> DefendersToApply;
 			TArray<AActor *> DefendersToClose;
 			for (auto &Pair : CurrentExecutionContext->PendingDefenses)
 			{
@@ -4922,13 +4993,35 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				{
 					continue; // timer-close window — not count-based
 				}
+				AActor *Defender = Pair.Key.Get();
+				if (!Defender)
+				{
+					continue;
+				}
+				// In-order sanity — the close-time tail [ImpactsLanded, HitCount) assumes
+				// contiguous in-order notifies (authoring contract: 0..HitCount-1).
+				if (Index != Ctx.ImpactsLanded)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[Stage2] impact index %d != drain pointer %d for %s — out-of-order/gapped notify (authoring-contract)"),
+						   Index, Ctx.ImpactsLanded, *Defender->GetName());
+				}
+				DefendersToApply.Add(Defender);
 				if (++Ctx.ImpactsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
 				{
-					if (AActor *Defender = Pair.Key.Get())
-					{
-						DefendersToClose.Add(Defender);
-					}
+					DefendersToClose.Add(Defender);
 				}
+			}
+			// Apply this impact's damage (stash the single result at the first impact, then
+			// apply this index's split share). Done after iteration — see above.
+			for (AActor *Defender : DefendersToApply)
+			{
+				FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+				if (!Ctx)
+				{
+					continue; // removed by a prior impact's death broadcast
+				}
+				EnsureResultResolved(Defender);
+				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index);
 			}
 			for (AActor *Defender : DefendersToClose)
 			{
