@@ -1976,6 +1976,12 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 		}
 	}
 
+	// Snapshot the pending handles BEFORE the callback can re-enter. Execute below
+	// can advance the turn and launch the next action (deferred fire), which sets
+	// fresh PendingExecutionActor/CharData. Snapshot-compare lets the teardown null
+	// only when no re-entrant action replaced them (mirrors the callback guard).
+	AActor *ActorAtEntry = PendingExecutionActor;
+
 	// Fire callback — one-shot latch guarantees exactly one completion per action,
 	// so a double finalize (timeout failsafe + legitimate finalize) can neither
 	// double-fire nor swallow the advance.
@@ -2000,9 +2006,15 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 		OnActionCompleted.Broadcast(Executor, PendingFinalResult);
 	}
 
-	// Clear pending state
-	PendingExecutionActor = nullptr;
-	PendingExecutionCharData = nullptr;
+	// Clear pending state — but only if a re-entrant deferred fire didn't already
+	// replace the handle. If PendingExecutionActor != ActorAtEntry, a new action
+	// owns it now; leave it for that action's own finalize (root fix: VFX/Cast on a
+	// deferred ritual fire would otherwise read null here).
+	if (PendingExecutionActor == ActorAtEntry)
+	{
+		PendingExecutionActor = nullptr;
+		PendingExecutionCharData = nullptr;
+	}
 }
 
 void UActionExecutor::OnAsyncActionTimeout()
