@@ -9,6 +9,20 @@
 class USkillEffectManager;
 
 /**
+ * The KIND of a scheduled/current turn. Normal = ordinary debt-picked rotation turn.
+ * Bonus = Emerald pinned bonus turn (the original FScheduledTurn use). Execution = an
+ * inserted "Execution Turn" carrying a deferred ritual fire (W-A slot; W-B wires the
+ * fire). Extensible: Interrupt / Reaction later.
+ */
+UENUM(BlueprintType)
+enum class ETurnType : uint8
+{
+	Normal,
+	Bonus,
+	Execution
+};
+
+/**
  * Turn debt tracking for individual combatants
  */
 USTRUCT(BlueprintType)
@@ -72,6 +86,25 @@ struct FScheduledTurn
 
 	UPROPERTY()
 	int32 Count = 1; // bonus turns this entry grants when it fires (S-rank=2)
+
+	/** What kind of pinned turn this is. Defaults to Bonus so existing Emerald entries
+	 *  (built field-by-field in ScheduleBonusTurn) keep byte-identical behavior. Execution
+	 *  entries (ScheduleExecutionTurn) set this — the pinned-fire scan speed-races only
+	 *  among ready Execution entries. */
+	UPROPERTY()
+	ETurnType Type = ETurnType::Bonus;
+
+	/** Opaque payload handle. Bonus leaves it INDEX_NONE; Execution uses it in W-B to look
+	 *  up the orchestrator's frozen FDeferredActivation (caster + FireAction) at fire time.
+	 *  TurnManager never dereferences it — it only carries the token. */
+	UPROPERTY()
+	int32 PayloadId = INDEX_NONE;
+
+	/** Frozen spell speed (caster CalculateSpellSpeed at arm). Drives the fire-time
+	 *  selection among directly-adjacent ready Execution entries — higher fires first.
+	 *  Unused by Bonus (0). TurnManager does NO CharacterData lookup; the caller supplies it. */
+	UPROPERTY()
+	float SortKey = 0.0f;
 };
 
 /**
@@ -96,6 +129,20 @@ struct FPreviewTurnEntry
 	// no producer sets it; appended at the END so existing BP reads stay layout-safe.
 	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
 	bool bIsForced = false;
+
+	/** The kind of turn at this slot — Normal (debt pick), Bonus (Emerald), or Execution
+	 *  (inserted ritual fire). Stamped by AdvanceSimState and carried through the belt, so
+	 *  the turn-order widget can label "Ritual Turn" / "Emerald Turn" vs the character name.
+	 *  Appended at the END so existing BP reads stay layout-safe. */
+	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
+	ETurnType Type = ETurnType::Normal;
+
+	/** The scheduled entry's opaque payload handle, carried out of AdvanceSimState the same way
+	 *  Type is (W-B). Meaningful only for an Execution slot — the orchestrator looks up its frozen
+	 *  FDeferredActivation by it; INDEX_NONE for Normal/Bonus slots. Appended at the END so existing
+	 *  BP reads stay layout-safe. */
+	UPROPERTY(BlueprintReadOnly, Category = "Turn Manager")
+	int32 PayloadId = INDEX_NONE;
 };
 
 /**
@@ -155,6 +202,19 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Turn Manager")
 	bool GetCurrentTurnIsBonus() const { return bCurrentTurnIsBonus; }
 
+	/** The kind of the CURRENT turn (Normal / Bonus / Execution). Set every AdvanceToNextTurn
+	 *  from the picked entry. W-B branches on this (Execution → run the ritual fire instead of
+	 *  requesting an action); the turn-order UI reads it for labels. BlueprintPure const getter,
+	 *  mirroring GetCurrentTurnIsBonus. */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	ETurnType GetCurrentTurnType() const { return CurrentTurnType; }
+
+	/** The payload handle of the CURRENT turn — the orchestrator's key to the frozen ritual when
+	 *  this is an Execution turn (W-B). INDEX_NONE for Normal/Bonus turns. Set every AdvanceToNextTurn
+	 *  from the picked entry, mirroring GetCurrentTurnType. */
+	UFUNCTION(BlueprintPure, Category = "Turn Manager")
+	int32 GetCurrentTurnPayloadId() const { return CurrentTurnPayloadId; }
+
 	/** Preview next N turns. Each entry is the combatant at that slot + a bonus-turn flag
 	 *  (scheduled Emerald bonus turns appear inline at their future slot, flagged).
 	 *  Cluster 2a: a slice of TurnBelt — no forward sim; N beyond the belt horizon
@@ -196,6 +256,16 @@ public:
 	 *  entry is dropped at fire time without emitting a turn. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Count = 1);
+
+	/** Schedule an Execution Turn (W-A) — an inserted special turn that fires a deferred
+	 *  ritual. Mirrors ScheduleBonusTurn: a pinned entry firing after DelayTurns NORMAL turns,
+	 *  preempting the debt pick at its slot. Type=Execution, Count=1. PayloadId is the
+	 *  orchestrator's handle to the frozen FDeferredActivation (looked up at fire in W-B).
+	 *  SpellSpeed is the caster's frozen CalculateSpellSpeed — drives the fire-time selection
+	 *  among directly-adjacent ready Execution entries (faster fires first). TurnManager does
+	 *  NO CharacterData lookup; the caller supplies SpellSpeed. */
+	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
+	void ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32 PayloadId, float SpellSpeed);
 
 	// ========================================
 	// EVENTS
@@ -274,6 +344,18 @@ private:
 	 *  GetCurrentTurnIsBonus() for the current-actor slot. Reset on InitializeCombat. */
 	UPROPERTY()
 	bool bCurrentTurnIsBonus = false;
+
+	/** The kind of the current turn (Normal / Bonus / Execution). Set every AdvanceToNextTurn
+	 *  from the picked entry's Type — Normal for a debt pick, the pinned entry's Type when
+	 *  pinned-fired. Surfaced via GetCurrentTurnType(); reset to Normal on Init/EndCombat. */
+	UPROPERTY()
+	ETurnType CurrentTurnType = ETurnType::Normal;
+
+	/** The payload handle of the current turn (Execution → the orchestrator's frozen-ritual key;
+	 *  INDEX_NONE otherwise). Set every AdvanceToNextTurn from the picked entry's PayloadId; reset to
+	 *  INDEX_NONE on Init/EndCombat alongside CurrentTurnType. Surfaced via GetCurrentTurnPayloadId(). */
+	UPROPERTY()
+	int32 CurrentTurnPayloadId = INDEX_NONE;
 
 	UPROPERTY()
 	AActor *PreviousActor;

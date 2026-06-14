@@ -712,6 +712,10 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 // ========================================
 void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg2] ExecuteActionAsync START actor=%s bIsDeferredFire=%d"),
+		   Actor ? *Actor->GetName() : TEXT("NULL"),
+		   Action.bIsDeferredFire ? 1 : 0);
+
 	// Lazy-bind to DefenseSystem on first use. Subsystem init order is alphabetical, so
 	// ActionExecutor::Initialize runs before DefenseSystem exists; binding there silently no-ops.
 	// By the time any action runs, DefenseSystem exists. Idempotent — bDefenseEventsBound guards re-binding.
@@ -798,6 +802,9 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Cache for approach completion callback
 	PendingExecutionActor = Actor;
 	PendingExecutionCharData = CharData;
+	UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg2] SET PendingExecutionActor=%s (bIsDeferredFire=%d) at ExecuteActionAsync:799"),
+		   Actor ? *Actor->GetName() : TEXT("NULL"),
+		   (CurrentExecutionContext.IsSet() ? (CurrentExecutionContext->Action.bIsDeferredFire ? 1 : 0) : -1));
 
 	// Handle instant actions (no animation, no movement)
 	if (Action.ActionType == EActionType::Defend ||
@@ -806,6 +813,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	{
 		FActionResult Result = ExecuteAction(Actor, Action);
 		CurrentExecutionContext.Reset();
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg2] CLEAR at instant-action"));
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
 		if (OnComplete.IsBound())
@@ -876,6 +884,7 @@ bool UActionExecutor::ValidateInfusionGate(const FAction &Action, bool bImmuneTo
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("This action cannot be infused.");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ValidateInfusionGate"));
 		FinalizeAsyncAction();
 		return false;
 	}
@@ -976,6 +985,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteSpellAsync SpendEnergy fail"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1050,6 +1060,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteSpellAsync no targets"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1160,6 +1171,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Failed to spend energy");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteAbilityAsync SpendEnergy fail"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1209,6 +1221,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteAbilityAsync no targets"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1305,6 +1318,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No attack available");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteAttackAsync no attack"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1379,6 +1393,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	{
 		CurrentExecutionContext->PartialResult.bSuccess = false;
 		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteAttackAsync no targets"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1431,6 +1446,7 @@ void UActionExecutor::ExecuteItemAsync(AActor *Actor, const FAction &Action, UCh
 	if (!Actor)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] ExecuteItemAsync - Invalid actor"));
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from ExecuteItemAsync invalid actor"));
 		FinalizeAsyncAction();
 		return;
 	}
@@ -1793,11 +1809,26 @@ void UActionExecutor::TryFinalizeAsyncAction()
 		return;
 	}
 
+	// Hardening (return-skip fix): MontagePhase is the authoritative chain-progress
+	// signal - finalize only once the chain has fully ended (Done) or never ran
+	// (None: instant / validation-fail / no-animation paths). Guards against a stray
+	// early unbind clearing bWaitingForAnimationEnd while a leg is still mid-chain.
+	if (MontagePhase != EMontagePhase::Done && MontagePhase != EMontagePhase::None)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] TryFinalize: chain not complete (phase=%d)"),
+			   (int32)MontagePhase);
+		return;
+	}
+
 	FinalizeAsyncAction();
 }
 
 void UActionExecutor::FinalizeAsyncAction()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] FinalizeAsyncAction - MontagePhase=%d bWaitingForAnimationEnd=%d bIsDeferredFire=%d"),
+		   (int32)MontagePhase, bWaitingForAnimationEnd ? 1 : 0,
+		   (CurrentExecutionContext.IsSet() ? (CurrentExecutionContext->Action.bIsDeferredFire ? 1 : 0) : -1));
+
 	if (!CurrentExecutionContext.IsSet())
 	{
 		return;
@@ -1967,12 +1998,16 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 	}
 
 	// Clear pending state
+	UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg2] CLEAR at CompleteAsyncActionFinal"));
 	PendingExecutionActor = nullptr;
 	PendingExecutionCharData = nullptr;
 }
 
 void UActionExecutor::OnAsyncActionTimeout()
 {
+	UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] OnAsyncActionTimeout fired - phase=%d wait=%d"),
+		   (int32)MontagePhase, bWaitingForAnimationEnd ? 1 : 0);
+
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
 	{
 		return;
@@ -1999,6 +2034,7 @@ void UActionExecutor::OnAsyncActionTimeout()
 	}
 
 	CurrentExecutionContext->PendingDefenses.Empty();
+	UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg] Finalize from OnAsyncActionTimeout"));
 	FinalizeAsyncAction();
 }
 
@@ -2025,6 +2061,7 @@ void UActionExecutor::CancelAsyncAction()
 	{
 		UnbindActionAnimationEnd(PendingExecutionActor);
 		UnbindCombatNotify(PendingExecutionActor);
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg2] CLEAR at CancelAsyncAction"));
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
 	}
@@ -4315,6 +4352,22 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 		return;
 	}
 
+	// Montage-identity guard (return-skip fix): ignore an end for ANY montage that
+	// is NOT the chain leg currently playing. On an Execution fire the skill montage
+	// plays over a residual action montage; that residual's blended-out Montage_Stop
+	// fires OnActionMontageEnded(residual, bInterrupted=true). Without this guard the
+	// bInterrupted branch below runs FinishMontageChain -> clears bWaitingForAnimationEnd
+	// mid-chain -> finalize through the open gate -> the real Return leg is skipped.
+	// A genuine interrupt of the actual chain montage (ended == CurrentChainMontage)
+	// still falls through and ends the chain, as it should.
+	if (Montage != CurrentChainMontage)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Ignoring spurious montage end %s (chain leg is %s)"),
+			   Montage ? *Montage->GetName() : TEXT("<null>"),
+			   CurrentChainMontage ? *CurrentChainMontage->GetName() : TEXT("<null>"));
+		return;
+	}
+
 	AActor *Actor = PendingExecutionActor;
 	UCastableSkillDataBase *Skill = GetCurrentSkillData();
 
@@ -4547,6 +4600,7 @@ void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skil
 	if (Skill->RitualCastMontage)
 	{
 		MontagePhase = EMontagePhase::Ritual;
+		CurrentChainMontage = Skill->RitualCastMontage; // tracked-leg identity (return-skip guard)
 		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayRitual %s"), *Skill->RitualCastMontage->GetName());
 		PlayActionMontageOnActor(Actor, Skill->RitualCastMontage, PendingMontagePlayRate);
 		return;
@@ -4565,6 +4619,7 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill
 	// Always SkillMontage — bIsDeferredFire gates validation/cost, not montage
 	// choice; there is no ResolveActiveMontage.
 	MontagePhase = EMontagePhase::Skill;
+	CurrentChainMontage = Skill->SkillMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Log, TEXT("[Montage] PlaySkill %s"),
 		   Skill->SkillMontage ? *Skill->SkillMontage->GetName() : TEXT("None"));
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
@@ -4602,6 +4657,7 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skil
 		}
 	}
 
+	CurrentChainMontage = Skill->ReturnMontage; // tracked-leg identity (return-skip guard)
 	UE_LOG(LogTemp, Log, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
 	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
 }
@@ -4637,6 +4693,7 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	// HERE (inside UnbindActionAnimationEnd) and nowhere else, so finalize can only
 	// run after the final montage. The notify spine is unbound here too.
 	MontagePhase = EMontagePhase::Done;
+	CurrentChainMontage = nullptr; // chain over - drop the tracked-leg identity
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended - finalizing"));
 
@@ -5662,6 +5719,7 @@ void UActionExecutor::DebugForceResetAsync()
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] FORCE RESETTING stuck async action"));
 		CurrentExecutionContext.Reset();
+		UE_LOG(LogTemp, Warning, TEXT("[ReturnDbg2] CLEAR at DebugForceResetAsync"));
 		PendingExecutionActor = nullptr;
 		PendingExecutionCharData = nullptr;
 		bWaitingForAnimationEnd = false;

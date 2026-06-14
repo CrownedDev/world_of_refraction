@@ -441,44 +441,36 @@ private:
 	/** Track if we're waiting for async action to complete */
 	bool bWaitingForAsyncAction = false;
 
-	/** Armed deferred activations (D8). Lives HERE, not on TurnManager — its
-	 *  AdvanceSimState is replayed 16x per belt-preview rebuild, so a queue
-	 *  there would fire during preview. Fired once, for real, FIFO, in
-	 *  HandleTurnStarted (Stage 8c). Cleared on every combat-end path. */
+	/** Armed deferred activations (W-B). Keyed by an orchestrator-owned PayloadId
+	 *  handed to TurnManager::ScheduleExecutionTurn at arm; looked up by the same
+	 *  handle when the scheduled Execution turn fires. Lives HERE, not on
+	 *  TurnManager — its AdvanceSimState is replayed 16x per belt-preview rebuild.
+	 *  The countdown is OWNED BY TurnManager now (delay burns on Normal turns in
+	 *  AdvanceSimState); this map only holds the frozen intent. Cleared on every
+	 *  combat-end path. */
 	UPROPERTY()
-	TArray<FDeferredActivation> DeferredActivations;
+	TMap<int32, FDeferredActivation> DeferredPayloads;
 
-	/** Bound to ActionExecutor::OnActionDeferredArmed — registers an armed
-	 *  skill in the queue. */
+	/** Monotonic source for DeferredPayloads keys / ScheduleExecutionTurn handles. */
+	int32 NextPayloadId = 0;
+
+	/** Bound to ActionExecutor::OnActionDeferredArmed — stashes the frozen ritual
+	 *  in DeferredPayloads and schedules an Execution turn (W-B). */
 	UFUNCTION()
 	void HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns);
 
-	/** Entries due THIS turn, moved out of DeferredActivations by
-	 *  TickDeferredActivations and consumed FIFO by the fire chain. */
-	UPROPERTY()
-	TArray<FDeferredActivation> DueDeferredFires;
+	/** Execution-turn fire (W-B): looks up the frozen FDeferredActivation by the
+	 *  current turn's PayloadId, fires it cost-free (bIsDeferredFire) via
+	 *  ExecuteActionAsync — the ONLY async action on this turn (no
+	 *  RequestActionFromActor competes for the slot). Completion routes through
+	 *  HandleExecutionTurnCompleted. */
+	void FireScheduledExecution();
 
-	/** Caster of the deferred fire currently executing — for the
-	 *  OnActionExecuted UI broadcast (the firing actor is the ritual's caster,
-	 *  not necessarily the turn owner). */
-	UPROPERTY()
-	AActor *CurrentDeferredFireCaster = nullptr;
-
-	/** Turn-start tick (8c): decrement EVERY queued entry (global countdown),
-	 *  move due entries (TurnsRemaining <= 0) into DueDeferredFires, FIFO. */
-	void TickDeferredActivations();
-
-	/** Fire the next due ritual via ExecuteActionAsync with bIsDeferredFire set
-	 *  (cost-free — paid at arm). Only drops casters ALREADY gone at turn start
-	 *  (removed in a prior turn) — rituals fire before this turn's DoT, so an
-	 *  about-to-die caster still fires. Drained (or empty) → the normal turn
-	 *  proceeds (ProceedWithTurnStart). Async-chained via
-	 *  HandleDeferredFireCompleted — never blocks. */
-	void FireNextDeferredActivation();
-
-	/** Completion of one deferred fire: broadcast for UI, divert to the normal
-	 *  end-of-combat flow if the ritual ended the fight, else chain the next. */
-	void HandleDeferredFireCompleted(const FActionResult &Result);
+	/** Completion of the Execution-turn fire: broadcast for UI, route to the
+	 *  win-cleanup flow if the ritual ended the fight, else exactly one
+	 *  AdvanceToNextTurn. No end-of-turn DoT — an Execution turn is a pure fire,
+	 *  not a combatant turn. */
+	void HandleExecutionTurnCompleted(const FActionResult &Result);
 
 	/** Normal turn-start flow AFTER rituals fire: start-of-turn effects (DoT),
 	 *  BD overflow, death check, turn broadcast, then RequestActionFromActor.

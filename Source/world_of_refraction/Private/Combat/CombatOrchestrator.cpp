@@ -577,9 +577,7 @@ void ACombatOrchestrator::OnActionCompleted()
 		Team0Combatants.Empty();
 		Team1Combatants.Empty();
 		CurrentActor = nullptr;
-		DeferredActivations.Empty(); // D8: no armed ritual leaks across combats
-		DueDeferredFires.Empty();
-		CurrentDeferredFireCaster = nullptr;
+		DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
 
 		SetCombatState(ECombatState::Idle);
 		return;
@@ -601,13 +599,17 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Turn %d started: %s"),
 		   TurnNumber, *Actor->GetName());
 
-	// D8 8c rev: rituals fire FIRST — before this turn's DoT/death-check — a
-	// committed last act. A caster about to die to this turn's DoT still
-	// fires; only casters already gone (removed in a prior turn) are dropped
-	// by the alive check at fire time. Empty queue → both calls are no-ops
-	// and ProceedWithTurnStart runs immediately, same order as before.
-	TickDeferredActivations();
-	FireNextDeferredActivation(); // drained/empty → ProceedWithTurnStart
+	// W-B: an Execution turn carries a scheduled ritual fire — it is the ONLY thing
+	// that happens this turn (no start-of-turn effects, no action request). Every
+	// other turn kind (Normal / Bonus) runs the ordinary flow. The countdown that
+	// decides WHEN this fires now lives in TurnManager (delay burns on Normal turns).
+	if (TurnManagerRef && TurnManagerRef->GetCurrentTurnType() == ETurnType::Execution)
+	{
+		FireScheduledExecution();
+		return;
+	}
+
+	ProceedWithTurnStart();
 }
 
 void ACombatOrchestrator::ProceedWithTurnStart()
@@ -635,116 +637,112 @@ void ACombatOrchestrator::ProceedWithTurnStart()
 
 void ACombatOrchestrator::HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns)
 {
-	FDeferredActivation Entry;
-	Entry.Action = Action;
-	Entry.Caster = Caster;
-	Entry.TurnsRemaining = DelayTurns;
-	DeferredActivations.Add(Entry);
-
-	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] Deferred queue: %d armed"),
-		   DeferredActivations.Num());
-}
-
-void ACombatOrchestrator::TickDeferredActivations()
-{
-	if (DeferredActivations.Num() == 0)
+	if (!TurnManagerRef)
 	{
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Ritual armed but no TurnManager — cannot schedule Execution turn"));
 		return;
 	}
 
-	// Global countdown: EVERY turn start ticks EVERY entry (locked A1 model).
-	for (FDeferredActivation &Entry : DeferredActivations)
+	// Stash the frozen intent under a fresh payload handle; TurnManager carries the
+	// handle on the scheduled Execution turn and hands it back at fire time.
+	const int32 PayloadId = NextPayloadId++;
+	FDeferredActivation Entry;
+	Entry.Action = Action;
+	Entry.Caster = Caster;
+	DeferredPayloads.Add(PayloadId, Entry);
+
+	// Freeze the caster's spell speed NOW — TurnManager stays decoupled (no CharacterData
+	// lookup) and uses it as the fire-time SortKey among directly-adjacent ready Execution
+	// turns (faster fires first). The orchestrator already reads CharacterData this way.
+	float FrozenSpellSpeed = 0.0f;
+	if (UCharacterDataComponent *CharComp = Caster ? Caster->FindComponentByClass<UCharacterDataComponent>() : nullptr)
 	{
-		Entry.TurnsRemaining--;
+		if (CharComp->CharacterData)
+		{
+			FrozenSpellSpeed = CharComp->CharacterData->CalculateSpellSpeed();
+		}
 	}
 
-	// Move due entries out in queue order — FIFO by arming is preserved
-	// because the scan is front-to-back (determinism invariant: no TMap, no
-	// reordering).
-	for (int32 i = 0; i < DeferredActivations.Num();)
-	{
-		if (DeferredActivations[i].TurnsRemaining <= 0)
-		{
-			DueDeferredFires.Add(DeferredActivations[i]);
-			DeferredActivations.RemoveAt(i);
-		}
-		else
-		{
-			++i;
-		}
-	}
+	TurnManagerRef->ScheduleExecutionTurn(Caster, DelayTurns, PayloadId, FrozenSpellSpeed);
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Ritual armed (payload %d, spellspeed %.2f) — Execution turn in %d normal turn(s)"),
+		   PayloadId, FrozenSpellSpeed, DelayTurns);
 }
 
-void ACombatOrchestrator::FireNextDeferredActivation()
+void ACombatOrchestrator::FireScheduledExecution()
 {
-	if (DueDeferredFires.Num() > 0 && !ActionExecutorRef)
+	if (!ActionExecutorRef)
 	{
-		UE_LOG(LogTemp, Error,
-			   TEXT("[Deferred] %d due ritual(s) but no ActionExecutor — dropping them"),
-			   DueDeferredFires.Num());
-		DueDeferredFires.Empty();
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Execution turn but no ActionExecutor — skipping"));
+		TurnManagerRef->AdvanceToNextTurn();
+		return;
 	}
 
-	while (DueDeferredFires.Num() > 0)
+	const int32 PayloadId = TurnManagerRef->GetCurrentTurnPayloadId();
+	FDeferredActivation *Entry = DeferredPayloads.Find(PayloadId);
+	if (!Entry)
 	{
-		FDeferredActivation Entry = DueDeferredFires[0];
-		DueDeferredFires.RemoveAt(0);
-
-		// Caster already gone (died/removed in a PRIOR turn): drop without
-		// firing. This turn's DoT hasn't ticked yet — rituals fire before it —
-		// so an about-to-die caster passes this check and fires.
-		if (!IsActorAlive(Entry.Caster))
-		{
-			UE_LOG(LogTemp, Log, TEXT("[Deferred] Cancelled %s — caster %s dead/invalid at fire time"),
-				   *Entry.Action.GetActionName(),
-				   IsValid(Entry.Caster) ? *Entry.Caster->GetName() : TEXT("<invalid>"));
-			continue;
-		}
-
-		FAction FireAction = Entry.Action;
-		FireAction.bIsDeferredFire = true; // cost paid at arm — fire is free
-
-		CurrentDeferredFireCaster = Entry.Caster;
-
-		UE_LOG(LogTemp, Log, TEXT("[Deferred] Firing %s (caster %s) at turn %d start"),
-			   *FireAction.GetActionName(), *Entry.Caster->GetName(), CurrentTurnNumber);
-
-		ActionExecutorRef->ExecuteActionAsync(
-			Entry.Caster, FireAction,
-			FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleDeferredFireCompleted));
-		return; // chain continues from HandleDeferredFireCompleted
+		// Malformed slot (payload missing) — skip without requesting an action.
+		UE_LOG(LogTemp, Error, TEXT("[CombatOrchestrator] Execution turn payload %d not found — skipping"), PayloadId);
+		TurnManagerRef->AdvanceToNextTurn();
+		return;
 	}
 
-	// Due list drained (or was empty) — the normal turn-start flow (DoT,
-	// death check, action request) proceeds.
-	CurrentDeferredFireCaster = nullptr;
-	ProceedWithTurnStart();
+	FAction FireAction = Entry->Action;
+	FireAction.bIsDeferredFire = true; // cost paid at arm — fire is free
+	AActor *Caster = Entry->Caster;
+	DeferredPayloads.Remove(PayloadId); // consume
+
+	// Defensive: TurnManager already prunes dead grantees before emitting an Execution
+	// turn, so this normally can't trip. Skip the fire if it somehow does.
+	if (!IsActorAlive(Caster))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn caster %s dead/invalid — skipping fire"),
+			   IsValid(Caster) ? *Caster->GetName() : TEXT("<invalid>"));
+		TurnManagerRef->AdvanceToNextTurn();
+		return;
+	}
+
+	// The ONLY async action on this turn — no RequestActionFromActor competes for the
+	// single async slot. bWaitingForAsyncAction mirrors SubmitAction's re-entrancy gate.
+	bWaitingForAsyncAction = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn: firing %s (caster %s, payload %d)"),
+		   *FireAction.GetActionName(), *Caster->GetName(), PayloadId);
+
+	ActionExecutorRef->ExecuteActionAsync(
+		Caster, FireAction,
+		FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleExecutionTurnCompleted));
 }
 
-void ACombatOrchestrator::HandleDeferredFireCompleted(const FActionResult &Result)
+void ACombatOrchestrator::HandleExecutionTurnCompleted(const FActionResult &Result)
 {
-	UE_LOG(LogTemp, Log, TEXT("[Deferred] Fire completed: %s (Damage: %d)"),
+	// Clear the gate FIRST — OnActionCompleted (win path below) early-returns while it's
+	// set, mirroring HandleAsyncActionCompleted's ordering.
+	bWaitingForAsyncAction = false;
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn fire completed: %s (Damage: %d)"),
 		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
 		   Result.TotalDamageDealt);
 
-	// UI parity with HandleAsyncActionCompleted — broadcast against the
-	// ritual's caster, not the turn owner.
-	if (CurrentDeferredFireCaster)
+	// CurrentActor IS the ritual's caster on an Execution turn (TurnManager picked the
+	// Execution entry whose Actor is the caster) — UI parity with HandleAsyncActionCompleted.
+	if (CurrentActor)
 	{
-		OnActionExecuted.Broadcast(CurrentDeferredFireCaster, Result);
+		OnActionExecuted.Broadcast(CurrentActor, Result);
 	}
-	CurrentDeferredFireCaster = nullptr;
 
-	// A ritual can end the combat — divert into the normal completion flow
-	// (end-of-turn effects + win handling) instead of requesting an action in
-	// a finished fight.
+	// A ritual can end the combat — route into the win-cleanup flow (which does NOT advance)
+	// instead of advancing into a finished fight.
 	if (CheckWinCondition() != ECombatState::InProgress)
 	{
 		OnActionCompleted();
 		return;
 	}
 
-	FireNextDeferredActivation();
+	// Exactly one advance for the Execution turn. No end-of-turn DoT — an Execution turn is a
+	// pure fire, not a combatant turn.
+	TurnManagerRef->AdvanceToNextTurn();
 }
 
 void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
@@ -775,9 +773,7 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 		Team0Combatants.Empty();
 		Team1Combatants.Empty();
 		CurrentActor = nullptr;
-		DeferredActivations.Empty(); // D8: no armed ritual leaks across combats
-		DueDeferredFires.Empty();
-		CurrentDeferredFireCaster = nullptr;
+		DeferredPayloads.Empty(); // W-B: no armed ritual leaks across combats
 
 		SetCombatState(ECombatState::Idle);
 	}

@@ -487,6 +487,14 @@ private:
 	 *  bPlayingRitualLeadIn / bPlayingReturnMontage flag pair. */
 	EMontagePhase MontagePhase = EMontagePhase::None;
 
+	/** The montage the active chain leg is actually playing — set by each
+	 *  Play{Ritual,Skill,Return}Step just before it plays. OnActionAnimationEnded
+	 *  compares the ended montage against this and ignores ends for ANY other
+	 *  montage (a blended-out residual/leftover action interrupt), so a spurious
+	 *  bInterrupted end can't run FinishMontageChain mid-chain (return-skip fix). */
+	UPROPERTY()
+	UAnimMontage *CurrentChainMontage = nullptr;
+
 	/** True while a deferred ARM turn's ritual-cast montage plays (2b). The arm
 	 *  plays ONLY RitualCastMontage — no approach/skill/return, no skill effects,
 	 *  no damage — and completes via FinishArmTurn (OnActionAnimationEnded routes
