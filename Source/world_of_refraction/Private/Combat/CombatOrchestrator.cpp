@@ -689,7 +689,7 @@ void ACombatOrchestrator::FireScheduledExecution()
 	}
 
 	FAction FireAction = Entry->Action;
-	FireAction.bIsDeferredFire = true; // cost paid at arm — fire is free
+	FireAction.bIsDeferredFire = true; // cost paid at arm — gates cost/validation
 	AActor *Caster = Entry->Caster;
 	DeferredPayloads.Remove(PayloadId); // consume
 
@@ -703,46 +703,23 @@ void ACombatOrchestrator::FireScheduledExecution()
 		return;
 	}
 
-	// The ONLY async action on this turn — no RequestActionFromActor competes for the
-	// single async slot. bWaitingForAsyncAction mirrors SubmitAction's re-entrancy gate.
-	bWaitingForAsyncAction = true;
-
+	// Option 2: the Execution turn is a normal turn that skips "ask the character what to
+	// do" and runs the pre-decided ritual through the SAME path a normal action uses.
+	// CurrentActor is already the caster (HandleTurnStarted set it before this branch).
+	// SubmitAction validates (bIsDeferredFire bypasses the stun/silence/dead-target gates
+	// and zeroes cost — paid at arm), routes async (the ritual carries montages), and binds
+	// HandleAsyncActionCompleted → return → finalize → single AdvanceToNextTurn. No parallel
+	// fire path, no parallel completion callback. bWaitingForAsyncAction is owned by
+	// SubmitAction — do NOT pre-set it here.
 	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn: firing %s (caster %s, payload %d)"),
 		   *FireAction.GetActionName(), *Caster->GetName(), PayloadId);
 
-	ActionExecutorRef->ExecuteActionAsync(
-		Caster, FireAction,
-		FOnActionComplete::CreateUObject(this, &ACombatOrchestrator::HandleExecutionTurnCompleted));
-}
-
-void ACombatOrchestrator::HandleExecutionTurnCompleted(const FActionResult &Result)
-{
-	// Clear the gate FIRST — OnActionCompleted (win path below) early-returns while it's
-	// set, mirroring HandleAsyncActionCompleted's ordering.
-	bWaitingForAsyncAction = false;
-
-	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Execution turn fire completed: %s (Damage: %d)"),
-		   Result.bSuccess ? TEXT("SUCCESS") : TEXT("FAILED"),
-		   Result.TotalDamageDealt);
-
-	// CurrentActor IS the ritual's caster on an Execution turn (TurnManager picked the
-	// Execution entry whose Actor is the caster) — UI parity with HandleAsyncActionCompleted.
-	if (CurrentActor)
+	if (!SubmitAction(FireAction))
 	{
-		OnActionExecuted.Broadcast(CurrentActor, Result);
+		// SubmitAction refused (validation / re-entrancy guard) — don't strand the turn.
+		UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] Execution submit refused — advancing"));
+		TurnManagerRef->AdvanceToNextTurn();
 	}
-
-	// A ritual can end the combat — route into the win-cleanup flow (which does NOT advance)
-	// instead of advancing into a finished fight.
-	if (CheckWinCondition() != ECombatState::InProgress)
-	{
-		OnActionCompleted();
-		return;
-	}
-
-	// Exactly one advance for the Execution turn. No end-of-turn DoT — an Execution turn is a
-	// pure fire, not a combatant turn.
-	TurnManagerRef->AdvanceToNextTurn();
 }
 
 void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)

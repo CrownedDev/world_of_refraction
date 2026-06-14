@@ -495,6 +495,17 @@ private:
 	UPROPERTY()
 	UAnimMontage *CurrentChainMontage = nullptr;
 
+	/** Actor whose montage chain is live; the chain advances off THIS, never
+	 *  PendingExecutionActor (which finalize nulls mid-Skill on a deferred fire).
+	 *  Set in BeginMontageChain, cleared in FinishMontageChain / CancelAsyncAction
+	 *  (return-skip fix A — the chain survives the null and still reaches Return). */
+	TWeakObjectPtr<AActor> ChainActor;
+
+	/** Skill the live chain is playing; replaces GetCurrentSkillData() reads in the
+	 *  chain path so the chain advances off its own handle, not pending context. */
+	UPROPERTY()
+	UCastableSkillDataBase *ChainSkill = nullptr;
+
 	/** True while a deferred ARM turn's ritual-cast montage plays (2b). The arm
 	 *  plays ONLY RitualCastMontage — no approach/skill/return, no skill effects,
 	 *  no damage — and completes via FinishArmTurn (OnActionAnimationEnded routes

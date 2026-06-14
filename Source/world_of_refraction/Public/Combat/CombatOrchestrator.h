@@ -459,18 +459,12 @@ private:
 	UFUNCTION()
 	void HandleActionDeferredArmed(AActor *Caster, const FAction &Action, int32 DelayTurns);
 
-	/** Execution-turn fire (W-B): looks up the frozen FDeferredActivation by the
-	 *  current turn's PayloadId, fires it cost-free (bIsDeferredFire) via
-	 *  ExecuteActionAsync — the ONLY async action on this turn (no
-	 *  RequestActionFromActor competes for the slot). Completion routes through
-	 *  HandleExecutionTurnCompleted. */
+	/** Execution-turn fire (Option 2): looks up the frozen FDeferredActivation by
+	 *  the current turn's PayloadId, sets bIsDeferredFire, and runs the ritual
+	 *  through the NORMAL SubmitAction path — completion routes through
+	 *  HandleAsyncActionCompleted (return → finalize → single AdvanceToNextTurn),
+	 *  same as any normal turn. There is no parallel fire/completion path. */
 	void FireScheduledExecution();
-
-	/** Completion of the Execution-turn fire: broadcast for UI, route to the
-	 *  win-cleanup flow if the ritual ended the fight, else exactly one
-	 *  AdvanceToNextTurn. No end-of-turn DoT — an Execution turn is a pure fire,
-	 *  not a combatant turn. */
-	void HandleExecutionTurnCompleted(const FActionResult &Result);
 
 	/** Normal turn-start flow AFTER rituals fire: start-of-turn effects (DoT),
 	 *  BD overflow, death check, turn broadcast, then RequestActionFromActor.

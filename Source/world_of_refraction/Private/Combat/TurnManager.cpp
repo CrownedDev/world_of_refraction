@@ -480,17 +480,6 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	// (RebuildBelt, scratch state) both run through here — the only place a turn is
 	// selected. Deliberately log-free: RebuildBelt replays it 16x per rebuild.
 
-	// DIAGNOSTIC ([ExecTiming], temporary): dump pending delay at the TOP of every scheduler step
-	// so a ritual repro shows the burn landing on the expected turn (Delay=1 -> burn on the turn
-	// after arm -> fires the turn after that). Guarded on Pending.Num() so idle combat stays quiet.
-	// NOTE: AdvanceSimState is replayed ~16x per RebuildBelt, and GetPendingTurnsString() reads the
-	// LIVE member queue — so belt replays emit redundant live-state lines. Remove (or move to
-	// AdvanceToNextTurn for a live-only, once-per-turn line) once the timing is confirmed.
-	if (Pending.Num() > 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ExecTiming] step — pending: %s"), *GetPendingTurnsString());
-	}
-
 	// Pinned-fire (Cluster 2b + Execution W-A) — BEFORE the debt machinery. A ready entry
 	// (TurnsRemaining <= 0) preempts the debt pick: the pinned turn lands at its guaranteed
 	// slot regardless of debt. Bonus entries keep FIFO by Pending order. Among ready EXECUTION
