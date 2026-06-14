@@ -576,7 +576,6 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	CurrentExecutionContext = ArmContext;
 	ApplyCommitCosts(Actor, ArmedAction);
 	ApplyPendingInfusionHPCost(Actor);
-	CurrentExecutionContext.Reset();
 
 	OnActionStarted.Broadcast(Actor, ArmedAction, EnergyCost);
 
@@ -592,6 +591,33 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	Result.ActionType = Action.ActionType;
 	Result.bSuccess = true;
 	Result.EnergySpent = EnergyCost;
+
+	// 2b: the ritual cast montage IS the arm turn — play ONLY it, hold the turn
+	// open, and complete the arm when it ends (FinishArmTurn). The cost/commit
+	// above is the commit; the montage is the visible channel. Presence-driven:
+	// no RitualCastMontage → keep the synchronous immediate-complete (the SC9
+	// no-arm-gesture fallback). The skill resolves from the slot just set.
+	UCastableSkillDataBase *ArmSkill = GetCurrentSkillData();
+	if (ArmSkill && ArmSkill->RitualCastMontage)
+	{
+		// Hold the context open (bInProgress = true) across the wait so the
+		// next-action guard sees the arm in progress; FinishArmTurn settles it.
+		// Cache the armed-success payload + stash the completion in the runner's
+		// single-fire slot. PendingExecutionActor lets the montage-end dispatcher
+		// resolve the actor (the arm returns before the runner sets it).
+		PendingExecutionActor = Actor;
+		PendingFinalResult = Result;
+		AsyncActionCallback = OnComplete;
+		bArmingRitual = true;
+		BindActionAnimationEnd(Actor); // sets bWaitingForAnimationEnd
+		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayArm %s"),
+			   *ArmSkill->RitualCastMontage->GetName());
+		PlayActionMontageOnActor(Actor, ArmSkill->RitualCastMontage, 1.0f);
+		return true;
+	}
+
+	// No ritual clip — synchronous immediate-complete (today's banked arm).
+	CurrentExecutionContext.Reset();
 	if (OnComplete.IsBound())
 	{
 		OnComplete.Execute(Result);
@@ -2004,6 +2030,7 @@ void UActionExecutor::CancelAsyncAction()
 	}
 	MontagePhase = EMontagePhase::None;
 	PendingMontagePlayRate = 1.0f;
+	bArmingRitual = false;
 
 	// Close any open defense windows
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
@@ -4278,6 +4305,16 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 		return;
 	}
 
+	// 2b: a deferred ARM turn's ritual cast ended (or was interrupted) — complete
+	// the arm and end the turn. Routed BEFORE the chain dispatch AND the interrupt
+	// branch: an interrupted ritual cast still completes the arm (costs are paid
+	// and the ritual already queued — interrupting the channel doesn't un-arm it).
+	if (bArmingRitual)
+	{
+		FinishArmTurn(PendingExecutionActor);
+		return;
+	}
+
 	AActor *Actor = PendingExecutionActor;
 	UCastableSkillDataBase *Skill = GetCurrentSkillData();
 
@@ -4298,22 +4335,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	{
 	case EMontagePhase::Ritual:
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Montage] Ritual ended - advancing to Approach"));
-		TWeakObjectPtr<AActor> WeakActor = Actor;
-		GetWorld()->GetTimerManager().SetTimerForNextTick(
-			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
-			{
-				if (bWaitingForAnimationEnd && WeakActor.IsValid())
-				{
-					PlayApproachStep(WeakActor.Get(), GetCurrentSkillData());
-				}
-			}));
-		return;
-	}
-
-	case EMontagePhase::Approach:
-	{
-		UE_LOG(LogTemp, Log, TEXT("[Montage] Approach ended - advancing to Skill"));
+		UE_LOG(LogTemp, Log, TEXT("[Montage] Ritual ended - advancing to Skill"));
 		TWeakObjectPtr<AActor> WeakActor = Actor;
 		GetWorld()->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
@@ -4494,11 +4516,24 @@ void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *S
 	}
 
 	// Entry to the explicit chain (Option B). The first montage plays IMMEDIATELY
-	// (here, via PlayRitualStep, which presence-skips through Approach to Skill);
+	// (here, via the entry step, which presence-skips through the remaining legs);
 	// every montage-end transition is scheduled NEXT-TICK by the dispatcher (the
 	// stance-resume stomp avoidance).
+	//
+	// Deferred FIRE (2a): the ritual cast already played as its own arm turn — the
+	// fire skips the ritual leg and starts at Skill (→ Return). A normal cast
+	// (delay==0 or non-ritual) runs the full chain from Ritual.
+	const bool bDeferredFire = CurrentExecutionContext.IsSet() &&
+							   CurrentExecutionContext->Action.bIsDeferredFire;
 	PendingMontagePlayRate = PlayRate;
-	PlayRitualStep(Actor, Skill);
+	if (bDeferredFire)
+	{
+		PlaySkillStep(Actor, Skill);
+	}
+	else
+	{
+		PlayRitualStep(Actor, Skill);
+	}
 }
 
 void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill)
@@ -4508,35 +4543,12 @@ void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skil
 		return;
 	}
 
-	// Presence-driven: a null RitualCastMontage skips straight to the approach leg.
+	// Presence-driven: a null RitualCastMontage skips straight to the skill leg.
 	if (Skill->RitualCastMontage)
 	{
 		MontagePhase = EMontagePhase::Ritual;
 		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayRitual %s"), *Skill->RitualCastMontage->GetName());
 		PlayActionMontageOnActor(Actor, Skill->RitualCastMontage, PendingMontagePlayRate);
-		return;
-	}
-
-	PlayApproachStep(Actor, Skill);
-}
-
-void UActionExecutor::PlayApproachStep(AActor *Actor, UCastableSkillDataBase *Skill)
-{
-	if (!Actor || !Skill)
-	{
-		return;
-	}
-
-	// Presence-driven: a null ApproachMontage skips straight to the skill leg —
-	// traveling attacks warp in via the SkillMontage's own root motion (unchanged).
-	if (Skill->ApproachMontage)
-	{
-		MontagePhase = EMontagePhase::Approach;
-		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayApproach %s"), *Skill->ApproachMontage->GetName());
-		// WarpTarget set to the striking offset at execution start
-		// (BeginSkillExecution); the approach montage's WarpTarget window consumes
-		// it, carrying the character to the target for the in-place skill.
-		PlayActionMontageOnActor(Actor, Skill->ApproachMontage, PendingMontagePlayRate);
 		return;
 	}
 
@@ -4592,6 +4604,31 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skil
 
 	UE_LOG(LogTemp, Log, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
 	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
+}
+
+void UActionExecutor::FinishArmTurn(AActor *Actor)
+{
+	// 2b arm completion — the ritual cast (the arm turn) has ended or was
+	// interrupted. NO skill effects, NO damage, NO defense gating, NO chain: the
+	// costs were paid and the ritual queued at arm. Unbind the spine, release the
+	// context the arm held open (same end-state the synchronous arm produced so
+	// the next-action guard is clean), and fire the stashed armed-success callback
+	// ONCE — that ends the turn.
+	bArmingRitual = false;
+
+	if (Actor)
+	{
+		UnbindActionAnimationEnd(Actor); // clears bWaitingForAnimationEnd
+		UnbindCombatNotify(Actor);
+	}
+
+	CurrentExecutionContext.Reset();
+
+	if (AsyncActionCallback.IsBound())
+	{
+		AsyncActionCallback.Execute(PendingFinalResult);
+		AsyncActionCallback.Unbind();
+	}
 }
 
 void UActionExecutor::FinishMontageChain(AActor *Actor)

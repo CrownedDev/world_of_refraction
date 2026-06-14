@@ -61,7 +61,6 @@ enum class EMontagePhase : uint8
 {
 	None,
 	Ritual,
-	Approach,
 	Skill,
 	Return,
 	Done
@@ -483,10 +482,17 @@ private:
 	bool ResolveVFXAttachLocation(EVFXAttach Attach, FName SocketName, int32 Index, FVector &OutLoc) const;
 
 	/** Current leg of the explicit montage chain (Option B). OnActionAnimationEnded
-	 *  reads this to advance Ritual → Approach → Skill → Return → Done; finalize
+	 *  reads this to advance Ritual → Skill → Return → Done; finalize
 	 *  runs only on the Done transition (FinishMontageChain). Replaces the old
 	 *  bPlayingRitualLeadIn / bPlayingReturnMontage flag pair. */
 	EMontagePhase MontagePhase = EMontagePhase::None;
+
+	/** True while a deferred ARM turn's ritual-cast montage plays (2b). The arm
+	 *  plays ONLY RitualCastMontage — no approach/skill/return, no skill effects,
+	 *  no damage — and completes via FinishArmTurn (OnActionAnimationEnded routes
+	 *  here before the chain dispatch). A terminal one-leg flow, not part of the
+	 *  linear chain, so it's a flag rather than an EMontagePhase value. */
+	bool bArmingRitual = false;
 
 	/** Play-rate carried across the chain — ritual + skill play at this rate; the
 	 *  return leg plays at 1.0. Set by BeginMontageChain. */
@@ -498,10 +504,16 @@ private:
 	 *  step. BeginMontageChain is the entry (replaces PlaySkillMontageChain). */
 	void BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
 	void PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill);
-	void PlayApproachStep(AActor *Actor, UCastableSkillDataBase *Skill);
 	void PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill);
 	void PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill);
 	void FinishMontageChain(AActor *Actor);
+
+	/** Complete a deferred ARM turn (2b): the ritual-cast montage ended (or was
+	 *  interrupted). Unbinds the anim/notify spine, settles the held execution
+	 *  context, and fires the stashed armed-success callback ONCE (ends the turn).
+	 *  NO skill effects / damage / defense — costs were paid and the ritual queued
+	 *  at arm; the montage was only the visible channel. */
+	void FinishArmTurn(AActor *Actor);
 
 	// ==================== SKILL EFFECT APPLICATION ====================
 

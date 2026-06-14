@@ -118,21 +118,9 @@ public:
      *  Null = skip straight to SkillMontage (opt-in, like ReturnMontage —
      *  presence is the trigger, no flag/duration gate). Carries its own
      *  UCombatNotify notifies like any montage. All three types inherit it.
-     *  Chain: [RitualCastMontage] → [ApproachMontage] → SkillMontage → [ReturnMontage]. */
+     *  Chain: [RitualCastMontage] → SkillMontage → [ReturnMontage]. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
     UAnimMontage *RitualCastMontage = nullptr;
-
-    /** Optional root-motion travel montage played AFTER the ritual cast, BEFORE
-     *  the skill, warped to the striking offset. Carries the character to the
-     *  target so an IN-PLACE SkillMontage (stationary flourish, no WarpTarget
-     *  window) lands at the target. Null = no approach: the SkillMontage's own
-     *  root motion warps it in (traveling attacks, unchanged). Carries a
-     *  WarpTarget window like any warped montage; may carry UCombatNotify
-     *  notifies or none (pure travel). Presence-driven, like RitualCastMontage.
-     *  Chain: [RitualCastMontage] → [ApproachMontage] → SkillMontage →
-     *  [ReturnMontage]. All three types inherit it. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation")
-    UAnimMontage *ApproachMontage = nullptr;
 
     /** Optional post-cast return montage — the runner plays it after
      *  SkillMontage IFF set (null = no return leg). Plays in-place this
