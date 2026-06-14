@@ -4386,7 +4386,7 @@ static void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecConte
 
 	for (AActor *Defender : DefendersToClose)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[HitFrame] animation-end reconcile — closing window for %s"),
+		UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] animation-end reconcile — closing window for %s"),
 			   *GetNameSafe(Defender));
 		DefenseSys->CloseDefenseWindow(Defender);
 	}
@@ -4882,7 +4882,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		return;
 	}
 
-	case ECombatNotifyFamily::Hit:
+	case ECombatNotifyFamily::Impact:
 	{
 		// Read ChainActor, not PendingExecutionActor: the latter is nulled by the
 		// prior action's CompleteAsyncActionFinal during a deferred fire (re-entrant
@@ -4892,10 +4892,10 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		AActor *Executor = ChainActor.Get();
 		UCastableSkillDataBase *Skill = GetCurrentSkillData();
 		const int32 HitCount = Skill ? Skill->HitCount : 0;
-		// Fires into the void this stage — Stage 2's per-hit resolver binds OnHitFrame.
-		UE_LOG(LogTemp, Log, TEXT("[HitFrame] hit %d of %d for %s"),
+		// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
+		UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impact %d of %d for %s"),
 			   Index, HitCount, *GetNameSafe(Executor));
-		OnHitFrame.Broadcast(Executor, Index);
+		OnImpactFrame.Broadcast(Executor, Index);
 
 		// Count-based window close (Stage 1, melee) — the "impacts done" half of the
 		// "later of (impacts-done, animation-done)" close. Each landed impact increments
@@ -4922,7 +4922,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				{
 					continue; // timer-close window — not count-based
 				}
-				if (++Ctx.HitsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
+				if (++Ctx.ImpactsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
 				{
 					if (AActor *Defender = Pair.Key.Get())
 					{
@@ -4932,7 +4932,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 			}
 			for (AActor *Defender : DefendersToClose)
 			{
-				UE_LOG(LogTemp, Log, TEXT("[HitFrame] impacts + animation done for %s — closing window"),
+				UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impacts + animation done for %s — closing window"),
 					   *GetNameSafe(Defender));
 				DefenseSys->CloseDefenseWindow(Defender);
 			}

@@ -318,14 +318,14 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 HitCount = 1;
 
-	/** Count-based window close (Stage 1): landed-hit tally for this defender,
-	 *  incremented by each landed hit from ANY source (melee Hit notify today;
+	/** Count-based window close (Stage 1): landed-impact tally for this defender,
+	 *  incremented by each landed impact from ANY source (melee Impact notify today;
 	 *  projectile arrival / AOE resolution / beam tick at Stage 6). */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	int32 HitsLanded = 0;
+	int32 ImpactsLanded = 0;
 
 	/** Expected impacts for this defender — the count the window closes at
-	 *  (HitsLanded == ExpectedImpacts). Set by the OPENER per attack type, NOT
+	 *  (ImpactsLanded == ExpectedImpacts). Set by the OPENER per attack type, NOT
 	 *  hardcoded to HitCount: melee = HitCount; single projectile/AOE = 1; beam =
 	 *  BeamTickCount; barrage = FSkillCastEntry::Count (Stage 6). */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")

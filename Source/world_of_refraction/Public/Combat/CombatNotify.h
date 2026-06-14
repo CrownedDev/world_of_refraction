@@ -9,11 +9,13 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "CombatNotify.generated.h"
 
-/** The four tag-matched skill arrays (four-array model): Hit / Cast / VFX / SFX. */
+/** The four tag-matched skill arrays (four-array model): Impact / Cast / VFX / SFX.
+ *  ("Impact" was "Hit" pre-defense-rework — unified with projectile arrivals; an
+ *  EnumRedirect in DefaultEngine.ini maps authored "Hit" notifies to "Impact".) */
 UENUM(BlueprintType)
 enum class ECombatNotifyFamily : uint8
 {
-	Hit,
+	Impact,
 	Cast,
 	VFX,
 	SFX
@@ -36,7 +38,7 @@ public:
 
 	/** Which skill array this notify indexes into. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	ECombatNotifyFamily Family = ECombatNotifyFamily::Hit;
+	ECombatNotifyFamily Family = ECombatNotifyFamily::Impact;
 
 	/** Position within the family's array — array position IS identity. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = 0))
@@ -45,7 +47,7 @@ public:
 	virtual void Notify(USkeletalMeshComponent *MeshComp, UAnimSequenceBase *Animation,
 						const FAnimNotifyEventReference &EventReference) override;
 
-	/** Montage-editor label: "<Family><Index>" — "Hit0", "Cast1" (locked
+	/** Montage-editor label: "<Family><Index>" — "Impact0", "Cast1" (locked
 	 *  authoring convention, no underscore). */
 	virtual FString GetNotifyName_Implementation() const override;
 

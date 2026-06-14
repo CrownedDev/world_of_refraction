@@ -89,10 +89,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetKilled, AActor *, Killer, 
  *  (D8). The orchestrator registers the deferred activation; firing is 8c. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionDeferredArmed, AActor *, Caster, const FAction &, Action, int32, DelayTurns);
 
-/** Broadcast at each melee hit-frame (Hit-family Combat Notify). HitIndex is the
- *  per-hit ordinal (0..HitCount-1). Stage 0: fires into the void (logged); Stage 1's
- *  per-hit resolver binds this. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitFrame, AActor *, Executor, int32, HitIndex);
+/** Broadcast at each melee impact frame (Impact-family Combat Notify). ImpactIndex is
+ *  the per-impact ordinal (0..HitCount-1). Stage 0: fires into the void (logged);
+ *  Stage 2's per-impact resolver binds this. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnImpactFrame, AActor *, Executor, int32, ImpactIndex);
 
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
@@ -348,9 +348,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnTargetKilled OnTargetKilled;
 
-	/** Fires at each melee hit-frame (Hit-family Combat Notify), once per hit. */
+	/** Fires at each melee impact frame (Impact-family Combat Notify), once per impact. */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
-	FOnHitFrame OnHitFrame;
+	FOnImpactFrame OnImpactFrame;
 
 	/** Broadcast when async action fully completes (after all defense windows) */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
