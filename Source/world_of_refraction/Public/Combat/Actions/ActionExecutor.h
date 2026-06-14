@@ -18,7 +18,6 @@
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Loadout/LoadoutComponent.h"
-#include "Combat/Grid/CombatMovementComponent.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Infusion/InfusionCostHelper.h"
@@ -62,6 +61,7 @@ enum class EMontagePhase : uint8
 {
 	None,
 	Ritual,
+	Approach,
 	Skill,
 	Return,
 	Done
@@ -483,8 +483,8 @@ private:
 	bool ResolveVFXAttachLocation(EVFXAttach Attach, FName SocketName, int32 Index, FVector &OutLoc) const;
 
 	/** Current leg of the explicit montage chain (Option B). OnActionAnimationEnded
-	 *  reads this to advance Ritual → Skill → Return → Done; finalize runs only on
-	 *  the Done transition (FinishMontageChain). Replaces the old
+	 *  reads this to advance Ritual → Approach → Skill → Return → Done; finalize
+	 *  runs only on the Done transition (FinishMontageChain). Replaces the old
 	 *  bPlayingRitualLeadIn / bPlayingReturnMontage flag pair. */
 	EMontagePhase MontagePhase = EMontagePhase::None;
 
@@ -498,6 +498,7 @@ private:
 	 *  step. BeginMontageChain is the entry (replaces PlaySkillMontageChain). */
 	void BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
 	void PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill);
+	void PlayApproachStep(AActor *Actor, UCastableSkillDataBase *Skill);
 	void PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill);
 	void PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill);
 	void FinishMontageChain(AActor *Actor);
@@ -910,14 +911,17 @@ private:
 	/** Get execution range from action data (warp striking offset) */
 	float GetExecutionRange(const FAction &Action) const;
 
-	/** Get movement component from actor */
-	UCombatMovementComponent *GetMovementComponent(AActor *Actor) const;
-
-	/** Signal movement component that action execution is done */
-	void SignalActionComplete(AActor *Actor);
-
 	/** Arena center for movement calculations */
 	FVector CachedArenaCenter = FVector::ZeroVector;
+
+	// ==================== ORIGIN SNAPSHOT (SC-D) ====================
+	/** Warp-origin snapshot — the pre-action pose the ReturnMontage warp targets.
+	 *  Written at execution start (ExecuteActionAsync), read at the warp-return
+	 *  (PlayReturnStep). Position is owned by root-motion montages + warp (W3);
+	 *  the runner records where the action started so the return leg can warp back. */
+	FVector GridPosition = FVector::ZeroVector;
+	FRotator GridRotation = FRotator::ZeroRotator;
+	bool bHasGridPosition = false;
 
 protected:
 	/**

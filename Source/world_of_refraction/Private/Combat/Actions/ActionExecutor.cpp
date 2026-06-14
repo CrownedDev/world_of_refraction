@@ -46,7 +46,6 @@
 #include "Combat/Damage/TierGapDamageDebug.h"
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
-#include "Combat/Grid/CombatMovementComponent.h"
 #include "Combat/CombatAnimInstance.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/TurnManager.h"
@@ -770,10 +769,6 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	// Check for Broken Darkness break triggers
 	CheckBrokenDarknessBreak(Actor, Action, CharData);
 
-	// Primary target for the execution-start snapshot. Approach travel is now
-	// the skill montage's root motion (warped) — no lerp, no MovementData.
-	AActor *PrimaryTarget = Action.Targets.Num() > 0 ? Action.Targets[0] : nullptr;
-
 	// Cache for approach completion callback
 	PendingExecutionActor = Actor;
 	PendingExecutionCharData = CharData;
@@ -828,20 +823,17 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 			   ActionMods.SpellDamage, ActionMods.StatusMultiplier, ActionMods.ActionSpeed);
 	}
 
-	// Execution start (W3): ALL action types take one path — record the
-	// Executing-state origin snapshot (the warp origin), then begin the skill.
-	// No lerp-approach branch: the skill montage's root motion (warped, if the
-	// montage carries a window) carries melee to the target; the ReturnMontage
-	// carries it back. Un-warped montages attack in place (the interim).
-	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
-	{
-		Movement->EnterExecutingState(PrimaryTarget, CachedArenaCenter);
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No CombatMovementComponent on %s - executing immediately"),
-			   *Actor->GetName());
-	}
+	// Execution start (W3/SC-D): ALL action types take one path — record the
+	// warp-origin snapshot (the pre-action pose the ReturnMontage warp targets),
+	// then begin the skill. No lerp-approach branch: the skill montage's root
+	// motion (warped, if the montage carries a window) carries melee to the
+	// target; the ReturnMontage carries it back. Un-warped montages attack in
+	// place (the interim). The snapshot lives on the runner now — the component
+	// is gone (SC-D); the snapshot target/arena-center are no longer recorded
+	// (they were never read by the warp-return).
+	GridPosition = Actor->GetActorLocation();
+	GridRotation = Actor->GetActorRotation();
+	bHasGridPosition = true;
 	BeginSkillExecution(Actor);
 }
 
@@ -1915,14 +1907,9 @@ void UActionExecutor::FinalizeAsyncAction()
 
 	// Return already happened (W3): the montage chain's ReturnMontage (via
 	// PlayReturnStep + warp) ran INSIDE the animation phase, before finalize —
-	// bWaitingForAnimationEnd spanned it. SignalActionComplete is now just the
-	// slim per-action state reset; there is no movement travel to wait for, so
-	// finalize falls straight to completion.
-	if (Executor)
-	{
-		SignalActionComplete(Executor);
-	}
-
+	// bWaitingForAnimationEnd spanned it. There is no movement travel to wait
+	// for and no component state to reset (SC-D), so finalize falls straight to
+	// completion.
 	CompleteAsyncActionFinal(Executor);
 }
 
@@ -4105,19 +4092,6 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 	}
 }
 
-UCombatMovementComponent *UActionExecutor::GetMovementComponent(AActor *Actor) const
-{
-	return Actor ? Actor->FindComponentByClass<UCombatMovementComponent>() : nullptr;
-}
-
-void UActionExecutor::SignalActionComplete(AActor *Actor)
-{
-	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
-	{
-		Movement->OnActionExecutionComplete();
-	}
-}
-
 void UActionExecutor::BeginSkillExecution(AActor *Actor)
 {
 	if (!CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
@@ -4324,7 +4298,22 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	{
 	case EMontagePhase::Ritual:
 	{
-		UE_LOG(LogTemp, Log, TEXT("[Montage] Ritual ended - advancing to Skill"));
+		UE_LOG(LogTemp, Log, TEXT("[Montage] Ritual ended - advancing to Approach"));
+		TWeakObjectPtr<AActor> WeakActor = Actor;
+		GetWorld()->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
+			{
+				if (bWaitingForAnimationEnd && WeakActor.IsValid())
+				{
+					PlayApproachStep(WeakActor.Get(), GetCurrentSkillData());
+				}
+			}));
+		return;
+	}
+
+	case EMontagePhase::Approach:
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Montage] Approach ended - advancing to Skill"));
 		TWeakObjectPtr<AActor> WeakActor = Actor;
 		GetWorld()->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
@@ -4505,8 +4494,9 @@ void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *S
 	}
 
 	// Entry to the explicit chain (Option B). The first montage plays IMMEDIATELY
-	// (here, via PlayRitualStep or its skip-to-skill); every montage-end transition
-	// is scheduled NEXT-TICK by the dispatcher (the stance-resume stomp avoidance).
+	// (here, via PlayRitualStep, which presence-skips through Approach to Skill);
+	// every montage-end transition is scheduled NEXT-TICK by the dispatcher (the
+	// stance-resume stomp avoidance).
 	PendingMontagePlayRate = PlayRate;
 	PlayRitualStep(Actor, Skill);
 }
@@ -4518,12 +4508,35 @@ void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skil
 		return;
 	}
 
-	// Presence-driven: a null RitualCastMontage skips straight to the skill leg.
+	// Presence-driven: a null RitualCastMontage skips straight to the approach leg.
 	if (Skill->RitualCastMontage)
 	{
 		MontagePhase = EMontagePhase::Ritual;
 		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayRitual %s"), *Skill->RitualCastMontage->GetName());
 		PlayActionMontageOnActor(Actor, Skill->RitualCastMontage, PendingMontagePlayRate);
+		return;
+	}
+
+	PlayApproachStep(Actor, Skill);
+}
+
+void UActionExecutor::PlayApproachStep(AActor *Actor, UCastableSkillDataBase *Skill)
+{
+	if (!Actor || !Skill)
+	{
+		return;
+	}
+
+	// Presence-driven: a null ApproachMontage skips straight to the skill leg —
+	// traveling attacks warp in via the SkillMontage's own root motion (unchanged).
+	if (Skill->ApproachMontage)
+	{
+		MontagePhase = EMontagePhase::Approach;
+		UE_LOG(LogTemp, Log, TEXT("[Montage] PlayApproach %s"), *Skill->ApproachMontage->GetName());
+		// WarpTarget set to the striking offset at execution start
+		// (BeginSkillExecution); the approach montage's WarpTarget window consumes
+		// it, carrying the character to the target for the in-place skill.
+		PlayActionMontageOnActor(Actor, Skill->ApproachMontage, PendingMontagePlayRate);
 		return;
 	}
 
@@ -4561,21 +4574,19 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skil
 
 	MontagePhase = EMontagePhase::Return;
 
-	// Warp return leg (W1): retarget "Warp" to the origin snapshot — a ReturnMontage
-	// with a Warp window travels back to the grid slot; without one it plays in
-	// place. Must run BEFORE the montage plays.
-	if (UCombatMovementComponent *Movement = GetMovementComponent(Actor))
+	// Warp return leg (W1): retarget WarpTarget to the origin snapshot — a
+	// ReturnMontage with a warp window travels back to the grid slot; without one
+	// it plays in place. Must run BEFORE the montage plays. The snapshot is read
+	// from the runner's own fields now (SC-D) — same values, same timing as the
+	// component round-trip it replaces.
+	if (bHasGridPosition)
 	{
-		if (Movement->HasGridPosition())
+		if (UMotionWarpingComponent *Warp = GetOrCreateWarpComponent(Actor))
 		{
-			if (UMotionWarpingComponent *Warp = GetOrCreateWarpComponent(Actor))
-			{
-				Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
-					CombatConstants::WARP_TARGET_NAME,
-					Movement->GetGridPosition(), Movement->GetGridRotation());
-				UE_LOG(LogTemp, Log, TEXT("[Warp] return target %s"),
-					   *Movement->GetGridPosition().ToCompactString());
-			}
+			Warp->AddOrUpdateWarpTargetFromLocationAndRotation(
+				CombatConstants::WARP_TARGET_NAME, GridPosition, GridRotation);
+			UE_LOG(LogTemp, Log, TEXT("[Warp] return target %s"),
+				   *GridPosition.ToCompactString());
 		}
 	}
 
