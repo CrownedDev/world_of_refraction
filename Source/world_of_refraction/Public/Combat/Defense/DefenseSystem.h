@@ -178,7 +178,11 @@ public:
 	 * @param Defender The actor defending
 	 * @param AttackSize Size of attack (affects dodge viability)
 	 * @param BaseDamage Damage before defense reduction
-	 * @param WindowDuration How long window stays open
+	 * @param WindowDuration How long window stays open (auto-close timer duration)
+	 * @param bManualClose Melee count-based close (Stage 1): when true the window is
+	 *        closed externally by the count-based trigger (last landed hit), so the
+	 *        auto-close timer is armed at MaxWindowDuration as a FAILSAFE only — not as
+	 *        the closer. WindowDuration is still the AI reaction-delay seed regardless.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
 	void OpenDefenseWindow(
@@ -186,7 +190,8 @@ public:
 		AActor *Defender,
 		float AttackSize,
 		int32 BaseDamage,
-		float WindowDuration = 0.3f);
+		float WindowDuration = 0.3f,
+		bool bManualClose = false);
 
 	/**
 	 * Close defense window and calculate result
@@ -312,6 +317,13 @@ public:
 	/** Defense window duration for AOE attacks (longer than default) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float AoeWindowDuration = 0.5f;
+
+	/** Max-duration FAILSAFE for manual-close (count-based) windows. Armed instead
+	 *  of DefaultWindowDuration when bManualClose is true: longer than any montage so
+	 *  the last-hit close pre-empts it on the happy path, shorter than the 10s action
+	 *  timeout so the window heals first if a Hit notify is missing/miscounted. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float MaxWindowDuration = 8.0f;
 
 private:
 	// ========================================

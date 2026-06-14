@@ -318,6 +318,19 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 HitCount = 1;
 
+	/** Count-based window close (Stage 1): landed-hit tally for this defender,
+	 *  incremented by each landed hit from ANY source (melee Hit notify today;
+	 *  projectile arrival / AOE resolution / beam tick at Stage 6). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 HitsLanded = 0;
+
+	/** Expected impacts for this defender — the count the window closes at
+	 *  (HitsLanded == ExpectedImpacts). Set by the OPENER per attack type, NOT
+	 *  hardcoded to HitCount: melee = HitCount; single projectile/AOE = 1; beam =
+	 *  BeamTickCount; barrage = FSkillCastEntry::Count (Stage 6). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 ExpectedImpacts = 0;
+
 	/** Can this attack crit? */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bCanCrit = true;
@@ -392,6 +405,13 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 
 	/** Pending defense contexts per target */
 	TMap<TWeakObjectPtr<AActor>, FPendingDefenseContext> PendingDefenses;
+
+	/** Count-based close (Stage 1): set true when the hitting animation (the Skill
+	 *  montage leg) ends. The melee window closes at the LATER of (ImpactsLanded ==
+	 *  ExpectedImpacts) AND this — for melee the animation is normally the later
+	 *  signal, so Skill-end reconciles/closes the count-based windows. */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	bool bAnimationFinished = false;
 
 	/** Is execution still in progress? */
 	UPROPERTY(BlueprintReadOnly, Category = "Execution")

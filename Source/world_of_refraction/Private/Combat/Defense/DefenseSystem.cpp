@@ -41,7 +41,8 @@ void UDefenseSystem::OpenDefenseWindow(
 	AActor *Defender,
 	float AttackSize,
 	int32 BaseDamage,
-	float WindowDuration)
+	float WindowDuration,
+	bool bManualClose)
 {
 	if (!Defender)
 	{
@@ -70,7 +71,14 @@ void UDefenseSystem::OpenDefenseWindow(
 
 	ActiveDefenseStates.Add(Defender, State);
 
-	// Set timer to auto-close window
+	// Auto-close timer. For manual-close (count-based) windows the last landed hit
+	// closes the window externally (ActionExecutor's Hit-notify counter); the timer is
+	// armed at MaxWindowDuration as a FAILSAFE so a missing/miscounted hit can't hang
+	// the window open forever. For normal windows it stays the closer at the requested
+	// duration. State.WindowDuration is unchanged either way — it remains the AI
+	// reaction-delay seed passed to ScheduleDefenseDecision below.
+	const float CloseTimerDuration = bManualClose ? MaxWindowDuration : State.WindowDuration;
+
 	FTimerHandle TimerHandle;
 	FTimerDelegate TimerDelegate;
 	TimerDelegate.BindUObject(this, &UDefenseSystem::OnWindowTimerExpired, Defender);
@@ -80,7 +88,7 @@ void UDefenseSystem::OpenDefenseWindow(
 		World->GetTimerManager().SetTimer(
 			TimerHandle,
 			TimerDelegate,
-			State.WindowDuration,
+			CloseTimerDuration,
 			false);
 
 		WindowTimerHandles.Add(Defender, TimerHandle);
@@ -89,8 +97,9 @@ void UDefenseSystem::OpenDefenseWindow(
 	// Broadcast event for UI
 	OnDefenseWindowOpened.Broadcast(Defender, AttackSize, State.WindowDuration);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Duration: %.2fs)"),
-		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration);
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Reaction: %.2fs, Close: %s %.2fs)"),
+		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration,
+		   bManualClose ? TEXT("count-based, failsafe") : TEXT("timer"), CloseTimerDuration);
 
 	// Check if AI-controlled and schedule defense
 	UCharacterDataComponent *CharComp = Defender->FindComponentByClass<UCharacterDataComponent>();

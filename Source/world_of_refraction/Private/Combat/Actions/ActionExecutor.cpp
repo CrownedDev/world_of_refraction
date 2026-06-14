@@ -1543,6 +1543,14 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		return;
 	}
 
+	// Stage 1 count-based close is MELEE-only by construction: only weapon attacks
+	// play montages carrying Hit notifies (the impact counter that drives the close).
+	// Spells/abilities flowing through this shared converge point keep the timer close
+	// (bManualClose=false) — projectile/AOE migrate to the counter at Stage 6.
+	// ExpectedImpacts>0 doubles as the "this window is count-based" sentinel read by the
+	// Hit-notify handler; 0 leaves the window on its normal timer.
+	const bool bUseCountBasedClose = (ActionType == EActionType::Attack);
+
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
 	{
@@ -1554,6 +1562,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.AttackSize = AttackSize;
 		DefenseContext.Element = Element;
 		DefenseContext.HitCount = HitCount;
+		DefenseContext.ExpectedImpacts = bUseCountBasedClose ? HitCount : 0;
 		DefenseContext.bCanCrit = bCanCrit;
 		DefenseContext.WindowDuration = WindowDuration;
 		DefenseContext.ActionType = ActionType;
@@ -1564,16 +1573,20 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
-		// Open defense window in DefenseSystem
+		// Open defense window in DefenseSystem. Melee → manual (count-based) close: the
+		// last landed hit closes it; the per-window timer is armed at MaxWindowDuration
+		// as a failsafe. WindowDuration is still passed as the AI reaction-delay seed.
 		DefenseSys->OpenDefenseWindow(
 			Attacker,
 			Target,
 			AttackSize,
 			BaseDamage,
-			WindowDuration);
+			WindowDuration,
+			bUseCountBasedClose);
 
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Opened defense window for %s (Size: %.1f, Damage: %d)"),
-			   *Target->GetName(), AttackSize, BaseDamage);
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Opened defense window for %s (Size: %.1f, Damage: %d, CountClose: %s, Expected: %d)"),
+			   *Target->GetName(), AttackSize, BaseDamage,
+			   bUseCountBasedClose ? TEXT("yes") : TEXT("no"), DefenseContext.ExpectedImpacts);
 	}
 }
 
@@ -4341,6 +4354,44 @@ void UActionExecutor::UnbindActionAnimationEnd(AActor *Actor)
 	bWaitingForAnimationEnd = false;
 }
 
+// Shared reconciliation (Stage 1): mark the action's animation finished and force-close
+// every count-based (ExpectedImpacts>0, melee) defense window — the "animation done" half
+// of the "later of (impacts-done, animation-done)" close. Damage is lumped at
+// CloseDefenseWindow (Stage 2 splits per-impact), so reconcile == close: complete counts
+// close normally; incomplete ones (fewer/missing Impact notifies, or an interrupted montage)
+// reconcile here instead of hanging on the 8s failsafe. Called from BOTH the clean Skill-end
+// branch and FinishMontageChain (which the interrupted path routes through, skipping Skill-end).
+// Idempotent: by the time FinishMontageChain runs on the normal path, Skill-end already drained
+// the count-based entries, so this is a no-op. Collect-then-close: CloseDefenseWindow
+// re-entrantly removes the PendingDefenses entry, so we must not close mid-iteration.
+static void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecContext, UDefenseSystem *DefenseSys)
+{
+	ExecContext.bAnimationFinished = true;
+	if (!DefenseSys)
+	{
+		return;
+	}
+
+	TArray<AActor *> DefendersToClose;
+	for (auto &Pair : ExecContext.PendingDefenses)
+	{
+		if (Pair.Value.ExpectedImpacts > 0)
+		{
+			if (AActor *Defender = Pair.Key.Get())
+			{
+				DefendersToClose.Add(Defender);
+			}
+		}
+	}
+
+	for (AActor *Defender : DefendersToClose)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[HitFrame] animation-end reconcile — closing window for %s"),
+			   *GetNameSafe(Defender));
+		DefenseSys->CloseDefenseWindow(Defender);
+	}
+}
+
 void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted)
 {
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] OnActionAnimationEnded - bWaitingForAnimationEnd: %s, PendingActor: %s, Phase: %d"),
@@ -4417,6 +4468,16 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	case EMontagePhase::Skill:
 	{
 		UE_LOG(LogTemp, Log, TEXT("[Montage] Skill ended - advancing to Return"));
+
+		// Stage 1 "later of" close: the hitting animation has ended. Reconcile/close the
+		// count-based melee windows here (the animation is normally the LATER signal, so
+		// this is what actually closes them) BEFORE the warp-back Return leg. An attack
+		// with fewer Impact notifies than ExpectedImpacts still closes here, not at 8s.
+		if (CurrentExecutionContext.IsSet())
+		{
+			ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());
+		}
+
 		TWeakObjectPtr<AActor> WeakActor = Actor;
 		GetWorld()->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
@@ -4717,6 +4778,15 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended - finalizing"));
 
+	// Stage 1 "later of" close — catch-all for the INTERRUPTED path: an interrupted Skill
+	// montage routes here (via the bInterrupted branch) WITHOUT passing the Skill-end case,
+	// so without this an interrupted attack's count-based windows would hang to the 8s
+	// failsafe. Idempotent on the normal path: Skill-end already drained the entries.
+	if (CurrentExecutionContext.IsSet())
+	{
+		ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());
+	}
+
 	// Montage-end facing reassert — nearest living enemy (arena center when none).
 	if (Actor)
 	{
@@ -4822,10 +4892,51 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		AActor *Executor = ChainActor.Get();
 		UCastableSkillDataBase *Skill = GetCurrentSkillData();
 		const int32 HitCount = Skill ? Skill->HitCount : 0;
-		// Fires into the void this stage — Stage 1's per-hit resolver binds OnHitFrame.
+		// Fires into the void this stage — Stage 2's per-hit resolver binds OnHitFrame.
 		UE_LOG(LogTemp, Log, TEXT("[HitFrame] hit %d of %d for %s"),
 			   Index, HitCount, *GetNameSafe(Executor));
 		OnHitFrame.Broadcast(Executor, Index);
+
+		// Count-based window close (Stage 1, melee) — the "impacts done" half of the
+		// "later of (impacts-done, animation-done)" close. Each landed impact increments
+		// every active count-based defender's tally. A defender closes only once it has
+		// taken ALL its impacts AND the hitting animation has finished (bAnimationFinished).
+		// For melee the animation is normally the LATER signal, so this branch usually does
+		// NOT close — Skill-end (ReconcileCountBasedDefenseWindows) does. This handles the
+		// symmetric case where an impact lands AFTER the animation already ended. Counting
+		// continues regardless (the ++ is always evaluated) so the tally stays correct.
+		// Damage stays LUMPED at close this stage (per-hit splitting is Stage 2); the
+		// trigger is the COUNT, not the index — order-independent, and Stage 6 just adds
+		// more increment sources. ExpectedImpacts==0 ⇒ a timer-close window (non-attack) →
+		// left untouched. One swing hits all current defenders (melee cleave); each closes
+		// at its own count. Collect-then-close: CloseDefenseWindow re-entrantly removes the
+		// entry from PendingDefenses, so we must not close mid-iteration.
+		if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+		{
+			const bool bAnimationFinished = CurrentExecutionContext->bAnimationFinished;
+			TArray<AActor *> DefendersToClose;
+			for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+			{
+				FPendingDefenseContext &Ctx = Pair.Value;
+				if (Ctx.ExpectedImpacts <= 0)
+				{
+					continue; // timer-close window — not count-based
+				}
+				if (++Ctx.HitsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
+				{
+					if (AActor *Defender = Pair.Key.Get())
+					{
+						DefendersToClose.Add(Defender);
+					}
+				}
+			}
+			for (AActor *Defender : DefendersToClose)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[HitFrame] impacts + animation done for %s — closing window"),
+					   *GetNameSafe(Defender));
+				DefenseSys->CloseDefenseWindow(Defender);
+			}
+		}
 		return;
 	}
 

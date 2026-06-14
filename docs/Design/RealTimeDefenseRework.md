@@ -57,8 +57,10 @@ defending each impact individually rather than committing one defense for the wh
   full per-hit defense flow — **dodgeable, parryable, and blockable**, same as single-target. This
   supersedes the old "AOE can only be blocked" limitation. *(Crown resolved the prior design
   question: AOE is no longer block-only.)*
-- **Window closes at the last hit.** Post-attack lingering (during the attacker's warp-return to
-  position) is mechanically pointless — the window ends when the last hit resolves.
+- **Window closes when the attack stops hitting.** Post-attack lingering (during the attacker's
+  warp-return to position) is mechanically pointless — the window ends when the **last** impact lands.
+  *(Mechanically this is the **count-based** close — `HitsLanded == ExpectedImpacts`, §8a — which is
+  source-agnostic, not a melee "last montage hit-frame.")*
 - **Speed tightens windows for free.** PlayRate (montage speed) makes hit-frames arrive sooner →
   tighter reaction windows, with no extra wiring once resolution rides the montage clock. *(A
   speed-stone dependency exists — `SpellSpeed`/`ActionSpeed` gain their defensive teeth from this
@@ -299,12 +301,12 @@ per-hit timing + condition-FIRING hooks are **in**; condition payoffs (reflect/c
 | Stage | Work | Type | Size |
 | --- | --- | --- | --- |
 | **0. Hit-frame notifies** *(DONE — commit `4986d450`)* | Wire the existing **Hit-family Combat Notify stub** to be the melee impact trigger — replace the log-only return with a real per-hit entry point. `OnCombatNotifyReceived` now broadcasts `OnHitFrame(Executor, Index)` per hit (`ActionExecutor.cpp:4815–4828`); fires into the void until Stage 2 binds it. Crown **authors Hit notifies on every multi-hit montage** (see index-match contract in §9). **BLOCKED Stages 1–4 → now unblocked.** | **[Anim]** + small **[Code]** | Small |
-| **1. Window lifecycle (FORCED FIRST — the foundation)** | **Make the window persist across hit-frames and close at the last hit** instead of self-destructing on a 0.3s timer. Drop the fixed `0.3s`/`AoeWindowDuration` timer as the closer (`DefenseSystem.cpp:73–86`); keep the `FDefenseState` + `FPendingDefenseContext` alive across **all** hit-frames; close on the **last** hit. **This unblocks Stages 2–3** — until the window survives the hits, per-hit resolution/defense have nothing to read (§9). **The window still opens at ~execution-time (on target confirmation, §2) exactly as it does today — there is NO turn-start inversion** (dropped this session; §3a). The only change is *when it closes* (last hit, not 0.3s) and that its state *persists* through the hits. **⚠ MAX-DURATION FAILSAFE IS NON-NEGOTIABLE — see §9.** | **[Code]** | Medium |
+| **1. Window lifecycle (FORCED FIRST — the foundation)** | **Make the window persist across hits and close on a COUNT-BASED universal trigger** — close when `HitsLanded == ExpectedImpacts` (per-defender counter reaching a per-defender expected count, **§8a**), NOT a melee-specific "last montage hit-frame." Drop the fixed `0.3s`/`AoeWindowDuration` timer as the closer (`DefenseSystem.cpp:73–86`); keep the `FDefenseState` + `FPendingDefenseContext` alive across **all** hits. **Stage 1 wires MELEE** (each Hit notify increments `HitsLanded`; `ExpectedImpacts = HitCount` set at the melee open); projectile/AOE/beam plug into the **same counter** at Stage 6 (**extend, not replace** — §8a). **This unblocks Stages 2–3** — until the window survives the hits, per-hit resolution/defense have nothing to read (§9). **The window still opens at ~execution-time (on target confirmation, §2) exactly as it does today — there is NO turn-start inversion** (dropped this session; §3a). The only change is *when it closes* (count-complete, not 0.3s) and that its state *persists* through the hits. **⚠ MAX-DURATION FAILSAFE IS NON-NEGOTIABLE — see §9.** | **[Code]** | Medium |
 | **2. Per-hit resolution + base outcomes + condition firing** *(needs #1)* | Drive `ApplyHit` (`:2342`) off **each Hit notify** via `OnHitFrame` (and **projectile impact** `:3322` for ranged), each gated by *that hit's* defense result — now readable because the window persists (Stage 1). Replace the lumped loop (`ApplyDamageAfterDefense` `:1702`). Index into `ResolvedDamageSplit[Index]` **with a bounds guard** (§9 index-match contract). Implement the **base outcomes** (§4: block reduce / dodge zero / parry negate+status). **Fire the conditions** (§5: `OnBlock`/`OnDodge`/`OnParry` + `OnPerfect*` + `OnDefend` + `OnHit`) at each resolution — the hooks fire even before any subscriber exists. | **[Code]** | Large |
 | **3. Per-hit defense state + timing/PERFECT** *(needs #1, #2)* | Rework `FDefenseState` / `SubmitDefenseInput` to **re-arm input per hit-frame** (clear `bInputReceived` each hit; `DefenseSystem.cpp:211–216`/`:229–231`). Implement the **lead-in window per defense type** and the **PERFECT band** (§3); `CalculateDefenseResult` evaluated **per hit**, producing the outcome band that selects which condition fires. Route input per the **Control Model** (§3a: player-team → player input, enemies → AI). **RESOLVE the multi-target input question (§3a-Q)** here — Crown's lean is one input per AOE beat. | **[Code]** | Large |
 | **4. Per-hit AI** | Replace the single `ScheduleDefenseDecision` (`AIDecisionManager.cpp:306`) with **N scheduled decisions per defender, one per hit-frame**, each judged independently against that hit's lead-in window. Reaction delays scaled to the PlayRate-adjusted hit-frame times. (See §9 AI-degradation note — the single-decision path must survive Stages 1–3 gracefully until replaced here.) | **[Code]** | Medium |
 | **5. Per-hit UI** | Per-hit defense prompt / feedback — surface each incoming hit, its lead-in window, and the outcome band (including PERFECT) (prompt widget currently TODO-stubbed). Must reflect the multi-target input decision (§3a-Q) — e.g. one shared AOE-beat prompt vs per-character prompts. | **[Code]** + UI | Medium |
-| **6. AOE per-hit + projectile source-threading** | AOE: every AOE-hit defender runs the full per-hit flow with **dodge/parry/block** (`SpawnAOEEffect` `:3090`; remove the block-only limitation). Projectile: thread the **attacker source** through to `OnProjectileImpact` (fix the NULL attacker `:3338`) so the base parry-negate works and `OnPerfectParry` subscribers (e.g. reflect) have the source to act on. | **[Code]** | Medium |
+| **6. AOE/projectile/beam → counter + source-threading** | **Plug projectile/AOE/beam into the count-based close (§8a)** — each adds a one-line `HitsLanded` increment (`OnProjectileImpact` `:3334`, `SpawnAOEEffect` `:3102`, `OnBeamTick` `:3381`) and sets its own `ExpectedImpacts` at open (single projectile = 1; barrage = **`FSkillCastEntry::Count`**, authored + wired; beam = `BeamTickCount`; AOE = 1, `Count` not honored for AOE today) — see the spell formula in §8a. AOE: every AOE-hit defender runs the full per-hit flow with **dodge/parry/block** (remove the block-only limitation). Projectile: thread the **attacker source** through to `OnProjectileImpact` (fix the NULL attacker `:3351`) so base parry-negate works and `OnPerfectParry` subscribers (e.g. reflect) have the source. **Inherent extra lifts (any close model):** (a) projectile/AOE windows currently open **at impact**, decoupled from cast — must move to **target-confirmation + persist until last impact**; (b) **multi-pulse AOE is unbuilt** — the AOE branch ignores `entry.Count` today (`:3281–3286`); honoring it is an optional Stage 6 add; (c) projectile/beam impacts can arrive **after `CurrentExecutionContext` tears down** (montage finished first) — keep the context alive until the last impact (a melee-Stage-1 non-issue, since the montage spans the hits). | **[Code]** | Medium–Large |
 
 **OUT OF SCOPE (separate future effort — effects/items system):** the condition **payoffs** —
 projectile reflect, counters, on-defense buffs, etc. The rework fires `OnBlock`/`OnParry`/`OnPerfect*`
@@ -315,18 +317,101 @@ system is worked on.
 them, PlayRate (`SpellSpeed`/`ActionSpeed`) makes hit-frames arrive sooner → tighter lead-in windows
 automatically, no extra code. The speed payoff is a *consequence* of the rework.
 
+### §8a. Window close model — COUNT-BASED / UNIVERSAL (not "last montage hit-frame")
+
+The window closes when **`HitsLanded == ExpectedImpacts`** — a **per-defender counter** reaching a
+**per-defender expected count**. This is source-agnostic and works for every attack type; it is
+**NOT** the melee-specific "close on the last montage hit-frame (`Index == HitCount-1`)."
+
+**`ExpectedImpacts` is set by the OPENER, per attack type — NOT hardcoded to `HitCount`:**
+
+| Attack type | Hit event (increments `HitsLanded`) | `ExpectedImpacts` |
+| --- | --- | --- |
+| Melee combo | montage Hit notify (`ActionExecutor.cpp:4815`) | `HitCount` |
+| Single projectile | `OnProjectileImpact` arrival (`:3334`) | **1** (= `Count` 1) |
+| Multi-projectile / barrage | each projectile arrival | **`FSkillCastEntry::Count`** (authored + wired) |
+| AOE | `SpawnAOEEffect` resolution per defender (`:3102`) | **1** (`Count` not honored for AOE today) |
+| Beam / channel | `OnBeamTick` (`:3381`) | **`BeamTickCount`** |
+
+> For a multi-entry spell the value is a **sum across `CastArray` entries** — see the spell formula below.
+
+**WHY NOT compare against `HitCount` directly.** `HitCount` (`SkillDataBase.h:67`, default 1) is the
+**melee montage hit-frame count** (and drives `ResolvedDamageSplit`). It is **not** a universal
+expected-impact count:
+- **Beam** uses `BeamTickCount` — a *separate* init-computed field
+  (`SkillProjectile.h:249–250`, `= max(1, RoundToInt(BeamDuration / BeamTickInterval))`; per-tick
+  damage `= BaseDamage / BeamTickCount`). A beam with `HitCount=1` but `BeamTickCount=8` would close
+  after **one** tick if compared against `HitCount`.
+- **Single projectile / AOE** deliver **1** impact regardless of the skill's `HitCount` (one
+  arrival/resolution carries the lumped damage). `HitCount>1` would stall the counter → failsafe.
+
+So the close target **must** be the stored `ExpectedImpacts`, not `HitCount`.
+
+**Spell `ExpectedImpacts` = the BURST count (Stage 6).** A spell's impacts are authored as
+**`FSkillCastEntry::Count`** (`SkillCastEntry.h:87`, default 1) — Crown's "×3 fireball" = `Count=3` —
+staggered by **`BurstInterval`** (`:91`, default 0.15s). It is **authored on the spell's `CastArray`
+entries and already wired**: `DispatchCastEntry` (`ActionExecutor.cpp:3253–3262`) honors `Count` for
+projectile/homing/beam deliveries, and `SpawnNextBurstProjectile` (`:3297`) drains the staggered
+queue — each burst is a **separate projectile → separate `OnProjectileImpact` arrival**, so
+`Count` = arrival count. *(The earlier survey's "no `ProjectileCount`/`BarrageCount` field" finding
+searched the wrong name — the count is `Count`.)* Per-defender formula, **summed across the `CastArray`
+entries that hit that defender**, per delivery type:
+
+```
+Spell ExpectedImpacts(defender) = Σ over CastArray entries hitting that defender of:
+    Projectile / Homing : entry.Count        (barrage — wired today)
+    Beam                : BeamTickCount       (Count usually 1; derived from BeamDuration /
+                                               BeamTickInterval, recomputable at open)
+    AOE  / Instant      : 1                   (Count NOT honored for AOE today; multi-pulse AOE
+                                               is unbuilt — a Stage 6 option)
+```
+
+- **Common case:** one Projectile entry `Count=3` → `ExpectedImpacts = 3`. **Single projectile = `Count` 1**, not a special case.
+- **Mixed (fireball-then-pillar):** `[Projectile Count=3, AOE Count=1]` hitting one defender → `3 + 1 = 4`. It is a **SUM across cast entries**, not a single field read.
+- **Visible at open-time:** `Count` is authored and read at cast/dispatch **before** spawn, so the Stage 6 opener reads it straight off the `CastArray` — **no projectile-side threading for barrage**. Only **beam** derives its count (`BeamTickCount`), and even that is recomputable from authored entry data at open.
+
+**Counter location — two new fields on `FPendingDefenseContext`** (`ActionStructs.h:293`, already the
+per-defender record carrying `HitCount`):
+
+```
+int32 HitsLanded = 0;       // incremented by ANY hit source
+int32 ExpectedImpacts = 0;  // set by the opener; melee = HitCount
+```
+
+The counter belongs with the **per-target attack record**, not `FDefenseState` — `DefenseSystem`
+shouldn't know about hit-counting. All hit sources increment
+`CurrentExecutionContext->PendingDefenses[Target].HitsLanded` and close that defender's window when it
+reaches `ExpectedImpacts`.
+
+**EXTEND, NOT REPLACE.** Stage 1 builds the mechanism wired for **melee** (notify increments;
+`ExpectedImpacts = HitCount`). Stage 6 adds projectile/AOE/beam — **each a one-line increment + sets
+its own `ExpectedImpacts` at open.** The close mechanism is built **once** (Stage 1), **extended**
+(Stage 6), and **never replaced.** This is the whole reason to build count-based now: the melee-locked
+`Index == HitCount-1` check would have to be unpicked for projectiles; the counter does not.
+
+**Robustness.** Count-based is **order-independent** (a misordered notify is fine — only the *count*
+matters), handles **melee cleave** (each defender has its own counter, closes independently),
+**defenders added/removed mid-attack**, and **overshoot** (a duplicate notify closes one hit early —
+harmless; `CloseDefenseWindow` on an already-closed window just warns and returns). **Tail cases**
+(target dies mid-combo, leaves the beam, a barrage projectile misses) leave `HitsLanded` short of
+`ExpectedImpacts` → the **max-duration failsafe** closes them — acceptable. The messiest tail is
+**beam-target-leaving** (`bTargetInBeam==false` ticks don't land, `:3390`): `ExpectedImpacts` should
+count **scheduled** ticks, not in-beam ticks — a **Stage 6 refinement**.
+
 ---
 
 ## 9. Risks / Notes
 
 - **⚠ MAX-DURATION FAILSAFE IS NON-NEGOTIABLE (Stage 1).** Today the 0.3s timer *is* the only
-  thing that guarantees the window ever closes. Once close moves off that timer to **last-hit**, a
-  **missing montage, or a missing / late / miscounted Hit notify, hangs the window open forever** →
-  `CheckAndFinalizeAsyncAction` never fires → the turn never advances → **FROZEN combat** (not a
-  missed defense — a hard hang). Stage 1 **must** ship a **max-duration backstop timer** that
-  force-closes/resolves any window whose last hit never arrives, modeled on the existing
-  `AsyncTimeoutHandle` failsafe (`ActionExecutor.cpp:~1480`, the `5.0f` `OnAsyncActionTimeout`). This
-  is the single most important line item in the stage — without it the failure mode is a frozen game.
+  thing that guarantees the window ever closes. Once close moves off that timer to the **count-based
+  trigger** (`HitsLanded == ExpectedImpacts`, §8a), any case where **`HitsLanded` never reaches
+  `ExpectedImpacts`** — a missing montage, a missing / late / dropped Hit notify, fewer notifies than
+  `ExpectedImpacts`, or a tail case (target dies mid-combo / leaves beam / barrage miss) — **hangs the
+  window open forever** → `CheckAndFinalizeAsyncAction` never fires → the turn never advances →
+  **FROZEN combat** (not a missed defense — a hard hang). Stage 1 **must** ship a **max-duration
+  backstop timer** that force-closes/resolves any window whose counter never completes, modeled on the
+  existing `AsyncTimeoutHandle` failsafe (`ActionExecutor.cpp:~1480`, the `5.0f` `OnAsyncActionTimeout`).
+  This is the single most important line item in the stage — without it the failure mode is a frozen game.
 - **WHY window-first is FORCED (the data-dependency argument — supersedes the old "prove easy parts
   first" note).** The window is the **data FOUNDATION** the per-hit stages read from. On the current
   window, `CloseDefenseWindow` (`DefenseSystem.cpp:124`) at **~0.3s** *destroys all of it before the
@@ -423,6 +508,32 @@ projectile source-threading, notify authoring) is net-new.
 
 ## Changelog
 
+- **2026-06-14** — **Corrected the "missing `ProjectileCount`" finding + recorded the spell
+  `ExpectedImpacts` formula (§8a).** The barrage-count field **exists**: **`FSkillCastEntry::Count`**
+  (`SkillCastEntry.h:87`, default 1) with **`BurstInterval`** (`:91`, 0.15s) the inter-burst stagger —
+  authored on the spell's `CastArray` entries and **already wired** (`DispatchCastEntry` honors `Count`
+  for projectile/homing/beam; `SpawnNextBurstProjectile` drains the staggered queue; each burst is a
+  separate projectile → separate arrival). The prior survey searched `ProjectileCount`/`BarrageCount`/
+  `NumProjectiles` — wrong name. Recorded **spell `ExpectedImpacts(defender)` = Σ over `CastArray`
+  entries hitting that defender** (Projectile/Homing = `entry.Count`; Beam = `BeamTickCount`; AOE/Instant
+  = 1), a **sum across cast entries, not a single field read**; single projectile = `Count` 1; mixed
+  fireball-then-pillar sums (3+1=4). `Count` is **visible at open-time** (read at dispatch before spawn)
+  → no projectile-side threading for barrage (only beam derives its count, recomputable). Noted **AOE =
+  1 today** (`Count` not honored for AOE; multi-pulse AOE unbuilt — a Stage 6 option) and corrected the
+  Stage 6 row's stale "barrage has no field" lift. **Stage 1 (melee = `HitCount`) unaffected.**
+- **2026-06-14** — **Window close is COUNT-BASED / universal, not "last montage hit-frame."** The
+  window closes when **`HitsLanded == ExpectedImpacts`** — a per-defender counter reaching a per-defender
+  expected count (new **§8a**) — source-agnostic across melee / projectile / barrage / AOE / beam.
+  **`ExpectedImpacts` is an explicit per-defender field set by the OPENER** (melee = `HitCount`; single
+  projectile/AOE = 1; beam = `BeamTickCount`; barrage = projectile count) — **NOT a hardcoded `HitCount`
+  comparison** (`HitCount` is the melee montage hit-frame count and does not map: a beam with `HitCount=1`
+  but `BeamTickCount=8` would close after one tick). Counter lives as two new fields on
+  `FPendingDefenseContext` (`HitsLanded`, `ExpectedImpacts`), not `FDefenseState`. Built **melee-first**
+  (Stage 1: notify increments) and **extended, not replaced** at Stage 6 (projectile/AOE/beam each a
+  one-line increment + own `ExpectedImpacts`). Updated Stage 1 + Stage 6 rows; noted Stage 6's inherent
+  lifts (open-at-cast-not-impact, no `ProjectileCount` field yet, keep context alive past montage end)
+  and the beam-target-leaving tail (`ExpectedImpacts` = scheduled ticks). Re-aligned the §9 failsafe to
+  the "counter never completes" framing.
 - **2026-06-14** — **Window opens ON TARGET CONFIRMATION, not turn-start; control model added; window
   stage simplified.** (1) Window-open changed from "turn-start / all-defenders-watching" to **on target
   confirmation** (after action+target commit), windows for exactly the targeted defenders — single →
