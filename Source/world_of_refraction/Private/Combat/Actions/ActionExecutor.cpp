@@ -4801,9 +4801,21 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 	}
 
 	case ECombatNotifyFamily::Hit:
-		// Damage wiring lands at SC4 (ResolvedDamageSplit consumption).
-		UE_LOG(LogTemp, Log, TEXT("[Runner] Hit notify index %d (stub — damage wiring is SC4)"), Index);
+	{
+		// Read ChainActor, not PendingExecutionActor: the latter is nulled by the
+		// prior action's CompleteAsyncActionFinal during a deferred fire (re-entrant
+		// clobber), so it can be NULL while this action's skill montage is still
+		// firing hits. ChainActor is the stable handle, valid through the whole
+		// montage chain — same source OnActionAnimationEnded advances off.
+		AActor *Executor = ChainActor.Get();
+		UCastableSkillDataBase *Skill = GetCurrentSkillData();
+		const int32 HitCount = Skill ? Skill->HitCount : 0;
+		// Fires into the void this stage — Stage 1's per-hit resolver binds OnHitFrame.
+		UE_LOG(LogTemp, Log, TEXT("[HitFrame] hit %d of %d for %s"),
+			   Index, HitCount, *GetNameSafe(Executor));
+		OnHitFrame.Broadcast(Executor, Index);
 		return;
+	}
 
 	case ECombatNotifyFamily::Cast:
 	{
