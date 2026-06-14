@@ -34,8 +34,8 @@ TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry>
         }
         if (Entry.Percent <= 0.0f)
         {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("[ResolveDamageSplit] Hit %d has non-positive Percent %.1f — entry skipped"),
+            UE_LOG(LogTemp, Verbose,
+                   TEXT("[ResolveDamageSplit] Hit %d Percent %.1f <= 0 — treated as unauthored (remainder split evenly among unassigned hits), not lost"),
                    Entry.HitNumber, Entry.Percent);
             continue;
         }
