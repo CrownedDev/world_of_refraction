@@ -98,7 +98,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("    Efficiency:        %d\n"), Character->Efficiency);
 	Output += FString::Printf(TEXT("    Spell Damage:      %d\n"), Character->SpellDamage);
 	Output += FString::Printf(TEXT("    Status Multiplier: %d\n"), Character->StatusMultiplier);
-	Output += FString::Printf(TEXT("    Crit Chance:       %d\n"), Character->CritChance);
+	Output += FString::Printf(TEXT("    Crit Damage:       %d\n"), Character->CritDamage);
 	Output += FString::Printf(TEXT("    Spell Speed:       %d\n"), Character->SpellSpeed);
 
 	Output += TEXT("  Body:\n");

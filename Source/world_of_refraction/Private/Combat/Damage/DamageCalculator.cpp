@@ -307,10 +307,10 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.bWasInfused = bIsInfused;
 	Input.HitCount = Attack->HitCount;
 
-	// Per-instance weapon StatBonus (BonusRawDamage / BonusCritChance) is no longer
-	// read directly here. It's applied as persistent status effects at equip time
-	// (RawDamageBuff via CalculateDamage; CritChanceBuff via GetCriticalChance), so
-	// reading it again would double-count.
+	// Per-instance weapon StatBonus (BonusRawDamage / BonusCritDamage) is no longer
+	// read directly here — it flows through the composed getters
+	// (GetEvolutionModifiedRawDamage / GetCritDamageMultiplier), so reading it again
+	// here would double-count.
 
 	// Calculate with main function
 	Result = CalculateDamage(Attacker, Target, Input);
@@ -418,7 +418,7 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	// (5e-C2) Crit-chance gear/stone REMOVED here — crit chance now sources entirely from Luck:
 	// BaseCrit above = GetEvolutionModifiedCritChance -> GetLuckModifiedChance, which already folds in
 	// BonusLuck gear. The old BonusCritChance multiply is dropped to avoid double-counting (that Mind
-	// field still exists, named BonusCritChance until 5e-C3, but now drives crit DAMAGE, not chance).
+	// gear field is renamed BonusCritDamage and now drives crit DAMAGE via GetCritDamageMultiplier).
 	// The CritStone read is RETIRED here rather than repointed to a luck stone: a crit-ONLY luck channel
 	// wouldn't apply to break-skip/dodge. CritStone's final home (a crit-DAMAGE stone, or a Luck stone
 	// wired into GetEquipmentModifiedLuck so it boosts ALL luck consumers) is a 5e-C3 content decision.
@@ -583,32 +583,38 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 		return CombatConstants::CRIT_DMG_BASE; // x1.0 (normal damage) when no attacker
 	}
 
-	// Stat-derived crit damage: CRIT_DMG_BASE (x1.0) + the crit-damage stat ramp (Mind x crit points x
-	// CRIT_DAMAGE_PER_POINT, up to +0.5), capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5). NOTE (5e-B-fix):
-	// this reads the not-yet-renamed Mind CritChance substat (GetTotalCritChance) AS the crit-damage
-	// stat. 5e-C3 renames it to GetTotalCritDamage (same underlying field, behaviour carries over) and
-	// 5e-C2 flips crit CHANCE onto Luck. Until then crit chance still uses this same substat — this step
-	// only changes DAMAGE scaling, it does not touch chance.
+	// Stat-derived crit damage: CRIT_DMG_BASE (x1.0) + the crit-damage stat ramp (Mind x CritDamage
+	// points x CRIT_DAMAGE_PER_POINT, up to +0.5), capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5). The Mind
+	// CritDamage substat drives crit DAMAGE; crit CHANCE is Luck-driven (5e-C2). Gear/transient multiply
+	// the capped stat past x1.5 below.
 	float StatCritDmg = CombatConstants::CRIT_DMG_BASE;
 	if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 	{
 		if (AttackerComp->CharacterData)
 		{
 			const float ModifiedMind = AttackerComp->GetEvolutionModifiedMind();
-			const int32 CritDmgPoints = AttackerComp->CharacterData->GetTotalCritChance();
+			const int32 CritDmgPoints = AttackerComp->CharacterData->GetTotalCritDamage();
 			StatCritDmg = FMath::Min(
 				CombatConstants::CRIT_DMG_BASE + (ModifiedMind * CritDmgPoints * CombatConstants::CRIT_DAMAGE_PER_POINT),
 				CombatConstants::CRIT_DAMAGE_STAT_CAP);
 		}
 	}
 
-	// Transient ModifyCritDamage MULTIPLIES the capped stat past x1.5 toward CRIT_DAMAGE_GEAR_CEILING
-	// (cluster-5 shape). Max(0,..) keeps a debuff from inverting the factor. x1 (inert) when no SEM /
-	// no effect, so a zero-crit-stat character with no transient is exactly CRIT_DMG_BASE (x1.0 = normal).
-	// NOTE: the dedicated BonusCritDamage GEAR multiply is DEFERRED to 5e-C3 — the field is still named
-	// BonusCritChance and is still consumed by GetCriticalChance (crit CHANCE) until 5e-C2 frees it.
-	// Wiring it here now would double-use one field for both chance AND damage during the interim.
+	// Gear + transient MULTIPLY the capped stat past x1.5 toward CRIT_DAMAGE_GEAR_CEILING (cluster-5
+	// shape). x1 (inert) when none, so a zero-crit-stat character with no gear/transient is exactly
+	// CRIT_DMG_BASE (x1.0 = normal).
 	float Result = StatCritDmg;
+
+	// Equipment BonusCritDamage gear — MULTIPLIES (option-ii: the per-point magnitude is read as a
+	// fraction, same shape as RawDamage/SpellDamage gear in 5a). 5e-C3 wired this now that the field
+	// was renamed BonusCritChance->BonusCritDamage and freed from the crit-CHANCE path (5e-C2).
+	if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+	{
+		const float BonusCritDamage = Loadout->GetActiveStatBonus(Attacker).BonusCritDamage;
+		Result *= (1.0f + BonusCritDamage * CombatConstants::CRIT_DAMAGE_PER_POINT);
+	}
+
+	// Transient ModifyCritDamage — MULTIPLIES too. Max(0,..) keeps a debuff from inverting the factor.
 	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
 	{
 		const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);

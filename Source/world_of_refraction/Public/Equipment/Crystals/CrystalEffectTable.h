@@ -548,7 +548,7 @@ namespace CrystalEffectTable
         case ECrystalType::DefenseStone:
             return ESubStat::Defense;
         case ECrystalType::CritStone:
-            return ESubStat::CritChance;
+            return ESubStat::CritDamage;
         case ECrystalType::TurnSpeedStone:
             return ESubStat::TurnSpeed;
         case ECrystalType::StatusStone:

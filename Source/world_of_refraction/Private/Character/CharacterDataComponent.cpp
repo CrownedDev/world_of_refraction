@@ -744,9 +744,9 @@ float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
     }
     // Cluster 5e-C2: crit chance is now LUCK-driven. base 0.05 + normalized Luck (stat caps ALONE at
     // 1.0 → +0.45 = 0.50 at maxed Luck stat) × CRIT_CHANCE_LUCK_BONUS; Luck gear pushes the norm past
-    // 1.0 toward the [0,1] ceiling (100%) — capped at the GetCriticalChance final clamp. This STOPS
-    // reading the Mind crit substat (GetTotalCritChance) — that substat now drives crit DAMAGE
-    // (GetCritDamageMultiplier, 5e-B-fix) and is renamed CritDamage in 5e-C3.
+    // 1.0 toward the [0,1] ceiling (100%) — capped at the GetCriticalChance final clamp. This does NOT
+    // read the Mind crit substat — that substat (renamed CritDamage in 5e-C3) drives crit DAMAGE via
+    // GetCritDamageMultiplier.
     return GetLuckModifiedChance(CombatConstants::CRIT_CHANCE_BASE, CombatConstants::CRIT_CHANCE_LUCK_BONUS);
 }
 

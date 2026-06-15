@@ -20,7 +20,7 @@ enum class ESubStat : uint8
 	Efficiency UMETA(DisplayName = "Efficiency"),
 	SpellDamage UMETA(DisplayName = "Spell Damage"),
 	StatusMultiplier UMETA(DisplayName = "Status Multiplier"),
-	CritChance UMETA(DisplayName = "Crit Chance"),
+	CritDamage UMETA(DisplayName = "Crit Damage"),
 	SpellSpeed UMETA(DisplayName = "Spell Speed"),
 	// Body
 	Defense UMETA(DisplayName = "Defense"),
@@ -52,7 +52,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	float StatusMultiplier = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
-	float CritChance = 0.0f;
+	float CritDamage = 0.0f;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Action Stat Modifiers")
 	float SpellSpeed = 0.0f;
@@ -81,7 +81,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		Efficiency += Other.Efficiency;
 		SpellDamage += Other.SpellDamage;
 		StatusMultiplier += Other.StatusMultiplier;
-		CritChance += Other.CritChance;
+		CritDamage += Other.CritDamage;
 		SpellSpeed += Other.SpellSpeed;
 		Defense += Other.Defense;
 		ActionSpeed += Other.ActionSpeed;
@@ -97,7 +97,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		Efficiency += Percent;
 		SpellDamage += Percent;
 		StatusMultiplier += Percent;
-		CritChance += Percent;
+		CritDamage += Percent;
 		SpellSpeed += Percent;
 		Defense += Percent;
 		ActionSpeed += Percent;
@@ -117,7 +117,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		Efficiency += MindPct;
 		SpellDamage += MindPct;
 		StatusMultiplier += MindPct;
-		CritChance += MindPct;
+		CritDamage += MindPct;
 		SpellSpeed += MindPct;
 		// Body sub-stats — MaxHealth is a pool stat, not represented here.
 		Defense += BodyPct;
@@ -140,8 +140,8 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 			return SpellDamage;
 		case ESubStat::StatusMultiplier:
 			return StatusMultiplier;
-		case ESubStat::CritChance:
-			return CritChance;
+		case ESubStat::CritDamage:
+			return CritDamage;
 		case ESubStat::SpellSpeed:
 			return SpellSpeed;
 		case ESubStat::Defense:
@@ -180,6 +180,6 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	/** Has any non-zero contribution. */
 	bool IsActive() const
 	{
-		return Efficiency != 0.0f || SpellDamage != 0.0f || StatusMultiplier != 0.0f || CritChance != 0.0f || SpellSpeed != 0.0f || Defense != 0.0f || ActionSpeed != 0.0f || RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f || Luck != 0.0f;
+		return Efficiency != 0.0f || SpellDamage != 0.0f || StatusMultiplier != 0.0f || CritDamage != 0.0f || SpellSpeed != 0.0f || Defense != 0.0f || ActionSpeed != 0.0f || RawDamage != 0.0f || Resistance != 0.0f || TurnSpeed != 0.0f || Luck != 0.0f;
 	}
 };

@@ -135,7 +135,7 @@ namespace CombatConstants
     constexpr float PCT_STAT_PER_POINT = (UNIVERSAL_STAT_CAP - 0.0f) / STAT_DERIVE_DENOM;
 
     // ==================== MIND STATS (4) ====================
-    // Efficiency, SpellDamage, CritChance, SpellSpeed
+    // Efficiency, SpellDamage, CritDamage, SpellSpeed
 
     // Efficiency - Reduces EP cost of Spells & Abilities (not Attacks)
     // Resonators: Also reduces ring break chance
@@ -162,10 +162,8 @@ namespace CombatConstants
     // the [0,1] crit ceiling (100%).
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
     constexpr float CRIT_CHANCE_LUCK_BONUS = 0.45f;  // maxed-Luck-stat crit chance bonus (0.05 + 0.45 = 0.50)
-    // CRIT_CHANCE_PER_POINT is now UNUSED (crit chance left the Mind stat in 5e-C2; the Mind crit
-    // substat drives crit DAMAGE via CRIT_DAMAGE_PER_POINT). Kept until the 5e-C3 rename sweep.
-    constexpr float CRIT_CHANCE_PER_POINT = (UNIVERSAL_STAT_CAP - CRIT_CHANCE_BASE) / STAT_DERIVE_DENOM; // (legacy) 0.05 -> 0.50
-    constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit (legacy duplicate of DamageConstants::CRIT_MULTIPLIER — unused; live base is CRIT_MULTIPLIER)
+    // (5e-C3 retired CRIT_CHANCE_PER_POINT — crit chance left the Mind stat for Luck; and the dead
+    //  CRIT_DAMAGE_MULTIPLIER duplicate. Crit damage uses CRIT_DMG_BASE / CRIT_DAMAGE_PER_POINT below.)
     // Crit DAMAGE stat scaling (cluster 5e-B-fix, Crown-locked). Un-invested crit = CRIT_DMG_BASE
     // (x1.0 = NORMAL damage — a crit does nothing extra without crit-damage investment). The
     // crit-damage stat ramps it to x1.5 at max (base 1.0 + 0.5), gear pushes past toward x2.0.
@@ -261,7 +259,8 @@ namespace CombatConstants
     constexpr float LUCK_GEAR_CEILING = 2.0f; // normalized luck ceiling WITH gear (>= 1.0 stat cap)
 
     // Consumer-specific caps - applied at the consumer site
-    constexpr float LUCK_CRIT_BONUS_MAX = 0.20f;   // +20% crit chance bonus
+    // (5e-C3 retired LUCK_CRIT_BONUS_MAX — crit chance is now Luck itself via CRIT_CHANCE_LUCK_BONUS,
+    //  not a +20% bonus layered on a Mind-stat crit chance.)
     constexpr float LUCK_DODGE_MAX = 0.25f;        // 25% per-hit dodge chance
     constexpr float LUCK_BREAK_SKIP_MAX = 0.50f;   // 50% chance to skip crystal wear
     constexpr float LUCK_DROP_CHANCE_MAX = 1.00f;  // 100% extra drop chance (out-of-combat)

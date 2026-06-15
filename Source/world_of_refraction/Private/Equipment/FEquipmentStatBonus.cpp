@@ -44,7 +44,7 @@ namespace
             {
             case 0: return Bonus.BonusEfficiency;
             case 1: return Bonus.BonusSpellDamage;
-            case 2: return FMath::RoundToInt(Bonus.BonusCritChance);
+            case 2: return FMath::RoundToInt(Bonus.BonusCritDamage);
             case 3: return Bonus.BonusSpellSpeed;
             }
             break;
@@ -89,7 +89,7 @@ namespace
             {
             case 0: Bonus.BonusEfficiency  = FMath::Clamp(Bonus.BonusEfficiency  + Delta, Lo, Hi); return;
             case 1: Bonus.BonusSpellDamage = FMath::Clamp(Bonus.BonusSpellDamage + Delta, Lo, Hi); return;
-            case 2: Bonus.BonusCritChance  = FMath::Clamp(Bonus.BonusCritChance  + static_cast<float>(Delta),
+            case 2: Bonus.BonusCritDamage  = FMath::Clamp(Bonus.BonusCritDamage  + static_cast<float>(Delta),
                                                           static_cast<float>(Lo), static_cast<float>(Hi)); return;
             case 3: Bonus.BonusSpellSpeed  = FMath::Clamp(Bonus.BonusSpellSpeed  + Delta, Lo, Hi); return;
             }
@@ -123,7 +123,7 @@ namespace
         Bonus.BonusSpellDamage      = 0;
         Bonus.BonusEfficiency       = 0;
         Bonus.BonusStatusMultiplier = 0;
-        Bonus.BonusCritChance       = 0.0f;
+        Bonus.BonusCritDamage       = 0.0f;
         Bonus.BonusSpellSpeed       = 0;
         Bonus.BonusDefense          = 0;
         Bonus.BonusActionSpeed      = 0;
@@ -314,7 +314,7 @@ void FEquipmentStatBonus::Accumulate(const FEquipmentStatBonus &Other)
     BonusSpellDamage           += Other.BonusSpellDamage;
     BonusEfficiency            += Other.BonusEfficiency;
     BonusStatusMultiplier      += Other.BonusStatusMultiplier;
-    BonusCritChance            += Other.BonusCritChance;
+    BonusCritDamage            += Other.BonusCritDamage;
     BonusSpellSpeed            += Other.BonusSpellSpeed;
     BonusDefense               += Other.BonusDefense;
     BonusActionSpeed           += Other.BonusActionSpeed;

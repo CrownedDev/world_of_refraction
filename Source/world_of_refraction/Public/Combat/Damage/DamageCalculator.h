@@ -71,7 +71,7 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 
 	/** Per-action stat modifiers accumulated from all active sources
 	 *  (Reality innate/slotted/infused, Evolution slotted/infused, future buffs).
-	 *  DamageCalculator consumes StatusMultiplier / SpellDamage / RawDamage / CritChance from this. */
+	 *  DamageCalculator consumes StatusMultiplier / SpellDamage / RawDamage / CritDamage from this. */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FActionStatModifiers ActionMods;
 

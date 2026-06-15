@@ -130,7 +130,7 @@ bool UEvolutionItemData::HasStatModifiers() const
            BaseStatBonus.BonusSpellDamage      != 0 ||
            BaseStatBonus.BonusEfficiency       != 0 ||
            BaseStatBonus.BonusStatusMultiplier != 0 ||
-           BaseStatBonus.BonusCritChance       != 0.0f ||
+           BaseStatBonus.BonusCritDamage       != 0.0f ||
            BaseStatBonus.BonusSpellSpeed       != 0 ||
            BaseStatBonus.BonusDefense          != 0 ||
            BaseStatBonus.BonusActionSpeed      != 0 ||
@@ -237,7 +237,7 @@ FActionStatModifiers UEvolutionItemData::MapToInfusionModifiers(const FEquipment
     Out.Efficiency       = Bonus.BonusEfficiency        * InfusionMultiplier;
     Out.SpellDamage      = Bonus.BonusSpellDamage       * InfusionMultiplier;
     Out.StatusMultiplier = Bonus.BonusStatusMultiplier  * InfusionMultiplier;
-    Out.CritChance       = Bonus.BonusCritChance        * InfusionMultiplier;
+    Out.CritDamage       = Bonus.BonusCritDamage        * InfusionMultiplier;
     Out.SpellSpeed       = Bonus.BonusSpellSpeed        * InfusionMultiplier;
     Out.Defense          = Bonus.BonusDefense           * InfusionMultiplier;
     Out.ActionSpeed      = Bonus.BonusActionSpeed       * InfusionMultiplier;
@@ -509,13 +509,13 @@ EDataValidationResult UEvolutionItemData::IsDataValid(FDataValidationContext &Co
     WarnIntOutOfRange(TEXT("BonusTurnSpeed"),        BaseStatBonus.BonusTurnSpeed);
     WarnIntOutOfRange(TEXT("BonusLuck"),             BaseStatBonus.BonusLuck);
 
-    // BonusCritChance is float; cast for the int-domain comparison.
-    if (BaseStatBonus.BonusCritChance < CombatConstants::CRYSTAL_BONUS_MIN ||
-        BaseStatBonus.BonusCritChance > CombatConstants::CRYSTAL_BONUS_MAX)
+    // BonusCritDamage is float; cast for the int-domain comparison.
+    if (BaseStatBonus.BonusCritDamage < CombatConstants::CRYSTAL_BONUS_MIN ||
+        BaseStatBonus.BonusCritDamage > CombatConstants::CRYSTAL_BONUS_MAX)
     {
         Context.AddWarning(FText::FromString(FString::Printf(
-            TEXT("BaseStatBonus.BonusCritChance = %.2f is outside [%d, %d]."),
-            BaseStatBonus.BonusCritChance,
+            TEXT("BaseStatBonus.BonusCritDamage = %.2f is outside [%d, %d]."),
+            BaseStatBonus.BonusCritDamage,
             CombatConstants::CRYSTAL_BONUS_MIN, CombatConstants::CRYSTAL_BONUS_MAX)));
     }
 

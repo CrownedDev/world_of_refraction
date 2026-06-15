@@ -167,7 +167,7 @@ public:
 	int32 SpellDamage = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 CritChance = 0;
+	int32 CritDamage = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 SpellSpeed = 0;
@@ -301,7 +301,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
 	int32 GetTotalSpent() const
 	{
-		return Efficiency + SpellDamage + CritChance + SpellSpeed +
+		return Efficiency + SpellDamage + CritDamage + SpellSpeed +
 			   Defense + ActionSpeed + RawDamage + MaxHealth + Reflex +
 			   MaxEnergy + Resistance + TurnSpeed + Luck + StatusMultiplier;
 	}
@@ -323,7 +323,7 @@ public:
 	int32 GetTotalSpellDamage() const { return SpellDamage; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
-	int32 GetTotalCritChance() const { return CritChance; }
+	int32 GetTotalCritDamage() const { return CritDamage; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalSpellSpeed() const { return SpellSpeed; }
@@ -366,8 +366,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseMind() const
 	{
-		// Mind (4): Efficiency, SpellDamage, CritChance, SpellSpeed
-		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalCritChance() + GetTotalSpellSpeed();
+		// Mind (4): Efficiency, SpellDamage, CritDamage, SpellSpeed
+		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalCritDamage() + GetTotalSpellSpeed();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -411,7 +411,7 @@ public:
 	}
 
 	// ==================== MIND CALCULATIONS ====================
-	// Mind (4): Efficiency, SpellDamage, CritChance, SpellSpeed
+	// Mind (4): Efficiency, SpellDamage, CritDamage, SpellSpeed
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateEfficiencyMultiplier() const
@@ -460,15 +460,18 @@ public:
 		return FMath::Min(1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
+	// Display-only crit-DAMAGE multiplier (asset-intrinsic; the live value is
+	// UDamageCalculator::GetCritDamageMultiplier). Post-5e-C the Mind crit substat drives crit DAMAGE
+	// (x1.0 base -> x1.5 at max stat); crit CHANCE is now Luck-driven (Spirit). Mirrors the other
+	// Calculate* display twins (raw EffectiveMind, no crystal/gear).
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
-	float CalculateCritChance() const
+	float CalculateCritDamage() const
 	{
 		float EffectiveMind = GetEffectiveMind();
-		int32 TotalPoints = GetTotalCritChance();
-		return FMath::Clamp(
-			CombatConstants::CRIT_CHANCE_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
-			CombatConstants::CRIT_CHANCE_BASE,
-			CombatConstants::UNIVERSAL_STAT_CAP);
+		int32 TotalPoints = GetTotalCritDamage();
+		return FMath::Min(
+			CombatConstants::CRIT_DMG_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_DAMAGE_PER_POINT),
+			CombatConstants::CRIT_DAMAGE_STAT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -575,8 +578,8 @@ public:
 		// Multi-system fortune stat. Returns raw luck multiplier (0.0+, no upper
 		// cap on input). LUCK_RAW_MAX is the per-consumer NORMALIZATION basis
 		// (the "fully lucky" point), not an input ceiling — each consumer clamps
-		// its own normalized fraction (LUCK_CRIT_BONUS_MAX, LUCK_DODGE_MAX,
-		// LUCK_BREAK_SKIP_MAX, LUCK_DROP_CHANCE_MAX, LUCK_DROP_QUALITY_MAX).
+		// its own normalized fraction (LUCK_DODGE_MAX, LUCK_BREAK_SKIP_MAX,
+		// LUCK_DROP_CHANCE_MAX, LUCK_DROP_QUALITY_MAX; crit chance via CRIT_CHANCE_LUCK_BONUS).
 		// Same shape as Resistance, minus the upper clamp.
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalLuck();

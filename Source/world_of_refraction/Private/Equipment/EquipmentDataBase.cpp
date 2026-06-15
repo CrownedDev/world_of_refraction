@@ -145,7 +145,7 @@ TArray<FString> UEquipmentDataBase::GetRestrictedFusionBonusStats() const
     auto IsWired = [](ESubStat S)
     {
         return S == ESubStat::RawDamage || S == ESubStat::Defense ||
-               S == ESubStat::CritChance || S == ESubStat::TurnSpeed ||
+               S == ESubStat::CritDamage || S == ESubStat::TurnSpeed ||
                S == ESubStat::StatusMultiplier || S == ESubStat::Efficiency;
     };
     for (int32 Index = 0; Index < Enum->NumEnums() - 1; ++Index)
@@ -242,7 +242,7 @@ FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
     Combined.BonusSpellDamage           = BaseStatBonus.BonusSpellDamage           + GeneratedStatBonus.BonusSpellDamage;
     Combined.BonusEfficiency            = BaseStatBonus.BonusEfficiency            + GeneratedStatBonus.BonusEfficiency;
     Combined.BonusStatusMultiplier      = BaseStatBonus.BonusStatusMultiplier      + GeneratedStatBonus.BonusStatusMultiplier;
-    Combined.BonusCritChance            = BaseStatBonus.BonusCritChance            + GeneratedStatBonus.BonusCritChance;
+    Combined.BonusCritDamage            = BaseStatBonus.BonusCritDamage            + GeneratedStatBonus.BonusCritDamage;
     Combined.BonusSpellSpeed            = BaseStatBonus.BonusSpellSpeed            + GeneratedStatBonus.BonusSpellSpeed;
     Combined.BonusDefense               = BaseStatBonus.BonusDefense               + GeneratedStatBonus.BonusDefense;
     Combined.BonusActionSpeed           = BaseStatBonus.BonusActionSpeed           + GeneratedStatBonus.BonusActionSpeed;

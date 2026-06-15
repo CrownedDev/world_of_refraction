@@ -62,7 +62,7 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     int32 BonusStatusMultiplier = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21.0", ClampMax = "21.0"))
-    float BonusCritChance = 0.0f;
+    float BonusCritDamage = 0.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusSpellSpeed = 0;
