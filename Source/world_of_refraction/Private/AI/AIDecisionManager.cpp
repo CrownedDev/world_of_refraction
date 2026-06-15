@@ -714,9 +714,12 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
     // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
-    // so the estimate matches average execution damage.
+    // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
+    // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
+    // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
     const float CritChance = DamageCalc->GetCriticalChance(Attacker);
-    float Estimate = Result.FinalDamage * (1.0f + CritChance * (DamageConstants::CRIT_MULTIPLIER - 1.0f));
+    const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
+    float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
     // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
     if (InfusionLevel == 2)
@@ -775,9 +778,12 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
     // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
-    // so the estimate matches average execution damage.
+    // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
+    // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
+    // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
     const float CritChance = DamageCalc->GetCriticalChance(Attacker);
-    float Estimate = Result.FinalDamage * (1.0f + CritChance * (DamageConstants::CRIT_MULTIPLIER - 1.0f));
+    const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
+    float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
     // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
     if (InfusionLevel == 2)

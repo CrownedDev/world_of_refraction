@@ -22,8 +22,9 @@ class UCombatGridSubsystem;
  */
 namespace DamageConstants
 {
-	// Critical hits
-	constexpr float CRIT_MULTIPLIER = 1.5f;
+	// Critical hits — crit DAMAGE is now a variable stat (CombatConstants::CRIT_DMG_BASE + CritDamage
+	// stat + gear, via UDamageCalculator::GetCritDamageMultiplier). The old fixed CRIT_MULTIPLIER (1.5)
+	// was retired in cluster 5e-D once the AI estimator stopped reading it.
 	constexpr float BASE_CRIT_CHANCE = 0.05f; // 5%
 
 	// Defense
@@ -206,6 +207,14 @@ public:
 	float GetCriticalChance(AActor *Attacker) const;
 
 	/**
+	 * Get the attacker's full crit-DAMAGE multiplier (CRIT_DMG_BASE x1.0 + CritDamage stat ramp to
+	 * x1.5, then BonusCritDamage gear + ModifyCritDamage transient toward x2.0). The same value the
+	 * live crit path applies; public so the AI scorer can value crits at the attacker's real crit damage.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
+	float GetCritDamageMultiplier(AActor *Attacker) const;
+
+	/**
 	 * Roll for critical hit
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Components")
@@ -262,9 +271,6 @@ private:
 	/** Apply status effect modifiers to damage. ActionType gates the
 	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
-
-	/** Skill-effect-driven crit damage multiplier — returns 1.0 + ModifyCritDamage% / 100. */
-	float GetCritDamageMultiplier(AActor *Attacker) const;
 
 	/** Get CombatGridSubsystem */
 	UCombatGridSubsystem *GetCombatGridSubsystem() const;
