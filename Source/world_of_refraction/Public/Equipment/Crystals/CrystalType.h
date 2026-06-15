@@ -67,5 +67,10 @@ enum class ECrystalType : uint8
     // of (stacks on the matrix bonus). Contributes 0 to every stat (StoneTargetStat
     // -> None, like the pool stones). Inert alone or in a stone-only fusion. Same
     // append-only serialized-identity rule — do NOT reorder/insert above.
-    DurabilityStone UMETA(DisplayName = "Durability Stone")
+    DurabilityStone UMETA(DisplayName = "Durability Stone"),
+    // Appended after DurabilityStone (=26); stat-stone sub-type -> ESubStat::Luck (cluster 5f-B).
+    // Luck drives crit chance + crystal-wear break-skip (+ future dodge/drops), so a LuckStone lifts
+    // ALL luck consumers uniformly via GetEquipmentModifiedLuck. Same append-only serialized-identity
+    // rule — do NOT reorder/insert above.
+    LuckStone UMETA(DisplayName = "Luck Stone")
 };

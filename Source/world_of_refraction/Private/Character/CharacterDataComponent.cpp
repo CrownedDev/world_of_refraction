@@ -682,6 +682,14 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         {
             const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
             LuckNorm *= (1.0f + Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT);
+
+            // Attached LuckStone (5f-B) — MULTIPLIES the normalized luck (gear-beyond the stat cap), so it
+            // lifts EVERY luck consumer uniformly (crit chance, break-skip, future dodge/drops). ×1 (inert)
+            // unless a LuckStone is attached — StoneTargetStat(LuckStone) == ESubStat::Luck, 0 otherwise.
+            if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
+            {
+                LuckNorm *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
         }
 
         // Skill-effect LuckBuff / LuckDebuff — MULTIPLIES (percent-space), matching the cluster-5
