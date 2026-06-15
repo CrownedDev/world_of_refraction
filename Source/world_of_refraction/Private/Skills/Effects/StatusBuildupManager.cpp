@@ -297,10 +297,10 @@ float UStatusBuildupManager::GetSourceStatusMultiplierFactor(AActor *Source) con
 	const float ModifiedSpirit = SourceComp->GetEvolutionModifiedSpirit();
 	const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
 
-	// Equipment BonusStatusMultiplier + attached StatusStone — both read from the
-	// source's active loadout. BonusStatusMultiplier is point-based (× per-point); the
-	// StatusStone is a whole-percent curve (÷ STAT_PERCENT_DIVISOR). Both add as terms
-	// in the SAME 1 + ... sum (StatusMultiplier sums, never compounds). 0 for non-StatusStone.
+	// Equipment BonusStatusMultiplier + attached StatusStone — both read from the source's active
+	// loadout. BonusStatusMultiplier is point-based (× per-point); the StatusStone is a whole-percent
+	// curve (÷ STAT_PERCENT_DIVISOR). Pattern P (cluster 5d): each MULTIPLIES the capped stat below
+	// (was an additive term in one uncapped sum). 0 for non-StatusStone.
 	int32 BonusPoints = 0;
 	float StonePct = 0.0f;
 	if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
@@ -316,9 +316,19 @@ float UStatusBuildupManager::GetSourceStatusMultiplierFactor(AActor *Source) con
 		}
 	}
 
-	return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
-	            + (BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
-	            + (StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
+	// Pattern P (cluster 5d) — stat-capped, gear multiplies beyond. The stat term (innate
+	// crystal-aware Spirit × StatusMultiplier points) is capped ALONE at STAT_MULT_CAP (×1.5 — now
+	// ENFORCED; this live buildup factor was previously UNCAPPED). THEN gear/stone MULTIPLY it past
+	// 1.5 toward STAT_MODIFIER_MAX (×2.0), matching the damage gear ceiling. Option-(ii): the
+	// BonusStatusMultiplier × per-point magnitude is read as a fraction. Each ×1 (inert) when absent.
+	// The transient StatusMultiplierBuff/Debuff is a separate layer applied in AddStatusBuildup (5b).
+	const float StatMult = FMath::Min(
+		1.0f + ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT,
+		CombatConstants::STAT_MULT_CAP);
+	const float Result = StatMult
+		* (1.0f + BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
+		* (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
+	return FMath::Min(Result, CombatConstants::STAT_MODIFIER_MAX);
 }
 
 bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount,

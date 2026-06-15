@@ -723,10 +723,13 @@ float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
     }
     const float ModifiedMind = GetEvolutionModifiedMind();
     const int32 TotalPoints = CharacterData->GetTotalCritChance();
+    // Pattern P (cluster 5d): the STAT crit base caps ALONE at UNIVERSAL_STAT_CAP (0.5 — now ENFORCED;
+    // was wrongly 1.0). Gear (BonusCritChance, CritStone) then MULTIPLIES this past 0.5 toward the
+    // final [0,1] ceiling in GetCriticalChance — that gear-beyond layer is already Pattern-P-shaped.
     return FMath::Clamp(
         CombatConstants::CRIT_CHANCE_BASE + (ModifiedMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
         CombatConstants::CRIT_CHANCE_BASE,
-        1.0f);
+        CombatConstants::UNIVERSAL_STAT_CAP);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
