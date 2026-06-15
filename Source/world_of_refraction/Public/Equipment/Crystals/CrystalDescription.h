@@ -170,8 +170,9 @@ namespace CrystalDescription
             return TEXT("A stone that bolsters Defense — passively when attached, or on a target when used.");
 
         case ECrystalType::CritStone:
-            // Placeholder until the attached crit hook + consumable land.
-            return TEXT("A stone that raises Crit Chance when attached.");
+            // Placeholder until the attached crit-damage hook lands (CritStone maps to ESubStat::CritDamage
+            // post-5e-C3; the attached read is not yet wired into GetCritDamageMultiplier — see 5e flag).
+            return TEXT("A stone that raises Crit Damage when attached.");
         case ECrystalType::TurnSpeedStone:
             return TEXT("A stone that raises Turn Speed when attached.");
         case ECrystalType::StatusStone:
