@@ -742,15 +742,12 @@ float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
     {
         return CombatConstants::CRIT_CHANCE_BASE;
     }
-    const float ModifiedMind = GetEvolutionModifiedMind();
-    const int32 TotalPoints = CharacterData->GetTotalCritChance();
-    // Pattern P (cluster 5d): the STAT crit base caps ALONE at UNIVERSAL_STAT_CAP (0.5 — now ENFORCED;
-    // was wrongly 1.0). Gear (BonusCritChance, CritStone) then MULTIPLIES this past 0.5 toward the
-    // final [0,1] ceiling in GetCriticalChance — that gear-beyond layer is already Pattern-P-shaped.
-    return FMath::Clamp(
-        CombatConstants::CRIT_CHANCE_BASE + (ModifiedMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
-        CombatConstants::CRIT_CHANCE_BASE,
-        CombatConstants::UNIVERSAL_STAT_CAP);
+    // Cluster 5e-C2: crit chance is now LUCK-driven. base 0.05 + normalized Luck (stat caps ALONE at
+    // 1.0 → +0.45 = 0.50 at maxed Luck stat) × CRIT_CHANCE_LUCK_BONUS; Luck gear pushes the norm past
+    // 1.0 toward the [0,1] ceiling (100%) — capped at the GetCriticalChance final clamp. This STOPS
+    // reading the Mind crit substat (GetTotalCritChance) — that substat now drives crit DAMAGE
+    // (GetCritDamageMultiplier, 5e-B-fix) and is renamed CritDamage in 5e-C3.
+    return GetLuckModifiedChance(CombatConstants::CRIT_CHANCE_BASE, CombatConstants::CRIT_CHANCE_LUCK_BONUS);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const

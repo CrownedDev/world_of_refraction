@@ -156,9 +156,15 @@ namespace CombatConstants
     // Spell Damage - Spell damage multiplier (applied once via DamageCalculator::GetAttackerDamageMultiplier for Spell ActionType)
     constexpr float SPELL_DAMAGE_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 spell damage at max
 
-    // Crit Chance - Critical hit probability (all actions)
+    // Crit Chance - Critical hit probability (all actions). Cluster 5e-C2: crit chance is now
+    // LUCK-driven (not the Mind crit stat). Base 0.05 + normalized Luck (stat caps at 1.0) x
+    // CRIT_CHANCE_LUCK_BONUS -> 0.50 at maxed Luck stat; Luck gear pushes the norm past 1.0 toward
+    // the [0,1] crit ceiling (100%).
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
-    constexpr float CRIT_CHANCE_PER_POINT = (UNIVERSAL_STAT_CAP - CRIT_CHANCE_BASE) / STAT_DERIVE_DENOM; // 0.05 base -> 0.50 crit at max
+    constexpr float CRIT_CHANCE_LUCK_BONUS = 0.45f;  // maxed-Luck-stat crit chance bonus (0.05 + 0.45 = 0.50)
+    // CRIT_CHANCE_PER_POINT is now UNUSED (crit chance left the Mind stat in 5e-C2; the Mind crit
+    // substat drives crit DAMAGE via CRIT_DAMAGE_PER_POINT). Kept until the 5e-C3 rename sweep.
+    constexpr float CRIT_CHANCE_PER_POINT = (UNIVERSAL_STAT_CAP - CRIT_CHANCE_BASE) / STAT_DERIVE_DENOM; // (legacy) 0.05 -> 0.50
     constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit (legacy duplicate of DamageConstants::CRIT_MULTIPLIER — unused; live base is CRIT_MULTIPLIER)
     // Crit DAMAGE stat scaling (cluster 5e-B-fix, Crown-locked). Un-invested crit = CRIT_DMG_BASE
     // (x1.0 = NORMAL damage — a crit does nothing extra without crit-damage investment). The

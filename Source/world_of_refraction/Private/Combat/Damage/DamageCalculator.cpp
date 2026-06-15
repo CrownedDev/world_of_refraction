@@ -191,29 +191,15 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	if (Input.bCanCrit)
 	{
 		float CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
-		// ActionMods.CritChance applies whether crit chance came from override
-		// or computed default. No re-clamp here — preserves prior bool-path
-		// behaviour (Reality boost was deliberately uncapped at this site).
-		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::CritChance);
+		// ActionMods per-action crit-chance boost. Cluster 5e-C2: crit chance is Luck-driven, so this
+		// routes through the Luck axis (was ESubStat::CritChance — which becomes crit DAMAGE in 5e-C3;
+		// routing here prevents a crit-CHANCE modifier from silently flipping onto crit-DAMAGE). No
+		// re-clamp — preserves the prior uncapped Reality-boost behaviour at this site.
+		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::Luck);
 
-		// Luck-driven crit bonus. RawLuck/LUCK_RAW_MAX is upper-clamped to 1 (positive
-		// luck plateaus at +LUCK_CRIT_BONUS_MAX) but NOT lower-clamped: negative luck
-		// (curse) flows through as a negative bonus, so ×(1 + LuckCritBonus) reduces
-		// crit. An extremely negative bonus can drive the local CritChance below 0;
-		// the roll (FRand() in [0,1) < CritChance) then never crits — the correct
-		// cursed outcome. This local never escapes Step 4, so the negative cannot
-		// reach the AI scorer (which reads GetCriticalChance, sans luck).
-		// GetEquipmentModifiedLuck folds in crystal Spirit modifier and
-		// active-loadout BonusLuck.
-		if (Attacker)
-		{
-			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-			{
-				const float RawLuck = AttackerComp->GetEquipmentModifiedLuck();
-				const float LuckCritBonus = FMath::Min(RawLuck / CombatConstants::LUCK_RAW_MAX, 1.0f) * CombatConstants::LUCK_CRIT_BONUS_MAX;
-				CritChance *= (1.0f + LuckCritBonus);
-			}
-		}
+		// (5e-C2) The standalone Luck-driven crit BONUS block was REMOVED here. Luck IS the crit chance
+		// now — GetCriticalChance -> GetEvolutionModifiedCritChance -> GetLuckModifiedChance — not a
+		// ×(1+LuckCritBonus) layered on top. Re-applying it would double-count Luck.
 
 		// GuaranteedCrit (passive skill-effect): forces a crit when active on attacker.
 		bool bForceCrit = false;
@@ -429,30 +415,13 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	// primary evolution crystal's Mind pillar modifier feeds the curve.
 	float BaseCrit = AttackerComp->GetEvolutionModifiedCritChance();
 
-	// Equipment stat bonus — BonusCritChance is a float percentage; it compounds
-	// multiplicatively as ×(1 + BonusCritChance/100) on the running crit value.
-	if (Attacker)
-	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
-			BaseCrit *= (1.0f + Bonus.BonusCritChance / 100.0f);
-
-			// Attached CritStone — a PERMANENT, equipment-derived crit multiplier from
-			// the ATTACKER's OWN active weapon attachment (live-resolved, not cached).
-			// Multiplicative ×(1 + pct/100), consistent with the rest of this chain.
-			// Inert (×1) unless a CritStone is attached — GetAttachedStonePercent returns
-			// 0 for any other attachment (stat-match guard). Mirrors the DefenseStone
-			// hook in GetDefenderFlatDefense, applied on the attacker side.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Att = *AttPtr;
-				const float StonePct =
-					CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::CritChance);
-				BaseCrit *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
+	// (5e-C2) Crit-chance gear/stone REMOVED here — crit chance now sources entirely from Luck:
+	// BaseCrit above = GetEvolutionModifiedCritChance -> GetLuckModifiedChance, which already folds in
+	// BonusLuck gear. The old BonusCritChance multiply is dropped to avoid double-counting (that Mind
+	// field still exists, named BonusCritChance until 5e-C3, but now drives crit DAMAGE, not chance).
+	// The CritStone read is RETIRED here rather than repointed to a luck stone: a crit-ONLY luck channel
+	// wouldn't apply to break-skip/dodge. CritStone's final home (a crit-DAMAGE stone, or a Luck stone
+	// wired into GetEquipmentModifiedLuck so it boosts ALL luck consumers) is a 5e-C3 content decision.
 
 	// Combat-buff/debuff modifiers (from skill casts).
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
