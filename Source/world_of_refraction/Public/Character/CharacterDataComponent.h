@@ -264,6 +264,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEquipmentModifiedLuck() const;
 
+    /** Luck-modified probability: BaseChance + (normalized Luck × LuckMaxBonus), where the
+     *  normalized Luck is FMath::Min(GetEquipmentModifiedLuck()/LUCK_RAW_MAX, 1) — upper-clamped,
+     *  negatives pass (curse model: a negative result simply never fires in a roll). Single home for
+     *  every luck-influenced chance (break skip, crit chance, dodge, drops). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const;
+
+    /** Thin roller over GetLuckModifiedChance for FRand sites (break skip, future dodge/drops).
+     *  Not BlueprintPure — it draws FMath::FRand(), so it is non-deterministic. */
+    bool RollLuckChance(float BaseChance, float LuckMaxBonus) const;
+
     /** Crystal-aware derived-stat helpers. Each mirrors the asset's matching
      *  Calculate* formula shape, but reads GetEvolutionModified{Mind,Body,Spirit}
      *  as the EffectivePillar input. Use these in place of the raw asset

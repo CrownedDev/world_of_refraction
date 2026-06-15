@@ -693,6 +693,21 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
     return Luck;
 }
 
+float UCharacterDataComponent::GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const
+{
+    // Normalized Luck in (-inf, 1]: upper-clamped to 1 (positive luck plateaus at LuckMaxBonus);
+    // negatives pass through (curse). Byte-identical to the inline pattern every Luck consumer used
+    // (FMath::Min(RawLuck / LUCK_RAW_MAX, 1) * MAX), now centralized.
+    const float Norm = FMath::Min(GetEquipmentModifiedLuck() / CombatConstants::LUCK_RAW_MAX, 1.0f);
+    return BaseChance + Norm * LuckMaxBonus;
+}
+
+bool UCharacterDataComponent::RollLuckChance(float BaseChance, float LuckMaxBonus) const
+{
+    // A negative chance (cursed wielder, BaseChance 0) is never < FRand()'s [0,1) — never fires.
+    return FMath::FRand() < GetLuckModifiedChance(BaseChance, LuckMaxBonus);
+}
+
 float UCharacterDataComponent::GetEvolutionModifiedSpellDamage() const
 {
     if (!CharacterData)

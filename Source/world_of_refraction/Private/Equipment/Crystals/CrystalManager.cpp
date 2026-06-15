@@ -122,11 +122,12 @@ void UCrystalManager::ProcessPostCastWear(
     // On success, skip the wear entirely (durability unchanged, no broadcast).
     if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
     {
-        const float RawLuck = CharComp->GetEquipmentModifiedLuck();
-        // Upper-clamp only (positive luck plateaus at LUCK_BREAK_SKIP_MAX); negative
-        // luck (curse) yields a negative SkipChance, and FRand() in [0,1) is never
-        // < negative, so a cursed wielder never lucky-skips — no lower clamp needed.
-        const float SkipChance = FMath::Min(RawLuck / CombatConstants::LUCK_RAW_MAX, 1.0f) * CombatConstants::LUCK_BREAK_SKIP_MAX;
+        // Luck-driven break skip, centralized in GetLuckModifiedChance (base 0, max LUCK_BREAK_SKIP_MAX).
+        // Byte-identical to the prior inline Min(RawLuck/LUCK_RAW_MAX,1)×LUCK_BREAK_SKIP_MAX. Upper-clamp
+        // only; negative luck (curse) yields a negative SkipChance, and FRand() in [0,1) is never
+        // < negative, so a cursed wielder never lucky-skips. (Kept the explicit FRand here rather than
+        // RollLuckChance so the rolled SkipChance can be logged below.)
+        const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
         if (FMath::FRand() < SkipChance)
         {
             UE_LOG(LogTemp, Log,
@@ -402,16 +403,16 @@ void UCrystalManager::DebugBreakActiveCrystal()
         }
     }
 
-    // All attempts luck-skipped. Surface the luck stat so we know whether the
-    // cap needs raising for high-luck actors.
-    float RawLuck = -1.0f;
+    // All attempts luck-skipped. Surface the actual break-skip chance (the same value the live
+    // ProcessPostCastWear path rolls) so we know whether the cap needs raising for high-luck actors.
+    float SkipChance = -1.0f;
     if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
     {
-        RawLuck = CharComp->GetEquipmentModifiedLuck();
+        SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
     }
     UE_LOG(LogTemp, Warning,
-           TEXT("[Debug.BreakActiveCrystal] All %d attempts luck-skipped on %s's crystal '%s' (EquipmentModifiedLuck=%.2f). Try again, or raise MAX_ATTEMPTS if this recurs."),
-           MAX_ATTEMPTS, *Actor->GetName(), *CrystalName, RawLuck);
+           TEXT("[Debug.BreakActiveCrystal] All %d attempts luck-skipped on %s's crystal '%s' (break-skip chance=%.2f). Try again, or raise MAX_ATTEMPTS if this recurs."),
+           MAX_ATTEMPTS, *Actor->GetName(), *CrystalName, SkipChance);
 }
 
 void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
