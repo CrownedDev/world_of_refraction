@@ -447,7 +447,7 @@ public:
 		// off Mind alongside the StatusMultiplier substat pillar move.
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalStatusMultiplier();
-		return 1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+		return FMath::Min(1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -457,7 +457,7 @@ public:
 		// DamageCalculator::GetAttackerDamageMultiplier for EActionType::Spell.
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalSpellDamage();
-		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT);
+		return FMath::Min(1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -468,7 +468,7 @@ public:
 		return FMath::Clamp(
 			CombatConstants::CRIT_CHANCE_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
 			CombatConstants::CRIT_CHANCE_BASE,
-			1.0f);
+			CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -476,7 +476,7 @@ public:
 	{
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalSpellSpeed();
-		return CombatConstants::SPELL_SPEED_BASE + (EffectiveMind * TotalPoints * CombatConstants::SPELL_SPEED_PER_POINT);
+		return FMath::Min(CombatConstants::SPELL_SPEED_BASE + (EffectiveMind * TotalPoints * CombatConstants::SPELL_SPEED_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	// ==================== BODY CALCULATIONS ====================
@@ -496,7 +496,10 @@ public:
 	{
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalActionSpeed();
-		return CombatConstants::MOVEMENT_SPEED_BASE * (1.0f + EffectiveBody * TotalPoints * CombatConstants::MOVEMENT_SPEED_PER_POINT);
+		const float SpeedMult = FMath::Min(
+			1.0f + EffectiveBody * TotalPoints * CombatConstants::MOVEMENT_SPEED_PER_POINT,
+			CombatConstants::STAT_MULT_CAP);
+		return CombatConstants::MOVEMENT_SPEED_BASE * SpeedMult;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
@@ -505,7 +508,7 @@ public:
 		// Uses same stat as ActionSpeed
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalActionSpeed();
-		return CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT);
+		return FMath::Min(CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
@@ -548,7 +551,7 @@ public:
 	 *  CalculateTurnSpeed below passes raw GetEffectiveSpirit(). */
 	float CalculateTurnSpeedWithSpirit(float SpiritValue) const
 	{
-		return CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT);
+		return FMath::Min(CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT), CombatConstants::TURN_SPEED_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
@@ -571,9 +574,10 @@ public:
 		// Same shape as Resistance, minus the upper clamp.
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalLuck();
-		return FMath::Max(
+		return FMath::Clamp(
+			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT,
 			0.0f,
-			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT);
+			CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
 	// ==================== HELPER FUNCTIONS ====================
@@ -584,7 +588,7 @@ public:
 		// NOTE: Moved from Spirit to Body. HP is a physical pool stat.
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalMaxHealth();
-		return FMath::RoundToInt(CombatConstants::MAX_HEALTH_BASE + (EffectiveBody * TotalPoints * CombatConstants::MAX_HEALTH_PER_POINT));
+		return FMath::RoundToInt(FMath::Min(CombatConstants::MAX_HEALTH_BASE + (EffectiveBody * TotalPoints * CombatConstants::MAX_HEALTH_PER_POINT), CombatConstants::MAX_HEALTH_CAP));
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
@@ -593,7 +597,7 @@ public:
 		// Now uses explicit MaxEnergy stat (Spirit-based)
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalMaxEnergy();
-		return FMath::RoundToInt(CombatConstants::MAX_ENERGY_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_ENERGY_PER_POINT));
+		return FMath::RoundToInt(FMath::Min(CombatConstants::MAX_ENERGY_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_ENERGY_PER_POINT), CombatConstants::MAX_ENERGY_CAP));
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
@@ -602,7 +606,7 @@ public:
 		// Raw damage multiplier for physical attacks (Body-based)
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalRawDamage();
-		return 1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
+		return FMath::Min(1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
@@ -624,7 +628,7 @@ public:
 		return FMath::Clamp(
 			EffectiveSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
 			0.0f,
-			CombatConstants::RESISTANCE_MAX);
+			CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
 	//~ UObject lifecycle — keep the transient ResistanceProfile display mirror in

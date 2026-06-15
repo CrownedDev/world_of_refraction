@@ -636,18 +636,23 @@ void UCharacterDataComponent::RecomputeMaxPools()
     // applies as a final % of the WHOLE max — single RoundToInt on the product (no
     // double-round). Byte-neutral when no stone (pct 0 -> x1.0; BonusMax* is integer, so
     // folding it inside the round doesn't change the result).
+    // Intrinsic stat portion (base + pillar points) is clamped to the design cap so max
+    // investment lands exactly on it (HP/EP 1000). Gear — flat BonusMax* + stone/buff % —
+    // stacks OUTSIDE the clamp (gear headroom above the stat cap; cluster 2).
     const float ModifiedBody = GetEvolutionModifiedBody();
-    const float HPSubtotal =
+    const float HPStatPortion = FMath::Min(
         CombatConstants::MAX_HEALTH_BASE +
-        (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT) +
-        BonusMaxHP;
+            (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT),
+        CombatConstants::MAX_HEALTH_CAP);
+    const float HPSubtotal = HPStatPortion + BonusMaxHP;
     MaxHP = FMath::RoundToInt(HPSubtotal * (1.0f + HPPct / CombatConstants::STAT_PERCENT_DIVISOR));
 
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
-    const float EPSubtotal =
+    const float EPStatPortion = FMath::Min(
         CombatConstants::MAX_ENERGY_BASE +
-        (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT) +
-        BonusMaxEnergy;
+            (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT),
+        CombatConstants::MAX_ENERGY_CAP);
+    const float EPSubtotal = EPStatPortion + BonusMaxEnergy;
     MaxEP = FMath::RoundToInt(EPSubtotal * (1.0f + EPPct / CombatConstants::STAT_PERCENT_DIVISOR));
 }
 
