@@ -520,7 +520,7 @@ public:
 		// widening of the window is deferred — see RealTimeDefenseRework §5).
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalReflex();
-		return EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT;
+		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT, CombatConstants::WINDOW_CAP_SECONDS);
 	}
 
 	/** ATTACKER side of the defense-window duel: how many SECONDS this character's speed
@@ -539,7 +539,8 @@ public:
 		const bool bSpell = (AttackType == EActionType::Spell);
 		const float EffectivePillar = bSpell ? GetEffectiveMind() : GetEffectiveBody();
 		const int32 SpeedPts = bSpell ? GetTotalSpellSpeed() : GetTotalActionSpeed();
-		return EffectivePillar * SpeedPts * CombatConstants::WINDOW_PER_SPEED_POINT;
+		const float Penalty = EffectivePillar * SpeedPts * CombatConstants::WINDOW_PER_SPEED_POINT;
+		return FMath::Min(Penalty, CombatConstants::WINDOW_CAP_SECONDS);
 	}
 
 	// ==================== SPIRIT CALCULATIONS ====================
