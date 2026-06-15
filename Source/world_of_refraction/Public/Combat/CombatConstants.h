@@ -140,7 +140,11 @@ namespace CombatConstants
     // Efficiency - Reduces EP cost of Spells & Abilities (not Attacks)
     // Resonators: Also reduces ring break chance
     constexpr float EFFICIENCY_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 EP-cost reduction at max
-    constexpr float EFFICIENCY_MAX = 0.50f;                   // 50% max EP reduction
+    constexpr float EFFICIENCY_MAX = 0.50f;                   // 50% max EP reduction (stat-alone cap, Pattern P)
+    // Pattern-P gear ceiling (cluster 5b): the stat-derived reduction caps ALONE at EFFICIENCY_MAX
+    // (0.5); gear/stone/buff then MULTIPLY it past 0.5 toward this ceiling. 0.90 = floor of 10% cost
+    // (abilities never fully free). FLAG: Crown may raise to 1.0 (gear can make abilities free).
+    constexpr float EFFICIENCY_GEAR_CEILING = 0.90f;          // max reduction WITH gear (>= EFFICIENCY_MAX)
     constexpr float EFFICIENCY_RING_BREAK_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 ring-break reduction at max (Resonator only)
     constexpr float EFFICIENCY_RING_BREAK_MAX = 0.50f;        // 50% max ring break reduction
 
