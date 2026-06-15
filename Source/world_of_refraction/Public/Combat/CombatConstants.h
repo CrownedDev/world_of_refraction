@@ -226,8 +226,14 @@ namespace CombatConstants
 
     // Turn Speed - Turn order priority (NOW SPIRIT, was Mind, no longer uses WorldBody)
     constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed
-    constexpr float TURN_SPEED_CAP  = 15.0f;      // turn-speed ceiling at max investment (clamp bound, cluster 2)
+    constexpr float TURN_SPEED_CAP  = 15.0f;      // stat-alone turn-speed ceiling at max investment (Pattern P; base +50%)
     constexpr float TURN_SPEED_PER_POINT = (TURN_SPEED_CAP - TURN_SPEED_BASE) / STAT_DERIVE_DENOM; // 10 -> 15
+    // Pattern-P gear ceiling (cluster 5c): the stat-derived turn speed caps ALONE at TURN_SPEED_CAP
+    // (15); dedicated BonusTurnSpeed gear then MULTIPLIES it past 15 toward this ceiling. 20 mirrors
+    // the damage stat×1.5→gear×2.0 logic (base 10 → +50% stat → +100% with gear). Differential vs a
+    // maxed no-gear rival = 20-15 = 5, well under TURN_SPEED_THRESHOLD_DOUBLE (15), so the 2:1 ratio
+    // stays out of trivial reach. FLAG: Crown may tune (22-30 = more gear weight, nearer the 2:1 gate).
+    constexpr float TURN_SPEED_GEAR_CEILING = 20.0f; // max turn speed WITH gear (>= TURN_SPEED_CAP)
 
     // Luck - Multi-system fortune stat (drop chance/quality, crit bonus, dodge, break skip)
     constexpr float LUCK_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 raw luck at max (= LUCK_RAW_MAX normalization basis)
