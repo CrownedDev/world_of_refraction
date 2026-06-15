@@ -72,11 +72,19 @@ void ACombatPlayerController::SetupInputComponent()
 // DEFENSE INPUT HANDLERS
 // ========================================
 
+// Defense input resolves the defender from the DefenseSystem (the player's open-window
+// character), NOT GetPawn() — the PC possesses nothing in this combat model. Null defender
+// (no window open) is a harmless no-op. SINGLE-TARGET seed; multi-target is Stage 6 (§13).
 void ACombatPlayerController::OnBlock(const FInputActionValue &Value)
 {
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
-		DefenseSys->SubmitDefenseInput(GetPawn(), EDefenseType::Block, EDefenseDirection::None);
+		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
+		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Block pressed — defender: %s"), *GetNameSafe(Defender));
+		if (Defender)
+		{
+			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Block, EDefenseDirection::None);
+		}
 	}
 }
 
@@ -84,7 +92,12 @@ void ACombatPlayerController::OnParry(const FInputActionValue &Value)
 {
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
-		DefenseSys->SubmitDefenseInput(GetPawn(), EDefenseType::Parry, EDefenseDirection::None);
+		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
+		UE_LOG(LogTemp, Log, TEXT("[CombatPC] Parry pressed — defender: %s"), *GetNameSafe(Defender));
+		if (Defender)
+		{
+			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Parry, EDefenseDirection::None);
+		}
 	}
 }
 
@@ -92,7 +105,12 @@ void ACombatPlayerController::OnDodgeLeft(const FInputActionValue &Value)
 {
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
-		DefenseSys->SubmitDefenseInput(GetPawn(), EDefenseType::Dodge, EDefenseDirection::Left);
+		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
+		UE_LOG(LogTemp, Log, TEXT("[CombatPC] DodgeLeft pressed — defender: %s"), *GetNameSafe(Defender));
+		if (Defender)
+		{
+			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Dodge, EDefenseDirection::Left);
+		}
 	}
 }
 
@@ -100,7 +118,12 @@ void ACombatPlayerController::OnDodgeRight(const FInputActionValue &Value)
 {
 	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
 	{
-		DefenseSys->SubmitDefenseInput(GetPawn(), EDefenseType::Dodge, EDefenseDirection::Right);
+		AActor *Defender = DefenseSys->GetActiveDefenderForLocalPlayer();
+		UE_LOG(LogTemp, Log, TEXT("[CombatPC] DodgeRight pressed — defender: %s"), *GetNameSafe(Defender));
+		if (Defender)
+		{
+			DefenseSys->SubmitDefenseInput(Defender, EDefenseType::Dodge, EDefenseDirection::Right);
+		}
 	}
 }
 

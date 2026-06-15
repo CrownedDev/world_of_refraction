@@ -224,6 +224,18 @@ public:
 	bool IsDefenseWindowOpen(AActor *Defender) const;
 
 	/**
+	 * Resolve the local player's active defender — the actor with an OPEN window
+	 * whose CharacterData is NOT AI-controlled (the player's character currently
+	 * under attack). Returns nullptr if none (callers no-op safely).
+	 *
+	 * SINGLE-TARGET: returns the FIRST matching open-window player defender. This is
+	 * the seed for the multi-target model (solo sequential / MP simultaneous) — see
+	 * docs/Design/RealTimeDefenseRework.md §13. Multi-target routing is Stage 6.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Defense System")
+	AActor *GetActiveDefenderForLocalPlayer() const;
+
+	/**
 	 * Get current defense state for actor
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")

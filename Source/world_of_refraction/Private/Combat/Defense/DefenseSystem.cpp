@@ -262,6 +262,33 @@ bool UDefenseSystem::IsDefenseWindowOpen(AActor *Defender) const
 	return StatePtr && StatePtr->bWindowOpen;
 }
 
+AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
+{
+	// SINGLE-TARGET: first open-window defender that isn't AI-controlled. Multi-target
+	// routing (solo sequential / MP simultaneous) is Stage 6 — see RealTimeDefenseRework.md §13.
+	for (const TPair<TWeakObjectPtr<AActor>, FDefenseState> &Pair : ActiveDefenseStates)
+	{
+		if (!Pair.Value.bWindowOpen)
+		{
+			continue;
+		}
+
+		AActor *Defender = Pair.Key.Get();
+		if (!Defender)
+		{
+			continue;
+		}
+
+		UCharacterDataComponent *Comp = GetCharacterDataComponent(Defender);
+		if (Comp && Comp->CharacterData && !Comp->CharacterData->ShouldUseAI())
+		{
+			return Defender;
+		}
+	}
+
+	return nullptr;
+}
+
 FDefenseState UDefenseSystem::GetDefenseState(AActor *Defender) const
 {
 	if (!Defender)
