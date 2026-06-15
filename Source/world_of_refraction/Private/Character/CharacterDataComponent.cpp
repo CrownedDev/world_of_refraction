@@ -800,15 +800,17 @@ float UCharacterDataComponent::GetTransientSpellDamageFactor() const
 float UCharacterDataComponent::GetEffectiveSpellDamage() const
 {
     // Full layered SpellDamage scalar for non-pipeline consumers (Broken Darkness):
-    //   (L1 innate/evolution + L2 equipment) × L3 stone × L4 transient.
+    //   (L1 innate/evolution capped ALONE + L2 equipment) × L3 stone × L4 transient.
     // No ActionMods / Grid / defender — those are damage-call-specific and have no
-    // analogue here. DamageCalculator DRY-sources the SAME three helpers at its own
-    // (unchanged) step order, so a normal cast stays byte-identical.
-    const float Composed = (GetEvolutionModifiedSpellDamage() + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
-    // [-100%, +100%] normalization — cap the composed SpellDamage modifier to [0, 2] for this
-    // getter's consumers (BD overload/self-cost, crystal-wear). The damage pipeline applies the
-    // SAME cap via a correction factor (DamageCalculator Step 2+) on the identical (L1+L2)×L3×L4
-    // product, so cast + BD/wear bound the same quantity. Byte-identical below 2.0.
+    // analogue here. DamageCalculator DRY-sources the SAME helpers at its own step order
+    // (Pattern P), so a normal cast stays byte-identical.
+    // Pattern P (cluster 5a): the STAT term is capped ALONE at STAT_MULT_CAP (×1.5 — the stat
+    // ceiling), THEN gear MULTIPLIES it (×(1+EquipTerm)) and stone/transient apply OUTSIDE that
+    // clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. Stat saturates at ×1.5;
+    // gear/stone/buff scale it from there toward ×2.0. EquipTerm read as a FRACTION (option ii).
+    // Byte-identical below the caps with no gear.
+    const float StatBase = FMath::Min(GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
+    const float Composed = StatBase * (1.0f + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
@@ -868,11 +870,13 @@ float UCharacterDataComponent::GetTransientRawDamageFactor() const
 
 float UCharacterDataComponent::GetEffectiveRawDamage() const
 {
-    // Physical mirror of GetEffectiveSpellDamage: (L1 innate/evolution + L2 equipment) × L3
-    // stone × L4 transient, then the [-100%,+100%] [0,2] normalization cap. No ActionMods /
-    // Grid / defender (damage-call-specific). The pipeline DRY-sources the same three helpers;
-    // a future AI-threat re-point can read this composed+clamped getter.
-    const float Composed = (GetEvolutionModifiedRawDamage() + GetEquipmentRawDamageTerm()) * GetStoneRawDamageFactor() * GetTransientRawDamageFactor();
+    // Physical mirror of GetEffectiveSpellDamage — Pattern P (cluster 5a): the STAT term is capped
+    // ALONE at STAT_MULT_CAP (×1.5), THEN gear MULTIPLIES it (×(1+EquipTerm)) and stone/transient
+    // apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. No
+    // ActionMods / Grid / defender (damage-call-specific). The pipeline DRY-sources the same helpers
+    // (Step 2.6). EquipTerm read as a FRACTION (option ii). Byte-identical below the caps with no gear.
+    const float StatBase = FMath::Min(GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
+    const float Composed = StatBase * (1.0f + GetEquipmentRawDamageTerm()) * GetStoneRawDamageFactor() * GetTransientRawDamageFactor();
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 

@@ -123,46 +123,63 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
 	RunningDamage *= StatusMod;
 
-	// Step 2.5: [-100%, +100%] normalization — cap the CHARACTER SpellDamage modifier to [0, 2]
-	// (SPELL only). Recompose the getter's exact (L1+L2)×L3×L4 product as a standalone UNCLAMPED
-	// scalar from the same layer helpers (GetEffectiveSpellDamage itself now clamps, so we read
-	// its components directly) — RawCharMod equals GetEffectiveSpellDamage()'s pre-clamp value,
-	// so the cast and BD/wear cap the IDENTICAL quantity. Apply clamped/raw as a scalar correction
-	// on RunningDamage. Below 2.0, clamped == raw → Correction is EXACTLY 1.0f → RunningDamage
-	// unchanged → byte-identical normal casts. ActionMods (folded into L1 with the multiplier),
-	// Grid, and defender terms are deliberately OUTSIDE this product — call-specific, left uncapped.
-	// A scalar correction commutes with those, so placement right after Step 2 is purely for clarity.
+	// Step 2.5: Pattern P (cluster 5a) — stat-capped, gear-beyond (SPELL only). The STAT term
+	// (GetEvolutionModifiedSpellDamage) is capped ALONE at STAT_MULT_CAP (×1.5 — the stat ceiling,
+	// now ENFORCED in the live path); THEN equipment MULTIPLIES it (×(1+EquipTerm)) and stone/transient
+	// apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. So the
+	// stat saturates at ×1.5 and gear/stone/buff scale it from there toward ×2.0. We re-derive the target
+	// modifier and divide out the UNCLAMPED product currently baked into RunningDamage (Steps 1 /
+	// 1.25b / 2) as a scalar correction. Below the caps, target == raw → Correction is 1.0f →
+	// byte-identical. ActionMods (folded into L1), Grid, and defender terms are deliberately
+	// OUTSIDE this product — call-specific, left uncapped. Mirrors GetEffectiveSpellDamage.
 	if (Input.ActionType == EActionType::Spell && Attacker)
 	{
 		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
+			const float EquipTerm = AttackerComp->GetEquipmentSpellDamageTerm();
+			const float Stone = AttackerComp->GetStoneSpellDamageFactor();
+			const float Transient = AttackerComp->GetTransientSpellDamageFactor();
+			// Uncapped char modifier currently baked into RunningDamage (the denominator).
 			const float RawCharMod =
-				(AttackerComp->GetEvolutionModifiedSpellDamage() + AttackerComp->GetEquipmentSpellDamageTerm())
-				* AttackerComp->GetStoneSpellDamageFactor() * AttackerComp->GetTransientSpellDamageFactor();
-			const float ClampedCharMod =
-				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
+				(AttackerComp->GetEvolutionModifiedSpellDamage() + EquipTerm) * Stone * Transient;
+			// Pattern-P target: stat clamped to ×1.5 ALONE, THEN gear MULTIPLIES (×(1+EquipTerm)),
+			// stone/transient beyond, capped ×2.0. EquipTerm read as a FRACTION (option ii).
+			const float StatBase =
+				FMath::Min(AttackerComp->GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
+			const float TargetCharMod =
+				FMath::Clamp(StatBase * (1.0f + EquipTerm) * Stone * Transient,
+							 CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (TargetCharMod / RawCharMod) : 1.0f;
 			RunningDamage *= Correction;
 		}
 	}
 
-	// Step 2.6: [-100%, +100%] normalization — physical mirror of Step 2.5, gated != Spell (the
-	// complement of the spell correction, so exactly one of the two fires per action). Recompose
-	// the getter's (L1+L2)×L3×L4 product as a standalone UNCLAMPED scalar from the same RawDamage
-	// layer helpers — RawCharMod equals GetEffectiveRawDamage()'s pre-clamp value, so the attack
-	// and BD/wear/AI(future) cap the IDENTICAL quantity. Below 2.0, clamped == raw → Correction is
-	// EXACTLY 1.0f → byte-identical normal physical attacks. ActionMods (folded into L1), Grid, and
-	// defender terms stay OUTSIDE this product — call-specific, left uncapped.
+	// Step 2.6: Pattern P (cluster 5a) — physical mirror of Step 2.5, gated != Spell (the complement,
+	// so exactly one of the two fires per action). The STAT term (GetEvolutionModifiedRawDamage) is
+	// capped ALONE at STAT_MULT_CAP (×1.5 — now ENFORCED live); THEN equipment MULTIPLIES it
+	// (×(1+EquipTerm)) and stone/transient apply OUTSIDE that clamp, bounded by STAT_MODIFIER_MAX
+	// (×2.0). Stat saturates at ×1.5; gear/stone/buff scale it toward ×2.0. We divide out the UNCLAMPED product baked into
+	// RunningDamage as a scalar correction. Below the caps, target == raw → Correction 1.0f →
+	// byte-identical. ActionMods (folded into L1), Grid, and defender terms stay OUTSIDE this
+	// product — call-specific, left uncapped. Mirrors GetEffectiveRawDamage.
 	if (Input.ActionType != EActionType::Spell && Attacker)
 	{
 		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
+			const float EquipTerm = AttackerComp->GetEquipmentRawDamageTerm();
+			const float Stone = AttackerComp->GetStoneRawDamageFactor();
+			const float Transient = AttackerComp->GetTransientRawDamageFactor();
+			// Uncapped char modifier currently baked into RunningDamage (the denominator).
 			const float RawCharMod =
-				(AttackerComp->GetEvolutionModifiedRawDamage() + AttackerComp->GetEquipmentRawDamageTerm())
-				* AttackerComp->GetStoneRawDamageFactor() * AttackerComp->GetTransientRawDamageFactor();
-			const float ClampedCharMod =
-				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
+				(AttackerComp->GetEvolutionModifiedRawDamage() + EquipTerm) * Stone * Transient;
+			// Pattern-P target: stat clamped to ×1.5 ALONE, THEN gear MULTIPLIES (×(1+EquipTerm)),
+			// stone/transient beyond, capped ×2.0. EquipTerm read as a FRACTION (option ii).
+			const float StatBase =
+				FMath::Min(AttackerComp->GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
+			const float TargetCharMod =
+				FMath::Clamp(StatBase * (1.0f + EquipTerm) * Stone * Transient,
+							 CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (TargetCharMod / RawCharMod) : 1.0f;
 			RunningDamage *= Correction;
 		}
 	}
@@ -353,19 +370,23 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		return 0.0f;
 	}
 
-	// Crystal-aware defense REDUCTION fraction [0, 0.5] — GetEvolutionModifiedBody feeds the
-	// slotted primary evolution crystal's Body pillar into the curve (cluster 4: flat-int -> %).
-	float Reduction = DefenderComp->GetEvolutionModifiedFlatDefense();
+	// Pattern P (cluster 5a, revised) — stat-capped, gear-beyond. The crystal-aware STAT reduction
+	// is capped ALONE at UNIVERSAL_STAT_CAP (0.5 = the stat ceiling); THEN stone/buff MULTIPLY it
+	// OUTSIDE that clamp, scaling the capped stat upward toward the RESISTANCE_MAX (1.0) hard ceiling.
+	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more
+	// than a low one (0.5 × 1.3 = 0.65 vs 0.2 × 1.3 = 0.26). GetEvolutionModifiedBody feeds the
+	// slotted crystal's Body pillar into the curve.
+	float Reduction = FMath::Min(DefenderComp->GetEvolutionModifiedFlatDefense(), CombatConstants::UNIVERSAL_STAT_CAP);
 
 	if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
 	{
 		// TODO (gear, deferred): Bonus.BonusDefense is a FLAT-int gear field with no %
 		// meaning in the reduction model — intentionally NOT wired here. Revisit when gear
-		// defense is redesigned as a fraction (it would add OUTSIDE the 0.5 stat cap).
+		// defense is redesigned as a fraction (it would compose here, OUTSIDE the 0.5 stat cap).
 
-		// Attached DefenseStone — a PERMANENT, equipment-derived % multiplier on the reduction
-		// fraction, from the defender's OWN active weapon attachment (live-resolved, not cached).
-		// Inert (×1) unless a DefenseStone is attached.
+		// Attached DefenseStone — a % MULTIPLIER (×(1 + StonePct/100)) on the capped stat reduction,
+		// OUTSIDE the 0.5 cap, from the defender's OWN active weapon attachment (live-resolved, not
+		// cached). Inert (×1) unless a DefenseStone is attached.
 		if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
 		{
 			const FRuntimeAttachedItem &Attachment = *AttPtr;
@@ -375,23 +396,18 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		}
 	}
 
-	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — percentage modifiers
-	// composed multiplicatively onto the reduction fraction.
+	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — a % MULTIPLIER on the capped
+	// stat reduction, OUTSIDE the 0.5 cap. ×(1 + (buff − debuff)/100): a buff scales the reduction
+	// up toward 1.0, a debuff scales it down. The final clamp bounds the result to [0, 1.0].
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
-
-		// [-100%,+100%] normalization — the inner Max(0,…) floors a ≥100% debuff; the outer
-		// [0,2] clamp caps the transient MODIFIER. The final reduction is clamped to
-		// UNIVERSAL_STAT_CAP (0.5) below — gear headroom above the stat cap is deferred.
-		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
-		Modifier = FMath::Clamp(FMath::Max(0.0f, Modifier), CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-		Reduction *= Modifier;
+		Reduction *= (1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
-	return FMath::Clamp(Reduction, 0.0f, CombatConstants::UNIVERSAL_STAT_CAP);
+	return FMath::Clamp(Reduction, 0.0f, CombatConstants::RESISTANCE_MAX);
 }
 
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
