@@ -1661,6 +1661,10 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 	CheckAndFinalizeAsyncAction();
 }
 
+// OBSOLETE (Stage 3): superseded by ResolveImpactDefense — no live callers. The Stage 2
+// model locked ONE action-level result at the first impact; Stage 3 resolves a fresh
+// per-impact defense (split-then-reduce + per-impact match-and-consume). Kept un-deleted
+// until the per-impact path is PIE-verified, per the incremental-removal rule.
 void UActionExecutor::EnsureResultResolved(AActor *Defender)
 {
 	// Stage 2 ordering crux: the FDefenseResult is normally computed at CLOSE
@@ -1703,7 +1707,84 @@ void UActionExecutor::EnsureResultResolved(AActor *Defender)
 		   Result.bSuccess ? TEXT("yes") : TEXT("no"));
 }
 
-void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex)
+void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime)
+{
+	// Stage 3 per-impact resolution (replaces EnsureResultResolved at the impact frame).
+	// SPLIT-THEN-REDUCE: this impact takes its slice of the BASE damage FIRST, then the
+	// matched defense input reduces that slice. Contrast Stage 2, which reduced the whole
+	// total once and sliced the reduced figure — splitting first lets each impact carry its
+	// own defense outcome (one parried, the next blocked) instead of one locked decision.
+	if (!CurrentExecutionContext.IsSet() || !Defender)
+	{
+		return;
+	}
+	FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+	if (!Ctx)
+	{
+		return;
+	}
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (!DefenseSys)
+	{
+		return;
+	}
+
+	const FDefenseState State = DefenseSys->GetDefenseState(Defender);
+
+	// This impact's slice of the BASE (pre-defense) damage. Same FloorToInt + 0.01 epsilon
+	// as ApplyOneImpact so the split math is identical on both sides; size-mismatched table
+	// → legacy even split.
+	const int32 HitCount = FMath::Max(1, Ctx->HitCount);
+	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
+	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
+	const int32 BaseSlice = bUseSplit
+								? FMath::FloorToInt(State.BaseDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
+								: (State.BaseDamage / HitCount);
+
+	// Match-and-consume this impact against the timestamped input buffer (Stage 3). No
+	// in-window press → bMatched=false → resolves as undefended (full slice, no reduction).
+	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime);
+
+	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
+		BaseSlice,
+		Match.bMatched ? Match.Type : EDefenseType::None,
+		Match.bMatched,
+		State.AttackSize,
+		DefenseSys->GetDodgeThreshold(Defender));
+
+	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
+	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved
+	// stays true so the non-melee tail in ApplyDamageAfterDefense knows melee already resolved;
+	// for melee the tail is empty (ImpactsLanded==HitCount) so the overwrite is harmless.
+	Ctx->ResolvedDefenseType = Result.DefenseType;
+	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->bResolvedSuccess = Result.bSuccess;
+	Ctx->bResolvedPerfect = Match.bPerfect;
+	Ctx->bResultResolved = true;
+
+	AActor *Attacker = Ctx->Attacker.Get();
+
+	// Piece 5: per-impact parry reflect. Each parried impact reflects ITS OWN slice — the
+	// close-time lumped reflect is gated OFF for count-based windows (bCountBasedClose) so this
+	// is the only reflect path for melee.
+	if (Result.bSuccess && Result.DefenseType == EDefenseType::Parry && Result.ReflectedDamage > 0)
+	{
+		DefenseSys->ApplyParryReflect(Attacker, Defender, Result.ReflectedDamage);
+	}
+
+	// Piece 6: broadcast the per-impact outcome (payoffs are content, later).
+	DefenseSys->OnDefenseResolved.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
+	if (Match.bPerfect)
+	{
+		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),
+		   ImpactIndex, *Defender->GetName(), static_cast<int32>(Result.DefenseType),
+		   BaseSlice, Result.FinalDamage, Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
+}
+
+void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact)
 {
 	if (!CurrentExecutionContext.IsSet() || !Target)
 	{
@@ -1736,16 +1817,20 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 		return;
 	}
 
-	// Per-impact damage = this impact's slice of the post-defense reduced total.
-	// D1 reader switch: the resolved DamageSplit table (even fractions when un-authored).
+	// Per-impact damage. Stage 3 (bDamageIsPerImpact): ResolvedFinalDamage is ALREADY this
+	// impact's reduced slice (ResolveImpactDefense split-then-reduced it) — apply directly.
+	// Legacy lumped tail (bDamageIsPerImpact=false): ResolvedFinalDamage is the full reduced
+	// total — slice it here by the D1 DamageSplit table (even fractions when un-authored).
 	// FloorToInt + 0.01 epsilon reproduces the legacy FinalDamage/HitCount truncation and
 	// absorbs even-fraction float error (100/3 = 33.333332) so exact quotients don't floor
 	// one short. Size-mismatched table → legacy even split.
 	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
 	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
-	const int32 ImpactDamage = bUseSplit
-								   ? FMath::FloorToInt(Context.ResolvedFinalDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
-								   : (Context.ResolvedFinalDamage / HitCount);
+	const int32 ImpactDamage = bDamageIsPerImpact
+								   ? Context.ResolvedFinalDamage
+								   : (bUseSplit
+										  ? FMath::FloorToInt(Context.ResolvedFinalDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
+										  : (Context.ResolvedFinalDamage / HitCount));
 
 	// Buildup rides impact 0 only (per-target, not per-impact). Block/parry reduce it;
 	// dodge already returned above.
@@ -1813,10 +1898,10 @@ void UActionExecutor::ApplyDamageAfterDefense(
 	// Local mutable copy — callers pass a const-ref snapshot.
 	FPendingDefenseContext Ctx = Context;
 
-	// CONSISTENCY: melee already stashed the result at the first impact (EnsureResultResolved)
-	// and drained [0, ImpactsLanded) per-frame. Reuse THAT stash for the tail so a late
-	// defense input can't make per-frame and tail diverge. Non-melee (no frames fired,
-	// bResultResolved=false) stashes from the close result here — the unchanged lumped path.
+	// CONSISTENCY: melee resolved + drained every impact per-frame (ResolveImpactDefense) →
+	// ImpactsLanded==HitCount → the tail loop below is empty, so this stash is never read for
+	// melee. Non-melee (no frames fired, bResultResolved=false) stashes from the close result
+	// here — the unchanged lumped path that ApplyOneImpact slices (bDamageIsPerImpact=false).
 	if (!Ctx.bResultResolved)
 	{
 		Ctx.ResolvedDefenseType = DefenseResult.DefenseType;
@@ -5011,8 +5096,10 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 					DefendersToClose.Add(Defender);
 				}
 			}
-			// Apply this impact's damage (stash the single result at the first impact, then
-			// apply this index's split share). Done after iteration — see above.
+			// Resolve THIS impact's defense (split-then-reduce + match-and-consume) and apply
+			// its reduced slice. One impact frame = one moment, so all defenders share a single
+			// ImpactTime. Done after iteration — see above.
+			const double ImpactTime = FPlatformTime::Seconds();
 			for (AActor *Defender : DefendersToApply)
 			{
 				FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
@@ -5020,8 +5107,8 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				{
 					continue; // removed by a prior impact's death broadcast
 				}
-				EnsureResultResolved(Defender);
-				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index);
+				ResolveImpactDefense(Defender, Index, ImpactTime);
+				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
 			}
 			for (AActor *Defender : DefendersToClose)
 			{

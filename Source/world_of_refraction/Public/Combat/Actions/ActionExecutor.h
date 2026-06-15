@@ -639,15 +639,30 @@ private:
 		const FPendingDefenseContext &Context,
 		const FDefenseResult &DefenseResult);
 
-	/** Stage 2: lazily compute + stash the single action-level defense result for a
-	 *  defender (idempotent), via the public DefenseSystem API. Called at the first
-	 *  impact frame so each impact applies against a locked result. */
+	/** OBSOLETE (Stage 3): superseded by ResolveImpactDefense, which resolves a fresh
+	 *  per-impact defense (split-then-reduce + match-and-consume) instead of locking one
+	 *  action-level result at the first impact. Retained un-deleted until the per-impact
+	 *  path is PIE-verified; no live callers remain.
+	 *
+	 *  Stage 2: lazily compute + stash the single action-level defense result for a
+	 *  defender (idempotent), via the public DefenseSystem API. */
 	void EnsureResultResolved(AActor *Defender);
 
-	/** Stage 2: apply ONE impact's damage (ResolvedDamageSplit[ImpactIndex] of the
-	 *  stashed reduced total) and accumulate into PartialResult. Shared by the
-	 *  per-impact-frame path and the close-time undrained tail. */
-	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex);
+	/** Stage 3: resolve ONE impact's defense for a defender. Split-then-reduce — slice
+	 *  BaseDamage by ResolvedDamageSplit[ImpactIndex] FIRST, then CalculateDefenseResult on
+	 *  that slice against the impact's match-and-consumed input (MatchAndConsumeInput at
+	 *  ImpactTime). Stashes the per-impact result (ResolvedFinalDamage now holds the reduced
+	 *  SLICE, not the full total) + bResolvedPerfect onto the context, reflects a parried
+	 *  slice (ApplyParryReflect), and broadcasts OnDefenseResolved / OnDefensePerfect. */
+	void ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime);
+
+	/** Stage 2/3: apply ONE impact's damage and accumulate into PartialResult. Shared by the
+	 *  per-impact-frame path and the close-time undrained tail.
+	 *  @param bDamageIsPerImpact true (melee per-impact frame): ResolvedFinalDamage is already
+	 *         this impact's reduced slice (ResolveImpactDefense) — apply it directly. false
+	 *         (non-melee close-time tail, default): ResolvedFinalDamage is the full reduced
+	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
+	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
 
 	/** Handle multi-hit abilities */
 	int32 ProcessMultiHit(

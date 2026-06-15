@@ -345,6 +345,12 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bResolvedSuccess = false;
 
+	/** Stage 3: did THIS impact's matched input land inside the perfect-timing window?
+	 *  Per-impact transient — overwritten by each ResolveImpactDefense call (melee path);
+	 *  drives the OnDefensePerfect broadcast and future perfect-defense payoffs (content). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResolvedPerfect = false;
+
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bResultResolved = false;
 

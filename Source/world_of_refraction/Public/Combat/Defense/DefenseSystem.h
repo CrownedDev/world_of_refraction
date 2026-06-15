@@ -52,6 +52,52 @@ struct WORLD_OF_REFRACTION_API FDefenseResult
 };
 
 /**
+ * One timestamped defense input (Stage 3). The buffer replaces the one-shot
+ * DefenseChosen/bInputReceived model: each press APPENDS an entry, and each impact
+ * frame match-and-consumes the latest unconsumed entry whose timing falls in window.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FTimestampedDefenseInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseType Type = EDefenseType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseDirection Direction = EDefenseDirection::None;
+
+	/** FPlatformTime::Seconds() at the moment of the press. */
+	double InputTime = 0.0;
+
+	/** Set once an impact frame has matched-and-consumed this entry. */
+	bool bConsumed = false;
+};
+
+/**
+ * Result of matching one impact frame against the input buffer (Stage 3).
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDefenseInputMatch
+{
+	GENERATED_BODY()
+
+	/** Did an unconsumed in-window input match this impact? */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bMatched = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseType Type = EDefenseType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseDirection Direction = EDefenseDirection::None;
+
+	/** True when the match landed inside PerfectThreshold of the impact. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bPerfect = false;
+};
+
+/**
  * Active defense state for an actor
  */
 USTRUCT(BlueprintType)
@@ -95,6 +141,21 @@ struct WORLD_OF_REFRACTION_API FDefenseState
 
 	/** Has player already submitted defense input? */
 	bool bInputReceived = false;
+
+	/**
+	 * Stage 3 timestamped input buffer. SubmitDefenseInput appends here; each impact
+	 * frame match-and-consumes from it (MatchAndConsumeInput). The single fields above
+	 * (DefenseChosen/DodgeDirection/bInputReceived) are now LEGACY — read only by the
+	 * non-melee/tail close path; the per-impact melee path reads this buffer.
+	 */
+	TArray<FTimestampedDefenseInput> InputBuffer;
+
+	/**
+	 * True for count-based (melee, bManualClose) windows. Gates the close-time parry
+	 * reflect OFF — melee resolves reflect PER IMPACT (ResolveImpactDefense), so the
+	 * lumped close must not reflect again on the legacy first-input decision.
+	 */
+	bool bCountBasedClose = false;
 };
 
 /**
@@ -136,6 +197,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseCueTriggered, AActor *, D
 
 /** Broadcast when parry reflects damage */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnParryReflect, AActor *, Defender, AActor *, Attacker, int32, ReflectedDamage);
+
+/** Broadcast per impact once its defense is resolved (Stage 3). Payoffs are content (later). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefenseResolved, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
+
+/** Broadcast when an impact's defense lands inside the perfect-timing window (Stage 3). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
 
 // ========================================
 // DEFENSE SYSTEM
@@ -236,6 +303,27 @@ public:
 	AActor *GetActiveDefenderForLocalPlayer() const;
 
 	/**
+	 * Match-and-consume one impact against the input buffer (Stage 3 mutator).
+	 *
+	 * Finds the LATEST unconsumed buffer entry whose delta = ImpactTime - InputTime
+	 * falls in [0, DefenseInputWindow], marks it consumed, and returns the match
+	 * (bPerfect when delta <= PerfectThreshold). No in-window entry → {bMatched=false}.
+	 *
+	 * Mutates the LIVE ActiveDefenseStates entry (GetDefenseState returns a copy and
+	 * cannot consume), so callers at the impact frame get an authoritative per-impact result.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Defense System")
+	FDefenseInputMatch MatchAndConsumeInput(AActor *Defender, double ImpactTime);
+
+	/**
+	 * Apply a parry's reflected damage to the attacker and broadcast OnParryReflect.
+	 * Public so the per-impact resolver (ActionExecutor::ResolveImpactDefense) can reflect
+	 * each parried impact's own slice (Stage 3) instead of the lumped close.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Defense System")
+	void ApplyParryReflect(AActor *Attacker, AActor *Defender, int32 ReflectedDamage);
+
+	/**
 	 * Get current defense state for actor
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
@@ -262,6 +350,16 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
 	float GetDodgeThreshold(AActor *Defender) const;
+
+	/**
+	 * Effective defense input window for a defender: the tuned base DefenseInputWindow
+	 * widened by the defender's Reflex Body substat (CalculateReflexWindowBonus).
+	 * Mirrors GetDodgeThreshold — base value on the subsystem, per-character bonus read
+	 * through the defender's CharacterData. Null-safe: no component / no CharacterData
+	 * falls back to the bare base window.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Defense System")
+	float GetEffectiveDefenseInputWindow(AActor *Defender) const;
 
 	// ========================================
 	// DAMAGE CALCULATION
@@ -302,6 +400,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
 	FOnParryReflect OnParryReflect;
 
+	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
+	FOnDefenseResolved OnDefenseResolved;
+
+	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
+	FOnDefensePerfect OnDefensePerfect;
+
 	// ========================================
 	// CONFIGURATION
 	// ========================================
@@ -325,6 +429,15 @@ public:
 	/** Default defense window duration */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float DefaultWindowDuration = 0.3f;
+
+	/** Stage 3: lead-in window — an input counts for an impact up to this many seconds
+	 *  before the impact frame (delta = ImpactTime - InputTime must fall in [0, this]). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float DefenseInputWindow = 0.5f;
+
+	/** Stage 3: perfect-timing threshold — a match with delta <= this is PERFECT. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float PerfectThreshold = 0.1f;
 
 	/** Defense window duration for AOE attacks (longer than default) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")

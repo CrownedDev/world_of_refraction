@@ -68,6 +68,7 @@ void UDefenseSystem::OpenDefenseWindow(
 	State.WindowOpenTime = FPlatformTime::Seconds();
 	State.WindowDuration = WindowDuration > 0.0f ? WindowDuration : DefaultWindowDuration;
 	State.bInputReceived = false;
+	State.bCountBasedClose = bManualClose;
 
 	ActiveDefenseStates.Add(Defender, State);
 
@@ -172,8 +173,10 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 
 	Result.bWasInWindow = State.bInputReceived;
 
-	// Handle parry reflect
-	if (Result.bSuccess && State.DefenseChosen == EDefenseType::Parry && Result.ReflectedDamage > 0)
+	// Handle parry reflect — single-decision (non-melee) windows ONLY. Count-based (melee)
+	// windows resolve reflect PER IMPACT in ActionExecutor::ResolveImpactDefense (Stage 3);
+	// reflecting here too would double-reflect on the legacy lumped first-input decision.
+	if (!State.bCountBasedClose && Result.bSuccess && State.DefenseChosen == EDefenseType::Parry && Result.ReflectedDamage > 0)
 	{
 		if (State.Attacker.IsValid())
 		{
@@ -217,12 +220,9 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 		return;
 	}
 
-	if (StatePtr->bInputReceived)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] Defense input already received for %s"),
-			   *Defender->GetName());
-		return;
-	}
+	// Stage 3: NO "already received" reject — multiple presses APPEND to the buffer so each
+	// impact can be independently defended. Each press still plays its own anim (Expedition 33
+	// feel: you see every input).
 
 	// Validate dodge direction
 	if (DefenseType == EDefenseType::Dodge)
@@ -234,10 +234,22 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 		}
 	}
 
-	// Record input
-	StatePtr->DefenseChosen = DefenseType;
-	StatePtr->DodgeDirection = Direction;
-	StatePtr->bInputReceived = true;
+	// Stage 3: append a timestamped entry — the per-impact match-and-consume reads this.
+	FTimestampedDefenseInput Entry;
+	Entry.Type = DefenseType;
+	Entry.Direction = Direction;
+	Entry.InputTime = FPlatformTime::Seconds();
+	Entry.bConsumed = false;
+	StatePtr->InputBuffer.Add(Entry);
+
+	// Legacy single fields — still read by the non-melee/tail close path. First input wins
+	// (mirrors the old reject-2nd behavior) so that path is byte-for-byte unchanged.
+	if (!StatePtr->bInputReceived)
+	{
+		StatePtr->DefenseChosen = DefenseType;
+		StatePtr->DodgeDirection = Direction;
+		StatePtr->bInputReceived = true;
+	}
 
 	// Play defense animation
 	PlayDefenseAnimation(Defender, DefenseType, Direction);
@@ -245,10 +257,11 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 	// Broadcast event
 	OnDefenseInputReceived.Broadcast(Defender, DefenseType, Direction);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense input received: %s chose %d (Direction: %d)"),
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense input buffered: %s chose %d (Direction: %d, BufferSize: %d)"),
 		   *Defender->GetName(),
 		   static_cast<int32>(DefenseType),
-		   static_cast<int32>(Direction));
+		   static_cast<int32>(Direction),
+		   StatePtr->InputBuffer.Num());
 }
 
 bool UDefenseSystem::IsDefenseWindowOpen(AActor *Defender) const
@@ -287,6 +300,81 @@ AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
 	}
 
 	return nullptr;
+}
+
+FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double ImpactTime)
+{
+	FDefenseInputMatch Match;
+
+	if (!Defender)
+	{
+		return Match;
+	}
+
+	FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
+	if (!StatePtr)
+	{
+		return Match;
+	}
+
+	// Latest (most recent press) unconsumed entry with delta in [0, EffectiveWindow].
+	// "Latest" = largest InputTime: a press right before the impact beats an older buffered
+	// press, which stays unconsumed for an earlier/later impact. EffectiveWindow = tuned base
+	// widened by the defender's Reflex (hoisted once — same for every buffer entry).
+	const float EffectiveWindow = GetEffectiveDefenseInputWindow(Defender);
+	int32 BestIndex = INDEX_NONE;
+	double BestInputTime = TNumericLimits<double>::Lowest();
+	for (int32 i = 0; i < StatePtr->InputBuffer.Num(); ++i)
+	{
+		const FTimestampedDefenseInput &Entry = StatePtr->InputBuffer[i];
+		if (Entry.bConsumed)
+		{
+			continue;
+		}
+
+		const double Delta = ImpactTime - Entry.InputTime;
+		if (Delta < 0.0 || Delta > EffectiveWindow)
+		{
+			continue; // pressed after this impact, or too early (before the lead-in)
+		}
+
+		if (Entry.InputTime > BestInputTime)
+		{
+			BestInputTime = Entry.InputTime;
+			BestIndex = i;
+		}
+	}
+
+	if (BestIndex == INDEX_NONE)
+	{
+		return Match; // bMatched stays false — this impact is undefended
+	}
+
+	FTimestampedDefenseInput &Hit = StatePtr->InputBuffer[BestIndex];
+	Hit.bConsumed = true;
+
+	const double Delta = ImpactTime - Hit.InputTime;
+	Match.bMatched = true;
+	Match.Type = Hit.Type;
+	Match.Direction = Hit.Direction;
+	Match.bPerfect = (Delta <= PerfectThreshold);
+
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Impact matched for %s — Type: %d, Delta: %.3fs, %s"),
+		   *Defender->GetName(), static_cast<int32>(Match.Type), Delta,
+		   Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
+
+	return Match;
+}
+
+void UDefenseSystem::ApplyParryReflect(AActor *Attacker, AActor *Defender, int32 ReflectedDamage)
+{
+	if (!Attacker || ReflectedDamage <= 0)
+	{
+		return;
+	}
+
+	ApplyReflectedDamage(Attacker, ReflectedDamage);
+	OnParryReflect.Broadcast(Defender, Attacker, ReflectedDamage);
 }
 
 FDefenseState UDefenseSystem::GetDefenseState(AActor *Defender) const
@@ -340,6 +428,21 @@ float UDefenseSystem::GetDodgeThreshold(AActor *Defender) const
 	// - Character size
 
 	return Threshold;
+}
+
+float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender) const
+{
+	// Base lead-in window (tuned on the subsystem) widened by the defender's Reflex.
+	// Mirrors GetDodgeThreshold: base here, per-character bonus through CharacterData.
+	// Null-safe — no component / no asset falls back to the bare base window.
+	// NOTE: reads CalculateReflexWindowBonus, which is asset-intrinsic (raw
+	// GetEffectiveBody). Gear-widening of the window is deferred (RealTimeDefenseRework §5).
+	UCharacterDataComponent *Comp = GetCharacterDataComponent(Defender);
+	if (Comp && Comp->CharacterData)
+	{
+		return DefenseInputWindow + Comp->CharacterData->CalculateReflexWindowBonus();
+	}
+	return DefenseInputWindow;
 }
 
 // ========================================

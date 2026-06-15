@@ -171,7 +171,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 SpellSpeed = 0;
 
-	// ==================== BODY SUB-STATS (4) ====================
+	// ==================== BODY SUB-STATS (5) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 Defense = 0;
 
@@ -183,6 +183,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 MaxHealth = 0;
+
+	/** Widens the real-time defense input window (more Reflex = more lead-in time to
+	 *  land a parry/dodge). Scales ON TOP of UDefenseSystem::DefenseInputWindow — see
+	 *  CalculateReflexWindowBonus. Does NOT affect ActionSpeed (animation pacing). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
+	int32 Reflex = 0;
 
 	// ==================== SPIRIT SUB-STATS (5) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
@@ -295,7 +301,7 @@ public:
 	int32 GetTotalSpent() const
 	{
 		return Efficiency + SpellDamage + CritChance + SpellSpeed +
-			   Defense + ActionSpeed + RawDamage + MaxHealth +
+			   Defense + ActionSpeed + RawDamage + MaxHealth + Reflex +
 			   MaxEnergy + Resistance + TurnSpeed + Luck + StatusMultiplier;
 	}
 
@@ -334,6 +340,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalMaxHealth() const { return MaxHealth; }
 
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalReflex() const { return Reflex; }
+
 	// ----- SPIRIT (4 stats) -----
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
 	int32 GetTotalMaxEnergy() const { return MaxEnergy; }
@@ -363,8 +372,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseBody() const
 	{
-		// Body (4): Defense, ActionSpeed, RawDamage, MaxHealth
-		return GetTotalDefense() + GetTotalActionSpeed() + GetTotalRawDamage() + GetTotalMaxHealth();
+		// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
+		return GetTotalDefense() + GetTotalActionSpeed() + GetTotalRawDamage() + GetTotalMaxHealth() + GetTotalReflex();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -467,7 +476,8 @@ public:
 	}
 
 	// ==================== BODY CALCULATIONS ====================
-	// Body (3): Defense, ActionSpeed, RawDamage
+	// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
+	// (MaxHealth lives in HELPER FUNCTIONS below; Reflex's window bonus here.)
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	int32 CalculateFlatDefense() const
@@ -492,6 +502,18 @@ public:
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalActionSpeed();
 		return CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Body")
+	float CalculateReflexWindowBonus() const
+	{
+		// Additive SECONDS layered on top of UDefenseSystem::DefenseInputWindow (the
+		// tuned base stays on the subsystem). Mirrors the CalculateActionSpeed shape.
+		// Reads RAW GetEffectiveBody() — asset-intrinsic, NOT gear-aware yet (gear
+		// widening of the window is deferred — see RealTimeDefenseRework §5).
+		float EffectiveBody = GetEffectiveBody();
+		int32 TotalPoints = GetTotalReflex();
+		return EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT;
 	}
 
 	// ==================== SPIRIT CALCULATIONS ====================

@@ -143,8 +143,8 @@ namespace CombatConstants
     constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier
     constexpr float SPELL_SPEED_PER_POINT = 0.01f; // 1% per point
 
-    // ==================== BODY STATS (4) ====================
-    // Defense, ActionSpeed, RawDamage, MaxHealth
+    // ==================== BODY STATS (5) ====================
+    // Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
 
     // Defense - Flat damage reduction per hit
     constexpr float DEFENSE_PER_POINT = 0.06f; // Flat defense per point
@@ -164,6 +164,10 @@ namespace CombatConstants
     // Max Health - HP pool size (NOW BODY, was Spirit)
     constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
     constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
+
+    // Reflex - Widens the defense input window (additive seconds layered ON TOP of
+    // UDefenseSystem::DefenseInputWindow; base stays tunable on the subsystem)
+    constexpr float REFLEX_WINDOW_PER_POINT = 0.01f; // seconds of window per Reflex point (TUNABLE)
 
     // ==================== SPIRIT STATS (5) ====================
     // MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
