@@ -389,22 +389,25 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveMind() const
 	{
-		int32 BaseMind = GetBaseMind();
-		return BaseMind * (1.0f + WorldMindLevel * CombatConstants::WORLD_MIND_SCALING_BONUS);
+		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
+		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
+		return 1.0f + WorldMindLevel * CombatConstants::WORLD_MIND_SCALING_BONUS;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveBody() const
 	{
-		int32 BaseBody = GetBaseBody();
-		return BaseBody * (1.0f + WorldBodyLevel * CombatConstants::WORLD_BODY_SCALING_BONUS);
+		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
+		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
+		return 1.0f + WorldBodyLevel * CombatConstants::WORLD_BODY_SCALING_BONUS;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveSpirit() const
 	{
-		int32 BaseSpirit = GetBaseSpirit();
-		return BaseSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_SPIRIT_SCALING_BONUS);
+		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
+		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
+		return 1.0f + WorldSpiritLevel * CombatConstants::WORLD_SPIRIT_SCALING_BONUS;
 	}
 
 	// ==================== MIND CALCULATIONS ====================

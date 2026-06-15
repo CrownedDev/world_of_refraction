@@ -34,10 +34,12 @@ namespace CombatConstants
     // Per-pillar scaling rates — applied by GetEffectiveMind/Body/Spirit as
     // BasePillar × (1 + WorldLevel × <PillarScalingBonus>). Split out of the
     // single WORLD_STAT_SCALING_BONUS so each pillar can be tuned independently.
-    // Current values are identical (1% per level) for behaviour parity.
-    constexpr float WORLD_MIND_SCALING_BONUS = 0.01f;   // 1% per WorldMindLevel
-    constexpr float WORLD_BODY_SCALING_BONUS = 0.01f;   // 1% per WorldBodyLevel
-    constexpr float WORLD_SPIRIT_SCALING_BONUS = 0.01f; // 1% per WorldSpiritLevel
+    // Bumped 0.01 -> 0.07 in the decoupling rework: with the substat-sum removed from
+    // GetEffectiveX, world level is now the meaningful pillar scaler (+7%/level, +49% at
+    // world 7). See CombatEconomy_StatRedesign.md.
+    constexpr float WORLD_MIND_SCALING_BONUS = 0.07f;   // 7% per WorldMindLevel
+    constexpr float WORLD_BODY_SCALING_BONUS = 0.07f;   // 7% per WorldBodyLevel
+    constexpr float WORLD_SPIRIT_SCALING_BONUS = 0.07f; // 7% per WorldSpiritLevel
 
     // ==================== EQUIPMENT STAT BONUS LIMITS ====================
     // Reference bounds for FEquipmentStatBonus authoring. UPROPERTY meta clamps
@@ -113,61 +115,79 @@ namespace CombatConstants
     // ==================== STAT SCALING ====================
     // 13 Stats: Mind(4), Body(4), Spirit(5)
     // Formula: Base + (EffectiveStat × TotalPoints × PER_POINT)
+    //
+    // DECOUPLED model: EffectiveX is now the world multiplier only (~1.0-1.49). Per-point
+    // constants DERIVE from (cap − base) / STAT_DERIVE_DENOM so MAX investment hits the
+    // design cap exactly. Change a cap → the per-point auto-updates. No magic numbers.
+    // The CAP constants below are REUSED as the clamp bounds in cluster 2 (single source
+    // of truth). Tune FEEL in PIE. See CombatEconomy_StatRedesign.md.
+    constexpr float MAX_STAT_POINTS = 93.0f;                                // 30 base + 7×3 levels × 3 pillars
+    constexpr float WORLD_MAX_MULT = 1.0f + 7.0f * WORLD_BODY_SCALING_BONUS; // 1.49 — max world multiplier (derived from the world bonus)
+    constexpr float STAT_DERIVE_DENOM = MAX_STAT_POINTS * WORLD_MAX_MULT;    // ≈138.57 — max investment scalar
+
+    // Shared multiplier-stat family (base 1.0 -> cap 1.5): Raw/Spell damage, Status, all speeds.
+    constexpr float STAT_MULT_BASE = 1.0f;
+    constexpr float STAT_MULT_CAP  = 1.5f;
+    constexpr float STAT_MULT_PER_POINT = (STAT_MULT_CAP - STAT_MULT_BASE) / STAT_DERIVE_DENOM;
+
+    // Shared %-stat family (base 0 -> cap 0.5): Defense, Resistance, Efficiency(+ring-break), Luck.
+    constexpr float UNIVERSAL_STAT_CAP = 0.5f;
+    constexpr float PCT_STAT_PER_POINT = (UNIVERSAL_STAT_CAP - 0.0f) / STAT_DERIVE_DENOM;
 
     // ==================== MIND STATS (4) ====================
     // Efficiency, SpellDamage, CritChance, SpellSpeed
 
     // Efficiency - Reduces EP cost of Spells & Abilities (not Attacks)
     // Resonators: Also reduces ring break chance
-    constexpr float EFFICIENCY_PER_POINT = 0.002f;            // 0.2% reduction per point
+    constexpr float EFFICIENCY_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 EP-cost reduction at max
     constexpr float EFFICIENCY_MAX = 0.50f;                   // 50% max EP reduction
-    constexpr float EFFICIENCY_RING_BREAK_PER_POINT = 0.003f; // 0.3% ring break reduction (Resonator only)
+    constexpr float EFFICIENCY_RING_BREAK_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 ring-break reduction at max (Resonator only)
     constexpr float EFFICIENCY_RING_BREAK_MAX = 0.50f;        // 50% max ring break reduction
 
     // Status Multiplier — Status buildup amplification (Spirit-driven; substat
     // moved off Mind). Consumed by StatusBuildupManager::AddStatusBuildup and
-    // the per-skill CalculateStatusBuildup helpers.
-    // Halved from 0.002 → 0.001 to absorb the swap from the old
-    // (1 + raw/100) shape to the pillar-scaled CalculateStatusMultiplier shape.
-    constexpr float STATUS_MULTIPLIER_PER_POINT = 0.001f; // 0.1% per point
+    // the per-skill CalculateStatusBuildup helpers. Multiplier-stat family member.
+    constexpr float STATUS_MULTIPLIER_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 status buildup at max
 
     // Spell Damage - Spell damage multiplier (applied once via DamageCalculator::GetAttackerDamageMultiplier for Spell ActionType)
-    constexpr float SPELL_DAMAGE_PER_POINT = 0.004f; // 0.4% per point — doubled to compensate for the removal of the duplicate StatusMultiplier mult on spell damage
+    constexpr float SPELL_DAMAGE_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 spell damage at max
 
     // Crit Chance - Critical hit probability (all actions)
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
-    constexpr float CRIT_CHANCE_PER_POINT = 0.0013f; // 0.13% per point
+    constexpr float CRIT_CHANCE_PER_POINT = (UNIVERSAL_STAT_CAP - CRIT_CHANCE_BASE) / STAT_DERIVE_DENOM; // 0.05 base -> 0.50 crit at max
     constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit
 
     // Spell Speed - Projectile travel speed (affects defender reaction time)
     constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier
-    constexpr float SPELL_SPEED_PER_POINT = 0.01f; // 1% per point
+    constexpr float SPELL_SPEED_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 cast speed at max
 
     // ==================== BODY STATS (5) ====================
     // Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
 
     // Defense - Flat damage reduction per hit
-    constexpr float DEFENSE_PER_POINT = 0.06f; // Flat defense per point
+    constexpr float DEFENSE_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 at max (becomes % reduction in cluster 4)
 
     // Action Speed - Approach speed & animation speed (RENAMED from AttackSpeed)
     constexpr float MOVEMENT_SPEED_BASE = 400.0f;       // Base units per second (approach)
-    constexpr float MOVEMENT_SPEED_PER_POINT = 0.01f;   // 1% per point
+    constexpr float MOVEMENT_SPEED_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 approach speed at max
     constexpr float ANIMATION_SPEED_BASE = 1.0f;        // Base animation multiplier
-    constexpr float ANIMATION_SPEED_PER_POINT = 0.005f; // 0.5% per point
+    constexpr float ANIMATION_SPEED_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 anim play rate at max
 
     // Raw Damage - Physical/non-elemental damage multiplier
-    constexpr float RAW_DAMAGE_PER_POINT = 0.0008f; // 0.08% per point
+    constexpr float RAW_DAMAGE_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 physical damage at max
 
     // Augment-stone consumable buff/debuff duration (DamageStone, DefenseStone, ...)
     constexpr int32 AUGMENT_STONE_CONSUMABLE_DURATION = 3; // turns, flat across tiers
 
     // Max Health - HP pool size (NOW BODY, was Spirit)
     constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
-    constexpr float MAX_HEALTH_PER_POINT = 5.0f; // +5 HP per point
+    constexpr float MAX_HEALTH_CAP  = 1000.0f;   // HP ceiling at max investment (clamp bound, cluster 2)
+    constexpr float MAX_HEALTH_PER_POINT = (MAX_HEALTH_CAP - MAX_HEALTH_BASE) / STAT_DERIVE_DENOM; // 100 -> 1000
 
     // Reflex - Widens the defense input window (additive seconds layered ON TOP of
     // UDefenseSystem::DefenseInputWindow; base stays tunable on the subsystem)
-    constexpr float REFLEX_WINDOW_PER_POINT = 0.000027f; // seconds of window per Reflex point (snowball-scale placeholder — caps the degenerate max-stat build at the 50% design target against EffectiveBody ~99; MUST be re-tuned in the stat-decoupling rework where EffectiveBody drops to ~1.0-1.5. See StatDecouplingRework.md)
+    constexpr float WINDOW_CAP_SECONDS = 0.25f; // +0.25s = +50% of the 0.5s base window (clamp bound, cluster 2)
+    constexpr float REFLEX_WINDOW_PER_POINT = (WINDOW_CAP_SECONDS - 0.0f) / STAT_DERIVE_DENOM; // -> +0.25s at max
 
     // Defense-window DUEL — the attacker's speed NARROWS the defender's input window the same way
     // Reflex WIDENS it: window = max(MINIMUM, base + defenderReflexBonus − attackerSpeedPenalty).
@@ -175,7 +195,7 @@ namespace CombatConstants
     // level cancel to the base window; kept a SEPARATE constant so the offense/defense ratio can be
     // tuned independently in playtest. MINIMUM_DEFENSE_WINDOW floors it so a fast attacker stays
     // barely defendable, never undefendable.
-    constexpr float WINDOW_PER_SPEED_POINT = 0.000027f;  // seconds of window reduction per speed point (= REFLEX_WINDOW_PER_POINT for symmetric cancel + shared 50% cap; snowball-coupled, re-tune with it in the decoupling rework)
+    constexpr float WINDOW_PER_SPEED_POINT = REFLEX_WINDOW_PER_POINT;  // = REFLEX_WINDOW_PER_POINT for symmetric duel cancel + shared +50% cap
     constexpr float MINIMUM_DEFENSE_WINDOW = 0.1f;   // hard floor on the effective input window (seconds)
 
     // ==================== SPIRIT STATS (5) ====================
@@ -185,10 +205,11 @@ namespace CombatConstants
 
     // Max Energy - EP pool size (NEW explicit stat)
     constexpr float MAX_ENERGY_BASE = 50.0f;     // Base EP
-    constexpr float MAX_ENERGY_PER_POINT = 2.0f; // +2 EP per point
+    constexpr float MAX_ENERGY_CAP  = 1000.0f;   // EP ceiling at max investment (clamp bound, cluster 2)
+    constexpr float MAX_ENERGY_PER_POINT = (MAX_ENERGY_CAP - MAX_ENERGY_BASE) / STAT_DERIVE_DENOM; // 50 -> 1000
 
     // Resistance - Reduces status effect damage & buildup (NOT elemental damage)
-    constexpr float RESISTANCE_PER_POINT = 0.0015f; // 0.15% per point
+    constexpr float RESISTANCE_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 status resistance at max (UNIVERSAL_STAT_CAP; RESISTANCE_MAX stays the 1.0 hard ceiling)
     // Correctness bound, NOT a design/balance cap: status resistance must stay
     // <= 1.0, else the consumer `Amount *= (1 - Resistance)` goes negative and
     // heals the gauge. Do not "tune" this down — it is a hard ceiling, not a knob.
@@ -201,10 +222,11 @@ namespace CombatConstants
 
     // Turn Speed - Turn order priority (NOW SPIRIT, was Mind, no longer uses WorldBody)
     constexpr float TURN_SPEED_BASE = 10.0f;      // Base turn speed
-    constexpr float TURN_SPEED_PER_POINT = 0.08f; // 0.08 per point
+    constexpr float TURN_SPEED_CAP  = 15.0f;      // turn-speed ceiling at max investment (clamp bound, cluster 2)
+    constexpr float TURN_SPEED_PER_POINT = (TURN_SPEED_CAP - TURN_SPEED_BASE) / STAT_DERIVE_DENOM; // 10 -> 15
 
     // Luck - Multi-system fortune stat (drop chance/quality, crit bonus, dodge, break skip)
-    constexpr float LUCK_PER_POINT = 0.0015f; // Same shape as Resistance
+    constexpr float LUCK_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 raw luck at max (= LUCK_RAW_MAX normalization basis)
     constexpr float LUCK_RAW_MAX = 0.50f;     // Raw multiplier ceiling
 
     // Consumer-specific caps - applied at the consumer site
