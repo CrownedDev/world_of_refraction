@@ -1,5 +1,10 @@
 # Substat Decoupling + World-Level Rework — Planned
 
+> **SUPERSEDED — see [`CombatEconomy_StatRedesign.md`](CombatEconomy_StatRedesign.md) (LOCKED).**
+> That document is the single source of truth: Path A decoupling, the universal +50% stat cap with
+> gear-beyond, the locked stat table, and the designed economy (HP/EP→1000, no EP regen, skill-tier
+> base power). This file is retained only as the pre-decision exploration record.
+
 **Status:** Planned, own dedicated session. Decided this session (feature/realtime-defense), deferred
 to finish the reactive-defense work. A 2-file code edit but a full combat re-tune + playtest.
 

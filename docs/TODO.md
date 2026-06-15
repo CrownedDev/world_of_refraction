@@ -49,7 +49,7 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 ## Banked — future systems
 
 - **BLOCKED** — Party/Match Setup system (spawn party → assign teams → assign grid → hand to orchestrator) — planned, core to solo/co-op/PvP. See `docs/Design/PartyMatchSetup.md`. Build after reactive-defense (Stage 3+).
-- **BLOCKED** — Stat decoupling + world-level rework (kill snowball, world level +7%/level, re-tune 16 constants + playtest) — own balance session. See `docs/Design/StatDecouplingRework.md`.
+- **BLOCKED** — Combat economy + stat redesign (LOCKED): Path A decouple, universal +50% stat cap / gear-beyond, world +7%/level, HP/EP→1000, no EP regen, skill-tier base power. Built to designed targets, clustered. Own balance session. See `docs/Design/CombatEconomy_StatRedesign.md` (supersedes `StatDecouplingRework.md`).
 
 ## Refactor — banked
 
