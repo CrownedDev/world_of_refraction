@@ -622,13 +622,18 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 		}
 	}
 
-	// Transient ModifyCritDamage — MULTIPLIES too. Max(0,..) keeps a debuff from inverting the factor.
+	// Transient crit-damage modifiers — MULTIPLY too. Directional (5f-C): ModifyCritDamage is the BUFF
+	// ("Crit Damage Up", up-only — Max(0,..) guards malformed negative assets); CritDamageDebuff is its
+	// paired debuff (positive magnitude, SUBTRACTED). Net (buff − debuff) can go negative, dragging crit
+	// damage down — the final clamp floors the whole multiplier at CRIT_DMG_BASE (x1.0), so a crit-damage
+	// debuff can cancel the crit BONUS toward a normal hit but never make a crit weaker than one.
 	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
 	{
 		const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
-		Result *= (1.0f + FMath::Max(0.0f, Modify / CombatConstants::STAT_PERCENT_DIVISOR));
+		const float Debuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritDamageDebuff);
+		Result *= (1.0f + (FMath::Max(0.0f, Modify) - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
-	return FMath::Min(Result, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
+	return FMath::Clamp(Result, CombatConstants::CRIT_DMG_BASE, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
 }
 
 float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const

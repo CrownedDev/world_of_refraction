@@ -229,7 +229,14 @@ enum class ESkillEffectType : uint8
     // buff/debuff — summed via GetTotalStatModifier and folded into RecomputeMaxPools
     // (P2b), raising/lowering the MaxHP ceiling. MaxEnergyBuff/Debuff already exist above.
     MaxHPBuff UMETA(DisplayName = "Max HP Buff"),
-    MaxHPDebuff UMETA(DisplayName = "Max HP Debuff")
+    MaxHPDebuff UMETA(DisplayName = "Max HP Debuff"),
+
+    // ==================== CRIT DAMAGE DEBUFF (transient — 5f-C) ====================
+    // Appended (not mid-inserted) to preserve enum-by-value stamping. The debuff side of the
+    // crit-DAMAGE consumable: ModifyCritDamage ("Crit Damage Up") is the BUFF, this is its paired
+    // debuff. GetCritDamageMultiplier reads (Max(0,ModifyCritDamage) − CritDamageDebuff) and floors the
+    // final multiplier at CRIT_DMG_BASE (1.0) — a debuff drags crit damage toward a normal hit, never below.
+    CritDamageDebuff UMETA(DisplayName = "Crit Damage Debuff")
 };
 
 /**
@@ -341,6 +348,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::MaxHPDebuff:
         case ESkillEffectType::TurnSpeedDebuff:
         case ESkillEffectType::LuckDebuff:
+        case ESkillEffectType::CritDamageDebuff:
         case ESkillEffectType::DOT:
         case ESkillEffectType::SkipTurn:
         case ESkillEffectType::RandomDebuff:

@@ -172,8 +172,14 @@ private:
 	/** Amber - Defense buff */
 	void ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
-	/** Opal - Crit buff (+ S-tier reveals) */
+	/** Opal - Crit chance buff (+ S-tier reveals) */
 	void ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
+	/** CritStone consumable - directional crit-DAMAGE: ally ModifyCritDamage buff / enemy CritDamageDebuff. */
+	void ExecuteCritDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
+	/** LuckStone consumable - directional Luck buff (ally) / debuff (enemy); lifts all luck consumers. */
+	void ExecuteLuckBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** TurnSpeedStone - directional turn-speed buff (ally) / debuff (enemy) at the
 	 *  stone's 3-15 magnitude. Pure stat; no turn mechanic (separate from Emerald's

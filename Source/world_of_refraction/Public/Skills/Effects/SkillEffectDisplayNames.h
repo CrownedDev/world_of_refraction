@@ -185,6 +185,8 @@ namespace SkillEffectDisplayNames
             return TEXT("Crit Chance Up");
         case ESkillEffectType::ModifyCritDamage:
             return TEXT("Crit Damage Up");
+        case ESkillEffectType::CritDamageDebuff:
+            return TEXT("Crit Damage Down");
         case ESkillEffectType::ModifyEnergyCost:
             return TEXT("Energy Cost Up");
         case ESkillEffectType::ModifyTurnSpeed:

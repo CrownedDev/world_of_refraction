@@ -119,6 +119,14 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteActionSpeedBuffEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::BuffCritDamage:
+		ExecuteCritDamageBuffEffect(User, Target, Id, Result);
+		break;
+
+	case EItemEffectType::BuffLuck:
+		ExecuteLuckBuffEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::Silence:
 		ExecuteSilenceEffect(User, Target, Id, Result);
 		break;
@@ -665,6 +673,31 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Applied %s %.0f%% for %d turns to %s"),
 		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
+}
+
+void UItemExecutor::ExecuteCritDamageBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// CritDamage stone consumable (5f-C, revised) — DIRECTIONAL like every other stone: buff an ally's
+	// crit damage or debuff an enemy's, at the stone's 3-15 magnitude for the flat stone duration.
+	// Ally → ModifyCritDamage ("Crit Damage Up", the buff GetCritDamageMultiplier already reads); enemy →
+	// CritDamageDebuff (the paired debuff, SUBTRACTED there, final-clamped at CRIT_DMG_BASE so a crit
+	// never drops below a normal hit). Matches the attached CritStone's crit-DAMAGE form and mirrors the
+	// crit-CHANCE / Luck consumables' buff/debuff shape via the shared helper.
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::ModifyCritDamage, ESkillEffectType::CritDamageDebuff,
+						 TEXT("Crit Damage"), OutResult);
+}
+
+void UItemExecutor::ExecuteLuckBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// LuckStone consumable (5f-C) — DIRECTIONAL: buff an ally's Luck or debuff an enemy's, at the
+	// stone's 3-15 magnitude for the flat stone duration. Applies the transient LuckBuff/LuckDebuff,
+	// which GetEquipmentModifiedLuck reads as (LuckBuff - LuckDebuff) — so it lifts/lowers EVERY luck
+	// consumer uniformly (crit chance, break-skip, future dodge/drops). The getter's sign handles
+	// direction; this just picks buff-ally / debuff-enemy via the shared helper.
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::LuckBuff, ESkillEffectType::LuckDebuff,
+						 TEXT("Luck"), OutResult);
 }
 
 void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

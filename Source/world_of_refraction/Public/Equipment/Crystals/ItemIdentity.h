@@ -76,10 +76,10 @@ namespace ItemIdentity
             // (the same handler Amber uses). Magnitude/hook land in later clusters.
             return EItemEffectType::BuffDefense;
         case ECrystalType::CritStone:
-            // Directional crit consumable — routes to ExecuteCritBuffEffect, which
-            // branches on IsAugmentStoneType for the stone curve + flat duration (Opal's
-            // path unchanged). Buff an ally's crit / debuff an enemy's.
-            return EItemEffectType::BuffCrit;
+            // Crit-DAMAGE consumable (5f-C) — routes to ExecuteCritDamageBuffEffect (DIRECTIONAL:
+            // ally ModifyCritDamage buff / enemy CritDamageDebuff), matching the attached CritStone's
+            // crit-DAMAGE form. Opal stays on BuffCrit (crit CHANCE) below.
+            return EItemEffectType::BuffCritDamage;
         case ECrystalType::TurnSpeedStone:
             // Directional turn-speed consumable — routes to ExecuteTurnSpeedStoneEffect
             // (pure-stat buff/debuff, stone magnitude, NO turn mechanic; separate from
@@ -129,6 +129,11 @@ namespace ItemIdentity
             // returns None: UseItem dispatch finds no case and falls to its "not a usable
             // consumable" default arm. No Execute…Effect handler, no new EItemEffectType.
             return EItemEffectType::None;
+        case ECrystalType::LuckStone:
+            // Directional luck consumable (5f-C) — routes to ExecuteLuckBuffEffect (transient
+            // LuckBuff/LuckDebuff, stone magnitude). Buff an ally's luck / debuff an enemy's; lifts
+            // all luck consumers (crit chance, break-skip) via GetEquipmentModifiedLuck.
+            return EItemEffectType::BuffLuck;
         default:
             return EItemEffectType::Damage;
         }
