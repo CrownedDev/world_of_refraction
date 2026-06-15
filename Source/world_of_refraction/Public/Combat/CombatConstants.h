@@ -248,7 +248,11 @@ namespace CombatConstants
 
     // Luck - Multi-system fortune stat (drop chance/quality, crit bonus, dodge, break skip)
     constexpr float LUCK_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 raw luck at max (= LUCK_RAW_MAX normalization basis)
-    constexpr float LUCK_RAW_MAX = 0.50f;     // Raw multiplier ceiling
+    constexpr float LUCK_RAW_MAX = 0.50f;     // Raw stat ceiling — stat normalizes to exactly 1.0 here at max investment
+    // Pattern-P gear ceiling (cluster 5e-C1): the stat portion normalizes to 1.0 ALONE; gear (BonusLuck)
+    // + transient (LuckBuff/Debuff) MULTIPLY it past 1.0 toward this normalized ceiling. Consumers then
+    // scale by their own max bonus and clamp at their own 100% (crit chance, break skip, dodge, drops).
+    constexpr float LUCK_GEAR_CEILING = 2.0f; // normalized luck ceiling WITH gear (>= 1.0 stat cap)
 
     // Consumer-specific caps - applied at the consumer site
     constexpr float LUCK_CRIT_BONUS_MAX = 0.20f;   // +20% crit chance bonus

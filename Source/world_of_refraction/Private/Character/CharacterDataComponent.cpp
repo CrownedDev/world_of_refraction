@@ -663,43 +663,49 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         return 0.0f;
     }
 
-    // Crystal-aware Luck: pillar-scaled against GetEvolutionModifiedSpirit
-    // instead of the raw asset's GetEffectiveSpirit. Mirrors the asset's
-    // CalculateLuck formula shape (no LUCK_BASE constant — bare per-point).
+    // Pattern P (cluster 5e-C1) — returns a NORMALIZED luck value (not raw): the stat portion
+    // (crystal-aware Spirit × Luck points) caps ALONE at normalized 1.0 (LUCK_RAW_MAX is the basis —
+    // max investment lands on exactly 1.0), THEN gear (BonusLuck) and transient (LuckBuff/Debuff)
+    // MULTIPLY it past 1.0 toward LUCK_GEAR_CEILING. Consumers (GetLuckModifiedChance) scale by their
+    // own max bonus and clamp at their own 100% — they no longer re-normalize.
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 LuckPoints = CharacterData->GetTotalLuck();
-    float Luck = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
+    const float StatRaw = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
+    const float StatNorm = FMath::Min(StatRaw / CombatConstants::LUCK_RAW_MAX, 1.0f); // stat caps ALONE at 1.0
 
-    // Equipment stat bonus — additive per-point on top of the pillar term.
+    float LuckNorm = StatNorm;
     if (AActor *Owner = GetOwner())
     {
+        // Equipment BonusLuck — MULTIPLIES the capped stat past 1.0 (option-(ii): the per-point
+        // magnitude is read as a fraction). ×1 (inert) when absent.
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
             const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
-            Luck += Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT;
+            LuckNorm *= (1.0f + Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT);
         }
 
-        // Skill-effect-driven LuckBuff / LuckDebuff (flat additive, percent-space).
+        // Skill-effect LuckBuff / LuckDebuff — MULTIPLIES (percent-space), matching the cluster-5
+        // shape. ×1 when none active. A net debuff can drive LuckNorm below 0; the clamp floors it.
         if (USkillEffectManager *SkillMgr = GetSkillEffectManager())
         {
             const float LuckBuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckBuff);
             const float LuckDebuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckDebuff);
-            Luck += (LuckBuff - LuckDebuff);
+            LuckNorm *= (1.0f + (LuckBuff - LuckDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
-    // No upper clamp: input is unbounded, each consumer clamps its own
-    // normalized fraction (RawLuck / LUCK_RAW_MAX) to [0,1] before scaling.
-    return Luck;
+    // Stat caps at normalized 1.0; gear/transient push past toward the normalized gear ceiling.
+    return FMath::Clamp(LuckNorm, 0.0f, CombatConstants::LUCK_GEAR_CEILING);
 }
 
 float UCharacterDataComponent::GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const
 {
-    // Normalized Luck in (-inf, 1]: upper-clamped to 1 (positive luck plateaus at LuckMaxBonus);
-    // negatives pass through (curse). Byte-identical to the inline pattern every Luck consumer used
-    // (FMath::Min(RawLuck / LUCK_RAW_MAX, 1) * MAX), now centralized.
-    const float Norm = FMath::Min(GetEquipmentModifiedLuck() / CombatConstants::LUCK_RAW_MAX, 1.0f);
-    return BaseChance + Norm * LuckMaxBonus;
+    // GetEquipmentModifiedLuck now returns the NORMALIZED luck directly (5e-C1: stat caps ALONE at 1.0,
+    // gear/transient multiply past toward LUCK_GEAR_CEILING) — so we do NOT re-normalize here. The gear's
+    // past-1.0 value flows through; each consumer caps the final chance at its own 100% (e.g. crit /
+    // break-skip clamp [0,1]). At maxed stat (norm 1.0): BaseChance + LuckMaxBonus = the listed max;
+    // with gear (norm up to 2.0) the chance pushes past it. Negative (cursed) norm reduces the chance.
+    return BaseChance + GetEquipmentModifiedLuck() * LuckMaxBonus;
 }
 
 bool UCharacterDataComponent::RollLuckChance(float BaseChance, float LuckMaxBonus) const
