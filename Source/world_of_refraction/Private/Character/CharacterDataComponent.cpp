@@ -909,6 +909,83 @@ float UCharacterDataComponent::GetEffectiveRawDamage() const
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
+float UCharacterDataComponent::GetEffectiveActionSpeed() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    // Pattern P (cluster 5g) — animation/attack-pacing mirror of GetEffectiveRawDamage. The STAT
+    // term (CalculateAnimationSpeed, itself ×1.5-capped) is clamped ALONE at STAT_MULT_CAP, THEN
+    // gear MULTIPLIES it: equipment BonusActionSpeed (additive per-point read as a fraction),
+    // attached ActionSpeedStone, and transient ActionSpeedBuff/Debuff — bounded by the
+    // STAT_MODIFIER_MAX (×2.0) compose ceiling. Returns a pure ×1.0–×2.0 multiplier; the montage
+    // BaseAnimSpeed and per-action ActionMods stay at the ActionExecutor call site. ×1.0 at zero
+    // gear (the old additive path's zero-point), so byte-identical with no speed gear.
+    const float StatBase = FMath::Min(CharacterData->CalculateAnimationSpeed(), CombatConstants::STAT_MULT_CAP);
+
+    float GearFrac = 0.0f;
+    float StoneFactor = 1.0f;
+    float TransientFactor = 1.0f;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            GearFrac = Loadout->GetActiveStatBonus(Owner).BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                StoneFactor = 1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ActionSpeedBuff);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ActionSpeedDebuff);
+            TransientFactor = 1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+        }
+    }
+
+    const float Composed = StatBase * (1.0f + GearFrac) * StoneFactor * TransientFactor;
+    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+}
+
+float UCharacterDataComponent::GetEffectiveSpellSpeed() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    // Pattern P (cluster 5g) — Mind/cast mirror of GetEffectiveActionSpeed. Stat (CalculateSpellSpeed,
+    // ×1.5-capped) clamped ALONE, THEN BonusSpellSpeed (fraction) × attached SpellSpeedStone ×
+    // transient SpellSpeedBuff/Debuff, bounded by STAT_MODIFIER_MAX (×2.0). Pure multiplier; the
+    // montage BaseAnimSpeed and per-action ActionMods stay at the call site. ×1.0 at zero gear.
+    const float StatBase = FMath::Min(CharacterData->CalculateSpellSpeed(), CombatConstants::STAT_MULT_CAP);
+
+    float GearFrac = 0.0f;
+    float StoneFactor = 1.0f;
+    float TransientFactor = 1.0f;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            GearFrac = Loadout->GetActiveStatBonus(Owner).BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                StoneFactor = 1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellSpeedBuff);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellSpeedDebuff);
+            TransientFactor = 1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+        }
+    }
+
+    const float Composed = StatBase * (1.0f + GearFrac) * StoneFactor * TransientFactor;
+    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+}
+
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
 {
     // Pure snapshot — each field is the verbatim return of an existing getter, no

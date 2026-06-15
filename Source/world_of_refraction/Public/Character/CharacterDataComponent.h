@@ -344,6 +344,22 @@ public:
      *  mirror of GetTransientSpellDamageFactor. 1.0 when none. */
     float GetTransientRawDamageFactor() const;
 
+    /** Effective ActionSpeed MULTIPLIER (Pattern P, cluster 5g) — the animation/attack-pacing
+     *  scalar: CalculateAnimationSpeed() clamped ALONE at STAT_MULT_CAP (×1.5), THEN equipment
+     *  BonusActionSpeed (per-point read as a fraction) × attached ActionSpeedStone × transient
+     *  ActionSpeedBuff/Debuff, bounded by the [0, STAT_MODIFIER_MAX ×2.0] compose ceiling.
+     *  Returns a pure ×1.0–×2.0 multiplier — montage BaseAnimSpeed + per-action ActionMods stay
+     *  at the ActionExecutor call site. ×1.0 at zero gear (byte-identical with no speed gear). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveActionSpeed() const;
+
+    /** Effective SpellSpeed MULTIPLIER (Pattern P, cluster 5g) — Mind/cast mirror of
+     *  GetEffectiveActionSpeed: CalculateSpellSpeed() clamped ALONE at STAT_MULT_CAP (×1.5), THEN
+     *  BonusSpellSpeed × attached SpellSpeedStone × transient SpellSpeedBuff/Debuff, bounded by
+     *  [0, ×2.0]. Pure multiplier; BaseAnimSpeed + ActionMods stay at the call site. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveSpellSpeed() const;
+
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot
      *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers

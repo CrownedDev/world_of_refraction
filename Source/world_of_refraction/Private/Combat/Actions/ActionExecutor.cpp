@@ -2963,46 +2963,18 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateSpellSpeed() × ActionMods.SpellSpeed
-	// contribution — BaseAnimSpeed uniform across all three paths (D7).
+	// Play rate = BaseAnimSpeed × GetEffectiveSpellSpeed() (Pattern P, cluster 5g — stat ×1.5
+	// clamped ALONE, gear/stone/transient multiply toward the ×2.0 ceiling) × per-action ActionMods.
+	// BaseAnimSpeed (montage authoring) and ActionMods stay at the call site.
+	// TODO(docs/Design/RealTimeDefenseRework.md): SpellSpeed's COMBAT effect (shrinking the
+	// defender's reaction window) is still unwired — this speeds the cast animation only.
 	float PlayRate = Spell->BaseAnimSpeed;
-	UCharacterData *CharData = GetCharacterData(Caster);
-	if (CharData)
+	if (UCharacterDataComponent *CasterComp = GetCharacterDataComponent(Caster))
 	{
-		PlayRate *= CharData->CalculateSpellSpeed();
+		PlayRate *= CasterComp->GetEffectiveSpellSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::SpellSpeed);
-
-	// Equipment stat bonus — additive to play rate using the same per-point
-	// shape as the asset-side CalculateSpellSpeed formula. Purely visual.
-	if (Caster)
-	{
-		if (ULoadoutComponent *Loadout = Caster->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Caster);
-			PlayRate += Bonus.BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
-
-			// Attached SpellSpeedStone — caster's OWN active weapon attachment, fusion-
-			// aware via GetAttachedStonePercent (0 for any non-SpellSpeedStone attachment).
-			// TODO(docs/Design/RealTimeDefenseRework.md): this stat's COMBAT effect
-			// (shrinking the defender's reaction window) is unwired — the stone speeds the
-			// cast animation today; defensive teeth land with the defense rework.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
-
-	// Skill-effect-driven SpellSpeedBuff / SpellSpeedDebuff (percent-space).
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		const float SpellBuff = SEM->GetTotalStatModifier(Caster, ESkillEffectType::SpellSpeedBuff);
-		const float SpellDebuff = SEM->GetTotalStatModifier(Caster, ESkillEffectType::SpellSpeedDebuff);
-		PlayRate *= (1.0f + (SpellBuff - SpellDebuff) / 100.0f);
-		PlayRate = FMath::Max(0.1f, PlayRate);
-	}
+	PlayRate = FMath::Max(0.1f, PlayRate);
 
 	BeginMontageChain(Caster, Spell, PlayRate);
 
@@ -3585,48 +3557,18 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed
-	// contribution — BaseAnimSpeed uniform across all three paths (D7), default 1.0.
-	// CalculateAnimationSpeed derives from the ActionSpeed sub-stat — same scaling channel
-	// as character movement. At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
+	// Play rate = BaseAnimSpeed × GetEffectiveActionSpeed() (Pattern P, cluster 5g — stat ×1.5
+	// clamped ALONE, gear/stone/transient multiply toward the ×2.0 ceiling) × per-action ActionMods.
+	// BaseAnimSpeed (montage authoring) and ActionMods stay at the call site.
+	// TODO(docs/Design/RealTimeDefenseRework.md): ActionSpeed's COMBAT effect (shrinking the
+	// defender's reaction window) is still unwired — this speeds the ability animation only.
 	float PlayRate = Ability->BaseAnimSpeed;
-	UCharacterData *CharData = GetCharacterData(User);
-	if (CharData)
+	if (UCharacterDataComponent *UserComp = GetCharacterDataComponent(User))
 	{
-		PlayRate *= CharData->CalculateAnimationSpeed();
+		PlayRate *= UserComp->GetEffectiveActionSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
-
-	// Equipment stat bonus — additive to play rate using the same per-point
-	// shape as the asset-side CalculateAnimationSpeed formula.
-	if (User)
-	{
-		if (ULoadoutComponent *Loadout = User->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(User);
-			PlayRate += Bonus.BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
-
-			// Attached ActionSpeedStone — user's OWN active weapon attachment, fusion-aware.
-			// TODO(docs/Design/RealTimeDefenseRework.md): combat effect (shrinking the
-			// defender's reaction window) is unwired — speeds the ability animation now only.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
-
-	// Skill-effect-driven ActionSpeedBuff / ActionSpeedDebuff (percent-space). Added as the
-	// ActionSpeedStone consumable's read-site — mirrors PlaySpellAnimation's SpellSpeed block.
-	// (Was absent: the ability/attack montage path had no skill-effect speed read.)
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		const float ActionBuff = SEM->GetTotalStatModifier(User, ESkillEffectType::ActionSpeedBuff);
-		const float ActionDebuff = SEM->GetTotalStatModifier(User, ESkillEffectType::ActionSpeedDebuff);
-		PlayRate *= (1.0f + (ActionBuff - ActionDebuff) / 100.0f);
-		PlayRate = FMath::Max(0.1f, PlayRate);
-	}
+	PlayRate = FMath::Max(0.1f, PlayRate);
 
 	BeginMontageChain(User, Ability, PlayRate);
 
@@ -3651,45 +3593,18 @@ void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *A
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	// Preserves designer-tuned per-attack pacing; layers stat scaling on top.
+	// Play rate = BaseAnimSpeed × GetEffectiveActionSpeed() (Pattern P, cluster 5g — stat ×1.5
+	// clamped ALONE, gear/stone/transient multiply toward the ×2.0 ceiling) × per-action ActionMods.
+	// Preserves designer-tuned per-attack pacing (BaseAnimSpeed) and ActionMods at the call site.
+	// TODO(docs/Design/RealTimeDefenseRework.md): ActionSpeed's COMBAT effect (shrinking the
+	// defender's reaction window) is still unwired — this speeds the attack animation only.
 	float PlayRate = Attack->BaseAnimSpeed;
-	UCharacterData *CharData = GetCharacterData(Attacker);
-	if (CharData)
+	if (UCharacterDataComponent *AttackerComp = GetCharacterDataComponent(Attacker))
 	{
-		PlayRate *= CharData->CalculateAnimationSpeed();
+		PlayRate *= AttackerComp->GetEffectiveActionSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
-
-	// Equipment stat bonus — additive to play rate using the same per-point
-	// shape as the asset-side CalculateAnimationSpeed formula.
-	if (Attacker)
-	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
-			PlayRate += Bonus.BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
-
-			// Attached ActionSpeedStone — attacker's OWN active weapon attachment, fusion-aware.
-			// TODO(docs/Design/RealTimeDefenseRework.md): combat effect (shrinking the
-			// defender's reaction window) is unwired — speeds the attack animation now only.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
-
-	// Skill-effect-driven ActionSpeedBuff / ActionSpeedDebuff (percent-space). The
-	// ActionSpeedStone consumable's read-site — mirrors PlaySpellAnimation's SpellSpeed block.
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		const float ActionBuff = SEM->GetTotalStatModifier(Attacker, ESkillEffectType::ActionSpeedBuff);
-		const float ActionDebuff = SEM->GetTotalStatModifier(Attacker, ESkillEffectType::ActionSpeedDebuff);
-		PlayRate *= (1.0f + (ActionBuff - ActionDebuff) / 100.0f);
-		PlayRate = FMath::Max(0.1f, PlayRate);
-	}
+	PlayRate = FMath::Max(0.1f, PlayRate);
 
 	BeginMontageChain(Attacker, Attack, PlayRate);
 
