@@ -612,6 +612,14 @@ float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 	{
 		const float BonusCritDamage = Loadout->GetActiveStatBonus(Attacker).BonusCritDamage;
 		Result *= (1.0f + BonusCritDamage * CombatConstants::CRIT_DAMAGE_PER_POINT);
+
+		// Attached CritStone (5f-A) — a % MULTIPLIER on the capped stat, from the attacker's OWN active
+		// weapon attachment. StoneTargetStat(CritStone) == ESubStat::CritDamage, so GetAttachedStonePercent
+		// returns 0 (factor x1, inert) unless a CritStone is attached. Mirrors GetStoneRawDamageFactor.
+		if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
+		{
+			Result *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
+		}
 	}
 
 	// Transient ModifyCritDamage — MULTIPLIES too. Max(0,..) keeps a debuff from inverting the factor.
