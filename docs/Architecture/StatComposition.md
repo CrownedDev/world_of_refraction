@@ -1,7 +1,8 @@
 # Stat Composition & The Crit/Luck Model
 
-**Status:** Clusters 1–5e complete (committed). Cluster 5f (stones) scoped, build pending — noted at the
-end. This is the authoritative reference for how every stat composes and how crit/Luck work.
+**Status:** Clusters 1–5f complete (committed). Only 5f-D editor content (LuckStone `.uasset` authoring)
+remains — noted at the end. This is the authoritative reference for how every stat composes and how
+crit/Luck work.
 
 Cross-reference: [`docs/Design/CombatEconomy_StatRedesign.md`](../Design/CombatEconomy_StatRedesign.md)
 (economy + targets) and [`docs/Mechanics/TierGapDamage.md`](../Mechanics/TierGapDamage.md) (the working
@@ -154,22 +155,34 @@ base value (no investment) → stat cap (maxed stat alone) → gear ceiling (gea
 
 ---
 
-## 8. Cluster 5f — stones (SCOPED, build pending)
+## 8. Cluster 5f — the two-stone system (BUILT, committed)
 
-Two stones decided (the CritStone limbo is resolved):
+Two distinct stones — a **Crit Damage stone** (boosts the renamed CritDamage stat) and a **Luck stone**
+(boosts Luck, which drives crit chance + break-skip). Committed per-chunk:
 
-- **Crit Damage stone (5f-A, 1 file):** the attached `CritStone → CritDamage` mapping exists but is
-  **INERT** — wire the `GetAttachedStonePercent(.., CritDamage)` read into `GetCritDamageMultiplier`
-  (mirror `GetStoneRawDamageFactor`).
-- **Luck stone (5f-B, ~5 files):** append `ECrystalType::LuckStone (=26)` + `IsAugmentStoneType` +
-  `StoneTargetStat (→ ESubStat::Luck)` + `GetStoneBasePercent` + wire a stone term into
-  `GetEquipmentModifiedLuck` (multiplies normalized luck → lifts **all** luck consumers at once).
-- **Consumable split (5f-C):** the CritStone **consumable** buffs crit **CHANCE**, while **attached** is
-  crit **DAMAGE** — append `EItemEffectType::BuffCritDamage` + `BuffLuck`, route each stone to its
-  handler (Opal stays crit-chance). *(Design call: split the CritStone consumable to crit-damage — lean
-  yes.)*
-- **Content (5f-D, editor):** author LuckStone assets + effect-type assignments. **Keep the CritStone
-  enum value NAME** (just wire it; do **not** rename to `CritDamageStone`).
+- **5f-A — attached Crit Damage stone** (`8dfe29c1`, 1 file): `GetCritDamageMultiplier` now reads
+  `GetAttachedStonePercent(.., CritDamage)` (mirrors `GetStoneRawDamageFactor`). The mapping existed but
+  was **inert** (no reader); now an attached CritStone multiplies the capped stat toward ×2.0. Inert when
+  no CritStone attached.
+- **5f-B — Luck stone** (`e85ef7d5`, 5 files): appended `ECrystalType::LuckStone (=26)` →
+  `ESubStat::Luck`, plus `IsAugmentStoneType` + `StoneTargetStat` + `GetStoneBasePercent` (shared curve) +
+  description. `GetEquipmentModifiedLuck` multiplies the **normalized** luck by the attached LuckStone
+  factor (gear-beyond the stat cap) — so one LuckStone lifts **all** luck consumers uniformly (crit
+  chance, break-skip).
+- **5f-C — consumable split + directional crit-damage consumable** (`63329348`, 8 files): split the stone
+  consumables — CritStone → `BuffCritDamage`, LuckStone → `BuffLuck` (routed in
+  `ItemIdentity::GetItemEffectType`); **Opal stays crit-chance** (`CritChanceBuff`). So a stone behaves
+  the same attached or consumed. The crit-damage consumable is **DIRECTIONAL** like the rest: a paired
+  `CritDamageDebuff` effect type was added (mirroring `CritChanceBuff/Debuff`, registered in the enum +
+  `IsDebuff` + apply-logic + display names). `GetCritDamageMultiplier` subtracts the debuff (unfloored on
+  the debuff side) and **clamps the result to `[CRIT_DMG_BASE 1.0, CRIT_DAMAGE_GEAR_CEILING 2.0]`** — a
+  crit-damage debuff drags crits toward ×1.0 (cancels the bonus) but **never below a normal hit**.
+- **Enum-value name kept:** `ECrystalType::CritStone` was **not** renamed to `CritDamageStone` (just
+  wired) — lower-risk (no enum rename / redirect).
+
+**Remaining — 5f-D (editor content, `.uasset`/LFS):** author the LuckStone item asset(s) + tiers + icon,
+and the per-item effect-type assignments / any loot-grant tables. Stones are **not** roll-generated, so
+LuckStones won't be obtainable until authored. No code remains.
 
 ---
 
@@ -178,3 +191,4 @@ Two stones decided (the CritStone limbo is resolved):
 | Date | Change | Branch |
 | --- | --- | --- |
 | 2026-06-16 | Created — captures the stat decoupling (Path A), the universal +50% stat / +100% gear rule, Pattern P composition + the `Calculate*`-twin trap, the full stat table, per-stat live getters, and the crit/Luck split (clusters 1–5e). 5f stones scoped at the end. | feature/realtime-defense |
+| 2026-06-16 | §8 updated to BUILT — two-stone system committed (5f-A `8dfe29c1` attached Crit Damage stone, 5f-B `e85ef7d5` LuckStone, 5f-C `63329348` consumable split + directional crit-damage consumable with the ×1.0 floor). Status line → clusters 1–5f complete; only 5f-D editor content (LuckStone `.uasset`) remains. | feature/realtime-defense |
