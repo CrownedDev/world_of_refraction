@@ -116,7 +116,7 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	bool bWasCritical = false;
 
-	/** Damage blocked by flat defense */
+	/** HP removed by the Defense % reduction (DamageBeforeDefense − post-reduction damage). */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	int32 DamageBlockedByDefense = 0;
 
@@ -139,8 +139,9 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
 	float CritMultiplier = 1.0f;
 
+	/** Defense REDUCTION fraction applied [0, 0.5] (cluster 4: was the flat-int blocked amount). */
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
-	int32 DefenderFlatDefense = 0;
+	float DefenderFlatDefense = 0.0f;
 
 	/** Selected infusion source - determines if weapon stats apply */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
@@ -192,10 +193,11 @@ public:
 	float GetAttackerDamageMultiplier(AActor *Attacker, EActionType ActionType) const;
 
 	/**
-	 * Get defender's flat defense value
+	 * Get defender's defense REDUCTION fraction [0, 0.5] (cluster 4: flat-int -> capped %).
+	 * TODO: rename to GetDefenderDefenseReduction in a Blueprint-aware pass.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	int32 GetDefenderFlatDefense(AActor *Defender) const;
+	float GetDefenderFlatDefense(AActor *Defender) const;
 
 	/**
 	 * Get critical hit chance for attacker

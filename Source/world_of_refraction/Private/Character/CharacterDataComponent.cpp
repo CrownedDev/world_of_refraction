@@ -729,15 +729,18 @@ float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
         1.0f);
 }
 
-int32 UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
+float UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
 {
     if (!CharacterData)
     {
-        return 0;
+        return 0.0f;
     }
+    // Crystal-aware defense REDUCTION fraction [0, 0.5] (cluster 4: flat-int -> capped %).
+    // GetEvolutionModifiedBody feeds the slotted crystal's Body pillar into the curve.
+    // Name kept for now (BP/.uasset refs); TODO rename to GetEvolutionModifiedDefenseReduction.
     const float ModifiedBody = GetEvolutionModifiedBody();
     const int32 TotalPoints = CharacterData->GetTotalDefense();
-    return FMath::RoundToInt(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
+    return FMath::Min(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT, CombatConstants::UNIVERSAL_STAT_CAP);
 }
 
 float UCharacterDataComponent::GetEquipmentSpellDamageTerm() const

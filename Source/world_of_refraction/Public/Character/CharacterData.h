@@ -483,12 +483,17 @@ public:
 	// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
 	// (MaxHealth lives in HELPER FUNCTIONS below; Reflex's window bonus here.)
 
+	// Fraction of incoming damage removed by Defense, in [0, 0.5]. Cluster 4 converted Defense
+	// from flat-int subtraction to a capped % (DEFENSE_PER_POINT re-derived in cluster 1 to hit
+	// UNIVERSAL_STAT_CAP at max). Gear adds OUTSIDE this clamp (deferred).
+	// TODO: rename to CalculateDefenseReduction in a Blueprint-aware pass (UFUNCTION — .uasset
+	// graphs may reference it by name; a rename needs a FunctionRedirect).
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	int32 CalculateFlatDefense() const
+	float CalculateFlatDefense() const
 	{
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalDefense();
-		return FMath::RoundToInt(EffectiveBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
+		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT, CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")

@@ -229,10 +229,12 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	}
 	if (!bSkipDefense && Defender)
 	{
+		// Defense is now a capped % reduction (cluster 4): dmg ×= (1 − reduction), reduction in
+		// [0, 0.5]. DamageBlockedByDefense records the HP actually removed by the reduction.
 		Result.DefenderFlatDefense = GetDefenderFlatDefense(Defender);
-		int32 Blocked = FMath::Min(Result.DefenderFlatDefense, FMath::RoundToInt(RunningDamage));
-		Result.DamageBlockedByDefense = Blocked;
-		RunningDamage -= Blocked;
+		const int32 PreDefenseDamage = FMath::RoundToInt(RunningDamage);
+		RunningDamage *= (1.0f - Result.DefenderFlatDefense);
+		Result.DamageBlockedByDefense = PreDefenseDamage - FMath::RoundToInt(RunningDamage);
 	}
 
 	// Step 6.5: Grid position defense modifier (defender)
@@ -338,66 +340,58 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionTy
 	}
 }
 
-int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
+float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 {
 	if (!Defender)
 	{
-		return 0;
+		return 0.0f;
 	}
 
 	UCharacterDataComponent *DefenderComp = Defender->FindComponentByClass<UCharacterDataComponent>();
 	if (!DefenderComp || !DefenderComp->CharacterData)
 	{
-		return 0;
+		return 0.0f;
 	}
 
-	// Crystal-aware flat defense — uses GetEvolutionModifiedBody so the slotted
-	// primary evolution crystal's Body pillar modifier feeds the curve.
-	int32 BaseDefense = DefenderComp->GetEvolutionModifiedFlatDefense();
+	// Crystal-aware defense REDUCTION fraction [0, 0.5] — GetEvolutionModifiedBody feeds the
+	// slotted primary evolution crystal's Body pillar into the curve (cluster 4: flat-int -> %).
+	float Reduction = DefenderComp->GetEvolutionModifiedFlatDefense();
 
-	// Equipment stat bonus — flat additive to defense. Direct read from the
-	// defender's active loadout (the bonus is an int rolled per-instance).
-	if (Defender)
+	if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
 	{
-		if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Defender);
-			BaseDefense += Bonus.BonusDefense;
+		// TODO (gear, deferred): Bonus.BonusDefense is a FLAT-int gear field with no %
+		// meaning in the reduction model — intentionally NOT wired here. Revisit when gear
+		// defense is redesigned as a fraction (it would add OUTSIDE the 0.5 stat cap).
 
-			// Attached DefenseStone — a PERMANENT, equipment-derived defense
-			// multiplier from the defender's OWN active weapon attachment
-			// (live-resolved, not cached). Distinct from the timed DefenseBuff/
-			// DefenseDebuff layer below. Inert (×1) unless a DefenseStone is
-			// attached — GetAttachedStonePercent returns 0 for any other attachment.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				const float StonePct =
-					CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
-				BaseDefense = FMath::RoundToInt(BaseDefense * (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR));
-			}
+		// Attached DefenseStone — a PERMANENT, equipment-derived % multiplier on the reduction
+		// fraction, from the defender's OWN active weapon attachment (live-resolved, not cached).
+		// Inert (×1) unless a DefenseStone is attached.
+		if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+		{
+			const FRuntimeAttachedItem &Attachment = *AttPtr;
+			const float StonePct =
+				CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
+			Reduction *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
 		}
 	}
 
-	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin). Kept
-	// separate from the equipment-bonus path above — these are percentage
-	// modifiers applied multiplicatively, while equipment is flat additive.
+	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — percentage modifiers
+	// composed multiplicatively onto the reduction fraction.
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
 
-		// Buffs/debuffs are percentage modifiers. [-100%,+100%] normalization — the inner
-		// Max(0,…) floors a ≥100% debuff; the outer [0,2] clamp caps the transient MODIFIER
-		// (the multiplier only — the flat pillar/equip/stone defense additions above are NOT
-		// a multiplier and stay uncapped). Byte-identical below 2.0 (a <+100% buff is inert).
+		// [-100%,+100%] normalization — the inner Max(0,…) floors a ≥100% debuff; the outer
+		// [0,2] clamp caps the transient MODIFIER. The final reduction is clamped to
+		// UNIVERSAL_STAT_CAP (0.5) below — gear headroom above the stat cap is deferred.
 		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
 		Modifier = FMath::Clamp(FMath::Max(0.0f, Modifier), CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-		BaseDefense = FMath::RoundToInt(BaseDefense * Modifier);
+		Reduction *= Modifier;
 	}
 
-	return BaseDefense;
+	return FMath::Clamp(Reduction, 0.0f, CombatConstants::UNIVERSAL_STAT_CAP);
 }
 
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
@@ -550,7 +544,7 @@ void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult &Re
 	UE_LOG(LogTemp, Display, TEXT("Attacker Multiplier: %.2fx"), Result.AttackerDamageMultiplier);
 	UE_LOG(LogTemp, Display, TEXT("Element Multiplier: %.2fx"), Result.ElementMultiplier);
 	UE_LOG(LogTemp, Display, TEXT("Critical: %s (%.2fx)"), Result.bWasCritical ? TEXT("YES") : TEXT("NO"), Result.CritMultiplier);
-	UE_LOG(LogTemp, Display, TEXT("Flat Defense: %d (blocked %d)"), Result.DefenderFlatDefense, Result.DamageBlockedByDefense);
+	UE_LOG(LogTemp, Display, TEXT("Defense Reduction: %.2f (blocked %d)"), Result.DefenderFlatDefense, Result.DamageBlockedByDefense);
 	UE_LOG(LogTemp, Display, TEXT("FINAL DAMAGE: %d"), Result.FinalDamage);
 	UE_LOG(LogTemp, Display, TEXT("Status Buildup: %d"), Result.StatusBuildup);
 	UE_LOG(LogTemp, Display, TEXT("=========================="));

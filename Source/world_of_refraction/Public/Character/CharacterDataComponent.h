@@ -278,8 +278,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedCritChance() const;
 
+    // Crystal-aware defense REDUCTION fraction [0, 0.5] (cluster 4: flat-int -> capped %).
+    // TODO: rename to GetEvolutionModifiedDefenseReduction in a Blueprint-aware pass (has an
+    // existing FunctionRedirect — a rename must re-point it).
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    int32 GetEvolutionModifiedFlatDefense() const;
+    float GetEvolutionModifiedFlatDefense() const;
 
     /** Fully-layered SpellDamage scalar: innate (GetEvolutionModifiedSpellDamage)
      *  + equipment BonusSpellDamage, then ×stone ×transient. This is the SAME value
