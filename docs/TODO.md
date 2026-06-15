@@ -46,6 +46,10 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **POSSIBLE** — Enemy all-target Emerald scan: AI evaluates Emerald only on `BestTarget`. If PIE shows missed one-tick-lethal kills on non-selected targets, add an all-enemy scan.
 - **POSSIBLE** — Loosen the one-tick-lethal Emerald gate: currently requires next-tick ≥ HP (guaranteed kill). If too conservative in PIE, consider an accumulated-over-exposure-window check.
 
+## Banked — future systems
+
+- **BLOCKED** — Party/Match Setup system (spawn party → assign teams → assign grid → hand to orchestrator) — planned, core to solo/co-op/PvP. See `docs/Design/PartyMatchSetup.md`. Build after reactive-defense (Stage 3+).
+
 ## Refactor — banked
 
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).

@@ -103,8 +103,11 @@ player** input defense for all of them? Options:
   simultaneous timing problems for one human).
 - **(c) Pick / cycle focus** — the player selects which character the input applies to.
 
-**Crown's lean: (a)** — one input per AOE beat. **Unresolved — decide when Stage 3 (per-hit defense
-state) and Stage 5 (per-hit UI) are built**, since it shapes both the input model and the prompt UI.
+**RESOLVED (2026-06-15) — see §13.** Folded into the full multi-target model: solo = sequential
+windows (one active defender at a time, pointer advances on resolve, all input to the one player); MP =
+simultaneous windows (one per player, routed to the owning player). Crown's "one input per AOE beat"
+lean survives as the solo per-impact case. Built at Stage 6 (multi-target); Stage 3 ships the
+single-target foundation.
 
 ---
 
@@ -567,8 +570,61 @@ projectile source-threading, notify authoring) is net-new.
 
 ---
 
+## 13. Multi-target defense — solo vs multiplayer (window cadence differs, mechanism identical)
+
+An attack declares its ORDERED target sequence ([A, B, C] — who it hits, in order). How the defense
+windows open depends on the MODE, because the difference is who controls the targets:
+
+### Solo — sequential windows (one active defender at a time)
+The player controls the WHOLE team — one person can't defend multiple characters simultaneously. So
+windows open SEQUENTIALLY in the declared order:
+- A's window opens → player defends A (or not) → A's impact RESOLVES (hit / miss / defended) →
+  ADVANCE → B's window opens → defend B → resolves → advance → C's window opens → ...
+- One active defender at a time. The pointer advances through the target sequence when each impact
+  resolves. The player's defense input always applies to the CURRENT active target.
+- Sequencing exists to give the lone player a fair reaction chance at each character (they can't do
+  them all at once).
+
+### Multiplayer — simultaneous windows (one per player)
+Each character is controlled by a DIFFERENT player. So all windows open AT ONCE:
+- A, B, C windows all open simultaneously → each routes to the player controlling that character →
+  each player defends their OWN character in parallel.
+- No sequencing — multiple humans each handle their own character at the same time.
+
+### Same mechanism, different cadence
+The per-impact windows, lead-in timing, perfect-timing, base outcomes, conditions — ALL IDENTICAL
+between modes. Only two things differ:
+- WINDOW CADENCE: solo = sequential (advance on resolve); MP = simultaneous (all open at once).
+- INPUT ROUTING: solo = all to the one player (whoever's the active defender); MP = each window to
+  its owning player.
+
+### Implementation implications
+- The attack needs a DECLARED ORDERED target sequence (extend the existing target list with order).
+- A pointer/index tracks the active defender (solo); MP opens all and maps each to its player.
+- Advance-on-resolve: the pointer moves when an impact resolves (hit/miss/defended) — solo only.
+- The defender lookup evolves: solo = "the current-index target"; MP = "the target this player
+  controls." The Stage 3 single-target lookup (GetActiveDefenderForLocalPlayer) is the seed.
+
+## Sequencing
+- Stage 3 (now): single-target per-impact (one character, multiple hits = combo). One defender, no
+  switching — the foundation.
+- Stage 6 (later): multi-target — solo sequential (declared sequence + advance-on-resolve) and MP
+  simultaneous (all windows, per-player routing), plus projectile-arrival timing. Built on the
+  single-target foundation.
+
+---
+
 ## Changelog
 
+- **2026-06-15** — **Multi-target defense model RESOLVED (§13): solo sequential vs MP simultaneous.**
+  The per-defender AOE question from §3a-Q is now resolved into a full model. Solo = one player controls
+  the whole team → windows open SEQUENTIALLY in a declared ordered target sequence, a pointer advances
+  on each impact's resolve, input always applies to the current active target. MP = each character is a
+  different player → all windows open SIMULTANEOUSLY, each routed to its owning player. Mechanism is
+  identical between modes; only **window cadence** (sequential vs simultaneous) and **input routing**
+  (one player vs per-player) differ. Sequencing confirmed: Stage 3 = single-target foundation;
+  multi-target (declared sequence + advance-on-resolve, MP per-player routing, projectile arrival
+  timing) lands at Stage 6. Marked §3a-Q resolved with a pointer to §13.
 - **2026-06-14** — **Broken Darkness per-impact absorption recorded (§8c) — after Stage 3.** BD
   absorbs **ENERGY (attack ENERGY COST × rate), not damage** — stays on `CalculateAbsorptionEnergy`
   (`ParryAbsorptionRate` 1.0 / `BlockAbsorptionRate` 0.5). Change: **split the energy cost across the
