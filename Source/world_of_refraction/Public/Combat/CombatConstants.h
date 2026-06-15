@@ -159,7 +159,18 @@ namespace CombatConstants
     // Crit Chance - Critical hit probability (all actions)
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
     constexpr float CRIT_CHANCE_PER_POINT = (UNIVERSAL_STAT_CAP - CRIT_CHANCE_BASE) / STAT_DERIVE_DENOM; // 0.05 base -> 0.50 crit at max
-    constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit
+    constexpr float CRIT_DAMAGE_MULTIPLIER = 1.5f;   // 1.5x damage on crit (legacy duplicate of DamageConstants::CRIT_MULTIPLIER — unused; live base is CRIT_MULTIPLIER)
+    // Crit DAMAGE stat scaling (cluster 5e-B-fix, Crown-locked). Un-invested crit = CRIT_DMG_BASE
+    // (x1.0 = NORMAL damage — a crit does nothing extra without crit-damage investment). The
+    // crit-damage stat ramps it to x1.5 at max (base 1.0 + 0.5), gear pushes past toward x2.0.
+    constexpr float CRIT_DMG_BASE = 1.0f;            // un-invested crit = normal damage
+    constexpr float CRIT_DAMAGE_STAT_CAP = 1.5f;     // crit-damage stat-ALONE ceiling (1.0 base + 0.5 stat)
+    // Same per-point rate as RawDamage's 1.0->1.5 ramp = (CRIT_DAMAGE_STAT_CAP - CRIT_DMG_BASE)/DENOM,
+    // which equals STAT_MULT_PER_POINT exactly — so the stat lands on x1.5 at max investment.
+    constexpr float CRIT_DAMAGE_PER_POINT = STAT_MULT_PER_POINT; // (1.5-1.0)/STAT_DERIVE_DENOM
+    // Pattern-P gear ceiling: stat caps at x1.5; gear/transient (ModifyCritDamage now, BonusCritDamage
+    // post-5e-C3) MULTIPLY the capped stat past 1.5 toward this.
+    constexpr float CRIT_DAMAGE_GEAR_CEILING = 2.0f; // max crit damage WITH gear (>= CRIT_DAMAGE_STAT_CAP)
 
     // Spell Speed - Projectile travel speed (affects defender reaction time)
     constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier

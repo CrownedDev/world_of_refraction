@@ -225,7 +225,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 		if (Result.bWasCritical)
 		{
-			const float CritMult = DamageConstants::CRIT_MULTIPLIER * GetCritDamageMultiplier(Attacker);
+			// GetCritDamageMultiplier now returns the FULL multiplier (x1.5 base + stat ramp, then
+			// gear/transient) — 5e-B folded the base in, so it is NOT pre-multiplied here any more.
+			const float CritMult = GetCritDamageMultiplier(Attacker);
 			Result.CritMultiplier = CritMult;
 			RunningDamage *= CritMult;
 		}
@@ -603,13 +605,47 @@ UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Acto
 
 float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 {
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager || !Attacker)
+	// Returns the FULL crit-damage multiplier. Crown-locked (5e-B-fix): un-invested crit = CRIT_DMG_BASE
+	// (x1.0 = normal damage); the crit-damage stat ramps it to x1.5 (stat-ALONE cap); gear/transient
+	// MULTIPLY past toward x2.0 (Pattern P / cluster 5). The fixed x1.5 CRIT_MULTIPLIER base is GONE
+	// from the crit path — a crit now does NOTHING extra without crit-damage investment.
+	if (!Attacker)
 	{
-		return 1.0f;
+		return CombatConstants::CRIT_DMG_BASE; // x1.0 (normal damage) when no attacker
 	}
-	const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
-	return 1.0f + FMath::Max(0.0f, Modify / CombatConstants::STAT_PERCENT_DIVISOR);
+
+	// Stat-derived crit damage: CRIT_DMG_BASE (x1.0) + the crit-damage stat ramp (Mind x crit points x
+	// CRIT_DAMAGE_PER_POINT, up to +0.5), capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5). NOTE (5e-B-fix):
+	// this reads the not-yet-renamed Mind CritChance substat (GetTotalCritChance) AS the crit-damage
+	// stat. 5e-C3 renames it to GetTotalCritDamage (same underlying field, behaviour carries over) and
+	// 5e-C2 flips crit CHANCE onto Luck. Until then crit chance still uses this same substat — this step
+	// only changes DAMAGE scaling, it does not touch chance.
+	float StatCritDmg = CombatConstants::CRIT_DMG_BASE;
+	if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+	{
+		if (AttackerComp->CharacterData)
+		{
+			const float ModifiedMind = AttackerComp->GetEvolutionModifiedMind();
+			const int32 CritDmgPoints = AttackerComp->CharacterData->GetTotalCritChance();
+			StatCritDmg = FMath::Min(
+				CombatConstants::CRIT_DMG_BASE + (ModifiedMind * CritDmgPoints * CombatConstants::CRIT_DAMAGE_PER_POINT),
+				CombatConstants::CRIT_DAMAGE_STAT_CAP);
+		}
+	}
+
+	// Transient ModifyCritDamage MULTIPLIES the capped stat past x1.5 toward CRIT_DAMAGE_GEAR_CEILING
+	// (cluster-5 shape). Max(0,..) keeps a debuff from inverting the factor. x1 (inert) when no SEM /
+	// no effect, so a zero-crit-stat character with no transient is exactly CRIT_DMG_BASE (x1.0 = normal).
+	// NOTE: the dedicated BonusCritDamage GEAR multiply is DEFERRED to 5e-C3 — the field is still named
+	// BonusCritChance and is still consumed by GetCriticalChance (crit CHANCE) until 5e-C2 frees it.
+	// Wiring it here now would double-use one field for both chance AND damage during the interim.
+	float Result = StatCritDmg;
+	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
+	{
+		const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
+		Result *= (1.0f + FMath::Max(0.0f, Modify / CombatConstants::STAT_PERCENT_DIVISOR));
+	}
+	return FMath::Min(Result, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
 }
 
 float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const
