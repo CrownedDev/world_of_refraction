@@ -302,7 +302,7 @@ AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
 	return nullptr;
 }
 
-FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double ImpactTime)
+FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType)
 {
 	FDefenseInputMatch Match;
 
@@ -319,9 +319,10 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 
 	// Latest (most recent press) unconsumed entry with delta in [0, EffectiveWindow].
 	// "Latest" = largest InputTime: a press right before the impact beats an older buffered
-	// press, which stays unconsumed for an earlier/later impact. EffectiveWindow = tuned base
-	// widened by the defender's Reflex (hoisted once — same for every buffer entry).
-	const float EffectiveWindow = GetEffectiveDefenseInputWindow(Defender);
+	// press, which stays unconsumed for an earlier/later impact. EffectiveWindow = the
+	// attacker→defender duel (base + defender Reflex − attacker speed, floored): attacker read
+	// from the live state, AttackType selects the attacker's speed stat. Hoisted once.
+	const float EffectiveWindow = GetEffectiveDefenseInputWindow(Defender, StatePtr->Attacker.Get(), AttackType);
 	int32 BestIndex = INDEX_NONE;
 	double BestInputTime = TNumericLimits<double>::Lowest();
 	for (int32 i = 0; i < StatePtr->InputBuffer.Num(); ++i)
@@ -430,19 +431,32 @@ float UDefenseSystem::GetDodgeThreshold(AActor *Defender) const
 	return Threshold;
 }
 
-float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender) const
+float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const
 {
-	// Base lead-in window (tuned on the subsystem) widened by the defender's Reflex.
-	// Mirrors GetDodgeThreshold: base here, per-character bonus through CharacterData.
-	// Null-safe — no component / no asset falls back to the bare base window.
-	// NOTE: reads CalculateReflexWindowBonus, which is asset-intrinsic (raw
-	// GetEffectiveBody). Gear-widening of the window is deferred (RealTimeDefenseRework §5).
-	UCharacterDataComponent *Comp = GetCharacterDataComponent(Defender);
-	if (Comp && Comp->CharacterData)
+	// Attacker→defender duel: base lead-in window (tuned on the subsystem) WIDENED by the
+	// defender's Reflex and NARROWED by the attacker's speed, floored at MINIMUM_DEFENSE_WINDOW.
+	//   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
+	// Mirrors GetDodgeThreshold: base here, per-character terms through CharacterData. Both terms
+	// are asset-intrinsic (raw GetEffectiveBody/Mind) — gear-widening deferred (RealTimeDefenseRework §5).
+	// Null-safe on BOTH sides: a missing component / CharacterData simply drops that side's term.
+	float Window = DefenseInputWindow;
+
+	// Defender side — Reflex widens.
+	UCharacterDataComponent *DefComp = GetCharacterDataComponent(Defender);
+	if (DefComp && DefComp->CharacterData)
 	{
-		return DefenseInputWindow + Comp->CharacterData->CalculateReflexWindowBonus();
+		Window += DefComp->CharacterData->CalculateReflexWindowBonus();
 	}
-	return DefenseInputWindow;
+
+	// Attacker side — speed narrows (type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind).
+	// NOTE: the spell branch is DORMANT until Stage 6 — per-impact resolution is melee-only today.
+	UCharacterDataComponent *AtkComp = GetCharacterDataComponent(Attacker);
+	if (AtkComp && AtkComp->CharacterData)
+	{
+		Window -= AtkComp->CharacterData->CalculateSpeedWindowPenalty(AttackType);
+	}
+
+	return FMath::Max(CombatConstants::MINIMUM_DEFENSE_WINDOW, Window);
 }
 
 // ========================================

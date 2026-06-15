@@ -167,7 +167,16 @@ namespace CombatConstants
 
     // Reflex - Widens the defense input window (additive seconds layered ON TOP of
     // UDefenseSystem::DefenseInputWindow; base stays tunable on the subsystem)
-    constexpr float REFLEX_WINDOW_PER_POINT = 0.01f; // seconds of window per Reflex point (TUNABLE)
+    constexpr float REFLEX_WINDOW_PER_POINT = 0.000027f; // seconds of window per Reflex point (snowball-scale placeholder — caps the degenerate max-stat build at the 50% design target against EffectiveBody ~99; MUST be re-tuned in the stat-decoupling rework where EffectiveBody drops to ~1.0-1.5. See StatDecouplingRework.md)
+
+    // Defense-window DUEL — the attacker's speed NARROWS the defender's input window the same way
+    // Reflex WIDENS it: window = max(MINIMUM, base + defenderReflexBonus − attackerSpeedPenalty).
+    // WINDOW_PER_SPEED_POINT is seeded EQUAL to REFLEX_WINDOW_PER_POINT so equal points + equal world
+    // level cancel to the base window; kept a SEPARATE constant so the offense/defense ratio can be
+    // tuned independently in playtest. MINIMUM_DEFENSE_WINDOW floors it so a fast attacker stays
+    // barely defendable, never undefendable.
+    constexpr float WINDOW_PER_SPEED_POINT = 0.000027f;  // seconds of window reduction per speed point (= REFLEX_WINDOW_PER_POINT for symmetric cancel + shared 50% cap; snowball-coupled, re-tune with it in the decoupling rework)
+    constexpr float MINIMUM_DEFENSE_WINDOW = 0.1f;   // hard floor on the effective input window (seconds)
 
     // ==================== SPIRIT STATS (5) ====================
     // MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier

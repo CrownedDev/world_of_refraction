@@ -1743,7 +1743,9 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 
 	// Match-and-consume this impact against the timestamped input buffer (Stage 3). No
 	// in-window press → bMatched=false → resolves as undefended (full slice, no reduction).
-	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime);
+	// Ctx->ActionType selects the attacker's speed stat for the window duel (physical →
+	// ActionSpeed, spell → SpellSpeed); attacker is read from the live state inside.
+	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime, Ctx->ActionType);
 
 	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
 		BaseSlice,

@@ -9,6 +9,7 @@
 #include "Character/StatConstants.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
+#include "Combat/Actions/EActionType.h"
 #include <Combat/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -514,6 +515,25 @@ public:
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalReflex();
 		return EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT;
+	}
+
+	/** ATTACKER side of the defense-window duel: how many SECONDS this character's speed
+	 *  shaves off a defender's input window. Exact mirror of CalculateReflexWindowBonus's
+	 *  shape (EffectivePillar × RAW speed points × weight) so equal points + equal world
+	 *  level cancel to the base window. Reads the RAW speed substat point getters — NOT
+	 *  CalculateActionSpeed/CalculateSpellSpeed (those carry bases + a ×400 movement scale
+	 *  that would obliterate the window). Type-aware: physical (Attack/Ability) narrows via
+	 *  ActionSpeed/Body; Spell narrows via SpellSpeed/Mind (cross-pillar by design — clean
+	 *  cancel for physical, well-defined for spell). NOTE: the spell branch is DORMANT until
+	 *  Stage 6 — per-impact resolution is melee-only today, so only the physical branch is
+	 *  exercised. Consumed by UDefenseSystem::GetEffectiveDefenseInputWindow. */
+	UFUNCTION(BlueprintPure, Category = "Combat|Body")
+	float CalculateSpeedWindowPenalty(EActionType AttackType) const
+	{
+		const bool bSpell = (AttackType == EActionType::Spell);
+		const float EffectivePillar = bSpell ? GetEffectiveMind() : GetEffectiveBody();
+		const int32 SpeedPts = bSpell ? GetTotalSpellSpeed() : GetTotalActionSpeed();
+		return EffectivePillar * SpeedPts * CombatConstants::WINDOW_PER_SPEED_POINT;
 	}
 
 	// ==================== SPIRIT CALCULATIONS ====================

@@ -8,6 +8,7 @@
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
 #include "Character/CharacterData.h"
+#include "Combat/Actions/EActionType.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Character.h"
 #include "DefenseSystem.generated.h"
@@ -306,14 +307,16 @@ public:
 	 * Match-and-consume one impact against the input buffer (Stage 3 mutator).
 	 *
 	 * Finds the LATEST unconsumed buffer entry whose delta = ImpactTime - InputTime
-	 * falls in [0, DefenseInputWindow], marks it consumed, and returns the match
+	 * falls in [0, EffectiveWindow], marks it consumed, and returns the match
 	 * (bPerfect when delta <= PerfectThreshold). No in-window entry → {bMatched=false}.
+	 * EffectiveWindow is the attacker→defender duel (GetEffectiveDefenseInputWindow): the
+	 * attacker is read from the live state, AttackType selects the attacker's speed stat.
 	 *
 	 * Mutates the LIVE ActiveDefenseStates entry (GetDefenseState returns a copy and
 	 * cannot consume), so callers at the impact frame get an authoritative per-impact result.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
-	FDefenseInputMatch MatchAndConsumeInput(AActor *Defender, double ImpactTime);
+	FDefenseInputMatch MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType);
 
 	/**
 	 * Apply a parry's reflected damage to the attacker and broadcast OnParryReflect.
@@ -352,14 +355,17 @@ public:
 	float GetDodgeThreshold(AActor *Defender) const;
 
 	/**
-	 * Effective defense input window for a defender: the tuned base DefenseInputWindow
-	 * widened by the defender's Reflex Body substat (CalculateReflexWindowBonus).
-	 * Mirrors GetDodgeThreshold — base value on the subsystem, per-character bonus read
-	 * through the defender's CharacterData. Null-safe: no component / no CharacterData
-	 * falls back to the bare base window.
+	 * Effective defense input window for this attacker→defender duel: the tuned base
+	 * DefenseInputWindow WIDENED by the defender's Reflex (CalculateReflexWindowBonus) and
+	 * NARROWED by the attacker's speed (CalculateSpeedWindowPenalty, type-aware: physical →
+	 * ActionSpeed/Body, spell → SpellSpeed/Mind), floored at MINIMUM_DEFENSE_WINDOW.
+	 *   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
+	 * Mirrors GetDodgeThreshold — base on the subsystem, per-character terms through CharacterData.
+	 * Null-safe on BOTH sides: a missing attacker / component / CharacterData simply drops that
+	 * side's term (no crash). Equal Reflex/ActionSpeed points + equal Body world level cancel to base.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
-	float GetEffectiveDefenseInputWindow(AActor *Defender) const;
+	float GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const;
 
 	// ========================================
 	// DAMAGE CALCULATION

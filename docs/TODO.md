@@ -49,6 +49,7 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 ## Banked — future systems
 
 - **BLOCKED** — Party/Match Setup system (spawn party → assign teams → assign grid → hand to orchestrator) — planned, core to solo/co-op/PvP. See `docs/Design/PartyMatchSetup.md`. Build after reactive-defense (Stage 3+).
+- **BLOCKED** — Stat decoupling + world-level rework (kill snowball, world level +7%/level, re-tune 16 constants + playtest) — own balance session. See `docs/Design/StatDecouplingRework.md`.
 
 ## Refactor — banked
 
