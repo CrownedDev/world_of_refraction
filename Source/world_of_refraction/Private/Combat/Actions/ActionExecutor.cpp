@@ -918,6 +918,54 @@ bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
 	return false;
 }
 
+// ==================== HYBRID PER-HIT FLAGS (B1) ====================
+
+// Resolve authored per-hit flags into a full per-impact table (length HitCount), parallel to
+// ResolveImpactDifficulty: each authored FDamageSplitEntry places its flags at HitNumber-1; unauthored
+// hits keep all-false defaults. Sparse → full so ApplyOneImpact reads by ImpactIndex.
+static TArray<FResolvedHitFlags> ResolveImpactFlags(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
+{
+	TArray<FResolvedHitFlags> Table;
+	Table.SetNum(FMath::Max(1, HitCount)); // all-false defaults
+	for (const FDamageSplitEntry &E : Split)
+	{
+		const int32 Idx = E.HitNumber - 1;
+		if (Table.IsValidIndex(Idx))
+		{
+			Table[Idx].bIgnoreDamage = E.bIgnoreDamage;
+			Table[Idx].bIgnoreStatus = E.bIgnoreStatus;
+			Table[Idx].bInterruptable = E.bInterruptable;
+		}
+	}
+	return Table;
+}
+
+// Spell analog — per cast-entry (index i = CastArray[i]'s flags), parallel to ResolveCastDifficulty.
+static TArray<FResolvedHitFlags> ResolveCastFlags(const TArray<FSkillCastEntry> &CastArray)
+{
+	TArray<FResolvedHitFlags> Table;
+	Table.Reserve(CastArray.Num());
+	for (const FSkillCastEntry &E : CastArray)
+	{
+		FResolvedHitFlags F;
+		F.bIgnoreDamage = E.bIgnoreDamage;
+		F.bIgnoreStatus = E.bIgnoreStatus;
+		F.bInterruptable = E.bInterruptable;
+		Table.Add(F);
+	}
+	return Table;
+}
+
+// Stash the current impact's flags onto the per-target context (read index-agnostically by ApplyOneImpact):
+// melee passes ResolvedHitFlags + ImpactIndex; spell passes ResolvedCastFlags + CastEntryIndex.
+static void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHitFlags> &Table, int32 Index)
+{
+	const FResolvedHitFlags F = Table.IsValidIndex(Index) ? Table[Index] : FResolvedHitFlags();
+	Ctx.bIgnoreDamage = F.bIgnoreDamage;
+	Ctx.bIgnoreStatus = F.bIgnoreStatus;
+	Ctx.bInterruptable = F.bInterruptable;
+}
+
 void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
@@ -939,6 +987,10 @@ void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 Fi
 		HitCount,
 		Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>(),
 		Skill ? Skill->DefaultDifficulty : FDefenseDifficultyTriple());
+
+	// Per-hit hybrid flags (B1), HitNumber-matched in lockstep with ResolvedDifficulty above.
+	CurrentExecutionContext->ResolvedHitFlags = ResolveImpactFlags(
+		HitCount, Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>());
 }
 
 void UActionExecutor::LogActionDispatch(
@@ -1124,6 +1176,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// inert until cluster 4 reads it at projectile arrival (cluster 3 stamps the index on the projectile).
 	CurrentExecutionContext->ResolvedCastDifficulty =
 		ResolveCastDifficulty(Spell->CastArray, Spell->DefaultDifficulty);
+
+	// Per-cast-entry hybrid flags (B1), parallel to ResolvedCastDifficulty (indexed by CastEntryIndex).
+	CurrentExecutionContext->ResolvedCastFlags = ResolveCastFlags(Spell->CastArray);
 
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -1962,12 +2017,12 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.Target = Target;
 	Input.ActionType = Context.ActionType;
 	Input.bOverrideStatScaling = Context.bOverrideStatScaling;
-	Input.BaseDamage = ImpactDamage;
+	Input.BaseDamage = Context.bIgnoreDamage ? 0 : ImpactDamage; // B1: per-hit no-damage moment
 	Input.bCanCrit = Context.bCanCrit;
 	Input.Element = Context.Element;
 	Input.InfusionLevel = Context.InfusionLevel;
 	Input.SelectedSource = Context.SelectedSource;
-	Input.BaseStatusBuildup = EffectiveBuildup;
+	Input.BaseStatusBuildup = Context.bIgnoreStatus ? 0 : EffectiveBuildup; // B1: per-hit no-status moment
 	// Per-hit physical type, now that status distributes per-hit (B0): each hit's nonzero status share must
 	// carry its real PhysicalDamageType so a physical attack's bar-cap trigger resolves on EVERY hit, not
 	// just hit 0 (was hit-0-only — harmless when later hits applied zero buildup; now they don't).
@@ -3386,6 +3441,7 @@ void UActionExecutor::SpawnAOEEffect(
 			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
 			if (Ctx)
 			{
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
 				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
 			}
 			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
@@ -3473,6 +3529,7 @@ void UActionExecutor::ResolveInstantSpell(
 			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
 			if (Ctx)
 			{
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
 				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
 			}
 			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
@@ -3705,6 +3762,7 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
 			if (Ctx)
 			{
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
 				ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
 			}
 			if (bLastArrival)
@@ -5290,6 +5348,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 						? CurrentExecutionContext->ResolvedDifficulty[Index]
 						: FDefenseDifficultyTriple();
 				ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
 				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
 			}
 			for (AActor *Defender : DefendersToClose)

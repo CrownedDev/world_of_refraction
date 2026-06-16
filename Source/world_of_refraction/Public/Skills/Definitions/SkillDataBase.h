@@ -45,6 +45,21 @@ struct WORLD_OF_REFRACTION_API FDamageSplitEntry
      *  natural scaling (physical -> RawDamage). Stat-only: changes which stat scales, nothing else. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
     bool bOverrideStatScaling = false;
+
+    /** This hit deals no damage (a pure interaction moment — e.g. a grab-connect). The defense window
+     *  still opens (defendable/interruptable); only damage is suppressed. Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
+    bool bIgnoreDamage = false;
+
+    /** This hit applies no status buildup. Independent of bIgnoreDamage (all four combinations
+     *  authorable). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
+    bool bIgnoreStatus = false;
+
+    /** If this hit is successfully parried OR dodged (by ALL targets), the rest of the attack aborts
+     *  (montage stops, no further hits/casts; plays the return montage if authored). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
+    bool bInterruptable = false;
 };
 
 /** Resolve authored split entries into a full per-hit percent table (length

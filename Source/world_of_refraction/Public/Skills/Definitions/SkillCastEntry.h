@@ -86,6 +86,21 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
     bool bOverrideStatScaling = false;
 
+    /** This cast deals no damage (a pure interaction moment). The defense window still opens
+     *  (defendable/interruptable); only damage is suppressed. Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bIgnoreDamage = false;
+
+    /** This cast applies no status buildup. Independent of bIgnoreDamage (all four combinations
+     *  authorable). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bIgnoreStatus = false;
+
+    /** If this cast is successfully parried OR dodged (by ALL targets), the rest of the action aborts
+     *  (montage stops, no further hits/casts; plays the return montage if authored). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bInterruptable = false;
+
     /** This delivery's per-defense-type difficulty (parry/dodge/block), keyed PER CAST-ENTRY (per
      *  delivery), not per hit. All-Inherit -> resolves to the skill-level DefaultDifficulty, then
      *  Easy (x1.0). Resolve + per-impact routing wired in later Stage-6 clusters. */

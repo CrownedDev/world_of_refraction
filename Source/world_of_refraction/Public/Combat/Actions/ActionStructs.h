@@ -287,6 +287,18 @@ struct WORLD_OF_REFRACTION_API FActionResult
 };
 // ==================== ASYNC EXECUTION CONTEXT ====================
 
+/** Per-hit hybrid flags (B1), resolved from the authored FDamageSplitEntry / FSkillCastEntry into a
+ *  per-index table parallel to ResolvedDifficulty. Read by ImpactIndex (melee) / CastEntryIndex (spell). */
+USTRUCT()
+struct FResolvedHitFlags
+{
+	GENERATED_BODY()
+
+	bool bIgnoreDamage = false;
+	bool bIgnoreStatus = false;
+	bool bInterruptable = false;
+};
+
 /**
  * FPendingDefenseContext
  * Tracks a single target's pending defense resolution during async action execution
@@ -378,6 +390,14 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	 *  FActionHitInput at apply. Stat-only. Default false = natural scaling. */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bOverrideStatScaling = false;
+
+	/** Current impact's hybrid per-hit flags (B1), stashed from ResolvedHitFlags[ImpactIndex] /
+	 *  ResolvedCastFlags[CastEntryIndex] at the resolve site just before ApplyOneImpact — so ApplyOneImpact
+	 *  reads them index-agnostically. Per-SPECIFIC-hit (unlike the attack-level bOverrideStatScaling above).
+	 *  bInterruptable is read here but consumed by the interrupt logic (B2). */
+	bool bIgnoreDamage = false;
+	bool bIgnoreStatus = false;
+	bool bInterruptable = false;
 
 	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
 	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
@@ -483,6 +503,14 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  ResolvedDifficulty (which is melee, impact-ordinal-indexed) — distinct index semantics, kept
 	 *  separate deliberately. */
 	TArray<FDefenseDifficultyTriple> ResolvedCastDifficulty;
+
+	/** Per-hit / per-cast-entry resolved hybrid flags (B1). ResolvedHitFlags = melee, indexed by
+	 *  ImpactIndex (built in FinalizeDamageInputs from DamageSplit, HitNumber-matched, sparse→full).
+	 *  ResolvedCastFlags = spell, indexed by CastEntryIndex (built in ExecuteSpellAsync, per CastArray
+	 *  entry). Parallel to ResolvedDifficulty / ResolvedCastDifficulty; stashed onto the per-target
+	 *  context at the resolve site (StashHitFlags) just before ApplyOneImpact. */
+	TArray<FResolvedHitFlags> ResolvedHitFlags;
+	TArray<FResolvedHitFlags> ResolvedCastFlags;
 
 	FActionExecutionContext()
 	{
