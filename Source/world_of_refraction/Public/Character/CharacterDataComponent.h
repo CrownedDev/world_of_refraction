@@ -360,6 +360,15 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveSpellSpeed() const;
 
+    /** Gear-beyond MULTIPLIER for the attacker's defense-window speed term (cluster A1). Returns the
+     *  same gear LAYERS GetEffectiveActionSpeed/SpellSpeed compose — evolution-pillar modifier (crystal
+     *  + equipment pillar% + pillar buff) × Bonus{Action,Spell}Speed (per-point fraction) × attached
+     *  {Action,Spell}SpeedStone × transient {Action,Spell}SpeedBuff/Debuff — but as a bare multiplier
+     *  on the RAW ±0.25-capped CalculateSpeedWindowPenalty term, NOT the play-rate getter (its ×1.5
+     *  cap + ×400 movement lineage would distort the seconds math — see CharacterData.h :537).
+     *  Type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind. 1.0 at zero gear. */
+    float SpeedWindowGearFactor(EActionType AttackType) const;
+
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot
      *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers
@@ -389,6 +398,14 @@ public:
      *  Returns the raw fraction clamped to [0, RESISTANCE_MAX]. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedResistance() const;
+
+    /** Crystal-aware Spirit-Resistance STAT term, capped ALONE at UNIVERSAL_STAT_CAP (0.5) — the
+     *  stat-layer base for the multiplicative "general" resistance bucket (cluster A2). Differs from
+     *  GetEvolutionModifiedResistance, which clamps at RESISTANCE_MAX (1.0): that 1.0 cap would let the
+     *  crystal-boosted stat reach the full ceiling ALONE, blowing the +50% stat cap. Use THIS as the
+     *  general StatBase; equipment/stone multiply it past 0.5, element/curse add on top. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetCrystalResistanceStatCapped() const;
 
     /** Fully-composed StatusMultiplier = base × transient, where base is the
      *  (innate + equipment + StatusStone) factor composed inline to match

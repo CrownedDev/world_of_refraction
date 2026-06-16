@@ -986,6 +986,60 @@ float UCharacterDataComponent::GetEffectiveSpellSpeed() const
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
+float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const bool bSpell = (AttackType == EActionType::Spell);
+
+    // Evolution-pillar modifier as a ratio over the RAW pillar (CalculateSpeedWindowPenalty uses the
+    // RAW GetEffectiveBody/Mind, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0
+    // when no pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
+    const float RawPillar = bSpell ? CharacterData->GetEffectiveMind() : CharacterData->GetEffectiveBody();
+    const float ModPillar = bSpell ? GetEvolutionModifiedMind() : GetEvolutionModifiedBody();
+    float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
+
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+            // Equipment Bonus{Action,Spell}Speed — per-point read as a fraction (option-ii), same as
+            // GetEffectiveActionSpeed/SpellSpeed. ×1 (inert) when absent.
+            const float BonusPts = bSpell ? static_cast<float>(Bonus.BonusSpellSpeed) : static_cast<float>(Bonus.BonusActionSpeed);
+            const float PerPoint = bSpell ? CombatConstants::SPELL_SPEED_PER_POINT : CombatConstants::ANIMATION_SPEED_PER_POINT;
+            Factor *= (1.0f + BonusPts * PerPoint);
+
+            // Attached {Action,Spell}SpeedStone — % multiplier. 0 (×1) unless that stone is attached.
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                const ESubStat StoneStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
+                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, StoneStat) / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
+        }
+
+        // Transient {Action,Spell}SpeedBuff/Debuff — mirrors GetEffectiveActionSpeed's transient layer.
+        // Speed transient stays MULTIPLICATIVE here (unlike the additive transient policy on multiplier stats):
+        // the window is measured in SECONDS, where "+20% speed" must scale the penalty PROPORTIONALLY. An
+        // additive +0.20 would mean +0.20 SECONDS — enormous vs a ~0.5s window. Proportional is the correct
+        // math for a time value, so temporary speed buffs tighten the window in scale. (Permanent speed gear:
+        // also multiplicative, same reason. Multiplier-space stats — damage/status/etc. — use additive
+        // transients; see the transient-additive conversion.)
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const ESkillEffectType BuffType = bSpell ? ESkillEffectType::SpellSpeedBuff : ESkillEffectType::ActionSpeedBuff;
+            const ESkillEffectType DebuffType = bSpell ? ESkillEffectType::SpellSpeedDebuff : ESkillEffectType::ActionSpeedDebuff;
+            const float Buff = SEM->GetTotalStatModifier(Owner, BuffType);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, DebuffType);
+            Factor *= (1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+        }
+    }
+
+    return Factor;
+}
+
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
 {
     // Pure snapshot — each field is the verbatim return of an existing getter, no
@@ -1094,6 +1148,22 @@ float UCharacterDataComponent::GetEvolutionModifiedResistance() const
         ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
         0.0f,
         CombatConstants::RESISTANCE_MAX);
+}
+
+float UCharacterDataComponent::GetCrystalResistanceStatCapped() const
+{
+    if (!CharacterData)
+    {
+        return 0.0f;
+    }
+    // Crystal-aware Spirit-Resistance STAT, capped ALONE at UNIVERSAL_STAT_CAP (0.5) — the stat-layer
+    // base for the multiplicative general-resistance bucket (A2). Crystal pillar via
+    // GetEvolutionModifiedSpirit (closes the gap where GetTotalStatusResistance used raw GetEffectiveSpirit).
+    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
+    const int32 TotalPoints = CharacterData->GetTotalResistance();
+    return FMath::Min(
+        ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
+        CombatConstants::UNIVERSAL_STAT_CAP);
 }
 
 float UCharacterDataComponent::GetEffectiveStatusMultiplier() const

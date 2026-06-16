@@ -368,9 +368,11 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 
 	if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
 	{
-		// TODO (gear, deferred): Bonus.BonusDefense is a FLAT-int gear field with no %
-		// meaning in the reduction model — intentionally NOT wired here. Revisit when gear
-		// defense is redesigned as a fraction (it would compose here, OUTSIDE the 0.5 stat cap).
+		// Equipment BonusDefense gear (A3) — reinterpreted as a % MULTIPLIER on the capped stat
+		// reduction (option-ii: the per-point magnitude read as a FRACTION, same shape as every other
+		// 5e gear field). Composes multiplicatively with the stone + buff below, OUTSIDE the 0.5 stat
+		// cap, toward the RESISTANCE_MAX (1.0) ceiling (final clamp). ×1 (inert) when BonusDefense is 0.
+		Reduction *= (1.0f + Loadout->GetActiveStatBonus(Defender).BonusDefense * CombatConstants::DEFENSE_PER_POINT);
 
 		// Attached DefenseStone — a % MULTIPLIER (×(1 + StonePct/100)) on the capped stat reduction,
 		// OUTSIDE the 0.5 cap, from the defender's OWN active weapon attachment (live-resolved, not

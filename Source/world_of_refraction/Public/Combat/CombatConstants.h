@@ -216,6 +216,10 @@ namespace CombatConstants
     // barely defendable, never undefendable.
     constexpr float WINDOW_PER_SPEED_POINT = REFLEX_WINDOW_PER_POINT;  // = REFLEX_WINDOW_PER_POINT for symmetric duel cancel + shared +50% cap
     constexpr float MINIMUM_DEFENSE_WINDOW = 0.1f;   // hard floor on the effective input window (seconds)
+    // Pattern-P gear ceiling for the window terms (cluster A1): the STAT term caps ALONE at
+    // WINDOW_CAP_SECONDS (0.25 = +50%); gear (crystal pillar + Bonus{Action,Spell}Speed + stone +
+    // transient) MULTIPLIES it past, capped here. 0.5 = the +100% analog of the 0.25 stat cap.
+    constexpr float WINDOW_GEAR_CEILING_SECONDS = 0.5f; // max single-side window term WITH gear (>= WINDOW_CAP_SECONDS)
 
     // ==================== SPIRIT STATS (5) ====================
     // MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier

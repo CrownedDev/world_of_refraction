@@ -215,42 +215,41 @@ float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElem
 		return 0.0f;
 	}
 
-	// Base Spirit-Resistance. Already clamped to [0, RESISTANCE_MAX] inside
-	// CalculateResistance — this pre-clamp is INTENTIONAL (a later weakness term
-	// then bites off the capped value rather than being absorbed by over-cap
-	// headroom). Do not remove it.
-	float Resistance = TargetComp->CharacterData->CalculateResistance();
-
-	// Equipment stat bonus — flat additive to resistance using the same
-	// per-point shape as the asset-side CalculateResistance formula.
+	// GENERAL resistance (cluster A2) — blanket positive-only tankiness, MULTIPLICATIVE (matches every
+	// other stat's Pattern-P shape). #1 crystal-aware Spirit stat capped ALONE at UNIVERSAL_STAT_CAP
+	// (0.5), THEN #2 BonusResistance and #3 attached ResistanceStone MULTIPLY it past 0.5 toward the
+	// RESISTANCE_MAX (1.0) general-tankiness ceiling. Floors at 0 — general tankiness never goes
+	// negative; the amplify range comes entirely from the MATCHED layer below.
+	float General = TargetComp->GetCrystalResistanceStatCapped();   // #1 crystal Spirit stat, capped 0.5
 	if (ULoadoutComponent *TargetLoadout = Target->FindComponentByClass<ULoadoutComponent>())
 	{
 		const FEquipmentStatBonus TargetBonus = TargetLoadout->GetActiveStatBonus(Target);
-		Resistance += TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT;
+		General *= (1.0f + TargetBonus.BonusResistance * CombatConstants::RESISTANCE_PER_POINT);   // #2 equip (per-point fraction)
 
-		// Attached ResistanceStone — the DEFENDER's OWN active weapon attachment
-		// (live-resolved, fusion-aware via GetAttachedStonePercent). A self-buff
-		// added before the [MIN, MAX] clamp. Mirrors the DefenseStone resolution.
+		// #3 Attached ResistanceStone — the DEFENDER's OWN active weapon attachment (live-resolved,
+		// fusion-aware). % MULTIPLIER on the capped stat. Inert (×1) unless a ResistanceStone is attached.
 		if (const FRuntimeAttachedItem *AttPtr = TargetLoadout->GetActiveWeaponAttachment())
 		{
 			const FRuntimeAttachedItem &Attachment = *AttPtr;
-			Resistance += CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR;
+			General *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Resistance) / CombatConstants::STAT_PERCENT_DIVISOR);
 		}
 	}
+	General = FMath::Clamp(General, 0.0f, CombatConstants::RESISTANCE_MAX);   // general ceiling 1.0, floor 0
 
-	// Element + physical effect resistance (ResistanceBuff/Debuff, matched on the
-	// incoming axis — see GetTotalElementResistance).
-	Resistance += GetTotalElementResistance(Target, Element, PhysicalType);
+	// MATCHED resistance — ADDITIVE, can go negative (the amplify layer). Preserves the matchup
+	// composition + the FResistanceBonus zero-sum budget + the blanket ModifyStatusResist curse. Added
+	// on top of General; the combined clamp lets these pull the TOTAL negative → amplified buildup.
+	float Matched = 0.0f;
 
-	// Class / innate-element innate resistance — element column (incoming Element,
-	// BD-aliased) + physical column (incoming PhysicalType). +0 for all-zero cells.
-	Resistance += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType);
+	// #4 Element + physical effect resistance (ResistanceBuff/Debuff, matched on the incoming axis).
+	Matched += GetTotalElementResistance(Target, Element, PhysicalType);
 
-	// Gear per-category resistance (source #6) — rolled/authored FResistanceBonus
-	// aggregated across equipped pieces. Read through the SAME class-table column
-	// helpers (GetElementColumn carries the BD->Darkness alias; GetPhysicalColumn
-	// handles None) by viewing the gear bonus as an FResistanceRow, so the BD alias
-	// and the (element + physical)/100 composition cannot drift from the class path.
+	// #5 Class / innate-element innate resistance — element column (BD-aliased) + physical column.
+	Matched += ClassInnateResistanceTable::GetClassInnateResistance(Target, Element, PhysicalType);
+
+	// #6 Gear per-category resistance — rolled/authored FResistanceBonus (zero-sum), aggregated across
+	// equipped pieces. UNTOUCHED by A2: still additive-per-category, read through the SAME class-table
+	// column helpers (BD->Darkness alias, (element + physical)/100) so the zero-sum budget is intact.
 	if (ULoadoutComponent *GearLoadout = Target->FindComponentByClass<ULoadoutComponent>())
 	{
 		const FResistanceBonus GearResist = GearLoadout->GetActiveResistanceBonus(Target);
@@ -258,23 +257,24 @@ float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElem
 			GearResist.Fire, GearResist.Water, GearResist.Earth, GearResist.Wind,
 			GearResist.Light, GearResist.Darkness, GearResist.Lightning, GearResist.Void,
 			GearResist.Reality, GearResist.Slash, GearResist.Pierce, GearResist.Impact};
-		Resistance += (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
-		               ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
-		              ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
+		Matched += (ClassInnateResistanceTable::GetElementColumn(GearRow, Element) +
+		            ClassInnateResistanceTable::GetPhysicalColumn(GearRow, PhysicalType)) /
+		           ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 
-	// Skill-effect-driven ModifyStatusResist — flat percent-space additive.
+	// #7 Skill-effect ModifyStatusResist — blanket, sign-aware CURSE/buff. ADDITIVE (the A2 correction):
+	// a negative ModifyStatusResist (the ResistanceStone enemy-curse) must reach the amplify range — the
+	// multiplicative general would floor it at 0 and kill the curse, so it composes here, not in General.
 	if (USkillEffectManager *EffectMgr = GetEffectManager())
 	{
 		const float ResistModify = EffectMgr->GetTotalStatModifier(Target, ESkillEffectType::ModifyStatusResist);
-		Resistance += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
+		Matched += ResistModify / CombatConstants::STAT_PERCENT_DIVISOR;
 	}
 
-	// Floor is RESISTANCE_MIN (-1.0), NOT 0: a resistance debuff strips through 0
-	// into negative, where (1 - Resistance) exceeds 1.0 and AMPLIFIES buildup —
-	// capped at -1.0 = 2x at full vulnerability. Upper RESISTANCE_MAX is the
-	// correctness ceiling (resistance > 1.0 would heal the gauge).
-	return FMath::Clamp(Resistance, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
+	// Final: General (≥0 tankiness) + Matched (±). Floor RESISTANCE_MIN (-1.0): a net weakness strips
+	// through 0 into negative, where (1 - Resistance) > 1 AMPLIFIES buildup (capped 2x at -1). Upper
+	// RESISTANCE_MAX (1.0): resistance > 1 would heal the gauge.
+	return FMath::Clamp(General + Matched, CombatConstants::RESISTANCE_MIN, CombatConstants::RESISTANCE_MAX);
 }
 
 // ========================================
