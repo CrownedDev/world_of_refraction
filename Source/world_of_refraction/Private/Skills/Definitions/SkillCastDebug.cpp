@@ -64,11 +64,6 @@ FString USkillCastDebug::GetCastArrayString(const UCastableSkillDataBase *Skill)
         {
             Line += FString::Printf(TEXT(" [Homing=%.2f]"), Entry.HomingStrength);
         }
-        else if (Entry.DeliveryType == ESpellDeliveryType::Beam)
-        {
-            Line += FString::Printf(TEXT(" [Beam dur=%.2f tick=%.2f]"),
-                                    Entry.BeamDuration, Entry.BeamTickInterval);
-        }
 
         Output += Line + TEXT("\n");
     }

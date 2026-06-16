@@ -26,8 +26,7 @@ public:
 
     /** Formatted Cast array, one line per entry:
      *  "[N] <Delivery> '<Label>' Size=<f> VisualScale=<f> Speed=<f> Trail=<asset> Count=<n>"
-     *  with "[Homing=<f>]" / "[Beam dur=<f> tick=<f>]" appended when the
-     *  delivery matches. */
+     *  with "[Homing=<f>]" appended when the delivery matches. */
     UFUNCTION(BlueprintPure, Category = "Debug|Cast")
     static FString GetCastArrayString(const UCastableSkillDataBase *Skill);
 };

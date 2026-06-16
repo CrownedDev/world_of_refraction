@@ -173,17 +173,11 @@ magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
 - **Stats** — `TurnCost` (int32, default 1; flagged for future multi-turn
   casting).
 - **Visuals** — `CastAnimation`, `SpellVFX`, `ImpactVFX`, `MuzzleVFX`.
-- **Delivery extensions** — `HomingStrength` (Homing-only, 0–1),
-  `BeamDuration` (Beam-only), `BeamTickInterval` *(Beam-only, sweep-1; default
-  0.5s)*. Beam damage runs on a discrete-tick cadence: `TickCount = max(1,
-  RoundToInt(BeamDuration / BeamTickInterval))`, per-tick = `BaseDamage /
-  TickCount` with the integer remainder distributed across the first
-  `BaseDamage % TickCount` ticks so totals stay exact. Implementation on
-  `ASpellProjectile`: `BeamTickIntervalSec`/`BeamTickCount`/`BeamTickIndex`/
-  `BeamBaseDmgPerTick`/`BeamRemainder`/`BeamTimeUntilNextTick`. The
-  `OnBeamTick` broadcast signature is `(AActor* Target, int32 TickDamage,
-  bool bTargetInBeam)` — VFX/sound stay per-frame; this delegate is the
-  damage-side surface only.
+- **Delivery extensions** — `HomingStrength` (Homing-only, 0–1). The **Beam**
+  delivery type was REMOVED (Stage 6): a beam is now authored as a burst of
+  projectiles (`Projectile`, `Count>1`), which the per-impact burst path covers
+  (even-split per arrival). `BeamDuration`/`BeamTickInterval` and the
+  `ASkillProjectile` beam tick machinery / `OnBeamTick` delegate are gone.
 - **Size** — `BaseSize`, `HitboxRatio` (0.5–1.2).
 - **Defense helpers** — `CanBeBlocked()`, `CanBeParried()`,
   `CanBeDodgedByMoving()`, `CanBeDodgedByTiming()`, `GetAvailableDefenses()`.
@@ -386,3 +380,4 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-06-12 | Phase-2 skill-data unification on `UCastableSkillDataBase` (shared base for attack/ability/spell): `SkillMontage` (D2), `BaseAnimSpeed` (D7), `VFXArray` of `FSkillVFXEntry` (D5), and now `CastArray` of `FSkillCastEntry` (D6) — each entry one self-contained delivery (type, speed, `Size` = mechanical hitbox, `Trail` VFX + `TrailScale`, homing/beam params, `Count`/`BurstInterval`), index-ordered for `UCombatNotify` Family=Cast/Index=N. Spell `PostLoad` migrates the loose delivery fields into one entry (`Size = BaseSize × HitboxRatio` — the actual hitbox; `TrailScale = BaseSize`; `SpellVFX` → entry `Trail`). Loose per-type fields deprecated-but-runtime-authoritative pending the Stage-12 runner, which switches readers and removes them. Fully-default spells migrate no entry (delta-serialization limit) — empty `CastArray` = "use loose defaults". Debug: `USkillCastDebug::GetCastArrayString`/`PrintCastArray`. | feature/d6-cast-array |
 | 2026-06-12 | **Stage 12 COMPLETE — the fused-montage runner is live.** The three execution paths unify through the notify spine: `BeginSkillExecution` (movement-independent start; facing = nearest living enemy at start + settle) binds `UCombatNotify` `OnCombatNotify(Family, Index)` for all three skill types — VFX→`VFXArray[Index]`, Cast→`CastArray[Index]` via `DispatchSpellCast` (one spawn site shared with the legacy `SpellRelease` bridge; burst chain for `Count>1`), Hit damage consumes `ResolvedDamageSplit` (legacy-exact floor rounding). All reader-switches landed: `SkillMontage` (D2), `BaseAnimSpeed` (D7), `VFXArray` by role for muzzle/impact (D5), `CastArray` for delivery + async decision (D6), `ResolvedDamageSplit` (D1). Cast-entry `TrailScale`→`VisualScale` (PropertyRedirect); defense window sizes from `CastArray[0].VisualScale` (parity — Size-keyed sizing banked as a balance decision). Montage chain: `RitualCastMontage` → `SkillMontage` → `ReturnMontage`, presence-driven, finalize spans all legs. Loose fields (montages/VFX/delivery/`BaseSize`/`HitboxRatio`) are `DeprecatedProperty` load-only; `CalculateAnimSpeed`/`GetCurrentAttackMontage` deleted. The spike is retired (~560 lines; production runner is the sole notify consumer; legacy name-notify path survives content-gated). **Banked**: ritual arm gesture (turn-timing decision), SFX array, `BaseSize`/`HitboxRatio` hard-delete post-resave-bake, Depth-2 `Execute*Async` unification (re-assess now the preludes are thin), Depth-3 movement/warp + per-hit-defense arc. | feature/d-fused-runner |
 | 2026-06-16 | `UWeaponAttackData::BaseSize` deleted — its sole reader was the dodge attack-size gate, which was removed (dodge is now timing-only). Melee `AttackSize` is a neutral `1.0` (still feeds the `OnDefenseWindowOpened` delegate + AI scheduling). NOTE: spell `USpellData::BaseSize`/`HitboxRatio` (the *Size* field above) are UNAFFECTED — still live via the empty-`CastArray` fallback + PostLoad migration, deferred to the post-SC8 resave bake. | feature/realtime-defense |
+| 2026-06-16 | **Beam delivery type REMOVED.** `ESpellDeliveryType::Beam` (the last enum value — append-safe, no CoreRedirect) and its entire footprint deleted: the `ASkillProjectile` beam tick machinery (`TickBeam`, `OnBeamTick` delegate, `BeamTickCount`/`BeamBaseDmgPerTick`/`BeamRemainder`/… state), the `FSkillCastEntry`/`USpellData` `BeamDuration`/`BeamTickInterval` fields + migration, the `OnBeamTick` handler/bind, and the Beam fall-through labels in the spawn switches. A beam is now authored as a **burst of projectiles** (`Projectile`, `Count>1`) — the per-impact burst path (Stage 6 cluster 6) covers it with even-split-per-arrival defense. Also removes the prior beam double-apply (lumped window + ticks) and unscaled-damage (`Generic`/no-crit) placeholder bugs. Confirmed zero Beam-authored assets before removal. | feature/realtime-defense |

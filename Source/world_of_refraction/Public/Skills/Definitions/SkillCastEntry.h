@@ -33,20 +33,20 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast")
     ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
 
-    /** Travel actor for Projectile/Homing/Beam. Null = the executor's
+    /** Travel actor for Projectile/Homing. Null = the executor's
      *  DefaultProjectileClass (today's fallback). */
     UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing || DeliveryType == ESpellDeliveryType::Beam",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing",
                       EditConditionHides))
     TSubclassOf<ASkillProjectile> ProjectileClass;
 
     UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing || DeliveryType == ESpellDeliveryType::Beam",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing",
                       EditConditionHides, ClampMin = "100.0"))
     float ProjectileSpeed = 1500.0f;
 
-    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile/Homing/
-     *  Beam = moving collision radius, AOE = static ground radius. Never the
+    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile/Homing =
+     *  moving collision radius, AOE = static ground radius. Never the
      *  visual (that's VisualScale / the VFX entries' Scale). */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
     float Size = 1.0f;
@@ -70,18 +70,6 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
               meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
                       EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
     float HomingStrength = 0.5f;
-
-    /** Beam duration in seconds. */
-    UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
-                      EditConditionHides, ClampMin = "0.1"))
-    float BeamDuration = 1.0f;
-
-    /** Seconds between damage ticks while the beam is active. */
-    UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
-                      EditConditionHides, ClampMin = "0.01"))
-    float BeamTickInterval = 0.5f;
 
     /** Barrage: >1 spawns Count deliveries staggered by BurstInterval. */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "1"))

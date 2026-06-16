@@ -328,8 +328,8 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 
 	/** Expected impacts for this defender — the count the window closes at
 	 *  (ImpactsLanded == ExpectedImpacts). Set by the OPENER per attack type, NOT
-	 *  hardcoded to HitCount: melee = HitCount; single projectile/AOE = 1; beam =
-	 *  BeamTickCount; barrage = FSkillCastEntry::Count (Stage 6). */
+	 *  hardcoded to HitCount: melee = HitCount; single projectile = 1; barrage =
+	 *  FSkillCastEntry::Count (Stage 6). */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 ExpectedImpacts = 0;
 

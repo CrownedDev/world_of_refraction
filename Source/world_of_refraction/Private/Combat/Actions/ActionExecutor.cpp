@@ -3136,7 +3136,6 @@ void UActionExecutor::SpawnSpellDelivery(
 	{
 	case ESpellDeliveryType::Projectile:
 	case ESpellDeliveryType::Homing:
-	case ESpellDeliveryType::Beam:
 		// Spawn projectile actor for each target
 		for (AActor *Target : Targets)
 		{
@@ -3265,12 +3264,6 @@ void UActionExecutor::SpawnProjectileActor(
 		// 3. Bind to events
 		Projectile->OnSkillImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
 		Projectile->OnSkillDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
-
-		const ESpellDeliveryType Delivery = Entry ? Entry->DeliveryType : Spell->DeliveryType;
-		if (Delivery == ESpellDeliveryType::Beam)
-		{
-			Projectile->OnBeamTick.AddDynamic(this, &UActionExecutor::OnBeamTick);
-		}
 
 		// 4. Launch (activates VFX and starts movement)
 		Projectile->Launch();
@@ -3482,7 +3475,6 @@ void UActionExecutor::DispatchSpellCast(
 	{
 	case ESpellDeliveryType::Projectile:
 	case ESpellDeliveryType::Homing:
-	case ESpellDeliveryType::Beam:
 		for (AActor *Target : Targets)
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
@@ -3671,23 +3663,6 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 			}
 		}
 	}
-}
-
-void UActionExecutor::OnBeamTick(AActor *Target, int32 TickDamage, bool bTargetInBeam)
-{
-	// Discrete beam tick — fires on the projectile's BeamTickInterval cadence.
-	// Per-tick damage is computed projectile-side from the spell's BaseDamage /
-	// tick count with remainder distribution; this handler just applies it
-	// when the target is currently in the beam. No defense window (beam is
-	// continuous) and no caster threading today (the projectile doesn't carry
-	// a Caster reference into the broadcast — symmetric with the prior
-	// placeholder behaviour).
-	if (!bTargetInBeam || !Target || TickDamage <= 0)
-	{
-		return;
-	}
-
-	ApplyDamage(nullptr, Target, TickDamage, ESpellElement::Generic, false);
 }
 
 void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods)

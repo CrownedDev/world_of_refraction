@@ -63,9 +63,7 @@ void USpellData::PostLoad()
             ProjectileSpeed != Defaults->ProjectileSpeed ||
             BaseSize != Defaults->BaseSize ||
             HitboxRatio != Defaults->HitboxRatio ||
-            HomingStrength != Defaults->HomingStrength ||
-            BeamDuration != Defaults->BeamDuration ||
-            BeamTickInterval != Defaults->BeamTickInterval;
+            HomingStrength != Defaults->HomingStrength;
 
         if (bHasDeliveryAuthoring)
         {
@@ -77,8 +75,6 @@ void USpellData::PostLoad()
             Entry.VisualScale = BaseSize;
             Entry.Trail = SpellVFX;
             Entry.HomingStrength = HomingStrength;
-            Entry.BeamDuration = BeamDuration;
-            Entry.BeamTickInterval = BeamTickInterval;
             // ProjectileClass stays null (executor's DefaultProjectileClass,
             // as today); Count/BurstInterval stay defaults (single delivery).
         }
@@ -201,8 +197,7 @@ bool USpellData::CanBeDodgedByMoving() const
 bool USpellData::CanBeDodgedByTiming() const
 {
     return DeliveryType == ESpellDeliveryType::Projectile ||
-           DeliveryType == ESpellDeliveryType::Homing ||
-           DeliveryType == ESpellDeliveryType::Beam;
+           DeliveryType == ESpellDeliveryType::Homing;
 }
 
 TArray<EDefenseType> USpellData::GetAvailableDefenses() const

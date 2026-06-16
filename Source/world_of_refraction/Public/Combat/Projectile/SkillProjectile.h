@@ -1,5 +1,5 @@
 // SkillProjectile.h
-// Unified spell delivery actor - handles Projectile, Homing, and Beam types
+// Unified spell delivery actor - handles Projectile and Homing types
 // AOE and Instant don't spawn this actor - use ActionExecutor directly
 
 #pragma once
@@ -35,18 +35,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     AActor *, Target,
     FVector, ImpactLocation);
 
-/** Broadcast on every discrete damage tick while a beam is active.
- *  Fires on a fixed BeamTickInterval cadence — NOT per frame — so the per-tick
- *  damage is deterministic. bTargetInBeam reports whether the line trace hit the
- *  intended target at the moment the tick fired (subscribers typically gate
- *  damage application on it). VFX/sound/per-frame visual coupling stays
- *  inside TickBeam; this delegate is the damage-side surface. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-    FOnBeamTick,
-    AActor *, Target,
-    int32, TickDamage,
-    bool, bTargetInBeam);
-
 // ==================== MAIN CLASS ====================
 
 /**
@@ -55,7 +43,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
  * Unified spell delivery actor that handles:
  * - Projectile: Travels to fixed location, dodgeable by moving
  * - Homing: Tracks target actor, harder to dodge
- * - Beam: Continuous line trace, brief dodge window
  *
  * AOE and Instant spells don't use this actor.
  *
@@ -107,10 +94,6 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnSkillDodged OnSkillDodged;
 
-    /** Called each tick while beam is active */
-    UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnBeamTick OnBeamTick;
-
     // ==================== CONFIGURATION ====================
 
 protected:
@@ -153,10 +136,6 @@ protected:
     /** Final calculated damage */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     int32 Damage;
-
-    /** Beam duration (for Beam type) */
-    UPROPERTY(BlueprintReadOnly, Category = "Config")
-    float BeamDuration;
 
     /** Visual scale for VFX */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
@@ -245,33 +224,6 @@ public:
     /** Has Launch() been called? Prevents Tick until ready */
     bool bIsLaunched = false;
 
-    /** Beam: Time remaining */
-    float BeamTimeRemaining;
-
-    /** Beam: Is target currently in beam path? */
-    bool bTargetInBeam;
-
-    /** Beam: cached interval (seconds) between discrete damage ticks. Sourced
-     *  from USpellData::BeamTickInterval at InitializeProjectile time. */
-    float BeamTickIntervalSec = 0.5f;
-
-    /** Beam: total ticks computed at init — max(1, RoundToInt(BeamDuration / BeamTickInterval)). */
-    int32 BeamTickCount = 0;
-
-    /** Beam: next tick index to fire (0..BeamTickCount-1). */
-    int32 BeamTickIndex = 0;
-
-    /** Beam: BaseDamage / BeamTickCount — the integer quotient. */
-    int32 BeamBaseDmgPerTick = 0;
-
-    /** Beam: BaseDamage % BeamTickCount — distributed across the first
-     *  `BeamRemainder` ticks so the running total stays honest. */
-    int32 BeamRemainder = 0;
-
-    /** Beam: seconds until the next discrete tick fires. Reset to
-     *  BeamTickIntervalSec after each tick. */
-    float BeamTimeUntilNextTick = 0.f;
-
     UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE bool HasImpacted() const { return bHasImpacted; }
 
@@ -283,9 +235,8 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     /** Shared tail of both InitializeProjectile overloads: target capture,
-     *  collision sizing, positioning, colors/scale, beam tick schedule.
-     *  Callers set the per-source fields (delivery/speed/homing/beam +
-     *  BeamTickIntervalSec) first. */
+     *  collision sizing, positioning, colors/scale. Callers set the per-source
+     *  fields (delivery/speed/homing) first. */
     void InitializeCommon();
 
     // ==================== MOVEMENT ====================
@@ -295,9 +246,6 @@ protected:
 
     /** Homing: Move toward target actor with tracking */
     void TickHoming(float DeltaTime);
-
-    /** Beam: Update line trace and damage */
-    void TickBeam(float DeltaTime);
 
     // ==================== COLLISION ====================
 

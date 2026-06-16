@@ -999,7 +999,7 @@ private:
 protected:
 	/**
 	 * Spawn spell delivery based on DeliveryType
-	 * - Projectile/Homing/Beam: Spawns ASkillProjectile
+	 * - Projectile/Homing: Spawns ASkillProjectile
 	 * - AOE/Instant: Spawns VFX directly, opens defense window
 	 */
 	virtual void SpawnSpellDelivery(
@@ -1011,8 +1011,8 @@ protected:
 		int32 FinalDamage,
 		bool bIsBrokenDarkness);
 
-	/** Spawn projectile actor (Projectile/Homing/Beam). Entry non-null = the
-	 *  Cast-entry dispatch path (D6): entry class/speed/Trail/homing/beam win;
+	/** Spawn projectile actor (Projectile/Homing). Entry non-null = the
+	 *  Cast-entry dispatch path (D6): entry class/speed/Trail/homing win;
 	 *  null = legacy loose-field path. ONE spawn site for both. */
 	void SpawnProjectileActor(
 		AActor *Caster,
@@ -1106,8 +1106,4 @@ protected:
 	/** Called when target dodged projectile */
 	UFUNCTION()
 	void OnProjectileDodged(AActor *Target, FVector ImpactLocation);
-
-	/** Called each tick while beam is active */
-	UFUNCTION()
-	void OnBeamTick(AActor *Target, int32 TickDamage, bool bTargetInBeam);
 };

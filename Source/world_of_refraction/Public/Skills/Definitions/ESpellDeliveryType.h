@@ -23,8 +23,5 @@ enum class ESpellDeliveryType : uint8
     AOE           UMETA(DisplayName = "Area of Effect"),
     
     /** Immediate effect - no travel time, tiny defense window */
-    Instant       UMETA(DisplayName = "Instant"),
-    
-    /** Continuous line from caster - brief dodge window at channel start */
-    Beam          UMETA(DisplayName = "Beam")
+    Instant       UMETA(DisplayName = "Instant")
 };

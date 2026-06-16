@@ -6,6 +6,12 @@
 > Branch: `feature/realtime-defense`.
 > All `file:line` anchors below are current **as of the June 2026 defense re-anchor survey** — re-verify
 > before picking up each stage, as the surrounding code will shift.
+>
+> **2026-06-16 — Beam delivery REMOVED (Stage 6).** Any Beam-delivery references below are HISTORICAL.
+> `ESpellDeliveryType::Beam`, the `ASkillProjectile` beam tick machinery, `OnBeamTick`, and the
+> `BeamDuration`/`BeamTickInterval` fields are deleted. A beam is now authored as a **burst of projectiles**
+> (`Projectile`, `Count>1`) and defended per-arrival by the Stage-6 cluster-6 burst path (even-split). The
+> per-cast-entry defense work (difficulty/damage/burst) is live on `feature/realtime-defense`.
 
 ---
 
