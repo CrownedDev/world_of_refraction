@@ -170,6 +170,10 @@ namespace SkillEffectDisplayNames
             return TEXT("Fortunate");
         case ESkillEffectType::LuckDebuff:
             return TEXT("Misfortune");
+        case ESkillEffectType::ReflexBuff:
+            return TEXT("Sharp Reflexes");
+        case ESkillEffectType::ReflexDebuff:
+            return TEXT("Dulled Reflexes");
 
         // ==================== PASSIVE LAYER (Phase 2) ====================
         // Stat modifiers

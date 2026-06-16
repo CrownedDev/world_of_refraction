@@ -236,7 +236,14 @@ enum class ESkillEffectType : uint8
     // crit-DAMAGE consumable: ModifyCritDamage ("Crit Damage Up") is the BUFF, this is its paired
     // debuff. GetCritDamageMultiplier reads (Max(0,ModifyCritDamage) − CritDamageDebuff) and floors the
     // final multiplier at CRIT_DMG_BASE (1.0) — a debuff drags crit damage toward a normal hit, never below.
-    CritDamageDebuff UMETA(DisplayName = "Crit Damage Debuff")
+    CritDamageDebuff UMETA(DisplayName = "Crit Damage Debuff"),
+
+    // ==================== REFLEX (transient — Cluster B-4) ====================
+    // Appended (not mid-inserted) to preserve enum-by-value stamping. Transient Body-substat
+    // Reflex buff/debuff — summed via GetTotalStatModifier and read by the defense-window calc
+    // (B-5) as (ReflexBuff − ReflexDebuff), widening/narrowing the defender's input window.
+    ReflexBuff UMETA(DisplayName = "Reflex Buff"),
+    ReflexDebuff UMETA(DisplayName = "Reflex Debuff")
 };
 
 /**
@@ -275,6 +282,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::MaxHPBuff:
         case ESkillEffectType::TurnSpeedBuff:
         case ESkillEffectType::LuckBuff:
+        case ESkillEffectType::ReflexBuff:
         case ESkillEffectType::HealthRestore:
         case ESkillEffectType::EnergyRestore:
         // Phase 2 passive-layer buffs
@@ -348,6 +356,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::MaxHPDebuff:
         case ESkillEffectType::TurnSpeedDebuff:
         case ESkillEffectType::LuckDebuff:
+        case ESkillEffectType::ReflexDebuff:
         case ESkillEffectType::CritDamageDebuff:
         case ESkillEffectType::DOT:
         case ESkillEffectType::SkipTurn:
