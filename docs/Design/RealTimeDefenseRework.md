@@ -21,6 +21,12 @@
 > (`ActionExecutor.h:95`, broadcast `ActionExecutor.cpp:5134`), and **`FPendingDefenseContext::ImpactsLanded`**
 > (`ActionStructs.h:327`). Any `Hit`/`OnHitFrame`/`HitsLanded` wording below is the historical spec name for
 > the same concept.
+>
+> **2026-06-16 — Instant is now DEFENDABLE per-impact (Stage 6).** `Instant` was "unavoidable" (applied
+> directly via `ResolveInstantSpell`, no window). It now converts to the per-impact path like AOE: the Cast
+> notify is the impact moment, all three defenses (Block/Parry/Dodge) are available, gated by **Hard**
+> difficulty (NOT excluded like AOE's Dodge). Requires per-asset authoring (telegraph lead + Hard tiers) for
+> the window to be fair. Commit `9eb65756`. Any "Instant = unavoidable" wording below is HISTORICAL.
 
 ---
 
@@ -647,6 +653,30 @@ between modes. Only two things differ:
 
 ## Changelog
 
+- **2026-06-16** — **`Instant` delivery now DEFENDABLE per-impact (all three defenses, Hard).** `9eb65756`,
+  `feature/realtime-defense`. Instant converts to the per-impact path like AOE — Cast notify = impact moment
+  (no travel), the count-based window (opened early at action start) is the reaction buffer, the cast
+  animation + telegraph are the cue, difficulty sizes the match window. **Routing:** added to `bRequiresAsync`
+  (`CombatOrchestrator.cpp`) so pure-Instant spells stop falling to the rejected sync path. **Gate:** merged
+  into the AOE cluster-6 conversion branch (`AOE || Instant`, byte-identical — count-based re-open,
+  `ExpectedImpacts=1`, full damage, the double-window fix). **Resolve:** `ResolveInstantSpell` swapped its
+  direct `ApplyDamage` for the per-impact resolve (`ResolveImpactDefense` → `ApplyOneImpact` →
+  `CloseDefenseWindow`; VFX + no-`DefenseSystem` fallback kept; `CastEntryIndex` threaded). **Defenses:** all
+  three via four `SpellData` edits — `CanBeBlocked()`→true, `CanBeParried`/`CanBeDodgedByTiming` += Instant,
+  removed the `GetAvailableDefenses` Instant early-return. Unlike AOE (Dodge excluded via `Dodge = Impossible`),
+  Instant **allows Dodge** — gated only by **Hard** (data-authored, not code-excluded). Converting subsumes the
+  prior single-entry-Instant double-apply. Updated delivery-defense matrix (single-entry, per-impact):
+
+  | Delivery | Per-impact defense | Notes |
+  | --- | --- | --- |
+  | Projectile (single / burst) | Block + Parry + Dodge | burst even-split per arrival |
+  | AOE | Block + Parry (NO Dodge) | Dodge excluded via authored `Dodge = Impossible` |
+  | Instant | Block + Parry + Dodge | **Hard** difficulty; Cast-notify = impact |
+
+  Beam / Homing removed (earlier). Single-entry deliveries (Projectile/AOE/Instant) are all now converted to
+  per-impact; **multi-entry / `HitCount>1` spells and abilities stay on the lumped path** — the live applier
+  + 8s failsafe, NOT retired (by design; the lumped path is also the failsafe for converted deliveries). |
+  feature/realtime-defense
 - **2026-06-16** — **Status migration: §8 stage table marked against shipped code.** Stage 1 (window persist + count-based close + failsafe) and Stage 3 (per-impact state + timing/PERFECT + Reflex, single-target) marked **DONE** with proof symbols; Stage 2 (per-impact resolution + base outcomes) and Stage 6 (spell per-cast-entry difficulty/damage/burst) marked **PARTIAL** — Stage 2's §5 typed condition-hook platform ships only as the consolidated `FOnDefenseResolved`/`FOnDefensePerfect` delegates, and Stage 6's AOE-full-options + projectile source-threading are unproven; Stages 4 (per-hit AI — `ScheduleDefenseDecision` still one-per-window) and 5 (per-hit UI — `DefensePromptWidget` stub) left unbuilt. | feature/realtime-defense
 - **2026-06-16** — **Doc-sync: spec is no longer pre-implementation; Hit→Impact rename reconciled.** §1
   Status corrected — it previously claimed "no source has been changed," but Stages 0–3 and the Stage-6
