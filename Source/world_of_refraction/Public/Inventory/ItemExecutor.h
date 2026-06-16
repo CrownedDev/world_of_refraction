@@ -181,6 +181,10 @@ private:
 	/** LuckStone consumable - directional Luck buff (ally) / debuff (enemy); lifts all luck consumers. */
 	void ExecuteLuckBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
+	/** ReflexStone consumable - directional Reflex buff (ally) / debuff (enemy); widens/narrows the
+	 *  defense input window via the B-5 window read (ReflexBuff - ReflexDebuff). */
+	void ExecuteReflexBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+
 	/** TurnSpeedStone - directional turn-speed buff (ally) / debuff (enemy) at the
 	 *  stone's 3-15 magnitude. Pure stat; no turn mechanic (separate from Emerald's
 	 *  ExecuteBonusTurnEffect). */

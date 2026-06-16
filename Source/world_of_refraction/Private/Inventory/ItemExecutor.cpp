@@ -127,6 +127,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteLuckBuffEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::BuffReflex:
+		ExecuteReflexBuffEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::Silence:
 		ExecuteSilenceEffect(User, Target, Id, Result);
 		break;
@@ -698,6 +702,18 @@ void UItemExecutor::ExecuteLuckBuffEffect(AActor *User, AActor *Target, FCrystal
 	ApplyStoneBuffEffect(User, Target, Id,
 						 ESkillEffectType::LuckBuff, ESkillEffectType::LuckDebuff,
 						 TEXT("Luck"), OutResult);
+}
+
+void UItemExecutor::ExecuteReflexBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// ReflexStone consumable (Cluster B-6) — DIRECTIONAL: buff an ally's Reflex or debuff an enemy's, at
+	// the stone's 3-15 magnitude for the flat stone duration. Applies the transient ReflexBuff/ReflexDebuff,
+	// which UDefenseSystem::GetEffectiveDefenseInputWindow (B-5) reads as (ReflexBuff - ReflexDebuff) through
+	// ReflexWindowGearFactor — so an ally's defense window widens, an enemy's narrows. The window read's sign
+	// handles direction; this just picks buff-ally / debuff-enemy via the shared helper.
+	ApplyStoneBuffEffect(User, Target, Id,
+						 ESkillEffectType::ReflexBuff, ESkillEffectType::ReflexDebuff,
+						 TEXT("Reflex"), OutResult);
 }
 
 void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)

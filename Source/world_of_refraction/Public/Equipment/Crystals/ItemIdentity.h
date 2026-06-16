@@ -134,6 +134,11 @@ namespace ItemIdentity
             // LuckBuff/LuckDebuff, stone magnitude). Buff an ally's luck / debuff an enemy's; lifts
             // all luck consumers (crit chance, break-skip) via GetEquipmentModifiedLuck.
             return EItemEffectType::BuffLuck;
+        case ECrystalType::ReflexStone:
+            // Directional reflex consumable (Cluster B-6) — routes to ExecuteReflexBuffEffect (transient
+            // ReflexBuff/ReflexDebuff, stone magnitude). Buff an ally / debuff an enemy; the defense-window
+            // read (B-5) consumes (ReflexBuff - ReflexDebuff), so an ally's window widens, an enemy's narrows.
+            return EItemEffectType::BuffReflex;
         default:
             return EItemEffectType::Damage;
         }

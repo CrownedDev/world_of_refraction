@@ -70,5 +70,10 @@ enum class EItemEffectType : uint8
     //  - BuffLuck: directional LuckBuff/LuckDebuff (LuckStone) — lifts ALL luck consumers via
     //    GetEquipmentModifiedLuck. Runtime-derived only (never serialized), so the appends need no CoreRedirect.
     BuffCritDamage UMETA(DisplayName = "Buff Crit Damage (stone crit-damage buff)"),
-    BuffLuck UMETA(DisplayName = "Buff Luck (stone luck buff/debuff)")
+    BuffLuck UMETA(DisplayName = "Buff Luck (stone luck buff/debuff)"),
+    // Appended (Cluster B-6). Directional ReflexStone consumable — transient ReflexBuff/ReflexDebuff,
+    // read by UDefenseSystem::GetEffectiveDefenseInputWindow (B-5) as (ReflexBuff - ReflexDebuff): ally
+    // widens their defense window, enemy's narrows. Runtime-derived only (never serialized), so the
+    // append needs no CoreRedirect.
+    BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)")
 };

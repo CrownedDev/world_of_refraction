@@ -56,6 +56,10 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).
 - **POSSIBLE** — `StatusMultiplier` base-extract: only if base composition grows beyond ~3 terms (currently keep-both).
 
+## Fusion BonusStat dropdown drift (system-wide, NOT Reflex-specific)
+
+- **POSSIBLE** — `GetRestrictedFusionBonusStats` / the "IsWired six" (RawDamage, Defense, CritDamage, TurnSpeed, StatusMultiplier, Efficiency) has drifted from `StoneTargetStat`, which now returns TWELVE non-None stats. Six stats — SpellDamage, Resistance, SpellSpeed, ActionSpeed, Luck, Reflex — are locked out of the fusion BonusStat (averaged-bonus) dropdown. Their fusion-HALF path works; only the explicit BonusStat target excludes them. The comment at `EquipmentDataBase.cpp:142-144` ("exactly the non-None outputs") now misdescribes the set. DECISION (future, batch): should the newer six be fusion-BonusStat-targetable? If yes, add all six together + fix the comment. Not a Reflex one-off.
+
 ## feature/starting-effects (in flight)
 
 - **WATCH** — Clusters 1+2 shipped and PIE-verified (filter to non-conditional, coverage mirrors `GetActiveStatBonus`, AlwaysActive→StartingEffect rename, `WOR_StartingEffects` debug Exec, caller-less appliers deleted). Promote to DONE at merge.
