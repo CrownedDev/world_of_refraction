@@ -72,5 +72,10 @@ enum class ECrystalType : uint8
     // Luck drives crit chance + crystal-wear break-skip (+ future dodge/drops), so a LuckStone lifts
     // ALL luck consumers uniformly via GetEquipmentModifiedLuck. Same append-only serialized-identity
     // rule — do NOT reorder/insert above.
-    LuckStone UMETA(DisplayName = "Luck Stone")
+    LuckStone UMETA(DisplayName = "Luck Stone"),
+    // Appended after LuckStone (=28); stat-stone sub-type -> ESubStat::Reflex (Cluster B-3). Reflex
+    // widens the defender's input window in the real-time defense duel, so an attached ReflexStone
+    // makes a character harder to land hits on. Same append-only serialized-identity rule — do NOT
+    // reorder/insert above.
+    ReflexStone UMETA(DisplayName = "Reflex Stone")
 };

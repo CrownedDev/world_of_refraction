@@ -525,6 +525,7 @@ namespace CrystalEffectTable
         case ECrystalType::SpellSpeedStone:
         case ECrystalType::ActionSpeedStone:
         case ECrystalType::LuckStone:
+        case ECrystalType::ReflexStone:
             break;
         default:
             return 0.0f;
@@ -566,6 +567,8 @@ namespace CrystalEffectTable
             return ESubStat::ActionSpeed;
         case ECrystalType::LuckStone:
             return ESubStat::Luck;
+        case ECrystalType::ReflexStone:
+            return ESubStat::Reflex;
         default:
             return ESubStat::None;
         }

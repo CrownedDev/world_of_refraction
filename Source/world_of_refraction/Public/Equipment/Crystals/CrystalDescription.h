@@ -212,6 +212,10 @@ namespace CrystalDescription
             return TEXT("A stone that raises Luck when attached — lifting crit chance, crystal-wear "
                         "break-skip, and other luck-driven odds together.");
 
+        case ECrystalType::ReflexStone:
+            return TEXT("A stone that raises Reflex when attached — widening the defense input window "
+                        "so incoming attacks are easier to react to and block.");
+
         case ECrystalType::DurabilityStone:
             return FString::Printf(
                 TEXT("Reinforces an elemental fusion — adds %d flat durability when fused with a crystal. Inert on its own or in a stone-only fusion."),
