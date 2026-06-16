@@ -1143,23 +1143,32 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
-	// Stage 6 cluster 4: SINGLE-projectile spells defend PER-IMPACT at projectile arrival. Convert the
-	// just-opened lumped windows (0.3s timer-close) to COUNT-BASED so they survive the cast animation +
-	// flight (8s failsafe), and mark one expected impact so OnProjectileImpact resolves at the landing.
-	// Done HERE (action start), NOT at dispatch: the cast-time window would otherwise auto-close at 0.3s
-	// before the SpellRelease notify fires. Gate: exactly one cast entry, Count==1, Projectile/Homing,
-	// single hit — barrage/beam/AOE/multi-entry/multi-hit stay on the lumped path (untouched).
+	// Stage 6 cluster 4/6: single-entry PROJECTILE/HOMING spells defend PER-IMPACT at projectile arrival.
+	// Convert the just-opened lumped windows (0.3s timer-close) to COUNT-BASED so they survive the cast
+	// animation + flight (8s failsafe), and mark ExpectedImpacts = the delivery's Count so the window
+	// closes only after the LAST of N staggered arrivals. Done HERE (action start), NOT at dispatch: the
+	// cast-time window would otherwise auto-close at 0.3s before the SpellRelease notify fires. Gate: one
+	// cast entry, single ASSET hit (Spell->HitCount==1, the physical-only field), Projectile/Homing, ANY
+	// Count — single (Count==1) is the N=1 case of the same path. Multi-entry/beam/AOE/asset-multi-hit
+	// stay on the lumped path (untouched).
+	//
+	// Burst even-split: window BaseDamage stays the FULL FinalDamage; the runtime Ctx.HitCount = Count
+	// makes each arrival's slice State.BaseDamage/HitCount = FinalDamage/Count (the ResolvedDamageSplit
+	// table is sized to Spell->HitCount==1, so it mismatches Count → the even-fallback slice fires, with
+	// the remainder distributed across the first R arrivals in ResolveImpactDefense). Spell->HitCount (the
+	// asset field) is NOT touched — only the runtime per-impact count.
+	//
 	// Double-apply guard: re-opening closes the lumped window, which would fire OnDefenseWindowClosed →
 	// apply NOW; so REMOVE the pending context first (that close becomes a no-op), re-open count-based,
-	// then restore it with ExpectedImpacts=1 — the arrival resolve becomes the ONLY apply.
+	// then restore it — the per-impact arrivals become the ONLY apply.
 	if (Spell->CastArray.Num() == 1 && Spell->HitCount == 1)
 	{
 		const FSkillCastEntry &E0 = Spell->CastArray[0];
-		if (E0.Count == 1 &&
-			(E0.DeliveryType == ESpellDeliveryType::Projectile || E0.DeliveryType == ESpellDeliveryType::Homing))
+		if (E0.DeliveryType == ESpellDeliveryType::Projectile || E0.DeliveryType == ESpellDeliveryType::Homing)
 		{
 			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
 			{
+				const int32 BurstCount = FMath::Max(1, E0.Count);
 				for (AActor *Target : ValidTargets)
 				{
 					if (FPendingDefenseContext *PDC = CurrentExecutionContext->PendingDefenses.Find(Target))
@@ -1167,10 +1176,11 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 						FPendingDefenseContext Saved = *PDC;
 						CurrentExecutionContext->PendingDefenses.Remove(Target); // close-on-reopen → no-op
 						// 0.3f = AI reaction-delay seed (matches the lumped open); bManualClose makes the
-						// real close the per-impact arrival, with the 8s failsafe covering cast + flight.
+						// real close the per-impact arrivals, with the 8s failsafe covering cast + flight.
 						DefenseSys->OpenDefenseWindow(Caster, Target, FinalSpellSize, FinalDamage,
 													 0.3f, /*bManualClose=*/true);
-						Saved.ExpectedImpacts = 1;
+						Saved.ExpectedImpacts = BurstCount; // close after the Nth arrival
+						Saved.HitCount = BurstCount;		// runtime per-impact count (NOT the asset HitCount)
 						Saved.ImpactsLanded = 0;
 						CurrentExecutionContext->PendingDefenses.Add(Target, Saved);
 					}
@@ -1785,13 +1795,20 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 
 	// This impact's slice of the BASE (pre-defense) damage. Same FloorToInt + 0.01 epsilon
 	// as ApplyOneImpact so the split math is identical on both sides; size-mismatched table
-	// → legacy even split.
+	// → even split. The even-fallback also distributes the integer remainder (State.BaseDamage %
+	// HitCount) across the first R arrivals (+1 each) so the N spell-burst shares sum EXACTLY to
+	// FinalDamage — e.g. 50/3 → 17,17,16. Melee never reaches this fallback: ResolveDamageSplit
+	// always returns a table sized HitCount, so bUseSplit is true for melee (its even split + remainder
+	// live in ResolveDamageSplit). The fallback fires only for the spell burst (table sized to
+	// Spell->HitCount==1, mismatching the runtime Ctx.HitCount=Count) — so this remainder-add is
+	// spell-burst-only by construction, melee untouched.
 	const int32 HitCount = FMath::Max(1, Ctx->HitCount);
 	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
 	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
+	const int32 EvenRemainder = (ImpactIndex < (State.BaseDamage % HitCount)) ? 1 : 0;
 	const int32 BaseSlice = bUseSplit
 								? FMath::FloorToInt(State.BaseDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
-								: (State.BaseDamage / HitCount);
+								: (State.BaseDamage / HitCount) + EvenRemainder;
 
 	// Per-impact defense difficulty for THIS impact is now CALLER-SUPPLIED (the concrete resolved
 	// triple): melee passes ResolvedDifficulty[ImpactIndex], spells pass ResolvedCastDifficulty
@@ -3578,19 +3595,33 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 
 			AActor *Attacker = Ctx->Attacker.Get();
 
-			// Drain BEFORE apply (melee order, ~line 5081): ImpactsLanded reaches HitCount so the
-			// close-time tail [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is EMPTY — no
-			// double-apply when CloseDefenseWindow fires OnDefenseWindowClosed below.
-			++Ctx->ImpactsLanded;
+			// This arrival's ordinal = the running ImpactsLanded (read BEFORE the increment): 0,1,…,Count-1
+			// in arrival order. Distinct ordinals are required — ApplyOneImpact uses ImpactIndex for the
+			// bounds guard (< HitCount=Count), buildup-rides-ordinal-0 (status applies ONCE, on the first
+			// arrival), and the even-split remainder. Single (Count==1) = ordinal 0, the cluster-4 case.
+			const int32 ImpactOrdinal = Ctx->ImpactsLanded;
 
-			// Single projectile = impact ordinal 0, HitCount 1 → the slice is the full damage.
-			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
+			// Drain BEFORE apply (melee order, ~line 5081): when ImpactsLanded reaches HitCount the
+			// close-time tail [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is EMPTY — no double-
+			// apply when CloseDefenseWindow fires OnDefenseWindowClosed below.
+			++Ctx->ImpactsLanded;
+			// Capture the close decision NOW, while Ctx is valid — ApplyOneImpact can broadcast
+			// OnTargetKilled and remove the entry. Close ONLY after the LAST of N staggered arrivals;
+			// intermediate burst arrivals leave the count-based window open for the next projectile.
+			const bool bLastArrival = (Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
+
+			// Even-split: ResolveImpactDefense slices State.BaseDamage/HitCount = FinalDamage/Count for
+			// this ordinal (+remainder for the first R). Per arrival reduces by its own matched defense.
+			ResolveImpactDefense(Target, ImpactOrdinal, ImpactTime, Diff);
 			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
 			if (Ctx)
 			{
-				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+				ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
 			}
-			DefenseSys->CloseDefenseWindow(Target); // → OnDefenseWindowClosed: empty tail, removes the pending entry
+			if (bLastArrival)
+			{
+				DefenseSys->CloseDefenseWindow(Target); // → OnDefenseWindowClosed: empty tail, removes the entry
+			}
 			return;
 		}
 	}
@@ -3622,6 +3653,23 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 	{
 		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
 		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, 0); // 0 damage = dodged
+	}
+
+	// Stage 6 cluster 6 — CONVERTED path count integrity: a move-dodged projectile is an ARRIVAL that
+	// bypasses OnProjectileImpact (and its ++ImpactsLanded), so without this a burst window would hang
+	// waiting for a count that never comes. Count the dodged arrival as landed-but-zero (no damage —
+	// already recorded above) so the close still reaches ExpectedImpacts. Inert today (move-dodge never
+	// fires in fixed-position combat) but correct for robustness / future positional mechanics.
+	if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
+	{
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+		{
+			const bool bLastArrival = (++Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
+			if (bLastArrival)
+			{
+				DefenseSys->CloseDefenseWindow(Target);
+			}
+		}
 	}
 }
 
