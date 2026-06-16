@@ -472,6 +472,12 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  FinalizeDamageInputs in lockstep with ResolvedDamageSplit (same HitCount, same skill). */
 	TArray<FDefenseDifficultyTriple> ResolvedDifficulty;
 
+	/** Per-cast-entry resolved defense difficulty (spells), indexed by cast-entry index. Populated at
+	 *  ExecuteSpellAsync; read per-impact at projectile arrival (Stage 6 cluster 4). Parallel to
+	 *  ResolvedDifficulty (which is melee, impact-ordinal-indexed) — distinct index semantics, kept
+	 *  separate deliberately. */
+	TArray<FDefenseDifficultyTriple> ResolvedCastDifficulty;
+
 	FActionExecutionContext()
 	{
 		ExecutionId = FGuid::NewGuid();

@@ -1112,6 +1112,12 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	FinalizeDamageInputs(Spell, FinalDamage, Spell->HitCount, DamagePerHit);
 	PendingSpellDamage = FinalDamage; // Spell-specific: cached for VFX notify
 
+	// Stage 6 cluster 2: resolve per-cast-entry defense difficulty (Option A — keyed by cast-entry
+	// index, not impact ordinal). Parallel to the melee ResolvedDifficulty fill in FinalizeDamageInputs;
+	// inert until cluster 4 reads it at projectile arrival (cluster 3 stamps the index on the projectile).
+	CurrentExecutionContext->ResolvedCastDifficulty =
+		ResolveCastDifficulty(Spell->CastArray, Spell->DefaultDifficulty);
+
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
 		Caster,

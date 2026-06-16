@@ -60,6 +60,15 @@ WORLD_OF_REFRACTION_API TArray<float> ResolveDamageSplit(int32 HitCount, const T
 WORLD_OF_REFRACTION_API TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
 	int32 HitCount, const TArray<FDamageSplitEntry> &Split, const FDefenseDifficultyTriple &Default);
 
+struct FSkillCastEntry;
+
+/** Resolve each cast-entry's authored Difficulty into a dense per-cast-entry table (length
+ *  CastArray.Num()). Per field: entry tier -> Default -> Easy (no Inherit survives). Empty CastArray
+ *  -> empty table (the cluster-4 reader guards with IsValidIndex -> default triple -> Easy x1.0, same
+ *  shape as the melee reader). Spell analog of ResolveImpactDifficulty, keyed by cast-entry index. */
+WORLD_OF_REFRACTION_API TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
+	const TArray<FSkillCastEntry> &CastArray, const FDefenseDifficultyTriple &Default);
+
 /**
  * USkillDataBase
  * Truly-shared fields for abilities, spells, and weapon attacks.

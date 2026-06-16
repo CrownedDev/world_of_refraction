@@ -2,6 +2,7 @@
 // Shared base class implementation.
 
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
@@ -133,6 +134,25 @@ TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
         Triple.Block = ResolveInheritedDifficulty(Triple.Block, Default.Block);
     }
 
+    return Table;
+}
+
+TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
+    const TArray<FSkillCastEntry> &CastArray, const FDefenseDifficultyTriple &Default)
+{
+    // Index IS array position — no HitNumber lookup, no dedup/range warnings (unlike the melee
+    // ResolveImpactDifficulty). Just walk each cast-entry and collapse Inherit per field:
+    // entry tier -> Default -> Easy. Empty CastArray -> empty table (the cluster-4 reader guards).
+    TArray<FDefenseDifficultyTriple> Table;
+    Table.Reserve(CastArray.Num());
+    for (const FSkillCastEntry &E : CastArray)
+    {
+        FDefenseDifficultyTriple T;
+        T.Parry = ResolveInheritedDifficulty(E.Difficulty.Parry, Default.Parry);
+        T.Dodge = ResolveInheritedDifficulty(E.Difficulty.Dodge, Default.Dodge);
+        T.Block = ResolveInheritedDifficulty(E.Difficulty.Block, Default.Block);
+        Table.Add(T);
+    }
     return Table;
 }
 
