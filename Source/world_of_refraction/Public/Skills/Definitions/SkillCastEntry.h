@@ -80,6 +80,12 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast", meta = (ClampMin = "0"))
     int32 Damage = 0;
 
+    /** If true, this cast scales with the OPPOSITE stat to its action type — a spell scales with RawDamage
+     *  instead of SpellDamage (a "force slash" that scales off physical stats). Default false = natural
+     *  (spell -> SpellDamage). Stat-only: changes which stat scales, nothing else. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bOverrideStatScaling = false;
+
     /** This delivery's per-defense-type difficulty (parry/dodge/block), keyed PER CAST-ENTRY (per
      *  delivery), not per hit. All-Inherit -> resolves to the skill-level DefaultDifficulty, then
      *  Easy (x1.0). Resolve + per-impact routing wired in later Stage-6 clusters. */

@@ -39,6 +39,12 @@ struct WORLD_OF_REFRACTION_API FDamageSplitEntry
      *  longer drift apart. Resolved via ResolveImpactDifficulty (reads the same array). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Split")
     FDefenseDifficultyTriple Difficulty;
+
+    /** If true, this component scales with the OPPOSITE stat to its action type — a physical hit scales
+     *  with SpellDamage instead of RawDamage (a "fire punch" that scales off Spell). Default false =
+     *  natural scaling (physical -> RawDamage). Stat-only: changes which stat scales, nothing else. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
+    bool bOverrideStatScaling = false;
 };
 
 /** Resolve authored split entries into a full per-hit percent table (length

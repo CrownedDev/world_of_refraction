@@ -44,8 +44,14 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
 	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
 	// future per-action stat modifier sources.
-	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
-	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
+	// Hybrid stat toggle (bOverrideStatScaling): swaps ONLY which stat scales (Raw↔Spell) — a force-slash
+	// (cast) scales RawDamage, a fire-punch (physical) scales SpellDamage. Everything else below stays on
+	// Input.ActionType (element routing, the Spell-mode effective-damage branches). STAT-ONLY.
+	const EActionType ScalingType = Input.bOverrideStatScaling
+									   ? (Input.ActionType == EActionType::Spell ? EActionType::Attack : EActionType::Spell)
+									   : Input.ActionType;
+	float AttackerMult = GetAttackerDamageMultiplier(Attacker, ScalingType);
+	const ESubStat AttackerStat = (ScalingType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 
 	// Equipment stat bonus — direct read from the attacker's active loadout.

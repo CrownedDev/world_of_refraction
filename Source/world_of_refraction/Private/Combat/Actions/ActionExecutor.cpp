@@ -1140,7 +1140,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		Action.SelectedSource,	   // SelectedSource
 		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
 		EPhysicalDamageType::None, // PhysicalDamageType - spells have none (Session Y)
-		0.3f					   // Default window duration - TODO: get from spell data
+		0.3f,					   // Default window duration - TODO: get from spell data
+		Spell->CastArray.Num() > 0 ? Spell->CastArray[0].bOverrideStatScaling : false // hybrid stat toggle (single-entry)
 	);
 
 	// Stage 6 cluster 4/6: single-entry PROJECTILE/HOMING spells defend PER-IMPACT at projectile arrival.
@@ -1380,7 +1381,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
 		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
-		0.3f);
+		0.3f,
+		Ability->DamageSplit.Num() > 0 ? Ability->DamageSplit[0].bOverrideStatScaling : false); // hybrid stat toggle
 
 	LogActionDispatch(EActionType::Ability, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
@@ -1511,7 +1513,8 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		Action.SelectedSource, // SelectedSource
 		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
 		AttackPhysicalType,	   // PhysicalDamageType (from active weapon) - drives trigger when Generic
-		0.3f);
+		0.3f,
+		Attack->DamageSplit.Num() > 0 ? Attack->DamageSplit[0].bOverrideStatScaling : false); // hybrid stat toggle
 
 	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());
 }
@@ -1609,7 +1612,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	EInfusionSourceOption SelectedSource,
 	int32 BaseStatusBuildup,
 	EPhysicalDamageType PhysicalDamageType,
-	float WindowDuration)
+	float WindowDuration,
+	bool bOverrideStatScaling)
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -1663,6 +1667,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
 		DefenseContext.PhysicalDamageType = PhysicalDamageType;
+		DefenseContext.bOverrideStatScaling = bOverrideStatScaling;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -1957,6 +1962,7 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.Attacker = Attacker;
 	Input.Target = Target;
 	Input.ActionType = Context.ActionType;
+	Input.bOverrideStatScaling = Context.bOverrideStatScaling;
 	Input.BaseDamage = ImpactDamage;
 	Input.bCanCrit = Context.bCanCrit;
 	Input.Element = Context.Element;
@@ -2672,6 +2678,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			FDamageCalculationInput DmgInput;
 			DmgInput.BaseDamage = Input.BaseDamage;
 			DmgInput.ActionType = Input.ActionType;
+			DmgInput.bOverrideStatScaling = Input.bOverrideStatScaling;
 			DmgInput.Element = Input.Element;
 			DmgInput.bCanCrit = Input.bCanCrit;
 			DmgInput.bWasInfused = Input.InfusionLevel > 0;
@@ -3297,7 +3304,7 @@ void UActionExecutor::SpawnProjectileActor(
 		Projectile->Launch();
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
-			   *Target->GetName(), (int32)Delivery,
+			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Spell->DeliveryType),
 			   Entry ? Entry->ProjectileSpeed : Spell->ProjectileSpeed);
 	}
 }

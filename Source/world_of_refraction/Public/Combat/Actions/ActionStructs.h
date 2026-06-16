@@ -373,6 +373,12 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EActionType ActionType = EActionType::None;
 
+	/** Hybrid stat toggle (attack-level, single-component): when true, scaling uses the OPPOSITE stat to
+	 *  ActionType (Raw↔Spell). Sourced from the authored entry at context creation; threaded to
+	 *  FActionHitInput at apply. Stat-only. Default false = natural scaling. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bOverrideStatScaling = false;
+
 	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
 	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
@@ -579,6 +585,11 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	/** Drives damage-stat selection (Spell → SpellDamage; Ability/Attack → RawDamage). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
 	EActionType ActionType = EActionType::None;
+
+	/** Hybrid stat toggle: when true, the damage calculator scales this hit with the OPPOSITE stat to
+	 *  ActionType (Raw↔Spell). Stat-only — element/routing stay on ActionType. Default false = natural. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	bool bOverrideStatScaling = false;
 
 	/** Pre-calculation per-hit damage value. 0 if this hit deals no damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")

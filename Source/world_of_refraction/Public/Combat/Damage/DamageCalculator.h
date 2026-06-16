@@ -95,6 +95,12 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	/** Skip resistance calculation? */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIgnoreResistance = false;
+
+	/** Hybrid stat toggle: when true, the attacker damage multiplier + stat select use the OPPOSITE
+	 *  EActionType to ActionType (Raw↔Spell). STAT-ONLY — element routing and the Spell-mode effective-
+	 *  damage branches stay on ActionType. Default false = natural scaling. */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	bool bOverrideStatScaling = false;
 };
 
 /**
