@@ -25,8 +25,7 @@ public:
     static void PrintCastArray(const UCastableSkillDataBase *Skill, float Duration = 15.0f);
 
     /** Formatted Cast array, one line per entry:
-     *  "[N] <Delivery> '<Label>' Size=<f> VisualScale=<f> Speed=<f> Trail=<asset> Count=<n>"
-     *  with "[Homing=<f>]" appended when the delivery matches. */
+     *  "[N] <Delivery> '<Label>' Size=<f> VisualScale=<f> Speed=<f> Trail=<asset> Count=<n>" */
     UFUNCTION(BlueprintPure, Category = "Debug|Cast")
     static FString GetCastArrayString(const UCastableSkillDataBase *Skill);
 };

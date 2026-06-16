@@ -60,11 +60,6 @@ FString USkillCastDebug::GetCastArrayString(const UCastableSkillDataBase *Skill)
             i, *DeliveryName, *Entry.Label, Entry.Size, Entry.VisualScale,
             Entry.ProjectileSpeed, *TrailName, Entry.Count);
 
-        if (Entry.DeliveryType == ESpellDeliveryType::Homing)
-        {
-            Line += FString::Printf(TEXT(" [Homing=%.2f]"), Entry.HomingStrength);
-        }
-
         Output += Line + TEXT("\n");
     }
 

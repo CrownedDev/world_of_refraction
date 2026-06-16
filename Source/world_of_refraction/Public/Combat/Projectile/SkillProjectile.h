@@ -1,5 +1,5 @@
 // SkillProjectile.h
-// Unified spell delivery actor - handles Projectile and Homing types
+// Unified spell delivery actor - handles the Projectile delivery type
 // AOE and Instant don't spawn this actor - use ActionExecutor directly
 
 #pragma once
@@ -42,7 +42,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
  *
  * Unified spell delivery actor that handles:
  * - Projectile: Travels to fixed location, dodgeable by moving
- * - Homing: Tracks target actor, harder to dodge
  *
  * AOE and Instant spells don't use this actor.
  *
@@ -113,7 +112,7 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     AActor *Caster;
 
-    /** Primary target actor (for homing/beam) */
+    /** Primary target actor */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     AActor *Target;
 
@@ -124,10 +123,6 @@ protected:
     /** Travel speed (units/second) */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     float Speed;
-
-    /** Homing tracking strength (0-1) */
-    UPROPERTY(BlueprintReadOnly, Category = "Config")
-    float HomingStrength;
 
     /** Final calculated impact radius */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
@@ -164,9 +159,9 @@ public:
         float FinalVisualScale,
         int32 FinalDamage);
 
-    /** Entry-based initialization (D6 Stage 12): delivery values (type, speed,
-     *  homing/beam params) come from the Cast ENTRY; Spell supplies element/
-     *  color context only. C++-only overload — the runner's dispatch path. */
+    /** Entry-based initialization (D6 Stage 12): delivery values (type,
+     *  speed) come from the Cast ENTRY; Spell supplies element/color context
+     *  only. C++-only overload — the runner's dispatch path. */
     void InitializeProjectile(
         const FSkillCastEntry &Entry,
         USpellData *Spell,
@@ -236,16 +231,13 @@ protected:
 
     /** Shared tail of both InitializeProjectile overloads: target capture,
      *  collision sizing, positioning, colors/scale. Callers set the per-source
-     *  fields (delivery/speed/homing) first. */
+     *  fields (delivery/speed) first. */
     void InitializeCommon();
 
     // ==================== MOVEMENT ====================
 
     /** Projectile: Move toward fixed target location */
     void TickProjectile(float DeltaTime);
-
-    /** Homing: Move toward target actor with tracking */
-    void TickHoming(float DeltaTime);
 
     // ==================== COLLISION ====================
 

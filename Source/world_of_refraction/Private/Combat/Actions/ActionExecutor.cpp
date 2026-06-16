@@ -1148,7 +1148,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// animation + flight (8s failsafe), and mark ExpectedImpacts = the delivery's Count so the window
 	// closes only after the LAST of N staggered arrivals. Done HERE (action start), NOT at dispatch: the
 	// cast-time window would otherwise auto-close at 0.3s before the SpellRelease notify fires. Gate: one
-	// cast entry, single ASSET hit (Spell->HitCount==1, the physical-only field), Projectile/Homing, ANY
+	// cast entry, single ASSET hit (Spell->HitCount==1, the physical-only field), Projectile, ANY
 	// Count — single (Count==1) is the N=1 case of the same path. Multi-entry/beam/AOE/asset-multi-hit
 	// stay on the lumped path (untouched).
 	//
@@ -1164,7 +1164,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	if (Spell->CastArray.Num() == 1 && Spell->HitCount == 1)
 	{
 		const FSkillCastEntry &E0 = Spell->CastArray[0];
-		if (E0.DeliveryType == ESpellDeliveryType::Projectile || E0.DeliveryType == ESpellDeliveryType::Homing)
+		if (E0.DeliveryType == ESpellDeliveryType::Projectile)
 		{
 			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
 			{
@@ -3135,7 +3135,6 @@ void UActionExecutor::SpawnSpellDelivery(
 	switch (Spell->DeliveryType)
 	{
 	case ESpellDeliveryType::Projectile:
-	case ESpellDeliveryType::Homing:
 		// Spawn projectile actor for each target
 		for (AActor *Target : Targets)
 		{
@@ -3247,7 +3246,7 @@ void UActionExecutor::SpawnProjectileActor(
 			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : Spell->ImpactVFX);
 
 		// 2. Initialize with combat data (entry overload feeds the entry's
-		// delivery/speed/homing/beam values; legacy feeds the loose fields)
+		// delivery/speed values; legacy feeds the loose fields)
 		if (Entry)
 		{
 			Projectile->InitializeProjectile(
@@ -3474,7 +3473,6 @@ void UActionExecutor::DispatchSpellCast(
 	switch (Entry.DeliveryType)
 	{
 	case ESpellDeliveryType::Projectile:
-	case ESpellDeliveryType::Homing:
 		for (AActor *Target : Targets)
 		{
 			// First spawn immediate; Count>1 queues the remainder on the

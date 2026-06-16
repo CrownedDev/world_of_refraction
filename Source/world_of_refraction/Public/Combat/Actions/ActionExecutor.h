@@ -999,7 +999,7 @@ private:
 protected:
 	/**
 	 * Spawn spell delivery based on DeliveryType
-	 * - Projectile/Homing: Spawns ASkillProjectile
+	 * - Projectile: Spawns ASkillProjectile
 	 * - AOE/Instant: Spawns VFX directly, opens defense window
 	 */
 	virtual void SpawnSpellDelivery(
@@ -1011,8 +1011,8 @@ protected:
 		int32 FinalDamage,
 		bool bIsBrokenDarkness);
 
-	/** Spawn projectile actor (Projectile/Homing). Entry non-null = the
-	 *  Cast-entry dispatch path (D6): entry class/speed/Trail/homing win;
+	/** Spawn projectile actor (Projectile). Entry non-null = the
+	 *  Cast-entry dispatch path (D6): entry class/speed/Trail win;
 	 *  null = legacy loose-field path. ONE spawn site for both. */
 	void SpawnProjectileActor(
 		AActor *Caster,

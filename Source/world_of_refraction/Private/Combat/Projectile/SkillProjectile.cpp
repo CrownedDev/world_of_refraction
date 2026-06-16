@@ -14,7 +14,7 @@
 // - SpellVFX (main projectile effect)
 // - ImpactVFX (hit explosion)
 // - MuzzleVFX (cast flash at caster)
-// - DeliveryType, ProjectileSpeed, HomingStrength
+// - DeliveryType, ProjectileSpeed
 // - BaseSize, HitboxRatio, Element
 
 // ==================== CONSTANTS ====================
@@ -23,9 +23,6 @@ namespace SkillProjectileConstants
 {
     /** Default projectile speed (units/second) */
     constexpr float DEFAULT_SPEED = 1500.f;
-
-    /** Default homing strength */
-    constexpr float DEFAULT_HOMING_STRENGTH = 0.5f;
 
     /** Default beam duration (seconds) */
     constexpr float DEFAULT_BEAM_DURATION = 1.0f;
@@ -81,7 +78,6 @@ ASkillProjectile::ASkillProjectile()
     Target = nullptr;
     TargetLocation = FVector::ZeroVector;
     Speed = SkillProjectileConstants::DEFAULT_SPEED;
-    HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
     ImpactRadius = 1.0f;
     Damage = 0;
     VisualScale = 1.0f;
@@ -112,10 +108,6 @@ void ASkillProjectile::Tick(float DeltaTime)
     {
     case ESpellDeliveryType::Projectile:
         TickProjectile(DeltaTime);
-        break;
-
-    case ESpellDeliveryType::Homing:
-        TickHoming(DeltaTime);
         break;
 
     default:
@@ -156,7 +148,6 @@ void ASkillProjectile::InitializeProjectile(
         DeliveryType = Spell->DeliveryType;
         Element = Spell->Element;
         Speed = Spell->ProjectileSpeed;
-        HomingStrength = Spell->HomingStrength;
     }
     else
     {
@@ -164,7 +155,6 @@ void ASkillProjectile::InitializeProjectile(
         DeliveryType = ESpellDeliveryType::Projectile;
         Element = ESpellElement::Generic;
         Speed = SkillProjectileConstants::DEFAULT_SPEED;
-        HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
     }
 
     InitializeCommon();
@@ -196,7 +186,6 @@ void ASkillProjectile::InitializeProjectile(
     DeliveryType = Entry.DeliveryType;
     Element = Spell ? Spell->Element : ESpellElement::Generic;
     Speed = Entry.ProjectileSpeed;
-    HomingStrength = Entry.HomingStrength;
 
     InitializeCommon();
 }
@@ -281,9 +270,8 @@ void ASkillProjectile::Launch()
         MuzzleFX->Activate(true);
     }
 
-    // Start projectile effect (for Projectile/Homing)
-    if (DeliveryType == ESpellDeliveryType::Projectile ||
-        DeliveryType == ESpellDeliveryType::Homing)
+    // Start projectile effect (for Projectile)
+    if (DeliveryType == ESpellDeliveryType::Projectile)
     {
         if (ProjectileFX && ProjectileFX->GetAsset())
         {
@@ -325,36 +313,6 @@ void ASkillProjectile::TickProjectile(float DeltaTime)
     }
 }
 
-void ASkillProjectile::TickHoming(float DeltaTime)
-{
-    if (!Target || !IsValid(Target))
-    {
-        // Target lost, continue to last known location
-        TickProjectile(DeltaTime);
-        return;
-    }
-
-    // Update target location with homing strength interpolation
-    FVector CurrentTargetLocation = Target->GetActorLocation();
-    TargetLocation = FMath::Lerp(TargetLocation, CurrentTargetLocation, HomingStrength);
-
-    // Move toward interpolated location
-    FVector CurrentLocation = GetActorLocation();
-    FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
-
-    if (Direction.IsNearlyZero())
-    {
-        ResolveImpact();
-        return;
-    }
-
-    FVector NewLocation = CurrentLocation + Direction * Speed * DeltaTime;
-    SetActorLocation(NewLocation);
-    SetActorRotation(Direction.Rotation());
-
-    // Homing uses overlap detection, not distance check
-}
-
 // ==================== COLLISION ====================
 
 void ASkillProjectile::OnHitBoxOverlap(
@@ -377,11 +335,6 @@ void ASkillProjectile::OnHitBoxOverlap(
 
     UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Overlap with target: %s"), *OtherActor->GetName());
 
-    // For Homing, impact on overlap (can't dodge by moving)
-    if (DeliveryType == ESpellDeliveryType::Homing)
-    {
-        ResolveImpact();
-    }
     // Projectile uses destination check in Tick, not overlap
     // This allows the move-dodge mechanic to work
 }

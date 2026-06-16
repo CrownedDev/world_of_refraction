@@ -80,14 +80,6 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Visuals", meta = (DeprecatedProperty))
     UNiagaraSystem *MuzzleVFX = nullptr;
 
-    // ==================== DELIVERY (spell-specific extensions) ====================
-
-    /** DEPRECATED (D6, meta'd Stage 12 SC7): load-only — per-entry on
-     *  CastArray; only the migration + empty-CastArray fallback read this.
-     *  Hard-delete post-SC8. */
-    UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
-    float HomingStrength = 0.5f;
-
     // ==================== SIZE ====================
 
     /** DEPRECATED (D6 Stage 12 SC6): load-only — migrated to CastArray

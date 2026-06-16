@@ -374,15 +374,14 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
-		// Projectile/Homing spells need async for defense window.
+		// Projectile spells need async for defense window.
 		// D6: Cast entries are authoritative when present (any travel-type
 		// entry → async); loose DeliveryType is the empty-CastArray fallback.
 		if (Action.SpellData->CastArray.Num() > 0)
 		{
 			for (const FSkillCastEntry &Entry : Action.SpellData->CastArray)
 			{
-				if (Entry.DeliveryType == ESpellDeliveryType::Projectile ||
-					Entry.DeliveryType == ESpellDeliveryType::Homing)
+				if (Entry.DeliveryType == ESpellDeliveryType::Projectile)
 				{
 					bRequiresAsync = true;
 					break;
@@ -392,8 +391,7 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		else
 		{
 			ESpellDeliveryType Delivery = Action.SpellData->DeliveryType;
-			bRequiresAsync = (Delivery == ESpellDeliveryType::Projectile ||
-							  Delivery == ESpellDeliveryType::Homing);
+			bRequiresAsync = (Delivery == ESpellDeliveryType::Projectile);
 		}
 	}
 	else if (Action.ActionType == EActionType::Attack && Action.AttackData)

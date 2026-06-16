@@ -622,6 +622,18 @@ between modes. Only two things differ:
 
 ## Changelog
 
+- **2026-06-16** — **`Homing` delivery type REMOVED** (`feature/realtime-defense`; follows the
+  earlier `Beam` removal). Tracking is meaningless without a spatial dodge — Crown-confirmed a homing
+  shot was just a projectile with a curvy path, i.e. dead weight. Deleted `ASkillProjectile::TickHoming`
+  + the Tick `Homing` case + the `OnHitBoxOverlap` Homing branch (function/binding kept as a Projectile
+  no-op), the `HomingStrength` field across `FSkillCastEntry`/`USpellData`/`ASkillProjectile` + its
+  migration, and every `Homing` clause in the defense helpers, EditConditions, the cluster-4/6 conversion
+  gate, the async-decision, and the dispatch switches. Mid-enum removal (value 1) so a CoreRedirect
+  (`ESpellDeliveryType` `Homing`→`Projectile`) was added; enum is now `Projectile=0 / AOE=1 / Instant=2`.
+  The §8a `ExpectedImpacts` formula rows now collapse to **Projectile : `entry.Count`** (the prior
+  Projectile/Homing pairing and the already-removed Beam row are both gone); shared projectile + count-based
+  per-impact defense plumbing is untouched. The §8a/§8b prose retains its original delivery-type wording as
+  a historical design record.
 - **2026-06-15** — **Multi-target defense model RESOLVED (§13): solo sequential vs MP simultaneous.**
   The per-defender AOE question from §3a-Q is now resolved into a full model. Solo = one player controls
   the whole team → windows open SEQUENTIALLY in a declared ordered target sequence, a pointer advances

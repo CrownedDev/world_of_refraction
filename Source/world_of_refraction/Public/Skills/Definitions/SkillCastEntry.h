@@ -33,19 +33,19 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast")
     ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
 
-    /** Travel actor for Projectile/Homing. Null = the executor's
+    /** Travel actor for Projectile. Null = the executor's
      *  DefaultProjectileClass (today's fallback). */
     UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile",
                       EditConditionHides))
     TSubclassOf<ASkillProjectile> ProjectileClass;
 
     UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile",
                       EditConditionHides, ClampMin = "100.0"))
     float ProjectileSpeed = 1500.0f;
 
-    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile/Homing =
+    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile =
      *  moving collision radius, AOE = static ground radius. Never the
      *  visual (that's VisualScale / the VFX entries' Scale). */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
@@ -64,12 +64,6 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
      *  mechanical hitbox (D6). */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
     float VisualScale = 1.0f;
-
-    /** Homing tracking strength: 0 = no tracking, 1 = instant turn. */
-    UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
-                      EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
-    float HomingStrength = 0.5f;
 
     /** Barrage: >1 spawns Count deliveries staggered by BurstInterval. */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "1"))
