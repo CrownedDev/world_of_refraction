@@ -152,6 +152,36 @@ which melee notify it anchors to (#3).
 - **Status.** A known characteristic of the parked multi-entry/hybrid path, to address when hybrids are
   built.
 
+## Interrupt — built (melee + single-delivery spell) vs. deferred (burst)
+
+- **RESOLVED — multi-target spell interrupt is DONE.** The interrupt (an interruptable hit/cast parried or
+  dodged by **all** its targets aborts the rest of the action) works across delivery types. **Melee** (B2)
+  uses a live-context check between its separate resolve/close loops. **Spell** (AOE / Instant / single-
+  projectile) uses a **cross-target `ChokeOutcomes` tally** on `FActionExecutionContext` — the spell paths
+  close + remove each defender's context on resolve, so a *surviving* per-target record (written before the
+  close) is what lets "did ALL targets defend this choke point?" be evaluated after the contexts are gone.
+  Choke-point, first-pass-wins (a fresh tally per interruptable cast entry). Single-target and multi-target
+  both work.
+
+- **DEFERRED — burst interrupt.** A burst is **N staggered arrivals to one target**. Two blockers:
+  - **Unit undecided (Crown's call).** "Interrupt the barrage" is ambiguous — defend **all N** projectiles
+    (harsh: must parry/dodge every one) vs. defend one **"connect"** arrival (which one?). Only per-arrival-
+    all-defended is coherent, but punishing. Crown picks the unit before build.
+  - **Mechanism mismatch.** The by-target `ChokeOutcomes` map records one bool **per target** — a single-
+    target burst overwrites the same key, so `Num()` stays 1 and never reaches N arrivals. Burst needs a
+    **per-arrival counter** (defended-arrivals vs `Count`), not a by-target map. (The projectile record is
+    gated on `ExpectedImpacts == 1`, so burst skips it; a burst entry's tally init is harmless — it never
+    completes.)
+
+- **The fix (when built).** Pick the unit (likely per-arrival all-defended) **and** add a per-arrival
+  counter for burst interrupt, separate from the by-target tally.
+
+- **Guidance now.** Author interruptable attacks as **single-delivery** (single projectile / AOE / Instant /
+  melee hit) — these cover the real cases (the grab is melee; AOE/Instant choke points work). Burst interrupt
+  waits on Crown's unit decision + the counter.
+
 ## Status
 
-PARKED, to incorporate. Captured so the vision is intact.
+PARKED, to incorporate. Captured so the vision is intact. **Built:** the stat toggle (A), per-hit flags +
+status distribution (B0/B1), and the interrupt (B2 + cross-target tally) for melee and single-delivery spell,
+multi-target. **Deferred:** burst interrupt (unit + counter), and the multi-entry per-entry defense path.
