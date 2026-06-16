@@ -13,14 +13,16 @@
 namespace
 {
     // ==================== PILLAR SUBSTAT TABLES ====================
-    // 4 Mind / 4 Body / 5 Spirit fields. Pointer-to-member-style accessors
+    // 4 Mind / 5 Body / 5 Spirit fields. Pointer-to-member-style accessors
     // would be nicer but they're awkward across int32 + float fields, so we
     // use small dispatch lambdas keyed by integer indices.
 
     enum class EPillar : uint8 { Mind, Body, Spirit };
 
     constexpr int32 MIND_SLOT_COUNT   = 4;
-    constexpr int32 BODY_SLOT_COUNT   = 4;
+    // BODY_SLOT_COUNT 4 -> 5 (Cluster B-2): rolled Body gear now spreads its substat
+    // budget across 5 slots (Reflex added) — each Body stat dilutes slightly. Accepted.
+    constexpr int32 BODY_SLOT_COUNT   = 5;
     constexpr int32 SPIRIT_SLOT_COUNT = 5;
     constexpr int32 MAX_PILLAR_SLOTS  = 5;
 
@@ -55,6 +57,7 @@ namespace
             case 1: return Bonus.BonusDefense;
             case 2: return Bonus.BonusActionSpeed;
             case 3: return Bonus.BonusMaxHP;
+            case 4: return Bonus.BonusReflex;
             }
             break;
         case EPillar::Spirit:
@@ -101,6 +104,7 @@ namespace
             case 1: Bonus.BonusDefense     = FMath::Clamp(Bonus.BonusDefense     + Delta, Lo, Hi); return;
             case 2: Bonus.BonusActionSpeed = FMath::Clamp(Bonus.BonusActionSpeed + Delta, Lo, Hi); return;
             case 3: Bonus.BonusMaxHP       = FMath::Clamp(Bonus.BonusMaxHP       + Delta, Lo, Hi); return;
+            case 4: Bonus.BonusReflex      = FMath::Clamp(Bonus.BonusReflex      + Delta, Lo, Hi); return;
             }
             break;
         case EPillar::Spirit:
@@ -116,7 +120,7 @@ namespace
         }
     }
 
-    /** Zero all 13 substat bonus fields — used by reroll. */
+    /** Zero all 14 substat bonus fields — used by reroll. */
     void WipeSubstats(FEquipmentStatBonus &Bonus)
     {
         Bonus.BonusRawDamage        = 0;
@@ -127,6 +131,7 @@ namespace
         Bonus.BonusSpellSpeed       = 0;
         Bonus.BonusDefense          = 0;
         Bonus.BonusActionSpeed      = 0;
+        Bonus.BonusReflex           = 0;
         Bonus.BonusMaxHP            = 0;
         Bonus.BonusMaxEnergy        = 0;
         Bonus.BonusResistance       = 0;
@@ -318,6 +323,7 @@ void FEquipmentStatBonus::Accumulate(const FEquipmentStatBonus &Other)
     BonusSpellSpeed            += Other.BonusSpellSpeed;
     BonusDefense               += Other.BonusDefense;
     BonusActionSpeed           += Other.BonusActionSpeed;
+    BonusReflex                += Other.BonusReflex;
     BonusMaxHP                 += Other.BonusMaxHP;
     BonusMaxEnergy             += Other.BonusMaxEnergy;
     BonusResistance            += Other.BonusResistance;

@@ -73,6 +73,10 @@ struct WORLD_OF_REFRACTION_API FEquipmentStatBonus
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusActionSpeed = 0;
 
+    // Body substat (Cluster B-2). Gearable defense-window stat — Body slot 4.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
+    int32 BonusReflex = 0;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Bonuses", meta = (ClampMin = "-21", ClampMax = "21"))
     int32 BonusMaxHP = 0;
 

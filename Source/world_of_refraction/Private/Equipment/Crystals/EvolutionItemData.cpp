@@ -134,6 +134,7 @@ bool UEvolutionItemData::HasStatModifiers() const
            BaseStatBonus.BonusSpellSpeed       != 0 ||
            BaseStatBonus.BonusDefense          != 0 ||
            BaseStatBonus.BonusActionSpeed      != 0 ||
+           BaseStatBonus.BonusReflex           != 0 ||
            BaseStatBonus.BonusMaxHP            != 0 ||
            BaseStatBonus.BonusMaxEnergy        != 0 ||
            BaseStatBonus.BonusResistance       != 0 ||
@@ -241,6 +242,7 @@ FActionStatModifiers UEvolutionItemData::MapToInfusionModifiers(const FEquipment
     Out.SpellSpeed       = Bonus.BonusSpellSpeed        * InfusionMultiplier;
     Out.Defense          = Bonus.BonusDefense           * InfusionMultiplier;
     Out.ActionSpeed      = Bonus.BonusActionSpeed       * InfusionMultiplier;
+    Out.Reflex           = Bonus.BonusReflex            * InfusionMultiplier;
     Out.RawDamage        = Bonus.BonusRawDamage         * InfusionMultiplier;
     Out.Resistance       = Bonus.BonusResistance        * InfusionMultiplier;
     // TurnSpeed intentionally NOT mapped — pacing never infuses. Turn speed comes
@@ -503,6 +505,7 @@ EDataValidationResult UEvolutionItemData::IsDataValid(FDataValidationContext &Co
     WarnIntOutOfRange(TEXT("BonusSpellSpeed"),       BaseStatBonus.BonusSpellSpeed);
     WarnIntOutOfRange(TEXT("BonusDefense"),          BaseStatBonus.BonusDefense);
     WarnIntOutOfRange(TEXT("BonusActionSpeed"),      BaseStatBonus.BonusActionSpeed);
+    WarnIntOutOfRange(TEXT("BonusReflex"),           BaseStatBonus.BonusReflex);
     WarnIntOutOfRange(TEXT("BonusMaxHP"),            BaseStatBonus.BonusMaxHP);
     WarnIntOutOfRange(TEXT("BonusMaxEnergy"),        BaseStatBonus.BonusMaxEnergy);
     WarnIntOutOfRange(TEXT("BonusResistance"),       BaseStatBonus.BonusResistance);

@@ -24,6 +24,7 @@ namespace
 		AddInt(TEXT("SpellSpd"), B.BonusSpellSpeed);
 		AddInt(TEXT("Def"), B.BonusDefense);
 		AddInt(TEXT("ActSpd"), B.BonusActionSpeed);
+		AddInt(TEXT("Reflex"), B.BonusReflex);
 		AddInt(TEXT("MaxHP"), B.BonusMaxHP);
 		AddInt(TEXT("MaxEP"), B.BonusMaxEnergy);
 		AddInt(TEXT("Resist"), B.BonusResistance);

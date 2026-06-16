@@ -246,6 +246,7 @@ FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
     Combined.BonusSpellSpeed            = BaseStatBonus.BonusSpellSpeed            + GeneratedStatBonus.BonusSpellSpeed;
     Combined.BonusDefense               = BaseStatBonus.BonusDefense               + GeneratedStatBonus.BonusDefense;
     Combined.BonusActionSpeed           = BaseStatBonus.BonusActionSpeed           + GeneratedStatBonus.BonusActionSpeed;
+    Combined.BonusReflex                = BaseStatBonus.BonusReflex                + GeneratedStatBonus.BonusReflex;
     Combined.BonusMaxHP                 = BaseStatBonus.BonusMaxHP                 + GeneratedStatBonus.BonusMaxHP;
     Combined.BonusMaxEnergy             = BaseStatBonus.BonusMaxEnergy             + GeneratedStatBonus.BonusMaxEnergy;
     Combined.BonusResistance            = BaseStatBonus.BonusResistance            + GeneratedStatBonus.BonusResistance;
