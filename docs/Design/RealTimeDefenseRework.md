@@ -12,14 +12,31 @@
 > `BeamDuration`/`BeamTickInterval` fields are deleted. A beam is now authored as a **burst of projectiles**
 > (`Projectile`, `Count>1`) and defended per-arrival by the Stage-6 cluster-6 burst path (even-split). The
 > per-cast-entry defense work (difficulty/damage/burst) is live on `feature/realtime-defense`.
+>
+> **2026-06-16 — Hit → Impact RENAME (shipped symbols).** This spec was authored with the planned names
+> `ECombatNotifyFamily::Hit`, the `OnHitFrame` delegate, and the `HitsLanded` field. Those shipped renamed
+> (commit `ffafd3e0`, "unified impact concept" — a notify and a projectile arrival are both "impacts"):
+> the live symbols are **`ECombatNotifyFamily::Impact`** (`CombatNotify.h:19`; an `EnumRedirect` maps
+> authored "Hit" notifies to "Impact"), **`FOnImpactFrame OnImpactFrame(Executor, ImpactIndex)`**
+> (`ActionExecutor.h:95`, broadcast `ActionExecutor.cpp:5134`), and **`FPendingDefenseContext::ImpactsLanded`**
+> (`ActionStructs.h:327`). Any `Hit`/`OnHitFrame`/`HitsLanded` wording below is the historical spec name for
+> the same concept.
 
 ---
 
 ## 1. Status
 
-This is the **complete reactive-defense spec** and staged build plan. It is design/spec authoring — no
-source has been changed. It re-anchors the stale doc against the current architecture (warp-based
-positioning replacing the old approach-movement layer) and captures Crown's **full** locked intent.
+This is the **complete reactive-defense spec** and staged build plan. **It is no longer pure design —
+the build has since proceeded against this plan.** Stage 0 (`4986d450`), Stage 1 (window persist +
+count-based close, `38922cb5`), Stage 2 (per-impact damage, `f2d241b7`/`0d4217e6` + the Hit→Impact
+unification `ffafd3e0`), Stage 3 (per-impact timed defense + Reflex, `93d9f5c0`; attacker-speed window
+duel, `e26d9256`), the per-impact **defense-difficulty** axis (`e4568e68`/`c436f7e9`/`9150020e`/`3690af4c`),
+and the Stage-6 per-cast-entry spell path (difficulty/damage/burst, `0edb3d20`/`d6811365`/`43d64e58`/
+`769018b7`/`076f6bf5`) have all **landed on `feature/realtime-defense`**. Per-hit AI (Stage 4) and per-hit
+UI (Stage 5) remain. The forward-looking prose below is preserved as the design record — re-verify each
+stage's *current* state against code before picking it up. It re-anchors the original stale doc against
+the warp-based positioning architecture (replacing the old approach-movement layer) and captures Crown's
+**full** locked intent.
 
 The three pillars locked this design session:
 
@@ -32,8 +49,9 @@ The three pillars locked this design session:
    to. The rework builds the *platform* (timing + base outcomes + hooks); the *payoffs* (reflect,
    counters, buffs) are content built later.
 
-Stage 0 (hit-frame notifies) is **DONE** (commit `4986d450`). After this revision Crown reviews, then
-we build **Stage 1** (window persist + close-at-last-hit + max-duration failsafe).
+Stage 0 (impact-frame notifies) is **DONE** (commit `4986d450`); Stages 1–3 and the Stage-6 per-cast-entry
+spell defense have since landed (see the Status paragraph above). The remaining unbuilt work is per-hit AI
+(Stage 4) and per-hit UI (Stage 5).
 
 ---
 
@@ -59,10 +77,14 @@ defending each impact individually rather than committing one defense for the wh
 - **Each hit RESOLVES at its hit-frame.** The defender's input *at that moment* is judged against
   *that* hit, and *that hit's* damage lands there — resolution is anchored to the visual impact, not
   a lumped end-of-window event.
-- **AOE = per-defender, per-hit, FULL defense options (RESOLVED).** Every AOE-hit defender runs the
-  full per-hit defense flow — **dodgeable, parryable, and blockable**, same as single-target. This
-  supersedes the old "AOE can only be blocked" limitation. *(Crown resolved the prior design
-  question: AOE is no longer block-only.)*
+- **AOE = per-defender, per-hit, Block + Parry — NO Dodge (RESOLVED).** Every AOE-hit defender runs the
+  per-hit defense flow, but the options are **Block and Parry only — you can't dodge an area attack**. This
+  supersedes the old "AOE can only be blocked" *lumped* limitation: AOE went from **Block-only (lumped)** to
+  **Block + Parry (per-impact)**, NOT to full options. Dodge-exclusion is enforced by authoring
+  **`Dodge = Impossible`** on the AOE cast entries (the resolve-layer gate — a Dodge press's window is ~0
+  and never matches), plus **`CanBeParried()` → AOE** so the HUD shows Block + Parry. This is the
+  "Impossible replaces structural gates" pattern — per-attack tunable (a future *dodgeable shockwave* would
+  author a real Dodge tier instead). *(Matches the implemented AOE per-impact conversion.)*
 - **Window closes when the attack stops hitting.** Post-attack lingering (during the attacker's
   warp-return to position) is mechanically pointless — the window ends when the **last** impact lands.
   *(Mechanically this is the **count-based** close — `HitsLanded == ExpectedImpacts`, §8a — which is
@@ -122,7 +144,7 @@ single-target foundation.
 Defense is a **timing** mechanic anchored on the **IMPACT**, with two impact sources for the same
 mechanic:
 
-- **Melee impact** = the **Hit-family Combat Notify** firing on the montage (the impact frame).
+- **Melee impact** = the **Impact-family Combat Notify** (`ECombatNotifyFamily::Impact`, `CombatNotify.h:19`) firing on the montage (the impact frame).
 - **Ranged impact** = the **projectile's ARRIVAL** at the target.
 
 Same defend mechanic; the only difference is what marks the impact moment.
@@ -249,7 +271,7 @@ architecture **unchanged** — every anchor below is still in the lumped / fixed
 | 2 | **Window close** | **Fixed 0.3s timer** (0.5s AOE), decoupled from the montage. `// TODO: get from spell data`. | `DefenseSystem.h:308–314` (`DefaultWindowDuration=0.3f`, `AoeWindowDuration=0.5f`); timer `DefenseSystem.cpp:73–86`; expiry `:445–456` → `CloseDefenseWindow` `:124–186`. Durations passed at `ActionExecutor.cpp:1119`, `:3093` (AOE), `:3336` (projectile). |
 | 3 | **Multi-hit** | **LUMPED** — one `FDefenseResult` per defender, split across `HitCount` in a synchronous loop. **Mitigant:** `ApplyHit` is per-hit-shaped and `ResolvedDamageSplit` is already per-hit. | `ApplyDamageAfterDefense` loop `ActionExecutor.cpp:1702–1734`; `ApplyHit` `:2342`; split resolved at `FinalizeDamageInputs` `:1101` → `ResolvedDamageSplit`. |
 | 4 | **Defense state** | **One-shot** — `bInputReceived` rejects a 2nd input; never cleared. | `FDefenseState` `DefenseSystem.h:57–98`; guard `DefenseSystem.cpp:211–216`; record `:229–231`; `SubmitDefenseInput` / `CalculateDefenseResult` in `DefenseSystem.cpp`. |
-| 5 | **Hit-frame notify** | **EXISTS but STUB.** `ECombatNotifyFamily::Hit` fires on the montage but the handler is log-only and returns (`"…stub — damage wiring is SC4"`). This is the candidate melee impact trigger. | enum `CombatNotify.h:14–20`; handler `ActionExecutor.cpp:4803–4806`. |
+| 5 | **Impact-frame notify** | *(baseline: was a log-only STUB.)* **Now WIRED (Stage 0+):** `ECombatNotifyFamily::Impact` (renamed from `Hit`, `ffafd3e0`) fires on the montage and broadcasts the per-impact trigger. | enum `ECombatNotifyFamily` `CombatNotify.h:17–23`; broadcast `OnImpactFrame` at `ActionExecutor.cpp:5134`. |
 | 6 | **Projectile impact** | Opens a defense window on impact, then applies damage via the same lumped path. **Attacker is NULL** — the projectile doesn't track its source. | `OnProjectileImpact` `ActionExecutor.cpp:3322–3351`; open `:3338` (`OpenDefenseWindow(nullptr, …)`); fallback apply `:3349`. |
 | 7 | **AOE path** | **Per-target single-resolution, block-only.** One window per target at `AoeWindowDuration`; comment: "AOE can only be blocked (no dodge, no parry)". | dispatch `ActionExecutor.cpp:2904–2910`; `SpawnAOEEffect` open `:3090–3100`. |
 | 8 | **AI defense** | **One decision per window** — one reaction-delay timer → one `ChooseDefenseType` → one `SubmitDefenseInput`, then locked. | trigger `DefenseSystem.cpp:111–121`; `ScheduleDefenseDecision` `AIDecisionManager.cpp:306–409`. |
@@ -281,8 +303,9 @@ see below), plus Crown's refinements:
   hooks in §5) is missing. This is what keeps the work a rework, not a rebuild.
 - **No condition hooks.** The system applies a flat reduction and never fires `OnBlock`/`OnParry`/
   etc. The platform (§5) does not exist yet.
-- **AOE single-resolution, block-only → per-defender per-hit, full options** (anchor 7). Every
-  AOE-hit defender must run the full per-hit flow with dodge/parry/block.
+- **AOE single-resolution, block-only → per-defender per-hit, Block + Parry (no Dodge)** (anchor 7). Every
+  AOE-hit defender runs the per-hit flow with Block/Parry; Dodge is excluded (can't dodge an area attack)
+  via authored `Dodge = Impossible` (resolve gate) + `CanBeParried()` → AOE (HUD).
 - **Projectile NULL attacker → source-threading needed** (anchor 6). See projectile reflect below.
 
 ### Projectile parry & reflect
@@ -309,13 +332,13 @@ per-hit timing + condition-FIRING hooks are **in**; condition payoffs (reflect/c
 
 | Stage | Work | Type | Size |
 | --- | --- | --- | --- |
-| **0. Hit-frame notifies** *(DONE — commit `4986d450`)* | Wire the existing **Hit-family Combat Notify stub** to be the melee impact trigger — replace the log-only return with a real per-hit entry point. `OnCombatNotifyReceived` now broadcasts `OnHitFrame(Executor, Index)` per hit (`ActionExecutor.cpp:4815–4828`); fires into the void until Stage 2 binds it. Crown **authors Hit notifies on every multi-hit montage** (see index-match contract in §9). **BLOCKED Stages 1–4 → now unblocked.** | **[Anim]** + small **[Code]** | Small |
-| **1. Window lifecycle (FORCED FIRST — the foundation)** | **Make the window persist across hits and close on a COUNT-BASED universal trigger** — close when `HitsLanded == ExpectedImpacts` (per-defender counter reaching a per-defender expected count, **§8a**), NOT a melee-specific "last montage hit-frame." Drop the fixed `0.3s`/`AoeWindowDuration` timer as the closer (`DefenseSystem.cpp:73–86`); keep the `FDefenseState` + `FPendingDefenseContext` alive across **all** hits. **Stage 1 wires MELEE** (each Hit notify increments `HitsLanded`; `ExpectedImpacts = HitCount` set at the melee open); projectile/AOE/beam plug into the **same counter** at Stage 6 (**extend, not replace** — §8a). **This unblocks Stages 2–3** — until the window survives the hits, per-hit resolution/defense have nothing to read (§9). **The window still opens at ~execution-time (on target confirmation, §2) exactly as it does today — there is NO turn-start inversion** (dropped this session; §3a). The only change is *when it closes* (count-complete, not 0.3s) and that its state *persists* through the hits. **⚠ MAX-DURATION FAILSAFE IS NON-NEGOTIABLE — see §9.** | **[Code]** | Medium |
-| **2. Per-hit resolution + base outcomes + condition firing** *(needs #1)* | Drive `ApplyHit` (`:2342`) off **each Hit notify** via `OnHitFrame` (and **projectile impact** `:3322` for ranged), each gated by *that hit's* defense result — now readable because the window persists (Stage 1). Replace the lumped loop (`ApplyDamageAfterDefense` `:1702`). Index into `ResolvedDamageSplit[Index]` **with a bounds guard** (§9 index-match contract). Implement the **base outcomes** (§4: block reduce / dodge zero / parry negate+status). **Fire the conditions** (§5: `OnBlock`/`OnDodge`/`OnParry` + `OnPerfect*` + `OnDefend` + `OnHit`) at each resolution — the hooks fire even before any subscriber exists. | **[Code]** | Large |
-| **3. Per-hit defense state + timing/PERFECT** *(needs #1, #2)* | Rework `FDefenseState` / `SubmitDefenseInput` to **re-arm input per hit-frame** (clear `bInputReceived` each hit; `DefenseSystem.cpp:211–216`/`:229–231`). Implement the **lead-in window per defense type** and the **PERFECT band** (§3); `CalculateDefenseResult` evaluated **per hit**, producing the outcome band that selects which condition fires. Route input per the **Control Model** (§3a: player-team → player input, enemies → AI). **RESOLVE the multi-target input question (§3a-Q)** here — Crown's lean is one input per AOE beat. | **[Code]** | Large |
+| **0. Hit-frame notifies** *(DONE — commit `4986d450`)* | Wire the existing **Hit-family Combat Notify stub** to be the melee impact trigger — replace the log-only return with a real per-hit entry point. `OnCombatNotifyReceived` now broadcasts `OnImpactFrame(Executor, ImpactIndex)` per impact (delegate `FOnImpactFrame`, `ActionExecutor.h:95`; broadcast `ActionExecutor.cpp:5134`); fired into the void until Stage 2 bound it. Crown **authors Hit notifies on every multi-hit montage** (see index-match contract in §9). **BLOCKED Stages 1–4 → now unblocked.** | **[Anim]** + small **[Code]** | Small |
+| **1. Window lifecycle (FORCED FIRST — the foundation)** *(DONE — `38922cb5`; `ImpactsLanded`/`ExpectedImpacts` on `FPendingDefenseContext`, `ActionStructs.h:327/334`; 8s max-duration failsafe)* | **Make the window persist across hits and close on a COUNT-BASED universal trigger** — close when `HitsLanded == ExpectedImpacts` (per-defender counter reaching a per-defender expected count, **§8a**), NOT a melee-specific "last montage hit-frame." Drop the fixed `0.3s`/`AoeWindowDuration` timer as the closer (`DefenseSystem.cpp:73–86`); keep the `FDefenseState` + `FPendingDefenseContext` alive across **all** hits. **Stage 1 wires MELEE** (each Hit notify increments `HitsLanded`; `ExpectedImpacts = HitCount` set at the melee open); projectile/AOE/beam plug into the **same counter** at Stage 6 (**extend, not replace** — §8a). **This unblocks Stages 2–3** — until the window survives the hits, per-hit resolution/defense have nothing to read (§9). **The window still opens at ~execution-time (on target confirmation, §2) exactly as it does today — there is NO turn-start inversion** (dropped this session; §3a). The only change is *when it closes* (count-complete, not 0.3s) and that its state *persists* through the hits. **⚠ MAX-DURATION FAILSAFE IS NON-NEGOTIABLE — see §9.** | **[Code]** | Medium |
+| **2. Per-hit resolution + base outcomes + condition firing** *(PARTIAL — per-impact `ApplyHit` + base outcomes shipped, `f2d241b7`/`0d4217e6`/`93d9f5c0`; the §5 typed condition-hook platform is NOT built — outcomes surface via the consolidated `FOnDefenseResolved`/`FOnDefensePerfect` delegates (carrying `DefenseType`/`bPerfect`/`ImpactIndex`), not the named `OnBlock`/`OnPerfect*`/`OnDefend` hooks)* | Drive `ApplyHit` (`:2342`) off **each Hit notify** via `OnHitFrame` (and **projectile impact** `:3322` for ranged), each gated by *that hit's* defense result — now readable because the window persists (Stage 1). Replace the lumped loop (`ApplyDamageAfterDefense` `:1702`). Index into `ResolvedDamageSplit[Index]` **with a bounds guard** (§9 index-match contract). Implement the **base outcomes** (§4: block reduce / dodge zero / parry negate+status). **Fire the conditions** (§5: `OnBlock`/`OnDodge`/`OnParry` + `OnPerfect*` + `OnDefend` + `OnHit`) at each resolution — the hooks fire even before any subscriber exists. | **[Code]** | Large |
+| **3. Per-hit defense state + timing/PERFECT** *(DONE, single-target foundation — `93d9f5c0`/`e26d9256`; `PerfectThreshold`/`bPerfect`/`FOnDefensePerfect` (`DefenseSystem.h:434/99/207`), per-impact `EDefenseDifficulty` lead-in window, Reflex, player routing via `GetActiveDefenderForLocalPlayer`. Multi-target §3a-Q is Stage 6.)* | Rework `FDefenseState` / `SubmitDefenseInput` to **re-arm input per hit-frame** (clear `bInputReceived` each hit; `DefenseSystem.cpp:211–216`/`:229–231`). Implement the **lead-in window per defense type** and the **PERFECT band** (§3); `CalculateDefenseResult` evaluated **per hit**, producing the outcome band that selects which condition fires. Route input per the **Control Model** (§3a: player-team → player input, enemies → AI). **RESOLVE the multi-target input question (§3a-Q)** here — Crown's lean is one input per AOE beat. | **[Code]** | Large |
 | **4. Per-hit AI** | Replace the single `ScheduleDefenseDecision` (`AIDecisionManager.cpp:306`) with **N scheduled decisions per defender, one per hit-frame**, each judged independently against that hit's lead-in window. Reaction delays scaled to the PlayRate-adjusted hit-frame times. (See §9 AI-degradation note — the single-decision path must survive Stages 1–3 gracefully until replaced here.) | **[Code]** | Medium |
 | **5. Per-hit UI** | Per-hit defense prompt / feedback — surface each incoming hit, its lead-in window, and the outcome band (including PERFECT) (prompt widget currently TODO-stubbed). Must reflect the multi-target input decision (§3a-Q) — e.g. one shared AOE-beat prompt vs per-character prompts. | **[Code]** + UI | Medium |
-| **6. AOE/projectile/beam → counter + source-threading** | **Plug projectile/AOE/beam into the count-based close (§8a)** — each adds a one-line `HitsLanded` increment (`OnProjectileImpact` `:3334`, `SpawnAOEEffect` `:3102`, `OnBeamTick` `:3381`) and sets its own `ExpectedImpacts` at open (single projectile = 1; barrage = **`FSkillCastEntry::Count`**, authored + wired; beam = `BeamTickCount`; AOE = 1, `Count` not honored for AOE today) — see the spell formula in §8a. AOE: every AOE-hit defender runs the full per-hit flow with **dodge/parry/block** (remove the block-only limitation). Projectile: thread the **attacker source** through to `OnProjectileImpact` (fix the NULL attacker `:3351`) so base parry-negate works and `OnPerfectParry` subscribers (e.g. reflect) have the source. **Inherent extra lifts (any close model):** (a) projectile/AOE windows currently open **at impact**, decoupled from cast — must move to **target-confirmation + persist until last impact**; (b) **multi-pulse AOE is unbuilt** — the AOE branch ignores `entry.Count` today (`:3281–3286`); honoring it is an optional Stage 6 add; (c) projectile/beam impacts can arrive **after `CurrentExecutionContext` tears down** (montage finished first) — keep the context alive until the last impact (a melee-Stage-1 non-issue, since the montage spans the hits). | **[Code]** | Medium–Large |
+| **6. AOE/projectile/beam → counter + source-threading** *(PARTIAL — the spell per-cast-entry path shipped: per-delivery difficulty + per-cast-entry spell damage + burst even-split per-impact defense, `0edb3d20`/`d6811365`/`43d64e58`/`769018b7`/`076f6bf5`; AOE full dodge/parry/block and projectile attacker-source-threading NOT proven shipped)* | **Plug projectile/AOE/beam into the count-based close (§8a)** — each adds a one-line `HitsLanded` increment (`OnProjectileImpact` `:3334`, `SpawnAOEEffect` `:3102`, `OnBeamTick` `:3381`) and sets its own `ExpectedImpacts` at open (single projectile = 1; barrage = **`FSkillCastEntry::Count`**, authored + wired; beam = `BeamTickCount`; AOE = 1, `Count` not honored for AOE today) — see the spell formula in §8a. AOE: every AOE-hit defender runs the per-hit flow with **Block/Parry — NO Dodge** (block-only → Block+Parry per-impact, NOT full options; Dodge excluded via authored Dodge=Impossible + `CanBeParried()`→AOE). Projectile: thread the **attacker source** through to `OnProjectileImpact` (fix the NULL attacker `:3351`) so base parry-negate works and `OnPerfectParry` subscribers (e.g. reflect) have the source. **Inherent extra lifts (any close model):** (a) projectile/AOE windows currently open **at impact**, decoupled from cast — must move to **target-confirmation + persist until last impact**; (b) **multi-pulse AOE is unbuilt** — the AOE branch ignores `entry.Count` today (`:3281–3286`); honoring it is an optional Stage 6 add; (c) projectile/beam impacts can arrive **after `CurrentExecutionContext` tears down** (montage finished first) — keep the context alive until the last impact (a melee-Stage-1 non-issue, since the montage spans the hits). | **[Code]** | Medium–Large |
 
 **OUT OF SCOPE (separate future effort — effects/items system):** the condition **payoffs** —
 projectile reflect, counters, on-defense buffs, etc. The rework fires `OnBlock`/`OnParry`/`OnPerfect*`
@@ -379,12 +402,12 @@ Spell ExpectedImpacts(defender) = Σ over CastArray entries hitting that defende
 - **Mixed (fireball-then-pillar):** `[Projectile Count=3, AOE Count=1]` hitting one defender → `3 + 1 = 4`. It is a **SUM across cast entries**, not a single field read.
 - **Visible at open-time:** `Count` is authored and read at cast/dispatch **before** spawn, so the Stage 6 opener reads it straight off the `CastArray` — **no projectile-side threading for barrage**. Only **beam** derives its count (`BeamTickCount`), and even that is recomputable from authored entry data at open.
 
-**Counter location — two new fields on `FPendingDefenseContext`** (`ActionStructs.h:293`, already the
-per-defender record carrying `HitCount`):
+**Counter location — two fields on `FPendingDefenseContext`** (`ActionStructs.h:327`, the per-defender
+record). Shipped as `ImpactsLanded` (the spec's planned `HitsLanded`, renamed in `ffafd3e0`):
 
 ```
-int32 HitsLanded = 0;       // incremented by ANY hit source
-int32 ExpectedImpacts = 0;  // set by the opener; melee = HitCount
+int32 ImpactsLanded = 0;    // ActionStructs.h:327 — incremented by ANY impact source
+int32 ExpectedImpacts = 0;  // ActionStructs.h:334 — set by the opener; melee = HitCount
 ```
 
 The counter belongs with the **per-target attack record**, not `FDefenseState` — `DefenseSystem`
@@ -563,8 +586,10 @@ projectile source-threading, notify authoring) is net-new.
 
 ## 12. Resolved Design Questions
 
-- **AOE dodge/parry — RESOLVED: YES.** AOE is dodgeable, parryable, and blockable, per-defender
-  per-hit. No longer block-only.
+- **AOE defense options — RESOLVED: Block + Parry, NO Dodge.** AOE is parryable and blockable per-defender
+  per-hit, but **not dodgeable** ("can't dodge an area attack"). Block-only (lumped) → Block + Parry
+  (per-impact), NOT full options. Dodge-exclusion via authored `Dodge = Impossible` (resolve gate) +
+  `CanBeParried()` → AOE (HUD) — the "Impossible replaces structural gates" pattern, per-attack tunable.
 - **Projectile reflect — RESOLVED: an `OnPerfectParry` condition effect (content).** Base parry on a
   projectile negates it (projectile disappears); reflect-back is a perfect-parry subscriber, out of
   scope for the rework but the reason projectiles need source-threading.
@@ -622,6 +647,18 @@ between modes. Only two things differ:
 
 ## Changelog
 
+- **2026-06-16** — **Status migration: §8 stage table marked against shipped code.** Stage 1 (window persist + count-based close + failsafe) and Stage 3 (per-impact state + timing/PERFECT + Reflex, single-target) marked **DONE** with proof symbols; Stage 2 (per-impact resolution + base outcomes) and Stage 6 (spell per-cast-entry difficulty/damage/burst) marked **PARTIAL** — Stage 2's §5 typed condition-hook platform ships only as the consolidated `FOnDefenseResolved`/`FOnDefensePerfect` delegates, and Stage 6's AOE-full-options + projectile source-threading are unproven; Stages 4 (per-hit AI — `ScheduleDefenseDecision` still one-per-window) and 5 (per-hit UI — `DefensePromptWidget` stub) left unbuilt. | feature/realtime-defense
+- **2026-06-16** — **Doc-sync: spec is no longer pre-implementation; Hit→Impact rename reconciled.** §1
+  Status corrected — it previously claimed "no source has been changed," but Stages 0–3 and the Stage-6
+  per-cast-entry spell defense (difficulty/damage/burst) have **landed** on `feature/realtime-defense`
+  (commits `4986d450`/`38922cb5`/`f2d241b7`/`0d4217e6`/`93d9f5c0`/`e26d9256`/`e4568e68`/`c436f7e9`/
+  `9150020e`/`3690af4c`/`0edb3d20`/`d6811365`/`43d64e58`/`769018b7`/`076f6bf5`); per-hit AI (Stage 4) and
+  UI (Stage 5) remain. Added a top banner reconciling the spec's planned names to the **shipped** symbols
+  (`ffafd3e0`): `ECombatNotifyFamily::Impact` (`CombatNotify.h:19`), `OnImpactFrame` (`ActionExecutor.h:95`,
+  broadcast `:5134`), `FPendingDefenseContext::ImpactsLanded` (`ActionStructs.h:327`). Fixed the
+  load-bearing inline references (§3 definition, §6 anchor 5 — the notify is wired, not a stub —, §8 Stage 0
+  delegate, §8a counter-field block) and led each with its symbol so future drift survives. Historical-record
+  prose elsewhere keeps the original `Hit`/`OnHitFrame`/`HitsLanded` names per the banner. | feature/realtime-defense
 - **2026-06-16** — **`Homing` delivery type REMOVED** (`feature/realtime-defense`; follows the
   earlier `Beam` removal). Tracking is meaningless without a spatial dodge — Crown-confirmed a homing
   shot was just a projectile with a curvy path, i.e. dead weight. Deleted `ASkillProjectile::TickHoming`
@@ -718,7 +755,7 @@ between modes. Only two things differ:
   PERFECT band, §3), **base defense outcomes** (block reduce / dodge zero / parry negate+status, §4),
   and the **condition-hook architecture** (§5: defense fires `OnBlock`/`OnParry`/`OnPerfect*`/
   `OnDefend`/`OnHit`; payoffs are content subscribers — the "build a Lord" platform). Resolved four
-  design questions (§12): AOE dodge/parry = yes; projectile reflect = `OnPerfectParry` effect; parry
+  design questions (§12): AOE defense = Block + Parry, no Dodge; projectile reflect = `OnPerfectParry` effect; parry
   full-negate = yes; perfect payoffs = condition platform. Expanded the projectile section with parry
   negate (base) vs reflect (content) and the source-threading rationale (§7). Folded base-outcome +
   condition-firing scope into the staged plan and marked payoffs out of scope (§8). Renumbered

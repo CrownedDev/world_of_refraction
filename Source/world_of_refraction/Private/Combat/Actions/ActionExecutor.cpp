@@ -1187,6 +1187,33 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 				}
 			}
 		}
+		else if (E0.DeliveryType == ESpellDeliveryType::AOE)
+		{
+			// Stage 6 cluster 6 — single-entry AOE: each defender takes ONE AOE hit, resolved at the
+			// Cast notify (no travel — SpawnAOEEffect IS the impact moment). Mirror the projectile
+			// conversion: swap the just-opened lumped cast-time window for a count-based one
+			// (ExpectedImpacts=1 per defender, 8s failsafe so it survives the cast animation) so the
+			// ONLY apply is the per-defender resolve in SpawnAOEEffect — no lumped 0.3s auto-close
+			// double-apply. FULL FinalDamage per defender — AOE is NOT even-split (everyone in the
+			// area takes the whole hit). N defenders = N independent single-impact windows.
+			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
+			{
+				for (AActor *Target : ValidTargets)
+				{
+					if (FPendingDefenseContext *PDC = CurrentExecutionContext->PendingDefenses.Find(Target))
+					{
+						FPendingDefenseContext Saved = *PDC;
+						CurrentExecutionContext->PendingDefenses.Remove(Target); // close-on-reopen → no-op
+						DefenseSys->OpenDefenseWindow(Caster, Target, FinalSpellSize, FinalDamage,
+													 0.3f, /*bManualClose=*/true);
+						Saved.ExpectedImpacts = 1; // ONE AOE impact per defender
+						Saved.HitCount = 1;		   // runtime per-impact count (full damage, no split)
+						Saved.ImpactsLanded = 0;
+						CurrentExecutionContext->PendingDefenses.Add(Target, Saved);
+					}
+				}
+			}
+		}
 	}
 
 	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
@@ -3281,7 +3308,8 @@ void UActionExecutor::SpawnAOEEffect(
 	float FinalVisualScale,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
-	const FSkillCastEntry *Entry)
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
 {
 	if (!Target || !Spell)
 	{
@@ -3321,26 +3349,47 @@ void UActionExecutor::SpawnAOEEffect(
 		}
 	}
 
-	// AOE always hits - open defense window immediately
-	// AOE can only be blocked (no dodge, no parry)
+	// AOE resolution = NOW (the Cast notify). No travel, so this dispatch IS the impact moment.
+	// Resolve THIS defender per-impact against the count-based window the gate opened at action start
+	// (ExpectedImpacts=1): read the cast-entry defense difficulty, apply the single full-damage impact,
+	// and close. Mirrors OnProjectileImpact's converted branch — the AOE "arrival" is here, now.
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
-	if (DefenseSys)
+	if (DefenseSys && CurrentExecutionContext.IsSet())
 	{
-		float WindowDuration = DefenseSys->AoeWindowDuration; // AOE uses a longer window
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+		{
+			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the projectile arrival / Hit notify
 
-		DefenseSys->OpenDefenseWindow(
-			Caster,
-			Target,
-			FinalImpactRadius,
-			FinalDamage,
-			WindowDuration);
+			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
+			const FDefenseDifficultyTriple Diff =
+				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+					: FDefenseDifficultyTriple();
 
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE opened defense window for %s (Block only)"),
-			   *Target->GetName());
+			AActor *Attacker = Ctx->Attacker.Get();
+
+			// One AOE impact per defender → ordinal 0. Drain BEFORE apply so the close-time tail
+			// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is empty — no double-apply on close.
+			++Ctx->ImpactsLanded;
+			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
+			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+			if (Ctx)
+			{
+				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+			}
+			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
+
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE resolved per-impact for %s (CastEntryIndex=%d)"),
+				   *Target->GetName(), CastEntryIndex);
+			return;
+		}
 	}
-	else
+
+	// Fallback — no converted count-based window (unconverted multi-entry AOE keeps the action-start
+	// lumped window, which resolves it via OnDefenseWindowClosed; lumped-retire is the next step), or no
+	// DefenseSystem at all → apply directly.
+	if (!DefenseSys)
 	{
-		// Fallback: Apply damage directly if no defense system
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying AOE damage directly"));
 		ApplyDamage(Caster, Target, FinalDamage, Spell->Element, false);
 	}
@@ -3505,7 +3554,7 @@ void UActionExecutor::DispatchSpellCast(
 	case ESpellDeliveryType::AOE:
 		for (AActor *Target : Targets)
 		{
-			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry);
+			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 		}
 		break;
 

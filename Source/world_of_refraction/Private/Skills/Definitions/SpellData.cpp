@@ -183,7 +183,8 @@ bool USpellData::CanBeBlocked() const
 
 bool USpellData::CanBeParried() const
 {
-    return DeliveryType == ESpellDeliveryType::Projectile;
+    return DeliveryType == ESpellDeliveryType::Projectile ||
+           DeliveryType == ESpellDeliveryType::AOE;
 }
 
 bool USpellData::CanBeDodgedByMoving() const

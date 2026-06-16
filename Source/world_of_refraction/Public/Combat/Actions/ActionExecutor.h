@@ -1035,7 +1035,8 @@ protected:
 		float FinalVisualScale,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
-		const FSkillCastEntry *Entry = nullptr);
+		const FSkillCastEntry *Entry = nullptr,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Resolve instant spell (immediate hit). Entry non-null = visual from the
 	 *  entry's Trail; null = loose SpellVFX. */
