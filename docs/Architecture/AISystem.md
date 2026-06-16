@@ -116,7 +116,7 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 ### Defense flow (`ScheduleDefenseDecision`)
 
 1. Lazy-loads `UDefenseSystem`. Rolls against `GetDefenseAttemptChance(Difficulty)`; on failure the AI does not defend.
-2. `ChooseDefenseType` picks a defense: a lethal hit (`BaseDamage >= CurrentHP`) that is dodgeable always returns `Dodge`. Otherwise — Easy always Blocks; Medium Blocks or Dodges (no Parry); Hard/Expert prefer Dodge, then Parry (70% chance Expert, 40% otherwise), then Block.
+2. `ChooseDefenseType` picks a defense. Dodge is always viable — the attack-size gate was removed, so the AI dodges on timing alone exactly like the player (`bCanDodge` is unconditionally true). A lethal hit (`BaseDamage >= CurrentHP`) always returns `Dodge`. Otherwise — Easy always Blocks; Medium Blocks or Dodges (no Parry); Hard/Expert prefer Dodge, then Parry (70% chance Expert, 40% otherwise), then Block. Block/Parry remain the fallbacks, so the AI is never stranded without a defense.
 3. `CalculateDefenseReactionDelay` picks a delay as a fraction of the window (Easy late 70–90%, Expert early 10–30%) and schedules a per-actor timer.
 4. When the timer fires it rolls against `GetDefenseAccuracy(Difficulty)`; on good timing it submits the input via `UDefenseSystem::SubmitDefenseInput` (Dodge picks a random `EDefenseDirection`); on a mistime nothing is submitted. The defense timer is then removed.
 
@@ -131,7 +131,7 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 - `ACombatOrchestrator` — `GetCurrentActor`, `GetLivingEnemies`, `GetCombatDifficulty`, `SubmitAction`.
 - `UActionExecutor` — `ComputeActionStatModifiers`, `CalculateActionEnergyCost` (energy-cost and stat-modifier source of truth).
 - `UDamageCalculator` — `CalculateDamage`, `CalculateAttackDamage`, `GetCriticalChance`.
-- `UDefenseSystem` — `CanDodgeAttack`, `SubmitDefenseInput`.
+- `UDefenseSystem` — `SubmitDefenseInput`. (The size-based `CanDodgeAttack` dependency was removed — dodge is timing-only.)
 - `USkillEffectManager` — `GetActiveEffects`, `HasActiveDOT`, `GetDebuffCount` (for `HasDangerousDebuff` / `IsValuableStatus`).
 - `UStatusBuildupManager` — `GetStatusBarPercent`, `GetBuildupToTrigger`, `GetPendingTrigger`.
 - `ULoadoutComponent` — available spells/abilities/attacks and usable items.
@@ -160,3 +160,4 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-2 — AI now resolves spell source via `ULoadoutComponent::ResolveSpellSource(Spell)` at all six previously-hardcoded `ESpellSource::Innate` sites in `AIDecisionManager`. Casts route through the correct cost model. | feature/integration-gaps-sweep-2 |
 | 2026-06-09 | Emerald (bonus-turn item) enemy-target valuation added to `BuildOffensiveAction` (Medium+): one-tick-lethal-DoT gate (`GetLethalDoTPerTick`) + not-already-killable, scored in HP units (`KILL_SECURE` + threat×exposure − threat×freeAction; threat = `EstimateBestDamage`, exposure = `GetRescueExposureTurns`/`PreviewTurnOrder`); `FindBonusTurnItem`. Self-target valuation wired but DORMANT (`ESTIMATED_EP_REGEN_PER_TURN=0` — no passive EP regen). | feature/weapon-stones |
+| 2026-06-16 | Dodge is timing-only (Option B). The AI's attack-size dodge gate (`bCanDodge = CanDodgeAttack(Defender, AttackSize)`) was neutralized to `bCanDodge = true` so the AI dodges on timing like the player; `ChooseDefenseType` may freely pick Dodge (Block/Parry stay the fallbacks). `UDefenseSystem::CanDodgeAttack`/`GetDodgeThreshold`/`BaseDodgeThreshold` were deleted (fully dead after both the player and AI size-gates were removed). | feature/realtime-defense |
