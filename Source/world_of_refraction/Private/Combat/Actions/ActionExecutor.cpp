@@ -1028,8 +1028,15 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
 
-	// Calculate damage with charge infusion multiplier
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
+	// Calculate damage with charge infusion multiplier. Stage 6 cluster 5: SINGLE-entry spells source
+	// the base from the cast entry's own Damage (the SPELL damage layer) when authored (>0); 0 or
+	// multi-entry → -1 → the skill-level Spell->BaseDamage as before (byte-identical). The override only
+	// swaps the raw base; SpellDamage/Mind/element scaling still runs at ApplyHit (ActionType=Spell).
+	const int32 EntryBaseOverride =
+		(Spell->CastArray.Num() == 1 && Spell->CastArray[0].Damage > 0)
+			? Spell->CastArray[0].Damage
+			: -1;
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods, EntryBaseOverride);
 	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 

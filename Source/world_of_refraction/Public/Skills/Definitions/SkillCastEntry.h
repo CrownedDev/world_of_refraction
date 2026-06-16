@@ -91,6 +91,13 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
               meta = (EditCondition = "Count > 1", ClampMin = "0.01"))
     float BurstInterval = 0.15f;
 
+    /** This delivery's own base damage (the SPELL damage layer), scaled via SpellDamage/Mind at ApplyHit
+     *  like Spell->BaseDamage. 0 = unauthored -> falls back to the skill-level Spell->BaseDamage
+     *  (serialization-safe, byte-identical for existing spells). Burst (Count>1) splits this evenly
+     *  (entry Damage / Count) — even-split wired in the burst cluster. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast", meta = (ClampMin = "0"))
+    int32 Damage = 0;
+
     /** This delivery's per-defense-type difficulty (parry/dodge/block), keyed PER CAST-ENTRY (per
      *  delivery), not per hit. All-Inherit -> resolves to the skill-level DefaultDifficulty, then
      *  Easy (x1.0). Resolve + per-impact routing wired in later Stage-6 clusters. */

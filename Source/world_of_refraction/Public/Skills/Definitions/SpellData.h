@@ -140,8 +140,13 @@ public:
     /** Calculate spell damage. Per-action stat modifiers (Reality, Evolution,
      *  future buffs) come in via ActionMods — populated by ActionExecutor at
      *  spell execution time. AI preview / non-execution callers can omit the
-     *  parameter to use the default (no boost), preserving prior behaviour. */
-    int32 CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers()) const;
+     *  parameter to use the default (no boost), preserving prior behaviour.
+     *
+     *  BaseDamageOverride (Stage 6 cluster 5): when >= 0, this base is used in place of the
+     *  skill-level BaseDamage — the per-cast-entry SPELL damage. -1 (default) = use BaseDamage
+     *  as before. Only the raw BASE is swapped; the bIsRawMode mult + requirement penalty still
+     *  apply on it, and the SpellDamage/Mind/element scaling runs downstream at ApplyHit. */
+    int32 CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods = FActionStatModifiers(), int32 BaseDamageOverride = -1) const;
 
     // ==================== ENERGY CALCULATIONS ====================
 
