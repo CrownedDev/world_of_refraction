@@ -12,6 +12,7 @@
 #include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/EChargeInfusionType.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "ActionStructs.generated.h"
@@ -465,6 +466,11 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  only for now — the fused-montage runner (Stage 12) consumes it; the
 	 *  legacy even-split paths ignore it. */
 	TArray<float> ResolvedDamageSplit;
+
+	/** Per-impact resolved defense difficulty (no Inherit — concrete Easy/Medium/Hard). Read at
+	 *  ResolveImpactDefense by ImpactIndex. Melee live; spell deliveries Stage 6. Resolved once in
+	 *  FinalizeDamageInputs in lockstep with ResolvedDamageSplit (same HitCount, same skill). */
+	TArray<FDefenseDifficultyTriple> ResolvedDifficulty;
 
 	FActionExecutionContext()
 	{

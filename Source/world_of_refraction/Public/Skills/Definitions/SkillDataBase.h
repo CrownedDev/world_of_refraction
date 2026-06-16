@@ -8,6 +8,7 @@
 #include "Engine/DataAsset.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -42,6 +43,15 @@ struct WORLD_OF_REFRACTION_API FDamageSplitEntry
  *  debug output is exactly what executes. */
 WORLD_OF_REFRACTION_API TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split);
 
+/** Resolve the sparse per-impact difficulty overrides into a full per-impact table (length
+ *  HitCount). For each impact ordinal: use the ImpactDifficulty entry with the matching
+ *  HitNumber if present, else Default; then resolve each field Inherit → Default → Easy.
+ *  The resolved table carries NO Inherit values (every field is concrete Easy/Medium/Hard) —
+ *  clean for cluster 3/4 to consume. Mirrors ResolveDamageSplit's sparse-to-dense shape;
+ *  invalid/duplicate entries warn and are skipped (first wins). */
+WORLD_OF_REFRACTION_API TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
+	int32 HitCount, const TArray<FImpactDifficultyEntry> &Overrides, const FDefenseDifficultyTriple &Default);
+
 /**
  * USkillDataBase
  * Truly-shared fields for abilities, spells, and weapon attacks.
@@ -72,6 +82,17 @@ public:
      *  ResolveDamageSplit; consumed by the fused-montage runner (Stage 12). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "HitNumber"))
     TArray<FDamageSplitEntry> DamageSplit;
+
+    /** Per-impact defense difficulty, parallel to DamageSplit — sparse overrides by HitNumber;
+     *  unassigned impacts use DefaultDifficulty; Inherit there → Easy (×1.0). Melee live
+     *  (cluster 4); spell deliveries Stage 6. Resolved via ResolveImpactDifficulty. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "HitNumber"))
+    TArray<FImpactDifficultyEntry> ImpactDifficulty;
+
+    /** Skill-level defense-difficulty fallback for impacts without an ImpactDifficulty override
+     *  (and the second resolution layer for an impact's Inherit fields). Inherit here → Easy (×1.0). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+    FDefenseDifficultyTriple DefaultDifficulty;
 
     /** Raw mode: folds StatusBuildup into damage at the orchestrator boundary; status bar doesn't move. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")

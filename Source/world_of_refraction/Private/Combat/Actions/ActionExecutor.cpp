@@ -928,6 +928,15 @@ void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 Fi
 
 	CurrentExecutionContext->ResolvedDamageSplit = ResolveDamageSplit(
 		HitCount, Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>());
+
+	// Resolve per-impact defense difficulty in LOCKSTEP with the damage split (cluster 3) — same
+	// site, same HitCount, same skill. Null skill / unauthored skill → empty overrides + all-Inherit
+	// default → ResolveImpactDifficulty fills the table with Easy (×1.0) per impact, so cluster 4
+	// multiplies by ×1.0 and existing attacks are unchanged. Read at ResolveImpactDefense by ImpactIndex.
+	CurrentExecutionContext->ResolvedDifficulty = ResolveImpactDifficulty(
+		HitCount,
+		Skill ? Skill->ImpactDifficulty : TArray<FImpactDifficultyEntry>(),
+		Skill ? Skill->DefaultDifficulty : FDefenseDifficultyTriple());
 }
 
 void UActionExecutor::LogActionDispatch(
@@ -1741,11 +1750,21 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 								? FMath::FloorToInt(State.BaseDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
 								: (State.BaseDamage / HitCount);
 
+	// Per-impact defense difficulty for THIS impact (cluster 4). Same guard shape as the split above:
+	// IsValidIndex covers both an empty table and an out-of-range ImpactIndex → fall back to a default
+	// (all-Inherit) triple, which DefenseDifficultyMultiplier resolves to Easy ×1.0 — no window change.
+	// Keeps the attack asset out of DefenseSystem: we pass the resolved concrete triple, not the skill.
+	const FDefenseDifficultyTriple ImpactDifficulty =
+		CurrentExecutionContext->ResolvedDifficulty.IsValidIndex(ImpactIndex)
+			? CurrentExecutionContext->ResolvedDifficulty[ImpactIndex]
+			: FDefenseDifficultyTriple();
+
 	// Match-and-consume this impact against the timestamped input buffer (Stage 3). No
 	// in-window press → bMatched=false → resolves as undefended (full slice, no reduction).
 	// Ctx->ActionType selects the attacker's speed stat for the window duel (physical →
-	// ActionSpeed, spell → SpellSpeed); attacker is read from the live state inside.
-	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime, Ctx->ActionType);
+	// ActionSpeed, spell → SpellSpeed); attacker is read from the live state inside. The duel
+	// window is scaled per-press by ImpactDifficulty inside MatchAndConsumeInput.
+	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime, Ctx->ActionType, ImpactDifficulty);
 
 	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
 		BaseSlice,

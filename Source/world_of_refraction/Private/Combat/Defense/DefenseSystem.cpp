@@ -302,7 +302,8 @@ AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
 	return nullptr;
 }
 
-FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType)
+FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType,
+														const FDefenseDifficultyTriple &Difficulty)
 {
 	FDefenseInputMatch Match;
 
@@ -317,7 +318,7 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 		return Match;
 	}
 
-	// Latest (most recent press) unconsumed entry with delta in [0, EffectiveWindow].
+	// Latest (most recent press) unconsumed entry with delta in [0, scaledWindow].
 	// "Latest" = largest InputTime: a press right before the impact beats an older buffered
 	// press, which stays unconsumed for an earlier/later impact. EffectiveWindow = the
 	// attacker→defender duel (base + defender Reflex − attacker speed, floored): attacker read
@@ -333,10 +334,23 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 			continue;
 		}
 
+		// Window = duel × DIFFICULTY for THIS press's DefenseType (cluster 4). Easy ×1.0 = unchanged;
+		// Medium/Hard tighten. The triple's tiers are concrete (caller-resolved); an all-Inherit guard
+		// triple → Easy ×1.0. None/unknown press type never tightens. Re-floor at MINIMUM_DEFENSE_WINDOW
+		// AFTER the scale, so a Hard window tightens toward but not below the floor.
+		const EDefenseDifficulty Tier =
+			(Entry.Type == EDefenseType::Parry) ? Difficulty.Parry :
+			(Entry.Type == EDefenseType::Dodge) ? Difficulty.Dodge :
+			(Entry.Type == EDefenseType::Block) ? Difficulty.Block :
+												  EDefenseDifficulty::Easy;
+		const float ScaledWindow = FMath::Max(
+			CombatConstants::MINIMUM_DEFENSE_WINDOW,
+			EffectiveWindow * DefenseDifficultyMultiplier(Tier));
+
 		const double Delta = ImpactTime - Entry.InputTime;
-		if (Delta < 0.0 || Delta > EffectiveWindow)
+		if (Delta < 0.0 || Delta > ScaledWindow)
 		{
-			continue; // pressed after this impact, or too early (before the lead-in)
+			continue; // pressed after this impact, or too early / outside the difficulty-scaled window
 		}
 
 		if (Entry.InputTime > BestInputTime)

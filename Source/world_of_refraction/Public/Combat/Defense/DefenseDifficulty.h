@@ -28,6 +28,44 @@ enum class EDefenseDifficulty : uint8
 };
 
 /**
+ * Per-defense-type difficulty for one impact: an independent tier for each of the three
+ * defense actions (a skill can make Parry hard but Block easy). All default Inherit —
+ * unauthored falls back (to the skill-level DefaultDifficulty, then Easy). Authored on
+ * USkillDataBase (per-impact overrides + a skill-level default).
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDefenseDifficultyTriple
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty")
+	EDefenseDifficulty Parry = EDefenseDifficulty::Inherit;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty")
+	EDefenseDifficulty Dodge = EDefenseDifficulty::Inherit;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty")
+	EDefenseDifficulty Block = EDefenseDifficulty::Inherit;
+};
+
+/**
+ * One authored per-impact difficulty override (sparse). HitNumber is 1-based, matching
+ * FDamageSplitEntry's key. Impacts without an entry fall back to the skill-level default.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FImpactDifficultyEntry
+{
+	GENERATED_BODY()
+
+	/** Which impact this entry applies to (1 = first impact). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty", meta = (ClampMin = "1"))
+	int32 HitNumber = 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty")
+	FDefenseDifficultyTriple Difficulty;
+};
+
+/**
  * Window multiplier for a difficulty tier. Easy = x1.0 (the no-change anchor), Medium/Hard
  * shrink the window per CombatConstants. Inherit resolves to Easy (x1.0) as the TERMINAL
  * fallback — if an Inherit ever reaches the multiplier (i.e. the caller didn't resolve it
@@ -47,4 +85,22 @@ inline float DefenseDifficultyMultiplier(EDefenseDifficulty D)
 	default:
 		return CombatConstants::DEFENSE_DIFFICULTY_EASY; // terminal fallback — never shrinks
 	}
+}
+
+/**
+ * Resolve one impact field against the skill-level default: the impact's own tier wins if
+ * authored; otherwise the default; if BOTH are Inherit, Easy (the terminal fallback). The
+ * return value is ALWAYS concrete (never Inherit) — so a resolved table carries no Inherit.
+ */
+inline EDefenseDifficulty ResolveInheritedDifficulty(EDefenseDifficulty Impact, EDefenseDifficulty Default)
+{
+	if (Impact != EDefenseDifficulty::Inherit)
+	{
+		return Impact;
+	}
+	if (Default != EDefenseDifficulty::Inherit)
+	{
+		return Default;
+	}
+	return EDefenseDifficulty::Easy;
 }

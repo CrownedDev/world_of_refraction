@@ -90,6 +90,50 @@ TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry>
     return Table;
 }
 
+TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
+    int32 HitCount, const TArray<FImpactDifficultyEntry> &Overrides, const FDefenseDifficultyTriple &Default)
+{
+    const int32 N = FMath::Max(1, HitCount);
+
+    // Start every impact at the skill-level default; sparse overrides replace per HitNumber below.
+    TArray<FDefenseDifficultyTriple> Table;
+    Table.Init(Default, N);
+    TArray<bool> bAuthored;
+    bAuthored.Init(false, N);
+
+    for (const FImpactDifficultyEntry &Entry : Overrides)
+    {
+        if (Entry.HitNumber < 1 || Entry.HitNumber > N)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[ResolveImpactDifficulty] HitNumber %d out of range [1,%d] — entry skipped"),
+                   Entry.HitNumber, N);
+            continue;
+        }
+        if (bAuthored[Entry.HitNumber - 1])
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[ResolveImpactDifficulty] Duplicate entry for impact %d — entry skipped (first wins)"),
+                   Entry.HitNumber);
+            continue;
+        }
+
+        Table[Entry.HitNumber - 1] = Entry.Difficulty;
+        bAuthored[Entry.HitNumber - 1] = true;
+    }
+
+    // Collapse Inherit per field: impact's own tier → Default → Easy. The resolved table
+    // carries NO Inherit values (every field concrete) — clean for cluster 3/4 to consume.
+    for (FDefenseDifficultyTriple &Triple : Table)
+    {
+        Triple.Parry = ResolveInheritedDifficulty(Triple.Parry, Default.Parry);
+        Triple.Dodge = ResolveInheritedDifficulty(Triple.Dodge, Default.Dodge);
+        Triple.Block = ResolveInheritedDifficulty(Triple.Block, Default.Block);
+    }
+
+    return Table;
+}
+
 TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condition) const
 {
     TArray<FSkillEffect> Result;

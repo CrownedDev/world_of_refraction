@@ -7,6 +7,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "Character/CharacterData.h"
 #include "Combat/Actions/EActionType.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -314,9 +315,15 @@ public:
 	 *
 	 * Mutates the LIVE ActiveDefenseStates entry (GetDefenseState returns a copy and
 	 * cannot consume), so callers at the impact frame get an authoritative per-impact result.
+	 *
+	 * Window = duel × per-impact DIFFICULTY (cluster 4): each candidate press is tested against
+	 * EffectiveWindow × DefenseDifficultyMultiplier(Difficulty.<press's DefenseType>), re-floored at
+	 * MINIMUM_DEFENSE_WINDOW. Difficulty carries CONCRETE tiers resolved by the caller (DefenseSystem
+	 * stays asset-free); an all-Inherit triple resolves to Easy ×1.0 — unchanged, the empty/guard case.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
-	FDefenseInputMatch MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType);
+	FDefenseInputMatch MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType,
+											const FDefenseDifficultyTriple &Difficulty);
 
 	/**
 	 * Apply a parry's reflected damage to the attacker and broadcast OnParryReflect.
