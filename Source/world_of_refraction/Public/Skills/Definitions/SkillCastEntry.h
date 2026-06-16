@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "SkillCastEntry.generated.h"
 
 class UNiagaraSystem;
@@ -89,4 +90,10 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast",
               meta = (EditCondition = "Count > 1", ClampMin = "0.01"))
     float BurstInterval = 0.15f;
+
+    /** This delivery's per-defense-type difficulty (parry/dodge/block), keyed PER CAST-ENTRY (per
+     *  delivery), not per hit. All-Inherit -> resolves to the skill-level DefaultDifficulty, then
+     *  Easy (x1.0). Resolve + per-impact routing wired in later Stage-6 clusters. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    FDefenseDifficultyTriple Difficulty;
 };
