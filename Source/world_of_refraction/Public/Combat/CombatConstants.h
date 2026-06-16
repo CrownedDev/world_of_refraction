@@ -229,6 +229,11 @@ namespace CombatConstants
     constexpr float DEFENSE_DIFFICULTY_MEDIUM = 0.7f; // starting default, tune in PIE
     constexpr float DEFENSE_DIFFICULTY_HARD   = 0.4f; // starting default, tune in PIE
 
+    // Two-sided defense timing (Phase 1): a press just AFTER the impact (Delta < 0) still counts,
+    // within this late grace. SMALLER than the lead-in so anticipation stays primary; scaled by the
+    // same per-impact difficulty multiplier as the lead-in. After-grace, tune in PIE.
+    constexpr float DEFENSE_AFTER_GRACE_SECONDS = 0.15f;
+
     // ==================== SPIRIT STATS (5) ====================
     // MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
     // (STATUS_MULTIPLIER_PER_POINT lives in the Mind block above for layout reasons —

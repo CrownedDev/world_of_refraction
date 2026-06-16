@@ -318,12 +318,26 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 		return Match;
 	}
 
-	// Latest (most recent press) unconsumed entry with delta in [0, scaledWindow].
-	// "Latest" = largest InputTime: a press right before the impact beats an older buffered
-	// press, which stays unconsumed for an earlier/later impact. EffectiveWindow = the
-	// attacker→defender duel (base + defender Reflex − attacker speed, floored): attacker read
-	// from the live state, AttackType selects the attacker's speed stat. Hoisted once.
+	// Latest (most recent press) unconsumed entry inside the TWO-SIDED window around the impact.
+	// "Latest" = largest InputTime: the most recent press wins; older buffered presses stay
+	// unconsumed for an earlier/later impact. EffectiveWindow = the attacker→defender duel (base +
+	// defender Reflex − attacker speed, floored): attacker read from the live state, AttackType
+	// selects the attacker's speed stat. Hoisted once.
 	const float EffectiveWindow = GetEffectiveDefenseInputWindow(Defender, StatePtr->Attacker.Get(), AttackType);
+
+	// Per-type difficulty multiplier (cluster 4): concrete tiers (caller-resolved); all-Inherit guard
+	// triple → Easy ×1.0; None/unknown press type never tightens. Shared by the window test AND the
+	// perfect band so difficulty scales every timing axis uniformly.
+	auto TypeMult = [&Difficulty](EDefenseType Type) -> float
+	{
+		const EDefenseDifficulty Tier =
+			(Type == EDefenseType::Parry) ? Difficulty.Parry :
+			(Type == EDefenseType::Dodge) ? Difficulty.Dodge :
+			(Type == EDefenseType::Block) ? Difficulty.Block :
+											EDefenseDifficulty::Easy;
+		return DefenseDifficultyMultiplier(Tier);
+	};
+
 	int32 BestIndex = INDEX_NONE;
 	double BestInputTime = TNumericLimits<double>::Lowest();
 	for (int32 i = 0; i < StatePtr->InputBuffer.Num(); ++i)
@@ -334,23 +348,19 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 			continue;
 		}
 
-		// Window = duel × DIFFICULTY for THIS press's DefenseType (cluster 4). Easy ×1.0 = unchanged;
-		// Medium/Hard tighten. The triple's tiers are concrete (caller-resolved); an all-Inherit guard
-		// triple → Easy ×1.0. None/unknown press type never tightens. Re-floor at MINIMUM_DEFENSE_WINDOW
-		// AFTER the scale, so a Hard window tightens toward but not below the floor.
-		const EDefenseDifficulty Tier =
-			(Entry.Type == EDefenseType::Parry) ? Difficulty.Parry :
-			(Entry.Type == EDefenseType::Dodge) ? Difficulty.Dodge :
-			(Entry.Type == EDefenseType::Block) ? Difficulty.Block :
-												  EDefenseDifficulty::Easy;
-		const float ScaledWindow = FMath::Max(
-			CombatConstants::MINIMUM_DEFENSE_WINDOW,
-			EffectiveWindow * DefenseDifficultyMultiplier(Tier));
+		// Two-sided window (Phase 1), BOTH sides scaled by the same per-type difficulty Mult.
+		// Delta = ImpactTime − InputTime: Delta ≥ 0 = pressed BEFORE impact (anticipation, up to
+		// BeforeWindow = the lead-in × Mult, re-floored at MINIMUM_DEFENSE_WINDOW); Delta < 0 = pressed
+		// AFTER impact (late grace, up to AfterWindow = DEFENSE_AFTER_GRACE_SECONDS × Mult, smaller than
+		// the lead-in so anticipation stays primary). Outside [−AfterWindow, +BeforeWindow] → whiff.
+		const float Mult = TypeMult(Entry.Type);
+		const float BeforeWindow = FMath::Max(CombatConstants::MINIMUM_DEFENSE_WINDOW, EffectiveWindow * Mult);
+		const float AfterWindow = CombatConstants::DEFENSE_AFTER_GRACE_SECONDS * Mult;
 
 		const double Delta = ImpactTime - Entry.InputTime;
-		if (Delta < 0.0 || Delta > ScaledWindow)
+		if (Delta > BeforeWindow || Delta < -static_cast<double>(AfterWindow))
 		{
-			continue; // pressed after this impact, or too early / outside the difficulty-scaled window
+			continue; // outside both the lead-in and the after-grace → whiff
 		}
 
 		if (Entry.InputTime > BestInputTime)
@@ -372,7 +382,12 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 	Match.bMatched = true;
 	Match.Type = Hit.Type;
 	Match.Direction = Hit.Direction;
-	Match.bPerfect = (Delta <= PerfectThreshold);
+
+	// Perfect band (Phase 1): TWO-SIDED (dead-on either side of the impact, hence Abs(Delta)) and
+	// scaled by the SAME per-type difficulty Mult as the success windows — Hard tightens the perfect
+	// band exactly as it tightens the match windows. A press exactly at impact (Delta = 0) is always perfect.
+	const float PerfectBand = PerfectThreshold * TypeMult(Hit.Type);
+	Match.bPerfect = (FMath::Abs(Delta) <= static_cast<double>(PerfectBand));
 
 	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Impact matched for %s — Type: %d, Delta: %.3fs, %s"),
 		   *Defender->GetName(), static_cast<int32>(Match.Type), Delta,
