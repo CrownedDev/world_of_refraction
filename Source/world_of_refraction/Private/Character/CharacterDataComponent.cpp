@@ -1136,20 +1136,6 @@ float UCharacterDataComponent::GetEvolutionModifiedStatusMultiplier() const
     return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 }
 
-float UCharacterDataComponent::GetEvolutionModifiedResistance() const
-{
-    if (!CharacterData)
-    {
-        return 0.0f;
-    }
-    const float ModifiedSpirit = GetEvolutionModifiedSpirit();
-    const int32 TotalPoints = CharacterData->GetTotalResistance();
-    return FMath::Clamp(
-        ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
-        0.0f,
-        CombatConstants::RESISTANCE_MAX);
-}
-
 float UCharacterDataComponent::GetCrystalResistanceStatCapped() const
 {
     if (!CharacterData)
@@ -1168,30 +1154,31 @@ float UCharacterDataComponent::GetCrystalResistanceStatCapped() const
 
 float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
 {
-    // Base (innate + equipment + attached StatusStone), composed inline to MATCH
-    // UStatusBuildupManager::GetSourceStatusMultiplierFactor term-for-term (StatusMultiplier
-    // SUMS, never compounds), then the transient buff/debuff compounded on top — so this
-    // equals the BD/CombatOrchestrator inline value (base × transient) BY CONSTRUCTION.
-    // We do NOT re-point BD; this getter just gives wear (and future consumers) the same
-    // composed value. ⚠️ Mirrors GetSourceStatusMultiplierFactor — if its layer set changes,
-    // update here too. Structurally parallel to GetEffectiveEfficiencyMultiplier.
-    float Factor = GetEvolutionModifiedStatusMultiplier(); // innate: 1 + ModifiedSpirit × points × per-pt
+    // THE SINGLE source of truth for a character's effective StatusMultiplier (T3 consolidation):
+    // GetSourceStatusMultiplierFactor was retired and AddStatusBuildup now calls THIS, so the live
+    // buildup + BD overload + crystal-wear all read one value — lockstep by construction, no twin to
+    // drift (closes the 5d divergence where this getter kept the old uncapped/additive base).
+    // GENERAL (permanent, Pattern-P multiplicative): stat term capped ALONE at STAT_MULT_CAP (×1.5),
+    // THEN BonusStatusMultiplier (per-point fraction) × attached StatusStone multiply it past 1.5.
+    const float StatBase = FMath::Min(GetEvolutionModifiedStatusMultiplier(), CombatConstants::STAT_MULT_CAP);
+    float Factor = StatBase;
 
     if (AActor *Owner = GetOwner())
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            Factor += Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT;
+            Factor *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 
             if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
                 const FRuntimeAttachedItem &Att = *AttPtr;
-                Factor += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR;
+                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
             }
         }
 
-        // Transient StatusMultiplierBuff/Debuff — same Max(0, 1 + (buff − debuff)/100) the
-        // inline call sites apply (AddStatusBuildup step 5b, CombatOrchestrator BD bake).
+        // Transient StatusMultiplierBuff/Debuff — MULTIPLICATIVE: the temporary net scales the
+        // permanent-gear factor proportionally, ×(1 + net/100). Max(0,…) floors a ≥100% debuff at ×0
+        // (never inverts); buff/debuff in lockstep. The final clamp bounds to [0, 2.0].
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
             const float SmBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::StatusMultiplierBuff);
@@ -1200,10 +1187,8 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         }
     }
 
-    // [-100%, +100%] normalization — cap the composed StatusMultiplier (base × transient) to
-    // [0, 2]. This getter is the SOLE composition point (BD, crystal-wear, and the re-pointed
-    // CombatOrchestrator site all read it), so one clamp bounds every consumer. Byte-identical
-    // below 2.0; the inner Max(0,…) transient floor above is unchanged and additional to this.
+    // Final clamp [0, STAT_MODIFIER_MAX ×2.0] — general gear caps at 1.5 alone, gear multiplies toward
+    // 2.0, multiplicative transient scales within [0,2]. The inner Max(0,…) floors the transient at ×0.
     return FMath::Clamp(Factor, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
@@ -1214,12 +1199,13 @@ float UCharacterDataComponent::GetEffectiveResistance() const
         return 0.0f;
     }
 
-    // Element-AGNOSTIC self-resistance for the crystal-wear CONTROL term — NOT the
-    // StatusBuildupManager element-matched defense value. Same layer sources as that
-    // defense block (innate + equipment BonusResistance + ResistanceStone + the blanket
-    // ModifyStatusResist transient), but element-AGNOSTIC: NO GetTotalElementResistance
-    // (element-matched), and NO inner [0/-1, MAX] clamp — wear's ControlFactor
-    // [SUBSTAT_POWER_FACTOR_MIN, MAX] bounds the result. Innate is summed RAW (unclamped).
+    // Wear-resistance CONTROL term: DELIBERATELY uncapped + ADDITIVE (ModifiedSpirit×pts + BonusResistance
+    // + ResistanceStone + blanket ModifyStatusResist), an element-agnostic "control/power" value bounded
+    // later by wear's ControlFactor [SUBSTAT_POWER_FACTOR_MIN, MAX] — NOT a defense fraction.
+    // ⚠️ DISTINCT from the A2 buildup general (StatusBuildupManager::GetTotalStatusResistance /
+    // GetCrystalResistanceStatCapped): that is 0.5-capped, MULTIPLICATIVE, element-matched, clamped [-1,1].
+    // Different value, different consumer — do NOT merge (twin-trap EXCEPTION: kept separate by design).
+    // Element-AGNOSTIC: NO GetTotalElementResistance, and NO inner clamp (wear's ControlFactor bounds it).
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 TotalPoints = CharacterData->GetTotalResistance();
     float Resistance = ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT;

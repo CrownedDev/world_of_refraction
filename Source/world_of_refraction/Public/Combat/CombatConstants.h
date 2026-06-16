@@ -186,9 +186,9 @@ namespace CombatConstants
     // Defense - Flat damage reduction per hit
     constexpr float DEFENSE_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 at max (becomes % reduction in cluster 4)
 
-    // Action Speed - Approach speed & animation speed (RENAMED from AttackSpeed)
-    constexpr float MOVEMENT_SPEED_BASE = 400.0f;       // Base units per second (approach)
-    constexpr float MOVEMENT_SPEED_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 approach speed at max
+    // Action Speed - animation play-rate (the x400 MOVEMENT_SPEED_BASE/PER_POINT approach-speed
+    // constants were retired with CalculateActionSpeed — approach is montage-driven now, not
+    // movement-speed-gated).
     constexpr float ANIMATION_SPEED_BASE = 1.0f;        // Base animation multiplier
     constexpr float ANIMATION_SPEED_PER_POINT = STAT_MULT_PER_POINT; // -> x1.5 anim play rate at max
 

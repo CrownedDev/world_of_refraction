@@ -392,27 +392,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedStatusMultiplier() const;
 
-    /** Crystal-aware Resistance — mirrors
-     *  UCharacterData::CalculateResistance but uses
-     *  GetEvolutionModifiedSpirit() in place of GetEffectiveSpirit().
-     *  Returns the raw fraction clamped to [0, RESISTANCE_MAX]. */
-    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetEvolutionModifiedResistance() const;
-
     /** Crystal-aware Spirit-Resistance STAT term, capped ALONE at UNIVERSAL_STAT_CAP (0.5) — the
-     *  stat-layer base for the multiplicative "general" resistance bucket (cluster A2). Differs from
-     *  GetEvolutionModifiedResistance, which clamps at RESISTANCE_MAX (1.0): that 1.0 cap would let the
-     *  crystal-boosted stat reach the full ceiling ALONE, blowing the +50% stat cap. Use THIS as the
-     *  general StatBase; equipment/stone multiply it past 0.5, element/curse add on top. */
+     *  stat-layer base for the multiplicative "general" resistance bucket (cluster A2). Clamped at 0.5
+     *  (not RESISTANCE_MAX 1.0) so the crystal-boosted stat can't reach the full ceiling ALONE and blow
+     *  the +50% stat cap; equipment/stone multiply it past 0.5, element/curse add on top. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetCrystalResistanceStatCapped() const;
 
-    /** Fully-composed StatusMultiplier = base × transient, where base is the
-     *  (innate + equipment + StatusStone) factor composed inline to match
-     *  UStatusBuildupManager::GetSourceStatusMultiplierFactor term-for-term, and transient
-     *  is Max(0, 1 + (StatusMultiplierBuff − StatusMultiplierDebuff)/100). Equals the
-     *  BD/CombatOrchestrator inline value BY CONSTRUCTION (BD is NOT re-pointed). Used by
-     *  the crystal-wear POWER term so a StatusStone/Status-buff raises wear. */
+    /** THE single source of truth for a character's effective StatusMultiplier (T3 consolidation):
+     *  general permanent gear MULTIPLICATIVE (stat capped ×1.5 alone, then BonusStatusMultiplier +
+     *  StatusStone past it) × MULTIPLICATIVE transient ×(1 + (StatusMultiplierBuff − Debuff)/100),
+     *  clamped [0, 2.0]. Read by the live buildup (AddStatusBuildup), the BD overload bake, AND
+     *  crystal-wear — lockstep by construction (GetSourceStatusMultiplierFactor was retired). */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveStatusMultiplier() const;
 

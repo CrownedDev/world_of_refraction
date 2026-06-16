@@ -386,17 +386,16 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		}
 	}
 
-	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — ADDITIVE transient (T1):
-	// per the "temporary effects are additive" policy, the DefenseBuff/Debuff net is ADDED to the
-	// permanent-gear reduction (base-independent: +20% buff = +0.20 to the reduction fraction), NOT a
-	// multiplier. Buff/debuff stay in lockstep (a +20% buff and −20% debuff net to +0.0); a stacked
-	// debuff drives toward the 0 floor, a buff toward the 1.0 ceiling — both via the final clamp.
+	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — MULTIPLICATIVE transient: the
+	// DefenseBuff/Debuff net scales the (permanent-gear) reduction proportionally, ×(1 + net/100), past
+	// the 0.5 stat cap toward the 1.0 ceiling. Max(0,…) floors a ≥100% debuff at ×0 (never inverts);
+	// buff/debuff in lockstep. The final clamp bounds the result to [0, 1.0].
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
-		Reduction += (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+		Reduction *= FMath::Max(0.0f, 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
 	return FMath::Clamp(Reduction, 0.0f, CombatConstants::RESISTANCE_MAX);

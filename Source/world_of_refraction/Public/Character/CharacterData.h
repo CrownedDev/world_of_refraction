@@ -499,17 +499,10 @@ public:
 		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT, CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	float CalculateActionSpeed() const
-	{
-		float EffectiveBody = GetEffectiveBody();
-		int32 TotalPoints = GetTotalActionSpeed();
-		const float SpeedMult = FMath::Min(
-			1.0f + EffectiveBody * TotalPoints * CombatConstants::MOVEMENT_SPEED_PER_POINT,
-			CombatConstants::STAT_MULT_CAP);
-		return CombatConstants::MOVEMENT_SPEED_BASE * SpeedMult;
-	}
-
+	// CalculateActionSpeed (the x400 approach-movement variant) was RETIRED — the ApproachData
+	// movement gate it fed was removed in the W3/PhaseRunner rework (warp is montage-driven now,
+	// see CombatOrchestrator). The ActionSpeed stat drives animation play-rate via
+	// CalculateAnimationSpeed / GetEffectiveActionSpeed; MOVEMENT_SPEED_BASE/PER_POINT were retired with it.
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateAnimationSpeed() const
 	{
@@ -523,9 +516,9 @@ public:
 	float CalculateReflexWindowBonus() const
 	{
 		// Additive SECONDS layered on top of UDefenseSystem::DefenseInputWindow (the
-		// tuned base stays on the subsystem). Mirrors the CalculateActionSpeed shape.
-		// Reads RAW GetEffectiveBody() — asset-intrinsic, NOT gear-aware yet (gear
-		// widening of the window is deferred — see RealTimeDefenseRework §5).
+		// tuned base stays on the subsystem). Reads RAW GetEffectiveBody() — asset-intrinsic;
+		// gear-widening of the window is applied separately at the DefenseSystem composition
+		// point (SpeedWindowGearFactor), not here.
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalReflex();
 		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT, CombatConstants::WINDOW_CAP_SECONDS);
@@ -534,9 +527,9 @@ public:
 	/** ATTACKER side of the defense-window duel: how many SECONDS this character's speed
 	 *  shaves off a defender's input window. Exact mirror of CalculateReflexWindowBonus's
 	 *  shape (EffectivePillar × RAW speed points × weight) so equal points + equal world
-	 *  level cancel to the base window. Reads the RAW speed substat point getters — NOT
-	 *  CalculateActionSpeed/CalculateSpellSpeed (those carry bases + a ×400 movement scale
-	 *  that would obliterate the window). Type-aware: physical (Attack/Ability) narrows via
+	 *  level cancel to the base window. Reads the RAW speed substat point getters — NOT the
+	 *  play-rate getters (CalculateAnimationSpeed / CalculateSpellSpeed carry bases + caps that
+	 *  would distort the seconds math). Type-aware: physical (Attack/Ability) narrows via
 	 *  ActionSpeed/Body; Spell narrows via SpellSpeed/Mind (cross-pillar by design — clean
 	 *  cancel for physical, well-defined for spell). NOTE: the spell branch is DORMANT until
 	 *  Stage 6 — per-impact resolution is melee-only today, so only the physical branch is

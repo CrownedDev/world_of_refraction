@@ -1151,14 +1151,11 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		// Crystal-aware StatusMultiplier — the composed getter (innate Spirit×points +
-		// equipment BonusStatusMultiplier + attached StatusStone, COMPOUNDED with the
-		// transient StatusMultiplierBuff/Debuff ×Max(0,1+(buff−debuff)/100)). Equals the
-		// prior inline GetSourceStatusMultiplierFactor × transient BY CONSTRUCTION when the
-		// SBM subsystem is present; unlike that inline it also computes the base when SBM is
-		// null (the old path left it at 1.0 — a latent footgun, now fixed). Scales the BD
-		// drain AND self-status. (GetSourceStatusMultiplierFactor stays — AddStatusBuildup
-		// still uses it.)
+		// Crystal-aware StatusMultiplier — the single composed getter (T3 consolidation): crystal-aware
+		// Spirit stat capped ×1.5, gear (BonusStatusMultiplier + StatusStone) multiplicative beyond,
+		// additive transient StatusMultiplierBuff/Debuff. The SAME value AddStatusBuildup and crystal-wear
+		// read — lockstep by construction (GetSourceStatusMultiplierFactor was retired). Scales the BD
+		// drain AND self-status.
 		StatusMultiplierBonus = CharComp->GetEffectiveStatusMultiplier();
 
 		// EfficiencyMultiplier — unified getter (innate crystal-aware Mind + equipment

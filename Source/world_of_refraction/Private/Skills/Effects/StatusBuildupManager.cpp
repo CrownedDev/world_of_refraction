@@ -281,55 +281,10 @@ float UStatusBuildupManager::GetTotalStatusResistance(AActor *Target, ESpellElem
 // STATUS BAR MUTATION
 // ========================================
 
-float UStatusBuildupManager::GetSourceStatusMultiplierFactor(AActor *Source) const
-{
-	if (!Source)
-	{
-		return 1.0f;
-	}
-
-	UCharacterDataComponent *SourceComp = Source->FindComponentByClass<UCharacterDataComponent>();
-	if (!SourceComp || !SourceComp->CharacterData)
-	{
-		return 1.0f;
-	}
-
-	const float ModifiedSpirit = SourceComp->GetEvolutionModifiedSpirit();
-	const int32 TotalPoints = SourceComp->CharacterData->GetTotalStatusMultiplier();
-
-	// Equipment BonusStatusMultiplier + attached StatusStone — both read from the source's active
-	// loadout. BonusStatusMultiplier is point-based (× per-point); the StatusStone is a whole-percent
-	// curve (÷ STAT_PERCENT_DIVISOR). Pattern P (cluster 5d): each MULTIPLIES the capped stat below
-	// (was an additive term in one uncapped sum). 0 for non-StatusStone.
-	int32 BonusPoints = 0;
-	float StonePct = 0.0f;
-	if (ULoadoutComponent *SourceLoadout = Source->FindComponentByClass<ULoadoutComponent>())
-	{
-		const FEquipmentStatBonus Bonus = SourceLoadout->GetActiveStatBonus(Source);
-		BonusPoints = Bonus.BonusStatusMultiplier;
-
-		// Attached StatusStone — the source's OWN active weapon attachment.
-		if (const FRuntimeAttachedItem *AttPtr = SourceLoadout->GetActiveWeaponAttachment())
-		{
-			const FRuntimeAttachedItem &Att = *AttPtr;
-			StonePct = CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier);
-		}
-	}
-
-	// Pattern P (cluster 5d) — stat-capped, gear multiplies beyond. The stat term (innate
-	// crystal-aware Spirit × StatusMultiplier points) is capped ALONE at STAT_MULT_CAP (×1.5 — now
-	// ENFORCED; this live buildup factor was previously UNCAPPED). THEN gear/stone MULTIPLY it past
-	// 1.5 toward STAT_MODIFIER_MAX (×2.0), matching the damage gear ceiling. Option-(ii): the
-	// BonusStatusMultiplier × per-point magnitude is read as a fraction. Each ×1 (inert) when absent.
-	// The transient StatusMultiplierBuff/Debuff is a separate layer applied in AddStatusBuildup (5b).
-	const float StatMult = FMath::Min(
-		1.0f + ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT,
-		CombatConstants::STAT_MULT_CAP);
-	const float Result = StatMult
-		* (1.0f + BonusPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT)
-		* (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
-	return FMath::Min(Result, CombatConstants::STAT_MODIFIER_MAX);
-}
+// GetSourceStatusMultiplierFactor was RETIRED in the T3 consolidation. Its base-stat composition and
+// the AddStatusBuildup step-5b transient are now the single getter
+// UCharacterDataComponent::GetEffectiveStatusMultiplier (base + additive transient), which the live
+// buildup, the BD overload bake, and crystal-wear all read — lockstep by construction.
 
 bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, float Amount,
 											 ESpellElement Element, EPhysicalDamageType PhysicalType,
@@ -393,34 +348,23 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 	// Get or create state
 	FStatusBarState &State = StatusBarStates.FindOrAdd(Target);
 
-	// Apply attacker StatusMultiplier amplification — crystal-aware path.
-	// Inlines the StatusMultiplier formula (1 + EffectiveSpirit × points × per-point)
-	// against the component's GetEvolutionModifiedSpirit so a slotted primary
-	// evolution crystal's pillar modifier feeds the buildup curve.
-	// Mirrors UCharacterData::CalculateStatusMultiplier shape; if that formula
-	// changes, update here too.
+	// Apply attacker StatusMultiplier amplification — the single crystal-aware getter
+	// GetEffectiveStatusMultiplier (T3 consolidation): crystal-aware Spirit stat capped ×1.5, gear
+	// (BonusStatusMultiplier + StatusStone) multiplicative beyond, additive transient buff/debuff.
 	if (Source)
 	{
-		// Steps 5 + 5b — source StatusMultiplier amplification (base-stat AND transient
-		// buff/debuff). Gated by bSkipBaseStatAmp for callers that already baked BOTH
-		// into the incoming Amount (the BD overload aura: `released = BaseRelease ×
-		// StatusMult × Efficiency` is the single coupled quantity feeding both drain and
-		// self-status — re-applying here would double-count). Steps 5c/6 still run below.
+		// Step 5 (+ former 5b) — source StatusMultiplier amplification: base-stat AND transient
+		// buff/debuff, now a SINGLE factor from UCharacterDataComponent::GetEffectiveStatusMultiplier
+		// (T3 consolidation — GetSourceStatusMultiplierFactor was retired). Gated by bSkipBaseStatAmp
+		// for callers that already baked it into the incoming Amount (the BD overload aura: `released =
+		// BaseRelease × StatusMult × Efficiency` is the single coupled quantity feeding both drain and
+		// self-status — re-applying here would double-count). Steps 5c/6 still run below. 1.0 (no-op)
+		// when Source has no CharacterDataComponent.
 		if (!bSkipBaseStatAmp)
 		{
-			// Step 5 — base-stat amp (single source of truth, shared with the BD
-			// overload bake in CombatOrchestrator). 1.0 when no CharacterData.
-			Amount *= GetSourceStatusMultiplierFactor(Source);
-
-			// Step 5b — skill-effect transient StatusMultiplier buff/debuff. NOW gated
-			// alongside Step 5: the BD self-status bakes both into Released, so it skips
-			// both here; normal callers run both. Aggregated via GetTotalStatModifier
-			// (non-element-specific — caster output amplification, not per-element).
-			if (USkillEffectManager *EffectMgr = GetEffectManager())
+			if (UCharacterDataComponent *SrcComp = Source->FindComponentByClass<UCharacterDataComponent>())
 			{
-				const float SmBuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierBuff);
-				const float SmDebuff = EffectMgr->GetTotalStatModifier(Source, ESkillEffectType::StatusMultiplierDebuff);
-				Amount *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+				Amount *= SrcComp->GetEffectiveStatusMultiplier();
 			}
 		}
 
