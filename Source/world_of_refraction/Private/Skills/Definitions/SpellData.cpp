@@ -178,13 +178,16 @@ FString USpellData::GetDisplayName(UCharacterData *Caster) const
 
 bool USpellData::CanBeBlocked() const
 {
-    return DeliveryType != ESpellDeliveryType::Instant;
+    // All current deliveries are blockable. Instant is defendable per-impact (Hard
+    // difficulty) like AOE — no delivery is undefendable anymore.
+    return true;
 }
 
 bool USpellData::CanBeParried() const
 {
     return DeliveryType == ESpellDeliveryType::Projectile ||
-           DeliveryType == ESpellDeliveryType::AOE;
+           DeliveryType == ESpellDeliveryType::AOE ||
+           DeliveryType == ESpellDeliveryType::Instant;
 }
 
 bool USpellData::CanBeDodgedByMoving() const
@@ -194,18 +197,15 @@ bool USpellData::CanBeDodgedByMoving() const
 
 bool USpellData::CanBeDodgedByTiming() const
 {
-    return DeliveryType == ESpellDeliveryType::Projectile;
+    return DeliveryType == ESpellDeliveryType::Projectile ||
+           DeliveryType == ESpellDeliveryType::Instant;
 }
 
 TArray<EDefenseType> USpellData::GetAvailableDefenses() const
 {
     TArray<EDefenseType> Options;
 
-    if (DeliveryType == ESpellDeliveryType::Instant)
-    {
-        return Options; // Empty - unavoidable
-    }
-
+    // Every delivery is blockable now (Instant included — defendable per-impact at Hard).
     Options.Add(EDefenseType::Block);
 
     if (CanBeParried())

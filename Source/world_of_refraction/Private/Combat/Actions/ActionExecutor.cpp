@@ -1149,8 +1149,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// closes only after the LAST of N staggered arrivals. Done HERE (action start), NOT at dispatch: the
 	// cast-time window would otherwise auto-close at 0.3s before the SpellRelease notify fires. Gate: one
 	// cast entry, single ASSET hit (Spell->HitCount==1, the physical-only field), Projectile, ANY
-	// Count — single (Count==1) is the N=1 case of the same path. Multi-entry/beam/AOE/asset-multi-hit
-	// stay on the lumped path (untouched).
+	// Count — single (Count==1) is the N=1 case of the same path. Projectile/AOE/Instant single-entry
+	// all convert here; multi-entry and asset-multi-hit stay on the lumped path (untouched).
 	//
 	// Burst even-split: window BaseDamage stays the FULL FinalDamage; the runtime Ctx.HitCount = Count
 	// makes each arrival's slice State.BaseDamage/HitCount = FinalDamage/Count (the ResolvedDamageSplit
@@ -1187,15 +1187,17 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 				}
 			}
 		}
-		else if (E0.DeliveryType == ESpellDeliveryType::AOE)
+		else if (E0.DeliveryType == ESpellDeliveryType::AOE || E0.DeliveryType == ESpellDeliveryType::Instant)
 		{
-			// Stage 6 cluster 6 — single-entry AOE: each defender takes ONE AOE hit, resolved at the
-			// Cast notify (no travel — SpawnAOEEffect IS the impact moment). Mirror the projectile
-			// conversion: swap the just-opened lumped cast-time window for a count-based one
-			// (ExpectedImpacts=1 per defender, 8s failsafe so it survives the cast animation) so the
-			// ONLY apply is the per-defender resolve in SpawnAOEEffect — no lumped 0.3s auto-close
-			// double-apply. FULL FinalDamage per defender — AOE is NOT even-split (everyone in the
-			// area takes the whole hit). N defenders = N independent single-impact windows.
+			// Stage 6 cluster 6 — single-entry AOE AND Instant: each defender takes ONE hit, resolved at
+			// the Cast notify (no travel — SpawnAOEEffect / ResolveInstantSpell IS the impact moment).
+			// The two deliveries share this branch byte-for-byte: one full-damage impact per defender,
+			// closed at the Cast resolve. Mirror the projectile conversion: swap the just-opened lumped
+			// cast-time window for a count-based one (ExpectedImpacts=1 per defender, 8s failsafe so it
+			// survives the cast animation) so the ONLY apply is the per-defender resolve — no lumped 0.3s
+			// auto-close double-apply. FULL FinalDamage per defender — neither is even-split (everyone hit
+			// takes the whole hit). N defenders = N independent single-impact windows. Instant differs from
+			// AOE only in DEFENSE availability (all three, Hard) — authored in SpellData, not here.
 			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
 			{
 				for (AActor *Target : ValidTargets)
@@ -3402,7 +3404,8 @@ void UActionExecutor::ResolveInstantSpell(
 	float FinalImpactRadius,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
-	const FSkillCastEntry *Entry)
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
 {
 	if (!Target || !Spell)
 	{
@@ -3434,28 +3437,66 @@ void UActionExecutor::ResolveInstantSpell(
 		}
 	}
 
-	// Instant spells are unavoidable - apply damage directly
-	// No defense window
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant spell hit %s - unavoidable, applying damage"),
-		   *Target->GetName());
-
-	FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, Spell->Element, true);
-
-	// Update execution context
-	if (CurrentExecutionContext.IsSet())
+	// Instant resolution = NOW (the Cast notify). No travel, so this dispatch IS the impact moment.
+	// Instant is now DEFENDABLE per-impact (all three defenses, Hard difficulty): resolve THIS defender
+	// against the count-based window the gate opened at action start (ExpectedImpacts=1), read the
+	// cast-entry defense difficulty, apply the single full-damage impact through the defense, and close.
+	// Byte-identical to SpawnAOEEffect's converted branch — the Instant "arrival" is here, now.
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys && CurrentExecutionContext.IsSet())
 	{
-		CurrentExecutionContext->PartialResult.TotalDamageDealt += Result.DamageDealt;
-		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, Result.DamageDealt);
-		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
-
-		if (Result.bWasCritical)
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
 		{
-			CurrentExecutionContext->PartialResult.bWasCritical = true;
+			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the AOE / projectile resolve
+
+			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
+			const FDefenseDifficultyTriple Diff =
+				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+					: FDefenseDifficultyTriple();
+
+			AActor *Attacker = Ctx->Attacker.Get();
+
+			// One Instant impact per defender → ordinal 0. Drain BEFORE apply so the close-time tail
+			// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is empty — no double-apply on close.
+			++Ctx->ImpactsLanded;
+			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
+			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+			if (Ctx)
+			{
+				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+			}
+			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
+
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant resolved per-impact for %s (CastEntryIndex=%d)"),
+				   *Target->GetName(), CastEntryIndex);
+			return;
 		}
+	}
 
-		if (Result.bTargetDied)
+	// Fallback — no converted count-based window (unconverted multi-entry Instant keeps the action-start
+	// lumped window, which resolves it via OnDefenseWindowClosed), or no DefenseSystem at all → apply
+	// directly (the legacy unavoidable behavior).
+	if (!DefenseSys)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying Instant damage directly"));
+		FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, Spell->Element, true);
+
+		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PartialResult.bCausedDeath = true;
+			CurrentExecutionContext->PartialResult.TotalDamageDealt += Result.DamageDealt;
+			CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, Result.DamageDealt);
+			CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+
+			if (Result.bWasCritical)
+			{
+				CurrentExecutionContext->PartialResult.bWasCritical = true;
+			}
+
+			if (Result.bTargetDied)
+			{
+				CurrentExecutionContext->PartialResult.bCausedDeath = true;
+			}
 		}
 	}
 }
@@ -3561,7 +3602,7 @@ void UActionExecutor::DispatchSpellCast(
 	case ESpellDeliveryType::Instant:
 		for (AActor *Target : Targets)
 		{
-			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBD, &Entry);
+			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 		}
 		break;
 	}

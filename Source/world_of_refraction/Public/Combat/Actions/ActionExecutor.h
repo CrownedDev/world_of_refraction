@@ -1038,8 +1038,10 @@ protected:
 		const FSkillCastEntry *Entry = nullptr,
 		int32 CastEntryIndex = INDEX_NONE);
 
-	/** Resolve instant spell (immediate hit). Entry non-null = visual from the
-	 *  entry's Trail; null = loose SpellVFX. */
+	/** Resolve instant spell (immediate hit, now defendable per-impact at the Cast
+	 *  notify — Hard difficulty). Entry non-null = visual from the entry's Trail;
+	 *  null = loose SpellVFX. CastEntryIndex keys the per-cast-entry defense
+	 *  difficulty (INDEX_NONE → Easy ×1.0), mirroring SpawnAOEEffect. */
 	void ResolveInstantSpell(
 		AActor *Caster,
 		AActor *Target,
@@ -1047,7 +1049,8 @@ protected:
 		float FinalImpactRadius,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
-		const FSkillCastEntry *Entry = nullptr);
+		const FSkillCastEntry *Entry = nullptr,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Entry-based delivery dispatch (D6 Stage 12) — the ONE spawn site both
 	 *  trigger paths share (UCombatNotify Family=Cast AND the legacy

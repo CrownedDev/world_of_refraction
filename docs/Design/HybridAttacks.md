@@ -130,6 +130,28 @@ beam/homing delivery-type removals. Needs, in order:
 **specific** hit (the orb on every punch, or only the finisher)? — resolve by authoring, per cast entry,
 which melee notify it anchors to (#3).
 
+## Known limitations of the parked hybrid path
+
+- **Multi-entry double-apply (the lumped-total characteristic).** A multi-cast-entry spell
+  (`CastArray.Num() > 1`) — including a hybrid physical+spell skill — still opens the action-start lumped
+  window and applies via `ApplyDamageAfterDefense` against the **lumped total**, because the per-impact
+  conversion gates are single-entry only (`CastArray.Num() == 1`). This affects ALL unconverted multi-entry
+  deliveries uniformly: a multi-entry spell with a Projectile entry (the orphan else-branch), an AOE entry,
+  or an Instant entry all share it — the individual entry resolves/applies AND the lumped window applies the
+  lumped total = potential double-apply. This is **not** a bug in the single-entry converted path
+  (Projectile single/burst, AOE, and Instant are all clean) — it's the unconverted multi-entry path, the
+  same bucket the orphan else-branch is kept for.
+
+- **Implication for hybrids.** When the hybrid attacks feature is built (multi-entry physical+spell skills),
+  the multi-entry defense/apply path needs designing — each entry should resolve **per-impact** (like the
+  single-entry deliveries do now) instead of falling to the lumped window. The conversion gates would extend
+  from single-entry to multi-entry, with per-entry resolve. Until then, multi-entry spells use the lumped
+  path (one window, one decision, lumped-total apply) — fine for non-hybrid multi-entry, but the per-entry
+  defense/damage hybrids want isn't there yet.
+
+- **Status.** A known characteristic of the parked multi-entry/hybrid path, to address when hybrids are
+  built.
+
 ## Status
 
 PARKED, to incorporate. Captured so the vision is intact.

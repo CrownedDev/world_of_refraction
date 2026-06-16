@@ -374,8 +374,10 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
-		// Projectile and AOE spells need async for the per-impact defense window
-		// (Projectile = projectile-arrival moment, AOE = Cast-notify resolution moment).
+		// Projectile, AOE, and Instant spells need async for the per-impact defense
+		// window (Projectile = projectile-arrival moment; AOE and Instant = Cast-notify
+		// resolution moment). Instant is now defendable per-impact (Hard difficulty),
+		// so it routes async like AOE.
 		// D6: Cast entries are authoritative when present (any such entry → async);
 		// loose DeliveryType is the empty-CastArray fallback.
 		if (Action.SpellData->CastArray.Num() > 0)
@@ -383,7 +385,8 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 			for (const FSkillCastEntry &Entry : Action.SpellData->CastArray)
 			{
 				if (Entry.DeliveryType == ESpellDeliveryType::Projectile ||
-					Entry.DeliveryType == ESpellDeliveryType::AOE)
+					Entry.DeliveryType == ESpellDeliveryType::AOE ||
+					Entry.DeliveryType == ESpellDeliveryType::Instant)
 				{
 					bRequiresAsync = true;
 					break;
@@ -394,7 +397,8 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		{
 			ESpellDeliveryType Delivery = Action.SpellData->DeliveryType;
 			bRequiresAsync = (Delivery == ESpellDeliveryType::Projectile ||
-							  Delivery == ESpellDeliveryType::AOE);
+							  Delivery == ESpellDeliveryType::AOE ||
+							  Delivery == ESpellDeliveryType::Instant);
 		}
 	}
 	else if (Action.ActionType == EActionType::Attack && Action.AttackData)
