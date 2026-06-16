@@ -49,6 +49,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat Animation")
     void PlayActionMontage(UAnimMontage *Montage, float PlayRate = 1.0f);
 
+    /** Stop the current action montage (blend out) and resume the idle stance — the visible halt for an
+     *  interrupted action with no authored ReturnMontage. No-op if no action montage is playing. */
+    UFUNCTION(BlueprintCallable, Category = "Combat Animation")
+    void StopActionMontage();
+
     /** Check if currently playing any action */
     UFUNCTION(BlueprintPure, Category = "Combat")
     bool IsPlayingAction() const { return bIsPlayingAction; }

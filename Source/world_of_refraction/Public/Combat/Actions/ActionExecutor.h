@@ -764,6 +764,22 @@ private:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Async")
 	void CancelAsyncAction();
 
+	/** B2 interrupt — true iff EVERY currently-pending defender has resolved the current interruptable hit
+	 *  AND parried/dodged it (the all-targets abort gate). Empty set → false. Single-target (N=1) degenerates
+	 *  to the one defender's outcome. Read between the melee resolve and close loops (contexts still present). */
+	bool AllInterruptSucceeded() const;
+
+	/** B2 spell tally — record a target's choke outcome (parried/dodged) for the current interruptable cast
+	 *  entry; returns true once EVERY target has resolved AND all parried/dodged (→ caller aborts). Survives
+	 *  the per-defender close that removes contexts (vs AllInterruptSucceeded's live-context iteration). */
+	bool RecordChokeAndShouldAbort(AActor *Target, bool bDefended);
+
+	/** B2 interrupt — abort the rest of the action after an interruptable hit was parried/dodged by all
+	 *  targets: stop pending spawns/timers, clear+close the pending defense windows (no tail apply), mark the
+	 *  result interrupted, then play the ReturnMontage (warp back to origin) if authored, else hard-stop the
+	 *  montage and finalize. Skill is the chain skill (UWeaponAttackData / spell — both UCastableSkillDataBase). */
+	void InterruptAsyncAction(AActor *Attacker, UCastableSkillDataBase *Skill);
+
 private:
 	// ========================================
 	// ASYNC EXECUTION - INTERNAL STATE

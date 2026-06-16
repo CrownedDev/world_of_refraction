@@ -512,6 +512,14 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	TArray<FResolvedHitFlags> ResolvedHitFlags;
 	TArray<FResolvedHitFlags> ResolvedCastFlags;
 
+	/** Cross-target interrupt tally for the CURRENT interruptable cast entry (choke point). Survives the
+	 *  per-defender CloseDefenseWindow that removes the context, so "did ALL targets parry/dodge this choke
+	 *  point?" can be evaluated after every target has resolved. Reset per interruptable entry (first-pass-
+	 *  wins). Spell-only — melee uses the live-context AllInterruptSucceeded; burst is deferred. */
+	TMap<TWeakObjectPtr<AActor>, bool> ChokeOutcomes;	// target → parried/dodged
+	int32 ChokeExpectedCount = 0;						// # targets for this choke (0 = no active choke)
+	int32 ChokeCastEntryIndex = INDEX_NONE;				// which cast entry is the active choke
+
 	FActionExecutionContext()
 	{
 		ExecutionId = FGuid::NewGuid();

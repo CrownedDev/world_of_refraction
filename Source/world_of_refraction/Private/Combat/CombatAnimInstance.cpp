@@ -157,6 +157,19 @@ void UCombatAnimInstance::StopStanceMontage()
     }
 }
 
+void UCombatAnimInstance::StopActionMontage()
+{
+    if (CurrentActionMontage)
+    {
+        Montage_Stop(0.2f, CurrentActionMontage);
+        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Stopped action montage: %s"),
+               *CurrentActionMontage->GetName());
+        CurrentActionMontage = nullptr;
+        bIsPlayingAction = false;
+    }
+    ResumeStanceMontage();
+}
+
 void UCombatAnimInstance::ResumeStanceMontage()
 {
     // Called after attack/ability montage finishes

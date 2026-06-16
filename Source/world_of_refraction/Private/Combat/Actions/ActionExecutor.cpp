@@ -2451,6 +2451,122 @@ void UActionExecutor::CancelAsyncAction()
 	FinalizeAsyncAction();
 }
 
+bool UActionExecutor::AllInterruptSucceeded() const
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return false;
+	}
+	const auto &Pending = CurrentExecutionContext->PendingDefenses;
+	if (Pending.Num() == 0)
+	{
+		return false;
+	}
+	for (const auto &Pair : Pending)
+	{
+		const FPendingDefenseContext &Ctx = Pair.Value;
+		if (!Ctx.bResultResolved)
+		{
+			return false; // not every defender has resolved this hit yet → don't abort
+		}
+		if (!(Ctx.bResolvedSuccess &&
+			  (Ctx.ResolvedDefenseType == EDefenseType::Parry ||
+			   Ctx.ResolvedDefenseType == EDefenseType::Dodge)))
+		{
+			return false; // any defender failed to parry/dodge → no abort, the attack continues
+		}
+	}
+	return true; // every defender resolved AND parried/dodged the interruptable hit
+}
+
+bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return false;
+	}
+	FActionExecutionContext &Exec = *CurrentExecutionContext;
+	Exec.ChokeOutcomes.Add(Target, bDefended);
+	if (Exec.ChokeExpectedCount <= 0 || Exec.ChokeOutcomes.Num() < Exec.ChokeExpectedCount)
+	{
+		return false; // no active choke, or not every target has resolved this entry yet
+	}
+	for (const auto &O : Exec.ChokeOutcomes)
+	{
+		if (!O.Value)
+		{
+			return false; // some target failed to parry/dodge → no abort, the spell continues
+		}
+	}
+	return true; // every target resolved AND parried/dodged the choke point
+}
+
+void UActionExecutor::InterruptAsyncAction(AActor *Attacker, UCastableSkillDataBase *Skill)
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Interrupt — all targets parried/dodged an interruptable hit; aborting the rest"));
+
+	// 1. Stop further spawns + cue timers — no more hits/casts land.
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BurstTimerHandle);
+		for (FTimerHandle &H : TelegraphTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(H);
+		}
+	}
+	BurstSpawnQueue.Empty();
+	TelegraphTimerHandles.Empty();
+	ActiveBurstSpell = nullptr;
+
+	// 2. Clear the pending contexts FIRST, then close their windows — so the close callbacks find no
+	//    context and apply no tail (the aborted remainder must NOT land). The interruptable hit's own
+	//    (parried) damage already applied at the resolve site before this call.
+	TArray<AActor *> Defenders;
+	for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+	{
+		if (Pair.Key.IsValid())
+		{
+			Defenders.Add(Pair.Key.Get());
+		}
+	}
+	CurrentExecutionContext->PendingDefenses.Empty();
+	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+	{
+		for (AActor *D : Defenders)
+		{
+			DefenseSys->CloseDefenseWindow(D);
+		}
+	}
+
+	// 3. Mark the action interrupted (defended).
+	CurrentExecutionContext->PartialResult.bSuccess = false;
+	CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Action interrupted (defended)");
+
+	// 4. Recover. With a ReturnMontage: PlayReturnStep stops the skill montage and warps the attacker back
+	//    — it sets CurrentChainMontage=ReturnMontage BEFORE the stop, so the skill-stop's spurious
+	//    OnActionMontageEnded is ignored by the montage-identity guard; the ReturnMontage's own end drives
+	//    FinishMontageChain → finalize (single finalize). Without one: unbind, hard-stop, finalize directly.
+	if (Skill && Skill->ReturnMontage && Attacker)
+	{
+		PlayReturnStep(Attacker, Skill);
+	}
+	else
+	{
+		UnbindActionAnimationEnd(Attacker);
+		UnbindCombatNotify(Attacker);
+		if (UCombatAnimInstance *Anim = GetCombatAnimInstance(Attacker))
+		{
+			Anim->StopActionMontage();
+		}
+		FinalizeAsyncAction();
+	}
+}
+
 bool UActionExecutor::IsAsyncActionInProgress() const
 {
 	return CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress;
@@ -3442,7 +3558,21 @@ void UActionExecutor::SpawnAOEEffect(
 			if (Ctx)
 			{
 				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
+				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+				const bool bDefended = Ctx->bResolvedSuccess &&
+									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
+										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
 				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
+				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
+				// context check the per-defender close below defeats).
+				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+				{
+					InterruptAsyncAction(Caster, Spell);
+					return; // abort handles teardown — skip the normal close
+				}
 			}
 			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
 
@@ -3530,7 +3660,21 @@ void UActionExecutor::ResolveInstantSpell(
 			if (Ctx)
 			{
 				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
+				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+				const bool bDefended = Ctx->bResolvedSuccess &&
+									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
+										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
 				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
+				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
+				// context check the per-defender close below defeats).
+				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+				{
+					InterruptAsyncAction(Caster, Spell);
+					return; // abort handles teardown — skip the normal close
+				}
 			}
 			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
 
@@ -3625,6 +3769,19 @@ void UActionExecutor::DispatchSpellCast(
 
 	UE_LOG(LogTemp, Log, TEXT("[Runner] DispatchCastEntry '%s' - Type=%d, Targets=%d, Radius=%.2f, Count=%d"),
 		   *Entry.Label, (int32)Entry.DeliveryType, Targets.Num(), FinalImpactRadius, Entry.Count);
+
+	// Hybrid B2 cross-target interrupt tally: a fresh all-targets round per interruptable cast entry (choke
+	// point, first-pass-wins). The per-defender resolve records each outcome (surviving the close-removal)
+	// and aborts when ALL targets parry/dodge. Burst (Count>1) is NOT a choke point — the by-target tally
+	// can't express per-arrival; only single-impact deliveries record (gated at the resolve site).
+	if (CurrentExecutionContext.IsSet() &&
+		CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+		CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable)
+	{
+		CurrentExecutionContext->ChokeOutcomes.Empty();
+		CurrentExecutionContext->ChokeExpectedCount = Targets.Num();
+		CurrentExecutionContext->ChokeCastEntryIndex = CastEntryIndex;
+	}
 
 	switch (Entry.DeliveryType)
 	{
@@ -3763,7 +3920,23 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 			if (Ctx)
 			{
 				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+				// Capture the choke outcome BEFORE ApplyOneImpact (may remove the context on death). Only
+				// single-impact projectiles (ExpectedImpacts==1) are choke points; burst (Count>1) deferred.
+				const bool bChokeEntry = Ctx->ExpectedImpacts == 1 &&
+										 CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+				const bool bDefended = Ctx->bResolvedSuccess &&
+									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
+										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
 				ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
+				// Cross-target interrupt tally (single-projectile multi-target): record + abort when ALL
+				// targets parried/dodged this choke point. Earlier targets already closed normally; the abort
+				// on the last prevents the remainder.
+				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+				{
+					InterruptAsyncAction(Attacker, GetCurrentSkillData());
+					return; // abort handles teardown — skip the close below
+				}
 			}
 			if (bLastArrival)
 			{
@@ -5350,6 +5523,17 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
 				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
 				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
+			}
+			// Hybrid B2 interrupt: if THIS impact was authored interruptable and EVERY targeted defender
+			// parried/dodged it, abort the rest of the attack. Checked HERE — after all defenders resolved
+			// this impact, BEFORE the closes remove their contexts — so AllInterruptSucceeded sees the full
+			// set. Single-target degenerates to the one defender's outcome (the grab).
+			if (CurrentExecutionContext->ResolvedHitFlags.IsValidIndex(Index) &&
+				CurrentExecutionContext->ResolvedHitFlags[Index].bInterruptable &&
+				AllInterruptSucceeded())
+			{
+				InterruptAsyncAction(ChainActor.Get(), ChainSkill);
+				return;
 			}
 			for (AActor *Defender : DefendersToClose)
 			{
