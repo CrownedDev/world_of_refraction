@@ -221,6 +221,14 @@ namespace CombatConstants
     // transient) MULTIPLIES it past, capped here. 0.5 = the +100% analog of the 0.25 stat cap.
     constexpr float WINDOW_GEAR_CEILING_SECONDS = 0.5f; // max single-side window term WITH gear (>= WINDOW_CAP_SECONDS)
 
+    // Per-impact defense DIFFICULTY (melee per-impact rework, cluster 1): a multiplier applied to the
+    // effective defense input window for a single impact — harder impacts shrink the reaction window.
+    // Easy = x1.0 is the no-change ANCHOR (an all-Easy / unauthored skill behaves exactly as today).
+    // Medium/Hard are STARTING values — tune by feel in PIE. Nothing reads these until cluster 4.
+    constexpr float DEFENSE_DIFFICULTY_EASY   = 1.0f; // anchor — no change from today's window
+    constexpr float DEFENSE_DIFFICULTY_MEDIUM = 0.7f; // starting default, tune in PIE
+    constexpr float DEFENSE_DIFFICULTY_HARD   = 0.4f; // starting default, tune in PIE
+
     // ==================== SPIRIT STATS (5) ====================
     // MaxEnergy, Resistance, TurnSpeed, Luck, StatusMultiplier
     // (STATUS_MULTIPLIER_PER_POINT lives in the Mind block above for layout reasons —
