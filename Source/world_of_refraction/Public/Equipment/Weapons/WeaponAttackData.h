@@ -30,15 +30,6 @@ class WORLD_OF_REFRACTION_API UWeaponAttackData : public UCastableSkillDataBase
     GENERATED_BODY()
 
 public:
-    // ==================== SIZE ====================
-
-    /** Hitbox / defense-window size scalar for this attack. 0 = unauthored
-     *  (logged as a warning at execution time; the executor uses the raw 0 — no
-     *  fallback). Mirrors USpellData::BaseSize convention; designers should set
-     *  it on every attack a player can defend against. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Size", meta = (ClampMin = "0.0"))
-    float BaseSize = 0.0f;
-
     // ==================== ANIMATION ====================
 
     /** DEPRECATED (D2, meta'd Stage 12 SC7): load-only — readers use

@@ -32,6 +32,13 @@ struct WORLD_OF_REFRACTION_API FDamageSplitEntry
     /** Percent of total damage this hit carries (0-100 scale). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Split", meta = (ClampMin = "0.0", ClampMax = "100.0"))
     float Percent = 0.0f;
+
+    /** This hit's per-defense-type difficulty (parry/dodge/block). Defaults all-Inherit →
+     *  resolves to the skill-level DefaultDifficulty, then Easy (×1.0). Merged onto the damage
+     *  entry so a hit's damage and its defense difficulty are authored together — they can no
+     *  longer drift apart. Resolved via ResolveImpactDifficulty (reads the same array). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Split")
+    FDefenseDifficultyTriple Difficulty;
 };
 
 /** Resolve authored split entries into a full per-hit percent table (length
@@ -43,14 +50,15 @@ struct WORLD_OF_REFRACTION_API FDamageSplitEntry
  *  debug output is exactly what executes. */
 WORLD_OF_REFRACTION_API TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split);
 
-/** Resolve the sparse per-impact difficulty overrides into a full per-impact table (length
- *  HitCount). For each impact ordinal: use the ImpactDifficulty entry with the matching
- *  HitNumber if present, else Default; then resolve each field Inherit → Default → Easy.
- *  The resolved table carries NO Inherit values (every field is concrete Easy/Medium/Hard) —
- *  clean for cluster 3/4 to consume. Mirrors ResolveDamageSplit's sparse-to-dense shape;
- *  invalid/duplicate entries warn and are skipped (first wins). */
+/** Resolve the per-hit difficulty (carried on the DamageSplit entries) into a full per-impact
+ *  table (length HitCount). For each impact ordinal: use the DamageSplit entry with the matching
+ *  HitNumber if present (its Difficulty; .Percent is ignored here), else Default; then resolve each
+ *  field Inherit → Default → Easy. The resolved table carries NO Inherit values (every field is
+ *  concrete Easy/Medium/Hard/Impossible) — clean for cluster 3/4 to consume. Reads the SAME array as
+ *  ResolveDamageSplit so per-hit damage and difficulty can't drift; invalid/duplicate entries warn
+ *  and are skipped (first wins). */
 WORLD_OF_REFRACTION_API TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
-	int32 HitCount, const TArray<FImpactDifficultyEntry> &Overrides, const FDefenseDifficultyTriple &Default);
+	int32 HitCount, const TArray<FDamageSplitEntry> &Split, const FDefenseDifficultyTriple &Default);
 
 /**
  * USkillDataBase
@@ -83,14 +91,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "HitNumber"))
     TArray<FDamageSplitEntry> DamageSplit;
 
-    /** Per-impact defense difficulty, parallel to DamageSplit — sparse overrides by HitNumber;
-     *  unassigned impacts use DefaultDifficulty; Inherit there → Easy (×1.0). Melee live
-     *  (cluster 4); spell deliveries Stage 6. Resolved via ResolveImpactDifficulty. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (TitleProperty = "HitNumber"))
-    TArray<FImpactDifficultyEntry> ImpactDifficulty;
-
-    /** Skill-level defense-difficulty fallback for impacts without an ImpactDifficulty override
-     *  (and the second resolution layer for an impact's Inherit fields). Inherit here → Easy (×1.0). */
+    /** Skill-level defense-difficulty fallback for impacts whose DamageSplit entry leaves a field
+     *  Inherit (and for hits with no DamageSplit entry at all). Inherit here → Easy (×1.0). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
     FDefenseDifficultyTriple DefaultDifficulty;
 

@@ -346,20 +346,8 @@ public:
 	float GetRemainingWindowTime(AActor *Defender) const;
 
 	// ========================================
-	// DODGE CALCULATIONS
+	// DEFENSE WINDOW DUEL
 	// ========================================
-
-	/**
-	 * Check if an attack can be dodged based on size
-	 */
-	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
-	bool CanDodgeAttack(AActor *Defender, float AttackSize) const;
-
-	/**
-	 * Get dodge threshold for a defender
-	 */
-	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
-	float GetDodgeThreshold(AActor *Defender) const;
 
 	/**
 	 * Effective defense input window for this attacker→defender duel: the tuned base
@@ -367,7 +355,7 @@ public:
 	 * NARROWED by the attacker's speed (CalculateSpeedWindowPenalty, type-aware: physical →
 	 * ActionSpeed/Body, spell → SpellSpeed/Mind), floored at MINIMUM_DEFENSE_WINDOW.
 	 *   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
-	 * Mirrors GetDodgeThreshold — base on the subsystem, per-character terms through CharacterData.
+	 * Base on the subsystem, per-character terms through CharacterData.
 	 * Null-safe on BOTH sides: a missing attacker / component / CharacterData simply drops that
 	 * side's term (no crash). Equal Reflex/ActionSpeed points + equal Body world level cancel to base.
 	 */
@@ -379,20 +367,17 @@ public:
 	// ========================================
 
 	/**
-	 * Calculate final damage after defense
+	 * Calculate final damage after defense. Dodge succeeds on TIMING alone (the attack-size
+	 * gate was removed) — a successful Dodge fully avoids regardless of attack size.
 	 * @param BaseDamage Original damage
 	 * @param DefenseType Defense used
 	 * @param bDefenseSuccessful Was timing correct?
-	 * @param AttackSize Size of attack (for dodge)
-	 * @param DodgeThreshold Defender's dodge threshold
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Damage")
 	FDefenseResult CalculateDefenseResult(
 		int32 BaseDamage,
 		EDefenseType DefenseType,
-		bool bDefenseSuccessful,
-		float AttackSize,
-		float DodgeThreshold);
+		bool bDefenseSuccessful);
 
 	// ========================================
 	// EVENTS
@@ -434,10 +419,6 @@ public:
 	/** Parry reflect percentage (0.3 = 30% reflected) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float ParryReflect = 0.3f;
-
-	/** Base dodge threshold (hitbox + dodge distance) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
-	float BaseDodgeThreshold = 2.5f;
 
 	/** Default defense window duration */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")

@@ -410,8 +410,10 @@ void UAIDecisionManager::ScheduleDefenseDecision(AActor *Defender, float AttackS
 
 EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float AttackSize, int32 BaseDamage, EAIDifficulty Difficulty) const
 {
-    // Check if dodge is viable
-    bool bCanDodge = DefenseSystemRef && DefenseSystemRef->CanDodgeAttack(Defender, AttackSize);
+    // Dodge is always viable — the attack-size gate was removed (Option B). The AI now dodges on
+    // timing alone, exactly like the player; ChooseDefenseType may freely pick it. Block/Parry
+    // remain the fallbacks below, so the AI is never stranded without a defense.
+    const bool bCanDodge = true;
 
     // Lethality check — a hit that would kill always warrants a dodge attempt
     // (100% avoid), regardless of difficulty. Gated on bCanDodge: an undodgeable

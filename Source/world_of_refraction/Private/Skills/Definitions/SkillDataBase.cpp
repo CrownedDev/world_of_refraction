@@ -91,17 +91,19 @@ TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry>
 }
 
 TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
-    int32 HitCount, const TArray<FImpactDifficultyEntry> &Overrides, const FDefenseDifficultyTriple &Default)
+    int32 HitCount, const TArray<FDamageSplitEntry> &Split, const FDefenseDifficultyTriple &Default)
 {
     const int32 N = FMath::Max(1, HitCount);
 
-    // Start every impact at the skill-level default; sparse overrides replace per HitNumber below.
+    // Start every impact at the skill-level default; per-hit Difficulty (carried on the DamageSplit
+    // entries — same array ResolveDamageSplit reads) replaces per HitNumber below. .Percent is ignored
+    // here; difficulty is keyed purely by HitNumber, independent of whether the hit carries damage.
     TArray<FDefenseDifficultyTriple> Table;
     Table.Init(Default, N);
     TArray<bool> bAuthored;
     bAuthored.Init(false, N);
 
-    for (const FImpactDifficultyEntry &Entry : Overrides)
+    for (const FDamageSplitEntry &Entry : Split)
     {
         if (Entry.HitNumber < 1 || Entry.HitNumber > N)
         {

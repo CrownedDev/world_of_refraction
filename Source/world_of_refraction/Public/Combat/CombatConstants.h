@@ -228,6 +228,11 @@ namespace CombatConstants
     constexpr float DEFENSE_DIFFICULTY_EASY   = 1.0f; // anchor — no change from today's window
     constexpr float DEFENSE_DIFFICULTY_MEDIUM = 0.7f; // starting default, tune in PIE
     constexpr float DEFENSE_DIFFICULTY_HARD   = 0.4f; // starting default, tune in PIE
+    // Impossible bypasses the normal 0.1s floor (IMPOSSIBLE_WINDOW_FLOOR below) but can't collapse to
+    // zero; frame-perfect achievable, brutal. The ×0.1 mult also shrinks the after-grace + perfect band
+    // (both unfloored) to tiny. Tune in PIE.
+    constexpr float DEFENSE_DIFFICULTY_IMPOSSIBLE = 0.1f; // tiny window, tune in PIE
+    constexpr float IMPOSSIBLE_WINDOW_FLOOR = 0.04f;      // below the 0.1s min; tiny-but-nonzero
 
     // Two-sided defense timing (Phase 1): a press just AFTER the impact (Delta < 0) still counts,
     // within this late grace. SMALLER than the lead-in so anticipation stays primary; scaled by the

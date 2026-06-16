@@ -929,13 +929,13 @@ void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 Fi
 	CurrentExecutionContext->ResolvedDamageSplit = ResolveDamageSplit(
 		HitCount, Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>());
 
-	// Resolve per-impact defense difficulty in LOCKSTEP with the damage split (cluster 3) — same
-	// site, same HitCount, same skill. Null skill / unauthored skill → empty overrides + all-Inherit
-	// default → ResolveImpactDifficulty fills the table with Easy (×1.0) per impact, so cluster 4
-	// multiplies by ×1.0 and existing attacks are unchanged. Read at ResolveImpactDefense by ImpactIndex.
+	// Resolve per-impact defense difficulty from the SAME DamageSplit array — one source for both
+	// damage and difficulty, so a hit's two halves can't drift. Null/unauthored skill → empty split +
+	// all-Inherit default → ResolveImpactDifficulty fills the table with Easy (×1.0) per impact, so
+	// cluster 4 multiplies by ×1.0 and existing attacks are unchanged. Read at ResolveImpactDefense by ImpactIndex.
 	CurrentExecutionContext->ResolvedDifficulty = ResolveImpactDifficulty(
 		HitCount,
-		Skill ? Skill->ImpactDifficulty : TArray<FImpactDifficultyEntry>(),
+		Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>(),
 		Skill ? Skill->DefaultDifficulty : FDefenseDifficultyTriple());
 }
 
@@ -1360,16 +1360,10 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 	// Element
 	ESpellElement Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
 
-	// Attack size — read from the asset. 0 = unauthored; the executor uses the
-	// raw value (no fallback constant) so the defense-window picks up the gap
-	// loudly rather than silently using a magic number.
-	float AttackSize = Attack->BaseSize;
-	if (AttackSize <= 0.0f)
-	{
-		UE_LOG(LogTemp, Warning,
-			   TEXT("[ActionExecutor] Attack '%s' has BaseSize=0 — defense window will read zero size; author UWeaponAttackData::BaseSize"),
-			   *Attack->Name);
-	}
+	// Attack size — neutral (dodge is timing-only now; the size gate was removed). Kept as a
+	// value because AttackSize still feeds the OnDefenseWindowOpened delegate + AI scheduling;
+	// 1.0 mirrors the ability path. (Weapon BaseSize retired with the dodge gate.)
+	float AttackSize = 1.0f;
 
 	// Store in result
 	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
@@ -1702,9 +1696,7 @@ void UActionExecutor::EnsureResultResolved(AActor *Defender)
 	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
 		State.BaseDamage,
 		State.DefenseChosen,
-		State.bInputReceived,
-		State.AttackSize,
-		DefenseSys->GetDodgeThreshold(Defender));
+		State.bInputReceived);
 
 	Ctx->ResolvedDefenseType = Result.DefenseType;
 	Ctx->ResolvedFinalDamage = Result.FinalDamage;
@@ -1769,9 +1761,7 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
 		BaseSlice,
 		Match.bMatched ? Match.Type : EDefenseType::None,
-		Match.bMatched,
-		State.AttackSize,
-		DefenseSys->GetDodgeThreshold(Defender));
+		Match.bMatched);
 
 	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
 	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved

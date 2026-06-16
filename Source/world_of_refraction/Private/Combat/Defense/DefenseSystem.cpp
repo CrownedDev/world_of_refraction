@@ -162,14 +162,11 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 		WindowTimerHandles.Remove(Defender);
 	}
 
-	// Calculate result
-	float DodgeThreshold = GetDodgeThreshold(Defender);
+	// Calculate result (dodge is timing-only — no attack-size/threshold gate)
 	Result = CalculateDefenseResult(
 		State.BaseDamage,
 		State.DefenseChosen,
-		State.bInputReceived,
-		State.AttackSize,
-		DodgeThreshold);
+		State.bInputReceived);
 
 	Result.bWasInWindow = State.bInputReceived;
 
@@ -328,14 +325,16 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 	// Per-type difficulty multiplier (cluster 4): concrete tiers (caller-resolved); all-Inherit guard
 	// triple → Easy ×1.0; None/unknown press type never tightens. Shared by the window test AND the
 	// perfect band so difficulty scales every timing axis uniformly.
-	auto TypeMult = [&Difficulty](EDefenseType Type) -> float
+	auto TypeTier = [&Difficulty](EDefenseType Type) -> EDefenseDifficulty
 	{
-		const EDefenseDifficulty Tier =
-			(Type == EDefenseType::Parry) ? Difficulty.Parry :
-			(Type == EDefenseType::Dodge) ? Difficulty.Dodge :
-			(Type == EDefenseType::Block) ? Difficulty.Block :
-											EDefenseDifficulty::Easy;
-		return DefenseDifficultyMultiplier(Tier);
+		return (Type == EDefenseType::Parry) ? Difficulty.Parry :
+			   (Type == EDefenseType::Dodge) ? Difficulty.Dodge :
+			   (Type == EDefenseType::Block) ? Difficulty.Block :
+											   EDefenseDifficulty::Easy;
+	};
+	auto TypeMult = [&TypeTier](EDefenseType Type) -> float
+	{
+		return DefenseDifficultyMultiplier(TypeTier(Type));
 	};
 
 	int32 BestIndex = INDEX_NONE;
@@ -353,8 +352,15 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 		// BeforeWindow = the lead-in × Mult, re-floored at MINIMUM_DEFENSE_WINDOW); Delta < 0 = pressed
 		// AFTER impact (late grace, up to AfterWindow = DEFENSE_AFTER_GRACE_SECONDS × Mult, smaller than
 		// the lead-in so anticipation stays primary). Outside [−AfterWindow, +BeforeWindow] → whiff.
-		const float Mult = TypeMult(Entry.Type);
-		const float BeforeWindow = FMath::Max(CombatConstants::MINIMUM_DEFENSE_WINDOW, EffectiveWindow * Mult);
+		const EDefenseDifficulty Tier = TypeTier(Entry.Type);
+		const float Mult = DefenseDifficultyMultiplier(Tier);
+		// Impossible floors at its OWN tiny floor (below the normal 0.1s min) so the window can go
+		// tiny-but-nonzero; every other tier floors at MINIMUM_DEFENSE_WINDOW. After-grace + perfect
+		// band stay unfloored — the ×0.1 Mult already shrinks them.
+		const float Floor = (Tier == EDefenseDifficulty::Impossible)
+								? CombatConstants::IMPOSSIBLE_WINDOW_FLOOR
+								: CombatConstants::MINIMUM_DEFENSE_WINDOW;
+		const float BeforeWindow = FMath::Max(Floor, EffectiveWindow * Mult);
 		const float AfterWindow = CombatConstants::DEFENSE_AFTER_GRACE_SECONDS * Mult;
 
 		const double Delta = ImpactTime - Entry.InputTime;
@@ -436,30 +442,6 @@ float UDefenseSystem::GetRemainingWindowTime(AActor *Defender) const
 	return FMath::Max(0.0f, Remaining);
 }
 
-// ========================================
-// DODGE CALCULATIONS
-// ========================================
-
-bool UDefenseSystem::CanDodgeAttack(AActor *Defender, float AttackSize) const
-{
-	float Threshold = GetDodgeThreshold(Defender);
-	return AttackSize < Threshold;
-}
-
-float UDefenseSystem::GetDodgeThreshold(AActor *Defender) const
-{
-	// Base threshold
-	float Threshold = BaseDodgeThreshold;
-
-	// TODO: Could be modified by:
-	// - Character stats (agility/speed)
-	// - Equipment bonuses
-	// - Status effects (slowed reduces threshold)
-	// - Character size
-
-	return Threshold;
-}
-
 float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const
 {
 	// Attacker→defender duel: base lead-in window (tuned on the subsystem) WIDENED by the
@@ -506,9 +488,7 @@ float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *A
 FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	int32 BaseDamage,
 	EDefenseType DefenseType,
-	bool bDefenseSuccessful,
-	float AttackSize,
-	float DodgeThreshold)
+	bool bDefenseSuccessful)
 {
 	FDefenseResult Result;
 	Result.DefenseType = DefenseType;
@@ -539,21 +519,10 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 		break;
 
 	case EDefenseType::Dodge:
-		// Dodge: 100% avoidance IF attack is small enough
-		if (AttackSize < DodgeThreshold)
-		{
-			Result.bSuccess = true;
-			Result.FinalDamage = 0;
-		}
-		else
-		{
-			// Attack too big, dodge fails completely
-			Result.bSuccess = false;
-			Result.FinalDamage = BaseDamage;
-			Result.FailureReason = FString::Printf(
-				TEXT("Attack too large (%.1f >= %.1f threshold)"),
-				AttackSize, DodgeThreshold);
-		}
+		// Dodge: 100% avoidance on TIMING alone — the attack-size gate was removed, so any
+		// well-timed dodge fully avoids regardless of attack size (player + AI, uniform).
+		Result.bSuccess = true;
+		Result.FinalDamage = 0;
 		break;
 
 	default:

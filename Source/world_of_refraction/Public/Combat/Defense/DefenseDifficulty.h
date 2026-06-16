@@ -24,7 +24,8 @@ enum class EDefenseDifficulty : uint8
 	Inherit UMETA(DisplayName = "Inherit (fall back)"),
 	Easy UMETA(DisplayName = "Easy"),
 	Medium UMETA(DisplayName = "Medium"),
-	Hard UMETA(DisplayName = "Hard")
+	Hard UMETA(DisplayName = "Hard"),
+	Impossible UMETA(DisplayName = "Impossible")
 };
 
 /**
@@ -49,23 +50,6 @@ struct WORLD_OF_REFRACTION_API FDefenseDifficultyTriple
 };
 
 /**
- * One authored per-impact difficulty override (sparse). HitNumber is 1-based, matching
- * FDamageSplitEntry's key. Impacts without an entry fall back to the skill-level default.
- */
-USTRUCT(BlueprintType)
-struct WORLD_OF_REFRACTION_API FImpactDifficultyEntry
-{
-	GENERATED_BODY()
-
-	/** Which impact this entry applies to (1 = first impact). */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty", meta = (ClampMin = "1"))
-	int32 HitNumber = 1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense Difficulty")
-	FDefenseDifficultyTriple Difficulty;
-};
-
-/**
  * Window multiplier for a difficulty tier. Easy = x1.0 (the no-change anchor), Medium/Hard
  * shrink the window per CombatConstants. Inherit resolves to Easy (x1.0) as the TERMINAL
  * fallback — if an Inherit ever reaches the multiplier (i.e. the caller didn't resolve it
@@ -81,6 +65,8 @@ inline float DefenseDifficultyMultiplier(EDefenseDifficulty D)
 		return CombatConstants::DEFENSE_DIFFICULTY_MEDIUM;
 	case EDefenseDifficulty::Hard:
 		return CombatConstants::DEFENSE_DIFFICULTY_HARD;
+	case EDefenseDifficulty::Impossible:
+		return CombatConstants::DEFENSE_DIFFICULTY_IMPOSSIBLE;
 	case EDefenseDifficulty::Inherit:
 	default:
 		return CombatConstants::DEFENSE_DIFFICULTY_EASY; // terminal fallback — never shrinks
