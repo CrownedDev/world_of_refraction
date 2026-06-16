@@ -369,6 +369,14 @@ public:
      *  Type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind. 1.0 at zero gear. */
     float SpeedWindowGearFactor(EActionType AttackType) const;
 
+    /** Gear-beyond MULTIPLIER for the DEFENDER's defense-window Reflex term (cluster B-5) — the Body
+     *  mirror of SpeedWindowGearFactor. Composes the Reflex gear LAYERS as multiplicative fractions:
+     *  evolution-pillar modifier (crystal + equipment Body% + pillar buff, as a ratio over RAW Body)
+     *  × BonusReflex (per-point fraction, B-2) × attached ReflexStone (B-3) × transient ReflexBuff/Debuff
+     *  (B-4) — a bare multiplier on the RAW ≤0.25-capped CalculateReflexWindowBonus term. Reflex ADDS to
+     *  the window (defender widens), so this scales HOW MUCH it widens. 1.0 at zero Reflex gear. */
+    float ReflexWindowGearFactor() const;
+
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot
      *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers

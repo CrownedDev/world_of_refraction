@@ -436,16 +436,22 @@ float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *A
 	// Attacker→defender duel: base lead-in window (tuned on the subsystem) WIDENED by the
 	// defender's Reflex and NARROWED by the attacker's speed, floored at MINIMUM_DEFENSE_WINDOW.
 	//   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
-	// Mirrors GetDodgeThreshold: base here, per-character terms through CharacterData. Both terms
-	// are asset-intrinsic (raw GetEffectiveBody/Mind) — gear-widening deferred (RealTimeDefenseRework §5).
+	// Each per-character term is a STAT (raw, ≤0.25-capped) MULTIPLIED by that side's gear/buff factor
+	// (pillar + matched Bonus substat + matched stone + transient), bounded by WINDOW_GEAR_CEILING_SECONDS
+	// — matched gear pushes past the stat cap (defender widens, attacker narrows); inert (×1) with no gear.
 	// Null-safe on BOTH sides: a missing component / CharacterData simply drops that side's term.
 	float Window = DefenseInputWindow;
 
-	// Defender side — Reflex widens.
+	// Defender side — Reflex widens. Pattern P (cluster B-5): the STAT bonus (raw, ≤0.25-capped) is
+	// MULTIPLIED by the defender's Reflex-gear factor (Body pillar + BonusReflex + ReflexStone + transient
+	// ReflexBuff/Debuff), so matched Reflex gear widens the window past the stat cap, bounded by
+	// WINDOW_GEAR_CEILING_SECONDS. Inert (×1) with no Reflex gear — byte-identical to the pre-B-5 stat term.
 	UCharacterDataComponent *DefComp = GetCharacterDataComponent(Defender);
 	if (DefComp && DefComp->CharacterData)
 	{
-		Window += DefComp->CharacterData->CalculateReflexWindowBonus();
+		float ReflexTerm = DefComp->CharacterData->CalculateReflexWindowBonus();
+		ReflexTerm *= DefComp->ReflexWindowGearFactor();
+		Window += FMath::Min(ReflexTerm, CombatConstants::WINDOW_GEAR_CEILING_SECONDS);
 	}
 
 	// Attacker side — speed narrows (type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind).
