@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "Skills/Definitions/SkillVFXEntry.h"
 #include "CombatNotify.generated.h"
 
 /** The four tag-matched skill arrays (four-array model): Impact / Cast / VFX / SFX.
@@ -43,6 +44,19 @@ public:
 	/** Position within the family's array — array position IS identity. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = 0))
 	int32 Index = 0;
+
+	/** Telegraph "incoming!" tell — a VFX played TelegraphLeadSeconds (wall-clock) BEFORE this notify
+	 *  fires. PURELY cosmetic: opens no window, gates no input, touches no difficulty. Authored inline
+	 *  on the notify (one per notify, not an array). An unset VFX means no telegraph. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Telegraph")
+	FSkillVFXEntry Telegraph;
+
+	/** Wall-clock seconds before this notify to play Telegraph. 0 = no telegraph. Rate-independent:
+	 *  the scheduler divides the notify's montage-local time by the play rate then subtracts this, so
+	 *  the warning lead stays constant regardless of montage speed. A lead longer than the time-to-notify
+	 *  fires the tell at montage start. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Telegraph", meta = (ClampMin = "0.0"))
+	float TelegraphLeadSeconds = 0.0f;
 
 	virtual void Notify(USkeletalMeshComponent *MeshComp, UAnimSequenceBase *Animation,
 						const FAnimNotifyEventReference &EventReference) override;

@@ -47,6 +47,8 @@
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Combat/CombatAnimInstance.h"
+#include "Combat/CombatNotify.h"
+#include "Animation/AnimMontage.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Mechanics/RealityBoost.h"
@@ -2009,11 +2011,17 @@ void UActionExecutor::FinalizeAsyncAction()
 		return;
 	}
 
-	// Clear timeout timer
+	// Clear timeout timer + any pending telegraph timers (normally already fired by now, but
+	// clear so none can fire into the next action).
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
+		for (FTimerHandle &H : TelegraphTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(H);
+		}
 	}
+	TelegraphTimerHandles.Empty();
 
 	// Get final result
 	FActionResult FinalResult = CurrentExecutionContext->PartialResult;
@@ -2239,13 +2247,19 @@ void UActionExecutor::CancelAsyncAction()
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Cancelling async action"));
 
-	// Clear timers (failsafe + any pending burst chain)
+	// Clear timers (failsafe + any pending burst chain + any pending telegraph cues — a cancelled
+	// action must not fire telegraphs for impacts that never land).
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
 		World->GetTimerManager().ClearTimer(BurstTimerHandle);
+		for (FTimerHandle &H : TelegraphTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(H);
+		}
 	}
 	BurstSpawnQueue.Empty();
+	TelegraphTimerHandles.Empty();
 	ActiveBurstSpell = nullptr;
 
 	// Unbind animation + notify spine bindings
@@ -4403,15 +4417,53 @@ void UActionExecutor::PlayActionMontageOnActor(AActor *Actor, UAnimMontage *Mont
 	if (CombatAnim)
 	{
 		CombatAnim->PlayActionMontage(Montage, PlayRate);
-		return;
 	}
-
-	// Fallback: Direct character montage
-	ACharacter *Character = Cast<ACharacter>(Actor);
-	if (Character)
+	else if (ACharacter *Character = Cast<ACharacter>(Actor))
 	{
+		// Fallback: Direct character montage
 		Character->PlayAnimMontage(Montage, PlayRate);
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing montage %s via fallback"), *Montage->GetName());
+	}
+
+	// Telegraph scan (purely cosmetic — opens no window, gates no input, touches no difficulty).
+	// For each authored telegraph on this montage's notifies, schedule its VFX tell to play
+	// TelegraphLeadSeconds (wall-clock) BEFORE the notify fires. The notify's montage-local trigger
+	// time is divided by the play rate so the lead is rate-INDEPENDENT (a speed buff doesn't shorten
+	// the warning). A lead longer than the time-to-notify fires the tell at montage start (clamp).
+	// Per-montage: each leg of the Ritual/Skill/Return chain scans its own notifies at its own start.
+	const float Rate = FMath::Max(0.1f, PlayRate);
+	for (const FAnimNotifyEvent &Event : Montage->Notifies)
+	{
+		const UCombatNotify *CN = Cast<UCombatNotify>(Event.Notify);
+		if (!CN || CN->TelegraphLeadSeconds <= 0.0f || CN->Telegraph.VFX.IsNull())
+		{
+			continue; // no telegraph authored on this notify
+		}
+
+		const float FireDelay = (Event.GetTriggerTime() / Rate) - CN->TelegraphLeadSeconds;
+		if (FireDelay <= 0.0f)
+		{
+			// Lead exceeds the time before the notify — fire the tell now (montage start).
+			SpawnVFXArrayEntry(CN->Telegraph, 0);
+			continue;
+		}
+
+		if (UWorld *World = GetWorld())
+		{
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateLambda([this, Tell = CN->Telegraph]()
+				{
+					// Guard a stale fire — a cancelled action clears these timers, but belt-and-suspenders.
+					if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress)
+					{
+						SpawnVFXArrayEntry(Tell, 0);
+					}
+				}),
+				FireDelay, false);
+			TelegraphTimerHandles.Add(Handle);
+		}
 	}
 }
 

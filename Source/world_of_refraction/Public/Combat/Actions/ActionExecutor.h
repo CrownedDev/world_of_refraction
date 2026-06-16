@@ -1081,6 +1081,11 @@ protected:
 	bool bActiveBurstIsBD = false;
 	FTimerHandle BurstTimerHandle;
 
+	/** Pending telegraph timers (the "incoming!" cues scheduled backward from each notify's time at
+	 *  montage start). Tracked so a cancelled/aborted action clears them — no stale tell fires for an
+	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. */
+	TArray<FTimerHandle> TelegraphTimerHandles;
+
 	/** Spawn support spell VFX (Self/Ally - no defense window) */
 	void SpawnSupportSpellEffect(
 		AActor *Caster,
