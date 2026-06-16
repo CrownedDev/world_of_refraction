@@ -18,13 +18,16 @@ struct FSkillCastEntry;
 
 // ==================== DELEGATES ====================
 
-/** Broadcast when projectile hits target (or reaches target location) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+/** Broadcast when projectile hits target (or reaches target location). CastEntryIndex carries which
+ *  CastArray entry spawned this projectile (Stage 6 cluster 4) so the arrival handler can resolve the
+ *  per-entry defense difficulty; INDEX_NONE for non-entry (loose/test) projectiles. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
     FOnSkillImpact,
     AActor *, Target,
     FVector, ImpactLocation,
     float, ImpactRadius,
-    int32, Damage);
+    int32, Damage,
+    int32, CastEntryIndex);
 
 /** Broadcast when target successfully dodged (moved out of impact zone) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
@@ -192,7 +195,8 @@ public:
         AActor *InTarget,
         float FinalImpactRadius,
         float FinalVisualScale,
-        int32 FinalDamage);
+        int32 FinalDamage,
+        int32 InCastEntryIndex);
 
     /**
      * Set VFX assets (call after Initialize or set via defaults)
@@ -229,6 +233,11 @@ public:
     FORCEINLINE float GetImpactRadius() const { return ImpactRadius; }
 
     // ==================== RUNTIME STATE ====================
+
+    /** Cast-array index of the entry that spawned this projectile (Option A — barrage/beam share it).
+     *  INDEX_NONE (-1) = not entry-spawned (loose-field / test path) -> cluster-4 reader falls back to
+     *  Easy x1.0. Read at arrival in cluster 4. */
+    int32 CastEntryIndex = INDEX_NONE;
 
     /** Has the projectile reached its destination? */
     bool bHasImpacted = false;

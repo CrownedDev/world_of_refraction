@@ -1136,6 +1136,42 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
+	// Stage 6 cluster 4: SINGLE-projectile spells defend PER-IMPACT at projectile arrival. Convert the
+	// just-opened lumped windows (0.3s timer-close) to COUNT-BASED so they survive the cast animation +
+	// flight (8s failsafe), and mark one expected impact so OnProjectileImpact resolves at the landing.
+	// Done HERE (action start), NOT at dispatch: the cast-time window would otherwise auto-close at 0.3s
+	// before the SpellRelease notify fires. Gate: exactly one cast entry, Count==1, Projectile/Homing,
+	// single hit — barrage/beam/AOE/multi-entry/multi-hit stay on the lumped path (untouched).
+	// Double-apply guard: re-opening closes the lumped window, which would fire OnDefenseWindowClosed →
+	// apply NOW; so REMOVE the pending context first (that close becomes a no-op), re-open count-based,
+	// then restore it with ExpectedImpacts=1 — the arrival resolve becomes the ONLY apply.
+	if (Spell->CastArray.Num() == 1 && Spell->HitCount == 1)
+	{
+		const FSkillCastEntry &E0 = Spell->CastArray[0];
+		if (E0.Count == 1 &&
+			(E0.DeliveryType == ESpellDeliveryType::Projectile || E0.DeliveryType == ESpellDeliveryType::Homing))
+		{
+			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
+			{
+				for (AActor *Target : ValidTargets)
+				{
+					if (FPendingDefenseContext *PDC = CurrentExecutionContext->PendingDefenses.Find(Target))
+					{
+						FPendingDefenseContext Saved = *PDC;
+						CurrentExecutionContext->PendingDefenses.Remove(Target); // close-on-reopen → no-op
+						// 0.3f = AI reaction-delay seed (matches the lumped open); bManualClose makes the
+						// real close the per-impact arrival, with the 8s failsafe covering cast + flight.
+						DefenseSys->OpenDefenseWindow(Caster, Target, FinalSpellSize, FinalDamage,
+													 0.3f, /*bManualClose=*/true);
+						Saved.ExpectedImpacts = 1;
+						Saved.ImpactsLanded = 0;
+						CurrentExecutionContext->PendingDefenses.Add(Target, Saved);
+					}
+				}
+			}
+		}
+	}
+
 	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
@@ -1716,7 +1752,7 @@ void UActionExecutor::EnsureResultResolved(AActor *Defender)
 		   Result.bSuccess ? TEXT("yes") : TEXT("no"));
 }
 
-void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime)
+void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime, const FDefenseDifficultyTriple &ImpactDifficulty)
 {
 	// Stage 3 per-impact resolution (replaces EnsureResultResolved at the impact frame).
 	// SPLIT-THEN-REDUCE: this impact takes its slice of the BASE damage FIRST, then the
@@ -1750,14 +1786,11 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 								? FMath::FloorToInt(State.BaseDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
 								: (State.BaseDamage / HitCount);
 
-	// Per-impact defense difficulty for THIS impact (cluster 4). Same guard shape as the split above:
-	// IsValidIndex covers both an empty table and an out-of-range ImpactIndex → fall back to a default
-	// (all-Inherit) triple, which DefenseDifficultyMultiplier resolves to Easy ×1.0 — no window change.
-	// Keeps the attack asset out of DefenseSystem: we pass the resolved concrete triple, not the skill.
-	const FDefenseDifficultyTriple ImpactDifficulty =
-		CurrentExecutionContext->ResolvedDifficulty.IsValidIndex(ImpactIndex)
-			? CurrentExecutionContext->ResolvedDifficulty[ImpactIndex]
-			: FDefenseDifficultyTriple();
+	// Per-impact defense difficulty for THIS impact is now CALLER-SUPPLIED (the concrete resolved
+	// triple): melee passes ResolvedDifficulty[ImpactIndex], spells pass ResolvedCastDifficulty
+	// [CastEntryIndex] (Stage 6 cluster 4). Both guard with IsValidIndex at the call site → an
+	// all-Inherit default triple → DefenseDifficultyMultiplier resolves it to Easy ×1.0 (no window
+	// change). One resolver body, the difficulty source differs by caller.
 
 	// Match-and-consume this impact against the timestamped input buffer (Stage 3). No
 	// in-window press → bMatched=false → resolves as undefended (full slice, no reduction).
@@ -3148,7 +3181,8 @@ void UActionExecutor::SpawnProjectileActor(
 	float FinalVisualScale,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
-	const FSkillCastEntry *Entry)
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
 {
 	if (!Caster || !Target || !Spell)
 	{
@@ -3195,7 +3229,7 @@ void UActionExecutor::SpawnProjectileActor(
 		{
 			Projectile->InitializeProjectile(
 				*Entry, Spell, Caster, Target,
-				FinalImpactRadius, FinalVisualScale, FinalDamage);
+				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex);
 		}
 		else
 		{
@@ -3371,7 +3405,8 @@ void UActionExecutor::DispatchSpellCast(
 	const FSkillCastEntry &Entry,
 	float SpellSize,
 	const TArray<AActor *> &ExplicitTargets,
-	int32 Damage)
+	int32 Damage,
+	int32 CastEntryIndex)
 {
 	if (!Caster || !Spell)
 	{
@@ -3428,7 +3463,7 @@ void UActionExecutor::DispatchSpellCast(
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
 			// burst chain (BurstInterval stagger, spike-validated).
-			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry);
+			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 			for (int32 i = 1; i < Entry.Count; ++i)
 			{
 				BurstSpawnQueue.Add(Target);
@@ -3437,6 +3472,7 @@ void UActionExecutor::DispatchSpellCast(
 		if (BurstSpawnQueue.Num() > 0)
 		{
 			ActiveBurstEntry = Entry;
+			ActiveBurstCastEntryIndex = CastEntryIndex;
 			ActiveBurstSpell = Spell;
 			ActiveBurstCaster = Caster;
 			ActiveBurstImpactRadius = FinalImpactRadius;
@@ -3488,7 +3524,7 @@ void UActionExecutor::SpawnNextBurstProjectile()
 	{
 		SpawnProjectileActor(ActiveBurstCaster.Get(), NextTarget.Get(), ActiveBurstSpell,
 							 ActiveBurstImpactRadius, ActiveBurstVisualScale,
-							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry);
+							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry, ActiveBurstCastEntryIndex);
 	}
 
 	if (BurstSpawnQueue.IsEmpty())
@@ -3505,28 +3541,58 @@ void UActionExecutor::SpawnNextBurstProjectile()
 // PROJECTILE EVENT HANDLERS
 // ========================================
 
-void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
+void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex)
 {
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f"),
-		   Target ? *Target->GetName() : TEXT("None"), Damage, ImpactRadius);
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f, CastEntryIndex=%d"),
+		   Target ? *Target->GetName() : TEXT("None"), Damage, ImpactRadius, CastEntryIndex);
 
 	if (!Target)
 	{
 		return;
 	}
 
-	// Open defense window for Block/Parry
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
+
+	// Stage 6 cluster 4 — CONVERTED single-projectile path: the dispatch re-opened this defender's
+	// window count-based with ExpectedImpacts=1, so the projectile's LANDING is the impact moment.
+	// Resolve THIS arrival per-impact (reading the spell cast-entry difficulty) and apply exactly
+	// once — mirroring the melee Impact-notify loop (drain counter, resolve, apply slice, close).
+	if (DefenseSys && CurrentExecutionContext.IsSet())
+	{
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+		{
+			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the melee Hit notify
+
+			// Difficulty from the spell cast-entry table (guarded): -1 / out-of-range → Easy ×1.0.
+			const FDefenseDifficultyTriple Diff =
+				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+					: FDefenseDifficultyTriple();
+
+			AActor *Attacker = Ctx->Attacker.Get();
+
+			// Drain BEFORE apply (melee order, ~line 5081): ImpactsLanded reaches HitCount so the
+			// close-time tail [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is EMPTY — no
+			// double-apply when CloseDefenseWindow fires OnDefenseWindowClosed below.
+			++Ctx->ImpactsLanded;
+
+			// Single projectile = impact ordinal 0, HitCount 1 → the slice is the full damage.
+			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
+			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+			if (Ctx)
+			{
+				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+			}
+			DefenseSys->CloseDefenseWindow(Target); // → OnDefenseWindowClosed: empty tail, removes the pending entry
+			return;
+		}
+	}
+
+	// Unconverted (lumped) path — barrage/beam, or no pending context. Preserve the legacy orphan
+	// behavior (the lumped cast-time window resolves these); cluster 6 retires the lumped path.
 	if (DefenseSys)
 	{
-		float WindowDuration = 0.3f; // Standard window for projectile impact
-
-		DefenseSys->OpenDefenseWindow(
-			nullptr, // Caster not tracked here (could store in projectile if needed)
-			Target,
-			ImpactRadius,
-			Damage,
-			WindowDuration);
+		DefenseSys->OpenDefenseWindow(nullptr, Target, ImpactRadius, Damage, 0.3f);
 	}
 	else
 	{
@@ -4722,7 +4788,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 		{
 			DispatchSpellCast(PendingSpellCaster, PendingSpellData,
 							  PendingSpellData->CastArray[0], PendingSpellSize,
-							  PendingSpellTargets, PendingSpellDamage);
+							  PendingSpellTargets, PendingSpellDamage, 0);
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
 		}
 		else
@@ -5091,7 +5157,12 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 				{
 					continue; // removed by a prior impact's death broadcast
 				}
-				ResolveImpactDefense(Defender, Index, ImpactTime);
+				// Melee difficulty source: the per-impact-ordinal table (IsValidIndex guard → Easy ×1.0).
+				const FDefenseDifficultyTriple MeleeDifficulty =
+					CurrentExecutionContext->ResolvedDifficulty.IsValidIndex(Index)
+						? CurrentExecutionContext->ResolvedDifficulty[Index]
+						: FDefenseDifficultyTriple();
+				ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
 				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
 			}
 			for (AActor *Defender : DefendersToClose)
@@ -5130,7 +5201,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		}
 		DispatchSpellCast(PendingSpellCaster, PendingSpellData,
 						  PendingSpellData->CastArray[Index], PendingSpellSize,
-						  PendingSpellTargets, PendingSpellDamage);
+						  PendingSpellTargets, PendingSpellDamage, Index);
 		return;
 	}
 

@@ -654,7 +654,7 @@ private:
 	 *  ImpactTime). Stashes the per-impact result (ResolvedFinalDamage now holds the reduced
 	 *  SLICE, not the full total) + bResolvedPerfect onto the context, reflects a parried
 	 *  slice (ApplyParryReflect), and broadcasts OnDefenseResolved / OnDefensePerfect. */
-	void ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime);
+	void ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime, const FDefenseDifficultyTriple &ImpactDifficulty);
 
 	/** Stage 2/3: apply ONE impact's damage and accumulate into PartialResult. Shared by the
 	 *  per-impact-frame path and the close-time undrained tail.
@@ -1022,7 +1022,8 @@ protected:
 		float FinalVisualScale,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
-		const FSkillCastEntry *Entry = nullptr);
+		const FSkillCastEntry *Entry = nullptr,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Spawn AOE effect (no projectile). Entry non-null = ground visual from
 	 *  the entry's Trail; null = loose SpellVFX. */
@@ -1059,7 +1060,8 @@ protected:
 		const FSkillCastEntry &Entry,
 		float SpellSize,
 		const TArray<AActor *> &ExplicitTargets,
-		int32 Damage);
+		int32 Damage,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Burst stagger (Count>1): first spawn immediate, remainder queued and
 	 *  spawned one per BurstInterval (the spike's SpawnNextBurst pattern;
@@ -1069,6 +1071,9 @@ protected:
 	// Burst chain state — one active burst per action lifecycle; cleared in
 	// CancelAsyncAction and when the queue drains.
 	FSkillCastEntry ActiveBurstEntry;
+
+	/** Cast-entry index of the active burst — all Count projectiles share it (Option A). */
+	int32 ActiveBurstCastEntryIndex = INDEX_NONE;
 
 	UPROPERTY()
 	USpellData *ActiveBurstSpell = nullptr;
@@ -1096,7 +1101,7 @@ protected:
 
 	/** Called when projectile impacts target */
 	UFUNCTION()
-	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage);
+	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex);
 
 	/** Called when target dodged projectile */
 	UFUNCTION()

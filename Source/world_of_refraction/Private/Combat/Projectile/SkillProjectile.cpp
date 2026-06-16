@@ -194,7 +194,8 @@ void ASkillProjectile::InitializeProjectile(
     AActor *InTarget,
     float FinalImpactRadius,
     float FinalVisualScale,
-    int32 FinalDamage)
+    int32 FinalDamage,
+    int32 InCastEntryIndex)
 {
     SourceSpell = Spell;
     Caster = InCaster;
@@ -202,6 +203,10 @@ void ASkillProjectile::InitializeProjectile(
     ImpactRadius = FinalImpactRadius;
     VisualScale = FinalVisualScale;
     Damage = FinalDamage;
+
+    // Cast-entry index (Stage 6 cluster 3) — read at arrival for per-entry defense difficulty
+    // (cluster 4). Only the entry path stamps it; the legacy overload leaves it at INDEX_NONE.
+    CastEntryIndex = InCastEntryIndex;
 
     // Delivery values come from the Cast ENTRY (D6) — Spell supplies element/
     // color context only.
@@ -497,7 +502,8 @@ void ASkillProjectile::ResolveImpact()
         return;
     bHasImpacted = true;
 
-    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s"), *GetActorLocation().ToString());
+    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s (CastEntryIndex=%d)"),
+           *GetActorLocation().ToString(), CastEntryIndex);
 
     // Deactivate projectile VFX
     if (ProjectileFX)
@@ -518,7 +524,7 @@ void ASkillProjectile::ResolveImpact()
         // HIT - broadcast for defense window
         FVector ImpactLocation = GetActorLocation();
         UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Impact! Damage=%d, Radius=%.2f"), Damage, ImpactRadius);
-        OnSkillImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage);
+        OnSkillImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage, CastEntryIndex);
         PlayHitEffect(ImpactLocation);
     }
 
