@@ -1942,20 +1942,19 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 										  ? FMath::FloorToInt(Context.ResolvedFinalDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
 										  : (Context.ResolvedFinalDamage / HitCount));
 
-	// Buildup rides impact 0 only (per-target, not per-impact). Block/parry reduce it;
-	// dodge already returned above.
-	int32 EffectiveBuildup = 0;
-	if (ImpactIndex == 0)
+	// Status now distributes per-hit (parallel to damage), not all on hit 0 — each impact applies its
+	// SHARE by the SAME fraction the damage slice uses above (Split[i]/100 when authored, else 1/HitCount).
+	// Sum of shares ≈ the full BaseStatusBuildup. Block/parry reduce THIS hit's share (per-hit defense →
+	// per-hit status); dodge already returned above. Single hit (HitCount==1) → fraction 1.0 → unchanged.
+	const float BuildupFraction = bUseSplit ? (Split[ImpactIndex] / 100.0f) : (1.0f / FMath::Max(1, HitCount));
+	int32 EffectiveBuildup = FMath::RoundToInt(Context.BaseStatusBuildup * BuildupFraction);
+	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Block)
 	{
-		EffectiveBuildup = Context.BaseStatusBuildup;
-		if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Block)
-		{
-			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
-		}
-		else if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Parry)
-		{
-			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
-		}
+		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
+	}
+	else if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Parry)
+	{
+		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
 	}
 
 	FActionHitInput Input;
@@ -1969,7 +1968,10 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.InfusionLevel = Context.InfusionLevel;
 	Input.SelectedSource = Context.SelectedSource;
 	Input.BaseStatusBuildup = EffectiveBuildup;
-	Input.PhysicalDamageType = (ImpactIndex == 0) ? Context.PhysicalDamageType : EPhysicalDamageType::None;
+	// Per-hit physical type, now that status distributes per-hit (B0): each hit's nonzero status share must
+	// carry its real PhysicalDamageType so a physical attack's bar-cap trigger resolves on EVERY hit, not
+	// just hit 0 (was hit-0-only — harmless when later hits applied zero buildup; now they don't).
+	Input.PhysicalDamageType = Context.PhysicalDamageType;
 	Input.ActionMods = CurrentExecutionContext->ActionMods;
 
 	const FCombatHitResult HitResult = ApplyHit(Input);
