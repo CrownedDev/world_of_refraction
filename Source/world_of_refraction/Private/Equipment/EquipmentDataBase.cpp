@@ -139,14 +139,19 @@ TArray<FString> UEquipmentDataBase::GetRestrictedFusionBonusStats() const
         return Restricted;
     }
 
-    // Only the wired six are queried by a read-site (they are exactly the non-None
-    // outputs of CrystalEffectTable::StoneTargetStat). Grey everything else (and None)
-    // so a fusion bonus can never target an inert sub-stat.
+    // All twelve non-None sub-stats have a live GetAttachedStonePercent read-site,
+    // so a fusion BonusStat targeting any of them flows to its effect. Grey only None
+    // (the inert "no target" sentinel, also rejected by FFusionId validation).
+    // Allowlist discipline: add a new stat here only once its read-site is confirmed,
+    // so a future stat without one stays greyed rather than offered-but-inert.
     auto IsWired = [](ESubStat S)
     {
         return S == ESubStat::RawDamage || S == ESubStat::Defense ||
                S == ESubStat::CritDamage || S == ESubStat::TurnSpeed ||
-               S == ESubStat::StatusMultiplier || S == ESubStat::Efficiency;
+               S == ESubStat::StatusMultiplier || S == ESubStat::Efficiency ||
+               S == ESubStat::SpellDamage || S == ESubStat::Resistance ||
+               S == ESubStat::SpellSpeed || S == ESubStat::ActionSpeed ||
+               S == ESubStat::Luck || S == ESubStat::Reflex;
     };
     for (int32 Index = 0; Index < Enum->NumEnums() - 1; ++Index)
     {
