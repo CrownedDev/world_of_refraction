@@ -21,6 +21,67 @@ supports this: `FActionHitInput.ActionType` selects Raw-vs-Spell scaling per hit
 emit hits of both kinds. The architecture allows it today; the missing piece is authoring + the multi-stage
 defense outcome below.
 
+## The refined model
+
+Refines the two-layer vision into a **per-component** model with an authored **scaling toggle** — scaling
+decoupled from delivery and visuals.
+
+### 1. Scaling toggle (the key new piece)
+
+Each damage component carries an authored **scale-with-Raw / scale-with-Spell** toggle that **overrides** the
+automatic `ActionType` selector (today: `ActionType == Spell ? SpellDamage : RawDamage`). Scaling is thus
+decoupled from delivery/visual.
+
+**Why — the warrior-finisher problem:** a physical-combo-into-spell-finisher shouldn't force the finisher to
+scale with Spell — a warrior (Raw/Body build) would get a weak finisher off a stat they don't invest in. The
+toggle lets the spell finisher scale **Raw** (warrior-friendly) while a mage's version toggles it to
+**Spell**. Same attack, class-flexible.
+
+- *"Force slash"* = magic-looking VFX + cast delivery, toggled to scale **Raw** — a warrior's energy slash.
+
+**Sketch:** the scaling selector becomes `useSpellScaling ? SpellDamage : RawDamage`, where `useSpellScaling`
+defaults to *match `ActionType`* (existing behavior holds unchanged).
+
+### 2. Two-component hybrid (kept — combines with the toggle)
+
+An attack can carry BOTH **physical components** (`DamageSplit` hits, physical status Slash/Pierce/Impact)
+AND **spell components** (cast entries, per-entry damage from cluster 5, element status). Each component's
+scaling is **independently** toggleable (#1).
+
+A warrior combo = physical hits (Raw) + a spell finisher (cast entry, toggled Raw) — a **distinct** spell
+finisher that scales with the warrior's power. Both pieces are needed: the toggle alone can't add a distinct
+extra spell component; the two-component model alone would force odd scaling without the toggle.
+
+### 3. Alignment — spell components anchored to melee notifies
+
+Two patterns, both "spell delivery anchored to a melee notify," differing only in *which* notify:
+
+- **Simultaneous (orb-on-fist):** the spell component fires **at** a physical hit's Impact notify — same
+  moment, no travel. E.g. a fire-orb punch: physical punch damage + the orb's spell damage + fire element
+  status, all at the fist-connect notify. The orb is a cast entry whose delivery is **"at-melee-impact"**
+  (Instant-at-notify, reusing cluster-5 per-entry damage), triggered by the melee notify alongside the
+  physical hit. Alignment is automatic (same notify = same moment).
+- **Sequential (spell finisher):** the spell component fires **after** the physical combo — at the finisher
+  notify (its own later impact moment). E.g. physical combo → spell-blast finisher.
+
+### 4. Defense — one defense per impact moment (notify)
+
+Each impact moment = one timed defense.
+
+- A **simultaneous** orb-punch is **ONE** defense covering BOTH components (one fist-connect → one defense
+  mitigates physical + spell together).
+- A **sequential** finisher is its own defense moment (defend the combo hits, then defend the finisher).
+
+Status applies **per component** if undefended (physical status from physical components, element status from
+spell components).
+
+### 5. Interaction with per-cast-entry damage (cluster 5)
+
+The spell components **are** cast entries — they reuse the `FSkillCastEntry.Damage` field + spell scaling
+already built. The hybrid adds only: (a) the scaling toggle (#1); (b) anchoring a cast entry's delivery to a
+melee notify (#3 — a new "at-melee-impact" delivery, or anchoring `Instant` to a notify); (c)
+one-defense-covers-simultaneous-components (#4).
+
 ## Examples (Crown's)
 
 1. **Ignited melee combo (the "layered" hybrid).** A physical combo (physical hits, physical mechanics)
@@ -64,6 +125,10 @@ beam/homing delivery-type removals. Needs, in order:
 2. **Interrupt notify + successful-defense-aborts-action** mechanic (the new defense outcome above).
 3. **Conditional spell-fires-if-grab-connects** logic (the grab's payload gated on the connect not being
    parried).
+
+**Open authoring question (build day):** does a spell component on a combo fire on **every** hit or a
+**specific** hit (the orb on every punch, or only the finisher)? — resolve by authoring, per cast entry,
+which melee notify it anchors to (#3).
 
 ## Status
 
