@@ -41,7 +41,9 @@ Immutable design-time data. Key groups of fields:
 - **World stat levels**: `WorldMindLevel`, `WorldBodyLevel`, `WorldSpiritLevel`
   (each clamped 0–7) — progression multipliers.
 - **Sub-stats (character DNA)** — 13 `int32` point pools across three pillars:
-  - Mind (4): `Efficiency`, `SpellDamage`, `CritChance`, `SpellSpeed`.
+  - Mind (4): `Efficiency`, `SpellDamage`, `CritDamage`, `SpellSpeed`.
+    *(`CritChance` substat was renamed `CritDamage` in cluster 5e — crit chance is now
+    Luck-sourced; the Mind stat drives crit DAMAGE. See `StatComposition.md` §6.)*
   - Body (4): `Defense`, `ActionSpeed`, `RawDamage`, `MaxHealth`.
   - Spirit (5): `MaxEnergy`, `Resistance`, `TurnSpeed`, `Luck`,
     `StatusMultiplier`.
@@ -75,8 +77,9 @@ Stat formula layers (all inline `BlueprintPure`):
 - `Calculate*` functions derive combat values from effective pillars:
   `CalculateEfficiencyMultiplier`, `CalculateEfficiencyRingBreakReduction`
   (Resonator-only), `CalculateStatusMultiplier` (Spirit-driven),
-  `CalculateSpellDamage`, `CalculateCritChance`, `CalculateSpellSpeed`,
-  `CalculateFlatDefense`, `CalculateActionSpeed`, `CalculateAnimationSpeed`,
+  `CalculateSpellDamage`, `CalculateCritDamage`, `CalculateSpellSpeed`,
+  `CalculateFlatDefense` (now a `[0,0.5]` reduction **fraction**, cluster 4),
+  `CalculateActionSpeed`, `CalculateAnimationSpeed`,
   `CalculateTurnSpeed`, `CalculateLuck`, `CalculateMaxHealth`,
   `CalculateMaxEnergy`, `CalculateRawDamage`, `CalculateResistance`,
   `CalculateStatusMultiplierFlat`.

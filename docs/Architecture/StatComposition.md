@@ -1,6 +1,6 @@
 # Stat Composition & The Crit/Luck Model
 
-**Status:** Clusters 1–5f complete (committed). Only 5f-D editor content (LuckStone `.uasset` authoring)
+**Status:** Clusters 1–5g complete (committed). Only 5f-D editor content (LuckStone `.uasset` authoring)
 remains — noted at the end. This is the authoritative reference for how every stat composes and how
 crit/Luck work.
 
@@ -63,6 +63,11 @@ The **cap is the single source of truth** — it is reused directly as the clamp
   change.
 - **Gear is multiplicative everywhere** — the existing `BonusX × per-point` magnitude is read as a
   fraction `(1 + term)`, so **no asset re-authoring** was needed.
+  - *Inverted-twin nuance (speeds, cluster 5g):* for ActionSpeed/SpellSpeed the live composer is
+    `GetEffectiveActionSpeed` / `GetEffectiveSpellSpeed`, which **wraps** the `Calculate*Speed()` stat
+    term (here the "twin" IS the live stat input, capped ×1.5) and layers gear/stone/transient + the
+    ×2.0 ceiling on top. There is **no** `GetEvolutionModified*Speed` — the new `GetEffective*` getter
+    is the live path the runtime calls.
 
 ---
 
@@ -79,14 +84,18 @@ base value (no investment) → stat cap (maxed stat alone) → gear ceiling (gea
 | Spell Damage | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Status Multiplier | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Crit Damage | ×1.0 | ×1.5 | ×2.0 | multiplier |
-| Action Speed (anim/approach) | ×1.0 | ×1.5 | — | multiplier |
-| Spell Speed | ×1.0 | ×1.5 | — | multiplier |
+| Action Speed (anim play-rate) | ×1.0 | ×1.5 | ×2.0 | multiplier |
+| Spell Speed (cast play-rate) | ×1.0 | ×1.5 | ×2.0 | multiplier |
 | Turn Speed | 10 | 15 | 20 | scalar |
 | Defense | 0 | 0.5 | 1.0 | %-stat |
 | Resistance | 0 | 0.5 | 1.0 | %-stat |
 | Crit Chance | 0.05 | 0.50 | 1.00 | %-stat (Luck-sourced) |
 | Efficiency (cost reduction) | 0 | 0.5 | 0.9 | %-stat (inverted) |
 | Luck (normalized) | 1.0 | — | 2.0 | chance multiplier |
+
+> The ActionSpeed/SpellSpeed ×2.0 gear ceiling (cluster 5g) is on the **animation/cast play-rate**
+> channel. The Action-stat's **approach movement** (`CalculateActionSpeed`, ×400 units) is a separate
+> channel, not covered by the 5g getters.
 
 **Gear ceilings (constants):**
 
@@ -105,6 +114,14 @@ base value (no investment) → stat cap (maxed stat alone) → gear ceiling (gea
 
 - **RawDamage / SpellDamage** — composed in `DamageCalculator` (Step 2.5 / 2.6): stat clamped ×1.5, gear
   multiplies toward ×2.0. (`CalculateRawDamage` is **display-only** — not the live path.)
+- **ActionSpeed / SpellSpeed (animation/cast play-rate)** — `GetEffectiveActionSpeed` /
+  `GetEffectiveSpellSpeed` (cluster 5g): stat `Min(Calculate{Animation|Spell}Speed(), ×1.5)` clamped
+  ALONE, then gear (`BonusX`, additive→fraction) × stone × transient multiply toward ×2.0. The 3
+  `ActionExecutor` sites (`PlayAttack`/`PlayAbility`/`PlaySpellAnimation`) do
+  `PlayRate = BaseAnimSpeed × GetEffective*Speed()`; `BaseAnimSpeed` (montage authoring) and per-action
+  `ActionMods` stay at the call site. **Turn order is NOT affected** — it reads raw `GetTotalActionSpeed()`
+  / the ×1.5-capped `CalculateSpellSpeed()`, never these getters. Replaced a triplicated, gear-UNCAPPED
+  inline compose (was only floored at 0.1).
 - **Defense** — `GetDefenderFlatDefense` (converted to a **%** this arc): stat 0.5, stone/buff multiply
   toward 1.0. Was **secretly 0** before the conversion (the re-derived per-point was `RoundToInt`-floored
   to zero) — **revived** by cluster 4.
@@ -192,3 +209,4 @@ LuckStones won't be obtainable until authored. No code remains.
 | --- | --- | --- |
 | 2026-06-16 | Created — captures the stat decoupling (Path A), the universal +50% stat / +100% gear rule, Pattern P composition + the `Calculate*`-twin trap, the full stat table, per-stat live getters, and the crit/Luck split (clusters 1–5e). 5f stones scoped at the end. | feature/realtime-defense |
 | 2026-06-16 | §8 updated to BUILT — two-stone system committed (5f-A `8dfe29c1` attached Crit Damage stone, 5f-B `e85ef7d5` LuckStone, 5f-C `63329348` consumable split + directional crit-damage consumable with the ×1.0 floor). Status line → clusters 1–5f complete; only 5f-D editor content (LuckStone `.uasset`) remains. | feature/realtime-defense |
+| 2026-06-16 | Cluster 5g (`5100c0ad`): ActionSpeed + SpellSpeed converted to Pattern P — extracted `GetEffectiveActionSpeed` / `GetEffectiveSpellSpeed` getters (×1.5 stat / ×2.0 gear ceiling), routed the 3 `ActionExecutor` play-rate sites through them, retired the triplicated gear-UNCAPPED inline compose. §4 table speed rows → ×2.0; §5 speed getter note + §3 inverted-twin nuance added. Status → 1–5g. | feature/realtime-defense |

@@ -28,11 +28,11 @@ Note: `bIsRawMode`, `HitCount`, `InfusionLevel`, `bWasInfused`, and `bIgnoreResi
 
 ### `FDamageCalculationResult` (`USTRUCT`)
 
-Output struct. Fields: `FinalDamage`, `DamageBeforeDefense`, `bWasCritical`, `DamageBlockedByDefense`, `ElementMultiplier`, `StatusBuildup`, `EffectiveElement`, plus debug breakdown fields `AttackerDamageMultiplier`, `CritMultiplier`, `DefenderFlatDefense`, and `SelectedSource` (`EInfusionSourceOption`).
+Output struct. Fields: `FinalDamage`, `DamageBeforeDefense`, `bWasCritical`, `DamageBlockedByDefense` (`int32`, now the **HP removed by the % reduction** — cluster 4), `ElementMultiplier`, `StatusBuildup`, `EffectiveElement`, plus debug breakdown fields `AttackerDamageMultiplier`, `CritMultiplier`, `DefenderFlatDefense` (`float` now — the **defense reduction fraction** `[0, 0.5]`, cluster 4; name unchanged, TODO rename), and `SelectedSource` (`EInfusionSourceOption`).
 
 ### `DamageConstants` namespace
 
-`CRIT_MULTIPLIER = 1.5`, `BASE_CRIT_CHANCE = 0.05`, `MAX_CRIT_CHANCE = 0.60`, `MAX_RESISTANCE = 0.50`, `MIN_DAMAGE = 1`, `WEAKNESS_MULTIPLIER = 1.5`, `RESISTANCE_MULTIPLIER = 0.5`, `NEUTRAL_MULTIPLIER = 1.0`, `POWER_INFUSION_L1_MULT = 1.3`, `POWER_INFUSION_L2_MULT = 1.6`. `ELEMENT_INFUSION_PENALTY` was removed per a locked cost matrix.
+`BASE_CRIT_CHANCE = 0.05`, `MAX_RESISTANCE = 0.50`, `MIN_DAMAGE = 1`, `POWER_INFUSION_L1_MULT = 1.3`, `POWER_INFUSION_L2_MULT = 1.6`. **Retired:** `CRIT_MULTIPLIER` (the fixed ×1.5 — crit damage is now the variable `GetCritDamageMultiplier`: `CRIT_DMG_BASE` 1.0 + CritDamage stat + gear; cluster 5e-D) and `ELEMENT_INFUSION_PENALTY` (locked cost matrix). The former `MAX_CRIT_CHANCE 0.60` ceiling is gone — crit chance is now Luck-sourced and clamped to `[0, 1.0]`. (`WEAKNESS_/RESISTANCE_/NEUTRAL_MULTIPLIER` are no longer in this namespace — the element-interaction system is still unbuilt, always `1.0`.)
 
 ## How It Works
 
@@ -44,9 +44,9 @@ Output struct. Fields: `FinalDamage`, `DamageBeforeDefense`, `bWasCritical`, `Da
 4. **Step 1.5 — Grid attacker modifier.** Multiply by `UCombatGridSubsystem::GetDamageModifier(Attacker)`.
 4. **Step 2 — Status-effect modifier.** Multiply by `GetStatusEffectDamageModifier(Attacker, Defender)` (see below).
 5. **Step 3 — Element interaction.** If `Element != Generic` and a defender exists, multiply by `GetElementInteractionMultiplier(Element, Defender InnateElement)`. Currently always `1.0` (no weakness/resistance system).
-6. **Step 4 — Critical hit.** If `bCanCrit`: take `OverrideCritChance` if non-negative, else `GetCriticalChance(Attacker)`; apply `ActionMods.CritChance` (deliberately not re-clamped here). Add a Luck-driven bonus: `(RawLuck / LUCK_RAW_MAX) * LUCK_CRIT_BONUS_MAX`, where `RawLuck` comes from `UCharacterDataComponent::GetEquipmentModifiedLuck`. A `GuaranteedCrit` skill effect forces a crit. On crit, multiply by `CRIT_MULTIPLIER * GetCritDamageMultiplier(Attacker)`.
+6. **Step 4 — Critical hit.** If `bCanCrit`: take `OverrideCritChance` if non-negative, else `GetCriticalChance(Attacker)`; apply `ActionMods.CritChance` (deliberately not re-clamped here). Add a Luck-driven bonus: `(RawLuck / LUCK_RAW_MAX) * LUCK_CRIT_BONUS_MAX`, where `RawLuck` comes from `UCharacterDataComponent::GetEquipmentModifiedLuck`. A `GuaranteedCrit` skill effect forces a crit. On crit, multiply by `GetCritDamageMultiplier(Attacker)` — the variable crit-damage multiplier (`CRIT_DMG_BASE` ×1.0 + CritDamage stat → ×1.5 + gear → ×2.0); the old fixed `CRIT_MULTIPLIER` ×1.5 was removed in cluster 5e-D.
 7. Store `DamageBeforeDefense = RoundToInt(RunningDamage)`.
-8. **Step 5 — Flat defense.** Skipped if `Input.bIgnoreDefense` or the attacker has an `IgnoreDefense` skill effect. Otherwise subtract `min(DefenderFlatDefense, RunningDamage)` and record `DamageBlockedByDefense`.
+8. **Step 5 — Defense (% reduction, cluster 4).** Skipped if `Input.bIgnoreDefense` or the attacker has an `IgnoreDefense` skill effect. Otherwise `RunningDamage *= (1 − DefenderDefenseReduction)` where the reduction is `[0, 0.5]`, and record `DamageBlockedByDefense = preReductionRound − postReductionRound` (the HP removed). *(Was a flat-int subtraction before cluster 4; the per-point had become `RoundToInt`-floored to 0, so Defense was a silent no-op until this conversion.)*
 9. **Step 6.5 — Grid defender modifier.** If `GetDefenseModifier(Defender) > 0`, divide `RunningDamage` by it.
 10. **Step 7 — Minimum damage.** `FinalDamage = max(MIN_DAMAGE, RoundToInt(RunningDamage))`.
 
@@ -59,8 +59,8 @@ Requires a non-null `Attack` (`UWeaponAttackData`) and resolvable `UCharacterDat
 ### Component calculations
 
 - `GetAttackerDamageMultiplier` — `GetEvolutionModifiedSpellDamage` or `GetEvolutionModifiedRawDamage` from `UCharacterDataComponent`; `1.0` if missing.
-- `GetDefenderFlatDefense` — `GetEvolutionModifiedFlatDefense`, plus flat `BonusDefense` from the loadout, then a multiplicative percentage modifier from `DefenseBuff − DefenseDebuff` skill effects.
-- `GetCriticalChance` — `GetEvolutionModifiedCritChance`, plus `BonusCritChance/100` from the loadout, plus `(CritChanceBuff − CritChanceDebuff + ModifyCritChance)/100` from skill effects; clamped to `[0, MAX_CRIT_CHANCE]`.
+- `GetDefenderFlatDefense` — now returns a **reduction fraction** `[0, 0.5]` (cluster 4; name unchanged, TODO rename to `GetDefenderDefenseReduction`): `GetEvolutionModifiedFlatDefense` (the crystal-aware stat fraction), then the attached `DefenseStone` % and `DefenseBuff − DefenseDebuff` skill modifiers compose **multiplicatively** onto it, final `Clamp(.., 0, UNIVERSAL_STAT_CAP 0.5)`. The flat `BonusDefense` gear field is **deferred** (no % meaning yet — TODO).
+- `GetCriticalChance` — crit chance is now **Luck-sourced** (cluster 5e): `GetEvolutionModifiedCritChance` = `GetLuckModifiedChance(BASE_CRIT_CHANCE 0.05, CRIT_CHANCE_LUCK_BONUS 0.45)`, plus the kept `(CritChanceBuff − CritChanceDebuff + ModifyCritChance)/100` skill modifiers; clamped to `[0, 1.0]`. The old loadout `BonusCritChance` term is gone — that field was renamed `BonusCritDamage` and now feeds crit **damage**, not chance. See `StatComposition.md` §6.
 - `RollCriticalHit` — `FRand() < (OverrideChance or GetCriticalChance)`.
 - `GetElementInteractionMultiplier` — uses `IsWeakTo` / `ResistsElement`, both of which currently return `false`, so this always returns `NEUTRAL_MULTIPLIER` (`1.0`).
 
@@ -117,3 +117,4 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-3 — removed dead `CalculateStatusBuildup` (zero callers). Status-buildup amplification (Spirit-driven, equipment bonus, `StatusMultiplierBuff`/`Debuff` aggregation, target-side `Resistance`) now lives entirely on `UStatusBuildupManager::AddStatusBuildup`. `GetBDStackStatusMultiplier` retained — still the BD status-buildup leaf accessor. | feature/integration-gaps-sweep-3 |
 | 2026-06-07 | Documented **Step 1.25** — the attached weapon-stone whole-percent raw-damage multiplier (`DamageStone` F=3..S=15%, physical-only, direct multiplier). Added the **`BonusRawDamage` trap** to Known Limitations (ruled-out refactor; ±21 × 0.0008 ≈ 1.7% can't express a stone). See new `AugmentStoneSystem.md`. | feature/weapon-stones |
+| 2026-06-16 | Stat-redesign sync — **Step 5 Defense** now a capped **% reduction** (`RunningDamage ×= (1 − reduction)`, `[0, 0.5]`) instead of flat-int subtraction (cluster 4; `GetDefenderFlatDefense` returns a fraction, `BonusDefense` deferred). **Crit** updated: fixed `CRIT_MULTIPLIER` retired (5e-D — crit damage is the variable `GetCritDamageMultiplier`), crit **chance** is Luck-sourced and clamped `[0, 1.0]` (`MAX_CRIT_CHANCE` gone). `FDamageResult.DefenderFlatDefense` is now a `float` fraction; `DamageBlockedByDefense` is the HP removed. See `StatComposition.md`. | feature/realtime-defense |

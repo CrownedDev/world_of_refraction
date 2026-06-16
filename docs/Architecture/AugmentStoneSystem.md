@@ -661,12 +661,12 @@ silently does nothing).
 | **SpellDamage** ("spell power") | **WIRED — corrected.** Three attacker-side reads, all `ActionType==Spell`-gated: `GetEvolutionModifiedSpellDamage` (Mind curve), equipment `BonusSpellDamage`, `ActionMods` spell-power. **Buildable now.** *(The earlier audit wrongly listed this unwired — it conflated offensive spell-power, wired, with defensive spell-resistance, the net-new hook above.)* |
 | Resistance (status) | **wired** (`StatusBuildupManager`) for status buildup; the **spell-damage shave** is the net-new extension (see *Defense / Resistance*) |
 
-**Visual-only read site (animation play-rate — intended effect not wired; see *Speed stones*):**
+**Animation play-rate read site (Pattern-P capped as of stat-composition 5g; intended defense-window effect still unwired — see *Speed stones*):**
 
 | Substat | Note |
 |---|---|
-| SpellSpeed | has a montage play-rate read (`CalculateSpellSpeed`), commented **"purely visual"**; its *intended* defense-window-pressure effect is **unwired** |
-| ActionSpeed | **corrected** — it **has** a read site (`CalculateAnimationSpeed` / `ANIMATION_SPEED_PER_POINT`, drives ability/attack montage PlayRate). What's missing is the **defense-window link**, not the read |
+| SpellSpeed | play-rate composed via `UCharacterDataComponent::GetEffectiveSpellSpeed()` (stat ×1.5 / gear ×2.0, cluster 5g) × `BaseAnimSpeed` at the `ActionExecutor` site — so an attached SpellSpeedStone speeds the cast animation, now ×2.0-bounded. Its *intended* defense-window-pressure effect is still **unwired** (see *Speed stones* below). |
+| ActionSpeed | play-rate composed via `GetEffectiveActionSpeed()` (same shape), drives ability/attack montage PlayRate, ×2.0-bounded. What's missing is the **defense-window link**, not the read. |
 
 **Not needed / unbuilt:**
 
@@ -683,30 +683,30 @@ silently does nothing).
 #### Speed stones (`ActionSpeed` / `SpellSpeed`) — blocked on a prerequisite system
 
 Their **intended** effect is **defense-window pressure**: a faster attacker
-animation gives the defender a **tighter reaction window**; slower gives more. This
-**does not work today.**
+animation gives the defender a **tighter reaction window**; slower gives more.
 
-**Why it doesn't work (factual, from the defense-window survey):** the real-time
-defense window is a **fixed `0.3s` constant** (`0.5s` for AOE), **hardcoded at the
-`ActionExecutor` call sites** and **independent of animation play-rate**. The
-data-driven `FDefenseWindowConfig` (`WindowStartTime` / `WindowDuration`) exists in
-`DefenseSystem.h` but is **dead / unwired** — never read. So changing a montage's
-play-rate (which `ActionSpeed` / `SpellSpeed` already do) changes only the visual,
-not the window.
+> **⚠️ UPDATE (`feature/realtime-defense` + stat-composition 5g) — the premise below is OBSOLETE.**
+> The "variable-defense-window" feature this section describes as a *prerequisite* now **EXISTS**.
+> The window is no longer a fixed `0.3s`: `UDefenseSystem::GetEffectiveDefenseInputWindow` computes
+> `max(MINIMUM_DEFENSE_WINDOW 0.1s, base 0.5s + defender Reflex − attacker speed)`, and attacker speed
+> **does** narrow the defender's window via `CharacterData::CalculateSpeedWindowPenalty` (capped ±0.25s
+> per the `WINDOW_CAP_SECONDS` ceiling). See `StatComposition.md` and the DefenseSystem docs.
+>
+> **What's still unwired for STONES specifically:** the window's attacker-speed term reads the **RAW**
+> `GetTotalActionSpeed()` / `GetTotalSpellSpeed()` asset points — **not** the geared/stone play-rate. So a
+> speed *stone* speeds the animation (now ×2.0-bounded, cluster 5g) but does **not yet** tighten the
+> defender's window. Wiring it = feeding the geared speed into `CalculateSpeedWindowPenalty` — a small,
+> well-defined follow-up, **no longer "blocked on a net-new system."**
 
-**The prerequisite — a net-new "variable-defense-window" feature:**
-- Thread the attacker's effective `PlayRate` into the window-open path.
-- Replace the hardcoded `0.3f` with `WindowDuration = BaseWindow / AttackerPlayRate`
-  (faster → tighter). Optionally revive `FDefenseWindowConfig` for per-attack
-  authoring of `BaseWindow`.
-- Mostly touches **`ActionExecutor`** (the 3 execute paths + the
-  `OpenDefenseWindowsForTargets` signature). **`DefenseSystem` needs no core
-  change** — it already takes a per-call duration. Downstream: the AI defense
-  scheduler gets variable timing **for free** (intended).
+**Original (historical) analysis — the window was a fixed `0.3s` constant, hardcoded at the
+`ActionExecutor` call sites and independent of play-rate; the data-driven `FDefenseWindowConfig` was
+dead/unwired.** That hardcoded-window model has since been replaced by the per-impact timed window
+above, so the "thread `PlayRate` into the window-open path" prerequisite is largely already done —
+only the stone→penalty link remains.
 
-> **Status: BLOCKED.** Speed stones are deferred until the variable-defense-window
-> feature exists (its own future task). Until then a speed stone would only alter
-> animation visuals, not the reaction window — not worth shipping.
+> **Status: UNBLOCKED (was BLOCKED).** The variable defense window exists; speed stones now need only
+> the stone→window-penalty wiring, not a net-new system. Until that small follow-up lands, a speed stone
+> alters animation visuals (×2.0-bounded) but not the reaction window.
 
 #### Build order & final classification
 
@@ -718,7 +718,7 @@ onto `DamageStone` and inherited by the rest. The full set, by readiness:
 |---|---|
 | **Buildable now** | `DamageStone` (consumable directional retrofit), `Defense`, `TurnSpeed`, `StatusMultiplier`, `Efficiency`, `CritChance` (multiplicative, shipped `7e27f0ea`), **`SpellDamage`** (confirmed wired), `Resistance` (status + the `0.2` spell-shave hook), `MaxHP` / `MaxEnergy` (pool-recompute path) |
 | **Build with care (later)** | `Luck` — the normalization basis for luck-derived chances; balance-risky |
-| **Blocked on a system** | `ActionSpeed` / `SpellSpeed` — need the variable-defense-window feature above |
+| **Small follow-up (was blocked)** | `ActionSpeed` / `SpellSpeed` — the variable-defense-window now exists (`feature/realtime-defense`); only the stone→`CalculateSpeedWindowPenalty` wiring remains. Play-rate is already ×2.0-bounded (5g). |
 | **Not needed** | per-element resistance — the status-buildup + flat-Defense + slight-shave model is chosen instead |
 
 ### Forward risk — single-field `GetRestrictedEnumValues`
@@ -780,6 +780,7 @@ hard guarantee survives; only the editor affordance degrades.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-06-16 | **Speed-stone section corrected** — the "fixed 0.3s, play-rate-independent defense window" premise is **obsolete**: `feature/realtime-defense` made the window variable (`GetEffectiveDefenseInputWindow` = base 0.5s + Reflex − attacker speed, floored 0.1s), and stat-composition 5g made ActionSpeed/SpellSpeed play-rate Pattern-P (`GetEffectiveActionSpeed`/`GetEffectiveSpellSpeed`, ×1.5 stat / ×2.0 gear). Speed stones reclassified **BLOCKED → small follow-up**: only the stone→`CalculateSpeedWindowPenalty` wiring remains (the window penalty currently reads RAW asset points, not gear/stone). Visual-read-site + classification tables updated. | feature/realtime-defense |
 | 2026-06-07 | Initial documentation — shipped weapon-stone system (unified `ECrystalType`/`FCrystalId` identity; `EAttachedItemKind::WeaponStone`; `DamageStone` whole-percent channel + 3-turn consumable; `AbilityStone` per-tier slots 2/3/3/4/4/5/6; `GetRestrictedEnumValues` grey-out + `IsDataValid` backstop; `CrystalTypeHelpers` gem/stone predicates). Recorded the `BonusRawDamage` trap, the unified-enum and attach-only rationale, and the cap decisions. Captured the Design/Phase-2 plan (Mastery stone, 7×7 fusion/cost matrix, selectable-substat fusion bonus, fusion restrictions, rings+AugmentStone rule, planned `WeaponStone→AugmentStone` rename, stat-stone family + read-site hooks, single-field grey-out risk) and parked cleanup. | feature/weapon-stones |
 | 2026-06-07 | Phase-2 design revision — **Mastery → FusionStone** rename throughout; FusionStone is player-created (fusion consumes two owned attachables), `FFusionId{HalfA,HalfB,BonusStat}` composite with symmetric equality, `FCrystalId` unchanged (Option A); fusion bonus is the formula `(TierValue(A)+TierValue(B))/2` (7×7 shown as visualisation only); added `stat-stone+stat-stone` valid pairing; expanded the **stat-stone family** into the dual-form model (attached self-passive / directional timed consumable) with the `DamageStone`-consumable change flagged as a shipped-behaviour modification; added the **wired-substat audit** (wired/unwired/pool-stats) and the Defense-first **build order**. Refreshed the cap-decisions notes to reflect the now-shipped crit/resistance cap removal (commit `7afd0d09`). | feature/weapon-stones |
 | 2026-06-07 | Stat-stone family extension + audit fixes — added the **pool-stat variant** (`MaxHP`/`MaxEnergy` raise/decrease-max, ceiling-only, overcapped-not-clamped, `RecomputeMaxPools` hook); the **Defense / Resistance mitigation model** (Defense already covers raw+spell, flat/subtractive — no change; Resistance gains a net-new slight spell-damage shave `×(1 − RESISTANCE_SPELL_SHAVE_FACTOR·Resistance)`, factor `0.2`, the **one** new combat hook, gated on `ActionType==Spell` via the unconsumed `bIgnoreResistance`); reclassified **Speed stones** as blocked on a net-new variable-defense-window feature (window is a fixed `0.3s`, play-rate-independent; dead `FDefenseWindowConfig`). **Audit corrections (factual):** `SpellDamage` moved unwired→wired (3 attacker reads, `Spell`-gated); `ActionSpeed` corrected (has a play-rate read; missing the window link, not the read); per-element resistance marked not-needed. Reworked build-order into a readiness classification (buildable-now / build-with-care / blocked / not-needed). | feature/weapon-stones |
