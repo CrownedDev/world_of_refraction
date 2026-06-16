@@ -19,12 +19,17 @@ The enum is deliberately *not* split into "gems" and "stones" — the planned
 FusionStone (see *Design / Phase 2*; formerly *MasteryStone* in earlier design)
 fuses **any two attachables**, so both fusion inputs need a common identity type.
 
-> This document covers the **shipped** augment-stone work on `feature/weapon-stones`
-> (per-tier ability-stone slots, the whole-percent damage channel, the Kind/type
-> dropdown filter + validation backstop) **and** a large body of **designed but
-> not-yet-built** follow-on work (FusionStone fusion model, stat-stone family,
-> rings-carrying-augments). The two are kept in strictly separate sections.
-> **Anything under *Design / Phase 2* is not in the code.**
+> This document covers the **shipped** augment-stone work and a body of **design
+> rationale** for it. **Much of what the *Design / Phase 2* sections below frame as
+> "not-yet-built" has since SHIPPED** (`feature/realtime-defense` and later): the full
+> **stat-stone family** (`DefenseStone`, `CritStone`, `TurnSpeedStone`, `StatusStone`,
+> `EfficiencyStone`, `MaxHP/MaxEPStone`, `SpellDamageStone`, `ResistanceStone`,
+> `SpellSpeedStone`, `ActionSpeedStone`, `DurabilityStone`, `LuckStone`, `ReflexStone`),
+> and **FusionStone** identity + slot + production wear (`FFusionId`,
+> `EAttachedItemKind::Fusion`, `FFusionAttachment` — see `CrystalWear.md`). Treat the
+> *Design / Phase 2* prose as the original design record; the **status note at that
+> fence** lists what landed. Still genuinely unbuilt: the speed-stone→defense-window
+> link and the Resistance spell-shave hook.
 >
 > Related docs: `ItemSystem.md` (crystals + `FCrystalId`), `WeaponSystem.md`
 > (`UEquipmentDataBase` / `UWeaponData` / `URingData`), `LoadoutSystem.md`
@@ -36,11 +41,14 @@ fuses **any two attachables**, so both fusion inputs need a common identity type
 
 ### Unified attachment identity — `ECrystalType` / `FCrystalId`
 
-`ECrystalType` (`Equipment/Crystals/CrystalType.h`) holds **12 values in one
-enum**: `None` (0, hidden) + the ten gems `Garnet … Quartz` (1–10) + the two
-stones `DamageStone` (11) and `AbilityStone` (12). `AbilityStone` is appended
-last; the comment in the header marks the value as the serialized `.uasset` /
-SaveGame identity, so it must not be reordered or inserted above.
+`ECrystalType` (`Equipment/Crystals/CrystalType.h`) holds the gem crystals **and**
+the whole augment-stone family in one enum: `None` (0, hidden) + the ten gems
+`Garnet … Quartz` + the stone family (`DamageStone`, `AbilityStone`, `DefenseStone`,
+`CritStone`, `TurnSpeedStone`, `StatusStone`, `EfficiencyStone`, `MaxHPStone`,
+`MaxEPStone`, `SpellDamageStone`, `ResistanceStone`, `SpellSpeedStone`,
+`ActionSpeedStone`, `DurabilityStone`, `LuckStone`, `ReflexStone`) — ~26 named values.
+Every value is **append-only**: the header marks each as the serialized `.uasset` /
+SaveGame identity, so values must not be reordered or inserted above existing ones.
 
 `FCrystalId` is the `{ECrystalType Type, EItemTier Tier}` pair that uniformly
 identifies **gems and stones alike**. Stones carry a tier exactly as gems do —
@@ -57,11 +65,12 @@ a `DamageStone (B)` is `FCrystalId{DamageStone, B_Tier}` — and every consumer
 | `None` | 0 | empty slot |
 | `Crystal` | 1 | gem crystal (element + spells) |
 | `Evolution` | 2 | evolution item asset |
-| `AugmentStone` | 3 | augment stone (appended last; serialized value is stable) |
+| `AugmentStone` | 3 | augment stone (appended after `Evolution`; serialized value stable) |
+| `Fusion` | 4 | player-fused pair — exposes `FFusionId` (two `FCrystalId` halves + a bonus stat) instead of a single `FCrystalId` |
 
-A slot is exactly one `Kind`. Note the **serialized order is `None, Crystal,
-Evolution, AugmentStone`** — `AugmentStone` was appended after `Evolution` to keep
-on-disk `Kind` values stable, so it is value `3`, not `2`.
+A slot is exactly one `Kind`. The **serialized order is `None, Crystal, Evolution,
+AugmentStone, Fusion`** — each is appended to keep on-disk `Kind` values stable
+(`AugmentStone` = `3`, `Fusion` = `4`).
 
 ### `FAttachedItem` (design-time) vs `FRuntimeAttachedItem` (runtime)
 
@@ -279,17 +288,23 @@ nominal caps when a future stone/FusionStone targets them:
   caps were removed: `GetCriticalChance` and the two crit-curve getters now clamp
   to `[base, 1.0]`, and the `MAX_CRIT_CHANCE` (0.60) / `CRIT_CHANCE_MAX` (0.40)
   constants were deleted. The `1.0` upper bound is kept **deliberately** — the AI
-  expected-value scorer reads crit as `1 + CritChance·(CRIT_MULTIPLIER−1)`, which
-  assumes `CritChance ≤ 1.0`; unbounded crit would corrupt AI action scoring.
+  expected-value scorer reads crit as `1 + CritChance·(CritMult−1)` (where `CritMult`
+  is the variable `UDamageCalculator::GetCritDamageMultiplier`; the fixed
+  `CRIT_MULTIPLIER` was retired, cluster 5e), which assumes `CritChance ≤ 1.0`;
+  unbounded crit would corrupt AI action scoring.
 - **Resistance — bound at `1.0` for correctness only (done, commit `7afd0d09`).**
   A resistance `> 1.0` flips the buildup term `Amount *= (1 − Resistance)`
   negative and **heals** the gauge. The design cap was removed by raising
-  `CombatConstants::RESISTANCE_MAX` `0.40 → 1.0`; it is now a hard correctness
-  ceiling, not a balance knob. (The separate dead `DamageConstants::MAX_RESISTANCE
+  `CombatConstants::RESISTANCE_MAX` `0.40 → 1.0`; it is the hard correctness
+  ceiling. *(Update: the later cluster-A2 model adds an intermediate `UNIVERSAL_STAT_CAP`
+  (0.5) on the crystal-Spirit "General" portion before the 1.0 ceiling — see
+  `ResistanceSystem.md`.)* (The separate dead `DamageConstants::MAX_RESISTANCE
   = 0.50` is unrelated element-interaction leftover, still pending deletion.)
-- **Luck — untouched.** Luck's "cap" (`LUCK_RAW_MAX`) is a **normalisation
-  basis** for the crit-bonus curve (`RawLuck / LUCK_RAW_MAX × LUCK_CRIT_BONUS_MAX`),
-  not a ceiling on luck itself. Nothing to lift.
+- **Luck — now the crit chance itself.** Luck's `LUCK_RAW_MAX` is a **normalisation
+  basis** (the stat normalises to 1.0 at max), not a ceiling on luck. Since cluster
+  5e, Luck *is* the crit chance via `GetLuckModifiedChance(BASE_CRIT_CHANCE,
+  CRIT_CHANCE_LUCK_BONUS)` — the old standalone `LUCK_CRIT_BONUS_MAX` crit-bonus curve
+  was **retired**. Nothing to lift.
 
 ---
 
@@ -337,15 +352,26 @@ directional `IsAlly` consumable. The next stat-stone is mostly the C1 checklist 
 
 ---
 
-## ⚠️ Design / Phase 2 — mostly NOT IMPLEMENTED
+## ⚠️ Design / Phase 2 — original design record (most has since SHIPPED)
 
-Everything below is **design intent** for the **unbuilt** parts of the family.
-**Already shipped this cycle** (see *Implemented this cycle* above and the ✅ markers
-below): the DefenseStone dual-form mechanism, the crit additive→multiplicative
-conversion (#2), the stat-crystal rebalance (#5), and the DamageStone-consumable
-directional change. Those are kept below for rationale, marked ✅ where built. The
-rest (FusionStone, the other stat-stones, pool/speed variants) is **not** in the
-committed code.
+Everything below was **design intent** when authored. **Status as of 2026-06-16 — trust
+this list over any "not in the code" wording inside the prose below:**
+
+- ✅ **Full stat-stone family** — `DefenseStone`, `CritStone`, `TurnSpeedStone`,
+  `StatusStone`, `EfficiencyStone`, `MaxHP/MaxEPStone`, `SpellDamageStone`,
+  `ResistanceStone`, `SpellSpeedStone`, `ActionSpeedStone`, `DurabilityStone`,
+  `LuckStone`, `ReflexStone` — all present in `ECrystalType` (`CrystalType.h`).
+- ✅ **FusionStone** — `FFusionId{HalfA,HalfB,BonusStat}` (`FFusionId.h`),
+  `EAttachedItemKind::Fusion`, `FFusionAttachment`, and production fusion **wear**
+  (see `CrystalWear.md`); the fusion BonusStat dropdown was widened to the 12 substats
+  (`2c3b7bbe`).
+- ✅ Crit additive→multiplicative (#2, `7e27f0ea`), stat-crystal rebalance (#5),
+  DamageStone-consumable directional change.
+- ❌ **Still genuinely unbuilt:** the speed-stone → defense-window-penalty link (the
+  variable window exists but reads RAW asset speed, not gear/stone), and the Resistance
+  spell-damage shave hook.
+
+The prose below is kept as the **design rationale**.
 
 > Terminology: the stone described here was called **MasteryStone** in earlier
 > design notes. It is now **FusionStone** — created by *fusion*, and parallel in
@@ -470,9 +496,10 @@ attachments/loadouts from any era still resolve.
 
 ### The stat-stone family — dual-form model
 
-> ✅ **The dual-form mechanism is implemented** (proven on DefenseStone — see
-> *Implemented this cycle*). The model below describes the whole family; only
-> **Defense** is built so far.
+> ✅ **The dual-form mechanism is implemented** (first proven on DefenseStone — see
+> *Implemented this cycle*). The model below describes the whole family; the **full
+> stat-stone family has since shipped** (all stat-stones present in `ECrystalType`) —
+> see the Design/Phase-2 status note above.
 
 Every stat-stone mirrors `DamageStone`'s **two forms**:
 
@@ -660,6 +687,7 @@ silently does nothing).
 | Luck | wired but **balance-risky** — it is the normalization basis for luck-derived chances |
 | **SpellDamage** ("spell power") | **WIRED — corrected.** Three attacker-side reads, all `ActionType==Spell`-gated: `GetEvolutionModifiedSpellDamage` (Mind curve), equipment `BonusSpellDamage`, `ActionMods` spell-power. **Buildable now.** *(The earlier audit wrongly listed this unwired — it conflated offensive spell-power, wired, with defensive spell-resistance, the net-new hook above.)* |
 | Resistance (status) | **wired** (`StatusBuildupManager`) for status buildup; the **spell-damage shave** is the net-new extension (see *Defense / Resistance*) |
+| Reflex | **WIRED (Cluster B).** `ESubStat::Reflex` (`ActionStatModifiers.h:40`) + `FActionStatModifiers::Reflex` + gear `BonusReflex` + `ReflexStone`; the live defense-window read widens the window by `(ReflexBuff − ReflexDebuff)` via `UDefenseSystem::GetEffectiveDefenseInputWindow`. A complete gearable/buffable/stone-backed Body substat. |
 
 **Animation play-rate read site (Pattern-P capped as of stat-composition 5g; intended defense-window effect still unwired — see *Speed stones*):**
 
@@ -780,6 +808,7 @@ hard guarantee survives; only the editor affordance degrades.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-06-16 | Doc-sync (status reconcile): corrected the "implemented" architecture facts — `ECrystalType` now ~26 values (full stat-stone family, not "12 / 2 stones"); `EAttachedItemKind` gains `Fusion` (=4, `FFusionId`). Rewrote the top banner + the *Design / Phase 2* fence to a status list: the **full stat-stone family** and **FusionStone** (identity + slot + production wear) have **shipped** — only the speed-stone→window link and the Resistance spell-shave remain unbuilt. Added a **Reflex** row to the wired-substat audit (`ESubStat::Reflex`/`BonusReflex`/`ReflexStone`). Fixed retired-symbol refs in the cap decisions (`CRIT_MULTIPLIER`→`GetCritDamageMultiplier`; `LUCK_CRIT_BONUS_MAX` retired, Luck *is* crit chance; noted the cluster-A2 `UNIVERSAL_STAT_CAP` on resistance). | feature/realtime-defense |
 | 2026-06-16 | **Speed-stone section corrected** — the "fixed 0.3s, play-rate-independent defense window" premise is **obsolete**: `feature/realtime-defense` made the window variable (`GetEffectiveDefenseInputWindow` = base 0.5s + Reflex − attacker speed, floored 0.1s), and stat-composition 5g made ActionSpeed/SpellSpeed play-rate Pattern-P (`GetEffectiveActionSpeed`/`GetEffectiveSpellSpeed`, ×1.5 stat / ×2.0 gear). Speed stones reclassified **BLOCKED → small follow-up**: only the stone→`CalculateSpeedWindowPenalty` wiring remains (the window penalty currently reads RAW asset points, not gear/stone). Visual-read-site + classification tables updated. | feature/realtime-defense |
 | 2026-06-07 | Initial documentation — shipped weapon-stone system (unified `ECrystalType`/`FCrystalId` identity; `EAttachedItemKind::WeaponStone`; `DamageStone` whole-percent channel + 3-turn consumable; `AbilityStone` per-tier slots 2/3/3/4/4/5/6; `GetRestrictedEnumValues` grey-out + `IsDataValid` backstop; `CrystalTypeHelpers` gem/stone predicates). Recorded the `BonusRawDamage` trap, the unified-enum and attach-only rationale, and the cap decisions. Captured the Design/Phase-2 plan (Mastery stone, 7×7 fusion/cost matrix, selectable-substat fusion bonus, fusion restrictions, rings+AugmentStone rule, planned `WeaponStone→AugmentStone` rename, stat-stone family + read-site hooks, single-field grey-out risk) and parked cleanup. | feature/weapon-stones |
 | 2026-06-07 | Phase-2 design revision — **Mastery → FusionStone** rename throughout; FusionStone is player-created (fusion consumes two owned attachables), `FFusionId{HalfA,HalfB,BonusStat}` composite with symmetric equality, `FCrystalId` unchanged (Option A); fusion bonus is the formula `(TierValue(A)+TierValue(B))/2` (7×7 shown as visualisation only); added `stat-stone+stat-stone` valid pairing; expanded the **stat-stone family** into the dual-form model (attached self-passive / directional timed consumable) with the `DamageStone`-consumable change flagged as a shipped-behaviour modification; added the **wired-substat audit** (wired/unwired/pool-stats) and the Defense-first **build order**. Refreshed the cap-decisions notes to reflect the now-shipped crit/resistance cap removal (commit `7afd0d09`). | feature/weapon-stones |

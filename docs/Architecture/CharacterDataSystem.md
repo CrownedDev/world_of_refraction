@@ -169,16 +169,17 @@ modifier sources on top of an asset pillar value:
    `FEquipmentStatBonus` percent, applied multiplicatively on top.
 
 `GetEvolutionModifiedMind/Body/Spirit()` feed `GetEffectiveMind/Body/Spirit()`
-through this helper. The derived `GetEvolutionModified*` functions
-(`SpellDamage`, `RawDamage`, `CritChance`, `FlatDefense`,
-`SpellDamageForHealing`, `EfficiencyMultiplier`, `StatusMultiplier`,
-`Resistance`) mirror the asset's `Calculate*` formula shapes but substitute
+through this helper. The derived `GetEvolutionModified*` functions that exist today
+(`SpellDamage`, `RawDamage`, `CritChance`, `FlatDefense`, `DefenseReduction`,
+`StatusMultiplier`) mirror the asset's `Calculate*` formula shapes but substitute
 the crystal-modified pillar as input. `GetEvolutionModifiedStatusMultiplier`
-returns `1 + frac` (mirrors `CalculateStatusMultiplier`);
-`GetEvolutionModifiedResistance` returns the raw fraction clamped to
-`[0, RESISTANCE_MAX]`. The four output-side fractions (`SpellDamage`,
-`StatusMultiplier`, `Efficiency`, `Resistance`) feed
-`UCrystalManager::ProcessPostCast*Wear` — the substat wear modifier.
+returns `1 + frac` (mirrors `CalculateStatusMultiplier`). *(The old
+`GetEvolutionModifiedResistance` and `GetEvolutionModifiedSpellDamageForHealing`
+getters were **retired** — `8c557828` / `89f9c045`; defender-side resistance now
+composes in `UStatusBuildupManager::GetTotalStatusResistance` (see
+`ResistanceSystem.md`), and Efficiency composes in `GetEffectiveEfficiencyMultiplier`.)*
+The output-side fractions feed `UCrystalManager::ProcessPostCast*Wear` — the substat
+wear modifier (see `CrystalWear.md`).
 
 `GetEquipmentModifiedLuck()` is crystal-aware Luck: pillar-scaled against
 `GetEvolutionModifiedSpirit()`, plus the loadout's `BonusLuck`, plus
@@ -195,12 +196,14 @@ Every **composed multiplicative stat modifier** is hard-capped to
 `[-100%, +100%]` normalization. The cap applies to the **composed modifier alone**
 (crystal × equipment × stone × transient, multiplied together), **not** to the base
 stat or the final value: `0.0` means "−100% → contributes nothing", `2.0` means
-"+100% → at most doubles". Capped getters: `GetEffectiveSpellDamage`
-(`CharacterDataComponent.cpp:798`), `GetEffectiveRawDamage` (`:862`),
-`GetEvolutionModifiedStatusMultiplier` (`:1006`), the `Mind/Body/Spirit` pillar
-modifier in `ApplyEvolutionPillarModifier` (`:553`), and the transient `FlatDefense`
-modifier. Below the cap the result is **byte-identical** to the pre-normalization
-composition — the clamp only bites at the extremes.
+"+100% → at most doubles". Capped getters: `GetEffectiveSpellDamage` (clamp at
+`CharacterDataComponent.cpp:843`), `GetEffectiveRawDamage` (`:909`),
+`GetEffectiveStatusMultiplier` (`:1240`) — the StatusMultiplier `[0,2]` clamp **moved
+here from `GetEvolutionModifiedStatusMultiplier`** in the T3 consolidation, and
+`GetEvolutionModifiedStatusMultiplier` (`:1176`) now returns the uncapped raw fraction —
+the `Mind/Body/Spirit` pillar modifier in `ApplyEvolutionPillarModifier` (`:559`), and
+the transient `FlatDefense` modifier. Below the cap the result is **byte-identical** to
+the pre-normalization composition — the clamp only bites at the extremes.
 
 **Special-cased / excluded** (own bounds, not the shared `[0,2]` cap):
 - **CritChance** — a probability bounded `[0, 1]` (AI scorer treats `1.0` as the
@@ -339,3 +342,4 @@ bar repaints (no client-side state mutation — the server already cleared
 | 2026-05-27 | `ApplyEvolutionPillarModifier` gains a case-B branch (`PrimarySlotType == Evolution`) so BD's primary-slot evolution stats flow through the crystal-modified pillars; two new accessors `GetEvolutionModifiedStatusMultiplier` and `GetEvolutionModifiedResistance` mirror the existing pattern. Consumed by the substat crystal-wear modifier — see `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` (BlueprintPure) UI-facing element accessor; returns `BrokenDarkness` for any `IsBrokenDarkness()` character, else delegates to `CharacterData->GetElement()`. Panels/labels should prefer this over reading `InnateElement` directly. | feature/integration-gaps-sweep-5 |
 | 2026-06-09 | Documented the `[-100%, +100%]` stat-modifier normalization: composed multiplicative modifiers hard-capped to `[STAT_MODIFIER_MIN, STAT_MODIFIER_MAX] = [0,2]` for SpellDamage/RawDamage/StatusMultiplier/FlatDefense + Mind/Body/Spirit pillars (byte-identical below cap); CritChance/Resistance/Efficiency/Luck/pools special-cased or excluded; pillars + derived stats clamp independently and compound (Option C). | feature/weapon-stones |
+| 2026-06-16 | Doc-sync: §normalization clamp anchors re-pointed (`GetEffectiveSpellDamage` `:843`, `GetEffectiveRawDamage` `:909`, pillar `ApplyEvolutionPillarModifier` `:559`), and noted the StatusMultiplier `[0,2]` clamp **moved** to `GetEffectiveStatusMultiplier` (`:1240`) from `GetEvolutionModifiedStatusMultiplier` (`:1176`, now uncapped) in the T3 consolidation. §crystal-aware-stat-layer: dropped the **retired** `GetEvolutionModifiedResistance` (`8c557828`) and `GetEvolutionModifiedSpellDamageForHealing` (`89f9c045`) getters; resistance now composes in `GetTotalStatusResistance`. | feature/realtime-defense |

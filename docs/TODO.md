@@ -16,6 +16,10 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **DONE** — feature/evolution-pillar-turnspeed: innate evolution flat stats feed `GetActiveStatBonus` (pillar % zeroed); turn speed reads pillar-modified Spirit (`CalculateTurnSpeedWithSpirit` + `GetEvolutionModifiedSpirit`); SpiritBuff/Debuff notify; TurnSpeed dropped from all three infusion writers. See `Architecture/TurnManager.md` changelog. | 2026-06-11
 - **DONE** — feature/fusion-wear-pipeline: elemental fusions wear + break in production (gem-half tier keys wear; augmented never wears); break fires speed-notify + `RecomputeMaxPools` at the break instant; `FBrokenCrystalPayload.FusionId`; RingManager + debug commands fusion-aware. See `Architecture/CrystalWear.md` → *Fusion wear*. | 2026-06-11
 
+## Done — stat redesign + combat economy arc (2026-06)
+
+- **DONE** — Combat economy + stat redesign (LOCKED): Path A decouple, universal +50% stat cap / gear-beyond, world +7%/level, HP/EP→1000, no EP regen, skill-tier base power. Built to designed targets, clustered. Own balance session. See `docs/Design/CombatEconomy_StatRedesign.md` (supersedes `StatDecouplingRework.md`). **Shipped** — clusters 1–5g: `UNIVERSAL_STAT_CAP` + `WORLD_{MIND,BODY}_SCALING_BONUS=0.07` (`CombatConstants.h:40-41,134`), Pattern-P getters in `CharacterDataComponent`. See `Architecture/StatComposition.md`. | 2026-06-16
+
 ## Small / unblocked
 
 - **CLEANUP** — Delete the legacy pillar fields (`Mind/Body/SpiritModifierPercent` on `UEvolutionItemData`) + their `PostLoad` copy block. Safe post-re-save — but first confirm the re-saved `.uasset`s are actually committed (none visible in git as of 2026-06-11; `DA_Test_EvoCrystal_Water` last committed pre-migration). Quick future commit.
@@ -49,7 +53,6 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 ## Banked — future systems
 
 - **BLOCKED** — Party/Match Setup system (spawn party → assign teams → assign grid → hand to orchestrator) — planned, core to solo/co-op/PvP. See `docs/Design/PartyMatchSetup.md`. Build after reactive-defense (Stage 3+).
-- **BLOCKED** — Combat economy + stat redesign (LOCKED): Path A decouple, universal +50% stat cap / gear-beyond, world +7%/level, HP/EP→1000, no EP regen, skill-tier base power. Built to designed targets, clustered. Own balance session. See `docs/Design/CombatEconomy_StatRedesign.md` (supersedes `StatDecouplingRework.md`).
 
 ## Refactor — banked
 

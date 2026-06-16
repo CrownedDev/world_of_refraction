@@ -1,8 +1,8 @@
 # Stat Composition & The Crit/Luck Model
 
-**Status:** Clusters 1–5g complete (committed). Only 5f-D editor content (LuckStone `.uasset` authoring)
-remains — noted at the end. This is the authoritative reference for how every stat composes and how
-crit/Luck work.
+**Status:** Complete — clusters 1–5g committed, and 5f-D editor content (LuckStone `.uasset` authoring)
+confirmed shipped (editor-side, confirmed complete). This is the authoritative reference for how every
+stat composes and how crit/Luck work.
 
 Cross-reference: [`docs/Design/CombatEconomy_StatRedesign.md`](../Design/CombatEconomy_StatRedesign.md)
 (economy + targets) and [`docs/Mechanics/TierGapDamage.md`](../Mechanics/TierGapDamage.md) (the working
@@ -129,8 +129,11 @@ base value (no investment) → stat cap (maxed stat alone) → gear ceiling (gea
   0.5, gear pushes toward 0.9.
 - **TurnSpeed** — `CacheActorStats` uses the **geared/buffed Spirit** (SpiritBuff / pillar % affect it
   like sibling Spirit stats, inside the 15 cap); a dedicated `BonusTurnSpeed` multiplies toward 20.
-- **StatusMultiplier** — `GetSourceStatusMultiplierFactor`: a cap was **INTRODUCED this arc** (it was
-  previously uncapped / runaway). Stat ×1.5, gear toward ×2.0.
+- **StatusMultiplier** — `GetEffectiveStatusMultiplier` (`CharacterDataComponent.cpp:1203`, clamp at
+  `:1240`): a cap was **INTRODUCED this arc** (it was previously uncapped / runaway). Stat ×1.5, gear
+  (`BonusStatusMultiplier` + attached `StatusStone`) toward ×2.0, additive transient buff/debuff. The
+  **T3 consolidation retired `GetSourceStatusMultiplierFactor`** — `AddStatusBuildup`, the BD overload
+  bake, and crystal-wear all read this one getter now (lockstep by construction).
 - **Pools (HP/EP)** — `RecomputeMaxPools`: stat clamped to 1000 **alone**, gear **ADDITIVE outside** (the
   composition exception).
 
@@ -197,9 +200,9 @@ Two distinct stones — a **Crit Damage stone** (boosts the renamed CritDamage s
 - **Enum-value name kept:** `ECrystalType::CritStone` was **not** renamed to `CritDamageStone` (just
   wired) — lower-risk (no enum rename / redirect).
 
-**Remaining — 5f-D (editor content, `.uasset`/LFS):** author the LuckStone item asset(s) + tiers + icon,
-and the per-item effect-type assignments / any loot-grant tables. Stones are **not** roll-generated, so
-LuckStones won't be obtainable until authored. No code remains.
+**5f-D — editor content (DONE — editor-side, confirmed complete):** the LuckStone item asset(s) + tiers +
+icon and the per-item effect-type assignments are authored. (Stones are **not** roll-generated, so LuckStones
+are obtainable only because these were authored.) No code remained.
 
 ---
 
@@ -210,3 +213,5 @@ LuckStones won't be obtainable until authored. No code remains.
 | 2026-06-16 | Created — captures the stat decoupling (Path A), the universal +50% stat / +100% gear rule, Pattern P composition + the `Calculate*`-twin trap, the full stat table, per-stat live getters, and the crit/Luck split (clusters 1–5e). 5f stones scoped at the end. | feature/realtime-defense |
 | 2026-06-16 | §8 updated to BUILT — two-stone system committed (5f-A `8dfe29c1` attached Crit Damage stone, 5f-B `e85ef7d5` LuckStone, 5f-C `63329348` consumable split + directional crit-damage consumable with the ×1.0 floor). Status line → clusters 1–5f complete; only 5f-D editor content (LuckStone `.uasset`) remains. | feature/realtime-defense |
 | 2026-06-16 | Cluster 5g (`5100c0ad`): ActionSpeed + SpellSpeed converted to Pattern P — extracted `GetEffectiveActionSpeed` / `GetEffectiveSpellSpeed` getters (×1.5 stat / ×2.0 gear ceiling), routed the 3 `ActionExecutor` play-rate sites through them, retired the triplicated gear-UNCAPPED inline compose. §4 table speed rows → ×2.0; §5 speed getter note + §3 inverted-twin nuance added. Status → 1–5g. | feature/realtime-defense |
+| 2026-06-16 | Doc-sync: §5 StatusMultiplier live getter corrected — `GetSourceStatusMultiplierFactor` was **retired** in the T3 consolidation; the live composer is `UCharacterDataComponent::GetEffectiveStatusMultiplier` (`CharacterDataComponent.cpp:1203`, clamp `:1240`), which `AddStatusBuildup` / BD overload bake / crystal-wear all read. | feature/realtime-defense |
+| 2026-06-16 | Status migration: **5f-D editor content marked DONE** (editor-side, confirmed complete) — LuckStone `.uasset` authoring shipped. Status line now reads the full arc complete (no "remains" qualifier). | feature/realtime-defense |

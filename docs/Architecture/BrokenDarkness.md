@@ -112,8 +112,12 @@ bypasses that early-out and permits `CurrentEP` to exceed `MaxEP` into overload.
 with the BD's energy pool. Crossing `MaxEP` enters **overload** — `UpdateOverloadState`
 is driven by a binding to `CharacterDataComponent::OnEPChanged` (`BeginPlay`), the single
 overload trigger, so absorption gain, cast spend, and overload drain all re-evaluate it.
-`ProcessOverloadTick` (called by `CombatOrchestrator.cpp`) applies aura damage to nearby
-enemies, self-damage, and energy drain (via `ServerSpendEnergy`) each turn while overloaded.
+`ProcessOverloadTick` (`BrokenDarknessManager.cpp:532`, called by `CombatOrchestrator.cpp`)
+applies aura damage to nearby enemies, self-damage, and a **coupled energy leak** each turn
+while overloaded: a single `Released = BaseEnergyRelease × StatusMultiplier↑ × Efficiency↓`
+value drives both the energy drain (`ServerSpendEnergy`) **and** a self status-buildup in the
+alignment element (`UStatusBuildupManager::AddStatusBuildup(..., bSkipBaseStatAmp=true)` — the
+release is pre-amplified, so the drain and the self-status read one value; gap 4.3 is built).
 
 **Overload UI surfacing (sweep-5).** Since the bar percent is clamped at 1.0,
 `CharacterPanelWidget::RefreshEnergyBar` signals overload through the EP text colour:
@@ -132,12 +136,15 @@ a different element resets stacks and re-aligns (broadcasts `OnAlignmentChanged`
 0-3 (constants `STACK_0_MULT..STACK_3_MULT` in `BrokenDarknessConstants`). This is a
 **status-buildup multiplier**, not a damage buff and not a status-effect-output buff —
 it amplifies the buildup the BD deposits on a target's status bar, and only when the
-spell's element matches the BD's current alignment. The only consumer is
-`UDamageCalculator::GetBDStackStatusMultiplier` (`DamageCalculator.cpp:356-371`),
-which gates on `Element == BDManager->GetCurrentAlignment()` before returning the
-multiplier; the live buildup pipeline (`UStatusBuildupManager::AddStatusBuildup`)
-consumes it via the BD damage path. Stack 0 and stack 1 both return `1.0` — the buff
-only kicks in at stack 2.
+spell's element matches the BD's current alignment. The element gate now lives on the
+manager itself: `UBrokenDarknessManager::GetElementStackStatusMultiplier(Element)`
+(`BrokenDarknessManager.cpp:674`) returns `GetStackStatusMultiplier()` when
+`Element == CurrentAlignmentElement`, else `1.0`. It is consumed directly by
+`UStatusBuildupManager::AddStatusBuildup` as **step 5c** (`StatusBuildupManager.cpp:383`).
+The former `UDamageCalculator::GetBDStackStatusMultiplier` wrapper was **deleted**
+(`feature/fix-bd-stack-multiplier`) — it lost its only caller when `CalculateStatusBuildup`
+was removed (documented at `DamageCalculator.h:230-235`). Stack 0 and stack 1 both return
+`1.0` — the buff only kicks in at stack 2.
 
 **Stacks display (sweep-5).** `CharacterPanelWidget` binds `OnStacksChanged`,
 `OnAlignmentChanged`, and `OnTransformed`; their handlers route through
@@ -307,7 +314,7 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | `CrystalManager.cpp` | `ProcessPostCastEvolutionWear` is the BD-evolution sibling of `ProcessPostCastWear` — reads crystal-modified substat fractions, calls `UBreakCalculator::CalculateDurabilityWearWithSubstats`, writes via `ULoadoutComponent::ApplyWearToActivePrimaryEvolution(_, bForceWear=true)`. No Luck-skip, no per-cast broadcast (between-combat sweep cleans up). See `CrystalWear.md`. |
 | `LoadoutComponent.cpp` | (above, plus) two BD-aware wear writers: `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution`. Both BlueprintCallable; both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage (not a `GetActiveLoadout` copy). |
 | `FEvolutionAttachment.cpp` | `ApplyWear(Amount, bForceWear=false)` — `bForceWear=true` bypasses the per-asset `bCanBreak` gate. BD's wear path is the only caller passing `true`; the struct itself stays BD-agnostic. |
-| `DamageCalculator.cpp` | `GetBDStackStatusMultiplier` reads the attacker's absorption-stack multiplier when transformed (`:356-371`). Status-buildup multiplier (matching-element only), not damage. |
+| `StatusBuildupManager.cpp` | `AddStatusBuildup` **step 5c** multiplies the deposited buildup by the *source* BD's `GetElementStackStatusMultiplier(Element)` — matching-alignment only — the live consumer of the absorption-stack status-buildup multiplier (`:383`). The former `DamageCalculator::GetBDStackStatusMultiplier` wrapper was deleted (`feature/fix-bd-stack-multiplier`). |
 | `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`), `ApplyBrokenDarknessBonus` grants absorption energy scaled as **% of target MaxEP** (sweep-1: F=10% .. S=70% via `CrystalEffectTable::GetBrokenDarknessEnergyPercent` × `TargetComp->MaxEP`) via `BDManager->GrantAbsorptionEnergy` — overload-aware. Replaces the prior flat tier values. Session 5 fixed a latent bug here — it previously called `ServerGainEnergy`, which the BD early-out silently no-op'd, granting nothing. See `ItemSystem.md`. |
 | `CharacterPanelWidget.cpp` | Binds `UBrokenDarknessManager` absorption/overload delegates **plus (sweep-5) `OnStacksChanged`/`OnAlignmentChanged`/`OnTransformed`**. For a BD the energy bar shows `CurrentEP`/`MaxEP` (labelled "Absorb"), tinted by absorbed-element colour; overload past `MaxEP` colours the EP text white→yellow→orange→red within the `[1.00, 1.30]` cap. Absorption stacks render in the effects panel as a synthetic `StatusMultiplierBuff` row (element-aligned, `xN` count). See `UISystem.md`. |
 | `CharacterDataComponent.cpp` *(sweep-5)* | Adds `GetDisplayElement()` UI-facing element accessor: returns `BrokenDarkness` whenever `IsBrokenDarkness()` is true, else delegates to `CharacterData->GetElement()` (Caster → `InnateElement`; others → `Generic`). Single source of truth for panels/labels — gameplay-internal element reads continue to use existing paths. |
@@ -326,10 +333,6 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
   forbidden cast element) is not yet wired. The dead `ApplySelfStatusBuildup`
   helper on `ActionExecutor` is retained as the intended apply hook. See
   `docs/Gaps/IntegrationGaps.md` §4.2.
-- **Overload aura per-turn coupling unbuilt (gap 4.3).** `OnOverloadDamage`
-  broadcasts and `ProcessOverloadTick` is called by `CombatOrchestrator`, but
-  the designed status-buildup release + absorption-drain coupling is not yet
-  wired. See `docs/Gaps/IntegrationGaps.md` §4.3.
 - **`bIsBrokenDarkness` save persistence (gap 4.4) / un-transform path
   (gap 4.5).** Both designed, neither built. See `docs/Gaps/IntegrationGaps.md`.
 
@@ -343,7 +346,7 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | `Public/HybridSpellColors.h` / `Private/HybridSpellColors.cpp` | Darkness-tinted colour data for BD spell/weapon/ability VFX. |
 | `Public/ElementColorDebugComponent.h` / `Private/ElementColorDebugComponent.cpp` | Debug mesh-tint component; BD-aware colouring. |
 | `Private/CombatOrchestrator.cpp` | Drives `ProcessOverloadTick` each turn for overloaded BDs. |
-| `Private/DamageCalculator.cpp` | `GetBDStackStatusMultiplier` — BD absorption-stack **status-buildup** multiplier (matching-element only); consumed by the BD damage path's buildup branch, not by raw damage. |
+| `Private/StatusBuildupManager.cpp` | `AddStatusBuildup` step 5c — applies the source BD's `GetElementStackStatusMultiplier` (matching-alignment **status-buildup** multiplier) to deposited buildup. Live consumer since `DamageCalculator::GetBDStackStatusMultiplier` was removed. |
 | `Private/ItemExecutor.cpp` | Grants absorption energy when a crystal is used on a BD target. |
 | `Private/UI/Combat/CharacterPanelWidget.cpp` | Displays BD absorption energy and absorbed-element bar colour. |
 
@@ -365,3 +368,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-27 | BD evolution **wear-as-cost** model — primary-slot evolution casts swap full EP for stat-scaled durability wear via `UCrystalManager::ProcessPostCastEvolutionWear`, hooked from `UActionExecutor::ExecuteSpellAsync`. **Innate-source carve-out** retains normal EP cost on L1/L2 Innate-infused evolution casts (the Darkness conversion). `FEvolutionAttachment::ApplyWear` gains `bForceWear` so BD bypasses the per-asset `bCanBreak` gate intrinsically. Between-combat sweep extended via `ULoadoutComponent::ClearBrokenPrimaryEvolution`. Energy Model table refreshed; new Integration Points rows for `CrystalManager`, `LoadoutComponent`, `FEvolutionAttachment`. Formula and constants split out to `CrystalWear.md`. | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-1 — crystal absorption energy refactored to **% of target MaxEP** (`BD_ENERGY_PERCENT_*` F=10% .. S=70%; `CrystalEffectTable::GetBrokenDarknessEnergyPercent`); was previously flat tier values. Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` UI helper; stack-line refs corrected (`.cpp:588`/`.cpp:572-586`/`DamageCalculator.cpp:356-371`); stacks now render in the panel's effects list as a synthetic `StatusMultiplierBuff` row (replaces the standalone-text approach); overload EP-text colour bands rescaled into the real `[1.00, 1.30]` window. Known Gaps section captures unbuilt 4.2/4.3/4.4/4.5 with cross-links to `IntegrationGaps.md`. Stack-multiplier prose tightened — it's a **status-buildup** multiplier (matching-element only), not a damage buff. | feature/integration-gaps-sweep-1, feature/integration-gaps-sweep-5 |
 | 2026-06-15 | Planned: per-impact energy absorption (energy cost split across impacts proportional to the damage split, on parried/blocked impacts) — arising from reactive per-impact defense; build after Stage 3. See docs/Design/BrokenDarkness_ReactiveDefense.md. | feature/realtime-defense |
+| 2026-06-16 | Doc-sync: `UDamageCalculator::GetBDStackStatusMultiplier` was **deleted** (`feature/fix-bd-stack-multiplier`) — the element-gated accessor now lives on the manager as `UBrokenDarknessManager::GetElementStackStatusMultiplier(Element)` and is consumed by `UStatusBuildupManager::AddStatusBuildup` as **step 5c** (`StatusBuildupManager.cpp:383`). Updated §Stacks, the Integration table, and the File Index (DamageCalculator → StatusBuildupManager). **Gap 4.3 closed** — `ProcessOverloadTick` now wires the coupled energy leak: one pre-amplified `Released` value drives both `ServerSpendEnergy` and a self `AddStatusBuildup(..., bSkipBaseStatAmp=true)`; removed it from Known Gaps. | feature/realtime-defense |

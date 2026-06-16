@@ -3,11 +3,12 @@
 ## Overview
 
 The item system covers **crystals** — consumable and equippable magical items
-built on a 10-type / 7-tier matrix. The system splits into two complementary
-tracks: **item and refined crystals** are identified by `FCrystalId` (Type +
-Tier) and stored count-based in `UCrystalInventoryComponent`, with their
+built on a ten-gem / 7-tier matrix (the unified `ECrystalType` enum also carries
+the augment-stone family — see `AugmentStoneSystem.md`). The system splits into two
+complementary tracks: **item and refined crystals** are identified by `FCrystalId`
+(Type + Tier) and stored count-based in `UCrystalInventoryComponent`, with their
 behaviour, names, and tier tables living in the `CrystalEffectTable` and
-`CrystalIdentity` namespaces; **evolution crystals** are authored individually
+`ItemIdentity` namespaces; **evolution crystals** are authored individually
 as `UEvolutionItemData` primary data assets and stored instance-based in
 `UEvolutionInventoryComponent`. The `UItemExecutor` subsystem runs item-crystal
 use in turn-based combat. Each crystal maps to one of the nine elements (plus
@@ -31,8 +32,9 @@ count-based: `TMap<FCrystalId, int32>` on `UInventoryData::ItemCrystals` and
 `RefinedCrystals`, with the per-tier cap enforced by `IsDataValid`. Runtime
 storage lives on `UCrystalInventoryComponent`, which mirrors the two
 count-based pools. Percentage tables, display names, primary effect type, and
-target type live in the `CrystalEffectTable` and `CrystalIdentity` namespaces
-(inline tables keyed by `FCrystalId`). Refined and item crystals are fungible
+target type live in the `CrystalEffectTable` and `ItemIdentity` namespaces
+(inline tables keyed by `FCrystalId`; the namespace was renamed from
+`CrystalIdentity`, commit `291ce39d`). Refined and item crystals are fungible
 within their pool — two refined Garnet (F) crystals are interchangeable.
 
 **Evolution crystals (`UEvolutionItemData` asset).** Each evolution crystal is
@@ -45,17 +47,22 @@ stores instances, not counts.
 **Attachment slot (`FAttachedItem` / `FRuntimeAttachedItem`).** The attachment
 point on equipment is a discriminated union, not a pointer:
 - `FAttachedItem` (design-time, on `UEquipmentDataBase::AttachedItem`):
-  `Kind ∈ {None, Crystal, Evolution, AugmentStone}` + `CrystalType` /
-  `CrystalTier` (for `Crystal` **and** `AugmentStone` — both carry an `FCrystalId`
-  identity) or `Evolution` (`UEvolutionItemData*`, for `Evolution`).
+  `Kind ∈ {None, Crystal, Evolution, AugmentStone, Fusion}` (`EAttachedItemKind.h`)
+  + `CrystalType` / `CrystalTier` (for `Crystal` **and** `AugmentStone` — both carry
+  an `FCrystalId` identity), `Evolution` (`UEvolutionItemData*`), or a `FFusionId`
+  (two `FCrystalId` halves + a bonus stat) for the `Fusion` Kind.
 - `FRuntimeAttachedItem` (runtime, on `FWeaponInventoryEntry::AttachedItem`
   and `FRingInventoryEntry::AttachedItem`): same shape plus per-instance
   durability and a `FGuid` for evolution identity.
 
-The `AugmentStone` Kind is the **augment-stone family** (`DamageStone` /
-`AbilityStone`) — a second attachment family sharing this slot and the
-`FCrystalId` identity with crystals. It is documented separately in
-`AugmentStoneSystem.md`; this doc covers the crystal (gem) and evolution tracks.
+The `AugmentStone` Kind is the **augment-stone family** — now the full stat-stone
+set (`DamageStone`, `AbilityStone`, `DefenseStone`, `CritStone`, `TurnSpeedStone`,
+`StatusStone`, `EfficiencyStone`, `MaxHPStone`, `MaxEPStone`, `SpellDamageStone`,
+`ResistanceStone`, `SpellSpeedStone`, `ActionSpeedStone`, `DurabilityStone`,
+`LuckStone`, `ReflexStone`) — a second attachment family sharing this slot and the
+`FCrystalId` identity with crystals. The `Fusion` Kind is a third family (player-fused
+pairs, `FFusionId`). Both are documented separately in `AugmentStoneSystem.md`; this
+doc covers the crystal (gem) and evolution tracks.
 
 Routing into these tracks happens structurally at inventory build time:
 `UInventoryComponent::InitializeFromInventoryAsset` reads the three ownership
@@ -120,11 +127,14 @@ only — it does **not** manage inventory or consume item counts.
 `IsAlly(User, Target)` (resolved via `UTurnManager::GetActorTeam`) lets handlers branch
 buff-vs-debuff (Amber, Opal) or cleanse-vs-strip (Iolite).
 
-### ECrystalType — the 10 gem crystals (+ 2 stones)
+### ECrystalType — the 10 gem crystals (+ the augment-stone family)
 
-`ECrystalType` is a **single unified enum** of 12 values: the ten gem crystals
-below (`Garnet … Quartz`) plus `DamageStone` and `AbilityStone`, the
-augment-stone family. The stones share the enum and `FCrystalId` identity but are
+`ECrystalType` is a **single unified enum** (`CrystalType.h`): `None` + the ten gem
+crystals below (`Garnet … Quartz`) + the **augment-stone family** (`DamageStone`,
+`AbilityStone`, `DefenseStone`, `CritStone`, `TurnSpeedStone`, `StatusStone`,
+`EfficiencyStone`, `MaxHPStone`, `MaxEPStone`, `SpellDamageStone`, `ResistanceStone`,
+`SpellSpeedStone`, `ActionSpeedStone`, `DurabilityStone`, `LuckStone`, `ReflexStone`)
+— ~26 named values. The stones share the enum and `FCrystalId` identity but are
 **not** consumable crystals — see `AugmentStoneSystem.md`. The table below is the
 ten gems.
 
@@ -342,3 +352,4 @@ removed with the transform system.
 | 2026-05-28 | Sweep-1 — BD crystal absorption energy rescaled to **% of target MaxEP** (F=10% .. S=70%, `ItemConstants::BD_ENERGY_PERCENT_*`). `CrystalEffectTable::GetBrokenDarknessEnergyBonus` renamed to `GetBrokenDarknessEnergyPercent`; `ItemExecutor::ApplyBrokenDarknessBonus` resolves `MaxEP × Percent` at the call site. Scales correctly with target's energy pool instead of granting a flat lump. | refactor/bd-crystal-absorption-percent |
 | 2026-06-07 | Weapon-stone alignment — corrected the attachment-slot block (`Kind ∈ {None, Crystal, Evolution, WeaponStone}`, `CrystalType`/`CrystalTier` shared by `Crystal`+`WeaponStone`); reframed `ECrystalType` as 10 gems + 2 stones in one unified enum; `GetPrimaryEffectType` → `ItemIdentity::GetItemEffectType`; `EItemEffectType` gains `None` (`AbilityStone`). Weapon-stone family documented in new `AugmentStoneSystem.md`. | feature/weapon-stones |
 | 2026-06-11 | `WITH_EDITOR` guard fix — `UEvolutionItemData::PostLoad`/`PostInitProperties` were declared inside `#if WITH_EDITOR` but defined outside it: packaged builds failed to compile, and guarding the definitions instead would have skipped the legacy pillar→`BaseStatBonus` migration in shipping (dropping un-re-saved assets' pillar data). Declarations moved out of the guard — the pillar + durability migrations now run in all build configs. Legacy pillar fields remain deprecated, deletion-pending on confirmed content re-save. | chore/legacy-cleanup |
+| 2026-06-16 | Doc-sync: namespace `CrystalIdentity` → `ItemIdentity` in the body (`291ce39d`); `FAttachedItem::Kind` gains `Fusion` (+`FFusionId`); the `ECrystalType` "12 values / 10 gems + 2 stones" framing corrected to the full augment-stone family (~26 values); Overview de-"10-type"-ified. (Historical changelog rows keep their period names.) | feature/realtime-defense |

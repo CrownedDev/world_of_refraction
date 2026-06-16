@@ -2,11 +2,11 @@
 
 ## Overview
 
-A code-side resistance layer that makes a character's **class and innate element** shape how fast they accrue *status buildup* (not damage). Every character resolves to one full profile row; each incoming hit reads that row for its element and physical type, and the result is folded into the target-resistance step of `UStatusBuildupManager::AddStatusBuildup` as a single additive term.
+A code-side resistance layer that makes a character's **class and innate element** shape how fast they accrue *status buildup* (not damage). Every character resolves to one full profile row; each incoming hit reads that row for its element and physical type, and the result is folded into the **additive Matched layer** (source #5) of the target-resistance step of `UStatusBuildupManager::AddStatusBuildup`.
 
 Design intent: a Fire Caster shrugs off Fire buildup but takes Water faster; a Generic (physical) fighter is tough against weapons but soft to magic; a Resonator is the mirror; Broken Darkness is universally a little fragile. The numbers are balance-tunable in one place (`ClassInnateResistanceTable`), no data assets involved.
 
-This is the **class** resistance arc. Gear-granted resistance (rings / weapons / evolutions) is a separate, not-yet-built arc — it will slot into the same additive composition (see `TODO.md` → *Resistances — gear arc*).
+This is the **class** resistance arc. Gear-granted resistance (rings / weapons / evolutions) is now **built** and slots into the same composition as sources #4 (authored effects) and #6 (rolled `FResistanceBonus`) — see *Gear resistance* below.
 
 ## The model
 
@@ -63,25 +63,29 @@ Resolves to exactly one row, in strict precedence:
 
 ## How it composes — `GetTotalStatusResistance` (the single source of truth)
 
-Total defender-side status resistance is computed in **one place**: `UStatusBuildupManager::GetTotalStatusResistance(Target, Element, PhysicalType)`. `AddStatusBuildup` just calls it: `Amount *= (1 − GetTotalStatusResistance(...))`. The class/innate profile is **one of seven** additive sources it composes (all percent-space fractions):
+Total defender-side status resistance is computed in **one place**: `UStatusBuildupManager::GetTotalStatusResistance(Target, Element, PhysicalType)` (`StatusBuildupManager.cpp:218-277`). `AddStatusBuildup` just calls it: `Amount *= (1 − GetTotalStatusResistance(...))`. The composition is a **hybrid two-layer model (cluster A2)** of seven sources — a **multiplicative, floored General** layer (#1–3) plus an **additive, signed Matched** layer (#4–7), summed and clamped once. The class/innate profile is **source #5**, in the Matched layer:
 
 ```
-Resistance  = CharacterData->CalculateResistance()                       // 1. base Spirit (pre-clamped [0, MAX])
-            + BonusResistance × RESISTANCE_PER_POINT                       // 2. equipment substat (loadout)
-            + attached ResistanceStone %                                   // 3. weapon attachment
-            + GetTotalElementResistance(Target, Element, PhysicalType)     // 4. element + physical effects
-            + ClassInnateResistanceTable::GetClassInnateResistance(...)    // 5. class/innate profile (this system)
-            + GetActiveResistanceBonus matched (element + physical) / 100   // 6. rolled/authored gear resistance
-            + ModifyStatusResist / 100                                     // 7. skill-effect flat modifier
-Resistance  = clamp(Resistance, RESISTANCE_MIN, RESISTANCE_MAX)            // single FINAL clamp [−1, +1]
-return Resistance                                                         // POST-clamp value the caller applies
+// GENERAL layer (sources 1–3): MULTIPLICATIVE, floored ≥0 — blanket positive-only tankiness (Pattern-P shape)
+General  = GetCrystalResistanceStatCapped()                          // 1. crystal-aware Spirit stat, capped ALONE at UNIVERSAL_STAT_CAP (0.5)
+General *= (1 + BonusResistance × RESISTANCE_PER_POINT)              // 2. equipment substat — MULTIPLIES past 0.5
+General *= (1 + attached ResistanceStone % / STAT_PERCENT_DIVISOR)   // 3. defender's own weapon attachment — MULTIPLIES
+General  = clamp(General, 0, RESISTANCE_MAX)                         // general ceiling 1.0, floor 0 (never negative)
+
+// MATCHED layer (sources 4–7): ADDITIVE, signed — the amplify layer (can pull the total negative)
+Matched  = GetTotalElementResistance(Target, Element, PhysicalType)  // 4. element + physical effects
+         + ClassInnateResistanceTable::GetClassInnateResistance(...) // 5. class/innate profile (this system)
+         + GetActiveResistanceBonus matched (element + physical)/100 // 6. rolled/authored gear resistance (FResistanceBonus)
+         + ModifyStatusResist / 100                                  // 7. skill-effect flat modifier (sign-aware curse/buff)
+
+return clamp(General + Matched, RESISTANCE_MIN, RESISTANCE_MAX)      // single FINAL clamp [−1, +1], POST-clamp value the caller applies
 ```
 
 - **Guard inside:** returns `0.0` when `Target` has no `UCharacterDataComponent`/`CharacterData`, so `Amount *= (1 − 0)` is unchanged (behaviour-preserving for the no-data case).
-- **Base pre-clamp is intentional and preserved.** `CalculateResistance()` clamps the base to `[0, MAX]` *before* the other terms are summed. Net effect: a later weakness term bites off the capped base rather than being absorbed by over-cap headroom — **weaknesses always bite** (a locked design decision, not a cleanup candidate). The aggregate then gets the single final clamp.
-- **Sign-preserving / shared clamp:** a strong weakness pushes `Resistance` negative (amplifying buildup, capped at `−1` = ×2); a strong resist adds toward the `+1` ceiling.
-- **Offense stays out.** Source-side amplification (`GetSourceStatusMultiplierFactor`, transient StatusMultiplier buff/debuff, BD absorption-stack multiplier) is applied to `Amount` *before* this call and is **not** part of resistance. This getter is the defender's resistance only.
-- **Byte-identical for neutral matchups:** where a resolved column / effect contributes `0` (a Resonator hit by any element, a Caster hit by a neutral element with `None` physical, any `Generic`-element / `None`-physical hit), the term is an exact `0.0f` and `Resistance` is unchanged.
+- **General is floored at 0; weaknesses live in Matched.** The General tankiness layer (#1–3, the crystal-aware Spirit stat capped alone at `UNIVERSAL_STAT_CAP` 0.5, then `BonusResistance`/`ResistanceStone` multiplying it toward the `RESISTANCE_MAX` 1.0 ceiling) can **never go negative** — it is clamped `[0, RESISTANCE_MAX]`. All *weaknesses* (negative values) live in the additive Matched layer (#4–7), added on top, which can pull the **total** below 0. So **weaknesses always bite** regardless of how much blanket tankiness is stacked (a locked design decision). The A2 correction specifically moved `ModifyStatusResist` (#7) into Matched so the `ResistanceStone` enemy-curse reaches the amplify range — a multiplicative General would floor it at 0 and kill the curse.
+- **Sign-preserving / shared final clamp:** a net weakness pushes the total negative (amplifying buildup, capped at `−1` = ×2); strong resist saturates at the `+1` ceiling.
+- **Offense stays out.** Source-side amplification (`GetEffectiveStatusMultiplier` — the T3-consolidated getter, retiring `GetSourceStatusMultiplierFactor` — and the BD absorption-stack multiplier `GetElementStackStatusMultiplier`) is applied to `Amount` *before* this call (steps 5/5c) and is **not** part of resistance. This getter is the defender's resistance only.
+- **Byte-identical for neutral matchups:** where a resolved Matched column / effect contributes `0` (a Resonator hit by any element, a Caster hit by a neutral element with `None` physical, any `Generic`-element / `None`-physical hit), the Matched term is an exact `0.0f`.
 
 ### Effect-based resistance keys on EITHER axis (element OR physical)
 
@@ -155,7 +159,7 @@ A transient, read-only mirror of the resolved row for the editor:
 
 ## Integration Points
 
-- **`UStatusBuildupManager::GetTotalStatusResistance`** — the single composition point for all six defender sources; called by `AddStatusBuildup`. The class/innate term (source #5) is one line here. See `StatusBuildupSystem.md`.
+- **`UStatusBuildupManager::GetTotalStatusResistance`** — the single composition point for all **seven** defender sources (the cluster-A2 **General** #1–3 multiplicative / **Matched** #4–7 additive hybrid); called by `AddStatusBuildup`. The class/innate term (source #5) is one line in the Matched layer. See `StatusBuildupSystem.md`.
 - **`UStatusBuildupManager::GetTotalElementResistance`** — source #4; the element-OR-physical effect query (`ResistanceBuff`/`ResistanceDebuff`).
 - **`UCharacterDataComponent`** — `IsBrokenDarkness()` (runtime BD signal), `CharacterData` (class + `GetElement()`), via `FindComponentByClass`.
 - **`UCharacterData`** — hosts the display struct, the lifecycle hooks, and the `BlueprintPure` getters; `ResolveRow` reads `CharacterClass` + `GetElement()`.
@@ -185,3 +189,4 @@ Resistance *effects* (source #4) are created element- or physical-tagged by item
 | 2026-06-10 | Effect-based physical-type resistance (`FActiveSkillEffect::PhysicalType`; `GetTotalElementResistance` matches either axis). Unified `GetTotalStatusResistance` getter (6-source composition, pre-clamp preserved, post-clamp return; `AddStatusBuildup` calls it). Combined-resistance debug breakdown (per-source + pre/post-clamp + MATCH guard). Amethyst gamble: random 12-category tag (resistance rolls). Gear-arc prerequisite noted (`FSkillEffect` lacks element/physical fields). | feature/class-innate-resistance |
 | 2026-06-10 | Gear resistance BUILT. Path 1 — authored effect (`FSkillEffect` gains `Element`/`PhysicalType`, copied via `CreateFromSkillEffect`; rides source #4). Path 2 — rolled `FResistanceBonus` (12 categories, own `RESISTANCE_BUDGET_*` pool, zero-sum via shared `ZeroSumRoll::Distribute` extracted from the substat roll — substat byte-identical; `RESISTANCE_CATEGORY_CAP`/`RESISTANCE_BONUS_MIN/MAX`). Template→instance storage on weapon/ring entries; evolution authored+rolled, always-on while slotted via standalone Roll button. New getter term #6 (`GetActiveResistanceBonus`, reuses class column-read + BD alias); debug source #6. Inert by default. | feature/class-innate-resistance |
 | 2026-06-10 | Per-instance roll integration (U0–U4, see `PerInstanceRollSystem.md`): resistance now rolls per OWNED INSTANCE at acquisition (toggle-gated, from the instance's stored `ResistanceMaxPool`); asset `GeneratedResistance` reframed as designer PREVIEW (gameplay-inert; `CreateFrom*` copies Base only; evolution's dead `GetCombinedResistance` deleted). Evolution rolled resistance relocated to `FEvolutionInventoryEntry`/`FEvolutionAttachment`; source #6 reads `asset.Base + attachment.Generated` for both evolution slot cases. | feature/class-innate-resistance |
+| 2026-06-16 | Doc-sync: §"How it composes" rewritten to the **cluster-A2 hybrid** model (`StatusBuildupManager.cpp:218-277`) — sources #1–3 are now a **multiplicative, floored** General tankiness layer (#1 `GetCrystalResistanceStatCapped` capped at `UNIVERSAL_STAT_CAP` 0.5; #2 `BonusResistance`/#3 `ResistanceStone` multiply toward `RESISTANCE_MAX` 1.0), and #4–7 an **additive, signed** Matched layer, summed then clamped once `[−1, +1]`. Was previously documented as 7 flat-additive sources with a single clamp. Fixed the "all six sources" Integration line (→ seven), the retired `GetSourceStatusMultiplierFactor` offense reference (→ `GetEffectiveStatusMultiplier`), and the stale "gear arc not-yet-built" overview line (gear resistance is built). | feature/realtime-defense |
