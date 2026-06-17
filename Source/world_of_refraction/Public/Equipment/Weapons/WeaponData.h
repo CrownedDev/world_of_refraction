@@ -17,7 +17,6 @@
 #include "WeaponData.generated.h"
 
 // Forward declarations
-class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
 class USkillDataBase;
@@ -52,9 +51,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
 
-    // Attack used when this weapon is equipped (replaces base attack). Base type (attack/ability merge
-    // step 5a) so the serialized reference holds a UWeaponAttackData today and a UAbilityData after the
-    // step-5b asset conversion — the saved object path is unchanged; IsAttack() distinguishes it.
+    // Attack used when this weapon is equipped (replaces base attack). Base type (attack/ability merge)
+    // holding a UAbilityData with bIsAttack=true; IsAttack() distinguishes it from a slottable ability.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     USkillDataBase *WeaponAttack = nullptr;
 

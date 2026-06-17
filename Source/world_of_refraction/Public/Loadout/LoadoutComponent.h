@@ -36,7 +36,6 @@ struct FWeaponLoadoutEntry;
 struct FRingLoadoutEntry;
 struct FRuntimeAttachedItem;
 class UStanceData;
-class UWeaponAttackData;
 class USkillDataBase;
 class UAnimMontage;
 class USpellData;
@@ -276,8 +275,8 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     int32 GetItemRemainingUses(int32 SlotIndex) const;
 
-    /** Get attacks from ALL equipped weapons (for AI evaluation). Base type (attack/ability merge
-     *  step 5a) — holds UWeaponAttackData today, UAbilityData after step-5b conversion. */
+    /** Get attacks from ALL equipped weapons (for AI evaluation). Base type (attack/ability merge) —
+     *  each is a UAbilityData with bIsAttack=true. */
     UFUNCTION(BlueprintPure, Category = "Loadout|Combat")
     TArray<USkillDataBase *> GetAllWeaponAttacks() const;
 

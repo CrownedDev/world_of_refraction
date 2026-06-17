@@ -10,7 +10,6 @@
 #include "WeaponManager.generated.h"
 
 class UWeaponData;
-class UWeaponAttackData;
 class USkillDataBase;
 class ULoadoutComponent;
 

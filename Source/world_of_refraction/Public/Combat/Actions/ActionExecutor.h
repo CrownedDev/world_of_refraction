@@ -36,7 +36,6 @@ class USkillDataBase;
 class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
-class UWeaponAttackData;
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;

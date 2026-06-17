@@ -74,8 +74,9 @@ Fields:
   not a flat constant — see *stone-ability slots* below.
 - `AssignedSpells` — `TArray<USpellData*>`; sequential override list, valid only
   if the weapon has a crystal/evolution.
-- `OverrideAttack` — `UWeaponAttackData*`; per-loadout attack override that, if
-  set, replaces the weapon asset's `WeaponAttack`.
+- `OverrideAttack` — `USkillDataBase*` (post the attack/ability merge — holds a
+  `UAbilityData` with `bIsAttack=true`); per-loadout attack override that, if set,
+  replaces the weapon asset's `WeaponAttack`.
 
 Notable behavior:
 
@@ -354,3 +355,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-06-07 | Weapon-stone alignment — `FEquippedCrystalSlot.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (`RefinedId` carries `WeaponStone` identity too); documented the per-tier stone-ability slots (`AssignedWeaponStoneAbilities`, `GetWeaponStoneAbilities`, `ValidateWeaponStoneAbilities` capped by `GetAttachmentSlotsForTier`) and the `FSavedLoadout`/`FCombatLoadout` plumbing. See new `AugmentStoneSystem.md`. *(The `WeaponStone*` names in this row were renamed to `AugmentStone*` on 2026-06-08, commit `e9d22103` etc.; the doc body uses the current names.)* | feature/weapon-stones |
 | 2026-06-16 | Doc-sync: `FEquippedCrystalSlot.Kind` gains `Fusion` (+`FFusionId`); `FWeaponLoadoutEntry::GetAllSpells` cap re-pointed to `CrystalEffectTable::ResolveSpellSlotCap` (tier gem-crystal/fusion-gem-half spell slots, `0e920df7`), not a flat `MAX_SPELL_SLOTS`; flagged the stale `WeaponStone*` names in the 2026-06-07 changelog row. | feature/realtime-defense |
 | 2026-06-11 | Accumulate cleanup — `LoadoutComponent.cpp`'s anon-namespace `AccumulateBonus`/`AccumulateResistance` replaced at all 10 call sites by the `FEquipmentStatBonus::Accumulate` / `FResistanceBonus::Accumulate` struct members (behaviour-identical field-wise add); the duplicate helpers deleted. | chore/legacy-cleanup |
+| 2026-06-17 | Attack/ability merge — `FWeaponLoadoutEntry::OverrideAttack` (and `UWeaponData::WeaponAttack`) widened to `USkillDataBase*` (hold a `UAbilityData` with `bIsAttack=true`). **Slotting gate added:** `FAbilityCollection::LearnAbility` rejects `IsAttack()` assets (basic attacks never enter the learned pool), with belts in `GetAbilitiesForWeaponType` and `ValidateAbilities`/`ValidateAugmentStoneAbilities` — a basic attack can't be slotted as an ability (the functional payoff of `bIsAttack`). `UWeaponAttackData` deleted. | feature/realtime-defense |

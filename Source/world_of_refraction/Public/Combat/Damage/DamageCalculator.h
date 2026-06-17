@@ -13,7 +13,6 @@
 #include "DamageCalculator.generated.h"
 
 class UCharacterData;
-class UWeaponAttackData;
 class USkillDataBase;
 class USkillEffectManager;
 class UBrokenDarknessManager;

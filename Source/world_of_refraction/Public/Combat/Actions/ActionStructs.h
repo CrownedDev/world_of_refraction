@@ -19,7 +19,6 @@
 
 class USpellData;
 class UAbilityData;
-class UWeaponAttackData;
 class USkillDataBase;
 
 /**
@@ -54,10 +53,10 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
 	ESpellSource SpellSource = ESpellSource::Innate;
 
-	/** Unified skill data for attacks AND abilities (the merged pointer; base type so it holds either
-	 *  leaf — a UWeaponAttackData today, a UAbilityData after the step-5 reparent). The sole non-spell
-	 *  skill pointer after the attack/ability merge; USkillDataBase::IsAttack() distinguishes a basic
-	 *  attack from a slottable ability. Set at every construction site; read via ResolveActionSkill. */
+	/** Unified skill data for attacks AND abilities (the merged pointer; base type — every instance is a
+	 *  UAbilityData, with bIsAttack=true for basic attacks). The sole non-spell skill pointer after the
+	 *  attack/ability merge; USkillDataBase::IsAttack() distinguishes a basic attack from a slottable
+	 *  ability. Set at every construction site; read via ResolveActionSkill. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	USkillDataBase *SkillData = nullptr;
 

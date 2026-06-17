@@ -17,7 +17,6 @@
 class UAbilityData;
 class USpellData;
 class UStanceData;
-class UWeaponAttackData;
 class USkillDataBase;
 
 /**
@@ -52,8 +51,8 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     TArray<USpellData *> AssignedSpells;
 
     /** Per-loadout attack override. If set, replaces the weapon asset's
-     *  WeaponAttack for this entry in combat. Base type (attack/ability merge step 5a) so it holds a
-     *  UWeaponAttackData today and a UAbilityData after the step-5b asset conversion; IsAttack() true. */
+     *  WeaponAttack for this entry in combat. Base type (attack/ability merge) holding a UAbilityData
+     *  with bIsAttack=true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
     USkillDataBase *OverrideAttack = nullptr;
 
