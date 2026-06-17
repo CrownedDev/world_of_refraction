@@ -214,16 +214,14 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
             if (Abilities.Num() > 0)
             {
-                Action.AbilityData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
-                Action.SkillData = Action.AbilityData;
+                Action.SkillData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
             }
             break;
         }
         case EAIActionChoice::Attack:
         {
             Action.ActionType = EActionType::Ability; // attacks dispatch as Ability (SkillData + IsAttack)
-            Action.AttackData = Loadout->GetCurrentAttack();
-            Action.SkillData = Action.AttackData;
+            Action.SkillData = Loadout->GetCurrentAttack();
             break;
         }
         case EAIActionChoice::Defend:
@@ -770,8 +768,7 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
 
     FAction Action;
     Action.ActionType = EActionType::Ability;
-    Action.AbilityData = Ability;
-    Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
+    Action.SkillData = Ability;
     Action.AbilityInfusionLevel = InfusionLevel;
     Action.Targets.Add(Target);
 
@@ -922,8 +919,7 @@ bool UAIDecisionManager::CanAffordAbility(AActor *Actor, UAbilityData *Ability, 
 
     FAction Probe;
     Probe.ActionType = EActionType::Ability;
-    Probe.AbilityData = Ability;
-    Probe.SkillData = Probe.AbilityData; // Cluster 2: mirror onto merged pointer
+    Probe.SkillData = Ability;
     Probe.AbilityInfusionLevel = InfusionLevel;
 
     const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, Probe);
@@ -1399,8 +1395,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                     {
                         FAction CostProbe;
                         CostProbe.ActionType = EActionType::Ability;
-                        CostProbe.AbilityData = Ability;
-                        CostProbe.SkillData = CostProbe.AbilityData; // Cluster 2: mirror onto merged pointer
+                        CostProbe.SkillData = Ability;
                         UnaffordableBestCost = Exec->CalculateActionEnergyCost(AIActor, CostProbe);
                     }
                 }
@@ -1520,8 +1515,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             }
         }
 
-        Action.AttackData = BestAttack;
-        Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
+        Action.SkillData = BestAttack;
         break;
     }
     case EAIActionChoice::Spell:
@@ -1602,8 +1596,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             break;
         }
 
-        Action.AbilityData = BestAbility;
-        Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
+        Action.SkillData = BestAbility;
 
         // Decide infusion, then drop to L0 if the infused cost is unaffordable.
         int32 AbilityInfusion = DecideAbilityInfusionLevel(AIActor, Action.Targets[0], BestAbility);

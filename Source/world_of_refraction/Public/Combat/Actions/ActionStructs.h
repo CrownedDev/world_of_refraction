@@ -44,10 +44,6 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	USpellData *SpellData = nullptr;
 
-	/** Ability data (if ActionType == Ability) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UAbilityData *AbilityData = nullptr;
-
 	/** Item crystal identity (when ActionType == Item).
 	 *  The slot index in the active loadout is not carried — ActionExecutor
 	 *  finds the matching slot by FCrystalId at execution time. */
@@ -58,15 +54,10 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
 	ESpellSource SpellSource = ESpellSource::Innate;
 
-	/** Attack data (if ActionType == Attack) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UWeaponAttackData *AttackData = nullptr;
-
-	/** Unified skill data for attacks + abilities — the merged pointer (base type, so it holds either
-	 *  leaf during the transition: a UWeaponAttackData today, a UAbilityData post-reparent). Added in
-	 *  Cluster 1 ALONGSIDE the legacy AbilityData/AttackData; nothing reads or sets it yet (Cluster 2
-	 *  wires setters + consumers, Cluster 4 removes the legacy pair). Raw pointer to match the sibling
-	 *  data pointers above. */
+	/** Unified skill data for attacks AND abilities (the merged pointer; base type so it holds either
+	 *  leaf — a UWeaponAttackData today, a UAbilityData after the step-5 reparent). The sole non-spell
+	 *  skill pointer after the attack/ability merge; USkillDataBase::IsAttack() distinguishes a basic
+	 *  attack from a slottable ability. Set at every construction site; read via ResolveActionSkill. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	USkillDataBase *SkillData = nullptr;
 

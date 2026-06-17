@@ -1615,14 +1615,13 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
 		if (ActiveWeapon && ActiveWeapon->WeaponAttack)
 		{
-			AttackAction.AttackData = ActiveWeapon->WeaponAttack;
-			AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
+			AttackAction.SkillData = ActiveWeapon->WeaponAttack;
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
 				   *ActiveWeapon->WeaponAttack->Name, *ActiveWeapon->Name);
 		}
 	}
 
-	if (!AttackAction.AttackData)
+	if (!AttackAction.SkillData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAttackMovement] No weapon attack data found on %s"),
 			   *Actor->GetName());
@@ -1678,21 +1677,20 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 		TArray<UAbilityData *> AvailableAbilities = Loadout->GetAvailableAbilities();
 		if (AvailableAbilities.Num() > 0)
 		{
-			AbilityAction.AbilityData = AvailableAbilities[0];
-			AbilityAction.SkillData = AbilityAction.AbilityData; // Cluster 2: mirror onto merged pointer
+			AbilityAction.SkillData = AvailableAbilities[0];
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] Using ability: %s"),
-				   *AbilityAction.AbilityData->Name);
+				   *AbilityAction.SkillData->Name);
 		}
 	}
 
 	// Fallback to test ability
-	if (!AbilityAction.AbilityData)
+	if (!AbilityAction.SkillData)
 	{
-		AbilityAction.AbilityData = LoadObject<UAbilityData>(nullptr,
+		AbilityAction.SkillData = LoadObject<UAbilityData>(nullptr,
 															 TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 	}
 
-	if (!AbilityAction.AbilityData)
+	if (!AbilityAction.SkillData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAbilityMovement] No ability available on %s"),
 			   *Actor->GetName());
@@ -1700,7 +1698,7 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] %s using %s on %s"),
-		   *Actor->GetName(), *AbilityAction.AbilityData->Name, *Target->GetName());
+		   *Actor->GetName(), *AbilityAction.SkillData->Name, *Target->GetName());
 
 	// Execute through ActionExecutor with callback
 	if (ActionExecutorRef)
@@ -2049,8 +2047,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 	// Build action
 	FAction AttackAction;
 	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
-	AttackAction.AttackData = AttackData;
-	AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
+	AttackAction.SkillData = AttackData;
 	AttackAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAttack] %s attacking %s with %s"),
@@ -2296,8 +2293,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 
 	FAction AbilityAction;
 	AbilityAction.ActionType = EActionType::Ability;
-	AbilityAction.AbilityData = AbilityData;
-	AbilityAction.SkillData = AbilityAction.AbilityData; // Cluster 2: mirror onto merged pointer
+	AbilityAction.SkillData = AbilityData;
 	AbilityAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAbility] %s using %s on %s"),
@@ -2546,8 +2542,7 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 		TArray<UWeaponAttackData *> Attacks = Loadout->GetAllWeaponAttacks();
 		if (Attacks.Num() > 0)
 		{
-			AttackAction.AttackData = Attacks[0];
-			AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
+			AttackAction.SkillData = Attacks[0];
 		}
 	}
 

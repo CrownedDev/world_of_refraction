@@ -61,22 +61,12 @@ class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
 
-// Resolve the unified skill pointer for an attack/ability action. Prefers the merged
-// FAction.SkillData (added Cluster 1); falls back to the legacy AbilityData/AttackData pointers so a
-// construction site that hasn't populated SkillData yet still resolves correctly — the live read path
-// can never go null while the legacy pointers are still set. Cluster 4 removes the legacy pair and
-// this collapses to `return Action.SkillData`. Spells keep their own SpellData pointer (separate path).
+// The unified skill pointer for an attack/ability action. The legacy AbilityData/AttackData pointers
+// were removed (Cluster 4); SkillData is populated at every construction site. Kept as the single named
+// read-point that the call sites go through. Spells use SpellData (a separate path).
 static USkillDataBase *ResolveActionSkill(const FAction &Action)
 {
-	if (Action.SkillData)
-	{
-		return Action.SkillData;
-	}
-	if (Action.AbilityData)
-	{
-		return Action.AbilityData;
-	}
-	return Action.AttackData;
+	return Action.SkillData;
 }
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
@@ -240,7 +230,7 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			break;
 
 		case EActionType::Ability:
-			if (Action.AbilityData && !Action.AbilityData->MeetsRequirements(CharData))
+			if (Action.SkillData && !Action.SkillData->MeetsRequirements(CharData))
 			{
 				// Allow with penalty
 			}
@@ -1423,141 +1413,6 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
-// SUPERSEDED (Cluster 2): attack dispatch now flows through ExecuteSkillAsync; the dispatch switch no
-// longer routes here, so this function is dead. Kept temporarily (CLAUDE.md: remove old paths only after
-// PIE proves the new one) and deleted in Cluster 4 together with PlayAttackAnimation.
-void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
-{
-	UWeaponAttackData *Attack = Action.AttackData;
-
-	// Resolve the wielded weapon up-front. We need it for both the no-Attack
-	// fallback and the PhysicalDamageType lookup (which now lives on the
-	// weapon, not the attack). Goes through GetActiveWeapon → LoadoutComponent.
-	UWeaponManager *WeaponMgr = GetWeaponManager();
-	UWeaponData *Weapon = WeaponMgr ? WeaponMgr->GetActiveWeapon(Attacker) : nullptr;
-
-	// If no attack specified, try to get from weapon
-	if (!Attack && WeaponMgr)
-	{
-		Attack = WeaponMgr->GetActiveAttack(Attacker);
-	}
-
-	if (!Attack || !AttackerData)
-	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No attack available");
-		FinalizeAsyncAction();
-		return;
-	}
-
-	const EPhysicalDamageType AttackPhysicalType = Weapon
-													   ? Weapon->PhysicalDamageType
-													   : EPhysicalDamageType::None;
-
-	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
-	// infusion (source selection). Attacks have no charge level concept. No energy
-	// spent, no damage dealt. Equipment-level immunity ORs in via IsInfusionImmune.
-	if (!ValidateInfusionGate(Action, IsInfusionImmune(Attacker, Attack->bImmuneToInfusion), /*InfusionLevel=*/0))
-	{
-		return;
-	}
-
-	// Attacker-side base: asset BaseDamage minus the requirement penalty.
-	// RawDamage multiplier is applied exactly once downstream by
-	// ApplyHit → DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier;
-	// applying it here as well caused RawDamage² scaling at high Body stats.
-	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
-	const float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
-	int32 BaseDamage = FMath::RoundToInt(AttackBase);
-
-	// Tier-gap (B2): final multiplicative factor on the penalty-adjusted base.
-	const float TierGapMult = ResolveTierGapMultiplier(Attacker, Action, Attack->Name);
-	BaseDamage = FMath::RoundToInt(BaseDamage * TierGapMult);
-
-	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-
-	// Spend BaseEnergyCost for every attack. The requirement-penalty term raises
-	// the cost the same way it does for abilities. InfusionEnergyCost was
-	// removed in Phase 4 — existing assets whose authors relied on the legacy
-	// 10-energy infusion cost will need BaseEnergyCost set explicitly.
-	if (Attack->BaseEnergyCost > 0)
-	{
-		const float CostF = static_cast<float>(Attack->BaseEnergyCost) * (1.0f + RequirementPenalty);
-		const int32 EnergySpend = FMath::RoundToInt(CostF);
-		SpendEnergy(Attacker, EnergySpend);
-		CurrentExecutionContext->PartialResult.EnergySpent = EnergySpend;
-	}
-
-	// Element
-	ESpellElement Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
-
-	// Attack size — neutral (dodge is timing-only now; the size gate was removed). Kept as a
-	// value because AttackSize still feeds the OnDefenseWindowOpened delegate + AI scheduling;
-	// 1.0 mirrors the ability path. (Weapon BaseSize retired with the dodge gate.)
-	float AttackSize = 1.0f;
-
-	// Store in result
-	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
-	CurrentExecutionContext->PartialResult.AttackElement = Element;
-
-	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
-	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
-												? CurrentExecutionContext->ActionMods
-												: FActionStatModifiers();
-
-	// Get valid targets BEFORE animating — zero survivors fizzles cleanly
-	// without a wasted cast animation (matches the spell path's ordering).
-	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
-
-	if (ValidTargets.Num() == 0)
-	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
-		FinalizeAsyncAction();
-		return;
-	}
-
-	// Play animation
-	PlayAttackAnimation(Attacker, Attack, ActionMods);
-
-	// Buildup amount only. Session Y: trigger type resolves in the manager from
-	// (Element, PhysicalType). Attacks pass the active weapon's PhysicalDamageType;
-	// the resolver falls through to Slash->DOT / Pierce->DefDebuff / Impact->Stun
-	// when Element is Generic, and Element wins when infused.
-	int32 AttackBaseBuildup = 0;
-	if (Attack->StatusBuildup > 0)
-	{
-		AttackBaseBuildup = Attack->StatusBuildup;
-	}
-
-	// Commit 2: if bIsRawMode, fold AttackBaseBuildup into BaseDamage at the
-	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
-	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup);
-
-	int32 DamagePerHit = 0;
-	FinalizeDamageInputs(Attack, BaseDamage, Attack->HitCount, DamagePerHit);
-
-	OpenDefenseWindowsForTargets(
-		Attacker,
-		ValidTargets,
-		AttackSize,
-		BaseDamage,
-		DamagePerHit,
-		Attack->HitCount,
-		Element,
-		true,				   // Can crit
-		EActionType::Ability,  // ActionType (enum collapsed; dead fn, removed Cluster 4)
-		0,					   // InfusionLevel — attacks have no L1/L2 concept
-		Action.SelectedSource, // SelectedSource
-		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
-		AttackPhysicalType,	   // PhysicalDamageType (from active weapon) - drives trigger when Generic
-		0.3f,
-		Attack->DamageSplit.Num() > 0 ? Attack->DamageSplit[0].bOverrideStatScaling : false); // hybrid stat toggle
-
-	LogActionDispatch(EActionType::Ability, 0, BaseDamage, ValidTargets.Num());
-}
-
 // ========================================
 // EXECUTION - ITEM ASYNC
 // ========================================
@@ -1775,9 +1630,9 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 				{
 					EnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
 				}
-				else if (CurrentExecutionContext->Action.AbilityData)
+				else if (CurrentExecutionContext->Action.SkillData)
 				{
-					EnergyCost = CurrentExecutionContext->Action.AbilityData->BaseEnergyCost;
+					EnergyCost = CurrentExecutionContext->Action.SkillData->BaseEnergyCost;
 				}
 
 				BDManager->OnDefenseResolved(
@@ -4012,44 +3867,6 @@ void UActionExecutor::PlaySkillAnimation(AActor *User, USkillDataBase *Ability, 
 		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
 }
 
-// SUPERSEDED (Cluster 2): only the dead ExecuteAttackAsync calls this; ExecuteSkillAsync uses
-// PlaySkillAnimation. Kept so the dead path still compiles; removed in Cluster 4.
-void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
-{
-	if (!Attacker || !Attack)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - Invalid attacker or attack"));
-		return;
-	}
-
-	// D2 reader switch: SkillMontage is the unified field (PostLoad mirrored
-	// AttackMontage into it, so playback is byte-identical).
-	if (!Attack->SkillMontage)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - No montage on %s"),
-			   *Attack->Name);
-		return;
-	}
-
-	// Play rate = BaseAnimSpeed × GetEffectiveActionSpeed() (Pattern P, cluster 5g — stat ×1.5
-	// clamped ALONE, gear/stone/transient multiply toward the ×2.0 ceiling) × per-action ActionMods.
-	// Preserves designer-tuned per-attack pacing (BaseAnimSpeed) and ActionMods at the call site.
-	// TODO(docs/Design/RealTimeDefenseRework.md): ActionSpeed's COMBAT effect (shrinking the
-	// defender's reaction window) is still unwired — this speeds the attack animation only.
-	float PlayRate = Attack->BaseAnimSpeed;
-	if (UCharacterDataComponent *AttackerComp = GetCharacterDataComponent(Attacker))
-	{
-		PlayRate *= AttackerComp->GetEffectiveActionSpeed();
-	}
-	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
-	PlayRate = FMath::Max(0.1f, PlayRate);
-
-	BeginMontageChain(Attacker, Attack, PlayRate);
-
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
-		   *Attack->SkillMontage->GetName(), PlayRate);
-}
-
 // ========================================
 // DEBUG
 // ========================================
@@ -4431,9 +4248,12 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 			TriggerReason = FString::Printf(TEXT("L%d Infusion"), InfusionLevel);
 		}
 	}
-	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
+	// Attacks fold into Ability (attack/ability merge) but must NOT trigger the break roll — the rule
+	// above is "other action types don't trigger break". Gate them out with !IsAttack() so a basic
+	// attack falls to the else (no roll), exactly as it did when it was EActionType::Attack.
+	else if (Action.ActionType == EActionType::Ability && Action.SkillData && !Action.SkillData->IsAttack())
 	{
-		Tier = Action.AbilityData->Tier;
+		Tier = Action.SkillData->Tier;
 		InfusionLevel = Action.AbilityInfusionLevel;
 
 		// Ability rolls ONLY when all three hold: the ability is infused, the
@@ -4451,7 +4271,7 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 			return;
 		}
 
-		if (!UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
+		if (!UBrokenDarknessManager::DoesAbilityExceedRequirements(Cast<UAbilityData>(Action.SkillData), CharData))
 		{
 			return;
 		}

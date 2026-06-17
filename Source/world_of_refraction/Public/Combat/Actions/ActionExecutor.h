@@ -372,11 +372,6 @@ public:
 	 *  (BaseAnimSpeed + SkillMontage are uniform on USkillDataBase since D7.) */
 	virtual void PlaySkillAnimation(AActor *User, USkillDataBase *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
-	/** SUPERSEDED (Cluster 2) by PlaySkillAnimation; only the dead ExecuteAttackAsync still calls it.
-	 *  Removed in Cluster 4.
-	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution. */
-	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods = FActionStatModifiers());
-
 	// ========================================
 	// DEBUG
 	// ========================================
@@ -895,12 +890,6 @@ private:
 	 * the enum. Opens defense windows.
 	 */
 	void ExecuteSkillAsync(AActor *User, const FAction &Action, UCharacterData *UserData);
-
-	/**
-	 * SUPERSEDED (Cluster 2) by ExecuteSkillAsync; the dispatch no longer routes here. Dead, removed
-	 * in Cluster 4 (post-PIE).
-	 */
-	void ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData);
 
 	/** Execute item with animation - no movement required */
 	void ExecuteItemAsync(AActor *Actor, const FAction &Action, UCharacterData *CharData);

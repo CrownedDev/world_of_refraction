@@ -1643,21 +1643,19 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     {
     case EPieMenuCategory::Attack:
         Action.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
-        Action.AttackData = Cast<UWeaponAttackData>(DataRef);
-        if (!Action.AttackData)
+        Action.SkillData = Cast<UWeaponAttackData>(DataRef);
+        if (!Action.SkillData)
         {
-            // Attack main-menu button doesn't carry AttackData — pull from active weapon.
+            // Attack main-menu button doesn't carry data — pull the active weapon's attack.
             if (ULoadoutComponent *LC = GetLoadoutComponent())
             {
-                Action.AttackData = LC->GetCurrentAttack();
+                Action.SkillData = LC->GetCurrentAttack();
             }
         }
-        Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
         break;
     case EPieMenuCategory::Ability:
         Action.ActionType = EActionType::Ability;
-        Action.AbilityData = Cast<UAbilityData>(DataRef);
-        Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
+        Action.SkillData = Cast<UAbilityData>(DataRef);
         break;
     case EPieMenuCategory::Spell:
         Action.ActionType = EActionType::Spell;
