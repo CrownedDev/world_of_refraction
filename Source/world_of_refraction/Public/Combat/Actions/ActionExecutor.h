@@ -688,6 +688,12 @@ private:
 	/** Get ability charge energy cost multiplier (L1 = 1.0, L2 = 1.5) */
 	float GetAbilityChargeCostMultiplier(int32 Level) const;
 
+	/** Infused energy-cost multiplier package: the charge multiplier (x1.5/x2.0 at
+	 *  L1/L2, 1.0 at L0) times an upside-only stat surcharge (1 + max(0, stat-1)).
+	 *  Ability scales with RawDamage, spell with SpellDamage. Shared by the spell
+	 *  cost, ability spend, and ability preview so all three agree. */
+	float ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const;
+
 	/** Apply ability infusion status buildup to targets */
 	void ApplyAbilityInfusionStatus(
 		AActor *User,

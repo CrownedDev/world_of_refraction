@@ -310,8 +310,11 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			}
 
 			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
-			// Spell infusion: 1.0x / 1.3x / 1.6x cost
-			float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
+			// Spell infusion: charge multiplier (x1.5/x2.0 at L1/L2) x upside-only
+			// SpellDamage surcharge. This function is BOTH the spell preview AND the
+			// spell spend (ExecuteSpellAsync calls it), so preview == spend.
+			const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.SpellInfusionLevel, /*bIsSpell*/ true, Comp);
 			// Efficiency reduction — character substat + equipment BonusEfficiency.
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
@@ -321,13 +324,26 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	case EActionType::Ability:
 		// Cluster 3: covers attacks too (folded into Ability). Reads the merged pointer so a
 		// cost-bearing attack reports the same cost the merged dispatch spends; default attacks
-		// (BaseEnergyCost=0) report 0. Charge multiplier still applied at the spend site, not here.
+		// (BaseEnergyCost=0) report 0. Preview MUST match the spend (ExecuteAbilityAsync): apply
+		// the charge multiplier + RawDamage surcharge, and zero EP for crystal sources.
 		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
+			// Crystal-sourced abilities are powered by the crystal's charge, not EP.
+			const bool bCrystalSource =
+				Action.SelectedSource == EInfusionSourceOption::ActiveRing ||
+				Action.SelectedSource == EInfusionSourceOption::PrimaryRing ||
+				Action.SelectedSource == EInfusionSourceOption::WeaponCrystal;
+			if (bCrystalSource)
+			{
+				return 0;
+			}
+
 			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 			int32 BaseCost = Skill->CalculateEnergyCost(CharData, bIsInfused);
+			const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, Comp);
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
-			return FMath::RoundToInt(BaseCost * EfficiencyMult);
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
 		}
 		break;
 
@@ -1280,12 +1296,22 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsInfused);
 
-	// Apply charge level energy multiplier (L1 = 1.15x, L2 = 1.30x)
-	float CostMultiplier = GetAbilityChargeCostMultiplier(Action.AbilityInfusionLevel);
-	// Efficiency reduction — character substat + equipment BonusEfficiency.
-	// Mirrors CalculateActionEnergyCost so validation and spend agree.
-	const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
+	// Crystal-sourced abilities are powered by the crystal's stored charge, not the
+	// caster's EP — zero EP (they pay in durability via ApplyCommitCosts). Mirrors the
+	// ring/weapon-crystal spell waiver in CalculateActionEnergyCost.
+	int32 FinalEnergyCost = 0;
+	const bool bCrystalSource =
+		Action.SelectedSource == EInfusionSourceOption::ActiveRing ||
+		Action.SelectedSource == EInfusionSourceOption::PrimaryRing ||
+		Action.SelectedSource == EInfusionSourceOption::WeaponCrystal;
+	if (!bCrystalSource)
+	{
+		// Charge multiplier (x1.5/x2.0) x upside-only RawDamage surcharge (L>0), then
+		// efficiency. Mirrors CalculateActionEnergyCost so validation and spend agree.
+		const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, UserComp);
+		const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
+		FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
+	}
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
@@ -4411,6 +4437,32 @@ float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
 	default:
 		return 1.0f;
 	}
+}
+
+float UActionExecutor::ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const
+{
+	if (Level <= 0)
+	{
+		// Uninfused: no charge multiplier, no surcharge — caller pays BaseCost * Efficiency.
+		return 1.0f;
+	}
+
+	const float ChargeMult = bIsSpell
+								  ? GetSpellInfusionCostMultiplier(Level)
+								  : GetAbilityChargeCostMultiplier(Level);
+
+	// Stat surcharge — UPSIDE-ONLY (a below-neutral stat never reduces the cost).
+	// Ability scales with RawDamage, spell with SpellDamage. Stacking the stat makes
+	// infusion cost MORE in BOTH directions (damage AND cost) — self-balancing.
+	float StatFraction = 0.0f;
+	if (Comp)
+	{
+		const float Stat = bIsSpell ? Comp->GetEffectiveStats().SpellDamage
+									 : Comp->GetEffectiveRawDamage();
+		StatFraction = FMath::Max(0.0f, Stat - 1.0f);
+	}
+
+	return ChargeMult * (1.0f + StatFraction);
 }
 
 void UActionExecutor::ApplyAbilityInfusionStatus(
