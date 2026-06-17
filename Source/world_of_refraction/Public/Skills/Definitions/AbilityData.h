@@ -44,15 +44,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     bool bRequiresDualWeapon = false;
 
+    /** Marks a basic weapon attack (vs a slottable ability). A bIsAttack asset cannot be slotted as an
+     *  ability. The only attack-vs-ability distinction post-merge. Default false → existing abilities stay
+     *  abilities; attacks reparented to UAbilityData (step 5) author true. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+    bool bIsAttack = false;
+
     // ==================== EXECUTION ====================
     // ExecutionType hoisted to UCastableSkillDataBase (D3 descriptive tag).
-
-    // --- Melee Only ---
-
-    /** Distance from target to stop and execute ability (Melee only) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Melee",
-              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Melee", EditConditionHides, ClampMin = "0.0"))
-    float ExecutionRange = 150.0f;
+    // ExecutionRange hoisted to USkillDataBase (root) at step 2 of the attack/ability
+    // merge — default reconciled 150→100. Authored values load onto the inherited field
+    // (serialize-by-name); the Melee gate now lives in GetExecutionRange logic, not an
+    // editor EditCondition (the root can't reference the derived ExecutionType field).
 
     // ==================== VISUALS ====================
 

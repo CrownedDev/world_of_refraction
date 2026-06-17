@@ -4704,7 +4704,14 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 		return 0.0f; // Non-melee abilities don't approach
 
 	case EActionType::Spell:
-		return 0.0f; // Spells are always ranged, no approach
+		// Melee spells warp like melee abilities; ranged spells don't approach.
+		// (USpellData has no IsMelee() helper — gate on ExecutionType directly; the
+		//  field lives on UCastableSkillDataBase, which spells inherit.)
+		if (Action.SpellData && Action.SpellData->ExecutionType == EAbilityExecutionType::Melee)
+		{
+			return Action.SpellData->ExecutionRange;
+		}
+		return 0.0f; // ranged spells don't approach
 
 	default:
 		return 0.0f;

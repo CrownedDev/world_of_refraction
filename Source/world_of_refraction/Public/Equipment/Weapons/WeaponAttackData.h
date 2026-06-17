@@ -6,7 +6,6 @@
 #include "CoreMinimal.h"
 #include "Skills/Definitions/CastableSkillDataBase.h"
 #include "Animation/AnimMontage.h"
-#include "Engine/Texture2D.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 
 #if WITH_EDITOR
@@ -41,16 +40,9 @@ public:
     // BaseAnimSpeed hoisted to UCastableSkillDataBase (D7) — same name/default/
     // clamp, authored values load onto the inherited field (serialize-by-name).
 
-    // ==================== MOVEMENT ====================
-
-    /** Distance from target to stop and execute — the warp striking offset (units) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Movement", meta = (ClampMin = "0.0"))
-    float ExecutionRange = 100.0f;
-
-    // ==================== PRESENTATION ====================
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
-    UTexture2D *Icon = nullptr;
+    // ExecutionRange hoisted to USkillDataBase (root) + Icon hoisted to USkillDataBase
+    // (step 2, attack/ability merge) — same name/type, authored values load onto the
+    // inherited fields (serialize-by-name). ExecutionRange default reconciled 100→100.
 
     // ==================== UTILITY FUNCTIONS ====================
 

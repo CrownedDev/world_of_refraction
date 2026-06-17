@@ -16,6 +16,8 @@
 
 #include "SkillDataBase.generated.h"
 
+class UTexture2D;
+
 /**
  * One authored per-hit damage exception (D1). HitNumber is 1-based.
  * Hits without an entry share the remaining percent evenly.
@@ -108,6 +110,23 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
     FString Description = TEXT("");
+
+    // ==================== PRESENTATION ====================
+
+    /** Display icon for UI (slot bars, menus). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Presentation")
+    TObjectPtr<UTexture2D> Icon = nullptr;
+
+    // ==================== EXECUTION ====================
+
+    /** Melee warp-in stop distance: how far short of the target the motion-warp stops for a melee strike.
+     *  Only consumed by montages with a Motion Warping window (displaced/lunge attacks); in-place content
+     *  ignores it. Meaningful only for melee execution (see GetExecutionRange's IsMelee gate). Hoisted from
+     *  UWeaponAttackData (100) + UAbilityData (150) to the root at step 2 of the attack/ability merge;
+     *  reconciled default 100. The Melee gating lives in GetExecutionRange logic — the root can't carry an
+     *  EditCondition referencing ExecutionType (that field is on the derived UCastableSkillDataBase). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execution", meta = (ClampMin = "0.0"))
+    float ExecutionRange = 100.0f;
 
     // ==================== COMBAT ====================
 
