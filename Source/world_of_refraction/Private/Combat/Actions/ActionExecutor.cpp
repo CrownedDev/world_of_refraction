@@ -11,7 +11,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellSource.h"
 #include "Combat/Actions/ActionUtils.h"
 #include "Combat/CombatConstants.h"

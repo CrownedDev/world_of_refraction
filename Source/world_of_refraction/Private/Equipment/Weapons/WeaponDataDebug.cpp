@@ -5,7 +5,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/StanceData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 
 void UWeaponDataDebug::LogWeaponStats(UWeaponData *Weapon)
 {

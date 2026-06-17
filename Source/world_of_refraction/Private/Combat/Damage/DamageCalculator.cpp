@@ -5,7 +5,7 @@
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"

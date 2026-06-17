@@ -13,7 +13,7 @@
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"

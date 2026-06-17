@@ -4,7 +4,6 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Character/StanceData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "GameFramework/Character.h"
 

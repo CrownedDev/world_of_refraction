@@ -5,7 +5,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Combat/Actions/ActionStructs.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Effects/SkillEffectManager.h"

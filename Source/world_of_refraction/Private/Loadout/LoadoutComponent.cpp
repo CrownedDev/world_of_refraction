@@ -22,7 +22,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/Engine.h"
 
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 
 ULoadoutComponent::ULoadoutComponent()
 {

@@ -8,7 +8,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -202,7 +202,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         // === IMMEDIATE ACTIONS ===
     case EPieMenuCategory::Attack:
     {
-        USkillDataBase *Attack = Cast<UWeaponAttackData>(ButtonData.DataReference);
+        USkillDataBase *Attack = Cast<USkillDataBase>(ButtonData.DataReference);
         if (!Attack)
         {
             if (ULoadoutComponent *LC = GetLoadoutComponent())
@@ -1643,7 +1643,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     {
     case EPieMenuCategory::Attack:
         Action.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
-        Action.SkillData = Cast<UWeaponAttackData>(DataRef);
+        Action.SkillData = Cast<USkillDataBase>(DataRef);
         if (!Action.SkillData)
         {
             // Attack main-menu button doesn't carry data — pull the active weapon's attack.
