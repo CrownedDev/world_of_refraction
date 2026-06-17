@@ -6,16 +6,10 @@
 namespace InfusionConstants
 {
 
-	// ==================== CHARGE HP COSTS (NEW) ====================
-	// HP cost deducted on charge START (committed cost)
-	// Applies to both Spell and Ability charge infusion
-	// Uses CURRENT HP, not max HP
-
-	/** L1 Charge: HP cost as percent of current HP (5%) */
-	constexpr float CHARGE_L1_HP_COST_PERCENT = 0.05f;
-
-	/** L2 Charge: HP cost as percent of current HP (10%) */
-	constexpr float CHARGE_L2_HP_COST_PERCENT = 0.10f;
+	// ==================== CHARGE HP COSTS ====================
+	// RETIRED (rework 6-2-3): the flat 5%/10%-of-current-HP charge cost is replaced
+	// by an EP-derived basis — HP = (pre-Efficiency infused EP / MaxEP) × MaxHP ×
+	// (1 − Resistance), computed in UInfusionCostHelper::CalculateHPCost.
 
 	// ==================== CHARGE EFFECT MULTIPLIERS (NEW) ====================
 	// Exclusive bonuses - L1 OR L2, not both

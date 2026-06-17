@@ -29,36 +29,37 @@ class WORLD_OF_REFRACTION_API UInfusionCostHelper : public UBlueprintFunctionLib
 
 public:
     /**
-     * HP integer that would be deducted at the given infusion level.
-     * Computed as a percent of the actor's CURRENT HP (not max HP) — matches
-     * the original DeductHPCost formula.
+     * HP integer that would be deducted for an infused action (rework 6-2-3c).
+     * Derived from the infused EP cost: (InfusedEnergyCost / MaxEP) × MaxHP, then
+     * reduced by Resistance. InfusedEnergyCost MUST be the PRE-Efficiency, stat-
+     * scaled EP (Base × charge-mult × (1 + stat surcharge), WITHOUT the Efficiency
+     * multiplier) so Efficiency mitigates EP only and Resistance mitigates HP only.
      *
-     * NOT floored — infusion CAN kill the caster (design changed). The full cost
-     * is returned here and deducted at FinalizeAsyncAction (after the infused
-     * effect resolves). Use WouldKill to check whether the cost is lethal and
-     * require the kill confirmation modal (Phase 5) before committing.
+     * NOT floored — infusion CAN kill the caster. The full cost is returned here and
+     * deducted at FinalizeAsyncAction (after the infused effect resolves). Use
+     * WouldKill to check whether the cost is lethal and require the kill-confirmation
+     * modal before committing.
      *
-     * @param Actor  Actor that would pay the cost. Must have UCharacterDataComponent.
-     * @param Level  Infusion level (0/1/2). Level 0 returns 0.
-     * @return       HP integer to deduct. 0 if Actor or its CharacterDataComponent is null.
+     * @param Actor             Actor that would pay the cost. Must have UCharacterDataComponent.
+     * @param InfusedEnergyCost Pre-Efficiency stat-scaled infused EP. <= 0 returns 0.
+     * @return                  HP integer to deduct. 0 if Actor/component null or MaxEP <= 0.
      */
     UFUNCTION(BlueprintPure, Category = "Infusion|Cost")
-    static int32 CalculateHPCost(AActor *Actor, int32 Level);
+    static int32 CalculateHPCost(AActor *Actor, int32 InfusedEnergyCost);
 
     /**
-     * Would applying the HP cost at this level reduce the actor's HP to 0 or below?
+     * Would the EP-derived HP cost reduce the actor's CURRENT HP to 0 or below?
      *
-     * CalculateHPCost is no longer floored, so a cost reported here as lethal WILL
-     * kill the caster (at finalize). This function reports that threat up-front —
-     * i.e. "this cost is large enough that we should warn the player." Used by the
-     * HP-kill confirmation modal in Phase 5.
+     * Uses the SAME unrounded basis as CalculateHPCost (so it cannot mis-predict the
+     * kill). CalculateHPCost is not floored, so a cost reported lethal here WILL kill
+     * the caster at finalize. Used by the HP-kill confirmation modal.
      *
-     * @param Actor  Actor that would pay the cost.
-     * @param Level  Infusion level (0/1/2).
-     * @return       True if the unrounded cost would reduce HP to <= 0.
+     * @param Actor             Actor that would pay the cost.
+     * @param InfusedEnergyCost Pre-Efficiency stat-scaled infused EP (same as CalculateHPCost).
+     * @return                  True if the unrounded cost would reduce CURRENT HP to <= 0.
      */
     UFUNCTION(BlueprintPure, Category = "Infusion|Cost")
-    static bool WouldKill(AActor *Actor, int32 Level);
+    static bool WouldKill(AActor *Actor, int32 InfusedEnergyCost);
 
     /**
      * Durability wear that would be applied to a crystal for an infused action.

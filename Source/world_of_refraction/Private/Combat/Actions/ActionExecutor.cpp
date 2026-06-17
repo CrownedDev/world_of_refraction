@@ -5918,6 +5918,32 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		return;
 	}
 
+	// HP basis (rework 6-2-3c): the PRE-Efficiency, stat-scaled infused EP cost.
+	// Source-independent — it's what this infused action's EP costs before the
+	// Efficiency reduction. The HP-paying branches (Raw/Innate/Evolution) feed this
+	// to CalculateHPCost, which converts it to HP (% of MaxEP -> % of MaxHP) and
+	// applies Resistance. Crystal sources pay durability, not HP, so they ignore it.
+	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
+	UCharacterData *CommitCharData = GetCharacterData(Actor);
+	const UCharacterDataComponent *CommitComp = GetCharacterDataComponent(Actor);
+	int32 PreEffInfusedEP = 0;
+	{
+		int32 BaseCost = 0;
+		if (bIsSpellAction)
+		{
+			if (Action.SpellData)
+			{
+				BaseCost = Action.SpellData->CalculateEnergyCost(CommitCharData);
+			}
+		}
+		else if (USkillDataBase *Skill = ResolveActionSkill(Action))
+		{
+			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
+			BaseCost = Skill->CalculateEnergyCost(CommitCharData, bIsInfused);
+		}
+		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp));
+	}
+
 	// Route by source
 	switch (Action.SelectedSource)
 	{
@@ -5936,7 +5962,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		// after the infused effect resolves so a lethal cost lands post-action.
 		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 		}
 		break;
 
@@ -6144,7 +6170,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		//    PendingInfusionHPCost so a lethal backlash lands after the action.
 		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 		}
 
 		// 3. Self-status build (logged intent, not yet applied — pending element-to-status mapping)

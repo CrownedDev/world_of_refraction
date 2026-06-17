@@ -8,61 +8,59 @@
 
 namespace
 {
-    /** Map a level (0/1/2) to its HP cost percent. Anything outside the range returns 0. */
-    float GetHPCostPercentForLevel(int32 Level)
+    /** Unrounded EP-derived infusion HP cost (rework 6-2-3c). The infused EP cost as a
+     *  fraction of max EP, applied to max HP, then reduced by Resistance — the sole HP
+     *  mitigation (Efficiency is already excluded because InfusedEnergyCost is PRE-
+     *  Efficiency). Returns 0 when the component is null, has no EP pool, or the cost
+     *  is non-positive. Shared by CalculateHPCost (rounds it) and WouldKill (compares). */
+    float ComputeRawInfusionHPCost(const UCharacterDataComponent *CharComp, int32 InfusedEnergyCost)
     {
-        switch (Level)
+        if (!CharComp || InfusedEnergyCost <= 0 || CharComp->MaxEP <= 0)
         {
-        case 1:
-            return InfusionConstants::CHARGE_L1_HP_COST_PERCENT;
-        case 2:
-            return InfusionConstants::CHARGE_L2_HP_COST_PERCENT;
-        default:
             return 0.0f;
         }
+
+        const float EPFraction = static_cast<float>(InfusedEnergyCost) / static_cast<float>(CharComp->MaxEP);
+        const float BaseHP = EPFraction * static_cast<float>(CharComp->MaxHP);
+
+        // Resistance reduces the HP cost. Max(0, ...) guards against inversion (a
+        // resistance >= 1 zeroes the cost rather than healing); a negative ("cursed")
+        // resistance amplifies it, matching how negative stats behave elsewhere.
+        const float ResistanceFraction = CharComp->GetEffectiveStats().Resistance;
+        return BaseHP * FMath::Max(0.0f, 1.0f - ResistanceFraction);
     }
 }
 
-int32 UInfusionCostHelper::CalculateHPCost(AActor *Actor, int32 Level)
+int32 UInfusionCostHelper::CalculateHPCost(AActor *Actor, int32 InfusedEnergyCost)
 {
-    if (!Actor || Level <= 0)
+    if (!Actor || InfusedEnergyCost <= 0)
     {
         return 0;
     }
 
-    UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
-    if (!CharComp)
-    {
-        return 0;
-    }
+    const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 
-    const float CostPercent = GetHPCostPercentForLevel(Level);
-    const float RawCost = CharComp->CurrentHP * CostPercent;
-
-    // Design changed: infusion CAN kill the caster (1-HP floor removed). The full
-    // cost is deducted at FinalizeAsyncAction — AFTER the infused effect resolves —
-    // so a lethal cost lands only once the action has fired.
-    return FMath::RoundToInt(RawCost);
+    // NOT floored — infusion CAN kill the caster. The full cost is deducted at
+    // FinalizeAsyncAction (AFTER the infused effect resolves), so a lethal cost
+    // lands only once the action has fired.
+    return FMath::RoundToInt(ComputeRawInfusionHPCost(CharComp, InfusedEnergyCost));
 }
 
-bool UInfusionCostHelper::WouldKill(AActor *Actor, int32 Level)
+bool UInfusionCostHelper::WouldKill(AActor *Actor, int32 InfusedEnergyCost)
 {
-    if (!Actor || Level <= 0)
+    if (!Actor || InfusedEnergyCost <= 0)
     {
         return false;
     }
 
-    UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+    const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
     if (!CharComp)
     {
         return false;
     }
 
-    // Unrounded check — reports the underlying threat regardless of the 1-HP floor
-    // applied in CalculateHPCost. Used by the HP-kill confirmation modal (Phase 5).
-    const float CostPercent = GetHPCostPercentForLevel(Level);
-    const float RawCost = CharComp->CurrentHP * CostPercent;
-    return RawCost >= static_cast<float>(CharComp->CurrentHP);
+    // Same unrounded basis as CalculateHPCost — would the cost reduce CURRENT HP to <= 0?
+    return ComputeRawInfusionHPCost(CharComp, InfusedEnergyCost) >= static_cast<float>(CharComp->CurrentHP);
 }
 
 int32 UInfusionCostHelper::CalculateDurabilityCost(
