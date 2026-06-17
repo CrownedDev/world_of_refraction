@@ -1652,10 +1652,12 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
                 Action.AttackData = LC->GetCurrentAttack();
             }
         }
+        Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
         break;
     case EPieMenuCategory::Ability:
         Action.ActionType = EActionType::Ability;
         Action.AbilityData = Cast<UAbilityData>(DataRef);
+        Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
         break;
     case EPieMenuCategory::Spell:
         Action.ActionType = EActionType::Spell;

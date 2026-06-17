@@ -367,15 +367,14 @@ public:
 	/** Called when spell VFX should spawn. Override or bind OnActionStarted for custom handling. */
 	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage = 0);
 
-	/** Called when ability animation should play.
+	/** Merged skill-animation play (Cluster 2): takes the unified base pointer (attacks + abilities).
 	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	 *  (CalculateAnimationSpeed derives from the ActionSpeed sub-stat; BaseAnimSpeed is
-	 *  uniform across all three paths since D7.) */
-	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
+	 *  (BaseAnimSpeed + SkillMontage are uniform on USkillDataBase since D7.) */
+	virtual void PlaySkillAnimation(AActor *User, USkillDataBase *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
-	/** Called when attack animation should play.
-	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	 *  Preserves designer-tuned per-attack pacing; layers stat scaling on top. */
+	/** SUPERSEDED (Cluster 2) by PlaySkillAnimation; only the dead ExecuteAttackAsync still calls it.
+	 *  Removed in Cluster 4.
+	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution. */
 	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
 	// ========================================
@@ -890,12 +889,16 @@ private:
 	void ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData);
 
 	/**
-	 * Execute ability action asynchronously (opens defense windows)
+	 * Merged attack+ability async dispatch (Cluster 2). Reads the unified skill pointer
+	 * (ResolveActionSkill); an attack is an ability with AbilityInfusionLevel=0 (charge multipliers
+	 * L0-neutral). Routed from both the Ability and Attack switch labels until Cluster 3 collapses
+	 * the enum. Opens defense windows.
 	 */
-	void ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData);
+	void ExecuteSkillAsync(AActor *User, const FAction &Action, UCharacterData *UserData);
 
 	/**
-	 * Execute attack action asynchronously (opens defense windows)
+	 * SUPERSEDED (Cluster 2) by ExecuteSkillAsync; the dispatch no longer routes here. Dead, removed
+	 * in Cluster 4 (post-PIE).
 	 */
 	void ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData);
 

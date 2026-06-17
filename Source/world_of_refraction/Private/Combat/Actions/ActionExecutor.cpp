@@ -61,6 +61,24 @@ class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
 
+// Resolve the unified skill pointer for an attack/ability action. Prefers the merged
+// FAction.SkillData (added Cluster 1); falls back to the legacy AbilityData/AttackData pointers so a
+// construction site that hasn't populated SkillData yet still resolves correctly — the live read path
+// can never go null while the legacy pointers are still set. Cluster 4 removes the legacy pair and
+// this collapses to `return Action.SkillData`. Spells keep their own SpellData pointer (separate path).
+static USkillDataBase *ResolveActionSkill(const FAction &Action)
+{
+	if (Action.SkillData)
+	{
+		return Action.SkillData;
+	}
+	if (Action.AbilityData)
+	{
+		return Action.AbilityData;
+	}
+	return Action.AttackData;
+}
+
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
 	Super::Initialize(Collection);
@@ -548,6 +566,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 		if (UWeaponManager *WeaponMgr = GetWeaponManager())
 		{
 			ArmedAction.AttackData = WeaponMgr->GetActiveAttack(Actor);
+			ArmedAction.SkillData = ArmedAction.AttackData; // Cluster 2: mirror onto merged pointer
 		}
 	}
 
@@ -1277,9 +1296,26 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
-void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
+void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
 {
-	UAbilityData *Ability = Action.AbilityData;
+	// Merged attack+ability dispatch (Cluster 2). Reads the unified skill pointer (base type). An
+	// attack is just an ability with AbilityInfusionLevel=0 — every charge multiplier is L0-neutral
+	// (cost ×1.0, damage ×1.0, status 0), so this body produces the attack's prior numbers. The local
+	// stays named `Ability`: every field it touches (BaseDamage/HitCount/StatusBuildup/bIsRawMode/
+	// DamageSplit/bImmuneToInfusion, CalculateDamage/CalculateEnergyCost) lives on USkillDataBase now.
+	USkillDataBase *Ability = ResolveActionSkill(Action);
+
+	// Weapon-default attack: a basic-attack action may carry no explicit skill (player Attack button /
+	// AI default). Resolve from the active weapon, gated on the Attack type (the enum still
+	// distinguishes this cluster; Cluster 3 folds it). A data-less ability stays broken → cancel.
+	if (!Ability && Action.ActionType == EActionType::Attack)
+	{
+		if (UWeaponManager *WeaponMgr = GetWeaponManager())
+		{
+			Ability = WeaponMgr->GetActiveAttack(User);
+		}
+	}
+
 	if (!Ability || !UserData)
 	{
 		CancelAsyncAction();
@@ -1369,8 +1405,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		return;
 	}
 
-	// Play animation
-	PlayAbilityAnimation(User, Ability, ActionMods);
+	// Play animation (merged path — PlaySkillAnimation reads the unified base SkillMontage)
+	PlaySkillAnimation(User, Ability, ActionMods);
 
 	// Apply charge infusion status buildup (L1 = 1.25x, L2 = 0 — exclusive with damage)
 	float StatusMultiplier = GetAbilityChargeStatusMultiplier(Action.AbilityInfusionLevel);
@@ -1431,7 +1467,7 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		Ability->HitCount,
 		AbilityElement,
 		true,						 // Can crit
-		EActionType::Ability,		 // ActionType
+		Action.ActionType,			 // ActionType (Attack/Ability both scale RawDamage)
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
@@ -1439,9 +1475,12 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		0.3f,
 		Ability->DamageSplit.Num() > 0 ? Ability->DamageSplit[0].bOverrideStatScaling : false); // hybrid stat toggle
 
-	LogActionDispatch(EActionType::Ability, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
+	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
+// SUPERSEDED (Cluster 2): attack dispatch now flows through ExecuteSkillAsync; the dispatch switch no
+// longer routes here, so this function is dead. Kept temporarily (CLAUDE.md: remove old paths only after
+// PIE proves the new one) and deleted in Cluster 4 together with PlayAttackAnimation.
 void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
 {
 	UWeaponAttackData *Attack = Action.AttackData;
@@ -3996,7 +4035,10 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 	}
 }
 
-void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods)
+// Merged skill-animation play (Cluster 2): takes the unified base pointer. Reads SkillMontage /
+// BaseAnimSpeed / Name (all on USkillDataBase) and BeginMontageChain (takes USkillDataBase*), so it
+// serves attacks and abilities alike. (Log text still says "ability" — cosmetic, harmless.)
+void UActionExecutor::PlaySkillAnimation(AActor *User, USkillDataBase *Ability, const FActionStatModifiers &ActionMods)
 {
 	if (!User || !Ability)
 	{
@@ -4032,6 +4074,8 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
 }
 
+// SUPERSEDED (Cluster 2): only the dead ExecuteAttackAsync calls this; ExecuteSkillAsync uses
+// PlaySkillAnimation. Kept so the dead path still compiles; removed in Cluster 4.
 void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
 {
 	if (!Attacker || !Attack)
@@ -4693,15 +4737,19 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 	switch (Action.ActionType)
 	{
 	case EActionType::Attack:
-		return Action.AttackData ? Action.AttackData->ExecutionRange : 100.0f;
-
 	case EActionType::Ability:
-		// Only return execution range for Melee abilities
-		if (Action.AbilityData && Action.AbilityData->IsMelee())
+		// Merged (Cluster 2): melee skills warp to ExecutionRange; ranged don't approach. Reads the
+		// unified pointer; the gate is on ExecutionType (on USkillDataBase — IsMelee() is ability-only).
+		// The old Attack path's unconditional read + 100.0f null-fallback is dropped: attacks default
+		// ExecutionType=Melee (so melee attacks are unchanged) and always resolve a skill by dispatch.
+		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
-			return Action.AbilityData->ExecutionRange;
+			if (Skill->ExecutionType == EAbilityExecutionType::Melee)
+			{
+				return Skill->ExecutionRange;
+			}
 		}
-		return 0.0f; // Non-melee abilities don't approach
+		return 0.0f;
 
 	case EActionType::Spell:
 		// Melee spells warp like melee abilities; ranged spells don't approach.
@@ -4798,10 +4846,10 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		ExecuteSpellAsync(Actor, Action, CharData);
 		break;
 	case EActionType::Ability:
-		ExecuteAbilityAsync(Actor, Action, CharData);
-		break;
 	case EActionType::Attack:
-		ExecuteAttackAsync(Actor, Action, CharData);
+		// Merged dispatch (Cluster 2): both route to ExecuteSkillAsync, which reads the unified skill
+		// pointer (ResolveActionSkill). The case labels stay split until Cluster 3 collapses the enum.
+		ExecuteSkillAsync(Actor, Action, CharData);
 		break;
 	default:
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in BeginSkillExecution"));
@@ -5423,9 +5471,8 @@ USkillDataBase *UActionExecutor::GetCurrentSkillData() const
 	case EActionType::Spell:
 		return Action.SpellData;
 	case EActionType::Ability:
-		return Action.AbilityData;
 	case EActionType::Attack:
-		return Action.AttackData;
+		return ResolveActionSkill(Action);
 	default:
 		return nullptr;
 	}

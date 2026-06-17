@@ -1623,6 +1623,7 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 		if (ActiveWeapon && ActiveWeapon->WeaponAttack)
 		{
 			AttackAction.AttackData = ActiveWeapon->WeaponAttack;
+			AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
 				   *ActiveWeapon->WeaponAttack->Name, *ActiveWeapon->Name);
 		}
@@ -1685,6 +1686,7 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 		if (AvailableAbilities.Num() > 0)
 		{
 			AbilityAction.AbilityData = AvailableAbilities[0];
+			AbilityAction.SkillData = AbilityAction.AbilityData; // Cluster 2: mirror onto merged pointer
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] Using ability: %s"),
 				   *AbilityAction.AbilityData->Name);
 		}
@@ -2055,6 +2057,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 	FAction AttackAction;
 	AttackAction.ActionType = EActionType::Attack;
 	AttackAction.AttackData = AttackData;
+	AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
 	AttackAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAttack] %s attacking %s with %s"),
@@ -2301,6 +2304,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 	FAction AbilityAction;
 	AbilityAction.ActionType = EActionType::Ability;
 	AbilityAction.AbilityData = AbilityData;
+	AbilityAction.SkillData = AbilityAction.AbilityData; // Cluster 2: mirror onto merged pointer
 	AbilityAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAbility] %s using %s on %s"),
@@ -2550,6 +2554,7 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 		if (Attacks.Num() > 0)
 		{
 			AttackAction.AttackData = Attacks[0];
+			AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
 		}
 	}
 

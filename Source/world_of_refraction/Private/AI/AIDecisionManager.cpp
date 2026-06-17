@@ -213,12 +213,14 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
             if (Abilities.Num() > 0)
             {
                 Action.AbilityData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
+                Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
             }
             break;
         }
         case EActionType::Attack:
         {
             Action.AttackData = Loadout->GetCurrentAttack();
+            Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
             break;
         }
         default:
@@ -763,6 +765,7 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     FAction Action;
     Action.ActionType = EActionType::Ability;
     Action.AbilityData = Ability;
+    Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
     Action.AbilityInfusionLevel = InfusionLevel;
     Action.Targets.Add(Target);
 
@@ -914,6 +917,7 @@ bool UAIDecisionManager::CanAffordAbility(AActor *Actor, UAbilityData *Ability, 
     FAction Probe;
     Probe.ActionType = EActionType::Ability;
     Probe.AbilityData = Ability;
+    Probe.SkillData = Probe.AbilityData; // Cluster 2: mirror onto merged pointer
     Probe.AbilityInfusionLevel = InfusionLevel;
 
     const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, Probe);
@@ -1389,6 +1393,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                         FAction CostProbe;
                         CostProbe.ActionType = EActionType::Ability;
                         CostProbe.AbilityData = Ability;
+                        CostProbe.SkillData = CostProbe.AbilityData; // Cluster 2: mirror onto merged pointer
                         UnaffordableBestCost = Exec->CalculateActionEnergyCost(AIActor, CostProbe);
                     }
                 }
@@ -1506,6 +1511,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
 
         Action.AttackData = BestAttack;
+        Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
         break;
     }
     case EActionType::Spell:
@@ -1587,6 +1593,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
 
         Action.AbilityData = BestAbility;
+        Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
 
         // Decide infusion, then drop to L0 if the infused cost is unaffordable.
         int32 AbilityInfusion = DecideAbilityInfusionLevel(AIActor, Action.Targets[0], BestAbility);
