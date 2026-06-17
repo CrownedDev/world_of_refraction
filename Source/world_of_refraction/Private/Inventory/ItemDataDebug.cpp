@@ -625,8 +625,8 @@ void UItemDataDebug::LogCrystalDurability(const UEvolutionItemData *Item)
     // Live per-instance state lives on the runtime attachment
     // (FRuntimeAttachedItem) — query the actor's LoadoutComponent for that.
     UE_LOG(LogTemp, Display, TEXT("Max Durability: %d"), Item->MaxDurability);
-    UE_LOG(LogTemp, Display, TEXT("Can break: %s"),
-           Item->bCanBreak ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Display, TEXT("Breakability: %s"),
+           *GetBreakabilityString(Item->Breakability));
     UE_LOG(LogTemp, Display, TEXT(""));
 }
 
@@ -649,10 +649,7 @@ FString UItemDataDebug::GetDurabilityString(const UEvolutionItemData *Item)
                                     *Item->GetFullItemName(),
                                     Item->MaxDurability);
 
-    if (!Item->bCanBreak)
-    {
-        State += TEXT(" [Immune]");
-    }
+    State += FString::Printf(TEXT(" [%s]"), *GetBreakabilityString(Item->Breakability));
 
     return State;
 }

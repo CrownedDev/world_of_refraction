@@ -474,11 +474,11 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
                               *ItemIdentity::GetDisplayName(Attachment->Fusion.Id.HalfB))
             : ItemIdentity::GetDisplayName(Attachment->Crystal.Id);
 
-    // Evolution: bCanBreak is what the refactor flipped. Fusion: only elemental
+    // Evolution: Breakability is the 3-state gate. Fusion: only elemental
     // (gem half) fusions wear. Refined branch is always wearable (no gate).
     const FString CanBreakStr = bIsEvolutionBranch
                                     ? (Attachment->Evolution.Item
-                                           ? (Attachment->Evolution.Item->bCanBreak ? TEXT("true") : TEXT("false"))
+                                           ? GetBreakabilityString(Attachment->Evolution.Item->Breakability)
                                            : TEXT("(null item)"))
                                 : bIsFusionBranch
                                     ? (Attachment->Fusion.HasGemHalf() ? TEXT("elemental — wears") : TEXT("augmented — never wears"))
@@ -489,7 +489,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     const bool bBeforeBroken = Attachment->IsBroken();
 
     UE_LOG(LogTemp, Display,
-           TEXT("[Debug.ForceWearActiveCrystal] BEFORE — Actor=%s, Branch=%s, Crystal='%s', bCanBreak=%s, Durability=%d/%d, IsBroken=%d, Amount=%d"),
+           TEXT("[Debug.ForceWearActiveCrystal] BEFORE — Actor=%s, Branch=%s, Crystal='%s', Breakability=%s, Durability=%d/%d, IsBroken=%d, Amount=%d"),
            *Actor->GetName(), BranchLabel, *CrystalName, *CanBreakStr,
            BeforeDur, MaxDur, bBeforeBroken ? 1 : 0, Amount);
 
@@ -508,7 +508,7 @@ void UCrystalManager::DebugForceWearActiveCrystal(int32 Amount)
     if (bIsEvolutionBranch && !bWearApplied && !bBeforeBroken)
     {
         UE_LOG(LogTemp, Display,
-               TEXT("[Debug.ForceWearActiveCrystal] Evolution wear was a no-op — expected when bCanBreak=false on '%s'."),
+               TEXT("[Debug.ForceWearActiveCrystal] Evolution wear was a no-op — expected when Breakability blocks it (BDBreakable without force, or Unbreakable) on '%s'."),
                *CrystalName);
     }
 }
@@ -722,12 +722,12 @@ void UCrystalManager::WOR_CrystalState()
                                 : TierHelpers::GetTierName(Attachment->Crystal.Id.Tier);
     const FString CanBreakStr = bEvolution
                                     ? (Attachment->Evolution.Item
-                                           ? (Attachment->Evolution.Item->bCanBreak ? TEXT("true") : TEXT("false"))
+                                           ? GetBreakabilityString(Attachment->Evolution.Item->Breakability)
                                            : TEXT("(null item)"))
-                                    : TEXT("true (refined — always wearable)");
+                                    : TEXT("refined — always wearable");
 
     UE_LOG(LogTemp, Display,
-           TEXT("[WOR_CrystalState] Actor=%s, Type=%s, Name='%s', Tier=%s, bCanBreak=%s, Durability=%d/%d, IsBroken=%d"),
+           TEXT("[WOR_CrystalState] Actor=%s, Type=%s, Name='%s', Tier=%s, Breakability=%s, Durability=%d/%d, IsBroken=%d"),
            *Actor->GetName(), TypeStr, *Name, *TierStr, *CanBreakStr,
            Attachment->GetCurrentDurability(), Attachment->GetMaxDurability(),
            Attachment->IsBroken() ? 1 : 0);
