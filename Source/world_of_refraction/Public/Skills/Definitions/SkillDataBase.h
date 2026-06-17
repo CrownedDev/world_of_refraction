@@ -51,12 +51,6 @@ struct WORLD_OF_REFRACTION_API FDamageSplitEntry
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Split")
     FDefenseDifficultyTriple Difficulty;
 
-    /** If true, this component scales with the OPPOSITE stat to its action type — a physical hit scales
-     *  with SpellDamage instead of RawDamage (a "fire punch" that scales off Spell). Default false =
-     *  natural scaling (physical -> RawDamage). Stat-only: changes which stat scales, nothing else. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
-    bool bOverrideStatScaling = false;
-
     /** This hit deals no damage (a pure interaction moment — e.g. a grab-connect). The defense window
      *  still opens (defendable/interruptable); only damage is suppressed. Default false. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Hit")
@@ -209,6 +203,13 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseDamage = 0;
+
+    /** If true, this skill's PHYSICAL damage scales with SpellDamage instead of RawDamage (a "fire punch"
+     *  that scales off Spell). Attack-wide (the whole physical attack). Stat-only: changes which stat scales,
+     *  nothing else. Default false. (Spell casts have their own per-cast bOverrideStatScaling on
+     *  FSkillCastEntry.) */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    bool bOverrideStatScaling = false;
 
     /** Default 0 means free. Attacks are free unless designers set a cost. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))

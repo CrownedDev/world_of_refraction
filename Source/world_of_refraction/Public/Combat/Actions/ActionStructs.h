@@ -278,6 +278,10 @@ struct FResolvedHitFlags
 	bool bIgnoreDamage = false;
 	bool bIgnoreStatus = false;
 	bool bInterruptable = false;
+
+	/** Per-cast stat-override (spell). Populated only by ResolveCastFlags (per CastEntryIndex); the melee
+	 *  ResolveImpactFlags leaves it false — physical uses the attack-level context bool, not this. */
+	bool bOverrideStatScaling = false;
 };
 
 /**
@@ -379,6 +383,11 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	bool bIgnoreDamage = false;
 	bool bIgnoreStatus = false;
 	bool bInterruptable = false;
+
+	/** Per-cast stat-override, stashed from ResolvedCastFlags (spell). Distinct from the attack-level
+	 *  bOverrideStatScaling above so the shared StashHitFlags / melee path never clobbers the physical bool.
+	 *  Consumed for spell at ApplyOneImpact; physical reads the attack-level bool. */
+	bool bCastOverrideStatScaling = false;
 
 	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
 	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
