@@ -246,14 +246,6 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 			}
 			break;
 
-		case EActionType::Attack:
-			if (Action.AttackData && !Action.AttackData->MeetsRequirements(CharData))
-			{
-				// Allow with penalty (consistent with Ability/Spell — penalty
-				// is applied inside the damage / energy paths).
-			}
-			break;
-
 		default:
 			break;
 		}
@@ -337,13 +329,13 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		break;
 
 	case EActionType::Ability:
-		if (Action.AbilityData)
+		// Cluster 3: covers attacks too (folded into Ability). Reads the merged pointer so a
+		// cost-bearing attack reports the same cost the merged dispatch spends; default attacks
+		// (BaseEnergyCost=0) report 0. Charge multiplier still applied at the spend site, not here.
+		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
 			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-			int32 BaseCost = Action.AbilityData->CalculateEnergyCost(CharData, bIsInfused);
-			// Efficiency reduction — character substat + equipment BonusEfficiency.
-			// (Pre-existing divergence: this branch still doesn't apply
-			// GetAbilityChargeCostMultiplier — the spend site does. Unchanged here.)
+			int32 BaseCost = Skill->CalculateEnergyCost(CharData, bIsInfused);
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			return FMath::RoundToInt(BaseCost * EfficiencyMult);
 		}
@@ -351,25 +343,6 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 
 	case EActionType::Item:
 		// Items typically don't cost energy
-		return 0;
-
-	case EActionType::Attack:
-		if (Action.AttackData && Action.SelectedSource != EInfusionSourceOption::None)
-		{
-			// Infused attacks cost energy. BaseEnergyCost (USkillDataBase)
-			// defaults to 0 — attacks are free unless designers set a cost. The
-			// raw value is returned with no fallback constant; a warning fires if
-			// an infused attack ends up costing nothing so the configuration gap
-			// is visible in the log.
-			const int32 Cost = Action.AttackData->BaseEnergyCost;
-			if (Cost <= 0)
-			{
-				UE_LOG(LogTemp, Warning,
-					   TEXT("[ActionExecutor] Infused attack '%s' has BaseEnergyCost=0 — designer authoring gap"),
-					   *Action.AttackData->Name);
-			}
-			return Cost;
-		}
 		return 0;
 
 	case EActionType::Defend:
@@ -526,20 +499,9 @@ int32 UActionExecutor::GetActionActivationDelay(AActor *Actor, const FAction &Ac
 		Skill = Action.SpellData;
 		break;
 	case EActionType::Ability:
-		Skill = Action.AbilityData;
-		break;
-	case EActionType::Attack:
-		Skill = Action.AttackData;
-		if (!Skill)
-		{
-			// Weapon-default attack: resolve read-only via the same chain
-			// ExecuteAttackAsync's fallback uses (OverrideAttack → weapon's
-			// WeaponAttack), so basic attacks can defer too.
-			if (UWeaponManager *WeaponMgr = GetWeaponManager())
-			{
-				Skill = WeaponMgr->GetActiveAttack(Actor);
-			}
-		}
+		// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer, populated at
+		// construction. (The old weapon-default re-resolution is gone: SkillData is set up front.)
+		Skill = ResolveActionSkill(Action);
 		break;
 	default:
 		break;
@@ -557,18 +519,10 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 		return false;
 	}
 
-	// Freeze the intent: a weapon-default attack (null AttackData) resolves its
-	// effective attack NOW, so a weapon switch during the delay can't change
-	// what fires. Read-only — the same resolver ExecuteAttackAsync uses.
+	// Freeze the intent: the action's SkillData is resolved at construction (basic attacks pull the
+	// active weapon's attack there), so the armed copy already carries what will fire — a weapon switch
+	// during the delay can't change it. (Cluster 3: the old null-AttackData re-resolution is gone.)
 	FAction ArmedAction = Action;
-	if (ArmedAction.ActionType == EActionType::Attack && !ArmedAction.AttackData)
-	{
-		if (UWeaponManager *WeaponMgr = GetWeaponManager())
-		{
-			ArmedAction.AttackData = WeaponMgr->GetActiveAttack(Actor);
-			ArmedAction.SkillData = ArmedAction.AttackData; // Cluster 2: mirror onto merged pointer
-		}
-	}
 
 	// Arming consumes this turn's action and pays FULL costs now; the skill
 	// executes at fire time (8c) cost-free (bIsDeferredFire skips both paths).
@@ -708,7 +662,6 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 	case EActionType::Spell:
 	case EActionType::Ability:
-	case EActionType::Attack:
 		UE_LOG(LogTemp, Warning,
 			   TEXT("[ActionExecutor::ExecuteAction] %s called sync for action type %d — Spell/Ability/Attack must go through ExecuteActionAsync (Phase D)"),
 			   *Actor->GetName(), static_cast<int32>(Action.ActionType));
@@ -1305,17 +1258,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// DamageSplit/bImmuneToInfusion, CalculateDamage/CalculateEnergyCost) lives on USkillDataBase now.
 	USkillDataBase *Ability = ResolveActionSkill(Action);
 
-	// Weapon-default attack: a basic-attack action may carry no explicit skill (player Attack button /
-	// AI default). Resolve from the active weapon, gated on the Attack type (the enum still
-	// distinguishes this cluster; Cluster 3 folds it). A data-less ability stays broken → cancel.
-	if (!Ability && Action.ActionType == EActionType::Attack)
-	{
-		if (UWeaponManager *WeaponMgr = GetWeaponManager())
-		{
-			Ability = WeaponMgr->GetActiveAttack(User);
-		}
-	}
-
+	// SkillData is populated at construction (basic attacks resolve the active weapon's attack there),
+	// so a null skill here is a genuinely malformed action → cancel. (Cluster 3 dropped the old
+	// Attack-gated weapon-default re-resolution; the enum no longer distinguishes attacks.)
 	if (!Ability || !UserData)
 	{
 		CancelAsyncAction();
@@ -1602,7 +1547,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		Attack->HitCount,
 		Element,
 		true,				   // Can crit
-		EActionType::Attack,   // ActionType
+		EActionType::Ability,  // ActionType (enum collapsed; dead fn, removed Cluster 4)
 		0,					   // InfusionLevel — attacks have no L1/L2 concept
 		Action.SelectedSource, // SelectedSource
 		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
@@ -1610,7 +1555,7 @@ void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action
 		0.3f,
 		Attack->DamageSplit.Num() > 0 ? Attack->DamageSplit[0].bOverrideStatScaling : false); // hybrid stat toggle
 
-	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());
+	LogActionDispatch(EActionType::Ability, 0, BaseDamage, ValidTargets.Num());
 }
 
 // ========================================
@@ -1742,8 +1687,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	// (bManualClose=false) — projectile/AOE migrate to the counter at Stage 6.
 	// ExpectedImpacts>0 doubles as the "this window is count-based" sentinel read by the
 	// Impact-notify handler; 0 leaves the window on its normal timer.
-	// Post-merge (Attack collapses into Ability) this simplifies to a not-Spell / bPerImpact gate.
-	const bool bUseCountBasedClose = (ActionType == EActionType::Attack || ActionType == EActionType::Ability);
+	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
+	const bool bUseCountBasedClose = (ActionType == EActionType::Ability);
 
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
@@ -2239,10 +2184,11 @@ void UActionExecutor::FinalizeAsyncAction()
 		switch (Action.ActionType)
 		{
 		case EActionType::Ability:
-			if (Action.AbilityData)
+			// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer.
+			if (USkillDataBase *Skill = ResolveActionSkill(Action))
 			{
-				EffectsToApply = &Action.AbilityData->Effects;
-				SourceName = Action.AbilityData->Name;
+				EffectsToApply = &Skill->Effects;
+				SourceName = Skill->Name;
 			}
 			break;
 
@@ -2251,14 +2197,6 @@ void UActionExecutor::FinalizeAsyncAction()
 			{
 				EffectsToApply = &Action.SpellData->Effects;
 				SourceName = Action.SpellData->Name;
-			}
-			break;
-
-		case EActionType::Attack:
-			if (Action.AttackData)
-			{
-				EffectsToApply = &Action.AttackData->Effects;
-				SourceName = Action.AttackData->Name;
 			}
 			break;
 
@@ -2942,9 +2880,9 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					}
 				}
 
-				// ReflectPhysicalDamage — only fires for Attack / Ability ActionTypes.
+				// ReflectPhysicalDamage — only fires for Ability ActionType (attacks folded in, Cluster 3).
 				if (Input.Attacker &&
-					(Input.ActionType == EActionType::Attack || Input.ActionType == EActionType::Ability) &&
+					(Input.ActionType == EActionType::Ability) &&
 					SEM->HasEffectOfType(Input.Target, ESkillEffectType::ReflectPhysicalDamage))
 				{
 					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::ReflectPhysicalDamage) / 100.0f;
@@ -4736,7 +4674,6 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 {
 	switch (Action.ActionType)
 	{
-	case EActionType::Attack:
 	case EActionType::Ability:
 		// Merged (Cluster 2): melee skills warp to ExecutionRange; ranged don't approach. Reads the
 		// unified pointer; the gate is on ExecutionType (on USkillDataBase — IsMelee() is ability-only).
@@ -4846,9 +4783,8 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		ExecuteSpellAsync(Actor, Action, CharData);
 		break;
 	case EActionType::Ability:
-	case EActionType::Attack:
-		// Merged dispatch (Cluster 2): both route to ExecuteSkillAsync, which reads the unified skill
-		// pointer (ResolveActionSkill). The case labels stay split until Cluster 3 collapses the enum.
+		// Merged dispatch: attacks fold into Ability (Cluster 3) and route to ExecuteSkillAsync, which
+		// reads the unified skill pointer (ResolveActionSkill).
 		ExecuteSkillAsync(Actor, Action, CharData);
 		break;
 	default:
@@ -5471,7 +5407,6 @@ USkillDataBase *UActionExecutor::GetCurrentSkillData() const
 	case EActionType::Spell:
 		return Action.SpellData;
 	case EActionType::Ability:
-	case EActionType::Attack:
 		return ResolveActionSkill(Action);
 	default:
 		return nullptr;
@@ -6092,8 +6027,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	{
 		Level = Action.SpellInfusionLevel;
 	}
-	else if (Action.ActionType == EActionType::Ability ||
-			 Action.ActionType == EActionType::Attack)
+	else if (Action.ActionType == EActionType::Ability)
 	{
 		Level = Action.AbilityInfusionLevel;
 	}

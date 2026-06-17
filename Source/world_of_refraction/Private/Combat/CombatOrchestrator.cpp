@@ -401,21 +401,14 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 							  Delivery == ESpellDeliveryType::Instant);
 		}
 	}
-	else if (Action.ActionType == EActionType::Attack && Action.AttackData)
+	else if (Action.ActionType == EActionType::Ability && Action.SkillData)
 	{
-		// Has a montage → async (W3): the runner owns the montage chain + warp +
-		// defense window. Replaces the old ApproachData gate — movement no longer
-		// decides async; the presence of an animation to play does.
-		bRequiresAsync = (Action.AttackData->SkillMontage != nullptr ||
-						  Action.AttackData->RitualCastMontage != nullptr ||
-						  Action.AttackData->ReturnMontage != nullptr);
-	}
-	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
-	{
-		// Has a montage → async (W3): same rule as attacks (see above).
-		bRequiresAsync = (Action.AbilityData->SkillMontage != nullptr ||
-						  Action.AbilityData->RitualCastMontage != nullptr ||
-						  Action.AbilityData->ReturnMontage != nullptr);
+		// Has a montage → async (W3): the runner owns the montage chain + warp + defense window.
+		// Covers attacks + abilities (merged, Cluster 3) — reads the unified SkillData pointer.
+		// (Movement no longer decides async; the presence of an animation to play does.)
+		bRequiresAsync = (Action.SkillData->SkillMontage != nullptr ||
+						  Action.SkillData->RitualCastMontage != nullptr ||
+						  Action.SkillData->ReturnMontage != nullptr);
 	}
 
 	if (bRequiresAsync)
@@ -1613,7 +1606,7 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 
 	// Build attack action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.Targets.Add(Target);
 
 	// Get weapon attack data via GetActiveWeapon (respects bShowPrimary)
@@ -2055,7 +2048,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 
 	// Build action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.AttackData = AttackData;
 	AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
 	AttackAction.Targets.Add(Target);
@@ -2543,7 +2536,7 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 	}
 
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.Targets.Add(Target);
 
 	// Get weapon attack from loadout

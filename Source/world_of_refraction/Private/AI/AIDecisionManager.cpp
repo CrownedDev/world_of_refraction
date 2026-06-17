@@ -190,16 +190,17 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     {
         // Easy: Random action, random target (old behavior)
         AActor *Target = Enemies[FMath::RandRange(0, Enemies.Num() - 1)];
-        EActionType ChosenType = ChooseActionType(AIActor, Loadout);
+        EAIActionChoice ChosenType = ChooseActionType(AIActor, Loadout);
 
-        Action.ActionType = ChosenType;
         Action.Targets.Add(Target);
 
-        // Populate data (simplified)
+        // Populate data (simplified). Attacks fold into ActionType=Ability + SkillData (attack/ability
+        // merge); EAIActionChoice keeps attack-vs-ability distinct for the random category pick above.
         switch (ChosenType)
         {
-        case EActionType::Spell:
+        case EAIActionChoice::Spell:
         {
+            Action.ActionType = EActionType::Spell;
             TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
             if (Spells.Num() > 0)
             {
@@ -207,23 +208,27 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
             }
             break;
         }
-        case EActionType::Ability:
+        case EAIActionChoice::Ability:
         {
+            Action.ActionType = EActionType::Ability;
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
             if (Abilities.Num() > 0)
             {
                 Action.AbilityData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
-                Action.SkillData = Action.AbilityData; // Cluster 2: mirror onto merged pointer
+                Action.SkillData = Action.AbilityData;
             }
             break;
         }
-        case EActionType::Attack:
+        case EAIActionChoice::Attack:
         {
+            Action.ActionType = EActionType::Ability; // attacks dispatch as Ability (SkillData + IsAttack)
             Action.AttackData = Loadout->GetCurrentAttack();
-            Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
+            Action.SkillData = Action.AttackData;
             break;
         }
+        case EAIActionChoice::Defend:
         default:
+            Action.ActionType = EActionType::Defend;
             break;
         }
 
@@ -234,29 +239,30 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     return BuildAction_Smart(AIActor, Loadout, CharComp);
 }
 
-EActionType UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout)
+EAIActionChoice UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {
-        return EActionType::Defend;
+        return EAIActionChoice::Defend;
     }
 
-    // Gather available options
-    TArray<EActionType> Options;
+    // Gather available options. Attacks stay a distinct category (EAIActionChoice) even though they
+    // dispatch as EActionType::Ability — preserves the original equal-weight random distribution.
+    TArray<EAIActionChoice> Options;
 
     if (Loadout->GetAllWeaponAttacks().Num() > 0)
     {
-        Options.Add(EActionType::Attack);
+        Options.Add(EAIActionChoice::Attack);
     }
 
     if (Loadout->GetAvailableSpells().Num() > 0)
     {
-        Options.Add(EActionType::Spell);
+        Options.Add(EAIActionChoice::Spell);
     }
 
     if (Loadout->GetAvailableAbilities().Num() > 0)
     {
-        Options.Add(EActionType::Ability);
+        Options.Add(EAIActionChoice::Ability);
     }
 
     // Random selection
@@ -266,7 +272,7 @@ EActionType UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutCompon
         return Options[Index];
     }
 
-    return EActionType::Defend;
+    return EAIActionChoice::Defend;
 }
 
 void UAIDecisionManager::GetThinkingDelayRange(EAIDifficulty Difficulty, float &OutMin, float &OutMax) const
@@ -1277,25 +1283,26 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
 
     Action.Targets.Add(BestTarget);
 
-    // Evaluate options and pick best
-    TArray<EActionType> AvailableActions;
-    TMap<EActionType, int32> ActionScores;
+    // Evaluate options and pick best. AI categories stay distinct (EAIActionChoice): attacks dispatch
+    // as EActionType::Ability but keep damage-only scoring, separate from full ability scoring.
+    TArray<EAIActionChoice> AvailableActions;
+    TMap<EAIActionChoice, int32> ActionScores;
 
     // Gather available actions
     TArray<UWeaponAttackData *> AllAttacks = Loadout->GetAllWeaponAttacks();
     if (AllAttacks.Num() > 0)
     {
-        AvailableActions.Add(EActionType::Attack);
+        AvailableActions.Add(EAIActionChoice::Attack);
     }
 
     if (Loadout->GetAvailableSpells().Num() > 0)
     {
-        AvailableActions.Add(EActionType::Spell);
+        AvailableActions.Add(EAIActionChoice::Spell);
     }
 
     if (Loadout->GetAvailableAbilities().Num() > 0)
     {
-        AvailableActions.Add(EActionType::Ability);
+        AvailableActions.Add(EAIActionChoice::Ability);
     }
 
     if (AvailableActions.Num() == 0)
@@ -1310,13 +1317,13 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     int32 UnaffordableBestCost = 0;
 
     // Score each action type
-    for (EActionType ActionType : AvailableActions)
+    for (EAIActionChoice ActionType : AvailableActions)
     {
         int32 Score = 0;
 
         switch (ActionType)
         {
-        case EActionType::Attack:
+        case EAIActionChoice::Attack:
         {
             // Score best attack from all weapons
             UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
@@ -1333,7 +1340,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             }
             break;
         }
-        case EActionType::Spell:
+        case EAIActionChoice::Spell:
         {
             // Best combined damage + status score among affordable spells.
             TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
@@ -1367,7 +1374,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             Score = FMath::RoundToInt(BestSpellScore);
             break;
         }
-        case EActionType::Ability:
+        case EAIActionChoice::Ability:
         {
             // Best combined damage + status score among affordable abilities.
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
@@ -1409,7 +1416,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     }
 
     // Pick action with highest score
-    EActionType BestActionType = EActionType::Defend;
+    EAIActionChoice BestActionType = EAIActionChoice::Defend;
     int32 BestScore = -1;
 
     for (const auto &Pair : ActionScores)
@@ -1481,12 +1488,15 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
     }
 
-    // Build final action
-    Action.ActionType = BestActionType;
+    // Build final action. Map the AI category → dispatched action type: attacks dispatch as Ability
+    // (carried on SkillData; IsAttack() distinguishes them downstream).
+    Action.ActionType = (BestActionType == EAIActionChoice::Spell)    ? EActionType::Spell
+                        : (BestActionType == EAIActionChoice::Defend) ? EActionType::Defend
+                                                                      : EActionType::Ability;
 
     switch (BestActionType)
     {
-    case EActionType::Attack:
+    case EAIActionChoice::Attack:
     {
         // Pick best attack from all weapons
         UWeaponAttackData *BestAttack = nullptr;
@@ -1514,7 +1524,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         Action.SkillData = Action.AttackData; // Cluster 2: mirror onto merged pointer
         break;
     }
-    case EActionType::Spell:
+    case EAIActionChoice::Spell:
     {
         // Pick the affordable spell with the best combined damage + status score.
         TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
@@ -1559,7 +1569,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         Action.SpellInfusionLevel = SpellInfusion;
         break;
     }
-    case EActionType::Ability:
+    case EAIActionChoice::Ability:
     {
         // Pick the affordable ability with the best combined damage + status score.
         TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();

@@ -1642,7 +1642,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     switch (ResolvedCategory)
     {
     case EPieMenuCategory::Attack:
-        Action.ActionType = EActionType::Attack;
+        Action.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
         Action.AttackData = Cast<UWeaponAttackData>(DataRef);
         if (!Action.AttackData)
         {
@@ -1726,8 +1726,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
                 {
                     Action.SpellInfusionLevel = Level;
                 }
-                else if (Action.ActionType == EActionType::Ability ||
-                         Action.ActionType == EActionType::Attack)
+                else if (Action.ActionType == EActionType::Ability)
                 {
                     Action.AbilityInfusionLevel = Level;
                 }

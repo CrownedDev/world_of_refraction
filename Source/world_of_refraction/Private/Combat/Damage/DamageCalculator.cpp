@@ -48,7 +48,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	// (cast) scales RawDamage, a fire-punch (physical) scales SpellDamage. Everything else below stays on
 	// Input.ActionType (element routing, the Spell-mode effective-damage branches). STAT-ONLY.
 	const EActionType ScalingType = Input.bOverrideStatScaling
-									   ? (Input.ActionType == EActionType::Spell ? EActionType::Attack : EActionType::Spell)
+									   ? (Input.ActionType == EActionType::Spell ? EActionType::Ability : EActionType::Spell)
 									   : Input.ActionType;
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, ScalingType);
 	const ESubStat AttackerStat = (ScalingType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
@@ -296,7 +296,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// no implicit fallback. Attack assets with BaseDamage == 0 deal 0 damage before
 	// weapon-stat bonuses and multipliers.
 	Input.BaseDamage = Attack->BaseDamage;
-	Input.ActionType = EActionType::Attack;
+	Input.ActionType = EActionType::Ability; // attack/ability merge: Attack folded into Ability (both scale RawDamage)
 
 	// Apply requirement penalty (matches Ability/Spell pattern — multiplicative reduction).
 	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);

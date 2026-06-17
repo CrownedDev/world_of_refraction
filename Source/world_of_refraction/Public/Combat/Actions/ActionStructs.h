@@ -107,9 +107,9 @@ struct WORLD_OF_REFRACTION_API FAction
 			return false;
 		if (ActionType == EActionType::Spell && !SpellData)
 			return false;
-		if (ActionType == EActionType::Ability && !AbilityData)
-			return false;
-		if (ActionType == EActionType::Attack && !AttackData)
+		// Attacks folded into Ability (attack/ability merge); both validate via the merged SkillData
+		// pointer (set at construction alongside the legacy AbilityData/AttackData).
+		if (ActionType == EActionType::Ability && !SkillData)
 			return false;
 		return true;
 	}
@@ -121,28 +121,9 @@ struct WORLD_OF_REFRACTION_API FAction
 			   ActionType != EActionType::SwitchWeapon;
 	}
 
-	FString GetActionName() const
-	{
-		switch (ActionType)
-		{
-		case EActionType::Spell:
-			return SpellData ? TEXT("Spell") : TEXT("Unknown Spell");
-		case EActionType::Ability:
-			return AbilityData ? TEXT("Ability") : TEXT("Unknown Ability");
-		case EActionType::Item:
-			return ItemIdentity::GetDisplayName(ItemData);
-		case EActionType::Attack:
-			return AttackData ? TEXT("Attack") : TEXT("Basic Attack");
-		case EActionType::Defend:
-			return TEXT("Defend");
-		case EActionType::SwitchWeapon:
-			return TEXT("Switch Weapon");
-		case EActionType::Flee:
-			return TEXT("Flee");
-		default:
-			return TEXT("Unknown Action");
-		}
-	}
+	// Body in ActionStructs.cpp — needs USkillDataBase's full type to call SkillData->IsAttack() for the
+	// "Basic Attack" vs "Ability" label (the forward declaration here can't reach the virtual).
+	FString GetActionName() const;
 
 	/** Is spell charge infusion active? */
 	bool IsSpellInfused() const

@@ -490,7 +490,7 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 
 	// Create attack action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.AttackData = Attack;
 	AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
 	AttackAction.Targets.Add(Target);
@@ -1063,7 +1063,7 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 
 	// Create multi-target attack action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.AttackData = Attack;
 	AttackAction.SkillData = AttackAction.AttackData; // Cluster 2: mirror onto merged pointer
 	AttackAction.Targets.Add(Target1);

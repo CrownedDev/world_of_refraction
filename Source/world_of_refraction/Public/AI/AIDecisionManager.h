@@ -23,6 +23,21 @@ class UDefenseSystem;
 class UCharacterData;
 
 /**
+ * AI-internal action category. Distinct from EActionType: the attack/ability merge folded
+ * EActionType::Attack into Ability, but the AI still scores basic attacks (damage-only) separately
+ * from slottable abilities (damage + status + affordability). This key preserves that three-way
+ * distinction without the removed enum value; it maps to FAction (ActionType Ability/Spell + SkillData,
+ * IsAttack() telling them apart) at construction. Defend is the no-option fallback.
+ */
+enum class EAIActionChoice : uint8
+{
+    Attack,
+    Spell,
+    Ability,
+    Defend
+};
+
+/**
  * Handles AI decision making during combat
  * Routes turn decisions through standard action pipeline
  */
@@ -90,8 +105,8 @@ private:
     /** Build action for AI actor */
     FAction BuildAction(AActor *AIActor);
 
-    /** Pick a random action type based on available options */
-    EActionType ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout);
+    /** Pick a random action category based on available options (AI-internal; see EAIActionChoice). */
+    EAIActionChoice ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout);
 
     /** Get thinking delay range for difficulty */
     void GetThinkingDelayRange(EAIDifficulty Difficulty, float &OutMin, float &OutMax) const;

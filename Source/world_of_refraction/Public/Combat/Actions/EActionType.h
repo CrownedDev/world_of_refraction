@@ -16,7 +16,9 @@ enum class EActionType : uint8
 	Spell UMETA(DisplayName = "Refraction"),
 	Ability UMETA(DisplayName = "Ability"),
 	Item UMETA(DisplayName = "Item"),
-	Attack UMETA(DisplayName = "Basic Attack"),
+	// Attack folded into Ability (attack/ability merge) — basic attacks dispatch as Ability with
+	// USkillDataBase::IsAttack() true. See the +EnumRedirects(EActionType, Attack->Ability) in
+	// DefaultEngine.ini for serialized BP/asset migration.
 	Defend UMETA(DisplayName = "Defend"),
 	SwitchWeapon UMETA(DisplayName = "Switch Weapon"),
 	Flee UMETA(DisplayName = "Flee")
