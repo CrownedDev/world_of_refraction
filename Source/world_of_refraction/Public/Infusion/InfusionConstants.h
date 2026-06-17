@@ -64,16 +64,20 @@ namespace InfusionConstants
 	constexpr float SPELL_L2_DAMAGE_MULT = 1.30f;
 
 	// ==================== ENERGY COST MULTIPLIERS ====================
+	// Ability and spell now share the same charge tax: L1 = half-again (x1.5,
+	// +50%), L2 = double (x2.0, +100%). Kept as separate named constants —
+	// ability-energy and spell-energy are conceptually distinct cost axes even
+	// at equal values; do not merge.
 
-	/** L1: Energy cost multiplier (1.15x) */
-	constexpr float L1_ENERGY_MULT = 1.15f;
+	/** L1: Energy cost multiplier (1.5x, +50%) */
+	constexpr float L1_ENERGY_MULT = 1.5f;
 
-	/** L2: Energy cost multiplier (1.30x) */
-	constexpr float L2_ENERGY_MULT = 1.30f;
+	/** L2: Energy cost multiplier (2.0x, +100%) */
+	constexpr float L2_ENERGY_MULT = 2.0f;
 
-	/** L1 Spell Size: Energy cost multiplier (1.30x) */
-	constexpr float SPELL_L1_ENERGY_MULT = 1.30f;
+	/** L1 Spell: Energy cost multiplier (1.5x, +50%) */
+	constexpr float SPELL_L1_ENERGY_MULT = 1.5f;
 
-	/** L2 Spell Size: Energy cost multiplier (1.60x) */
-	constexpr float SPELL_L2_ENERGY_MULT = 1.60f;
+	/** L2 Spell: Energy cost multiplier (2.0x, +100%) */
+	constexpr float SPELL_L2_ENERGY_MULT = 2.0f;
 }
