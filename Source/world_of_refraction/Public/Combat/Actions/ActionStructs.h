@@ -20,6 +20,7 @@
 class USpellData;
 class UAbilityData;
 class UWeaponAttackData;
+class USkillDataBase;
 
 /**
  * FAction
@@ -60,6 +61,14 @@ struct WORLD_OF_REFRACTION_API FAction
 	/** Attack data (if ActionType == Attack) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	UWeaponAttackData *AttackData = nullptr;
+
+	/** Unified skill data for attacks + abilities — the merged pointer (base type, so it holds either
+	 *  leaf during the transition: a UWeaponAttackData today, a UAbilityData post-reparent). Added in
+	 *  Cluster 1 ALONGSIDE the legacy AbilityData/AttackData; nothing reads or sets it yet (Cluster 2
+	 *  wires setters + consumers, Cluster 4 removes the legacy pair). Raw pointer to match the sibling
+	 *  data pointers above. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
+	USkillDataBase *SkillData = nullptr;
 
 	/** True only on the fire-time resubmission of a deferred activation (D8 —
 	 *  set by the Stage 8c fire path). Costs were paid at ARM: the cost paths

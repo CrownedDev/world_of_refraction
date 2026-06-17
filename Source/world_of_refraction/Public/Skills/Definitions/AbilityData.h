@@ -116,6 +116,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Ability|Execution")
     bool IsSupportAbility() const { return BaseDamage == 0 && HasBuffEffects(); }
 
+    // ==================== DISCRIMINATOR ====================
+
+    /** An ability is an attack only when explicitly flagged — post-reparent, basic attacks
+     *  author bIsAttack=true; ordinary slottable abilities stay false. */
+    virtual bool IsAttack() const override { return bIsAttack; }
+
     // ==================== MIGRATION ====================
 
     // Outside WITH_EDITOR — the D2 montage migration must run in all builds.

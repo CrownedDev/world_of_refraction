@@ -5,6 +5,7 @@
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Character/CharacterData.h"
+#include "Combat/CombatConstants.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
 {
@@ -234,6 +235,41 @@ float USkillDataBase::CalculateRequirementPenalty(const UCharacterData *Characte
         return 0.0f;
     }
     return Requirements.CalculatePenalty(Character);
+}
+
+// Damage / energy — hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the
+// merged FAction.SkillData path can compute these for both attacks and abilities. Bodies are
+// byte-identical to UAbilityData::CalculateDamage / CalculateNormalEnergyCost+CalculateInfusedEnergyCost
+// and to the inline attack computation in ExecuteAttackAsync — lossless across all leaves.
+
+int32 USkillDataBase::CalculateDamage(const UCharacterData *Character, bool bIsInfused) const
+{
+    if (!Character)
+    {
+        return 0;
+    }
+
+    // Attacker-side base only — the RawDamage multiplier is applied once downstream by
+    // DamageCalculator. bIsInfused no longer affects damage (element-infusion penalty removed).
+    float Damage = BaseDamage;
+    Damage *= (1.0f - CalculateRequirementPenalty(Character));
+    return FMath::RoundToInt(Damage);
+}
+
+int32 USkillDataBase::CalculateEnergyCost(const UCharacterData *Character, bool bIsInfused) const
+{
+    if (!Character)
+    {
+        return BaseEnergyCost;
+    }
+
+    float Cost = BaseEnergyCost;
+    Cost *= (1.0f + CalculateRequirementPenalty(Character));
+    if (bIsInfused)
+    {
+        Cost *= CombatConstants::INFUSION_ENERGY_MULTIPLIER;
+    }
+    return FMath::RoundToInt(Cost);
 }
 
 FString USkillDataBase::GetTierString() const

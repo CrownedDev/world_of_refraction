@@ -57,6 +57,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Attack")
     FString GetAttackSummary() const;
 
+    // ==================== DISCRIMINATOR ====================
+
+    /** A weapon attack is always an attack — true in both the pre- and post-reparent eras. */
+    virtual bool IsAttack() const override { return true; }
+
     // ==================== MIGRATION ====================
 
     // Outside WITH_EDITOR — the D2 montage migration must run in all builds.

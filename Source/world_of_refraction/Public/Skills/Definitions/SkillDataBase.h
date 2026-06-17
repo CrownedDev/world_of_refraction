@@ -322,6 +322,31 @@ public:
     UFUNCTION(BlueprintPure, Category = "Skill|Requirements")
     float CalculateRequirementPenalty(const UCharacterData *Character) const;
 
+    // ==================== DAMAGE / ENERGY (shared) ====================
+    // Hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the merged
+    // FAction.SkillData (USkillDataBase*) path can compute damage/energy for BOTH attacks and
+    // abilities — the formula is identical across the leaves. Deliberately NON-UFUNCTION (a
+    // sibling, USpellData, already declares same-named, differently-signatured methods; making
+    // these virtual/UFUNCTION would trip name-hiding / Blueprint-overload errors). UAbilityData
+    // keeps its own UFUNCTION versions for Blueprint exposure; their bodies are identical.
+
+    /** Attacker-side base damage: BaseDamage * (1 - requirement penalty). The RawDamage multiplier
+     *  is applied once downstream by DamageCalculator. bIsInfused is accepted for call-site symmetry
+     *  but no longer affects the value (the element-infusion damage penalty was removed). */
+    int32 CalculateDamage(const UCharacterData *Character, bool bIsInfused) const;
+
+    /** Energy cost: BaseEnergyCost * (1 + requirement penalty), * INFUSION_ENERGY_MULTIPLIER when
+     *  infused. Matches the UAbilityData normal/infused split. */
+    int32 CalculateEnergyCost(const UCharacterData *Character, bool bIsInfused) const;
+
+    // ==================== DISCRIMINATOR ====================
+
+    /** True if this is a basic weapon attack (vs an ability/spell). Overridden per leaf. Used to
+     *  discriminate attacks from abilities once they share the merged FAction.SkillData pointer.
+     *  Correct in both eras: UWeaponAttackData → true today; post-reparent attacks are UAbilityData
+     *  with bIsAttack=true → true. */
+    virtual bool IsAttack() const { return false; }
+
     // ==================== DISPLAY ====================
 
     UFUNCTION(BlueprintPure, Category = "Skill|Display")
