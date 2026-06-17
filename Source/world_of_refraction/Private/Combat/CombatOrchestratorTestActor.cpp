@@ -430,13 +430,13 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Sword_Slash)"));
 
 	// Load the attack data asset
-	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
+	USkillDataBase *Attack = LoadObject<USkillDataBase>(nullptr,
 															  TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack.DA_Test_Attack"));
 
 	if (!Attack)
 	{
 		// Fallback to spear
-		Attack = LoadObject<UWeaponAttackData>(nullptr,
+		Attack = LoadObject<USkillDataBase>(nullptr,
 											   TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack2.DA_Test_Attack2"));
 	}
 
@@ -997,13 +997,13 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Multi-Target Action (Attack 3 targets)"));
 
 	// Load attack data
-	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
+	USkillDataBase *Attack = LoadObject<USkillDataBase>(nullptr,
 															  TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack.DA_Test_Attack"));
 
 	if (!Attack)
 	{
 		// Fallback to spear
-		Attack = LoadObject<UWeaponAttackData>(nullptr,
+		Attack = LoadObject<USkillDataBase>(nullptr,
 											   TEXT("/Game/Data/Weapons/Spear/Attacks/DA_Attack_Spear_Strike.DA_Attack_Spear_Strike"));
 	}
 

@@ -273,7 +273,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	AActor *Attacker,
 	AActor *Target,
-	UWeaponAttackData *Attack,
+	USkillDataBase *Attack,
 	bool bIsInfused)
 {
 	FDamageCalculationResult Result;

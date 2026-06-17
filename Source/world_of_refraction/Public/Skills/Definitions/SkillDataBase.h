@@ -352,6 +352,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Skill|Display")
     FString GetTierString() const;
 
+    /** One-line stat summary (hits / buildup / energy / speed). Hoisted from UWeaponAttackData at the
+     *  attack/ability merge (step 5a) — reads only base fields, so it serves every skill leaf. Stays a
+     *  UFUNCTION (no leaf declares GetAttackSummary anymore, so no Blueprint name-collision). */
+    UFUNCTION(BlueprintPure, Category = "Skill|Display")
+    FString GetAttackSummary() const;
+
     // ==================== EDITOR VALIDATION ====================
 
 #if WITH_EDITOR

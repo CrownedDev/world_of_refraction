@@ -277,6 +277,28 @@ FString USkillDataBase::GetTierString() const
     return TierHelpers::GetTierDisplayString(Tier);
 }
 
+// Hoisted from UWeaponAttackData (step 5a) — reads only base fields, so it serves every skill leaf.
+FString USkillDataBase::GetAttackSummary() const
+{
+    FString Summary;
+
+    if (HitCount == 1)
+    {
+        Summary = TEXT("Single Hit");
+    }
+    else
+    {
+        // Per-hit distribution is authored via DamageSplit on the base (D1).
+        Summary = FString::Printf(TEXT("%d Hits"), HitCount);
+    }
+
+    Summary += FString::Printf(TEXT(" | Buildup: %d"), StatusBuildup);
+    Summary += FString::Printf(TEXT(" | Energy: %d"), BaseEnergyCost);
+    Summary += FString::Printf(TEXT(" | Speed: %.2fx"), BaseAnimSpeed);
+
+    return Summary;
+}
+
 #if WITH_EDITOR
 EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Context) const
 {

@@ -28,7 +28,7 @@ UWeaponData *UWeaponManager::GetActiveWeapon(AActor *Actor) const
 	return nullptr;
 }
 
-UWeaponAttackData *UWeaponManager::GetActiveAttack(AActor *Actor) const
+USkillDataBase *UWeaponManager::GetActiveAttack(AActor *Actor) const
 {
 	if (ULoadoutComponent *Loadout = GetLoadoutComponent(Actor))
 	{

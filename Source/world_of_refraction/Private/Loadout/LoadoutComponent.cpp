@@ -1317,9 +1317,9 @@ int32 ULoadoutComponent::GetItemRemainingUses(int32 SlotIndex) const
     return Loadout.ItemSlots[SlotIndex].Quantity;
 }
 
-TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
+TArray<USkillDataBase *> ULoadoutComponent::GetAllWeaponAttacks() const
 {
-    TArray<UWeaponAttackData *> Result;
+    TArray<USkillDataBase *> Result;
 
     UInventoryComponent *Inv = GetInventoryComponent();
     if (!Inv)
@@ -1338,7 +1338,7 @@ TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
     if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon.IsValid())
     {
         UWeaponData *Weapon = Loadout.PrimaryWeapon.WeaponEntry.Weapon;
-        UWeaponAttackData *Attack = Loadout.PrimaryWeapon.OverrideAttack
+        USkillDataBase *Attack = Loadout.PrimaryWeapon.OverrideAttack
                                         ? Loadout.PrimaryWeapon.OverrideAttack
                                         : (Weapon ? Weapon->WeaponAttack : nullptr);
         if (Attack)
@@ -1353,7 +1353,7 @@ TArray<UWeaponAttackData *> ULoadoutComponent::GetAllWeaponAttacks() const
         Loadout.SecondaryWeapon.IsValid())
     {
         UWeaponData *Weapon = Loadout.SecondaryWeapon.WeaponEntry.Weapon;
-        UWeaponAttackData *Attack = Loadout.SecondaryWeapon.OverrideAttack
+        USkillDataBase *Attack = Loadout.SecondaryWeapon.OverrideAttack
                                         ? Loadout.SecondaryWeapon.OverrideAttack
                                         : (Weapon ? Weapon->WeaponAttack : nullptr);
         if (Attack)
@@ -2434,7 +2434,7 @@ UAnimMontage *ULoadoutComponent::GetCurrentIdleMontage() const
     return Stance ? Stance->IdleAnimMontage : nullptr;
 }
 
-UWeaponAttackData *ULoadoutComponent::GetCurrentAttack() const
+USkillDataBase *ULoadoutComponent::GetCurrentAttack() const
 {
     if (!IsArmed())
     {

@@ -2028,7 +2028,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 	}
 
 	// Get weapon attack data via GetActiveWeapon (respects bShowPrimary)
-	UWeaponAttackData *AttackData = nullptr;
+	USkillDataBase *AttackData = nullptr;
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
@@ -2539,7 +2539,7 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 	ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>();
 	if (Loadout)
 	{
-		TArray<UWeaponAttackData *> Attacks = Loadout->GetAllWeaponAttacks();
+		TArray<USkillDataBase *> Attacks = Loadout->GetAllWeaponAttacks();
 		if (Attacks.Num() > 0)
 		{
 			AttackAction.SkillData = Attacks[0];

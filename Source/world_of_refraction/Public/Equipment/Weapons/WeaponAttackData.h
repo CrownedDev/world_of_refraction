@@ -54,8 +54,7 @@ public:
     // CalculateAnimSpeed deleted (Stage 12 SC7) — superseded by the D7
     // BaseAnimSpeed direct read; zero C++ callers, BP binary-scan clean.
 
-    UFUNCTION(BlueprintPure, Category = "Attack")
-    FString GetAttackSummary() const;
+    // GetAttackSummary hoisted to USkillDataBase (step 5a) — reads only base fields; inherited now.
 
     // ==================== DISCRIMINATOR ====================
 

@@ -653,7 +653,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     }
 
     // Check weapon attack
-    UWeaponAttackData *Attack = Loadout->GetCurrentAttack();
+    USkillDataBase *Attack = Loadout->GetCurrentAttack();
     if (Attack)
     {
         UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
@@ -1285,7 +1285,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     TMap<EAIActionChoice, int32> ActionScores;
 
     // Gather available actions
-    TArray<UWeaponAttackData *> AllAttacks = Loadout->GetAllWeaponAttacks();
+    TArray<USkillDataBase *> AllAttacks = Loadout->GetAllWeaponAttacks();
     if (AllAttacks.Num() > 0)
     {
         AvailableActions.Add(EAIActionChoice::Attack);
@@ -1325,7 +1325,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
             if (DamageCalc)
             {
-                for (UWeaponAttackData *Attack : AllAttacks)
+                for (USkillDataBase *Attack : AllAttacks)
                 {
                     if (Attack)
                     {
@@ -1494,11 +1494,11 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     case EAIActionChoice::Attack:
     {
         // Pick best attack from all weapons
-        UWeaponAttackData *BestAttack = nullptr;
+        USkillDataBase *BestAttack = nullptr;
         int32 BestAttackDamage = 0;
         UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
 
-        for (UWeaponAttackData *Attack : Loadout->GetAllWeaponAttacks())
+        for (USkillDataBase *Attack : Loadout->GetAllWeaponAttacks())
         {
             if (Attack && DamageCalc)
             {

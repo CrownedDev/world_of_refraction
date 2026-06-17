@@ -14,6 +14,7 @@
 
 class UCharacterData;
 class UWeaponAttackData;
+class USkillDataBase;
 class USkillEffectManager;
 class UBrokenDarknessManager;
 class UCombatGridSubsystem;
@@ -187,7 +188,7 @@ public:
 	FDamageCalculationResult CalculateAttackDamage(
 		AActor *Attacker,
 		AActor *Target,
-		UWeaponAttackData *Attack,
+		USkillDataBase *Attack,
 		bool bIsInfused = false);
 
 	// ==================== COMPONENT CALCULATIONS ====================

@@ -19,27 +19,6 @@ void UWeaponAttackData::PostLoad()
     }
 }
 
-FString UWeaponAttackData::GetAttackSummary() const
-{
-    FString Summary;
-
-    if (HitCount == 1)
-    {
-        Summary = TEXT("Single Hit");
-    }
-    else
-    {
-        // Per-hit distribution is authored via DamageSplit on the base (D1).
-        Summary = FString::Printf(TEXT("%d Hits"), HitCount);
-    }
-
-    Summary += FString::Printf(TEXT(" | Buildup: %d"), StatusBuildup);
-    Summary += FString::Printf(TEXT(" | Energy: %d"), BaseEnergyCost);
-    Summary += FString::Printf(TEXT(" | Speed: %.2fx"), BaseAnimSpeed);
-
-    return Summary;
-}
-
 #if WITH_EDITOR
 EDataValidationResult UWeaponAttackData::IsDataValid(FDataValidationContext &Context) const
 {

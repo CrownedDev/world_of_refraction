@@ -11,6 +11,7 @@
 
 class UWeaponData;
 class UWeaponAttackData;
+class USkillDataBase;
 class ULoadoutComponent;
 
 /**
@@ -49,7 +50,7 @@ public:
 	 *  Kept on UWeaponManager for caller convenience until UWeaponManager
 	 *  is itself absorbed into LoadoutComponent (potential follow-up). */
 	UFUNCTION(BlueprintCallable, Category = "Weapon Manager|Query")
-	UWeaponAttackData *GetActiveAttack(AActor *Actor) const;
+	USkillDataBase *GetActiveAttack(AActor *Actor) const;
 
 private:
 	// ========================================

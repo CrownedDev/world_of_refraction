@@ -202,7 +202,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         // === IMMEDIATE ACTIONS ===
     case EPieMenuCategory::Attack:
     {
-        UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ButtonData.DataReference);
+        USkillDataBase *Attack = Cast<UWeaponAttackData>(ButtonData.DataReference);
         if (!Attack)
         {
             if (ULoadoutComponent *LC = GetLoadoutComponent())

@@ -20,6 +20,7 @@
 class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
+class USkillDataBase;
 
 /**
  * Weapon Data Asset
@@ -51,9 +52,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
 
-    // Attack used when this weapon is equipped (replaces base attack)
+    // Attack used when this weapon is equipped (replaces base attack). Base type (attack/ability merge
+    // step 5a) so the serialized reference holds a UWeaponAttackData today and a UAbilityData after the
+    // step-5b asset conversion — the saved object path is unchanged; IsAttack() distinguishes it.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-    UWeaponAttackData *WeaponAttack = nullptr;
+    USkillDataBase *WeaponAttack = nullptr;
 
     // Default abilities for this weapon (can be customized unless locked)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (TitleProperty = "Name"))
