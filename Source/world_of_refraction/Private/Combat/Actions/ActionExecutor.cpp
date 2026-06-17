@@ -1695,13 +1695,16 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		return;
 	}
 
-	// Stage 1 count-based close is MELEE-only by construction: only weapon attacks
-	// play montages carrying Hit notifies (the impact counter that drives the close).
-	// Spells/abilities flowing through this shared converge point keep the timer close
+	// Count-based close now covers attacks AND abilities (step 1 of the attack/ability
+	// merge): both play montages that can carry Impact notifies (the impact counter that
+	// drives the close). Abilities WITHOUT authored Impact notifies degrade gracefully —
+	// ImpactsLanded stays 0, the reconcile/failsafe tail closes the window and applies the
+	// full lumped result (byte-identical to today). Spells keep the timer close
 	// (bManualClose=false) — projectile/AOE migrate to the counter at Stage 6.
 	// ExpectedImpacts>0 doubles as the "this window is count-based" sentinel read by the
-	// Hit-notify handler; 0 leaves the window on its normal timer.
-	const bool bUseCountBasedClose = (ActionType == EActionType::Attack);
+	// Impact-notify handler; 0 leaves the window on its normal timer.
+	// Post-merge (Attack collapses into Ability) this simplifies to a not-Spell / bPerImpact gate.
+	const bool bUseCountBasedClose = (ActionType == EActionType::Attack || ActionType == EActionType::Ability);
 
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
