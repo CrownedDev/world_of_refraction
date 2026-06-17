@@ -5957,12 +5957,19 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 	case EInfusionSourceOption::Raw:
 	case EInfusionSourceOption::Innate:
-		// Raw/Innate pay HP. Cost computed now (commit-time HP) but DEFERRED to
-		// FinalizeAsyncAction via PendingInfusionHPCost — identical value, applied
-		// after the infused effect resolves so a lethal cost lands post-action.
+		// Raw ALWAYS pays HP. Innate pays HP only on a SPELL — an innate-element
+		// ABILITY is "oiling the sword" (EP only, no self-strain); only its HP is
+		// dropped, the EP surcharge (6-2-2) still applies. Cost is DEFERRED to
+		// FinalizeAsyncAction via PendingInfusionHPCost so a lethal cost lands after
+		// the infused effect resolves.
 		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
+			const bool bInnateAbilityNoHP =
+				(Action.SelectedSource == EInfusionSourceOption::Innate) && !bIsSpellAction;
+			if (!bInnateAbilityNoHP)
+			{
+				CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
+			}
 		}
 		break;
 
