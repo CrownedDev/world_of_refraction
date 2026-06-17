@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Skills/Definitions/CastableSkillDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Definitions/SpellSchool.h"
@@ -28,12 +28,12 @@ class UEvolutionItemData;
  * Spell Data Asset - Element-locked magical abilities
  * Supports mode toggle system (Elemental vs Raw/Construct).
  *
- * Inherits shared skill shape from USkillDataBase and cast shape
- * (Tier, BaseDamage, BaseEnergyCost, Requirements, DeliveryType, ProjectileSpeed)
- * from UCastableSkillDataBase.
+ * Inherits the full shared skill shape (Tier, BaseDamage, BaseEnergyCost, Requirements,
+ * DeliveryType, ProjectileSpeed, montages, …) from USkillDataBase — the single skill
+ * base after the UCastableSkillDataBase collapse.
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API USpellData : public UCastableSkillDataBase
+class WORLD_OF_REFRACTION_API USpellData : public USkillDataBase
 {
     GENERATED_BODY()
 

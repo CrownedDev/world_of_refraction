@@ -47,7 +47,7 @@ struct FDefenseResult;
 struct FActionExecutionContext;
 struct FPendingDefenseContext;
 class UCombatAnimInstance;
-class UCastableSkillDataBase;
+class USkillDataBase;
 class UMotionWarpingComponent;
 
 // ========================================
@@ -471,11 +471,11 @@ private:
 
 	/** The executing action's skill data (spell/ability/attack); null for
 	 *  items or outside an action. */
-	UCastableSkillDataBase *GetCurrentSkillData() const;
+	USkillDataBase *GetCurrentSkillData() const;
 
 	/** First VFXArray entry of the given role with a non-null asset, or null
 	 *  (callers fall back to the loose VFX fields — D5 reader switch, SC5). */
-	static const FSkillVFXEntry *GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role);
+	static const FSkillVFXEntry *GetVFXEntryByRole(const USkillDataBase *Skill, EVFXRole Role);
 
 	/** Find-or-create the actor's Motion Warping component (W1, the spike's
 	 *  pattern): a persistent component authored on the character BP is
@@ -513,7 +513,7 @@ private:
 	/** Skill the live chain is playing; replaces GetCurrentSkillData() reads in the
 	 *  chain path so the chain advances off its own handle, not pending context. */
 	UPROPERTY()
-	UCastableSkillDataBase *ChainSkill = nullptr;
+	USkillDataBase *ChainSkill = nullptr;
 
 	/** True while a deferred ARM turn's ritual-cast montage plays (2b). The arm
 	 *  plays ONLY RitualCastMontage — no approach/skill/return, no skill effects,
@@ -530,10 +530,10 @@ private:
 	 *  [ReturnMontage], each step named + logged, advanced by the montage-end
 	 *  dispatcher. Presence-driven — null ritual/return legs skip to the next
 	 *  step. BeginMontageChain is the entry (replaces PlaySkillMontageChain). */
-	void BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
-	void PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill);
-	void PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill);
-	void PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill);
+	void BeginMontageChain(AActor *Actor, USkillDataBase *Skill, float PlayRate);
+	void PlayRitualStep(AActor *Actor, USkillDataBase *Skill);
+	void PlaySkillStep(AActor *Actor, USkillDataBase *Skill);
+	void PlayReturnStep(AActor *Actor, USkillDataBase *Skill);
 	void FinishMontageChain(AActor *Actor);
 
 	/** Complete a deferred ARM turn (2b): the ritual-cast montage ended (or was
@@ -777,8 +777,8 @@ private:
 	/** B2 interrupt — abort the rest of the action after an interruptable hit was parried/dodged by all
 	 *  targets: stop pending spawns/timers, clear+close the pending defense windows (no tail apply), mark the
 	 *  result interrupted, then play the ReturnMontage (warp back to origin) if authored, else hard-stop the
-	 *  montage and finalize. Skill is the chain skill (UWeaponAttackData / spell — both UCastableSkillDataBase). */
-	void InterruptAsyncAction(AActor *Attacker, UCastableSkillDataBase *Skill);
+	 *  montage and finalize. Skill is the chain skill (UWeaponAttackData / spell — both USkillDataBase). */
+	void InterruptAsyncAction(AActor *Attacker, USkillDataBase *Skill);
 
 private:
 	// ========================================

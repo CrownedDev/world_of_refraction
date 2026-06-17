@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Skills/Definitions/CastableSkillDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Animation/AnimMontage.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 
@@ -18,13 +18,12 @@
  * Weapon Attack Data Asset
  * Defines attack properties including animation, damage distribution, and physical type.
  *
- * Inherits shared skill shape from USkillDataBase and cast shape
- * (Tier, TargetType, BaseDamage, BaseEnergyCost, Requirements) from
- * UCastableSkillDataBase. DeliveryType/ProjectileSpeed are inherited but
- * hidden in the editor via CanEditChange — attacks don't use projectile delivery.
+ * Inherits all shared skill shape (Tier, TargetType, BaseDamage, BaseEnergyCost,
+ * Requirements, DeliveryType/ProjectileSpeed, montages, ExecutionRange, …) from
+ * USkillDataBase — the single skill base after the UCastableSkillDataBase collapse.
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API UWeaponAttackData : public UCastableSkillDataBase
+class WORLD_OF_REFRACTION_API UWeaponAttackData : public USkillDataBase
 {
     GENERATED_BODY()
 
@@ -37,8 +36,8 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Animation", meta = (DeprecatedProperty))
     UAnimMontage *AttackMontage = nullptr;
 
-    // BaseAnimSpeed hoisted to UCastableSkillDataBase (D7) — same name/default/
-    // clamp, authored values load onto the inherited field (serialize-by-name).
+    // BaseAnimSpeed hoisted to USkillDataBase (D7) — same name/default/clamp,
+    // authored values load onto the inherited field (serialize-by-name).
 
     // ExecutionRange hoisted to USkillDataBase (root) + Icon hoisted to USkillDataBase
     // (step 2, attack/ability merge) — same name/type, authored values load onto the

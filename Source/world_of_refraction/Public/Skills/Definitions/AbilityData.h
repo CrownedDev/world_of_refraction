@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Skills/Definitions/CastableSkillDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
@@ -23,12 +23,12 @@ class UCharacterData;
  * Ability Data Asset - Universal skills usable by all characters
  * Can be infused with character's innate element for status effects.
  *
- * Inherits the shared skill shape (Name, HitCount, Effects, …) from USkillDataBase
- * and the cast shape (Tier, TargetType, BaseDamage, BaseEnergyCost, Requirements,
- * DeliveryType, ProjectileSpeed) from UCastableSkillDataBase.
+ * Inherits the full shared skill shape (Name, HitCount, Effects, Tier, TargetType,
+ * BaseDamage, BaseEnergyCost, Requirements, DeliveryType, ProjectileSpeed, …) from
+ * USkillDataBase — the single skill base after the UCastableSkillDataBase collapse.
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API UAbilityData : public UCastableSkillDataBase
+class WORLD_OF_REFRACTION_API UAbilityData : public USkillDataBase
 {
     GENERATED_BODY()
 
@@ -51,7 +51,7 @@ public:
     bool bIsAttack = false;
 
     // ==================== EXECUTION ====================
-    // ExecutionType hoisted to UCastableSkillDataBase (D3 descriptive tag).
+    // ExecutionType + ExecutionRange both live on USkillDataBase (the single skill base).
     // ExecutionRange hoisted to USkillDataBase (root) at step 2 of the attack/ability
     // merge — default reconciled 150→100. Authored values load onto the inherited field
     // (serialize-by-name); the Melee gate now lives in GetExecutionRange logic, not an

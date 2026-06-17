@@ -338,7 +338,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 	case EActionType::Attack:
 		if (Action.AttackData && Action.SelectedSource != EInfusionSourceOption::None)
 		{
-			// Infused attacks cost energy. BaseEnergyCost (UCastableSkillDataBase)
+			// Infused attacks cost energy. BaseEnergyCost (USkillDataBase)
 			// defaults to 0 — attacks are free unless designers set a cost. The
 			// raw value is returned with no fallback constant; a warning fires if
 			// an infused attack ends up costing nothing so the configuration gap
@@ -501,7 +501,7 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 
 int32 UActionExecutor::GetActionActivationDelay(AActor *Actor, const FAction &Action) const
 {
-	const UCastableSkillDataBase *Skill = nullptr;
+	const USkillDataBase *Skill = nullptr;
 	switch (Action.ActionType)
 	{
 	case EActionType::Spell:
@@ -599,7 +599,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	// above is the commit; the montage is the visible channel. Presence-driven:
 	// no RitualCastMontage → keep the synchronous immediate-complete (the SC9
 	// no-arm-gesture fallback). The skill resolves from the slot just set.
-	UCastableSkillDataBase *ArmSkill = GetCurrentSkillData();
+	USkillDataBase *ArmSkill = GetCurrentSkillData();
 	if (ArmSkill && ArmSkill->RitualCastMontage)
 	{
 		// Hold the context open (bInProgress = true) across the wait so the
@@ -2504,7 +2504,7 @@ bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
 	return true; // every target resolved AND parried/dodged the choke point
 }
 
-void UActionExecutor::InterruptAsyncAction(AActor *Attacker, UCastableSkillDataBase *Skill)
+void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Skill)
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -4706,7 +4706,7 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 	case EActionType::Spell:
 		// Melee spells warp like melee abilities; ranged spells don't approach.
 		// (USpellData has no IsMelee() helper — gate on ExecutionType directly; the
-		//  field lives on UCastableSkillDataBase, which spells inherit.)
+		//  field lives on USkillDataBase, which spells inherit.)
 		if (Action.SpellData && Action.SpellData->ExecutionType == EAbilityExecutionType::Melee)
 		{
 			return Action.SpellData->ExecutionRange;
@@ -5010,7 +5010,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	// NOT PendingExecutionActor/GetCurrentSkillData() — on a deferred fire finalize
 	// nulls PendingExecutionActor mid-Skill; reading it here would strand Return.
 	AActor *Actor = ChainActor.Get();
-	UCastableSkillDataBase *Skill = ChainSkill;
+	USkillDataBase *Skill = ChainSkill;
 
 	// Lost actor/skill or interrupted → close the chain immediately (finalize with
 	// the facing reassert). Matches today's interrupted/dropped-actor paths, which
@@ -5210,7 +5210,7 @@ UMotionWarpingComponent *UActionExecutor::GetOrCreateWarpComponent(AActor *Actor
 	return Warp;
 }
 
-void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate)
+void UActionExecutor::BeginMontageChain(AActor *Actor, USkillDataBase *Skill, float PlayRate)
 {
 	if (!Actor || !Skill)
 	{
@@ -5244,7 +5244,7 @@ void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *S
 	}
 }
 
-void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill)
+void UActionExecutor::PlayRitualStep(AActor *Actor, USkillDataBase *Skill)
 {
 	if (!Actor || !Skill)
 	{
@@ -5264,7 +5264,7 @@ void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skil
 	PlaySkillStep(Actor, Skill);
 }
 
-void UActionExecutor::PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill)
+void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 {
 	if (!Actor || !Skill)
 	{
@@ -5280,7 +5280,7 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
 }
 
-void UActionExecutor::PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill)
+void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 {
 	if (!Actor || !Skill)
 	{
@@ -5393,7 +5393,7 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	TryFinalizeAsyncAction();
 }
 
-const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role)
+const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const USkillDataBase *Skill, EVFXRole Role)
 {
 	if (!Skill)
 	{
@@ -5410,7 +5410,7 @@ const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDat
 	return nullptr;
 }
 
-UCastableSkillDataBase *UActionExecutor::GetCurrentSkillData() const
+USkillDataBase *UActionExecutor::GetCurrentSkillData() const
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -5442,7 +5442,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 	{
 	case ECombatNotifyFamily::VFX:
 	{
-		UCastableSkillDataBase *Skill = GetCurrentSkillData();
+		USkillDataBase *Skill = GetCurrentSkillData();
 		if (!Skill)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX notify %d with no skill data — skipping"), Index);
@@ -5466,7 +5466,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		// firing hits. ChainActor is the stable handle, valid through the whole
 		// montage chain — same source OnActionAnimationEnded advances off.
 		AActor *Executor = ChainActor.Get();
-		UCastableSkillDataBase *Skill = GetCurrentSkillData();
+		USkillDataBase *Skill = GetCurrentSkillData();
 		const int32 HitCount = Skill ? Skill->HitCount : 0;
 		// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
 		UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impact %d of %d for %s"),

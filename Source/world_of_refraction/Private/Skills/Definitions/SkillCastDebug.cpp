@@ -2,10 +2,10 @@
 // Debug utilities for the skill Cast array (D6)
 
 #include "Skills/Definitions/SkillCastDebug.h"
-#include "Skills/Definitions/CastableSkillDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Engine/Engine.h"
 
-void USkillCastDebug::PrintCastArray(const UCastableSkillDataBase *Skill, float Duration)
+void USkillCastDebug::PrintCastArray(const USkillDataBase *Skill, float Duration)
 {
     if (!Skill)
     {
@@ -30,7 +30,7 @@ void USkillCastDebug::PrintCastArray(const UCastableSkillDataBase *Skill, float 
     }
 }
 
-FString USkillCastDebug::GetCastArrayString(const UCastableSkillDataBase *Skill)
+FString USkillCastDebug::GetCastArrayString(const USkillDataBase *Skill)
 {
     if (!Skill)
     {

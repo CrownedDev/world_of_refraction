@@ -19,7 +19,7 @@ defaults that runtime inventory factories copy from.
 The skill data assets `UAbilityData` and `USpellData` are the executable
 content the weapon/ring points at. They are documented here because they are
 the payload of the weapon system, though they derive from
-`UCastableSkillDataBase` (a separate skill hierarchy not fully covered by this
+`USkillDataBase` (a separate skill hierarchy not fully covered by this
 doc).
 
 ## Architecture
@@ -135,9 +135,9 @@ is a slight mismatch between the comment and the `EditCondition`.
 
 ### `UAbilityData`
 
-`UCLASS(BlueprintType)`, derives from `UCastableSkillDataBase` (which itself
-extends `USkillDataBase`). Universal skills usable by all characters; can be
-infused with the character's innate element for status effects.
+`UCLASS(BlueprintType)`, derives from `USkillDataBase`. Universal skills usable
+by all characters; can be infused with the character's innate element for status
+effects.
 
 - **Identity** — `RequiredWeaponType` (`EWeaponType`), `bRequiresDualWeapon`
   (bool, default `false`). When `bRequiresDualWeapon` is true the ability is
@@ -163,7 +163,7 @@ infused with the character's innate element for status effects.
 
 ### `USpellData`
 
-`UCLASS(BlueprintType)`, derives from `UCastableSkillDataBase`. Element-locked
+`UCLASS(BlueprintType)`, derives from `USkillDataBase`. Element-locked
 magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
 
 - **Identity** — `Element` (`ESpellElement`, default `Fire`), `School`

@@ -4,6 +4,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Character/CharacterData.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
 {
@@ -205,6 +206,41 @@ bool USkillDataBase::HasDebuffEffects() const
     return false;
 }
 
+// Folded from UCastableSkillDataBase at the base merge — read the requirement/tier
+// fields now living on this class.
+
+bool USkillDataBase::MeetsRequirements(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return false;
+    }
+    return Requirements.MeetsRequirements(Character);
+}
+
+int32 USkillDataBase::GetTotalDeficit(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return 0;
+    }
+    return Requirements.GetTotalDeficit(Character);
+}
+
+float USkillDataBase::CalculateRequirementPenalty(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return 0.0f;
+    }
+    return Requirements.CalculatePenalty(Character);
+}
+
+FString USkillDataBase::GetTierString() const
+{
+    return TierHelpers::GetTierDisplayString(Tier);
+}
+
 #if WITH_EDITOR
 EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Context) const
 {
@@ -220,6 +256,19 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Context.AddError(FText::FromString(FString::Printf(
             TEXT("Too many effects (%d). Maximum is %d"),
             Effects.Num(), LoadoutConstants::MAX_SKILL_EFFECTS)));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // Folded from UCastableSkillDataBase::IsDataValid at the base merge.
+    if (BaseDamage < 0)
+    {
+        Context.AddError(FText::FromString(TEXT("BaseDamage cannot be negative")));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    if (BaseEnergyCost < 0)
+    {
+        Context.AddError(FText::FromString(TEXT("BaseEnergyCost cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 
