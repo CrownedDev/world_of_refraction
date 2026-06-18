@@ -375,6 +375,14 @@ void UCharacterDataComponent::ServerSetBrokenDarkness(bool bNewState)
     {
         OnEPChanged.Broadcast(CurrentEP, MaxEP);
     }
+    else
+    {
+        // BD->Darkness revert: reset EP to normal max (asymmetric vs carryover-on-activate).
+        // Direct field set — bypasses the ServerSetEP BD guard (bIsBrokenDarkness is already
+        // false here, set above), so the guard does not block the write.
+        CurrentEP = MaxEP;
+        OnEPChanged.Broadcast(CurrentEP, MaxEP);   // relabels bar Absorb -> EP
+    }
 }
 
 void UCharacterDataComponent::OnRep_bIsBrokenDarkness()

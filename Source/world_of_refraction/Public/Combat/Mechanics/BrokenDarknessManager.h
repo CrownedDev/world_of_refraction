@@ -105,6 +105,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
 	void ForceTransformation();
 
+	/** Forcibly revert this character from Broken Darkness to Darkness. The BD→Darkness direction of the
+	 *  switch — out-of-combat only (healer / forced trigger). Clears all BD runtime state, resets EP to
+	 *  MaxEP (asymmetric: Darkness→BD carries EP over; BD→Darkness resets). No-op if not currently BD
+	 *  (bIsFlipped false). The trigger that CALLS this is not built yet — this is the mechanism only. */
+	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness")
+	void RevertTransformation();
+
 	// ==================== FORBIDDEN ELEMENTS ====================
 
 	/**
@@ -278,6 +285,12 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "BrokenDarkness|Events")
 	FOnBrokenDarknessTransformed OnTransformed;
+
+	/** Broadcast when this character is forcibly reverted from Broken Darkness back to Darkness
+	 *  (RevertTransformation). Reuses FOnBrokenDarknessTransformed — same signature as OnTransformed.
+	 *  Bind here (not OnTransformed) for revert-specific VFX/UI; the two edges fire independently. */
+	UPROPERTY(BlueprintAssignable, Category = "BrokenDarkness|Events")
+	FOnBrokenDarknessTransformed OnReverted;
 
 	UPROPERTY(BlueprintAssignable, Category = "BrokenDarkness|Events")
 	FOnEnergyAbsorbed OnEnergyAbsorbed;
