@@ -20,6 +20,7 @@
 #include "NiagaraSystem.h"
 #include "Equipment/Crystals/EEvolutionType.h"
 #include "Equipment/Crystals/EBreakability.h"
+#include "Infusion/EInfusionMode.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
@@ -77,6 +78,11 @@ public:
         /** Evolution type */
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
+
+        /** How an infused action via this evolution (when primary-slotted) splits its charge bonus. Balanced
+         *  (default) = the middle to both; Physical leans damage; Status leans status. */
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
+        EInfusionMode InfusionMode = EInfusionMode::Balanced;
 
         // ==================== DURABILITY ====================
         // Only meaningful for refined crystals. Unrefined crystals are consumables

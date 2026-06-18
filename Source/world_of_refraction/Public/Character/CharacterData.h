@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Infusion/EInfusionMode.h"
 #include "Character/ECharacterClass.h"
 #include "Character/StatConstants.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
@@ -123,6 +124,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
 	ESpellElement InnateElement = ESpellElement::Generic;
+
+	/** How an innate-infused action splits its charge bonus (innate uses the character's own element, so its
+	 *  mode lives here). Balanced (default) = the middle to both; Physical leans damage; Status leans status. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	EInfusionMode InfusionMode = EInfusionMode::Balanced;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Character description...");

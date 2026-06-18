@@ -8,6 +8,7 @@
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Infusion/EInfusionMode.h"
 #include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
@@ -50,6 +51,11 @@ public:
      *  a dagger = Pierce, a sword = Slash. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
+
+    /** How an infused action delivered through this weapon (raw / weapon-crystal) splits its charge bonus.
+     *  Balanced (default) = the middle to both damage and status; Physical leans damage; Status leans status. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    EInfusionMode InfusionMode = EInfusionMode::Balanced;
 
     // Attack used when this weapon is equipped (replaces base attack). Base type (attack/ability merge)
     // holding a UAbilityData with bIsAttack=true; IsAttack() distinguishes it from a slottable ability.

@@ -1071,7 +1071,10 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 			? Spell->CastArray[0].Damage
 			: -1;
 	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods, EntryBaseOverride);
-	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
+	// 6-3-3: per-mode, stat-scaled charge damage. Mode resolved once from the action's
+	// infusion source (ring/weapon/innate/evolution), reused for the status log below.
+	const EInfusionMode SpellMode = ResolveInfusionMode(Action.SelectedSource, Caster);
+	float DamageMultiplier = GetChargeDamageMultiplier(Action.SpellInfusionLevel, SpellMode, /*bIsSpell*/ true, CasterComp);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Tier-gap (B2): final multiplicative factor, stacking with the charge
@@ -1079,8 +1082,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	const float TierGapMult = ResolveTierGapMultiplier(Caster, Action, Spell->Name);
 	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
 
-	// Track status multiplier for later application
-	float StatusMultiplier = GetSpellChargeStatusMultiplier(Action.SpellInfusionLevel);
+	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
+	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
+	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
 		   Action.SpellInfusionLevel,
@@ -1138,12 +1142,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	int32 SpellBaseBuildup = 0;
 	if (Spell->StatusBuildup > 0)
 	{
-		float Buildup = static_cast<float>(Spell->StatusBuildup);
-		if (Action.SpellInfusionLevel == 1)
-		{
-			Buildup *= CombatConstants::SPELL_L1_BUILDUP_MULT;
-		}
-		SpellBaseBuildup = FMath::RoundToInt(Buildup);
+		// 6-4: apply the unified per-mode stat-scaled status multiplier (computed above for the
+		// log) — replaces the retired inline L1 +50%. L0 → ×1.0; L1/L2 → progressive per-mode bonus.
+		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier);
 	}
 
 	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
@@ -1335,8 +1336,10 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		Element = UserData->InnateElement;
 	}
 
-	// Apply charge level damage multiplier (L2 = 1.30x, L1 unchanged)
-	float DamageMultiplier = GetAbilityChargeDamageMultiplier(Action.AbilityInfusionLevel);
+	// 6-3-3: per-mode, stat-scaled charge damage (L1 now also bonused, was ×1.0 before).
+	// Mode resolved once from the action's infusion source, reused for the status site below.
+	const EInfusionMode AbilityMode = ResolveInfusionMode(Action.SelectedSource, User);
+	float DamageMultiplier = GetChargeDamageMultiplier(Action.AbilityInfusionLevel, AbilityMode, /*bIsSpell*/ false, UserComp);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Tier-gap (B2): final multiplicative factor, stacking with the charge
@@ -1373,14 +1376,6 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// Play animation (merged path — PlaySkillAnimation reads the unified base SkillMontage)
 	PlaySkillAnimation(User, Ability, ActionMods);
 
-	// Apply charge infusion status buildup (L1 = 1.25x, L2 = 0 — exclusive with damage)
-	float StatusMultiplier = GetAbilityChargeStatusMultiplier(Action.AbilityInfusionLevel);
-	if (StatusMultiplier > 0.0f && ValidTargets.Num() > 0 && bIsInfused)
-	{
-		ApplyAbilityInfusionStatus(User, ValidTargets, Action.SelectedSource,
-								   Ability->HitCount, StatusMultiplier);
-	}
-
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Abilities have no physical type - if the action
 	// is non-infused (Element=Generic, Physical=None) the resolver returns None
@@ -1390,7 +1385,10 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	int32 AbilityBaseBuildup = 0;
 	if (Ability->StatusBuildup > 0)
 	{
-		AbilityBaseBuildup = Ability->StatusBuildup;
+		// 6-4: scale ability status by the per-mode stat-scaled charge multiplier (L0 → ×1.0,
+		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
+		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp);
+		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult);
 	}
 
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
@@ -4372,56 +4370,125 @@ URingManager *UActionExecutor::GetRingManager() const
 // CHARGE INFUSION HELPERS
 // ========================================
 
-float UActionExecutor::GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) const
+// Shared upside-only stat surcharge fraction: max(0, stat - 1). Stacking the stat raises
+// the infusion COST (6-2 ComputeInfusionCostMultiplier) and the EFFECT (6-3 charge getters)
+// by the IDENTICAL fraction — one definition so cost and effect never drift.
+static float StatFraction(float Stat)
 {
-	switch (SpellInfusionLevel)
-	{
-	case 1:
-		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.25f - status boost
-	case 2:
-		return 1.0f; // L2 gets BASE status, not boosted
-	default:
-		return 1.0f;
-	}
+	return FMath::Max(0.0f, Stat - 1.0f);
 }
 
-float UActionExecutor::GetSpellChargeDamageMultiplier(int32 SpellInfusionLevel) const
+// Charge effect band: pick the L1 vs L2 value for a (L1,L2) constant pair. Callers guard
+// Level <= 0 → 1.0 before reaching here, so any Level >= 2 takes the L2 band.
+static float ChargeBand(int32 Level, float L1Value, float L2Value)
 {
-	switch (SpellInfusionLevel)
-	{
-	case 1:
-		return 1.0f; // L1 gets status boost, not damage
-	case 2:
-		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
-	default:
-		return 1.0f;
-	}
+	return (Level == 1) ? L1Value : L2Value;
 }
 
-float UActionExecutor::GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLevel) const
+float UActionExecutor::GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode, bool bIsSpell, const UCharacterDataComponent *Comp) const
 {
-	switch (AbilityInfusionLevel)
+	if (Level <= 0 || !Comp)
 	{
-	case 1:
-		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.25f - status boost
-	case 2:
-		return 0.0f; // L2 gets NO status
-	default:
-		return 0.0f; // L0 = no status from charge
+		return 1.0f; // uninfused (or no comp): no charge bonus
 	}
+
+	// Damage is the FOCUS in Physical mode, OFF-FOCUS in Status, BALANCED in Balanced.
+	float Base;
+	switch (Mode)
+	{
+	case EInfusionMode::Physical:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_FOCUS_L1, InfusionConstants::CHARGE_FOCUS_L2);
+		break;
+	case EInfusionMode::Status:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_OFFFOCUS_L1, InfusionConstants::CHARGE_OFFFOCUS_L2);
+		break;
+	case EInfusionMode::Balanced:
+	default:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_BALANCED_L1, InfusionConstants::CHARGE_BALANCED_L2);
+		break;
+	}
+
+	const float Stat = bIsSpell ? Comp->GetEffectiveStats().SpellDamage
+								 : Comp->GetEffectiveRawDamage();
+	return Base * (1.0f + StatFraction(Stat));
 }
 
-float UActionExecutor::GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const
+float UActionExecutor::GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode, const UCharacterDataComponent *Comp) const
 {
-	switch (AbilityInfusionLevel)
+	if (Level <= 0 || !Comp)
 	{
-	case 1:
-		return 1.0f; // L1 gets status boost, not damage
-	case 2:
-		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
-	default:
 		return 1.0f;
 	}
+
+	// Status is the FOCUS in Status mode, OFF-FOCUS in Physical, BALANCED in Balanced.
+	float Base;
+	switch (Mode)
+	{
+	case EInfusionMode::Physical:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_OFFFOCUS_L1, InfusionConstants::CHARGE_OFFFOCUS_L2);
+		break;
+	case EInfusionMode::Status:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_FOCUS_L1, InfusionConstants::CHARGE_FOCUS_L2);
+		break;
+	case EInfusionMode::Balanced:
+	default:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_BALANCED_L1, InfusionConstants::CHARGE_BALANCED_L2);
+		break;
+	}
+
+	return Base * (1.0f + StatFraction(Comp->GetEffectiveStatusMultiplier()));
+}
+
+EInfusionMode UActionExecutor::ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const
+{
+	switch (Source)
+	{
+	case EInfusionSourceOption::ActiveRing:
+		if (URingManager *RM = GetRingManager())
+		{
+			if (URingData *Ring = RM->GetActiveRing(Actor))
+			{
+				return Ring->InfusionMode;
+			}
+		}
+		break;
+	case EInfusionSourceOption::PrimaryRing:
+		if (URingManager *RM = GetRingManager())
+		{
+			if (URingData *Ring = RM->GetPrimaryRing(Actor))
+			{
+				return Ring->InfusionMode;
+			}
+		}
+		break;
+	case EInfusionSourceOption::Innate:
+		if (UCharacterData *CharData = GetCharacterData(Actor))
+		{
+			return CharData->InfusionMode;
+		}
+		break;
+	case EInfusionSourceOption::Evolution:
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
+		{
+			if (UEvolutionItemData *Evo = LC->GetPrimaryEvolution())
+			{
+				return Evo->InfusionMode;
+			}
+		}
+		break;
+	case EInfusionSourceOption::Raw:
+	case EInfusionSourceOption::WeaponCrystal:
+	default:
+		if (UWeaponManager *WM = GetWeaponManager())
+		{
+			if (UWeaponData *Weapon = WM->GetActiveWeapon(Actor))
+			{
+				return Weapon->InfusionMode;
+			}
+		}
+		break;
+	}
+	return EInfusionMode::Balanced; // null-safe fallback
 }
 
 float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
@@ -4454,50 +4521,15 @@ float UActionExecutor::ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell,
 	// Stat surcharge — UPSIDE-ONLY (a below-neutral stat never reduces the cost).
 	// Ability scales with RawDamage, spell with SpellDamage. Stacking the stat makes
 	// infusion cost MORE in BOTH directions (damage AND cost) — self-balancing.
-	float StatFraction = 0.0f;
+	float Frac = 0.0f;
 	if (Comp)
 	{
 		const float Stat = bIsSpell ? Comp->GetEffectiveStats().SpellDamage
 									 : Comp->GetEffectiveRawDamage();
-		StatFraction = FMath::Max(0.0f, Stat - 1.0f);
+		Frac = StatFraction(Stat);
 	}
 
-	return ChargeMult * (1.0f + StatFraction);
-}
-
-void UActionExecutor::ApplyAbilityInfusionStatus(
-	AActor *User,
-	const TArray<AActor *> &Targets,
-	EInfusionSourceOption Source,
-	int32 HitCount,
-	float StatusMultiplier)
-{
-	if (StatusMultiplier <= 0.0f || Targets.Num() == 0)
-	{
-		return;
-	}
-
-	if (Source == EInfusionSourceOption::None)
-	{
-		// Physical source - TODO: Integrate with WeaponManager when API is available
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply physical status to %d targets (x%.1f mult)"),
-			   Targets.Num(), StatusMultiplier);
-	}
-	else
-	{
-		// Elemental source - apply element status buildup
-		ESpellElement Element = GetElementForSourceOption(User, Source);
-
-		if (Element != ESpellElement::Generic)
-		{
-			int32 BaseBuildup = 10 * HitCount; // TODO: Get from CombatConstants
-			int32 FinalBuildup = FMath::RoundToInt(BaseBuildup * StatusMultiplier);
-
-			// TODO: Integrate with SkillEffectManager when API is available
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply %d %s status buildup to %d targets"),
-				   FinalBuildup, *UEnum::GetValueAsString(Element), Targets.Num());
-		}
-	}
+	return ChargeMult * (1.0f + Frac);
 }
 
 // ========================================

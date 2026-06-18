@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/EquipmentDataBase.h"
+#include "Infusion/EInfusionMode.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -33,6 +34,11 @@ public:
 	// If true, spells cannot be customized (conjured-ring equivalent of bAbilitiesLocked)
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
 	bool bSpellsLocked = false;
+
+	/** How an infused action delivered through this ring splits its charge bonus. Balanced (default) = the
+	 *  middle to both; Physical leans damage; Status leans status. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")
+	EInfusionMode InfusionMode = EInfusionMode::Balanced;
 
 	/** Preset spells. When bSpellsLocked is true these are the locked spells
 	 *  (all-or-nothing — mirrors UWeaponData::PresetAbilities). When false,

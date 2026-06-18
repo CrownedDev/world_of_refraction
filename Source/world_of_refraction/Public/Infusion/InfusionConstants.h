@@ -20,6 +20,29 @@ namespace InfusionConstants
 	/** L2 Charge: Damage multiplier (+30%) - spells and abilities */
 	constexpr float CHARGE_L2_DAMAGE_MULT = 1.30f;
 
+	// ==================== CHARGE EFFECT BONUSES (MODE-ROUTED) ====================
+	// Infusion charge effect bonuses (multiplier form). The mode (EInfusionMode) routes which pair
+	// applies to damage vs status: Physical -> damage=focus / status=off-focus; Status -> reversed;
+	// Balanced -> the middle to both. L1/L2 progressive (both scale at both levels).
+
+	/** The mode's focused effect, L1 (+15%) */
+	constexpr float CHARGE_FOCUS_L1 = 1.15f;
+
+	/** Focused effect, L2 (+30%) */
+	constexpr float CHARGE_FOCUS_L2 = 1.30f;
+
+	/** The off-axis effect, L1 (+10%) */
+	constexpr float CHARGE_OFFFOCUS_L1 = 1.10f;
+
+	/** Off-axis effect, L2 (+20%) */
+	constexpr float CHARGE_OFFFOCUS_L2 = 1.20f;
+
+	/** Balanced: the middle to both, L1 (+12.5%) */
+	constexpr float CHARGE_BALANCED_L1 = 1.125f;
+
+	/** Balanced: the middle to both, L2 (+25%) */
+	constexpr float CHARGE_BALANCED_L2 = 1.25f;
+
 	// ==================== TIMING ====================
 
 	/** Time to hold for Level 1 charge (seconds) */

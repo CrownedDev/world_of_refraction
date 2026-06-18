@@ -17,6 +17,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
+#include "Infusion/EInfusionMode.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Skills/Effects/FSkillEffect.h"
@@ -674,17 +675,19 @@ private:
 	// CHARGE INFUSION HELPERS (NEW)
 	// ========================================
 
-	/** Get spell charge status multiplier (L1 = 1.5, L2 = 1.0) */
-	float GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) const;
+	/** Charge DAMAGE multiplier: per-mode base (focus / off-focus / balanced by EInfusionMode) ×
+	 *  upside-only stat surcharge (1 + max(0, stat-1)). Damage stat = bIsSpell ? SpellDamage :
+	 *  RawDamage. L0 (or null Comp) → 1.0. Shared by ability + spell (bIsSpell picks the stat). */
+	float GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
-	/** Get spell charge damage multiplier (L1 = 1.0, L2 = 1.3) */
-	float GetSpellChargeDamageMultiplier(int32 SpellInfusionLevel) const;
+	/** Charge STATUS multiplier: per-mode base (status is the focus in Status mode) × the same
+	 *  upside-only surcharge over GetEffectiveStatusMultiplier. L0 (or null Comp) → 1.0. */
+	float GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode, const UCharacterDataComponent *Comp) const;
 
-	/** Get ability charge status multiplier (L1 = 1.5, L2 = 0.0) */
-	float GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLevel) const;
-
-	/** Get ability charge damage multiplier (L1 = 1.0, L2 = 1.3) */
-	float GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const;
+	/** Resolve which equipment/character's InfusionMode applies for an action's infusion source:
+	 *  Raw/WeaponCrystal → weapon, Innate → character data, ActiveRing/PrimaryRing → ring,
+	 *  Evolution → primary-slot evolution. Null-safe → Balanced. */
+	EInfusionMode ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const;
 	/** Get ability charge energy cost multiplier (L1 = 1.0, L2 = 1.5) */
 	float GetAbilityChargeCostMultiplier(int32 Level) const;
 
@@ -694,13 +697,6 @@ private:
 	 *  cost, ability spend, and ability preview so all three agree. */
 	float ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
-	/** Apply ability infusion status buildup to targets */
-	void ApplyAbilityInfusionStatus(
-		AActor *User,
-		const TArray<AActor *> &Targets,
-		EInfusionSourceOption Source,
-		int32 HitCount,
-		float StatusMultiplier);
 
 	// ========================================
 	// CACHED REFERENCES
