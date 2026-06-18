@@ -19,8 +19,8 @@
 void UCharacterData::RefreshResistanceProfileDisplay()
 {
 	// Single source of truth: ResolveRow. Design-time BD signal is the asset's
-	// InnateElement == BrokenDarkness (no runtime transform state on the asset).
-	const bool bAssetBrokenDarkness = InnateElement == ESpellElement::BrokenDarkness;
+	// bBrokenDarknessInnate toggle (no runtime transform state on the asset).
+	const bool bAssetBrokenDarkness = bBrokenDarknessInnate;
 	const ClassInnateResistanceTable::FResistanceRow Row =
 		ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), bAssetBrokenDarkness);
 
@@ -47,6 +47,18 @@ void UCharacterData::PostInitProperties()
 void UCharacterData::PostLoad()
 {
 	Super::PostLoad();
+
+	// Migration: legacy character-created BD authored as InnateElement = BrokenDarkness.
+	// Collapse to Darkness + the toggle. ⚠️ PostLoad does NOT dirty the package — this is
+	// transient until each BD asset is re-saved in-editor (the re-save pass at the end of
+	// arc 1 bakes it; Phase 2 enum-deletion is gated on that re-save). Runs BEFORE the
+	// resistance-display refresh so the display reflects the migrated InnateElement + toggle.
+	if (InnateElement == ESpellElement::BrokenDarkness)
+	{
+		InnateElement = ESpellElement::Darkness;
+		bBrokenDarknessInnate = true;
+	}
+
 	RefreshResistanceProfileDisplay();
 }
 

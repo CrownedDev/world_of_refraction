@@ -48,9 +48,11 @@ public:
 
 	// ==================== TRANSFORMATION STATE ====================
 
-	/** Has this character transformed into BrokenDarkness? */
+	/** Is this character currently Broken Darkness (the manager's mirror of
+	 *  current-BD state — set by the BeginPlay auto-flip + TriggerTransformation).
+	 *  Name kept for BP/API stability; backed by bIsFlipped. */
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness")
-	bool IsTransformed() const { return bIsTransformed; }
+	bool IsTransformed() const { return bIsFlipped; }
 
 	// ==================== BREAK SYSTEM ====================
 
@@ -341,9 +343,13 @@ private:
 protected:
 	// ==================== TRANSFORMATION STATE ====================
 
-	/** Has this character transformed into BrokenDarkness? */
+	/** Currently Broken Darkness ("flipped" — from birth nature under the switch
+	 *  model; for a born-BD it's true at rest, for a transformed Darkness caster
+	 *  it's set on the break). The manager's mirror of current-BD; kept in sync
+	 *  with UCharacterDataComponent::IsBrokenDarkness() via the BeginPlay auto-flip
+	 *  and TriggerTransformation. Read via IsTransformed(). */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness")
-	bool bIsTransformed = false;
+	bool bIsFlipped = false;
 
 	// ==================== ABSORPTION ENERGY ====================
 	// Broken Darkness energy is unified onto UCharacterDataComponent::CurrentEP

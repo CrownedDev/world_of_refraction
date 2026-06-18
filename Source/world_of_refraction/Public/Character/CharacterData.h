@@ -125,6 +125,16 @@ public:
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
 	ESpellElement InnateElement = ESpellElement::Generic;
 
+	/** Character-created ("born") Broken Darkness. Only meaningful with InnateElement =
+	 *  Darkness — BD is a broken Darkness caster, not a separate element. This is the INNATE
+	 *  SEED only: the init auto-flip reads it once to put the character in BD runtime state at
+	 *  birth; thereafter UCharacterDataComponent::IsBrokenDarkness() (the runtime XOR) is
+	 *  authoritative. Do NOT pair-check this with InnateElement inline anywhere else — read
+	 *  IsBrokenDarkness() for runtime BD-ness. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity",
+			  meta = (EditCondition = "InnateElement == ESpellElement::Darkness"))
+	bool bBrokenDarknessInnate = false;
+
 	/** How an innate-infused action splits its charge bonus (innate uses the character's own element, so its
 	 *  mode lives here). Balanced (default) = the middle to both; Physical leans damage; Status leans status. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
@@ -280,7 +290,7 @@ public:
 	float GetElementResistance(ESpellElement IncomingElement) const
 	{
 		const ClassInnateResistanceTable::FResistanceRow Row =
-			ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), InnateElement == ESpellElement::BrokenDarkness);
+			ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), bBrokenDarknessInnate);
 		return ClassInnateResistanceTable::GetElementColumn(Row, IncomingElement) / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 
@@ -290,7 +300,7 @@ public:
 	float GetPhysicalResistance(EPhysicalDamageType PhysicalType) const
 	{
 		const ClassInnateResistanceTable::FResistanceRow Row =
-			ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), InnateElement == ESpellElement::BrokenDarkness);
+			ClassInnateResistanceTable::ResolveRow(CharacterClass, GetElement(), bBrokenDarknessInnate);
 		return ClassInnateResistanceTable::GetPhysicalColumn(Row, PhysicalType) / ClassInnateResistanceTable::RESISTANCE_PERCENT_DIVISOR;
 	}
 

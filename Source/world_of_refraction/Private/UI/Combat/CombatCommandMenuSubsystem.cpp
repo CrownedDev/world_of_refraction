@@ -438,7 +438,9 @@ void UCombatCommandMenuSubsystem::RebuildCapabilities()
     CurrentCapabilities = FCombatCapabilities::BuildFrom(
         LC,
         CDC->CharacterData->CharacterClass,
-        CDC->CharacterData->InnateElement,
+        // Display identity: a born/transformed BD surfaces BrokenDarkness here
+        // (toggle-true) instead of its underlying Darkness element.
+        CDC->GetDisplayElement(),
         [this](int32 ElementIndex)
         { return GetElementColor(ElementIndex); });
 }
