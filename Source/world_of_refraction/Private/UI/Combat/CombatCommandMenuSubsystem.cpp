@@ -7,6 +7,7 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -937,15 +938,30 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
 
             // Breakthrough spells are the only spell submenu that exposes a
-            // CycleSource button — narrow the cache to the meaningful
-            // evolution-cast subset {Evolution, Innate}. Other spell submenus
-            // stay element-locked (no cycle UI), so no filtering needed for them.
+            // CycleSource button. 6-5-f: narrow the cache to EXACTLY the sources the
+            // spell's origin allows (GetAllowedInfusionSourcesForSpell) — one source
+            // of truth shared with ValidateAction, so the UI can never offer a source
+            // the validator would reject. Plain Caster evolution spell -> {Evolution}
+            // (size 1 -> cycle button auto-hides); BD/Reality -> {Evolution, Innate}
+            // (cycle stays, the documented exception). Other spell submenus stay
+            // element-locked (no cycle UI), so no filtering needed for them.
             if (ActionCategory == EPieMenuCategory::Spell &&
                 ActiveSubmenuSource == EPieMenuCategory::Breakthrough)
             {
-                VFX->RestrictCachedSources({
-                    EInfusionSourceOption::Evolution,
-                    EInfusionSourceOption::Innate});
+                USpellData *BreakthroughSpell = Cast<USpellData>(PendingActionData.Get());
+                UActionExecutor *Exec = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+                if (Exec && BreakthroughSpell && CurrentActor.IsValid())
+                {
+                    VFX->RestrictCachedSources(
+                        Exec->GetAllowedInfusionSourcesForSpell(CurrentActor.Get(), BreakthroughSpell));
+                }
+                else
+                {
+                    // Fallback (executor/spell/actor unreachable): the prior hardcoded subset.
+                    VFX->RestrictCachedSources({
+                        EInfusionSourceOption::Evolution,
+                        EInfusionSourceOption::Innate});
+                }
             }
 
             // For Spell action category, source is intrinsic — read from

@@ -227,6 +227,25 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 					return FActionValidationResult(false, TEXT("Element restricted"));
 				}
 			}
+
+			// 6-5-f: enforce the spell-source binding. An infused spell's SelectedSource must be one
+			// its origin allows (GetAllowedInfusionSourcesForSpell — the single source of truth shared
+			// with the AI and the UI source cache). Spells are origin-bound; abilities are NOT, so this
+			// lives in the Spell case only. Uninfused spells (L0) skip it; the None-source-at-L>0 case is
+			// the separate consistency check above. A non-infusable spell (empty allowed set) infused at
+			// L>0 is correctly rejected here.
+			if (Action.SpellData &&
+				Action.GetChargeLevel() > 0 &&
+				Action.SelectedSource != EInfusionSourceOption::None)
+			{
+				const TArray<EInfusionSourceOption> AllowedSources =
+					GetAllowedInfusionSourcesForSpell(Actor, Action.SpellData);
+				if (!AllowedSources.Contains(Action.SelectedSource))
+				{
+					return FActionValidationResult(false,
+						TEXT("Infusion source not allowed for this spell's origin"));
+				}
+			}
 			break;
 
 		case EActionType::Ability:
