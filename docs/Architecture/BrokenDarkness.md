@@ -88,18 +88,44 @@ zero callers.
 ## Absorption System
 
 When transformed, a BD gains absorption energy from successful defends. The live path is
-`OnDefenseResolved` (`BrokenDarknessManager.cpp:601`), called by `ActionExecutor.cpp:1236`
-when a defense window closes:
+`OnDefenseResolved` (`BrokenDarknessManager.cpp`), called from
+`ActionExecutor::OnDefenseWindowClosed` when a defense window closes:
 
-- Only `Block` and `Parry` absorb — `Dodge` and failed defenses do not (`.cpp:609-627`).
+- Only `Block` and `Parry` absorb — `Dodge` and failed defenses do not.
 - The attack element must be absorbable — `CanAbsorbElement` excludes `Generic`, `Reality`,
-  and `BrokenDarkness` (`.cpp:240-251`).
-- Energy gained = `AttackEnergyCost × mult`, mult = `PARRY_ABSORPTION_MULT` (0.30) or
-  `BLOCK_ABSORPTION_MULT` (0.15) (`CalculateAbsorptionEnergy`, `.cpp:656-673`).
+  and `BrokenDarkness`.
+- Energy gained (`CalculateAbsorptionEnergy`):
 
-`OnSuccessfulParry` / `OnSuccessfulBlock` (`.cpp:288, 314`) are alternative public entry
-points using a different formula (`DamageBlocked × ParryAbsorptionRate/BlockAbsorptionRate`);
-they currently have no callers.
+      EnergyAbsorbed = AttackBaseEnergyCost × BaseRate × (1 + EfficiencyFactor × K) × PerfectMultiplier
+
+  - **BaseRate** — `PARRY_BASE_RATE` (0.10) / `BLOCK_BASE_RATE` (0.05); parry is 2× block.
+  - **EfficiencyFactor** = `GetScalingFraction(ESubStat::Efficiency, owner's GetEffectiveEfficiencyMultiplier())`
+    — 0 at no investment → 0.5 at max stat → ~0.9 with gear. Reuses the scaling-arc helper, which reads
+    Efficiency *investment* (resolving the stat's lower-is-better inversion: more Efficiency → more absorption).
+  - **K** = `ABSORPTION_EFFICIENCY_K` (8.0) → max-stat reaches 5× the base rate (parry 50% / block 25% of the
+    attack's base energy cost).
+  - **PerfectMultiplier** = `PERFECT_ABSORPTION_MULT` (2.0) on a perfect parry/block, else 1.0. Perfect is
+    timing-based and type-agnostic (`FDefenseInputMatch::bPerfect`), threaded via
+    `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy` — so a
+    perfect **block** absorbs double too, not just a perfect parry.
+
+Endpoints (% of the attack's base energy cost; **coefficients are TUNABLE** — Crown may adjust the
+zero-Efficiency floor / K / perfect multiplier):
+
+| Efficiency | Parry (normal / perfect) | Block (normal / perfect) |
+|------------|--------------------------|--------------------------|
+| 0 invest   | 10% / 20%                | 5% / 10%                 |
+| max stat   | 50% / 100%               | 25% / 50%                |
+| max + gear | ~82% / ~164%             | ~41% / ~82%              |
+
+⚠️ **Behavior shift vs the pre-rework flat model:** at zero Efficiency absorption is now 10%/5% (was a flat
+30%/15%) — the floor is intentionally lower, rising past the old rate with Efficiency investment. (The dead
+`OnSuccessfulParry` / `OnSuccessfulBlock` pair and their `ParryAbsorptionRate` / `BlockAbsorptionRate` fields
+were removed in this rework — zero callers.)
+
+**Debug** — `WoR.AbsorptionSnapshot` (console command, `BrokenDarknessManager.cpp`) resolves the active
+combat's first BD and logs the per-type normal/perfect absorption across its current Efficiency level, so the
+curve is inspectable without landing an exact parry.
 
 **Energy** — since Session 5, BD absorption energy is stored on
 `UCharacterDataComponent::CurrentEP` — the same field a non-BD caster spends. BD's gain
@@ -325,8 +351,6 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 - **`ForceTransformation` dead** — `BrokenDarknessManager.cpp`, zero production
   callers; intentionally retained as a documented debug/test hook.
-- **`OnSuccessfulParry` / `OnSuccessfulBlock` unwired** — `BrokenDarknessManager.cpp:288, 314`,
-  zero callers; the live absorption path is `OnDefenseResolved`.
 - **Forbidden-cast self-buildup unbuilt (gap 4.2).** When a BD casts a forbidden
   element (Light/Void), `ProcessForbiddenCast` applies self-**damage** only; the
   designed self-**status-buildup** half (scaled by `StatusMultiplier`, element =
@@ -369,3 +393,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-28 | Sweep-1 — crystal absorption energy refactored to **% of target MaxEP** (`BD_ENERGY_PERCENT_*` F=10% .. S=70%; `CrystalEffectTable::GetBrokenDarknessEnergyPercent`); was previously flat tier values. Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` UI helper; stack-line refs corrected (`.cpp:588`/`.cpp:572-586`/`DamageCalculator.cpp:356-371`); stacks now render in the panel's effects list as a synthetic `StatusMultiplierBuff` row (replaces the standalone-text approach); overload EP-text colour bands rescaled into the real `[1.00, 1.30]` window. Known Gaps section captures unbuilt 4.2/4.3/4.4/4.5 with cross-links to `IntegrationGaps.md`. Stack-multiplier prose tightened — it's a **status-buildup** multiplier (matching-element only), not a damage buff. | feature/integration-gaps-sweep-1, feature/integration-gaps-sweep-5 |
 | 2026-06-15 | Planned: per-impact energy absorption (energy cost split across impacts proportional to the damage split, on parried/blocked impacts) — arising from reactive per-impact defense; build after Stage 3. See docs/Design/BrokenDarkness_ReactiveDefense.md. | feature/realtime-defense |
 | 2026-06-16 | Doc-sync: `UDamageCalculator::GetBDStackStatusMultiplier` was **deleted** (`feature/fix-bd-stack-multiplier`) — the element-gated accessor now lives on the manager as `UBrokenDarknessManager::GetElementStackStatusMultiplier(Element)` and is consumed by `UStatusBuildupManager::AddStatusBuildup` as **step 5c** (`StatusBuildupManager.cpp:383`). Updated §Stacks, the Integration table, and the File Index (DamageCalculator → StatusBuildupManager). **Gap 4.3 closed** — `ProcessOverloadTick` now wires the coupled energy leak: one pre-amplified `Released` value drives both `ServerSpendEnergy` and a self `AddStatusBuildup(..., bSkipBaseStatAmp=true)`; removed it from Known Gaps. | feature/realtime-defense |
+| 2026-06-18 | **Absorption rework** — replaced the flat parry/block rates (0.30/0.15) with an Efficiency-scaled, perfect-doubling model: `EnergyAbsorbed = AttackBaseEnergyCost × BaseRate(0.10/0.05) × (1 + GetScalingFraction(Efficiency) × K(8.0)) × PerfectMultiplier(2.0)`. Perfect (parry **or** block) doubles, threaded via `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy`. Zero-Efficiency floor is now lower (10%/5%, was 30%/15%), rising past the old rate with investment; max-stat 50%/25%, max-gear ~82%/41%. Removed the dead `OnSuccessfulParry`/`OnSuccessfulBlock` pair + `ParryAbsorptionRate`/`BlockAbsorptionRate` fields. Debug: `WoR.AbsorptionSnapshot`. Coefficients TUNABLE. Per-impact absorption (`BrokenDarkness_ReactiveDefense.md` §8c) remains deferred. | feature/bd-absorption-rework |
