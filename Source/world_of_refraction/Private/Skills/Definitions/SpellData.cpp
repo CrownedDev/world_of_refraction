@@ -10,6 +10,31 @@ void USpellData::PostLoad()
 {
     Super::PostLoad();
 
+    // Stage c: the per-cast FSkillCastEntry::Damage (the old single-cast "spell damage layer") is no
+    // longer read for damage — spells now resolve via the scaled skill BaseDamage + the DamageSplit
+    // %-split, like abilities. Migrate a single-cast spell's authored per-cast Damage into BaseDamage so
+    // routing through BaseDamage preserves the intended damage. Idempotent + guarded: fires ONLY when
+    // BaseDamage is unauthored (0), so it never clobbers an authored BaseDamage and never re-fires after
+    // the first migrate (BaseDamage > 0 thereafter). Single-cast only (incl. bursts, Count>1 — still ONE
+    // CastArray entry). The field is removed in stage d; until then this dirties the package on re-save.
+    if (BaseDamage == 0 && CastArray.Num() == 1 && CastArray[0].Damage > 0)
+    {
+        BaseDamage = CastArray[0].Damage;
+        UE_LOG(LogTemp, Log,
+               TEXT("[USpellData::PostLoad] %s: migrated per-cast Damage %d -> BaseDamage (stage c). Re-save to bake."),
+               *Name, CastArray[0].Damage);
+    }
+    else if (CastArray.Num() == 1 && CastArray[0].Damage > 0 && BaseDamage != CastArray[0].Damage)
+    {
+        // Both authored, different values: the guard above (BaseDamage != 0) correctly preserves the
+        // authored BaseDamage, but stage c now USES BaseDamage where the old override used the per-cast
+        // value — so this spell's damage shifts. Surface it for audit (expected to be zero spells —
+        // existing assets never authored per-cast Damage).
+        UE_LOG(LogTemp, Warning,
+               TEXT("[USpellData::PostLoad] %s: BOTH BaseDamage (%d) and per-cast Damage (%d) authored — stage c uses BaseDamage; the per-cast value is now ignored. Audit this spell."),
+               *Name, BaseDamage, CastArray[0].Damage);
+    }
+
     // D2: mirror the legacy montage into the unified base field. Triggered only
     // while SkillMontage is unauthored; CastAnimation stays the runtime source
     // of truth until the Stage 12 reader switch. Transient until resaved.

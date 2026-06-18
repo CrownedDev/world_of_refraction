@@ -1081,15 +1081,13 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
 
-	// Calculate damage with charge infusion multiplier. Stage 6 cluster 5: SINGLE-entry spells source
-	// the base from the cast entry's own Damage (the SPELL damage layer) when authored (>0); 0 or
-	// multi-entry → -1 → the skill-level Spell->BaseDamage as before (byte-identical). The override only
-	// swaps the raw base; SpellDamage/Mind/element scaling still runs at ApplyHit (ActionType=Spell).
-	const int32 EntryBaseOverride =
-		(Spell->CastArray.Num() == 1 && Spell->CastArray[0].Damage > 0)
-			? Spell->CastArray[0].Damage
-			: -1;
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods, EntryBaseOverride);
+	// Calculate damage with charge infusion multiplier. Stage c: spells resolve damage via the SAME
+	// scale-then-split path as abilities — the scaled skill BaseDamage, sliced by the shared DamageSplit
+	// %-table (or even fallback) at ResolveImpactDefense. The old single-cast FSkillCastEntry::Damage
+	// base override was RETIRED here (its value migrates to BaseDamage in USpellData::PostLoad); the
+	// field itself is removed in stage d. No override → use Spell->BaseDamage. SpellDamage/Mind/element
+	// scaling still runs at ApplyHit (ActionType=Spell).
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
 	// 6-3-3: per-mode, stat-scaled charge damage. Mode resolved once from the action's
 	// infusion source (ring/weapon/innate/evolution), reused for the status log below.
 	const EInfusionMode SpellMode = ResolveInfusionMode(Action.SelectedSource, Caster);
