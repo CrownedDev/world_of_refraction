@@ -1,12 +1,15 @@
-# Infusion Charge Rework — Exclusive → Progression (Parked)
+# Infusion Charge Rework — Exclusive → Progression (Completed)
 
-**Status:** PARKED — build **after** the attack/ability merge. A small but **live systems change** (edits the
-charge multiplier getters + wires the currently-dead status-charge bonus into the live path + retires a stub),
-NOT a note-only item. Independent of the merge (charge scaling works the same merged or not), but it touches
-the **same ability status path** as the per-impact-abilities work — sequence them together.
+> **RETIRED PLANNING DOC.** This was the original planning note for the charge rework. The work **shipped**
+> across stages 6-1..6-5 (git history `4c10d293`..`04a783d1`), and the delivered design + numbers **differ
+> from this note in places** — notably the per-mode `EInfusionMode` system (Physical/Status/Balanced) and the
+> shipped per-mode multipliers, which this note predates. **Do not treat the values below as current.** For the
+> authoritative current design see [`docs/Architecture/InfusionSystem.md`](../../Architecture/InfusionSystem.md).
+> Kept for historical context only.
 
-Branch context: `feature/realtime-defense`. Captured so the new progression + the "status charge is currently
-dead" fact aren't lost.
+**Status:** COMPLETED — shipped on `feature/realtime-defense` (6-1..6-5). Originally a "live systems change"
+(edited the charge multiplier getters, wired the then-dead status-charge bonus into the live path, retired a
+stub); the as-built design lives in `InfusionSystem.md`.
 
 ---
 

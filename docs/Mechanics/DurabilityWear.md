@@ -2,8 +2,9 @@
 
 How crystals, refined gems, elemental-fusion halves, and evolution items lose durability when used to infuse
 an action, and how they break. **This documents the CURRENT, live mechanic — it is staying as-is** (confirmed
-working). The parked InfusionChargeRework leaves this wear formula **unchanged**: the rework's "durability
-cost" *is* this existing wear (only the infusion-charge **effect/cost amounts elsewhere** change, not this).
+working). The infusion-charge rework (now shipped, 6-1..6-5) left this wear formula **unchanged**: the rework's
+"durability cost" *is* this existing wear (only the infusion-charge **effect/cost amounts elsewhere** changed,
+not this). See [`InfusionSystem.md`](../Architecture/InfusionSystem.md) for the full infusion model.
 
 > Path note: this doc lives under `docs/Mechanics/` (capital M), alongside `TierGapDamage.md`.
 
@@ -60,12 +61,12 @@ Raw           = BaseWear × PowerFactor / ControlFactor                         
 The fractions are read from `UCharacterDataComponent::GetEffectiveStats()` (`FEffectiveStats`), the FULL
 composed values (innate + equipment + stone + transient) — `CrystalManager.cpp:92-96, 228-232`:
 
-| Frac | Source | Direction |
-|---|---|---|
-| `SpellDamageFrac` | `SpellDamage − 1.0` | **power** (↑ ⇒ more wear) |
-| `StatusMultiplierFrac` | `StatusMultiplier − 1.0` | **power** (↑ ⇒ more wear) |
-| `EfficiencyFrac` | `1.0 − EfficiencyMultiplier` | **control** (↑ ⇒ less wear) |
-| `ResistanceFrac` | `Resistance` | **control** (↑ ⇒ less wear) |
+| Frac                   | Source                       | Direction                   |
+| ---------------------- | ---------------------------- | --------------------------- |
+| `SpellDamageFrac`      | `SpellDamage − 1.0`          | **power** (↑ ⇒ more wear)   |
+| `StatusMultiplierFrac` | `StatusMultiplier − 1.0`     | **power** (↑ ⇒ more wear)   |
+| `EfficiencyFrac`       | `1.0 − EfficiencyMultiplier` | **control** (↑ ⇒ less wear) |
+| `ResistanceFrac`       | `Resistance`                 | **control** (↑ ⇒ less wear) |
 
 Constants: `SUBSTAT_AMP = 5.0`, `SUBSTAT_POWER_FACTOR_MIN = 0.4`, `SUBSTAT_CONTROL_FACTOR_MIN = 0.5`,
 `SUBSTAT_CONTROL_FACTOR_MAX = 3.0` (`DurabilityConstants.h:58-67`).
@@ -94,9 +95,9 @@ else:
 
 ## Tier → max durability (`DurabilityConstants.h:20-26`, `GetMaxDurabilityForTier :91-112`)
 
-| Tier | F | E | D | C | B | A | S |
-|---|---|---|---|---|---|---|---|
-| Max durability | 30 | 40 | 50 | 60 | 70 | 80 | 100 |
+| Tier           | F   | E   | D   | C   | B   | A   | S   |
+| -------------- | --- | --- | --- | --- | --- | --- | --- |
+| Max durability | 30  | 40  | 50  | 60  | 70  | 80  | 100 |
 
 HUD shows a low-durability warning below 25% (`LOW_DURABILITY_WARNING_THRESHOLD = 0.25`, `:86`).
 
@@ -157,15 +158,18 @@ This sits **above** the wear amount — it's all-or-nothing, formula-agnostic.
 - `OnCrystalDurabilityChanged` broadcasts after every wear for live UI (`:154`).
 - Auto-repair restores `REPAIR_PER_BATTLE = +10` between combats (`DurabilityConstants.h:81`).
 
-## Relationship to the InfusionChargeRework
+## Relationship to the infusion-charge rework
 
-The InfusionChargeRework (parked) does **not** change this wear formula — Crown confirmed it works correctly.
-The rework's "durability cost" axis **is** this existing wear; only the infusion-charge *effect* multipliers
-and the *HP/EP* cost amounts (elsewhere) change. Any future change to the wear amounts would be documented
-here as a changelog entry.
+The infusion-charge rework (6-1..6-5) **shipped** on `feature/realtime-defense` and did **not** change this wear
+formula — Crown confirmed it works correctly. The rework's "durability cost" axis **is** this existing wear;
+only the infusion-charge *effect* multipliers and the *HP/EP* cost amounts (elsewhere) changed. The original
+planning note is retired to `docs/Design/Completed/InfusionChargeRework.md`; the authoritative current design is
+[`docs/Architecture/InfusionSystem.md`](../Architecture/InfusionSystem.md) (durability is one of its three cost
+axes). Any future change to the wear amounts would be documented here as a changelog entry.
 
 ## Changelog
 
-| Date | Change | Branch |
-|------|--------|--------|
+| Date       | Change                                                                                                                                                                                                     | Branch                   |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
 | 2026-06-17 | Initial documentation of the existing deterministic wear mechanic (formula, tier table, substat power/control wrap, floor/ceiling, consume paths, break/repair). No code change — documents live behavior. | feature/realtime-defense |
+| 2026-06-18 | Status update: the infusion-charge rework shipped (6-1..6-5) and left this wear formula unchanged. Reworded the "parked" references; cross-linked the new `InfusionSystem.md` and the retired planning note. | feature/realtime-defense |
