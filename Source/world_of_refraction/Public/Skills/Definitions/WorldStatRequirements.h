@@ -38,6 +38,11 @@ struct WORLD_OF_REFRACTION_API FWorldStatRequirements
     // Check if character meets all requirements
     bool MeetsRequirements(const UCharacterData *Character) const;
 
+    // True only if the character's world stats EXACTLY equal the requirements on all
+    // three pillars — never above, never below. Any surplus or deficit on any pillar
+    // (including a pillar the spell sets to 0) disqualifies.
+    bool ExactlyMatchedBy(const UCharacterData *Character) const;
+
     // Check if there are any requirements at all
     bool HasRequirements() const
     {

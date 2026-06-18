@@ -1146,7 +1146,19 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Check for forbidden element self-damage (BD casting Dark Light/Void).
 	// Backlash scales with the spell's intrinsic power, NOT the infused amount —
 	// infusion multiplies output damage, not the metaphysical strain of the cast.
-	ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
+	// Exact-attunement waiver: a BD whose world pillars exactly match the spell's
+	// requirements casts the forbidden element cleanly — no self-damage, no self-buildup.
+	const bool bExactAttunement = CasterData && Spell->Requirements.ExactlyMatchedBy(CasterData);
+	if (bExactAttunement)
+	{
+		UE_LOG(LogTemp, Display,
+			   TEXT("BrokenDarkness: %s exact-attuned to %s — forbidden-cast backlash waived"),
+			   *Caster->GetName(), *Spell->GetName());
+	}
+	else
+	{
+		ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
+	}
 
 	// Phase C1: Spell buildup flows through the defense pipeline. Session Y
 	// moved trigger resolution into UStatusBuildupManager (resolves from Element
@@ -1676,7 +1688,8 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 					DefenseResult.DefenseType,
 					DefenseResult,
 					BDContext->Element,
-					EnergyCost);
+					EnergyCost,
+					BDContext->bResolvedPerfect);
 			}
 		}
 	}

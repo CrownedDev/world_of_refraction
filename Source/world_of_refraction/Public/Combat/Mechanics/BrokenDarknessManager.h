@@ -138,14 +138,6 @@ public:
 
 	// ==================== ABSORPTION ====================
 
-	/** Called when successfully parrying an elemental attack */
-	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
-	void OnSuccessfulParry(float DamageBlocked, ESpellElement DamageElement);
-
-	/** Called when successfully blocking an elemental attack */
-	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
-	void OnSuccessfulBlock(float DamageBlocked, ESpellElement DamageElement);
-
 	/**
 	 * Grant absorption energy from a non-defense source (e.g. a crystal used
 	 * on a BD via ItemExecutor). Routes through the same overload-aware path
@@ -154,6 +146,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
 	void GrantAbsorptionEnergy(float Amount);
+
+	// ==================== DEBUG ====================
+
+	/** Log the absorption breakdown (BaseRate, raw Efficiency multiplier, EfficiencyFactor,
+	 *  AbsorptionRate, EnergyAbsorbed) for a hypothetical AttackEnergyCost across parry + block — so the
+	 *  Efficiency-scaled curve is inspectable without triggering an exact parry/block. Driven by the
+	 *  WoR.AbsorptionSnapshot console command. */
+	void DebugLogAbsorption(float AttackEnergyCost) const;
 
 	// ==================== OVERLOAD STATE ====================
 
@@ -270,7 +270,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Defense")
 	void OnDefenseResolved(EDefenseType DefenseType, const FDefenseResult &DefenseResult,
-						   ESpellElement AttackElement, float AttackEnergyCost);
+						   ESpellElement AttackElement, float AttackEnergyCost, bool bPerfect);
 
 	// ==================== DELEGATES ====================
 
@@ -333,7 +333,7 @@ private:
 	void ResetStacks();
 
 	/** Calculate energy gained from defense */
-	float CalculateAbsorptionEnergy(EDefenseType DefenseType, float AttackEnergyCost) const;
+	float CalculateAbsorptionEnergy(EDefenseType DefenseType, float AttackEnergyCost, bool bPerfect) const;
 
 	/** Trigger transformation (internal) */
 	void TriggerTransformation();
@@ -351,14 +351,6 @@ protected:
 	// rule (event-driven absorption, no passive regen) survives via the
 	// ServerGainEnergy BD early-out. The cap is the stat-derived MaxEP; energy
 	// may exceed it by OverloadCapacity into overload.
-
-	/** Energy gained per damage absorbed via parry */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Energy")
-	float ParryAbsorptionRate = 1.0f;
-
-	/** Energy gained per damage absorbed via block */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BrokenDarkness|Energy")
-	float BlockAbsorptionRate = 0.5f;
 
 	// ==================== ABSORBED ELEMENTS ====================
 
