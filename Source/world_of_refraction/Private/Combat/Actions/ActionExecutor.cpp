@@ -1688,7 +1688,8 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 					DefenseResult.DefenseType,
 					DefenseResult,
 					BDContext->Element,
-					EnergyCost);
+					EnergyCost,
+					BDContext->bResolvedPerfect);
 			}
 		}
 	}

@@ -12,6 +12,10 @@
 #include "Character/StatConstants.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "Skills/Definitions/EScalingTier.h" // GetScalingFraction (Efficiency scaling)
+#include "Combat/CombatOrchestrator.h"        // WoR.AbsorptionSnapshot resolves the combat's BD actor
+#include "Kismet/GameplayStatics.h"
+#include "HAL/IConsoleManager.h"
 #include "Engine/World.h"
 #include "Engine/GameInstance.h"
 
@@ -30,9 +34,11 @@ namespace BrokenDarknessConstants
 	constexpr float BREAK_CHANCE_L1_MULTIPLIER = 1.5f;
 	constexpr float BREAK_CHANCE_L2_MULTIPLIER = 2.0f;
 
-	// Absorption
-	constexpr float PARRY_ABSORPTION_MULT = 0.30f; // 30% of spell cost on parry
-	constexpr float BLOCK_ABSORPTION_MULT = 0.15f; // 15% of spell cost on block
+	// Absorption — base rate (pre-Efficiency); Efficiency scales it UP via ABSORPTION_EFFICIENCY_K.
+	constexpr float PARRY_BASE_RATE = 0.10f;        // base absorption rate (parry), pre-Efficiency
+	constexpr float BLOCK_BASE_RATE = 0.05f;        // base absorption rate (block) — half of parry
+	constexpr float ABSORPTION_EFFICIENCY_K = 8.0f; // Efficiency scaling: max-stat factor 0.5 → 5× the base rate
+	constexpr float PERFECT_ABSORPTION_MULT = 2.0f; // perfect parry/block doubles absorbed energy
 
 	// Stack Multipliers
 	constexpr float STACK_0_MULT = 1.0f;
@@ -107,7 +113,7 @@ void UBrokenDarknessManager::BeginPlay()
 			// Character-created BD path: align the manager's internal flag with
 			// CharacterDataComponent::IsBrokenDarkness(). Without this,
 			// character-created BDs silently short-circuit absorption methods
-			// (OnSuccessfulParry, OnSuccessfulBlock, ProcessForbiddenCast, etc.)
+			// (OnDefenseResolved, ProcessForbiddenCast, etc.)
 			// because they all check bIsTransformed.
 			if (CharComp->IsBrokenDarkness())
 			{
@@ -342,58 +348,6 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 }
 
 // ==================== ABSORPTION ====================
-
-void UBrokenDarknessManager::OnSuccessfulParry(float DamageBlocked, ESpellElement DamageElement)
-{
-	if (!bIsTransformed)
-	{
-		return;
-	}
-
-	// Check if element can be absorbed
-	if (!CanAbsorbElement(DamageElement))
-	{
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb %s element"),
-			   *UEnum::GetValueAsString(DamageElement));
-		return;
-	}
-
-	float EnergyGained = DamageBlocked * ParryAbsorptionRate;
-	AddAbsorptionEnergy(EnergyGained);
-	RecordAbsorbedElement(DamageElement);
-
-	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, DamageElement);
-
-	UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Parry absorbed %.1f energy from %s"),
-		   EnergyGained,
-		   *UEnum::GetValueAsString(DamageElement));
-}
-
-void UBrokenDarknessManager::OnSuccessfulBlock(float DamageBlocked, ESpellElement DamageElement)
-{
-	if (!bIsTransformed)
-	{
-		return;
-	}
-
-	// Check if element can be absorbed
-	if (!CanAbsorbElement(DamageElement))
-	{
-		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb %s element"),
-			   *UEnum::GetValueAsString(DamageElement));
-		return;
-	}
-
-	float EnergyGained = DamageBlocked * BlockAbsorptionRate;
-	AddAbsorptionEnergy(EnergyGained);
-	RecordAbsorbedElement(DamageElement);
-
-	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, DamageElement);
-
-	UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Block absorbed %.1f energy from %s"),
-		   EnergyGained,
-		   *UEnum::GetValueAsString(DamageElement));
-}
 
 void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount)
 {
@@ -784,7 +738,7 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 // ==================== DEFENSE SYSTEM INTEGRATION ====================
 
 void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
-											   const FDefenseResult &DefenseResult, ESpellElement AttackElement, float AttackEnergyCost)
+											   const FDefenseResult &DefenseResult, ESpellElement AttackElement, float AttackEnergyCost, bool bPerfect)
 {
 	if (!bIsTransformed)
 	{
@@ -819,8 +773,8 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 		return;
 	}
 
-	// Calculate energy gained
-	float EnergyGained = CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost);
+	// Calculate energy gained (perfect parry/block doubles it)
+	float EnergyGained = CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost, bPerfect);
 
 	// Add energy
 	AddAbsorptionEnergy(EnergyGained);
@@ -831,31 +785,141 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 	// Broadcast
 	OnEnergyAbsorbed.Broadcast(GetOwner(), EnergyGained, AttackElement);
 
-	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s absorbed %.1f energy from %s (Stacks: %d)"),
+	UE_LOG(LogTemp, Log, TEXT("BrokenDarkness: %s%s absorbed %.1f energy from %s (Stacks: %d)"),
 		   DefenseType == EDefenseType::Parry ? TEXT("Parry") : TEXT("Block"),
+		   bPerfect ? TEXT(" (Perfect)") : TEXT(""),
 		   EnergyGained,
 		   *UEnum::GetValueAsString(AttackElement),
 		   CurrentAbsorptionStacks);
 }
 
-float UBrokenDarknessManager::CalculateAbsorptionEnergy(EDefenseType DefenseType, float AttackEnergyCost) const
+float UBrokenDarknessManager::CalculateAbsorptionEnergy(EDefenseType DefenseType, float AttackEnergyCost, bool bPerfect) const
 {
-	float AbsorptionMult = 0.0f;
-
+	float BaseRate = 0.0f;
 	switch (DefenseType)
 	{
 	case EDefenseType::Parry:
-		AbsorptionMult = BrokenDarknessConstants::PARRY_ABSORPTION_MULT;
+		BaseRate = BrokenDarknessConstants::PARRY_BASE_RATE;
 		break;
 	case EDefenseType::Block:
-		AbsorptionMult = BrokenDarknessConstants::BLOCK_ABSORPTION_MULT;
+		BaseRate = BrokenDarknessConstants::BLOCK_BASE_RATE;
 		break;
 	default:
 		return 0.0f;
 	}
 
-	return AttackEnergyCost * AbsorptionMult;
+	// Efficiency scales absorption UP (read INVESTMENT, not the inverted cost multiplier).
+	// GetScalingFraction(Efficiency, …) bucket-D returns max(0, 1 − EffMult): 0 (no investment) →
+	// 0.5 (max stat) → ~0.9 (gear). Rate = BaseRate × (1 + factor × K) → parry 10%→50% (×8), block 5%→25%.
+	float EfficiencyFactor = 0.0f;
+	if (AActor *Owner = GetOwner())
+	{
+		if (UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
+		{
+			EfficiencyFactor = GetScalingFraction(ESubStat::Efficiency, CharComp->GetEffectiveEfficiencyMultiplier());
+		}
+	}
+
+	const float AbsorptionRate = BaseRate * (1.0f + EfficiencyFactor * BrokenDarknessConstants::ABSORPTION_EFFICIENCY_K);
+
+	// Perfect parry/block doubles the absorbed energy (timing-based, type-agnostic — applies to both).
+	const float PerfectMult = bPerfect ? BrokenDarknessConstants::PERFECT_ABSORPTION_MULT : 1.0f;
+	return AttackEnergyCost * AbsorptionRate * PerfectMult;
 }
+
+void UBrokenDarknessManager::DebugLogAbsorption(float AttackEnergyCost) const
+{
+	// Raw Efficiency multiplier (inverted: 1.0 neutral → 0.5 max stat → ~0.10 gear) and the
+	// increasing factor it maps to via GetScalingFraction — shown so the curve is legible.
+	float EffMult = 1.0f;
+	if (const AActor *Owner = GetOwner())
+	{
+		if (const UCharacterDataComponent *CharComp = Owner->FindComponentByClass<UCharacterDataComponent>())
+		{
+			EffMult = CharComp->GetEffectiveEfficiencyMultiplier();
+		}
+	}
+	const float EffFactor = GetScalingFraction(ESubStat::Efficiency, EffMult);
+
+	UE_LOG(LogTemp, Display, TEXT("=== AbsorptionSnapshot: %s (effMult %.3f → effFactor %.3f, K %.1f, cost %.1f) ==="),
+		   GetOwner() ? *GetOwner()->GetName() : TEXT("?"),
+		   EffMult, EffFactor, BrokenDarknessConstants::ABSORPTION_EFFICIENCY_K, AttackEnergyCost);
+
+	const EDefenseType Types[] = {EDefenseType::Parry, EDefenseType::Block};
+	for (const EDefenseType Type : Types)
+	{
+		const float BaseRate = (Type == EDefenseType::Parry)
+								   ? BrokenDarknessConstants::PARRY_BASE_RATE
+								   : BrokenDarknessConstants::BLOCK_BASE_RATE;
+		const float Rate = BaseRate * (1.0f + EffFactor * BrokenDarknessConstants::ABSORPTION_EFFICIENCY_K);
+		const float NormalEnergy = CalculateAbsorptionEnergy(Type, AttackEnergyCost, /*bPerfect=*/false);
+		const float PerfectEnergy = CalculateAbsorptionEnergy(Type, AttackEnergyCost, /*bPerfect=*/true);
+		UE_LOG(LogTemp, Display, TEXT("  %s: base %.3f → rate %.3f → energy %.1f (normal) / %.1f (perfect ×%.1f)"),
+			   Type == EDefenseType::Parry ? TEXT("Parry") : TEXT("Block"),
+			   BaseRate, Rate, NormalEnergy, PerfectEnergy, BrokenDarknessConstants::PERFECT_ABSORPTION_MULT);
+	}
+}
+
+// ========================================
+// CONSOLE COMMAND — absorption-curve inspection
+// ========================================
+
+namespace
+{
+	// Resolve the active combat's first Broken Darkness actor (transformed or not — the curve is
+	// inspectable regardless) and log its absorption breakdown across a couple of attack energy costs.
+	// No exact parry needed; run mid-PIE-combat.
+	void RunAbsorptionSnapshotCommand(UWorld *World)
+	{
+		if (!World)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.AbsorptionSnapshot: no world"));
+			return;
+		}
+
+		ACombatOrchestrator *Orchestrator =
+			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
+		if (!Orchestrator)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.AbsorptionSnapshot: no CombatOrchestrator (run during a PIE combat)"));
+			return;
+		}
+
+		UBrokenDarknessManager *BDManager = nullptr;
+		TArray<AActor *> Combatants = Orchestrator->GetTeam0();
+		Combatants.Append(Orchestrator->GetTeam1());
+		for (AActor *Actor : Combatants)
+		{
+			if (Actor)
+			{
+				if (UBrokenDarknessManager *Mgr = Actor->FindComponentByClass<UBrokenDarknessManager>())
+				{
+					BDManager = Mgr;
+					break;
+				}
+			}
+		}
+
+		if (!BDManager)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.AbsorptionSnapshot: no BrokenDarknessManager among combatants"));
+			return;
+		}
+
+		const float SampleCosts[] = {50.0f, 100.0f};
+		for (const float Cost : SampleCosts)
+		{
+			BDManager->DebugLogAbsorption(Cost);
+		}
+	}
+}
+
+static FAutoConsoleCommandWithWorld GAbsorptionSnapshotCommand(
+	TEXT("WoR.AbsorptionSnapshot"),
+	TEXT("Log a Broken Darkness actor's absorption breakdown (base rate, Efficiency factor, rate, energy) ")
+	TEXT("for sample attack energy costs across parry + block — inspect the Efficiency-scaled curve without ")
+	TEXT("triggering an exact parry. Resolves the first BD among the active combat's combatants."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&RunAbsorptionSnapshotCommand));
 
 float UBrokenDarknessManager::CalculateAuraRange() const
 {
