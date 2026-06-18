@@ -44,14 +44,12 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
 	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
 	// future per-action stat modifier sources.
-	// Hybrid stat toggle (bOverrideStatScaling): swaps ONLY which stat scales (Raw↔Spell) — a force-slash
-	// (cast) scales RawDamage, a fire-punch (physical) scales SpellDamage. Everything else below stays on
-	// Input.ActionType (element routing, the Spell-mode effective-damage branches). STAT-ONLY.
-	const EActionType ScalingType = Input.bOverrideStatScaling
-									   ? (Input.ActionType == EActionType::Spell ? EActionType::Ability : EActionType::Spell)
-									   : Input.ActionType;
-	float AttackerMult = GetAttackerDamageMultiplier(Attacker, ScalingType);
-	const ESubStat AttackerStat = (ScalingType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
+	// Cross-stat scaling (e.g. a fire-punch scaling off SpellDamage) is now authored per-skill via the
+	// StatScaling tiers (the tier loop below), so the old bOverrideStatScaling Raw↔Spell swap was retired —
+	// the baseline stat is simply the ActionType default. (The flag field is removed in d2b; nothing reads
+	// it here anymore.)
+	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
+	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 
 	// Equipment stat bonus — direct read from the attacker's active loadout.
