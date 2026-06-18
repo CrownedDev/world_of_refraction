@@ -948,7 +948,6 @@ static TArray<FResolvedHitFlags> ResolveCastFlags(const TArray<FSkillCastEntry> 
 		F.bIgnoreDamage = E.bIgnoreDamage;
 		F.bIgnoreStatus = E.bIgnoreStatus;
 		F.bInterruptable = E.bInterruptable;
-		F.bOverrideStatScaling = E.bOverrideStatScaling; // per-cast stat toggle (spell): stashed per CastEntryIndex
 		Table.Add(F);
 	}
 	return Table;
@@ -962,9 +961,6 @@ static void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 	Ctx.bIgnoreDamage = F.bIgnoreDamage;
 	Ctx.bIgnoreStatus = F.bIgnoreStatus;
 	Ctx.bInterruptable = F.bInterruptable;
-	// Separate cast slot (Option A): only spell's ResolveCastFlags populates F.bOverrideStatScaling; melee's
-	// ResolveImpactFlags leaves it false, so this never clobbers the physical attack-level Ctx.bOverrideStatScaling.
-	Ctx.bCastOverrideStatScaling = F.bOverrideStatScaling;
 }
 
 void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
@@ -1195,8 +1191,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		Action.SelectedSource,	   // SelectedSource
 		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
 		EPhysicalDamageType::None, // PhysicalDamageType - spells have none (Session Y)
-		0.3f,					   // Default window duration - TODO: get from spell data
-		false					   // hybrid stat toggle is PHYSICAL-ONLY now; spell reads it per-cast from ResolvedCastFlags
+		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
 	// Stage 6 cluster 4/6: single-entry PROJECTILE/HOMING spells defend PER-IMPACT at projectile arrival.
@@ -1452,8 +1447,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
 		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
-		0.3f,
-		Ability->bOverrideStatScaling); // hybrid stat toggle — attack-wide, read from the skill root (physical)
+		0.3f);
 
 	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
@@ -1551,8 +1545,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	EInfusionSourceOption SelectedSource,
 	int32 BaseStatusBuildup,
 	EPhysicalDamageType PhysicalDamageType,
-	float WindowDuration,
-	bool bOverrideStatScaling)
+	float WindowDuration)
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -1609,7 +1602,6 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
 		DefenseContext.PhysicalDamageType = PhysicalDamageType;
-		DefenseContext.bOverrideStatScaling = bOverrideStatScaling;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -1903,11 +1895,6 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.Attacker = Attacker;
 	Input.Target = Target;
 	Input.ActionType = Context.ActionType;
-	// Two honest sources, one consume slot: spell reads the per-cast stash (bCastOverrideStatScaling, set per
-	// CastEntryIndex); physical reads the attack-level context bool (root-sourced, attack-wide, lumped-tail-safe).
-	Input.bOverrideStatScaling = (Context.ActionType == EActionType::Spell)
-									 ? Context.bCastOverrideStatScaling
-									 : Context.bOverrideStatScaling;
 	Input.BaseDamage = Context.bIgnoreDamage ? 0 : ImpactDamage; // B1: per-hit no-damage moment
 	Input.bCanCrit = Context.bCanCrit;
 	Input.Element = Context.Element;
@@ -2735,7 +2722,6 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			FDamageCalculationInput DmgInput;
 			DmgInput.BaseDamage = Input.BaseDamage;
 			DmgInput.ActionType = Input.ActionType;
-			DmgInput.bOverrideStatScaling = Input.bOverrideStatScaling;
 			DmgInput.Element = Input.Element;
 			DmgInput.bCanCrit = Input.bCanCrit;
 			DmgInput.bWasInfused = Input.InfusionLevel > 0;

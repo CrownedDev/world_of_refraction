@@ -976,8 +976,7 @@ private:
 		EInfusionSourceOption SelectedSource,
 		int32 BaseStatusBuildup,
 		EPhysicalDamageType PhysicalDamageType,
-		float WindowDuration = 0.3f,
-		bool bOverrideStatScaling = false);
+		float WindowDuration = 0.3f);
 
 	// == == == == == == == == == == == == == == == == == == == ==
 	// BROKEN DARKNESS INTEGRATION

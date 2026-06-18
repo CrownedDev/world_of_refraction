@@ -277,10 +277,6 @@ struct FResolvedHitFlags
 	bool bIgnoreDamage = false;
 	bool bIgnoreStatus = false;
 	bool bInterruptable = false;
-
-	/** Per-cast stat-override (spell). Populated only by ResolveCastFlags (per CastEntryIndex); the melee
-	 *  ResolveImpactFlags leaves it false — physical uses the attack-level context bool, not this. */
-	bool bOverrideStatScaling = false;
 };
 
 /**
@@ -369,24 +365,12 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EActionType ActionType = EActionType::None;
 
-	/** Hybrid stat toggle (attack-level, single-component): when true, scaling uses the OPPOSITE stat to
-	 *  ActionType (Raw↔Spell). Sourced from the authored entry at context creation; threaded to
-	 *  FActionHitInput at apply. Stat-only. Default false = natural scaling. */
-	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	bool bOverrideStatScaling = false;
-
 	/** Current impact's hybrid per-hit flags (B1), stashed from ResolvedHitFlags[ImpactIndex] /
 	 *  ResolvedCastFlags[CastEntryIndex] at the resolve site just before ApplyOneImpact — so ApplyOneImpact
-	 *  reads them index-agnostically. Per-SPECIFIC-hit (unlike the attack-level bOverrideStatScaling above).
-	 *  bInterruptable is read here but consumed by the interrupt logic (B2). */
+	 *  reads them index-agnostically. bInterruptable is read here but consumed by the interrupt logic (B2). */
 	bool bIgnoreDamage = false;
 	bool bIgnoreStatus = false;
 	bool bInterruptable = false;
-
-	/** Per-cast stat-override, stashed from ResolvedCastFlags (spell). Distinct from the attack-level
-	 *  bOverrideStatScaling above so the shared StashHitFlags / melee path never clobbers the physical bool.
-	 *  Consumed for spell at ApplyOneImpact; physical reads the attack-level bool. */
-	bool bCastOverrideStatScaling = false;
 
 	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
 	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
@@ -611,10 +595,6 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
 	EActionType ActionType = EActionType::None;
 
-	/** Hybrid stat toggle: when true, the damage calculator scales this hit with the OPPOSITE stat to
-	 *  ActionType (Raw↔Spell). Stat-only — element/routing stay on ActionType. Default false = natural. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
-	bool bOverrideStatScaling = false;
 
 	/** Pre-calculation per-hit damage value. 0 if this hit deals no damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")

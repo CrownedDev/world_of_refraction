@@ -97,12 +97,6 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIgnoreResistance = false;
 
-	/** Hybrid stat toggle: when true, the attacker damage multiplier + stat select use the OPPOSITE
-	 *  EActionType to ActionType (Raw↔Spell). STAT-ONLY — element routing and the Spell-mode effective-
-	 *  damage branches stay on ActionType. Default false = natural scaling. */
-	UPROPERTY(BlueprintReadWrite, Category = "Damage")
-	bool bOverrideStatScaling = false;
-
 	/** Authored per-skill stat-scaling tiers (stage b2). Each entry adds
 	 *  GetScalingTierCoefficient(grade) × StatFraction(attacker's effective stat) to the attacker
 	 *  multiplier (additive). EMPTY = no tier scaling → byte-identical to pre-b2. Populated from the
