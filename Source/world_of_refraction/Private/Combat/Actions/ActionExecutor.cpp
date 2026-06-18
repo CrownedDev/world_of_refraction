@@ -948,7 +948,6 @@ static TArray<FResolvedHitFlags> ResolveCastFlags(const TArray<FSkillCastEntry> 
 		F.bIgnoreDamage = E.bIgnoreDamage;
 		F.bIgnoreStatus = E.bIgnoreStatus;
 		F.bInterruptable = E.bInterruptable;
-		F.bOverrideStatScaling = E.bOverrideStatScaling; // per-cast stat toggle (spell): stashed per CastEntryIndex
 		Table.Add(F);
 	}
 	return Table;
@@ -962,9 +961,6 @@ static void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 	Ctx.bIgnoreDamage = F.bIgnoreDamage;
 	Ctx.bIgnoreStatus = F.bIgnoreStatus;
 	Ctx.bInterruptable = F.bInterruptable;
-	// Separate cast slot (Option A): only spell's ResolveCastFlags populates F.bOverrideStatScaling; melee's
-	// ResolveImpactFlags leaves it false, so this never clobbers the physical attack-level Ctx.bOverrideStatScaling.
-	Ctx.bCastOverrideStatScaling = F.bOverrideStatScaling;
 }
 
 void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
@@ -1081,15 +1077,13 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
 
-	// Calculate damage with charge infusion multiplier. Stage 6 cluster 5: SINGLE-entry spells source
-	// the base from the cast entry's own Damage (the SPELL damage layer) when authored (>0); 0 or
-	// multi-entry → -1 → the skill-level Spell->BaseDamage as before (byte-identical). The override only
-	// swaps the raw base; SpellDamage/Mind/element scaling still runs at ApplyHit (ActionType=Spell).
-	const int32 EntryBaseOverride =
-		(Spell->CastArray.Num() == 1 && Spell->CastArray[0].Damage > 0)
-			? Spell->CastArray[0].Damage
-			: -1;
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods, EntryBaseOverride);
+	// Calculate damage with charge infusion multiplier. Stage c: spells resolve damage via the SAME
+	// scale-then-split path as abilities — the scaled skill BaseDamage, sliced by the shared DamageSplit
+	// %-table (or even fallback) at ResolveImpactDefense. The old single-cast FSkillCastEntry::Damage
+	// base override was RETIRED here (its value migrates to BaseDamage in USpellData::PostLoad); the
+	// field itself is removed in stage d. No override → use Spell->BaseDamage. SpellDamage/Mind/element
+	// scaling still runs at ApplyHit (ActionType=Spell).
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
 	// 6-3-3: per-mode, stat-scaled charge damage. Mode resolved once from the action's
 	// infusion source (ring/weapon/innate/evolution), reused for the status log below.
 	const EInfusionMode SpellMode = ResolveInfusionMode(Action.SelectedSource, Caster);
@@ -1197,8 +1191,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		Action.SelectedSource,	   // SelectedSource
 		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
 		EPhysicalDamageType::None, // PhysicalDamageType - spells have none (Session Y)
-		0.3f,					   // Default window duration - TODO: get from spell data
-		false					   // hybrid stat toggle is PHYSICAL-ONLY now; spell reads it per-cast from ResolvedCastFlags
+		0.3f					   // Default window duration - TODO: get from spell data
 	);
 
 	// Stage 6 cluster 4/6: single-entry PROJECTILE/HOMING spells defend PER-IMPACT at projectile arrival.
@@ -1454,8 +1447,7 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
 		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
-		0.3f,
-		Ability->bOverrideStatScaling); // hybrid stat toggle — attack-wide, read from the skill root (physical)
+		0.3f);
 
 	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
@@ -1553,8 +1545,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	EInfusionSourceOption SelectedSource,
 	int32 BaseStatusBuildup,
 	EPhysicalDamageType PhysicalDamageType,
-	float WindowDuration,
-	bool bOverrideStatScaling)
+	float WindowDuration)
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -1611,7 +1602,6 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
 		DefenseContext.PhysicalDamageType = PhysicalDamageType;
-		DefenseContext.bOverrideStatScaling = bOverrideStatScaling;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
@@ -1905,11 +1895,6 @@ void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPe
 	Input.Attacker = Attacker;
 	Input.Target = Target;
 	Input.ActionType = Context.ActionType;
-	// Two honest sources, one consume slot: spell reads the per-cast stash (bCastOverrideStatScaling, set per
-	// CastEntryIndex); physical reads the attack-level context bool (root-sourced, attack-wide, lumped-tail-safe).
-	Input.bOverrideStatScaling = (Context.ActionType == EActionType::Spell)
-									 ? Context.bCastOverrideStatScaling
-									 : Context.bOverrideStatScaling;
 	Input.BaseDamage = Context.bIgnoreDamage ? 0 : ImpactDamage; // B1: per-hit no-damage moment
 	Input.bCanCrit = Context.bCanCrit;
 	Input.Element = Context.Element;
@@ -2737,12 +2722,19 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			FDamageCalculationInput DmgInput;
 			DmgInput.BaseDamage = Input.BaseDamage;
 			DmgInput.ActionType = Input.ActionType;
-			DmgInput.bOverrideStatScaling = Input.bOverrideStatScaling;
 			DmgInput.Element = Input.Element;
 			DmgInput.bCanCrit = Input.bCanCrit;
 			DmgInput.bWasInfused = Input.InfusionLevel > 0;
 			DmgInput.InfusionLevel = Input.InfusionLevel;
 			DmgInput.ActionMods = Input.ActionMods;
+
+			// Stage b2: authored per-skill scaling tiers from the live chain skill (the same
+			// SpellData/SkillData whose BaseDamage seeded this impact). Empty array (every
+			// un-authored skill) → no tier bonus → byte-identical to pre-b2.
+			if (const USkillDataBase *ChainSkillData = GetCurrentSkillData())
+			{
+				DmgInput.StatScaling = ChainSkillData->StatScaling;
+			}
 
 			const FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Input.Attacker, Input.Target, DmgInput);
 
@@ -4454,13 +4446,10 @@ URingManager *UActionExecutor::GetRingManager() const
 // CHARGE INFUSION HELPERS
 // ========================================
 
-// Shared upside-only stat surcharge fraction: max(0, stat - 1). Stacking the stat raises
-// the infusion COST (6-2 ComputeInfusionCostMultiplier) and the EFFECT (6-3 charge getters)
-// by the IDENTICAL fraction — one definition so cost and effect never drift.
-static float StatFraction(float Stat)
-{
-	return FMath::Max(0.0f, Stat - 1.0f);
-}
+// StatFraction (upside-only stat surcharge, max(0, stat - 1)) moved to the shared
+// Skills/Definitions/EScalingTier.h so the infusion cost/effect path here and the damage-scaling
+// tier term in DamageCalculator share ONE definition (no drift). Reached transitively via
+// SkillDataBase.h; the call sites below (cost multiplier + charge getters) are byte-identical.
 
 // Charge effect band: pick the L1 vs L2 value for a (L1,L2) constant pair. Callers guard
 // Level <= 0 → 1.0 before reaching here, so any Level >= 2 takes the L2 band.

@@ -81,16 +81,14 @@ void USpellData::PostLoad()
 
 // ==================== DAMAGE CALCULATIONS ====================
 
-int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods, int32 BaseDamageOverride) const
+int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods) const
 {
     if (!Character)
         return 0;
 
-    // Per-cast-entry SPELL damage (Stage 6 cluster 5): swap the raw base when overridden (>= 0),
-    // else use the skill-level BaseDamage as before. Only the BASE changes — the bIsRawMode mult +
-    // requirement penalty below still apply on it, and the SpellDamage/Mind/element scaling runs
-    // downstream at ApplyHit (ActionType=Spell branch). So per-entry damage scales as a spell.
-    const int32 EffectiveBase = (BaseDamageOverride >= 0) ? BaseDamageOverride : BaseDamage;
+    // Attacker-side base: the skill-level BaseDamage. The bIsRawMode mult + requirement penalty below
+    // apply on it; the SpellDamage/Mind/element scaling runs downstream at ApplyHit (ActionType=Spell).
+    const int32 EffectiveBase = BaseDamage;
 
     // Attacker-side base only. SpellDamage multiplier is applied once downstream
     // by DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier; the

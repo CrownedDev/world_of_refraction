@@ -15,6 +15,7 @@
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
 #include "Skills/Definitions/SkillCastEntry.h"
+#include "Skills/Definitions/EScalingTier.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
 #if WITH_EDITOR
@@ -204,12 +205,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseDamage = 0;
 
-    /** If true, this skill's PHYSICAL damage scales with SpellDamage instead of RawDamage (a "fire punch"
-     *  that scales off Spell). Attack-wide (the whole physical attack). Stat-only: changes which stat scales,
-     *  nothing else. Default false. (Spell casts have their own per-cast bOverrideStatScaling on
-     *  FSkillCastEntry.) */
+    /** Souls-style stat scaling: each entry adds base * GetScalingTierCoefficient(tier) *
+     *  GetScalingFraction(stat) to this skill's damage (additive across entries, applied in
+     *  DamageCalculator Step 1). EMPTY = no stat scaling (flat base damage). A stat absent from the array
+     *  does not scale. Authored per-skill; shared by abilities + spells. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-    bool bOverrideStatScaling = false;
+    TArray<FStatScaling> StatScaling;
 
     /** Default 0 means free. Attacks are free unless designers set a cost. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
