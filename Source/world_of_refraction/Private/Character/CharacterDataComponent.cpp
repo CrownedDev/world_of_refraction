@@ -59,10 +59,14 @@ void UCharacterDataComponent::BeginPlay()
         CurrentHP = MaxHP;
         CurrentEP = MaxEP;
 
-        // Character-created BD: auto-flip the runtime flag and zero EP so
-        // they start in the correct state without needing a transform event.
-        if (HasServerAuthority() &&
-            CharacterData->InnateElement == ESpellElement::BrokenDarkness)
+        // Character-created ("born") BD: seed the runtime flag and zero EP so
+        // they start in BD runtime state without needing a transform event.
+        // bBrokenDarknessInnate is the init seed only — thereafter the runtime
+        // flag (read via IsBrokenDarkness()) is authoritative. The flag stays
+        // true at rest, so the EP gates (ServerGainEnergy/ServerSetEP) keep
+        // treating a born-BD as BD.
+        if (HasServerAuthority() && CharacterData &&
+            CharacterData->bBrokenDarknessInnate)
         {
             bIsBrokenDarkness = true;
             CurrentEP = 0;
@@ -337,15 +341,12 @@ void UCharacterDataComponent::OnRep_bIsAlive()
 
 bool UCharacterDataComponent::IsBrokenDarkness() const
 {
-    if (bIsBrokenDarkness)
-    {
-        return true;
-    }
-    if (CharacterData && CharacterData->InnateElement == ESpellElement::BrokenDarkness)
-    {
-        return true;
-    }
-    return false;
+    // Direct model: the runtime flag IS the truth. No innate-element fallback —
+    // a reverted born-BD (arc 2 flip-off) must read false, and the flag is the
+    // sole authority. A born-BD is seeded true at init (the auto-flip reads
+    // bBrokenDarknessInnate once); born-nature is queried separately via
+    // UCharacterData::bBrokenDarknessInnate when needed.
+    return bIsBrokenDarkness;
 }
 
 ESpellElement UCharacterDataComponent::GetDisplayElement() const

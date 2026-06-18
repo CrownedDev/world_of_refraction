@@ -25,5 +25,9 @@ enum class ESpellElement : uint8
     Lightning UMETA(DisplayName = "Lightning"),
     Void UMETA(DisplayName = "Void"),
     Reality UMETA(DisplayName = "Reality"),
-    BrokenDarkness UMETA(DisplayName = "Broken Darkness")
+    // DEPRECATED as an innate-element data value — BD is now InnateElement=Darkness +
+    // UCharacterData::bBrokenDarknessInnate. Kept (Hidden) until Phase 2 (asset re-save +
+    // LoadoutComponent loop Max-sentinel). Still used as the DISPLAY identity by
+    // GetDisplayElement() and as the LoadoutComponent loop upper bound — do NOT delete in Phase 1.
+    BrokenDarkness UMETA(DisplayName = "Broken Darkness (Deprecated)", Hidden)
 };

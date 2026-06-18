@@ -98,9 +98,9 @@ FString UResistanceProfileDebug::GetResistanceProfileString(UCharacterData *Char
 		return TEXT("ERROR: Invalid Character Data");
 	}
 
-	// Design-time BD = character-created (InnateElement == BrokenDarkness); the
+	// Design-time BD = character-created (bBrokenDarknessInnate toggle); the
 	// runtime transform flag is not an asset concern.
-	const bool bAssetBrokenDarkness = Character->InnateElement == ESpellElement::BrokenDarkness;
+	const bool bAssetBrokenDarkness = Character->bBrokenDarknessInnate;
 	return BuildProfileString(
 		FString::Printf(TEXT("Character: %s   [DESIGN-TIME]"), *Character->Name),
 		Character->CharacterClass, Character->GetElement(), bAssetBrokenDarkness, /*bDesignTime=*/true);

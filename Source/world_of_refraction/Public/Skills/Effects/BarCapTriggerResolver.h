@@ -21,8 +21,14 @@ namespace BarCapTriggerResolver
 {
     /** Resolve which ESkillEffectType trigger fires when the bar caps.
      *  Returns ESkillEffectType::None when neither element nor physical type
-     *  carry a mapping (Generic + None). */
-    inline ESkillEffectType ResolveTrigger(ESpellElement Element, EPhysicalDamageType PhysicalType)
+     *  carry a mapping (Generic + None).
+     *
+     *  bSourceIsBrokenDarkness — the SOURCE (caster) is a BD. Post-collapse a BD
+     *  emits the Darkness element, but BD's status effect is EP-DRAIN, not Silence.
+     *  So a Darkness hit from a BD source resolves to DrainEnergy; from a non-BD
+     *  source it stays Silenced. BD-ness is the caster's property, not the element. */
+    inline ESkillEffectType ResolveTrigger(ESpellElement Element, EPhysicalDamageType PhysicalType,
+                                           bool bSourceIsBrokenDarkness)
     {
         switch (Element)
         {
@@ -39,12 +45,18 @@ namespace BarCapTriggerResolver
         case ESpellElement::Light:
             return ESkillEffectType::CritChanceDebuff;
         case ESpellElement::Darkness:
-            return ESkillEffectType::Silenced;
+            // BD casters emit Darkness post-collapse but apply EP-DRAIN, not
+            // Silence — branch on the source being BD. Non-BD Darkness silences.
+            return bSourceIsBrokenDarkness ? ESkillEffectType::DrainEnergy
+                                           : ESkillEffectType::Silenced;
         case ESpellElement::Void:
             return ESkillEffectType::RandomSkill;
         case ESpellElement::Reality:
             return ESkillEffectType::BurstDamage;
         case ESpellElement::BrokenDarkness:
+            // Retained for any lingering BrokenDarkness-element path (display
+            // identity / un-migrated edge). Distinct enum case from Darkness, so
+            // no double-handling — always maps to DrainEnergy.
             return ESkillEffectType::DrainEnergy;
         case ESpellElement::Generic:
         default:

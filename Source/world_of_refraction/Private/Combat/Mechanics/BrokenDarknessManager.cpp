@@ -95,7 +95,7 @@ void UBrokenDarknessManager::BeginPlay()
 	Super::BeginPlay();
 
 	// Initialize state
-	bIsTransformed = false;
+	bIsFlipped = false;
 	bIsOverloaded = false;
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
@@ -114,11 +114,11 @@ void UBrokenDarknessManager::BeginPlay()
 			// CharacterDataComponent::IsBrokenDarkness(). Without this,
 			// character-created BDs silently short-circuit absorption methods
 			// (OnDefenseResolved, ProcessForbiddenCast, etc.)
-			// because they all check bIsTransformed.
+			// because they all check bIsFlipped.
 			if (CharComp->IsBrokenDarkness())
 			{
-				bIsTransformed = true;
-				UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsTransformed for character-created BD"),
+				bIsFlipped = true;
+				UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
 					   *Owner->GetName());
 			}
 		}
@@ -139,7 +139,7 @@ void UBrokenDarknessManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason)
 {
-	if (bIsTransformed)
+	if (bIsFlipped)
 	{
 		return false; // Already transformed
 	}
@@ -213,7 +213,7 @@ bool UBrokenDarknessManager::DoesAbilityExceedRequirements(UAbilityData *Ability
 
 void UBrokenDarknessManager::ForceTransformation()
 {
-	if (!bIsTransformed)
+	if (!bIsFlipped)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: Force transformation triggered"));
 		TriggerTransformation();
@@ -222,12 +222,12 @@ void UBrokenDarknessManager::ForceTransformation()
 
 void UBrokenDarknessManager::TriggerTransformation()
 {
-	if (bIsTransformed)
+	if (bIsFlipped)
 	{
 		return;
 	}
 
-	bIsTransformed = true;
+	bIsFlipped = true;
 
 	// Energy carries over: whatever CurrentEP the character held at the moment
 	// of transformation becomes their starting absorption buffer.
@@ -299,7 +299,7 @@ float UBrokenDarknessManager::CalculateForbiddenCastDamage(float SpellBaseDamage
 
 bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, float SpellBaseDamage)
 {
-	if (!bIsTransformed)
+	if (!bIsFlipped)
 	{
 		return false;
 	}
@@ -354,7 +354,7 @@ void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount)
 	// Public entry point for non-defense absorption sources (e.g. ItemExecutor
 	// when a crystal is used on a BD). Defense absorption reaches the same path
 	// via OnDefenseResolved -> AddAbsorptionEnergy.
-	if (!bIsTransformed)
+	if (!bIsFlipped)
 	{
 		return;
 	}
@@ -486,7 +486,7 @@ void UBrokenDarknessManager::ExitOverload()
 void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyEnemies,
 												 float StatusMultiplierBonus, float EfficiencyMult)
 {
-	if (!bIsOverloaded || !bIsTransformed)
+	if (!bIsOverloaded || !bIsFlipped)
 	{
 		return;
 	}
@@ -599,7 +599,7 @@ UCharacterDataComponent *UBrokenDarknessManager::GetCharComp() const
 void UBrokenDarknessManager::HandleOwnerEnergyChanged(int32 InCurrentEP, int32 InMaxEP)
 {
 	// Overload is a Broken-Darkness mechanic — non-BD energy changes are ignored.
-	if (!bIsTransformed)
+	if (!bIsFlipped)
 	{
 		return;
 	}
@@ -628,7 +628,7 @@ float UBrokenDarknessManager::GetStackStatusMultiplier() const
 float UBrokenDarknessManager::GetElementStackStatusMultiplier(ESpellElement Element) const
 {
 	// Non-transformed BD (or pre-transform Caster) → no amplification.
-	if (!bIsTransformed)
+	if (!bIsFlipped)
 	{
 		return 1.0f;
 	}
@@ -740,7 +740,7 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 											   const FDefenseResult &DefenseResult, ESpellElement AttackElement, float AttackEnergyCost, bool bPerfect)
 {
-	if (!bIsTransformed)
+	if (!bIsFlipped)
 	{
 		return;
 	}

@@ -131,7 +131,19 @@ ESkillEffectType UStatusBuildupManager::GetPendingTrigger(AActor *Target) const
 	{
 		return ESkillEffectType::None;
 	}
-	return BarCapTriggerResolver::ResolveTrigger(State->PendingElement, State->PendingPhysicalType);
+
+	// Source-BD-ness from the recorded attacker (LastSource) — same Darkness->Drain
+	// vs Darkness->Silence branch as the live path, so the UI preview matches.
+	bool bSourceIsBrokenDarkness = false;
+	if (AActor *LastSrc = State->LastSource.Get())
+	{
+		if (UCharacterDataComponent *SrcComp = LastSrc->FindComponentByClass<UCharacterDataComponent>())
+		{
+			bSourceIsBrokenDarkness = SrcComp->IsBrokenDarkness();
+		}
+	}
+	return BarCapTriggerResolver::ResolveTrigger(State->PendingElement, State->PendingPhysicalType,
+												 bSourceIsBrokenDarkness);
 }
 
 ESpellElement UStatusBuildupManager::GetPendingElement(AActor *Target) const
@@ -295,10 +307,25 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 		return false;
 	}
 
+	// Source-BD-ness for the dispatch: a BD caster emits Darkness (post-collapse)
+	// but must apply EP-DRAIN, not Silence. Computed at entry so the corrected
+	// trigger feeds BOTH the immunity gate below AND the cap-fire reuse (:428).
+	// BD-ness is the SOURCE's (caster's) property — a dedicated lookup here, since
+	// the StatusMultiplier component fetch later is gated by bSkipBaseStatAmp.
+	bool bSourceIsBrokenDarkness = false;
+	if (Source)
+	{
+		if (UCharacterDataComponent *SrcComp = Source->FindComponentByClass<UCharacterDataComponent>())
+		{
+			bSourceIsBrokenDarkness = SrcComp->IsBrokenDarkness();
+		}
+	}
+
 	// Resolve which trigger this hit would fire and check target immunities up-front.
 	// Buildup never accrues for immune targets (returns false and short-circuits the
 	// amplification, resistance, and bar-update steps).
-	const ESkillEffectType ResolvedTrigger = BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType);
+	const ESkillEffectType ResolvedTrigger =
+		BarCapTriggerResolver::ResolveTrigger(Element, PhysicalType, bSourceIsBrokenDarkness);
 	if (USkillEffectManager *EffectMgr = GetEffectManager())
 	{
 		// Global immunity — blocks any buildup.

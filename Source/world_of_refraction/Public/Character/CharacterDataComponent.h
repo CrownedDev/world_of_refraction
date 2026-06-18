@@ -115,13 +115,16 @@ public:
     bool bIsAlive;
 
     /**
-     * Runtime BD transformation state. True if the character is behaviourally
-     * Broken Darkness — either via runtime transformation (RollForBreak success
-     * → TriggerTransformation) or via being constructed with InnateElement =
-     * BrokenDarkness at character creation.
+     * Runtime "is currently BD" state — the SOLE authority for BD-ness (direct
+     * model). True if the character is behaviourally Broken Darkness right now:
+     * a born-BD (seeded true at init from UCharacterData::bBrokenDarknessInnate
+     * via the auto-flip) OR a runtime-transformed character (RollForBreak →
+     * TriggerTransformation). The arc-2 switch flips it both ways.
      *
-     * IMPORTANT: Read via IsBrokenDarkness() — never read this field directly.
-     * The helper handles the "or character-created" case uniformly.
+     * IMPORTANT: Read via IsBrokenDarkness() — never read this field directly,
+     * EXCEPT the EP gates (ServerGainEnergy/ServerSetEP) which intentionally
+     * read it raw. Born-nature is a separate axis — query
+     * UCharacterData::bBrokenDarknessInnate, not this flag.
      *
      * SaveGame-tagged for future persistence wiring; no save system exists yet,
      * so the flag is session-only as of this commit.
@@ -429,14 +432,15 @@ public:
     // ========================================
 
     /**
-     * Returns true if this character is behaviourally Broken Darkness — either
-     * via runtime transformation (bIsBrokenDarkness flag) OR via being a
-     * character-created BD (InnateElement = BrokenDarkness on the asset).
+     * Returns true if this character is currently behaviourally Broken Darkness.
+     * Direct model: returns the runtime bIsBrokenDarkness flag — true for a
+     * born-BD (seeded at init by UCharacterData::bBrokenDarknessInnate via the
+     * auto-flip) OR a runtime-transformed character; the arc-2 switch flips it
+     * both ways. Current-state only — born-nature is queried separately via
+     * UCharacterData::bBrokenDarknessInnate.
      *
      * All BD-aware code should call this helper rather than checking
-     * InnateElement or bIsBrokenDarkness directly. The helper unifies the
-     * two paths so character-created BDs and runtime-transformed BDs are
-     * treated identically.
+     * InnateElement or bIsBrokenDarkness directly (the EP gates excepted).
      */
     UFUNCTION(BlueprintPure, Category = "BrokenDarkness")
     bool IsBrokenDarkness() const;

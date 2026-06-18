@@ -17,29 +17,45 @@ runtime component, `UBrokenDarknessManager`, plus a state flag on `UCharacterDat
 
 ## Two Paths to Broken Darkness
 
-A character is behaviourally BD via one of two routes:
+A character is behaviourally BD via one of two routes. **Both now produce the same asset
+shape — `InnateElement == Darkness` — and differ only in whether the born-BD marker
+`bBrokenDarknessInnate` is set** (the representation collapse, `feature/bd-representation-refactor`).
 
-- **Character-created** — the `UCharacterData` asset has `InnateElement == ESpellElement::BrokenDarkness`.
-  `UCharacterDataComponent` detects this on init and auto-flips `bIsBrokenDarkness` + zeroes
-  `CurrentEP` (`CharacterDataComponent.cpp:61-66`). `UBrokenDarknessManager::BeginPlay` mirrors
-  it onto `bIsTransformed` so the manager's methods don't short-circuit (`BrokenDarknessManager.cpp:95-106`).
-- **Runtime-transformed** — a non-BD character passes a break roll mid-combat;
-  `RollForBreak` → `TriggerTransformation` sets `bIsTransformed` and calls
-  `ServerSetBrokenDarkness(true)` (`BrokenDarknessManager.cpp:194-231`). The `UCharacterData`
-  asset is **not** mutated — `InnateElement` keeps its original value (e.g. `Darkness`).
+- **Character-created ("born") BD** — the `UCharacterData` asset has `InnateElement ==
+  ESpellElement::Darkness` **and** the `bBrokenDarknessInnate` toggle set (`CharacterData.h:136`).
+  The toggle is the born-BD *seed*: `UCharacterDataComponent` reads it on init and auto-flips
+  `bIsBrokenDarkness` + zeroes `CurrentEP` to put the character in BD runtime state without a
+  transform event (`CharacterDataComponent.cpp:62-73`). `UBrokenDarknessManager::BeginPlay`
+  mirrors the runtime flag onto `bIsFlipped` so the manager's methods don't short-circuit
+  (`BrokenDarknessManager.cpp:118-123`).
+- **Runtime-transformed** — a non-BD Darkness caster passes a break roll mid-combat;
+  `RollForBreak` → `TriggerTransformation` sets `bIsFlipped` and calls
+  `ServerSetBrokenDarkness(true)` (`BrokenDarknessManager.cpp:216-230`). The `UCharacterData`
+  asset is **not** mutated — `InnateElement` stays `Darkness`. After the collapse this path is
+  **identical in asset shape** to a re-saved born-BD; the only difference is `bBrokenDarknessInnate`
+  (false for a transformed Darkness caster, true for a born BD).
 
-`UCharacterDataComponent::IsBrokenDarkness()` unifies both: it returns true if
-`bIsBrokenDarkness` is set **or** the asset's `InnateElement == BrokenDarkness`
-(`CharacterDataComponent.cpp:279-290`). All BD-aware code is expected to call this helper
-rather than reading either field directly (`CharacterDataComponent.h:69, 233-242`).
+⚠️ **Migration.** Legacy assets authored as `InnateElement == BrokenDarkness` are
+PostLoad-migrated to `InnateElement = Darkness` + `bBrokenDarknessInnate = true`
+(`CharacterData.cpp:47-63`). PostLoad does **not** dirty the package, so the migration is
+transient until each asset is re-saved in-editor — the BD assets were re-saved during this arc,
+which bakes it (and unblocks the Phase-2 enum deletion; see *Known Gaps*).
+
+`UCharacterDataComponent::IsBrokenDarkness()` now returns `bIsBrokenDarkness` **only** — the
+former `InnateElement == BrokenDarkness` fallback was dropped (`CharacterDataComponent.cpp:342-349`).
+⚠️ The fallback had to go so a reverted born-BD (arc 2) reads `false`: the runtime flag is the
+sole authority for "is currently BD", and born-nature is queried separately via
+`UCharacterData::bBrokenDarknessInnate`. All BD-aware code calls `IsBrokenDarkness()` rather
+than reading either field directly.
 
 ## State Model
 
 | State | Type / location | Represents | Written by | Read by |
 |---|---|---|---|---|
-| `bIsBrokenDarkness` | `bool`, `UCharacterDataComponent` (`.h:75-76`), `SaveGame` + `Replicated` | Runtime "is BD" flag | `CharacterDataComponent.cpp:64` (char-created), `ServerSetBrokenDarkness` (`.cpp:292-309`) | `IsBrokenDarkness()` only — never read directly |
-| `bIsTransformed` | `bool`, `UBrokenDarknessManager` (`.h:285`) | Manager-local "is BD" flag; gates every absorption/overload method | `BeginPlay` (`.cpp:101`), `TriggerTransformation` (`.cpp:201`) | `IsTransformed()`, internal guards |
-| `InnateElement` | `ESpellElement`, `UCharacterData` asset | Immutable innate element; `BrokenDarkness` marks a character-created BD | Asset author | `IsBrokenDarkness()`, break-roll Darkness gate, visuals |
+| `bIsBrokenDarkness` | `bool`, `UCharacterDataComponent` (`.h:117-133`), `SaveGame` + `Replicated` | Runtime "is currently BD" flag — the **sole authority** | `CharacterDataComponent.cpp:71` (born seed), `ServerSetBrokenDarkness` (`.cpp:366-378`) | `IsBrokenDarkness()` only — never read directly (EP gates excepted) |
+| `bIsFlipped` | `bool`, `UBrokenDarknessManager` (`.h:352`) | Manager's mirror of "is currently BD"; gates every absorption/overload method. **Renamed from `bIsTransformed`**; the accessor `IsTransformed()` is kept for BP/API stability (`.h:55`) | `BeginPlay` (`.cpp:120`), `TriggerTransformation` (`.cpp:230`) | `IsTransformed()`, internal guards |
+| `bBrokenDarknessInnate` | `bool`, `UCharacterData` asset (`.h:136`) | **Born-BD marker** — design-time "this character is BD from creation". The init seed for `bIsBrokenDarkness` | Asset author (or PostLoad migration) | `CharacterDataComponent` init auto-flip, `ClassInnateResistanceTable::ResolveRow` design-time resistance, debug |
+| `InnateElement` | `ESpellElement`, `UCharacterData` asset | Immutable innate element — now always `Darkness` for a BD. `BrokenDarkness` is **no longer a valid innate value** (enum value Hidden, Phase-2-deletion-pending); the born-BD marker is `bBrokenDarknessInnate`, not this field | Asset author | break-roll Darkness gate, `GetDisplayElement()`, visuals |
 | `AbsorbedElements` | `TArray<ESpellElement>`, `UBrokenDarknessManager` (`.h:309`) | Distinct elements absorbed this session | `RecordAbsorbedElement` (`.cpp:383-385`) | `HasAbsorbedElement` (`.cpp:583`) |
 | `LastAbsorbedElement` | `ESpellElement`, `UBrokenDarknessManager` (`.h:313`) | Most recent absorbed element; drives visuals | `ProcessElementAbsorption` (`.cpp:572`) | `GetHybridElement()` |
 
@@ -55,9 +71,13 @@ only function that can roll, and `CheckBrokenDarknessBreak` is its only caller.
 
 **Gates** (all must pass, in order — `ActionExecutor.cpp:3198-3214`):
 1. Actor has a `UBrokenDarknessManager` component.
-2. `!BDManager->IsTransformed()` — already-BD characters never re-roll.
+2. `!BDManager->IsTransformed()` — already-BD characters never re-roll. ⚠️ **Post-collapse this
+   is what excludes a born-BD**: a born-BD now has `InnateElement == Darkness` (so it would pass
+   gate 3), but the init auto-flip leaves it `IsTransformed()`/`bIsFlipped` true, so gate 2 stops
+   it re-rolling.
 3. `CharData` valid and `InnateElement == ESpellElement::Darkness` — only innate-Darkness
-   characters can break. (Added Session 0.)
+   characters can break. (Added Session 0.) A born-BD also satisfies this now (its innate element
+   *is* Darkness post-collapse) — the exclusion is gate 2, not this gate.
 
 **Triggers:**
 - **Spell** (`ActionExecutor.cpp:3217-3243`) — rolls if the spell exceeds stat requirements
@@ -325,13 +345,34 @@ tints a character's mesh: for a BD (`IsBrokenDarkness()` true) it uses the blend
 of `GetHybridElement()`'s absorbed element, or pure BD black if nothing is absorbed
 (`.cpp:61-84`). Marked a temporary testing tool (`.h:3`).
 
+## Post-Collapse Status Dispatch (Silence vs Drain)
+
+After the representation collapse a BD emits **Darkness** like any other Darkness caster, so the
+bar-cap trigger for a Darkness hit needs to know whether the *source* is a BD to preserve BD's
+identity: a Darkness hit normally maps to **Silenced**, but a BD's drain must stay **DrainEnergy**.
+
+`BarCapTriggerResolver::ResolveTrigger` gained a `bSourceIsBrokenDarkness` parameter
+(`BarCapTriggerResolver.h:30-31`): a Darkness hit from a **BD source** → `DrainEnergy`; from a
+**non-BD source** → `Silenced` (`.h:50-51`). BD-ness is the caster's property, not the element's.
+
+The flag is computed at the **dispatch's source**, in `UStatusBuildupManager`, **before the
+immunity gate** — so the corrected trigger feeds both the immunity check and the cap-fire reuse:
+
+- Live path — `AddStatusBuildup` looks up the source's `IsBrokenDarkness()` at entry
+  (`StatusBuildupManager.cpp:315-328`), ahead of the per-trigger immunity gate.
+- Preview path — `GetPendingTrigger` resolves the same way from the recorded `LastSource`
+  (`StatusBuildupManager.cpp:137-146`) so the UI preview matches the live result.
+
+Without this, a post-collapse BD's Darkness emission would Silence like a normal Darkness caster;
+the source-side branch is what keeps it draining energy.
+
 ## Integration Points
 
 Files outside `UBrokenDarknessManager` that branch on BD state:
 
 | File | BD branch |
 |---|---|
-| `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for char-created BD (zeroes `CurrentEP` so they start at 0); `IsBrokenDarkness()` helper; `ServerGainEnergy` BD early-out suppresses *passive regen only*; `ServerGainBrokenDarknessEnergy` is the BD absorption-gain path — overload-aware, bypasses the early-out; `ServerSetBrokenDarkness` no longer zeroes EP — energy carries over on runtime transform. |
+| `CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness`; auto-flips it for a born BD from `UCharacterData::bBrokenDarknessInnate` (zeroes `CurrentEP` so they start at 0); `IsBrokenDarkness()` helper (now returns the runtime flag **directly** — no `InnateElement` fallback); `ServerGainEnergy` BD early-out suppresses *passive regen only*; `ServerGainBrokenDarknessEnergy` is the BD absorption-gain path — overload-aware, bypasses the early-out; `ServerSetBrokenDarkness` no longer zeroes EP — energy carries over on runtime transform. |
 | `ActionExecutor.cpp` | `ValidateAction` and `SpendEnergy` compare/debit `CurrentEP` for all characters — no BD energy branch (unified Session 5); `ValidateAction` runs the Caster element gate through the shared `IsElementCastable` predicate; `CalculateActionEnergyCost` returns 0 for `SpellSource == RingCrystal`/`WeaponCrystal` — free equipment-channel casts; **for BD also returns 0 on `SpellSource == Evolution`, *unless* `SpellInfusionLevel ≥ 1 && SelectedSource == Innate` (Darkness conversion, pays normal EP)**; `ExecuteSpellAsync` calls `CrystalManager->ProcessPostCastEvolutionWear` after `SpendEnergy` for every BD evolution-source cast (the wear-as-cost counterpart); `CheckBrokenDarknessBreak` break-roll logic; `OnDefenseResolved` absorption call; `ProcessForbiddenElementCast` gates on `IsBrokenDarkness()`; `bPendingSpellIsBrokenDarkness` visual threading. |
 | `LoadoutComponent.cpp` | `HasEquippedSourceForElement` iterates equipped crystals + the primary evolution slot, returning true if any crystal channels the given element — the equipment unlock channel for `IsElementCastable` (`:1202`); `GetValidationErrors` runs the shared element gate for normal Casters and `FCombatLoadout::ValidateBDSpellLoadout` for BD; `InitializeBDPools` / `ApplyBDPoolsIfBroken` build the seven BD element pools for BD characters at loadout creation; `GetAvailableSpells` BD branch appends `BDSpellPools[i].Spells` where `HasAbsorbedElement(pool.Element)` — the BD-aware castable set shared by 12 callers including the 8 AI spell-list sites. |
 | `FCombatCapabilities.cpp` | `BuildFrom` Caster branch: for a BD character, appends each `BDSpellPools` entry's spells to `RefractionSpells` when `HasAbsorbedElement(Pool.Element)` — the always-on Darkness pool (`InnateSpells`) plus the single absorbed element's pool. |
@@ -340,7 +381,7 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | `CrystalManager.cpp` | `ProcessPostCastEvolutionWear` is the BD-evolution sibling of `ProcessPostCastWear` — reads crystal-modified substat fractions, calls `UBreakCalculator::CalculateDurabilityWearWithSubstats`, writes via `ULoadoutComponent::ApplyWearToActivePrimaryEvolution(_, bForceWear=true)`. No Luck-skip, no per-cast broadcast (between-combat sweep cleans up). See `CrystalWear.md`. |
 | `LoadoutComponent.cpp` | (above, plus) two BD-aware wear writers: `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution`. Both BlueprintCallable; both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage (not a `GetActiveLoadout` copy). |
 | `FEvolutionAttachment.cpp` | `ApplyWear(Amount, bForceWear=false)` — `bForceWear=true` bypasses the per-asset `bCanBreak` gate. BD's wear path is the only caller passing `true`; the struct itself stays BD-agnostic. |
-| `StatusBuildupManager.cpp` | `AddStatusBuildup` **step 5c** multiplies the deposited buildup by the *source* BD's `GetElementStackStatusMultiplier(Element)` — matching-alignment only — the live consumer of the absorption-stack status-buildup multiplier (`:383`). The former `DamageCalculator::GetBDStackStatusMultiplier` wrapper was deleted (`feature/fix-bd-stack-multiplier`). |
+| `StatusBuildupManager.cpp` | `AddStatusBuildup` **step 5c** multiplies the deposited buildup by the *source* BD's `GetElementStackStatusMultiplier(Element)` — matching-alignment only — the live consumer of the absorption-stack status-buildup multiplier (`:383`). The former `DamageCalculator::GetBDStackStatusMultiplier` wrapper was deleted (`feature/fix-bd-stack-multiplier`). **Also computes `bSourceIsBrokenDarkness` at entry (`:315-328`) and passes it to `BarCapTriggerResolver::ResolveTrigger`** so a Darkness hit from a BD source resolves to `DrainEnergy` not `Silenced` (post-collapse identity); `GetPendingTrigger` mirrors it for the UI preview (`:137-146`). See *Post-Collapse Status Dispatch*. |
 | `ItemExecutor.cpp` | When a crystal is used on a BD target (`IsBrokenDarknessCharacter`), `ApplyBrokenDarknessBonus` grants absorption energy scaled as **% of target MaxEP** (sweep-1: F=10% .. S=70% via `CrystalEffectTable::GetBrokenDarknessEnergyPercent` × `TargetComp->MaxEP`) via `BDManager->GrantAbsorptionEnergy` — overload-aware. Replaces the prior flat tier values. Session 5 fixed a latent bug here — it previously called `ServerGainEnergy`, which the BD early-out silently no-op'd, granting nothing. See `ItemSystem.md`. |
 | `CharacterPanelWidget.cpp` | Binds `UBrokenDarknessManager` absorption/overload delegates **plus (sweep-5) `OnStacksChanged`/`OnAlignmentChanged`/`OnTransformed`**. For a BD the energy bar shows `CurrentEP`/`MaxEP` (labelled "Absorb"), tinted by absorbed-element colour; overload past `MaxEP` colours the EP text white→yellow→orange→red within the `[1.00, 1.30]` cap. Absorption stacks render in the effects panel as a synthetic `StatusMultiplierBuff` row (element-aligned, `xN` count). See `UISystem.md`. |
 | `CharacterDataComponent.cpp` *(sweep-5)* | Adds `GetDisplayElement()` UI-facing element accessor: returns `BrokenDarkness` whenever `IsBrokenDarkness()` is true, else delegates to `CharacterData->GetElement()` (Caster → `InnateElement`; others → `Generic`). Single source of truth for panels/labels — gameplay-internal element reads continue to use existing paths. |
@@ -359,6 +400,18 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
   `docs/Gaps/IntegrationGaps.md` §4.2.
 - **`bIsBrokenDarkness` save persistence (gap 4.4) / un-transform path
   (gap 4.5).** Both designed, neither built. See `docs/Gaps/IntegrationGaps.md`.
+- **Phase 2 — delete `ESpellElement::BrokenDarkness` (deferred).** The enum value is **Hidden,
+  not deleted** (`ESpellElement.h:28-32`): it still serves as the display identity
+  (`GetDisplayElement()`) and as the upper bound of the `InitializeBDPools` loop
+  (`LoadoutComponent.cpp:1808-1810`). Deleting it is a future Phase 2, gated on **(a)** all BD
+  assets re-saved so no asset still serialises the value — **done this arc** — and **(b)** the
+  `InitializeBDPools` loop bound moving from `ESpellElement::BrokenDarkness` to an explicit
+  `Max`/`Count` sentinel — **pending** (`TODO(Phase 2)` at `LoadoutComponent.cpp:1808`).
+- **Arc 2 — BD ↔ Darkness revert (next).** The direct runtime model (`IsBrokenDarkness()`
+  reading the flag only) plus the two queryable fields (born = `bBrokenDarknessInnate`,
+  current = `bIsBrokenDarkness`) are the foundation for letting a born-BD revert to a plain
+  Darkness caster: `RevertTransformation` + a real `ServerSetBrokenDarkness(false)` body (flag
+  off, EP reset). Planned as the next arc; not built yet.
 
 ## File Index
 
@@ -393,4 +446,5 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-28 | Sweep-1 — crystal absorption energy refactored to **% of target MaxEP** (`BD_ENERGY_PERCENT_*` F=10% .. S=70%; `CrystalEffectTable::GetBrokenDarknessEnergyPercent`); was previously flat tier values. Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` UI helper; stack-line refs corrected (`.cpp:588`/`.cpp:572-586`/`DamageCalculator.cpp:356-371`); stacks now render in the panel's effects list as a synthetic `StatusMultiplierBuff` row (replaces the standalone-text approach); overload EP-text colour bands rescaled into the real `[1.00, 1.30]` window. Known Gaps section captures unbuilt 4.2/4.3/4.4/4.5 with cross-links to `IntegrationGaps.md`. Stack-multiplier prose tightened — it's a **status-buildup** multiplier (matching-element only), not a damage buff. | feature/integration-gaps-sweep-1, feature/integration-gaps-sweep-5 |
 | 2026-06-15 | Planned: per-impact energy absorption (energy cost split across impacts proportional to the damage split, on parried/blocked impacts) — arising from reactive per-impact defense; build after Stage 3. See docs/Design/BrokenDarkness_ReactiveDefense.md. | feature/realtime-defense |
 | 2026-06-16 | Doc-sync: `UDamageCalculator::GetBDStackStatusMultiplier` was **deleted** (`feature/fix-bd-stack-multiplier`) — the element-gated accessor now lives on the manager as `UBrokenDarknessManager::GetElementStackStatusMultiplier(Element)` and is consumed by `UStatusBuildupManager::AddStatusBuildup` as **step 5c** (`StatusBuildupManager.cpp:383`). Updated §Stacks, the Integration table, and the File Index (DamageCalculator → StatusBuildupManager). **Gap 4.3 closed** — `ProcessOverloadTick` now wires the coupled energy leak: one pre-amplified `Released` value drives both `ServerSpendEnergy` and a self `AddStatusBuildup(..., bSkipBaseStatAmp=true)`; removed it from Known Gaps. | feature/realtime-defense |
+| 2026-06-18 | **BD representation collapse (arc 1)** — character-created BD is now `InnateElement = Darkness` + `bBrokenDarknessInnate` toggle (was `InnateElement == BrokenDarkness`); both BD paths now share one asset shape (Darkness), differing only in the born marker. `IsBrokenDarkness()` returns the runtime flag **directly** — dropped the `InnateElement == BrokenDarkness` fallback (a reverted born-BD must read false). `bIsTransformed` renamed `bIsFlipped` (accessor `IsTransformed()` kept for BP/API stability). **Silence/Drain fix:** `BarCapTriggerResolver::ResolveTrigger` gains `bSourceIsBrokenDarkness`, computed at the dispatch source in `StatusBuildupManager` before the immunity gate, so a Darkness hit from a BD source → `DrainEnergy`, from a non-BD source → `Silenced`. Legacy `InnateElement == BrokenDarkness` assets PostLoad-migrated → Darkness + toggle (transient until re-saved; BD assets re-saved this arc). `ESpellElement::BrokenDarkness` is **Hidden, not deleted** — Phase 2 deletion deferred (gated on re-save [done] + `InitializeBDPools` loop Max-sentinel [pending]). Arc 2 (BD↔Darkness revert) recorded as next. Updated *Two Paths*, *State Model*, break-roll gates, new *Post-Collapse Status Dispatch* section, Integration table, Known Gaps. | feature/bd-representation-refactor |
 | 2026-06-18 | **Absorption rework** — replaced the flat parry/block rates (0.30/0.15) with an Efficiency-scaled, perfect-doubling model: `EnergyAbsorbed = AttackBaseEnergyCost × BaseRate(0.10/0.05) × (1 + GetScalingFraction(Efficiency) × K(8.0)) × PerfectMultiplier(2.0)`. Perfect (parry **or** block) doubles, threaded via `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy`. Zero-Efficiency floor is now lower (10%/5%, was 30%/15%), rising past the old rate with investment; max-stat 50%/25%, max-gear ~82%/41%. Removed the dead `OnSuccessfulParry`/`OnSuccessfulBlock` pair + `ParryAbsorptionRate`/`BlockAbsorptionRate` fields. Debug: `WoR.AbsorptionSnapshot`. Coefficients TUNABLE. Per-impact absorption (`BrokenDarkness_ReactiveDefense.md` §8c) remains deferred. | feature/bd-absorption-rework |
