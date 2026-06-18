@@ -719,6 +719,9 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     Input.Element = Spell->Element;
     Input.ActionMods = ActionMods;
     Input.bCanCrit = false;
+    // Parity with the live path (ApplyHit): feed the skill's authored scaling tiers so the AI's predicted
+    // damage includes the StatScaling bonus the live damage applies. Empty array → +0 (byte-identical score).
+    Input.StatScaling = Spell->StatScaling;
 
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
@@ -786,6 +789,9 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     Input.Element = ESpellElement::Generic;
     Input.ActionMods = ActionMods;
     Input.bCanCrit = false;
+    // Parity with the live path (ApplyHit): feed the skill's authored scaling tiers so the AI's predicted
+    // damage includes the StatScaling bonus the live damage applies. Empty array → +0 (byte-identical score).
+    Input.StatScaling = Ability->StatScaling;
 
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
