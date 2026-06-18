@@ -6,8 +6,6 @@
 
 #include "CoreMinimal.h"
 #include "Skills/Effects/ESkillEffectType.h"
-#include "Skills/Definitions/ESpellElement.h"
-#include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/TargetType.h"
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
@@ -34,18 +32,6 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** What effect to apply (buff, debuff, restore, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     ESkillEffectType EffectType = ESkillEffectType::None;
-
-    /** Element this effect keys on (elemental DOTs, element-keyed resistance).
-     *  Copied to the runtime FActiveSkillEffect on instantiation. Generic = no
-     *  element (the default; element-agnostic effects ignore it). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    ESpellElement Element = ESpellElement::Generic;
-
-    /** Physical-damage type this effect keys on (physical-type resistance).
-     *  None = keys on Element instead. A resistance effect targets EITHER an
-     *  element OR a physical type, never both. Copied to the runtime effect. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    EPhysicalDamageType PhysicalType = EPhysicalDamageType::None;
 
     // ==================== MAGNITUDE ====================
 

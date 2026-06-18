@@ -298,12 +298,6 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		Effect.bPermanent = (Source.Duration == 0);
 		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 
-		// Carry the resistance-axis tags so authored element/physical-keyed effects
-		// (e.g. gear "Fire Resistance") match at buildup. Default Generic/None when
-		// unauthored — element-agnostic, behaves as before.
-		Effect.Element = Source.Element;
-		Effect.PhysicalType = Source.PhysicalType;
-
 		// Carry trigger fields through; promote to OnTrigger when the source
 		// condition is non-trivial so the manager's trigger evaluator fires.
 		Effect.TriggerCondition = Source.Condition;
