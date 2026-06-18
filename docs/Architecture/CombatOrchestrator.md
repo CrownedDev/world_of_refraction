@@ -138,6 +138,30 @@ broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
 > assumes the caster is alive (the now-dead actor is skipped at the next
 > `TurnManager::AdvanceToNextTurn`).
 
+### Cast delivery — abilities/attacks (`UCombatNotify` Family=Cast)
+
+> Note (lives in `ActionExecutor`, surfaced here since it owns no doc): the Cast
+> notify family was spell-only; it now drives **abilities and attacks** too. The
+> handler (`ActionExecutor::OnCombatNotifyReceived`, Cast branch) no longer requires
+> the `PendingSpellData`/`PendingSpellCaster` stash — it resolves skill/caster/element
+> from `GetCurrentSkillData()` + `PendingExecutionActor` + `PartialResult.AttackElement`,
+> so the same dispatch serves all three skill types. `DispatchSpellCast` /
+> `SpawnProjectileActor` / `SpawnAOEEffect` / `ResolveInstantSpell` /
+> `SpawnSupportSpellEffect` take `USkillDataBase*` + an `ESpellElement InElement`; the
+> spell path is byte-identical (`InElement == Spell->Element`). The empty-`CastArray`
+> loose fallback (`SpawnSpellVFX`) stays spell-gated via `Cast<USpellData>`.
+>
+> **Authoring Cast VFX on an ability/attack:** add an `FSkillCastEntry` to the skill's
+> `CastArray` (on the shared `USkillDataBase`) and place a `UCombatNotify`
+> (`Family=Cast`, `Index=N`) on the `SkillMontage` at the cast frame — entry `N` fires
+> when notify `N` is hit (array position is identity).
+>
+> **Known gaps:** (1) projectile element tint is `Generic` for non-spell skills —
+> `SkillProjectile::InitializeProjectile` derives element via `Cast<USpellData>` and
+> needs an element param to honor `InElement`; (2) support-ability VFX is not wired —
+> `SpawnSupportSpellEffect`'s loose `SpellVFX` is `USpellData`-only, so non-spell
+> support skills reach the path but spawn nothing (wire off `VFXArray` next).
+
 ### Turn completion (`OnActionCompleted`)
 
 1. Bails if still waiting on an async action or combat not in progress.
@@ -260,3 +284,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-05-27 | Between-combat destruction sweep extended via `ULoadoutComponent::ClearBrokenPrimaryEvolution` to cover case-B primary-slot evolutions (BD). New `Debug\|CrystalWear` subsection — four `CallInEditor` buttons (`DebugCrystalState`, `DebugWearTable`, `DebugSimCast_S_L2`, `DebugSimCast_Matched_L1`) forwarding to `UCrystalManager` `WOR_*`. | feature/crystal-wear-substat-modifier |
 | 2026-06-16 | Doc-sync §Action submission step 3 to the current `bRequiresAsync` logic (`CombatOrchestrator.cpp:373-412`): spell async is `Projectile`-only, evaluated per `CastArray` entry with the loose `DeliveryType` as fallback (`Homing`/`Beam` delivery types removed); attack/ability async is now montage-presence (`SkillMontage`/`RitualCastMontage`/`ReturnMontage`), replacing the deleted `ApproachData`/`RequiresApproach()` movement gate. | feature/realtime-defense |
 | 2026-06-16 | Spell `bRequiresAsync` now also true for `AOE` and `Instant` (both per-impact-defended at the Cast-notify resolve), not `Projectile`-only — added in both the `CastArray`-entry loop and the loose-`DeliveryType` fallback (`9eb65756`). A pure-Instant spell no longer falls to the rejected sync path. | feature/realtime-defense |
+| 2026-06-19 | Cast VFX generalization (Steps A+B+follow-up): the `UCombatNotify` Cast family now drives abilities/attacks via `CastArray` on `USkillDataBase`, not just spells. `SkillProjectile::InitializeProjectile` + the five `ActionExecutor` spawners (`DispatchSpellCast`/`SpawnProjectileActor`/`SpawnAOEEffect`/`ResolveInstantSpell`/`SpawnSupportSpellEffect`) retyped `USpellData*` → `USkillDataBase*` (+ `ESpellElement InElement`); the Cast handler drops the `PendingSpellData` guard and resolves from `GetCurrentSkillData()` + `PendingExecutionActor` + `PartialResult.AttackElement`. Empty-`CastArray` fallback stays spell-gated. Spell path byte-identical. New §Cast delivery note. Gaps: non-spell projectile tint (`Generic`), support-ability VFX off `VFXArray`. | feature/cast-vfx-generalization |

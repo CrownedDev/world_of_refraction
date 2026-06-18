@@ -1037,7 +1037,7 @@ protected:
 	void SpawnProjectileActor(
 		AActor *Caster,
 		AActor *Target,
-		USpellData *Spell,
+		USkillDataBase *Skill,
 		float FinalImpactRadius,
 		float FinalVisualScale,
 		int32 FinalDamage,
@@ -1050,7 +1050,8 @@ protected:
 	void SpawnAOEEffect(
 		AActor *Caster,
 		AActor *Target,
-		USpellData *Spell,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
 		float FinalImpactRadius,
 		float FinalVisualScale,
 		int32 FinalDamage,
@@ -1065,7 +1066,8 @@ protected:
 	void ResolveInstantSpell(
 		AActor *Caster,
 		AActor *Target,
-		USpellData *Spell,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
 		float FinalImpactRadius,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
@@ -1080,7 +1082,8 @@ protected:
 	 *  staggers via the burst chain. */
 	void DispatchSpellCast(
 		AActor *Caster,
-		USpellData *Spell,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
 		const FSkillCastEntry &Entry,
 		float SpellSize,
 		const TArray<AActor *> &ExplicitTargets,
@@ -1100,7 +1103,7 @@ protected:
 	int32 ActiveBurstCastEntryIndex = INDEX_NONE;
 
 	UPROPERTY()
-	USpellData *ActiveBurstSpell = nullptr;
+	USkillDataBase *ActiveBurstSpell = nullptr;
 
 	TWeakObjectPtr<AActor> ActiveBurstCaster;
 	TArray<TWeakObjectPtr<AActor>> BurstSpawnQueue;
@@ -1115,11 +1118,12 @@ protected:
 	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. */
 	TArray<FTimerHandle> TelegraphTimerHandles;
 
-	/** Spawn support spell VFX (Self/Ally - no defense window) */
+	/** Spawn support skill VFX (Self/Ally - no defense window) */
 	void SpawnSupportSpellEffect(
 		AActor *Caster,
 		const TArray<AActor *> &Targets,
-		USpellData *Spell,
+		USkillDataBase *Skill,
+		ESpellElement InElement,
 		float FinalVisualScale,
 		bool bIsBrokenDarkness);
 

@@ -162,7 +162,7 @@ void ASkillProjectile::InitializeProjectile(
 
 void ASkillProjectile::InitializeProjectile(
     const FSkillCastEntry &Entry,
-    USpellData *Spell,
+    USkillDataBase *Skill,
     AActor *InCaster,
     AActor *InTarget,
     float FinalImpactRadius,
@@ -170,7 +170,7 @@ void ASkillProjectile::InitializeProjectile(
     int32 FinalDamage,
     int32 InCastEntryIndex)
 {
-    SourceSpell = Spell;
+    SourceSpell = Skill;
     Caster = InCaster;
     Target = InTarget;
     ImpactRadius = FinalImpactRadius;
@@ -181,13 +181,33 @@ void ASkillProjectile::InitializeProjectile(
     // (cluster 4). Only the entry path stamps it; the legacy overload leaves it at INDEX_NONE.
     CastEntryIndex = InCastEntryIndex;
 
-    // Delivery values come from the Cast ENTRY (D6) — Spell supplies element/
-    // color context only.
+    // Delivery values come from the Cast ENTRY (D6). Element lives on USpellData,
+    // not the shared base, so it's read through a cast: spells tint by their fixed
+    // Element (behaviour-identical to the old Spell->Element read), non-spell skills
+    // default to Generic until Step B passes the resolved action element.
     DeliveryType = Entry.DeliveryType;
-    Element = Spell ? Spell->Element : ESpellElement::Generic;
+    const USpellData *AsSpell = Cast<USpellData>(Skill);
+    Element = AsSpell ? AsSpell->Element : ESpellElement::Generic;
     Speed = Entry.ProjectileSpeed;
 
     InitializeCommon();
+}
+
+// Forwarding overload — upcasts USpellData* spell callers onto the base overload
+// (declared inline-equivalent in the header; defined here where USpellData is complete).
+void ASkillProjectile::InitializeProjectile(
+    const FSkillCastEntry &Entry,
+    USpellData *Spell,
+    AActor *InCaster,
+    AActor *InTarget,
+    float FinalImpactRadius,
+    float FinalVisualScale,
+    int32 FinalDamage,
+    int32 InCastEntryIndex)
+{
+    InitializeProjectile(Entry, static_cast<USkillDataBase *>(Spell),
+                         InCaster, InTarget, FinalImpactRadius, FinalVisualScale,
+                         FinalDamage, InCastEntryIndex);
 }
 
 void ASkillProjectile::InitializeCommon()

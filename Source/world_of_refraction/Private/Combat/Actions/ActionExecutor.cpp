@@ -3228,7 +3228,7 @@ void UActionExecutor::SpawnSpellDelivery(
 	if (!bIsOffensive)
 	{
 		// Self/Ally spells - spawn VFX, apply healing/buff directly (no defense)
-		SpawnSupportSpellEffect(Caster, Targets, Spell, FinalVisualScale, bIsBrokenDarkness);
+		SpawnSupportSpellEffect(Caster, Targets, Spell, Spell->Element, FinalVisualScale, bIsBrokenDarkness);
 		return;
 	}
 
@@ -3246,7 +3246,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// Spawn VFX at each target, open defense window immediately
 		for (AActor *Target : Targets)
 		{
-			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+			SpawnAOEEffect(Caster, Target, Spell, Spell->Element, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
 		}
 		break;
 
@@ -3254,7 +3254,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// No travel time, immediate resolution
 		for (AActor *Target : Targets)
 		{
-			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
+			ResolveInstantSpell(Caster, Target, Spell, Spell->Element, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
 		}
 		break;
 	}
@@ -3263,20 +3263,26 @@ void UActionExecutor::SpawnSpellDelivery(
 void UActionExecutor::SpawnSupportSpellEffect(
 	AActor *Caster,
 	const TArray<AActor *> &Targets,
-	USpellData *Spell,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
 	float FinalVisualScale,
 	bool bIsBrokenDarkness)
 {
+	// Loose SpellVFX is USpellData-only; non-spell skills have no support VFX
+	// fallback yet (the VFXArray path is future work — same pattern as the
+	// other spawners' loose-field handling).
+	const USpellData *AsSpell = Cast<USpellData>(Skill);
+	UNiagaraSystem *SupportVFX = AsSpell ? AsSpell->SpellVFX : nullptr;
 	for (AActor *Target : Targets)
 	{
 		// Spawn VFX at target
-		if (Spell->SpellVFX)
+		if (SupportVFX)
 		{
-			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
+			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(InElement, bIsBrokenDarkness);
 
 			UNiagaraComponent *NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 				GetWorld(),
-				Spell->SpellVFX,
+				SupportVFX,
 				Target->GetActorLocation(),
 				FRotator::ZeroRotator,
 				FVector(FinalVisualScale),
@@ -3298,7 +3304,7 @@ void UActionExecutor::SpawnSupportSpellEffect(
 void UActionExecutor::SpawnProjectileActor(
 	AActor *Caster,
 	AActor *Target,
-	USpellData *Spell,
+	USkillDataBase *Skill,
 	float FinalImpactRadius,
 	float FinalVisualScale,
 	int32 FinalDamage,
@@ -3306,7 +3312,7 @@ void UActionExecutor::SpawnProjectileActor(
 	const FSkillCastEntry *Entry,
 	int32 CastEntryIndex)
 {
-	if (!Caster || !Target || !Spell)
+	if (!Caster || !Target || !Skill)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] SpawnProjectileActor - Invalid parameters"));
 		return;
@@ -3338,25 +3344,30 @@ void UActionExecutor::SpawnProjectileActor(
 		// 1. Assign VFX assets FIRST — D5/D6 reader switch: muzzle/impact from
 		// the VFXArray's role entries (loose fields as fallback, SC5); trail
 		// from the Cast entry (loose SpellVFX as fallback, SC3).
-		const FSkillVFXEntry *MuzzleEntry = GetVFXEntryByRole(Spell, EVFXRole::Muzzle);
-		const FSkillVFXEntry *ImpactEntry = GetVFXEntryByRole(Spell, EVFXRole::Impact);
+		// Loose VFX fields live on USpellData (deprecated). Spells fall back to
+		// them; non-spell skills (AsSpell == null) have no loose fields and rely
+		// on the VFXArray role entries / Cast-entry Trail instead.
+		USpellData *AsSpell = Cast<USpellData>(Skill);
+		const FSkillVFXEntry *MuzzleEntry = GetVFXEntryByRole(Skill, EVFXRole::Muzzle);
+		const FSkillVFXEntry *ImpactEntry = GetVFXEntryByRole(Skill, EVFXRole::Impact);
 		Projectile->SetVFXAssets(
-			MuzzleEntry ? MuzzleEntry->VFX.LoadSynchronous() : Spell->MuzzleVFX,
-			Entry ? Entry->Trail.LoadSynchronous() : Spell->SpellVFX,
-			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : Spell->ImpactVFX);
+			MuzzleEntry ? MuzzleEntry->VFX.LoadSynchronous() : (AsSpell ? AsSpell->MuzzleVFX : nullptr),
+			Entry ? Entry->Trail.LoadSynchronous() : (AsSpell ? AsSpell->SpellVFX : nullptr),
+			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : (AsSpell ? AsSpell->ImpactVFX : nullptr));
 
 		// 2. Initialize with combat data (entry overload feeds the entry's
 		// delivery/speed values; legacy feeds the loose fields)
 		if (Entry)
 		{
 			Projectile->InitializeProjectile(
-				*Entry, Spell, Caster, Target,
+				*Entry, Skill, Caster, Target,
 				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex);
 		}
 		else
 		{
+			// Loose (no-entry) path is spell-only — AsSpell is non-null here.
 			Projectile->InitializeProjectile(
-				Spell, Caster, Target,
+				AsSpell, Caster, Target,
 				FinalImpactRadius, FinalVisualScale, FinalDamage);
 		}
 
@@ -3368,15 +3379,16 @@ void UActionExecutor::SpawnProjectileActor(
 		Projectile->Launch();
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
-			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Spell->DeliveryType),
-			   Entry ? Entry->ProjectileSpeed : Spell->ProjectileSpeed);
+			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Skill->DeliveryType),
+			   Entry ? Entry->ProjectileSpeed : Skill->ProjectileSpeed);
 	}
 }
 
 void UActionExecutor::SpawnAOEEffect(
 	AActor *Caster,
 	AActor *Target,
-	USpellData *Spell,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
 	float FinalImpactRadius,
 	float FinalVisualScale,
 	int32 FinalDamage,
@@ -3384,7 +3396,7 @@ void UActionExecutor::SpawnAOEEffect(
 	const FSkillCastEntry *Entry,
 	int32 CastEntryIndex)
 {
-	if (!Target || !Spell)
+	if (!Target || !Skill)
 	{
 		return;
 	}
@@ -3392,11 +3404,13 @@ void UActionExecutor::SpawnAOEEffect(
 	FVector SpawnLocation = Target->GetActorLocation();
 
 	// Get colors for VFX
-	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
+	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(InElement, bIsBrokenDarkness);
 
 	// Ground visual — entry path: the entry's Trail (doubles as the AOE
-	// visual, as the loose SpellVFX does today); legacy: loose SpellVFX.
-	UNiagaraSystem *GroundVFX = Entry ? Entry->Trail.LoadSynchronous() : Spell->SpellVFX;
+	// visual, as the loose SpellVFX does today); legacy: loose SpellVFX
+	// (USpellData-only — non-spell skills have no loose fallback).
+	const USpellData *AsSpell = Cast<USpellData>(Skill);
+	UNiagaraSystem *GroundVFX = Entry ? Entry->Trail.LoadSynchronous() : (AsSpell ? AsSpell->SpellVFX : nullptr);
 
 	// Spawn VFX at target location
 	if (GroundVFX)
@@ -3461,7 +3475,7 @@ void UActionExecutor::SpawnAOEEffect(
 				// context check the per-defender close below defeats).
 				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
 				{
-					InterruptAsyncAction(Caster, Spell);
+					InterruptAsyncAction(Caster, Skill);
 					return; // abort handles teardown — skip the normal close
 				}
 			}
@@ -3479,30 +3493,33 @@ void UActionExecutor::SpawnAOEEffect(
 	if (!DefenseSys)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying AOE damage directly"));
-		ApplyDamage(Caster, Target, FinalDamage, Spell->Element, false);
+		ApplyDamage(Caster, Target, FinalDamage, InElement, false);
 	}
 }
 
 void UActionExecutor::ResolveInstantSpell(
 	AActor *Caster,
 	AActor *Target,
-	USpellData *Spell,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
 	float FinalImpactRadius,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
 	const FSkillCastEntry *Entry,
 	int32 CastEntryIndex)
 {
-	if (!Target || !Spell)
+	if (!Target || !Skill)
 	{
 		return;
 	}
 
 	// Get colors for VFX
-	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Spell->Element, bIsBrokenDarkness);
+	FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(InElement, bIsBrokenDarkness);
 
-	// Visual — entry path: the entry's Trail; legacy: loose SpellVFX.
-	UNiagaraSystem *InstantVFX = Entry ? Entry->Trail.LoadSynchronous() : Spell->SpellVFX;
+	// Visual — entry path: the entry's Trail; legacy: loose SpellVFX
+	// (USpellData-only — non-spell skills have no loose fallback).
+	const USpellData *AsSpell = Cast<USpellData>(Skill);
+	UNiagaraSystem *InstantVFX = Entry ? Entry->Trail.LoadSynchronous() : (AsSpell ? AsSpell->SpellVFX : nullptr);
 
 	// Spawn VFX at target immediately
 	if (InstantVFX)
@@ -3563,7 +3580,7 @@ void UActionExecutor::ResolveInstantSpell(
 				// context check the per-defender close below defeats).
 				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
 				{
-					InterruptAsyncAction(Caster, Spell);
+					InterruptAsyncAction(Caster, Skill);
 					return; // abort handles teardown — skip the normal close
 				}
 			}
@@ -3581,7 +3598,7 @@ void UActionExecutor::ResolveInstantSpell(
 	if (!DefenseSys)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying Instant damage directly"));
-		FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, Spell->Element, true);
+		FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, InElement, true);
 
 		if (CurrentExecutionContext.IsSet())
 		{
@@ -3608,16 +3625,17 @@ void UActionExecutor::ResolveInstantSpell(
 
 void UActionExecutor::DispatchSpellCast(
 	AActor *Caster,
-	USpellData *Spell,
+	USkillDataBase *Skill,
+	ESpellElement InElement,
 	const FSkillCastEntry &Entry,
 	float SpellSize,
 	const TArray<AActor *> &ExplicitTargets,
 	int32 Damage,
 	int32 CastEntryIndex)
 {
-	if (!Caster || !Spell)
+	if (!Caster || !Skill)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[Runner] DispatchSpellCast - Invalid caster or spell"));
+		UE_LOG(LogTemp, Warning, TEXT("[Runner] DispatchSpellCast - Invalid caster or skill"));
 		return;
 	}
 
@@ -3650,11 +3668,11 @@ void UActionExecutor::DispatchSpellCast(
 	const int32 FinalDamage = (Damage > 0) ? Damage : (CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0);
 
 	// Support spells keep the legacy effect path (no delivery, no defense).
-	const bool bIsOffensive = (Spell->TargetType == ETargetType::SingleEnemy ||
-							   Spell->TargetType == ETargetType::AllEnemies);
+	const bool bIsOffensive = (Skill->TargetType == ETargetType::SingleEnemy ||
+							   Skill->TargetType == ETargetType::AllEnemies);
 	if (!bIsOffensive)
 	{
-		SpawnSupportSpellEffect(Caster, Targets, Spell, FinalVisualScale, bIsBD);
+		SpawnSupportSpellEffect(Caster, Targets, Skill, InElement, FinalVisualScale, bIsBD);
 		return;
 	}
 
@@ -3681,7 +3699,7 @@ void UActionExecutor::DispatchSpellCast(
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
 			// burst chain (BurstInterval stagger, spike-validated).
-			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
+			SpawnProjectileActor(Caster, Target, Skill, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 			for (int32 i = 1; i < Entry.Count; ++i)
 			{
 				BurstSpawnQueue.Add(Target);
@@ -3691,7 +3709,7 @@ void UActionExecutor::DispatchSpellCast(
 		{
 			ActiveBurstEntry = Entry;
 			ActiveBurstCastEntryIndex = CastEntryIndex;
-			ActiveBurstSpell = Spell;
+			ActiveBurstSpell = Skill;
 			ActiveBurstCaster = Caster;
 			ActiveBurstImpactRadius = FinalImpactRadius;
 			ActiveBurstVisualScale = FinalVisualScale;
@@ -3709,14 +3727,14 @@ void UActionExecutor::DispatchSpellCast(
 	case ESpellDeliveryType::AOE:
 		for (AActor *Target : Targets)
 		{
-			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
+			SpawnAOEEffect(Caster, Target, Skill, InElement, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 		}
 		break;
 
 	case ESpellDeliveryType::Instant:
 		for (AActor *Target : Targets)
 		{
-			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBD, &Entry, CastEntryIndex);
+			ResolveInstantSpell(Caster, Target, Skill, InElement, FinalImpactRadius, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 		}
 		break;
 	}
@@ -5136,7 +5154,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 		// montages) delivers via the entry path. Empty CastArray → loose path.
 		if (PendingSpellData->CastArray.Num() > 0)
 		{
-			DispatchSpellCast(PendingSpellCaster, PendingSpellData,
+			DispatchSpellCast(PendingSpellCaster, PendingSpellData, PendingSpellData->Element,
 							  PendingSpellData->CastArray[0], PendingSpellSize,
 							  PendingSpellTargets, PendingSpellDamage, 0);
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
@@ -5537,30 +5555,47 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 
 	case ECombatNotifyFamily::Cast:
 	{
-		// Spell-context only this stage: the dispatch reads the pending-spell
-		// stash (caster/targets/size/damage). Ability/attack Cast entries are
-		// future authoring (TODO: non-spell dispatch context).
-		if (!PendingSpellData || !PendingSpellCaster)
+		// Resolve skill + caster from execution context (works for spells AND
+		// abilities/attacks). For spells these match the pending-spell stash
+		// exactly (same skill pointer, same caster, AttackElement == Spell->Element);
+		// for non-spell skills they're the only source. Size/targets/damage still
+		// come from the pending stash — reset to clean defaults (1.0 / empty / 0)
+		// after every spell, so abilities get the neutral size multiplier and let
+		// DispatchSpellCast resolve targets/damage from the context.
+		USkillDataBase *CurrentSkill = GetCurrentSkillData();
+		AActor *CurrentCaster = PendingExecutionActor;
+		ESpellElement ActionElement = CurrentExecutionContext.IsSet()
+										  ? CurrentExecutionContext->PartialResult.AttackElement
+										  : ESpellElement::Generic;
+
+		if (!CurrentSkill || !CurrentCaster)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[Runner] Cast notify %d outside a spell action — non-spell Cast entries not yet supported"), Index);
+			UE_LOG(LogTemp, Warning, TEXT("[Runner] Cast notify %d — no active skill or caster"), Index);
 			return;
 		}
-		if (PendingSpellData->CastArray.IsEmpty())
+
+		if (CurrentSkill->CastArray.IsEmpty())
 		{
 			// Empty-CastArray fallback: the loose-field dispatch (delta-
 			// serialization limit — fully-default spells migrated no entry).
-			SpawnSpellVFX(PendingSpellCaster, PendingSpellData, PendingSpellSize,
-						  PendingSpellTargets, PendingSpellDamage);
+			// Spell-only: SpawnSpellVFX reads USpellData loose fields, and
+			// abilities authoring Cast VFX always carry a CastArray entry, so
+			// they never reach this branch.
+			if (USpellData *AsSpell = Cast<USpellData>(CurrentSkill))
+			{
+				SpawnSpellVFX(CurrentCaster, AsSpell, PendingSpellSize,
+							  PendingSpellTargets, PendingSpellDamage);
+			}
 			return;
 		}
-		if (!PendingSpellData->CastArray.IsValidIndex(Index))
+		if (!CurrentSkill->CastArray.IsValidIndex(Index))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[Runner] Cast index %d out of range (%d entries)"),
-				   Index, PendingSpellData->CastArray.Num());
+				   Index, CurrentSkill->CastArray.Num());
 			return;
 		}
-		DispatchSpellCast(PendingSpellCaster, PendingSpellData,
-						  PendingSpellData->CastArray[Index], PendingSpellSize,
+		DispatchSpellCast(CurrentCaster, CurrentSkill, ActionElement,
+						  CurrentSkill->CastArray[Index], PendingSpellSize,
 						  PendingSpellTargets, PendingSpellDamage, Index);
 		return;
 	}
