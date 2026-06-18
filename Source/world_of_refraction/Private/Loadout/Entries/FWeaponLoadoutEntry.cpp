@@ -225,6 +225,12 @@ bool FWeaponLoadoutEntry::ValidateAbilities(const FAbilityCollection &OwnedAbili
             continue; // Empty slots are OK
         }
 
+        // Belt (step 6a): a basic attack (bIsAttack) can't be slotted as an ability.
+        if (Ability->IsAttack())
+        {
+            return false;
+        }
+
         // Check ownership
         if (!OwnedAbilities.HasAbility(Ability))
         {
@@ -277,6 +283,12 @@ bool FWeaponLoadoutEntry::ValidateAugmentStoneAbilities(const FAbilityCollection
         if (!Ability)
         {
             continue; // Empty slots are OK
+        }
+
+        // Belt (step 6a): a basic attack (bIsAttack) can't be slotted as an ability.
+        if (Ability->IsAttack())
+        {
+            return false;
         }
 
         // Check ownership

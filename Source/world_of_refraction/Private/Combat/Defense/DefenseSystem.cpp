@@ -41,7 +41,8 @@ void UDefenseSystem::OpenDefenseWindow(
 	AActor *Defender,
 	float AttackSize,
 	int32 BaseDamage,
-	float WindowDuration)
+	float WindowDuration,
+	bool bManualClose)
 {
 	if (!Defender)
 	{
@@ -67,10 +68,18 @@ void UDefenseSystem::OpenDefenseWindow(
 	State.WindowOpenTime = FPlatformTime::Seconds();
 	State.WindowDuration = WindowDuration > 0.0f ? WindowDuration : DefaultWindowDuration;
 	State.bInputReceived = false;
+	State.bCountBasedClose = bManualClose;
 
 	ActiveDefenseStates.Add(Defender, State);
 
-	// Set timer to auto-close window
+	// Auto-close timer. For manual-close (count-based) windows the last landed hit
+	// closes the window externally (ActionExecutor's Hit-notify counter); the timer is
+	// armed at MaxWindowDuration as a FAILSAFE so a missing/miscounted hit can't hang
+	// the window open forever. For normal windows it stays the closer at the requested
+	// duration. State.WindowDuration is unchanged either way — it remains the AI
+	// reaction-delay seed passed to ScheduleDefenseDecision below.
+	const float CloseTimerDuration = bManualClose ? MaxWindowDuration : State.WindowDuration;
+
 	FTimerHandle TimerHandle;
 	FTimerDelegate TimerDelegate;
 	TimerDelegate.BindUObject(this, &UDefenseSystem::OnWindowTimerExpired, Defender);
@@ -80,7 +89,7 @@ void UDefenseSystem::OpenDefenseWindow(
 		World->GetTimerManager().SetTimer(
 			TimerHandle,
 			TimerDelegate,
-			State.WindowDuration,
+			CloseTimerDuration,
 			false);
 
 		WindowTimerHandles.Add(Defender, TimerHandle);
@@ -89,8 +98,9 @@ void UDefenseSystem::OpenDefenseWindow(
 	// Broadcast event for UI
 	OnDefenseWindowOpened.Broadcast(Defender, AttackSize, State.WindowDuration);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Duration: %.2fs)"),
-		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration);
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense window opened for %s (Size: %.1f, Damage: %d, Reaction: %.2fs, Close: %s %.2fs)"),
+		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration,
+		   bManualClose ? TEXT("count-based, failsafe") : TEXT("timer"), CloseTimerDuration);
 
 	// Check if AI-controlled and schedule defense
 	UCharacterDataComponent *CharComp = Defender->FindComponentByClass<UCharacterDataComponent>();
@@ -152,19 +162,18 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 		WindowTimerHandles.Remove(Defender);
 	}
 
-	// Calculate result
-	float DodgeThreshold = GetDodgeThreshold(Defender);
+	// Calculate result (dodge is timing-only — no attack-size/threshold gate)
 	Result = CalculateDefenseResult(
 		State.BaseDamage,
 		State.DefenseChosen,
-		State.bInputReceived,
-		State.AttackSize,
-		DodgeThreshold);
+		State.bInputReceived);
 
 	Result.bWasInWindow = State.bInputReceived;
 
-	// Handle parry reflect
-	if (Result.bSuccess && State.DefenseChosen == EDefenseType::Parry && Result.ReflectedDamage > 0)
+	// Handle parry reflect — single-decision (non-melee) windows ONLY. Count-based (melee)
+	// windows resolve reflect PER IMPACT in ActionExecutor::ResolveImpactDefense (Stage 3);
+	// reflecting here too would double-reflect on the legacy lumped first-input decision.
+	if (!State.bCountBasedClose && Result.bSuccess && State.DefenseChosen == EDefenseType::Parry && Result.ReflectedDamage > 0)
 	{
 		if (State.Attacker.IsValid())
 		{
@@ -208,12 +217,9 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 		return;
 	}
 
-	if (StatePtr->bInputReceived)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] Defense input already received for %s"),
-			   *Defender->GetName());
-		return;
-	}
+	// Stage 3: NO "already received" reject — multiple presses APPEND to the buffer so each
+	// impact can be independently defended. Each press still plays its own anim (Expedition 33
+	// feel: you see every input).
 
 	// Validate dodge direction
 	if (DefenseType == EDefenseType::Dodge)
@@ -225,10 +231,22 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 		}
 	}
 
-	// Record input
-	StatePtr->DefenseChosen = DefenseType;
-	StatePtr->DodgeDirection = Direction;
-	StatePtr->bInputReceived = true;
+	// Stage 3: append a timestamped entry — the per-impact match-and-consume reads this.
+	FTimestampedDefenseInput Entry;
+	Entry.Type = DefenseType;
+	Entry.Direction = Direction;
+	Entry.InputTime = FPlatformTime::Seconds();
+	Entry.bConsumed = false;
+	StatePtr->InputBuffer.Add(Entry);
+
+	// Legacy single fields — still read by the non-melee/tail close path. First input wins
+	// (mirrors the old reject-2nd behavior) so that path is byte-for-byte unchanged.
+	if (!StatePtr->bInputReceived)
+	{
+		StatePtr->DefenseChosen = DefenseType;
+		StatePtr->DodgeDirection = Direction;
+		StatePtr->bInputReceived = true;
+	}
 
 	// Play defense animation
 	PlayDefenseAnimation(Defender, DefenseType, Direction);
@@ -236,10 +254,11 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 	// Broadcast event
 	OnDefenseInputReceived.Broadcast(Defender, DefenseType, Direction);
 
-	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense input received: %s chose %d (Direction: %d)"),
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Defense input buffered: %s chose %d (Direction: %d, BufferSize: %d)"),
 		   *Defender->GetName(),
 		   static_cast<int32>(DefenseType),
-		   static_cast<int32>(Direction));
+		   static_cast<int32>(Direction),
+		   StatePtr->InputBuffer.Num());
 }
 
 bool UDefenseSystem::IsDefenseWindowOpen(AActor *Defender) const
@@ -251,6 +270,147 @@ bool UDefenseSystem::IsDefenseWindowOpen(AActor *Defender) const
 
 	const FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
 	return StatePtr && StatePtr->bWindowOpen;
+}
+
+AActor *UDefenseSystem::GetActiveDefenderForLocalPlayer() const
+{
+	// SINGLE-TARGET: first open-window defender that isn't AI-controlled. Multi-target
+	// routing (solo sequential / MP simultaneous) is Stage 6 — see RealTimeDefenseRework.md §13.
+	for (const TPair<TWeakObjectPtr<AActor>, FDefenseState> &Pair : ActiveDefenseStates)
+	{
+		if (!Pair.Value.bWindowOpen)
+		{
+			continue;
+		}
+
+		AActor *Defender = Pair.Key.Get();
+		if (!Defender)
+		{
+			continue;
+		}
+
+		UCharacterDataComponent *Comp = GetCharacterDataComponent(Defender);
+		if (Comp && Comp->CharacterData && !Comp->CharacterData->ShouldUseAI())
+		{
+			return Defender;
+		}
+	}
+
+	return nullptr;
+}
+
+FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType,
+														const FDefenseDifficultyTriple &Difficulty)
+{
+	FDefenseInputMatch Match;
+
+	if (!Defender)
+	{
+		return Match;
+	}
+
+	FDefenseState *StatePtr = ActiveDefenseStates.Find(Defender);
+	if (!StatePtr)
+	{
+		return Match;
+	}
+
+	// Latest (most recent press) unconsumed entry inside the TWO-SIDED window around the impact.
+	// "Latest" = largest InputTime: the most recent press wins; older buffered presses stay
+	// unconsumed for an earlier/later impact. EffectiveWindow = the attacker→defender duel (base +
+	// defender Reflex − attacker speed, floored): attacker read from the live state, AttackType
+	// selects the attacker's speed stat. Hoisted once.
+	const float EffectiveWindow = GetEffectiveDefenseInputWindow(Defender, StatePtr->Attacker.Get(), AttackType);
+
+	// Per-type difficulty multiplier (cluster 4): concrete tiers (caller-resolved); all-Inherit guard
+	// triple → Easy ×1.0; None/unknown press type never tightens. Shared by the window test AND the
+	// perfect band so difficulty scales every timing axis uniformly.
+	auto TypeTier = [&Difficulty](EDefenseType Type) -> EDefenseDifficulty
+	{
+		return (Type == EDefenseType::Parry) ? Difficulty.Parry :
+			   (Type == EDefenseType::Dodge) ? Difficulty.Dodge :
+			   (Type == EDefenseType::Block) ? Difficulty.Block :
+											   EDefenseDifficulty::Easy;
+	};
+	auto TypeMult = [&TypeTier](EDefenseType Type) -> float
+	{
+		return DefenseDifficultyMultiplier(TypeTier(Type));
+	};
+
+	int32 BestIndex = INDEX_NONE;
+	double BestInputTime = TNumericLimits<double>::Lowest();
+	for (int32 i = 0; i < StatePtr->InputBuffer.Num(); ++i)
+	{
+		const FTimestampedDefenseInput &Entry = StatePtr->InputBuffer[i];
+		if (Entry.bConsumed)
+		{
+			continue;
+		}
+
+		// Two-sided window (Phase 1), BOTH sides scaled by the same per-type difficulty Mult.
+		// Delta = ImpactTime − InputTime: Delta ≥ 0 = pressed BEFORE impact (anticipation, up to
+		// BeforeWindow = the lead-in × Mult, re-floored at MINIMUM_DEFENSE_WINDOW); Delta < 0 = pressed
+		// AFTER impact (late grace, up to AfterWindow = DEFENSE_AFTER_GRACE_SECONDS × Mult, smaller than
+		// the lead-in so anticipation stays primary). Outside [−AfterWindow, +BeforeWindow] → whiff.
+		const EDefenseDifficulty Tier = TypeTier(Entry.Type);
+		const float Mult = DefenseDifficultyMultiplier(Tier);
+		// Impossible floors at its OWN tiny floor (below the normal 0.1s min) so the window can go
+		// tiny-but-nonzero; every other tier floors at MINIMUM_DEFENSE_WINDOW. After-grace + perfect
+		// band stay unfloored — the ×0.1 Mult already shrinks them.
+		const float Floor = (Tier == EDefenseDifficulty::Impossible)
+								? CombatConstants::IMPOSSIBLE_WINDOW_FLOOR
+								: CombatConstants::MINIMUM_DEFENSE_WINDOW;
+		const float BeforeWindow = FMath::Max(Floor, EffectiveWindow * Mult);
+		const float AfterWindow = CombatConstants::DEFENSE_AFTER_GRACE_SECONDS * Mult;
+
+		const double Delta = ImpactTime - Entry.InputTime;
+		if (Delta > BeforeWindow || Delta < -static_cast<double>(AfterWindow))
+		{
+			continue; // outside both the lead-in and the after-grace → whiff
+		}
+
+		if (Entry.InputTime > BestInputTime)
+		{
+			BestInputTime = Entry.InputTime;
+			BestIndex = i;
+		}
+	}
+
+	if (BestIndex == INDEX_NONE)
+	{
+		return Match; // bMatched stays false — this impact is undefended
+	}
+
+	FTimestampedDefenseInput &Hit = StatePtr->InputBuffer[BestIndex];
+	Hit.bConsumed = true;
+
+	const double Delta = ImpactTime - Hit.InputTime;
+	Match.bMatched = true;
+	Match.Type = Hit.Type;
+	Match.Direction = Hit.Direction;
+
+	// Perfect band (Phase 1): TWO-SIDED (dead-on either side of the impact, hence Abs(Delta)) and
+	// scaled by the SAME per-type difficulty Mult as the success windows — Hard tightens the perfect
+	// band exactly as it tightens the match windows. A press exactly at impact (Delta = 0) is always perfect.
+	const float PerfectBand = PerfectThreshold * TypeMult(Hit.Type);
+	Match.bPerfect = (FMath::Abs(Delta) <= static_cast<double>(PerfectBand));
+
+	UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Impact matched for %s — Type: %d, Delta: %.3fs, %s"),
+		   *Defender->GetName(), static_cast<int32>(Match.Type), Delta,
+		   Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
+
+	return Match;
+}
+
+void UDefenseSystem::ApplyParryReflect(AActor *Attacker, AActor *Defender, int32 ReflectedDamage)
+{
+	if (!Attacker || ReflectedDamage <= 0)
+	{
+		return;
+	}
+
+	ApplyReflectedDamage(Attacker, ReflectedDamage);
+	OnParryReflect.Broadcast(Defender, Attacker, ReflectedDamage);
 }
 
 FDefenseState UDefenseSystem::GetDefenseState(AActor *Defender) const
@@ -282,28 +442,43 @@ float UDefenseSystem::GetRemainingWindowTime(AActor *Defender) const
 	return FMath::Max(0.0f, Remaining);
 }
 
-// ========================================
-// DODGE CALCULATIONS
-// ========================================
-
-bool UDefenseSystem::CanDodgeAttack(AActor *Defender, float AttackSize) const
+float UDefenseSystem::GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const
 {
-	float Threshold = GetDodgeThreshold(Defender);
-	return AttackSize < Threshold;
-}
+	// Attacker→defender duel: base lead-in window (tuned on the subsystem) WIDENED by the
+	// defender's Reflex and NARROWED by the attacker's speed, floored at MINIMUM_DEFENSE_WINDOW.
+	//   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
+	// Each per-character term is a STAT (raw, ≤0.25-capped) MULTIPLIED by that side's gear/buff factor
+	// (pillar + matched Bonus substat + matched stone + transient), bounded by WINDOW_GEAR_CEILING_SECONDS
+	// — matched gear pushes past the stat cap (defender widens, attacker narrows); inert (×1) with no gear.
+	// Null-safe on BOTH sides: a missing component / CharacterData simply drops that side's term.
+	float Window = DefenseInputWindow;
 
-float UDefenseSystem::GetDodgeThreshold(AActor *Defender) const
-{
-	// Base threshold
-	float Threshold = BaseDodgeThreshold;
+	// Defender side — Reflex widens. Pattern P (cluster B-5): the STAT bonus (raw, ≤0.25-capped) is
+	// MULTIPLIED by the defender's Reflex-gear factor (Body pillar + BonusReflex + ReflexStone + transient
+	// ReflexBuff/Debuff), so matched Reflex gear widens the window past the stat cap, bounded by
+	// WINDOW_GEAR_CEILING_SECONDS. Inert (×1) with no Reflex gear — byte-identical to the pre-B-5 stat term.
+	UCharacterDataComponent *DefComp = GetCharacterDataComponent(Defender);
+	if (DefComp && DefComp->CharacterData)
+	{
+		float ReflexTerm = DefComp->CharacterData->CalculateReflexWindowBonus();
+		ReflexTerm *= DefComp->ReflexWindowGearFactor();
+		Window += FMath::Min(ReflexTerm, CombatConstants::WINDOW_GEAR_CEILING_SECONDS);
+	}
 
-	// TODO: Could be modified by:
-	// - Character stats (agility/speed)
-	// - Equipment bonuses
-	// - Status effects (slowed reduces threshold)
-	// - Character size
+	// Attacker side — speed narrows (type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind).
+	// NOTE: the spell branch is DORMANT until Stage 6 — per-impact resolution is melee-only today.
+	// Pattern P (cluster A1): the STAT penalty (raw, ±0.25-capped) is MULTIPLIED by the attacker's
+	// speed-gear factor (pillar + Bonus{Action,Spell}Speed + stone + transient), so matched gear narrows
+	// the window past the stat cap, bounded by WINDOW_GEAR_CEILING_SECONDS. Inert (×1) with no gear.
+	UCharacterDataComponent *AtkComp = GetCharacterDataComponent(Attacker);
+	if (AtkComp && AtkComp->CharacterData)
+	{
+		float SpeedTerm = AtkComp->CharacterData->CalculateSpeedWindowPenalty(AttackType);
+		SpeedTerm *= AtkComp->SpeedWindowGearFactor(AttackType);
+		Window -= FMath::Min(SpeedTerm, CombatConstants::WINDOW_GEAR_CEILING_SECONDS);
+	}
 
-	return Threshold;
+	return FMath::Max(CombatConstants::MINIMUM_DEFENSE_WINDOW, Window);
 }
 
 // ========================================
@@ -313,9 +488,7 @@ float UDefenseSystem::GetDodgeThreshold(AActor *Defender) const
 FDefenseResult UDefenseSystem::CalculateDefenseResult(
 	int32 BaseDamage,
 	EDefenseType DefenseType,
-	bool bDefenseSuccessful,
-	float AttackSize,
-	float DodgeThreshold)
+	bool bDefenseSuccessful)
 {
 	FDefenseResult Result;
 	Result.DefenseType = DefenseType;
@@ -346,21 +519,10 @@ FDefenseResult UDefenseSystem::CalculateDefenseResult(
 		break;
 
 	case EDefenseType::Dodge:
-		// Dodge: 100% avoidance IF attack is small enough
-		if (AttackSize < DodgeThreshold)
-		{
-			Result.bSuccess = true;
-			Result.FinalDamage = 0;
-		}
-		else
-		{
-			// Attack too big, dodge fails completely
-			Result.bSuccess = false;
-			Result.FinalDamage = BaseDamage;
-			Result.FailureReason = FString::Printf(
-				TEXT("Attack too large (%.1f >= %.1f threshold)"),
-				AttackSize, DodgeThreshold);
-		}
+		// Dodge: 100% avoidance on TIMING alone — the attack-size gate was removed, so any
+		// well-timed dodge fully avoids regardless of attack size (player + AI, uniform).
+		Result.bSuccess = true;
+		Result.FinalDamage = 0;
 		break;
 
 	default:

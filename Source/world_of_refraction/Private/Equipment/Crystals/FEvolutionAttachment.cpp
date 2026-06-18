@@ -5,10 +5,15 @@
 
 #include "Equipment/Crystals/FEvolutionAttachment.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/EBreakability.h"
 
 bool FEvolutionAttachment::IsBroken() const
 {
-    return Item && Item->bCanBreak && CurrentDurability <= 0;
+    // Option Y: any non-Unbreakable crystal worn to 0 is broken — including a
+    // BDBreakable crystal worn down by Broken Darkness/Reality, so the
+    // between-combat sweep clears the slot. Unbreakable never reaches 0 (the
+    // ApplyWear gate blocks all wear), so it is never broken.
+    return Item && Item->Breakability != EBreakability::Unbreakable && CurrentDurability <= 0;
 }
 
 bool FEvolutionAttachment::ApplyWear(int32 Amount, bool bForceWear)
@@ -17,9 +22,11 @@ bool FEvolutionAttachment::ApplyWear(int32 Amount, bool bForceWear)
     {
         return false;
     }
-    if (!bForceWear && !Item->bCanBreak)
+    switch (Item->Breakability)
     {
-        return false;
+    case EBreakability::Unbreakable:  return false;                          // never wears, even BD
+    case EBreakability::Breakable:    break;                                 // wears for anyone
+    case EBreakability::BDBreakable:  if (!bForceWear) return false; break;  // BD/Reality only
     }
 
     const int32 Before = CurrentDurability;

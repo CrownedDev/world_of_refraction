@@ -98,7 +98,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("    Efficiency:        %d\n"), Character->Efficiency);
 	Output += FString::Printf(TEXT("    Spell Damage:      %d\n"), Character->SpellDamage);
 	Output += FString::Printf(TEXT("    Status Multiplier: %d\n"), Character->StatusMultiplier);
-	Output += FString::Printf(TEXT("    Crit Chance:       %d\n"), Character->CritChance);
+	Output += FString::Printf(TEXT("    Crit Damage:       %d\n"), Character->CritDamage);
 	Output += FString::Printf(TEXT("    Spell Speed:       %d\n"), Character->SpellSpeed);
 
 	Output += TEXT("  Body:\n");
@@ -106,6 +106,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("    Action Speed: %d\n"), Character->ActionSpeed);
 	Output += FString::Printf(TEXT("    Raw Damage:     %d\n"), Character->RawDamage);
 	Output += FString::Printf(TEXT("    Max Health:     %d\n"), Character->MaxHealth);
+	Output += FString::Printf(TEXT("    Reflex:         %d\n"), Character->Reflex);
 
 	Output += TEXT("  Spirit:\n");
 	Output += FString::Printf(TEXT("    Max Energy:     %d\n"), Character->MaxEnergy);
@@ -118,6 +119,7 @@ FString UCharacterDataDebug::GetCharacterStatsString(UCharacterData *Character)
 	Output += FString::Printf(TEXT("  Max Health:    %d\n"), Character->CalculateMaxHealth());
 	Output += FString::Printf(TEXT("  Max Energy:    %d\n"), Character->CalculateMaxEnergy());
 	Output += FString::Printf(TEXT("  Raw Damage:         %.2fx\n"), Character->CalculateRawDamage());
+	Output += FString::Printf(TEXT("  Reflex Window +:    %.3fs\n"), Character->CalculateReflexWindowBonus());
 	Output += FString::Printf(TEXT("  Spell Damage:       %.2fx\n"), Character->CalculateSpellDamage());
 	Output += FString::Printf(TEXT("  Status Multiplier:  %.2fx\n"), Character->CalculateStatusMultiplier());
 	Output += FString::Printf(TEXT("  Status Mult (flat): %d\n"), Character->CalculateStatusMultiplierFlat());

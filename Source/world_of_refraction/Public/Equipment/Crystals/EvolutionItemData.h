@@ -19,6 +19,8 @@
 #include "Skills/Effects/FSkillEffect.h"
 #include "NiagaraSystem.h"
 #include "Equipment/Crystals/EEvolutionType.h"
+#include "Equipment/Crystals/EBreakability.h"
+#include "Infusion/EInfusionMode.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
@@ -77,11 +79,17 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
         EEvolutionType EvolutionType = EEvolutionType::Balanced;
 
+        /** How an infused action via this evolution (when primary-slotted) splits its charge bonus. Balanced
+         *  (default) = the middle to both; Physical leans damage; Status leans status. */
+        UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Crystal System")
+        EInfusionMode InfusionMode = EInfusionMode::Balanced;
+
         // ==================== DURABILITY ====================
         // Only meaningful for refined crystals. Unrefined crystals are consumables
-        // and don't track durability. Breaking is opt-in via bCanBreak — default
-        // false means the crystal never wears down (durability shown is cosmetic).
-        // See DurabilityConstants.h for tier defaults and wear values.
+        // and don't track durability. Who can wear/break a crystal is a 3-state
+        // Breakability enum (below) — default BDBreakable means only Broken
+        // Darkness / Reality wielders wear it down (the prior bCanBreak=false
+        // behavior). See DurabilityConstants.h for tier defaults and wear values.
 
         /** Maximum durability. If left at 0, auto-computed from Tier in PostInitProperties.
          *  Per-tier defaults: F=30 E=40 D=50 C=60 B=70 A=80 S=100 */
@@ -89,12 +97,12 @@ public:
                   meta = (EditCondition = "bIsRefined", EditConditionHides, ClampMin = "0"))
         int32 MaxDurability = 0;
 
-        /** When true, this crystal can wear down and break. Default false means the
-         *  crystal is permanent (durability shown is cosmetic). Designers opt-in per
-         *  item — evolution crystals are unbreakable unless explicitly set true. */
+        /** Who can break this evolution crystal. BDBreakable (default) = only Broken
+         *  Darkness/Reality wielders wear it down — the prior bCanBreak=false behavior.
+         *  Breakable = any class. Unbreakable = no one, even BD. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
                   meta = (EditCondition = "bIsRefined", EditConditionHides))
-        bool bCanBreak = false;
+        EBreakability Breakability = EBreakability::BDBreakable;
 
         // ==================== STAT BONUS (Evolution only) ====================
         // Authoring surface for evolution crystal stat modifiers. Replaces the

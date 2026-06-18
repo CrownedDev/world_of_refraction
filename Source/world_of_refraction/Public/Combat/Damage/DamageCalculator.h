@@ -13,7 +13,7 @@
 #include "DamageCalculator.generated.h"
 
 class UCharacterData;
-class UWeaponAttackData;
+class USkillDataBase;
 class USkillEffectManager;
 class UBrokenDarknessManager;
 class UCombatGridSubsystem;
@@ -22,8 +22,9 @@ class UCombatGridSubsystem;
  */
 namespace DamageConstants
 {
-	// Critical hits
-	constexpr float CRIT_MULTIPLIER = 1.5f;
+	// Critical hits — crit DAMAGE is now a variable stat (CombatConstants::CRIT_DMG_BASE + CritDamage
+	// stat + gear, via UDamageCalculator::GetCritDamageMultiplier). The old fixed CRIT_MULTIPLIER (1.5)
+	// was retired in cluster 5e-D once the AI estimator stopped reading it.
 	constexpr float BASE_CRIT_CHANCE = 0.05f; // 5%
 
 	// Defense
@@ -71,7 +72,7 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 
 	/** Per-action stat modifiers accumulated from all active sources
 	 *  (Reality innate/slotted/infused, Evolution slotted/infused, future buffs).
-	 *  DamageCalculator consumes StatusMultiplier / SpellDamage / RawDamage / CritChance from this. */
+	 *  DamageCalculator consumes StatusMultiplier / SpellDamage / RawDamage / CritDamage from this. */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FActionStatModifiers ActionMods;
 
@@ -94,6 +95,12 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	/** Skip resistance calculation? */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bIgnoreResistance = false;
+
+	/** Hybrid stat toggle: when true, the attacker damage multiplier + stat select use the OPPOSITE
+	 *  EActionType to ActionType (Raw↔Spell). STAT-ONLY — element routing and the Spell-mode effective-
+	 *  damage branches stay on ActionType. Default false = natural scaling. */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	bool bOverrideStatScaling = false;
 };
 
 /**
@@ -116,7 +123,7 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	bool bWasCritical = false;
 
-	/** Damage blocked by flat defense */
+	/** HP removed by the Defense % reduction (DamageBeforeDefense − post-reduction damage). */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	int32 DamageBlockedByDefense = 0;
 
@@ -139,8 +146,9 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
 	float CritMultiplier = 1.0f;
 
+	/** Defense REDUCTION fraction applied [0, 0.5] (cluster 4: was the flat-int blocked amount). */
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
-	int32 DefenderFlatDefense = 0;
+	float DefenderFlatDefense = 0.0f;
 
 	/** Selected infusion source - determines if weapon stats apply */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
@@ -179,7 +187,7 @@ public:
 	FDamageCalculationResult CalculateAttackDamage(
 		AActor *Attacker,
 		AActor *Target,
-		UWeaponAttackData *Attack,
+		USkillDataBase *Attack,
 		bool bIsInfused = false);
 
 	// ==================== COMPONENT CALCULATIONS ====================
@@ -192,16 +200,25 @@ public:
 	float GetAttackerDamageMultiplier(AActor *Attacker, EActionType ActionType) const;
 
 	/**
-	 * Get defender's flat defense value
+	 * Get defender's defense REDUCTION fraction [0, 0.5] (cluster 4: flat-int -> capped %).
+	 * TODO: rename to GetDefenderDefenseReduction in a Blueprint-aware pass.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
-	int32 GetDefenderFlatDefense(AActor *Defender) const;
+	float GetDefenderFlatDefense(AActor *Defender) const;
 
 	/**
 	 * Get critical hit chance for attacker
 	 */
 	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
 	float GetCriticalChance(AActor *Attacker) const;
+
+	/**
+	 * Get the attacker's full crit-DAMAGE multiplier (CRIT_DMG_BASE x1.0 + CritDamage stat ramp to
+	 * x1.5, then BonusCritDamage gear + ModifyCritDamage transient toward x2.0). The same value the
+	 * live crit path applies; public so the AI scorer can value crits at the attacker's real crit damage.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Components")
+	float GetCritDamageMultiplier(AActor *Attacker) const;
 
 	/**
 	 * Roll for critical hit
@@ -260,9 +277,6 @@ private:
 	/** Apply status effect modifiers to damage. ActionType gates the
 	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
-
-	/** Skill-effect-driven crit damage multiplier — returns 1.0 + ModifyCritDamage% / 100. */
-	float GetCritDamageMultiplier(AActor *Attacker) const;
 
 	/** Get CombatGridSubsystem */
 	UCombatGridSubsystem *GetCombatGridSubsystem() const;

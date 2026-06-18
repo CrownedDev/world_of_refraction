@@ -62,10 +62,7 @@ void USpellData::PostLoad()
             DeliveryType != Defaults->DeliveryType ||
             ProjectileSpeed != Defaults->ProjectileSpeed ||
             BaseSize != Defaults->BaseSize ||
-            HitboxRatio != Defaults->HitboxRatio ||
-            HomingStrength != Defaults->HomingStrength ||
-            BeamDuration != Defaults->BeamDuration ||
-            BeamTickInterval != Defaults->BeamTickInterval;
+            HitboxRatio != Defaults->HitboxRatio;
 
         if (bHasDeliveryAuthoring)
         {
@@ -76,9 +73,6 @@ void USpellData::PostLoad()
             Entry.Size = BaseSize * HitboxRatio;
             Entry.VisualScale = BaseSize;
             Entry.Trail = SpellVFX;
-            Entry.HomingStrength = HomingStrength;
-            Entry.BeamDuration = BeamDuration;
-            Entry.BeamTickInterval = BeamTickInterval;
             // ProjectileClass stays null (executor's DefaultProjectileClass,
             // as today); Count/BurstInterval stay defaults (single delivery).
         }
@@ -87,17 +81,23 @@ void USpellData::PostLoad()
 
 // ==================== DAMAGE CALCULATIONS ====================
 
-int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods) const
+int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods, int32 BaseDamageOverride) const
 {
     if (!Character)
         return 0;
+
+    // Per-cast-entry SPELL damage (Stage 6 cluster 5): swap the raw base when overridden (>= 0),
+    // else use the skill-level BaseDamage as before. Only the BASE changes — the bIsRawMode mult +
+    // requirement penalty below still apply on it, and the SpellDamage/Mind/element scaling runs
+    // downstream at ApplyHit (ActionType=Spell branch). So per-entry damage scales as a spell.
+    const int32 EffectiveBase = (BaseDamageOverride >= 0) ? BaseDamageOverride : BaseDamage;
 
     // Attacker-side base only. SpellDamage multiplier is applied once downstream
     // by DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier; the
     // ActionMods.SpellDamage modifier is applied there too. StatusMultiplier is
     // no longer multiplied into damage — it drives status buildup exclusively
     // (StatusBuildupManager::AddStatusBuildup + CalculateStatusBuildup).
-    float FinalDamage = BaseDamage;
+    float FinalDamage = EffectiveBase;
 
     if (bIsRawMode)
     {
@@ -178,13 +178,16 @@ FString USpellData::GetDisplayName(UCharacterData *Caster) const
 
 bool USpellData::CanBeBlocked() const
 {
-    return DeliveryType != ESpellDeliveryType::Instant;
+    // All current deliveries are blockable. Instant is defendable per-impact (Hard
+    // difficulty) like AOE — no delivery is undefendable anymore.
+    return true;
 }
 
 bool USpellData::CanBeParried() const
 {
     return DeliveryType == ESpellDeliveryType::Projectile ||
-           DeliveryType == ESpellDeliveryType::Homing;
+           DeliveryType == ESpellDeliveryType::AOE ||
+           DeliveryType == ESpellDeliveryType::Instant;
 }
 
 bool USpellData::CanBeDodgedByMoving() const
@@ -195,19 +198,14 @@ bool USpellData::CanBeDodgedByMoving() const
 bool USpellData::CanBeDodgedByTiming() const
 {
     return DeliveryType == ESpellDeliveryType::Projectile ||
-           DeliveryType == ESpellDeliveryType::Homing ||
-           DeliveryType == ESpellDeliveryType::Beam;
+           DeliveryType == ESpellDeliveryType::Instant;
 }
 
 TArray<EDefenseType> USpellData::GetAvailableDefenses() const
 {
     TArray<EDefenseType> Options;
 
-    if (DeliveryType == ESpellDeliveryType::Instant)
-    {
-        return Options; // Empty - unavoidable
-    }
-
+    // Every delivery is blockable now (Instant included — defendable per-impact at Hard).
     Options.Add(EDefenseType::Block);
 
     if (CanBeParried())

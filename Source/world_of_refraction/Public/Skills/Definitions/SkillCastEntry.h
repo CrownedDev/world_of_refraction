@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "SkillCastEntry.generated.h"
 
 class UNiagaraSystem;
@@ -32,20 +33,20 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast")
     ESpellDeliveryType DeliveryType = ESpellDeliveryType::Projectile;
 
-    /** Travel actor for Projectile/Homing/Beam. Null = the executor's
+    /** Travel actor for Projectile. Null = the executor's
      *  DefaultProjectileClass (today's fallback). */
     UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing || DeliveryType == ESpellDeliveryType::Beam",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile",
                       EditConditionHides))
     TSubclassOf<ASkillProjectile> ProjectileClass;
 
     UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile || DeliveryType == ESpellDeliveryType::Homing || DeliveryType == ESpellDeliveryType::Beam",
+              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Projectile",
                       EditConditionHides, ClampMin = "100.0"))
     float ProjectileSpeed = 1500.0f;
 
-    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile/Homing/
-     *  Beam = moving collision radius, AOE = static ground radius. Never the
+    /** MECHANICAL hitbox — meaning follows DeliveryType: Projectile =
+     *  moving collision radius, AOE = static ground radius. Never the
      *  visual (that's VisualScale / the VFX entries' Scale). */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
     float Size = 1.0f;
@@ -64,24 +65,6 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "0.1"))
     float VisualScale = 1.0f;
 
-    /** Homing tracking strength: 0 = no tracking, 1 = instant turn. */
-    UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Homing",
-                      EditConditionHides, ClampMin = "0.0", ClampMax = "1.0"))
-    float HomingStrength = 0.5f;
-
-    /** Beam duration in seconds. */
-    UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
-                      EditConditionHides, ClampMin = "0.1"))
-    float BeamDuration = 1.0f;
-
-    /** Seconds between damage ticks while the beam is active. */
-    UPROPERTY(EditAnywhere, Category = "Cast",
-              meta = (EditCondition = "DeliveryType == ESpellDeliveryType::Beam",
-                      EditConditionHides, ClampMin = "0.01"))
-    float BeamTickInterval = 0.5f;
-
     /** Barrage: >1 spawns Count deliveries staggered by BurstInterval. */
     UPROPERTY(EditAnywhere, Category = "Cast", meta = (ClampMin = "1"))
     int32 Count = 1;
@@ -89,4 +72,38 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
     UPROPERTY(EditAnywhere, Category = "Cast",
               meta = (EditCondition = "Count > 1", ClampMin = "0.01"))
     float BurstInterval = 0.15f;
+
+    /** This delivery's own base damage (the SPELL damage layer), scaled via SpellDamage/Mind at ApplyHit
+     *  like Spell->BaseDamage. 0 = unauthored -> falls back to the skill-level Spell->BaseDamage
+     *  (serialization-safe, byte-identical for existing spells). Burst (Count>1) splits this evenly
+     *  (entry Damage / Count) — even-split wired in the burst cluster. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast", meta = (ClampMin = "0"))
+    int32 Damage = 0;
+
+    /** If true, this cast scales with the OPPOSITE stat to its action type — a spell scales with RawDamage
+     *  instead of SpellDamage (a "force slash" that scales off physical stats). Default false = natural
+     *  (spell -> SpellDamage). Stat-only: changes which stat scales, nothing else. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bOverrideStatScaling = false;
+
+    /** This cast deals no damage (a pure interaction moment). The defense window still opens
+     *  (defendable/interruptable); only damage is suppressed. Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bIgnoreDamage = false;
+
+    /** This cast applies no status buildup. Independent of bIgnoreDamage (all four combinations
+     *  authorable). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bIgnoreStatus = false;
+
+    /** If this cast is successfully parried OR dodged (by ALL targets), the rest of the action aborts
+     *  (montage stops, no further hits/casts; plays the return montage if authored). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    bool bInterruptable = false;
+
+    /** This delivery's per-defense-type difficulty (parry/dodge/block), keyed PER CAST-ENTRY (per
+     *  delivery), not per hit. All-Inherit -> resolves to the skill-level DefaultDifficulty, then
+     *  Easy (x1.0). Resolve + per-impact routing wired in later Stage-6 clusters. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
+    FDefenseDifficultyTriple Difficulty;
 };

@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Infusion/EInfusionMode.h"
 #include "Character/ECharacterClass.h"
 #include "Character/StatConstants.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
+#include "Combat/Actions/EActionType.h"
 #include <Combat/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -123,6 +125,11 @@ public:
 			  meta = (EditCondition = "CharacterClass == ECharacterClass::Caster", EditConditionHides))
 	ESpellElement InnateElement = ESpellElement::Generic;
 
+	/** How an innate-infused action splits its charge bonus (innate uses the character's own element, so its
+	 *  mode lives here). Balanced (default) = the middle to both; Physical leans damage; Status leans status. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+	EInfusionMode InfusionMode = EInfusionMode::Balanced;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity", meta = (MultiLine = true))
 	FString Description = TEXT("Character description...");
 
@@ -166,12 +173,12 @@ public:
 	int32 SpellDamage = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
-	int32 CritChance = 0;
+	int32 CritDamage = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Mind", meta = (ClampMin = "0"))
 	int32 SpellSpeed = 0;
 
-	// ==================== BODY SUB-STATS (4) ====================
+	// ==================== BODY SUB-STATS (5) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 Defense = 0;
 
@@ -183,6 +190,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
 	int32 MaxHealth = 0;
+
+	/** Widens the real-time defense input window (more Reflex = more lead-in time to
+	 *  land a parry/dodge). Scales ON TOP of UDefenseSystem::DefenseInputWindow — see
+	 *  CalculateReflexWindowBonus. Does NOT affect ActionSpeed (animation pacing). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Body", meta = (ClampMin = "0"))
+	int32 Reflex = 0;
 
 	// ==================== SPIRIT SUB-STATS (5) ====================
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sub-Stats|Spirit", meta = (ClampMin = "0"))
@@ -294,8 +307,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Pool")
 	int32 GetTotalSpent() const
 	{
-		return Efficiency + SpellDamage + CritChance + SpellSpeed +
-			   Defense + ActionSpeed + RawDamage + MaxHealth +
+		return Efficiency + SpellDamage + CritDamage + SpellSpeed +
+			   Defense + ActionSpeed + RawDamage + MaxHealth + Reflex +
 			   MaxEnergy + Resistance + TurnSpeed + Luck + StatusMultiplier;
 	}
 
@@ -316,7 +329,7 @@ public:
 	int32 GetTotalSpellDamage() const { return SpellDamage; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
-	int32 GetTotalCritChance() const { return CritChance; }
+	int32 GetTotalCritDamage() const { return CritDamage; }
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Mind|Total")
 	int32 GetTotalSpellSpeed() const { return SpellSpeed; }
@@ -333,6 +346,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
 	int32 GetTotalMaxHealth() const { return MaxHealth; }
+
+	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Body|Total")
+	int32 GetTotalReflex() const { return Reflex; }
 
 	// ----- SPIRIT (4 stats) -----
 	UFUNCTION(BlueprintPure, Category = "Sub-Stats|Spirit|Total")
@@ -356,15 +372,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseMind() const
 	{
-		// Mind (4): Efficiency, SpellDamage, CritChance, SpellSpeed
-		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalCritChance() + GetTotalSpellSpeed();
+		// Mind (4): Efficiency, SpellDamage, CritDamage, SpellSpeed
+		return GetTotalEfficiency() + GetTotalSpellDamage() + GetTotalCritDamage() + GetTotalSpellSpeed();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
 	int32 GetBaseBody() const
 	{
-		// Body (4): Defense, ActionSpeed, RawDamage, MaxHealth
-		return GetTotalDefense() + GetTotalActionSpeed() + GetTotalRawDamage() + GetTotalMaxHealth();
+		// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
+		return GetTotalDefense() + GetTotalActionSpeed() + GetTotalRawDamage() + GetTotalMaxHealth() + GetTotalReflex();
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Base")
@@ -379,26 +395,29 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveMind() const
 	{
-		int32 BaseMind = GetBaseMind();
-		return BaseMind * (1.0f + WorldMindLevel * CombatConstants::WORLD_MIND_SCALING_BONUS);
+		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
+		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
+		return 1.0f + WorldMindLevel * CombatConstants::WORLD_MIND_SCALING_BONUS;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveBody() const
 	{
-		int32 BaseBody = GetBaseBody();
-		return BaseBody * (1.0f + WorldBodyLevel * CombatConstants::WORLD_BODY_SCALING_BONUS);
+		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
+		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
+		return 1.0f + WorldBodyLevel * CombatConstants::WORLD_BODY_SCALING_BONUS;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveSpirit() const
 	{
-		int32 BaseSpirit = GetBaseSpirit();
-		return BaseSpirit * (1.0f + WorldSpiritLevel * CombatConstants::WORLD_SPIRIT_SCALING_BONUS);
+		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
+		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
+		return 1.0f + WorldSpiritLevel * CombatConstants::WORLD_SPIRIT_SCALING_BONUS;
 	}
 
 	// ==================== MIND CALCULATIONS ====================
-	// Mind (4): Efficiency, SpellDamage, CritChance, SpellSpeed
+	// Mind (4): Efficiency, SpellDamage, CritDamage, SpellSpeed
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
 	float CalculateEfficiencyMultiplier() const
@@ -434,7 +453,7 @@ public:
 		// off Mind alongside the StatusMultiplier substat pillar move.
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalStatusMultiplier();
-		return 1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
+		return FMath::Min(1.0f + (EffectiveSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -444,18 +463,21 @@ public:
 		// DamageCalculator::GetAttackerDamageMultiplier for EActionType::Spell.
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalSpellDamage();
-		return 1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT);
+		return FMath::Min(1.0f + (EffectiveMind * TotalPoints * CombatConstants::SPELL_DAMAGE_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
+	// Display-only crit-DAMAGE multiplier (asset-intrinsic; the live value is
+	// UDamageCalculator::GetCritDamageMultiplier). Post-5e-C the Mind crit substat drives crit DAMAGE
+	// (x1.0 base -> x1.5 at max stat); crit CHANCE is now Luck-driven (Spirit). Mirrors the other
+	// Calculate* display twins (raw EffectiveMind, no crystal/gear).
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
-	float CalculateCritChance() const
+	float CalculateCritDamage() const
 	{
 		float EffectiveMind = GetEffectiveMind();
-		int32 TotalPoints = GetTotalCritChance();
-		return FMath::Clamp(
-			CombatConstants::CRIT_CHANCE_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
-			CombatConstants::CRIT_CHANCE_BASE,
-			1.0f);
+		int32 TotalPoints = GetTotalCritDamage();
+		return FMath::Min(
+			CombatConstants::CRIT_DMG_BASE + (EffectiveMind * TotalPoints * CombatConstants::CRIT_DAMAGE_PER_POINT),
+			CombatConstants::CRIT_DAMAGE_STAT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Mind")
@@ -463,35 +485,69 @@ public:
 	{
 		float EffectiveMind = GetEffectiveMind();
 		int32 TotalPoints = GetTotalSpellSpeed();
-		return CombatConstants::SPELL_SPEED_BASE + (EffectiveMind * TotalPoints * CombatConstants::SPELL_SPEED_PER_POINT);
+		return FMath::Min(CombatConstants::SPELL_SPEED_BASE + (EffectiveMind * TotalPoints * CombatConstants::SPELL_SPEED_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	// ==================== BODY CALCULATIONS ====================
-	// Body (3): Defense, ActionSpeed, RawDamage
+	// Body (5): Defense, ActionSpeed, RawDamage, MaxHealth, Reflex
+	// (MaxHealth lives in HELPER FUNCTIONS below; Reflex's window bonus here.)
 
+	// Fraction of incoming damage removed by Defense, in [0, 0.5]. Cluster 4 converted Defense
+	// from flat-int subtraction to a capped % (DEFENSE_PER_POINT re-derived in cluster 1 to hit
+	// UNIVERSAL_STAT_CAP at max). Gear adds OUTSIDE this clamp (deferred).
+	// TODO: rename to CalculateDefenseReduction in a Blueprint-aware pass (UFUNCTION — .uasset
+	// graphs may reference it by name; a rename needs a FunctionRedirect).
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	int32 CalculateFlatDefense() const
+	float CalculateFlatDefense() const
 	{
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalDefense();
-		return FMath::RoundToInt(EffectiveBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
+		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT, CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Combat|Body")
-	float CalculateActionSpeed() const
-	{
-		float EffectiveBody = GetEffectiveBody();
-		int32 TotalPoints = GetTotalActionSpeed();
-		return CombatConstants::MOVEMENT_SPEED_BASE * (1.0f + EffectiveBody * TotalPoints * CombatConstants::MOVEMENT_SPEED_PER_POINT);
-	}
-
+	// CalculateActionSpeed (the x400 approach-movement variant) was RETIRED — the ApproachData
+	// movement gate it fed was removed in the W3/PhaseRunner rework (warp is montage-driven now,
+	// see CombatOrchestrator). The ActionSpeed stat drives animation play-rate via
+	// CalculateAnimationSpeed / GetEffectiveActionSpeed; MOVEMENT_SPEED_BASE/PER_POINT were retired with it.
 	UFUNCTION(BlueprintPure, Category = "Combat|Body")
 	float CalculateAnimationSpeed() const
 	{
 		// Uses same stat as ActionSpeed
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalActionSpeed();
-		return CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT);
+		return FMath::Min(CombatConstants::ANIMATION_SPEED_BASE + (EffectiveBody * TotalPoints * CombatConstants::ANIMATION_SPEED_PER_POINT), CombatConstants::STAT_MULT_CAP);
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Combat|Body")
+	float CalculateReflexWindowBonus() const
+	{
+		// Additive SECONDS layered on top of UDefenseSystem::DefenseInputWindow (the
+		// tuned base stays on the subsystem). Reads RAW GetEffectiveBody() — asset-intrinsic;
+		// gear-widening of the window is applied separately at the DefenseSystem composition
+		// point (SpeedWindowGearFactor), not here.
+		float EffectiveBody = GetEffectiveBody();
+		int32 TotalPoints = GetTotalReflex();
+		return FMath::Min(EffectiveBody * TotalPoints * CombatConstants::REFLEX_WINDOW_PER_POINT, CombatConstants::WINDOW_CAP_SECONDS);
+	}
+
+	/** ATTACKER side of the defense-window duel: how many SECONDS this character's speed
+	 *  shaves off a defender's input window. Exact mirror of CalculateReflexWindowBonus's
+	 *  shape (EffectivePillar × RAW speed points × weight) so equal points + equal world
+	 *  level cancel to the base window. Reads the RAW speed substat point getters — NOT the
+	 *  play-rate getters (CalculateAnimationSpeed / CalculateSpellSpeed carry bases + caps that
+	 *  would distort the seconds math). Type-aware: physical (Attack/Ability) narrows via
+	 *  ActionSpeed/Body; Spell narrows via SpellSpeed/Mind (cross-pillar by design — clean
+	 *  cancel for physical, well-defined for spell). NOTE: the spell branch is DORMANT until
+	 *  Stage 6 — per-impact resolution is melee-only today, so only the physical branch is
+	 *  exercised. Consumed by UDefenseSystem::GetEffectiveDefenseInputWindow. */
+	UFUNCTION(BlueprintPure, Category = "Combat|Body")
+	float CalculateSpeedWindowPenalty(EActionType AttackType) const
+	{
+		const bool bSpell = (AttackType == EActionType::Spell);
+		const float EffectivePillar = bSpell ? GetEffectiveMind() : GetEffectiveBody();
+		const int32 SpeedPts = bSpell ? GetTotalSpellSpeed() : GetTotalActionSpeed();
+		const float Penalty = EffectivePillar * SpeedPts * CombatConstants::WINDOW_PER_SPEED_POINT;
+		return FMath::Min(Penalty, CombatConstants::WINDOW_CAP_SECONDS);
 	}
 
 	// ==================== SPIRIT CALCULATIONS ====================
@@ -503,7 +559,7 @@ public:
 	 *  CalculateTurnSpeed below passes raw GetEffectiveSpirit(). */
 	float CalculateTurnSpeedWithSpirit(float SpiritValue) const
 	{
-		return CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT);
+		return FMath::Min(CombatConstants::TURN_SPEED_BASE + (SpiritValue * GetTotalTurnSpeed() * CombatConstants::TURN_SPEED_PER_POINT), CombatConstants::TURN_SPEED_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
@@ -521,14 +577,15 @@ public:
 		// Multi-system fortune stat. Returns raw luck multiplier (0.0+, no upper
 		// cap on input). LUCK_RAW_MAX is the per-consumer NORMALIZATION basis
 		// (the "fully lucky" point), not an input ceiling — each consumer clamps
-		// its own normalized fraction (LUCK_CRIT_BONUS_MAX, LUCK_DODGE_MAX,
-		// LUCK_BREAK_SKIP_MAX, LUCK_DROP_CHANCE_MAX, LUCK_DROP_QUALITY_MAX).
+		// its own normalized fraction (LUCK_DODGE_MAX, LUCK_BREAK_SKIP_MAX,
+		// LUCK_DROP_CHANCE_MAX, LUCK_DROP_QUALITY_MAX; crit chance via CRIT_CHANCE_LUCK_BONUS).
 		// Same shape as Resistance, minus the upper clamp.
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalLuck();
-		return FMath::Max(
+		return FMath::Clamp(
+			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT,
 			0.0f,
-			EffectiveSpirit * TotalPoints * CombatConstants::LUCK_PER_POINT);
+			CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
 	// ==================== HELPER FUNCTIONS ====================
@@ -539,7 +596,7 @@ public:
 		// NOTE: Moved from Spirit to Body. HP is a physical pool stat.
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalMaxHealth();
-		return FMath::RoundToInt(CombatConstants::MAX_HEALTH_BASE + (EffectiveBody * TotalPoints * CombatConstants::MAX_HEALTH_PER_POINT));
+		return FMath::RoundToInt(FMath::Min(CombatConstants::MAX_HEALTH_BASE + (EffectiveBody * TotalPoints * CombatConstants::MAX_HEALTH_PER_POINT), CombatConstants::MAX_HEALTH_CAP));
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
@@ -548,7 +605,7 @@ public:
 		// Now uses explicit MaxEnergy stat (Spirit-based)
 		float EffectiveSpirit = GetEffectiveSpirit();
 		int32 TotalPoints = GetTotalMaxEnergy();
-		return FMath::RoundToInt(CombatConstants::MAX_ENERGY_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_ENERGY_PER_POINT));
+		return FMath::RoundToInt(FMath::Min(CombatConstants::MAX_ENERGY_BASE + (EffectiveSpirit * TotalPoints * CombatConstants::MAX_ENERGY_PER_POINT), CombatConstants::MAX_ENERGY_CAP));
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Helpers")
@@ -557,7 +614,7 @@ public:
 		// Raw damage multiplier for physical attacks (Body-based)
 		float EffectiveBody = GetEffectiveBody();
 		int32 TotalPoints = GetTotalRawDamage();
-		return 1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT);
+		return FMath::Min(1.0f + (EffectiveBody * TotalPoints * CombatConstants::RAW_DAMAGE_PER_POINT), CombatConstants::STAT_MULT_CAP);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Combat|Spirit")
@@ -579,7 +636,7 @@ public:
 		return FMath::Clamp(
 			EffectiveSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
 			0.0f,
-			CombatConstants::RESISTANCE_MAX);
+			CombatConstants::UNIVERSAL_STAT_CAP);
 	}
 
 	//~ UObject lifecycle — keep the transient ResistanceProfile display mirror in

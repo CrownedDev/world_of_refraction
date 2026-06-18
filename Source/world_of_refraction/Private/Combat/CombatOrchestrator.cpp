@@ -13,7 +13,7 @@
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -374,16 +374,19 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
-		// Projectile/Homing/Beam spells need async for defense window.
-		// D6: Cast entries are authoritative when present (any travel-type
-		// entry → async); loose DeliveryType is the empty-CastArray fallback.
+		// Projectile, AOE, and Instant spells need async for the per-impact defense
+		// window (Projectile = projectile-arrival moment; AOE and Instant = Cast-notify
+		// resolution moment). Instant is now defendable per-impact (Hard difficulty),
+		// so it routes async like AOE.
+		// D6: Cast entries are authoritative when present (any such entry → async);
+		// loose DeliveryType is the empty-CastArray fallback.
 		if (Action.SpellData->CastArray.Num() > 0)
 		{
 			for (const FSkillCastEntry &Entry : Action.SpellData->CastArray)
 			{
 				if (Entry.DeliveryType == ESpellDeliveryType::Projectile ||
-					Entry.DeliveryType == ESpellDeliveryType::Homing ||
-					Entry.DeliveryType == ESpellDeliveryType::Beam)
+					Entry.DeliveryType == ESpellDeliveryType::AOE ||
+					Entry.DeliveryType == ESpellDeliveryType::Instant)
 				{
 					bRequiresAsync = true;
 					break;
@@ -394,25 +397,18 @@ bool ACombatOrchestrator::SubmitAction(const FAction &Action)
 		{
 			ESpellDeliveryType Delivery = Action.SpellData->DeliveryType;
 			bRequiresAsync = (Delivery == ESpellDeliveryType::Projectile ||
-							  Delivery == ESpellDeliveryType::Homing ||
-							  Delivery == ESpellDeliveryType::Beam);
+							  Delivery == ESpellDeliveryType::AOE ||
+							  Delivery == ESpellDeliveryType::Instant);
 		}
 	}
-	else if (Action.ActionType == EActionType::Attack && Action.AttackData)
+	else if (Action.ActionType == EActionType::Ability && Action.SkillData)
 	{
-		// Has a montage → async (W3): the runner owns the montage chain + warp +
-		// defense window. Replaces the old ApproachData gate — movement no longer
-		// decides async; the presence of an animation to play does.
-		bRequiresAsync = (Action.AttackData->SkillMontage != nullptr ||
-						  Action.AttackData->RitualCastMontage != nullptr ||
-						  Action.AttackData->ReturnMontage != nullptr);
-	}
-	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
-	{
-		// Has a montage → async (W3): same rule as attacks (see above).
-		bRequiresAsync = (Action.AbilityData->SkillMontage != nullptr ||
-						  Action.AbilityData->RitualCastMontage != nullptr ||
-						  Action.AbilityData->ReturnMontage != nullptr);
+		// Has a montage → async (W3): the runner owns the montage chain + warp + defense window.
+		// Covers attacks + abilities (merged, Cluster 3) — reads the unified SkillData pointer.
+		// (Movement no longer decides async; the presence of an animation to play does.)
+		bRequiresAsync = (Action.SkillData->SkillMontage != nullptr ||
+						  Action.SkillData->RitualCastMontage != nullptr ||
+						  Action.SkillData->ReturnMontage != nullptr);
 	}
 
 	if (bRequiresAsync)
@@ -1151,14 +1147,11 @@ void ACombatOrchestrator::ProcessBrokenDarknessOverflow(AActor *Actor)
 	UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData)
 	{
-		// Crystal-aware StatusMultiplier — the composed getter (innate Spirit×points +
-		// equipment BonusStatusMultiplier + attached StatusStone, COMPOUNDED with the
-		// transient StatusMultiplierBuff/Debuff ×Max(0,1+(buff−debuff)/100)). Equals the
-		// prior inline GetSourceStatusMultiplierFactor × transient BY CONSTRUCTION when the
-		// SBM subsystem is present; unlike that inline it also computes the base when SBM is
-		// null (the old path left it at 1.0 — a latent footgun, now fixed). Scales the BD
-		// drain AND self-status. (GetSourceStatusMultiplierFactor stays — AddStatusBuildup
-		// still uses it.)
+		// Crystal-aware StatusMultiplier — the single composed getter (T3 consolidation): crystal-aware
+		// Spirit stat capped ×1.5, gear (BonusStatusMultiplier + StatusStone) multiplicative beyond,
+		// additive transient StatusMultiplierBuff/Debuff. The SAME value AddStatusBuildup and crystal-wear
+		// read — lockstep by construction (GetSourceStatusMultiplierFactor was retired). Scales the BD
+		// drain AND self-status.
 		StatusMultiplierBonus = CharComp->GetEffectiveStatusMultiplier();
 
 		// EfficiencyMultiplier — unified getter (innate crystal-aware Mind + equipment
@@ -1613,7 +1606,7 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 
 	// Build attack action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.Targets.Add(Target);
 
 	// Get weapon attack data via GetActiveWeapon (respects bShowPrimary)
@@ -1622,13 +1615,13 @@ void ACombatOrchestrator::DebugTestAttackMovement()
 		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
 		if (ActiveWeapon && ActiveWeapon->WeaponAttack)
 		{
-			AttackAction.AttackData = ActiveWeapon->WeaponAttack;
+			AttackAction.SkillData = ActiveWeapon->WeaponAttack;
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAttackMovement] Using attack: %s from weapon: %s"),
 				   *ActiveWeapon->WeaponAttack->Name, *ActiveWeapon->Name);
 		}
 	}
 
-	if (!AttackAction.AttackData)
+	if (!AttackAction.SkillData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAttackMovement] No weapon attack data found on %s"),
 			   *Actor->GetName());
@@ -1684,20 +1677,20 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 		TArray<UAbilityData *> AvailableAbilities = Loadout->GetAvailableAbilities();
 		if (AvailableAbilities.Num() > 0)
 		{
-			AbilityAction.AbilityData = AvailableAbilities[0];
+			AbilityAction.SkillData = AvailableAbilities[0];
 			UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] Using ability: %s"),
-				   *AbilityAction.AbilityData->Name);
+				   *AbilityAction.SkillData->Name);
 		}
 	}
 
 	// Fallback to test ability
-	if (!AbilityAction.AbilityData)
+	if (!AbilityAction.SkillData)
 	{
-		AbilityAction.AbilityData = LoadObject<UAbilityData>(nullptr,
+		AbilityAction.SkillData = LoadObject<UAbilityData>(nullptr,
 															 TEXT("/Game/Testing/Weapons/Abilities/DA_Test_Ability.DA_Test_Ability"));
 	}
 
-	if (!AbilityAction.AbilityData)
+	if (!AbilityAction.SkillData)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[DebugTestAbilityMovement] No ability available on %s"),
 			   *Actor->GetName());
@@ -1705,7 +1698,7 @@ void ACombatOrchestrator::DebugTestAbilityMovement()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugTestAbilityMovement] %s using %s on %s"),
-		   *Actor->GetName(), *AbilityAction.AbilityData->Name, *Target->GetName());
+		   *Actor->GetName(), *AbilityAction.SkillData->Name, *Target->GetName());
 
 	// Execute through ActionExecutor with callback
 	if (ActionExecutorRef)
@@ -2035,7 +2028,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 	}
 
 	// Get weapon attack data via GetActiveWeapon (respects bShowPrimary)
-	UWeaponAttackData *AttackData = nullptr;
+	USkillDataBase *AttackData = nullptr;
 	if (ULoadoutComponent *Loadout = Actor->FindComponentByClass<ULoadoutComponent>())
 	{
 		UWeaponData *ActiveWeapon = Loadout->GetActiveWeapon();
@@ -2053,8 +2046,8 @@ void ACombatOrchestrator::DebugExecuteAsyncAttack()
 
 	// Build action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
-	AttackAction.AttackData = AttackData;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
+	AttackAction.SkillData = AttackData;
 	AttackAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAttack] %s attacking %s with %s"),
@@ -2300,7 +2293,7 @@ void ACombatOrchestrator::DebugExecuteAsyncAbility()
 
 	FAction AbilityAction;
 	AbilityAction.ActionType = EActionType::Ability;
-	AbilityAction.AbilityData = AbilityData;
+	AbilityAction.SkillData = AbilityData;
 	AbilityAction.Targets.Add(Target);
 
 	UE_LOG(LogTemp, Log, TEXT("[DebugExecuteAsyncAbility] %s using %s on %s"),
@@ -2539,17 +2532,17 @@ void ACombatOrchestrator::DebugAttackSelectedTarget()
 	}
 
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
 	AttackAction.Targets.Add(Target);
 
 	// Get weapon attack from loadout
 	ULoadoutComponent *Loadout = CurrentActor->FindComponentByClass<ULoadoutComponent>();
 	if (Loadout)
 	{
-		TArray<UWeaponAttackData *> Attacks = Loadout->GetAllWeaponAttacks();
+		TArray<USkillDataBase *> Attacks = Loadout->GetAllWeaponAttacks();
 		if (Attacks.Num() > 0)
 		{
-			AttackAction.AttackData = Attacks[0];
+			AttackAction.SkillData = Attacks[0];
 		}
 	}
 

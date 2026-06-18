@@ -59,16 +59,9 @@ struct WORLD_OF_REFRACTION_API FAbilityCollection
 
     // ==================== LEARN/UNLEARN ====================
 
-    /** Learn a new ability (returns false if at capacity or already known) */
-    bool LearnAbility(UAbilityData* Ability)
-    {
-        if (!Ability || !CanLearn() || HasAbility(Ability))
-        {
-            return false;
-        }
-        LearnedAbilities.Add(Ability);
-        return true;
-    }
+    /** Learn a new ability (returns false if at capacity, already known, or a basic attack). Body in
+     *  FAbilityCollection.cpp so it can call IsAttack() on UAbilityData (only forward-declared here). */
+    bool LearnAbility(UAbilityData* Ability);
 
     /** Unlearn an ability (returns false if not known) */
     bool UnlearnAbility(UAbilityData* Ability)

@@ -264,6 +264,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEquipmentModifiedLuck() const;
 
+    /** Luck-modified probability: BaseChance + (normalized Luck × LuckMaxBonus), where the
+     *  normalized Luck is FMath::Min(GetEquipmentModifiedLuck()/LUCK_RAW_MAX, 1) — upper-clamped,
+     *  negatives pass (curse model: a negative result simply never fires in a roll). Single home for
+     *  every luck-influenced chance (break skip, crit chance, dodge, drops). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const;
+
+    /** Thin roller over GetLuckModifiedChance for FRand sites (break skip, future dodge/drops).
+     *  Not BlueprintPure — it draws FMath::FRand(), so it is non-deterministic. */
+    bool RollLuckChance(float BaseChance, float LuckMaxBonus) const;
+
     /** Crystal-aware derived-stat helpers. Each mirrors the asset's matching
      *  Calculate* formula shape, but reads GetEvolutionModified{Mind,Body,Spirit}
      *  as the EffectivePillar input. Use these in place of the raw asset
@@ -278,8 +289,11 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedCritChance() const;
 
+    // Crystal-aware defense REDUCTION fraction [0, 0.5] (cluster 4: flat-int -> capped %).
+    // TODO: rename to GetEvolutionModifiedDefenseReduction in a Blueprint-aware pass (has an
+    // existing FunctionRedirect — a rename must re-point it).
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    int32 GetEvolutionModifiedFlatDefense() const;
+    float GetEvolutionModifiedFlatDefense() const;
 
     /** Fully-layered SpellDamage scalar: innate (GetEvolutionModifiedSpellDamage)
      *  + equipment BonusSpellDamage, then ×stone ×transient. This is the SAME value
@@ -330,6 +344,39 @@ public:
      *  mirror of GetTransientSpellDamageFactor. 1.0 when none. */
     float GetTransientRawDamageFactor() const;
 
+    /** Effective ActionSpeed MULTIPLIER (Pattern P, cluster 5g) — the animation/attack-pacing
+     *  scalar: CalculateAnimationSpeed() clamped ALONE at STAT_MULT_CAP (×1.5), THEN equipment
+     *  BonusActionSpeed (per-point read as a fraction) × attached ActionSpeedStone × transient
+     *  ActionSpeedBuff/Debuff, bounded by the [0, STAT_MODIFIER_MAX ×2.0] compose ceiling.
+     *  Returns a pure ×1.0–×2.0 multiplier — montage BaseAnimSpeed + per-action ActionMods stay
+     *  at the ActionExecutor call site. ×1.0 at zero gear (byte-identical with no speed gear). */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveActionSpeed() const;
+
+    /** Effective SpellSpeed MULTIPLIER (Pattern P, cluster 5g) — Mind/cast mirror of
+     *  GetEffectiveActionSpeed: CalculateSpellSpeed() clamped ALONE at STAT_MULT_CAP (×1.5), THEN
+     *  BonusSpellSpeed × attached SpellSpeedStone × transient SpellSpeedBuff/Debuff, bounded by
+     *  [0, ×2.0]. Pure multiplier; BaseAnimSpeed + ActionMods stay at the call site. */
+    UFUNCTION(BlueprintPure, Category = "Combat|Stats")
+    float GetEffectiveSpellSpeed() const;
+
+    /** Gear-beyond MULTIPLIER for the attacker's defense-window speed term (cluster A1). Returns the
+     *  same gear LAYERS GetEffectiveActionSpeed/SpellSpeed compose — evolution-pillar modifier (crystal
+     *  + equipment pillar% + pillar buff) × Bonus{Action,Spell}Speed (per-point fraction) × attached
+     *  {Action,Spell}SpeedStone × transient {Action,Spell}SpeedBuff/Debuff — but as a bare multiplier
+     *  on the RAW ±0.25-capped CalculateSpeedWindowPenalty term, NOT the play-rate getter (its ×1.5
+     *  cap + ×400 movement lineage would distort the seconds math — see CharacterData.h :537).
+     *  Type-aware: physical → ActionSpeed/Body, spell → SpellSpeed/Mind. 1.0 at zero gear. */
+    float SpeedWindowGearFactor(EActionType AttackType) const;
+
+    /** Gear-beyond MULTIPLIER for the DEFENDER's defense-window Reflex term (cluster B-5) — the Body
+     *  mirror of SpeedWindowGearFactor. Composes the Reflex gear LAYERS as multiplicative fractions:
+     *  evolution-pillar modifier (crystal + equipment Body% + pillar buff, as a ratio over RAW Body)
+     *  × BonusReflex (per-point fraction, B-2) × attached ReflexStone (B-3) × transient ReflexBuff/Debuff
+     *  (B-4) — a bare multiplier on the RAW ≤0.25-capped CalculateReflexWindowBonus term. Reflex ADDS to
+     *  the window (defender widens), so this scales HOW MUCH it widens. 1.0 at zero Reflex gear. */
+    float ReflexWindowGearFactor() const;
+
     /** One-call snapshot of the effective layered stats (FEffectiveStats). Each field
      *  is the verbatim return of an existing getter. Additive convenience for snapshot
      *  consumers (e.g. the crystal-wear input cluster); existing direct-getter callers
@@ -353,19 +400,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEvolutionModifiedStatusMultiplier() const;
 
-    /** Crystal-aware Resistance — mirrors
-     *  UCharacterData::CalculateResistance but uses
-     *  GetEvolutionModifiedSpirit() in place of GetEffectiveSpirit().
-     *  Returns the raw fraction clamped to [0, RESISTANCE_MAX]. */
+    /** Crystal-aware Spirit-Resistance STAT term, capped ALONE at UNIVERSAL_STAT_CAP (0.5) — the
+     *  stat-layer base for the multiplicative "general" resistance bucket (cluster A2). Clamped at 0.5
+     *  (not RESISTANCE_MAX 1.0) so the crystal-boosted stat can't reach the full ceiling ALONE and blow
+     *  the +50% stat cap; equipment/stone multiply it past 0.5, element/curse add on top. */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
-    float GetEvolutionModifiedResistance() const;
+    float GetCrystalResistanceStatCapped() const;
 
-    /** Fully-composed StatusMultiplier = base × transient, where base is the
-     *  (innate + equipment + StatusStone) factor composed inline to match
-     *  UStatusBuildupManager::GetSourceStatusMultiplierFactor term-for-term, and transient
-     *  is Max(0, 1 + (StatusMultiplierBuff − StatusMultiplierDebuff)/100). Equals the
-     *  BD/CombatOrchestrator inline value BY CONSTRUCTION (BD is NOT re-pointed). Used by
-     *  the crystal-wear POWER term so a StatusStone/Status-buff raises wear. */
+    /** THE single source of truth for a character's effective StatusMultiplier (T3 consolidation):
+     *  general permanent gear MULTIPLICATIVE (stat capped ×1.5 alone, then BonusStatusMultiplier +
+     *  StatusStone past it) × MULTIPLICATIVE transient ×(1 + (StatusMultiplierBuff − Debuff)/100),
+     *  clamped [0, 2.0]. Read by the live buildup (AddStatusBuildup), the BD overload bake, AND
+     *  crystal-wear — lockstep by construction (GetSourceStatusMultiplierFactor was retired). */
     UFUNCTION(BlueprintPure, Category = "Combat|Stats")
     float GetEffectiveStatusMultiplier() const;
 

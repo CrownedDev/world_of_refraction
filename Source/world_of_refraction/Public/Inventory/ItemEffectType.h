@@ -63,5 +63,17 @@ enum class EItemEffectType : uint8
     // SpellSpeedBuff/Debuff (cast montage) and ActionSpeedBuff/Debuff (ability/attack
     // montage) PlayRate. Runtime-derived only, so the appends need no CoreRedirect.
     BuffSpellSpeed UMETA(DisplayName = "Buff Spell Speed (stone cast-speed buff/debuff)"),
-    BuffActionSpeed UMETA(DisplayName = "Buff Action Speed (stone action-speed buff/debuff)")
+    BuffActionSpeed UMETA(DisplayName = "Buff Action Speed (stone action-speed buff/debuff)"),
+    // Appended (5f-C). Directional stone consumables for the crit split:
+    //  - BuffCritDamage: directional crit-DAMAGE — ally ModifyCritDamage (buff) / enemy CritDamageDebuff
+    //    (the paired debuff GetCritDamageMultiplier subtracts, floored at x1.0). Matches the attached CritStone.
+    //  - BuffLuck: directional LuckBuff/LuckDebuff (LuckStone) — lifts ALL luck consumers via
+    //    GetEquipmentModifiedLuck. Runtime-derived only (never serialized), so the appends need no CoreRedirect.
+    BuffCritDamage UMETA(DisplayName = "Buff Crit Damage (stone crit-damage buff)"),
+    BuffLuck UMETA(DisplayName = "Buff Luck (stone luck buff/debuff)"),
+    // Appended (Cluster B-6). Directional ReflexStone consumable — transient ReflexBuff/ReflexDebuff,
+    // read by UDefenseSystem::GetEffectiveDefenseInputWindow (B-5) as (ReflexBuff - ReflexDebuff): ally
+    // widens their defense window, enemy's narrows. Runtime-derived only (never serialized), so the
+    // append needs no CoreRedirect.
+    BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)")
 };

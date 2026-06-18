@@ -170,6 +170,10 @@ namespace SkillEffectDisplayNames
             return TEXT("Fortunate");
         case ESkillEffectType::LuckDebuff:
             return TEXT("Misfortune");
+        case ESkillEffectType::ReflexBuff:
+            return TEXT("Sharp Reflexes");
+        case ESkillEffectType::ReflexDebuff:
+            return TEXT("Dulled Reflexes");
 
         // ==================== PASSIVE LAYER (Phase 2) ====================
         // Stat modifiers
@@ -185,6 +189,8 @@ namespace SkillEffectDisplayNames
             return TEXT("Crit Chance Up");
         case ESkillEffectType::ModifyCritDamage:
             return TEXT("Crit Damage Up");
+        case ESkillEffectType::CritDamageDebuff:
+            return TEXT("Crit Damage Down");
         case ESkillEffectType::ModifyEnergyCost:
             return TEXT("Energy Cost Up");
         case ESkillEffectType::ModifyTurnSpeed:

@@ -122,6 +122,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/CharacterDataSystem.md`
 - `docs/Architecture/CombatOrchestrator.md`
 - `docs/Architecture/DamageCalculator.md`
+- `docs/Architecture/InfusionSystem.md`
 - `docs/Architecture/ItemSystem.md`
 - `docs/Architecture/LoadoutSystem.md`
 - `docs/Architecture/SkillEffectSystem.md`

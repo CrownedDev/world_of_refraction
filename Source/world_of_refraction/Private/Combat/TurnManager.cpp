@@ -390,23 +390,26 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 	{
 		UCharacterData *CharData = CharComp->CharacterData;
 
-		// Pillar-scaled turn speed (TURN_SPEED_BASE + Spirit × points × per-point),
-		// rounded for int storage. BALANCE CHANGE (Job 2): the Spirit input is the
-		// component's pillar-MODIFIED Spirit (evolution crystal % × equipment % ×
-		// transient pillar buffs) — gear Spirit% now shifts pacing like every other
-		// Spirit-derived stat. The formula stays on the asset
-		// (CalculateTurnSpeedWithSpirit); this site only supplies WHICH Spirit.
-		Combatant.CachedSpeed = FMath::RoundToInt(
-			CharData->CalculateTurnSpeedWithSpirit(CharComp->GetEvolutionModifiedSpirit()));
+		// Pattern P (cluster 5c, option B) — stat-capped, dedicated gear multiplies beyond. The stat
+		// uses the GEARED/BUFFED Spirit (GetEvolutionModifiedSpirit — crystal% × equipment% × transient
+		// pillar buffs), so SpiritBuff and pillar% feed TurnSpeed exactly like they feed every other
+		// Spirit substat (MaxEP, Resistance, Luck, StatusMultiplier). That whole stat term is capped at
+		// TURN_SPEED_CAP (15) inside CalculateTurnSpeedWithSpirit — i.e. the Spirit-pillar contribution
+		// rides INSIDE the 15 cap with the base stat. THEN the dedicated BonusTurnSpeed gear MULTIPLIES
+		// the capped value past 15 toward TURN_SPEED_GEAR_CEILING — that field alone is the "gear beyond".
+		float StatTurn = CharData->CalculateTurnSpeedWithSpirit(CharComp->GetEvolutionModifiedSpirit());
 
-		// Equipment stat bonus — flat additive to cached turn speed. Read from
-		// the actor's active loadout. Hot-swap re-cache is driven by
-		// LoadoutComponent calling OnActorSpeedChanged on weapon/ring switch.
+		// Dedicated BonusTurnSpeed gear — MULTIPLIES the capped stat past TURN_SPEED_CAP (option-(ii):
+		// gear points × the stat's per-point rate, read as a fraction), bounded below by the final
+		// Min to TURN_SPEED_GEAR_CEILING. ×1 (inert) with no gear, so byte-identical then. Hot-swap
+		// re-cache is driven by LoadoutComponent calling OnActorSpeedChanged on weapon/ring switch.
 		if (ULoadoutComponent *LoadoutComp = Combatant.Actor->FindComponentByClass<ULoadoutComponent>())
 		{
 			const FEquipmentStatBonus Bonus = LoadoutComp->GetActiveStatBonus(Combatant.Actor);
-			Combatant.CachedSpeed += Bonus.BonusTurnSpeed;
+			StatTurn *= (1.0f + Bonus.BonusTurnSpeed * CombatConstants::TURN_SPEED_PER_POINT);
 		}
+		StatTurn = FMath::Min(StatTurn, CombatConstants::TURN_SPEED_GEAR_CEILING);
+		Combatant.CachedSpeed = FMath::RoundToInt(StatTurn);
 
 		Combatant.CachedActionSpeed = CharData->GetTotalActionSpeed();
 		Combatant.CachedMind = CharData->WorldMindLevel;

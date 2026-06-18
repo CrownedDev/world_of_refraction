@@ -17,7 +17,7 @@
 class UAbilityData;
 class USpellData;
 class UStanceData;
-class UWeaponAttackData;
+class USkillDataBase;
 
 /**
  * FWeaponLoadoutEntry
@@ -51,9 +51,10 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     TArray<USpellData *> AssignedSpells;
 
     /** Per-loadout attack override. If set, replaces the weapon asset's
-     *  WeaponAttack for this entry in combat. */
+     *  WeaponAttack for this entry in combat. Base type (attack/ability merge) holding a UAbilityData
+     *  with bIsAttack=true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
-    UWeaponAttackData *OverrideAttack = nullptr;
+    USkillDataBase *OverrideAttack = nullptr;
 
     /** Use this weapon's own parry animation instead of the character's.
      *  Per-equipped-weapon decision. */

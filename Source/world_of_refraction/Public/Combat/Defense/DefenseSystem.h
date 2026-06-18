@@ -7,7 +7,9 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "Character/CharacterData.h"
+#include "Combat/Actions/EActionType.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Character.h"
 #include "DefenseSystem.generated.h"
@@ -49,6 +51,52 @@ struct WORLD_OF_REFRACTION_API FDefenseResult
 	/** Why dodge failed (if applicable) */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	FString FailureReason;
+};
+
+/**
+ * One timestamped defense input (Stage 3). The buffer replaces the one-shot
+ * DefenseChosen/bInputReceived model: each press APPENDS an entry, and each impact
+ * frame match-and-consumes the latest unconsumed entry whose timing falls in window.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FTimestampedDefenseInput
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseType Type = EDefenseType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseDirection Direction = EDefenseDirection::None;
+
+	/** FPlatformTime::Seconds() at the moment of the press. */
+	double InputTime = 0.0;
+
+	/** Set once an impact frame has matched-and-consumed this entry. */
+	bool bConsumed = false;
+};
+
+/**
+ * Result of matching one impact frame against the input buffer (Stage 3).
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FDefenseInputMatch
+{
+	GENERATED_BODY()
+
+	/** Did an unconsumed in-window input match this impact? */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bMatched = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseType Type = EDefenseType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseDirection Direction = EDefenseDirection::None;
+
+	/** True when the match landed inside PerfectThreshold of the impact. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bPerfect = false;
 };
 
 /**
@@ -95,6 +143,21 @@ struct WORLD_OF_REFRACTION_API FDefenseState
 
 	/** Has player already submitted defense input? */
 	bool bInputReceived = false;
+
+	/**
+	 * Stage 3 timestamped input buffer. SubmitDefenseInput appends here; each impact
+	 * frame match-and-consumes from it (MatchAndConsumeInput). The single fields above
+	 * (DefenseChosen/DodgeDirection/bInputReceived) are now LEGACY — read only by the
+	 * non-melee/tail close path; the per-impact melee path reads this buffer.
+	 */
+	TArray<FTimestampedDefenseInput> InputBuffer;
+
+	/**
+	 * True for count-based (melee, bManualClose) windows. Gates the close-time parry
+	 * reflect OFF — melee resolves reflect PER IMPACT (ResolveImpactDefense), so the
+	 * lumped close must not reflect again on the legacy first-input decision.
+	 */
+	bool bCountBasedClose = false;
 };
 
 /**
@@ -137,6 +200,12 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseCueTriggered, AActor *, D
 /** Broadcast when parry reflects damage */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnParryReflect, AActor *, Defender, AActor *, Attacker, int32, ReflectedDamage);
 
+/** Broadcast per impact once its defense is resolved (Stage 3). Payoffs are content (later). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefenseResolved, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
+
+/** Broadcast when an impact's defense lands inside the perfect-timing window (Stage 3). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
+
 // ========================================
 // DEFENSE SYSTEM
 // ========================================
@@ -178,7 +247,11 @@ public:
 	 * @param Defender The actor defending
 	 * @param AttackSize Size of attack (affects dodge viability)
 	 * @param BaseDamage Damage before defense reduction
-	 * @param WindowDuration How long window stays open
+	 * @param WindowDuration How long window stays open (auto-close timer duration)
+	 * @param bManualClose Melee count-based close (Stage 1): when true the window is
+	 *        closed externally by the count-based trigger (last landed hit), so the
+	 *        auto-close timer is armed at MaxWindowDuration as a FAILSAFE only — not as
+	 *        the closer. WindowDuration is still the AI reaction-delay seed regardless.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
 	void OpenDefenseWindow(
@@ -186,7 +259,8 @@ public:
 		AActor *Defender,
 		float AttackSize,
 		int32 BaseDamage,
-		float WindowDuration = 0.3f);
+		float WindowDuration = 0.3f,
+		bool bManualClose = false);
 
 	/**
 	 * Close defense window and calculate result
@@ -219,6 +293,47 @@ public:
 	bool IsDefenseWindowOpen(AActor *Defender) const;
 
 	/**
+	 * Resolve the local player's active defender — the actor with an OPEN window
+	 * whose CharacterData is NOT AI-controlled (the player's character currently
+	 * under attack). Returns nullptr if none (callers no-op safely).
+	 *
+	 * SINGLE-TARGET: returns the FIRST matching open-window player defender. This is
+	 * the seed for the multi-target model (solo sequential / MP simultaneous) — see
+	 * docs/Design/RealTimeDefenseRework.md §13. Multi-target routing is Stage 6.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Defense System")
+	AActor *GetActiveDefenderForLocalPlayer() const;
+
+	/**
+	 * Match-and-consume one impact against the input buffer (Stage 3 mutator).
+	 *
+	 * Finds the LATEST unconsumed buffer entry whose delta = ImpactTime - InputTime
+	 * falls in [0, EffectiveWindow], marks it consumed, and returns the match
+	 * (bPerfect when delta <= PerfectThreshold). No in-window entry → {bMatched=false}.
+	 * EffectiveWindow is the attacker→defender duel (GetEffectiveDefenseInputWindow): the
+	 * attacker is read from the live state, AttackType selects the attacker's speed stat.
+	 *
+	 * Mutates the LIVE ActiveDefenseStates entry (GetDefenseState returns a copy and
+	 * cannot consume), so callers at the impact frame get an authoritative per-impact result.
+	 *
+	 * Window = duel × per-impact DIFFICULTY (cluster 4): each candidate press is tested against
+	 * EffectiveWindow × DefenseDifficultyMultiplier(Difficulty.<press's DefenseType>), re-floored at
+	 * MINIMUM_DEFENSE_WINDOW. Difficulty carries CONCRETE tiers resolved by the caller (DefenseSystem
+	 * stays asset-free); an all-Inherit triple resolves to Easy ×1.0 — unchanged, the empty/guard case.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Defense System")
+	FDefenseInputMatch MatchAndConsumeInput(AActor *Defender, double ImpactTime, EActionType AttackType,
+											const FDefenseDifficultyTriple &Difficulty);
+
+	/**
+	 * Apply a parry's reflected damage to the attacker and broadcast OnParryReflect.
+	 * Public so the per-impact resolver (ActionExecutor::ResolveImpactDefense) can reflect
+	 * each parried impact's own slice (Stage 3) instead of the lumped close.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Defense System")
+	void ApplyParryReflect(AActor *Attacker, AActor *Defender, int32 ReflectedDamage);
+
+	/**
 	 * Get current defense state for actor
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System")
@@ -231,40 +346,38 @@ public:
 	float GetRemainingWindowTime(AActor *Defender) const;
 
 	// ========================================
-	// DODGE CALCULATIONS
+	// DEFENSE WINDOW DUEL
 	// ========================================
 
 	/**
-	 * Check if an attack can be dodged based on size
+	 * Effective defense input window for this attacker→defender duel: the tuned base
+	 * DefenseInputWindow WIDENED by the defender's Reflex (CalculateReflexWindowBonus) and
+	 * NARROWED by the attacker's speed (CalculateSpeedWindowPenalty, type-aware: physical →
+	 * ActionSpeed/Body, spell → SpellSpeed/Mind), floored at MINIMUM_DEFENSE_WINDOW.
+	 *   window = max(MINIMUM_DEFENSE_WINDOW, base + defenderReflexBonus − attackerSpeedPenalty)
+	 * Base on the subsystem, per-character terms through CharacterData.
+	 * Null-safe on BOTH sides: a missing attacker / component / CharacterData simply drops that
+	 * side's term (no crash). Equal Reflex/ActionSpeed points + equal Body world level cancel to base.
 	 */
-	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
-	bool CanDodgeAttack(AActor *Defender, float AttackSize) const;
-
-	/**
-	 * Get dodge threshold for a defender
-	 */
-	UFUNCTION(BlueprintPure, Category = "Defense System|Dodge")
-	float GetDodgeThreshold(AActor *Defender) const;
+	UFUNCTION(BlueprintPure, Category = "Defense System")
+	float GetEffectiveDefenseInputWindow(AActor *Defender, AActor *Attacker, EActionType AttackType) const;
 
 	// ========================================
 	// DAMAGE CALCULATION
 	// ========================================
 
 	/**
-	 * Calculate final damage after defense
+	 * Calculate final damage after defense. Dodge succeeds on TIMING alone (the attack-size
+	 * gate was removed) — a successful Dodge fully avoids regardless of attack size.
 	 * @param BaseDamage Original damage
 	 * @param DefenseType Defense used
 	 * @param bDefenseSuccessful Was timing correct?
-	 * @param AttackSize Size of attack (for dodge)
-	 * @param DodgeThreshold Defender's dodge threshold
 	 */
 	UFUNCTION(BlueprintPure, Category = "Defense System|Damage")
 	FDefenseResult CalculateDefenseResult(
 		int32 BaseDamage,
 		EDefenseType DefenseType,
-		bool bDefenseSuccessful,
-		float AttackSize,
-		float DodgeThreshold);
+		bool bDefenseSuccessful);
 
 	// ========================================
 	// EVENTS
@@ -285,6 +398,12 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
 	FOnParryReflect OnParryReflect;
 
+	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
+	FOnDefenseResolved OnDefenseResolved;
+
+	UPROPERTY(BlueprintAssignable, Category = "Defense System|Events")
+	FOnDefensePerfect OnDefensePerfect;
+
 	// ========================================
 	// CONFIGURATION
 	// ========================================
@@ -301,17 +420,29 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float ParryReflect = 0.3f;
 
-	/** Base dodge threshold (hitbox + dodge distance) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
-	float BaseDodgeThreshold = 2.5f;
-
 	/** Default defense window duration */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float DefaultWindowDuration = 0.3f;
 
+	/** Stage 3: lead-in window — an input counts for an impact up to this many seconds
+	 *  before the impact frame (delta = ImpactTime - InputTime must fall in [0, this]). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float DefenseInputWindow = 0.5f;
+
+	/** Stage 3: perfect-timing threshold — a match with delta <= this is PERFECT. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float PerfectThreshold = 0.1f;
+
 	/** Defense window duration for AOE attacks (longer than default) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
 	float AoeWindowDuration = 0.5f;
+
+	/** Max-duration FAILSAFE for manual-close (count-based) windows. Armed instead
+	 *  of DefaultWindowDuration when bManualClose is true: longer than any montage so
+	 *  the last-hit close pre-empts it on the happy path, shorter than the 10s action
+	 *  timeout so the window heals first if a Hit notify is missing/miscounted. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defense System|Config")
+	float MaxWindowDuration = 8.0f;
 
 private:
 	// ========================================

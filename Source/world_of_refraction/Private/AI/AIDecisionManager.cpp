@@ -7,7 +7,7 @@
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "TimerManager.h"
@@ -18,6 +18,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Infusion/InfusionCostHelper.h"
 #include "Infusion/InfusionConstants.h"
 #include "Combat/CombatConstants.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
@@ -190,16 +191,17 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     {
         // Easy: Random action, random target (old behavior)
         AActor *Target = Enemies[FMath::RandRange(0, Enemies.Num() - 1)];
-        EActionType ChosenType = ChooseActionType(AIActor, Loadout);
+        EAIActionChoice ChosenType = ChooseActionType(AIActor, Loadout);
 
-        Action.ActionType = ChosenType;
         Action.Targets.Add(Target);
 
-        // Populate data (simplified)
+        // Populate data (simplified). Attacks fold into ActionType=Ability + SkillData (attack/ability
+        // merge); EAIActionChoice keeps attack-vs-ability distinct for the random category pick above.
         switch (ChosenType)
         {
-        case EActionType::Spell:
+        case EAIActionChoice::Spell:
         {
+            Action.ActionType = EActionType::Spell;
             TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
             if (Spells.Num() > 0)
             {
@@ -207,21 +209,25 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
             }
             break;
         }
-        case EActionType::Ability:
+        case EAIActionChoice::Ability:
         {
+            Action.ActionType = EActionType::Ability;
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
             if (Abilities.Num() > 0)
             {
-                Action.AbilityData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
+                Action.SkillData = Abilities[FMath::RandRange(0, Abilities.Num() - 1)];
             }
             break;
         }
-        case EActionType::Attack:
+        case EAIActionChoice::Attack:
         {
-            Action.AttackData = Loadout->GetCurrentAttack();
+            Action.ActionType = EActionType::Ability; // attacks dispatch as Ability (SkillData + IsAttack)
+            Action.SkillData = Loadout->GetCurrentAttack();
             break;
         }
+        case EAIActionChoice::Defend:
         default:
+            Action.ActionType = EActionType::Defend;
             break;
         }
 
@@ -232,29 +238,30 @@ FAction UAIDecisionManager::BuildAction(AActor *AIActor)
     return BuildAction_Smart(AIActor, Loadout, CharComp);
 }
 
-EActionType UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout)
+EAIActionChoice UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout)
 {
     if (!Loadout)
     {
-        return EActionType::Defend;
+        return EAIActionChoice::Defend;
     }
 
-    // Gather available options
-    TArray<EActionType> Options;
+    // Gather available options. Attacks stay a distinct category (EAIActionChoice) even though they
+    // dispatch as EActionType::Ability — preserves the original equal-weight random distribution.
+    TArray<EAIActionChoice> Options;
 
     if (Loadout->GetAllWeaponAttacks().Num() > 0)
     {
-        Options.Add(EActionType::Attack);
+        Options.Add(EAIActionChoice::Attack);
     }
 
     if (Loadout->GetAvailableSpells().Num() > 0)
     {
-        Options.Add(EActionType::Spell);
+        Options.Add(EAIActionChoice::Spell);
     }
 
     if (Loadout->GetAvailableAbilities().Num() > 0)
     {
-        Options.Add(EActionType::Ability);
+        Options.Add(EAIActionChoice::Ability);
     }
 
     // Random selection
@@ -264,7 +271,7 @@ EActionType UAIDecisionManager::ChooseActionType(AActor *AIActor, ULoadoutCompon
         return Options[Index];
     }
 
-    return EActionType::Defend;
+    return EAIActionChoice::Defend;
 }
 
 void UAIDecisionManager::GetThinkingDelayRange(EAIDifficulty Difficulty, float &OutMin, float &OutMax) const
@@ -410,8 +417,10 @@ void UAIDecisionManager::ScheduleDefenseDecision(AActor *Defender, float AttackS
 
 EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float AttackSize, int32 BaseDamage, EAIDifficulty Difficulty) const
 {
-    // Check if dodge is viable
-    bool bCanDodge = DefenseSystemRef && DefenseSystemRef->CanDodgeAttack(Defender, AttackSize);
+    // Dodge is always viable — the attack-size gate was removed (Option B). The AI now dodges on
+    // timing alone, exactly like the player; ChooseDefenseType may freely pick it. Block/Parry
+    // remain the fallbacks below, so the AI is never stranded without a defense.
+    const bool bCanDodge = true;
 
     // Lethality check — a hit that would kill always warrants a dodge attempt
     // (100% avoid), regardless of difficulty. Gated on bCanDodge: an undodgeable
@@ -645,7 +654,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     }
 
     // Check weapon attack
-    UWeaponAttackData *Attack = Loadout->GetCurrentAttack();
+    USkillDataBase *Attack = Loadout->GetCurrentAttack();
     if (Attack)
     {
         UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
@@ -665,7 +674,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     return BestDamage > 0 ? BestDamage : 50;
 }
 
-int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel) const
+int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel, EInfusionSourceOption InfusionSource) const
 {
     if (!Attacker || !Target || !Spell)
     {
@@ -714,14 +723,20 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
     // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
-    // so the estimate matches average execution damage.
+    // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
+    // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
+    // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
     const float CritChance = DamageCalc->GetCriticalChance(Attacker);
-    float Estimate = Result.FinalDamage * (1.0f + CritChance * (DamageConstants::CRIT_MULTIPLIER - 1.0f));
+    const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
+    float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
-    // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
-    if (InfusionLevel == 2)
+    // 6-5-d: per-mode, stat-scaled charge damage — matches execution (GetChargeDamageMultiplier).
+    // L0 returns x1.0; L1/L2 apply the resolved mode's value (L1 now carries a damage bonus too).
+    // Mode from the (level-independent) infusion source the AI will use; None -> Balanced fallback.
+    if (InfusionLevel > 0)
     {
-        Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
+        const EInfusionMode Mode = ActionExec->ResolveInfusionMode(InfusionSource, Attacker);
+        Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ true, AttackerComp);
     }
 
     // Tier-gap parity (Cluster D): the estimate sees the same multiplier
@@ -733,7 +748,7 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     return FMath::RoundToInt(Estimate);
 }
 
-int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel) const
+int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel, EInfusionSourceOption InfusionSource) const
 {
     if (!Attacker || !Target || !Ability)
     {
@@ -757,7 +772,7 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
 
     FAction Action;
     Action.ActionType = EActionType::Ability;
-    Action.AbilityData = Ability;
+    Action.SkillData = Ability;
     Action.AbilityInfusionLevel = InfusionLevel;
     Action.Targets.Add(Target);
 
@@ -775,14 +790,19 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     const FDamageCalculationResult Result = DamageCalc->CalculateDamage(Attacker, Target, Input);
 
     // CalculateDamage ran with bCanCrit=false — fold expected crit value back in
-    // so the estimate matches average execution damage.
+    // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
+    // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
+    // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
     const float CritChance = DamageCalc->GetCriticalChance(Attacker);
-    float Estimate = Result.FinalDamage * (1.0f + CritChance * (DamageConstants::CRIT_MULTIPLIER - 1.0f));
+    const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
+    float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
-    // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
-    if (InfusionLevel == 2)
+    // 6-5-d: per-mode, stat-scaled charge damage — matches execution (GetChargeDamageMultiplier).
+    // L0 returns x1.0; L1/L2 apply the resolved mode's value (L1 now carries a damage bonus too).
+    if (InfusionLevel > 0)
     {
-        Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
+        const EInfusionMode Mode = ActionExec->ResolveInfusionMode(InfusionSource, Attacker);
+        Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ false, AttackerComp);
     }
 
     // Tier-gap parity (Cluster D): no-op today — abilities borrow the active
@@ -905,7 +925,7 @@ bool UAIDecisionManager::CanAffordAbility(AActor *Actor, UAbilityData *Ability, 
 
     FAction Probe;
     Probe.ActionType = EActionType::Ability;
-    Probe.AbilityData = Ability;
+    Probe.SkillData = Ability;
     Probe.AbilityInfusionLevel = InfusionLevel;
 
     const int32 Cost = ActionExec->CalculateActionEnergyCost(Actor, Probe);
@@ -1265,25 +1285,26 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
 
     Action.Targets.Add(BestTarget);
 
-    // Evaluate options and pick best
-    TArray<EActionType> AvailableActions;
-    TMap<EActionType, int32> ActionScores;
+    // Evaluate options and pick best. AI categories stay distinct (EAIActionChoice): attacks dispatch
+    // as EActionType::Ability but keep damage-only scoring, separate from full ability scoring.
+    TArray<EAIActionChoice> AvailableActions;
+    TMap<EAIActionChoice, int32> ActionScores;
 
     // Gather available actions
-    TArray<UWeaponAttackData *> AllAttacks = Loadout->GetAllWeaponAttacks();
+    TArray<USkillDataBase *> AllAttacks = Loadout->GetAllWeaponAttacks();
     if (AllAttacks.Num() > 0)
     {
-        AvailableActions.Add(EActionType::Attack);
+        AvailableActions.Add(EAIActionChoice::Attack);
     }
 
     if (Loadout->GetAvailableSpells().Num() > 0)
     {
-        AvailableActions.Add(EActionType::Spell);
+        AvailableActions.Add(EAIActionChoice::Spell);
     }
 
     if (Loadout->GetAvailableAbilities().Num() > 0)
     {
-        AvailableActions.Add(EActionType::Ability);
+        AvailableActions.Add(EAIActionChoice::Ability);
     }
 
     if (AvailableActions.Num() == 0)
@@ -1298,19 +1319,19 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     int32 UnaffordableBestCost = 0;
 
     // Score each action type
-    for (EActionType ActionType : AvailableActions)
+    for (EAIActionChoice ActionType : AvailableActions)
     {
         int32 Score = 0;
 
         switch (ActionType)
         {
-        case EActionType::Attack:
+        case EAIActionChoice::Attack:
         {
             // Score best attack from all weapons
             UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
             if (DamageCalc)
             {
-                for (UWeaponAttackData *Attack : AllAttacks)
+                for (USkillDataBase *Attack : AllAttacks)
                 {
                     if (Attack)
                     {
@@ -1321,7 +1342,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             }
             break;
         }
-        case EActionType::Spell:
+        case EAIActionChoice::Spell:
         {
             // Best combined damage + status score among affordable spells.
             TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
@@ -1355,7 +1376,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             Score = FMath::RoundToInt(BestSpellScore);
             break;
         }
-        case EActionType::Ability:
+        case EAIActionChoice::Ability:
         {
             // Best combined damage + status score among affordable abilities.
             TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
@@ -1380,7 +1401,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
                     {
                         FAction CostProbe;
                         CostProbe.ActionType = EActionType::Ability;
-                        CostProbe.AbilityData = Ability;
+                        CostProbe.SkillData = Ability;
                         UnaffordableBestCost = Exec->CalculateActionEnergyCost(AIActor, CostProbe);
                     }
                 }
@@ -1396,7 +1417,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     }
 
     // Pick action with highest score
-    EActionType BestActionType = EActionType::Defend;
+    EAIActionChoice BestActionType = EAIActionChoice::Defend;
     int32 BestScore = -1;
 
     for (const auto &Pair : ActionScores)
@@ -1468,19 +1489,22 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         }
     }
 
-    // Build final action
-    Action.ActionType = BestActionType;
+    // Build final action. Map the AI category → dispatched action type: attacks dispatch as Ability
+    // (carried on SkillData; IsAttack() distinguishes them downstream).
+    Action.ActionType = (BestActionType == EAIActionChoice::Spell)    ? EActionType::Spell
+                        : (BestActionType == EAIActionChoice::Defend) ? EActionType::Defend
+                                                                      : EActionType::Ability;
 
     switch (BestActionType)
     {
-    case EActionType::Attack:
+    case EAIActionChoice::Attack:
     {
         // Pick best attack from all weapons
-        UWeaponAttackData *BestAttack = nullptr;
+        USkillDataBase *BestAttack = nullptr;
         int32 BestAttackDamage = 0;
         UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
 
-        for (UWeaponAttackData *Attack : Loadout->GetAllWeaponAttacks())
+        for (USkillDataBase *Attack : Loadout->GetAllWeaponAttacks())
         {
             if (Attack && DamageCalc)
             {
@@ -1497,10 +1521,10 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             }
         }
 
-        Action.AttackData = BestAttack;
+        Action.SkillData = BestAttack;
         break;
     }
-    case EActionType::Spell:
+    case EAIActionChoice::Spell:
     {
         // Pick the affordable spell with the best combined damage + status score.
         TArray<USpellData *> Spells = Loadout->GetAvailableSpells();
@@ -1542,10 +1566,31 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
             SpellInfusion = 0;
         }
+
+        // 6-5-b: spells are origin-bound. Pick the 1:1 allowed source (Evolution preferred for the
+        // BD/Reality {Evolution, Innate} case). Empty (Item/non-infusable) -> cast uninfused. Then HP-guard.
+        if (SpellInfusion > 0)
+        {
+            const EInfusionSourceOption SpellSrc = DecideSpellInfusionSource(AIActor, BestSpell);
+            if (SpellSrc == EInfusionSourceOption::None)
+            {
+                SpellInfusion = 0; // no legal source -> don't infuse
+            }
+            else
+            {
+                const int32 BaseEP = BestSpell->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr);
+                SpellInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ true,
+                                                        SpellSrc, SpellInfusion);
+                if (SpellInfusion > 0)
+                {
+                    Action.SelectedSource = SpellSrc;
+                }
+            }
+        }
         Action.SpellInfusionLevel = SpellInfusion;
         break;
     }
-    case EActionType::Ability:
+    case EAIActionChoice::Ability:
     {
         // Pick the affordable ability with the best combined damage + status score.
         TArray<UAbilityData *> Abilities = Loadout->GetAvailableAbilities();
@@ -1578,13 +1623,26 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             break;
         }
 
-        Action.AbilityData = BestAbility;
+        Action.SkillData = BestAbility;
 
         // Decide infusion, then drop to L0 if the infused cost is unaffordable.
         int32 AbilityInfusion = DecideAbilityInfusionLevel(AIActor, Action.Targets[0], BestAbility);
         if (AbilityInfusion > 0 && !CanAffordAbility(AIActor, BestAbility, AbilityInfusion))
         {
             AbilityInfusion = 0;
+        }
+
+        // 6-5-b: abilities are not origin-bound — pick the source via heuristic, then HP-guard.
+        if (AbilityInfusion > 0)
+        {
+            const EInfusionSourceOption AbilitySrc = DecideAbilityInfusionSource(AIActor);
+            const int32 BaseEP = BestAbility->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr, /*bIsInfused*/ true);
+            AbilityInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ false,
+                                                      AbilitySrc, AbilityInfusion);
+            if (AbilityInfusion > 0)
+            {
+                Action.SelectedSource = AbilitySrc;
+            }
         }
         Action.AbilityInfusionLevel = AbilityInfusion;
         break;
@@ -1891,9 +1949,13 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     int32 MaxEnergy = GetMaxEP(Attacker);
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
-    // Calculate damage at each level
-    int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * InfusionConstants::CHARGE_L2_DAMAGE_MULT); // +30% damage
+    // 6-5-d: resolve the (level-independent) infusion source so estimates use the real mode.
+    const EInfusionSourceOption Source = DecideSpellInfusionSource(Attacker, Spell);
+
+    // Calculate damage at each level. The estimator applies per-mode charge damage internally
+    // (single application point — no hand re-multiply), so L2Damage matches execution.
+    int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell, 0, Source);
+    int32 L2Damage = EstimateSpellDamage(Attacker, Target, Spell, 2, Source);
 
     int32 TargetHP = TargetComp->CurrentHP;
 
@@ -1913,9 +1975,13 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
     if (BuildupManager)
     {
-        // Calculate L1 buildup
+        // Calculate L1 buildup — per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
         float BaseBuildup = Spell->StatusBuildup;
-        float L1Buildup = BaseBuildup * CombatConstants::SPELL_L1_BUILDUP_MULT; // L1 boost
+        UActionExecutor *StatusExec = GetActionExecutor();
+        const float L1StatusMult = StatusExec
+                                       ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
+                                       : 1.0f;
+        float L1Buildup = BaseBuildup * L1StatusMult;
 
         // Would L1 trigger the bar?
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
@@ -1979,9 +2045,13 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     int32 MaxEnergy = GetMaxEP(Attacker);
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
-    // Calculate damage at each level
-    int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * InfusionConstants::CHARGE_L2_DAMAGE_MULT); // L2: +30% damage
+    // 6-5-d: resolve the (level-independent) ability infusion source for accurate estimates.
+    const EInfusionSourceOption Source = DecideAbilityInfusionSource(Attacker);
+
+    // Calculate damage at each level. The estimator applies per-mode charge damage internally
+    // (single application point — no hand re-multiply), so L2Damage matches execution.
+    int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability, 0, Source);
+    int32 L2Damage = EstimateAbilityDamage(Attacker, Target, Ability, 2, Source);
     int32 TargetHP = TargetComp->CurrentHP;
 
     // Priority 1: Can we kill with L0? Don't waste
@@ -2002,9 +2072,12 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     {
         // Calculate L1 status buildup
         int32 BaseBuildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
-        // TODO: shares spell L1 buildup rule by analogy; give ability its own
-        // constant if ability buildup ever diverges from spells.
-        float L1Buildup = BaseBuildup * CombatConstants::SPELL_L1_BUILDUP_MULT; // L1: +50% status buildup
+        // 6-5-d: per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
+        UActionExecutor *StatusExec = GetActionExecutor();
+        const float L1StatusMult = StatusExec
+                                       ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
+                                       : 1.0f;
+        float L1Buildup = BaseBuildup * L1StatusMult;
 
         // Would L1 trigger the bar?
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
@@ -2041,6 +2114,110 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
 
     // Default: No infusion
     return 0;
+}
+
+EInfusionSourceOption UAIDecisionManager::DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const
+{
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec)
+    {
+        return EInfusionSourceOption::None;
+    }
+
+    const TArray<EInfusionSourceOption> Allowed = ActionExec->GetAllowedInfusionSourcesForSpell(Attacker, Spell);
+    if (Allowed.Num() == 0)
+    {
+        return EInfusionSourceOption::None; // Item / non-infusable -> no source
+    }
+
+    // Spells are 1:1 origin-bound; the BD/Reality evolution case returns {Evolution, Innate} —
+    // prefer Evolution this stage (richer BD/Reality choice deferred).
+    return Allowed.Contains(EInfusionSourceOption::Evolution)
+               ? EInfusionSourceOption::Evolution
+               : Allowed[0];
+}
+
+EInfusionSourceOption UAIDecisionManager::DecideAbilityInfusionSource(AActor *Attacker) const
+{
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec)
+    {
+        return EInfusionSourceOption::Raw; // always-available fallback
+    }
+
+    const TArray<EInfusionSourceOption> Available = ActionExec->GetAvailableInfusionSources(Attacker);
+
+    UCharacterDataComponent *Comp = Attacker ? Attacker->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const UCharacterData *Data = Comp ? Comp->CharacterData : nullptr;
+
+    // 1. Caster -> Innate (innate-on-ability pays no HP).
+    if (Data && Data->IsCaster() && Available.Contains(EInfusionSourceOption::Innate))
+    {
+        return EInfusionSourceOption::Innate;
+    }
+
+    // 2. Resonator -> ActiveRing.
+    if (Data && Data->IsResonator() && Available.Contains(EInfusionSourceOption::ActiveRing))
+    {
+        return EInfusionSourceOption::ActiveRing;
+    }
+
+    // 3. First available crystal source (durability-paying, no HP).
+    for (const EInfusionSourceOption Crystal : {EInfusionSourceOption::PrimaryRing,
+                                                EInfusionSourceOption::WeaponCrystal,
+                                                EInfusionSourceOption::Evolution})
+    {
+        if (Available.Contains(Crystal))
+        {
+            return Crystal;
+        }
+    }
+
+    // 4. Fallback: Raw (always available; HP-paying, so the caller's HP guard applies).
+    return EInfusionSourceOption::Raw;
+}
+
+int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
+                                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const
+{
+    if (Level <= 0)
+    {
+        return Level;
+    }
+
+    // Only Raw, Innate-on-SPELL, and Evolution pay HP (innate-on-ability pays none; crystal sources
+    // pay durability). Mirrors ActionExecutor::ApplyCommitCosts' HP-cost routing.
+    const bool bHPPaying =
+        (Source == EInfusionSourceOption::Raw) ||
+        (Source == EInfusionSourceOption::Innate && bIsSpell) ||
+        (Source == EInfusionSourceOption::Evolution);
+    if (!bHPPaying)
+    {
+        return Level;
+    }
+
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec || !Comp)
+    {
+        return Level; // can't compute — fail open, matching CanAfford*'s convention (null is unreachable in combat)
+    }
+
+    // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) -> WouldKill.
+    while (Level > 0)
+    {
+        const int32 PreEffEP = FMath::RoundToInt(
+            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp));
+        if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP))
+        {
+            Level--;
+        }
+        else
+        {
+            break;
+        }
+    }
+    return Level;
 }
 
 // ==================== HELPER FUNCTIONS ====================

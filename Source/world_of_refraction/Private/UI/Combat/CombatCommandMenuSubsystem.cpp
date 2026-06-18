@@ -7,8 +7,9 @@
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Definitions/AbilityData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -202,7 +203,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         // === IMMEDIATE ACTIONS ===
     case EPieMenuCategory::Attack:
     {
-        UWeaponAttackData *Attack = Cast<UWeaponAttackData>(ButtonData.DataReference);
+        USkillDataBase *Attack = Cast<USkillDataBase>(ButtonData.DataReference);
         if (!Attack)
         {
             if (ULoadoutComponent *LC = GetLoadoutComponent())
@@ -937,15 +938,30 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
             VFX->SetInfusionLevel(0);     // reset to L0 (no VFX)
 
             // Breakthrough spells are the only spell submenu that exposes a
-            // CycleSource button — narrow the cache to the meaningful
-            // evolution-cast subset {Evolution, Innate}. Other spell submenus
-            // stay element-locked (no cycle UI), so no filtering needed for them.
+            // CycleSource button. 6-5-f: narrow the cache to EXACTLY the sources the
+            // spell's origin allows (GetAllowedInfusionSourcesForSpell) — one source
+            // of truth shared with ValidateAction, so the UI can never offer a source
+            // the validator would reject. Plain Caster evolution spell -> {Evolution}
+            // (size 1 -> cycle button auto-hides); BD/Reality -> {Evolution, Innate}
+            // (cycle stays, the documented exception). Other spell submenus stay
+            // element-locked (no cycle UI), so no filtering needed for them.
             if (ActionCategory == EPieMenuCategory::Spell &&
                 ActiveSubmenuSource == EPieMenuCategory::Breakthrough)
             {
-                VFX->RestrictCachedSources({
-                    EInfusionSourceOption::Evolution,
-                    EInfusionSourceOption::Innate});
+                USpellData *BreakthroughSpell = Cast<USpellData>(PendingActionData.Get());
+                UActionExecutor *Exec = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+                if (Exec && BreakthroughSpell && CurrentActor.IsValid())
+                {
+                    VFX->RestrictCachedSources(
+                        Exec->GetAllowedInfusionSourcesForSpell(CurrentActor.Get(), BreakthroughSpell));
+                }
+                else
+                {
+                    // Fallback (executor/spell/actor unreachable): the prior hardcoded subset.
+                    VFX->RestrictCachedSources({
+                        EInfusionSourceOption::Evolution,
+                        EInfusionSourceOption::Innate});
+                }
             }
 
             // For Spell action category, source is intrinsic — read from
@@ -1642,20 +1658,20 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     switch (ResolvedCategory)
     {
     case EPieMenuCategory::Attack:
-        Action.ActionType = EActionType::Attack;
-        Action.AttackData = Cast<UWeaponAttackData>(DataRef);
-        if (!Action.AttackData)
+        Action.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
+        Action.SkillData = Cast<USkillDataBase>(DataRef);
+        if (!Action.SkillData)
         {
-            // Attack main-menu button doesn't carry AttackData — pull from active weapon.
+            // Attack main-menu button doesn't carry data — pull the active weapon's attack.
             if (ULoadoutComponent *LC = GetLoadoutComponent())
             {
-                Action.AttackData = LC->GetCurrentAttack();
+                Action.SkillData = LC->GetCurrentAttack();
             }
         }
         break;
     case EPieMenuCategory::Ability:
         Action.ActionType = EActionType::Ability;
-        Action.AbilityData = Cast<UAbilityData>(DataRef);
+        Action.SkillData = Cast<UAbilityData>(DataRef);
         break;
     case EPieMenuCategory::Spell:
         Action.ActionType = EActionType::Spell;
@@ -1724,8 +1740,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
                 {
                     Action.SpellInfusionLevel = Level;
                 }
-                else if (Action.ActionType == EActionType::Ability ||
-                         Action.ActionType == EActionType::Attack)
+                else if (Action.ActionType == EActionType::Ability)
                 {
                     Action.AbilityInfusionLevel = Level;
                 }

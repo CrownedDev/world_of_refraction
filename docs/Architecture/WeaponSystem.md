@@ -19,7 +19,7 @@ defaults that runtime inventory factories copy from.
 The skill data assets `UAbilityData` and `USpellData` are the executable
 content the weapon/ring points at. They are documented here because they are
 the payload of the weapon system, though they derive from
-`UCastableSkillDataBase` (a separate skill hierarchy not fully covered by this
+`USkillDataBase` (a separate skill hierarchy not fully covered by this
 doc).
 
 ## Architecture
@@ -97,10 +97,8 @@ data:
   behaviour and ability dual-gating — see *Wield modes and mesh attachment*
   below), `PhysicalDamageType` (`EPhysicalDamageType`, default `Slash`; drives
   the bar-cap trigger when no elemental infusion is active and must not be
-  `None`), `WeaponAttack` (`UWeaponAttackData*`, replaces base attack when
-  equipped; carries `BaseSize` *(sweep-1; default 0.0)* for the defense-window
-  hitbox — read by `ActionExecutor::ExecuteAttackAsync` with no fallback
-  constant, warns at execution time if zero so the authoring gap stays visible),
+  `None`), `WeaponAttack` (`USkillDataBase*` — post the attack/ability merge it holds a
+  `UAbilityData` with `bIsAttack=true`; replaces base attack when equipped),
   `PresetAbilities` (`TArray<UAbilityData*>`), `bAbilitiesLocked`
   (bool — when true abilities cannot be customised; used for conjured weapons),
   `WeaponStance` (`UStanceData*`).
@@ -138,9 +136,9 @@ is a slight mismatch between the comment and the `EditCondition`.
 
 ### `UAbilityData`
 
-`UCLASS(BlueprintType)`, derives from `UCastableSkillDataBase` (which itself
-extends `USkillDataBase`). Universal skills usable by all characters; can be
-infused with the character's innate element for status effects.
+`UCLASS(BlueprintType)`, derives from `USkillDataBase`. Universal skills usable
+by all characters; can be infused with the character's innate element for status
+effects.
 
 - **Identity** — `RequiredWeaponType` (`EWeaponType`), `bRequiresDualWeapon`
   (bool, default `false`). When `bRequiresDualWeapon` is true the ability is
@@ -166,7 +164,7 @@ infused with the character's innate element for status effects.
 
 ### `USpellData`
 
-`UCLASS(BlueprintType)`, derives from `UCastableSkillDataBase`. Element-locked
+`UCLASS(BlueprintType)`, derives from `USkillDataBase`. Element-locked
 magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
 
 - **Identity** — `Element` (`ESpellElement`, default `Fire`), `School`
@@ -176,17 +174,14 @@ magical abilities; supports a mode toggle (Elemental vs Raw/Construct).
 - **Stats** — `TurnCost` (int32, default 1; flagged for future multi-turn
   casting).
 - **Visuals** — `CastAnimation`, `SpellVFX`, `ImpactVFX`, `MuzzleVFX`.
-- **Delivery extensions** — `HomingStrength` (Homing-only, 0–1),
-  `BeamDuration` (Beam-only), `BeamTickInterval` *(Beam-only, sweep-1; default
-  0.5s)*. Beam damage runs on a discrete-tick cadence: `TickCount = max(1,
-  RoundToInt(BeamDuration / BeamTickInterval))`, per-tick = `BaseDamage /
-  TickCount` with the integer remainder distributed across the first
-  `BaseDamage % TickCount` ticks so totals stay exact. Implementation on
-  `ASpellProjectile`: `BeamTickIntervalSec`/`BeamTickCount`/`BeamTickIndex`/
-  `BeamBaseDmgPerTick`/`BeamRemainder`/`BeamTimeUntilNextTick`. The
-  `OnBeamTick` broadcast signature is `(AActor* Target, int32 TickDamage,
-  bool bTargetInBeam)` — VFX/sound stay per-frame; this delegate is the
-  damage-side surface only.
+- **Delivery extensions** — The **Homing** and **Beam** delivery types were both
+  REMOVED (`feature/realtime-defense`). Homing tracking is meaningless without a
+  spatial dodge — a homing shot was just a projectile with a curvy path; a beam is
+  now authored as a burst of projectiles (`Projectile`, `Count>1`), which the
+  per-impact burst path covers (even-split per arrival). `HomingStrength`,
+  `BeamDuration`/`BeamTickInterval` and the `ASkillProjectile` homing/beam tick
+  machinery / `OnBeamTick` delegate are gone. `ESpellDeliveryType` is now
+  `Projectile` / `AOE` / `Instant`.
 - **Size** — `BaseSize`, `HitboxRatio` (0.5–1.2).
 - **Defense helpers** — `CanBeBlocked()`, `CanBeParried()`,
   `CanBeDodgedByMoving()`, `CanBeDodgedByTiming()`, `GetAvailableDefenses()`.
@@ -388,3 +383,7 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-06-07 | Weapon-stone alignment — `AttachedItem.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (3 spots); documented `DefaultAbilities`/`bLockSkills` fields, `IsWeaponStoneAttached()`/`GetRestrictedCrystalTypes()` helpers, the `IsDataValid` Kind/type backstop + `URingData` weapon-stone rejection, and the `GetRestrictedEnumValues` attachment-type filter. Flagged `GetCrystalElement()` `WeaponStone → Generic` fall-through. Weapon-stone family in new `AugmentStoneSystem.md`. | feature/weapon-stones |
 | 2026-06-12 | Phase-2 skill-data unification on `UCastableSkillDataBase` (shared base for attack/ability/spell): `SkillMontage` (D2), `BaseAnimSpeed` (D7), `VFXArray` of `FSkillVFXEntry` (D5), and now `CastArray` of `FSkillCastEntry` (D6) — each entry one self-contained delivery (type, speed, `Size` = mechanical hitbox, `Trail` VFX + `TrailScale`, homing/beam params, `Count`/`BurstInterval`), index-ordered for `UCombatNotify` Family=Cast/Index=N. Spell `PostLoad` migrates the loose delivery fields into one entry (`Size = BaseSize × HitboxRatio` — the actual hitbox; `TrailScale = BaseSize`; `SpellVFX` → entry `Trail`). Loose per-type fields deprecated-but-runtime-authoritative pending the Stage-12 runner, which switches readers and removes them. Fully-default spells migrate no entry (delta-serialization limit) — empty `CastArray` = "use loose defaults". Debug: `USkillCastDebug::GetCastArrayString`/`PrintCastArray`. | feature/d6-cast-array |
 | 2026-06-12 | **Stage 12 COMPLETE — the fused-montage runner is live.** The three execution paths unify through the notify spine: `BeginSkillExecution` (movement-independent start; facing = nearest living enemy at start + settle) binds `UCombatNotify` `OnCombatNotify(Family, Index)` for all three skill types — VFX→`VFXArray[Index]`, Cast→`CastArray[Index]` via `DispatchSpellCast` (one spawn site shared with the legacy `SpellRelease` bridge; burst chain for `Count>1`), Hit damage consumes `ResolvedDamageSplit` (legacy-exact floor rounding). All reader-switches landed: `SkillMontage` (D2), `BaseAnimSpeed` (D7), `VFXArray` by role for muzzle/impact (D5), `CastArray` for delivery + async decision (D6), `ResolvedDamageSplit` (D1). Cast-entry `TrailScale`→`VisualScale` (PropertyRedirect); defense window sizes from `CastArray[0].VisualScale` (parity — Size-keyed sizing banked as a balance decision). Montage chain: `RitualCastMontage` → `SkillMontage` → `ReturnMontage`, presence-driven, finalize spans all legs. Loose fields (montages/VFX/delivery/`BaseSize`/`HitboxRatio`) are `DeprecatedProperty` load-only; `CalculateAnimSpeed`/`GetCurrentAttackMontage` deleted. The spike is retired (~560 lines; production runner is the sole notify consumer; legacy name-notify path survives content-gated). **Banked**: ritual arm gesture (turn-timing decision), SFX array, `BaseSize`/`HitboxRatio` hard-delete post-resave-bake, Depth-2 `Execute*Async` unification (re-assess now the preludes are thin), Depth-3 movement/warp + per-hit-defense arc. | feature/d-fused-runner |
+| 2026-06-16 | `UWeaponAttackData::BaseSize` deleted — its sole reader was the dodge attack-size gate, which was removed (dodge is now timing-only). Melee `AttackSize` is a neutral `1.0` (still feeds the `OnDefenseWindowOpened` delegate + AI scheduling). NOTE: spell `USpellData::BaseSize`/`HitboxRatio` (the *Size* field above) are UNAFFECTED — still live via the empty-`CastArray` fallback + PostLoad migration, deferred to the post-SC8 resave bake. | feature/realtime-defense |
+| 2026-06-16 | **Beam delivery type REMOVED.** `ESpellDeliveryType::Beam` (the last enum value — append-safe, no CoreRedirect) and its entire footprint deleted: the `ASkillProjectile` beam tick machinery (`TickBeam`, `OnBeamTick` delegate, `BeamTickCount`/`BeamBaseDmgPerTick`/`BeamRemainder`/… state), the `FSkillCastEntry`/`USpellData` `BeamDuration`/`BeamTickInterval` fields + migration, the `OnBeamTick` handler/bind, and the Beam fall-through labels in the spawn switches. A beam is now authored as a **burst of projectiles** (`Projectile`, `Count>1`) — the per-impact burst path (Stage 6 cluster 6) covers it with even-split-per-arrival defense. Also removes the prior beam double-apply (lumped window + ticks) and unscaled-damage (`Generic`/no-crit) placeholder bugs. Confirmed zero Beam-authored assets before removal. | feature/realtime-defense |
+| 2026-06-17 | **Attack/ability merge COMPLETE.** `UWeaponAttackData` deleted — basic attacks are now `UAbilityData` with `bIsAttack=true`. `UWeaponData::WeaponAttack` (and `FWeaponLoadoutEntry::OverrideAttack`) are `USkillDataBase*` (hold the merged type). `EActionType::Attack` collapsed into `Ability` (`IsAttack()` is the runtime discriminator); one `FAction.SkillData` pointer, one dispatch (`ExecuteSkillAsync`), one animation (`PlaySkillAnimation`). The 6 attack data-assets were class-redirected to `UAbilityData` (resaved with `bIsAttack=true`). A `!IsAttack()` slotting gate keeps basic attacks out of the ability bar. ⚠️ The `WeaponAttackData→AbilityData` CoreRedirect (+ the field PropertyRedirects) in `DefaultEngine.ini` is **PERMANENT** — covers un-resaved weapon refs + old savegames; do not remove. | feature/realtime-defense |
+| 2026-06-16 | **Homing delivery type REMOVED.** `ESpellDeliveryType::Homing` (mid-enum value 1 — needs a CoreRedirect, unlike trailing Beam) and its footprint deleted: `ASkillProjectile::TickHoming` + the Tick `Homing` case + the `OnHitBoxOverlap` Homing branch (function/binding kept as a Projectile no-op), the `HomingStrength` field on `FSkillCastEntry`/`USpellData`/`ASkillProjectile` + migration, and every `\|\| Homing` clause across the defense helpers (`CanBeParried`/`CanBeDodgedByTiming`), the `EditCondition` metas, the cluster-4/6 conversion gate, the async-decision, and both dispatch switches. Tracking is meaningless without a spatial dodge (Crown-confirmed: a homing shot = a projectile with a curvy path — dead weight). `+EnumRedirects=(OldName="ESpellDeliveryType",ValueChanges=(("Homing","Projectile")))` maps any stray authored value; enum is now `Projectile=0 / AOE=1 / Instant=2` (name-based serialization keeps AOE/Instant safe). Shared projectile plumbing (`SpawnProjectileActor`/`TickProjectile`/`ResolveImpact`/`OnSkillImpact`/`OnSkillDodged`/the count-based per-impact defense path) untouched. Confirmed zero Homing-authored assets before removal. | feature/realtime-defense |

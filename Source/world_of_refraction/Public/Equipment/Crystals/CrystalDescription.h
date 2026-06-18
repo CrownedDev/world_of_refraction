@@ -170,8 +170,9 @@ namespace CrystalDescription
             return TEXT("A stone that bolsters Defense — passively when attached, or on a target when used.");
 
         case ECrystalType::CritStone:
-            // Placeholder until the attached crit hook + consumable land.
-            return TEXT("A stone that raises Crit Chance when attached.");
+            // Placeholder until the attached crit-damage hook lands (CritStone maps to ESubStat::CritDamage
+            // post-5e-C3; the attached read is not yet wired into GetCritDamageMultiplier — see 5e flag).
+            return TEXT("A stone that raises Crit Damage when attached.");
         case ECrystalType::TurnSpeedStone:
             return TEXT("A stone that raises Turn Speed when attached.");
         case ECrystalType::StatusStone:
@@ -206,6 +207,14 @@ namespace CrystalDescription
                 TEXT("Quickens weapon strikes — raises action speed by %.0f%% for %s. Speeds the attack animation now; tighter defense windows arrive with the real-time defense rework."),
                 CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier),
                 *FormatTurns(CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION));
+
+        case ECrystalType::LuckStone:
+            return TEXT("A stone that raises Luck when attached — lifting crit chance, crystal-wear "
+                        "break-skip, and other luck-driven odds together.");
+
+        case ECrystalType::ReflexStone:
+            return TEXT("A stone that raises Reflex when attached — widening the defense input window "
+                        "so incoming attacks are easier to react to and block.");
 
         case ECrystalType::DurabilityStone:
             return FString::Printf(

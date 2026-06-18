@@ -72,7 +72,7 @@ protected:
 private:
 	/** Event handlers */
 	UFUNCTION()
-	void OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage);
+	void OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex);
 
 	UFUNCTION()
 	void OnProjectileDodged(AActor* Target, FVector ImpactLocation);

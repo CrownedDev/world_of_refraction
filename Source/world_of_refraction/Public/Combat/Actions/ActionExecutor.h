@@ -17,6 +17,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 #include "Infusion/EInfusionSourceOption.h"
+#include "Infusion/EInfusionMode.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Skills/Effects/FSkillEffect.h"
@@ -36,7 +37,6 @@ class USkillDataBase;
 class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
-class UWeaponAttackData;
 class UItemExecutor;
 class UWeaponManager;
 class URingManager;
@@ -47,7 +47,7 @@ struct FDefenseResult;
 struct FActionExecutionContext;
 struct FPendingDefenseContext;
 class UCombatAnimInstance;
-class UCastableSkillDataBase;
+class USkillDataBase;
 class UMotionWarpingComponent;
 
 // ========================================
@@ -88,6 +88,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTargetKilled, AActor *, Killer, 
 /** Broadcast when a skill with ActivationDelay > 0 ARMS instead of executing
  *  (D8). The orchestrator registers the deferred activation; firing is 8c. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnActionDeferredArmed, AActor *, Caster, const FAction &, Action, int32, DelayTurns);
+
+/** Broadcast at each melee impact frame (Impact-family Combat Notify). ImpactIndex is
+ *  the per-impact ordinal (0..HitCount-1). Stage 0: fires into the void (logged);
+ *  Stage 2's per-impact resolver binds this. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnImpactFrame, AActor *, Executor, int32, ImpactIndex);
 
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
@@ -162,6 +167,13 @@ public:
 	/** Get available infusion sources for character based on class and loadout */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	TArray<EInfusionSourceOption> GetAvailableInfusionSources(AActor *Actor) const;
+
+	/** The allowed infusion source(s) for a SPELL, by its origin (1:1 via ResolveSpellSource),
+	 *  with the BD/Reality exception that an Evolution spell may ALSO use Innate. Single source of
+	 *  truth for the spell origin->source binding (consumed by the AI and, later, validation).
+	 *  SPELL-only — abilities are not origin-bound. Item-origin / null / unresolvable -> empty
+	 *  (not infusable). Plain C++ (not BlueprintPure): a rule helper for AI + validation. */
+	TArray<EInfusionSourceOption> GetAllowedInfusionSourcesForSpell(AActor *Actor, const USpellData *Spell) const;
 
 	/** Get element for selected source option */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
@@ -343,6 +355,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnTargetKilled OnTargetKilled;
 
+	/** Fires at each melee impact frame (Impact-family Combat Notify), once per impact. */
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnImpactFrame OnImpactFrame;
+
 	/** Broadcast when async action fully completes (after all defense windows) */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnActionCompleted OnAsyncActionCompleted;
@@ -358,16 +374,10 @@ public:
 	/** Called when spell VFX should spawn. Override or bind OnActionStarted for custom handling. */
 	void SpawnSpellVFX(AActor *Caster, USpellData *Spell, float SpellSize, const TArray<AActor *> &ExplicitTargets, int32 Damage = 0);
 
-	/** Called when ability animation should play.
+	/** Merged skill-animation play (Cluster 2): takes the unified base pointer (attacks + abilities).
 	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	 *  (CalculateAnimationSpeed derives from the ActionSpeed sub-stat; BaseAnimSpeed is
-	 *  uniform across all three paths since D7.) */
-	virtual void PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
-
-	/** Called when attack animation should play.
-	 *  Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	 *  Preserves designer-tuned per-attack pacing; layers stat scaling on top. */
-	virtual void PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods = FActionStatModifiers());
+	 *  (BaseAnimSpeed + SkillMontage are uniform on USkillDataBase since D7.) */
+	virtual void PlaySkillAnimation(AActor *User, USkillDataBase *Ability, const FActionStatModifiers &ActionMods = FActionStatModifiers());
 
 	// ========================================
 	// DEBUG
@@ -462,11 +472,11 @@ private:
 
 	/** The executing action's skill data (spell/ability/attack); null for
 	 *  items or outside an action. */
-	UCastableSkillDataBase *GetCurrentSkillData() const;
+	USkillDataBase *GetCurrentSkillData() const;
 
 	/** First VFXArray entry of the given role with a non-null asset, or null
 	 *  (callers fall back to the loose VFX fields — D5 reader switch, SC5). */
-	static const FSkillVFXEntry *GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role);
+	static const FSkillVFXEntry *GetVFXEntryByRole(const USkillDataBase *Skill, EVFXRole Role);
 
 	/** Find-or-create the actor's Motion Warping component (W1, the spike's
 	 *  pattern): a persistent component authored on the character BP is
@@ -504,7 +514,7 @@ private:
 	/** Skill the live chain is playing; replaces GetCurrentSkillData() reads in the
 	 *  chain path so the chain advances off its own handle, not pending context. */
 	UPROPERTY()
-	UCastableSkillDataBase *ChainSkill = nullptr;
+	USkillDataBase *ChainSkill = nullptr;
 
 	/** True while a deferred ARM turn's ritual-cast montage plays (2b). The arm
 	 *  plays ONLY RitualCastMontage — no approach/skill/return, no skill effects,
@@ -521,10 +531,10 @@ private:
 	 *  [ReturnMontage], each step named + logged, advanced by the montage-end
 	 *  dispatcher. Presence-driven — null ritual/return legs skip to the next
 	 *  step. BeginMontageChain is the entry (replaces PlaySkillMontageChain). */
-	void BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate);
-	void PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill);
-	void PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill);
-	void PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill);
+	void BeginMontageChain(AActor *Actor, USkillDataBase *Skill, float PlayRate);
+	void PlayRitualStep(AActor *Actor, USkillDataBase *Skill);
+	void PlaySkillStep(AActor *Actor, USkillDataBase *Skill);
+	void PlayReturnStep(AActor *Actor, USkillDataBase *Skill);
 	void FinishMontageChain(AActor *Actor);
 
 	/** Complete a deferred ARM turn (2b): the ritual-cast montage ended (or was
@@ -621,12 +631,39 @@ private:
 	/** Get CharacterData template from actor */
 	UCharacterData *GetCharacterData(AActor *Actor) const;
 
-	/** Apply damage after defense resolution */
+	/** Apply damage after defense resolution. Stage 2: applies only the UNDRAINED TAIL
+	 *  [ImpactsLanded, HitCount) — melee drained the rest per-impact-frame; non-melee
+	 *  (ImpactsLanded==0) applies all, the unchanged lumped path. */
 	void ApplyDamageAfterDefense(
 		AActor *Attacker,
 		AActor *Target,
 		const FPendingDefenseContext &Context,
 		const FDefenseResult &DefenseResult);
+
+	/** OBSOLETE (Stage 3): superseded by ResolveImpactDefense, which resolves a fresh
+	 *  per-impact defense (split-then-reduce + match-and-consume) instead of locking one
+	 *  action-level result at the first impact. Retained un-deleted until the per-impact
+	 *  path is PIE-verified; no live callers remain.
+	 *
+	 *  Stage 2: lazily compute + stash the single action-level defense result for a
+	 *  defender (idempotent), via the public DefenseSystem API. */
+	void EnsureResultResolved(AActor *Defender);
+
+	/** Stage 3: resolve ONE impact's defense for a defender. Split-then-reduce — slice
+	 *  BaseDamage by ResolvedDamageSplit[ImpactIndex] FIRST, then CalculateDefenseResult on
+	 *  that slice against the impact's match-and-consumed input (MatchAndConsumeInput at
+	 *  ImpactTime). Stashes the per-impact result (ResolvedFinalDamage now holds the reduced
+	 *  SLICE, not the full total) + bResolvedPerfect onto the context, reflects a parried
+	 *  slice (ApplyParryReflect), and broadcasts OnDefenseResolved / OnDefensePerfect. */
+	void ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime, const FDefenseDifficultyTriple &ImpactDifficulty);
+
+	/** Stage 2/3: apply ONE impact's damage and accumulate into PartialResult. Shared by the
+	 *  per-impact-frame path and the close-time undrained tail.
+	 *  @param bDamageIsPerImpact true (melee per-impact frame): ResolvedFinalDamage is already
+	 *         this impact's reduced slice (ResolveImpactDefense) — apply it directly. false
+	 *         (non-melee close-time tail, default): ResolvedFinalDamage is the full reduced
+	 *         total — slice it by ResolvedDamageSplit[ImpactIndex] here (legacy lumped path). */
+	void ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact = false);
 
 	/** Handle multi-hit abilities */
 	int32 ProcessMultiHit(
@@ -641,32 +678,37 @@ private:
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);
 
+public:
 	// ========================================
 	// CHARGE INFUSION HELPERS (NEW)
 	// ========================================
+	// Pure const queries — public so the AI prediction/guard (and the 6-5-d mirror
+	// reconcile) can reuse the real combat math instead of duplicating it.
 
-	/** Get spell charge status multiplier (L1 = 1.5, L2 = 1.0) */
-	float GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) const;
+	/** Charge DAMAGE multiplier: per-mode base (focus / off-focus / balanced by EInfusionMode) ×
+	 *  upside-only stat surcharge (1 + max(0, stat-1)). Damage stat = bIsSpell ? SpellDamage :
+	 *  RawDamage. L0 (or null Comp) → 1.0. Shared by ability + spell (bIsSpell picks the stat). */
+	float GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
-	/** Get spell charge damage multiplier (L1 = 1.0, L2 = 1.3) */
-	float GetSpellChargeDamageMultiplier(int32 SpellInfusionLevel) const;
+	/** Charge STATUS multiplier: per-mode base (status is the focus in Status mode) × the same
+	 *  upside-only surcharge over GetEffectiveStatusMultiplier. L0 (or null Comp) → 1.0. */
+	float GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode, const UCharacterDataComponent *Comp) const;
 
-	/** Get ability charge status multiplier (L1 = 1.5, L2 = 0.0) */
-	float GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLevel) const;
-
-	/** Get ability charge damage multiplier (L1 = 1.0, L2 = 1.3) */
-	float GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const;
+	/** Resolve which equipment/character's InfusionMode applies for an action's infusion source:
+	 *  Raw/WeaponCrystal → weapon, Innate → character data, ActiveRing/PrimaryRing → ring,
+	 *  Evolution → primary-slot evolution. Null-safe → Balanced. */
+	EInfusionMode ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const;
 	/** Get ability charge energy cost multiplier (L1 = 1.0, L2 = 1.5) */
 	float GetAbilityChargeCostMultiplier(int32 Level) const;
 
-	/** Apply ability infusion status buildup to targets */
-	void ApplyAbilityInfusionStatus(
-		AActor *User,
-		const TArray<AActor *> &Targets,
-		EInfusionSourceOption Source,
-		int32 HitCount,
-		float StatusMultiplier);
+	/** Infused energy-cost multiplier package: the charge multiplier (x1.5/x2.0 at
+	 *  L1/L2, 1.0 at L0) times an upside-only stat surcharge (1 + max(0, stat-1)).
+	 *  Ability scales with RawDamage, spell with SpellDamage. Shared by the spell
+	 *  cost, ability spend, and ability preview so all three agree. */
+	float ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
+
+private:
 	// ========================================
 	// CACHED REFERENCES
 	// ========================================
@@ -727,6 +769,22 @@ private:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Async")
 	void CancelAsyncAction();
+
+	/** B2 interrupt — true iff EVERY currently-pending defender has resolved the current interruptable hit
+	 *  AND parried/dodged it (the all-targets abort gate). Empty set → false. Single-target (N=1) degenerates
+	 *  to the one defender's outcome. Read between the melee resolve and close loops (contexts still present). */
+	bool AllInterruptSucceeded() const;
+
+	/** B2 spell tally — record a target's choke outcome (parried/dodged) for the current interruptable cast
+	 *  entry; returns true once EVERY target has resolved AND all parried/dodged (→ caller aborts). Survives
+	 *  the per-defender close that removes contexts (vs AllInterruptSucceeded's live-context iteration). */
+	bool RecordChokeAndShouldAbort(AActor *Target, bool bDefended);
+
+	/** B2 interrupt — abort the rest of the action after an interruptable hit was parried/dodged by all
+	 *  targets: stop pending spawns/timers, clear+close the pending defense windows (no tail apply), mark the
+	 *  result interrupted, then play the ReturnMontage (warp back to origin) if authored, else hard-stop the
+	 *  montage and finalize. Skill is the chain skill (UWeaponAttackData / spell — both USkillDataBase). */
+	void InterruptAsyncAction(AActor *Attacker, USkillDataBase *Skill);
 
 private:
 	// ========================================
@@ -838,14 +896,12 @@ private:
 	void ExecuteSpellAsync(AActor *Caster, const FAction &Action, UCharacterData *CasterData);
 
 	/**
-	 * Execute ability action asynchronously (opens defense windows)
+	 * Merged attack+ability async dispatch (Cluster 2). Reads the unified skill pointer
+	 * (ResolveActionSkill); an attack is an ability with AbilityInfusionLevel=0 (charge multipliers
+	 * L0-neutral). Routed from both the Ability and Attack switch labels until Cluster 3 collapses
+	 * the enum. Opens defense windows.
 	 */
-	void ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData);
-
-	/**
-	 * Execute attack action asynchronously (opens defense windows)
-	 */
-	void ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData);
+	void ExecuteSkillAsync(AActor *User, const FAction &Action, UCharacterData *UserData);
 
 	/** Execute item with animation - no movement required */
 	void ExecuteItemAsync(AActor *Actor, const FAction &Action, UCharacterData *CharData);
@@ -920,7 +976,8 @@ private:
 		EInfusionSourceOption SelectedSource,
 		int32 BaseStatusBuildup,
 		EPhysicalDamageType PhysicalDamageType,
-		float WindowDuration = 0.3f);
+		float WindowDuration = 0.3f,
+		bool bOverrideStatScaling = false);
 
 	// == == == == == == == == == == == == == == == == == == == ==
 	// BROKEN DARKNESS INTEGRATION
@@ -963,7 +1020,7 @@ private:
 protected:
 	/**
 	 * Spawn spell delivery based on DeliveryType
-	 * - Projectile/Homing/Beam: Spawns ASkillProjectile
+	 * - Projectile: Spawns ASkillProjectile
 	 * - AOE/Instant: Spawns VFX directly, opens defense window
 	 */
 	virtual void SpawnSpellDelivery(
@@ -975,8 +1032,8 @@ protected:
 		int32 FinalDamage,
 		bool bIsBrokenDarkness);
 
-	/** Spawn projectile actor (Projectile/Homing/Beam). Entry non-null = the
-	 *  Cast-entry dispatch path (D6): entry class/speed/Trail/homing/beam win;
+	/** Spawn projectile actor (Projectile). Entry non-null = the
+	 *  Cast-entry dispatch path (D6): entry class/speed/Trail win;
 	 *  null = legacy loose-field path. ONE spawn site for both. */
 	void SpawnProjectileActor(
 		AActor *Caster,
@@ -986,7 +1043,8 @@ protected:
 		float FinalVisualScale,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
-		const FSkillCastEntry *Entry = nullptr);
+		const FSkillCastEntry *Entry = nullptr,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Spawn AOE effect (no projectile). Entry non-null = ground visual from
 	 *  the entry's Trail; null = loose SpellVFX. */
@@ -998,10 +1056,13 @@ protected:
 		float FinalVisualScale,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
-		const FSkillCastEntry *Entry = nullptr);
+		const FSkillCastEntry *Entry = nullptr,
+		int32 CastEntryIndex = INDEX_NONE);
 
-	/** Resolve instant spell (immediate hit). Entry non-null = visual from the
-	 *  entry's Trail; null = loose SpellVFX. */
+	/** Resolve instant spell (immediate hit, now defendable per-impact at the Cast
+	 *  notify — Hard difficulty). Entry non-null = visual from the entry's Trail;
+	 *  null = loose SpellVFX. CastEntryIndex keys the per-cast-entry defense
+	 *  difficulty (INDEX_NONE → Easy ×1.0), mirroring SpawnAOEEffect. */
 	void ResolveInstantSpell(
 		AActor *Caster,
 		AActor *Target,
@@ -1009,7 +1070,8 @@ protected:
 		float FinalImpactRadius,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
-		const FSkillCastEntry *Entry = nullptr);
+		const FSkillCastEntry *Entry = nullptr,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Entry-based delivery dispatch (D6 Stage 12) — the ONE spawn site both
 	 *  trigger paths share (UCombatNotify Family=Cast AND the legacy
@@ -1023,7 +1085,8 @@ protected:
 		const FSkillCastEntry &Entry,
 		float SpellSize,
 		const TArray<AActor *> &ExplicitTargets,
-		int32 Damage);
+		int32 Damage,
+		int32 CastEntryIndex = INDEX_NONE);
 
 	/** Burst stagger (Count>1): first spawn immediate, remainder queued and
 	 *  spawned one per BurstInterval (the spike's SpawnNextBurst pattern;
@@ -1033,6 +1096,9 @@ protected:
 	// Burst chain state — one active burst per action lifecycle; cleared in
 	// CancelAsyncAction and when the queue drains.
 	FSkillCastEntry ActiveBurstEntry;
+
+	/** Cast-entry index of the active burst — all Count projectiles share it (Option A). */
+	int32 ActiveBurstCastEntryIndex = INDEX_NONE;
 
 	UPROPERTY()
 	USpellData *ActiveBurstSpell = nullptr;
@@ -1045,6 +1111,11 @@ protected:
 	bool bActiveBurstIsBD = false;
 	FTimerHandle BurstTimerHandle;
 
+	/** Pending telegraph timers (the "incoming!" cues scheduled backward from each notify's time at
+	 *  montage start). Tracked so a cancelled/aborted action clears them — no stale tell fires for an
+	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. */
+	TArray<FTimerHandle> TelegraphTimerHandles;
+
 	/** Spawn support spell VFX (Self/Ally - no defense window) */
 	void SpawnSupportSpellEffect(
 		AActor *Caster,
@@ -1055,13 +1126,9 @@ protected:
 
 	/** Called when projectile impacts target */
 	UFUNCTION()
-	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage);
+	void OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex);
 
 	/** Called when target dodged projectile */
 	UFUNCTION()
 	void OnProjectileDodged(AActor *Target, FVector ImpactLocation);
-
-	/** Called each tick while beam is active */
-	UFUNCTION()
-	void OnBeamTick(AActor *Target, int32 TickDamage, bool bTargetInBeam);
 };

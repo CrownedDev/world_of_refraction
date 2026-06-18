@@ -2,10 +2,10 @@
 // Debug utilities for the skill Cast array (D6)
 
 #include "Skills/Definitions/SkillCastDebug.h"
-#include "Skills/Definitions/CastableSkillDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Engine/Engine.h"
 
-void USkillCastDebug::PrintCastArray(const UCastableSkillDataBase *Skill, float Duration)
+void USkillCastDebug::PrintCastArray(const USkillDataBase *Skill, float Duration)
 {
     if (!Skill)
     {
@@ -30,7 +30,7 @@ void USkillCastDebug::PrintCastArray(const UCastableSkillDataBase *Skill, float 
     }
 }
 
-FString USkillCastDebug::GetCastArrayString(const UCastableSkillDataBase *Skill)
+FString USkillCastDebug::GetCastArrayString(const USkillDataBase *Skill)
 {
     if (!Skill)
     {
@@ -59,16 +59,6 @@ FString USkillCastDebug::GetCastArrayString(const UCastableSkillDataBase *Skill)
             TEXT("[%d] %s '%s' Size=%.2f VisualScale=%.2f Speed=%.1f Trail=%s Count=%d"),
             i, *DeliveryName, *Entry.Label, Entry.Size, Entry.VisualScale,
             Entry.ProjectileSpeed, *TrailName, Entry.Count);
-
-        if (Entry.DeliveryType == ESpellDeliveryType::Homing)
-        {
-            Line += FString::Printf(TEXT(" [Homing=%.2f]"), Entry.HomingStrength);
-        }
-        else if (Entry.DeliveryType == ESpellDeliveryType::Beam)
-        {
-            Line += FString::Printf(TEXT(" [Beam dur=%.2f tick=%.2f]"),
-                                    Entry.BeamDuration, Entry.BeamTickInterval);
-        }
 
         Output += Line + TEXT("\n");
     }

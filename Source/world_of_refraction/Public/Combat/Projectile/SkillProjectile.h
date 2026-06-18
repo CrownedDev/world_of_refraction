@@ -1,5 +1,5 @@
 // SkillProjectile.h
-// Unified spell delivery actor - handles Projectile, Homing, and Beam types
+// Unified spell delivery actor - handles the Projectile delivery type
 // AOE and Instant don't spawn this actor - use ActionExecutor directly
 
 #pragma once
@@ -18,31 +18,22 @@ struct FSkillCastEntry;
 
 // ==================== DELEGATES ====================
 
-/** Broadcast when projectile hits target (or reaches target location) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(
+/** Broadcast when projectile hits target (or reaches target location). CastEntryIndex carries which
+ *  CastArray entry spawned this projectile (Stage 6 cluster 4) so the arrival handler can resolve the
+ *  per-entry defense difficulty; INDEX_NONE for non-entry (loose/test) projectiles. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(
     FOnSkillImpact,
     AActor *, Target,
     FVector, ImpactLocation,
     float, ImpactRadius,
-    int32, Damage);
+    int32, Damage,
+    int32, CastEntryIndex);
 
 /** Broadcast when target successfully dodged (moved out of impact zone) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
     FOnSkillDodged,
     AActor *, Target,
     FVector, ImpactLocation);
-
-/** Broadcast on every discrete damage tick while a beam is active.
- *  Fires on a fixed BeamTickInterval cadence — NOT per frame — so the per-tick
- *  damage is deterministic. bTargetInBeam reports whether the line trace hit the
- *  intended target at the moment the tick fired (subscribers typically gate
- *  damage application on it). VFX/sound/per-frame visual coupling stays
- *  inside TickBeam; this delegate is the damage-side surface. */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
-    FOnBeamTick,
-    AActor *, Target,
-    int32, TickDamage,
-    bool, bTargetInBeam);
 
 // ==================== MAIN CLASS ====================
 
@@ -51,8 +42,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(
  *
  * Unified spell delivery actor that handles:
  * - Projectile: Travels to fixed location, dodgeable by moving
- * - Homing: Tracks target actor, harder to dodge
- * - Beam: Continuous line trace, brief dodge window
  *
  * AOE and Instant spells don't use this actor.
  *
@@ -104,10 +93,6 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Events")
     FOnSkillDodged OnSkillDodged;
 
-    /** Called each tick while beam is active */
-    UPROPERTY(BlueprintAssignable, Category = "Events")
-    FOnBeamTick OnBeamTick;
-
     // ==================== CONFIGURATION ====================
 
 protected:
@@ -127,7 +112,7 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     AActor *Caster;
 
-    /** Primary target actor (for homing/beam) */
+    /** Primary target actor */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     AActor *Target;
 
@@ -139,10 +124,6 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     float Speed;
 
-    /** Homing tracking strength (0-1) */
-    UPROPERTY(BlueprintReadOnly, Category = "Config")
-    float HomingStrength;
-
     /** Final calculated impact radius */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     float ImpactRadius;
@@ -150,10 +131,6 @@ protected:
     /** Final calculated damage */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     int32 Damage;
-
-    /** Beam duration (for Beam type) */
-    UPROPERTY(BlueprintReadOnly, Category = "Config")
-    float BeamDuration;
 
     /** Visual scale for VFX */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
@@ -182,9 +159,9 @@ public:
         float FinalVisualScale,
         int32 FinalDamage);
 
-    /** Entry-based initialization (D6 Stage 12): delivery values (type, speed,
-     *  homing/beam params) come from the Cast ENTRY; Spell supplies element/
-     *  color context only. C++-only overload — the runner's dispatch path. */
+    /** Entry-based initialization (D6 Stage 12): delivery values (type,
+     *  speed) come from the Cast ENTRY; Spell supplies element/color context
+     *  only. C++-only overload — the runner's dispatch path. */
     void InitializeProjectile(
         const FSkillCastEntry &Entry,
         USpellData *Spell,
@@ -192,7 +169,8 @@ public:
         AActor *InTarget,
         float FinalImpactRadius,
         float FinalVisualScale,
-        int32 FinalDamage);
+        int32 FinalDamage,
+        int32 InCastEntryIndex);
 
     /**
      * Set VFX assets (call after Initialize or set via defaults)
@@ -230,38 +208,16 @@ public:
 
     // ==================== RUNTIME STATE ====================
 
+    /** Cast-array index of the entry that spawned this projectile (Option A — barrage/beam share it).
+     *  INDEX_NONE (-1) = not entry-spawned (loose-field / test path) -> cluster-4 reader falls back to
+     *  Easy x1.0. Read at arrival in cluster 4. */
+    int32 CastEntryIndex = INDEX_NONE;
+
     /** Has the projectile reached its destination? */
     bool bHasImpacted = false;
 
     /** Has Launch() been called? Prevents Tick until ready */
     bool bIsLaunched = false;
-
-    /** Beam: Time remaining */
-    float BeamTimeRemaining;
-
-    /** Beam: Is target currently in beam path? */
-    bool bTargetInBeam;
-
-    /** Beam: cached interval (seconds) between discrete damage ticks. Sourced
-     *  from USpellData::BeamTickInterval at InitializeProjectile time. */
-    float BeamTickIntervalSec = 0.5f;
-
-    /** Beam: total ticks computed at init — max(1, RoundToInt(BeamDuration / BeamTickInterval)). */
-    int32 BeamTickCount = 0;
-
-    /** Beam: next tick index to fire (0..BeamTickCount-1). */
-    int32 BeamTickIndex = 0;
-
-    /** Beam: BaseDamage / BeamTickCount — the integer quotient. */
-    int32 BeamBaseDmgPerTick = 0;
-
-    /** Beam: BaseDamage % BeamTickCount — distributed across the first
-     *  `BeamRemainder` ticks so the running total stays honest. */
-    int32 BeamRemainder = 0;
-
-    /** Beam: seconds until the next discrete tick fires. Reset to
-     *  BeamTickIntervalSec after each tick. */
-    float BeamTimeUntilNextTick = 0.f;
 
     UFUNCTION(BlueprintPure, Category = "SkillProjectile")
     FORCEINLINE bool HasImpacted() const { return bHasImpacted; }
@@ -274,21 +230,14 @@ protected:
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     /** Shared tail of both InitializeProjectile overloads: target capture,
-     *  collision sizing, positioning, colors/scale, beam tick schedule.
-     *  Callers set the per-source fields (delivery/speed/homing/beam +
-     *  BeamTickIntervalSec) first. */
+     *  collision sizing, positioning, colors/scale. Callers set the per-source
+     *  fields (delivery/speed) first. */
     void InitializeCommon();
 
     // ==================== MOVEMENT ====================
 
     /** Projectile: Move toward fixed target location */
     void TickProjectile(float DeltaTime);
-
-    /** Homing: Move toward target actor with tracking */
-    void TickHoming(float DeltaTime);
-
-    /** Beam: Update line trace and damage */
-    void TickBeam(float DeltaTime);
 
     // ==================== COLLISION ====================
 

@@ -2,7 +2,10 @@
 // Shared base class implementation.
 
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Character/CharacterData.h"
+#include "Combat/CombatConstants.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
 {
@@ -34,8 +37,8 @@ TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry>
         }
         if (Entry.Percent <= 0.0f)
         {
-            UE_LOG(LogTemp, Warning,
-                   TEXT("[ResolveDamageSplit] Hit %d has non-positive Percent %.1f — entry skipped"),
+            UE_LOG(LogTemp, Verbose,
+                   TEXT("[ResolveDamageSplit] Hit %d Percent %.1f <= 0 — treated as unauthored (remainder split evenly among unassigned hits), not lost"),
                    Entry.HitNumber, Entry.Percent);
             continue;
         }
@@ -90,6 +93,71 @@ TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry>
     return Table;
 }
 
+TArray<FDefenseDifficultyTriple> ResolveImpactDifficulty(
+    int32 HitCount, const TArray<FDamageSplitEntry> &Split, const FDefenseDifficultyTriple &Default)
+{
+    const int32 N = FMath::Max(1, HitCount);
+
+    // Start every impact at the skill-level default; per-hit Difficulty (carried on the DamageSplit
+    // entries — same array ResolveDamageSplit reads) replaces per HitNumber below. .Percent is ignored
+    // here; difficulty is keyed purely by HitNumber, independent of whether the hit carries damage.
+    TArray<FDefenseDifficultyTriple> Table;
+    Table.Init(Default, N);
+    TArray<bool> bAuthored;
+    bAuthored.Init(false, N);
+
+    for (const FDamageSplitEntry &Entry : Split)
+    {
+        if (Entry.HitNumber < 1 || Entry.HitNumber > N)
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[ResolveImpactDifficulty] HitNumber %d out of range [1,%d] — entry skipped"),
+                   Entry.HitNumber, N);
+            continue;
+        }
+        if (bAuthored[Entry.HitNumber - 1])
+        {
+            UE_LOG(LogTemp, Warning,
+                   TEXT("[ResolveImpactDifficulty] Duplicate entry for impact %d — entry skipped (first wins)"),
+                   Entry.HitNumber);
+            continue;
+        }
+
+        Table[Entry.HitNumber - 1] = Entry.Difficulty;
+        bAuthored[Entry.HitNumber - 1] = true;
+    }
+
+    // Collapse Inherit per field: impact's own tier → Default → Easy. The resolved table
+    // carries NO Inherit values (every field concrete) — clean for cluster 3/4 to consume.
+    for (FDefenseDifficultyTriple &Triple : Table)
+    {
+        Triple.Parry = ResolveInheritedDifficulty(Triple.Parry, Default.Parry);
+        Triple.Dodge = ResolveInheritedDifficulty(Triple.Dodge, Default.Dodge);
+        Triple.Block = ResolveInheritedDifficulty(Triple.Block, Default.Block);
+    }
+
+    return Table;
+}
+
+TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
+    const TArray<FSkillCastEntry> &CastArray, const FDefenseDifficultyTriple &Default)
+{
+    // Index IS array position — no HitNumber lookup, no dedup/range warnings (unlike the melee
+    // ResolveImpactDifficulty). Just walk each cast-entry and collapse Inherit per field:
+    // entry tier -> Default -> Easy. Empty CastArray -> empty table (the cluster-4 reader guards).
+    TArray<FDefenseDifficultyTriple> Table;
+    Table.Reserve(CastArray.Num());
+    for (const FSkillCastEntry &E : CastArray)
+    {
+        FDefenseDifficultyTriple T;
+        T.Parry = ResolveInheritedDifficulty(E.Difficulty.Parry, Default.Parry);
+        T.Dodge = ResolveInheritedDifficulty(E.Difficulty.Dodge, Default.Dodge);
+        T.Block = ResolveInheritedDifficulty(E.Difficulty.Block, Default.Block);
+        Table.Add(T);
+    }
+    return Table;
+}
+
 TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condition) const
 {
     TArray<FSkillEffect> Result;
@@ -139,6 +207,98 @@ bool USkillDataBase::HasDebuffEffects() const
     return false;
 }
 
+// Folded from UCastableSkillDataBase at the base merge — read the requirement/tier
+// fields now living on this class.
+
+bool USkillDataBase::MeetsRequirements(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return false;
+    }
+    return Requirements.MeetsRequirements(Character);
+}
+
+int32 USkillDataBase::GetTotalDeficit(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return 0;
+    }
+    return Requirements.GetTotalDeficit(Character);
+}
+
+float USkillDataBase::CalculateRequirementPenalty(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return 0.0f;
+    }
+    return Requirements.CalculatePenalty(Character);
+}
+
+// Damage / energy — hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the
+// merged FAction.SkillData path can compute these for both attacks and abilities. Bodies are
+// byte-identical to UAbilityData::CalculateDamage / CalculateNormalEnergyCost+CalculateInfusedEnergyCost
+// and to the inline attack computation in ExecuteAttackAsync — lossless across all leaves.
+
+int32 USkillDataBase::CalculateDamage(const UCharacterData *Character, bool bIsInfused) const
+{
+    if (!Character)
+    {
+        return 0;
+    }
+
+    // Attacker-side base only — the RawDamage multiplier is applied once downstream by
+    // DamageCalculator. bIsInfused no longer affects damage (element-infusion penalty removed).
+    float Damage = BaseDamage;
+    Damage *= (1.0f - CalculateRequirementPenalty(Character));
+    return FMath::RoundToInt(Damage);
+}
+
+int32 USkillDataBase::CalculateEnergyCost(const UCharacterData *Character, bool bIsInfused) const
+{
+    if (!Character)
+    {
+        return BaseEnergyCost;
+    }
+
+    float Cost = BaseEnergyCost;
+    Cost *= (1.0f + CalculateRequirementPenalty(Character));
+    if (bIsInfused)
+    {
+        Cost *= CombatConstants::INFUSION_ENERGY_MULTIPLIER;
+    }
+    return FMath::RoundToInt(Cost);
+}
+
+FString USkillDataBase::GetTierString() const
+{
+    return TierHelpers::GetTierDisplayString(Tier);
+}
+
+// Hoisted from UWeaponAttackData (step 5a) — reads only base fields, so it serves every skill leaf.
+FString USkillDataBase::GetAttackSummary() const
+{
+    FString Summary;
+
+    if (HitCount == 1)
+    {
+        Summary = TEXT("Single Hit");
+    }
+    else
+    {
+        // Per-hit distribution is authored via DamageSplit on the base (D1).
+        Summary = FString::Printf(TEXT("%d Hits"), HitCount);
+    }
+
+    Summary += FString::Printf(TEXT(" | Buildup: %d"), StatusBuildup);
+    Summary += FString::Printf(TEXT(" | Energy: %d"), BaseEnergyCost);
+    Summary += FString::Printf(TEXT(" | Speed: %.2fx"), BaseAnimSpeed);
+
+    return Summary;
+}
+
 #if WITH_EDITOR
 EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Context) const
 {
@@ -154,6 +314,19 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Context.AddError(FText::FromString(FString::Printf(
             TEXT("Too many effects (%d). Maximum is %d"),
             Effects.Num(), LoadoutConstants::MAX_SKILL_EFFECTS)));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    // Folded from UCastableSkillDataBase::IsDataValid at the base merge.
+    if (BaseDamage < 0)
+    {
+        Context.AddError(FText::FromString(TEXT("BaseDamage cannot be negative")));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    if (BaseEnergyCost < 0)
+    {
+        Context.AddError(FText::FromString(TEXT("BaseEnergyCost cannot be negative")));
         Result = EDataValidationResult::Invalid;
     }
 

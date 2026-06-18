@@ -6,25 +6,33 @@
 namespace InfusionConstants
 {
 
-	// ==================== CHARGE HP COSTS (NEW) ====================
-	// HP cost deducted on charge START (committed cost)
-	// Applies to both Spell and Ability charge infusion
-	// Uses CURRENT HP, not max HP
+	// ==================== CHARGE HP COSTS ====================
+	// RETIRED (rework 6-2-3): the flat 5%/10%-of-current-HP charge cost is replaced
+	// by an EP-derived basis — HP = (pre-Efficiency infused EP / MaxEP) × MaxHP ×
+	// (1 − Resistance), computed in UInfusionCostHelper::CalculateHPCost.
 
-	/** L1 Charge: HP cost as percent of current HP (5%) */
-	constexpr float CHARGE_L1_HP_COST_PERCENT = 0.05f;
+	// ==================== CHARGE EFFECT BONUSES (MODE-ROUTED) ====================
+	// Infusion charge effect bonuses (multiplier form). The mode (EInfusionMode) routes which pair
+	// applies to damage vs status: Physical -> damage=focus / status=off-focus; Status -> reversed;
+	// Balanced -> the middle to both. L1/L2 progressive (both scale at both levels).
 
-	/** L2 Charge: HP cost as percent of current HP (10%) */
-	constexpr float CHARGE_L2_HP_COST_PERCENT = 0.10f;
+	/** The mode's focused effect, L1 (+15%) */
+	constexpr float CHARGE_FOCUS_L1 = 1.15f;
 
-	// ==================== CHARGE EFFECT MULTIPLIERS (NEW) ====================
-	// Exclusive bonuses - L1 OR L2, not both
+	/** Focused effect, L2 (+30%) */
+	constexpr float CHARGE_FOCUS_L2 = 1.30f;
 
-	/** L1 Charge: Status buildup multiplier (+25%) - spells and abilities */
-	constexpr float CHARGE_L1_STATUS_MULT = 1.25f;
+	/** The off-axis effect, L1 (+10%) */
+	constexpr float CHARGE_OFFFOCUS_L1 = 1.10f;
 
-	/** L2 Charge: Damage multiplier (+30%) - spells and abilities */
-	constexpr float CHARGE_L2_DAMAGE_MULT = 1.30f;
+	/** Off-axis effect, L2 (+20%) */
+	constexpr float CHARGE_OFFFOCUS_L2 = 1.20f;
+
+	/** Balanced: the middle to both, L1 (+12.5%) */
+	constexpr float CHARGE_BALANCED_L1 = 1.125f;
+
+	/** Balanced: the middle to both, L2 (+25%) */
+	constexpr float CHARGE_BALANCED_L2 = 1.25f;
 
 	// ==================== TIMING ====================
 
@@ -64,16 +72,20 @@ namespace InfusionConstants
 	constexpr float SPELL_L2_DAMAGE_MULT = 1.30f;
 
 	// ==================== ENERGY COST MULTIPLIERS ====================
+	// Ability and spell now share the same charge tax: L1 = half-again (x1.5,
+	// +50%), L2 = double (x2.0, +100%). Kept as separate named constants —
+	// ability-energy and spell-energy are conceptually distinct cost axes even
+	// at equal values; do not merge.
 
-	/** L1: Energy cost multiplier (1.15x) */
-	constexpr float L1_ENERGY_MULT = 1.15f;
+	/** L1: Energy cost multiplier (1.5x, +50%) */
+	constexpr float L1_ENERGY_MULT = 1.5f;
 
-	/** L2: Energy cost multiplier (1.30x) */
-	constexpr float L2_ENERGY_MULT = 1.30f;
+	/** L2: Energy cost multiplier (2.0x, +100%) */
+	constexpr float L2_ENERGY_MULT = 2.0f;
 
-	/** L1 Spell Size: Energy cost multiplier (1.30x) */
-	constexpr float SPELL_L1_ENERGY_MULT = 1.30f;
+	/** L1 Spell: Energy cost multiplier (1.5x, +50%) */
+	constexpr float SPELL_L1_ENERGY_MULT = 1.5f;
 
-	/** L2 Spell Size: Energy cost multiplier (1.60x) */
-	constexpr float SPELL_L2_ENERGY_MULT = 1.60f;
+	/** L2 Spell: Energy cost multiplier (2.0x, +100%) */
+	constexpr float SPELL_L2_ENERGY_MULT = 2.0f;
 }

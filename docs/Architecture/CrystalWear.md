@@ -112,6 +112,22 @@ The BD Innate-source carve-out captures *absorbed energy converting the spell's
 element* — the only case where a BD evolution cast pays EP. Full energy-model
 detail: `BrokenDarkness.md`.
 
+## Breakability (`EBreakability`)
+
+Who can wear down (and thus break) an evolution crystal is a 3-state enum
+(`EBreakability.h`, rework 6-1), authored per evolution asset:
+
+| Value | Meaning |
+|---|---|
+| `Unbreakable` | No one — never wears, not even Broken Darkness. |
+| `Breakable` | Any class wears it down. |
+| `BDBreakable` (default) | Only Broken Darkness / Reality wielders wear it (the prior `bCanBreak = false` behaviour). |
+
+The wear pipeline gates on this via the `bForceWear` flag — `BDBreakable` crystals
+only take wear when the caster `IsBrokenDarkness()` or is Reality
+(`CrystalManager::ProcessPostCastEvolutionWear`). `GetBreakabilityString` gives the
+inline debug label.
+
 ## Debug suite
 
 `UGameInstanceSubsystem` is not in the `FExec` chain, so the live entry points
@@ -146,6 +162,7 @@ bypasses tier math and Luck-skip).
 - `LoadoutSystem.md` — `ApplyWearToActivePrimaryEvolution` / `ClearBrokenPrimaryEvolution`
   writers and `FCombatLoadout::PrimaryEvolution` shape.
 - `CombatOrchestrator.md` — between-combat destruction + repair sweep.
+- `InfusionSystem.md` — the infusion system as a whole; durability is one of its three cost axes.
 
 ## Changelog
 
@@ -153,3 +170,4 @@ bypasses tier math and Luck-skip).
 |------|--------|--------|
 | 2026-05-27 | Initial documentation — substat wear modifier, two-path entry points (refined vs case-B primary evolution), BD EP-vs-wear cost split with Innate-conversion carve-out, WOR_ debug suite | feature/crystal-wear-substat-modifier |
 | 2026-06-11 | Fusion wear pipeline: elemental fusions wear + break in production (gate widened, gem-half tier keys wear, augmented fusions stay never-wear). Break fires speed-notify + `RecomputeMaxPools` at the break instant — the production trigger for the broken-fusion stat guards. `FBrokenCrystalPayload.FusionId` appended; RingManager + both debug commands fusion-aware. | feature/fusion-wear-pipeline |
+| 2026-06-18 | Infusion rework: documented the `EBreakability` enum (6-1, Unbreakable/Breakable/BDBreakable default) and its `bForceWear` gate. Confirmed the EP-vs-wear split still reflects crystal-zero-EP (6-2-2 — crystal sources pay durability, not EP). Cross-links `InfusionSystem.md`. | feature/realtime-defense |

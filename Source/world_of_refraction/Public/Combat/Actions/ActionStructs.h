@@ -8,16 +8,18 @@
 #include "Skills/Definitions/ESpellSource.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Combat/Defense/EDefenseType.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Infusion/EChargeInfusionType.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "ActionStructs.generated.h"
 
 class USpellData;
 class UAbilityData;
-class UWeaponAttackData;
+class USkillDataBase;
 
 /**
  * FAction
@@ -41,10 +43,6 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
 	USpellData *SpellData = nullptr;
 
-	/** Ability data (if ActionType == Ability) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UAbilityData *AbilityData = nullptr;
-
 	/** Item crystal identity (when ActionType == Item).
 	 *  The slot index in the active loadout is not carried — ActionExecutor
 	 *  finds the matching slot by FCrystalId at execution time. */
@@ -55,9 +53,12 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Spell")
 	ESpellSource SpellSource = ESpellSource::Innate;
 
-	/** Attack data (if ActionType == Attack) */
+	/** Unified skill data for attacks AND abilities (the merged pointer; base type — every instance is a
+	 *  UAbilityData, with bIsAttack=true for basic attacks). The sole non-spell skill pointer after the
+	 *  attack/ability merge; USkillDataBase::IsAttack() distinguishes a basic attack from a slottable
+	 *  ability. Set at every construction site; read via ResolveActionSkill. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Data")
-	UWeaponAttackData *AttackData = nullptr;
+	USkillDataBase *SkillData = nullptr;
 
 	/** True only on the fire-time resubmission of a deferred activation (D8 —
 	 *  set by the Stage 8c fire path). Costs were paid at ARM: the cost paths
@@ -96,9 +97,9 @@ struct WORLD_OF_REFRACTION_API FAction
 			return false;
 		if (ActionType == EActionType::Spell && !SpellData)
 			return false;
-		if (ActionType == EActionType::Ability && !AbilityData)
-			return false;
-		if (ActionType == EActionType::Attack && !AttackData)
+		// Attacks folded into Ability (attack/ability merge); both validate via the merged SkillData
+		// pointer (set at construction alongside the legacy AbilityData/AttackData).
+		if (ActionType == EActionType::Ability && !SkillData)
 			return false;
 		return true;
 	}
@@ -110,28 +111,9 @@ struct WORLD_OF_REFRACTION_API FAction
 			   ActionType != EActionType::SwitchWeapon;
 	}
 
-	FString GetActionName() const
-	{
-		switch (ActionType)
-		{
-		case EActionType::Spell:
-			return SpellData ? TEXT("Spell") : TEXT("Unknown Spell");
-		case EActionType::Ability:
-			return AbilityData ? TEXT("Ability") : TEXT("Unknown Ability");
-		case EActionType::Item:
-			return ItemIdentity::GetDisplayName(ItemData);
-		case EActionType::Attack:
-			return AttackData ? TEXT("Attack") : TEXT("Basic Attack");
-		case EActionType::Defend:
-			return TEXT("Defend");
-		case EActionType::SwitchWeapon:
-			return TEXT("Switch Weapon");
-		case EActionType::Flee:
-			return TEXT("Flee");
-		default:
-			return TEXT("Unknown Action");
-		}
-	}
+	// Body in ActionStructs.cpp — needs USkillDataBase's full type to call SkillData->IsAttack() for the
+	// "Basic Attack" vs "Ability" label (the forward declaration here can't reach the virtual).
+	FString GetActionName() const;
 
 	/** Is spell charge infusion active? */
 	bool IsSpellInfused() const
@@ -285,6 +267,22 @@ struct WORLD_OF_REFRACTION_API FActionResult
 };
 // ==================== ASYNC EXECUTION CONTEXT ====================
 
+/** Per-hit hybrid flags (B1), resolved from the authored FDamageSplitEntry / FSkillCastEntry into a
+ *  per-index table parallel to ResolvedDifficulty. Read by ImpactIndex (melee) / CastEntryIndex (spell). */
+USTRUCT()
+struct FResolvedHitFlags
+{
+	GENERATED_BODY()
+
+	bool bIgnoreDamage = false;
+	bool bIgnoreStatus = false;
+	bool bInterruptable = false;
+
+	/** Per-cast stat-override (spell). Populated only by ResolveCastFlags (per CastEntryIndex); the melee
+	 *  ResolveImpactFlags leaves it false — physical uses the attack-level context bool, not this. */
+	bool bOverrideStatScaling = false;
+};
+
 /**
  * FPendingDefenseContext
  * Tracks a single target's pending defense resolution during async action execution
@@ -318,6 +316,41 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	int32 HitCount = 1;
 
+	/** Count-based window close (Stage 1): landed-impact tally for this defender,
+	 *  incremented by each landed impact from ANY source (melee Impact notify today;
+	 *  projectile arrival / AOE resolution / beam tick at Stage 6). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 ImpactsLanded = 0;
+
+	/** Expected impacts for this defender — the count the window closes at
+	 *  (ImpactsLanded == ExpectedImpacts). Set by the OPENER per attack type, NOT
+	 *  hardcoded to HitCount: melee = HitCount; single projectile = 1; barrage =
+	 *  FSkillCastEntry::Count (Stage 6). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 ExpectedImpacts = 0;
+
+	/** Per-impact apply (Stage 2): the SINGLE action-level defense result, stashed at
+	 *  the first impact (or from the close result for non-melee) so each impact applies
+	 *  its ResolvedDamageSplit share against it. Light copy of FDefenseResult — avoids
+	 *  including DefenseSystem.h here. bResultResolved gates idempotent stashing. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	EDefenseType ResolvedDefenseType = EDefenseType::None;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	int32 ResolvedFinalDamage = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResolvedSuccess = false;
+
+	/** Stage 3: did THIS impact's matched input land inside the perfect-timing window?
+	 *  Per-impact transient — overwritten by each ResolveImpactDefense call (melee path);
+	 *  drives the OnDefensePerfect broadcast and future perfect-defense payoffs (content). */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResolvedPerfect = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bResultResolved = false;
+
 	/** Can this attack crit? */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	bool bCanCrit = true;
@@ -335,6 +368,25 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	 *  knows whether to read SpellDamage (Spell) or RawDamage (Ability/Attack). */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	EActionType ActionType = EActionType::None;
+
+	/** Hybrid stat toggle (attack-level, single-component): when true, scaling uses the OPPOSITE stat to
+	 *  ActionType (Raw↔Spell). Sourced from the authored entry at context creation; threaded to
+	 *  FActionHitInput at apply. Stat-only. Default false = natural scaling. */
+	UPROPERTY(BlueprintReadOnly, Category = "Defense")
+	bool bOverrideStatScaling = false;
+
+	/** Current impact's hybrid per-hit flags (B1), stashed from ResolvedHitFlags[ImpactIndex] /
+	 *  ResolvedCastFlags[CastEntryIndex] at the resolve site just before ApplyOneImpact — so ApplyOneImpact
+	 *  reads them index-agnostically. Per-SPECIFIC-hit (unlike the attack-level bOverrideStatScaling above).
+	 *  bInterruptable is read here but consumed by the interrupt logic (B2). */
+	bool bIgnoreDamage = false;
+	bool bIgnoreStatus = false;
+	bool bInterruptable = false;
+
+	/** Per-cast stat-override, stashed from ResolvedCastFlags (spell). Distinct from the attack-level
+	 *  bOverrideStatScaling above so the shared StashHitFlags / melee path never clobbers the physical bool.
+	 *  Consumed for spell at ApplyOneImpact; physical reads the attack-level bool. */
+	bool bCastOverrideStatScaling = false;
 
 	/** Infusion level (0–2) carried through to FActionHitInput. Spells/abilities populate
 	 *  from Action.SpellInfusionLevel/AbilityInfusionLevel; attacks pass 0. */
@@ -393,6 +445,13 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	/** Pending defense contexts per target */
 	TMap<TWeakObjectPtr<AActor>, FPendingDefenseContext> PendingDefenses;
 
+	/** Count-based close (Stage 1): set true when the hitting animation (the Skill
+	 *  montage leg) ends. The melee window closes at the LATER of (ImpactsLanded ==
+	 *  ExpectedImpacts) AND this — for melee the animation is normally the later
+	 *  signal, so Skill-end reconciles/closes the count-based windows. */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	bool bAnimationFinished = false;
+
 	/** Is execution still in progress? */
 	UPROPERTY(BlueprintReadOnly, Category = "Execution")
 	bool bInProgress = false;
@@ -422,6 +481,33 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	 *  only for now — the fused-montage runner (Stage 12) consumes it; the
 	 *  legacy even-split paths ignore it. */
 	TArray<float> ResolvedDamageSplit;
+
+	/** Per-impact resolved defense difficulty (no Inherit — concrete Easy/Medium/Hard). Read at
+	 *  ResolveImpactDefense by ImpactIndex. Melee live; spell deliveries Stage 6. Resolved once in
+	 *  FinalizeDamageInputs in lockstep with ResolvedDamageSplit (same HitCount, same skill). */
+	TArray<FDefenseDifficultyTriple> ResolvedDifficulty;
+
+	/** Per-cast-entry resolved defense difficulty (spells), indexed by cast-entry index. Populated at
+	 *  ExecuteSpellAsync; read per-impact at projectile arrival (Stage 6 cluster 4). Parallel to
+	 *  ResolvedDifficulty (which is melee, impact-ordinal-indexed) — distinct index semantics, kept
+	 *  separate deliberately. */
+	TArray<FDefenseDifficultyTriple> ResolvedCastDifficulty;
+
+	/** Per-hit / per-cast-entry resolved hybrid flags (B1). ResolvedHitFlags = melee, indexed by
+	 *  ImpactIndex (built in FinalizeDamageInputs from DamageSplit, HitNumber-matched, sparse→full).
+	 *  ResolvedCastFlags = spell, indexed by CastEntryIndex (built in ExecuteSpellAsync, per CastArray
+	 *  entry). Parallel to ResolvedDifficulty / ResolvedCastDifficulty; stashed onto the per-target
+	 *  context at the resolve site (StashHitFlags) just before ApplyOneImpact. */
+	TArray<FResolvedHitFlags> ResolvedHitFlags;
+	TArray<FResolvedHitFlags> ResolvedCastFlags;
+
+	/** Cross-target interrupt tally for the CURRENT interruptable cast entry (choke point). Survives the
+	 *  per-defender CloseDefenseWindow that removes the context, so "did ALL targets parry/dodge this choke
+	 *  point?" can be evaluated after every target has resolved. Reset per interruptable entry (first-pass-
+	 *  wins). Spell-only — melee uses the live-context AllInterruptSucceeded; burst is deferred. */
+	TMap<TWeakObjectPtr<AActor>, bool> ChokeOutcomes;	// target → parried/dodged
+	int32 ChokeExpectedCount = 0;						// # targets for this choke (0 = no active choke)
+	int32 ChokeCastEntryIndex = INDEX_NONE;				// which cast entry is the active choke
 
 	FActionExecutionContext()
 	{
@@ -524,6 +610,11 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	/** Drives damage-stat selection (Spell → SpellDamage; Ability/Attack → RawDamage). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
 	EActionType ActionType = EActionType::None;
+
+	/** Hybrid stat toggle: when true, the damage calculator scales this hit with the OPPOSITE stat to
+	 *  ActionType (Raw↔Spell). Stat-only — element/routing stay on ActionType. Default false = natural. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
+	bool bOverrideStatScaling = false;
 
 	/** Pre-calculation per-hit damage value. 0 if this hit deals no damage. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")

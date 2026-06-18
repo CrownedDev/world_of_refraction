@@ -57,6 +57,13 @@ Internal subsystem accessors: `GetSkillEffectManager()`, `GetActionExecutor()`.
 
 `IsStatusBarNearTrigger`, `WouldTriggerStatusBar`, `IsValuableStatus`, `DecideSpellInfusionLevel`, `DecideAbilityInfusionLevel`.
 
+**Infusion source + charge (6-5; Medium+ only — Easy never infuses).** The AI doesn't just pick a charge *level*; it picks a *source* and guards the cost:
+- **Source selection** — spells via `DecideSpellInfusionSource` → `UActionExecutor::GetAllowedInfusionSourcesForSpell` (the 1:1 origin binding; first allowed, Evolution preferred for the BD/Reality two-source case; empty → don't infuse). Abilities (not origin-bound) via `DecideAbilityInfusionSource` heuristic: Caster → `Innate`, Resonator → `ActiveRing`, else first available crystal source, else `Raw`.
+- **HP-affordability guard** — `ClampInfusionLevelForHP` gates the HP-paying sources (`Raw`, `Innate`-on-spell, `Evolution`) through `UInfusionCostHelper::WouldKill` on the exact pre-Efficiency infused EP, dropping L2 → L1 → L0 until survivable (prefers a weaker infusion over self-death). Crystal sources skip it (they pay durability, not HP).
+- **Prediction parity** — `EstimateSpellDamage`/`EstimateAbilityDamage` and the level deciders call the real charge getters (`GetChargeDamageMultiplier`/`GetChargeStatusMultiplier` + `ResolveInfusionMode`), so the AI's mode-aware, stat-scaled estimates match execution. The old hand-rolled flat constants (`CHARGE_L2_DAMAGE_MULT`, `SPELL_L1_BUILDUP_MULT`) were removed; the double-apply in the deciders was fixed (estimator called at the target level, single application point).
+
+See `InfusionSystem.md` for the full cost/effect/binding model.
+
 ### `AIDecisionConstants.h` — `namespace AIConstants`
 
 All tunable values are `constexpr` in this namespace:
@@ -105,7 +112,7 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 
 ### Damage / status estimation
 
-`EstimateSpellDamage` / `EstimateAbilityDamage` build a full `FAction`, call `UActionExecutor::ComputeActionStatModifiers` to fold in Reality/Evolution sources, then run `UDamageCalculator::CalculateDamage` with `bCanCrit=false` and fold expected crit back in (`1 + CritChance * (CRIT_MULTIPLIER - 1)`). L2 infusion multiplies by `InfusionConstants::CHARGE_L2_DAMAGE_MULT`. If subsystems are unavailable they fall back to the raw asset damage value.
+`EstimateSpellDamage` / `EstimateAbilityDamage` build a full `FAction`, call `UActionExecutor::ComputeActionStatModifiers` to fold in Reality/Evolution sources, then run `UDamageCalculator::CalculateDamage` with `bCanCrit=false` and fold expected crit back in (`1 + CritChance * (CritMult - 1)`, where `CritMult = UDamageCalculator::GetCritDamageMultiplier(Attacker)` — the attacker's *actual* x1.0–x2.0 crit-damage multiplier; `AIDecisionManager.cpp:723,787`. The old fixed `CRIT_MULTIPLIER` constant was retired). L2 infusion multiplies by `InfusionConstants::CHARGE_L2_DAMAGE_MULT`. If subsystems are unavailable they fall back to the raw asset damage value.
 
 `EstimateStatusScore` returns `STATUS_SCORE_REDUNDANT` if the target already has a dangerous debuff, `STATUS_SCORE_TRIGGER` if the hit would trigger the bar (`WouldTriggerStatusBar`) or the bar is near triggering (`IsStatusBarNearTrigger`), else `STATUS_SCORE_CONTRIBUTE`. Zero buildup scores 0.
 
@@ -116,9 +123,11 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 ### Defense flow (`ScheduleDefenseDecision`)
 
 1. Lazy-loads `UDefenseSystem`. Rolls against `GetDefenseAttemptChance(Difficulty)`; on failure the AI does not defend.
-2. `ChooseDefenseType` picks a defense: a lethal hit (`BaseDamage >= CurrentHP`) that is dodgeable always returns `Dodge`. Otherwise — Easy always Blocks; Medium Blocks or Dodges (no Parry); Hard/Expert prefer Dodge, then Parry (70% chance Expert, 40% otherwise), then Block.
+2. `ChooseDefenseType` picks a defense. Dodge is always viable — the attack-size gate was removed, so the AI dodges on timing alone exactly like the player (`bCanDodge` is unconditionally true). A lethal hit (`BaseDamage >= CurrentHP`) always returns `Dodge`. Otherwise — Easy always Blocks; Medium Blocks or Dodges (no Parry); Hard/Expert prefer Dodge, then Parry (70% chance Expert, 40% otherwise), then Block. Block/Parry remain the fallbacks, so the AI is never stranded without a defense.
 3. `CalculateDefenseReactionDelay` picks a delay as a fraction of the window (Easy late 70–90%, Expert early 10–30%) and schedules a per-actor timer.
 4. When the timer fires it rolls against `GetDefenseAccuracy(Difficulty)`; on good timing it submits the input via `UDefenseSystem::SubmitDefenseInput` (Dodge picks a random `EDefenseDirection`); on a mistime nothing is submitted. The defense timer is then removed.
+
+> **Per-impact difficulty window (not authored by the AI).** The *acceptance* window the submitted input must land inside is not fixed — `UDefenseSystem` independently scales it per impact **and per defense type** by the attack's authored `EDefenseDifficulty` (`Inherit`/`Easy` ×1.0 / `Medium` / `Hard` / `Impossible`, via `DefenseDifficultyMultiplier`, `DefenseSystem.cpp:328-364`). On a harder impact the band the AI's reaction timing must hit is much tighter (Impossible floors at `IMPOSSIBLE_WINDOW_FLOOR`, below the normal `MINIMUM_DEFENSE_WINDOW`). The AI neither authors nor reads the tier; it reacts against whatever window `DefenseSystem` enforces.
 
 ## Integration Points
 
@@ -131,7 +140,7 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 - `ACombatOrchestrator` — `GetCurrentActor`, `GetLivingEnemies`, `GetCombatDifficulty`, `SubmitAction`.
 - `UActionExecutor` — `ComputeActionStatModifiers`, `CalculateActionEnergyCost` (energy-cost and stat-modifier source of truth).
 - `UDamageCalculator` — `CalculateDamage`, `CalculateAttackDamage`, `GetCriticalChance`.
-- `UDefenseSystem` — `CanDodgeAttack`, `SubmitDefenseInput`.
+- `UDefenseSystem` — `SubmitDefenseInput`. (The size-based `CanDodgeAttack` dependency was removed — dodge is timing-only.)
 - `USkillEffectManager` — `GetActiveEffects`, `HasActiveDOT`, `GetDebuffCount` (for `HasDangerousDebuff` / `IsValuableStatus`).
 - `UStatusBuildupManager` — `GetStatusBarPercent`, `GetBuildupToTrigger`, `GetPendingTrigger`.
 - `ULoadoutComponent` — available spells/abilities/attacks and usable items.
@@ -150,7 +159,7 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 - **Easy-difficulty action data is simplified** — the Easy branch picks random spells/abilities with no affordability or target-quality checks; it can pick actions the actor cannot pay for.
 - **`IsValuableStatus` / pending-trigger default** — when `UStatusBuildupManager::GetPendingTrigger` returns `None`, infusion logic defaults the assumed status to `DOT`; the comment notes abilities apply physical status rather than a specific type, so the assumption is approximate.
 - **No cached subsystem pointers** — consistent with the project rule (`GetSkillEffectManager` / `GetActionExecutor` fetch per call); `DefenseSystemRef` is the one cached reference and is re-fetched lazily if null.
-- **L1 buildup multipliers are inline literals** — `DecideSpellInfusionLevel` / `DecideAbilityInfusionLevel` use a hardcoded `* 1.5f` for L1 status buildup rather than a named `InfusionConstants` value.
+- **AI scores flat at L0** — candidates are ranked uninfused, then a source + charge level is chosen for the winner; the AI does not model (source × level) as distinct candidates. Deeper per-mode candidate fidelity is deferred (see `InfusionSystem.md`).
 - No `// FIXME` or `// HACK` markers were found in the source.
 
 ## Changelog
@@ -160,3 +169,6 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-2 — AI now resolves spell source via `ULoadoutComponent::ResolveSpellSource(Spell)` at all six previously-hardcoded `ESpellSource::Innate` sites in `AIDecisionManager`. Casts route through the correct cost model. | feature/integration-gaps-sweep-2 |
 | 2026-06-09 | Emerald (bonus-turn item) enemy-target valuation added to `BuildOffensiveAction` (Medium+): one-tick-lethal-DoT gate (`GetLethalDoTPerTick`) + not-already-killable, scored in HP units (`KILL_SECURE` + threat×exposure − threat×freeAction; threat = `EstimateBestDamage`, exposure = `GetRescueExposureTurns`/`PreviewTurnOrder`); `FindBonusTurnItem`. Self-target valuation wired but DORMANT (`ESTIMATED_EP_REGEN_PER_TURN=0` — no passive EP regen). | feature/weapon-stones |
+| 2026-06-16 | Dodge is timing-only (Option B). The AI's attack-size dodge gate (`bCanDodge = CanDodgeAttack(Defender, AttackSize)`) was neutralized to `bCanDodge = true` so the AI dodges on timing like the player; `ChooseDefenseType` may freely pick Dodge (Block/Parry stay the fallbacks). `UDefenseSystem::CanDodgeAttack`/`GetDodgeThreshold`/`BaseDodgeThreshold` were deleted (fully dead after both the player and AI size-gates were removed). | feature/realtime-defense |
+| 2026-06-16 | Doc-sync: documented the per-impact `EDefenseDifficulty` axis (`Easy`/`Medium`/`Hard`/`Impossible`) that `UDefenseSystem` applies to the defender's acceptance window per defense type (`DefenseDifficultyMultiplier`), which the AI reacts against but does not author. Fixed the crit-fold formula in §Damage/status estimation — the retired fixed `CRIT_MULTIPLIER` constant is now `UDamageCalculator::GetCritDamageMultiplier`. | feature/realtime-defense |
+| 2026-06-18 | Infusion rework (6-5): documented AI source selection (`DecideSpellInfusionSource` via the 1:1 spell-origin binding; `DecideAbilityInfusionSource` heuristic), the `ClampInfusionLevelForHP` HP-affordability guard (`WouldKill`, drops level over self-death), and the mirror reconcile — estimators/deciders now call the real charge getters (mode-aware, stat-scaled), the double-apply fixed, and the legacy flat constants removed. Replaced the now-false "inline `* 1.5f` literals" limitation with the "AI scores flat at L0" deferral. | feature/realtime-defense | 

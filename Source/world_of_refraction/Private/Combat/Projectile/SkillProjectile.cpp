@@ -14,7 +14,7 @@
 // - SpellVFX (main projectile effect)
 // - ImpactVFX (hit explosion)
 // - MuzzleVFX (cast flash at caster)
-// - DeliveryType, ProjectileSpeed, HomingStrength, BeamDuration
+// - DeliveryType, ProjectileSpeed
 // - BaseSize, HitboxRatio, Element
 
 // ==================== CONSTANTS ====================
@@ -23,9 +23,6 @@ namespace SkillProjectileConstants
 {
     /** Default projectile speed (units/second) */
     constexpr float DEFAULT_SPEED = 1500.f;
-
-    /** Default homing strength */
-    constexpr float DEFAULT_HOMING_STRENGTH = 0.5f;
 
     /** Default beam duration (seconds) */
     constexpr float DEFAULT_BEAM_DURATION = 1.0f;
@@ -81,20 +78,10 @@ ASkillProjectile::ASkillProjectile()
     Target = nullptr;
     TargetLocation = FVector::ZeroVector;
     Speed = SkillProjectileConstants::DEFAULT_SPEED;
-    HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
     ImpactRadius = 1.0f;
     Damage = 0;
-    BeamDuration = SkillProjectileConstants::DEFAULT_BEAM_DURATION;
     VisualScale = 1.0f;
     bHasImpacted = false;
-    BeamTimeRemaining = 0.f;
-    bTargetInBeam = false;
-    BeamTickIntervalSec = 0.5f;
-    BeamTickCount = 0;
-    BeamTickIndex = 0;
-    BeamBaseDmgPerTick = 0;
-    BeamRemainder = 0;
-    BeamTimeUntilNextTick = 0.f;
 }
 
 // ==================== LIFECYCLE ====================
@@ -121,14 +108,6 @@ void ASkillProjectile::Tick(float DeltaTime)
     {
     case ESpellDeliveryType::Projectile:
         TickProjectile(DeltaTime);
-        break;
-
-    case ESpellDeliveryType::Homing:
-        TickHoming(DeltaTime);
-        break;
-
-    case ESpellDeliveryType::Beam:
-        TickBeam(DeltaTime);
         break;
 
     default:
@@ -169,9 +148,6 @@ void ASkillProjectile::InitializeProjectile(
         DeliveryType = Spell->DeliveryType;
         Element = Spell->Element;
         Speed = Spell->ProjectileSpeed;
-        HomingStrength = Spell->HomingStrength;
-        BeamDuration = Spell->BeamDuration;
-        BeamTickIntervalSec = FMath::Max(Spell->BeamTickInterval, 0.01f);
     }
     else
     {
@@ -179,9 +155,6 @@ void ASkillProjectile::InitializeProjectile(
         DeliveryType = ESpellDeliveryType::Projectile;
         Element = ESpellElement::Generic;
         Speed = SkillProjectileConstants::DEFAULT_SPEED;
-        HomingStrength = SkillProjectileConstants::DEFAULT_HOMING_STRENGTH;
-        BeamDuration = SkillProjectileConstants::DEFAULT_BEAM_DURATION;
-        BeamTickIntervalSec = 0.5f;
     }
 
     InitializeCommon();
@@ -194,7 +167,8 @@ void ASkillProjectile::InitializeProjectile(
     AActor *InTarget,
     float FinalImpactRadius,
     float FinalVisualScale,
-    int32 FinalDamage)
+    int32 FinalDamage,
+    int32 InCastEntryIndex)
 {
     SourceSpell = Spell;
     Caster = InCaster;
@@ -203,14 +177,15 @@ void ASkillProjectile::InitializeProjectile(
     VisualScale = FinalVisualScale;
     Damage = FinalDamage;
 
+    // Cast-entry index (Stage 6 cluster 3) — read at arrival for per-entry defense difficulty
+    // (cluster 4). Only the entry path stamps it; the legacy overload leaves it at INDEX_NONE.
+    CastEntryIndex = InCastEntryIndex;
+
     // Delivery values come from the Cast ENTRY (D6) — Spell supplies element/
     // color context only.
     DeliveryType = Entry.DeliveryType;
     Element = Spell ? Spell->Element : ESpellElement::Generic;
     Speed = Entry.ProjectileSpeed;
-    HomingStrength = Entry.HomingStrength;
-    BeamDuration = Entry.BeamDuration;
-    BeamTickIntervalSec = FMath::Max(Entry.BeamTickInterval, 0.01f);
 
     InitializeCommon();
 }
@@ -242,25 +217,6 @@ void ASkillProjectile::InitializeCommon()
     // Apply VFX settings
     ApplyElementColors();
     ApplyVisualScale();
-
-    // Beam: Initialize duration + discrete-tick schedule. BaseDamage is the
-    // TOTAL across the beam; per-tick = BaseDamage / TickCount with the integer
-    // remainder distributed across the first `Remainder` ticks so the sum
-    // exactly equals BaseDamage. BeamTickIntervalSec was set by the caller
-    // (spell field or Cast entry).
-    if (DeliveryType == ESpellDeliveryType::Beam)
-    {
-        BeamTimeRemaining = BeamDuration;
-        BeamTickCount = FMath::Max(1, FMath::RoundToInt(BeamDuration / BeamTickIntervalSec));
-        BeamBaseDmgPerTick = Damage / BeamTickCount;
-        BeamRemainder = Damage % BeamTickCount;
-        BeamTickIndex = 0;
-        BeamTimeUntilNextTick = BeamTickIntervalSec;
-
-        UE_LOG(LogTemp, Log,
-               TEXT("[SkillProjectile] Beam tick schedule: Total=%d, Ticks=%d, Base=%d/tick, Remainder=%d, Interval=%.2fs"),
-               Damage, BeamTickCount, BeamBaseDmgPerTick, BeamRemainder, BeamTickIntervalSec);
-    }
 
     UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Initialized: Type=%d, Target=%s, Radius=%.2f, Speed=%.1f"),
            (int32)DeliveryType,
@@ -314,9 +270,8 @@ void ASkillProjectile::Launch()
         MuzzleFX->Activate(true);
     }
 
-    // Start projectile effect (for Projectile/Homing)
-    if (DeliveryType == ESpellDeliveryType::Projectile ||
-        DeliveryType == ESpellDeliveryType::Homing)
+    // Start projectile effect (for Projectile)
+    if (DeliveryType == ESpellDeliveryType::Projectile)
     {
         if (ProjectileFX && ProjectileFX->GetAsset())
         {
@@ -358,106 +313,6 @@ void ASkillProjectile::TickProjectile(float DeltaTime)
     }
 }
 
-void ASkillProjectile::TickHoming(float DeltaTime)
-{
-    if (!Target || !IsValid(Target))
-    {
-        // Target lost, continue to last known location
-        TickProjectile(DeltaTime);
-        return;
-    }
-
-    // Update target location with homing strength interpolation
-    FVector CurrentTargetLocation = Target->GetActorLocation();
-    TargetLocation = FMath::Lerp(TargetLocation, CurrentTargetLocation, HomingStrength);
-
-    // Move toward interpolated location
-    FVector CurrentLocation = GetActorLocation();
-    FVector Direction = (TargetLocation - CurrentLocation).GetSafeNormal();
-
-    if (Direction.IsNearlyZero())
-    {
-        ResolveImpact();
-        return;
-    }
-
-    FVector NewLocation = CurrentLocation + Direction * Speed * DeltaTime;
-    SetActorLocation(NewLocation);
-    SetActorRotation(Direction.Rotation());
-
-    // Homing uses overlap detection, not distance check
-}
-
-void ASkillProjectile::TickBeam(float DeltaTime)
-{
-    BeamTimeRemaining -= DeltaTime;
-
-    if (BeamTimeRemaining <= 0.f)
-    {
-        DestroyProjectile();
-        return;
-    }
-
-    if (!Caster || !IsValid(Caster) || !Target || !IsValid(Target))
-    {
-        DestroyProjectile();
-        return;
-    }
-
-    // Line trace from caster to target
-    FVector Start = Caster->GetActorLocation();
-    FVector End = Target->GetActorLocation();
-
-    FHitResult HitResult;
-    FCollisionQueryParams QueryParams;
-    QueryParams.AddIgnoredActor(Caster);
-    QueryParams.AddIgnoredActor(this);
-
-    bool bHit = GetWorld()->LineTraceSingleByChannel(
-        HitResult,
-        Start,
-        End,
-        ECC_Pawn,
-        QueryParams);
-
-    bTargetInBeam = (bHit && HitResult.GetActor() == Target);
-
-    // Update beam VFX position (stretch from caster to target)
-    if (ProjectileFX)
-    {
-        ProjectileFX->SetWorldLocation(Start);
-
-        FVector BeamDirection = (End - Start).GetSafeNormal();
-        if (!BeamDirection.IsNearlyZero())
-        {
-            ProjectileFX->SetWorldRotation(BeamDirection.Rotation());
-        }
-
-        // Set beam length parameter if available
-        float BeamLength = FVector::Dist(Start, End);
-        ProjectileFX->SetFloatParameter(FName("BeamLength"), BeamLength);
-    }
-
-    // Discrete damage tick — fires on a fixed cadence (BeamTickIntervalSec),
-    // not per frame. Per-tick damage = BeamBaseDmgPerTick + (TickIndex <
-    // BeamRemainder ? 1 : 0). VFX/sound/debug visualization stay per-frame
-    // (cosmetic continuous effects); the OnBeamTick delegate is the
-    // damage-side surface only.
-    BeamTimeUntilNextTick -= DeltaTime;
-    if (BeamTimeUntilNextTick <= 0.f && BeamTickIndex < BeamTickCount)
-    {
-        const int32 ThisTickDamage = BeamBaseDmgPerTick + (BeamTickIndex < BeamRemainder ? 1 : 0);
-        OnBeamTick.Broadcast(Target, ThisTickDamage, bTargetInBeam);
-        ++BeamTickIndex;
-        BeamTimeUntilNextTick += BeamTickIntervalSec;
-    }
-
-#if WITH_EDITOR
-    // Debug visualization
-    DrawDebugLine(GetWorld(), Start, End, bTargetInBeam ? FColor::Red : FColor::Yellow, false, -1.f, 0, 2.f);
-#endif
-}
-
 // ==================== COLLISION ====================
 
 void ASkillProjectile::OnHitBoxOverlap(
@@ -480,11 +335,6 @@ void ASkillProjectile::OnHitBoxOverlap(
 
     UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Overlap with target: %s"), *OtherActor->GetName());
 
-    // For Homing, impact on overlap (can't dodge by moving)
-    if (DeliveryType == ESpellDeliveryType::Homing)
-    {
-        ResolveImpact();
-    }
     // Projectile uses destination check in Tick, not overlap
     // This allows the move-dodge mechanic to work
 }
@@ -497,7 +347,8 @@ void ASkillProjectile::ResolveImpact()
         return;
     bHasImpacted = true;
 
-    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s"), *GetActorLocation().ToString());
+    UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Resolving impact at %s (CastEntryIndex=%d)"),
+           *GetActorLocation().ToString(), CastEntryIndex);
 
     // Deactivate projectile VFX
     if (ProjectileFX)
@@ -518,7 +369,7 @@ void ASkillProjectile::ResolveImpact()
         // HIT - broadcast for defense window
         FVector ImpactLocation = GetActorLocation();
         UE_LOG(LogTemp, Log, TEXT("[SkillProjectile] Impact! Damage=%d, Radius=%.2f"), Damage, ImpactRadius);
-        OnSkillImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage);
+        OnSkillImpact.Broadcast(Target, ImpactLocation, ImpactRadius, Damage, CastEntryIndex);
         PlayHitEffect(ImpactLocation);
     }
 

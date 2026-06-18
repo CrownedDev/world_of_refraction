@@ -6,7 +6,6 @@
 #include "Character/StanceData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Weapons/EWeaponSlotType.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Character/StatConstants.h"
 #include "Loadout/LoadoutConstants.h"

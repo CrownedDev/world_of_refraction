@@ -16,6 +16,10 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **DONE** — feature/evolution-pillar-turnspeed: innate evolution flat stats feed `GetActiveStatBonus` (pillar % zeroed); turn speed reads pillar-modified Spirit (`CalculateTurnSpeedWithSpirit` + `GetEvolutionModifiedSpirit`); SpiritBuff/Debuff notify; TurnSpeed dropped from all three infusion writers. See `Architecture/TurnManager.md` changelog. | 2026-06-11
 - **DONE** — feature/fusion-wear-pipeline: elemental fusions wear + break in production (gem-half tier keys wear; augmented never wears); break fires speed-notify + `RecomputeMaxPools` at the break instant; `FBrokenCrystalPayload.FusionId`; RingManager + debug commands fusion-aware. See `Architecture/CrystalWear.md` → *Fusion wear*. | 2026-06-11
 
+## Done — stat redesign + combat economy arc (2026-06)
+
+- **DONE** — Combat economy + stat redesign (LOCKED): Path A decouple, universal +50% stat cap / gear-beyond, world +7%/level, HP/EP→1000, no EP regen, skill-tier base power. Built to designed targets, clustered. Own balance session. See `docs/Design/CombatEconomy_StatRedesign.md` (supersedes `StatDecouplingRework.md`). **Shipped** — clusters 1–5g: `UNIVERSAL_STAT_CAP` + `WORLD_{MIND,BODY}_SCALING_BONUS=0.07` (`CombatConstants.h:40-41,134`), Pattern-P getters in `CharacterDataComponent`. See `Architecture/StatComposition.md`. | 2026-06-16
+
 ## Small / unblocked
 
 - **CLEANUP** — Delete the legacy pillar fields (`Mind/Body/SpiritModifierPercent` on `UEvolutionItemData`) + their `PostLoad` copy block. Safe post-re-save — but first confirm the re-saved `.uasset`s are actually committed (none visible in git as of 2026-06-11; `DA_Test_EvoCrystal_Water` last committed pre-migration). Quick future commit.
@@ -46,10 +50,18 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **POSSIBLE** — Enemy all-target Emerald scan: AI evaluates Emerald only on `BestTarget`. If PIE shows missed one-tick-lethal kills on non-selected targets, add an all-enemy scan.
 - **POSSIBLE** — Loosen the one-tick-lethal Emerald gate: currently requires next-tick ≥ HP (guaranteed kill). If too conservative in PIE, consider an accumulated-over-exposure-window check.
 
+## Banked — future systems
+
+- **BLOCKED** — Party/Match Setup system (spawn party → assign teams → assign grid → hand to orchestrator) — planned, core to solo/co-op/PvP. See `docs/Design/PartyMatchSetup.md`. Build after reactive-defense (Stage 3+).
+
 ## Refactor — banked
 
 - **POSSIBLE** — 5 Group-B attachment-accessor variants (banked from the accessor migration).
 - **POSSIBLE** — `StatusMultiplier` base-extract: only if base composition grows beyond ~3 terms (currently keep-both).
+
+## Fusion BonusStat dropdown drift (system-wide, NOT Reflex-specific)
+
+- **POSSIBLE** — `GetRestrictedFusionBonusStats` / the "IsWired six" (RawDamage, Defense, CritDamage, TurnSpeed, StatusMultiplier, Efficiency) has drifted from `StoneTargetStat`, which now returns TWELVE non-None stats. Six stats — SpellDamage, Resistance, SpellSpeed, ActionSpeed, Luck, Reflex — are locked out of the fusion BonusStat (averaged-bonus) dropdown. Their fusion-HALF path works; only the explicit BonusStat target excludes them. The comment at `EquipmentDataBase.cpp:142-144` ("exactly the non-None outputs") now misdescribes the set. DECISION (future, batch): should the newer six be fusion-BonusStat-targetable? If yes, add all six together + fix the comment. Not a Reflex one-off.
 
 ## feature/starting-effects (in flight)
 

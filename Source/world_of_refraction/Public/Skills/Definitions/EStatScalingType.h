@@ -12,5 +12,5 @@ enum class EStatScalingType : uint8
     None    UMETA(DisplayName = "None (Fixed Values)"),
     Body    UMETA(DisplayName = "Body (Raw Damage Multiplier)"),
     Spirit  UMETA(DisplayName = "Spirit (Effect Damage Multiplier)"),
-    Mind    UMETA(DisplayName = "Mind (Bonus Crit Chance + Crit Damage)")
+    Mind    UMETA(DisplayName = "Mind (Crit Damage Multiplier)")
 };

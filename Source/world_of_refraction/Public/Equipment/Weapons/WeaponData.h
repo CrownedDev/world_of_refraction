@@ -8,6 +8,7 @@
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
+#include "Infusion/EInfusionMode.h"
 #include "Animation/AnimMontage.h"
 
 #if WITH_EDITOR
@@ -17,9 +18,9 @@
 #include "WeaponData.generated.h"
 
 // Forward declarations
-class UWeaponAttackData;
 class UAbilityData;
 class UStanceData;
+class USkillDataBase;
 
 /**
  * Weapon Data Asset
@@ -51,9 +52,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
     EPhysicalDamageType PhysicalDamageType = EPhysicalDamageType::Slash;
 
-    // Attack used when this weapon is equipped (replaces base attack)
+    /** How an infused action delivered through this weapon (raw / weapon-crystal) splits its charge bonus.
+     *  Balanced (default) = the middle to both damage and status; Physical leans damage; Status leans status. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+    EInfusionMode InfusionMode = EInfusionMode::Balanced;
+
+    // Attack used when this weapon is equipped (replaces base attack). Base type (attack/ability merge)
+    // holding a UAbilityData with bIsAttack=true; IsAttack() distinguishes it from a slottable ability.
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon")
-    UWeaponAttackData *WeaponAttack = nullptr;
+    USkillDataBase *WeaponAttack = nullptr;
 
     // Default abilities for this weapon (can be customized unless locked)
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon", meta = (TitleProperty = "Name"))

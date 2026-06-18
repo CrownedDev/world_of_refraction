@@ -15,8 +15,8 @@ const TCHAR *UCombatNotify::FamilyToString(ECombatNotifyFamily InFamily)
 {
 	switch (InFamily)
 	{
-	case ECombatNotifyFamily::Hit:
-		return TEXT("Hit");
+	case ECombatNotifyFamily::Impact:
+		return TEXT("Impact");
 	case ECombatNotifyFamily::Cast:
 		return TEXT("Cast");
 	case ECombatNotifyFamily::VFX:
@@ -73,7 +73,7 @@ void UCombatNotify::RefreshNotifyColor()
 {
 	switch (Family)
 	{
-	case ECombatNotifyFamily::Hit:
+	case ECombatNotifyFamily::Impact:
 		NotifyColor = FColor(220, 60, 60); // red — contact
 		break;
 	case ECombatNotifyFamily::Cast:

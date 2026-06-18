@@ -20,10 +20,11 @@ namespace
 		AddInt(TEXT("SpellDmg"), B.BonusSpellDamage);
 		AddInt(TEXT("Eff"), B.BonusEfficiency);
 		AddInt(TEXT("StatusMult"), B.BonusStatusMultiplier);
-		AddFlt(TEXT("Crit"), B.BonusCritChance);
+		AddFlt(TEXT("CritDmg"), B.BonusCritDamage);
 		AddInt(TEXT("SpellSpd"), B.BonusSpellSpeed);
 		AddInt(TEXT("Def"), B.BonusDefense);
 		AddInt(TEXT("ActSpd"), B.BonusActionSpeed);
+		AddInt(TEXT("Reflex"), B.BonusReflex);
 		AddInt(TEXT("MaxHP"), B.BonusMaxHP);
 		AddInt(TEXT("MaxEP"), B.BonusMaxEnergy);
 		AddInt(TEXT("Resist"), B.BonusResistance);

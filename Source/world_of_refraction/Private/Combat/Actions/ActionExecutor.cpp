@@ -11,7 +11,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellSource.h"
 #include "Combat/Actions/ActionUtils.h"
 #include "Combat/CombatConstants.h"
@@ -47,6 +47,8 @@
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Combat/CombatAnimInstance.h"
+#include "Combat/CombatNotify.h"
+#include "Animation/AnimMontage.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Mechanics/RealityBoost.h"
@@ -58,6 +60,14 @@ class USkillEffectManager;
 class USpellData;
 class UAbilityData;
 class UEvolutionItemData;
+
+// The unified skill pointer for an attack/ability action. The legacy AbilityData/AttackData pointers
+// were removed (Cluster 4); SkillData is populated at every construction site. Kept as the single named
+// read-point that the call sites go through. Spells use SpellData (a separate path).
+static USkillDataBase *ResolveActionSkill(const FAction &Action)
+{
+	return Action.SkillData;
+}
 
 void UActionExecutor::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -217,20 +227,31 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 					return FActionValidationResult(false, TEXT("Element restricted"));
 				}
 			}
-			break;
 
-		case EActionType::Ability:
-			if (Action.AbilityData && !Action.AbilityData->MeetsRequirements(CharData))
+			// 6-5-f: enforce the spell-source binding. An infused spell's SelectedSource must be one
+			// its origin allows (GetAllowedInfusionSourcesForSpell — the single source of truth shared
+			// with the AI and the UI source cache). Spells are origin-bound; abilities are NOT, so this
+			// lives in the Spell case only. Uninfused spells (L0) skip it; the None-source-at-L>0 case is
+			// the separate consistency check above. A non-infusable spell (empty allowed set) infused at
+			// L>0 is correctly rejected here.
+			if (Action.SpellData &&
+				Action.GetChargeLevel() > 0 &&
+				Action.SelectedSource != EInfusionSourceOption::None)
 			{
-				// Allow with penalty
+				const TArray<EInfusionSourceOption> AllowedSources =
+					GetAllowedInfusionSourcesForSpell(Actor, Action.SpellData);
+				if (!AllowedSources.Contains(Action.SelectedSource))
+				{
+					return FActionValidationResult(false,
+						TEXT("Infusion source not allowed for this spell's origin"));
+				}
 			}
 			break;
 
-		case EActionType::Attack:
-			if (Action.AttackData && !Action.AttackData->MeetsRequirements(CharData))
+		case EActionType::Ability:
+			if (Action.SkillData && !Action.SkillData->MeetsRequirements(CharData))
 			{
-				// Allow with penalty (consistent with Ability/Spell — penalty
-				// is applied inside the damage / energy paths).
+				// Allow with penalty
 			}
 			break;
 
@@ -308,8 +329,11 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			}
 
 			int32 BaseCost = Action.SpellData->CalculateEnergyCost(CharData);
-			// Spell infusion: 1.0x / 1.3x / 1.6x cost
-			float CostMultiplier = GetSpellInfusionCostMultiplier(Action.SpellInfusionLevel);
+			// Spell infusion: charge multiplier (x1.5/x2.0 at L1/L2) x upside-only
+			// SpellDamage surcharge. This function is BOTH the spell preview AND the
+			// spell spend (ExecuteSpellAsync calls it), so preview == spend.
+			const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.SpellInfusionLevel, /*bIsSpell*/ true, Comp);
 			// Efficiency reduction — character substat + equipment BonusEfficiency.
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
@@ -317,39 +341,33 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 		break;
 
 	case EActionType::Ability:
-		if (Action.AbilityData)
+		// Cluster 3: covers attacks too (folded into Ability). Reads the merged pointer so a
+		// cost-bearing attack reports the same cost the merged dispatch spends; default attacks
+		// (BaseEnergyCost=0) report 0. Preview MUST match the spend (ExecuteAbilityAsync): apply
+		// the charge multiplier + RawDamage surcharge, and zero EP for crystal sources.
+		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
+			// Crystal-sourced abilities are powered by the crystal's charge, not EP.
+			const bool bCrystalSource =
+				Action.SelectedSource == EInfusionSourceOption::ActiveRing ||
+				Action.SelectedSource == EInfusionSourceOption::PrimaryRing ||
+				Action.SelectedSource == EInfusionSourceOption::WeaponCrystal;
+			if (bCrystalSource)
+			{
+				return 0;
+			}
+
 			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-			int32 BaseCost = Action.AbilityData->CalculateEnergyCost(CharData, bIsInfused);
-			// Efficiency reduction — character substat + equipment BonusEfficiency.
-			// (Pre-existing divergence: this branch still doesn't apply
-			// GetAbilityChargeCostMultiplier — the spend site does. Unchanged here.)
+			int32 BaseCost = Skill->CalculateEnergyCost(CharData, bIsInfused);
+			const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, Comp);
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
-			return FMath::RoundToInt(BaseCost * EfficiencyMult);
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
 		}
 		break;
 
 	case EActionType::Item:
 		// Items typically don't cost energy
-		return 0;
-
-	case EActionType::Attack:
-		if (Action.AttackData && Action.SelectedSource != EInfusionSourceOption::None)
-		{
-			// Infused attacks cost energy. BaseEnergyCost (UCastableSkillDataBase)
-			// defaults to 0 — attacks are free unless designers set a cost. The
-			// raw value is returned with no fallback constant; a warning fires if
-			// an infused attack ends up costing nothing so the configuration gap
-			// is visible in the log.
-			const int32 Cost = Action.AttackData->BaseEnergyCost;
-			if (Cost <= 0)
-			{
-				UE_LOG(LogTemp, Warning,
-					   TEXT("[ActionExecutor] Infused attack '%s' has BaseEnergyCost=0 — designer authoring gap"),
-					   *Action.AttackData->Name);
-			}
-			return Cost;
-		}
 		return 0;
 
 	case EActionType::Defend:
@@ -499,27 +517,16 @@ float UActionExecutor::ResolveTierGapMultiplier(AActor *Actor, const FAction &Ac
 
 int32 UActionExecutor::GetActionActivationDelay(AActor *Actor, const FAction &Action) const
 {
-	const UCastableSkillDataBase *Skill = nullptr;
+	const USkillDataBase *Skill = nullptr;
 	switch (Action.ActionType)
 	{
 	case EActionType::Spell:
 		Skill = Action.SpellData;
 		break;
 	case EActionType::Ability:
-		Skill = Action.AbilityData;
-		break;
-	case EActionType::Attack:
-		Skill = Action.AttackData;
-		if (!Skill)
-		{
-			// Weapon-default attack: resolve read-only via the same chain
-			// ExecuteAttackAsync's fallback uses (OverrideAttack → weapon's
-			// WeaponAttack), so basic attacks can defer too.
-			if (UWeaponManager *WeaponMgr = GetWeaponManager())
-			{
-				Skill = WeaponMgr->GetActiveAttack(Actor);
-			}
-		}
+		// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer, populated at
+		// construction. (The old weapon-default re-resolution is gone: SkillData is set up front.)
+		Skill = ResolveActionSkill(Action);
 		break;
 	default:
 		break;
@@ -537,17 +544,10 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 		return false;
 	}
 
-	// Freeze the intent: a weapon-default attack (null AttackData) resolves its
-	// effective attack NOW, so a weapon switch during the delay can't change
-	// what fires. Read-only — the same resolver ExecuteAttackAsync uses.
+	// Freeze the intent: the action's SkillData is resolved at construction (basic attacks pull the
+	// active weapon's attack there), so the armed copy already carries what will fire — a weapon switch
+	// during the delay can't change it. (Cluster 3: the old null-AttackData re-resolution is gone.)
 	FAction ArmedAction = Action;
-	if (ArmedAction.ActionType == EActionType::Attack && !ArmedAction.AttackData)
-	{
-		if (UWeaponManager *WeaponMgr = GetWeaponManager())
-		{
-			ArmedAction.AttackData = WeaponMgr->GetActiveAttack(Actor);
-		}
-	}
 
 	// Arming consumes this turn's action and pays FULL costs now; the skill
 	// executes at fire time (8c) cost-free (bIsDeferredFire skips both paths).
@@ -597,7 +597,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	// above is the commit; the montage is the visible channel. Presence-driven:
 	// no RitualCastMontage → keep the synchronous immediate-complete (the SC9
 	// no-arm-gesture fallback). The skill resolves from the slot just set.
-	UCastableSkillDataBase *ArmSkill = GetCurrentSkillData();
+	USkillDataBase *ArmSkill = GetCurrentSkillData();
 	if (ArmSkill && ArmSkill->RitualCastMontage)
 	{
 		// Hold the context open (bInProgress = true) across the wait so the
@@ -687,7 +687,6 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 	case EActionType::Spell:
 	case EActionType::Ability:
-	case EActionType::Attack:
 		UE_LOG(LogTemp, Warning,
 			   TEXT("[ActionExecutor::ExecuteAction] %s called sync for action type %d — Spell/Ability/Attack must go through ExecuteActionAsync (Phase D)"),
 			   *Actor->GetName(), static_cast<int32>(Action.ActionType));
@@ -844,9 +843,9 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, F
 	if (ActionMods.IsActive())
 	{
 		UE_LOG(LogTemp, Log,
-			   TEXT("[ActionExecutor] %s ActionMods active — Crit:%.1f%% RawDmg:%.1f%% SpellDmg:%.1f%% StatusMult:%.1f%% ActSpd:%.1f%%"),
+			   TEXT("[ActionExecutor] %s ActionMods active — CritDmg:%.1f%% RawDmg:%.1f%% SpellDmg:%.1f%% StatusMult:%.1f%% ActSpd:%.1f%%"),
 			   *Actor->GetName(),
-			   ActionMods.CritChance, ActionMods.RawDamage,
+			   ActionMods.CritDamage, ActionMods.RawDamage,
 			   ActionMods.SpellDamage, ActionMods.StatusMultiplier, ActionMods.ActionSpeed);
 	}
 
@@ -916,6 +915,58 @@ bool UActionExecutor::IsInfusionImmune(AActor *User, bool bActionImmune) const
 	return false;
 }
 
+// ==================== HYBRID PER-HIT FLAGS (B1) ====================
+
+// Resolve authored per-hit flags into a full per-impact table (length HitCount), parallel to
+// ResolveImpactDifficulty: each authored FDamageSplitEntry places its flags at HitNumber-1; unauthored
+// hits keep all-false defaults. Sparse → full so ApplyOneImpact reads by ImpactIndex.
+static TArray<FResolvedHitFlags> ResolveImpactFlags(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
+{
+	TArray<FResolvedHitFlags> Table;
+	Table.SetNum(FMath::Max(1, HitCount)); // all-false defaults
+	for (const FDamageSplitEntry &E : Split)
+	{
+		const int32 Idx = E.HitNumber - 1;
+		if (Table.IsValidIndex(Idx))
+		{
+			Table[Idx].bIgnoreDamage = E.bIgnoreDamage;
+			Table[Idx].bIgnoreStatus = E.bIgnoreStatus;
+			Table[Idx].bInterruptable = E.bInterruptable;
+		}
+	}
+	return Table;
+}
+
+// Spell analog — per cast-entry (index i = CastArray[i]'s flags), parallel to ResolveCastDifficulty.
+static TArray<FResolvedHitFlags> ResolveCastFlags(const TArray<FSkillCastEntry> &CastArray)
+{
+	TArray<FResolvedHitFlags> Table;
+	Table.Reserve(CastArray.Num());
+	for (const FSkillCastEntry &E : CastArray)
+	{
+		FResolvedHitFlags F;
+		F.bIgnoreDamage = E.bIgnoreDamage;
+		F.bIgnoreStatus = E.bIgnoreStatus;
+		F.bInterruptable = E.bInterruptable;
+		F.bOverrideStatScaling = E.bOverrideStatScaling; // per-cast stat toggle (spell): stashed per CastEntryIndex
+		Table.Add(F);
+	}
+	return Table;
+}
+
+// Stash the current impact's flags onto the per-target context (read index-agnostically by ApplyOneImpact):
+// melee passes ResolvedHitFlags + ImpactIndex; spell passes ResolvedCastFlags + CastEntryIndex.
+static void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHitFlags> &Table, int32 Index)
+{
+	const FResolvedHitFlags F = Table.IsValidIndex(Index) ? Table[Index] : FResolvedHitFlags();
+	Ctx.bIgnoreDamage = F.bIgnoreDamage;
+	Ctx.bIgnoreStatus = F.bIgnoreStatus;
+	Ctx.bInterruptable = F.bInterruptable;
+	// Separate cast slot (Option A): only spell's ResolveCastFlags populates F.bOverrideStatScaling; melee's
+	// ResolveImpactFlags leaves it false, so this never clobbers the physical attack-level Ctx.bOverrideStatScaling.
+	Ctx.bCastOverrideStatScaling = F.bOverrideStatScaling;
+}
+
 void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 FinalDamage, int32 HitCount, int32 &OutDamagePerHit)
 {
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
@@ -927,6 +978,19 @@ void UActionExecutor::FinalizeDamageInputs(const USkillDataBase *Skill, int32 Fi
 	OutDamagePerHit = FinalDamage / FMath::Max(1, HitCount);
 
 	CurrentExecutionContext->ResolvedDamageSplit = ResolveDamageSplit(
+		HitCount, Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>());
+
+	// Resolve per-impact defense difficulty from the SAME DamageSplit array — one source for both
+	// damage and difficulty, so a hit's two halves can't drift. Null/unauthored skill → empty split +
+	// all-Inherit default → ResolveImpactDifficulty fills the table with Easy (×1.0) per impact, so
+	// cluster 4 multiplies by ×1.0 and existing attacks are unchanged. Read at ResolveImpactDefense by ImpactIndex.
+	CurrentExecutionContext->ResolvedDifficulty = ResolveImpactDifficulty(
+		HitCount,
+		Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>(),
+		Skill ? Skill->DefaultDifficulty : FDefenseDifficultyTriple());
+
+	// Per-hit hybrid flags (B1), HitNumber-matched in lockstep with ResolvedDifficulty above.
+	CurrentExecutionContext->ResolvedHitFlags = ResolveImpactFlags(
 		HitCount, Skill ? Skill->DamageSplit : TArray<FDamageSplitEntry>());
 }
 
@@ -1017,9 +1081,19 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 												? CurrentExecutionContext->ActionMods
 												: FActionStatModifiers();
 
-	// Calculate damage with charge infusion multiplier
-	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods);
-	float DamageMultiplier = GetSpellChargeDamageMultiplier(Action.SpellInfusionLevel);
+	// Calculate damage with charge infusion multiplier. Stage 6 cluster 5: SINGLE-entry spells source
+	// the base from the cast entry's own Damage (the SPELL damage layer) when authored (>0); 0 or
+	// multi-entry → -1 → the skill-level Spell->BaseDamage as before (byte-identical). The override only
+	// swaps the raw base; SpellDamage/Mind/element scaling still runs at ApplyHit (ActionType=Spell).
+	const int32 EntryBaseOverride =
+		(Spell->CastArray.Num() == 1 && Spell->CastArray[0].Damage > 0)
+			? Spell->CastArray[0].Damage
+			: -1;
+	int32 BaseDamage = Spell->CalculateDamage(CasterData, ActionMods, EntryBaseOverride);
+	// 6-3-3: per-mode, stat-scaled charge damage. Mode resolved once from the action's
+	// infusion source (ring/weapon/innate/evolution), reused for the status log below.
+	const EInfusionMode SpellMode = ResolveInfusionMode(Action.SelectedSource, Caster);
+	float DamageMultiplier = GetChargeDamageMultiplier(Action.SpellInfusionLevel, SpellMode, /*bIsSpell*/ true, CasterComp);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Tier-gap (B2): final multiplicative factor, stacking with the charge
@@ -1027,8 +1101,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	const float TierGapMult = ResolveTierGapMultiplier(Caster, Action, Spell->Name);
 	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
 
-	// Track status multiplier for later application
-	float StatusMultiplier = GetSpellChargeStatusMultiplier(Action.SpellInfusionLevel);
+	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
+	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
+	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spell charge L%d - Size: %.1fx, Damage: %d (%.1fx), Status: %.1fx"),
 		   Action.SpellInfusionLevel,
@@ -1086,12 +1161,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	int32 SpellBaseBuildup = 0;
 	if (Spell->StatusBuildup > 0)
 	{
-		float Buildup = static_cast<float>(Spell->StatusBuildup);
-		if (Action.SpellInfusionLevel == 1)
-		{
-			Buildup *= CombatConstants::SPELL_L1_BUILDUP_MULT;
-		}
-		SpellBaseBuildup = FMath::RoundToInt(Buildup);
+		// 6-4: apply the unified per-mode stat-scaled status multiplier (computed above for the
+		// log) — replaces the retired inline L1 +50%. L0 → ×1.0; L1/L2 → progressive per-mode bonus.
+		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier);
 	}
 
 	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
@@ -1100,6 +1172,15 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	FinalizeDamageInputs(Spell, FinalDamage, Spell->HitCount, DamagePerHit);
 	PendingSpellDamage = FinalDamage; // Spell-specific: cached for VFX notify
+
+	// Stage 6 cluster 2: resolve per-cast-entry defense difficulty (Option A — keyed by cast-entry
+	// index, not impact ordinal). Parallel to the melee ResolvedDifficulty fill in FinalizeDamageInputs;
+	// inert until cluster 4 reads it at projectile arrival (cluster 3 stamps the index on the projectile).
+	CurrentExecutionContext->ResolvedCastDifficulty =
+		ResolveCastDifficulty(Spell->CastArray, Spell->DefaultDifficulty);
+
+	// Per-cast-entry hybrid flags (B1), parallel to ResolvedCastDifficulty (indexed by CastEntryIndex).
+	CurrentExecutionContext->ResolvedCastFlags = ResolveCastFlags(Spell->CastArray);
 
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
@@ -1116,15 +1197,100 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		Action.SelectedSource,	   // SelectedSource
 		SpellBaseBuildup,		   // BaseStatusBuildup (Phase C1)
 		EPhysicalDamageType::None, // PhysicalDamageType - spells have none (Session Y)
-		0.3f					   // Default window duration - TODO: get from spell data
+		0.3f,					   // Default window duration - TODO: get from spell data
+		false					   // hybrid stat toggle is PHYSICAL-ONLY now; spell reads it per-cast from ResolvedCastFlags
 	);
+
+	// Stage 6 cluster 4/6: single-entry PROJECTILE/HOMING spells defend PER-IMPACT at projectile arrival.
+	// Convert the just-opened lumped windows (0.3s timer-close) to COUNT-BASED so they survive the cast
+	// animation + flight (8s failsafe), and mark ExpectedImpacts = the delivery's Count so the window
+	// closes only after the LAST of N staggered arrivals. Done HERE (action start), NOT at dispatch: the
+	// cast-time window would otherwise auto-close at 0.3s before the SpellRelease notify fires. Gate: one
+	// cast entry, single ASSET hit (Spell->HitCount==1, the physical-only field), Projectile, ANY
+	// Count — single (Count==1) is the N=1 case of the same path. Projectile/AOE/Instant single-entry
+	// all convert here; multi-entry and asset-multi-hit stay on the lumped path (untouched).
+	//
+	// Burst even-split: window BaseDamage stays the FULL FinalDamage; the runtime Ctx.HitCount = Count
+	// makes each arrival's slice State.BaseDamage/HitCount = FinalDamage/Count (the ResolvedDamageSplit
+	// table is sized to Spell->HitCount==1, so it mismatches Count → the even-fallback slice fires, with
+	// the remainder distributed across the first R arrivals in ResolveImpactDefense). Spell->HitCount (the
+	// asset field) is NOT touched — only the runtime per-impact count.
+	//
+	// Double-apply guard: re-opening closes the lumped window, which would fire OnDefenseWindowClosed →
+	// apply NOW; so REMOVE the pending context first (that close becomes a no-op), re-open count-based,
+	// then restore it — the per-impact arrivals become the ONLY apply.
+	if (Spell->CastArray.Num() == 1 && Spell->HitCount == 1)
+	{
+		const FSkillCastEntry &E0 = Spell->CastArray[0];
+		if (E0.DeliveryType == ESpellDeliveryType::Projectile)
+		{
+			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
+			{
+				const int32 BurstCount = FMath::Max(1, E0.Count);
+				for (AActor *Target : ValidTargets)
+				{
+					if (FPendingDefenseContext *PDC = CurrentExecutionContext->PendingDefenses.Find(Target))
+					{
+						FPendingDefenseContext Saved = *PDC;
+						CurrentExecutionContext->PendingDefenses.Remove(Target); // close-on-reopen → no-op
+						// 0.3f = AI reaction-delay seed (matches the lumped open); bManualClose makes the
+						// real close the per-impact arrivals, with the 8s failsafe covering cast + flight.
+						DefenseSys->OpenDefenseWindow(Caster, Target, FinalSpellSize, FinalDamage,
+													 0.3f, /*bManualClose=*/true);
+						Saved.ExpectedImpacts = BurstCount; // close after the Nth arrival
+						Saved.HitCount = BurstCount;		// runtime per-impact count (NOT the asset HitCount)
+						Saved.ImpactsLanded = 0;
+						CurrentExecutionContext->PendingDefenses.Add(Target, Saved);
+					}
+				}
+			}
+		}
+		else if (E0.DeliveryType == ESpellDeliveryType::AOE || E0.DeliveryType == ESpellDeliveryType::Instant)
+		{
+			// Stage 6 cluster 6 — single-entry AOE AND Instant: each defender takes ONE hit, resolved at
+			// the Cast notify (no travel — SpawnAOEEffect / ResolveInstantSpell IS the impact moment).
+			// The two deliveries share this branch byte-for-byte: one full-damage impact per defender,
+			// closed at the Cast resolve. Mirror the projectile conversion: swap the just-opened lumped
+			// cast-time window for a count-based one (ExpectedImpacts=1 per defender, 8s failsafe so it
+			// survives the cast animation) so the ONLY apply is the per-defender resolve — no lumped 0.3s
+			// auto-close double-apply. FULL FinalDamage per defender — neither is even-split (everyone hit
+			// takes the whole hit). N defenders = N independent single-impact windows. Instant differs from
+			// AOE only in DEFENSE availability (all three, Hard) — authored in SpellData, not here.
+			if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
+			{
+				for (AActor *Target : ValidTargets)
+				{
+					if (FPendingDefenseContext *PDC = CurrentExecutionContext->PendingDefenses.Find(Target))
+					{
+						FPendingDefenseContext Saved = *PDC;
+						CurrentExecutionContext->PendingDefenses.Remove(Target); // close-on-reopen → no-op
+						DefenseSys->OpenDefenseWindow(Caster, Target, FinalSpellSize, FinalDamage,
+													 0.3f, /*bManualClose=*/true);
+						Saved.ExpectedImpacts = 1; // ONE AOE impact per defender
+						Saved.HitCount = 1;		   // runtime per-impact count (full damage, no split)
+						Saved.ImpactsLanded = 0;
+						CurrentExecutionContext->PendingDefenses.Add(Target, Saved);
+					}
+				}
+			}
+		}
+	}
 
 	LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
-void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
+void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCharacterData *UserData)
 {
-	UAbilityData *Ability = Action.AbilityData;
+	// Merged attack+ability dispatch (Cluster 2). Reads the unified skill pointer (base type). An
+	// attack is just an ability with AbilityInfusionLevel=0 — every charge multiplier is L0-neutral
+	// (cost ×1.0, damage ×1.0, status 0), so this body produces the attack's prior numbers. The local
+	// stays named `Ability`: every field it touches (BaseDamage/HitCount/StatusBuildup/bIsRawMode/
+	// DamageSplit/bImmuneToInfusion, CalculateDamage/CalculateEnergyCost) lives on USkillDataBase now.
+	USkillDataBase *Ability = ResolveActionSkill(Action);
+
+	// SkillData is populated at construction (basic attacks resolve the active weapon's attack there),
+	// so a null skill here is a genuinely malformed action → cancel. (Cluster 3 dropped the old
+	// Attack-gated weapon-default re-resolution; the enum no longer distinguishes attacks.)
 	if (!Ability || !UserData)
 	{
 		CancelAsyncAction();
@@ -1150,12 +1316,22 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsInfused);
 
-	// Apply charge level energy multiplier (L1 = 1.15x, L2 = 1.30x)
-	float CostMultiplier = GetAbilityChargeCostMultiplier(Action.AbilityInfusionLevel);
-	// Efficiency reduction — character substat + equipment BonusEfficiency.
-	// Mirrors CalculateActionEnergyCost so validation and spend agree.
-	const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
-	int32 FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
+	// Crystal-sourced abilities are powered by the crystal's stored charge, not the
+	// caster's EP — zero EP (they pay in durability via ApplyCommitCosts). Mirrors the
+	// ring/weapon-crystal spell waiver in CalculateActionEnergyCost.
+	int32 FinalEnergyCost = 0;
+	const bool bCrystalSource =
+		Action.SelectedSource == EInfusionSourceOption::ActiveRing ||
+		Action.SelectedSource == EInfusionSourceOption::PrimaryRing ||
+		Action.SelectedSource == EInfusionSourceOption::WeaponCrystal;
+	if (!bCrystalSource)
+	{
+		// Charge multiplier (x1.5/x2.0) x upside-only RawDamage surcharge (L>0), then
+		// efficiency. Mirrors CalculateActionEnergyCost so validation and spend agree.
+		const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, UserComp);
+		const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
+		FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
+	}
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
@@ -1179,8 +1355,10 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		Element = UserData->InnateElement;
 	}
 
-	// Apply charge level damage multiplier (L2 = 1.30x, L1 unchanged)
-	float DamageMultiplier = GetAbilityChargeDamageMultiplier(Action.AbilityInfusionLevel);
+	// 6-3-3: per-mode, stat-scaled charge damage (L1 now also bonused, was ×1.0 before).
+	// Mode resolved once from the action's infusion source, reused for the status site below.
+	const EInfusionMode AbilityMode = ResolveInfusionMode(Action.SelectedSource, User);
+	float DamageMultiplier = GetChargeDamageMultiplier(Action.AbilityInfusionLevel, AbilityMode, /*bIsSpell*/ false, UserComp);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
 	// Tier-gap (B2): final multiplicative factor, stacking with the charge
@@ -1214,16 +1392,8 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		return;
 	}
 
-	// Play animation
-	PlayAbilityAnimation(User, Ability, ActionMods);
-
-	// Apply charge infusion status buildup (L1 = 1.25x, L2 = 0 — exclusive with damage)
-	float StatusMultiplier = GetAbilityChargeStatusMultiplier(Action.AbilityInfusionLevel);
-	if (StatusMultiplier > 0.0f && ValidTargets.Num() > 0 && bIsInfused)
-	{
-		ApplyAbilityInfusionStatus(User, ValidTargets, Action.SelectedSource,
-								   Ability->HitCount, StatusMultiplier);
-	}
+	// Play animation (merged path — PlaySkillAnimation reads the unified base SkillMontage)
+	PlaySkillAnimation(User, Ability, ActionMods);
 
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Abilities have no physical type - if the action
@@ -1234,7 +1404,10 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 	int32 AbilityBaseBuildup = 0;
 	if (Ability->StatusBuildup > 0)
 	{
-		AbilityBaseBuildup = Ability->StatusBuildup;
+		// 6-4: scale ability status by the per-mode stat-scaled charge multiplier (L0 → ×1.0,
+		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
+		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp);
+		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult);
 	}
 
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
@@ -1276,151 +1449,15 @@ void UActionExecutor::ExecuteAbilityAsync(AActor *User, const FAction &Action, U
 		Ability->HitCount,
 		AbilityElement,
 		true,						 // Can crit
-		EActionType::Ability,		 // ActionType
+		Action.ActionType,			 // ActionType (Attack/Ability both scale RawDamage)
 		Action.AbilityInfusionLevel, // InfusionLevel
 		Action.SelectedSource,		 // SelectedSource
 		AbilityBaseBuildup,			 // BaseStatusBuildup
 		AbilityPhysicalType,		 // PhysicalDamageType - inherits active weapon
-		0.3f);
+		0.3f,
+		Ability->bOverrideStatScaling); // hybrid stat toggle — attack-wide, read from the skill root (physical)
 
-	LogActionDispatch(EActionType::Ability, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
-}
-
-void UActionExecutor::ExecuteAttackAsync(AActor *Attacker, const FAction &Action, UCharacterData *AttackerData)
-{
-	UWeaponAttackData *Attack = Action.AttackData;
-
-	// Resolve the wielded weapon up-front. We need it for both the no-Attack
-	// fallback and the PhysicalDamageType lookup (which now lives on the
-	// weapon, not the attack). Goes through GetActiveWeapon → LoadoutComponent.
-	UWeaponManager *WeaponMgr = GetWeaponManager();
-	UWeaponData *Weapon = WeaponMgr ? WeaponMgr->GetActiveWeapon(Attacker) : nullptr;
-
-	// If no attack specified, try to get from weapon
-	if (!Attack && WeaponMgr)
-	{
-		Attack = WeaponMgr->GetActiveAttack(Attacker);
-	}
-
-	if (!Attack || !AttackerData)
-	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No attack available");
-		FinalizeAsyncAction();
-		return;
-	}
-
-	const EPhysicalDamageType AttackPhysicalType = Weapon
-													   ? Weapon->PhysicalDamageType
-													   : EPhysicalDamageType::None;
-
-	// Commit 3: reject early when bImmuneToInfusion is true but the action carries
-	// infusion (source selection). Attacks have no charge level concept. No energy
-	// spent, no damage dealt. Equipment-level immunity ORs in via IsInfusionImmune.
-	if (!ValidateInfusionGate(Action, IsInfusionImmune(Attacker, Attack->bImmuneToInfusion), /*InfusionLevel=*/0))
-	{
-		return;
-	}
-
-	// Attacker-side base: asset BaseDamage minus the requirement penalty.
-	// RawDamage multiplier is applied exactly once downstream by
-	// ApplyHit → DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier;
-	// applying it here as well caused RawDamage² scaling at high Body stats.
-	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
-	const float AttackBase = static_cast<float>(Attack->BaseDamage) * (1.0f - RequirementPenalty);
-	int32 BaseDamage = FMath::RoundToInt(AttackBase);
-
-	// Tier-gap (B2): final multiplicative factor on the penalty-adjusted base.
-	const float TierGapMult = ResolveTierGapMultiplier(Attacker, Action, Attack->Name);
-	BaseDamage = FMath::RoundToInt(BaseDamage * TierGapMult);
-
-	bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-
-	// Spend BaseEnergyCost for every attack. The requirement-penalty term raises
-	// the cost the same way it does for abilities. InfusionEnergyCost was
-	// removed in Phase 4 — existing assets whose authors relied on the legacy
-	// 10-energy infusion cost will need BaseEnergyCost set explicitly.
-	if (Attack->BaseEnergyCost > 0)
-	{
-		const float CostF = static_cast<float>(Attack->BaseEnergyCost) * (1.0f + RequirementPenalty);
-		const int32 EnergySpend = FMath::RoundToInt(CostF);
-		SpendEnergy(Attacker, EnergySpend);
-		CurrentExecutionContext->PartialResult.EnergySpent = EnergySpend;
-	}
-
-	// Element
-	ESpellElement Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
-
-	// Attack size — read from the asset. 0 = unauthored; the executor uses the
-	// raw value (no fallback constant) so the defense-window picks up the gap
-	// loudly rather than silently using a magic number.
-	float AttackSize = Attack->BaseSize;
-	if (AttackSize <= 0.0f)
-	{
-		UE_LOG(LogTemp, Warning,
-			   TEXT("[ActionExecutor] Attack '%s' has BaseSize=0 — defense window will read zero size; author UWeaponAttackData::BaseSize"),
-			   *Attack->Name);
-	}
-
-	// Store in result
-	CurrentExecutionContext->PartialResult.AttackSize = AttackSize;
-	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = BaseDamage;
-	CurrentExecutionContext->PartialResult.AttackElement = Element;
-
-	// Per-action stat modifiers (stashed on context by ExecuteActionAsync).
-	const FActionStatModifiers ActionMods = CurrentExecutionContext.IsSet()
-												? CurrentExecutionContext->ActionMods
-												: FActionStatModifiers();
-
-	// Get valid targets BEFORE animating — zero survivors fizzles cleanly
-	// without a wasted cast animation (matches the spell path's ordering).
-	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
-
-	if (ValidTargets.Num() == 0)
-	{
-		CurrentExecutionContext->PartialResult.bSuccess = false;
-		CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("No valid targets");
-		FinalizeAsyncAction();
-		return;
-	}
-
-	// Play animation
-	PlayAttackAnimation(Attacker, Attack, ActionMods);
-
-	// Buildup amount only. Session Y: trigger type resolves in the manager from
-	// (Element, PhysicalType). Attacks pass the active weapon's PhysicalDamageType;
-	// the resolver falls through to Slash->DOT / Pierce->DefDebuff / Impact->Stun
-	// when Element is Generic, and Element wins when infused.
-	int32 AttackBaseBuildup = 0;
-	if (Attack->StatusBuildup > 0)
-	{
-		AttackBaseBuildup = Attack->StatusBuildup;
-	}
-
-	// Commit 2: if bIsRawMode, fold AttackBaseBuildup into BaseDamage at the
-	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
-	ActionUtils::ApplyRawModeRedirect(Attack->bIsRawMode, BaseDamage, AttackBaseBuildup);
-
-	int32 DamagePerHit = 0;
-	FinalizeDamageInputs(Attack, BaseDamage, Attack->HitCount, DamagePerHit);
-
-	OpenDefenseWindowsForTargets(
-		Attacker,
-		ValidTargets,
-		AttackSize,
-		BaseDamage,
-		DamagePerHit,
-		Attack->HitCount,
-		Element,
-		true,				   // Can crit
-		EActionType::Attack,   // ActionType
-		0,					   // InfusionLevel — attacks have no L1/L2 concept
-		Action.SelectedSource, // SelectedSource
-		AttackBaseBuildup,	   // BaseStatusBuildup (Phase C3)
-		AttackPhysicalType,	   // PhysicalDamageType (from active weapon) - drives trigger when Generic
-		0.3f);
-
-	LogActionDispatch(EActionType::Attack, 0, BaseDamage, ValidTargets.Num());
+	LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, FinalDamage, ValidTargets.Num());
 }
 
 // ========================================
@@ -1516,7 +1553,8 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	EInfusionSourceOption SelectedSource,
 	int32 BaseStatusBuildup,
 	EPhysicalDamageType PhysicalDamageType,
-	float WindowDuration)
+	float WindowDuration,
+	bool bOverrideStatScaling)
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -1543,6 +1581,17 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		return;
 	}
 
+	// Count-based close now covers attacks AND abilities (step 1 of the attack/ability
+	// merge): both play montages that can carry Impact notifies (the impact counter that
+	// drives the close). Abilities WITHOUT authored Impact notifies degrade gracefully —
+	// ImpactsLanded stays 0, the reconcile/failsafe tail closes the window and applies the
+	// full lumped result (byte-identical to today). Spells keep the timer close
+	// (bManualClose=false) — projectile/AOE migrate to the counter at Stage 6.
+	// ExpectedImpacts>0 doubles as the "this window is count-based" sentinel read by the
+	// Impact-notify handler; 0 leaves the window on its normal timer.
+	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
+	const bool bUseCountBasedClose = (ActionType == EActionType::Ability);
+
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
 	{
@@ -1554,6 +1603,7 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.AttackSize = AttackSize;
 		DefenseContext.Element = Element;
 		DefenseContext.HitCount = HitCount;
+		DefenseContext.ExpectedImpacts = bUseCountBasedClose ? HitCount : 0;
 		DefenseContext.bCanCrit = bCanCrit;
 		DefenseContext.WindowDuration = WindowDuration;
 		DefenseContext.ActionType = ActionType;
@@ -1561,19 +1611,24 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 		DefenseContext.SelectedSource = SelectedSource;
 		DefenseContext.BaseStatusBuildup = BaseStatusBuildup;
 		DefenseContext.PhysicalDamageType = PhysicalDamageType;
+		DefenseContext.bOverrideStatScaling = bOverrideStatScaling;
 
 		CurrentExecutionContext->PendingDefenses.Add(Target, DefenseContext);
 
-		// Open defense window in DefenseSystem
+		// Open defense window in DefenseSystem. Melee → manual (count-based) close: the
+		// last landed hit closes it; the per-window timer is armed at MaxWindowDuration
+		// as a failsafe. WindowDuration is still passed as the AI reaction-delay seed.
 		DefenseSys->OpenDefenseWindow(
 			Attacker,
 			Target,
 			AttackSize,
 			BaseDamage,
-			WindowDuration);
+			WindowDuration,
+			bUseCountBasedClose);
 
-		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Opened defense window for %s (Size: %.1f, Damage: %d)"),
-			   *Target->GetName(), AttackSize, BaseDamage);
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Opened defense window for %s (Size: %.1f, Damage: %d, CountClose: %s, Expected: %d)"),
+			   *Target->GetName(), AttackSize, BaseDamage,
+			   bUseCountBasedClose ? TEXT("yes") : TEXT("no"), DefenseContext.ExpectedImpacts);
 	}
 }
 
@@ -1622,9 +1677,9 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 				{
 					EnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
 				}
-				else if (CurrentExecutionContext->Action.AbilityData)
+				else if (CurrentExecutionContext->Action.SkillData)
 				{
-					EnergyCost = CurrentExecutionContext->Action.AbilityData->BaseEnergyCost;
+					EnergyCost = CurrentExecutionContext->Action.SkillData->BaseEnergyCost;
 				}
 
 				BDManager->OnDefenseResolved(
@@ -1648,117 +1703,294 @@ void UActionExecutor::OnDefenseWindowClosed(AActor *Defender, const FDefenseResu
 	CheckAndFinalizeAsyncAction();
 }
 
+// OBSOLETE (Stage 3): superseded by ResolveImpactDefense — no live callers. The Stage 2
+// model locked ONE action-level result at the first impact; Stage 3 resolves a fresh
+// per-impact defense (split-then-reduce + per-impact match-and-consume). Kept un-deleted
+// until the per-impact path is PIE-verified, per the incremental-removal rule.
+void UActionExecutor::EnsureResultResolved(AActor *Defender)
+{
+	// Stage 2 ordering crux: the FDefenseResult is normally computed at CLOSE
+	// (DefenseSystem::CloseDefenseWindow), but per-impact apply needs it at the FIRST
+	// impact — before Skill-end. Compute it here from the current defense state via the
+	// public DefenseSystem API (no DefenseSystem change) and STASH it on the context.
+	// Idempotent: the single action-level result is LOCKED at the first impact and reused
+	// by every later impact (per-impact defense INPUT is Stage 3 — a defender must commit
+	// before the first impact for it to count this stage).
+	if (!CurrentExecutionContext.IsSet() || !Defender)
+	{
+		return;
+	}
+	FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+	if (!Ctx || Ctx->bResultResolved)
+	{
+		return;
+	}
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (!DefenseSys)
+	{
+		return;
+	}
+
+	const FDefenseState State = DefenseSys->GetDefenseState(Defender);
+	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
+		State.BaseDamage,
+		State.DefenseChosen,
+		State.bInputReceived);
+
+	Ctx->ResolvedDefenseType = Result.DefenseType;
+	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->bResolvedSuccess = Result.bSuccess;
+	Ctx->bResultResolved = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[Stage2] Defense result resolved for %s — Type: %d, ReducedTotal: %d, Success: %s"),
+		   *Defender->GetName(), static_cast<int32>(Result.DefenseType), Result.FinalDamage,
+		   Result.bSuccess ? TEXT("yes") : TEXT("no"));
+}
+
+void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, double ImpactTime, const FDefenseDifficultyTriple &ImpactDifficulty)
+{
+	// Stage 3 per-impact resolution (replaces EnsureResultResolved at the impact frame).
+	// SPLIT-THEN-REDUCE: this impact takes its slice of the BASE damage FIRST, then the
+	// matched defense input reduces that slice. Contrast Stage 2, which reduced the whole
+	// total once and sliced the reduced figure — splitting first lets each impact carry its
+	// own defense outcome (one parried, the next blocked) instead of one locked decision.
+	if (!CurrentExecutionContext.IsSet() || !Defender)
+	{
+		return;
+	}
+	FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+	if (!Ctx)
+	{
+		return;
+	}
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (!DefenseSys)
+	{
+		return;
+	}
+
+	const FDefenseState State = DefenseSys->GetDefenseState(Defender);
+
+	// This impact's slice of the BASE (pre-defense) damage. Same FloorToInt + 0.01 epsilon
+	// as ApplyOneImpact so the split math is identical on both sides; size-mismatched table
+	// → even split. The even-fallback also distributes the integer remainder (State.BaseDamage %
+	// HitCount) across the first R arrivals (+1 each) so the N spell-burst shares sum EXACTLY to
+	// FinalDamage — e.g. 50/3 → 17,17,16. Melee never reaches this fallback: ResolveDamageSplit
+	// always returns a table sized HitCount, so bUseSplit is true for melee (its even split + remainder
+	// live in ResolveDamageSplit). The fallback fires only for the spell burst (table sized to
+	// Spell->HitCount==1, mismatching the runtime Ctx.HitCount=Count) — so this remainder-add is
+	// spell-burst-only by construction, melee untouched.
+	const int32 HitCount = FMath::Max(1, Ctx->HitCount);
+	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
+	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
+	const int32 EvenRemainder = (ImpactIndex < (State.BaseDamage % HitCount)) ? 1 : 0;
+	const int32 BaseSlice = bUseSplit
+								? FMath::FloorToInt(State.BaseDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
+								: (State.BaseDamage / HitCount) + EvenRemainder;
+
+	// Per-impact defense difficulty for THIS impact is now CALLER-SUPPLIED (the concrete resolved
+	// triple): melee passes ResolvedDifficulty[ImpactIndex], spells pass ResolvedCastDifficulty
+	// [CastEntryIndex] (Stage 6 cluster 4). Both guard with IsValidIndex at the call site → an
+	// all-Inherit default triple → DefenseDifficultyMultiplier resolves it to Easy ×1.0 (no window
+	// change). One resolver body, the difficulty source differs by caller.
+
+	// Match-and-consume this impact against the timestamped input buffer (Stage 3). No
+	// in-window press → bMatched=false → resolves as undefended (full slice, no reduction).
+	// Ctx->ActionType selects the attacker's speed stat for the window duel (physical →
+	// ActionSpeed, spell → SpellSpeed); attacker is read from the live state inside. The duel
+	// window is scaled per-press by ImpactDifficulty inside MatchAndConsumeInput.
+	const FDefenseInputMatch Match = DefenseSys->MatchAndConsumeInput(Defender, ImpactTime, Ctx->ActionType, ImpactDifficulty);
+
+	const FDefenseResult Result = DefenseSys->CalculateDefenseResult(
+		BaseSlice,
+		Match.bMatched ? Match.Type : EDefenseType::None,
+		Match.bMatched);
+
+	// Stash the PER-IMPACT result — ResolvedFinalDamage now holds the reduced SLICE (not the
+	// full total). ApplyOneImpact reads it directly when bDamageIsPerImpact=true. bResultResolved
+	// stays true so the non-melee tail in ApplyDamageAfterDefense knows melee already resolved;
+	// for melee the tail is empty (ImpactsLanded==HitCount) so the overwrite is harmless.
+	Ctx->ResolvedDefenseType = Result.DefenseType;
+	Ctx->ResolvedFinalDamage = Result.FinalDamage;
+	Ctx->bResolvedSuccess = Result.bSuccess;
+	Ctx->bResolvedPerfect = Match.bPerfect;
+	Ctx->bResultResolved = true;
+
+	AActor *Attacker = Ctx->Attacker.Get();
+
+	// Piece 5: per-impact parry reflect. Each parried impact reflects ITS OWN slice — the
+	// close-time lumped reflect is gated OFF for count-based windows (bCountBasedClose) so this
+	// is the only reflect path for melee.
+	if (Result.bSuccess && Result.DefenseType == EDefenseType::Parry && Result.ReflectedDamage > 0)
+	{
+		DefenseSys->ApplyParryReflect(Attacker, Defender, Result.ReflectedDamage);
+	}
+
+	// Piece 6: broadcast the per-impact outcome (payoffs are content, later).
+	DefenseSys->OnDefenseResolved.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
+	if (Match.bPerfect)
+	{
+		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Stage3] impact %d defense for %s — Type: %d, Slice: %d → %d, %s"),
+		   ImpactIndex, *Defender->GetName(), static_cast<int32>(Result.DefenseType),
+		   BaseSlice, Result.FinalDamage, Match.bPerfect ? TEXT("PERFECT") : TEXT("normal"));
+}
+
+void UActionExecutor::ApplyOneImpact(AActor *Attacker, AActor *Target, const FPendingDefenseContext &Context, int32 ImpactIndex, bool bDamageIsPerImpact)
+{
+	if (!CurrentExecutionContext.IsSet() || !Target)
+	{
+		return;
+	}
+
+	// Death guard — a prior impact this combo may have killed the target; mirror the old
+	// loop's bTargetDied early-out so impacts after the kill don't apply.
+	if (!IsTargetAlive(Target))
+	{
+		return;
+	}
+
+	// Successful dodge — no damage, no buildup, no ApplyHit (parity with the lumped dodge
+	// skip). A FAILED dodge (attack too big) has bResolvedSuccess=false and ResolvedFinalDamage
+	// = base → falls through to a normal hit.
+	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Dodge)
+	{
+		return;
+	}
+
+	const int32 HitCount = FMath::Max(1, Context.HitCount);
+
+	// Bounds guard — Impact notifies must be authored 0..HitCount-1 (the authoring contract).
+	// A stray index would read the wrong / no split — skip it loudly.
+	if (ImpactIndex < 0 || ImpactIndex >= HitCount)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Stage2] impact index %d out of range (HitCount %d) for %s — skipping stray (authoring-contract violation)"),
+			   ImpactIndex, HitCount, *Target->GetName());
+		return;
+	}
+
+	// Per-impact damage. Stage 3 (bDamageIsPerImpact): ResolvedFinalDamage is ALREADY this
+	// impact's reduced slice (ResolveImpactDefense split-then-reduced it) — apply directly.
+	// Legacy lumped tail (bDamageIsPerImpact=false): ResolvedFinalDamage is the full reduced
+	// total — slice it here by the D1 DamageSplit table (even fractions when un-authored).
+	// FloorToInt + 0.01 epsilon reproduces the legacy FinalDamage/HitCount truncation and
+	// absorbs even-fraction float error (100/3 = 33.333332) so exact quotients don't floor
+	// one short. Size-mismatched table → legacy even split.
+	const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
+	const bool bUseSplit = (Split.Num() == HitCount) && Split.IsValidIndex(ImpactIndex);
+	const int32 ImpactDamage = bDamageIsPerImpact
+								   ? Context.ResolvedFinalDamage
+								   : (bUseSplit
+										  ? FMath::FloorToInt(Context.ResolvedFinalDamage * (Split[ImpactIndex] / 100.0f) + 0.01f)
+										  : (Context.ResolvedFinalDamage / HitCount));
+
+	// Status now distributes per-hit (parallel to damage), not all on hit 0 — each impact applies its
+	// SHARE by the SAME fraction the damage slice uses above (Split[i]/100 when authored, else 1/HitCount).
+	// Sum of shares ≈ the full BaseStatusBuildup. Block/parry reduce THIS hit's share (per-hit defense →
+	// per-hit status); dodge already returned above. Single hit (HitCount==1) → fraction 1.0 → unchanged.
+	const float BuildupFraction = bUseSplit ? (Split[ImpactIndex] / 100.0f) : (1.0f / FMath::Max(1, HitCount));
+	int32 EffectiveBuildup = FMath::RoundToInt(Context.BaseStatusBuildup * BuildupFraction);
+	if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Block)
+	{
+		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
+	}
+	else if (Context.bResolvedSuccess && Context.ResolvedDefenseType == EDefenseType::Parry)
+	{
+		EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
+	}
+
+	FActionHitInput Input;
+	Input.Attacker = Attacker;
+	Input.Target = Target;
+	Input.ActionType = Context.ActionType;
+	// Two honest sources, one consume slot: spell reads the per-cast stash (bCastOverrideStatScaling, set per
+	// CastEntryIndex); physical reads the attack-level context bool (root-sourced, attack-wide, lumped-tail-safe).
+	Input.bOverrideStatScaling = (Context.ActionType == EActionType::Spell)
+									 ? Context.bCastOverrideStatScaling
+									 : Context.bOverrideStatScaling;
+	Input.BaseDamage = Context.bIgnoreDamage ? 0 : ImpactDamage; // B1: per-hit no-damage moment
+	Input.bCanCrit = Context.bCanCrit;
+	Input.Element = Context.Element;
+	Input.InfusionLevel = Context.InfusionLevel;
+	Input.SelectedSource = Context.SelectedSource;
+	Input.BaseStatusBuildup = Context.bIgnoreStatus ? 0 : EffectiveBuildup; // B1: per-hit no-status moment
+	// Per-hit physical type, now that status distributes per-hit (B0): each hit's nonzero status share must
+	// carry its real PhysicalDamageType so a physical attack's bar-cap trigger resolves on EVERY hit, not
+	// just hit 0 (was hit-0-only — harmless when later hits applied zero buildup; now they don't).
+	Input.PhysicalDamageType = Context.PhysicalDamageType;
+	Input.ActionMods = CurrentExecutionContext->ActionMods;
+
+	const FCombatHitResult HitResult = ApplyHit(Input);
+
+	// Incremental aggregation into the running PartialResult — spread across impact frames +
+	// the close-time tail, instead of one synchronous loop.
+	FActionResult &PartialResult = CurrentExecutionContext->PartialResult;
+	PartialResult.TotalDamageDealt += HitResult.DamageDealt;
+	PartialResult.DamagePerTarget.FindOrAdd(Target) += HitResult.DamageDealt;
+	PartialResult.AffectedTargets.AddUnique(Target);
+	if (HitResult.bWasCritical)
+	{
+		PartialResult.bWasCritical = true;
+	}
+
+	// Death — broadcast EXACTLY ONCE, at the killing impact. The death guard at the top
+	// prevents any later impact from re-entering ApplyHit for this target, so bTargetDied
+	// can only be true once.
+	if (HitResult.bTargetDied)
+	{
+		PartialResult.bCausedDeath = true;
+		OnTargetKilled.Broadcast(Attacker, Target);
+	}
+}
+
 void UActionExecutor::ApplyDamageAfterDefense(
 	AActor *Attacker,
 	AActor *Target,
 	const FPendingDefenseContext &Context,
 	const FDefenseResult &DefenseResult)
 {
-	if (!CurrentExecutionContext.IsSet())
+	if (!CurrentExecutionContext.IsSet() || !Target)
 	{
 		return;
 	}
 
-	int32 TotalDamage = 0;
-	bool bAnyCrit = false;
+	// Local mutable copy — callers pass a const-ref snapshot.
+	FPendingDefenseContext Ctx = Context;
 
-	if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Dodge)
+	// CONSISTENCY: melee resolved + drained every impact per-frame (ResolveImpactDefense) →
+	// ImpactsLanded==HitCount → the tail loop below is empty, so this stash is never read for
+	// melee. Non-melee (no frames fired, bResultResolved=false) stashes from the close result
+	// here — the unchanged lumped path that ApplyOneImpact slices (bDamageIsPerImpact=false).
+	if (!Ctx.bResultResolved)
 	{
-		// Dodge cancels damage entirely AND cancels buildup (Phase C1 — applies to
-		// spells only today; ability/attack buildup don't reach this path yet).
-		// The multi-hit loop is skipped — no ApplyHit calls = no damage + no buildup.
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] %s dodged attack - 0 damage, 0 buildup"), *Target->GetName());
+		Ctx.ResolvedDefenseType = DefenseResult.DefenseType;
+		Ctx.ResolvedFinalDamage = DefenseResult.FinalDamage;
+		Ctx.bResolvedSuccess = DefenseResult.bSuccess;
+		Ctx.bResultResolved = true;
 	}
-	else
-	{
-		// DefenseResult.FinalDamage already has block/parry reduction applied.
-		// Buildup reduction by block/parry happens here — multipliers parallel
-		// DefenseSystem's hardcoded damage multipliers. Dodge already short-circuited
-		// above; "no defense" / failed defense → EffectiveBuildup = base.
-		//
-		// D1 reader switch (Stage 12 SC4): per-hit damage consumes the resolved
-		// DamageSplit table (even fractions when un-authored). FloorToInt
-		// reproduces the legacy FinalDamage / HitCount truncation exactly
-		// (remainder dropped, as today). The 0.01 epsilon absorbs the float
-		// representation error of even fractions (100/3 stored as 33.333332)
-		// so exact-integer quotients never floor one short (30000×33.33% must
-		// give 10000, not 9999) — sized for damage up to ~5e5 while staying
-		// far from authored percent boundaries.
-		// Size-mismatched table (defensive) → legacy even split.
-		const TArray<float> &Split = CurrentExecutionContext->ResolvedDamageSplit;
-		const bool bUseSplit = (Split.Num() == Context.HitCount) && Context.HitCount > 0;
-		const int32 EvenDamagePerHit = DefenseResult.FinalDamage / FMath::Max(1, Context.HitCount);
 
-		int32 EffectiveBuildup = Context.BaseStatusBuildup;
-		if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Block)
+	// Apply only the UNDRAINED TAIL [ImpactsLanded, HitCount). Melee: all impacts drained
+	// per-frame → ImpactsLanded==HitCount → tail empty (no double-apply). Non-melee:
+	// ImpactsLanded==0 → tail = all → unchanged lumped behavior at the timer close.
+	const int32 HitCount = FMath::Max(1, Ctx.HitCount);
+	for (int32 i = Ctx.ImpactsLanded; i < HitCount; ++i)
+	{
+		if (!IsTargetAlive(Target))
 		{
-			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::BLOCK_BUILDUP_MULTIPLIER);
+			break; // death stops the tail (mirror the per-impact death guard)
 		}
-		else if (DefenseResult.bSuccess && DefenseResult.DefenseType == EDefenseType::Parry)
-		{
-			EffectiveBuildup = FMath::RoundToInt(EffectiveBuildup * CombatConstants::PARRY_BUILDUP_MULTIPLIER);
-		}
-
-		for (int32 i = 0; i < Context.HitCount; ++i)
-		{
-			FActionHitInput Input;
-			Input.Attacker = Attacker;
-			Input.Target = Target;
-			Input.ActionType = Context.ActionType;
-			Input.BaseDamage = bUseSplit
-								   ? FMath::FloorToInt(DefenseResult.FinalDamage * (Split[i] / 100.0f) + 0.01f)
-								   : EvenDamagePerHit;
-			Input.bCanCrit = Context.bCanCrit;
-			Input.Element = Context.Element;
-			Input.InfusionLevel = Context.InfusionLevel;
-			Input.SelectedSource = Context.SelectedSource;
-			// Buildup applies once per spell-per-target, not per-hit. First hit
-			// carries the buildup; subsequent hits carry zero. Audit's quirks table
-			// treats buildup as per-target, not per-hit.
-			Input.BaseStatusBuildup = (i == 0) ? EffectiveBuildup : 0;
-			Input.PhysicalDamageType = (i == 0) ? Context.PhysicalDamageType : EPhysicalDamageType::None;
-			Input.ActionMods = CurrentExecutionContext.IsSet()
-								   ? CurrentExecutionContext->ActionMods
-								   : FActionStatModifiers();
-
-			const FCombatHitResult HitResult = ApplyHit(Input);
-
-			TotalDamage += HitResult.DamageDealt;
-			bAnyCrit = bAnyCrit || HitResult.bWasCritical;
-
-			// Early-out on death — preserves existing ProcessMultiHit behaviour.
-			if (HitResult.bTargetDied)
-			{
-				break;
-			}
-		}
+		ApplyOneImpact(Attacker, Target, Ctx, i);
 	}
 
-	// Aggregate into the running PartialResult.
-	CurrentExecutionContext->PartialResult.TotalDamageDealt += TotalDamage;
-	CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, TotalDamage);
-	CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
-	if (bAnyCrit)
-	{
-		CurrentExecutionContext->PartialResult.bWasCritical = true;
-	}
-
-	// Death broadcast — once per killed target, after the multi-hit loop completes.
-	if (!IsTargetAlive(Target))
-	{
-		CurrentExecutionContext->PartialResult.bCausedDeath = true;
-		OnTargetKilled.Broadcast(Attacker, Target);
-	}
-
-	// Defense-outcome telemetry. FActionResult doesn't carry per-target Block/Parry/Dodge
-	// flags today; logging in Verbose preserves audit-risk-#10 signal until UI is wired.
-	if (DefenseResult.bSuccess)
+	// Defense-outcome telemetry (preserved; now logs the tail range applied here).
+	if (Ctx.bResolvedSuccess)
 	{
 		UE_LOG(LogTemp, Verbose,
-			   TEXT("[ApplyDamageAfterDefense] %s defended via %s — TotalDamage=%d"),
-			   *Target->GetName(),
-			   *UEnum::GetValueAsString(DefenseResult.DefenseType),
-			   TotalDamage);
+			   TEXT("[ApplyDamageAfterDefense] %s defended via %d — tail [%d, %d)"),
+			   *Target->GetName(), static_cast<int32>(Ctx.ResolvedDefenseType),
+			   Ctx.ImpactsLanded, HitCount);
 	}
 }
 
@@ -1827,11 +2059,17 @@ void UActionExecutor::FinalizeAsyncAction()
 		return;
 	}
 
-	// Clear timeout timer
+	// Clear timeout timer + any pending telegraph timers (normally already fired by now, but
+	// clear so none can fire into the next action).
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
+		for (FTimerHandle &H : TelegraphTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(H);
+		}
 	}
+	TelegraphTimerHandles.Empty();
 
 	// Get final result
 	FActionResult FinalResult = CurrentExecutionContext->PartialResult;
@@ -1852,10 +2090,11 @@ void UActionExecutor::FinalizeAsyncAction()
 		switch (Action.ActionType)
 		{
 		case EActionType::Ability:
-			if (Action.AbilityData)
+			// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer.
+			if (USkillDataBase *Skill = ResolveActionSkill(Action))
 			{
-				EffectsToApply = &Action.AbilityData->Effects;
-				SourceName = Action.AbilityData->Name;
+				EffectsToApply = &Skill->Effects;
+				SourceName = Skill->Name;
 			}
 			break;
 
@@ -1864,14 +2103,6 @@ void UActionExecutor::FinalizeAsyncAction()
 			{
 				EffectsToApply = &Action.SpellData->Effects;
 				SourceName = Action.SpellData->Name;
-			}
-			break;
-
-		case EActionType::Attack:
-			if (Action.AttackData)
-			{
-				EffectsToApply = &Action.AttackData->Effects;
-				SourceName = Action.AttackData->Name;
 			}
 			break;
 
@@ -1976,6 +2207,12 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 		}
 	}
 
+	// Snapshot the pending handles BEFORE the callback can re-enter. Execute below
+	// can advance the turn and launch the next action (deferred fire), which sets
+	// fresh PendingExecutionActor/CharData. Snapshot-compare lets the teardown null
+	// only when no re-entrant action replaced them (mirrors the callback guard).
+	AActor *ActorAtEntry = PendingExecutionActor;
+
 	// Fire callback — one-shot latch guarantees exactly one completion per action,
 	// so a double finalize (timeout failsafe + legitimate finalize) can neither
 	// double-fire nor swallow the advance.
@@ -2000,9 +2237,15 @@ void UActionExecutor::CompleteAsyncActionFinal(AActor *Executor)
 		OnActionCompleted.Broadcast(Executor, PendingFinalResult);
 	}
 
-	// Clear pending state
-	PendingExecutionActor = nullptr;
-	PendingExecutionCharData = nullptr;
+	// Clear pending state — but only if a re-entrant deferred fire didn't already
+	// replace the handle. If PendingExecutionActor != ActorAtEntry, a new action
+	// owns it now; leave it for that action's own finalize (root fix: VFX/Cast on a
+	// deferred ritual fire would otherwise read null here).
+	if (PendingExecutionActor == ActorAtEntry)
+	{
+		PendingExecutionActor = nullptr;
+		PendingExecutionCharData = nullptr;
+	}
 }
 
 void UActionExecutor::OnAsyncActionTimeout()
@@ -2045,13 +2288,19 @@ void UActionExecutor::CancelAsyncAction()
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Cancelling async action"));
 
-	// Clear timers (failsafe + any pending burst chain)
+	// Clear timers (failsafe + any pending burst chain + any pending telegraph cues — a cancelled
+	// action must not fire telegraphs for impacts that never land).
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(AsyncTimeoutHandle);
 		World->GetTimerManager().ClearTimer(BurstTimerHandle);
+		for (FTimerHandle &H : TelegraphTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(H);
+		}
 	}
 	BurstSpawnQueue.Empty();
+	TelegraphTimerHandles.Empty();
 	ActiveBurstSpell = nullptr;
 
 	// Unbind animation + notify spine bindings
@@ -2086,6 +2335,122 @@ void UActionExecutor::CancelAsyncAction()
 	CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Action cancelled");
 
 	FinalizeAsyncAction();
+}
+
+bool UActionExecutor::AllInterruptSucceeded() const
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return false;
+	}
+	const auto &Pending = CurrentExecutionContext->PendingDefenses;
+	if (Pending.Num() == 0)
+	{
+		return false;
+	}
+	for (const auto &Pair : Pending)
+	{
+		const FPendingDefenseContext &Ctx = Pair.Value;
+		if (!Ctx.bResultResolved)
+		{
+			return false; // not every defender has resolved this hit yet → don't abort
+		}
+		if (!(Ctx.bResolvedSuccess &&
+			  (Ctx.ResolvedDefenseType == EDefenseType::Parry ||
+			   Ctx.ResolvedDefenseType == EDefenseType::Dodge)))
+		{
+			return false; // any defender failed to parry/dodge → no abort, the attack continues
+		}
+	}
+	return true; // every defender resolved AND parried/dodged the interruptable hit
+}
+
+bool UActionExecutor::RecordChokeAndShouldAbort(AActor *Target, bool bDefended)
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return false;
+	}
+	FActionExecutionContext &Exec = *CurrentExecutionContext;
+	Exec.ChokeOutcomes.Add(Target, bDefended);
+	if (Exec.ChokeExpectedCount <= 0 || Exec.ChokeOutcomes.Num() < Exec.ChokeExpectedCount)
+	{
+		return false; // no active choke, or not every target has resolved this entry yet
+	}
+	for (const auto &O : Exec.ChokeOutcomes)
+	{
+		if (!O.Value)
+		{
+			return false; // some target failed to parry/dodge → no abort, the spell continues
+		}
+	}
+	return true; // every target resolved AND parried/dodged the choke point
+}
+
+void UActionExecutor::InterruptAsyncAction(AActor *Attacker, USkillDataBase *Skill)
+{
+	if (!CurrentExecutionContext.IsSet())
+	{
+		return;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Interrupt — all targets parried/dodged an interruptable hit; aborting the rest"));
+
+	// 1. Stop further spawns + cue timers — no more hits/casts land.
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(BurstTimerHandle);
+		for (FTimerHandle &H : TelegraphTimerHandles)
+		{
+			World->GetTimerManager().ClearTimer(H);
+		}
+	}
+	BurstSpawnQueue.Empty();
+	TelegraphTimerHandles.Empty();
+	ActiveBurstSpell = nullptr;
+
+	// 2. Clear the pending contexts FIRST, then close their windows — so the close callbacks find no
+	//    context and apply no tail (the aborted remainder must NOT land). The interruptable hit's own
+	//    (parried) damage already applied at the resolve site before this call.
+	TArray<AActor *> Defenders;
+	for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+	{
+		if (Pair.Key.IsValid())
+		{
+			Defenders.Add(Pair.Key.Get());
+		}
+	}
+	CurrentExecutionContext->PendingDefenses.Empty();
+	if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+	{
+		for (AActor *D : Defenders)
+		{
+			DefenseSys->CloseDefenseWindow(D);
+		}
+	}
+
+	// 3. Mark the action interrupted (defended).
+	CurrentExecutionContext->PartialResult.bSuccess = false;
+	CurrentExecutionContext->PartialResult.ErrorMessage = TEXT("Action interrupted (defended)");
+
+	// 4. Recover. With a ReturnMontage: PlayReturnStep stops the skill montage and warps the attacker back
+	//    — it sets CurrentChainMontage=ReturnMontage BEFORE the stop, so the skill-stop's spurious
+	//    OnActionMontageEnded is ignored by the montage-identity guard; the ReturnMontage's own end drives
+	//    FinishMontageChain → finalize (single finalize). Without one: unbind, hard-stop, finalize directly.
+	if (Skill && Skill->ReturnMontage && Attacker)
+	{
+		PlayReturnStep(Attacker, Skill);
+	}
+	else
+	{
+		UnbindActionAnimationEnd(Attacker);
+		UnbindCombatNotify(Attacker);
+		if (UCombatAnimInstance *Anim = GetCombatAnimInstance(Attacker))
+		{
+			Anim->StopActionMontage();
+		}
+		FinalizeAsyncAction();
+	}
 }
 
 bool UActionExecutor::IsAsyncActionInProgress() const
@@ -2372,6 +2737,7 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			FDamageCalculationInput DmgInput;
 			DmgInput.BaseDamage = Input.BaseDamage;
 			DmgInput.ActionType = Input.ActionType;
+			DmgInput.bOverrideStatScaling = Input.bOverrideStatScaling;
 			DmgInput.Element = Input.Element;
 			DmgInput.bCanCrit = Input.bCanCrit;
 			DmgInput.bWasInfused = Input.InfusionLevel > 0;
@@ -2420,9 +2786,9 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 					}
 				}
 
-				// ReflectPhysicalDamage — only fires for Attack / Ability ActionTypes.
+				// ReflectPhysicalDamage — only fires for Ability ActionType (attacks folded in, Cluster 3).
 				if (Input.Attacker &&
-					(Input.ActionType == EActionType::Attack || Input.ActionType == EActionType::Ability) &&
+					(Input.ActionType == EActionType::Ability) &&
 					SEM->HasEffectOfType(Input.Target, ESkillEffectType::ReflectPhysicalDamage))
 				{
 					const float ReflectPct = SEM->GetTotalStatModifier(Input.Target, ESkillEffectType::ReflectPhysicalDamage) / 100.0f;
@@ -2778,46 +3144,18 @@ void UActionExecutor::PlaySpellAnimation(AActor *Caster, USpellData *Spell, floa
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateSpellSpeed() × ActionMods.SpellSpeed
-	// contribution — BaseAnimSpeed uniform across all three paths (D7).
+	// Play rate = BaseAnimSpeed × GetEffectiveSpellSpeed() (Pattern P, cluster 5g — stat ×1.5
+	// clamped ALONE, gear/stone/transient multiply toward the ×2.0 ceiling) × per-action ActionMods.
+	// BaseAnimSpeed (montage authoring) and ActionMods stay at the call site.
+	// TODO(docs/Design/RealTimeDefenseRework.md): SpellSpeed's COMBAT effect (shrinking the
+	// defender's reaction window) is still unwired — this speeds the cast animation only.
 	float PlayRate = Spell->BaseAnimSpeed;
-	UCharacterData *CharData = GetCharacterData(Caster);
-	if (CharData)
+	if (UCharacterDataComponent *CasterComp = GetCharacterDataComponent(Caster))
 	{
-		PlayRate *= CharData->CalculateSpellSpeed();
+		PlayRate *= CasterComp->GetEffectiveSpellSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::SpellSpeed);
-
-	// Equipment stat bonus — additive to play rate using the same per-point
-	// shape as the asset-side CalculateSpellSpeed formula. Purely visual.
-	if (Caster)
-	{
-		if (ULoadoutComponent *Loadout = Caster->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Caster);
-			PlayRate += Bonus.BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
-
-			// Attached SpellSpeedStone — caster's OWN active weapon attachment, fusion-
-			// aware via GetAttachedStonePercent (0 for any non-SpellSpeedStone attachment).
-			// TODO(docs/Design/RealTimeDefenseRework.md): this stat's COMBAT effect
-			// (shrinking the defender's reaction window) is unwired — the stone speeds the
-			// cast animation today; defensive teeth land with the defense rework.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
-
-	// Skill-effect-driven SpellSpeedBuff / SpellSpeedDebuff (percent-space).
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		const float SpellBuff = SEM->GetTotalStatModifier(Caster, ESkillEffectType::SpellSpeedBuff);
-		const float SpellDebuff = SEM->GetTotalStatModifier(Caster, ESkillEffectType::SpellSpeedDebuff);
-		PlayRate *= (1.0f + (SpellBuff - SpellDebuff) / 100.0f);
-		PlayRate = FMath::Max(0.1f, PlayRate);
-	}
+	PlayRate = FMath::Max(0.1f, PlayRate);
 
 	BeginMontageChain(Caster, Spell, PlayRate);
 
@@ -2892,8 +3230,6 @@ void UActionExecutor::SpawnSpellDelivery(
 	switch (Spell->DeliveryType)
 	{
 	case ESpellDeliveryType::Projectile:
-	case ESpellDeliveryType::Homing:
-	case ESpellDeliveryType::Beam:
 		// Spawn projectile actor for each target
 		for (AActor *Target : Targets)
 		{
@@ -2962,7 +3298,8 @@ void UActionExecutor::SpawnProjectileActor(
 	float FinalVisualScale,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
-	const FSkillCastEntry *Entry)
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
 {
 	if (!Caster || !Target || !Spell)
 	{
@@ -3004,12 +3341,12 @@ void UActionExecutor::SpawnProjectileActor(
 			ImpactEntry ? ImpactEntry->VFX.LoadSynchronous() : Spell->ImpactVFX);
 
 		// 2. Initialize with combat data (entry overload feeds the entry's
-		// delivery/speed/homing/beam values; legacy feeds the loose fields)
+		// delivery/speed values; legacy feeds the loose fields)
 		if (Entry)
 		{
 			Projectile->InitializeProjectile(
 				*Entry, Spell, Caster, Target,
-				FinalImpactRadius, FinalVisualScale, FinalDamage);
+				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex);
 		}
 		else
 		{
@@ -3022,17 +3359,11 @@ void UActionExecutor::SpawnProjectileActor(
 		Projectile->OnSkillImpact.AddDynamic(this, &UActionExecutor::OnProjectileImpact);
 		Projectile->OnSkillDodged.AddDynamic(this, &UActionExecutor::OnProjectileDodged);
 
-		const ESpellDeliveryType Delivery = Entry ? Entry->DeliveryType : Spell->DeliveryType;
-		if (Delivery == ESpellDeliveryType::Beam)
-		{
-			Projectile->OnBeamTick.AddDynamic(this, &UActionExecutor::OnBeamTick);
-		}
-
 		// 4. Launch (activates VFX and starts movement)
 		Projectile->Launch();
 
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Spawned projectile toward %s (Type=%d, Speed=%.1f)"),
-			   *Target->GetName(), (int32)Delivery,
+			   *Target->GetName(), (int32)(Entry ? Entry->DeliveryType : Spell->DeliveryType),
 			   Entry ? Entry->ProjectileSpeed : Spell->ProjectileSpeed);
 	}
 }
@@ -3045,7 +3376,8 @@ void UActionExecutor::SpawnAOEEffect(
 	float FinalVisualScale,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
-	const FSkillCastEntry *Entry)
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
 {
 	if (!Target || !Spell)
 	{
@@ -3085,26 +3417,62 @@ void UActionExecutor::SpawnAOEEffect(
 		}
 	}
 
-	// AOE always hits - open defense window immediately
-	// AOE can only be blocked (no dodge, no parry)
+	// AOE resolution = NOW (the Cast notify). No travel, so this dispatch IS the impact moment.
+	// Resolve THIS defender per-impact against the count-based window the gate opened at action start
+	// (ExpectedImpacts=1): read the cast-entry defense difficulty, apply the single full-damage impact,
+	// and close. Mirrors OnProjectileImpact's converted branch — the AOE "arrival" is here, now.
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
-	if (DefenseSys)
+	if (DefenseSys && CurrentExecutionContext.IsSet())
 	{
-		float WindowDuration = DefenseSys->AoeWindowDuration; // AOE uses a longer window
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+		{
+			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the projectile arrival / Hit notify
 
-		DefenseSys->OpenDefenseWindow(
-			Caster,
-			Target,
-			FinalImpactRadius,
-			FinalDamage,
-			WindowDuration);
+			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
+			const FDefenseDifficultyTriple Diff =
+				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+					: FDefenseDifficultyTriple();
 
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE opened defense window for %s (Block only)"),
-			   *Target->GetName());
+			AActor *Attacker = Ctx->Attacker.Get();
+
+			// One AOE impact per defender → ordinal 0. Drain BEFORE apply so the close-time tail
+			// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is empty — no double-apply on close.
+			++Ctx->ImpactsLanded;
+			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
+			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+			if (Ctx)
+			{
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
+				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+				const bool bDefended = Ctx->bResolvedSuccess &&
+									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
+										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
+				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
+				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
+				// context check the per-defender close below defeats).
+				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+				{
+					InterruptAsyncAction(Caster, Spell);
+					return; // abort handles teardown — skip the normal close
+				}
+			}
+			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
+
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] AOE resolved per-impact for %s (CastEntryIndex=%d)"),
+				   *Target->GetName(), CastEntryIndex);
+			return;
+		}
 	}
-	else
+
+	// Fallback — no converted count-based window (unconverted multi-entry AOE keeps the action-start
+	// lumped window, which resolves it via OnDefenseWindowClosed; lumped-retire is the next step), or no
+	// DefenseSystem at all → apply directly.
+	if (!DefenseSys)
 	{
-		// Fallback: Apply damage directly if no defense system
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying AOE damage directly"));
 		ApplyDamage(Caster, Target, FinalDamage, Spell->Element, false);
 	}
@@ -3117,7 +3485,8 @@ void UActionExecutor::ResolveInstantSpell(
 	float FinalImpactRadius,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
-	const FSkillCastEntry *Entry)
+	const FSkillCastEntry *Entry,
+	int32 CastEntryIndex)
 {
 	if (!Target || !Spell)
 	{
@@ -3149,28 +3518,81 @@ void UActionExecutor::ResolveInstantSpell(
 		}
 	}
 
-	// Instant spells are unavoidable - apply damage directly
-	// No defense window
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant spell hit %s - unavoidable, applying damage"),
-		   *Target->GetName());
-
-	FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, Spell->Element, true);
-
-	// Update execution context
-	if (CurrentExecutionContext.IsSet())
+	// Instant resolution = NOW (the Cast notify). No travel, so this dispatch IS the impact moment.
+	// Instant is now DEFENDABLE per-impact (all three defenses, Hard difficulty): resolve THIS defender
+	// against the count-based window the gate opened at action start (ExpectedImpacts=1), read the
+	// cast-entry defense difficulty, apply the single full-damage impact through the defense, and close.
+	// Byte-identical to SpawnAOEEffect's converted branch — the Instant "arrival" is here, now.
+	UDefenseSystem *DefenseSys = GetDefenseSystem();
+	if (DefenseSys && CurrentExecutionContext.IsSet())
 	{
-		CurrentExecutionContext->PartialResult.TotalDamageDealt += Result.DamageDealt;
-		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, Result.DamageDealt);
-		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
-
-		if (Result.bWasCritical)
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
 		{
-			CurrentExecutionContext->PartialResult.bWasCritical = true;
+			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the AOE / projectile resolve
+
+			// Difficulty from the spell cast-entry table (guarded): INDEX_NONE / out-of-range → Easy ×1.0.
+			const FDefenseDifficultyTriple Diff =
+				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+					: FDefenseDifficultyTriple();
+
+			AActor *Attacker = Ctx->Attacker.Get();
+
+			// One Instant impact per defender → ordinal 0. Drain BEFORE apply so the close-time tail
+			// [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is empty — no double-apply on close.
+			++Ctx->ImpactsLanded;
+			ResolveImpactDefense(Target, 0, ImpactTime, Diff);
+			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+			if (Ctx)
+			{
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+				// Capture the choke outcome BEFORE ApplyOneImpact (which may remove the context on death).
+				const bool bChokeEntry = CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+				const bool bDefended = Ctx->bResolvedSuccess &&
+									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
+										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
+				ApplyOneImpact(Attacker, Target, *Ctx, 0, /*bDamageIsPerImpact=*/true);
+				// Cross-target interrupt tally: record this target's outcome; abort once ALL targets have
+				// resolved AND all parried/dodged this choke point (the surviving tally replaces the live-
+				// context check the per-defender close below defeats).
+				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+				{
+					InterruptAsyncAction(Caster, Spell);
+					return; // abort handles teardown — skip the normal close
+				}
+			}
+			DefenseSys->CloseDefenseWindow(Target); // single-and-only arrival → close (empty tail, removes the entry)
+
+			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Instant resolved per-impact for %s (CastEntryIndex=%d)"),
+				   *Target->GetName(), CastEntryIndex);
+			return;
 		}
+	}
 
-		if (Result.bTargetDied)
+	// Fallback — no converted count-based window (unconverted multi-entry Instant keeps the action-start
+	// lumped window, which resolves it via OnDefenseWindowClosed), or no DefenseSystem at all → apply
+	// directly (the legacy unavoidable behavior).
+	if (!DefenseSys)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying Instant damage directly"));
+		FCombatHitResult Result = ApplyDamage(Caster, Target, FinalDamage, Spell->Element, true);
+
+		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PartialResult.bCausedDeath = true;
+			CurrentExecutionContext->PartialResult.TotalDamageDealt += Result.DamageDealt;
+			CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, Result.DamageDealt);
+			CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
+
+			if (Result.bWasCritical)
+			{
+				CurrentExecutionContext->PartialResult.bWasCritical = true;
+			}
+
+			if (Result.bTargetDied)
+			{
+				CurrentExecutionContext->PartialResult.bCausedDeath = true;
+			}
 		}
 	}
 }
@@ -3185,7 +3607,8 @@ void UActionExecutor::DispatchSpellCast(
 	const FSkillCastEntry &Entry,
 	float SpellSize,
 	const TArray<AActor *> &ExplicitTargets,
-	int32 Damage)
+	int32 Damage,
+	int32 CastEntryIndex)
 {
 	if (!Caster || !Spell)
 	{
@@ -3233,16 +3656,27 @@ void UActionExecutor::DispatchSpellCast(
 	UE_LOG(LogTemp, Log, TEXT("[Runner] DispatchCastEntry '%s' - Type=%d, Targets=%d, Radius=%.2f, Count=%d"),
 		   *Entry.Label, (int32)Entry.DeliveryType, Targets.Num(), FinalImpactRadius, Entry.Count);
 
+	// Hybrid B2 cross-target interrupt tally: a fresh all-targets round per interruptable cast entry (choke
+	// point, first-pass-wins). The per-defender resolve records each outcome (surviving the close-removal)
+	// and aborts when ALL targets parry/dodge. Burst (Count>1) is NOT a choke point — the by-target tally
+	// can't express per-arrival; only single-impact deliveries record (gated at the resolve site).
+	if (CurrentExecutionContext.IsSet() &&
+		CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+		CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable)
+	{
+		CurrentExecutionContext->ChokeOutcomes.Empty();
+		CurrentExecutionContext->ChokeExpectedCount = Targets.Num();
+		CurrentExecutionContext->ChokeCastEntryIndex = CastEntryIndex;
+	}
+
 	switch (Entry.DeliveryType)
 	{
 	case ESpellDeliveryType::Projectile:
-	case ESpellDeliveryType::Homing:
-	case ESpellDeliveryType::Beam:
 		for (AActor *Target : Targets)
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
 			// burst chain (BurstInterval stagger, spike-validated).
-			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry);
+			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 			for (int32 i = 1; i < Entry.Count; ++i)
 			{
 				BurstSpawnQueue.Add(Target);
@@ -3251,6 +3685,7 @@ void UActionExecutor::DispatchSpellCast(
 		if (BurstSpawnQueue.Num() > 0)
 		{
 			ActiveBurstEntry = Entry;
+			ActiveBurstCastEntryIndex = CastEntryIndex;
 			ActiveBurstSpell = Spell;
 			ActiveBurstCaster = Caster;
 			ActiveBurstImpactRadius = FinalImpactRadius;
@@ -3269,14 +3704,14 @@ void UActionExecutor::DispatchSpellCast(
 	case ESpellDeliveryType::AOE:
 		for (AActor *Target : Targets)
 		{
-			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry);
+			SpawnAOEEffect(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 		}
 		break;
 
 	case ESpellDeliveryType::Instant:
 		for (AActor *Target : Targets)
 		{
-			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBD, &Entry);
+			ResolveInstantSpell(Caster, Target, Spell, FinalImpactRadius, FinalDamage, bIsBD, &Entry, CastEntryIndex);
 		}
 		break;
 	}
@@ -3302,7 +3737,7 @@ void UActionExecutor::SpawnNextBurstProjectile()
 	{
 		SpawnProjectileActor(ActiveBurstCaster.Get(), NextTarget.Get(), ActiveBurstSpell,
 							 ActiveBurstImpactRadius, ActiveBurstVisualScale,
-							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry);
+							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry, ActiveBurstCastEntryIndex);
 	}
 
 	if (BurstSpawnQueue.IsEmpty())
@@ -3319,28 +3754,89 @@ void UActionExecutor::SpawnNextBurstProjectile()
 // PROJECTILE EVENT HANDLERS
 // ========================================
 
-void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
+void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex)
 {
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f"),
-		   Target ? *Target->GetName() : TEXT("None"), Damage, ImpactRadius);
+	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Projectile impact on %s - Damage=%d, Radius=%.2f, CastEntryIndex=%d"),
+		   Target ? *Target->GetName() : TEXT("None"), Damage, ImpactRadius, CastEntryIndex);
 
 	if (!Target)
 	{
 		return;
 	}
 
-	// Open defense window for Block/Parry
 	UDefenseSystem *DefenseSys = GetDefenseSystem();
+
+	// Stage 6 cluster 4 — CONVERTED single-projectile path: the dispatch re-opened this defender's
+	// window count-based with ExpectedImpacts=1, so the projectile's LANDING is the impact moment.
+	// Resolve THIS arrival per-impact (reading the spell cast-entry difficulty) and apply exactly
+	// once — mirroring the melee Impact-notify loop (drain counter, resolve, apply slice, close).
+	if (DefenseSys && CurrentExecutionContext.IsSet())
+	{
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+		{
+			const double ImpactTime = FPlatformTime::Seconds(); // same clock as the melee Hit notify
+
+			// Difficulty from the spell cast-entry table (guarded): -1 / out-of-range → Easy ×1.0.
+			const FDefenseDifficultyTriple Diff =
+				CurrentExecutionContext->ResolvedCastDifficulty.IsValidIndex(CastEntryIndex)
+					? CurrentExecutionContext->ResolvedCastDifficulty[CastEntryIndex]
+					: FDefenseDifficultyTriple();
+
+			AActor *Attacker = Ctx->Attacker.Get();
+
+			// This arrival's ordinal = the running ImpactsLanded (read BEFORE the increment): 0,1,…,Count-1
+			// in arrival order. Distinct ordinals are required — ApplyOneImpact uses ImpactIndex for the
+			// bounds guard (< HitCount=Count), buildup-rides-ordinal-0 (status applies ONCE, on the first
+			// arrival), and the even-split remainder. Single (Count==1) = ordinal 0, the cluster-4 case.
+			const int32 ImpactOrdinal = Ctx->ImpactsLanded;
+
+			// Drain BEFORE apply (melee order, ~line 5081): when ImpactsLanded reaches HitCount the
+			// close-time tail [ImpactsLanded, HitCount) in ApplyDamageAfterDefense is EMPTY — no double-
+			// apply when CloseDefenseWindow fires OnDefenseWindowClosed below.
+			++Ctx->ImpactsLanded;
+			// Capture the close decision NOW, while Ctx is valid — ApplyOneImpact can broadcast
+			// OnTargetKilled and remove the entry. Close ONLY after the LAST of N staggered arrivals;
+			// intermediate burst arrivals leave the count-based window open for the next projectile.
+			const bool bLastArrival = (Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
+
+			// Even-split: ResolveImpactDefense slices State.BaseDamage/HitCount = FinalDamage/Count for
+			// this ordinal (+remainder for the first R). Per arrival reduces by its own matched defense.
+			ResolveImpactDefense(Target, ImpactOrdinal, ImpactTime, Diff);
+			Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); // re-find: ResolveImpactDefense mutated the entry
+			if (Ctx)
+			{
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedCastFlags, CastEntryIndex);
+				// Capture the choke outcome BEFORE ApplyOneImpact (may remove the context on death). Only
+				// single-impact projectiles (ExpectedImpacts==1) are choke points; burst (Count>1) deferred.
+				const bool bChokeEntry = Ctx->ExpectedImpacts == 1 &&
+										 CurrentExecutionContext->ResolvedCastFlags.IsValidIndex(CastEntryIndex) &&
+										 CurrentExecutionContext->ResolvedCastFlags[CastEntryIndex].bInterruptable;
+				const bool bDefended = Ctx->bResolvedSuccess &&
+									   (Ctx->ResolvedDefenseType == EDefenseType::Parry ||
+										Ctx->ResolvedDefenseType == EDefenseType::Dodge);
+				ApplyOneImpact(Attacker, Target, *Ctx, ImpactOrdinal, /*bDamageIsPerImpact=*/true);
+				// Cross-target interrupt tally (single-projectile multi-target): record + abort when ALL
+				// targets parried/dodged this choke point. Earlier targets already closed normally; the abort
+				// on the last prevents the remainder.
+				if (bChokeEntry && RecordChokeAndShouldAbort(Target, bDefended))
+				{
+					InterruptAsyncAction(Attacker, GetCurrentSkillData());
+					return; // abort handles teardown — skip the close below
+				}
+			}
+			if (bLastArrival)
+			{
+				DefenseSys->CloseDefenseWindow(Target); // → OnDefenseWindowClosed: empty tail, removes the entry
+			}
+			return;
+		}
+	}
+
+	// Unconverted (lumped) path — barrage/beam, or no pending context. Preserve the legacy orphan
+	// behavior (the lumped cast-time window resolves these); cluster 6 retires the lumped path.
 	if (DefenseSys)
 	{
-		float WindowDuration = 0.3f; // Standard window for projectile impact
-
-		DefenseSys->OpenDefenseWindow(
-			nullptr, // Caster not tracked here (could store in projectile if needed)
-			Target,
-			ImpactRadius,
-			Damage,
-			WindowDuration);
+		DefenseSys->OpenDefenseWindow(nullptr, Target, ImpactRadius, Damage, 0.3f);
 	}
 	else
 	{
@@ -3364,26 +3860,29 @@ void UActionExecutor::OnProjectileDodged(AActor *Target, FVector ImpactLocation)
 		CurrentExecutionContext->PartialResult.AffectedTargets.Add(Target);
 		CurrentExecutionContext->PartialResult.DamagePerTarget.Add(Target, 0); // 0 damage = dodged
 	}
-}
 
-void UActionExecutor::OnBeamTick(AActor *Target, int32 TickDamage, bool bTargetInBeam)
-{
-	// Discrete beam tick — fires on the projectile's BeamTickInterval cadence.
-	// Per-tick damage is computed projectile-side from the spell's BaseDamage /
-	// tick count with remainder distribution; this handler just applies it
-	// when the target is currently in the beam. No defense window (beam is
-	// continuous) and no caster threading today (the projectile doesn't carry
-	// a Caster reference into the broadcast — symmetric with the prior
-	// placeholder behaviour).
-	if (!bTargetInBeam || !Target || TickDamage <= 0)
+	// Stage 6 cluster 6 — CONVERTED path count integrity: a move-dodged projectile is an ARRIVAL that
+	// bypasses OnProjectileImpact (and its ++ImpactsLanded), so without this a burst window would hang
+	// waiting for a count that never comes. Count the dodged arrival as landed-but-zero (no damage —
+	// already recorded above) so the close still reaches ExpectedImpacts. Inert today (move-dodge never
+	// fires in fixed-position combat) but correct for robustness / future positional mechanics.
+	if (UDefenseSystem *DefenseSys = GetDefenseSystem(); DefenseSys && CurrentExecutionContext.IsSet())
 	{
-		return;
+		if (FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Target); Ctx && Ctx->ExpectedImpacts > 0)
+		{
+			const bool bLastArrival = (++Ctx->ImpactsLanded >= Ctx->ExpectedImpacts);
+			if (bLastArrival)
+			{
+				DefenseSys->CloseDefenseWindow(Target);
+			}
+		}
 	}
-
-	ApplyDamage(nullptr, Target, TickDamage, ESpellElement::Generic, false);
 }
 
-void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, const FActionStatModifiers &ActionMods)
+// Merged skill-animation play (Cluster 2): takes the unified base pointer. Reads SkillMontage /
+// BaseAnimSpeed / Name (all on USkillDataBase) and BeginMontageChain (takes USkillDataBase*), so it
+// serves attacks and abilities alike. (Log text still says "ability" — cosmetic, harmless.)
+void UActionExecutor::PlaySkillAnimation(AActor *User, USkillDataBase *Ability, const FActionStatModifiers &ActionMods)
 {
 	if (!User || !Ability)
 	{
@@ -3400,116 +3899,23 @@ void UActionExecutor::PlayAbilityAnimation(AActor *User, UAbilityData *Ability, 
 		return;
 	}
 
-	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed
-	// contribution — BaseAnimSpeed uniform across all three paths (D7), default 1.0.
-	// CalculateAnimationSpeed derives from the ActionSpeed sub-stat — same scaling channel
-	// as character movement. At baseline stats, AnimationSpeed=1.0 so existing montages unchanged.
+	// Play rate = BaseAnimSpeed × GetEffectiveActionSpeed() (Pattern P, cluster 5g — stat ×1.5
+	// clamped ALONE, gear/stone/transient multiply toward the ×2.0 ceiling) × per-action ActionMods.
+	// BaseAnimSpeed (montage authoring) and ActionMods stay at the call site.
+	// TODO(docs/Design/RealTimeDefenseRework.md): ActionSpeed's COMBAT effect (shrinking the
+	// defender's reaction window) is still unwired — this speeds the ability animation only.
 	float PlayRate = Ability->BaseAnimSpeed;
-	UCharacterData *CharData = GetCharacterData(User);
-	if (CharData)
+	if (UCharacterDataComponent *UserComp = GetCharacterDataComponent(User))
 	{
-		PlayRate *= CharData->CalculateAnimationSpeed();
+		PlayRate *= UserComp->GetEffectiveActionSpeed();
 	}
 	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
-
-	// Equipment stat bonus — additive to play rate using the same per-point
-	// shape as the asset-side CalculateAnimationSpeed formula.
-	if (User)
-	{
-		if (ULoadoutComponent *Loadout = User->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(User);
-			PlayRate += Bonus.BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
-
-			// Attached ActionSpeedStone — user's OWN active weapon attachment, fusion-aware.
-			// TODO(docs/Design/RealTimeDefenseRework.md): combat effect (shrinking the
-			// defender's reaction window) is unwired — speeds the ability animation now only.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
-
-	// Skill-effect-driven ActionSpeedBuff / ActionSpeedDebuff (percent-space). Added as the
-	// ActionSpeedStone consumable's read-site — mirrors PlaySpellAnimation's SpellSpeed block.
-	// (Was absent: the ability/attack montage path had no skill-effect speed read.)
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		const float ActionBuff = SEM->GetTotalStatModifier(User, ESkillEffectType::ActionSpeedBuff);
-		const float ActionDebuff = SEM->GetTotalStatModifier(User, ESkillEffectType::ActionSpeedDebuff);
-		PlayRate *= (1.0f + (ActionBuff - ActionDebuff) / 100.0f);
-		PlayRate = FMath::Max(0.1f, PlayRate);
-	}
+	PlayRate = FMath::Max(0.1f, PlayRate);
 
 	BeginMontageChain(User, Ability, PlayRate);
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing ability animation %s for %s at %.2fx"),
 		   *Ability->SkillMontage->GetName(), *Ability->Name, PlayRate);
-}
-
-void UActionExecutor::PlayAttackAnimation(AActor *Attacker, UWeaponAttackData *Attack, const FActionStatModifiers &ActionMods)
-{
-	if (!Attacker || !Attack)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - Invalid attacker or attack"));
-		return;
-	}
-
-	// D2 reader switch: SkillMontage is the unified field (PostLoad mirrored
-	// AttackMontage into it, so playback is byte-identical).
-	if (!Attack->SkillMontage)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] PlayAttackAnimation - No montage on %s"),
-			   *Attack->Name);
-		return;
-	}
-
-	// Play rate = BaseAnimSpeed × CalculateAnimationSpeed() × ActionMods.ActionSpeed contribution.
-	// Preserves designer-tuned per-attack pacing; layers stat scaling on top.
-	float PlayRate = Attack->BaseAnimSpeed;
-	UCharacterData *CharData = GetCharacterData(Attacker);
-	if (CharData)
-	{
-		PlayRate *= CharData->CalculateAnimationSpeed();
-	}
-	PlayRate = ActionMods.ApplyTo(PlayRate, ESubStat::ActionSpeed);
-
-	// Equipment stat bonus — additive to play rate using the same per-point
-	// shape as the asset-side CalculateAnimationSpeed formula.
-	if (Attacker)
-	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
-			PlayRate += Bonus.BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
-
-			// Attached ActionSpeedStone — attacker's OWN active weapon attachment, fusion-aware.
-			// TODO(docs/Design/RealTimeDefenseRework.md): combat effect (shrinking the
-			// defender's reaction window) is unwired — speeds the attack animation now only.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				PlayRate *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
-
-	// Skill-effect-driven ActionSpeedBuff / ActionSpeedDebuff (percent-space). The
-	// ActionSpeedStone consumable's read-site — mirrors PlaySpellAnimation's SpellSpeed block.
-	if (USkillEffectManager *SEM = GetSkillEffectManager())
-	{
-		const float ActionBuff = SEM->GetTotalStatModifier(Attacker, ESkillEffectType::ActionSpeedBuff);
-		const float ActionDebuff = SEM->GetTotalStatModifier(Attacker, ESkillEffectType::ActionSpeedDebuff);
-		PlayRate *= (1.0f + (ActionBuff - ActionDebuff) / 100.0f);
-		PlayRate = FMath::Max(0.1f, PlayRate);
-	}
-
-	BeginMontageChain(Attacker, Attack, PlayRate);
-
-	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing attack animation %s at %.2fx"),
-		   *Attack->SkillMontage->GetName(), PlayRate);
 }
 
 // ========================================
@@ -3624,6 +4030,71 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	}
 
 	return Sources;
+}
+
+TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell(AActor *Actor, const USpellData *Spell) const
+{
+	TArray<EInfusionSourceOption> Allowed;
+	if (!Spell)
+	{
+		return Allowed;
+	}
+
+	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	if (!LC)
+	{
+		return Allowed;
+	}
+
+	// Spells are 1:1 origin-bound — a spell's allowed infusion source IS its origin.
+	// ResolveSpellSource is a const, read-only resolver; the non-const param is legacy.
+	const ESpellSource Origin = LC->ResolveSpellSource(const_cast<USpellData *>(Spell));
+
+	switch (Origin)
+	{
+	case ESpellSource::Innate:
+		Allowed.Add(EInfusionSourceOption::Innate);
+		break;
+
+	case ESpellSource::WeaponCrystal:
+		Allowed.Add(EInfusionSourceOption::WeaponCrystal);
+		break;
+
+	case ESpellSource::RingCrystal:
+	{
+		// Resonators hold rings in the dedicated ring loadout (ActiveRing) and can't slot rings in
+		// the primary slot; Generic/Caster hold their ring in the primary slot (PrimaryRing).
+		// ResolveSpellSource collapses both ring paths to RingCrystal; the class splits them here,
+		// mirroring GetAvailableInfusionSources.
+		const UCharacterData *Data = GetCharacterData(Actor);
+		Allowed.Add((Data && Data->IsResonator())
+						? EInfusionSourceOption::ActiveRing
+						: EInfusionSourceOption::PrimaryRing);
+		break;
+	}
+
+	case ESpellSource::Evolution:
+	{
+		Allowed.Add(EInfusionSourceOption::Evolution);
+		// Exception: BD / Reality casters may ALSO route an evolution spell through Innate.
+		const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+		const UCharacterData *Data = GetCharacterData(Actor);
+		const bool bReality = Data && Data->InnateElement == ESpellElement::Reality;
+		const bool bBD = Comp && Comp->IsBrokenDarkness();
+		if (bReality || bBD)
+		{
+			Allowed.Add(EInfusionSourceOption::Innate);
+		}
+		break;
+	}
+
+	case ESpellSource::Item:
+	default:
+		// Item spells (and any unresolved origin) are consumables, not infusable -> no source.
+		break;
+	}
+
+	return Allowed;
 }
 
 ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const
@@ -3893,9 +4364,12 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 			TriggerReason = FString::Printf(TEXT("L%d Infusion"), InfusionLevel);
 		}
 	}
-	else if (Action.ActionType == EActionType::Ability && Action.AbilityData)
+	// Attacks fold into Ability (attack/ability merge) but must NOT trigger the break roll — the rule
+	// above is "other action types don't trigger break". Gate them out with !IsAttack() so a basic
+	// attack falls to the else (no roll), exactly as it did when it was EActionType::Attack.
+	else if (Action.ActionType == EActionType::Ability && Action.SkillData && !Action.SkillData->IsAttack())
 	{
-		Tier = Action.AbilityData->Tier;
+		Tier = Action.SkillData->Tier;
 		InfusionLevel = Action.AbilityInfusionLevel;
 
 		// Ability rolls ONLY when all three hold: the ability is infused, the
@@ -3913,7 +4387,7 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 			return;
 		}
 
-		if (!UBrokenDarknessManager::DoesAbilityExceedRequirements(Action.AbilityData, CharData))
+		if (!UBrokenDarknessManager::DoesAbilityExceedRequirements(Cast<UAbilityData>(Action.SkillData), CharData))
 		{
 			return;
 		}
@@ -3980,56 +4454,125 @@ URingManager *UActionExecutor::GetRingManager() const
 // CHARGE INFUSION HELPERS
 // ========================================
 
-float UActionExecutor::GetSpellChargeStatusMultiplier(int32 SpellInfusionLevel) const
+// Shared upside-only stat surcharge fraction: max(0, stat - 1). Stacking the stat raises
+// the infusion COST (6-2 ComputeInfusionCostMultiplier) and the EFFECT (6-3 charge getters)
+// by the IDENTICAL fraction — one definition so cost and effect never drift.
+static float StatFraction(float Stat)
 {
-	switch (SpellInfusionLevel)
-	{
-	case 1:
-		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.25f - status boost
-	case 2:
-		return 1.0f; // L2 gets BASE status, not boosted
-	default:
-		return 1.0f;
-	}
+	return FMath::Max(0.0f, Stat - 1.0f);
 }
 
-float UActionExecutor::GetSpellChargeDamageMultiplier(int32 SpellInfusionLevel) const
+// Charge effect band: pick the L1 vs L2 value for a (L1,L2) constant pair. Callers guard
+// Level <= 0 → 1.0 before reaching here, so any Level >= 2 takes the L2 band.
+static float ChargeBand(int32 Level, float L1Value, float L2Value)
 {
-	switch (SpellInfusionLevel)
-	{
-	case 1:
-		return 1.0f; // L1 gets status boost, not damage
-	case 2:
-		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
-	default:
-		return 1.0f;
-	}
+	return (Level == 1) ? L1Value : L2Value;
 }
 
-float UActionExecutor::GetAbilityChargeStatusMultiplier(int32 AbilityInfusionLevel) const
+float UActionExecutor::GetChargeDamageMultiplier(int32 Level, EInfusionMode Mode, bool bIsSpell, const UCharacterDataComponent *Comp) const
 {
-	switch (AbilityInfusionLevel)
+	if (Level <= 0 || !Comp)
 	{
-	case 1:
-		return InfusionConstants::CHARGE_L1_STATUS_MULT; // 1.25f - status boost
-	case 2:
-		return 0.0f; // L2 gets NO status
-	default:
-		return 0.0f; // L0 = no status from charge
+		return 1.0f; // uninfused (or no comp): no charge bonus
 	}
+
+	// Damage is the FOCUS in Physical mode, OFF-FOCUS in Status, BALANCED in Balanced.
+	float Base;
+	switch (Mode)
+	{
+	case EInfusionMode::Physical:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_FOCUS_L1, InfusionConstants::CHARGE_FOCUS_L2);
+		break;
+	case EInfusionMode::Status:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_OFFFOCUS_L1, InfusionConstants::CHARGE_OFFFOCUS_L2);
+		break;
+	case EInfusionMode::Balanced:
+	default:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_BALANCED_L1, InfusionConstants::CHARGE_BALANCED_L2);
+		break;
+	}
+
+	const float Stat = bIsSpell ? Comp->GetEffectiveStats().SpellDamage
+								 : Comp->GetEffectiveRawDamage();
+	return Base * (1.0f + StatFraction(Stat));
 }
 
-float UActionExecutor::GetAbilityChargeDamageMultiplier(int32 AbilityInfusionLevel) const
+float UActionExecutor::GetChargeStatusMultiplier(int32 Level, EInfusionMode Mode, const UCharacterDataComponent *Comp) const
 {
-	switch (AbilityInfusionLevel)
+	if (Level <= 0 || !Comp)
 	{
-	case 1:
-		return 1.0f; // L1 gets status boost, not damage
-	case 2:
-		return InfusionConstants::CHARGE_L2_DAMAGE_MULT; // 1.3f - damage boost
-	default:
 		return 1.0f;
 	}
+
+	// Status is the FOCUS in Status mode, OFF-FOCUS in Physical, BALANCED in Balanced.
+	float Base;
+	switch (Mode)
+	{
+	case EInfusionMode::Physical:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_OFFFOCUS_L1, InfusionConstants::CHARGE_OFFFOCUS_L2);
+		break;
+	case EInfusionMode::Status:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_FOCUS_L1, InfusionConstants::CHARGE_FOCUS_L2);
+		break;
+	case EInfusionMode::Balanced:
+	default:
+		Base = ChargeBand(Level, InfusionConstants::CHARGE_BALANCED_L1, InfusionConstants::CHARGE_BALANCED_L2);
+		break;
+	}
+
+	return Base * (1.0f + StatFraction(Comp->GetEffectiveStatusMultiplier()));
+}
+
+EInfusionMode UActionExecutor::ResolveInfusionMode(EInfusionSourceOption Source, AActor *Actor) const
+{
+	switch (Source)
+	{
+	case EInfusionSourceOption::ActiveRing:
+		if (URingManager *RM = GetRingManager())
+		{
+			if (URingData *Ring = RM->GetActiveRing(Actor))
+			{
+				return Ring->InfusionMode;
+			}
+		}
+		break;
+	case EInfusionSourceOption::PrimaryRing:
+		if (URingManager *RM = GetRingManager())
+		{
+			if (URingData *Ring = RM->GetPrimaryRing(Actor))
+			{
+				return Ring->InfusionMode;
+			}
+		}
+		break;
+	case EInfusionSourceOption::Innate:
+		if (UCharacterData *CharData = GetCharacterData(Actor))
+		{
+			return CharData->InfusionMode;
+		}
+		break;
+	case EInfusionSourceOption::Evolution:
+		if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
+		{
+			if (UEvolutionItemData *Evo = LC->GetPrimaryEvolution())
+			{
+				return Evo->InfusionMode;
+			}
+		}
+		break;
+	case EInfusionSourceOption::Raw:
+	case EInfusionSourceOption::WeaponCrystal:
+	default:
+		if (UWeaponManager *WM = GetWeaponManager())
+		{
+			if (UWeaponData *Weapon = WM->GetActiveWeapon(Actor))
+			{
+				return Weapon->InfusionMode;
+			}
+		}
+		break;
+	}
+	return EInfusionMode::Balanced; // null-safe fallback
 }
 
 float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
@@ -4047,39 +4590,30 @@ float UActionExecutor::GetAbilityChargeCostMultiplier(int32 Level) const
 	}
 }
 
-void UActionExecutor::ApplyAbilityInfusionStatus(
-	AActor *User,
-	const TArray<AActor *> &Targets,
-	EInfusionSourceOption Source,
-	int32 HitCount,
-	float StatusMultiplier)
+float UActionExecutor::ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const
 {
-	if (StatusMultiplier <= 0.0f || Targets.Num() == 0)
+	if (Level <= 0)
 	{
-		return;
+		// Uninfused: no charge multiplier, no surcharge — caller pays BaseCost * Efficiency.
+		return 1.0f;
 	}
 
-	if (Source == EInfusionSourceOption::None)
-	{
-		// Physical source - TODO: Integrate with WeaponManager when API is available
-		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply physical status to %d targets (x%.1f mult)"),
-			   Targets.Num(), StatusMultiplier);
-	}
-	else
-	{
-		// Elemental source - apply element status buildup
-		ESpellElement Element = GetElementForSourceOption(User, Source);
+	const float ChargeMult = bIsSpell
+								  ? GetSpellInfusionCostMultiplier(Level)
+								  : GetAbilityChargeCostMultiplier(Level);
 
-		if (Element != ESpellElement::Generic)
-		{
-			int32 BaseBuildup = 10 * HitCount; // TODO: Get from CombatConstants
-			int32 FinalBuildup = FMath::RoundToInt(BaseBuildup * StatusMultiplier);
-
-			// TODO: Integrate with SkillEffectManager when API is available
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Would apply %d %s status buildup to %d targets"),
-				   FinalBuildup, *UEnum::GetValueAsString(Element), Targets.Num());
-		}
+	// Stat surcharge — UPSIDE-ONLY (a below-neutral stat never reduces the cost).
+	// Ability scales with RawDamage, spell with SpellDamage. Stacking the stat makes
+	// infusion cost MORE in BOTH directions (damage AND cost) — self-balancing.
+	float Frac = 0.0f;
+	if (Comp)
+	{
+		const float Stat = bIsSpell ? Comp->GetEffectiveStats().SpellDamage
+									 : Comp->GetEffectiveRawDamage();
+		Frac = StatFraction(Stat);
 	}
+
+	return ChargeMult * (1.0f + Frac);
 }
 
 // ========================================
@@ -4136,19 +4670,29 @@ float UActionExecutor::GetExecutionRange(const FAction &Action) const
 {
 	switch (Action.ActionType)
 	{
-	case EActionType::Attack:
-		return Action.AttackData ? Action.AttackData->ExecutionRange : 100.0f;
-
 	case EActionType::Ability:
-		// Only return execution range for Melee abilities
-		if (Action.AbilityData && Action.AbilityData->IsMelee())
+		// Merged (Cluster 2): melee skills warp to ExecutionRange; ranged don't approach. Reads the
+		// unified pointer; the gate is on ExecutionType (on USkillDataBase — IsMelee() is ability-only).
+		// The old Attack path's unconditional read + 100.0f null-fallback is dropped: attacks default
+		// ExecutionType=Melee (so melee attacks are unchanged) and always resolve a skill by dispatch.
+		if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
-			return Action.AbilityData->ExecutionRange;
+			if (Skill->ExecutionType == EAbilityExecutionType::Melee)
+			{
+				return Skill->ExecutionRange;
+			}
 		}
-		return 0.0f; // Non-melee abilities don't approach
+		return 0.0f;
 
 	case EActionType::Spell:
-		return 0.0f; // Spells are always ranged, no approach
+		// Melee spells warp like melee abilities; ranged spells don't approach.
+		// (USpellData has no IsMelee() helper — gate on ExecutionType directly; the
+		//  field lives on USkillDataBase, which spells inherit.)
+		if (Action.SpellData && Action.SpellData->ExecutionType == EAbilityExecutionType::Melee)
+		{
+			return Action.SpellData->ExecutionRange;
+		}
+		return 0.0f; // ranged spells don't approach
 
 	default:
 		return 0.0f;
@@ -4235,10 +4779,9 @@ void UActionExecutor::BeginSkillExecution(AActor *Actor)
 		ExecuteSpellAsync(Actor, Action, CharData);
 		break;
 	case EActionType::Ability:
-		ExecuteAbilityAsync(Actor, Action, CharData);
-		break;
-	case EActionType::Attack:
-		ExecuteAttackAsync(Actor, Action, CharData);
+		// Merged dispatch: attacks fold into Ability (Cluster 3) and route to ExecuteSkillAsync, which
+		// reads the unified skill pointer (ResolveActionSkill).
+		ExecuteSkillAsync(Actor, Action, CharData);
 		break;
 	default:
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] Unexpected action type in BeginSkillExecution"));
@@ -4294,15 +4837,53 @@ void UActionExecutor::PlayActionMontageOnActor(AActor *Actor, UAnimMontage *Mont
 	if (CombatAnim)
 	{
 		CombatAnim->PlayActionMontage(Montage, PlayRate);
-		return;
 	}
-
-	// Fallback: Direct character montage
-	ACharacter *Character = Cast<ACharacter>(Actor);
-	if (Character)
+	else if (ACharacter *Character = Cast<ACharacter>(Actor))
 	{
+		// Fallback: Direct character montage
 		Character->PlayAnimMontage(Montage, PlayRate);
 		UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Playing montage %s via fallback"), *Montage->GetName());
+	}
+
+	// Telegraph scan (purely cosmetic — opens no window, gates no input, touches no difficulty).
+	// For each authored telegraph on this montage's notifies, schedule its VFX tell to play
+	// TelegraphLeadSeconds (wall-clock) BEFORE the notify fires. The notify's montage-local trigger
+	// time is divided by the play rate so the lead is rate-INDEPENDENT (a speed buff doesn't shorten
+	// the warning). A lead longer than the time-to-notify fires the tell at montage start (clamp).
+	// Per-montage: each leg of the Ritual/Skill/Return chain scans its own notifies at its own start.
+	const float Rate = FMath::Max(0.1f, PlayRate);
+	for (const FAnimNotifyEvent &Event : Montage->Notifies)
+	{
+		const UCombatNotify *CN = Cast<UCombatNotify>(Event.Notify);
+		if (!CN || CN->TelegraphLeadSeconds <= 0.0f || CN->Telegraph.VFX.IsNull())
+		{
+			continue; // no telegraph authored on this notify
+		}
+
+		const float FireDelay = (Event.GetTriggerTime() / Rate) - CN->TelegraphLeadSeconds;
+		if (FireDelay <= 0.0f)
+		{
+			// Lead exceeds the time before the notify — fire the tell now (montage start).
+			SpawnVFXArrayEntry(CN->Telegraph, 0);
+			continue;
+		}
+
+		if (UWorld *World = GetWorld())
+		{
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(
+				Handle,
+				FTimerDelegate::CreateLambda([this, Tell = CN->Telegraph]()
+				{
+					// Guard a stale fire — a cancelled action clears these timers, but belt-and-suspenders.
+					if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress)
+					{
+						SpawnVFXArrayEntry(Tell, 0);
+					}
+				}),
+				FireDelay, false);
+			TelegraphTimerHandles.Add(Handle);
+		}
 	}
 }
 
@@ -4327,6 +4908,44 @@ void UActionExecutor::UnbindActionAnimationEnd(AActor *Actor)
 		CombatAnim->OnActionMontageEnded.RemoveDynamic(this, &UActionExecutor::OnActionAnimationEnded);
 	}
 	bWaitingForAnimationEnd = false;
+}
+
+// Shared reconciliation (Stage 1): mark the action's animation finished and force-close
+// every count-based (ExpectedImpacts>0, melee) defense window — the "animation done" half
+// of the "later of (impacts-done, animation-done)" close. Damage is lumped at
+// CloseDefenseWindow (Stage 2 splits per-impact), so reconcile == close: complete counts
+// close normally; incomplete ones (fewer/missing Impact notifies, or an interrupted montage)
+// reconcile here instead of hanging on the 8s failsafe. Called from BOTH the clean Skill-end
+// branch and FinishMontageChain (which the interrupted path routes through, skipping Skill-end).
+// Idempotent: by the time FinishMontageChain runs on the normal path, Skill-end already drained
+// the count-based entries, so this is a no-op. Collect-then-close: CloseDefenseWindow
+// re-entrantly removes the PendingDefenses entry, so we must not close mid-iteration.
+static void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecContext, UDefenseSystem *DefenseSys)
+{
+	ExecContext.bAnimationFinished = true;
+	if (!DefenseSys)
+	{
+		return;
+	}
+
+	TArray<AActor *> DefendersToClose;
+	for (auto &Pair : ExecContext.PendingDefenses)
+	{
+		if (Pair.Value.ExpectedImpacts > 0)
+		{
+			if (AActor *Defender = Pair.Key.Get())
+			{
+				DefendersToClose.Add(Defender);
+			}
+		}
+	}
+
+	for (AActor *Defender : DefendersToClose)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] animation-end reconcile — closing window for %s"),
+			   *GetNameSafe(Defender));
+		DefenseSys->CloseDefenseWindow(Defender);
+	}
 }
 
 void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterrupted)
@@ -4371,7 +4990,7 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	// NOT PendingExecutionActor/GetCurrentSkillData() — on a deferred fire finalize
 	// nulls PendingExecutionActor mid-Skill; reading it here would strand Return.
 	AActor *Actor = ChainActor.Get();
-	UCastableSkillDataBase *Skill = ChainSkill;
+	USkillDataBase *Skill = ChainSkill;
 
 	// Lost actor/skill or interrupted → close the chain immediately (finalize with
 	// the facing reassert). Matches today's interrupted/dropped-actor paths, which
@@ -4405,6 +5024,16 @@ void UActionExecutor::OnActionAnimationEnded(UAnimMontage *Montage, bool bInterr
 	case EMontagePhase::Skill:
 	{
 		UE_LOG(LogTemp, Log, TEXT("[Montage] Skill ended - advancing to Return"));
+
+		// Stage 1 "later of" close: the hitting animation has ended. Reconcile/close the
+		// count-based melee windows here (the animation is normally the LATER signal, so
+		// this is what actually closes them) BEFORE the warp-back Return leg. An attack
+		// with fewer Impact notifies than ExpectedImpacts still closes here, not at 8s.
+		if (CurrentExecutionContext.IsSet())
+		{
+			ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());
+		}
+
 		TWeakObjectPtr<AActor> WeakActor = Actor;
 		GetWorld()->GetTimerManager().SetTimerForNextTick(
 			FTimerDelegate::CreateWeakLambda(this, [this, WeakActor]()
@@ -4507,7 +5136,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 		{
 			DispatchSpellCast(PendingSpellCaster, PendingSpellData,
 							  PendingSpellData->CastArray[0], PendingSpellSize,
-							  PendingSpellTargets, PendingSpellDamage);
+							  PendingSpellTargets, PendingSpellDamage, 0);
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
 		}
 		else
@@ -4561,7 +5190,7 @@ UMotionWarpingComponent *UActionExecutor::GetOrCreateWarpComponent(AActor *Actor
 	return Warp;
 }
 
-void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *Skill, float PlayRate)
+void UActionExecutor::BeginMontageChain(AActor *Actor, USkillDataBase *Skill, float PlayRate)
 {
 	if (!Actor || !Skill)
 	{
@@ -4595,7 +5224,7 @@ void UActionExecutor::BeginMontageChain(AActor *Actor, UCastableSkillDataBase *S
 	}
 }
 
-void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skill)
+void UActionExecutor::PlayRitualStep(AActor *Actor, USkillDataBase *Skill)
 {
 	if (!Actor || !Skill)
 	{
@@ -4615,7 +5244,7 @@ void UActionExecutor::PlayRitualStep(AActor *Actor, UCastableSkillDataBase *Skil
 	PlaySkillStep(Actor, Skill);
 }
 
-void UActionExecutor::PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill)
+void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 {
 	if (!Actor || !Skill)
 	{
@@ -4631,7 +5260,7 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, UCastableSkillDataBase *Skill
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
 }
 
-void UActionExecutor::PlayReturnStep(AActor *Actor, UCastableSkillDataBase *Skill)
+void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 {
 	if (!Actor || !Skill)
 	{
@@ -4705,6 +5334,15 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Action animation ended - finalizing"));
 
+	// Stage 1 "later of" close — catch-all for the INTERRUPTED path: an interrupted Skill
+	// montage routes here (via the bInterrupted branch) WITHOUT passing the Skill-end case,
+	// so without this an interrupted attack's count-based windows would hang to the 8s
+	// failsafe. Idempotent on the normal path: Skill-end already drained the entries.
+	if (CurrentExecutionContext.IsSet())
+	{
+		ReconcileCountBasedDefenseWindows(*CurrentExecutionContext, GetDefenseSystem());
+	}
+
 	// Montage-end facing reassert — nearest living enemy (arena center when none).
 	if (Actor)
 	{
@@ -4735,7 +5373,7 @@ void UActionExecutor::FinishMontageChain(AActor *Actor)
 	TryFinalizeAsyncAction();
 }
 
-const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDataBase *Skill, EVFXRole Role)
+const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const USkillDataBase *Skill, EVFXRole Role)
 {
 	if (!Skill)
 	{
@@ -4752,7 +5390,7 @@ const FSkillVFXEntry *UActionExecutor::GetVFXEntryByRole(const UCastableSkillDat
 	return nullptr;
 }
 
-UCastableSkillDataBase *UActionExecutor::GetCurrentSkillData() const
+USkillDataBase *UActionExecutor::GetCurrentSkillData() const
 {
 	if (!CurrentExecutionContext.IsSet())
 	{
@@ -4765,9 +5403,7 @@ UCastableSkillDataBase *UActionExecutor::GetCurrentSkillData() const
 	case EActionType::Spell:
 		return Action.SpellData;
 	case EActionType::Ability:
-		return Action.AbilityData;
-	case EActionType::Attack:
-		return Action.AttackData;
+		return ResolveActionSkill(Action);
 	default:
 		return nullptr;
 	}
@@ -4784,7 +5420,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 	{
 	case ECombatNotifyFamily::VFX:
 	{
-		UCastableSkillDataBase *Skill = GetCurrentSkillData();
+		USkillDataBase *Skill = GetCurrentSkillData();
 		if (!Skill)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[Runner] VFX notify %d with no skill data — skipping"), Index);
@@ -4800,10 +5436,102 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		return;
 	}
 
-	case ECombatNotifyFamily::Hit:
-		// Damage wiring lands at SC4 (ResolvedDamageSplit consumption).
-		UE_LOG(LogTemp, Log, TEXT("[Runner] Hit notify index %d (stub — damage wiring is SC4)"), Index);
+	case ECombatNotifyFamily::Impact:
+	{
+		// Read ChainActor, not PendingExecutionActor: the latter is nulled by the
+		// prior action's CompleteAsyncActionFinal during a deferred fire (re-entrant
+		// clobber), so it can be NULL while this action's skill montage is still
+		// firing hits. ChainActor is the stable handle, valid through the whole
+		// montage chain — same source OnActionAnimationEnded advances off.
+		AActor *Executor = ChainActor.Get();
+		USkillDataBase *Skill = GetCurrentSkillData();
+		const int32 HitCount = Skill ? Skill->HitCount : 0;
+		// Fires into the void this stage — Stage 2's per-impact resolver binds OnImpactFrame.
+		UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impact %d of %d for %s"),
+			   Index, HitCount, *GetNameSafe(Executor));
+		OnImpactFrame.Broadcast(Executor, Index);
+
+		// Per-impact apply (Stage 2) + count-based "later of" close (Stage 1), melee.
+		// Each landed impact APPLIES ITS DAMAGE at its frame (ResolvedDamageSplit[Index] of
+		// the stashed reduced total) and increments the count. A defender closes only once it
+		// has taken ALL its impacts AND the hitting animation has finished (bAnimationFinished);
+		// for melee the animation is normally the LATER signal, so the close usually happens at
+		// Skill-end (ReconcileCountBasedDefenseWindows) — this branch handles the symmetric
+		// "impact after animation" case. ExpectedImpacts==0 ⇒ timer-close window (non-attack) →
+		// left untouched. One swing hits all current defenders (melee cleave).
+		// Three phases, all DEFERRED out of the iteration: ApplyOneImpact can broadcast
+		// OnTargetKilled (subscribers may mutate PendingDefenses) and CloseDefenseWindow
+		// re-entrantly removes the entry — neither is safe mid-iteration.
+		if (UDefenseSystem *DefenseSys = GetDefenseSystem())
+		{
+			const bool bAnimationFinished = CurrentExecutionContext->bAnimationFinished;
+			TArray<AActor *> DefendersToApply;
+			TArray<AActor *> DefendersToClose;
+			for (auto &Pair : CurrentExecutionContext->PendingDefenses)
+			{
+				FPendingDefenseContext &Ctx = Pair.Value;
+				if (Ctx.ExpectedImpacts <= 0)
+				{
+					continue; // timer-close window — not count-based
+				}
+				AActor *Defender = Pair.Key.Get();
+				if (!Defender)
+				{
+					continue;
+				}
+				// In-order sanity — the close-time tail [ImpactsLanded, HitCount) assumes
+				// contiguous in-order notifies (authoring contract: 0..HitCount-1).
+				if (Index != Ctx.ImpactsLanded)
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[Stage2] impact index %d != drain pointer %d for %s — out-of-order/gapped notify (authoring-contract)"),
+						   Index, Ctx.ImpactsLanded, *Defender->GetName());
+				}
+				DefendersToApply.Add(Defender);
+				if (++Ctx.ImpactsLanded >= Ctx.ExpectedImpacts && bAnimationFinished)
+				{
+					DefendersToClose.Add(Defender);
+				}
+			}
+			// Resolve THIS impact's defense (split-then-reduce + match-and-consume) and apply
+			// its reduced slice. One impact frame = one moment, so all defenders share a single
+			// ImpactTime. Done after iteration — see above.
+			const double ImpactTime = FPlatformTime::Seconds();
+			for (AActor *Defender : DefendersToApply)
+			{
+				FPendingDefenseContext *Ctx = CurrentExecutionContext->PendingDefenses.Find(Defender);
+				if (!Ctx)
+				{
+					continue; // removed by a prior impact's death broadcast
+				}
+				// Melee difficulty source: the per-impact-ordinal table (IsValidIndex guard → Easy ×1.0).
+				const FDefenseDifficultyTriple MeleeDifficulty =
+					CurrentExecutionContext->ResolvedDifficulty.IsValidIndex(Index)
+						? CurrentExecutionContext->ResolvedDifficulty[Index]
+						: FDefenseDifficultyTriple();
+				ResolveImpactDefense(Defender, Index, ImpactTime, MeleeDifficulty);
+				StashHitFlags(*Ctx, CurrentExecutionContext->ResolvedHitFlags, Index);
+				ApplyOneImpact(Ctx->Attacker.Get(), Defender, *Ctx, Index, /*bDamageIsPerImpact=*/true);
+			}
+			// Hybrid B2 interrupt: if THIS impact was authored interruptable and EVERY targeted defender
+			// parried/dodged it, abort the rest of the attack. Checked HERE — after all defenders resolved
+			// this impact, BEFORE the closes remove their contexts — so AllInterruptSucceeded sees the full
+			// set. Single-target degenerates to the one defender's outcome (the grab).
+			if (CurrentExecutionContext->ResolvedHitFlags.IsValidIndex(Index) &&
+				CurrentExecutionContext->ResolvedHitFlags[Index].bInterruptable &&
+				AllInterruptSucceeded())
+			{
+				InterruptAsyncAction(ChainActor.Get(), ChainSkill);
+				return;
+			}
+			for (AActor *Defender : DefendersToClose)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[ImpactFrame] impacts + animation done for %s — closing window"),
+					   *GetNameSafe(Defender));
+				DefenseSys->CloseDefenseWindow(Defender);
+			}
+		}
 		return;
+	}
 
 	case ECombatNotifyFamily::Cast:
 	{
@@ -4831,7 +5559,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		}
 		DispatchSpellCast(PendingSpellCaster, PendingSpellData,
 						  PendingSpellData->CastArray[Index], PendingSpellSize,
-						  PendingSpellTargets, PendingSpellDamage);
+						  PendingSpellTargets, PendingSpellDamage, Index);
 		return;
 	}
 
@@ -5295,8 +6023,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	{
 		Level = Action.SpellInfusionLevel;
 	}
-	else if (Action.ActionType == EActionType::Ability ||
-			 Action.ActionType == EActionType::Attack)
+	else if (Action.ActionType == EActionType::Ability)
 	{
 		Level = Action.AbilityInfusionLevel;
 	}
@@ -5305,6 +6032,32 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	if (Level <= 0)
 	{
 		return;
+	}
+
+	// HP basis (rework 6-2-3c): the PRE-Efficiency, stat-scaled infused EP cost.
+	// Source-independent — it's what this infused action's EP costs before the
+	// Efficiency reduction. The HP-paying branches (Raw/Innate/Evolution) feed this
+	// to CalculateHPCost, which converts it to HP (% of MaxEP -> % of MaxHP) and
+	// applies Resistance. Crystal sources pay durability, not HP, so they ignore it.
+	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
+	UCharacterData *CommitCharData = GetCharacterData(Actor);
+	const UCharacterDataComponent *CommitComp = GetCharacterDataComponent(Actor);
+	int32 PreEffInfusedEP = 0;
+	{
+		int32 BaseCost = 0;
+		if (bIsSpellAction)
+		{
+			if (Action.SpellData)
+			{
+				BaseCost = Action.SpellData->CalculateEnergyCost(CommitCharData);
+			}
+		}
+		else if (USkillDataBase *Skill = ResolveActionSkill(Action))
+		{
+			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
+			BaseCost = Skill->CalculateEnergyCost(CommitCharData, bIsInfused);
+		}
+		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp));
 	}
 
 	// Route by source
@@ -5320,12 +6073,19 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 	case EInfusionSourceOption::Raw:
 	case EInfusionSourceOption::Innate:
-		// Raw/Innate pay HP. Cost computed now (commit-time HP) but DEFERRED to
-		// FinalizeAsyncAction via PendingInfusionHPCost — identical value, applied
-		// after the infused effect resolves so a lethal cost lands post-action.
+		// Raw ALWAYS pays HP. Innate pays HP only on a SPELL — an innate-element
+		// ABILITY is "oiling the sword" (EP only, no self-strain); only its HP is
+		// dropped, the EP surcharge (6-2-2) still applies. Cost is DEFERRED to
+		// FinalizeAsyncAction via PendingInfusionHPCost so a lethal cost lands after
+		// the infused effect resolves.
 		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+			const bool bInnateAbilityNoHP =
+				(Action.SelectedSource == EInfusionSourceOption::Innate) && !bIsSpellAction;
+			if (!bInnateAbilityNoHP)
+			{
+				CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
+			}
 		}
 		break;
 
@@ -5533,7 +6293,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		//    PendingInfusionHPCost so a lethal backlash lands after the action.
 		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, Level);
+			CurrentExecutionContext->PendingInfusionHPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
 		}
 
 		// 3. Self-status build (logged intent, not yet applied — pending element-to-status mapping)

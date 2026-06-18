@@ -12,6 +12,10 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 ## 1. Player input layer — `ACombatPlayerController` is test scaffolding
 
 ### 1.1 `ACombatPlayerController` builds player actions from test fields and bypasses orchestrator
+✅ **RESOLVED** on `feature/realtime-defense` — the test-scaffolding PC was **deleted**: `Public/Testing/CombatPlayerController.h` and `Private/Testing/CombatPlayerController.cpp` no longer exist, and no `TestSpell`/`TestTarget`/`TestAbility` action-submission surface remains in any PC (grep returns zero). The branch added a real `ACombatPlayerController` at `Public/Combat/CombatPlayerController.h` / `Private/Combat/CombatPlayerController.cpp` (commit `b8682afb`) that owns **defense input** (see 1.2); player turn-action submission continues through the command-menu → `ACombatOrchestrator::SubmitAction` path, so the parallel-bypass concern is gone.
+
+**Original gap below for history.**
+
 - **What:** The combat PC fires actions from designer-assigned test properties straight into `UActionExecutor`, skipping `ACombatOrchestrator::SubmitAction` validation, the `bWaitingForAsyncAction` guard, win-condition checks, and the orchestrator's `OnActionExecuted` broadcast.
 - **Where:** `Source/world_of_refraction/Public/CombatPlayerController.h:55-67`; `Source/world_of_refraction/Private/CombatPlayerController.cpp:160-238` (`OnConfirmAction`).
 - **Evidence:** `UPROPERTY(... Category = "Test|Spell") TObjectPtr<USpellData> TestSpell;` (h:55), `Category = "Test|Combat") AActor *TestTarget` (h:59), `Category = "Test|Ability") TObjectPtr<UAbilityData> TestAbility` (h:62). `OnConfirmAction` calls `Executor->ExecuteActionAsync(ControlledActor, Action, ...)` directly (cpp:226).
@@ -20,6 +24,10 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Medium — disambiguating, gating/deleting, and wiring a real PC that goes through the orchestrator is a focused session. A full proper PC implementation is Large.
 
 ### 1.2 Player defense input is BP-only — `DefenseSystem::SubmitDefenseInput` has no player-side C++ caller
+✅ **RESOLVED** on `feature/realtime-defense` — `UDefenseSystem::SubmitDefenseInput` now has a player-side C++ caller: `ACombatPlayerController` (`Private/Combat/CombatPlayerController.cpp:86, 99, 112, 125`) submits Block/Parry/Dodge from bound input, resolving the active defender via `GetActiveDefenderForLocalPlayer` (commits `b8682afb`/`b59d6f69`). The declaration now lives at `Public/Combat/Defense/DefenseSystem.h`. Player defense input is no longer BP-only.
+
+**Original gap below for history.**
+
 - **What:** The only C++ caller of `SubmitDefenseInput` is the AI defender path; player block/parry/dodge presumably comes from BP (the "E blocks" pattern flagged in a prior session).
 - **Where:** `Source/world_of_refraction/Public/DefenseSystem.h:205` (declaration, `BlueprintCallable`); `Source/world_of_refraction/Private/AIDecisionManager.cpp:388` (sole C++ caller).
 - **Evidence:** `grep -rn "SubmitDefenseInput" Source/world_of_refraction/Private` returns only `AIDecisionManager.cpp:388`. No call from `CombatPlayerController` or any UI widget.
@@ -238,6 +246,8 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Small — delete.
 
 ### 6.2 `UCombatMovementComponent::OnMovementCancelled` — broadcast, no subscribers
+✅ **RESOLVED (obsolete)** — `UCombatMovementComponent` was **dissolved** (`9563ff2d` / `9d064648`; warp positioning replaced the movement system). `Public/Combat/Grid/CombatMovementComponent.h` / `.cpp` no longer exist (grep returns zero), so `OnMovementCancelled` and its owning component are gone.
+
 - **What:** Cancel event fires but nothing reacts.
 - **Where:** `CombatMovementComponent.h:25` (decl); `Private/CombatMovementComponent.cpp:303` (broadcast).
 - **Impact:** A cancelled approach (e.g. target dies mid-flight) silently aborts — no "attack interrupted" feedback.
@@ -245,6 +255,8 @@ Methodology: grep sweep across `Source/world_of_refraction/**` for TODO / FIXME 
 - **Scope:** Small.
 
 ### 6.3 Approach/return cosmetic VFX TODOs unimplemented
+✅ **RESOLVED (obsolete)** — same dissolution: `UCombatMovementComponent` is deleted (`9563ff2d`), so the approach/return cosmetic-VFX TODOs at the old `CombatMovementComponent.cpp:159, 170` no longer exist. Warp-based positioning (`BeginSkillExecution`) replaced the teleport-movement path.
+
 - **What:** Movement component plays no vanish/appear FX during teleport-style movement.
 - **Where:** `Private/CombatMovementComponent.cpp:159, 170`.
 - **Evidence:** `:159` `// TODO: Play DepartureVFX, DepartureSound, MovementMontage (vanish)`; `:170` `// TODO: Play ArrivalVFX, ArrivalSound, ArrivalMontage (appear)`.
@@ -467,11 +479,11 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 
 | # | Gap | Priority | Scope | Pitch? |
 |---|---|---|---|---|
-| 1.1 | `ACombatPlayerController` test path bypasses orchestrator | High | Medium | YES |
+| 1.1 | **✅ RESOLVED (realtime-defense)** — test PC deleted (`Testing/CombatPlayerController` gone); real `Combat/CombatPlayerController` added; actions route through orchestrator | High | Medium | YES |
 | 2.1 | `DefensePromptWidget` fully stubbed | High | Small | YES |
 | 2.2 | `OnDefenseWindowOpened` no subscriber | High | (= 2.1) | YES |
 | 3.2 | Orchestrator `OnCombatResultReady` / `OnCombatStateChanged` no production C++ subscriber | Medium-High | Medium | YES (if no BP) |
-| 1.2 | Player defense input is BP-only | Medium | Small | — |
+| 1.2 | **✅ RESOLVED (realtime-defense)** — `SubmitDefenseInput` called from `Combat/CombatPlayerController.cpp:86-125` via `GetActiveDefenderForLocalPlayer` | Medium | Small | — |
 | 2.3 | `OnDefenseInputReceived` / `OnParryReflect` / `OnDefenseCueTriggered` no subscribers | Medium | Small | — |
 | 3.1 | **🔀 SPLIT (2026-05-29)** — camera half → BLOCKED-DESIGN (camera-feel direction); kill-feed/healing-VFX half → BLOCKED-EXTERNAL (combat-log + VFX) | Medium | Small (camera) | — |
 | 4.1 | **✅ RESOLVED partial (sweep-5)** — BD UI display: `GetDisplayElement` helper + stack-text wiring (single-alignment "Fire x3") + overload text color (yellow/orange/red); `OnTransformed` stinger still pending | Medium | Small | YES (if runtime BD transform happens on stage) |
@@ -492,8 +504,8 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 | 2.4 | **✅ RESOLVED (sweep-1)** — `OnDefenseWindowRequested` pure dead | Low | Small | — |
 | 3.3 | **⛔ BLOCKED-EXTERNAL (2026-05-29)** — `OnResurrected` producer wired; consumer-side asset-blocked (revive VFX/SFX/UI/combat-log) | Low | Small | — |
 | 6.1 | **✅ RESOLVED (sweep-1)** — Movement Approach/Return delegates never broadcast — dead bits deleted; `FOnApproachComplete` renamed to `FOnMovementComplete` to match the live field | Low | Small | — |
-| 6.2 | `OnMovementCancelled` no subscribers | Low | Small | — |
-| 6.3 | Teleport vanish/appear VFX TODOs | Low | Small (asset-bound) | — |
+| 6.2 | **✅ RESOLVED (obsolete)** — `UCombatMovementComponent` dissolved (`9563ff2d`); `OnMovementCancelled` gone | Low | Small | — |
+| 6.3 | **✅ RESOLVED (obsolete)** — `UCombatMovementComponent` dissolved (`9563ff2d`); teleport-VFX TODOs gone | Low | Small (asset-bound) | — |
 | 8.2 | `CharacterPanelWidget` hover/click no C++ subscribers | Low | Small | — |
 | 9.1 | Verify cycle-source intent for other submenus | Low (verify) | Small | — |
 | 10.2 | **✅ RESOLVED (sweep-1)** — Attack tier/size hardcoded — read from asset; new `UWeaponAttackData::BaseSize` field | Low | Small | — |
@@ -503,4 +515,4 @@ Sorted by Priority then Scope. "Pitch impact" flag highlights items affecting th
 **Totals:** 32 distinct gaps — **3 High**, **14 Medium / Medium-High**, **15 Low**.
 **Pitch-impacting (the subset most likely to bite the demo):** 1.1, 2.1, 2.2, 3.2, 4.1, 7.1, 9.2, 10.1, 10.4.
 
-**Smallest fix-set to unblock a clean pitch demo:** 2.1 (implement DefensePromptWidget Phase 1) + 1.1 (gate or remove `CombatPlayerController` test path) + confirm BP-side coverage of 3.2 (or ship a minimal C++ result-overlay). Three focused fixes, ~one session each.
+**Smallest fix-set to unblock a clean pitch demo:** 2.1 (implement DefensePromptWidget Phase 1 — Stage 5 of the realtime-defense arc) + confirm BP-side coverage of 3.2 (or ship a minimal C++ result-overlay). *(1.1 — the test-PC bypass — is now ✅ RESOLVED on `feature/realtime-defense`.)*

@@ -5,7 +5,7 @@
 #include "Combat/CombatConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Engine/GameInstance.h"
@@ -44,8 +44,14 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	// Spell → SpellDamage. Ability/Attack/None → RawDamage. Per-action ActionMods
 	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
 	// future per-action stat modifier sources.
-	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
-	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
+	// Hybrid stat toggle (bOverrideStatScaling): swaps ONLY which stat scales (Raw↔Spell) — a force-slash
+	// (cast) scales RawDamage, a fire-punch (physical) scales SpellDamage. Everything else below stays on
+	// Input.ActionType (element routing, the Spell-mode effective-damage branches). STAT-ONLY.
+	const EActionType ScalingType = Input.bOverrideStatScaling
+									   ? (Input.ActionType == EActionType::Spell ? EActionType::Ability : EActionType::Spell)
+									   : Input.ActionType;
+	float AttackerMult = GetAttackerDamageMultiplier(Attacker, ScalingType);
+	const ESubStat AttackerStat = (ScalingType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);
 
 	// Equipment stat bonus — direct read from the attacker's active loadout.
@@ -123,46 +129,63 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	float StatusMod = GetStatusEffectDamageModifier(Attacker, Defender, Input.ActionType);
 	RunningDamage *= StatusMod;
 
-	// Step 2.5: [-100%, +100%] normalization — cap the CHARACTER SpellDamage modifier to [0, 2]
-	// (SPELL only). Recompose the getter's exact (L1+L2)×L3×L4 product as a standalone UNCLAMPED
-	// scalar from the same layer helpers (GetEffectiveSpellDamage itself now clamps, so we read
-	// its components directly) — RawCharMod equals GetEffectiveSpellDamage()'s pre-clamp value,
-	// so the cast and BD/wear cap the IDENTICAL quantity. Apply clamped/raw as a scalar correction
-	// on RunningDamage. Below 2.0, clamped == raw → Correction is EXACTLY 1.0f → RunningDamage
-	// unchanged → byte-identical normal casts. ActionMods (folded into L1 with the multiplier),
-	// Grid, and defender terms are deliberately OUTSIDE this product — call-specific, left uncapped.
-	// A scalar correction commutes with those, so placement right after Step 2 is purely for clarity.
+	// Step 2.5: Pattern P (cluster 5a) — stat-capped, gear-beyond (SPELL only). The STAT term
+	// (GetEvolutionModifiedSpellDamage) is capped ALONE at STAT_MULT_CAP (×1.5 — the stat ceiling,
+	// now ENFORCED in the live path); THEN equipment MULTIPLIES it (×(1+EquipTerm)) and stone/transient
+	// apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. So the
+	// stat saturates at ×1.5 and gear/stone/buff scale it from there toward ×2.0. We re-derive the target
+	// modifier and divide out the UNCLAMPED product currently baked into RunningDamage (Steps 1 /
+	// 1.25b / 2) as a scalar correction. Below the caps, target == raw → Correction is 1.0f →
+	// byte-identical. ActionMods (folded into L1), Grid, and defender terms are deliberately
+	// OUTSIDE this product — call-specific, left uncapped. Mirrors GetEffectiveSpellDamage.
 	if (Input.ActionType == EActionType::Spell && Attacker)
 	{
 		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
+			const float EquipTerm = AttackerComp->GetEquipmentSpellDamageTerm();
+			const float Stone = AttackerComp->GetStoneSpellDamageFactor();
+			const float Transient = AttackerComp->GetTransientSpellDamageFactor();
+			// Uncapped char modifier currently baked into RunningDamage (the denominator).
 			const float RawCharMod =
-				(AttackerComp->GetEvolutionModifiedSpellDamage() + AttackerComp->GetEquipmentSpellDamageTerm())
-				* AttackerComp->GetStoneSpellDamageFactor() * AttackerComp->GetTransientSpellDamageFactor();
-			const float ClampedCharMod =
-				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
+				(AttackerComp->GetEvolutionModifiedSpellDamage() + EquipTerm) * Stone * Transient;
+			// Pattern-P target: stat clamped to ×1.5 ALONE, THEN gear MULTIPLIES (×(1+EquipTerm)),
+			// stone/transient beyond, capped ×2.0. EquipTerm read as a FRACTION (option ii).
+			const float StatBase =
+				FMath::Min(AttackerComp->GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
+			const float TargetCharMod =
+				FMath::Clamp(StatBase * (1.0f + EquipTerm) * Stone * Transient,
+							 CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (TargetCharMod / RawCharMod) : 1.0f;
 			RunningDamage *= Correction;
 		}
 	}
 
-	// Step 2.6: [-100%, +100%] normalization — physical mirror of Step 2.5, gated != Spell (the
-	// complement of the spell correction, so exactly one of the two fires per action). Recompose
-	// the getter's (L1+L2)×L3×L4 product as a standalone UNCLAMPED scalar from the same RawDamage
-	// layer helpers — RawCharMod equals GetEffectiveRawDamage()'s pre-clamp value, so the attack
-	// and BD/wear/AI(future) cap the IDENTICAL quantity. Below 2.0, clamped == raw → Correction is
-	// EXACTLY 1.0f → byte-identical normal physical attacks. ActionMods (folded into L1), Grid, and
-	// defender terms stay OUTSIDE this product — call-specific, left uncapped.
+	// Step 2.6: Pattern P (cluster 5a) — physical mirror of Step 2.5, gated != Spell (the complement,
+	// so exactly one of the two fires per action). The STAT term (GetEvolutionModifiedRawDamage) is
+	// capped ALONE at STAT_MULT_CAP (×1.5 — now ENFORCED live); THEN equipment MULTIPLIES it
+	// (×(1+EquipTerm)) and stone/transient apply OUTSIDE that clamp, bounded by STAT_MODIFIER_MAX
+	// (×2.0). Stat saturates at ×1.5; gear/stone/buff scale it toward ×2.0. We divide out the UNCLAMPED product baked into
+	// RunningDamage as a scalar correction. Below the caps, target == raw → Correction 1.0f →
+	// byte-identical. ActionMods (folded into L1), Grid, and defender terms stay OUTSIDE this
+	// product — call-specific, left uncapped. Mirrors GetEffectiveRawDamage.
 	if (Input.ActionType != EActionType::Spell && Attacker)
 	{
 		if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
+			const float EquipTerm = AttackerComp->GetEquipmentRawDamageTerm();
+			const float Stone = AttackerComp->GetStoneRawDamageFactor();
+			const float Transient = AttackerComp->GetTransientRawDamageFactor();
+			// Uncapped char modifier currently baked into RunningDamage (the denominator).
 			const float RawCharMod =
-				(AttackerComp->GetEvolutionModifiedRawDamage() + AttackerComp->GetEquipmentRawDamageTerm())
-				* AttackerComp->GetStoneRawDamageFactor() * AttackerComp->GetTransientRawDamageFactor();
-			const float ClampedCharMod =
-				FMath::Clamp(RawCharMod, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (ClampedCharMod / RawCharMod) : 1.0f;
+				(AttackerComp->GetEvolutionModifiedRawDamage() + EquipTerm) * Stone * Transient;
+			// Pattern-P target: stat clamped to ×1.5 ALONE, THEN gear MULTIPLIES (×(1+EquipTerm)),
+			// stone/transient beyond, capped ×2.0. EquipTerm read as a FRACTION (option ii).
+			const float StatBase =
+				FMath::Min(AttackerComp->GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
+			const float TargetCharMod =
+				FMath::Clamp(StatBase * (1.0f + EquipTerm) * Stone * Transient,
+							 CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+			const float Correction = (RawCharMod > KINDA_SMALL_NUMBER) ? (TargetCharMod / RawCharMod) : 1.0f;
 			RunningDamage *= Correction;
 		}
 	}
@@ -174,29 +197,15 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	if (Input.bCanCrit)
 	{
 		float CritChance = Input.OverrideCritChance >= 0.0f ? Input.OverrideCritChance : GetCriticalChance(Attacker);
-		// ActionMods.CritChance applies whether crit chance came from override
-		// or computed default. No re-clamp here — preserves prior bool-path
-		// behaviour (Reality boost was deliberately uncapped at this site).
-		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::CritChance);
+		// ActionMods per-action crit-chance boost. Cluster 5e-C2: crit chance is Luck-driven, so this
+		// routes through the Luck axis (was ESubStat::CritChance — which becomes crit DAMAGE in 5e-C3;
+		// routing here prevents a crit-CHANCE modifier from silently flipping onto crit-DAMAGE). No
+		// re-clamp — preserves the prior uncapped Reality-boost behaviour at this site.
+		CritChance = Input.ActionMods.ApplyTo(CritChance, ESubStat::Luck);
 
-		// Luck-driven crit bonus. RawLuck/LUCK_RAW_MAX is upper-clamped to 1 (positive
-		// luck plateaus at +LUCK_CRIT_BONUS_MAX) but NOT lower-clamped: negative luck
-		// (curse) flows through as a negative bonus, so ×(1 + LuckCritBonus) reduces
-		// crit. An extremely negative bonus can drive the local CritChance below 0;
-		// the roll (FRand() in [0,1) < CritChance) then never crits — the correct
-		// cursed outcome. This local never escapes Step 4, so the negative cannot
-		// reach the AI scorer (which reads GetCriticalChance, sans luck).
-		// GetEquipmentModifiedLuck folds in crystal Spirit modifier and
-		// active-loadout BonusLuck.
-		if (Attacker)
-		{
-			if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
-			{
-				const float RawLuck = AttackerComp->GetEquipmentModifiedLuck();
-				const float LuckCritBonus = FMath::Min(RawLuck / CombatConstants::LUCK_RAW_MAX, 1.0f) * CombatConstants::LUCK_CRIT_BONUS_MAX;
-				CritChance *= (1.0f + LuckCritBonus);
-			}
-		}
+		// (5e-C2) The standalone Luck-driven crit BONUS block was REMOVED here. Luck IS the crit chance
+		// now — GetCriticalChance -> GetEvolutionModifiedCritChance -> GetLuckModifiedChance — not a
+		// ×(1+LuckCritBonus) layered on top. Re-applying it would double-count Luck.
 
 		// GuaranteedCrit (passive skill-effect): forces a crit when active on attacker.
 		bool bForceCrit = false;
@@ -208,7 +217,9 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 
 		if (Result.bWasCritical)
 		{
-			const float CritMult = DamageConstants::CRIT_MULTIPLIER * GetCritDamageMultiplier(Attacker);
+			// GetCritDamageMultiplier now returns the FULL multiplier (x1.5 base + stat ramp, then
+			// gear/transient) — 5e-B folded the base in, so it is NOT pre-multiplied here any more.
+			const float CritMult = GetCritDamageMultiplier(Attacker);
 			Result.CritMultiplier = CritMult;
 			RunningDamage *= CritMult;
 		}
@@ -229,10 +240,12 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	}
 	if (!bSkipDefense && Defender)
 	{
+		// Defense is now a capped % reduction (cluster 4): dmg ×= (1 − reduction), reduction in
+		// [0, 0.5]. DamageBlockedByDefense records the HP actually removed by the reduction.
 		Result.DefenderFlatDefense = GetDefenderFlatDefense(Defender);
-		int32 Blocked = FMath::Min(Result.DefenderFlatDefense, FMath::RoundToInt(RunningDamage));
-		Result.DamageBlockedByDefense = Blocked;
-		RunningDamage -= Blocked;
+		const int32 PreDefenseDamage = FMath::RoundToInt(RunningDamage);
+		RunningDamage *= (1.0f - Result.DefenderFlatDefense);
+		Result.DamageBlockedByDefense = PreDefenseDamage - FMath::RoundToInt(RunningDamage);
 	}
 
 	// Step 6.5: Grid position defense modifier (defender)
@@ -260,7 +273,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	AActor *Attacker,
 	AActor *Target,
-	UWeaponAttackData *Attack,
+	USkillDataBase *Attack,
 	bool bIsInfused)
 {
 	FDamageCalculationResult Result;
@@ -283,7 +296,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	// no implicit fallback. Attack assets with BaseDamage == 0 deal 0 damage before
 	// weapon-stat bonuses and multipliers.
 	Input.BaseDamage = Attack->BaseDamage;
-	Input.ActionType = EActionType::Attack;
+	Input.ActionType = EActionType::Ability; // attack/ability merge: Attack folded into Ability (both scale RawDamage)
 
 	// Apply requirement penalty (matches Ability/Spell pattern — multiplicative reduction).
 	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
@@ -300,10 +313,10 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.bWasInfused = bIsInfused;
 	Input.HitCount = Attack->HitCount;
 
-	// Per-instance weapon StatBonus (BonusRawDamage / BonusCritChance) is no longer
-	// read directly here. It's applied as persistent status effects at equip time
-	// (RawDamageBuff via CalculateDamage; CritChanceBuff via GetCriticalChance), so
-	// reading it again would double-count.
+	// Per-instance weapon StatBonus (BonusRawDamage / BonusCritDamage) is no longer
+	// read directly here — it flows through the composed getters
+	// (GetEvolutionModifiedRawDamage / GetCritDamageMultiplier), so reading it again
+	// here would double-count.
 
 	// Calculate with main function
 	Result = CalculateDamage(Attacker, Target, Input);
@@ -338,66 +351,60 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionTy
 	}
 }
 
-int32 UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
+float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 {
 	if (!Defender)
 	{
-		return 0;
+		return 0.0f;
 	}
 
 	UCharacterDataComponent *DefenderComp = Defender->FindComponentByClass<UCharacterDataComponent>();
 	if (!DefenderComp || !DefenderComp->CharacterData)
 	{
-		return 0;
+		return 0.0f;
 	}
 
-	// Crystal-aware flat defense — uses GetEvolutionModifiedBody so the slotted
-	// primary evolution crystal's Body pillar modifier feeds the curve.
-	int32 BaseDefense = DefenderComp->GetEvolutionModifiedFlatDefense();
+	// Pattern P (cluster 5a, revised) — stat-capped, gear-beyond. The crystal-aware STAT reduction
+	// is capped ALONE at UNIVERSAL_STAT_CAP (0.5 = the stat ceiling); THEN stone/buff MULTIPLY it
+	// OUTSIDE that clamp, scaling the capped stat upward toward the RESISTANCE_MAX (1.0) hard ceiling.
+	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more
+	// than a low one (0.5 × 1.3 = 0.65 vs 0.2 × 1.3 = 0.26). GetEvolutionModifiedBody feeds the
+	// slotted crystal's Body pillar into the curve.
+	float Reduction = FMath::Min(DefenderComp->GetEvolutionModifiedFlatDefense(), CombatConstants::UNIVERSAL_STAT_CAP);
 
-	// Equipment stat bonus — flat additive to defense. Direct read from the
-	// defender's active loadout (the bonus is an int rolled per-instance).
-	if (Defender)
+	if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
 	{
-		if (ULoadoutComponent *Loadout = Defender->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Defender);
-			BaseDefense += Bonus.BonusDefense;
+		// Equipment BonusDefense gear (A3) — reinterpreted as a % MULTIPLIER on the capped stat
+		// reduction (option-ii: the per-point magnitude read as a FRACTION, same shape as every other
+		// 5e gear field). Composes multiplicatively with the stone + buff below, OUTSIDE the 0.5 stat
+		// cap, toward the RESISTANCE_MAX (1.0) ceiling (final clamp). ×1 (inert) when BonusDefense is 0.
+		Reduction *= (1.0f + Loadout->GetActiveStatBonus(Defender).BonusDefense * CombatConstants::DEFENSE_PER_POINT);
 
-			// Attached DefenseStone — a PERMANENT, equipment-derived defense
-			// multiplier from the defender's OWN active weapon attachment
-			// (live-resolved, not cached). Distinct from the timed DefenseBuff/
-			// DefenseDebuff layer below. Inert (×1) unless a DefenseStone is
-			// attached — GetAttachedStonePercent returns 0 for any other attachment.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Attachment = *AttPtr;
-				const float StonePct =
-					CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
-				BaseDefense = FMath::RoundToInt(BaseDefense * (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR));
-			}
+		// Attached DefenseStone — a % MULTIPLIER (×(1 + StonePct/100)) on the capped stat reduction,
+		// OUTSIDE the 0.5 cap, from the defender's OWN active weapon attachment (live-resolved, not
+		// cached). Inert (×1) unless a DefenseStone is attached.
+		if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+		{
+			const FRuntimeAttachedItem &Attachment = *AttPtr;
+			const float StonePct =
+				CrystalEffectTable::GetAttachedStonePercent(Attachment, ESubStat::Defense);
+			Reduction *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
 		}
 	}
 
-	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin). Kept
-	// separate from the equipment-bonus path above — these are percentage
-	// modifiers applied multiplicatively, while equipment is flat additive.
+	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — MULTIPLICATIVE transient: the
+	// DefenseBuff/Debuff net scales the (permanent-gear) reduction proportionally, ×(1 + net/100), past
+	// the 0.5 stat cap toward the 1.0 ceiling. Max(0,…) floors a ≥100% debuff at ×0 (never inverts);
+	// buff/debuff in lockstep. The final clamp bounds the result to [0, 1.0].
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
 		float DefenseBuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseBuff);
 		float DefenseDebuff = StatusManager->GetTotalStatModifier(Defender, ESkillEffectType::DefenseDebuff);
-
-		// Buffs/debuffs are percentage modifiers. [-100%,+100%] normalization — the inner
-		// Max(0,…) floors a ≥100% debuff; the outer [0,2] clamp caps the transient MODIFIER
-		// (the multiplier only — the flat pillar/equip/stone defense additions above are NOT
-		// a multiplier and stay uncapped). Byte-identical below 2.0 (a <+100% buff is inert).
-		float Modifier = 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
-		Modifier = FMath::Clamp(FMath::Max(0.0f, Modifier), CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
-		BaseDefense = FMath::RoundToInt(BaseDefense * Modifier);
+		Reduction *= FMath::Max(0.0f, 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
-	return BaseDefense;
+	return FMath::Clamp(Reduction, 0.0f, CombatConstants::RESISTANCE_MAX);
 }
 
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
@@ -417,30 +424,13 @@ float UDamageCalculator::GetCriticalChance(AActor *Attacker) const
 	// primary evolution crystal's Mind pillar modifier feeds the curve.
 	float BaseCrit = AttackerComp->GetEvolutionModifiedCritChance();
 
-	// Equipment stat bonus — BonusCritChance is a float percentage; it compounds
-	// multiplicatively as ×(1 + BonusCritChance/100) on the running crit value.
-	if (Attacker)
-	{
-		if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
-		{
-			const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Attacker);
-			BaseCrit *= (1.0f + Bonus.BonusCritChance / 100.0f);
-
-			// Attached CritStone — a PERMANENT, equipment-derived crit multiplier from
-			// the ATTACKER's OWN active weapon attachment (live-resolved, not cached).
-			// Multiplicative ×(1 + pct/100), consistent with the rest of this chain.
-			// Inert (×1) unless a CritStone is attached — GetAttachedStonePercent returns
-			// 0 for any other attachment (stat-match guard). Mirrors the DefenseStone
-			// hook in GetDefenderFlatDefense, applied on the attacker side.
-			if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
-			{
-				const FRuntimeAttachedItem &Att = *AttPtr;
-				const float StonePct =
-					CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::CritChance);
-				BaseCrit *= (1.0f + StonePct / CombatConstants::STAT_PERCENT_DIVISOR);
-			}
-		}
-	}
+	// (5e-C2) Crit-chance gear/stone REMOVED here — crit chance now sources entirely from Luck:
+	// BaseCrit above = GetEvolutionModifiedCritChance -> GetLuckModifiedChance, which already folds in
+	// BonusLuck gear. The old BonusCritChance multiply is dropped to avoid double-counting (that Mind
+	// gear field is renamed BonusCritDamage and now drives crit DAMAGE via GetCritDamageMultiplier).
+	// The CritStone read is RETIRED here rather than repointed to a luck stone: a crit-ONLY luck channel
+	// wouldn't apply to break-skip/dodge. CritStone's final home (a crit-DAMAGE stone, or a Luck stone
+	// wired into GetEquipmentModifiedLuck so it boosts ALL luck consumers) is a 5e-C3 content decision.
 
 	// Combat-buff/debuff modifiers (from skill casts).
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
@@ -550,7 +540,7 @@ void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult &Re
 	UE_LOG(LogTemp, Display, TEXT("Attacker Multiplier: %.2fx"), Result.AttackerDamageMultiplier);
 	UE_LOG(LogTemp, Display, TEXT("Element Multiplier: %.2fx"), Result.ElementMultiplier);
 	UE_LOG(LogTemp, Display, TEXT("Critical: %s (%.2fx)"), Result.bWasCritical ? TEXT("YES") : TEXT("NO"), Result.CritMultiplier);
-	UE_LOG(LogTemp, Display, TEXT("Flat Defense: %d (blocked %d)"), Result.DefenderFlatDefense, Result.DamageBlockedByDefense);
+	UE_LOG(LogTemp, Display, TEXT("Defense Reduction: %.2f (blocked %d)"), Result.DefenderFlatDefense, Result.DamageBlockedByDefense);
 	UE_LOG(LogTemp, Display, TEXT("FINAL DAMAGE: %d"), Result.FinalDamage);
 	UE_LOG(LogTemp, Display, TEXT("Status Buildup: %d"), Result.StatusBuildup);
 	UE_LOG(LogTemp, Display, TEXT("=========================="));
@@ -593,13 +583,66 @@ UBrokenDarknessManager *UDamageCalculator::GetBrokenDarknessManager(AActor *Acto
 
 float UDamageCalculator::GetCritDamageMultiplier(AActor *Attacker) const
 {
-	USkillEffectManager *StatusManager = GetSkillEffectManager();
-	if (!StatusManager || !Attacker)
+	// Returns the FULL crit-damage multiplier. Crown-locked (5e-B-fix): un-invested crit = CRIT_DMG_BASE
+	// (x1.0 = normal damage); the crit-damage stat ramps it to x1.5 (stat-ALONE cap); gear/transient
+	// MULTIPLY past toward x2.0 (Pattern P / cluster 5). The fixed x1.5 CRIT_MULTIPLIER base is GONE
+	// from the crit path — a crit now does NOTHING extra without crit-damage investment.
+	if (!Attacker)
 	{
-		return 1.0f;
+		return CombatConstants::CRIT_DMG_BASE; // x1.0 (normal damage) when no attacker
 	}
-	const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
-	return 1.0f + FMath::Max(0.0f, Modify / CombatConstants::STAT_PERCENT_DIVISOR);
+
+	// Stat-derived crit damage: CRIT_DMG_BASE (x1.0) + the crit-damage stat ramp (Mind x CritDamage
+	// points x CRIT_DAMAGE_PER_POINT, up to +0.5), capped ALONE at CRIT_DAMAGE_STAT_CAP (x1.5). The Mind
+	// CritDamage substat drives crit DAMAGE; crit CHANCE is Luck-driven (5e-C2). Gear/transient multiply
+	// the capped stat past x1.5 below.
+	float StatCritDmg = CombatConstants::CRIT_DMG_BASE;
+	if (UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>())
+	{
+		if (AttackerComp->CharacterData)
+		{
+			const float ModifiedMind = AttackerComp->GetEvolutionModifiedMind();
+			const int32 CritDmgPoints = AttackerComp->CharacterData->GetTotalCritDamage();
+			StatCritDmg = FMath::Min(
+				CombatConstants::CRIT_DMG_BASE + (ModifiedMind * CritDmgPoints * CombatConstants::CRIT_DAMAGE_PER_POINT),
+				CombatConstants::CRIT_DAMAGE_STAT_CAP);
+		}
+	}
+
+	// Gear + transient MULTIPLY the capped stat past x1.5 toward CRIT_DAMAGE_GEAR_CEILING (cluster-5
+	// shape). x1 (inert) when none, so a zero-crit-stat character with no gear/transient is exactly
+	// CRIT_DMG_BASE (x1.0 = normal).
+	float Result = StatCritDmg;
+
+	// Equipment BonusCritDamage gear — MULTIPLIES (option-ii: the per-point magnitude is read as a
+	// fraction, same shape as RawDamage/SpellDamage gear in 5a). 5e-C3 wired this now that the field
+	// was renamed BonusCritChance->BonusCritDamage and freed from the crit-CHANCE path (5e-C2).
+	if (ULoadoutComponent *Loadout = Attacker->FindComponentByClass<ULoadoutComponent>())
+	{
+		const float BonusCritDamage = Loadout->GetActiveStatBonus(Attacker).BonusCritDamage;
+		Result *= (1.0f + BonusCritDamage * CombatConstants::CRIT_DAMAGE_PER_POINT);
+
+		// Attached CritStone (5f-A) — a % MULTIPLIER on the capped stat, from the attacker's OWN active
+		// weapon attachment. StoneTargetStat(CritStone) == ESubStat::CritDamage, so GetAttachedStonePercent
+		// returns 0 (factor x1, inert) unless a CritStone is attached. Mirrors GetStoneRawDamageFactor.
+		if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
+		{
+			Result *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::CritDamage) / CombatConstants::STAT_PERCENT_DIVISOR);
+		}
+	}
+
+	// Transient crit-damage modifiers — MULTIPLY too. Directional (5f-C): ModifyCritDamage is the BUFF
+	// ("Crit Damage Up", up-only — Max(0,..) guards malformed negative assets); CritDamageDebuff is its
+	// paired debuff (positive magnitude, SUBTRACTED). Net (buff − debuff) can go negative, dragging crit
+	// damage down — the final clamp floors the whole multiplier at CRIT_DMG_BASE (x1.0), so a crit-damage
+	// debuff can cancel the crit BONUS toward a normal hit but never make a crit weaker than one.
+	if (USkillEffectManager *StatusManager = GetSkillEffectManager())
+	{
+		const float Modify = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::ModifyCritDamage);
+		const float Debuff = StatusManager->GetTotalStatModifier(Attacker, ESkillEffectType::CritDamageDebuff);
+		Result *= (1.0f + (FMath::Max(0.0f, Modify) - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+	}
+	return FMath::Clamp(Result, CombatConstants::CRIT_DMG_BASE, CombatConstants::CRIT_DAMAGE_GEAR_CEILING);
 }
 
 float UDamageCalculator::GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const

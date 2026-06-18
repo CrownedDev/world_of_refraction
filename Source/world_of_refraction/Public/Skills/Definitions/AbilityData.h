@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Skills/Definitions/CastableSkillDataBase.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
@@ -23,12 +23,12 @@ class UCharacterData;
  * Ability Data Asset - Universal skills usable by all characters
  * Can be infused with character's innate element for status effects.
  *
- * Inherits the shared skill shape (Name, HitCount, Effects, …) from USkillDataBase
- * and the cast shape (Tier, TargetType, BaseDamage, BaseEnergyCost, Requirements,
- * DeliveryType, ProjectileSpeed) from UCastableSkillDataBase.
+ * Inherits the full shared skill shape (Name, HitCount, Effects, Tier, TargetType,
+ * BaseDamage, BaseEnergyCost, Requirements, DeliveryType, ProjectileSpeed, …) from
+ * USkillDataBase — the single skill base after the UCastableSkillDataBase collapse.
  */
 UCLASS(BlueprintType)
-class WORLD_OF_REFRACTION_API UAbilityData : public UCastableSkillDataBase
+class WORLD_OF_REFRACTION_API UAbilityData : public USkillDataBase
 {
     GENERATED_BODY()
 
@@ -44,15 +44,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     bool bRequiresDualWeapon = false;
 
+    /** Marks a basic weapon attack (vs a slottable ability). A bIsAttack asset cannot be slotted as an
+     *  ability. The only attack-vs-ability distinction post-merge. Default false → existing abilities stay
+     *  abilities; attacks reparented to UAbilityData (step 5) author true. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity")
+    bool bIsAttack = false;
+
     // ==================== EXECUTION ====================
-    // ExecutionType hoisted to UCastableSkillDataBase (D3 descriptive tag).
-
-    // --- Melee Only ---
-
-    /** Distance from target to stop and execute ability (Melee only) */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Execution|Melee",
-              meta = (EditCondition = "ExecutionType == EAbilityExecutionType::Melee", EditConditionHides, ClampMin = "0.0"))
-    float ExecutionRange = 150.0f;
+    // ExecutionType + ExecutionRange both live on USkillDataBase (the single skill base).
+    // ExecutionRange hoisted to USkillDataBase (root) at step 2 of the attack/ability
+    // merge — default reconciled 150→100. Authored values load onto the inherited field
+    // (serialize-by-name); the Melee gate now lives in GetExecutionRange logic, not an
+    // editor EditCondition (the root can't reference the derived ExecutionType field).
 
     // ==================== VISUALS ====================
 
@@ -112,6 +115,12 @@ public:
     /** Is this a support ability (no damage, has buff effects)? */
     UFUNCTION(BlueprintPure, Category = "Ability|Execution")
     bool IsSupportAbility() const { return BaseDamage == 0 && HasBuffEffects(); }
+
+    // ==================== DISCRIMINATOR ====================
+
+    /** An ability is an attack only when explicitly flagged — post-reparent, basic attacks
+     *  author bIsAttack=true; ordinary slottable abilities stay false. */
+    virtual bool IsAttack() const override { return bIsAttack; }
 
     // ==================== MIGRATION ====================
 

@@ -23,6 +23,21 @@ class UDefenseSystem;
 class UCharacterData;
 
 /**
+ * AI-internal action category. Distinct from EActionType: the attack/ability merge folded
+ * EActionType::Attack into Ability, but the AI still scores basic attacks (damage-only) separately
+ * from slottable abilities (damage + status + affordability). This key preserves that three-way
+ * distinction without the removed enum value; it maps to FAction (ActionType Ability/Spell + SkillData,
+ * IsAttack() telling them apart) at construction. Defend is the no-option fallback.
+ */
+enum class EAIActionChoice : uint8
+{
+    Attack,
+    Spell,
+    Ability,
+    Defend
+};
+
+/**
  * Handles AI decision making during combat
  * Routes turn decisions through standard action pipeline
  */
@@ -90,8 +105,8 @@ private:
     /** Build action for AI actor */
     FAction BuildAction(AActor *AIActor);
 
-    /** Pick a random action type based on available options */
-    EActionType ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout);
+    /** Pick a random action category based on available options (AI-internal; see EAIActionChoice). */
+    EAIActionChoice ChooseActionType(AActor *AIActor, ULoadoutComponent *Loadout);
 
     /** Get thinking delay range for difficulty */
     void GetThinkingDelayRange(EAIDifficulty Difficulty, float &OutMin, float &OutMax) const;
@@ -142,10 +157,10 @@ private:
     /** Execution-accurate spell damage estimate — routes the spell through
      *  DamageCalculator so attacker stats, ActionMods and defender defense
      *  are all applied, matching what real execution would deal. */
-    int32 EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel = 0) const;
+    int32 EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
 
     /** Execution-accurate ability damage estimate — see EstimateSpellDamage. */
-    int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0) const;
+    int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
 
     /** Score the value of a spell's status-buildup payload against a target
      *  (pre-weight, ~0..50). Non-const — reads HasDangerousDebuff. */
@@ -244,4 +259,22 @@ private:
 
     /** Decide infusion level for an ability (0, 1, or 2) */
     int32 DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const;
+
+    /** Decide the infusion SOURCE for a SPELL (origin-bound): the first allowed source from
+     *  GetAllowedInfusionSourcesForSpell, Evolution preferred for the BD/Reality {Evolution, Innate}
+     *  case. Returns None for Item / non-infusable (empty binding). Shared by BuildAction (sets
+     *  SelectedSource) and DecideSpellInfusionLevel (source-aware prediction) so they never drift. */
+    EInfusionSourceOption DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const;
+
+    /** Decide the infusion SOURCE for an ABILITY (abilities are not origin-bound). Heuristic over
+     *  GetAvailableInfusionSources: Caster->Innate, Resonator->ActiveRing, else first crystal source
+     *  (PrimaryRing/WeaponCrystal/Evolution), else Raw (always available). */
+    EInfusionSourceOption DecideAbilityInfusionSource(AActor *Attacker) const;
+
+    /** Clamp an infusion level so an HP-paying source can't kill the caster: drops L2->L1->L0 until
+     *  WouldKill is false (prefers a weaker infusion over self-death). HP-paying = Raw / Innate-on-spell
+     *  / Evolution; crystal sources (no HP) and L0 pass through unchanged. BaseEnergyCost is the
+     *  un-charge-multiplied infused EP (Spell/Ability CalculateEnergyCost). */
+    int32 ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
+                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const;
 };

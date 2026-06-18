@@ -636,18 +636,23 @@ void UCharacterDataComponent::RecomputeMaxPools()
     // applies as a final % of the WHOLE max — single RoundToInt on the product (no
     // double-round). Byte-neutral when no stone (pct 0 -> x1.0; BonusMax* is integer, so
     // folding it inside the round doesn't change the result).
+    // Intrinsic stat portion (base + pillar points) is clamped to the design cap so max
+    // investment lands exactly on it (HP/EP 1000). Gear — flat BonusMax* + stone/buff % —
+    // stacks OUTSIDE the clamp (gear headroom above the stat cap; cluster 2).
     const float ModifiedBody = GetEvolutionModifiedBody();
-    const float HPSubtotal =
+    const float HPStatPortion = FMath::Min(
         CombatConstants::MAX_HEALTH_BASE +
-        (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT) +
-        BonusMaxHP;
+            (ModifiedBody * CharacterData->GetTotalMaxHealth() * CombatConstants::MAX_HEALTH_PER_POINT),
+        CombatConstants::MAX_HEALTH_CAP);
+    const float HPSubtotal = HPStatPortion + BonusMaxHP;
     MaxHP = FMath::RoundToInt(HPSubtotal * (1.0f + HPPct / CombatConstants::STAT_PERCENT_DIVISOR));
 
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
-    const float EPSubtotal =
+    const float EPStatPortion = FMath::Min(
         CombatConstants::MAX_ENERGY_BASE +
-        (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT) +
-        BonusMaxEnergy;
+            (ModifiedSpirit * CharacterData->GetTotalMaxEnergy() * CombatConstants::MAX_ENERGY_PER_POINT),
+        CombatConstants::MAX_ENERGY_CAP);
+    const float EPSubtotal = EPStatPortion + BonusMaxEnergy;
     MaxEP = FMath::RoundToInt(EPSubtotal * (1.0f + EPPct / CombatConstants::STAT_PERCENT_DIVISOR));
 }
 
@@ -658,34 +663,63 @@ float UCharacterDataComponent::GetEquipmentModifiedLuck() const
         return 0.0f;
     }
 
-    // Crystal-aware Luck: pillar-scaled against GetEvolutionModifiedSpirit
-    // instead of the raw asset's GetEffectiveSpirit. Mirrors the asset's
-    // CalculateLuck formula shape (no LUCK_BASE constant — bare per-point).
+    // Pattern P (cluster 5e-C1) — returns a NORMALIZED luck value (not raw): the stat portion
+    // (crystal-aware Spirit × Luck points) caps ALONE at normalized 1.0 (LUCK_RAW_MAX is the basis —
+    // max investment lands on exactly 1.0), THEN gear (BonusLuck) and transient (LuckBuff/Debuff)
+    // MULTIPLY it past 1.0 toward LUCK_GEAR_CEILING. Consumers (GetLuckModifiedChance) scale by their
+    // own max bonus and clamp at their own 100% — they no longer re-normalize.
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 LuckPoints = CharacterData->GetTotalLuck();
-    float Luck = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
+    const float StatRaw = ModifiedSpirit * LuckPoints * CombatConstants::LUCK_PER_POINT;
+    const float StatNorm = FMath::Min(StatRaw / CombatConstants::LUCK_RAW_MAX, 1.0f); // stat caps ALONE at 1.0
 
-    // Equipment stat bonus — additive per-point on top of the pillar term.
+    float LuckNorm = StatNorm;
     if (AActor *Owner = GetOwner())
     {
+        // Equipment BonusLuck — MULTIPLIES the capped stat past 1.0 (option-(ii): the per-point
+        // magnitude is read as a fraction). ×1 (inert) when absent.
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
             const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
-            Luck += Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT;
+            LuckNorm *= (1.0f + Bonus.BonusLuck * CombatConstants::LUCK_PER_POINT);
+
+            // Attached LuckStone (5f-B) — MULTIPLIES the normalized luck (gear-beyond the stat cap), so it
+            // lifts EVERY luck consumer uniformly (crit chance, break-skip, future dodge/drops). ×1 (inert)
+            // unless a LuckStone is attached — StoneTargetStat(LuckStone) == ESubStat::Luck, 0 otherwise.
+            if (const FRuntimeAttachedItem *Att = Loadout->GetActiveWeaponAttachment())
+            {
+                LuckNorm *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*Att, ESubStat::Luck) / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
         }
 
-        // Skill-effect-driven LuckBuff / LuckDebuff (flat additive, percent-space).
+        // Skill-effect LuckBuff / LuckDebuff — MULTIPLIES (percent-space), matching the cluster-5
+        // shape. ×1 when none active. A net debuff can drive LuckNorm below 0; the clamp floors it.
         if (USkillEffectManager *SkillMgr = GetSkillEffectManager())
         {
             const float LuckBuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckBuff);
             const float LuckDebuff = SkillMgr->GetTotalStatModifier(Owner, ESkillEffectType::LuckDebuff);
-            Luck += (LuckBuff - LuckDebuff);
+            LuckNorm *= (1.0f + (LuckBuff - LuckDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
-    // No upper clamp: input is unbounded, each consumer clamps its own
-    // normalized fraction (RawLuck / LUCK_RAW_MAX) to [0,1] before scaling.
-    return Luck;
+    // Stat caps at normalized 1.0; gear/transient push past toward the normalized gear ceiling.
+    return FMath::Clamp(LuckNorm, 0.0f, CombatConstants::LUCK_GEAR_CEILING);
+}
+
+float UCharacterDataComponent::GetLuckModifiedChance(float BaseChance, float LuckMaxBonus) const
+{
+    // GetEquipmentModifiedLuck now returns the NORMALIZED luck directly (5e-C1: stat caps ALONE at 1.0,
+    // gear/transient multiply past toward LUCK_GEAR_CEILING) — so we do NOT re-normalize here. The gear's
+    // past-1.0 value flows through; each consumer caps the final chance at its own 100% (e.g. crit /
+    // break-skip clamp [0,1]). At maxed stat (norm 1.0): BaseChance + LuckMaxBonus = the listed max;
+    // with gear (norm up to 2.0) the chance pushes past it. Negative (cursed) norm reduces the chance.
+    return BaseChance + GetEquipmentModifiedLuck() * LuckMaxBonus;
+}
+
+bool UCharacterDataComponent::RollLuckChance(float BaseChance, float LuckMaxBonus) const
+{
+    // A negative chance (cursed wielder, BaseChance 0) is never < FRand()'s [0,1) — never fires.
+    return FMath::FRand() < GetLuckModifiedChance(BaseChance, LuckMaxBonus);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedSpellDamage() const
@@ -716,23 +750,26 @@ float UCharacterDataComponent::GetEvolutionModifiedCritChance() const
     {
         return CombatConstants::CRIT_CHANCE_BASE;
     }
-    const float ModifiedMind = GetEvolutionModifiedMind();
-    const int32 TotalPoints = CharacterData->GetTotalCritChance();
-    return FMath::Clamp(
-        CombatConstants::CRIT_CHANCE_BASE + (ModifiedMind * TotalPoints * CombatConstants::CRIT_CHANCE_PER_POINT),
-        CombatConstants::CRIT_CHANCE_BASE,
-        1.0f);
+    // Cluster 5e-C2: crit chance is now LUCK-driven. base 0.05 + normalized Luck (stat caps ALONE at
+    // 1.0 → +0.45 = 0.50 at maxed Luck stat) × CRIT_CHANCE_LUCK_BONUS; Luck gear pushes the norm past
+    // 1.0 toward the [0,1] ceiling (100%) — capped at the GetCriticalChance final clamp. This does NOT
+    // read the Mind crit substat — that substat (renamed CritDamage in 5e-C3) drives crit DAMAGE via
+    // GetCritDamageMultiplier.
+    return GetLuckModifiedChance(CombatConstants::CRIT_CHANCE_BASE, CombatConstants::CRIT_CHANCE_LUCK_BONUS);
 }
 
-int32 UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
+float UCharacterDataComponent::GetEvolutionModifiedFlatDefense() const
 {
     if (!CharacterData)
     {
-        return 0;
+        return 0.0f;
     }
+    // Crystal-aware defense REDUCTION fraction [0, 0.5] (cluster 4: flat-int -> capped %).
+    // GetEvolutionModifiedBody feeds the slotted crystal's Body pillar into the curve.
+    // Name kept for now (BP/.uasset refs); TODO rename to GetEvolutionModifiedDefenseReduction.
     const float ModifiedBody = GetEvolutionModifiedBody();
     const int32 TotalPoints = CharacterData->GetTotalDefense();
-    return FMath::RoundToInt(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT);
+    return FMath::Min(ModifiedBody * TotalPoints * CombatConstants::DEFENSE_PER_POINT, CombatConstants::UNIVERSAL_STAT_CAP);
 }
 
 float UCharacterDataComponent::GetEquipmentSpellDamageTerm() const
@@ -792,15 +829,17 @@ float UCharacterDataComponent::GetTransientSpellDamageFactor() const
 float UCharacterDataComponent::GetEffectiveSpellDamage() const
 {
     // Full layered SpellDamage scalar for non-pipeline consumers (Broken Darkness):
-    //   (L1 innate/evolution + L2 equipment) × L3 stone × L4 transient.
+    //   (L1 innate/evolution capped ALONE + L2 equipment) × L3 stone × L4 transient.
     // No ActionMods / Grid / defender — those are damage-call-specific and have no
-    // analogue here. DamageCalculator DRY-sources the SAME three helpers at its own
-    // (unchanged) step order, so a normal cast stays byte-identical.
-    const float Composed = (GetEvolutionModifiedSpellDamage() + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
-    // [-100%, +100%] normalization — cap the composed SpellDamage modifier to [0, 2] for this
-    // getter's consumers (BD overload/self-cost, crystal-wear). The damage pipeline applies the
-    // SAME cap via a correction factor (DamageCalculator Step 2+) on the identical (L1+L2)×L3×L4
-    // product, so cast + BD/wear bound the same quantity. Byte-identical below 2.0.
+    // analogue here. DamageCalculator DRY-sources the SAME helpers at its own step order
+    // (Pattern P), so a normal cast stays byte-identical.
+    // Pattern P (cluster 5a): the STAT term is capped ALONE at STAT_MULT_CAP (×1.5 — the stat
+    // ceiling), THEN gear MULTIPLIES it (×(1+EquipTerm)) and stone/transient apply OUTSIDE that
+    // clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. Stat saturates at ×1.5;
+    // gear/stone/buff scale it from there toward ×2.0. EquipTerm read as a FRACTION (option ii).
+    // Byte-identical below the caps with no gear.
+    const float StatBase = FMath::Min(GetEvolutionModifiedSpellDamage(), CombatConstants::STAT_MULT_CAP);
+    const float Composed = StatBase * (1.0f + GetEquipmentSpellDamageTerm()) * GetStoneSpellDamageFactor() * GetTransientSpellDamageFactor();
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
@@ -860,12 +899,193 @@ float UCharacterDataComponent::GetTransientRawDamageFactor() const
 
 float UCharacterDataComponent::GetEffectiveRawDamage() const
 {
-    // Physical mirror of GetEffectiveSpellDamage: (L1 innate/evolution + L2 equipment) × L3
-    // stone × L4 transient, then the [-100%,+100%] [0,2] normalization cap. No ActionMods /
-    // Grid / defender (damage-call-specific). The pipeline DRY-sources the same three helpers;
-    // a future AI-threat re-point can read this composed+clamped getter.
-    const float Composed = (GetEvolutionModifiedRawDamage() + GetEquipmentRawDamageTerm()) * GetStoneRawDamageFactor() * GetTransientRawDamageFactor();
+    // Physical mirror of GetEffectiveSpellDamage — Pattern P (cluster 5a): the STAT term is capped
+    // ALONE at STAT_MULT_CAP (×1.5), THEN gear MULTIPLIES it (×(1+EquipTerm)) and stone/transient
+    // apply OUTSIDE that clamp, bounded by the higher STAT_MODIFIER_MAX (×2.0) compose ceiling. No
+    // ActionMods / Grid / defender (damage-call-specific). The pipeline DRY-sources the same helpers
+    // (Step 2.6). EquipTerm read as a FRACTION (option ii). Byte-identical below the caps with no gear.
+    const float StatBase = FMath::Min(GetEvolutionModifiedRawDamage(), CombatConstants::STAT_MULT_CAP);
+    const float Composed = StatBase * (1.0f + GetEquipmentRawDamageTerm()) * GetStoneRawDamageFactor() * GetTransientRawDamageFactor();
     return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+}
+
+float UCharacterDataComponent::GetEffectiveActionSpeed() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    // Pattern P (cluster 5g) — animation/attack-pacing mirror of GetEffectiveRawDamage. The STAT
+    // term (CalculateAnimationSpeed, itself ×1.5-capped) is clamped ALONE at STAT_MULT_CAP, THEN
+    // gear MULTIPLIES it: equipment BonusActionSpeed (additive per-point read as a fraction),
+    // attached ActionSpeedStone, and transient ActionSpeedBuff/Debuff — bounded by the
+    // STAT_MODIFIER_MAX (×2.0) compose ceiling. Returns a pure ×1.0–×2.0 multiplier; the montage
+    // BaseAnimSpeed and per-action ActionMods stay at the ActionExecutor call site. ×1.0 at zero
+    // gear (the old additive path's zero-point), so byte-identical with no speed gear.
+    const float StatBase = FMath::Min(CharacterData->CalculateAnimationSpeed(), CombatConstants::STAT_MULT_CAP);
+
+    float GearFrac = 0.0f;
+    float StoneFactor = 1.0f;
+    float TransientFactor = 1.0f;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            GearFrac = Loadout->GetActiveStatBonus(Owner).BonusActionSpeed * CombatConstants::ANIMATION_SPEED_PER_POINT;
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                StoneFactor = 1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::ActionSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ActionSpeedBuff);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ActionSpeedDebuff);
+            TransientFactor = 1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+        }
+    }
+
+    const float Composed = StatBase * (1.0f + GearFrac) * StoneFactor * TransientFactor;
+    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+}
+
+float UCharacterDataComponent::GetEffectiveSpellSpeed() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    // Pattern P (cluster 5g) — Mind/cast mirror of GetEffectiveActionSpeed. Stat (CalculateSpellSpeed,
+    // ×1.5-capped) clamped ALONE, THEN BonusSpellSpeed (fraction) × attached SpellSpeedStone ×
+    // transient SpellSpeedBuff/Debuff, bounded by STAT_MODIFIER_MAX (×2.0). Pure multiplier; the
+    // montage BaseAnimSpeed and per-action ActionMods stay at the call site. ×1.0 at zero gear.
+    const float StatBase = FMath::Min(CharacterData->CalculateSpellSpeed(), CombatConstants::STAT_MULT_CAP);
+
+    float GearFrac = 0.0f;
+    float StoneFactor = 1.0f;
+    float TransientFactor = 1.0f;
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            GearFrac = Loadout->GetActiveStatBonus(Owner).BonusSpellSpeed * CombatConstants::SPELL_SPEED_PER_POINT;
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                StoneFactor = 1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::SpellSpeed) / CombatConstants::STAT_PERCENT_DIVISOR;
+            }
+        }
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellSpeedBuff);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::SpellSpeedDebuff);
+            TransientFactor = 1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+        }
+    }
+
+    const float Composed = StatBase * (1.0f + GearFrac) * StoneFactor * TransientFactor;
+    return FMath::Clamp(Composed, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
+}
+
+float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+    const bool bSpell = (AttackType == EActionType::Spell);
+
+    // Evolution-pillar modifier as a ratio over the RAW pillar (CalculateSpeedWindowPenalty uses the
+    // RAW GetEffectiveBody/Mind, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0
+    // when no pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
+    const float RawPillar = bSpell ? CharacterData->GetEffectiveMind() : CharacterData->GetEffectiveBody();
+    const float ModPillar = bSpell ? GetEvolutionModifiedMind() : GetEvolutionModifiedBody();
+    float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
+
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+            // Equipment Bonus{Action,Spell}Speed — per-point read as a fraction (option-ii), same as
+            // GetEffectiveActionSpeed/SpellSpeed. ×1 (inert) when absent.
+            const float BonusPts = bSpell ? static_cast<float>(Bonus.BonusSpellSpeed) : static_cast<float>(Bonus.BonusActionSpeed);
+            const float PerPoint = bSpell ? CombatConstants::SPELL_SPEED_PER_POINT : CombatConstants::ANIMATION_SPEED_PER_POINT;
+            Factor *= (1.0f + BonusPts * PerPoint);
+
+            // Attached {Action,Spell}SpeedStone — % multiplier. 0 (×1) unless that stone is attached.
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                const ESubStat StoneStat = bSpell ? ESubStat::SpellSpeed : ESubStat::ActionSpeed;
+                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, StoneStat) / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
+        }
+
+        // Transient {Action,Spell}SpeedBuff/Debuff — mirrors GetEffectiveActionSpeed's transient layer.
+        // Speed transient stays MULTIPLICATIVE here (unlike the additive transient policy on multiplier stats):
+        // the window is measured in SECONDS, where "+20% speed" must scale the penalty PROPORTIONALLY. An
+        // additive +0.20 would mean +0.20 SECONDS — enormous vs a ~0.5s window. Proportional is the correct
+        // math for a time value, so temporary speed buffs tighten the window in scale. (Permanent speed gear:
+        // also multiplicative, same reason. Multiplier-space stats — damage/status/etc. — use additive
+        // transients; see the transient-additive conversion.)
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const ESkillEffectType BuffType = bSpell ? ESkillEffectType::SpellSpeedBuff : ESkillEffectType::ActionSpeedBuff;
+            const ESkillEffectType DebuffType = bSpell ? ESkillEffectType::SpellSpeedDebuff : ESkillEffectType::ActionSpeedDebuff;
+            const float Buff = SEM->GetTotalStatModifier(Owner, BuffType);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, DebuffType);
+            Factor *= (1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+        }
+    }
+
+    return Factor;
+}
+
+float UCharacterDataComponent::ReflexWindowGearFactor() const
+{
+    if (!CharacterData)
+    {
+        return 1.0f;
+    }
+
+    // Evolution-pillar modifier as a ratio over the RAW Body pillar (CalculateReflexWindowBonus uses the
+    // RAW GetEffectiveBody, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0 when no
+    // pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
+    const float RawPillar = CharacterData->GetEffectiveBody();
+    const float ModPillar = GetEvolutionModifiedBody();
+    float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
+
+    if (AActor *Owner = GetOwner())
+    {
+        if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
+        {
+            const FEquipmentStatBonus Bonus = Loadout->GetActiveStatBonus(Owner);
+            // Equipment BonusReflex — per-point read as a fraction (option-ii), the GENERIC gear per-point
+            // (STAT_MULT_PER_POINT, same fraction A1's speed gear uses via ANIMATION_SPEED_PER_POINT) — NOT
+            // REFLEX_WINDOW_PER_POINT, which is the SECONDS-domain stat term in CalculateReflexWindowBonus.
+            // ×1 (inert) when absent.
+            Factor *= (1.0f + static_cast<float>(Bonus.BonusReflex) * CombatConstants::STAT_MULT_PER_POINT);
+
+            // Attached ReflexStone — % multiplier. 0 (×1) unless that stone is attached.
+            if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
+            {
+                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(*AttPtr, ESubStat::Reflex) / CombatConstants::STAT_PERCENT_DIVISOR);
+            }
+        }
+
+        // Transient ReflexBuff/Debuff — stays MULTIPLICATIVE here (unlike the additive transient policy on
+        // multiplier stats): the window is measured in SECONDS, where "+20% reflex" must scale the bonus
+        // PROPORTIONALLY. An additive +0.20 would mean +0.20 SECONDS — enormous vs a ~0.5s window. Proportional
+        // is the correct math for a time value, so temporary reflex buffs widen the window in scale. (Mirrors
+        // SpeedWindowGearFactor's transient; multiplier-space stats use additive transients — see that policy.)
+        if (USkillEffectManager *SEM = GetSkillEffectManager())
+        {
+            const float Buff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ReflexBuff);
+            const float Debuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::ReflexDebuff);
+            Factor *= (1.0f + (Buff - Debuff) / CombatConstants::STAT_PERCENT_DIVISOR);
+        }
+    }
+
+    return Factor;
 }
 
 FEffectiveStats UCharacterDataComponent::GetEffectiveStats() const
@@ -906,44 +1126,51 @@ float UCharacterDataComponent::GetEffectiveEfficiencyMultiplier() const
         return 1.0f;
     }
 
-    // Innate reduction — the crystal-aware Mind × Efficiency-points cost-reduction term.
+    // Pattern P (cluster 5b) — stat-capped, gear multiplies beyond. Efficiency is INVERTED: the stat
+    // produces a cost REDUCTION (0 to 0.5) and the final multiplier = (1 − reduction), so a larger
+    // reduction = a smaller multiplier = cheaper EP / slower BD drain / less wear. The crystal-aware
+    // Mind × Efficiency-points stat reduction is capped ALONE at EFFICIENCY_MAX (0.5); THEN
+    // gear/stone/buff MULTIPLY it past 0.5 toward EFFICIENCY_GEAR_CEILING (cheaper still on
+    // high-Efficiency builds). Mirrors 5a's damage/Defense shape.
     const float ModifiedMind = GetEvolutionModifiedMind();
     const int32 TotalPoints = CharacterData->GetTotalEfficiency();
-    float Reduction = ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT;
+    float Reduction = FMath::Min(ModifiedMind * TotalPoints * CombatConstants::EFFICIENCY_PER_POINT,
+                                 CombatConstants::EFFICIENCY_MAX);
 
-    // Equipment BonusEfficiency + attached EfficiencyStone — both from the owner's
-    // active loadout (one lookup, reused). Same BonusEfficiency the EP-cost
-    // EquipmentMult reads; stone is the owner's active-weapon attachment. Each adds 0
-    // when absent, so the result stays byte-identical to the canonical getter for a
-    // character with no BonusEfficiency and no EfficiencyStone.
+    // Equipment BonusEfficiency + attached EfficiencyStone — both from the owner's active loadout
+    // (one lookup, reused). Each MULTIPLIES the capped stat reduction (×(1+fraction)) OUTSIDE the 0.5
+    // cap — option-(ii) interpretation (same as 5a damage gear): the BonusEfficiency × per-point
+    // magnitude is read as a fraction. ×1 (inert) when absent, so byte-identical with no gear.
     if (AActor *Owner = GetOwner())
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            Reduction += Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT;
+            Reduction *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusEfficiency * CombatConstants::EFFICIENCY_PER_POINT);
 
             if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
                 const FRuntimeAttachedItem &Att = *AttPtr;
-                Reduction += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Efficiency)
-                             / CombatConstants::STAT_PERCENT_DIVISOR;
+                Reduction *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::Efficiency)
+                              / CombatConstants::STAT_PERCENT_DIVISOR);
             }
         }
 
-        // Transient Efficiency buff/debuff — skill-effect layer (mirrors StatusMultiplier's
-        // transient accessor). A BUFF adds to the reduction → smaller multiplier → cheaper
-        // EP / slower BD drain / less wear (the favourable direction). 0 when none active,
-        // so byte-identical to the pre-H0 getter then. Distinct effect type from EP's
-        // SpellCostBuff/Debuff, so no double-count with the EP SkillEffectMult layer.
+        // Transient Efficiency buff/debuff — skill-effect layer. MULTIPLIES the reduction (a buff
+        // scales it up → cheaper; a debuff down). ×1 when none active, so byte-identical then.
+        // Distinct effect type from EP's SpellCostBuff/Debuff, so no double-count with the EP
+        // SkillEffectMult layer.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
             const float EffBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyBuff);
             const float EffDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::EfficiencyDebuff);
-            Reduction += (EffBuff - EffDebuff) / CombatConstants::STAT_PERCENT_DIVISOR;
+            Reduction *= (1.0f + (EffBuff - EffDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
 
-    return FMath::Clamp(1.0f - Reduction, 1.0f - CombatConstants::EFFICIENCY_MAX, 1.0f);
+    // Pattern-P gear ceiling: stat alone capped at 0.5 above; gear multiplied past toward the higher
+    // EFFICIENCY_GEAR_CEILING. A net debuff can drive Reduction below 0; the clamp floors it at 0.
+    Reduction = FMath::Clamp(Reduction, 0.0f, CombatConstants::EFFICIENCY_GEAR_CEILING);
+    return 1.0f - Reduction;
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedStatusMultiplier() const
@@ -957,46 +1184,49 @@ float UCharacterDataComponent::GetEvolutionModifiedStatusMultiplier() const
     return 1.0f + (ModifiedSpirit * TotalPoints * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 }
 
-float UCharacterDataComponent::GetEvolutionModifiedResistance() const
+float UCharacterDataComponent::GetCrystalResistanceStatCapped() const
 {
     if (!CharacterData)
     {
         return 0.0f;
     }
+    // Crystal-aware Spirit-Resistance STAT, capped ALONE at UNIVERSAL_STAT_CAP (0.5) — the stat-layer
+    // base for the multiplicative general-resistance bucket (A2). Crystal pillar via
+    // GetEvolutionModifiedSpirit (closes the gap where GetTotalStatusResistance used raw GetEffectiveSpirit).
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 TotalPoints = CharacterData->GetTotalResistance();
-    return FMath::Clamp(
+    return FMath::Min(
         ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT,
-        0.0f,
-        CombatConstants::RESISTANCE_MAX);
+        CombatConstants::UNIVERSAL_STAT_CAP);
 }
 
 float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
 {
-    // Base (innate + equipment + attached StatusStone), composed inline to MATCH
-    // UStatusBuildupManager::GetSourceStatusMultiplierFactor term-for-term (StatusMultiplier
-    // SUMS, never compounds), then the transient buff/debuff compounded on top — so this
-    // equals the BD/CombatOrchestrator inline value (base × transient) BY CONSTRUCTION.
-    // We do NOT re-point BD; this getter just gives wear (and future consumers) the same
-    // composed value. ⚠️ Mirrors GetSourceStatusMultiplierFactor — if its layer set changes,
-    // update here too. Structurally parallel to GetEffectiveEfficiencyMultiplier.
-    float Factor = GetEvolutionModifiedStatusMultiplier(); // innate: 1 + ModifiedSpirit × points × per-pt
+    // THE SINGLE source of truth for a character's effective StatusMultiplier (T3 consolidation):
+    // GetSourceStatusMultiplierFactor was retired and AddStatusBuildup now calls THIS, so the live
+    // buildup + BD overload + crystal-wear all read one value — lockstep by construction, no twin to
+    // drift (closes the 5d divergence where this getter kept the old uncapped/additive base).
+    // GENERAL (permanent, Pattern-P multiplicative): stat term capped ALONE at STAT_MULT_CAP (×1.5),
+    // THEN BonusStatusMultiplier (per-point fraction) × attached StatusStone multiply it past 1.5.
+    const float StatBase = FMath::Min(GetEvolutionModifiedStatusMultiplier(), CombatConstants::STAT_MULT_CAP);
+    float Factor = StatBase;
 
     if (AActor *Owner = GetOwner())
     {
         if (ULoadoutComponent *Loadout = Owner->FindComponentByClass<ULoadoutComponent>())
         {
-            Factor += Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT;
+            Factor *= (1.0f + Loadout->GetActiveStatBonus(Owner).BonusStatusMultiplier * CombatConstants::STATUS_MULTIPLIER_PER_POINT);
 
             if (const FRuntimeAttachedItem *AttPtr = Loadout->GetActiveWeaponAttachment())
             {
                 const FRuntimeAttachedItem &Att = *AttPtr;
-                Factor += CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR;
+                Factor *= (1.0f + CrystalEffectTable::GetAttachedStonePercent(Att, ESubStat::StatusMultiplier) / CombatConstants::STAT_PERCENT_DIVISOR);
             }
         }
 
-        // Transient StatusMultiplierBuff/Debuff — same Max(0, 1 + (buff − debuff)/100) the
-        // inline call sites apply (AddStatusBuildup step 5b, CombatOrchestrator BD bake).
+        // Transient StatusMultiplierBuff/Debuff — MULTIPLICATIVE: the temporary net scales the
+        // permanent-gear factor proportionally, ×(1 + net/100). Max(0,…) floors a ≥100% debuff at ×0
+        // (never inverts); buff/debuff in lockstep. The final clamp bounds to [0, 2.0].
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
             const float SmBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::StatusMultiplierBuff);
@@ -1005,10 +1235,8 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         }
     }
 
-    // [-100%, +100%] normalization — cap the composed StatusMultiplier (base × transient) to
-    // [0, 2]. This getter is the SOLE composition point (BD, crystal-wear, and the re-pointed
-    // CombatOrchestrator site all read it), so one clamp bounds every consumer. Byte-identical
-    // below 2.0; the inner Max(0,…) transient floor above is unchanged and additional to this.
+    // Final clamp [0, STAT_MODIFIER_MAX ×2.0] — general gear caps at 1.5 alone, gear multiplies toward
+    // 2.0, multiplicative transient scales within [0,2]. The inner Max(0,…) floors the transient at ×0.
     return FMath::Clamp(Factor, CombatConstants::STAT_MODIFIER_MIN, CombatConstants::STAT_MODIFIER_MAX);
 }
 
@@ -1019,12 +1247,13 @@ float UCharacterDataComponent::GetEffectiveResistance() const
         return 0.0f;
     }
 
-    // Element-AGNOSTIC self-resistance for the crystal-wear CONTROL term — NOT the
-    // StatusBuildupManager element-matched defense value. Same layer sources as that
-    // defense block (innate + equipment BonusResistance + ResistanceStone + the blanket
-    // ModifyStatusResist transient), but element-AGNOSTIC: NO GetTotalElementResistance
-    // (element-matched), and NO inner [0/-1, MAX] clamp — wear's ControlFactor
-    // [SUBSTAT_POWER_FACTOR_MIN, MAX] bounds the result. Innate is summed RAW (unclamped).
+    // Wear-resistance CONTROL term: DELIBERATELY uncapped + ADDITIVE (ModifiedSpirit×pts + BonusResistance
+    // + ResistanceStone + blanket ModifyStatusResist), an element-agnostic "control/power" value bounded
+    // later by wear's ControlFactor [SUBSTAT_POWER_FACTOR_MIN, MAX] — NOT a defense fraction.
+    // ⚠️ DISTINCT from the A2 buildup general (StatusBuildupManager::GetTotalStatusResistance /
+    // GetCrystalResistanceStatCapped): that is 0.5-capped, MULTIPLICATIVE, element-matched, clamped [-1,1].
+    // Different value, different consumer — do NOT merge (twin-trap EXCEPTION: kept separate by design).
+    // Element-AGNOSTIC: NO GetTotalElementResistance, and NO inner clamp (wear's ControlFactor bounds it).
     const float ModifiedSpirit = GetEvolutionModifiedSpirit();
     const int32 TotalPoints = CharacterData->GetTotalResistance();
     float Resistance = ModifiedSpirit * TotalPoints * CombatConstants::RESISTANCE_PER_POINT;

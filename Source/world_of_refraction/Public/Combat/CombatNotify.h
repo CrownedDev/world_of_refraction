@@ -7,13 +7,16 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "Skills/Definitions/SkillVFXEntry.h"
 #include "CombatNotify.generated.h"
 
-/** The four tag-matched skill arrays (four-array model): Hit / Cast / VFX / SFX. */
+/** The four tag-matched skill arrays (four-array model): Impact / Cast / VFX / SFX.
+ *  ("Impact" was "Hit" pre-defense-rework — unified with projectile arrivals; an
+ *  EnumRedirect in DefaultEngine.ini maps authored "Hit" notifies to "Impact".) */
 UENUM(BlueprintType)
 enum class ECombatNotifyFamily : uint8
 {
-	Hit,
+	Impact,
 	Cast,
 	VFX,
 	SFX
@@ -36,16 +39,29 @@ public:
 
 	/** Which skill array this notify indexes into. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-	ECombatNotifyFamily Family = ECombatNotifyFamily::Hit;
+	ECombatNotifyFamily Family = ECombatNotifyFamily::Impact;
 
 	/** Position within the family's array — array position IS identity. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = 0))
 	int32 Index = 0;
 
+	/** Telegraph "incoming!" tell — a VFX played TelegraphLeadSeconds (wall-clock) BEFORE this notify
+	 *  fires. PURELY cosmetic: opens no window, gates no input, touches no difficulty. Authored inline
+	 *  on the notify (one per notify, not an array). An unset VFX means no telegraph. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Telegraph")
+	FSkillVFXEntry Telegraph;
+
+	/** Wall-clock seconds before this notify to play Telegraph. 0 = no telegraph. Rate-independent:
+	 *  the scheduler divides the notify's montage-local time by the play rate then subtracts this, so
+	 *  the warning lead stays constant regardless of montage speed. A lead longer than the time-to-notify
+	 *  fires the tell at montage start. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Telegraph", meta = (ClampMin = "0.0"))
+	float TelegraphLeadSeconds = 0.0f;
+
 	virtual void Notify(USkeletalMeshComponent *MeshComp, UAnimSequenceBase *Animation,
 						const FAnimNotifyEventReference &EventReference) override;
 
-	/** Montage-editor label: "<Family><Index>" — "Hit0", "Cast1" (locked
+	/** Montage-editor label: "<Family><Index>" — "Impact0", "Cast1" (locked
 	 *  authoring convention, no underscore). */
 	virtual FString GetNotifyName_Implementation() const override;
 

@@ -1045,6 +1045,9 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::TurnSpeedDebuff:
 	case ESkillEffectType::LuckBuff:
 	case ESkillEffectType::LuckDebuff:
+	case ESkillEffectType::ReflexBuff:
+	case ESkillEffectType::ReflexDebuff:
+	case ESkillEffectType::CritDamageDebuff:
 		// Stat modifiers are passive - other systems query GetTotalStatModifier
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);

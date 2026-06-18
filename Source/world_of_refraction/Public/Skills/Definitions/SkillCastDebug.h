@@ -7,10 +7,10 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "SkillCastDebug.generated.h"
 
-class UCastableSkillDataBase;
+class USkillDataBase;
 
 /**
- * Debug utilities for CastArray (CastableSkillDataBase.h). Base-typed so all
+ * Debug utilities for CastArray (SkillDataBase.h). Base-typed so all
  * three skill types (spell / ability / attack) print. On a migrated spell the
  * entry should show Size = BaseSize × HitboxRatio and Trail = the old SpellVFX.
  */
@@ -22,12 +22,10 @@ class WORLD_OF_REFRACTION_API USkillCastDebug : public UBlueprintFunctionLibrary
 public:
     /** Print the Cast array to screen + log, one line per entry. */
     UFUNCTION(BlueprintCallable, Category = "Debug|Cast")
-    static void PrintCastArray(const UCastableSkillDataBase *Skill, float Duration = 15.0f);
+    static void PrintCastArray(const USkillDataBase *Skill, float Duration = 15.0f);
 
     /** Formatted Cast array, one line per entry:
-     *  "[N] <Delivery> '<Label>' Size=<f> VisualScale=<f> Speed=<f> Trail=<asset> Count=<n>"
-     *  with "[Homing=<f>]" / "[Beam dur=<f> tick=<f>]" appended when the
-     *  delivery matches. */
+     *  "[N] <Delivery> '<Label>' Size=<f> VisualScale=<f> Speed=<f> Trail=<asset> Count=<n>" */
     UFUNCTION(BlueprintPure, Category = "Debug|Cast")
-    static FString GetCastArrayString(const UCastableSkillDataBase *Skill);
+    static FString GetCastArrayString(const USkillDataBase *Skill);
 };

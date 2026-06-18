@@ -4,7 +4,6 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Character/StanceData.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "GameFramework/Character.h"
 
@@ -155,6 +154,19 @@ void UCombatAnimInstance::StopStanceMontage()
                *CurrentStanceMontage->GetName());
         CurrentStanceMontage = nullptr;
     }
+}
+
+void UCombatAnimInstance::StopActionMontage()
+{
+    if (CurrentActionMontage)
+    {
+        Montage_Stop(0.2f, CurrentActionMontage);
+        UE_LOG(LogTemp, Log, TEXT("[CombatAnimInstance] Stopped action montage: %s"),
+               *CurrentActionMontage->GetName());
+        CurrentActionMontage = nullptr;
+        bIsPlayingAction = false;
+    }
+    ResumeStanceMontage();
 }
 
 void UCombatAnimInstance::ResumeStanceMontage()

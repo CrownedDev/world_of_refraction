@@ -186,7 +186,7 @@ void ASkillProjectileTestActor::SpawnNextBurst()
 
 // ==================== EVENT HANDLERS ====================
 
-void ASkillProjectileTestActor::OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage)
+void ASkillProjectileTestActor::OnProjectileImpact(AActor* Target, FVector ImpactLocation, float ImpactRadius, int32 Damage, int32 CastEntryIndex)
 {
 	UE_LOG(LogTemp, Display, TEXT("========================================"));
 	UE_LOG(LogTemp, Display, TEXT("[SkillProjectileTest] IMPACT!"));

@@ -99,10 +99,16 @@ Key internal state fields:
 1. Guards: combat in progress, `CurrentActor` set, `ActionExecutor` available, not
    already waiting on an async action.
 2. Validates via `ActionExecutor::ValidateAction`.
-3. Decides if the action needs async execution:
-   - Spell with `Projectile` / `Homing` / `Beam` delivery type.
-   - Attack with `AttackData->ApproachData != nullptr`.
-   - Ability where `AbilityData->RequiresApproach()` is true.
+3. Decides if the action needs async execution (`bRequiresAsync`, `CombatOrchestrator.cpp:373-412`):
+   - Spell with a `Projectile` delivery type — checked per-entry across `SpellData->CastArray`
+     when populated (any `Projectile` cast entry → async), otherwise the loose
+     `SpellData->DeliveryType` is the empty-`CastArray` fallback. `AOE` and `Instant` stay sync;
+     the former `Homing` and `Beam` delivery types no longer exist (a beam is now a burst of
+     `Projectile` cast entries).
+   - Attack or Ability that has any montage to play — `SkillMontage`, `RitualCastMontage`, or
+     `ReturnMontage` non-null. This replaced the old `ApproachData != nullptr` / `RequiresApproach()`
+     gate: warp replaced the movement system, so the *presence of an animation* (not movement)
+     decides async.
 4. Async path: sets `bWaitingForAsyncAction`, calls
    `ActionExecutor::ExecuteActionAsync` with `HandleAsyncActionCompleted` as the
    completion callback.
@@ -252,3 +258,5 @@ Observations from the code (not explicitly flagged as issues):
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-27 | Between-combat destruction sweep extended via `ULoadoutComponent::ClearBrokenPrimaryEvolution` to cover case-B primary-slot evolutions (BD). New `Debug\|CrystalWear` subsection — four `CallInEditor` buttons (`DebugCrystalState`, `DebugWearTable`, `DebugSimCast_S_L2`, `DebugSimCast_Matched_L1`) forwarding to `UCrystalManager` `WOR_*`. | feature/crystal-wear-substat-modifier |
+| 2026-06-16 | Doc-sync §Action submission step 3 to the current `bRequiresAsync` logic (`CombatOrchestrator.cpp:373-412`): spell async is `Projectile`-only, evaluated per `CastArray` entry with the loose `DeliveryType` as fallback (`Homing`/`Beam` delivery types removed); attack/ability async is now montage-presence (`SkillMontage`/`RitualCastMontage`/`ReturnMontage`), replacing the deleted `ApproachData`/`RequiresApproach()` movement gate. | feature/realtime-defense |
+| 2026-06-16 | Spell `bRequiresAsync` now also true for `AOE` and `Instant` (both per-impact-defended at the Cast-notify resolve), not `Projectile`-only — added in both the `CastArray`-entry loop and the loose-`DeliveryType` fallback (`9eb65756`). A pure-Instant spell no longer falls to the rejected sync path. | feature/realtime-defense |

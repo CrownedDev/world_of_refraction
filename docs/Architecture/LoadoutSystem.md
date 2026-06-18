@@ -46,9 +46,10 @@ A lightweight pairing of a crystal and its holder, returned by
 `GetEquippedCrystals()`:
 
 - `Kind` — `EAttachedItemKind`, the discriminator (`None` / `Crystal` /
-  `Evolution` / `AugmentStone`).
+  `Evolution` / `AugmentStone` / `Fusion`).
 - `RefinedId` — `FCrystalId` (meaningful when `Kind == Crystal` or
-  `Kind == AugmentStone` — both carry an `FCrystalId` identity).
+  `Kind == AugmentStone` — both carry an `FCrystalId` identity; a `Fusion` slot
+  instead carries an `FFusionId` of two halves + a bonus stat).
 - `Item` — `UEvolutionItemData*` (meaningful when `Kind == Evolution`).
 - `Holder` — `UObject*` (the `UWeaponData` or `URingData` bearing it; `UObject*`
   because weapons and rings share no base beyond `UPrimaryDataAsset`). For an
@@ -73,8 +74,9 @@ Fields:
   not a flat constant — see *stone-ability slots* below.
 - `AssignedSpells` — `TArray<USpellData*>`; sequential override list, valid only
   if the weapon has a crystal/evolution.
-- `OverrideAttack` — `UWeaponAttackData*`; per-loadout attack override that, if
-  set, replaces the weapon asset's `WeaponAttack`.
+- `OverrideAttack` — `USkillDataBase*` (post the attack/ability merge — holds a
+  `UAbilityData` with `bIsAttack=true`); per-loadout attack override that, if set,
+  replaces the weapon asset's `WeaponAttack`.
 
 Notable behavior:
 
@@ -87,7 +89,10 @@ Notable behavior:
   at `MAX_WEAPON_ABILITIES`.
 - `GetAllSpells()` — same sequential override merge using
   `WeaponEntry.GetSpells()` as the base list and `AssignedSpells` as overrides,
-  capped at `LoadoutConstants::MAX_SPELL_SLOTS`.
+  capped via `CrystalEffectTable::ResolveSpellSlotCap(Attachment, MAX_SPELL_SLOTS)`:
+  a gem-crystal attachment (or a fusion's gem-half) keys the per-tier
+  `GetAttachmentSlotsForTier` curve, otherwise the flat
+  `LoadoutConstants::MAX_SPELL_SLOTS` ceiling applies.
 - `ValidateAbilities()` — validates each assigned (non-null) ability and
   **hard-fails** (`return false`, no soft-warning path) on any of:
   - the ability is not owned (`OwnedAbilities.HasAbility` is false);
@@ -347,5 +352,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-05-21 | Inventory redesign merged — `ULoadoutData` and `UCharacterData::DefaultLoadout` deleted; `UInventoryData` is the sole authoring surface and owns the inline `FSavedLoadout` array. `SavedLoadouts` / `ActiveLoadoutIndex` / `MaxSavedLoadouts` moved from `ULoadoutComponent` to `UInventoryComponent`; the loadout component now reads them via `GetInventoryComponent()`. `InitializeFromAsset` and the `bInitializedFromAsset` validation-bypass field removed; `FCombatLoadout::CreateFromSavedLoadout` is the sole runtime factory. Initialization, Validation, Field-table and Integration-Points sections updated. | feature/inventory-refactor |
 | 2026-05-27 | Two new BlueprintCallable wear/clear helpers — `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution()` — for the case-B standalone primary-slot evolution (BD wear path). Both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage. Also corrected the `FCombatLoadout::PrimaryEvolution` field-shape note (it's `FEvolutionAttachment`, not a raw `UEvolutionItemData*` — pre-existing drift surfaced by this branch). | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-2 — added `ResolveSpellSource(USpellData*) const` for AI spell-source determination (precedence: Innate → RingCrystal → WeaponCrystal → Evolution). Removed dead struct-side `FCombatLoadout::Validate`/`ValidateGeneric`/`ValidateCaster`/`ValidateResonator` (`ULoadoutComponent::GetValidationErrors` is the live path; `ValidateBDSpellLoadout` retained — still shared with `FSavedLoadout::GetValidationErrors`). | feature/integration-gaps-sweep-2 |
-| 2026-06-07 | Weapon-stone alignment — `FEquippedCrystalSlot.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (`RefinedId` carries `WeaponStone` identity too); documented the per-tier stone-ability slots (`AssignedWeaponStoneAbilities`, `GetWeaponStoneAbilities`, `ValidateWeaponStoneAbilities` capped by `GetAttachmentSlotsForTier`) and the `FSavedLoadout`/`FCombatLoadout` plumbing. See new `AugmentStoneSystem.md`. | feature/weapon-stones |
+| 2026-06-07 | Weapon-stone alignment — `FEquippedCrystalSlot.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (`RefinedId` carries `WeaponStone` identity too); documented the per-tier stone-ability slots (`AssignedWeaponStoneAbilities`, `GetWeaponStoneAbilities`, `ValidateWeaponStoneAbilities` capped by `GetAttachmentSlotsForTier`) and the `FSavedLoadout`/`FCombatLoadout` plumbing. See new `AugmentStoneSystem.md`. *(The `WeaponStone*` names in this row were renamed to `AugmentStone*` on 2026-06-08, commit `e9d22103` etc.; the doc body uses the current names.)* | feature/weapon-stones |
+| 2026-06-16 | Doc-sync: `FEquippedCrystalSlot.Kind` gains `Fusion` (+`FFusionId`); `FWeaponLoadoutEntry::GetAllSpells` cap re-pointed to `CrystalEffectTable::ResolveSpellSlotCap` (tier gem-crystal/fusion-gem-half spell slots, `0e920df7`), not a flat `MAX_SPELL_SLOTS`; flagged the stale `WeaponStone*` names in the 2026-06-07 changelog row. | feature/realtime-defense |
 | 2026-06-11 | Accumulate cleanup — `LoadoutComponent.cpp`'s anon-namespace `AccumulateBonus`/`AccumulateResistance` replaced at all 10 call sites by the `FEquipmentStatBonus::Accumulate` / `FResistanceBonus::Accumulate` struct members (behaviour-identical field-wise add); the duplicate helpers deleted. | chore/legacy-cleanup |
+| 2026-06-17 | Attack/ability merge — `FWeaponLoadoutEntry::OverrideAttack` (and `UWeaponData::WeaponAttack`) widened to `USkillDataBase*` (hold a `UAbilityData` with `bIsAttack=true`). **Slotting gate added:** `FAbilityCollection::LearnAbility` rejects `IsAttack()` assets (basic attacks never enter the learned pool), with belts in `GetAbilitiesForWeaponType` and `ValidateAbilities`/`ValidateAugmentStoneAbilities` — a basic attack can't be slotted as an ability (the functional payoff of `bIsAttack`). `UWeaponAttackData` deleted. | feature/realtime-defense |

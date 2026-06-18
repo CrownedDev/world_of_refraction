@@ -5,7 +5,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Combat/Actions/ActionStructs.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -430,13 +430,13 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Real Attack Execution (DA_Attack_Sword_Slash)"));
 
 	// Load the attack data asset
-	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
+	USkillDataBase *Attack = LoadObject<USkillDataBase>(nullptr,
 															  TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack.DA_Test_Attack"));
 
 	if (!Attack)
 	{
 		// Fallback to spear
-		Attack = LoadObject<UWeaponAttackData>(nullptr,
+		Attack = LoadObject<USkillDataBase>(nullptr,
 											   TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack2.DA_Test_Attack2"));
 	}
 
@@ -490,8 +490,8 @@ void ACombatOrchestratorTestActor::Test_RealAttackExecution()
 
 	// Create attack action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
-	AttackAction.AttackData = Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
+	AttackAction.SkillData = Attack;
 	AttackAction.Targets.Add(Target);
 
 	// Validate action
@@ -852,7 +852,7 @@ void ACombatOrchestratorTestActor::Test_AbilityExecution()
 	// Create ability action
 	FAction AbilityAction;
 	AbilityAction.ActionType = EActionType::Ability;
-	AbilityAction.AbilityData = Ability;
+	AbilityAction.SkillData = Ability;
 	AbilityAction.Targets.Add(Target);
 
 	// Validate action
@@ -997,13 +997,13 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 	UE_LOG(LogTemp, Display, TEXT("\n[TEST] Multi-Target Action (Attack 3 targets)"));
 
 	// Load attack data
-	UWeaponAttackData *Attack = LoadObject<UWeaponAttackData>(nullptr,
+	USkillDataBase *Attack = LoadObject<USkillDataBase>(nullptr,
 															  TEXT("/Game/Testing/Weapons/Attacks/DA_Test_Attack.DA_Test_Attack"));
 
 	if (!Attack)
 	{
 		// Fallback to spear
-		Attack = LoadObject<UWeaponAttackData>(nullptr,
+		Attack = LoadObject<USkillDataBase>(nullptr,
 											   TEXT("/Game/Data/Weapons/Spear/Attacks/DA_Attack_Spear_Strike.DA_Attack_Spear_Strike"));
 	}
 
@@ -1061,8 +1061,8 @@ void ACombatOrchestratorTestActor::Test_MultiTargetAction()
 
 	// Create multi-target attack action
 	FAction AttackAction;
-	AttackAction.ActionType = EActionType::Attack;
-	AttackAction.AttackData = Attack;
+	AttackAction.ActionType = EActionType::Ability; // attack/ability merge: attacks dispatch as Ability (SkillData + IsAttack)
+	AttackAction.SkillData = Attack;
 	AttackAction.Targets.Add(Target1);
 	AttackAction.Targets.Add(Target2);
 	AttackAction.Targets.Add(Target3);

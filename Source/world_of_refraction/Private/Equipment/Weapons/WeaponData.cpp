@@ -4,7 +4,7 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/StanceData.h"
 #include "Loadout/LoadoutConstants.h"
-#include "Equipment/Weapons/WeaponAttackData.h"
+#include "Skills/Definitions/SkillDataBase.h"
 
 FString UWeaponData::GetWeaponTypeName() const
 {
