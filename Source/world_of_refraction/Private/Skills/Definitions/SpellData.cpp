@@ -10,31 +10,6 @@ void USpellData::PostLoad()
 {
     Super::PostLoad();
 
-    // Stage c: the per-cast FSkillCastEntry::Damage (the old single-cast "spell damage layer") is no
-    // longer read for damage — spells now resolve via the scaled skill BaseDamage + the DamageSplit
-    // %-split, like abilities. Migrate a single-cast spell's authored per-cast Damage into BaseDamage so
-    // routing through BaseDamage preserves the intended damage. Idempotent + guarded: fires ONLY when
-    // BaseDamage is unauthored (0), so it never clobbers an authored BaseDamage and never re-fires after
-    // the first migrate (BaseDamage > 0 thereafter). Single-cast only (incl. bursts, Count>1 — still ONE
-    // CastArray entry). The field is removed in stage d; until then this dirties the package on re-save.
-    if (BaseDamage == 0 && CastArray.Num() == 1 && CastArray[0].Damage > 0)
-    {
-        BaseDamage = CastArray[0].Damage;
-        UE_LOG(LogTemp, Log,
-               TEXT("[USpellData::PostLoad] %s: migrated per-cast Damage %d -> BaseDamage (stage c). Re-save to bake."),
-               *Name, CastArray[0].Damage);
-    }
-    else if (CastArray.Num() == 1 && CastArray[0].Damage > 0 && BaseDamage != CastArray[0].Damage)
-    {
-        // Both authored, different values: the guard above (BaseDamage != 0) correctly preserves the
-        // authored BaseDamage, but stage c now USES BaseDamage where the old override used the per-cast
-        // value — so this spell's damage shifts. Surface it for audit (expected to be zero spells —
-        // existing assets never authored per-cast Damage).
-        UE_LOG(LogTemp, Warning,
-               TEXT("[USpellData::PostLoad] %s: BOTH BaseDamage (%d) and per-cast Damage (%d) authored — stage c uses BaseDamage; the per-cast value is now ignored. Audit this spell."),
-               *Name, BaseDamage, CastArray[0].Damage);
-    }
-
     // D2: mirror the legacy montage into the unified base field. Triggered only
     // while SkillMontage is unauthored; CastAnimation stays the runtime source
     // of truth until the Stage 12 reader switch. Transient until resaved.
@@ -106,16 +81,14 @@ void USpellData::PostLoad()
 
 // ==================== DAMAGE CALCULATIONS ====================
 
-int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods, int32 BaseDamageOverride) const
+int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatModifiers &ActionMods) const
 {
     if (!Character)
         return 0;
 
-    // Per-cast-entry SPELL damage (Stage 6 cluster 5): swap the raw base when overridden (>= 0),
-    // else use the skill-level BaseDamage as before. Only the BASE changes — the bIsRawMode mult +
-    // requirement penalty below still apply on it, and the SpellDamage/Mind/element scaling runs
-    // downstream at ApplyHit (ActionType=Spell branch). So per-entry damage scales as a spell.
-    const int32 EffectiveBase = (BaseDamageOverride >= 0) ? BaseDamageOverride : BaseDamage;
+    // Attacker-side base: the skill-level BaseDamage. The bIsRawMode mult + requirement penalty below
+    // apply on it; the SpellDamage/Mind/element scaling runs downstream at ApplyHit (ActionType=Spell).
+    const int32 EffectiveBase = BaseDamage;
 
     // Attacker-side base only. SpellDamage multiplier is applied once downstream
     // by DamageCalculator::CalculateDamage via GetAttackerDamageMultiplier; the
