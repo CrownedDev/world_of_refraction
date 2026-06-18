@@ -11,15 +11,6 @@ namespace InfusionConstants
 	// by an EP-derived basis — HP = (pre-Efficiency infused EP / MaxEP) × MaxHP ×
 	// (1 − Resistance), computed in UInfusionCostHelper::CalculateHPCost.
 
-	// ==================== CHARGE EFFECT MULTIPLIERS (NEW) ====================
-	// Exclusive bonuses - L1 OR L2, not both
-
-	/** L1 Charge: Status buildup multiplier (+25%) - spells and abilities */
-	constexpr float CHARGE_L1_STATUS_MULT = 1.25f;
-
-	/** L2 Charge: Damage multiplier (+30%) - spells and abilities */
-	constexpr float CHARGE_L2_DAMAGE_MULT = 1.30f;
-
 	// ==================== CHARGE EFFECT BONUSES (MODE-ROUTED) ====================
 	// Infusion charge effect bonuses (multiplier form). The mode (EInfusionMode) routes which pair
 	// applies to damage vs status: Physical -> damage=focus / status=off-focus; Status -> reversed;

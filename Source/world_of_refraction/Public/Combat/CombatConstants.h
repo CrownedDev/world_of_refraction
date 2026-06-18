@@ -315,7 +315,6 @@ namespace CombatConstants
     // INFUSION_DAMAGE_PENALTY removed per locked cost matrix — see commit message.
     constexpr float INFUSION_ENERGY_MULTIPLIER = 1.5f; // 50% more energy cost when infused
     constexpr int32 BASE_STATUS_BUILDUP_PER_HIT = 5;   // Base buildup before Spirit scaling
-    constexpr float SPELL_L1_BUILDUP_MULT = 1.5f;      // L1 spell infusion: +50% buildup
 
     // ==================== DEFENSE-SIDE BUILDUP REDUCTION ====================
     // Buildup reduction when a target blocks/parries. Multipliers expressed as

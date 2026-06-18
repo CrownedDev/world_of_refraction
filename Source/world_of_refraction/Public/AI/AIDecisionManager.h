@@ -157,10 +157,10 @@ private:
     /** Execution-accurate spell damage estimate — routes the spell through
      *  DamageCalculator so attacker stats, ActionMods and defender defense
      *  are all applied, matching what real execution would deal. */
-    int32 EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel = 0) const;
+    int32 EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
 
     /** Execution-accurate ability damage estimate — see EstimateSpellDamage. */
-    int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0) const;
+    int32 EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel = 0, EInfusionSourceOption InfusionSource = EInfusionSourceOption::None) const;
 
     /** Score the value of a spell's status-buildup payload against a target
      *  (pre-weight, ~0..50). Non-const — reads HasDangerousDebuff. */
@@ -259,6 +259,12 @@ private:
 
     /** Decide infusion level for an ability (0, 1, or 2) */
     int32 DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const;
+
+    /** Decide the infusion SOURCE for a SPELL (origin-bound): the first allowed source from
+     *  GetAllowedInfusionSourcesForSpell, Evolution preferred for the BD/Reality {Evolution, Innate}
+     *  case. Returns None for Item / non-infusable (empty binding). Shared by BuildAction (sets
+     *  SelectedSource) and DecideSpellInfusionLevel (source-aware prediction) so they never drift. */
+    EInfusionSourceOption DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const;
 
     /** Decide the infusion SOURCE for an ABILITY (abilities are not origin-bound). Heuristic over
      *  GetAvailableInfusionSources: Caster->Innate, Resonator->ActiveRing, else first crystal source

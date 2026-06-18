@@ -674,7 +674,7 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
     return BestDamage > 0 ? BestDamage : 50;
 }
 
-int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel) const
+int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, USpellData *Spell, int32 InfusionLevel, EInfusionSourceOption InfusionSource) const
 {
     if (!Attacker || !Target || !Spell)
     {
@@ -730,10 +730,13 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
     float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
-    // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
-    if (InfusionLevel == 2)
+    // 6-5-d: per-mode, stat-scaled charge damage — matches execution (GetChargeDamageMultiplier).
+    // L0 returns x1.0; L1/L2 apply the resolved mode's value (L1 now carries a damage bonus too).
+    // Mode from the (level-independent) infusion source the AI will use; None -> Balanced fallback.
+    if (InfusionLevel > 0)
     {
-        Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
+        const EInfusionMode Mode = ActionExec->ResolveInfusionMode(InfusionSource, Attacker);
+        Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ true, AttackerComp);
     }
 
     // Tier-gap parity (Cluster D): the estimate sees the same multiplier
@@ -745,7 +748,7 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     return FMath::RoundToInt(Estimate);
 }
 
-int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel) const
+int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target, UAbilityData *Ability, int32 InfusionLevel, EInfusionSourceOption InfusionSource) const
 {
     if (!Attacker || !Target || !Ability)
     {
@@ -794,10 +797,12 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
     float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
-    // L2 charge infusion applies a damage multiplier (L0/L1 carry none).
-    if (InfusionLevel == 2)
+    // 6-5-d: per-mode, stat-scaled charge damage — matches execution (GetChargeDamageMultiplier).
+    // L0 returns x1.0; L1/L2 apply the resolved mode's value (L1 now carries a damage bonus too).
+    if (InfusionLevel > 0)
     {
-        Estimate *= InfusionConstants::CHARGE_L2_DAMAGE_MULT;
+        const EInfusionMode Mode = ActionExec->ResolveInfusionMode(InfusionSource, Attacker);
+        Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ false, AttackerComp);
     }
 
     // Tier-gap parity (Cluster D): no-op today — abilities borrow the active
@@ -1566,19 +1571,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         // BD/Reality {Evolution, Innate} case). Empty (Item/non-infusable) -> cast uninfused. Then HP-guard.
         if (SpellInfusion > 0)
         {
-            EInfusionSourceOption SpellSrc = EInfusionSourceOption::None;
-            if (UActionExecutor *Exec = GetActionExecutor())
-            {
-                const TArray<EInfusionSourceOption> AllowedSrc =
-                    Exec->GetAllowedInfusionSourcesForSpell(AIActor, BestSpell);
-                if (AllowedSrc.Num() > 0)
-                {
-                    SpellSrc = AllowedSrc.Contains(EInfusionSourceOption::Evolution)
-                                   ? EInfusionSourceOption::Evolution
-                                   : AllowedSrc[0];
-                }
-            }
-
+            const EInfusionSourceOption SpellSrc = DecideSpellInfusionSource(AIActor, BestSpell);
             if (SpellSrc == EInfusionSourceOption::None)
             {
                 SpellInfusion = 0; // no legal source -> don't infuse
@@ -1956,9 +1949,13 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     int32 MaxEnergy = GetMaxEP(Attacker);
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
-    // Calculate damage at each level
-    int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * InfusionConstants::CHARGE_L2_DAMAGE_MULT); // +30% damage
+    // 6-5-d: resolve the (level-independent) infusion source so estimates use the real mode.
+    const EInfusionSourceOption Source = DecideSpellInfusionSource(Attacker, Spell);
+
+    // Calculate damage at each level. The estimator applies per-mode charge damage internally
+    // (single application point — no hand re-multiply), so L2Damage matches execution.
+    int32 L0Damage = EstimateSpellDamage(Attacker, Target, Spell, 0, Source);
+    int32 L2Damage = EstimateSpellDamage(Attacker, Target, Spell, 2, Source);
 
     int32 TargetHP = TargetComp->CurrentHP;
 
@@ -1978,9 +1975,13 @@ int32 UAIDecisionManager::DecideSpellInfusionLevel(AActor *Attacker, AActor *Tar
     UStatusBuildupManager *BuildupManager = GetGameInstance()->GetSubsystem<UStatusBuildupManager>();
     if (BuildupManager)
     {
-        // Calculate L1 buildup
+        // Calculate L1 buildup — per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
         float BaseBuildup = Spell->StatusBuildup;
-        float L1Buildup = BaseBuildup * CombatConstants::SPELL_L1_BUILDUP_MULT; // L1 boost
+        UActionExecutor *StatusExec = GetActionExecutor();
+        const float L1StatusMult = StatusExec
+                                       ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
+                                       : 1.0f;
+        float L1Buildup = BaseBuildup * L1StatusMult;
 
         // Would L1 trigger the bar?
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
@@ -2044,9 +2045,13 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     int32 MaxEnergy = GetMaxEP(Attacker);
     float EnergyPercent = static_cast<float>(CurrentEnergy) / MaxEnergy;
 
-    // Calculate damage at each level
-    int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability);
-    int32 L2Damage = FMath::RoundToInt(L0Damage * InfusionConstants::CHARGE_L2_DAMAGE_MULT); // L2: +30% damage
+    // 6-5-d: resolve the (level-independent) ability infusion source for accurate estimates.
+    const EInfusionSourceOption Source = DecideAbilityInfusionSource(Attacker);
+
+    // Calculate damage at each level. The estimator applies per-mode charge damage internally
+    // (single application point — no hand re-multiply), so L2Damage matches execution.
+    int32 L0Damage = EstimateAbilityDamage(Attacker, Target, Ability, 0, Source);
+    int32 L2Damage = EstimateAbilityDamage(Attacker, Target, Ability, 2, Source);
     int32 TargetHP = TargetComp->CurrentHP;
 
     // Priority 1: Can we kill with L0? Don't waste
@@ -2067,9 +2072,12 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
     {
         // Calculate L1 status buildup
         int32 BaseBuildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
-        // TODO: shares spell L1 buildup rule by analogy; give ability its own
-        // constant if ability buildup ever diverges from spells.
-        float L1Buildup = BaseBuildup * CombatConstants::SPELL_L1_BUILDUP_MULT; // L1: +50% status buildup
+        // 6-5-d: per-mode, stat-scaled status (matches execution's GetChargeStatusMultiplier).
+        UActionExecutor *StatusExec = GetActionExecutor();
+        const float L1StatusMult = StatusExec
+                                       ? StatusExec->GetChargeStatusMultiplier(1, StatusExec->ResolveInfusionMode(Source, Attacker), AttackerComp)
+                                       : 1.0f;
+        float L1Buildup = BaseBuildup * L1StatusMult;
 
         // Would L1 trigger the bar?
         bool bL1WouldTrigger = WouldTriggerStatusBar(Attacker, Target, L1Buildup);
@@ -2106,6 +2114,27 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
 
     // Default: No infusion
     return 0;
+}
+
+EInfusionSourceOption UAIDecisionManager::DecideSpellInfusionSource(AActor *Attacker, USpellData *Spell) const
+{
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec)
+    {
+        return EInfusionSourceOption::None;
+    }
+
+    const TArray<EInfusionSourceOption> Allowed = ActionExec->GetAllowedInfusionSourcesForSpell(Attacker, Spell);
+    if (Allowed.Num() == 0)
+    {
+        return EInfusionSourceOption::None; // Item / non-infusable -> no source
+    }
+
+    // Spells are 1:1 origin-bound; the BD/Reality evolution case returns {Evolution, Innate} —
+    // prefer Evolution this stage (richer BD/Reality choice deferred).
+    return Allowed.Contains(EInfusionSourceOption::Evolution)
+               ? EInfusionSourceOption::Evolution
+               : Allowed[0];
 }
 
 EInfusionSourceOption UAIDecisionManager::DecideAbilityInfusionSource(AActor *Attacker) const
