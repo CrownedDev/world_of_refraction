@@ -125,6 +125,7 @@ Maintain living system documents in `docs/Architecture/`. Each document covers o
 - `docs/Architecture/InfusionSystem.md`
 - `docs/Architecture/ItemSystem.md`
 - `docs/Architecture/LoadoutSystem.md`
+- `docs/Architecture/ScalingSystem.md`
 - `docs/Architecture/SkillEffectSystem.md`
 - `docs/Architecture/StatusBuildupSystem.md`
 - `docs/Architecture/TurnManager.md`
