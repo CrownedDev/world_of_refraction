@@ -259,6 +259,39 @@ void UBrokenDarknessManager::TriggerTransformation()
 	// VFX/Audio trigger point
 }
 
+void UBrokenDarknessManager::RevertTransformation()
+{
+	// Mirror of TriggerTransformation's double-entry guard — if not BD, nothing to revert.
+	if (!bIsFlipped)
+		return;
+
+	// 1. Flip the manager flag.
+	bIsFlipped = false;
+
+	// 2. Clear all BD runtime state.
+	//    ExitOverload() is a no-op if not overloaded; fires OnOverloadStateChanged if it was.
+	//    ResetStacks() zeros CurrentAbsorptionStacks + ConsecutiveAbsorptions.
+	ExitOverload();
+	ResetStacks();
+	CurrentAlignmentElement = ESpellElement::Generic;
+	AbsorbedElements.Empty();
+	LastAbsorbedElement = ESpellElement::Generic;
+
+	// 3. Clear the runtime BD flag on the component + reset EP→MaxEP. The EP guard is on
+	//    bIsBrokenDarkness (CDC), which ServerSetBrokenDarkness(false) clears before resetting
+	//    EP — so the EP reset is correctly ordered inside the CDC false branch.
+	if (UCharacterDataComponent *CharComp = GetCharComp())
+	{
+		CharComp->ServerSetBrokenDarkness(false);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("BrokenDarkness: %s has REVERTED to Darkness."),
+		   GetOwner() ? *GetOwner()->GetName() : TEXT("Unknown"));
+
+	// 4. Fire the reverted event (VFX/UI hook — trigger binds here, not OnTransformed).
+	OnReverted.Broadcast(GetOwner());
+}
+
 // ==================== FORBIDDEN ELEMENTS ====================
 
 bool UBrokenDarknessManager::IsForbiddenElement(ESpellElement Element)
@@ -912,6 +945,55 @@ namespace
 			BDManager->DebugLogAbsorption(Cost);
 		}
 	}
+
+	// arc-2 verification: RevertTransformation has no production caller yet, so this fires it manually
+	// on the active combat's first transformed Broken Darkness actor. Confirms IsBrokenDarkness() reads
+	// false after, EP resets to MaxEP, the bar relabels, absorption/overload stop, and OnReverted fires.
+	// Retained as BD debug tooling per CLAUDE.md (every system ships debug utilities).
+	void RunBDRevertCommand(UWorld *World)
+	{
+		if (!World)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: no world"));
+			return;
+		}
+
+		ACombatOrchestrator *Orchestrator =
+			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
+		if (!Orchestrator)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: no CombatOrchestrator (run during a PIE combat)"));
+			return;
+		}
+
+		UBrokenDarknessManager *BDManager = nullptr;
+		TArray<AActor *> Combatants = Orchestrator->GetTeam0();
+		Combatants.Append(Orchestrator->GetTeam1());
+		for (AActor *Actor : Combatants)
+		{
+			if (Actor)
+			{
+				if (UBrokenDarknessManager *Mgr = Actor->FindComponentByClass<UBrokenDarknessManager>())
+				{
+					if (Mgr->IsTransformed())
+					{
+						BDManager = Mgr;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!BDManager)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: no transformed Broken Darkness actor among combatants"));
+			return;
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.TestBDRevert: reverting %s..."),
+			   BDManager->GetOwner() ? *BDManager->GetOwner()->GetName() : TEXT("?"));
+		BDManager->RevertTransformation();
+	}
 }
 
 static FAutoConsoleCommandWithWorld GAbsorptionSnapshotCommand(
@@ -920,6 +1002,12 @@ static FAutoConsoleCommandWithWorld GAbsorptionSnapshotCommand(
 	TEXT("for sample attack energy costs across parry + block — inspect the Efficiency-scaled curve without ")
 	TEXT("triggering an exact parry. Resolves the first BD among the active combat's combatants."),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&RunAbsorptionSnapshotCommand));
+
+static FAutoConsoleCommandWithWorld GTestBDRevertCommand(
+	TEXT("WoR.TestBDRevert"),
+	TEXT("Forcibly revert the active combat's first transformed Broken Darkness actor back to Darkness ")
+	TEXT("(RevertTransformation). Arc-2 debug hook — confirms EP reset to MaxEP, bar relabel, OnReverted fire."),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&RunBDRevertCommand));
 
 float UBrokenDarknessManager::CalculateAuraRange() const
 {
