@@ -45,9 +45,8 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	// boost the matching sub-stat. ActionMods carries Reality + Evolution + any
 	// future per-action stat modifier sources.
 	// Cross-stat scaling (e.g. a fire-punch scaling off SpellDamage) is now authored per-skill via the
-	// StatScaling tiers (the tier loop below), so the old bOverrideStatScaling Raw↔Spell swap was retired —
-	// the baseline stat is simply the ActionType default. (The flag field is removed in d2b; nothing reads
-	// it here anymore.)
+	// StatScaling tiers (the tier loop below), so the old Raw↔Spell stat-swap was retired — the baseline
+	// stat is simply the ActionType default.
 	float AttackerMult = GetAttackerDamageMultiplier(Attacker, Input.ActionType);
 	const ESubStat AttackerStat = (Input.ActionType == EActionType::Spell) ? ESubStat::SpellDamage : ESubStat::RawDamage;
 	AttackerMult = Input.ActionMods.ApplyTo(AttackerMult, AttackerStat);

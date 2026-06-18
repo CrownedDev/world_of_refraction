@@ -73,12 +73,6 @@ struct WORLD_OF_REFRACTION_API FSkillCastEntry
               meta = (EditCondition = "Count > 1", ClampMin = "0.01"))
     float BurstInterval = 0.15f;
 
-    /** If true, this cast scales with the OPPOSITE stat to its action type — a spell scales with RawDamage
-     *  instead of SpellDamage (a "force slash" that scales off physical stats). Default false = natural
-     *  (spell -> SpellDamage). Stat-only: changes which stat scales, nothing else. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
-    bool bOverrideStatScaling = false;
-
     /** This cast deals no damage (a pure interaction moment). The defense window still opens
      *  (defendable/interruptable); only damage is suppressed. Default false. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cast")
