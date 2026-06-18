@@ -15,6 +15,17 @@ bool FWorldStatRequirements::MeetsRequirements(const UCharacterData *Character) 
            Character->WorldSpiritLevel >= RequiredWorldSpirit;
 }
 
+bool FWorldStatRequirements::ExactlyMatchedBy(const UCharacterData *Character) const
+{
+    if (!Character)
+    {
+        return false;
+    }
+    return Character->WorldMindLevel   == RequiredWorldMind &&
+           Character->WorldBodyLevel   == RequiredWorldBody &&
+           Character->WorldSpiritLevel == RequiredWorldSpirit;
+}
+
 FString FWorldStatRequirements::GetRequirementsSummary(const UCharacterData *Character) const
 {
     if (!HasRequirements())
