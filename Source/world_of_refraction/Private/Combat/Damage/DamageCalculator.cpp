@@ -84,6 +84,23 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 		}
 	}
 
+	// Souls-style authored per-skill scaling (stage b2 / b2b): each (stat, grade) entry adds
+	// GetScalingTierCoefficient(grade) × GetScalingFraction(stat, attacker's effective stat) to the
+	// attacker multiplier, additive on top of the baseline above. GetScalingFraction (b2b) normalizes
+	// each stat in its OWN bucket (Model Y) so Luck/Defense/Resistance/Efficiency/Reflex contribute
+	// instead of the naive StatFraction's 0. EMPTY array → loop runs zero times → TierScalingBonus 0 →
+	// byte-identical to pre-b2.
+	float TierScalingBonus = 0.0f;
+	for (const FStatScaling &Entry : Input.StatScaling)
+	{
+		if (Entry.Stat == ESubStat::None)
+		{
+			continue;
+		}
+		TierScalingBonus += GetScalingTierCoefficient(Entry.Tier) * GetScalingFraction(Entry.Stat, GetEffectiveStatForScaling(Attacker, Entry.Stat));
+	}
+	AttackerMult += TierScalingBonus;
+
 	Result.AttackerDamageMultiplier = AttackerMult;
 	RunningDamage *= AttackerMult;
 
@@ -348,6 +365,43 @@ float UDamageCalculator::GetAttackerDamageMultiplier(AActor *Attacker, EActionTy
 	else
 	{
 		return AttackerComp->GetEvolutionModifiedRawDamage();
+	}
+}
+
+float UDamageCalculator::GetEffectiveStatForScaling(AActor *Attacker, ESubStat Stat) const
+{
+	if (!Attacker)
+	{
+		return 0.0f;
+	}
+
+	UCharacterDataComponent *Comp = Attacker->FindComponentByClass<UCharacterDataComponent>();
+	if (!Comp || !Comp->CharacterData)
+	{
+		return 0.0f;
+	}
+
+	// Returns each stat's composed, crystal-aware EFFECTIVE value in its OWN units; GetScalingFraction
+	// (b2b) normalizes per bucket. RawDamage/SpellDamage reuse the SAME GetEvolutionModified* getters the
+	// baseline AttackerMult uses (consistency). Resistance reads the CAPPED [0,0.5] accessor (not the
+	// unclamped GetEffectiveResistance) so its bucket-B normalization divides against a value that can't
+	// exceed the cap. Reflex/TurnSpeed are asset-intrinsic (mirrors the TurnSpeed pattern).
+	switch (Stat)
+	{
+	case ESubStat::RawDamage:        return Comp->GetEvolutionModifiedRawDamage();
+	case ESubStat::SpellDamage:      return Comp->GetEvolutionModifiedSpellDamage();
+	case ESubStat::ActionSpeed:      return Comp->GetEffectiveActionSpeed();
+	case ESubStat::SpellSpeed:       return Comp->GetEffectiveSpellSpeed();
+	case ESubStat::StatusMultiplier: return Comp->GetEffectiveStatusMultiplier();
+	case ESubStat::CritDamage:       return GetCritDamageMultiplier(Attacker);
+	case ESubStat::Resistance:       return Comp->GetCrystalResistanceStatCapped();
+	case ESubStat::Efficiency:       return Comp->GetEffectiveEfficiencyMultiplier();
+	case ESubStat::Luck:             return Comp->GetEquipmentModifiedLuck();
+	case ESubStat::Defense:          return Comp->GetEvolutionModifiedFlatDefense();
+	case ESubStat::TurnSpeed:        return Comp->CharacterData->CalculateTurnSpeed();
+	case ESubStat::Reflex:           return Comp->CharacterData->CalculateReflexWindowBonus();
+	case ESubStat::None:
+	default:                         return 0.0f;
 	}
 }
 

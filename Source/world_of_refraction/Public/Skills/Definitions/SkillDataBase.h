@@ -15,6 +15,7 @@
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
 #include "Skills/Definitions/SkillCastEntry.h"
+#include "Skills/Definitions/EScalingTier.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 
 #if WITH_EDITOR
@@ -210,6 +211,13 @@ public:
      *  FSkillCastEntry.) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     bool bOverrideStatScaling = false;
+
+    /** Souls-style stat scaling: each entry adds base * TierCoeff(grade) * StatFraction(stat) to this skill's
+     *  damage (additive across entries). EMPTY = no stat scaling (flat base damage). A stat absent from the
+     *  array does not scale. Authored per-skill; shared by abilities + spells. NOT yet consumed by the damage
+     *  formula — the scaling term is wired in stage b2; until then this is authored-but-inert. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+    TArray<FStatScaling> StatScaling;
 
     /** Default 0 means free. Attacks are free unless designers set a cost. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))

@@ -2744,6 +2744,14 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			DmgInput.InfusionLevel = Input.InfusionLevel;
 			DmgInput.ActionMods = Input.ActionMods;
 
+			// Stage b2: authored per-skill scaling tiers from the live chain skill (the same
+			// SpellData/SkillData whose BaseDamage seeded this impact). Empty array (every
+			// un-authored skill) → no tier bonus → byte-identical to pre-b2.
+			if (const USkillDataBase *ChainSkillData = GetCurrentSkillData())
+			{
+				DmgInput.StatScaling = ChainSkillData->StatScaling;
+			}
+
 			const FDamageCalculationResult CalcResult = DamageCalc->CalculateDamage(Input.Attacker, Input.Target, DmgInput);
 
 			Result.bWasCritical = CalcResult.bWasCritical;
@@ -4454,13 +4462,10 @@ URingManager *UActionExecutor::GetRingManager() const
 // CHARGE INFUSION HELPERS
 // ========================================
 
-// Shared upside-only stat surcharge fraction: max(0, stat - 1). Stacking the stat raises
-// the infusion COST (6-2 ComputeInfusionCostMultiplier) and the EFFECT (6-3 charge getters)
-// by the IDENTICAL fraction — one definition so cost and effect never drift.
-static float StatFraction(float Stat)
-{
-	return FMath::Max(0.0f, Stat - 1.0f);
-}
+// StatFraction (upside-only stat surcharge, max(0, stat - 1)) moved to the shared
+// Skills/Definitions/EScalingTier.h so the infusion cost/effect path here and the damage-scaling
+// tier term in DamageCalculator share ONE definition (no drift). Reached transitively via
+// SkillDataBase.h; the call sites below (cost multiplier + charge getters) are byte-identical.
 
 // Charge effect band: pick the L1 vs L2 value for a (L1,L2) constant pair. Callers guard
 // Level <= 0 → 1.0 before reaching here, so any Level >= 2 takes the L2 band.

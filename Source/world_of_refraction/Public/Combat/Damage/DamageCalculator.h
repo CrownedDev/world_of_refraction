@@ -10,6 +10,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Infusion/EInfusionSourceOption.h"
 #include "Combat/Actions/ActionStatModifiers.h"
+#include "Skills/Definitions/EScalingTier.h"
 #include "DamageCalculator.generated.h"
 
 class UCharacterData;
@@ -101,6 +102,14 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	 *  damage branches stay on ActionType. Default false = natural scaling. */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	bool bOverrideStatScaling = false;
+
+	/** Authored per-skill stat-scaling tiers (stage b2). Each entry adds
+	 *  GetScalingTierCoefficient(grade) × StatFraction(attacker's effective stat) to the attacker
+	 *  multiplier (additive). EMPTY = no tier scaling → byte-identical to pre-b2. Populated from the
+	 *  source skill's USkillDataBase::StatScaling at the Input-build sites; sites left unpopulated stay
+	 *  empty (safe no-op). */
+	UPROPERTY(BlueprintReadWrite, Category = "Damage")
+	TArray<FStatScaling> StatScaling;
 };
 
 /**
@@ -277,6 +286,12 @@ private:
 	/** Apply status effect modifiers to damage. ActionType gates the
 	 *  physical-only RawDamageBuff/Debuff term (Spell actions skip it). */
 	float GetStatusEffectDamageModifier(AActor *Attacker, AActor *Defender, EActionType ActionType) const;
+
+	/** Attacker's EFFECTIVE (composed, crystal-aware) value for an arbitrary substat, used by the
+	 *  per-skill scaling-tier term. RawDamage/SpellDamage map to the SAME GetEvolutionModified* getters
+	 *  the baseline AttackerMult uses (so the tier term is consistent with the baseline). Returns 0 for
+	 *  ESubStat::None / no attacker / no component. */
+	float GetEffectiveStatForScaling(AActor *Attacker, ESubStat Stat) const;
 
 	/** Get CombatGridSubsystem */
 	UCombatGridSubsystem *GetCombatGridSubsystem() const;
