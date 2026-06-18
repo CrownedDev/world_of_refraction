@@ -18,6 +18,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Infusion/InfusionCostHelper.h"
 #include "Infusion/InfusionConstants.h"
 #include "Combat/CombatConstants.h"
 #include "Loadout/Entries/FItemLoadoutSlot.h"
@@ -1560,6 +1561,39 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
             SpellInfusion = 0;
         }
+
+        // 6-5-b: spells are origin-bound. Pick the 1:1 allowed source (Evolution preferred for the
+        // BD/Reality {Evolution, Innate} case). Empty (Item/non-infusable) -> cast uninfused. Then HP-guard.
+        if (SpellInfusion > 0)
+        {
+            EInfusionSourceOption SpellSrc = EInfusionSourceOption::None;
+            if (UActionExecutor *Exec = GetActionExecutor())
+            {
+                const TArray<EInfusionSourceOption> AllowedSrc =
+                    Exec->GetAllowedInfusionSourcesForSpell(AIActor, BestSpell);
+                if (AllowedSrc.Num() > 0)
+                {
+                    SpellSrc = AllowedSrc.Contains(EInfusionSourceOption::Evolution)
+                                   ? EInfusionSourceOption::Evolution
+                                   : AllowedSrc[0];
+                }
+            }
+
+            if (SpellSrc == EInfusionSourceOption::None)
+            {
+                SpellInfusion = 0; // no legal source -> don't infuse
+            }
+            else
+            {
+                const int32 BaseEP = BestSpell->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr);
+                SpellInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ true,
+                                                        SpellSrc, SpellInfusion);
+                if (SpellInfusion > 0)
+                {
+                    Action.SelectedSource = SpellSrc;
+                }
+            }
+        }
         Action.SpellInfusionLevel = SpellInfusion;
         break;
     }
@@ -1603,6 +1637,19 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         if (AbilityInfusion > 0 && !CanAffordAbility(AIActor, BestAbility, AbilityInfusion))
         {
             AbilityInfusion = 0;
+        }
+
+        // 6-5-b: abilities are not origin-bound — pick the source via heuristic, then HP-guard.
+        if (AbilityInfusion > 0)
+        {
+            const EInfusionSourceOption AbilitySrc = DecideAbilityInfusionSource(AIActor);
+            const int32 BaseEP = BestAbility->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr, /*bIsInfused*/ true);
+            AbilityInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ false,
+                                                      AbilitySrc, AbilityInfusion);
+            if (AbilityInfusion > 0)
+            {
+                Action.SelectedSource = AbilitySrc;
+            }
         }
         Action.AbilityInfusionLevel = AbilityInfusion;
         break;
@@ -2059,6 +2106,89 @@ int32 UAIDecisionManager::DecideAbilityInfusionLevel(AActor *Attacker, AActor *T
 
     // Default: No infusion
     return 0;
+}
+
+EInfusionSourceOption UAIDecisionManager::DecideAbilityInfusionSource(AActor *Attacker) const
+{
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec)
+    {
+        return EInfusionSourceOption::Raw; // always-available fallback
+    }
+
+    const TArray<EInfusionSourceOption> Available = ActionExec->GetAvailableInfusionSources(Attacker);
+
+    UCharacterDataComponent *Comp = Attacker ? Attacker->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+    const UCharacterData *Data = Comp ? Comp->CharacterData : nullptr;
+
+    // 1. Caster -> Innate (innate-on-ability pays no HP).
+    if (Data && Data->IsCaster() && Available.Contains(EInfusionSourceOption::Innate))
+    {
+        return EInfusionSourceOption::Innate;
+    }
+
+    // 2. Resonator -> ActiveRing.
+    if (Data && Data->IsResonator() && Available.Contains(EInfusionSourceOption::ActiveRing))
+    {
+        return EInfusionSourceOption::ActiveRing;
+    }
+
+    // 3. First available crystal source (durability-paying, no HP).
+    for (const EInfusionSourceOption Crystal : {EInfusionSourceOption::PrimaryRing,
+                                                EInfusionSourceOption::WeaponCrystal,
+                                                EInfusionSourceOption::Evolution})
+    {
+        if (Available.Contains(Crystal))
+        {
+            return Crystal;
+        }
+    }
+
+    // 4. Fallback: Raw (always available; HP-paying, so the caller's HP guard applies).
+    return EInfusionSourceOption::Raw;
+}
+
+int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
+                                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const
+{
+    if (Level <= 0)
+    {
+        return Level;
+    }
+
+    // Only Raw, Innate-on-SPELL, and Evolution pay HP (innate-on-ability pays none; crystal sources
+    // pay durability). Mirrors ActionExecutor::ApplyCommitCosts' HP-cost routing.
+    const bool bHPPaying =
+        (Source == EInfusionSourceOption::Raw) ||
+        (Source == EInfusionSourceOption::Innate && bIsSpell) ||
+        (Source == EInfusionSourceOption::Evolution);
+    if (!bHPPaying)
+    {
+        return Level;
+    }
+
+    UActionExecutor *ActionExec = GetActionExecutor();
+    if (!ActionExec || !Comp)
+    {
+        return Level; // can't compute — fail open, matching CanAfford*'s convention (null is unreachable in combat)
+    }
+
+    // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) -> WouldKill.
+    while (Level > 0)
+    {
+        const int32 PreEffEP = FMath::RoundToInt(
+            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp));
+        if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP))
+        {
+            Level--;
+        }
+        else
+        {
+            break;
+        }
+    }
+    return Level;
 }
 
 // ==================== HELPER FUNCTIONS ====================

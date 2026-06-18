@@ -168,6 +168,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	TArray<EInfusionSourceOption> GetAvailableInfusionSources(AActor *Actor) const;
 
+	/** The allowed infusion source(s) for a SPELL, by its origin (1:1 via ResolveSpellSource),
+	 *  with the BD/Reality exception that an Evolution spell may ALSO use Innate. Single source of
+	 *  truth for the spell origin->source binding (consumed by the AI and, later, validation).
+	 *  SPELL-only — abilities are not origin-bound. Item-origin / null / unresolvable -> empty
+	 *  (not infusable). Plain C++ (not BlueprintPure): a rule helper for AI + validation. */
+	TArray<EInfusionSourceOption> GetAllowedInfusionSourcesForSpell(AActor *Actor, const USpellData *Spell) const;
+
 	/** Get element for selected source option */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	ESpellElement GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const;
@@ -671,9 +678,12 @@ private:
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);
 
+public:
 	// ========================================
 	// CHARGE INFUSION HELPERS (NEW)
 	// ========================================
+	// Pure const queries — public so the AI prediction/guard (and the 6-5-d mirror
+	// reconcile) can reuse the real combat math instead of duplicating it.
 
 	/** Charge DAMAGE multiplier: per-mode base (focus / off-focus / balanced by EInfusionMode) ×
 	 *  upside-only stat surcharge (1 + max(0, stat-1)). Damage stat = bIsSpell ? SpellDamage :
@@ -698,6 +708,7 @@ private:
 	float ComputeInfusionCostMultiplier(int32 Level, bool bIsSpell, const UCharacterDataComponent *Comp) const;
 
 
+private:
 	// ========================================
 	// CACHED REFERENCES
 	// ========================================

@@ -259,4 +259,16 @@ private:
 
     /** Decide infusion level for an ability (0, 1, or 2) */
     int32 DecideAbilityInfusionLevel(AActor *Attacker, AActor *Target, UAbilityData *Ability) const;
+
+    /** Decide the infusion SOURCE for an ABILITY (abilities are not origin-bound). Heuristic over
+     *  GetAvailableInfusionSources: Caster->Innate, Resonator->ActiveRing, else first crystal source
+     *  (PrimaryRing/WeaponCrystal/Evolution), else Raw (always available). */
+    EInfusionSourceOption DecideAbilityInfusionSource(AActor *Attacker) const;
+
+    /** Clamp an infusion level so an HP-paying source can't kill the caster: drops L2->L1->L0 until
+     *  WouldKill is false (prefers a weaker infusion over self-death). HP-paying = Raw / Innate-on-spell
+     *  / Evolution; crystal sources (no HP) and L0 pass through unchanged. BaseEnergyCost is the
+     *  un-charge-multiplied infused EP (Spell/Ability CalculateEnergyCost). */
+    int32 ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
+                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const;
 };

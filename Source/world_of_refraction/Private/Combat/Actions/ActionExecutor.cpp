@@ -4013,6 +4013,71 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAvailableInfusionSources(AActo
 	return Sources;
 }
 
+TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell(AActor *Actor, const USpellData *Spell) const
+{
+	TArray<EInfusionSourceOption> Allowed;
+	if (!Spell)
+	{
+		return Allowed;
+	}
+
+	ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+	if (!LC)
+	{
+		return Allowed;
+	}
+
+	// Spells are 1:1 origin-bound — a spell's allowed infusion source IS its origin.
+	// ResolveSpellSource is a const, read-only resolver; the non-const param is legacy.
+	const ESpellSource Origin = LC->ResolveSpellSource(const_cast<USpellData *>(Spell));
+
+	switch (Origin)
+	{
+	case ESpellSource::Innate:
+		Allowed.Add(EInfusionSourceOption::Innate);
+		break;
+
+	case ESpellSource::WeaponCrystal:
+		Allowed.Add(EInfusionSourceOption::WeaponCrystal);
+		break;
+
+	case ESpellSource::RingCrystal:
+	{
+		// Resonators hold rings in the dedicated ring loadout (ActiveRing) and can't slot rings in
+		// the primary slot; Generic/Caster hold their ring in the primary slot (PrimaryRing).
+		// ResolveSpellSource collapses both ring paths to RingCrystal; the class splits them here,
+		// mirroring GetAvailableInfusionSources.
+		const UCharacterData *Data = GetCharacterData(Actor);
+		Allowed.Add((Data && Data->IsResonator())
+						? EInfusionSourceOption::ActiveRing
+						: EInfusionSourceOption::PrimaryRing);
+		break;
+	}
+
+	case ESpellSource::Evolution:
+	{
+		Allowed.Add(EInfusionSourceOption::Evolution);
+		// Exception: BD / Reality casters may ALSO route an evolution spell through Innate.
+		const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
+		const UCharacterData *Data = GetCharacterData(Actor);
+		const bool bReality = Data && Data->InnateElement == ESpellElement::Reality;
+		const bool bBD = Comp && Comp->IsBrokenDarkness();
+		if (bReality || bBD)
+		{
+			Allowed.Add(EInfusionSourceOption::Innate);
+		}
+		break;
+	}
+
+	case ESpellSource::Item:
+	default:
+		// Item spells (and any unresolved origin) are consumables, not infusable -> no source.
+		break;
+	}
+
+	return Allowed;
+}
+
 ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const
 {
 	UCharacterData *Data = GetCharacterData(Actor);
