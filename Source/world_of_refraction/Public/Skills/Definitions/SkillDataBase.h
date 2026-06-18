@@ -205,10 +205,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat", meta = (ClampMin = "0"))
     int32 BaseDamage = 0;
 
-    /** Souls-style stat scaling: each entry adds base * TierCoeff(grade) * StatFraction(stat) to this skill's
-     *  damage (additive across entries). EMPTY = no stat scaling (flat base damage). A stat absent from the
-     *  array does not scale. Authored per-skill; shared by abilities + spells. NOT yet consumed by the damage
-     *  formula — the scaling term is wired in stage b2; until then this is authored-but-inert. */
+    /** Souls-style stat scaling: each entry adds base * GetScalingTierCoefficient(tier) *
+     *  GetScalingFraction(stat) to this skill's damage (additive across entries, applied in
+     *  DamageCalculator Step 1). EMPTY = no stat scaling (flat base damage). A stat absent from the array
+     *  does not scale. Authored per-skill; shared by abilities + spells. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TArray<FStatScaling> StatScaling;
 

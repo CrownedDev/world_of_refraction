@@ -106,8 +106,8 @@ On `USkillDataBase` (`Public/Skills/Definitions/SkillDataBase.h`):
   scale-then-split path as abilities**: the scaled `BaseDamage` sliced by the shared
   `DamageSplit` %-table (`ResolveDamageSplit` — empty split → even 100/N per hit).
 
-Also retired but inert: `EStatScalingType.h` (`None/Body/Spirit/Mind`) — the residue of the
-old `ScalingType` swap, now referenced by zero source files (see Known Limitations).
+Also **deleted** in the post-arc cleanup: `EStatScalingType.h` (`None/Body/Spirit/Mind`) — the
+residue of the old `ScalingType` swap, which had zero source readers.
 
 ## Debug
 
@@ -126,9 +126,6 @@ old `ScalingType` swap, now referenced by zero source files (see Known Limitatio
 
 - **PLACEHOLDER coefficients.** The `S 1.0 … F 0.05` ladder is a first pass; Crown tunes the
   values later. Treat them as provisional.
-- **Orphaned dead enum.** `EStatScalingType.h` (`None/Body/Spirit/Mind`) is referenced by no
-  source file — leftover from the retired `ScalingType` swap. Safe to delete in a later
-  cleanup; not part of the shipped scaling system.
 
 ## Cross-links
 
