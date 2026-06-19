@@ -73,19 +73,12 @@ public:
     // ==================== DEFENSE DECISIONS ====================
 
     /**
-     * Schedule defense decision for AI defender
-     * Called by DefenseSystem when window opens
-     */
-    UFUNCTION(BlueprintCallable, Category = "AI|Defense")
-    void ScheduleDefenseDecision(AActor *Defender, float AttackSize, int32 BaseDamage, float WindowDuration);
-
-    /**
      * Per-impact AI defense synthesizer (Cluster B). Re-decides attempt/type/direction for ONE
      * impact and submits an impact-anchored timestamped press (SubmitDefenseInput's InputTime) so
      * MatchAndConsumeInput judges it for THIS impact. The band it aims at comes from this impact's
      * authored difficulty (matches the matcher); AI difficulty governs aim-within-band only.
-     * DEAD ON ARRIVAL — Cluster C wires the call from ResolveImpactDefense. The legacy per-window
-     * ScheduleDefenseDecision path is left fully intact.
+     * Called per impact from ActionExecutor::ResolveImpactDefense — the per-window timer path it
+     * replaced has been removed.
      */
     void TrySynthesizeImpactDefense(AActor *Defender, AActor *Attacker, EActionType AttackType,
                                     int32 BaseDamage, float AttackSize,
@@ -133,9 +126,6 @@ private:
     UPROPERTY()
     UDefenseSystem *DefenseSystemRef = nullptr;
 
-    /** Active defense timers per actor */
-    TMap<AActor *, FTimerHandle> DefenseTimerHandles;
-
     // ==================== DEFENSE LOGIC ====================
 
     /** Choose defense type based on attack, incoming damage and difficulty */
@@ -143,12 +133,6 @@ private:
 
     /** Get defense attempt chance for difficulty */
     float GetDefenseAttemptChance(EAIDifficulty Difficulty) const;
-
-    /** Get defense timing accuracy for difficulty */
-    float GetDefenseAccuracy(EAIDifficulty Difficulty) const;
-
-    /** Calculate reaction delay for defense */
-    float CalculateDefenseReactionDelay(EAIDifficulty Difficulty, float WindowDuration) const;
 
     /**
      * Aim offset (seconds BEFORE impact) for a synthesized per-impact press. The perfect-band

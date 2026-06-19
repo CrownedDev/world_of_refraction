@@ -310,111 +310,6 @@ float UAIDecisionManager::CalculateThinkingDelay(EAIDifficulty Difficulty) const
 
 // ==================== DEFENSE DECISIONS ====================
 
-void UAIDecisionManager::ScheduleDefenseDecision(AActor *Defender, float AttackSize, int32 BaseDamage, float WindowDuration)
-{
-    if (!Defender)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] ScheduleDefenseDecision - null Defender"));
-        return;
-    }
-
-    // Lazy-load DefenseSystem (may not be ready at Initialize time)
-    if (!DefenseSystemRef)
-    {
-        DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();
-    }
-
-    if (!DefenseSystemRef)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] ScheduleDefenseDecision - could not get DefenseSystem"));
-        return;
-    }
-
-    EAIDifficulty Difficulty = GetCurrentDifficulty();
-
-    // Roll for defense attempt
-    float AttemptChance = GetDefenseAttemptChance(Difficulty);
-    float Roll = FMath::FRand();
-
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s defense roll: %.2f vs %.2f (%.0f%% chance)"),
-           *Defender->GetName(), Roll, AttemptChance, AttemptChance * 100.0f);
-
-    if (Roll > AttemptChance)
-    {
-        UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose not to defend"),
-               *Defender->GetName());
-        return;
-    }
-
-    // Choose defense type
-    EDefenseType Choice = ChooseDefenseType(Defender, AttackSize, BaseDamage, Difficulty);
-
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s chose defense type: %d"),
-           *Defender->GetName(), static_cast<int32>(Choice));
-
-    if (Choice == EDefenseType::None)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] %s - ChooseDefenseType returned None"),
-               *Defender->GetName());
-        return;
-    }
-
-    // Calculate reaction delay (must be within window)
-    float ReactionDelay = CalculateDefenseReactionDelay(Difficulty, WindowDuration);
-
-    UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s will %s in %.2fs"),
-           *Defender->GetName(),
-           Choice == EDefenseType::Block ? TEXT("Block") : Choice == EDefenseType::Parry ? TEXT("Parry")
-                                                                                         : TEXT("Dodge"),
-           ReactionDelay);
-
-    // Schedule defense input
-    FTimerHandle &TimerHandle = DefenseTimerHandles.FindOrAdd(Defender);
-
-    if (UWorld *World = GetWorld())
-    {
-        World->GetTimerManager().ClearTimer(TimerHandle);
-
-        FTimerDelegate TimerDelegate;
-        TimerDelegate.BindLambda([this, Defender, Choice]()
-                                 {
-            if (!Defender || !DefenseSystemRef)
-            {
-                return;
-            }
-
-            // Roll for timing accuracy
-            EAIDifficulty Diff = GetCurrentDifficulty();
-            float Accuracy = GetDefenseAccuracy(Diff);
-            bool bGoodTiming = FMath::FRand() < Accuracy;
-
-            if (bGoodTiming)
-            {
-                EDefenseDirection Direction = EDefenseDirection::None;
-                if (Choice == EDefenseType::Dodge)
-                {
-                    Direction = FMath::RandBool() ? EDefenseDirection::Left : EDefenseDirection::Right;
-                }
-
-                DefenseSystemRef->SubmitDefenseInput(Defender, Choice, Direction);
-                
-                UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s executed %s defense"),
-                    *Defender->GetName(),
-                    Choice == EDefenseType::Block ? TEXT("Block") : 
-                    Choice == EDefenseType::Parry ? TEXT("Parry") : TEXT("Dodge"));
-            }
-            else
-            {
-                UE_LOG(LogTemp, Log, TEXT("[AIDecisionManager] %s mistimed defense (%.0f%% accuracy)"),
-                    *Defender->GetName(), Accuracy * 100.0f);
-            }
-
-            DefenseTimerHandles.Remove(Defender); });
-
-        World->GetTimerManager().SetTimer(TimerHandle, TimerDelegate, ReactionDelay, false);
-    }
-}
-
 EDefenseType UAIDecisionManager::ChooseDefenseType(AActor *Defender, float AttackSize, int32 BaseDamage, EAIDifficulty Difficulty) const
 {
     // Dodge is always viable — the attack-size gate was removed (Option B). The AI now dodges on
@@ -486,57 +381,6 @@ float UAIDecisionManager::GetDefenseAttemptChance(EAIDifficulty Difficulty) cons
     }
 }
 
-float UAIDecisionManager::GetDefenseAccuracy(EAIDifficulty Difficulty) const
-{
-    switch (Difficulty)
-    {
-    case EAIDifficulty::Easy:
-        return AIConstants::EASY_DEFENSE_ACCURACY;
-    case EAIDifficulty::Medium:
-        return AIConstants::MEDIUM_DEFENSE_ACCURACY;
-    case EAIDifficulty::Hard:
-        return AIConstants::HARD_DEFENSE_ACCURACY;
-    case EAIDifficulty::Expert:
-        return AIConstants::EXPERT_DEFENSE_ACCURACY;
-    default:
-        return AIConstants::MEDIUM_DEFENSE_ACCURACY;
-    }
-}
-
-float UAIDecisionManager::CalculateDefenseReactionDelay(EAIDifficulty Difficulty, float WindowDuration) const
-{
-    // Reaction time as fraction of window
-    // Easy: Late in window (70-90%)
-    // Expert: Early in window (10-30%)
-    float MinFraction, MaxFraction;
-
-    switch (Difficulty)
-    {
-    case EAIDifficulty::Easy:
-        MinFraction = AIConstants::EASY_REACTION_FRACTION_MIN;
-        MaxFraction = AIConstants::EASY_REACTION_FRACTION_MAX;
-        break;
-    case EAIDifficulty::Medium:
-        MinFraction = AIConstants::MEDIUM_REACTION_FRACTION_MIN;
-        MaxFraction = AIConstants::MEDIUM_REACTION_FRACTION_MAX;
-        break;
-    case EAIDifficulty::Hard:
-        MinFraction = AIConstants::HARD_REACTION_FRACTION_MIN;
-        MaxFraction = AIConstants::HARD_REACTION_FRACTION_MAX;
-        break;
-    case EAIDifficulty::Expert:
-        MinFraction = AIConstants::EXPERT_REACTION_FRACTION_MIN;
-        MaxFraction = AIConstants::EXPERT_REACTION_FRACTION_MAX;
-        break;
-    default:
-        MinFraction = AIConstants::MEDIUM_REACTION_FRACTION_MIN;
-        MaxFraction = AIConstants::MEDIUM_REACTION_FRACTION_MAX;
-    }
-
-    float Fraction = FMath::FRandRange(MinFraction, MaxFraction);
-    return WindowDuration * Fraction;
-}
-
 // ==================== PER-IMPACT DEFENSE SYNTHESIS (Cluster B) ====================
 
 double UAIDecisionManager::CalculateDefenseDelta(EAIDifficulty AIDiff, EDefenseType ChosenType,
@@ -548,6 +392,7 @@ double UAIDecisionManager::CalculateDefenseDelta(EAIDifficulty AIDiff, EDefenseT
         return 0.0;
     }
 
+    // TRIPWIRE (band-parity): reciprocal note lives at DefenseSystem.cpp TypeTier. Keep both terminals in sync.
     // Band tier from the IMPACT, keyed on the chosen press type — mirrors MatchAndConsumeInput's
     // TypeTier (DefenseSystem.cpp:328-338) EXACTLY: the tier is passed STRAIGHT to
     // DefenseDifficultyMultiplier with no ResolveInheritedDifficulty, so an Inherit tier resolves
@@ -603,7 +448,7 @@ void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *At
         return;
     }
 
-    // Lazy-load DefenseSystem (mirrors ScheduleDefenseDecision).
+    // Lazy-load DefenseSystem (may not be ready at Initialize time).
     if (!DefenseSystemRef)
     {
         DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();

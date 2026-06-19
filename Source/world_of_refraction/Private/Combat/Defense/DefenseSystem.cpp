@@ -6,7 +6,6 @@
 #include "Engine/World.h"
 #include "TimerManager.h"
 #include "Combat/CombatAnimInstance.h"
-#include "AI/AIDecisionManager.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
 
@@ -76,8 +75,7 @@ void UDefenseSystem::OpenDefenseWindow(
 	// closes the window externally (ActionExecutor's Hit-notify counter); the timer is
 	// armed at MaxWindowDuration as a FAILSAFE so a missing/miscounted hit can't hang
 	// the window open forever. For normal windows it stays the closer at the requested
-	// duration. State.WindowDuration is unchanged either way — it remains the AI
-	// reaction-delay seed passed to ScheduleDefenseDecision below.
+	// duration. State.WindowDuration is unchanged either way.
 	const float CloseTimerDuration = bManualClose ? MaxWindowDuration : State.WindowDuration;
 
 	FTimerHandle TimerHandle;
@@ -102,34 +100,8 @@ void UDefenseSystem::OpenDefenseWindow(
 		   *Defender->GetName(), AttackSize, BaseDamage, State.WindowDuration,
 		   bManualClose ? TEXT("count-based, failsafe") : TEXT("timer"), CloseTimerDuration);
 
-	// Check if AI-controlled and schedule defense
-	UCharacterDataComponent *CharComp = Defender->FindComponentByClass<UCharacterDataComponent>();
-	if (!CharComp)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] No CharacterDataComponent on %s"), *Defender->GetName());
-	}
-	else if (!CharComp->CharacterData)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[DefenseSystem] CharacterData is null on %s"), *Defender->GetName());
-	}
-	else if (!CharComp->CharacterData->ShouldUseAI())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] %s is not AI-controlled, skipping AI defense"), *Defender->GetName());
-	}
-	else
-	{
-		UAIDecisionManager *AIManager = GetGameInstance()->GetSubsystem<UAIDecisionManager>();
-		if (!AIManager)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[DefenseSystem] Failed to get AIDecisionManager!"));
-		}
-		else
-		{
-			UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Scheduling AI defense for %s"), *Defender->GetName());
-			// DISABLED (per-impact synthesis in ResolveImpactDefense supersedes) — Cluster D deletes.
-			// AIManager->ScheduleDefenseDecision(Defender, AttackSize, BaseDamage, State.WindowDuration);
-		}
-	}
+	// AI defenders are synthesized per-impact at resolve time
+	// (see ActionExecutor::ResolveImpactDefense) — nothing to schedule here.
 }
 
 FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
@@ -333,6 +305,11 @@ FDefenseInputMatch UDefenseSystem::MatchAndConsumeInput(AActor *Defender, double
 			   (Type == EDefenseType::Block) ? Difficulty.Block :
 											   EDefenseDifficulty::Easy;
 	};
+	// TRIPWIRE (band-parity): the AI mirror UAIDecisionManager::CalculateDefenseDelta
+	// (AIDecisionManager.cpp) reads the SAME per-type field and the SAME Inherit/None -> Easy x1.0
+	// terminal as this lambda, so the AI aims at the band this matcher judges against. If real
+	// Inherit resolution is ever added here, mirror it on the AI side too — otherwise the bands
+	// diverge and Expert AI stops landing PERFECT.
 	auto TypeMult = [&TypeTier](EDefenseType Type) -> float
 	{
 		return DefenseDifficultyMultiplier(TypeTier(Type));

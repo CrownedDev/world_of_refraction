@@ -20,8 +20,9 @@ Combat-registration state:
 Public API (`UFUNCTION(BlueprintCallable)`):
 - `SetCombatOrchestrator` / `ClearCombatOrchestrator` — combat registration.
 - `RequestDecision(AActor*)` — request a turn decision (applies a thinking delay then submits).
-- `ScheduleDefenseDecision(Defender, AttackSize, BaseDamage, WindowDuration)` — called by `UDefenseSystem` when a defense window opens.
 - `GetCurrentDifficulty()` — `BlueprintPure`, reads difficulty from the orchestrator.
+
+AI defense is **not** Blueprint-exposed: the per-impact entry `TrySynthesizeImpactDefense(...)` is a plain C++ method invoked by `UActionExecutor::ResolveImpactDefense` (see Defense flow below).
 
 Internal subsystem accessors: `GetSkillEffectManager()`, `GetActionExecutor()`.
 
@@ -51,7 +52,7 @@ Internal subsystem accessors: `GetSkillEffectManager()`, `GetActionExecutor()`.
 
 #### Defense logic
 
-`ChooseDefenseType`, `GetDefenseAttemptChance`, `GetDefenseAccuracy`, `CalculateDefenseReactionDelay`.
+`ChooseDefenseType`, `GetDefenseAttemptChance`, `CalculateDefenseDelta`, and the per-impact entry `TrySynthesizeImpactDefense`.
 
 #### Status-bar & infusion
 
@@ -70,7 +71,7 @@ All tunable values are `constexpr` in this namespace:
 - **Target scoring** — `KILL_POTENTIAL_SCORE` (2000), `HP_MISSING_WEIGHT` (500), `THREAT_WEIGHT` (2.0).
 - **Status buildup** — `STATUS_SCORE_WEIGHT` (0.3), tier scores `STATUS_SCORE_TRIGGER` (50), `STATUS_SCORE_CONTRIBUTE` (12), `STATUS_SCORE_REDUNDANT` (5); threat multipliers `RAW_DAMAGE_THREAT_MULT` (2.0), `STATUS_MULTIPLIER_THREAT_MULT` (1.5), `SPELL_POWER_THREAT_MULT` (2.0).
 - **Thinking delays** — per-difficulty min/max ranges (`EASY_THINK_*` 2.0–3.5s … `EXPERT_THINK_*` 0.2–0.3s).
-- **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (0.40–0.95) and `*_DEFENSE_ACCURACY` (0.50–0.98).
+- **Defense rates** — per-difficulty `*_DEFENSE_ATTEMPT` (0.40–0.95) for the per-impact attempt roll, and `*_DELTA_BAND_MULT` (Easy 3.0 → Expert 0.35) governing aim-within-the-authored-band.
 - **Survival thresholds** — `SURVIVAL_HP_THRESHOLD` (0.25), `ENERGY_CONSERVATION_THRESHOLD` (0.50), `ENERGY_ABUNDANT_THRESHOLD` (0.70).
 - **Emerald valuation** — `KILL_SECURE_FACTOR` (1.0), `FREE_ACTION_FACTOR` (1.0), `EMERALD_EXPOSURE_LOOKAHEAD` (10), `STARVE_MARGIN` (1.3), `DELAY_DECAY` (0.15), `ESTIMATED_EP_REGEN_PER_TURN` (0 — self-target dormant; no passive EP regen exists).
 
@@ -120,12 +121,14 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 
 `DecideSpellInfusionLevel` / `DecideAbilityInfusionLevel`: Easy never infuses. Otherwise — if L0 already kills, return 0; if L2 kills and energy is above `ENERGY_CONSERVATION_THRESHOLD`, return 2; Medium+ may return 1 when an L1 status buildup would trigger the bar (and L0 wouldn't) on a valuable status, and Hard+ may return 1 when the bar is >70% full and energy is above `ENERGY_ABUNDANT_THRESHOLD`. Low energy forces 0.
 
-### Defense flow (`ScheduleDefenseDecision`)
+### Defense flow (`TrySynthesizeImpactDefense`)
 
-1. Lazy-loads `UDefenseSystem`. Rolls against `GetDefenseAttemptChance(Difficulty)`; on failure the AI does not defend.
+AI defense is synthesized **per impact** — there is no window-level timer or scheduled decision. `UActionExecutor::ResolveImpactDefense` calls `TrySynthesizeImpactDefense(Defender, Attacker, AttackType, BaseDamage, AttackSize, ImpactDifficulty, ImpactTime)` once per impact for an AI defender; the same chokepoint covers melee, projectile, and AOE impacts.
+
+1. **Attempt roll (per impact).** Rolls against `GetDefenseAttemptChance(Difficulty)`; on failure the AI eats that impact. Each impact is rolled independently — no single per-window decision survives across impacts.
 2. `ChooseDefenseType` picks a defense. Dodge is always viable — the attack-size gate was removed, so the AI dodges on timing alone exactly like the player (`bCanDodge` is unconditionally true). A lethal hit (`BaseDamage >= CurrentHP`) always returns `Dodge`. Otherwise — Easy always Blocks; Medium Blocks or Dodges (no Parry); Hard/Expert prefer Dodge, then Parry (70% chance Expert, 40% otherwise), then Block. Block/Parry remain the fallbacks, so the AI is never stranded without a defense.
-3. `CalculateDefenseReactionDelay` picks a delay as a fraction of the window (Easy late 70–90%, Expert early 10–30%) and schedules a per-actor timer.
-4. When the timer fires it rolls against `GetDefenseAccuracy(Difficulty)`; on good timing it submits the input via `UDefenseSystem::SubmitDefenseInput` (Dodge picks a random `EDefenseDirection`); on a mistime nothing is submitted. The defense timer is then removed.
+3. **Aim within the band.** `CalculateDefenseDelta(Difficulty, ChosenType, ImpactDifficulty, …)` computes how far from the impact the synthesized press lands. The band tier comes from the **impact** (keyed on the chosen press type) and is fed straight to `DefenseDifficultyMultiplier` — mirroring the matcher's `TypeTier` exactly (same `Inherit`/`None` → `Easy` ×1.0 terminal), so the AI aims at the same band the matcher judges. AI skill governs **only aim-within-band** via `*_DELTA_BAND_MULT` (Easy ~3× outside the band → usually whiffs early; Expert 0.35 → deep in the perfect band).
+4. **Backdated submit.** The press is submitted at `InputTime = ImpactTime − Delta` via `UDefenseSystem::SubmitDefenseInput` (Dodge picks a random `EDefenseDirection`). It is then judged by the **same `MatchAndConsumeInput`** the player's input flows through — there is no separate AI accuracy roll. The AI never "schedules"; it backdates a synthesized press that the shared matcher accepts or rejects purely on timing.
 
 > **Per-impact difficulty window (not authored by the AI).** The *acceptance* window the submitted input must land inside is not fixed — `UDefenseSystem` independently scales it per impact **and per defense type** by the attack's authored `EDefenseDifficulty` (`Inherit`/`Easy` ×1.0 / `Medium` / `Hard` / `Impossible`, via `DefenseDifficultyMultiplier`, `DefenseSystem.cpp:328-364`). On a harder impact the band the AI's reaction timing must hit is much tighter (Impossible floors at `IMPOSSIBLE_WINDOW_FLOOR`, below the normal `MINIMUM_DEFENSE_WINDOW`). The AI neither authors nor reads the tier; it reacts against whatever window `DefenseSystem` enforces.
 
@@ -145,12 +148,12 @@ After `BestScore` (the best **affordable** action this turn, in HP-damage units)
 - `UStatusBuildupManager` — `GetStatusBarPercent`, `GetBuildupToTrigger`, `GetPendingTrigger`.
 - `ULoadoutComponent` — available spells/abilities/attacks and usable items.
 - `UCharacterDataComponent` / `UCharacterData` — HP/EP, crystal-modified stats, status multiplier.
-- `FTimerManager` (world) — thinking and defense reaction timers.
+- `FTimerManager` (world) — thinking-delay timers. (Defense is timerless — AI defense is synthesized per impact and backdated, not scheduled.)
 
 ### Systems that depend on it
 
 - `ACombatOrchestrator` (or combat setup) — registers itself via `SetCombatOrchestrator` and calls `RequestDecision` on AI turns.
-- `UDefenseSystem` — calls `ScheduleDefenseDecision` when a defense window opens for an AI defender.
+- `UActionExecutor` — calls `TrySynthesizeImpactDefense` per impact (in `ResolveImpactDefense`) for AI defenders; the synthesized, backdated press is judged by the shared `UDefenseSystem` matcher.
 
 ## Known Limitations / TODOs
 

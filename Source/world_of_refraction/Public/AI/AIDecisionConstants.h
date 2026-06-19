@@ -51,32 +51,11 @@ namespace AIConstants
     constexpr float HARD_DEFENSE_ATTEMPT = 0.85f;
     constexpr float EXPERT_DEFENSE_ATTEMPT = 0.95f;
 
-    // Timing accuracy (success rate when attempting)
-    constexpr float EASY_DEFENSE_ACCURACY = 0.50f;
-    constexpr float MEDIUM_DEFENSE_ACCURACY = 0.75f;
-    constexpr float HARD_DEFENSE_ACCURACY = 0.90f;
-    constexpr float EXPERT_DEFENSE_ACCURACY = 0.98f;
-
     // ==================== SURVIVAL THRESHOLDS ====================
 
     constexpr float SURVIVAL_HP_THRESHOLD = 0.25f;
     constexpr float ENERGY_CONSERVATION_THRESHOLD = 0.50f;
     constexpr float ENERGY_ABUNDANT_THRESHOLD = 0.70f;
-
-    // ==================== DEFENSE REACTION TIMING ====================
-    // Reaction delay as a fraction of the defense window, per difficulty
-    // (parallel to THINK_MIN/MAX). Lower = reacts earlier in the window.
-    constexpr float EASY_REACTION_FRACTION_MIN = 0.7f;
-    constexpr float EASY_REACTION_FRACTION_MAX = 0.9f;
-
-    constexpr float MEDIUM_REACTION_FRACTION_MIN = 0.4f;
-    constexpr float MEDIUM_REACTION_FRACTION_MAX = 0.7f;
-
-    constexpr float HARD_REACTION_FRACTION_MIN = 0.2f;
-    constexpr float HARD_REACTION_FRACTION_MAX = 0.5f;
-
-    constexpr float EXPERT_REACTION_FRACTION_MIN = 0.1f;
-    constexpr float EXPERT_REACTION_FRACTION_MAX = 0.3f;
 
     // ==================== PARRY CHANCE ====================
     // Parry-vs-block choice; only the Hard/Expert "smart choice" path reaches this.
