@@ -14,6 +14,7 @@ class UNiagaraSystem;
 class UNiagaraComponent;
 class USphereComponent;
 class USpellData;
+class USkillDataBase;
 struct FSkillCastEntry;
 
 // ==================== DELEGATES ====================
@@ -104,9 +105,11 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Config")
     ESpellElement Element;
 
-    /** Reference to source spell data */
+    /** Reference to the source skill data (spell, ability, or attack). Base-typed
+     *  (Cast-VFX generalization Step A) so non-spell skills can drive deliveries;
+     *  stored for inspection only — never read back by code. */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
-    USpellData *SourceSpell;
+    USkillDataBase *SourceSpell;
 
     /** Who cast this spell */
     UPROPERTY(BlueprintReadOnly, Category = "Config")
@@ -159,9 +162,27 @@ public:
         float FinalVisualScale,
         int32 FinalDamage);
 
-    /** Entry-based initialization (D6 Stage 12): delivery values (type,
-     *  speed) come from the Cast ENTRY; Spell supplies element/color context
-     *  only. C++-only overload — the runner's dispatch path. */
+    /** Entry-based initialization (D6 Stage 12): delivery values (type, speed)
+     *  come from the Cast ENTRY; the skill supplies element/color context only.
+     *  Base-typed (USkillDataBase) so abilities/attacks deliver Cast entries too
+     *  (Cast-VFX generalization Step A). Element lives on USpellData, not the
+     *  shared base, so it's read through a USpellData cast inside — spells tint
+     *  by their fixed Element; non-spell skills default to Generic until Step B
+     *  supplies the resolved action element. C++-only — the runner's dispatch path. */
+    void InitializeProjectile(
+        const FSkillCastEntry &Entry,
+        USkillDataBase *Skill,
+        AActor *InCaster,
+        AActor *InTarget,
+        float FinalImpactRadius,
+        float FinalVisualScale,
+        int32 FinalDamage,
+        int32 InCastEntryIndex);
+
+    /** Thin forwarding overload — keeps existing spell callers (which pass a
+     *  USpellData*) compiling unchanged by upcasting to the base overload above.
+     *  Defined in the .cpp, not inline: the Derived→Base upcast needs the full
+     *  USpellData type, which this header only forward-declares. */
     void InitializeProjectile(
         const FSkillCastEntry &Entry,
         USpellData *Spell,
