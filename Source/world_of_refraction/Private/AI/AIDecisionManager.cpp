@@ -537,6 +537,115 @@ float UAIDecisionManager::CalculateDefenseReactionDelay(EAIDifficulty Difficulty
     return WindowDuration * Fraction;
 }
 
+// ==================== PER-IMPACT DEFENSE SYNTHESIS (Cluster B) ====================
+
+double UAIDecisionManager::CalculateDefenseDelta(EAIDifficulty AIDiff, EDefenseType ChosenType,
+                                                 const FDefenseDifficultyTriple &ImpactDifficulty,
+                                                 AActor *Defender, AActor *Attacker, EActionType AttackType) const
+{
+    if (!DefenseSystemRef)
+    {
+        return 0.0;
+    }
+
+    // Band tier from the IMPACT, keyed on the chosen press type — mirrors MatchAndConsumeInput's
+    // TypeTier (DefenseSystem.cpp:328-338) EXACTLY: the tier is passed STRAIGHT to
+    // DefenseDifficultyMultiplier with no ResolveInheritedDifficulty, so an Inherit tier resolves
+    // to Easy (x1.0) via that function's terminal fallback (DefenseDifficulty.h:70-73). Doing the
+    // identical thing here guarantees the AI aims at the SAME band the matcher judges against.
+    const EDefenseDifficulty BandTier =
+        (ChosenType == EDefenseType::Parry) ? ImpactDifficulty.Parry :
+        (ChosenType == EDefenseType::Dodge) ? ImpactDifficulty.Dodge :
+        (ChosenType == EDefenseType::Block) ? ImpactDifficulty.Block :
+                                              EDefenseDifficulty::Easy;
+
+    const float Mult = DefenseDifficultyMultiplier(BandTier);
+    const float Window = DefenseSystemRef->GetEffectiveDefenseInputWindow(Defender, Attacker, AttackType);
+    const float Band = DefenseSystemRef->PerfectThreshold * Mult; // SAME perfect half-band the matcher uses
+
+    // AI skill governs only aim-within-band: lower tier aims further from the impact.
+    float BandMult;
+    switch (AIDiff)
+    {
+    case EAIDifficulty::Easy:
+        BandMult = AIConstants::EASY_DELTA_BAND_MULT;
+        break;
+    case EAIDifficulty::Medium:
+        BandMult = AIConstants::MEDIUM_DELTA_BAND_MULT;
+        break;
+    case EAIDifficulty::Hard:
+        BandMult = AIConstants::HARD_DELTA_BAND_MULT;
+        break;
+    case EAIDifficulty::Expert:
+        BandMult = AIConstants::EXPERT_DELTA_BAND_MULT;
+        break;
+    default:
+        BandMult = AIConstants::MEDIUM_DELTA_BAND_MULT;
+        break;
+    }
+
+    double Delta = static_cast<double>(Band) * BandMult; // base aim offset from impact
+    Delta += Delta * FMath::FRandRange(-AIConstants::DEFENSE_DELTA_JITTER_FRAC, AIConstants::DEFENSE_DELTA_JITTER_FRAC);
+
+    // Clamp: never negative (no overshoot past impact -> no "too late" entry that could bleed into
+    // the next impact), never beyond the valid lead-in (Window x Mult, the matcher's BeforeWindow)
+    // where it would be a guaranteed whiff with no chance.
+    Delta = FMath::Clamp(Delta, 0.0, static_cast<double>(Window * Mult));
+    return Delta; // seconds BEFORE impact
+}
+
+void UAIDecisionManager::TrySynthesizeImpactDefense(AActor *Defender, AActor *Attacker, EActionType AttackType,
+                                                    int32 BaseDamage, float AttackSize,
+                                                    const FDefenseDifficultyTriple &ImpactDifficulty, double ImpactTime)
+{
+    if (!Defender)
+    {
+        return;
+    }
+
+    // Lazy-load DefenseSystem (mirrors ScheduleDefenseDecision).
+    if (!DefenseSystemRef)
+    {
+        DefenseSystemRef = GetGameInstance()->GetSubsystem<UDefenseSystem>();
+    }
+    if (!DefenseSystemRef)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[AIDecisionManager] TrySynthesizeImpactDefense - no DefenseSystem"));
+        return;
+    }
+
+    const EAIDifficulty Diff = GetCurrentDifficulty();
+
+    // Per-impact attempt roll — each impact is independently defended or eaten.
+    if (FMath::FRand() > GetDefenseAttemptChance(Diff))
+    {
+        UE_LOG(LogTemp, Verbose, TEXT("[AIDecisionManager] %s eats impact (attempt roll failed)"),
+               *Defender->GetName());
+        return;
+    }
+
+    const EDefenseType Choice = ChooseDefenseType(Defender, AttackSize, BaseDamage, Diff);
+    if (Choice == EDefenseType::None)
+    {
+        return;
+    }
+
+    EDefenseDirection Dir = EDefenseDirection::None;
+    if (Choice == EDefenseType::Dodge)
+    {
+        Dir = FMath::RandBool() ? EDefenseDirection::Left : EDefenseDirection::Right;
+    }
+
+    const double Delta = CalculateDefenseDelta(Diff, Choice, ImpactDifficulty, Defender, Attacker, AttackType);
+    const double InputTime = ImpactTime - Delta;
+
+    DefenseSystemRef->SubmitDefenseInput(Defender, Choice, Dir, InputTime);
+
+    UE_LOG(LogTemp, Log,
+           TEXT("[AIDecisionManager] %s synthesized defense type %d (tier %d, Delta %.3fs, InputTime %.3f, ImpactTime %.3f)"),
+           *Defender->GetName(), static_cast<int32>(Choice), static_cast<int32>(Diff), Delta, InputTime, ImpactTime);
+}
+
 // ==================== TARGET SCORING ====================
 
 int32 UAIDecisionManager::ScoreTarget(AActor *Attacker, AActor *Target, int32 EstimatedDamage)

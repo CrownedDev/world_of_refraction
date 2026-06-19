@@ -126,7 +126,8 @@ void UDefenseSystem::OpenDefenseWindow(
 		else
 		{
 			UE_LOG(LogTemp, Log, TEXT("[DefenseSystem] Scheduling AI defense for %s"), *Defender->GetName());
-			AIManager->ScheduleDefenseDecision(Defender, AttackSize, BaseDamage, State.WindowDuration);
+			// DISABLED (per-impact synthesis in ResolveImpactDefense supersedes) — Cluster D deletes.
+			// AIManager->ScheduleDefenseDecision(Defender, AttackSize, BaseDamage, State.WindowDuration);
 		}
 	}
 }
@@ -195,7 +196,7 @@ FDefenseResult UDefenseSystem::CloseDefenseWindow(AActor *Defender)
 	return Result;
 }
 
-void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction)
+void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction, double InputTime)
 {
 	if (!Defender)
 	{
@@ -235,7 +236,7 @@ void UDefenseSystem::SubmitDefenseInput(AActor *Defender, EDefenseType DefenseTy
 	FTimestampedDefenseInput Entry;
 	Entry.Type = DefenseType;
 	Entry.Direction = Direction;
-	Entry.InputTime = FPlatformTime::Seconds();
+	Entry.InputTime = (InputTime > 0.0) ? InputTime : FPlatformTime::Seconds();
 	Entry.bConsumed = false;
 	StatePtr->InputBuffer.Add(Entry);
 

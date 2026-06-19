@@ -9,6 +9,7 @@
 #include "AI/AIDecisionConstants.h"
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/Defense/EDefenseType.h"
+#include "Combat/Defense/DefenseDifficulty.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "AIDecisionManager.generated.h"
@@ -78,6 +79,18 @@ public:
     UFUNCTION(BlueprintCallable, Category = "AI|Defense")
     void ScheduleDefenseDecision(AActor *Defender, float AttackSize, int32 BaseDamage, float WindowDuration);
 
+    /**
+     * Per-impact AI defense synthesizer (Cluster B). Re-decides attempt/type/direction for ONE
+     * impact and submits an impact-anchored timestamped press (SubmitDefenseInput's InputTime) so
+     * MatchAndConsumeInput judges it for THIS impact. The band it aims at comes from this impact's
+     * authored difficulty (matches the matcher); AI difficulty governs aim-within-band only.
+     * DEAD ON ARRIVAL — Cluster C wires the call from ResolveImpactDefense. The legacy per-window
+     * ScheduleDefenseDecision path is left fully intact.
+     */
+    void TrySynthesizeImpactDefense(AActor *Defender, AActor *Attacker, EActionType AttackType,
+                                    int32 BaseDamage, float AttackSize,
+                                    const FDefenseDifficultyTriple &ImpactDifficulty, double ImpactTime);
+
 private:
     // ==================== INTERNAL ====================
 
@@ -136,6 +149,18 @@ private:
 
     /** Calculate reaction delay for defense */
     float CalculateDefenseReactionDelay(EAIDifficulty Difficulty, float WindowDuration) const;
+
+    /**
+     * Aim offset (seconds BEFORE impact) for a synthesized per-impact press. The perfect-band
+     * is derived from the IMPACT's difficulty, keyed on ChosenType — mirroring MatchAndConsumeInput's
+     * TypeTier EXACTLY (tier passed straight to DefenseDifficultyMultiplier; Inherit -> Easy x1.0 via
+     * its terminal fallback) so the AI aims at the SAME band the matcher judges. AI difficulty selects
+     * only the aim-within-band multiplier (EASY/.../EXPERT_DELTA_BAND_MULT) plus jitter. Clamped to
+     * [0, Window x Mult]: never past impact (no late-bleed entry), never beyond the valid lead-in.
+     */
+    double CalculateDefenseDelta(EAIDifficulty AIDiff, EDefenseType ChosenType,
+                                 const FDefenseDifficultyTriple &ImpactDifficulty,
+                                 AActor *Defender, AActor *Attacker, EActionType AttackType) const;
 
     // ==================== QUERY ====================
 

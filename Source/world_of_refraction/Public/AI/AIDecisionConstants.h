@@ -83,6 +83,21 @@ namespace AIConstants
     constexpr float HARD_PARRY_CHANCE = 0.4f;
     constexpr float EXPERT_PARRY_CHANCE = 0.7f;
 
+    // ==================== DEFENSE DELTA AIM (PER-IMPACT) ====================
+    // Aim offset for a synthesized per-impact defense press, expressed as a MULTIPLE of the
+    // perfect half-band (Band = PerfectThreshold x impactMult). <1 = inside the perfect band,
+    // >1 = outside it (whiffs perfect, may still catch the wider success window). Lower AI tier
+    // aims looser. AI difficulty governs aim-WITHIN-band only; the band itself comes from the
+    // impact's authored difficulty so it matches what MatchAndConsumeInput judges against.
+    // Placeholders — Crown tunes in PIE.
+    constexpr float EASY_DELTA_BAND_MULT = 3.0f;    // ~3x outside band → usually whiffs early
+    constexpr float MEDIUM_DELTA_BAND_MULT = 1.6f;
+    constexpr float HARD_DELTA_BAND_MULT = 0.9f;    // just inside the band edge
+    constexpr float EXPERT_DELTA_BAND_MULT = 0.35f; // deep in perfect band
+
+    // Randomized +/- fraction of the computed delta, so the AI isn't frame-perfect-deterministic.
+    constexpr float DEFENSE_DELTA_JITTER_FRAC = 0.25f;
+
     // ==================== STATUS BAR ====================
     // Bar-fill fraction at/above which the AI treats the target as "near trigger".
     // Distinct from ENERGY_ABUNDANT_THRESHOLD despite the matching value.
