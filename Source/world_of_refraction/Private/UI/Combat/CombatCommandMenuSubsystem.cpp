@@ -211,32 +211,36 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
                 Attack = LC->GetCurrentAttack();
             }
         }
-        const ETargetType TT = Attack ? Attack->TargetType : ETargetType::SingleEnemy;
-        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, TT);
+        const ETargetType TT = Attack ? Attack->TargetType : ETargetType::Enemy;
+        const ETargetCount TC = Attack ? Attack->TargetCount : ETargetCount::Single;
+        OpenTargetSelection(EPieMenuCategory::Attack, ButtonData, TT, TC);
         break;
     }
 
     case EPieMenuCategory::Ability:
     {
         UAbilityData *Ability = Cast<UAbilityData>(ButtonData.DataReference);
-        ETargetType TT = Ability ? Ability->TargetType : ETargetType::SingleEnemy;
-        OpenTargetSelection(EPieMenuCategory::Ability, ButtonData, TT);
+        ETargetType TT = Ability ? Ability->TargetType : ETargetType::Enemy;
+        ETargetCount TC = Ability ? Ability->TargetCount : ETargetCount::Single;
+        OpenTargetSelection(EPieMenuCategory::Ability, ButtonData, TT, TC);
         break;
     }
 
     case EPieMenuCategory::Spell:
     {
         USpellData *Spell = Cast<USpellData>(ButtonData.DataReference);
-        ETargetType TT = Spell ? Spell->TargetType : ETargetType::SingleEnemy;
-        OpenTargetSelection(EPieMenuCategory::Spell, ButtonData, TT);
+        ETargetType TT = Spell ? Spell->TargetType : ETargetType::Enemy;
+        ETargetCount TC = Spell ? Spell->TargetCount : ETargetCount::Single;
+        OpenTargetSelection(EPieMenuCategory::Spell, ButtonData, TT, TC);
         break;
     }
 
     case EPieMenuCategory::Item:
     {
         UEvolutionItemData *Item = Cast<UEvolutionItemData>(ButtonData.DataReference);
-        const ETargetType TT = Item ? Item->GetItemTargetType() : ETargetType::SingleAnyone;
-        OpenTargetSelection(EPieMenuCategory::Item, ButtonData, TT);
+        const ETargetType TT = Item ? Item->GetItemTargetType() : ETargetType::Anyone;
+        // Items target a single recipient by default (no per-item count axis yet).
+        OpenTargetSelection(EPieMenuCategory::Item, ButtonData, TT, ETargetCount::Single);
         break;
     }
 
@@ -259,8 +263,10 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     case EPieMenuCategory::TargetCategory:
     {
         // Allies / Enemies side picked — narrow to that team and show the
-        // per-actor picker. The narrowed type is carried in DataIndex.
+        // per-actor picker. The narrowed type is carried in DataIndex; the
+        // narrowed pick is always a single recipient.
         ResolvedTargetType = static_cast<ETargetType>(ButtonData.DataIndex);
+        ResolvedTargetCount = ETargetCount::Single;
         const TArray<AActor *> Targets = ResolveTargets(ResolvedTargetType);
         CurrentDepth = ECombatMenuDepth::TargetSelection;
         OnCommandMenuReady.Broadcast(BuildTargetButtons(Targets));
@@ -897,7 +903,8 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchRing()
 void UCombatCommandMenuSubsystem::OpenTargetSelection(
     EPieMenuCategory ActionCategory,
     const FPieMenuButtonData &ActionButton,
-    ETargetType TargetType)
+    ETargetType TargetType,
+    ETargetCount TargetCount)
 {
     // Reset immunity on every entry — guarantees a clean VFX state regardless
     // of how the previous interaction exited (back, commit, combat end, death).
@@ -912,8 +919,10 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     PendingActionData = ActionButton.DataReference;
     PendingActionDataIndex = ActionButton.DataIndex; // carry slot index (consumables)
     PendingTargetType = TargetType;
+    PendingTargetCount = TargetCount;
     // Synced on entry — diverges only once a side is picked in the category step.
     ResolvedTargetType = TargetType;
+    ResolvedTargetCount = TargetCount;
     DepthBeforeTargetSelection = CurrentDepth;
 
     // Log target type
@@ -1043,9 +1052,10 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         return;
     }
 
-    // SingleAnyone spans both teams — drill in via an Allies / Enemies category
-    // step first, then narrow to a single-team per-actor list on selection.
-    if (TargetType == ETargetType::SingleAnyone)
+    // Anyone (single/double) spans both teams — drill in via an Allies / Enemies
+    // category step first, then narrow to a single-team per-actor list on
+    // selection. Anyone + All is a group ("Everyone") and skips the category step.
+    if (TargetType == ETargetType::Anyone && TargetCount != ETargetCount::All)
     {
         UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu]   Showing Allies/Enemies category step"));
         CurrentDepth = ECombatMenuDepth::TargetCategory;
@@ -1058,19 +1068,18 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     CurrentDepth = ECombatMenuDepth::TargetSelection;
 
     TArray<FPieMenuButtonData> TargetButtons;
-    switch (TargetType)
+    if (TargetType == ETargetType::Self || TargetCount == ETargetCount::All)
     {
-    case ETargetType::Self:
-    case ETargetType::AllEnemies:
-    case ETargetType::AllAllies:
-    case ETargetType::Everyone:
+        // Self and All auto-confirm via a single labelled group button.
         TargetButtons = BuildGroupTargetButtons(TargetType, Targets);
-        break;
-
-    default:
-        // SingleEnemy / SingleAlly — single-team per-actor picker
+    }
+    else
+    {
+        // Single (and Double) — per-actor picker. TODO: Double should let the
+        // player pick exactly 2 recipients (sequential single-picks); for now it
+        // falls through to a single pick. No Double-authored skills exist yet, so
+        // this is inert. Passive Double effects auto-resolve in GetEffectTargets.
         TargetButtons = BuildTargetButtons(Targets);
-        break;
     }
 
     OnCommandMenuReady.Broadcast(TargetButtons);
@@ -1092,7 +1101,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetCategoryButto
     Allies.ButtonID = TEXT("TargetCategory_Allies");
     Allies.DisplayName = FText::FromString(TEXT("Allies"));
     Allies.Category = EPieMenuCategory::TargetCategory;
-    Allies.DataIndex = static_cast<int32>(ETargetType::SingleAlly);
+    Allies.DataIndex = static_cast<int32>(ETargetType::Ally);
     Allies.ButtonTint = AllyTint;
     Allies.bEnabled = true;
     Buttons.Add(Allies);
@@ -1101,7 +1110,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetCategoryButto
     Enemies.ButtonID = TEXT("TargetCategory_Enemies");
     Enemies.DisplayName = FText::FromString(TEXT("Enemies"));
     Enemies.Category = EPieMenuCategory::TargetCategory;
-    Enemies.DataIndex = static_cast<int32>(ETargetType::SingleEnemy);
+    Enemies.DataIndex = static_cast<int32>(ETargetType::Enemy);
     Enemies.ButtonTint = EnemyTint;
     Enemies.bEnabled = true;
     Buttons.Add(Enemies);
@@ -1213,7 +1222,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         return Button;
     };
 
-    // Flat single-team list — enemies tinted red, allies default. SingleAnyone
+    // Flat single-team list — enemies tinted red, allies default. Anyone targeting
     // is split into teams upstream by the Allies/Enemies category step, so this
     // picker only ever receives one side's actors.
     for (AActor *Target : Targets)
@@ -1355,15 +1364,15 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
         ConfirmBtn.DisplayName = FText::FromString(CasterName);
         break;
     }
-    case ETargetType::AllEnemies:
+    case ETargetType::Enemy:
         ConfirmBtn.ButtonID = TEXT("GroupTarget_AllEnemies");
         ConfirmBtn.DisplayName = FText::FromString(TEXT("All Enemies"));
         break;
-    case ETargetType::AllAllies:
+    case ETargetType::Ally:
         ConfirmBtn.ButtonID = TEXT("GroupTarget_AllAllies");
         ConfirmBtn.DisplayName = FText::FromString(TEXT("All Allies"));
         break;
-    case ETargetType::Everyone:
+    case ETargetType::Anyone:
         ConfirmBtn.ButtonID = TEXT("GroupTarget_Everyone");
         ConfirmBtn.DisplayName = FText::FromString(TEXT("Everyone"));
         break;
@@ -1460,19 +1469,14 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
 TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::RebuildCurrentPicker() const
 {
     // ResolvedTargetType — not PendingTargetType — so that after the category
-    // step this rebuilds the narrowed single-team list, not the SingleAnyone
+    // step this rebuilds the narrowed single-team list, not the full Anyone
     // set. The two are equal whenever no category step was taken.
     const TArray<AActor *> Targets = ResolveTargets(ResolvedTargetType);
-    switch (ResolvedTargetType)
+    if (ResolvedTargetType == ETargetType::Self || ResolvedTargetCount == ETargetCount::All)
     {
-    case ETargetType::Self:
-    case ETargetType::AllEnemies:
-    case ETargetType::AllAllies:
-    case ETargetType::Everyone:
         return BuildGroupTargetButtons(ResolvedTargetType, Targets);
-    default:
-        return BuildTargetButtons(Targets);
     }
+    return BuildTargetButtons(Targets);
 }
 
 TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetType) const
@@ -1504,19 +1508,20 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
         return CDC && CDC->bIsAlive;
     };
 
+    // Returns the candidate pool for the role only; the count axis
+    // (Single/Double/All) is applied at selection time, not here.
     switch (TargetType)
     {
     case ETargetType::Self:
         Result.Add(User);
         break;
 
-    case ETargetType::SingleEnemy:
-    case ETargetType::AllEnemies:
+    case ETargetType::Enemy:
     {
         int32 EnemyTeam = (UserTeam == 0) ? 1 : 0;
         for (AActor *Member : TM->GetTeamMembers(EnemyTeam))
         {
-            if (IsAlive(Member)) // <-- was: TM->IsActorAlive(Member)
+            if (IsAlive(Member))
             {
                 Result.Add(Member);
             }
@@ -1524,27 +1529,26 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
         break;
     }
 
-    case ETargetType::SingleAlly:
-    case ETargetType::AllAllies:
+    case ETargetType::Ally:
         for (AActor *Member : TM->GetTeamMembers(UserTeam))
         {
-            if (IsAlive(Member)) // <-- was: TM->IsActorAlive(Member)
+            if (IsAlive(Member))
             {
                 Result.Add(Member);
             }
         }
         break;
-    case ETargetType::SingleAnyone:
-    case ETargetType::Everyone:
+
+    case ETargetType::Anyone:
         for (AActor *Member : TM->GetTeamMembers(0))
         {
             if (IsAlive(Member))
-                Result.Add(Member); // <-- was: TM->IsActorAlive(Member)
+                Result.Add(Member);
         }
         for (AActor *Member : TM->GetTeamMembers(1))
         {
             if (IsAlive(Member))
-                Result.Add(Member); // <-- was: TM->IsActorAlive(Member)
+                Result.Add(Member);
         }
         break;
     }

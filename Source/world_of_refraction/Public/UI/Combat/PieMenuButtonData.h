@@ -55,7 +55,7 @@ enum class EPieMenuCategory : uint8
 	InfusionSource UMETA(DisplayName = "Infusion Source"), // An infusion source option
 	Item UMETA(DisplayName = "Item"),					   // An item in the grid
 	Target UMETA(DisplayName = "Target"),				   // A combat target (actor) in the target selection grid
-	TargetCategory UMETA(DisplayName = "Target Category"), // Allies / Enemies side pick (SingleAnyone targeting)
+	TargetCategory UMETA(DisplayName = "Target Category"), // Allies / Enemies side pick (Anyone targeting)
 
 	// Navigation
 	Back UMETA(DisplayName = "Back"), // Navigate back
@@ -129,7 +129,7 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	AActor *TargetActor = nullptr;
 
-	/** Resolved target array for group-target actions (Self / AllEnemies / AllAllies / Everyone).
+	/** Resolved target array for group-target actions (Self, or any TargetType with count All).
 	 *  When this array is populated, the BP consumer should use it; otherwise use TargetActor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	TArray<AActor *> Targets;

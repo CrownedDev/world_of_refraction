@@ -1,9 +1,59 @@
-# Target Type (Parked)
+# Target Type (Shipped — core)
 
-**Status:** PARKED / future thread. Not scheduled. Captured so it's not lost. Build **after** the Instant
-per-impact conversion + the Stage 6 delivery-defense wrap.
+**Status:** SHIPPED (core two-axis model). Branch `feature/target-type-count`, 2026-06-19.
+The targeting model is live; three pieces remain deferred — the active Double pick UI, the
+per-count AOE manifestation, and the Phase-2 legacy cleanup. See **Shipped** and **Deferred**
+below.
 
-A design note, not a spec — just enough context for a future session to pick this up.
+The original parked vision is preserved (from "The idea" down) for rationale. The **Shipped**
+section is the source of truth for current behaviour.
+
+## Shipped (2026-06-19, `feature/target-type-count`)
+
+The count axis was split out from targeting role into **two orthogonal enums**, replacing the
+old 7-value conflated `ETargetType`:
+
+- **`ETargetType` → `{Self, Ally, Enemy, Anyone}`** (`Combat/TargetType.h`) — the role only.
+- **`ETargetCount` → `{Single, Double, All}`** (same header) — how many. `Double` = exactly 2.
+
+**Fields:**
+- `USkillDataBase`: `TargetType` + `TargetCount` (default `Enemy` / `Single`). Inherited by
+  spells, abilities, attacks.
+- `FSkillEffect`: per-effect `Target` + `TargetCount` (default `Enemy` / `Single`).
+
+**Resolution:**
+- `UActionExecutor::GetEffectTargets` rewritten to the two-axis model, with **passive Double
+  auto-resolve**: `Enemy` → 2 random distinct enemies; `Ally` → self + 1 random teammate;
+  `Anyone` → 2 random distinct combatants. `All` → the full role pool; `Single` → the action
+  target (or self for `Ally`).
+- Command menu (`UCombatCommandMenuSubsystem`) is fully TargetType + TargetCount aware.
+  `ResolveTargets` returns the **role pool only**; the count is applied at selection time.
+  Group confirm (auto, no pick) when `Self` or count `All`; per-actor pick otherwise;
+  `Anyone` (non-All) still routes through the Allies/Enemies category step.
+
+**Migration (skill-level auto, effect-level manual):**
+- Skill-level: legacy 7-value data deserializes into a `LegacyTargetType` field (typed
+  `ETargetType_Legacy`, the old 7 names preserved), routed there by `PropertyRedirects` on the
+  leaf class names (`AbilityData`/`SpellData.TargetType`) in `DefaultEngine.ini`.
+  `USkillDataBase::PostLoad` maps it to `TargetType` + `TargetCount` (idempotent via
+  `bTargetAxisMigrated`). ⚠️ Assets **re-saved under `SkillDataBase.TargetType`** after the
+  ability/spell/attack base-merge are not caught by the leaf-name redirects and need **manual
+  re-authoring**. The legacy field is named `LegacyTargetType` (not `TargetType_DEPRECATED`)
+  so UHT does not strip the suffix and collide its FName with the live `TargetType` field.
+- Effect-level: **manual re-authoring** of each `FSkillEffect.Target` + `TargetCount` (struct
+  member redirects can't auto-migrate without hijacking new saves).
+
+## Deferred
+
+- **Active Double pick UI** — authoring a `Double` skill should let the player pick exactly 2
+  targets (sequential single-picks). Today the picker falls through to a single pick (inert —
+  no Double skills authored yet); passive Double effects auto-resolve in `GetEffectTargets`.
+  Implement when the first Double skill is authored.
+- **Per-count AOE manifestation** — the "separate AOEs at low counts vs. one large AOE at
+  all" behaviour (below) did **not** ship; the cast still loops per-target spawning separate
+  deliveries/AOEs for every count.
+- **Phase 2 cleanup** — delete `LegacyTargetType` + `ETargetType_Legacy` + the leaf-name
+  redirects once the skill-asset re-save pass is complete.
 
 ## The idea
 
@@ -58,4 +108,15 @@ remaining work is the targeting layer (count + selection UI) and the per-count s
 
 ## Status
 
-PARKED, to build after Instant / Stage 6. Captured so the vision is intact.
+Core two-axis model **SHIPPED** (2026-06-19). Deferred: active Double pick UI, per-count AOE
+manifestation, Phase-2 legacy cleanup (see **Shipped** / **Deferred** above).
+
+## Changelog
+
+- **2026-06-19** (`feature/target-type-count`) — Shipped the core two-axis targeting model:
+  split the 7-value `ETargetType` into `ETargetType {Self, Ally, Enemy, Anyone}` +
+  `ETargetCount {Single, Double, All}`; added `TargetCount` to `USkillDataBase` and
+  `FSkillEffect`; rewrote `GetEffectTargets` (with passive Double auto-resolve) and the
+  command-menu targeting flow; added skill-level migration (`LegacyTargetType` +
+  `DefaultEngine.ini` redirects, idempotent `PostLoad`). Effect-level + post-merge-saved
+  skill assets re-authored by hand. Active Double UI and per-count AOE manifestation deferred.

@@ -198,7 +198,25 @@ public:
     // ==================== TARGETING ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
-    ETargetType TargetType = ETargetType::SingleEnemy;
+    ETargetType TargetType = ETargetType::Enemy;
+
+    /** How many targets this skill hits. Single = 1 (player picks or auto-self),
+     *  Double = exactly 2 (player picks 2 for active; auto-resolved for passive effects),
+     *  All = all valid targets of the TargetType. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat")
+    ETargetCount TargetCount = ETargetCount::Single;
+
+    /** DEPRECATED — legacy combined target type. Migrated to TargetType + TargetCount
+     *  in PostLoad. Do not use directly. Named LegacyTargetType (not TargetType_DEPRECATED)
+     *  so UHT does not strip the suffix and collide its FName with the live TargetType
+     *  field. Legacy serialized data routes here via PropertyRedirects in DefaultEngine.ini. */
+    UPROPERTY()
+    ETargetType_Legacy LegacyTargetType = ETargetType_Legacy::SingleEnemy;
+
+    /** Set true after PostLoad migration so the migration doesn't re-run on already-
+     *  migrated assets. */
+    UPROPERTY()
+    bool bTargetAxisMigrated = false;
 
     // ==================== COMBAT (cast) ====================
 
@@ -359,6 +377,14 @@ public:
      *  UFUNCTION (no leaf declares GetAttackSummary anymore, so no Blueprint name-collision). */
     UFUNCTION(BlueprintPure, Category = "Skill|Display")
     FString GetAttackSummary() const;
+
+    // ==================== MIGRATION ====================
+
+    /** Migrates the legacy conflated ETargetType (7 values) onto the new
+     *  TargetType + TargetCount two-axis model. Runs on every load until the
+     *  asset is re-saved with the new field values. Lives outside WITH_EDITOR so
+     *  it runs at runtime load too. */
+    virtual void PostLoad() override;
 
     // ==================== EDITOR VALIDATION ====================
 

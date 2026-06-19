@@ -574,11 +574,12 @@ private:
 		EActionType ActionKind = EActionType::Ability,
 		EPhysicalDamageType PhysicalType = EPhysicalDamageType::None);
 
-	/** Get targets for an effect based on ETargetType */
+	/** Get targets for an effect based on ETargetType + ETargetCount */
 	void GetEffectTargets(
 		AActor *User,
 		const TArray<AActor *> &ActionTargets,
 		ETargetType TargetType,
+		ETargetCount TargetCount,
 		int32 UserTeam,
 		TArray<AActor *> &OutTargets);
 
