@@ -113,8 +113,8 @@ ESpellElement UEvolutionItemData::GetAssociatedElement() const
 
 ETargetType UEvolutionItemData::GetItemTargetType() const
 {
-    // All crystals can target anyone for tactical flexibility.
-    return ETargetType::SingleAnyone;
+    // All crystals can target anyone for tactical flexibility (Single count by default).
+    return ETargetType::Anyone;
 }
 
 // ==================== STAT MODIFIER FUNCTIONS ====================

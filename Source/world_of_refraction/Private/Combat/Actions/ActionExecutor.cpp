@@ -3222,8 +3222,7 @@ void UActionExecutor::SpawnSpellDelivery(
 	UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpawnSpellDelivery - Type=%d, Targets=%d, Radius=%.2f"),
 		   (int32)Spell->DeliveryType, Targets.Num(), FinalImpactRadius);
 	// Check if offensive or supportive spell
-	bool bIsOffensive = (Spell->TargetType == ETargetType::SingleEnemy ||
-						 Spell->TargetType == ETargetType::AllEnemies);
+	bool bIsOffensive = (Spell->TargetType == ETargetType::Enemy);
 
 	if (!bIsOffensive)
 	{
@@ -3668,8 +3667,7 @@ void UActionExecutor::DispatchSpellCast(
 	const int32 FinalDamage = (Damage > 0) ? Damage : (CurrentExecutionContext.IsSet() ? CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense : 0);
 
 	// Support spells keep the legacy effect path (no delivery, no defense).
-	const bool bIsOffensive = (Skill->TargetType == ETargetType::SingleEnemy ||
-							   Skill->TargetType == ETargetType::AllEnemies);
+	const bool bIsOffensive = (Skill->TargetType == ETargetType::Enemy);
 	if (!bIsOffensive)
 	{
 		SpawnSupportSpellEffect(Caster, Targets, Skill, InElement, FinalVisualScale, bIsBD);
@@ -5793,10 +5791,22 @@ void UActionExecutor::GetEffectTargets(
 	AActor *User,
 	const TArray<AActor *> &ActionTargets,
 	ETargetType TargetType,
+	ETargetCount TargetCount,
 	int32 UserTeam,
 	TArray<AActor *> &OutTargets)
 {
 	OutTargets.Empty();
+
+	// Passive/triggered Double auto-resolve: pull N random distinct actors from a pool.
+	auto AddRandomDistinct = [](TArray<AActor *> Pool, int32 N, TArray<AActor *> &Out)
+	{
+		for (int32 i = 0; i < N && Pool.Num() > 0; ++i)
+		{
+			const int32 Idx = FMath::RandRange(0, Pool.Num() - 1);
+			Out.Add(Pool[Idx]);
+			Pool.RemoveAt(Idx);
+		}
+	};
 
 	switch (TargetType)
 	{
@@ -5804,30 +5814,61 @@ void UActionExecutor::GetEffectTargets(
 		OutTargets.Add(User);
 		break;
 
-	case ETargetType::SingleEnemy:
-		// Use first action target (the enemy we attacked)
-		if (ActionTargets.Num() > 0)
+	case ETargetType::Enemy:
+		if (TargetCount == ETargetCount::All)
 		{
-			OutTargets.Add(ActionTargets[0]);
+			OutTargets = GetAllEnemies(User, UserTeam);
+		}
+		else if (TargetCount == ETargetCount::Double)
+		{
+			// Auto-resolve: 2 random distinct enemies.
+			AddRandomDistinct(GetAllEnemies(User, UserTeam), 2, OutTargets);
+		}
+		else // Single — the enemy we attacked
+		{
+			if (ActionTargets.Num() > 0)
+			{
+				OutTargets.Add(ActionTargets[0]);
+			}
 		}
 		break;
 
-	case ETargetType::AllEnemies:
-		OutTargets = GetAllEnemies(User, UserTeam);
+	case ETargetType::Ally:
+		if (TargetCount == ETargetCount::All)
+		{
+			OutTargets = GetAllAllies(User, UserTeam);
+		}
+		else if (TargetCount == ETargetCount::Double)
+		{
+			// Auto-resolve: self + 1 random teammate.
+			OutTargets.Add(User);
+			TArray<AActor *> Others = GetAllAllies(User, UserTeam);
+			Others.Remove(User);
+			AddRandomDistinct(Others, 1, OutTargets);
+		}
+		else // Single — for abilities, Ally typically means self (TODO: ally selection)
+		{
+			OutTargets.Add(User);
+		}
 		break;
 
-	case ETargetType::SingleAlly:
-		// For abilities, SingleAlly typically means self
-		// Could expand for ally selection in future
-		OutTargets.Add(User);
-		break;
-
-	case ETargetType::AllAllies:
-		OutTargets = GetAllAllies(User, UserTeam);
-		break;
-
-	case ETargetType::Everyone:
-		OutTargets = GetAllCombatants();
+	case ETargetType::Anyone:
+		if (TargetCount == ETargetCount::All)
+		{
+			OutTargets = GetAllCombatants();
+		}
+		else if (TargetCount == ETargetCount::Double)
+		{
+			// Auto-resolve: 2 random distinct combatants (either team).
+			AddRandomDistinct(GetAllCombatants(), 2, OutTargets);
+		}
+		else // Single — the action target
+		{
+			if (ActionTargets.Num() > 0)
+			{
+				OutTargets.Add(ActionTargets[0]);
+			}
+		}
 		break;
 	}
 }
@@ -5902,7 +5943,7 @@ void UActionExecutor::ApplySkillEffects(
 
 		// Determine effect targets
 		TArray<AActor *> EffectTargets;
-		GetEffectTargets(User, Targets, Effect.Target, UserTeam, EffectTargets);
+		GetEffectTargets(User, Targets, Effect.Target, Effect.TargetCount, UserTeam, EffectTargets);
 
 		if (EffectTargets.Num() == 0)
 		{

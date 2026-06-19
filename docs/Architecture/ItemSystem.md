@@ -237,7 +237,7 @@ Effect text is queried separately at display time, never composed into
 
 ## Targeting Rules
 
-Every crystal returns `ETargetType::SingleAnyone` from `UEvolutionItemData::GetItemTargetType()` —
+Every crystal returns `ETargetType::Anyone` from `UEvolutionItemData::GetItemTargetType()` —
 any living combatant (ally or enemy) is a legal target, for tactical flexibility. The
 command menu's `Item` case reads `GetItemTargetType()` directly; the old Quartz `Self`
 special-case is gone.

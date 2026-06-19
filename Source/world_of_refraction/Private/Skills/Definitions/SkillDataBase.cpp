@@ -299,6 +299,36 @@ FString USkillDataBase::GetAttackSummary() const
     return Summary;
 }
 
+void USkillDataBase::PostLoad()
+{
+    Super::PostLoad();
+
+    if (bTargetAxisMigrated)
+        return; // already migrated — don't corrupt re-saved assets
+
+    // Migrate the legacy combined field to the two-axis model.
+    // LegacyTargetType still holds the old serialized name (UE resolves by name).
+    switch (LegacyTargetType)
+    {
+    case ETargetType_Legacy::Self:
+        TargetType = ETargetType::Self;   TargetCount = ETargetCount::Single; break;
+    case ETargetType_Legacy::SingleEnemy:
+        TargetType = ETargetType::Enemy;  TargetCount = ETargetCount::Single; break;
+    case ETargetType_Legacy::AllEnemies:
+        TargetType = ETargetType::Enemy;  TargetCount = ETargetCount::All;    break;
+    case ETargetType_Legacy::SingleAlly:
+        TargetType = ETargetType::Ally;   TargetCount = ETargetCount::Single; break;
+    case ETargetType_Legacy::AllAllies:
+        TargetType = ETargetType::Ally;   TargetCount = ETargetCount::All;    break;
+    case ETargetType_Legacy::SingleAnyone:
+        TargetType = ETargetType::Anyone; TargetCount = ETargetCount::Single; break;
+    case ETargetType_Legacy::Everyone:
+        TargetType = ETargetType::Anyone; TargetCount = ETargetCount::All;    break;
+    }
+    bTargetAxisMigrated = true;
+    // PostLoad does NOT dirty the package — asset must be re-saved to bake this.
+}
+
 #if WITH_EDITOR
 EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Context) const
 {

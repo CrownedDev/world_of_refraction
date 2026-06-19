@@ -19,8 +19,8 @@
  * Examples:
  * - Power Strike: RawDamageBuff to Self OnHit
  * - Drain Strike: EnergyRestore to Self OnHit with DrainPercent
- * - War Cry: RawDamageBuff to AllAllies Always
- * - Intimidate: RawDamageDebuff to SingleEnemy Always
+ * - War Cry: RawDamageBuff to Ally (All) Always
+ * - Intimidate: RawDamageDebuff to Enemy (Single) Always
  */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FSkillEffect
@@ -62,7 +62,13 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     /** Who receives this effect */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")
-    ETargetType Target = ETargetType::SingleEnemy;
+    ETargetType Target = ETargetType::Enemy;
+
+    /** How many recipients of the Target role this effect hits. Single = 1,
+     *  Double = exactly 2 (auto-resolved for passive effects), All = every valid
+     *  recipient. Authored per-effect; re-authored by hand on legacy assets. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")
+    ETargetCount TargetCount = ETargetCount::Single;
 
     // ==================== CONDITION ====================
 
@@ -225,15 +231,13 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     /** Does this effect target allies? */
     bool TargetsAllies() const
     {
-        return Target == ETargetType::SingleAlly ||
-               Target == ETargetType::AllAllies;
+        return Target == ETargetType::Ally;
     }
 
     /** Does this effect target enemies? */
     bool TargetsEnemies() const
     {
-        return Target == ETargetType::SingleEnemy ||
-               Target == ETargetType::AllEnemies;
+        return Target == ETargetType::Enemy;
     }
 
     // ==================== DEBUG ====================
