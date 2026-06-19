@@ -4,6 +4,7 @@
 #include "MotionWarpingComponent.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
+#include "AI/AIDecisionManager.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
@@ -1796,6 +1797,23 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 	// [CastEntryIndex] (Stage 6 cluster 4). Both guard with IsValidIndex at the call site → an
 	// all-Inherit default triple → DefenseDifficultyMultiplier resolves it to Easy ×1.0 (no window
 	// change). One resolver body, the difficulty source differs by caller.
+
+	// AI defenders synthesize a per-impact press HERE — before the match below judges it. Each
+	// impact independently re-rolls attempt/type/direction and submits an impact-anchored timestamped
+	// input (SubmitDefenseInput's InputTime), so MatchAndConsumeInput evaluates it for THIS impact
+	// against the SAME band. Supersedes the old single per-window timer (ScheduleDefenseDecision).
+	if (UCharacterDataComponent *CDC = Defender->FindComponentByClass<UCharacterDataComponent>())
+	{
+		if (CDC->CharacterData && CDC->CharacterData->ShouldUseAI())
+		{
+			if (UAIDecisionManager *AIMgr = GetGameInstance()->GetSubsystem<UAIDecisionManager>())
+			{
+				AIMgr->TrySynthesizeImpactDefense(
+					Defender, Ctx->Attacker.Get(), Ctx->ActionType,
+					BaseSlice, State.AttackSize, ImpactDifficulty, ImpactTime);
+			}
+		}
+	}
 
 	// Match-and-consume this impact against the timestamped input buffer (Stage 3). No
 	// in-window press → bMatched=false → resolves as undefended (full slice, no reduction).

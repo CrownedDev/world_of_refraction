@@ -51,37 +51,31 @@ namespace AIConstants
     constexpr float HARD_DEFENSE_ATTEMPT = 0.85f;
     constexpr float EXPERT_DEFENSE_ATTEMPT = 0.95f;
 
-    // Timing accuracy (success rate when attempting)
-    constexpr float EASY_DEFENSE_ACCURACY = 0.50f;
-    constexpr float MEDIUM_DEFENSE_ACCURACY = 0.75f;
-    constexpr float HARD_DEFENSE_ACCURACY = 0.90f;
-    constexpr float EXPERT_DEFENSE_ACCURACY = 0.98f;
-
     // ==================== SURVIVAL THRESHOLDS ====================
 
     constexpr float SURVIVAL_HP_THRESHOLD = 0.25f;
     constexpr float ENERGY_CONSERVATION_THRESHOLD = 0.50f;
     constexpr float ENERGY_ABUNDANT_THRESHOLD = 0.70f;
 
-    // ==================== DEFENSE REACTION TIMING ====================
-    // Reaction delay as a fraction of the defense window, per difficulty
-    // (parallel to THINK_MIN/MAX). Lower = reacts earlier in the window.
-    constexpr float EASY_REACTION_FRACTION_MIN = 0.7f;
-    constexpr float EASY_REACTION_FRACTION_MAX = 0.9f;
-
-    constexpr float MEDIUM_REACTION_FRACTION_MIN = 0.4f;
-    constexpr float MEDIUM_REACTION_FRACTION_MAX = 0.7f;
-
-    constexpr float HARD_REACTION_FRACTION_MIN = 0.2f;
-    constexpr float HARD_REACTION_FRACTION_MAX = 0.5f;
-
-    constexpr float EXPERT_REACTION_FRACTION_MIN = 0.1f;
-    constexpr float EXPERT_REACTION_FRACTION_MAX = 0.3f;
-
     // ==================== PARRY CHANCE ====================
     // Parry-vs-block choice; only the Hard/Expert "smart choice" path reaches this.
     constexpr float HARD_PARRY_CHANCE = 0.4f;
     constexpr float EXPERT_PARRY_CHANCE = 0.7f;
+
+    // ==================== DEFENSE DELTA AIM (PER-IMPACT) ====================
+    // Aim offset for a synthesized per-impact defense press, expressed as a MULTIPLE of the
+    // perfect half-band (Band = PerfectThreshold x impactMult). <1 = inside the perfect band,
+    // >1 = outside it (whiffs perfect, may still catch the wider success window). Lower AI tier
+    // aims looser. AI difficulty governs aim-WITHIN-band only; the band itself comes from the
+    // impact's authored difficulty so it matches what MatchAndConsumeInput judges against.
+    // Placeholders — Crown tunes in PIE.
+    constexpr float EASY_DELTA_BAND_MULT = 3.0f;    // ~3x outside band → usually whiffs early
+    constexpr float MEDIUM_DELTA_BAND_MULT = 1.6f;
+    constexpr float HARD_DELTA_BAND_MULT = 0.9f;    // just inside the band edge
+    constexpr float EXPERT_DELTA_BAND_MULT = 0.35f; // deep in perfect band
+
+    // Randomized +/- fraction of the computed delta, so the AI isn't frame-perfect-deterministic.
+    constexpr float DEFENSE_DELTA_JITTER_FRAC = 0.25f;
 
     // ==================== STATUS BAR ====================
     // Bar-fill fraction at/above which the AI treats the target as "near trigger".

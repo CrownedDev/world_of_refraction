@@ -274,9 +274,12 @@ public:
 	 * @param Defender The defending actor
 	 * @param DefenseType Block/Parry/Dodge
 	 * @param Direction Dodge direction (only for Dodge, left/right only)
+	 * @param InputTime Optional explicit press timestamp (FPlatformTime::Seconds clock) for the
+	 *        buffered entry. Default 0.0 → stamp now() (player path). A synthesized AI press passes
+	 *        an impact-anchored time so MatchAndConsumeInput judges it for that impact.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Defense System")
-	void SubmitDefenseInput(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction = EDefenseDirection::None);
+	void SubmitDefenseInput(AActor *Defender, EDefenseType DefenseType, EDefenseDirection Direction = EDefenseDirection::None, double InputTime = 0.0);
 	/**
 	 * Play defense animation on defender
 	 * @param Defender The defending actor
