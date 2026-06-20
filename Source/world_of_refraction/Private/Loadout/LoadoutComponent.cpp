@@ -6,6 +6,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Character/CharacterData.h"
@@ -565,11 +566,14 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             Errors.Add(TEXT("Primary evolution crystal not in inventory"));
         }
 
-        // Validate evolution spells count
-        if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+        // Validate evolution spells count — cap keys on the evolution item's own tier.
+        const int32 EvoCap = Loadout.PrimaryEvolution.Item
+            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+            : LoadoutConstants::MAX_EVOLUTION_SPELLS;
+        if (Loadout.EvolutionSpells.Num() > EvoCap)
         {
             Errors.Add(FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
-                                       Loadout.EvolutionSpells.Num(), LoadoutConstants::MAX_EVOLUTION_SPELLS));
+                                       Loadout.EvolutionSpells.Num(), EvoCap));
         }
     }
 
@@ -900,11 +904,14 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
             AddFinding(ELoadoutSlotType::PrimaryEvolution, -1, true, TEXT("Primary evolution crystal not in inventory"));
         }
 
-        if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+        const int32 EvoCap = Loadout.PrimaryEvolution.Item
+            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+            : LoadoutConstants::MAX_EVOLUTION_SPELLS;
+        if (Loadout.EvolutionSpells.Num() > EvoCap)
         {
             AddFinding(ELoadoutSlotType::EvolutionOverflow, -1, true,
                        FString::Printf(TEXT("Too many evolution spells (%d/%d)"),
-                                       Loadout.EvolutionSpells.Num(), LoadoutConstants::MAX_EVOLUTION_SPELLS));
+                                       Loadout.EvolutionSpells.Num(), EvoCap));
         }
     }
 
@@ -1128,12 +1135,17 @@ void ULoadoutComponent::ClearInvalidSlots()
             break;
         }
         case ELoadoutSlotType::EvolutionOverflow:
-            // Keep the first MAX_EVOLUTION_SPELLS, drop the rest.
-            if (Loadout.EvolutionSpells.Num() > LoadoutConstants::MAX_EVOLUTION_SPELLS)
+        {
+            // Keep the first EvoCap (evolution-tier slot count), drop the rest.
+            const int32 EvoCap = Loadout.PrimaryEvolution.Item
+                ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+                : LoadoutConstants::MAX_EVOLUTION_SPELLS;
+            if (Loadout.EvolutionSpells.Num() > EvoCap)
             {
-                Loadout.EvolutionSpells.SetNum(LoadoutConstants::MAX_EVOLUTION_SPELLS);
+                Loadout.EvolutionSpells.SetNum(EvoCap);
             }
             break;
+        }
         case ELoadoutSlotType::RingOverflow:
         {
             // Walk rings accumulating cost from the primary slot's cost; truncate
