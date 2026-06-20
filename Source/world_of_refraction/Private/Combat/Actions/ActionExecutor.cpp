@@ -6095,7 +6095,12 @@ void UActionExecutor::ApplySkillEffects(
 						/*HitCount*/ 1,
 						/*DurationOverride*/ FMath::Max(1, P.Duration));
 
-					StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
+					// Def-identity: use the clean Space-A id, discarding the factory's WeaponID*10+7
+						// re-pack (which would put this cast DoT in a *1000 space and risk a
+						// Space-B collision). Same def's physical-DoT merges.
+						PhysEffect.EffectID = PayloadEffectID;
+
+						StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
 					Result.StatusEffectsApplied++;
 
 					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s (physical-type DoT) to %s"),
