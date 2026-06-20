@@ -277,12 +277,20 @@ when the selected infusion **source** is itself an any-element source — the so
 A Broken Darkness character's spell loadout is split into a Darkness pool plus seven
 per-element pools.
 
-- **Darkness pool** — `FCombatLoadout::InnateSpells` (the existing Caster field). Max 6
-  spells, every entry must be `Darkness` element. Always castable.
+- **Darkness pool** — `FCombatLoadout::InnateSpells` (the existing Caster field). Up to
+  `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6) spells, every entry must be `Darkness`
+  element. Always castable.
 - **Element pools** — `FCombatLoadout::BDSpellPools`, a `TArray<FBDElementSpellPool>`
-  (`FCombatLoadout.h`). Seven pools — `Fire`, `Water`, `Earth`, `Wind`, `Light`,
-  `Lightning`, `Void` — each holding up to 6 spells that must match the pool's element.
-  `Reality` is excluded: it cannot be absorbed (`CanAbsorbElement`), so it is never a pool.
+  (`FCombatLoadout.h`). Up to `MAX_BD_ELEMENT_POOLS` (7) pools — `Fire`, `Water`, `Earth`,
+  `Wind`, `Light`, `Lightning`, `Void` — each holding up to `MAX_EQUIPPED_SLOT_POOL` (6)
+  spells that must match the pool's element. `Reality` is excluded: it cannot be absorbed
+  (`CanAbsorbElement`), so it is never a pool.
+
+Two independent limits apply per the weighted-budget model
+([`InnateSpellPoolBudget.md`](../Design/InnateSpellPoolBudget.md)): the per-pool **count**
+cap above, and a single shared **weight budget** — Σ spell cost (tier, mastery-discounted)
+≤ `BD_SPELL_BUDGET` (48) across the Darkness pool + every element pool (double the non-BD
+innate 24).
 
 `ULoadoutComponent::InitializeBDPools` builds the seven empty pools — one per absorbable
 non-Darkness element — and is idempotent (authored pools survive, missing ones are added).
@@ -290,13 +298,21 @@ non-Darkness element — and is idempotent (authored pools survive, missing ones
 loadout creation (via `InitializeFromCharacterData`, including the empty-loadout
 soft-fail path). Non-BD characters get no pools.
 
-**Validation** — `FCombatLoadout::ValidateBDSpellLoadout` (static, shared between
-runtime `FCombatLoadout` and the inline-asset `FSavedLoadout`) enforces the
-structural rules: Darkness pool ≤ 6 and all-Darkness; ≤ 7 element pools; each
-pool ≤ 6 and element-matched. `LoadoutComponent::GetValidationErrors` calls it
-for BD characters at runtime; `FSavedLoadout::GetValidationErrors` calls it on
-authored saved loadouts (each `UInventoryData::SavedLoadouts[i]`) when the
-entry has authored `BDSpellPools`.
+**Validation** — `FCombatLoadout::ValidateBDSpellLoadout(InnateSpells, BDSpellPools,
+int32 Discount = 0, bool bCheckWeight = false)` (static, shared between runtime
+`FCombatLoadout` and the inline-asset `FSavedLoadout`) enforces:
+- **Structural (always):** Darkness pool ≤ `MAX_EQUIPPED_SLOT_POOL` and all-Darkness;
+  ≤ `MAX_BD_ELEMENT_POOLS` element pools; each pool ≤ `MAX_EQUIPPED_SLOT_POOL` and
+  element-matched.
+- **Weight budget (only when `bCheckWeight`):** Σ `SpellSlotEffectiveCost(tier, Discount)`
+  across the Darkness pool + every element pool ≤ `BD_SPELL_BUDGET` (48) — one shared total.
+
+`LoadoutComponent::GetValidationErrors` + `CollectInvalidSlotFindings` call it for BD
+characters at runtime, computing the discount from the character's raw world-pillar levels
+and passing `bCheckWeight = true`. `FSavedLoadout::GetValidationErrors` calls it on authored
+saved loadouts (each `UInventoryData::SavedLoadouts[i]` with authored `BDSpellPools`) with
+the defaults — **count + element only, no weight** (the asset path has no character for the
+discount).
 
 **Single-slot absorption** — absorption has one active slot. `HasAbsorbedElement(Element)`
 returns true only when `Element` is the most recent absorption — `AbsorbedElements.Last()`.
@@ -455,6 +471,7 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-05-28 | Sweep-1 — crystal absorption energy refactored to **% of target MaxEP** (`BD_ENERGY_PERCENT_*` F=10% .. S=70%; `CrystalEffectTable::GetBrokenDarknessEnergyPercent`); was previously flat tier values. Sweep-5 — added `UCharacterDataComponent::GetDisplayElement()` UI helper; stack-line refs corrected (`.cpp:588`/`.cpp:572-586`/`DamageCalculator.cpp:356-371`); stacks now render in the panel's effects list as a synthetic `StatusMultiplierBuff` row (replaces the standalone-text approach); overload EP-text colour bands rescaled into the real `[1.00, 1.30]` window. Known Gaps section captures unbuilt 4.2/4.3/4.4/4.5 with cross-links to `IntegrationGaps.md`. Stack-multiplier prose tightened — it's a **status-buildup** multiplier (matching-element only), not a damage buff. | feature/integration-gaps-sweep-1, feature/integration-gaps-sweep-5 |
 | 2026-06-15 | Planned: per-impact energy absorption (energy cost split across impacts proportional to the damage split, on parried/blocked impacts) — arising from reactive per-impact defense; build after Stage 3. See docs/Design/BrokenDarkness_ReactiveDefense.md. | feature/realtime-defense |
 | 2026-06-16 | Doc-sync: `UDamageCalculator::GetBDStackStatusMultiplier` was **deleted** (`feature/fix-bd-stack-multiplier`) — the element-gated accessor now lives on the manager as `UBrokenDarknessManager::GetElementStackStatusMultiplier(Element)` and is consumed by `UStatusBuildupManager::AddStatusBuildup` as **step 5c** (`StatusBuildupManager.cpp:383`). Updated §Stacks, the Integration table, and the File Index (DamageCalculator → StatusBuildupManager). **Gap 4.3 closed** — `ProcessOverloadTick` now wires the coupled energy leak: one pre-amplified `Released` value drives both `ServerSpendEnergy` and a self `AddStatusBuildup(..., bSkipBaseStatAmp=true)`; removed it from Known Gaps. | feature/realtime-defense |
+| 2026-06-20 | BD spell pools gain the weighted-budget model — per-pool count cap re-pointed to `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6); `ValidateBDSpellLoadout` gained `(int32 Discount, bool bCheckWeight)` and now also enforces ONE shared `BD_SPELL_BUDGET` (48) across the Darkness pool + all element pools (Σ `SpellSlotEffectiveCost`, mastery-discounted), at the runtime gates only (asset path = count + element). Element-match + `MAX_BD_ELEMENT_POOLS` (≤7) unchanged; `MAX_BD_POOL_SPELLS` retired. See `InnateSpellPoolBudget.md`. | feature/innate-bd-spell-budget |
 | 2026-06-18 | **BD representation collapse (arc 1)** — character-created BD is now `InnateElement = Darkness` + `bBrokenDarknessInnate` toggle (was `InnateElement == BrokenDarkness`); both BD paths now share one asset shape (Darkness), differing only in the born marker. `IsBrokenDarkness()` returns the runtime flag **directly** — dropped the `InnateElement == BrokenDarkness` fallback (a reverted born-BD must read false). `bIsTransformed` renamed `bIsFlipped` (accessor `IsTransformed()` kept for BP/API stability). **Silence/Drain fix:** `BarCapTriggerResolver::ResolveTrigger` gains `bSourceIsBrokenDarkness`, computed at the dispatch source in `StatusBuildupManager` before the immunity gate, so a Darkness hit from a BD source → `DrainEnergy`, from a non-BD source → `Silenced`. Legacy `InnateElement == BrokenDarkness` assets PostLoad-migrated → Darkness + toggle (transient until re-saved; BD assets re-saved this arc). `ESpellElement::BrokenDarkness` is **Hidden, not deleted** — Phase 2 deletion deferred (gated on re-save [done] + `InitializeBDPools` loop Max-sentinel [pending]). Arc 2 (BD↔Darkness revert) recorded as next. Updated *Two Paths*, *State Model*, break-roll gates, new *Post-Collapse Status Dispatch* section, Integration table, Known Gaps. | feature/bd-representation-refactor |
 | 2026-06-18 | **Absorption rework** — replaced the flat parry/block rates (0.30/0.15) with an Efficiency-scaled, perfect-doubling model: `EnergyAbsorbed = AttackBaseEnergyCost × BaseRate(0.10/0.05) × (1 + GetScalingFraction(Efficiency) × K(8.0)) × PerfectMultiplier(2.0)`. Perfect (parry **or** block) doubles, threaded via `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy`. Zero-Efficiency floor is now lower (10%/5%, was 30%/15%), rising past the old rate with investment; max-stat 50%/25%, max-gear ~82%/41%. Removed the dead `OnSuccessfulParry`/`OnSuccessfulBlock` pair + `ParryAbsorptionRate`/`BlockAbsorptionRate` fields. Debug: `WoR.AbsorptionSnapshot`. Coefficients TUNABLE. Per-impact absorption (`BrokenDarkness_ReactiveDefense.md` §8c) remains deferred. | feature/bd-absorption-rework |
 | 2026-06-18 | **Forced BD→Darkness revert (arc 2)** — built the BD→Darkness direction of the runtime switch. New `UBrokenDarknessManager::RevertTransformation()` (`BlueprintCallable`): guard `!bIsFlipped` → no-op; else `bIsFlipped=false` → `ExitOverload()` + `ResetStacks()` + clear alignment / `AbsorbedElements` / `LastAbsorbedElement` → `ServerSetBrokenDarkness(false)` → `OnReverted.Broadcast()`. Mirrors `TriggerTransformation`'s structure. New `OnReverted` delegate (reuses `FOnBrokenDarknessTransformed`; separate edge so listeners bind specifically). `ServerSetBrokenDarkness(false)` gained a real body — `CurrentEP=MaxEP` + `OnEPChanged` broadcast (relabels bar Absorb→EP); asymmetric vs the activate branch (which carries EP over), direct field set bypasses the BD EP guard (flag already cleared). `WoR.TestBDRevert` console command added as permanent debug tooling (reverts the first transformed BD in combat, logs result). UI auto-corrects via existing `IsBrokenDarkness()` + `OnEPChanged` bindings. The Darkness→BD direction (break-roll) is unchanged. The **trigger** that calls `RevertTransformation` (healer / item / interaction) is **not** built — mechanism only; the BD↔Darkness switch is now mechanically complete pending a trigger. Updated the arc-2 Known-Limitations bullet → shipped. | feature/bd-switch |
