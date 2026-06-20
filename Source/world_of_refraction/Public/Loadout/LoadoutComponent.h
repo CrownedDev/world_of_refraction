@@ -663,10 +663,12 @@ public:
     UFUNCTION(BlueprintCallable, CallInEditor, Category = "Debug")
     void DebugClearAndReportValidation();
 
-private:
-    /** Helper to get CharacterData from sibling component */
+    /** Helper to get CharacterData from sibling component. Public so debug
+     *  tooling (InventoryDebug pool-budget readout) can read the same input;
+     *  const getter, no mutation — safe to expose. */
     UCharacterData *GetOwnerCharacterData() const;
 
+private:
     /** Helper to get the sibling UInventoryComponent. Re-fetched per call (no
      *  cache) — loading screens hide the FindComponentByClass cost. Returns
      *  nullptr if the owner has no inventory component; callers must guard. */
