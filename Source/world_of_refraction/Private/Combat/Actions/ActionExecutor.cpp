@@ -10,6 +10,7 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/EffectIdentity.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -2101,7 +2102,7 @@ void UActionExecutor::FinalizeAsyncAction()
 		// expose Effects[] in the same shape after Job 2. Runs post-defense,
 		// post-damage so Result.TotalDamageDealt / bWasCritical / bCausedDeath
 		// are populated for OnHit / OnCrit / OnKill condition checks.
-		TArray<FSkillEffect> EffectsToApply; // by value — GetAllEffects() returns a temporary (inline + resolved referenced)
+		TArray<FGatheredEffect> EffectsToApply; // carrier — each effect tagged with its def id + bundle index for per-definition ID packing
 		FString SourceName;
 
 		switch (Action.ActionType)
@@ -2110,7 +2111,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer.
 			if (USkillDataBase *Skill = ResolveActionSkill(Action))
 			{
-				EffectsToApply = Skill->GetAllEffects();
+				EffectsToApply = Skill->GetAllEffectsGathered();
 				SourceName = Skill->Name;
 			}
 			break;
@@ -2118,7 +2119,7 @@ void UActionExecutor::FinalizeAsyncAction()
 		case EActionType::Spell:
 			if (Action.SpellData)
 			{
-				EffectsToApply = Action.SpellData->GetAllEffects();
+				EffectsToApply = Action.SpellData->GetAllEffectsGathered();
 				SourceName = Action.SpellData->Name;
 			}
 			break;
@@ -2163,19 +2164,14 @@ void UActionExecutor::FinalizeAsyncAction()
 				}
 			}
 
-			// Stable source identity for cast EffectIDs (mirrors the equipment SourceID).
-			// SpellData IS-A SkillDataBase; use whichever the action carries.
-			const USkillDataBase *SourceAsset = Action.SpellData
-													? static_cast<const USkillDataBase *>(Action.SpellData)
-													: static_cast<const USkillDataBase *>(Action.SkillData);
-			const int32 SourceID = SourceAsset ? static_cast<int32>(SourceAsset->GetUniqueID()) : 0;
-
+			// Def-identity packing: each gathered effect carries its def id + bundle index,
+			// so cast EffectIDs window per-definition (same def cast from any skill merges).
+			// No per-skill SourceID needed.
 			ApplySkillEffects(
 				Executor,
 				FinalResult.AffectedTargets,
 				EffectsToApply,
 				SourceName,
-				SourceID,
 				FinalResult,
 				FinalResult.bCausedDeath,
 				ResolvedElement,
@@ -5903,9 +5899,8 @@ void UActionExecutor::GetEffectTargets(
 void UActionExecutor::ApplySkillEffects(
 	AActor *User,
 	const TArray<AActor *> &Targets,
-	const TArray<FSkillEffect> &Effects,
+	const TArray<FGatheredEffect> &Effects,
 	const FString &SourceName,
-	int32 SourceID,
 	FActionResult &Result,
 	bool bCausedDeath,
 	ESpellElement ResolvedCastElement,
@@ -5948,7 +5943,7 @@ void UActionExecutor::ApplySkillEffects(
 
 	for (int32 EffectIndex = 0; EffectIndex < Effects.Num(); ++EffectIndex)
 	{
-		const FSkillEffect &Effect = Effects[EffectIndex];
+		const FSkillEffect &Effect = Effects[EffectIndex].Effect;
 		if (!Effect.IsValid())
 		{
 			continue;
@@ -6013,11 +6008,13 @@ void UActionExecutor::ApplySkillEffects(
 				continue;
 			}
 
-			// Stable cast EffectID: same spell + effect + payload -> same ID every cast,
-			// so a re-cast on the same target REFRESHES (FindEffectByID match) instead of
-			// stacking a duplicate. Mirrors the equipment packing (the id-overflow note
-			// lives on the shared EffectIdentity::PackEffectID helper).
-			const int32 PayloadEffectID = EffectIdentity::PackEffectID(SourceID, EffectIndex, PayloadIndex);
+			// Def-identity cast EffectID: same DEFINITION + effect + payload -> same ID,
+			// regardless of which skill cast it, so a re-cast (or the same def cast from a
+			// different skill) on the same target MERGES via FindEffectByID instead of
+			// stacking a duplicate. Mirrors the equipment packing (id-overflow note lives
+			// on the shared EffectIdentity::PackEffectID helper).
+			const int32 PayloadEffectID = EffectIdentity::PackEffectID(
+				Effects[EffectIndex].DefID, Effects[EffectIndex].BundleIndex, PayloadIndex);
 
 			// Determine effect targets — per payload (Target/TargetCount live on the payload).
 			TArray<AActor *> EffectTargets;

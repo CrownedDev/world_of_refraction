@@ -21,6 +21,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Infusion/InfusionCostHelper.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -566,9 +567,8 @@ private:
 	void ApplySkillEffects(
 		AActor *User,
 		const TArray<AActor *> &Targets,
-		const TArray<FSkillEffect> &Effects,
+		const TArray<FGatheredEffect> &Effects,
 		const FString &SourceName,
-		int32 SourceID,
 		FActionResult &Result,
 		bool bCausedDeath,
 		ESpellElement ResolvedCastElement = ESpellElement::Generic,
