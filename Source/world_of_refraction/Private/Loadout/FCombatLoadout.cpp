@@ -7,6 +7,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/SpellPoolConstants.h"
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/Entries/FAbilityCollection.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -28,15 +29,17 @@
 
 TArray<FString> FCombatLoadout::ValidateBDSpellLoadout(
     const TArray<USpellData *> &InnateSpells,
-    const TArray<FBDElementSpellPool> &BDSpellPools)
+    const TArray<FBDElementSpellPool> &BDSpellPools,
+    int32 Discount,
+    bool bCheckWeight)
 {
     TArray<FString> Errors;
 
     // Darkness pool (InnateSpells) — capped, every entry must be Darkness.
-    if (InnateSpells.Num() > LoadoutConstants::MAX_BD_POOL_SPELLS)
+    if (InnateSpells.Num() > SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL)
     {
         Errors.Add(FString::Printf(TEXT("Broken Darkness: too many Darkness spells (%d/%d)"),
-                                   InnateSpells.Num(), LoadoutConstants::MAX_BD_POOL_SPELLS));
+                                   InnateSpells.Num(), SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL));
     }
     for (const USpellData *Spell : InnateSpells)
     {
@@ -56,11 +59,11 @@ TArray<FString> FCombatLoadout::ValidateBDSpellLoadout(
     }
     for (const FBDElementSpellPool &Pool : BDSpellPools)
     {
-        if (Pool.Spells.Num() > LoadoutConstants::MAX_BD_POOL_SPELLS)
+        if (Pool.Spells.Num() > SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL)
         {
             Errors.Add(FString::Printf(TEXT("Broken Darkness: %s pool has too many spells (%d/%d)"),
                                        *UEnum::GetValueAsString(Pool.Element),
-                                       Pool.Spells.Num(), LoadoutConstants::MAX_BD_POOL_SPELLS));
+                                       Pool.Spells.Num(), SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL));
         }
         for (const USpellData *Spell : Pool.Spells)
         {
@@ -70,6 +73,38 @@ TArray<FString> FCombatLoadout::ValidateBDSpellLoadout(
                     TEXT("Broken Darkness: spell '%s' in %s pool does not match the pool element"),
                     *Spell->Name, *UEnum::GetValueAsString(Pool.Element)));
             }
+        }
+    }
+
+    // Weight budget (runtime only — needs the character's discount): ONE shared point
+    // budget across the Darkness pool + EVERY element pool. Σ effective spell cost
+    // (tier - discount, floored) must fit BD_SPELL_BUDGET. The absorption gate already
+    // limits WHICH element pools exist; this caps total power across them.
+    if (bCheckWeight)
+    {
+        int32 Used = 0;
+        for (const USpellData *Spell : InnateSpells)
+        {
+            if (Spell)
+            {
+                Used += SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Discount);
+            }
+        }
+        for (const FBDElementSpellPool &Pool : BDSpellPools)
+        {
+            for (const USpellData *Spell : Pool.Spells)
+            {
+                if (Spell)
+                {
+                    Used += SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Discount);
+                }
+            }
+        }
+        if (Used > SpellPoolConstants::BD_SPELL_BUDGET)
+        {
+            Errors.Add(FString::Printf(
+                TEXT("Broken Darkness spell budget exceeded: %d/%d points used (discount -%d)"),
+                Used, SpellPoolConstants::BD_SPELL_BUDGET, Discount));
         }
     }
 

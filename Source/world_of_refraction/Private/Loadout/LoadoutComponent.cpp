@@ -666,10 +666,16 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 
         if (CharComp && CharComp->IsBrokenDarkness())
         {
-            // Broken Darkness: InnateSpells is the Darkness pool, BDSpellPools
-            // the per-element pools. Structural rules only (caps + element match).
+            // Broken Darkness: InnateSpells is the Darkness pool, BDSpellPools the
+            // per-element pools. Count + element-match + shared weight budget. The
+            // discount needs the character; null CharData -> no discount, still checked.
+            const UCharacterData *CharData = CharComp->CharacterData;
+            const int32 Discount = CharData
+                ? SpellPoolConstants::SpellSlotDiscount(
+                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                : 0;
             Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(
-                Loadout.InnateSpells, Loadout.BDSpellPools));
+                Loadout.InnateSpells, Loadout.BDSpellPools, Discount, /*bCheckWeight=*/true));
         }
         else
         {
@@ -1051,10 +1057,16 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
 
         if (CharComp && CharComp->IsBrokenDarkness())
         {
-            // BD pool element-matching is owned by ValidateBDSpellLoadout. Surface
-            // its findings for parity, but mark them non-clearable — this build
-            // does not auto-clear BD pool entries (per locked spec).
-            for (const FString &Err : FCombatLoadout::ValidateBDSpellLoadout(Loadout.InnateSpells, Loadout.BDSpellPools))
+            // BD pool count + element-match + shared weight budget are owned by
+            // ValidateBDSpellLoadout. Surface its findings for parity, but mark them
+            // non-clearable — this build does not auto-clear BD pool entries (locked spec).
+            const UCharacterData *CharData = CharComp->CharacterData;
+            const int32 Discount = CharData
+                ? SpellPoolConstants::SpellSlotDiscount(
+                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                : 0;
+            for (const FString &Err : FCombatLoadout::ValidateBDSpellLoadout(
+                     Loadout.InnateSpells, Loadout.BDSpellPools, Discount, /*bCheckWeight=*/true))
             {
                 AddFinding(ELoadoutSlotType::BDPoolSpell, -1, false, Err);
             }
