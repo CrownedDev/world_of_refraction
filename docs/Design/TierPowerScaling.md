@@ -1,4 +1,6 @@
-# Tier Scaling Consolidation
+# Tier Power Scaling
+
+> **Related:** TierGapConsolidation.md (a separate channel-mismatch multiplier, arriving later). They stack: Final = Base × TierPower(own tier) × TierGap(vs channel) × StatScaling × envelope. Power scales everything EXCEPT effects; Gap scales effects too.
 
 **Status:** Design locked, not yet built. Two bugs gate the documentation/build (see §7).
 **Scope:** Unify how tier (F→S) drives power across gear, spells, and abilities.
