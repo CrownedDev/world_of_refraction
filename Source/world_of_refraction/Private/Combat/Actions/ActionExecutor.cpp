@@ -5955,39 +5955,32 @@ void UActionExecutor::ApplySkillEffects(
 		}
 
 		// Event gate — once per effect (the condition group gates the whole bundle).
-		// Empty Conditions[] -> legacy single-field path; else the same AND/OR partition
-		// shape as SkillEffectManager::IsTriggerConditionMet, with EventMet (action-result)
-		// instead of IsSingleTriggerMet (actor-state). Target-side conditions ride the
-		// runtime effect and are not gated here.
-		bool bConditionMet;
-		if (Effect.Conditions.Num() == 0)
+		// Always the AND/OR partition fold over source-side conditions (same shape as
+		// SkillEffectManager::IsTriggerConditionMet), with EventMet (action-result) instead
+		// of IsSingleTriggerMet (actor-state). Empty Conditions[] == Always (unconditional)
+		// -> the fold yields true (bAllAndMet stays true, no OR group), matching the old
+		// EventMet(Always). Target-side conditions ride the runtime effect, not gated here.
+		bool bAllAndMet = true;
+		bool bAnyOr = false;
+		bool bAnyOrMet = false;
+		for (const FSkillCondition &C : Effect.Conditions)
 		{
-			bConditionMet = EventMet(Effect.Condition);
-		}
-		else
-		{
-			bool bAllAndMet = true;
-			bool bAnyOr = false;
-			bool bAnyOrMet = false;
-			for (const FSkillCondition &C : Effect.Conditions)
+			if (C.bTargetSide)
 			{
-				if (C.bTargetSide)
-				{
-					continue;
-				}
-				const bool bMet = EventMet(C.Trigger);
-				if (C.Combine == ECondCombine::And)
-				{
-					bAllAndMet = bAllAndMet && bMet;
-				}
-				else
-				{
-					bAnyOr = true;
-					bAnyOrMet = bAnyOrMet || bMet;
-				}
+				continue;
 			}
-			bConditionMet = bAllAndMet && (!bAnyOr || bAnyOrMet);
+			const bool bMet = EventMet(C.Trigger);
+			if (C.Combine == ECondCombine::And)
+			{
+				bAllAndMet = bAllAndMet && bMet;
+			}
+			else
+			{
+				bAnyOr = true;
+				bAnyOrMet = bAnyOrMet || bMet;
+			}
 		}
+		const bool bConditionMet = bAllAndMet && (!bAnyOr || bAnyOrMet);
 
 		if (!bConditionMet)
 		{
@@ -5995,9 +5988,9 @@ void UActionExecutor::ApplySkillEffects(
 			continue;
 		}
 
-		// Does the effect carry an OnHit source condition? Drain payloads need it
-		// (today: Effect.Condition == OnHit). Folds the legacy field + the N-condition group.
-		bool bOnHitSource = (Effect.Condition == ESkillTrigger::OnHit);
+		// Does the effect carry an OnHit source condition? Drain payloads need it.
+		// Reads the N-condition group directly (migrated effects carry OnHit in Conditions[]).
+		bool bOnHitSource = false;
 		for (const FSkillCondition &C : Effect.Conditions)
 		{
 			if (!C.bTargetSide && C.Trigger == ESkillTrigger::OnHit)
@@ -6010,6 +6003,8 @@ void UActionExecutor::ApplySkillEffects(
 		// D1: one effect yields N payload applications. Un-migrated effects (empty
 		// Payloads) synthesize one payload from the flat fields, so behaviour is
 		// byte-identical to the pre-payload path.
+		// TODO(F3): dead once migration is guaranteed (every loaded asset has Payloads[]);
+		// delete this fallback together with the legacy flat fields.
 		TArray<FSkillEffectPayload> Payloads;
 		if (Effect.Payloads.Num() > 0)
 		{
@@ -6141,13 +6136,22 @@ void UActionExecutor::ApplySkillEffects(
 					RuntimeValue,
 					P.Duration,
 					EffectElement,
-					ESkillEffectTiming::StartOfOwnTurn,
-					Effect.Condition,
-					Effect.ConditionThreshold,
-					Effect.TargetCondition,
-					Effect.TargetThreshold);
+					ESkillEffectTiming::StartOfOwnTurn);
 
 				StatusEffect.Conditions = Effect.Conditions; // D1: carry the shared condition group
+
+				// Reproduce the legacy OnTrigger ProcessTiming promotion from the new shape:
+				// any non-Always source-side condition makes the manager re-evaluate the
+				// trigger (was driven by the now-removed SourceCondition arg). Migrated
+				// effects carry the primary in Conditions[0], so this matches the old check.
+				for (const FSkillCondition &C : StatusEffect.Conditions)
+				{
+					if (!C.bTargetSide && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
+					{
+						StatusEffect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+						break;
+					}
+				}
 
 				// D2: authored stacking / fires-once (per-effect, shared across payloads).
 				StatusEffect.bCanStack = Effect.bStackable;

@@ -235,11 +235,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		int32 Value,
 		int32 Duration,
 		ESpellElement InElement,
-		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn,
-		ESkillTrigger SourceCondition = ESkillTrigger::Always,
-		float SourceConditionThreshold = 30.0f,
-		ESkillTrigger TargetCondition = ESkillTrigger::None,
-		float TargetConditionThreshold = 100.0f)
+		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
 	{
 		FActiveSkillEffect Effect;
 		Effect.EffectName = SpellName;
@@ -266,21 +262,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
 		}
 
-		// Carry source-side trigger over. When the caller supplied an explicit
-		// non-Always condition, promote timing to OnTrigger so the manager's
-		// trigger evaluator picks it up.
-		Effect.TriggerCondition = SourceCondition;
-		Effect.TriggerThreshold = SourceConditionThreshold;
-		if (SourceCondition != ESkillTrigger::Always &&
-			SourceCondition != ESkillTrigger::None)
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
-		}
-
-		// Target-side condition mirrors FSkillEffect::TargetCondition.
-		Effect.TargetTriggerCondition = TargetCondition;
-		Effect.TargetTriggerThreshold = TargetConditionThreshold;
-
+		// Condition data is no longer threaded through this factory — the caller carries
+		// FActiveSkillEffect::Conditions directly (single source of truth). The legacy
+		// TriggerCondition/TargetTrigger* fields default-construct; the OnTrigger
+		// ProcessTiming promotion is reproduced caller-side from the carried Conditions[]
+		// (see ActionExecutor's [J] default-status path).
 		return Effect;
 	}
 

@@ -121,22 +121,51 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
     {
         const FSkillEffect &Effect = Effects[i];
 
-        if (Effect.EffectType == ESkillEffectType::None)
+        // No payload typed (folds new payloads || legacy EffectType).
+        if (!Effect.IsValid())
         {
             Context.AddWarning(FText::FromString(
                 FString::Printf(TEXT("Effect %d has no type set"), i + 1)));
         }
 
-        if (Effect.DrainPercent > 0.0f && Effect.Condition != ESkillTrigger::OnHit)
+        // Any drain payload (restore + DrainPercent) without a source-side OnHit condition.
+        bool bHasDrainPayload = false;
+        for (const FSkillEffectPayload &P : Effect.Payloads)
+        {
+            const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+                                   P.EffectType == ESkillEffectType::EnergyRestore);
+            if (bRestore && P.DrainPercent > 0.0f)
+            {
+                bHasDrainPayload = true;
+                break;
+            }
+        }
+        bool bHasOnHitSource = false;
+        for (const FSkillCondition &C : Effect.Conditions)
+        {
+            if (!C.bTargetSide && C.Trigger == ESkillTrigger::OnHit)
+            {
+                bHasOnHitSource = true;
+                break;
+            }
+        }
+        if (bHasDrainPayload && !bHasOnHitSource)
         {
             Context.AddWarning(FText::FromString(
                 FString::Printf(TEXT("Effect %d has DrainPercent but condition is not OnHit"), i + 1)));
         }
 
-        if ((Effect.IsBuff() || Effect.IsDebuff()) && Effect.Duration <= 0)
+        // Any buff/debuff payload with no duration.
+        for (const FSkillEffectPayload &P : Effect.Payloads)
         {
-            Context.AddWarning(FText::FromString(
-                FString::Printf(TEXT("Effect %d is a buff/debuff but has no duration"), i + 1)));
+            const bool bBuffDebuff = SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude) ||
+                                     SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
+            if (bBuffDebuff && P.Duration <= 0)
+            {
+                Context.AddWarning(FText::FromString(
+                    FString::Printf(TEXT("Effect %d is a buff/debuff but has no duration"), i + 1)));
+                break;
+            }
         }
     }
 
