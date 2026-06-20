@@ -14,8 +14,9 @@ namespace LoadoutConstants
     constexpr int32 MAX_SPELL_SLOTS = 6;
     constexpr int32 MAX_RING_SPELLS = 6;
 
-    // Broken Darkness spell pools
-    constexpr int32 MAX_BD_POOL_SPELLS = 6;   // per element pool, and the Darkness pool
+    // Broken Darkness spell pools. Per-pool spell COUNT moved to
+    // SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL (+ the weighted budget); the
+    // element-pool COUNT cap below stays here.
     constexpr int32 MAX_BD_ELEMENT_POOLS = 7; // Fire/Water/Earth/Wind/Light/Lightning/Void
 
     // Max payloads per skill effect (Cluster D1). Bounds the cast EffectID payload-index

@@ -189,14 +189,24 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
 
     /**
      * Validate a Broken Darkness spell loadout — InnateSpells as the Darkness
-     * pool (<= 6, every spell Darkness element) and BDSpellPools (<= 7 pools,
-     * each <= 6 spells, every spell matching its pool's element). Structural
-     * only — no inventory ownership check. Shared by FCombatLoadout and
-     * ULoadoutData validation. Returns one error string per violation.
+     * pool (count <= MAX_EQUIPPED_SLOT_POOL, every spell Darkness element) and
+     * BDSpellPools (<= MAX_BD_ELEMENT_POOLS pools, each <= MAX_EQUIPPED_SLOT_POOL
+     * spells, every spell matching its pool's element). Structural only — no
+     * inventory ownership check.
+     *
+     * Weight budget (bCheckWeight): when set, also enforces ONE shared point
+     * budget across the Darkness pool + EVERY element pool (Σ effective spell
+     * cost <= BD_SPELL_BUDGET), using the precomputed Discount (0..3). The asset
+     * path (no character) calls with bCheckWeight=false; runtime callers
+     * (LoadoutComponent, has character) pass the real discount + true.
+     *
+     * Returns one error string per violation.
      */
     static TArray<FString> ValidateBDSpellLoadout(
         const TArray<USpellData *> &InnateSpells,
-        const TArray<FBDElementSpellPool> &BDSpellPools);
+        const TArray<FBDElementSpellPool> &BDSpellPools,
+        int32 Discount = 0,
+        bool bCheckWeight = false);
 
     // ==================== ACCESSORS ====================
 

@@ -178,6 +178,27 @@ The flat `MAX_WEAPON_ABILITIES` / `MAX_SPELL_SLOTS` / `MAX_RING_SPELLS` /
 fallbacks — no longer the live cap. `UInventoryDebug::LogActiveLoadout` prints a
 per-container `Slots [tier]: used/cap` readout.
 
+### Caster innate spell budget
+
+Caster innate spells (and the Broken Darkness pools — see `BrokenDarkness.md`) use a
+**weighted budget** distinct from the equipment slot-count model. Constants + helpers live
+in `Loadout/SpellPoolConstants.h`. **Two independent limits, both must pass:**
+
+- **Count** — each innate school holds ≤ `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6)
+  spells (tier-blind). (Per-school count was previously unenforced; the old flat
+  `MAX_INNATE_SPELLS_TOTAL = 24` is retired.)
+- **Weight** — Σ `SpellSlotEffectiveCost(tier, discount)` ≤ `INNATE_SPELL_BUDGET` (24).
+  A spell costs its tier (F1…S7); the **per-pillar mastery discount** (`SpellSlotDiscount`,
+  reading the character's raw world Mind/Body/Spirit ≥ 4/7/5 → −1 each, floored at 1)
+  lowers costs. BD doubles the budget to `BD_SPELL_BUDGET` (48), shared across pools.
+
+**Validation split:** the count cap is enforced at **both** the asset gate
+(`FSavedLoadout::GetValidationErrors`) and the runtime gate
+(`ULoadoutComponent::GetValidationErrors` + `CollectInvalidSlotFindings`). The weight check
+is **runtime-only** — the asset path has no character to compute the discount (null
+`CharData` → discount 0, weight still enforced). `ValidateBDSpellLoadout` carries the same
+split via its `(int32 Discount, bool bCheckWeight)` parameters.
+
 ### `FCombatLoadout` (referenced, defined elsewhere)
 
 The unit stored in `SavedLoadouts`. Not in scope for this document, but the
@@ -386,3 +407,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-06-11 | Accumulate cleanup — `LoadoutComponent.cpp`'s anon-namespace `AccumulateBonus`/`AccumulateResistance` replaced at all 10 call sites by the `FEquipmentStatBonus::Accumulate` / `FResistanceBonus::Accumulate` struct members (behaviour-identical field-wise add); the duplicate helpers deleted. | chore/legacy-cleanup |
 | 2026-06-17 | Attack/ability merge — `FWeaponLoadoutEntry::OverrideAttack` (and `UWeaponData::WeaponAttack`) widened to `USkillDataBase*` (hold a `UAbilityData` with `bIsAttack=true`). **Slotting gate added:** `FAbilityCollection::LearnAbility` rejects `IsAttack()` assets (basic attacks never enter the learned pool), with belts in `GetAbilitiesForWeaponType` and `ValidateAbilities`/`ValidateAugmentStoneAbilities` — a basic attack can't be slotted as an ability (the functional payoff of `bIsAttack`). `UWeaponAttackData` deleted. | feature/realtime-defense |
 | 2026-06-20 | Equipment slot tier scaling — slot caps now key on each container's own tier via the shared curve `{1,2,3,4,5,6,6}` (`CrystalEffectTable::SlotsForContainerTier`): weapon abilities (`GetCustomizableAbilityCount`, moved to `.cpp`) on weapon tier; weapon native + ring spells pass `SlotsForContainerTier(tier)` as the `ResolveSpellSlotCap` fall-through `FlatCeiling` (gem-keying preserved); evolution spells keyed at the three `LoadoutComponent.cpp` cap sites. Flat `MAX_*` constants retained as absolute ceilings/fallbacks. New *Slot caps scale on container tier* section; cap-line corrections throughout; per-container slot readout added to `InventoryDebug`. | feature/equipment-slot-tier-scaling |
+| 2026-06-20 | Caster innate / BD spell budget — weighted-budget model in new `Loadout/SpellPoolConstants.h` (cost curve F1…S7, `INNATE_SPELL_BUDGET=24` / `BD_SPELL_BUDGET=48`, per-pillar discount Mind4/Body7/Spirit5, `MAX_EQUIPPED_SLOT_POOL=6`, helpers). Per-school count ≤6 enforced at both asset + runtime gates; weight budget runtime-only (needs the character's discount; null `CharData`→0, still enforced). `ValidateBDSpellLoadout` gained `(Discount, bCheckWeight)`. Retired `MAX_INNATE_SPELLS_PER_SCHOOL`/`_TOTAL` + `MAX_BD_POOL_SPELLS`. New *Caster innate spell budget* section. | feature/innate-bd-spell-budget |
