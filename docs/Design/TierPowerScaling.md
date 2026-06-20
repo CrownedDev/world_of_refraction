@@ -2,7 +2,7 @@
 
 > **Related:** TierGapConsolidation.md (a separate channel-mismatch multiplier, arriving later). They stack: Final = Base × TierPower(own tier) × TierGap(vs channel) × StatScaling × envelope. Power scales everything EXCEPT effects; Gap scales effects too.
 
-**Status:** Design locked, not yet built. Two bugs gate the documentation/build (see §7).
+**Status:** Design locked. Both §7 gates cleared (Bug 1 dead-code, Bug 2 premise wrong) — clear to build.
 **Scope:** Unify how tier (F→S) drives power across gear, spells, and abilities.
 **Goal:** One dial — tier — controls power. Author once, stamp a tier, the system scales. Less hand-tuning, one consistent rule.
 
@@ -35,6 +35,16 @@ Author a skill once — e.g. Fireball at 20 damage / 10 status / 5 EP cost. Tier
 - Folds onto the existing `EItemTier` field. One helper: `GetTierPowerMultiplier(tier)`. No new enum.
 
 **No EP-cost ceiling problem.** Earlier concern retracted — the EP pool is large relative to costs (base 50, mid ~250, late ~460; F-cost ~5, S-cost ~38). Cost can ride the same curve as damage. EP does not bound the multiplier in any realistic range.
+
+### Locked power curve
+
+| Tier | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|
+| ×Power | 1.00 | 1.30 | 1.70 | 2.20 | 2.85 | 3.70 | 4.80 |
+
+- **F = ×1.0 is the anchor** — F is the floor; everything scales up from it (compounding ~30%/tier). The `E_Tier` asset default is an authoring convenience, **not** the baseline: a skill left at the default tier jumps to **×1.30 on day one**. → Needs an in-editor tier audit so default-E skills aren't silently over-budget.
+- **Stacks with tier-gap.** This is the own-tier power factor only. Final base = `TierPower(own) × TierGap(vs channel) × StatScaling × envelope`.
+- **Cost is same-direction here.** Higher tier = higher power *and* higher cost (cost rides the same curve). This is the opposite of the tier-gap arc, where cost is reciprocal.
 
 ---
 
@@ -117,16 +127,14 @@ The only genuine scatter worth consolidating later is the **cast-time assembly l
 
 ## 7. Bugs gating documentation & build
 
-Both surfaced by the scaling census, **both unconfirmed.** Confirm/fix before finalising docs, or the docs enshrine the bugs.
+Both surfaced by the scaling census, **both now resolved** by direct read of the source.
 
-**Bug 1 — two infusion damage systems, different numbers.**
-- Live path: `ActionExecutor::GetChargeDamageMultiplier` → 1.15 / 1.30 (L1/L2).
-- Second path: `DamageCalculator::GetInfusionDamageMultiplier` → 1.3 / 1.6. NOT wired into main `CalculateDamage`; called only by Broken Darkness and AI estimation.
-- Consequence: AI estimates infused damage at 1.3/1.6 but execution applies 1.15/1.30 → AI mispredicts every infused action. Silent decision bug, not a crash.
+**Bug 1 — RESOLVED — no live double-application.**
+- `GetInfusionDamageMultiplier` (1.3 / 1.6) was orphaned dead code — zero callers. Execution *and* AI both use `ActionExecutor::GetChargeDamageMultiplier` (1.15 / 1.30). There was never a live mismatch.
+- Deleted in the tier-power arc along with its `POWER_INFUSION_L1/L2_MULT` constants.
 
-**Bug 2 — grid scaling may be dead.**
-- One survey says grid position multiplies damage in `DamageCalculator` (front/mid/back rows); another says position is cosmetic, zero scaling.
-- Likely defaults to ×1.0 (present-but-inert). Confirm with a direct read of `FCombatGridPosition::GetDamageModifier` before trusting either count.
+**Bug 2 — RESOLVED — grid scaling is live.**
+- Grid position multiplies damage ±5% (Front 1.05 / Mid 1.00 / Back 0.95), applied in `DamageCalculator` Steps 1.5 / 6.5. Not inert. The "cosmetic / zero scaling" doc premise was wrong.
 
 ---
 
@@ -145,8 +153,8 @@ Both surfaced by the scaling census, **both unconfirmed.** Confirm/fix before fi
 | TurnSpeed rate stays (load-bearing), budgeted as 10× | LOCKED |
 | MaxHP per-point rate = 3.0 | LOCKED |
 | MaxEnergy per-point rate = 3.5 | LOCKED |
-| Bug 1 (double infusion) confirm/fix | OPEN |
-| Bug 2 (grid dead?) confirm | OPEN |
+| Bug 1 (double infusion) | RESOLVED — dead code, deleted |
+| Bug 2 (grid dead?) | RESOLVED — grid scaling is live ±5% |
 | Resolver-facade refactor of cast-time assembly layer | DEFERRED |
 | TurnSpeed gear repricing/rarity (worth-10×) | DEFERRED |
 

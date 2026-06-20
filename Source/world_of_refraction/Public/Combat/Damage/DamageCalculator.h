@@ -34,8 +34,9 @@ namespace DamageConstants
 
 	// Infusion
 	// ELEMENT_INFUSION_PENALTY removed per locked cost matrix — see commit message.
-	constexpr float POWER_INFUSION_L1_MULT = 1.3f;
-	constexpr float POWER_INFUSION_L2_MULT = 1.6f;
+	// POWER_INFUSION_L1/L2_MULT removed in the tier-power arc — they fed only the
+	// orphaned GetInfusionDamageMultiplier (dead code). Live infusion damage rides
+	// ActionExecutor::GetChargeDamageMultiplier (1.15 / 1.30).
 }
 
 /**
@@ -253,14 +254,6 @@ public:
 		AActor *Healer,
 		AActor *Target,
 		int32 BaseHealing);
-
-	// ==================== UTILITY ====================
-
-	/**
-	 * Get infusion damage multiplier
-	 */
-	UFUNCTION(BlueprintPure, Category = "Damage Calculator|Utility")
-	static float GetInfusionDamageMultiplier(int32 InfusionLevel);
 
 	// ==================== DEBUG ====================
 
