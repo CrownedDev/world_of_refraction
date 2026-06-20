@@ -214,26 +214,28 @@ void USkillEffectManager::ApplyInfusionDOT(
 
 void USkillEffectManager::ApplyEquipmentEffects(
 	AActor *Target,
-	const TArray<FSkillEffect> &Effects,
-	int32 SourceID)
+	const TArray<FGatheredEffect> &Effects)
 {
 	if (!Target)
 	{
 		return;
 	}
 
-	for (int32 i = 0; i < Effects.Num(); ++i)
+	for (const FGatheredEffect &G : Effects)
 	{
-		const FSkillEffect &Source = Effects[i];
+		const FSkillEffect &Source = G.Effect;
 		if (!Source.IsValid())
 		{
 			continue;
 		}
 
-		// Cluster C: one authored effect now yields N runtime effects (one per payload).
-		// Single-payload / un-migrated effects yield exactly one — identical to before.
+		// Def-identity packing: feeding G.DefID as the window key and G.BundleIndex as the
+		// effect index yields PackEffectID(DefID, BundleIndex, payload) — so the SAME
+		// definition referenced by any source produces the SAME EffectID and MERGES via
+		// ApplyEffect's FindEffectByID path. One authored effect still yields N runtime
+		// effects (one per payload).
 		TArray<FActiveSkillEffect> Runtimes = FActiveSkillEffect::CreateAllFromSkillEffect(
-			Source.EffectName, SourceID, Source, i);
+			Source.EffectName, G.DefID, Source, G.BundleIndex);
 
 		for (FActiveSkillEffect &Runtime : Runtimes)
 		{

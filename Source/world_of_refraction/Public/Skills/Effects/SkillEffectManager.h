@@ -8,6 +8,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -130,13 +131,12 @@ public:
 	 * Apply STARTING gear effects (the non-conditional subset, once at combat start).
 	 *
 	 * @param Target Actor to apply effects to
-	 * @param Effects Starting effects to apply (from ULoadoutComponent::GetActiveEffects)
-	 * @param SourceID Per-source identifier (the combatant's UniqueID today).
-	 *        Effects are tracked at SourceID*100 + index — pass a value that
-	 *        won't collide with other effect-ID windows.
+	 * @param Effects Gathered starting effects (from ULoadoutComponent::GetActiveEffectsGathered).
+	 *        Each carries its source definition's id + bundle index, so the EffectID is
+	 *        packed per-DEFINITION (PackEffectID(DefID, BundleIndex, payload)) — the SAME
+	 *        def referenced by any gear/skill yields the SAME id and MERGES on apply.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
-	void ApplyEquipmentEffects(AActor *Target, const TArray<FSkillEffect> &Effects, int32 SourceID);
+	void ApplyEquipmentEffects(AActor *Target, const TArray<FGatheredEffect> &Effects);
 
 	/**
 	 * Apply physical damage type skill effect (Generic character weapon attacks)

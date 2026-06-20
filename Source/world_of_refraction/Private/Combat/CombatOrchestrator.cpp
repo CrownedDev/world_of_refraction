@@ -21,6 +21,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/EAttachedItemKind.h"
@@ -997,11 +998,12 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 				// deliberately contribute no effects.
 				if (SkillEffectManagerRef)
 				{
-					TArray<FSkillEffect> StartingEffects = Loadout->GetActiveEffects(Actor);
+					TArray<FGatheredEffect> StartingEffects = Loadout->GetActiveEffectsGathered(Actor);
 					if (StartingEffects.Num() > 0)
 					{
-						int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
-						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, StartingEffects, SourceID);
+						// Def-identity packing: each gathered effect carries its def id + bundle index,
+							// so EffectIDs window per-definition (same def from any gear merges).
+						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, StartingEffects);
 						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d starting effects to %s"),
 							   StartingEffects.Num(), *Actor->GetName());
 					}
