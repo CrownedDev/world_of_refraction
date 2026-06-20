@@ -28,6 +28,7 @@
 #include "EvolutionItemData.generated.h"
 
 class USpellData;
+class UEffectDefinition;
 
 // Spell slot constants
 namespace CrystalSpellConstants
@@ -195,6 +196,12 @@ public:
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution")
         TArray<FSkillEffect> Effects;
 
+        /** Referenced shared effects (author once as a UEffectDefinition, point several
+         *  items at the same asset). Resolved into the by-value Starting/Conditional
+         *  lists each gather (live link). Null/unloaded entries are skipped. */
+        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution")
+        TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
+
         // ==================== VISUAL/AUDIO ====================
 
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
@@ -247,7 +254,8 @@ public:
 
         // ==================== EFFECT HELPER FUNCTIONS ====================
 
-        /** Get effect count */
+        /** Get effect count — INLINE Effects only, by design (referenced effects are
+         *  resolved at gather, not counted here; evolution crystals carry no cap). */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         int32 GetEffectCount() const { return Effects.Num(); }
 

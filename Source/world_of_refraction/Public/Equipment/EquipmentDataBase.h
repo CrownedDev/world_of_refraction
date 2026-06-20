@@ -26,6 +26,7 @@
 class UEvolutionItemData;
 class USpellData;
 class UAbilityData;
+class UEffectDefinition;
 class UCharacterData;
 class UTexture2D;
 
@@ -188,6 +189,14 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
     TArray<FSkillEffect> Effects;
 
+    /** Referenced shared effects (author once as a UEffectDefinition, point several
+     *  items at the same asset). Resolved into the by-value Starting/Conditional lists
+     *  each gather (live link — edits propagate). Null/unloaded entries are skipped. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
+    TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
+
+    /** Counts INLINE Effects only, by design — referenced effects are resolved at
+     *  gather, not counted here (editor info; equipment carries no effect cap). */
     UFUNCTION(BlueprintPure, Category = "Effects")
     int32 GetEffectCount() const { return Effects.Num(); }
 

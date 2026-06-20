@@ -3,6 +3,7 @@
 // of the crystal/evolution refactor sequence.
 
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "Inventory/ItemConstants.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Equipment/Durability/DurabilityConstants.h"
@@ -270,6 +271,20 @@ TArray<FSkillEffect> UEvolutionItemData::GetStartingEffects() const
         }
     }
 
+    // Resolved referenced effects, same partition (null/unloaded skipped).
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const FSkillEffect &E = Def->Effect;
+        if (!E.IsConditionalEffect())
+        {
+            Result.Add(E);
+        }
+    }
+
     return Result;
 }
 
@@ -282,6 +297,20 @@ TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
         if (Effect.IsConditionalEffect())
         {
             Result.Add(Effect);
+        }
+    }
+
+    // Resolved referenced effects, same partition (null/unloaded skipped).
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const FSkillEffect &E = Def->Effect;
+        if (E.IsConditionalEffect())
+        {
+            Result.Add(E);
         }
     }
 

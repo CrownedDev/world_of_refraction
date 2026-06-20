@@ -2,6 +2,7 @@
 
 #include "Equipment/EquipmentDataBase.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "Equipment/EquipmentBonusGenerator.h"
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
@@ -224,6 +225,19 @@ TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
             Result.Add(Effect);
         }
     }
+    // Resolved referenced effects, same partition (null/unloaded skipped).
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const FSkillEffect &E = Def->Effect;
+        if (!E.IsConditionalEffect())
+        {
+            Result.Add(E);
+        }
+    }
     return Result;
 }
 
@@ -235,6 +249,19 @@ TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
         if (Effect.IsConditionalEffect())
         {
             Result.Add(Effect);
+        }
+    }
+    // Resolved referenced effects, same partition (null/unloaded skipped).
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const FSkillEffect &E = Def->Effect;
+        if (E.IsConditionalEffect())
+        {
+            Result.Add(E);
         }
     }
     return Result;
