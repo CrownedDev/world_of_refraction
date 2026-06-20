@@ -27,7 +27,9 @@ int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
 {
     return FMath::Max(0,
                       CrystalEffectTable::ResolveSpellSlotCap(
-                          RingEntry.GetAttachedItem(), LoadoutConstants::MAX_RING_SPELLS)
+                          RingEntry.GetAttachedItem(),
+                          RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Ring->Tier)
+                                         : LoadoutConstants::MAX_RING_SPELLS)
                           - GetLockedSpellCount());
 }
 
@@ -73,9 +75,13 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
         ++OverrideIndex;
     }
 
-    // Gem crystals gate spell slots by tier; evolution keeps the flat ceiling.
+    // Gem crystals gate spell slots by their own tier; with no gem the cap falls
+    // through to the ring's own tier (SlotsForContainerTier), MAX_RING_SPELLS only
+    // as the no-ring ceiling.
     const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
-        RingEntry.GetAttachedItem(), LoadoutConstants::MAX_RING_SPELLS);
+        RingEntry.GetAttachedItem(),
+        RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Ring->Tier)
+                       : LoadoutConstants::MAX_RING_SPELLS);
     if (Result.Num() > SlotCap)
     {
         Result.SetNum(SlotCap);
