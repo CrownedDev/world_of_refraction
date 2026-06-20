@@ -17,6 +17,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/Durability/DurabilityConstants.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "NiagaraSystem.h"
 #include "Equipment/Crystals/EEvolutionType.h"
 #include "Equipment/Crystals/EBreakability.h"
@@ -266,6 +267,13 @@ public:
         /** Get conditional effects (condition-gated — never auto-applied at start) */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         TArray<FSkillEffect> GetConditionalEffects() const;
+
+        /** Def-identity carriers (R1): same partition as the flat accessors, each effect
+         *  tagged with def id + bundle index for R2's per-definition ID packing.
+         *  Transitional: inline-evo effects (P2c pending) window under the item id, not a
+         *  def id. Additive — nothing reads these yet. */
+        TArray<FGatheredEffect> GetStartingEffectsGathered() const;
+        TArray<FGatheredEffect> GetConditionalEffectsGathered() const;
 
         // ==================== EVOLUTION HELPER FUNCTIONS ====================
 

@@ -20,6 +20,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Crystals/FCrystalId.h"
@@ -536,6 +537,11 @@ public:
      *  Actor parameter is for caller clarity (always == GetOwner()). */
     UFUNCTION(BlueprintPure, Category = "Loadout|Effects")
     TArray<FSkillEffect> GetActiveEffects(AActor *Actor) const;
+
+    /** Def-identity carrier (R1): same per-class gear aggregation as GetActiveEffects(),
+     *  but each effect carries its source def's id + bundle index for R2's per-definition
+     *  ID packing. Additive — nothing reads this yet. */
+    TArray<FGatheredEffect> GetActiveEffectsGathered(AActor *Actor) const;
 
     /** Evolution crystal slotted in the PRIMARY WEAPON slot only.
      *  Returns nullptr for: secondary weapon crystal, ring crystal, non-evolution

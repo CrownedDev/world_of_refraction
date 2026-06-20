@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Combat/Defense/DefenseDifficulty.h"
 #include "Combat/TargetType.h"
@@ -189,6 +190,11 @@ public:
      *  null/unloaded references are skipped. */
     UFUNCTION(BlueprintCallable, Category = "Effects")
     TArray<FSkillEffect> GetAllEffects() const;
+
+    /** Def-identity carrier (R1): same flatten as GetAllEffects(), but each effect is
+     *  tagged with its source def's id + bundle index so R2's apply path can pack a
+     *  stable per-definition EffectID. Additive — nothing reads this yet. */
+    TArray<FGatheredEffect> GetAllEffectsGathered() const;
 
     // ============================================================
     // Folded from UCastableSkillDataBase at the base merge — all three

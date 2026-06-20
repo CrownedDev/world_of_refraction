@@ -270,6 +270,48 @@ TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
     return Result;
 }
 
+TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            if (!Def->Effects[b].IsConditionalEffect())
+            {
+                Result.Emplace(DefID, b, Def->Effects[b]);
+            }
+        }
+    }
+    return Result;
+}
+
+TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            if (Def->Effects[b].IsConditionalEffect())
+            {
+                Result.Emplace(DefID, b, Def->Effects[b]);
+            }
+        }
+    }
+    return Result;
+}
+
 FEquipmentStatBonus UEquipmentDataBase::GetCombinedStatBonus() const
 {
     FEquipmentStatBonus Combined;

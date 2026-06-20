@@ -14,6 +14,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FAttachedItem.h"
 #include "Equipment/IEquipmentGenerator.h"
 
@@ -204,6 +205,12 @@ public:
     /** Condition-gated effects — never auto-applied at combat start. */
     UFUNCTION(BlueprintPure, Category = "Effects")
     TArray<FSkillEffect> GetConditionalEffects() const;
+
+    /** Def-identity carriers (R1): same partition as the flat accessors, but each effect
+     *  carries its source def's id + bundle index for R2's per-definition ID packing.
+     *  Additive — nothing reads these yet. */
+    TArray<FGatheredEffect> GetStartingEffectsGathered() const;
+    TArray<FGatheredEffect> GetConditionalEffectsGathered() const;
 
     // ==================== REQUIREMENTS ====================
 

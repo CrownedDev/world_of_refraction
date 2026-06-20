@@ -320,6 +320,74 @@ TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
 
     return Result;
 }
+
+TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+
+    // Transitional inline path: evolution still carries inline Effects[] (P2c pending), so
+    // inline-evo effects window under THIS ITEM's id, not a def id. R2 requires P2c
+    // (inline-evo deletion) — until then this item-id window stands in for a def id.
+    const int32 ItemID = static_cast<int32>(GetUniqueID());
+    for (int32 b = 0; b < Effects.Num(); ++b)
+    {
+        if (!Effects[b].IsConditionalEffect())
+        {
+            Result.Emplace(ItemID, b, Effects[b]);
+        }
+    }
+
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            if (!Def->Effects[b].IsConditionalEffect())
+            {
+                Result.Emplace(DefID, b, Def->Effects[b]);
+            }
+        }
+    }
+
+    return Result;
+}
+
+TArray<FGatheredEffect> UEvolutionItemData::GetConditionalEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+
+    // Transitional inline path — see GetStartingEffectsGathered (R2 requires P2c).
+    const int32 ItemID = static_cast<int32>(GetUniqueID());
+    for (int32 b = 0; b < Effects.Num(); ++b)
+    {
+        if (Effects[b].IsConditionalEffect())
+        {
+            Result.Emplace(ItemID, b, Effects[b]);
+        }
+    }
+
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            if (Def->Effects[b].IsConditionalEffect())
+            {
+                Result.Emplace(DefID, b, Def->Effects[b]);
+            }
+        }
+    }
+
+    return Result;
+}
 // ==================== DURABILITY ====================
 
 void UEvolutionItemData::PostInitProperties()

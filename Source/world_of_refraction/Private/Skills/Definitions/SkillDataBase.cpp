@@ -173,6 +173,24 @@ TArray<FSkillEffect> USkillDataBase::GetAllEffects() const
     return Result;
 }
 
+TArray<FGatheredEffect> USkillDataBase::GetAllEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            Result.Emplace(DefID, b, Def->Effects[b]);
+        }
+    }
+    return Result;
+}
+
 bool USkillDataBase::HasDrainEffect() const
 {
     for (const FSkillEffect &Effect : GetAllEffects())
