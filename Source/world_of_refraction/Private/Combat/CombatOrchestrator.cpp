@@ -21,6 +21,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/EAttachedItemKind.h"
@@ -172,6 +173,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	bWaitingForAsyncAction = false;
 
 	SetCombatState(ECombatState::Initializing);
+
+	// D2: clear per-match state (fires-once set) before any combat-start effect applies.
+	if (SkillEffectManagerRef)
+	{
+		SkillEffectManagerRef->ResetForNewCombat();
+	}
 
 	// Prepare loadouts for battle
 	PrepareAllLoadoutsForBattle();
@@ -991,11 +998,17 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 				// deliberately contribute no effects.
 				if (SkillEffectManagerRef)
 				{
-					TArray<FSkillEffect> StartingEffects = Loadout->GetActiveEffects(Actor);
+					// Arm gear conditional effects — read by the OnDefenseResolved handler (C3b)
+						// to fire on matching impact outcomes; inert until then. Armed first so
+						// an actor with only conditional gear (no starting effects) still arms.
+						SkillEffectManagerRef->ArmConditionalEffects(Actor, Loadout->GetActiveConditionalEffectsGathered(Actor));
+
+						TArray<FGatheredEffect> StartingEffects = Loadout->GetActiveEffectsGathered(Actor);
 					if (StartingEffects.Num() > 0)
 					{
-						int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
-						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, StartingEffects, SourceID);
+						// Def-identity packing: each gathered effect carries its def id + bundle index,
+							// so EffectIDs window per-definition (same def from any gear merges).
+						SkillEffectManagerRef->ApplyEquipmentEffects(Actor, StartingEffects);
 						UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Applied %d starting effects to %s"),
 							   StartingEffects.Num(), *Actor->GetName());
 					}

@@ -17,6 +17,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/Durability/DurabilityConstants.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "NiagaraSystem.h"
 #include "Equipment/Crystals/EEvolutionType.h"
 #include "Equipment/Crystals/EBreakability.h"
@@ -28,6 +29,7 @@
 #include "EvolutionItemData.generated.h"
 
 class USpellData;
+class UEffectDefinition;
 
 // Spell slot constants
 namespace CrystalSpellConstants
@@ -191,9 +193,11 @@ public:
 
         // ==================== EFFECTS (Evolution only) ====================
 
-        /** Skill effects granted by this evolution crystal (passives + triggered) */
+        /** Referenced shared effects (author once as a UEffectDefinition, point several
+         *  items at the same asset). Resolved into the by-value Starting/Conditional
+         *  lists each gather (live link). Null/unloaded entries are skipped. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution")
-        TArray<FSkillEffect> Effects;
+        TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
 
         // ==================== VISUAL/AUDIO ====================
 
@@ -247,9 +251,9 @@ public:
 
         // ==================== EFFECT HELPER FUNCTIONS ====================
 
-        /** Get effect count */
+        /** Flattened effect count across the referenced bundles (editor/UI info). */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetEffectCount() const { return Effects.Num(); }
+        int32 GetEffectCount() const;
 
         /** Get starting effects (no condition — applied once at combat start) */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
@@ -258,6 +262,13 @@ public:
         /** Get conditional effects (condition-gated — never auto-applied at start) */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
         TArray<FSkillEffect> GetConditionalEffects() const;
+
+        /** Def-identity carriers (R1): same partition as the flat accessors, each effect
+         *  tagged with def id + bundle index for R2's per-definition ID packing.
+         *  Transitional: inline-evo effects (P2c pending) window under the item id, not a
+         *  def id. Additive — nothing reads these yet. */
+        TArray<FGatheredEffect> GetStartingEffectsGathered() const;
+        TArray<FGatheredEffect> GetConditionalEffectsGathered() const;
 
         // ==================== EVOLUTION HELPER FUNCTIONS ====================
 
@@ -332,7 +343,6 @@ public:
         FString GenerateDescription() const;
         FString GetEvolutionEffectText() const;
         virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-        virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
         virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

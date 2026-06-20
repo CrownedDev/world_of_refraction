@@ -116,27 +116,58 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
         Result = EDataValidationResult::Invalid;
     }
 
-    // Validate each effect's semantics (count cap handled by USkillDataBase)
-    for (int32 i = 0; i < Effects.Num(); ++i)
+    // Validate each effect's semantics (count cap handled by USkillDataBase). Reads the
+    // flattened referenced-bundle set — UAbilityData carries no inline Effects after P2a.
+    const TArray<FSkillEffect> All = GetAllEffects();
+    for (int32 i = 0; i < All.Num(); ++i)
     {
-        const FSkillEffect &Effect = Effects[i];
+        const FSkillEffect &Effect = All[i];
 
-        if (Effect.EffectType == ESkillEffectType::None)
+        // No payload typed (folds new payloads || legacy EffectType).
+        if (!Effect.IsValid())
         {
             Context.AddWarning(FText::FromString(
                 FString::Printf(TEXT("Effect %d has no type set"), i + 1)));
         }
 
-        if (Effect.DrainPercent > 0.0f && Effect.Condition != ESkillTrigger::OnHit)
+        // Any drain payload (restore + DrainPercent) without a source-side OnHit condition.
+        bool bHasDrainPayload = false;
+        for (const FSkillEffectPayload &P : Effect.Payloads)
+        {
+            const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+                                   P.EffectType == ESkillEffectType::EnergyRestore);
+            if (bRestore && P.DrainPercent > 0.0f)
+            {
+                bHasDrainPayload = true;
+                break;
+            }
+        }
+        bool bHasOnHitSource = false;
+        for (const FSkillCondition &C : Effect.Conditions)
+        {
+            if (IsOwnerSide(C.Subject) && C.Trigger == ESkillTrigger::OnHit)
+            {
+                bHasOnHitSource = true;
+                break;
+            }
+        }
+        if (bHasDrainPayload && !bHasOnHitSource)
         {
             Context.AddWarning(FText::FromString(
                 FString::Printf(TEXT("Effect %d has DrainPercent but condition is not OnHit"), i + 1)));
         }
 
-        if ((Effect.IsBuff() || Effect.IsDebuff()) && Effect.Duration <= 0)
+        // Any buff/debuff payload with no duration.
+        for (const FSkillEffectPayload &P : Effect.Payloads)
         {
-            Context.AddWarning(FText::FromString(
-                FString::Printf(TEXT("Effect %d is a buff/debuff but has no duration"), i + 1)));
+            const bool bBuffDebuff = SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude) ||
+                                     SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
+            if (bBuffDebuff && P.Duration <= 0)
+            {
+                Context.AddWarning(FText::FromString(
+                    FString::Printf(TEXT("Effect %d is a buff/debuff but has no duration"), i + 1)));
+                break;
+            }
         }
     }
 
@@ -170,7 +201,7 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
     }
 
     // Support abilities should have effects
-    if (BaseDamage == 0 && Effects.Num() == 0)
+    if (BaseDamage == 0 && All.Num() == 0)
     {
         Context.AddWarning(FText::FromString(TEXT("Ability has no damage and no effects - is this intentional?")));
     }

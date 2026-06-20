@@ -4,6 +4,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/EffectIdentity.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
@@ -22,9 +25,10 @@
 
 void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 {
-	// Force ActionExecutor to initialize before this subsystem so the OnDamageDealt
-	// binding below sees a fully-constructed delegate.
+	// Force ActionExecutor + DefenseSystem to initialize before this subsystem so the
+	// OnDamageDealt / OnDefenseResolved bindings below see fully-constructed delegates.
 	Collection.InitializeDependency(UActionExecutor::StaticClass());
+	Collection.InitializeDependency(UDefenseSystem::StaticClass());
 
 	Super::Initialize(Collection);
 
@@ -42,6 +46,17 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ActionExecutor not available at Initialize — OnDamageDealt binding skipped"));
+		}
+
+		// Bind OnDefenseResolved listener — drives defense-outcome conditional effects (C3b).
+		if (UDefenseSystem *DS = GI->GetSubsystem<UDefenseSystem>())
+		{
+			DS->OnDefenseResolved.AddDynamic(this, &USkillEffectManager::OnDefenseResolvedHandler);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] DefenseSystem not available at Initialize — OnDefenseResolved binding skipped"));
 		}
 	}
 
@@ -75,6 +90,15 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	{
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s is immune to %s"),
 			   *Target->GetName(), *Effect.EffectName);
+		return EEffectApplicationResult::Rejected;
+	}
+
+	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
+	// so a fires-once effect can never stack or refresh either.
+	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(Effect.EffectID))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s rejected — already fired once this match (ID=%d)"),
+			   *Effect.EffectName, Effect.EffectID);
 		return EEffectApplicationResult::Rejected;
 	}
 
@@ -158,6 +182,14 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	}
 
 	OnEffectApplied.Broadcast(Target, Effect);
+
+	// D2: record fires-once on the NEW-apply path ONLY. A fires-once effect is rejected at
+	// the gate above before it can reach the stack/refresh branches, so this lands exactly once.
+	if (Effect.bFiresOncePerMatch)
+	{
+		FiredOnceThisMatch.Add(Effect.EffectID);
+	}
+
 	return EEffectApplicationResult::Applied;
 }
 
@@ -196,26 +228,33 @@ void USkillEffectManager::ApplyInfusionDOT(
 
 void USkillEffectManager::ApplyEquipmentEffects(
 	AActor *Target,
-	const TArray<FSkillEffect> &Effects,
-	int32 SourceID)
+	const TArray<FGatheredEffect> &Effects)
 {
 	if (!Target)
 	{
 		return;
 	}
 
-	for (int32 i = 0; i < Effects.Num(); ++i)
+	for (const FGatheredEffect &G : Effects)
 	{
-		const FSkillEffect &Source = Effects[i];
-		if (Source.EffectType == ESkillEffectType::None)
+		const FSkillEffect &Source = G.Effect;
+		if (!Source.IsValid())
 		{
 			continue;
 		}
 
-		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
-			Source.EffectName, SourceID, Source, i);
+		// Def-identity packing: feeding G.DefID as the window key and G.BundleIndex as the
+		// effect index yields PackEffectID(DefID, BundleIndex, payload) — so the SAME
+		// definition referenced by any source produces the SAME EffectID and MERGES via
+		// ApplyEffect's FindEffectByID path. One authored effect still yields N runtime
+		// effects (one per payload).
+		TArray<FActiveSkillEffect> Runtimes = FActiveSkillEffect::CreateAllFromSkillEffect(
+			Source.EffectName, G.DefID, Source, G.BundleIndex);
 
-		ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
+		for (FActiveSkillEffect &Runtime : Runtimes)
+		{
+			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
+		}
 	}
 }
 
@@ -248,11 +287,10 @@ void USkillEffectManager::WOR_StartingEffects()
 	{
 		for (const FSkillEffect &E : Specs)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  PRE [%s] %s — %s (Mag=%.2f Val=%d Dur=%d)"),
+			UE_LOG(LogTemp, Display, TEXT("  PRE [%s] %s — %d payload(s), %d condition(s)"),
 				   SourceLabel,
 				   E.EffectName.IsEmpty() ? TEXT("(unnamed)") : *E.EffectName,
-				   *UEnum::GetValueAsString(E.EffectType),
-				   E.Magnitude, E.Value, E.Duration);
+				   E.Payloads.Num(), E.Conditions.Num());
 		}
 		return Specs.Num();
 	};
@@ -326,25 +364,15 @@ void USkillEffectManager::WOR_StartingEffects()
 		   Labeled, Total,
 		   Labeled == Total ? TEXT(" — MATCH") : TEXT(" — MISMATCH (coverage drift; fix this tool)"));
 
-	// POST — effects currently present in the equipment SourceID window
-	// (CreateFromSkillEffect packs EffectID = SourceID*100 + index). NOTE: the
-	// window keys on Actor->GetUniqueID() — the TODO WATCH collision hazard
-	// applies; an unrelated source sharing the window would show here too.
-	const int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
-	const int32 WindowLo = SourceID * 100;
-	const int32 WindowHi = WindowLo + 99;
-	int32 PostCount = 0;
-	for (const FActiveSkillEffect &E : GetActiveEffects(Actor))
+	// POST — what actually got applied (any window, post def-identity packing; effects now
+	// window per-DEFINITION, so there is no single actor window to scan).
+	const TArray<FActiveSkillEffect> Active = GetActiveEffects(Actor);
+	for (const FActiveSkillEffect &E : Active)
 	{
-		if (E.EffectID >= WindowLo && E.EffectID <= WindowHi)
-		{
-			UE_LOG(LogTemp, Display, TEXT("  POST %s — %s (ID=%d)"),
-				   *E.EffectName, *UEnum::GetValueAsString(E.EffectType), E.EffectID);
-			PostCount++;
-		}
+		UE_LOG(LogTemp, Display, TEXT("  POST %s — %s (ID=%d)"), *E.EffectName,
+			   *UEnum::GetValueAsString(E.EffectType), E.EffectID);
 	}
-	UE_LOG(LogTemp, Display, TEXT("  POST applied in equipment window [%d..%d]: %d"),
-		   WindowLo, WindowHi, PostCount);
+	UE_LOG(LogTemp, Display, TEXT("  POST applied: %d"), Active.Num());
 	UE_LOG(LogTemp, Display, TEXT("======================"));
 }
 
@@ -676,6 +704,24 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 	{
 		NotifySpeedChanged(Target);
 	}
+}
+
+void USkillEffectManager::ResetForNewCombat()
+{
+	FiredOnceThisMatch.Empty();
+	ArmedConditionals.Empty();
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch + ArmedConditionals reset for new combat"));
+}
+
+void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals)
+{
+	if (!Actor)
+	{
+		return;
+	}
+	ArmedConditionals.Add(Actor, Conditionals);
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Armed %d conditional effect(s) on %s"),
+		   Conditionals.Num(), *Actor->GetName());
 }
 
 void USkillEffectManager::ClearAllEffects()
@@ -1375,6 +1421,136 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 	}
 }
 
+void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
+												   EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex)
+{
+	if (!Defender || !Attacker)
+	{
+		return;
+	}
+
+	// The outcome maps to its trigger set (perfect outcomes fire both perfect + base).
+	TArray<ESkillTrigger> OutcomeTriggers;
+	SkillTriggerUtils::DefenseOutcomeToTriggers(DefenseType, bPerfect, OutcomeTriggers);
+
+	// Reuse ActionExecutor's per-payload target resolver (Decision B); TurnManager supplies
+	// the owner's team for Enemy/Ally resolution. Fetched once for both perspectives.
+	UActionExecutor *AE = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+	UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+
+	// Evaluate from BOTH perspectives: the defender ("I parried") and the attacker ("my target
+	// dodged me"). For each pass, Owner is that actor's armed set, Target is the OTHER actor.
+	struct FPerspective { AActor *Owner; AActor *Target; };
+	const FPerspective Perspectives[] = { { Defender, Attacker }, { Attacker, Defender } };
+
+	for (const FPerspective &P : Perspectives)
+	{
+		AActor *Owner = P.Owner;
+		AActor *Target = P.Target;
+
+		const TArray<FGatheredEffect> *Armed = ArmedConditionals.Find(Owner);
+		if (!Armed)
+		{
+			continue;
+		}
+
+		for (const FGatheredEffect &G : *Armed)
+		{
+			const FSkillEffect &E = G.Effect;
+
+			// DEFENSE-TRIGGER GUARD (Decision A): only impact-driven effects fire here. A
+			// pure-threshold conditional (no defense-outcome trigger in its group) is skipped
+			// entirely, so it never leaks into the impact path.
+			if (!E.Conditions.ContainsByPredicate(
+					[](const FSkillCondition &C) { return SkillTriggerUtils::IsDefenseOutcomeTrigger(C.Trigger); }))
+			{
+				continue;
+			}
+
+			const bool bFires = EvaluateConditionGroup(
+				E.Conditions,
+				[&](const FSkillCondition &C) { return IsOwnerSide(C.Subject) || Target != nullptr; }, // Participates
+				[&](const FSkillCondition &C) {													  // IsMet — dispatch
+					if (SkillTriggerUtils::IsDefenseOutcomeTrigger(C.Trigger))
+					{
+						// Outcome perspective: the subject's actor(s) must include the actor who
+						// actually defended (the Defender), so the outcome resolves per owner.
+						return OutcomeTriggers.Contains(C.Trigger)
+							   && ResolveSubjectActors(C.Subject, Owner, Target).Contains(Defender);
+					}
+					return ResolveSubjectActors(C.Subject, Owner, Target)
+						.ContainsByPredicate([&](AActor *A) { return IsSingleTriggerMet(A, C.Trigger, C.Threshold); });
+				});
+
+			if (bFires && AE)
+			{
+				const int32 OwnerTeam = TM ? TM->GetActorTeam(Owner) : -1;
+
+				// Per-PAYLOAD resolve-and-apply. Each payload carries its own Target/TargetCount,
+				// so targets resolve per payload (a parry effect may buff Self AND debuff the
+				// attacker). Build ONE runtime per payload via CreateFromSpellEffect — NOT
+				// CreateAllFromSkillEffect, which expands ALL payloads and would N^2-apply inside
+				// this loop. Mirrors ActionExecutor::ApplySkillEffects's per-payload path.
+				for (int32 PayloadIndex = 0; PayloadIndex < E.Payloads.Num(); ++PayloadIndex)
+				{
+					const FSkillEffectPayload &P = E.Payloads[PayloadIndex];
+					if (P.EffectType == ESkillEffectType::None)
+					{
+						continue;
+					}
+
+					// Defender-perspective ActionTargets = { the OTHER actor }, so a Single-Enemy
+					// payload routes to whoever this Owner was fighting in the exchange.
+					TArray<AActor *> AppTargets;
+					AE->GetEffectTargets(Owner, { Target }, P.Target, P.TargetCount, OwnerTeam, AppTargets);
+					if (AppTargets.Num() == 0)
+					{
+						continue;
+					}
+
+					// Def-identity: same packing as cast / equipment
+					// (PackEffectID(DefID, BundleIndex, PayloadIndex)) — a defender-fired effect
+					// MERGES with the same def applied elsewhere and shares the fires-once gate.
+					const int32 PayloadEffectID =
+						EffectIdentity::PackEffectID(G.DefID, G.BundleIndex, PayloadIndex);
+
+					// Gauge manipulators + DOT pass authored Value through; stat modifiers keep
+					// the Magnitude*100 percentage shape (mirrors ApplySkillEffects).
+					const int32 RuntimeValue =
+						(P.EffectType == ESkillEffectType::StatusIncrease ||
+						 P.EffectType == ESkillEffectType::StatusDecrease ||
+						 P.EffectType == ESkillEffectType::DOT)
+							? P.Value
+							: FMath::RoundToInt(P.Magnitude * 100.0f);
+
+					for (AActor *AppTarget : AppTargets)
+					{
+						// No cast context here, so Element stays Generic (parity with equipment
+						// effects, which CreateAllFromSkillEffect also leaves Generic).
+						FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSpellEffect(
+							E.EffectName, PayloadEffectID, P.EffectType, P.Magnitude, RuntimeValue,
+							P.Duration, ESpellElement::Generic);
+
+						// Authored stacking / fires-once carry over. The defense-outcome conditions
+						// were the GATE (already evaluated) — deliberately NOT copied onto the
+						// runtime, so the consequence ticks on its natural timing (DOT end-of-turn,
+						// etc.) instead of being promoted to an inert OnTrigger effect.
+						Runtime.bCanStack = E.bStackable;
+						Runtime.MaxStacks = E.MaxStacks;
+						Runtime.bFiresOncePerMatch = E.bFiresOncePerMatch;
+
+						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
+
+						UE_LOG(LogTemp, Log, TEXT("[DefenseTrigger] FIRE: %s (ID=%d) %s -> %s outcome=%s perfect=%d"),
+							   *E.EffectName, PayloadEffectID, *GetNameSafe(Owner),
+							   *GetNameSafe(AppTarget), *UEnum::GetValueAsString(DefenseType), bPerfect);
+					}
+				}
+			}
+		}
+	}
+}
+
 // ========================================
 // QUERIES
 // ========================================
@@ -1653,9 +1829,29 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 // INTERNAL HELPERS
 // ========================================
 
-bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue) const
+bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue, AActor *Target) const
 {
 	(void)TriggerValue;
+
+	// Cluster C: the N-condition group takes precedence when present. Empty group falls
+	// through to the legacy 2-field logic, so the synthetic factories (infusion / physical
+	// damage) that only write the old fields stay byte-identical.
+	if (Effect.Conditions.Num() > 0)
+	{
+		// Subject-aware: owner-side subjects (Self/SelfTeam) always participate; target-side
+		// (Target/TargetTeam) participate only when a Target was passed (null → skipped, the
+		// pre-C2a behaviour). IsMet resolves the subject's actor(s) and ANY-folds the single-
+		// actor state check over them (a one-element set reduces to the prior single check).
+		return EvaluateConditionGroup(
+			Effect.Conditions,
+			[&](const FSkillCondition &C) { return IsOwnerSide(C.Subject) || Target != nullptr; },
+			[&](const FSkillCondition &C) {
+				const TArray<AActor *> Subjects = ResolveSubjectActors(C.Subject, Actor, Target);
+				return Subjects.ContainsByPredicate([&](AActor *A) {
+					return IsSingleTriggerMet(A, C.Trigger, C.Threshold);
+				});
+			});
+	}
 
 	const bool bPrimaryMet = IsSingleTriggerMet(Actor, Effect.TriggerCondition, Effect.TriggerThreshold);
 
@@ -1735,6 +1931,30 @@ bool USkillEffectManager::IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigge
 	default:
 		return false;
 	}
+}
+
+TArray<AActor *> USkillEffectManager::ResolveSubjectActors(ECondSubject Subject, AActor *Owner, AActor *Target) const
+{
+	TArray<AActor *> Out;
+	UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+
+	switch (Subject)
+	{
+	case ECondSubject::Self:
+		if (Owner) { Out.Add(Owner); }
+		break;
+	case ECondSubject::Target:
+		if (Target) { Out.Add(Target); }
+		break;
+	case ECondSubject::SelfTeam:
+		if (Owner && TM) { Out = TM->GetTeamMembers(TM->GetActorTeam(Owner)); }
+		break;
+	case ECondSubject::TargetTeam:
+		if (Target && TM) { Out = TM->GetTeamMembers(TM->GetActorTeam(Target)); }
+		break;
+	}
+
+	return Out;
 }
 
 FActiveSkillEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 EffectID)

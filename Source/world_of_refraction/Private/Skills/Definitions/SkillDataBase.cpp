@@ -4,6 +4,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
 
@@ -158,14 +159,32 @@ TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
     return Table;
 }
 
-TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condition) const
+TArray<FSkillEffect> USkillDataBase::GetAllEffects() const
 {
     TArray<FSkillEffect> Result;
-    for (const FSkillEffect &Effect : Effects)
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
-        if (Effect.Condition == Condition && Effect.IsValid())
+        if (Def)
         {
-            Result.Add(Effect);
+            Result.Append(Def->Effects);
+        }
+    }
+    return Result;
+}
+
+TArray<FGatheredEffect> USkillDataBase::GetAllEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            Result.Emplace(DefID, b, Def->Effects[b]);
         }
     }
     return Result;
@@ -173,7 +192,7 @@ TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condit
 
 bool USkillDataBase::HasDrainEffect() const
 {
-    for (const FSkillEffect &Effect : Effects)
+    for (const FSkillEffect &Effect : GetAllEffects())
     {
         if (Effect.IsDrain())
         {
@@ -185,7 +204,7 @@ bool USkillDataBase::HasDrainEffect() const
 
 bool USkillDataBase::HasBuffEffects() const
 {
-    for (const FSkillEffect &Effect : Effects)
+    for (const FSkillEffect &Effect : GetAllEffects())
     {
         if (Effect.IsBuff())
         {
@@ -197,7 +216,7 @@ bool USkillDataBase::HasBuffEffects() const
 
 bool USkillDataBase::HasDebuffEffects() const
 {
-    for (const FSkillEffect &Effect : Effects)
+    for (const FSkillEffect &Effect : GetAllEffects())
     {
         if (Effect.IsDebuff())
         {
@@ -339,13 +358,10 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Context.AddWarning(FText::FromString(TEXT("Skill has empty Name")));
     }
 
-    if (Effects.Num() > LoadoutConstants::MAX_SKILL_EFFECTS)
-    {
-        Context.AddError(FText::FromString(FString::Printf(
-            TEXT("Too many effects (%d). Maximum is %d"),
-            Effects.Num(), LoadoutConstants::MAX_SKILL_EFFECTS)));
-        Result = EDataValidationResult::Invalid;
-    }
+    // Effect-count + per-payload caps now live on UEffectDefinition::IsDataValid. Under
+    // def-identity packing the cap is per-DEFINITION (each bundle self-windows by its
+    // DefID), so a per-skill sum-cap would falsely reject a skill that validly references
+    // many small bundles. The referencer no longer validates effect/payload counts.
 
     // Folded from UCastableSkillDataBase::IsDataValid at the base merge.
     if (BaseDamage < 0)
@@ -361,20 +377,5 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
     }
 
     return Result;
-}
-
-void USkillDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-    // Refresh threshold-visibility flags on every effect so EditCondition gating
-    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
-    // to in-editor edits of the matching ESkillTrigger field.
-    for (FSkillEffect &Effect : Effects)
-    {
-        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
-        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
-        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
-    }
 }
 #endif

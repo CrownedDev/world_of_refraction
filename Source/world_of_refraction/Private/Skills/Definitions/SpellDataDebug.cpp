@@ -120,12 +120,13 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
     }
 
     // Effects
-    if (Spell->Effects.Num() > 0)
+    const TArray<FSkillEffect> All = Spell->GetAllEffects();
+    if (All.Num() > 0)
     {
         Output += TEXT("EFFECTS:\n");
-        for (int32 i = 0; i < Spell->Effects.Num(); ++i)
+        for (int32 i = 0; i < All.Num(); ++i)
         {
-            const FSkillEffect &Effect = Spell->Effects[i];
+            const FSkillEffect &Effect = All[i];
             Output += FString::Printf(TEXT("  [%d] %s\n"), i + 1, *Effect.GetDescription());
         }
         Output += TEXT("\n");

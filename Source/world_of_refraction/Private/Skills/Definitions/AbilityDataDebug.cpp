@@ -98,12 +98,13 @@ FString UAbilityDataDebug::GetAbilityStatsString(UAbilityData *Ability, UCharact
     {
         Output += TEXT("INFUSION: Not Available\n\n");
     }
-    if (Ability->Effects.Num() > 0)
+    const TArray<FSkillEffect> All = Ability->GetAllEffects();
+    if (All.Num() > 0)
     {
         Output += TEXT("EFFECTS:\n");
-        for (int32 i = 0; i < Ability->Effects.Num(); ++i)
+        for (int32 i = 0; i < All.Num(); ++i)
         {
-            const FSkillEffect &Effect = Ability->Effects[i];
+            const FSkillEffect &Effect = All[i];
             Output += FString::Printf(TEXT("  [%d] %s\n"), i + 1, *Effect.GetDescription());
         }
         Output += TEXT("\n");

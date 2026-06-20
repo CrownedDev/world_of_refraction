@@ -2,6 +2,7 @@
 
 #include "Equipment/EquipmentDataBase.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "Equipment/EquipmentBonusGenerator.h"
 #include "Character/FPillarWeights.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
@@ -214,14 +215,35 @@ void UEquipmentDataBase::RollResistance()
     GeneratedResistance.RerollResistance(GetGeneratorTier());
 }
 
+int32 UEquipmentDataBase::GetEffectCount() const
+{
+    int32 Count = 0;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (Def)
+        {
+            Count += Def->Effects.Num();
+        }
+    }
+    return Count;
+}
+
 TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
 {
     TArray<FSkillEffect> Result;
-    for (const FSkillEffect &Effect : Effects)
+    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
-        if (!Effect.IsConditionalEffect())
+        if (!Def)
         {
-            Result.Add(Effect);
+            continue;
+        }
+        for (const FSkillEffect &E : Def->Effects)
+        {
+            if (!E.IsConditionalEffect())
+            {
+                Result.Add(E);
+            }
         }
     }
     return Result;
@@ -230,11 +252,61 @@ TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
 TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
 {
     TArray<FSkillEffect> Result;
-    for (const FSkillEffect &Effect : Effects)
+    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
-        if (Effect.IsConditionalEffect())
+        if (!Def)
         {
-            Result.Add(Effect);
+            continue;
+        }
+        for (const FSkillEffect &E : Def->Effects)
+        {
+            if (E.IsConditionalEffect())
+            {
+                Result.Add(E);
+            }
+        }
+    }
+    return Result;
+}
+
+TArray<FGatheredEffect> UEquipmentDataBase::GetStartingEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            if (!Def->Effects[b].IsConditionalEffect())
+            {
+                Result.Emplace(DefID, b, Def->Effects[b]);
+            }
+        }
+    }
+    return Result;
+}
+
+TArray<FGatheredEffect> UEquipmentDataBase::GetConditionalEffectsGathered() const
+{
+    TArray<FGatheredEffect> Result;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (!Def)
+        {
+            continue;
+        }
+        const int32 DefID = static_cast<int32>(Def->GetUniqueID());
+        for (int32 b = 0; b < Def->Effects.Num(); ++b)
+        {
+            if (Def->Effects[b].IsConditionalEffect())
+            {
+                Result.Emplace(DefID, b, Def->Effects[b]);
+            }
         }
     }
     return Result;
@@ -353,18 +425,4 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     return Result;
 }
 
-void UEquipmentDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-    // Refresh threshold-visibility flags on every effect so EditCondition gating
-    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
-    // to in-editor edits of the matching ESkillTrigger field.
-    for (FSkillEffect &Effect : Effects)
-    {
-        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
-        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
-        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
-    }
-}
 #endif

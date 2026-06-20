@@ -3359,6 +3359,166 @@ TArray<FSkillEffect> ULoadoutComponent::GetActiveEffects(AActor *Actor) const
     return Result;
 }
 
+TArray<FGatheredEffect> ULoadoutComponent::GetActiveEffectsGathered(AActor *Actor) const
+{
+    (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
+
+    // Def-identity mirror of GetActiveEffects: identical per-class gear coverage, but
+    // calls the ...Gathered() accessors so each effect carries its def id + bundle index.
+    TArray<FGatheredEffect> Result;
+
+    const FCombatLoadout Loadout = GetActiveLoadout();
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+    {
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffectsGathered());
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            if (URingData *Ring = GetPrimaryRing())
+            {
+                Result.Append(Ring->GetStartingEffectsGathered());
+            }
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffectsGathered());
+            }
+        }
+        break;
+    }
+
+    case ECharacterClass::Resonator:
+    {
+        if (URingData *Ring = GetActiveRing())
+        {
+            Result.Append(Ring->GetStartingEffectsGathered());
+        }
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetPrimaryWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffectsGathered());
+            }
+        }
+        break;
+    }
+
+    case ECharacterClass::Caster:
+    default:
+    {
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetPrimaryWeapon())
+            {
+                Result.Append(Weapon->GetStartingEffectsGathered());
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            if (URingData *Ring = GetPrimaryRing())
+            {
+                Result.Append(Ring->GetStartingEffectsGathered());
+            }
+        }
+        break;
+    }
+    }
+
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    {
+        Result.Append(Loadout.PrimaryEvolution.Item->GetStartingEffectsGathered());
+    }
+
+    return Result;
+}
+
+TArray<FGatheredEffect> ULoadoutComponent::GetActiveConditionalEffectsGathered(AActor *Actor) const
+{
+    (void)Actor; // Always == GetOwner(); parameter kept for caller clarity.
+
+    // Identical per-class gear coverage to GetActiveEffectsGathered, but the CONDITIONAL
+    // subset (effects gated by a trigger, fired on impact rather than at combat start).
+    TArray<FGatheredEffect> Result;
+
+    const FCombatLoadout Loadout = GetActiveLoadout();
+
+    switch (CharacterClass)
+    {
+    case ECharacterClass::Generic:
+    {
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                Result.Append(Weapon->GetConditionalEffectsGathered());
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            if (URingData *Ring = GetPrimaryRing())
+            {
+                Result.Append(Ring->GetConditionalEffectsGathered());
+            }
+            if (UWeaponData *Weapon = GetActiveWeapon())
+            {
+                Result.Append(Weapon->GetConditionalEffectsGathered());
+            }
+        }
+        break;
+    }
+
+    case ECharacterClass::Resonator:
+    {
+        if (URingData *Ring = GetActiveRing())
+        {
+            Result.Append(Ring->GetConditionalEffectsGathered());
+        }
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetPrimaryWeapon())
+            {
+                Result.Append(Weapon->GetConditionalEffectsGathered());
+            }
+        }
+        break;
+    }
+
+    case ECharacterClass::Caster:
+    default:
+    {
+        if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon)
+        {
+            if (UWeaponData *Weapon = GetPrimaryWeapon())
+            {
+                Result.Append(Weapon->GetConditionalEffectsGathered());
+            }
+        }
+        else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+        {
+            if (URingData *Ring = GetPrimaryRing())
+            {
+                Result.Append(Ring->GetConditionalEffectsGathered());
+            }
+        }
+        break;
+    }
+    }
+
+    if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
+    {
+        Result.Append(Loadout.PrimaryEvolution.Item->GetConditionalEffectsGathered());
+    }
+
+    return Result;
+}
+
 UEvolutionItemData *ULoadoutComponent::GetActivePrimaryEvolutionCrystal(AActor *Actor) const
 {
     (void)Actor;

@@ -27,5 +27,12 @@ enum class ESkillTrigger : uint8
     OnSpellCast UMETA(DisplayName = "After Casting Spell"),
     OnAbilityUsed UMETA(DisplayName = "After Using Ability"),
     OnDodge UMETA(DisplayName = "On Dodge"),
-    OnBlock UMETA(DisplayName = "On Block")
+    OnBlock UMETA(DisplayName = "On Block"),
+    // Defense-outcome triggers (append-only — values serialized into .uassets). Fired at
+    // impact (ResolveImpactDefense → OnDefenseResolved); a perfect outcome fires both its
+    // perfect trigger and the base (see SkillTriggerUtils::DefenseOutcomeToTriggers).
+    OnParry UMETA(DisplayName = "On Parry"),
+    OnPerfectParry UMETA(DisplayName = "On Perfect Parry"),
+    OnPerfectBlock UMETA(DisplayName = "On Perfect Block"),
+    OnPerfectDodge UMETA(DisplayName = "On Perfect Dodge")
 };

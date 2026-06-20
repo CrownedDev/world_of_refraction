@@ -1766,12 +1766,15 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
             continue;
         }
 
-        for (const FSkillEffect &Effect : Spell->Effects)
+        for (const FSkillEffect &Effect : Spell->GetAllEffects())
         {
-            if (Effect.EffectType == ESkillEffectType::Heal ||
-                Effect.EffectType == ESkillEffectType::HealthRestore)
+            for (const FSkillEffectPayload &P : Effect.Payloads)
             {
-                return Spell;
+                if (P.EffectType == ESkillEffectType::Heal ||
+                    P.EffectType == ESkillEffectType::HealthRestore)
+                {
+                    return Spell;
+                }
             }
         }
     }
@@ -1794,11 +1797,14 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
             continue;
         }
 
-        for (const FSkillEffect &Effect : Spell->Effects)
+        for (const FSkillEffect &Effect : Spell->GetAllEffects())
         {
-            if (Effect.EffectType == ESkillEffectType::Cleanse)
+            for (const FSkillEffectPayload &P : Effect.Payloads)
             {
-                return Spell;
+                if (P.EffectType == ESkillEffectType::Cleanse)
+                {
+                    return Spell;
+                }
             }
         }
     }

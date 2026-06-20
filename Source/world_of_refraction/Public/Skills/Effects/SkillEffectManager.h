@@ -8,6 +8,7 @@
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "SkillEffectManager.generated.h"
 
 class UCharacterDataComponent;
@@ -81,6 +82,13 @@ public:
 	UFUNCTION()
 	void OnDamageDealtHandler(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
+	/** Listener bound to UDefenseSystem::OnDefenseResolved. Drives defense-outcome conditional
+	 *  effects (OnParry/Block/Dodge + perfect tiers, OnTakeDamage). C3b: evaluates the armed
+	 *  conditionals and LOGS matches only — ApplyEffect wiring lands in C3c. */
+	UFUNCTION()
+	void OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
+								  EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex);
+
 	// ========================================
 	// EFFECT APPLICATION
 	// ========================================
@@ -130,13 +138,12 @@ public:
 	 * Apply STARTING gear effects (the non-conditional subset, once at combat start).
 	 *
 	 * @param Target Actor to apply effects to
-	 * @param Effects Starting effects to apply (from ULoadoutComponent::GetActiveEffects)
-	 * @param SourceID Per-source identifier (the combatant's UniqueID today).
-	 *        Effects are tracked at SourceID*100 + index — pass a value that
-	 *        won't collide with other effect-ID windows.
+	 * @param Effects Gathered starting effects (from ULoadoutComponent::GetActiveEffectsGathered).
+	 *        Each carries its source definition's id + bundle index, so the EffectID is
+	 *        packed per-DEFINITION (PackEffectID(DefID, BundleIndex, payload)) — the SAME
+	 *        def referenced by any gear/skill yields the SAME id and MERGES on apply.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Effects")
-	void ApplyEquipmentEffects(AActor *Target, const TArray<FSkillEffect> &Effects, int32 SourceID);
+	void ApplyEquipmentEffects(AActor *Target, const TArray<FGatheredEffect> &Effects);
 
 	/**
 	 * Apply physical damage type skill effect (Generic character weapon attacks)
@@ -205,6 +212,15 @@ public:
 	/** Remove all effects from ALL actors (combat end cleanup) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ClearAllEffects();
+
+	/** Reset per-match state at the start of a new combat (clears the fires-once set +
+	 *  armed conditionals). */
+	UFUNCTION()
+	void ResetForNewCombat();
+
+	/** Store the gear conditional effects for an actor (replaces any prior entry).
+	 *  Called at combat start; the OnDefenseResolved handler reads these (C3b). */
+	void ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals);
 
 	/** Remove effects applied by a specific source (when source dies, etc.) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
@@ -373,6 +389,16 @@ private:
 	/** Map of all active effects per actor (not exposed to reflection - TArray in TMap not supported) */
 	TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects;
 
+	/** EffectIDs that have fired this combat (for bFiresOncePerMatch). Keyed on the stable
+	 *  EffectID; cleared per combat by ResetForNewCombat(). */
+	TSet<int32> FiredOnceThisMatch;
+
+	/** Gear conditional effects armed per actor at combat start (C3a). The
+	 *  OnDefenseResolved handler (C3b) reads these to fire on matching impact outcomes;
+	 *  nothing reads it yet. Cleared per combat by ResetForNewCombat(). TWeakObjectPtr key
+	 *  mirrors ActiveEffects (non-reflected; no cross-combat actor retention). */
+	TMap<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> ArmedConditionals;
+
 	/** Next unique effect instance ID (for distinguishing same-type effects) */
 	int32 NextInstanceID = 1;
 
@@ -392,11 +418,18 @@ private:
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
 	void ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect);
 
-	/** Check if a trigger condition is met (handles compound primary + secondary). */
-	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f) const;
+	/** Check if a trigger condition is met (handles compound primary + secondary).
+	 *  Target is the owner's target for target-side condition subjects (null → target-side
+	 *  subjects are skipped, the pre-C2a behaviour). */
+	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f, AActor *Target = nullptr) const;
 
 	/** Evaluate a single (Trigger, Threshold) pair against Actor's state. */
 	bool IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigger, float Threshold) const;
+
+	/** Resolve a condition Subject to the actor(s) it evaluates against: Self → {Owner},
+	 *  Target → {Target}, SelfTeam/TargetTeam → that side's team members (empty when there is
+	 *  no TurnManager or the side's anchor actor is null). */
+	TArray<AActor *> ResolveSubjectActors(ECondSubject Subject, AActor *Owner, AActor *Target) const;
 
 	/** Find existing effect by ID on actor */
 	FActiveSkillEffect *FindEffectByID(AActor *Actor, int32 EffectID);

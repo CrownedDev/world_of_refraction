@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Combat/Defense/DefenseDifficulty.h"
 #include "Combat/TargetType.h"
@@ -27,6 +28,7 @@
 class UTexture2D;
 class UCharacterData;
 class UAnimMontage;
+class UEffectDefinition;
 
 /**
  * One authored per-hit damage exception (D1). HitNumber is 1-based.
@@ -175,13 +177,24 @@ public:
 
     // ==================== EFFECTS ====================
 
-    /**
-     * Effects applied by this skill (max LoadoutConstants::MAX_SKILL_EFFECTS).
-     * Each effect carries its own target, condition, and timing.
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
-              meta = (TitleProperty = "EffectType"))
-    TArray<FSkillEffect> Effects;
+    /** Referenced effect bundles (author once as a UEffectDefinition, point several
+     *  skills at the same asset). The skill's effects come entirely from these bundles;
+     *  resolved into GetAllEffects() each gather (live link). Null/unloaded entries are
+     *  skipped. The per-definition effect/payload cap for stable-ID packing lives on
+     *  UEffectDefinition::IsDataValid, not here (a skill may reference many bundles). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
+    TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
+
+    /** The full applied set, by value: every effect flattened from ReferencedEffects.
+     *  The cast gather and the effect-classification gates read this. Compacting:
+     *  null/unloaded references are skipped. */
+    UFUNCTION(BlueprintCallable, Category = "Effects")
+    TArray<FSkillEffect> GetAllEffects() const;
+
+    /** Def-identity carrier (R1): same flatten as GetAllEffects(), but each effect is
+     *  tagged with its source def's id + bundle index so R2's apply path can pack a
+     *  stable per-definition EffectID. Additive — nothing reads this yet. */
+    TArray<FGatheredEffect> GetAllEffectsGathered() const;
 
     // ============================================================
     // Folded from UCastableSkillDataBase at the base merge — all three
@@ -320,9 +333,6 @@ public:
     // ==================== EFFECT HELPERS ====================
 
     UFUNCTION(BlueprintPure, Category = "Skill|Effects")
-    TArray<FSkillEffect> GetEffectsForCondition(ESkillTrigger Condition) const;
-
-    UFUNCTION(BlueprintPure, Category = "Skill|Effects")
     bool HasDrainEffect() const;
 
     UFUNCTION(BlueprintPure, Category = "Skill|Effects")
@@ -390,6 +400,5 @@ public:
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-    virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
 #endif
 };

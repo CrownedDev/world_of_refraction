@@ -9,6 +9,8 @@
 #include "Combat/TargetType.h"
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/FSkillCondition.h"
+#include "Skills/Effects/FSkillEffectPayload.h"
 #include "FSkillEffect.generated.h"
 
 /**
@@ -27,117 +29,40 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 {
     GENERATED_BODY()
 
-    // ==================== EFFECT TYPE ====================
-
-    /** What effect to apply (buff, debuff, restore, etc.) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-    ESkillEffectType EffectType = ESkillEffectType::None;
-
-    // ==================== MAGNITUDE ====================
-
-    /**
-     * Effect strength:
-     * - For buffs/debuffs: Percentage as decimal (0.2 = 20%)
-     * - For restore/drain: Flat value OR use DrainPercent
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",
-              meta = (ClampMin = "0.0"))
-    float Magnitude = 0.0f;
-
-    /**
-     * Flat value, used for absolute amounts (e.g. 30 = 30 HP per turn for DOT).
-     * Distinct from Magnitude, which is decimal percent (0.2 = 20%).
-     * Authors: use Value for flat amounts (DOT damage, heal HP), use Magnitude
-     * for percentages (buff/debuff %). Don't set both on the same effect.
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect", meta = (ClampMin = "0"))
-    int32 Value = 0;
-
-    /** Duration in turns (0 = instant effect like heal/damage) */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",
-              meta = (ClampMin = "0"))
-    int32 Duration = 0;
-
-    // ==================== TARGETING ====================
-
-    /** Who receives this effect */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")
-    ETargetType Target = ETargetType::Enemy;
-
-    /** How many recipients of the Target role this effect hits. Single = 1,
-     *  Double = exactly 2 (auto-resolved for passive effects), All = every valid
-     *  recipient. Authored per-effect; re-authored by hand on legacy assets. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")
-    ETargetCount TargetCount = ETargetCount::Single;
-
-    // ==================== CONDITION ====================
+    // ==================== EFFECT ====================
 
     /** Optional display name for passive-style effects shown in UI. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     FString EffectName = TEXT("");
 
-    /** When does this effect trigger (source-side condition). */
+    // ==================== DYNAMIC (Conditions[] + Payloads[]) ====================
+
+    /** Condition group: per-entry AND/OR + source/target side (FSkillCondition).
+     *  Empty == Always (unconditional). The single source of truth for gating. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
-    ESkillTrigger Condition = ESkillTrigger::Always;
+    TArray<FSkillCondition> Conditions;
 
-    /** Auto-set by PostSerialize — true when Condition uses a threshold value.
-     *  Drives EditCondition gating for ConditionThreshold. Do not edit manually. */
-    UPROPERTY()
-    bool bConditionUsesThreshold = false;
+    /** Payload list: one effect may carry several payloads (FSkillEffectPayload).
+     *  Each payload is one applied effect (type/value/duration/target). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    TArray<FSkillEffectPayload> Payloads;
 
-    /** HP or Energy % threshold for the source trigger (0..100). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
-              meta = (EditCondition = "bConditionUsesThreshold",
-                      EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
-    float ConditionThreshold = 30.0f;
+    // ==================== STACKING ====================
 
-    /** Secondary source-side condition, combined with Condition via AND/OR. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
-              meta = (EditCondition = "Condition != ESkillTrigger::None && Condition != ESkillTrigger::Always",
-                      EditConditionHides))
-    ESkillTrigger SecondaryCondition = ESkillTrigger::None;
+    /** Multiple applications stack (up to MaxStacks) instead of refreshing duration.
+     *  Per-effect (shared across payloads). Default false = today's behaviour. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+    bool bStackable = false;
 
-    /** Auto-set by PostSerialize — true when SecondaryCondition uses a threshold. */
-    UPROPERTY()
-    bool bSecondaryConditionUsesThreshold = false;
+    /** Max stacks when bStackable. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking",
+              meta = (EditCondition = "bStackable", ClampMin = "1", ClampMax = "99"))
+    int32 MaxStacks = 3;
 
-    /** HP or Energy % threshold for the secondary source trigger (0..100). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
-              meta = (EditCondition = "bSecondaryConditionUsesThreshold",
-                      EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
-    float SecondaryThreshold = 30.0f;
-
-    /** AND = both source conditions must hold. OR = either is enough. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
-              meta = (EditCondition = "SecondaryCondition != ESkillTrigger::None",
-                      EditConditionHides))
-    bool bRequireBothConditions = true;
-
-    /** Condition that must hold on the TARGET for the effect to apply. */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
-    ESkillTrigger TargetCondition = ESkillTrigger::None;
-
-    /** Auto-set by PostSerialize — true when TargetCondition uses a threshold. */
-    UPROPERTY()
-    bool bTargetConditionUsesThreshold = false;
-
-    /** HP or Energy % threshold for the target condition (0..100). */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger",
-              meta = (EditCondition = "bTargetConditionUsesThreshold",
-                      EditConditionHides, ClampMin = "0.0", ClampMax = "100.0"))
-    float TargetThreshold = 100.0f;
-
-    // ==================== DRAIN ====================
-
-    /**
-     * For drain effects (HealthRestore/EnergyRestore with OnHit):
-     * Percentage of damage dealt that converts to restore (0.3 = 30%)
-     * Only used when Condition is OnHit and EffectType is a restore type
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drain",
-              meta = (ClampMin = "0.0", ClampMax = "1.0",
-                      EditCondition = "Condition == ESkillTrigger::OnHit"))
-    float DrainPercent = 0.0f;
+    /** Applies at most once per combat (keyed on the stable EffectID). Re-application
+     *  is rejected before stacking/refresh. Default false = today's behaviour. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+    bool bFiresOncePerMatch = false;
 
     // ==================== CONSTRUCTORS ====================
 
@@ -145,222 +70,247 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
     }
 
-    FSkillEffect(ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration,
-                 ETargetType InTarget, ESkillTrigger InCondition)
-        : EffectType(InType), Magnitude(InMagnitude), Value(InValue), Duration(InDuration), Target(InTarget), Condition(InCondition), DrainPercent(0.0f)
-    {
-    }
-
     // ==================== HELPERS ====================
 
-    /** Is this effect valid (has a type set)? */
+    // Every classifier reads the new Payloads[]/Conditions[] arrays directly.
+    // Empty Conditions[] == Always (unconditional); empty Payloads[] == no effect.
+
+    /** Is this effect valid? Any payload typed. */
     bool IsValid() const
     {
-        return EffectType != ESkillEffectType::None;
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (P.EffectType != ESkillEffectType::None) return true;
+        }
+        return false;
     }
 
-    /** Is this a buff effect? Delegates to the shared single-source classifier. */
+    /** Buff if ANY payload classifies as a buff. */
     bool IsBuff() const
     {
-        return SkillEffectClassification::IsBuff(EffectType, Magnitude);
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude)) return true;
+        }
+        return false;
     }
 
-    /** Is this a debuff effect? Delegates to the shared single-source classifier. */
+    /** Debuff if ANY payload classifies as a debuff. */
     bool IsDebuff() const
     {
-        return SkillEffectClassification::IsDebuff(EffectType, Magnitude);
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude)) return true;
+        }
+        return false;
     }
 
-    /** Is this a restore effect? */
+    /** Restore if ANY payload is Health/EnergyRestore. */
     bool IsRestore() const
     {
-        return EffectType == ESkillEffectType::HealthRestore ||
-               EffectType == ESkillEffectType::EnergyRestore;
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (P.EffectType == ESkillEffectType::HealthRestore ||
+                P.EffectType == ESkillEffectType::EnergyRestore) return true;
+        }
+        return false;
     }
 
-    /** Is this a drain effect (restore that scales with damage dealt)? */
+    /** Drain: a restore payload with DrainPercent>0 AND some source-side OnHit condition. */
     bool IsDrain() const
     {
-        return IsRestore() && DrainPercent > 0.0f && Condition == ESkillTrigger::OnHit;
+        bool bDrainPayload = false;
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+                                   P.EffectType == ESkillEffectType::EnergyRestore);
+            if (bRestore && P.DrainPercent > 0.0f) { bDrainPayload = true; break; }
+        }
+        bool bOnHitSource = false;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (IsOwnerSide(C.Subject) && C.Trigger == ESkillTrigger::OnHit) { bOnHitSource = true; break; }
+        }
+        return bDrainPayload && bOnHitSource;
     }
 
-    /** Is this effect instant (Duration == 0)? */
+    /** Instant if every payload has Duration == 0. */
     bool IsInstant() const
     {
-        return Duration == 0;
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (P.Duration != 0) return false;
+        }
+        return true;
     }
 
-    /** Is this effect conditional (not Always, or has a secondary/target-side check)? */
+    /** Conditional if the condition group is non-empty (empty == Always / unconditional). */
     bool IsConditional() const
     {
-        return Condition != ESkillTrigger::Always
-            || SecondaryCondition != ESkillTrigger::None
-            || TargetCondition != ESkillTrigger::None;
+        return Conditions.Num() > 0;
     }
 
-    /** Does this effect carry a target-side condition? */
+    /** Carries a target-side condition: any target-side (Target / TargetTeam) entry. */
     bool HasTargetCondition() const
     {
-        return TargetCondition != ESkillTrigger::None;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (IsTargetSide(C.Subject)) return true;
+        }
+        return false;
     }
 
-    /** Does this effect carry a secondary source-side condition? */
+    /** Carries a secondary source-side condition: 2+ source-side entries. */
     bool HasSecondaryCondition() const
     {
-        return SecondaryCondition != ESkillTrigger::None;
+        int32 SourceConds = 0;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (IsOwnerSide(C.Subject)) ++SourceConds;
+        }
+        return SourceConds >= 2;
     }
 
     /** Has a trigger condition (source-side non-Always or target-side). The complement
      *  is a STARTING effect: gear effects with no condition apply once at combat start
-     *  (GetStartingEffects), then live as normal clearable effects. NOTE: distinct from
-     *  IsConditional() above, which additionally counts SecondaryCondition — a
-     *  secondary-condition-only effect is conditional there but still a starting
-     *  effect here. */
+     *  (GetStartingEffects), then live as normal clearable effects. Distinct from
+     *  IsConditional(), which counts any non-empty group. */
     bool IsConditionalEffect() const
     {
-        return Condition != ESkillTrigger::Always
-            || TargetCondition != ESkillTrigger::None;
-    }
-
-    /** Does this effect target self? */
-    bool TargetsSelf() const
-    {
-        return Target == ETargetType::Self;
-    }
-
-    /** Does this effect target allies? */
-    bool TargetsAllies() const
-    {
-        return Target == ETargetType::Ally;
-    }
-
-    /** Does this effect target enemies? */
-    bool TargetsEnemies() const
-    {
-        return Target == ETargetType::Enemy;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (IsTargetSide(C.Subject)) return true;
+            if (C.Trigger != ESkillTrigger::Always) return true;
+        }
+        return false;
     }
 
     // ==================== DEBUG ====================
 
-    /** Get a description string for debug/UI */
+    /** Get a description string for debug/UI. Renders the Conditions[]/Payloads[] shape. */
     FString GetDescription() const
     {
-        if (!IsValid())
-        {
-            return TEXT("No Effect");
-        }
-
         FString Desc;
-
-        // Optional named-passive prefix.
         if (!EffectName.IsEmpty())
         {
             Desc = EffectName + TEXT(": ");
         }
 
-        // Effect type and magnitude
-        const UEnum *StatusEnum = StaticEnum<ESkillEffectType>();
-        FString TypeName = StatusEnum ? StatusEnum->GetDisplayNameTextByValue(static_cast<int64>(EffectType)).ToString() : TEXT("Unknown");
-
-        if (IsDrain())
+        // Payloads — comma-joined.
+        if (Payloads.Num() == 0)
         {
-            Desc += FString::Printf(TEXT("%.0f%% of damage as %s"),
-                                    DrainPercent * 100.0f,
-                                    *TypeName);
-        }
-        else if (Value != 0)
-        {
-            Desc += FString::Printf(TEXT("%s %d"), *TypeName, Value);
-        }
-        else if (Magnitude != 0.0f)
-        {
-            if (IsBuff() || IsDebuff())
-            {
-                Desc += FString::Printf(TEXT("%s %.0f%%"), *TypeName, Magnitude * 100.0f);
-            }
-            else
-            {
-                Desc += FString::Printf(TEXT("%s %.0f"), *TypeName, Magnitude);
-            }
+            Desc += TEXT("(no payload)");
         }
         else
         {
-            Desc += TypeName;
+            for (int32 i = 0; i < Payloads.Num(); ++i)
+            {
+                if (i > 0) Desc += TEXT(", ");
+                Desc += DescribePayload(Payloads[i]);
+            }
         }
 
-        // Duration
-        if (Duration > 0)
-        {
-            Desc += FString::Printf(TEXT(" for %d turn%s"),
-                                    Duration,
-                                    Duration > 1 ? TEXT("s") : TEXT(""));
-        }
-
-        // Target
-        const UEnum *TargetEnum = StaticEnum<ETargetType>();
-        FString TargetName = TargetEnum ? TargetEnum->GetDisplayNameTextByValue(static_cast<int64>(Target)).ToString() : TEXT("Unknown");
-        Desc += FString::Printf(TEXT(" → %s"), *TargetName);
-
-        // Condition (source-side)
+        // Conditions — source-side joined by each entry's AND/OR (a leading Always
+        // contributes nothing, matching the legacy renderer); target-side as [target: …].
         const UEnum *TriggerEnum = StaticEnum<ESkillTrigger>();
-        if (Condition != ESkillTrigger::Always)
+        auto RenderCond = [TriggerEnum](const FSkillCondition &C) -> FString
         {
-            FString ConditionName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(Condition)).ToString() : TEXT("Unknown");
-            if (SkillTriggerUtils::IsThresholdTrigger(Condition))
+            FString Name = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(C.Trigger)).ToString() : TEXT("Unknown");
+            return SkillTriggerUtils::IsThresholdTrigger(C.Trigger)
+                       ? FString::Printf(TEXT("%s %.0f%%"), *Name, C.Threshold)
+                       : Name;
+        };
+
+        FString SourceStr;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (IsTargetSide(C.Subject) || C.Trigger == ESkillTrigger::Always) continue;
+            if (!SourceStr.IsEmpty())
             {
-                Desc += FString::Printf(TEXT(" (%s %.0f%%)"), *ConditionName, ConditionThreshold);
+                SourceStr += (C.Combine == ECondCombine::And) ? TEXT(" AND ") : TEXT(" OR ");
             }
-            else
-            {
-                Desc += FString::Printf(TEXT(" (%s)"), *ConditionName);
-            }
+            SourceStr += RenderCond(C);
+        }
+        if (!SourceStr.IsEmpty())
+        {
+            Desc += FString::Printf(TEXT(" (%s)"), *SourceStr);
         }
 
-        // Secondary source-side condition, joined by AND / OR
-        if (HasSecondaryCondition())
+        for (const FSkillCondition &C : Conditions)
         {
-            FString SecondaryName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(SecondaryCondition)).ToString() : TEXT("Unknown");
-            const TCHAR *Joiner = bRequireBothConditions ? TEXT("AND") : TEXT("OR");
-            if (SkillTriggerUtils::IsThresholdTrigger(SecondaryCondition))
-            {
-                Desc += FString::Printf(TEXT(" %s (%s %.0f%%)"), Joiner, *SecondaryName, SecondaryThreshold);
-            }
-            else
-            {
-                Desc += FString::Printf(TEXT(" %s (%s)"), Joiner, *SecondaryName);
-            }
-        }
-
-        // Target-side condition
-        if (HasTargetCondition())
-        {
-            FString TargetCondName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(TargetCondition)).ToString() : TEXT("Unknown");
-            if (SkillTriggerUtils::IsThresholdTrigger(TargetCondition))
-            {
-                Desc += FString::Printf(TEXT(" [target: %s %.0f%%]"), *TargetCondName, TargetThreshold);
-            }
-            else
-            {
-                Desc += FString::Printf(TEXT(" [target: %s]"), *TargetCondName);
-            }
+            if (IsOwnerSide(C.Subject)) continue;
+            Desc += FString::Printf(TEXT(" [target: %s]"), *RenderCond(C));
         }
 
         return Desc;
     }
 
+    /** Render a single payload (type + value/magnitude/drain, duration, target + count). */
+    FString DescribePayload(const FSkillEffectPayload &P) const
+    {
+        const UEnum *StatusEnum = StaticEnum<ESkillEffectType>();
+        FString TypeName = StatusEnum ? StatusEnum->GetDisplayNameTextByValue(static_cast<int64>(P.EffectType)).ToString() : TEXT("Unknown");
+
+        FString S;
+        const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+                               P.EffectType == ESkillEffectType::EnergyRestore);
+        if (bRestore && P.DrainPercent > 0.0f)
+        {
+            S = FString::Printf(TEXT("%.0f%% of damage as %s"), P.DrainPercent * 100.0f, *TypeName);
+        }
+        else if (P.Value != 0)
+        {
+            S = FString::Printf(TEXT("%s %d"), *TypeName, P.Value);
+        }
+        else if (P.Magnitude != 0.0f)
+        {
+            if (SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude) ||
+                SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude))
+            {
+                S = FString::Printf(TEXT("%s %.0f%%"), *TypeName, P.Magnitude * 100.0f);
+            }
+            else
+            {
+                S = FString::Printf(TEXT("%s %.0f"), *TypeName, P.Magnitude);
+            }
+        }
+        else
+        {
+            S = TypeName;
+        }
+
+        if (P.Duration > 0)
+        {
+            S += FString::Printf(TEXT(" for %d turn%s"), P.Duration, P.Duration > 1 ? TEXT("s") : TEXT(""));
+        }
+
+        const UEnum *TargetEnum = StaticEnum<ETargetType>();
+        FString TargetName = TargetEnum ? TargetEnum->GetDisplayNameTextByValue(static_cast<int64>(P.Target)).ToString() : TEXT("Unknown");
+        const UEnum *CountEnum = StaticEnum<ETargetCount>();
+        FString CountName = CountEnum ? CountEnum->GetDisplayNameTextByValue(static_cast<int64>(P.TargetCount)).ToString() : TEXT("?");
+        S += FString::Printf(TEXT(" → %s (%s)"), *TargetName, *CountName);
+
+        return S;
+    }
+
     // ==================== SERIALIZATION ====================
 
-    /** Syncs the b*UsesThreshold flags with the current Condition /
-     *  SecondaryCondition / TargetCondition on every save AND load. The owning
-     *  UObject's PostEditChangeChainProperty runs the same sync on each
-     *  in-editor property change, so threshold-field gating stays live without
-     *  needing a save/reload. See USkillDataBase / UEquipmentDataBase / UEvolutionItemData
-     *  implementations. */
+    /** Single source of truth for threshold-visibility gating. Sets each
+     *  FSkillCondition::bUsesThreshold in Conditions[] so the editor's Threshold
+     *  EditCondition stays live. Called by PostSerialize (load/save) and the three
+     *  owners' PostEditChangeChainProperty (in-editor edits). */
+    void SyncThresholdFlags()
+    {
+        for (FSkillCondition &C : Conditions)
+        {
+            C.bUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(C.Trigger);
+        }
+    }
+
+    /** Syncs threshold-visibility flags on load/save. */
     void PostSerialize(const FArchive &Ar)
     {
-        bConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Condition);
-        bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(SecondaryCondition);
-        bTargetConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(TargetCondition);
+        SyncThresholdFlags();
     }
 };
 

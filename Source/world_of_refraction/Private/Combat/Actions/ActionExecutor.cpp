@@ -9,6 +9,8 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
+#include "Skills/Effects/EffectIdentity.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -2100,7 +2102,7 @@ void UActionExecutor::FinalizeAsyncAction()
 		// expose Effects[] in the same shape after Job 2. Runs post-defense,
 		// post-damage so Result.TotalDamageDealt / bWasCritical / bCausedDeath
 		// are populated for OnHit / OnCrit / OnKill condition checks.
-		const TArray<FSkillEffect> *EffectsToApply = nullptr;
+		TArray<FGatheredEffect> EffectsToApply; // carrier — each effect tagged with its def id + bundle index for per-definition ID packing
 		FString SourceName;
 
 		switch (Action.ActionType)
@@ -2109,7 +2111,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer.
 			if (USkillDataBase *Skill = ResolveActionSkill(Action))
 			{
-				EffectsToApply = &Skill->Effects;
+				EffectsToApply = Skill->GetAllEffectsGathered();
 				SourceName = Skill->Name;
 			}
 			break;
@@ -2117,7 +2119,7 @@ void UActionExecutor::FinalizeAsyncAction()
 		case EActionType::Spell:
 			if (Action.SpellData)
 			{
-				EffectsToApply = &Action.SpellData->Effects;
+				EffectsToApply = Action.SpellData->GetAllEffectsGathered();
 				SourceName = Action.SpellData->Name;
 			}
 			break;
@@ -2126,7 +2128,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			break;
 		}
 
-		if (EffectsToApply && EffectsToApply->Num() > 0)
+		if (EffectsToApply.Num() > 0)
 		{
 			// Resolve the cast's effective element for sweep-4's status-bar
 			// manipulation effects (StatusIncrease / StatusDecrease). Spells
@@ -2162,10 +2164,13 @@ void UActionExecutor::FinalizeAsyncAction()
 				}
 			}
 
+			// Def-identity packing: each gathered effect carries its def id + bundle index,
+			// so cast EffectIDs window per-definition (same def cast from any skill merges).
+			// No per-skill SourceID needed.
 			ApplySkillEffects(
 				Executor,
 				FinalResult.AffectedTargets,
-				*EffectsToApply,
+				EffectsToApply,
 				SourceName,
 				FinalResult,
 				FinalResult.bCausedDeath,
@@ -5894,7 +5899,7 @@ void UActionExecutor::GetEffectTargets(
 void UActionExecutor::ApplySkillEffects(
 	AActor *User,
 	const TArray<AActor *> &Targets,
-	const TArray<FSkillEffect> &Effects,
+	const TArray<FGatheredEffect> &Effects,
 	const FString &SourceName,
 	FActionResult &Result,
 	bool bCausedDeath,
@@ -5919,177 +5924,215 @@ void UActionExecutor::ApplySkillEffects(
 	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
-	for (const FSkillEffect &Effect : Effects)
+	// Offensive-only event gate, shared by an effect's whole payload bundle. Only
+	// action-RESULT triggers gate apply-now here. Defensive (OnParry/OnDodge/OnBlock/
+	// OnDefend), threshold (OnHP*/OnEnergy*), and turn (OnTurnStart/End/OnBattleStart)
+	// triggers are NOT resolvable against this action's Result — they fall to else->false
+	// and gate via the defense system / per-turn SkillEffectManager, not this site.
+	auto EventMet = [&](ESkillTrigger Trigger) -> bool
 	{
+		switch (Trigger)
+		{
+		case ESkillTrigger::Always: return true;
+		case ESkillTrigger::OnHit:  return Result.TotalDamageDealt > 0;
+		case ESkillTrigger::OnCrit: return Result.bWasCritical;
+		case ESkillTrigger::OnKill: return bCausedDeath;
+		default:                    return false;
+		}
+	};
+
+	for (int32 EffectIndex = 0; EffectIndex < Effects.Num(); ++EffectIndex)
+	{
+		const FSkillEffect &Effect = Effects[EffectIndex].Effect;
 		if (!Effect.IsValid())
 		{
 			continue;
 		}
 
-		// Check condition
-		bool bConditionMet = false;
-		switch (Effect.Condition)
-		{
-		case ESkillTrigger::Always:
-			bConditionMet = true;
-			break;
-
-		case ESkillTrigger::OnHit:
-			bConditionMet = Result.TotalDamageDealt > 0;
-			break;
-
-		case ESkillTrigger::OnCrit:
-			bConditionMet = Result.bWasCritical;
-			break;
-
-		case ESkillTrigger::OnKill:
-			bConditionMet = bCausedDeath;
-			break;
-
-		default:
-			// Other triggers not applicable to ability effects
-			bConditionMet = false;
-			break;
-		}
+		// Event gate — once per effect (the condition group gates the whole bundle).
+		// Always the AND/OR partition fold over source-side conditions (same shape as
+		// SkillEffectManager::IsTriggerConditionMet), with EventMet (action-result) instead
+		// of IsSingleTriggerMet (actor-state). Empty Conditions[] == Always (unconditional)
+		// -> the fold yields true (bAllAndMet stays true, no OR group), matching the old
+		// EventMet(Always). Target-side conditions ride the runtime effect, not gated here.
+		// Source-side AND/OR partition (shared fold). Target-side conditions are skipped
+		// (Participates = IsOwnerSide) — they ride the runtime effect, not gated here.
+		const bool bConditionMet = EvaluateConditionGroup(
+			Effect.Conditions,
+			[](const FSkillCondition &C) { return IsOwnerSide(C.Subject); },
+			[&](const FSkillCondition &C) { return EventMet(C.Trigger); });
 
 		if (!bConditionMet)
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Effect %s condition not met"),
-				   *UEnum::GetValueAsString(Effect.EffectType));
+			UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Effect %d condition not met"), EffectIndex);
 			continue;
 		}
 
-		// Determine effect targets
-		TArray<AActor *> EffectTargets;
-		GetEffectTargets(User, Targets, Effect.Target, Effect.TargetCount, UserTeam, EffectTargets);
-
-		if (EffectTargets.Num() == 0)
+		// Does the effect carry an OnHit source condition? Drain payloads need it.
+		// Reads the N-condition group directly (migrated effects carry OnHit in Conditions[]).
+		bool bOnHitSource = false;
+		for (const FSkillCondition &C : Effect.Conditions)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No targets found for effect %s"),
-				   *UEnum::GetValueAsString(Effect.EffectType));
-			continue;
-		}
-
-		// Handle drain effects specially
-		if (Effect.IsDrain() && Effect.Condition == ESkillTrigger::OnHit)
-		{
-			int32 DrainAmount = FMath::RoundToInt(Result.TotalDamageDealt * Effect.DrainPercent);
-
-			if (Effect.EffectType == ESkillEffectType::HealthRestore)
+			if (IsOwnerSide(C.Subject) && C.Trigger == ESkillTrigger::OnHit)
 			{
-				// Heal the user
-				UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>();
-				if (CharComp)
-				{
-					CharComp->ServerHeal(DrainAmount);
-
-					OnHealingDone.Broadcast(User, User, DrainAmount);
-					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-						   *User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
-				}
+				bOnHitSource = true;
+				break;
 			}
-			else if (Effect.EffectType == ESkillEffectType::EnergyRestore)
-			{
-				// Restore energy to user
-				UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>();
-				if (CharComp)
-				{
-					CharComp->ServerGainEnergy(DrainAmount);
-					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain restored %s for %d EP (%.0f%% of %d damage)"),
-						   *User->GetName(), DrainAmount, Effect.DrainPercent * 100.0f, Result.TotalDamageDealt);
-				}
-			}
-			continue;
 		}
 
-		// Per-effect element: status-bar manipulation effects (sweep-4
-		// StatusIncrease/StatusDecrease) use the resolved cast element so the
-		// gauge fills/drains in the correct element. SPELL-authored DOTs now
-		// inherit the cast element too (feature/authored-skill-dots — deliberate
-		// change from the historical always-Generic invariant): a Fire spell's
-		// authored burn is Fire. Ability/attack DOTs route through the
-		// physical-type mapping below instead. Every OTHER effect type stays
-		// Generic to preserve historical behaviour.
-		const ESpellElement EffectElement =
-			(Effect.EffectType == ESkillEffectType::StatusIncrease ||
-			 Effect.EffectType == ESkillEffectType::StatusDecrease ||
-			 (ActionKind == EActionType::Spell && Effect.EffectType == ESkillEffectType::DOT))
-				? ResolvedCastElement
-				: ESpellElement::Generic;
+		// One effect yields N payload applications. Migration guarantees every loaded
+		// effect has Payloads[] populated; nothing constructs a runtime FSkillEffect that
+		// reaches here, so no synthetic fallback is needed.
+		const TArray<FSkillEffectPayload> &Payloads = Effect.Payloads;
 
-		// For instant gauge manipulators (Value > 0, no need to persist the
-		// effect on the target's active list), the runtime Value field carries
-		// the absolute buildup amount. DOTs also pass authored Value through —
-		// FSkillEffect documents Value as the flat per-tick amount, and the
-		// factory's (Value != 0 ? Value : Magnitude×100) fallback keeps the
-		// Magnitude-authored shape working. Stat-modifier effects keep the
-		// percentage conversion.
-		const int32 RuntimeValue =
-			(Effect.EffectType == ESkillEffectType::StatusIncrease ||
-			 Effect.EffectType == ESkillEffectType::StatusDecrease ||
-			 Effect.EffectType == ESkillEffectType::DOT)
-				? Effect.Value
-				: FMath::RoundToInt(Effect.Magnitude * 100.0f); // existing percentage shape
-
-		// ABILITY/ATTACK authored DoT → physical-type status (Slash→Bleed,
-		// Pierce→ArmorBreak, Impact→Stun) via the existing weapon mapping — NOT
-		// an elemental DoT. The factory owns the status shape (durations 3/2/1,
-		// value derivation); the authored value feeds its buildup input. None
-		// (no weapon resolved) falls through to the legacy Generic shape below.
-		if (ActionKind != EActionType::Spell &&
-			Effect.EffectType == ESkillEffectType::DOT &&
-			PhysicalType != EPhysicalDamageType::None)
+		for (int32 PayloadIndex = 0; PayloadIndex < Payloads.Num(); ++PayloadIndex)
 		{
-			const int32 PhysValue = (Effect.Value != 0)
-										? Effect.Value
-										: FMath::RoundToInt(Effect.Magnitude * 100.0f);
+			const FSkillEffectPayload &P = Payloads[PayloadIndex];
+			if (P.EffectType == ESkillEffectType::None)
+			{
+				continue;
+			}
+
+			// Def-identity cast EffectID: same DEFINITION + effect + payload -> same ID,
+			// regardless of which skill cast it, so a re-cast (or the same def cast from a
+			// different skill) on the same target MERGES via FindEffectByID instead of
+			// stacking a duplicate. Mirrors the equipment packing (id-overflow note lives
+			// on the shared EffectIdentity::PackEffectID helper).
+			const int32 PayloadEffectID = EffectIdentity::PackEffectID(
+				Effects[EffectIndex].DefID, Effects[EffectIndex].BundleIndex, PayloadIndex);
+
+			// Determine effect targets — per payload (Target/TargetCount live on the payload).
+			TArray<AActor *> EffectTargets;
+			GetEffectTargets(User, Targets, P.Target, P.TargetCount, UserTeam, EffectTargets);
+
+			if (EffectTargets.Num() == 0)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No targets found for payload %s"),
+					   *UEnum::GetValueAsString(P.EffectType));
+				continue;
+			}
+
+			// [F] drain — restore that scales with damage dealt. Heals the USER; requires a
+			// valid target (gate above) and an OnHit source condition. Driven by Result.
+			const bool bPayloadRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+										  P.EffectType == ESkillEffectType::EnergyRestore);
+			if (bPayloadRestore && P.DrainPercent > 0.0f && bOnHitSource)
+			{
+				const int32 DrainAmount = FMath::RoundToInt(Result.TotalDamageDealt * P.DrainPercent);
+				if (UCharacterDataComponent *CharComp = User->FindComponentByClass<UCharacterDataComponent>())
+				{
+					if (P.EffectType == ESkillEffectType::HealthRestore)
+					{
+						CharComp->ServerHeal(DrainAmount);
+						OnHealingDone.Broadcast(User, User, DrainAmount);
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
+							   *User->GetName(), DrainAmount, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
+					}
+					else // EnergyRestore
+					{
+						CharComp->ServerGainEnergy(DrainAmount);
+						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain restored %s for %d EP (%.0f%% of %d damage)"),
+							   *User->GetName(), DrainAmount, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
+					}
+				}
+				continue;
+			}
+
+			// Per-payload element: StatusIncrease/Decrease + spell DOT use the resolved cast
+			// element (a Fire spell's authored burn is Fire); every other type stays Generic.
+			const ESpellElement EffectElement =
+				(P.EffectType == ESkillEffectType::StatusIncrease ||
+				 P.EffectType == ESkillEffectType::StatusDecrease ||
+				 (ActionKind == EActionType::Spell && P.EffectType == ESkillEffectType::DOT))
+					? ResolvedCastElement
+					: ESpellElement::Generic;
+
+			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
+			// stat-modifier effects keep the Magnitude*100 percentage shape.
+			const int32 RuntimeValue =
+				(P.EffectType == ESkillEffectType::StatusIncrease ||
+				 P.EffectType == ESkillEffectType::StatusDecrease ||
+				 P.EffectType == ESkillEffectType::DOT)
+					? P.Value
+					: FMath::RoundToInt(P.Magnitude * 100.0f);
+
+			// [I] ABILITY/ATTACK authored DoT -> physical-type status (Slash->Bleed,
+			// Pierce->ArmorBreak, Impact->Stun) via the weapon mapping. Event-gated only —
+			// does NOT carry the N-condition group (no per-turn re-gating).
+			if (ActionKind != EActionType::Spell &&
+				P.EffectType == ESkillEffectType::DOT &&
+				PhysicalType != EPhysicalDamageType::None)
+			{
+				const int32 PhysValue = (P.Value != 0)
+											? P.Value
+											: FMath::RoundToInt(P.Magnitude * 100.0f);
+				for (AActor *EffectTarget : EffectTargets)
+				{
+					// Authored path: ALWAYS pass a >0 override so the factory's canonical
+					// per-status defaults can't apply; authored Duration=0 -> 1 turn (a
+					// visibly-wrong nub that surfaces the authoring mistake).
+					FActiveSkillEffect PhysEffect = FActiveSkillEffect::CreateFromPhysicalDamageType(
+						SourceName,
+						PayloadEffectID,
+						static_cast<uint8>(PhysicalType),
+						PhysValue,
+						/*InfusionMultiplier*/ 1.0f,
+						/*HitCount*/ 1,
+						/*DurationOverride*/ FMath::Max(1, P.Duration));
+
+					// Def-identity: use the clean Space-A id, discarding the factory's WeaponID*10+7
+						// re-pack (which would put this cast DoT in a *1000 space and risk a
+						// Space-B collision). Same def's physical-DoT merges.
+						PhysEffect.EffectID = PayloadEffectID;
+
+						StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
+					Result.StatusEffectsApplied++;
+
+					UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s (physical-type DoT) to %s"),
+						   *PhysEffect.EffectName, *EffectTarget->GetName());
+				}
+				continue;
+			}
+
+			// [J] default status effect — carries the shared N-condition group.
 			for (AActor *EffectTarget : EffectTargets)
 			{
-				// Authored path: ALWAYS pass a >0 override so the factory's canonical
-				// per-status defaults (passive-proc territory) can never apply here.
-				// Authored Duration=0 resolves to 1 turn — a visibly-wrong nub that
-				// surfaces the authoring mistake instead of masking it as a plausible
-				// 3-turn bleed. Mirrors the spell path's (Duration > 0 ? Duration : 1).
-				FActiveSkillEffect PhysEffect = FActiveSkillEffect::CreateFromPhysicalDamageType(
-					SourceName,
-					GetUniqueEffectID(),
-					static_cast<uint8>(PhysicalType),
-					PhysValue,
-					/*InfusionMultiplier*/ 1.0f,
-					/*HitCount*/ 1,
-					/*DurationOverride*/ FMath::Max(1, Effect.Duration));
+				FActiveSkillEffect StatusEffect = FActiveSkillEffect::CreateFromSpellEffect(
+					SourceName + TEXT(" Effect"),
+					PayloadEffectID,
+					P.EffectType,
+					P.Magnitude,
+					RuntimeValue,
+					P.Duration,
+					EffectElement,
+					ESkillEffectTiming::StartOfOwnTurn);
 
-				StatusMgr->ApplyEffect(EffectTarget, PhysEffect, User, SourceName, UserTeam);
+				StatusEffect.Conditions = Effect.Conditions; // D1: carry the shared condition group
+
+				// Reproduce the legacy OnTrigger ProcessTiming promotion from the new shape:
+				// any non-Always source-side condition makes the manager re-evaluate the
+				// trigger (was driven by the now-removed SourceCondition arg). Migrated
+				// effects carry the primary in Conditions[0], so this matches the old check.
+				for (const FSkillCondition &C : StatusEffect.Conditions)
+				{
+					if (IsOwnerSide(C.Subject) && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
+					{
+						StatusEffect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+						break;
+					}
+				}
+
+				// D2: authored stacking / fires-once (per-effect, shared across payloads).
+				StatusEffect.bCanStack = Effect.bStackable;
+				StatusEffect.MaxStacks = Effect.MaxStacks;
+				StatusEffect.bFiresOncePerMatch = Effect.bFiresOncePerMatch;
+
+				StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 				Result.StatusEffectsApplied++;
 
-				UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s (physical-type DoT) to %s"),
-					   *PhysEffect.EffectName, *EffectTarget->GetName());
+				UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s to %s"),
+					   *Effect.GetDescription(), *EffectTarget->GetName());
 			}
-			continue;
-		}
-
-		// Apply effect to each target as a status effect
-		for (AActor *EffectTarget : EffectTargets)
-		{
-			FActiveSkillEffect StatusEffect = FActiveSkillEffect::CreateFromSpellEffect(
-				SourceName + TEXT(" Effect"),
-				GetUniqueEffectID(),
-				Effect.EffectType,
-				Effect.Magnitude,
-				RuntimeValue,
-				Effect.Duration,
-				EffectElement,
-				ESkillEffectTiming::StartOfOwnTurn,
-				Effect.Condition,
-				Effect.ConditionThreshold,
-				Effect.TargetCondition,
-				Effect.TargetThreshold);
-
-			StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
-			Result.StatusEffectsApplied++;
-
-			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Applied %s to %s"),
-				   *Effect.GetDescription(), *EffectTarget->GetName());
 		}
 	}
 }

@@ -14,6 +14,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FAttachedItem.h"
 #include "Equipment/IEquipmentGenerator.h"
 
@@ -26,6 +27,7 @@
 class UEvolutionItemData;
 class USpellData;
 class UAbilityData;
+class UEffectDefinition;
 class UCharacterData;
 class UTexture2D;
 
@@ -185,11 +187,16 @@ public:
     // USkillEffectManager::ApplyEquipmentEffects (sourced through
     // ULoadoutComponent::GetActiveEffects). Conditional effects await their trigger.
 
+    /** Referenced effect bundles (author once as a UEffectDefinition, point several
+     *  items at the same asset). The item's effects come entirely from these bundles;
+     *  resolved into the by-value Starting/Conditional lists each gather (live link).
+     *  Null/unloaded entries are skipped. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-    TArray<FSkillEffect> Effects;
+    TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
 
+    /** Flattened effect count across the referenced bundles (editor/UI info). */
     UFUNCTION(BlueprintPure, Category = "Effects")
-    int32 GetEffectCount() const { return Effects.Num(); }
+    int32 GetEffectCount() const;
 
     /** Non-conditional effects — applied once at combat start. */
     UFUNCTION(BlueprintPure, Category = "Effects")
@@ -198,6 +205,12 @@ public:
     /** Condition-gated effects — never auto-applied at combat start. */
     UFUNCTION(BlueprintPure, Category = "Effects")
     TArray<FSkillEffect> GetConditionalEffects() const;
+
+    /** Def-identity carriers (R1): same partition as the flat accessors, but each effect
+     *  carries its source def's id + bundle index for R2's per-definition ID packing.
+     *  Additive — nothing reads these yet. */
+    TArray<FGatheredEffect> GetStartingEffectsGathered() const;
+    TArray<FGatheredEffect> GetConditionalEffectsGathered() const;
 
     // ==================== REQUIREMENTS ====================
 
@@ -328,6 +341,5 @@ public:
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-    virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
 #endif
 };
