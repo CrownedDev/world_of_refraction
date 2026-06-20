@@ -1,11 +1,10 @@
 # Innate & BD Spell Pool — Weighted Slot Budget
 
-> **Status: BUILT — pending final PIE sign-off.** (Stays in `docs/Design/`; moves to `Completed/` after merge.)
+> **Status: COMPLETED — built + PIE-verified, merged to main (2026-06-20).**
 > The "tier as slot cost" loadout-economy mechanic for the **Caster innate spell pool and the Broken
 > Darkness pools** — one shared model, one shared constant (BD is double innate). Equipment
 > abilities/spells use a *different* model (flat slot-count by tier — see
-> [`EquipmentSlotTierScaling.md`](./EquipmentSlotTierScaling.md)). When shipped, this moves to
-> `docs/Design/Completed/`.
+> [`EquipmentSlotTierScaling.md`](./EquipmentSlotTierScaling.md)).
 
 ## What changes
 

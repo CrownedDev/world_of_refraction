@@ -2,7 +2,7 @@
 
 > **Status: COMPLETED — built + PIE-verified, merged to main (2026-06-20).**
 > Extends the shared per-tier slot curve to the equipment containers still on flat caps. Companion to
-> [`InnateSpellPoolBudget.md`](../InnateSpellPoolBudget.md) — note the two use **different models**
+> [`InnateSpellPoolBudget.md`](./InnateSpellPoolBudget.md) — note the two use **different models**
 > (see below). BD spell pools are handled separately (all currently default to 6 — pending discussion).
 > When shipped, this moves to `docs/Design/Completed/`.
 
