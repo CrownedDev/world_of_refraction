@@ -1,6 +1,6 @@
 # Equipment Slot Tier Scaling
 
-> **Status: DESIGN-LOCKED, NOT YET BUILT.**
+> **Status: BUILT — pending PIE verification.** (Stays in `docs/Design/`; moves to `Completed/` after PIE sign-off.)
 > Extends the shared per-tier slot curve to the equipment containers still on flat caps. Companion to
 > [`InnateSpellPoolBudget.md`](./InnateSpellPoolBudget.md) — note the two use **different models**
 > (see below). BD spell pools are handled separately (all currently default to 6 — pending discussion).
@@ -9,9 +9,10 @@
 ## What changes
 
 The shared slot curve `AugmentStoneConstants::ATTACHMENT_SLOTS` already drives AbilityStone ability slots
-and gem-crystal weapon spell slots via `GetAttachmentSlotsForTier`. The helper is deliberately generic
-("reusable for spell-slots later"). This extends it to the containers still on flat 6-caps, and **updates
-the curve** to a cleaner shape.
+and gem-crystal weapon spell slots via `GetAttachmentSlotsForTier(FCrystalId)` (which gates on crystal
+type). A new sibling, `CrystalEffectTable::SlotsForContainerTier(EItemTier)`, reads the same curve keyed on
+a container's *own* tier with no crystal-type gate. This extends the curve to the containers still on flat
+6-caps via that sibling, and **updates the curve** to a cleaner shape.
 
 ### New curve
 
@@ -50,20 +51,31 @@ below A.
 - **Locked skills** (conjured weapons' `bAbilitiesLocked`, locked rings' `bSpellsLocked`) — customizable
   count = `SlotCurve(containerTier) − lockedCount`, same subtraction as today against the new cap.
 
-## Build scope (for the survey)
+## Build scope (as built)
 
-- **Update the constant** — `AugmentStoneConstants::ATTACHMENT_SLOTS` to `{1,2,3,4,5,6,6}`.
-- **Weapon abilities** — `FWeaponLoadoutEntry::GetCustomizableAbilityCount()` and `ValidateAbilities` cap
-  move from `MAX_WEAPON_ABILITIES` to `GetAttachmentSlotsForTier(weapon tier)`.
-- **Ring spells** — `FRingLoadoutEntry::GetCustomizableSpellCount()` / `GetAllSpells` cap move from
-  `MAX_RING_SPELLS` to the curve on ring tier.
-- **Evolution spells** — `ResolveSpellSlotCap`'s evolution branch (currently returns the flat ceiling) keys
-  on evolution tier instead.
-- **Validation** — the loadout validators (`FSavedLoadout`, `FWeaponLoadoutEntry`, `FRingLoadoutEntry`)
-  read the new caps.
-- **Debug tooling** — slot readout per container (tier → slots, used/available).
+- **Constant + guard** — `AugmentStoneConstants::ATTACHMENT_SLOTS` set to `{1,2,3,4,5,6,6}`; the endpoint
+  `static_assert` updated (`[0]==1`). New helper `CrystalEffectTable::SlotsForContainerTier(EItemTier)` added
+  alongside the existing `GetAttachmentSlotsForTier(FCrystalId)` (curve shared; no crystal-type gate).
+- **Weapon abilities** — `FWeaponLoadoutEntry::GetCustomizableAbilityCount()` now keys on
+  `SlotsForContainerTier(WeaponEntry.Weapon->Tier)` (moved to the `.cpp` so the header avoids the
+  WeaponData/CrystalEffectTable includes); `ValidateAbilities` inherits it via that function. `MAX_WEAPON_ABILITIES`
+  is the no-weapon fallback.
+- **Weapon native spells** — the two `ResolveSpellSlotCap(attachment, …)` sites in `FWeaponLoadoutEntry.cpp`
+  (`GetAllSpells`, `ValidateSpells`) now pass `SlotsForContainerTier(weapon tier)` **as the `FlatCeiling`
+  argument** — *not* a `ResolveSpellSlotCap` signature change. Gem-keying preserved: gem tier when a gem is
+  attached, weapon tier as the no-gem fall-through, `MAX_SPELL_SLOTS` as the no-weapon ceiling.
+- **Ring spells** — same mechanism: `FRingLoadoutEntry::GetCustomizableSpellCount()` / `GetAllSpells` pass
+  `SlotsForContainerTier(ring tier)` as the `FlatCeiling` to `ResolveSpellSlotCap`. `ValidateSpells` inherits
+  via `GetCustomizableSpellCount`. Gem tier overrides as before; `MAX_RING_SPELLS` is the no-ring fallback.
+- **Evolution spells** — `ResolveSpellSlotCap` was **not** touched (it has no evolution branch — evolution
+  has no attachment crystal). The evolution cap lives in three `LoadoutComponent.cpp` sites
+  (`GetValidationErrors`, `GetValidationFindings`, the `EvolutionOverflow` trim), each now keyed on
+  `SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)`, with `MAX_EVOLUTION_SPELLS` as the
+  no-item fallback.
+- **Debug tooling** — per-container slot readout added to `UInventoryDebug::LogActiveLoadout`
+  (tier, used/cap for weapon abilities + spells, ring spells, evolution spells, and each Resonator ring).
 
-Cluster it — constant + the three cap sites are >3 files; compile between.
+The flat `MAX_*` constants are retained as absolute fallback ceilings, not the live caps.
 
 ## Open / carry-over
 
@@ -79,3 +91,4 @@ Cluster it — constant + the three cap sites are >3 files; compile between.
 | Date | Change | Branch |
 | ---- | ------ | ------ |
 | (pending) | Design locked: shared slot curve updated to {1,2,3,4,5,6,6} and extended to weapon abilities, ring spells, evolution spells (keyed on container tier). Equipment uses flat slot-count-by-tier, distinct from innate's weighted budget. Not yet built. | (tbd) |
+| 2026-06-20 | Built across 5 clusters: curve unified to `{1,2,3,4,5,6,6}` (+ endpoint `static_assert` updated); new `CrystalEffectTable::SlotsForContainerTier(EItemTier)` helper; weapon ability + native (no-gem) spell, ring spell, and evolution spell caps keyed on each container's own tier; gem-keying preserved (gem tier when attached, container tier as the no-gem fall-through); per-container slot readout added to `InventoryDebug`. Flat `MAX_*` constants retained as fallback ceilings. Pending PIE verification. | feature/equipment-slot-tier-scaling |
