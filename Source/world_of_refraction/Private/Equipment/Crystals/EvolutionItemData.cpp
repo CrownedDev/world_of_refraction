@@ -256,22 +256,24 @@ FActionStatModifiers UEvolutionItemData::MapToInfusionModifiers(const FEquipment
 
 // ==================== EFFECT HELPER FUNCTIONS ====================
 
+int32 UEvolutionItemData::GetEffectCount() const
+{
+    int32 Count = 0;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (Def)
+        {
+            Count += Def->Effects.Num();
+        }
+    }
+    return Count;
+}
+
 TArray<FSkillEffect> UEvolutionItemData::GetStartingEffects() const
 {
     TArray<FSkillEffect> Result;
 
-    // Effects is authored only on evolution crystals (EditCondition gated
-    // in the header). Non-evolution crystals have an empty Effects array,
-    // so the loop yields an empty Result for them.
-    for (const FSkillEffect &Effect : Effects)
-    {
-        if (!Effect.IsConditionalEffect())
-        {
-            Result.Add(Effect);
-        }
-    }
-
-    // Resolved referenced bundles, same partition (null/unloaded skipped).
+    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
@@ -294,15 +296,7 @@ TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
 {
     TArray<FSkillEffect> Result;
 
-    for (const FSkillEffect &Effect : Effects)
-    {
-        if (Effect.IsConditionalEffect())
-        {
-            Result.Add(Effect);
-        }
-    }
-
-    // Resolved referenced bundles, same partition (null/unloaded skipped).
+    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
@@ -324,18 +318,6 @@ TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
 TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
 {
     TArray<FGatheredEffect> Result;
-
-    // Transitional inline path: evolution still carries inline Effects[] (P2c pending), so
-    // inline-evo effects window under THIS ITEM's id, not a def id. R2 requires P2c
-    // (inline-evo deletion) — until then this item-id window stands in for a def id.
-    const int32 ItemID = static_cast<int32>(GetUniqueID());
-    for (int32 b = 0; b < Effects.Num(); ++b)
-    {
-        if (!Effects[b].IsConditionalEffect())
-        {
-            Result.Emplace(ItemID, b, Effects[b]);
-        }
-    }
 
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
@@ -359,16 +341,6 @@ TArray<FGatheredEffect> UEvolutionItemData::GetStartingEffectsGathered() const
 TArray<FGatheredEffect> UEvolutionItemData::GetConditionalEffectsGathered() const
 {
     TArray<FGatheredEffect> Result;
-
-    // Transitional inline path — see GetStartingEffectsGathered (R2 requires P2c).
-    const int32 ItemID = static_cast<int32>(GetUniqueID());
-    for (int32 b = 0; b < Effects.Num(); ++b)
-    {
-        if (Effects[b].IsConditionalEffect())
-        {
-            Result.Emplace(ItemID, b, Effects[b]);
-        }
-    }
 
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
@@ -465,11 +437,18 @@ FString UEvolutionItemData::GetEvolutionEffectText() const
     // into Description (Description is the shared crystal-identity sentence).
     // Returns a self-contained sentence ending in "." to match item effect text.
     TArray<FString> EffectNames;
-    for (const FSkillEffect &Effect : Effects)
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
-        if (!Effect.EffectName.IsEmpty())
+        if (!Def)
         {
-            EffectNames.Add(Effect.EffectName);
+            continue;
+        }
+        for (const FSkillEffect &E : Def->Effects)
+        {
+            if (!E.EffectName.IsEmpty())
+            {
+                EffectNames.Add(E.EffectName);
+            }
         }
     }
 
@@ -554,19 +533,6 @@ void UEvolutionItemData::PostEditChangeProperty(FPropertyChangedEvent &PropertyC
     {
         bIsRefined = false;
         UE_LOG(LogTemp, Warning, TEXT("[ItemData] Quartz is consumable-only — cleared bIsRefined on %s"), *GetName());
-    }
-}
-
-void UEvolutionItemData::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-    // Refresh threshold-visibility flags on every effect so EditCondition gating
-    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
-    // to in-editor edits of the matching ESkillTrigger field.
-    for (FSkillEffect &Effect : Effects)
-    {
-        Effect.SyncThresholdFlags();
     }
 }
 

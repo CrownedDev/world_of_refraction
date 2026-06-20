@@ -193,10 +193,6 @@ public:
 
         // ==================== EFFECTS (Evolution only) ====================
 
-        /** Skill effects granted by this evolution crystal (passives + triggered) */
-        UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects|Evolution")
-        TArray<FSkillEffect> Effects;
-
         /** Referenced shared effects (author once as a UEffectDefinition, point several
          *  items at the same asset). Resolved into the by-value Starting/Conditional
          *  lists each gather (live link). Null/unloaded entries are skipped. */
@@ -255,10 +251,9 @@ public:
 
         // ==================== EFFECT HELPER FUNCTIONS ====================
 
-        /** Get effect count — INLINE Effects only, by design (referenced effects are
-         *  resolved at gather, not counted here; evolution crystals carry no cap). */
+        /** Flattened effect count across the referenced bundles (editor/UI info). */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
-        int32 GetEffectCount() const { return Effects.Num(); }
+        int32 GetEffectCount() const;
 
         /** Get starting effects (no condition — applied once at combat start) */
         UFUNCTION(BlueprintPure, Category = "Item|Effects")
@@ -348,7 +343,6 @@ public:
         FString GenerateDescription() const;
         FString GetEvolutionEffectText() const;
         virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
-        virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
         virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };
