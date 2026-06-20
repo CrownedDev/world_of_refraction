@@ -38,8 +38,11 @@ namespace SpellPoolConstants
     /** Cost reduction per qualifying world pillar. */
     constexpr int32 SPELL_DISCOUNT_PER_PILLAR = 1;
 
-    /** A world pillar level >= this grants its discount (tunable; ship 7). */
-    constexpr int32 SPELL_DISCOUNT_PILLAR_THRESHOLD = 7;
+    /** Per-pillar world-level bars: a pillar at/above its own threshold grants the
+     *  discount. Asymmetric by design — Mind 4 / Body 7 / Spirit 5 (tunable). */
+    constexpr int32 SPELL_DISCOUNT_MIND_THRESHOLD = 4;
+    constexpr int32 SPELL_DISCOUNT_BODY_THRESHOLD = 7;
+    constexpr int32 SPELL_DISCOUNT_SPIRIT_THRESHOLD = 5;
 
     /** A discounted cost never drops below this — no spell is ever free. */
     constexpr int32 SPELL_SLOT_COST_FLOOR = 1;
@@ -68,13 +71,13 @@ namespace SpellPoolConstants
     }
 
     /** Discount from RAW world pillar levels (the 0..N ints, NOT GetEffectiveX
-     *  multipliers): one step per pillar at/above the threshold, 0..3 total. */
+     *  multipliers): one step per pillar at/above ITS OWN threshold, 0..3 total. */
     inline int32 SpellSlotDiscount(int32 WorldMind, int32 WorldBody, int32 WorldSpirit)
     {
         int32 D = 0;
-        if (WorldMind >= SPELL_DISCOUNT_PILLAR_THRESHOLD)   D += SPELL_DISCOUNT_PER_PILLAR;
-        if (WorldBody >= SPELL_DISCOUNT_PILLAR_THRESHOLD)   D += SPELL_DISCOUNT_PER_PILLAR;
-        if (WorldSpirit >= SPELL_DISCOUNT_PILLAR_THRESHOLD) D += SPELL_DISCOUNT_PER_PILLAR;
+        if (WorldMind >= SPELL_DISCOUNT_MIND_THRESHOLD)     D += SPELL_DISCOUNT_PER_PILLAR;
+        if (WorldBody >= SPELL_DISCOUNT_BODY_THRESHOLD)     D += SPELL_DISCOUNT_PER_PILLAR;
+        if (WorldSpirit >= SPELL_DISCOUNT_SPIRIT_THRESHOLD) D += SPELL_DISCOUNT_PER_PILLAR;
         return D;
     }
 }
