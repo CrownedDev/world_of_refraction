@@ -12,6 +12,9 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Inventory/ItemTier.h"
+#include "Loadout/SpellPoolConstants.h"
+#include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 
 void UInventoryDebug::LogSeparator(const FString &Title)
 {
@@ -337,6 +340,66 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
     if (Active.InnateSpells.Num() > 0)
     {
         UE_LOG(LogTemp, Display, TEXT("Innate Spells: %d"), Active.InnateSpells.Num());
+    }
+
+    // Spell-pool budget readout (Cluster 2/3 — innate + BD weighted budget). Discount
+    // from the owner's raw world-pillar levels; no CharacterData -> discount 0, flagged.
+    {
+        UCharacterData *PoolCharData = Loadout->GetOwnerCharacterData();
+        UCharacterDataComponent *PoolCharComp = Loadout->GetOwner()
+            ? Loadout->GetOwner()->FindComponentByClass<UCharacterDataComponent>()
+            : nullptr;
+        const bool bIsBD = PoolCharComp && PoolCharComp->IsBrokenDarkness();
+        const int32 Discount = PoolCharData
+            ? SpellPoolConstants::SpellSlotDiscount(
+                  PoolCharData->WorldMindLevel, PoolCharData->WorldBodyLevel, PoolCharData->WorldSpiritLevel)
+            : 0;
+        const TCHAR *DiscountNote = PoolCharData ? TEXT("") : TEXT(" [discount unknown — no CharacterData]");
+
+        if (bIsBD)
+        {
+            // Darkness pool reuses InnateSpells; element pools are BDSpellPools.
+            int32 Used = 0;
+            UE_LOG(LogTemp, Display, TEXT("BD [Darkness]: %d/%d spells"),
+                   Active.InnateSpells.Num(), SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL);
+            for (const USpellData *S : Active.InnateSpells)
+            {
+                if (S) Used += SpellPoolConstants::SpellSlotEffectiveCost(S->Tier, Discount);
+            }
+            for (const FBDElementSpellPool &Pool : Active.BDSpellPools)
+            {
+                UE_LOG(LogTemp, Display, TEXT("BD [%s]: %d/%d spells"),
+                       *UEnum::GetValueAsString(Pool.Element),
+                       Pool.Spells.Num(), SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL);
+                for (const USpellData *S : Pool.Spells)
+                {
+                    if (S) Used += SpellPoolConstants::SpellSlotEffectiveCost(S->Tier, Discount);
+                }
+            }
+            UE_LOG(LogTemp, Display, TEXT("BD budget: %d/%d pts (discount -%d)%s"),
+                   Used, SpellPoolConstants::BD_SPELL_BUDGET, Discount, DiscountNote);
+        }
+        else if (Active.InnateSpells.Num() > 0)
+        {
+            // Normal Caster: per-school counts + total innate weight.
+            TMap<ESpellSchool, int32> PerSchool;
+            for (const USpellData *S : Active.InnateSpells)
+            {
+                if (S) PerSchool.FindOrAdd(S->School)++;
+            }
+            for (const TPair<ESpellSchool, int32> &P : PerSchool)
+            {
+                UE_LOG(LogTemp, Display, TEXT("Innate [%s]: %d/%d spells"),
+                       *UEnum::GetValueAsString(P.Key), P.Value, SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL);
+            }
+            int32 Used = 0;
+            for (const USpellData *S : Active.InnateSpells)
+            {
+                if (S) Used += SpellPoolConstants::SpellSlotEffectiveCost(S->Tier, Discount);
+            }
+            UE_LOG(LogTemp, Display, TEXT("Innate budget: %d/%d pts (discount -%d)%s"),
+                   Used, SpellPoolConstants::INNATE_SPELL_BUDGET, Discount, DiscountNote);
+        }
     }
 
     // Items
