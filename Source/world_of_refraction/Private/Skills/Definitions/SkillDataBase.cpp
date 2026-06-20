@@ -167,7 +167,7 @@ TArray<FSkillEffect> USkillDataBase::GetAllEffects() const
     {
         if (Def)
         {
-            Result.Add(Def->Effect);
+            Result.Append(Def->Effects);
         }
     }
     return Result;

@@ -271,17 +271,19 @@ TArray<FSkillEffect> UEvolutionItemData::GetStartingEffects() const
         }
     }
 
-    // Resolved referenced effects, same partition (null/unloaded skipped).
+    // Resolved referenced bundles, same partition (null/unloaded skipped).
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
         {
             continue;
         }
-        const FSkillEffect &E = Def->Effect;
-        if (!E.IsConditionalEffect())
+        for (const FSkillEffect &E : Def->Effects)
         {
-            Result.Add(E);
+            if (!E.IsConditionalEffect())
+            {
+                Result.Add(E);
+            }
         }
     }
 
@@ -300,17 +302,19 @@ TArray<FSkillEffect> UEvolutionItemData::GetConditionalEffects() const
         }
     }
 
-    // Resolved referenced effects, same partition (null/unloaded skipped).
+    // Resolved referenced bundles, same partition (null/unloaded skipped).
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
         {
             continue;
         }
-        const FSkillEffect &E = Def->Effect;
-        if (E.IsConditionalEffect())
+        for (const FSkillEffect &E : Def->Effects)
         {
-            Result.Add(E);
+            if (E.IsConditionalEffect())
+            {
+                Result.Add(E);
+            }
         }
     }
 
