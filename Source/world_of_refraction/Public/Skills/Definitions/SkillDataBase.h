@@ -180,8 +180,8 @@ public:
     /** Referenced effect bundles (author once as a UEffectDefinition, point several
      *  skills at the same asset). The skill's effects come entirely from these bundles;
      *  resolved into GetAllEffects() each gather (live link). Null/unloaded entries are
-     *  skipped. Total flattened effect count is bounded for stable cast-ID packing
-     *  (see IsDataValid / EffectIdentity::EFFECT_ID_SUBBAND_MAX). */
+     *  skipped. The per-definition effect/payload cap for stable-ID packing lives on
+     *  UEffectDefinition::IsDataValid, not here (a skill may reference many bundles). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
     TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
 

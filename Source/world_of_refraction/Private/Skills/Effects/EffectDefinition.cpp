@@ -2,6 +2,8 @@
 
 #include "Skills/Effects/EffectDefinition.h"
 #include "Skills/Effects/SkillEffectDebug.h"
+#include "Skills/Effects/EffectIdentity.h"
+#include "Loadout/LoadoutConstants.h"
 
 void UEffectDefinition::LogEffect() const
 {
@@ -25,5 +27,34 @@ void UEffectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEvent &
     {
         Effect.SyncThresholdFlags();
     }
+}
+
+EDataValidationResult UEffectDefinition::IsDataValid(FDataValidationContext &Context) const
+{
+    EDataValidationResult Result = Super::IsDataValid(Context);
+
+    // Sole stable-ID guard: this bundle's effects index 0..N-1 in its DefID*100 window, so
+    // the effect count must stay <= EFFECT_ID_SUBBAND_MAX + 1 (=10) and each effect's
+    // payloads <= MAX_PAYLOADS (=9), or packed cast/equipment EffectIDs collide.
+    if (Effects.Num() > EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)
+    {
+        Context.AddError(FText::FromString(FString::Printf(
+            TEXT("Bundle has %d effects; max %d per definition for stable-ID packing."),
+            Effects.Num(), EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)));
+        Result = EDataValidationResult::Invalid;
+    }
+
+    for (int32 i = 0; i < Effects.Num(); ++i)
+    {
+        if (Effects[i].Payloads.Num() > LoadoutConstants::MAX_PAYLOADS)
+        {
+            Context.AddError(FText::FromString(FString::Printf(
+                TEXT("Effect %d has too many payloads (%d). Maximum is %d."),
+                i, Effects[i].Payloads.Num(), LoadoutConstants::MAX_PAYLOADS)));
+            Result = EDataValidationResult::Invalid;
+        }
+    }
+
+    return Result;
 }
 #endif

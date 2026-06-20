@@ -9,6 +9,11 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Skills/Effects/FSkillEffect.h"
+
+#if WITH_EDITOR
+#include "Misc/DataValidation.h"
+#endif
+
 #include "EffectDefinition.generated.h"
 
 UCLASS(BlueprintType)
@@ -45,5 +50,10 @@ public:
      *  references this asset), so the bundle syncs its own — keeps the Threshold
      *  EditCondition gating live when authoring effects here. */
     virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
+
+    /** The SOLE stable-ID guard under def-identity packing: a bundle's effects index
+     *  0..N-1 in this def's DefID*100 window, so the effect count (<=10) and each effect's
+     *  payload count (<=9) are capped here — the only collision surface. */
+    virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
 #endif
 };

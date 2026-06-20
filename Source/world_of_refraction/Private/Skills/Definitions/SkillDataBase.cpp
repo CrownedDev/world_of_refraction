@@ -5,7 +5,6 @@
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/EffectDefinition.h"
-#include "Skills/Effects/EffectIdentity.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
 
@@ -359,39 +358,10 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Context.AddWarning(FText::FromString(TEXT("Skill has empty Name")));
     }
 
-    // Stable cast-ID packing puts EffectIndex in the ones digit (SourceID*100 +
-    // EffectIndex + PayloadIndex*10), so the flattened effect count across the referenced
-    // bundles must stay <= EFFECT_ID_SUBBAND_MAX + 1 (=10) or IDs collide into the payload
-    // band.
-    int32 TotalEffects = 0;
-    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
-    {
-        if (Def)
-        {
-            TotalEffects += Def->Effects.Num();
-        }
-    }
-    if (TotalEffects > EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)
-    {
-        Context.AddError(FText::FromString(FString::Printf(
-            TEXT("Too many effects (referenced bundles total %d). Max %d per skill for stable-ID packing."),
-            TotalEffects, EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)));
-        Result = EDataValidationResult::Invalid;
-    }
-
-    // Cluster D1: payload count per effect is bounded by the cast EffectID packing —
-    // validate the flattened applied set (referenced bundle effects included).
-    const TArray<FSkillEffect> AllEffects = GetAllEffects();
-    for (int32 EffIdx = 0; EffIdx < AllEffects.Num(); ++EffIdx)
-    {
-        if (AllEffects[EffIdx].Payloads.Num() > LoadoutConstants::MAX_PAYLOADS)
-        {
-            Context.AddError(FText::FromString(FString::Printf(
-                TEXT("Effect %d has too many payloads (%d). Maximum is %d"),
-                EffIdx, AllEffects[EffIdx].Payloads.Num(), LoadoutConstants::MAX_PAYLOADS)));
-            Result = EDataValidationResult::Invalid;
-        }
-    }
+    // Effect-count + per-payload caps now live on UEffectDefinition::IsDataValid. Under
+    // def-identity packing the cap is per-DEFINITION (each bundle self-windows by its
+    // DefID), so a per-skill sum-cap would falsely reject a skill that validly references
+    // many small bundles. The referencer no longer validates effect/payload counts.
 
     // Folded from UCastableSkillDataBase::IsDataValid at the base merge.
     if (BaseDamage < 0)
