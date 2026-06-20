@@ -215,17 +215,23 @@ void UEquipmentDataBase::RollResistance()
     GeneratedResistance.RerollResistance(GetGeneratorTier());
 }
 
+int32 UEquipmentDataBase::GetEffectCount() const
+{
+    int32 Count = 0;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (Def)
+        {
+            Count += Def->Effects.Num();
+        }
+    }
+    return Count;
+}
+
 TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
 {
     TArray<FSkillEffect> Result;
-    for (const FSkillEffect &Effect : Effects)
-    {
-        if (!Effect.IsConditionalEffect())
-        {
-            Result.Add(Effect);
-        }
-    }
-    // Resolved referenced bundles, same partition (null/unloaded skipped).
+    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
@@ -246,14 +252,7 @@ TArray<FSkillEffect> UEquipmentDataBase::GetStartingEffects() const
 TArray<FSkillEffect> UEquipmentDataBase::GetConditionalEffects() const
 {
     TArray<FSkillEffect> Result;
-    for (const FSkillEffect &Effect : Effects)
-    {
-        if (Effect.IsConditionalEffect())
-        {
-            Result.Add(Effect);
-        }
-    }
-    // Resolved referenced bundles, same partition (null/unloaded skipped).
+    // Flatten referenced bundles, partition by condition (null/unloaded skipped).
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (!Def)
@@ -384,16 +383,4 @@ EDataValidationResult UEquipmentDataBase::IsDataValid(FDataValidationContext &Co
     return Result;
 }
 
-void UEquipmentDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-    // Refresh threshold-visibility flags on every effect so EditCondition gating
-    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
-    // to in-editor edits of the matching ESkillTrigger field.
-    for (FSkillEffect &Effect : Effects)
-    {
-        Effect.SyncThresholdFlags();
-    }
-}
 #endif

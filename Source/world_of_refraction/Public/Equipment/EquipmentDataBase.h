@@ -186,19 +186,16 @@ public:
     // USkillEffectManager::ApplyEquipmentEffects (sourced through
     // ULoadoutComponent::GetActiveEffects). Conditional effects await their trigger.
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
-    TArray<FSkillEffect> Effects;
-
-    /** Referenced shared effects (author once as a UEffectDefinition, point several
-     *  items at the same asset). Resolved into the by-value Starting/Conditional lists
-     *  each gather (live link — edits propagate). Null/unloaded entries are skipped. */
+    /** Referenced effect bundles (author once as a UEffectDefinition, point several
+     *  items at the same asset). The item's effects come entirely from these bundles;
+     *  resolved into the by-value Starting/Conditional lists each gather (live link).
+     *  Null/unloaded entries are skipped. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
     TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
 
-    /** Counts INLINE Effects only, by design — referenced effects are resolved at
-     *  gather, not counted here (editor info; equipment carries no effect cap). */
+    /** Flattened effect count across the referenced bundles (editor/UI info). */
     UFUNCTION(BlueprintPure, Category = "Effects")
-    int32 GetEffectCount() const { return Effects.Num(); }
+    int32 GetEffectCount() const;
 
     /** Non-conditional effects — applied once at combat start. */
     UFUNCTION(BlueprintPure, Category = "Effects")
@@ -337,6 +334,5 @@ public:
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-    virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
 #endif
 };
