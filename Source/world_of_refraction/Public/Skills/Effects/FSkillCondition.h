@@ -8,6 +8,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/Function.h"
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/ECondCombine.h"
 #include "FSkillCondition.generated.h"
@@ -40,3 +41,37 @@ struct WORLD_OF_REFRACTION_API FSkillCondition
     UPROPERTY()
     bool bUsesThreshold = false;
 };
+
+/** Shared AND/OR partition fold over a condition group. Participates(C) false skips a
+ *  condition entirely (reproduces a `continue` — distinct from IsMet returning false, which
+ *  still folds into the AND/OR sets). IsMet(C) is the per-condition predicate. Result:
+ *  all participating AND-conditions met, AND (no participating OR-conditions, or >=1 met).
+ *  Empty / all-skipped == true (unconditional). Each call site supplies its own predicates
+ *  (source-state, action-result, defense-outcome). */
+inline bool EvaluateConditionGroup(
+    const TArray<FSkillCondition> &Conditions,
+    TFunctionRef<bool(const FSkillCondition &)> Participates,
+    TFunctionRef<bool(const FSkillCondition &)> IsMet)
+{
+    bool bAllAndMet = true;
+    bool bAnyOr = false;
+    bool bAnyOrMet = false;
+    for (const FSkillCondition &C : Conditions)
+    {
+        if (!Participates(C))
+        {
+            continue;
+        }
+        const bool bMet = IsMet(C);
+        if (C.Combine == ECondCombine::And)
+        {
+            bAllAndMet = bAllAndMet && bMet;
+        }
+        else
+        {
+            bAnyOr = true;
+            bAnyOrMet = bAnyOrMet || bMet;
+        }
+    }
+    return bAllAndMet && (!bAnyOr || bAnyOrMet);
+}

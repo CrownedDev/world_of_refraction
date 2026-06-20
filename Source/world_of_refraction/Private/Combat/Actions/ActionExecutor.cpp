@@ -5955,27 +5955,12 @@ void UActionExecutor::ApplySkillEffects(
 		// of IsSingleTriggerMet (actor-state). Empty Conditions[] == Always (unconditional)
 		// -> the fold yields true (bAllAndMet stays true, no OR group), matching the old
 		// EventMet(Always). Target-side conditions ride the runtime effect, not gated here.
-		bool bAllAndMet = true;
-		bool bAnyOr = false;
-		bool bAnyOrMet = false;
-		for (const FSkillCondition &C : Effect.Conditions)
-		{
-			if (C.bTargetSide)
-			{
-				continue;
-			}
-			const bool bMet = EventMet(C.Trigger);
-			if (C.Combine == ECondCombine::And)
-			{
-				bAllAndMet = bAllAndMet && bMet;
-			}
-			else
-			{
-				bAnyOr = true;
-				bAnyOrMet = bAnyOrMet || bMet;
-			}
-		}
-		const bool bConditionMet = bAllAndMet && (!bAnyOr || bAnyOrMet);
+		// Source-side AND/OR partition (shared fold). Target-side conditions are skipped
+		// (Participates = !bTargetSide) — they ride the runtime effect, not gated here.
+		const bool bConditionMet = EvaluateConditionGroup(
+			Effect.Conditions,
+			[](const FSkillCondition &C) { return !C.bTargetSide; },
+			[&](const FSkillCondition &C) { return EventMet(C.Trigger); });
 
 		if (!bConditionMet)
 		{

@@ -1681,30 +1681,13 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 	// damage) that only write the old fields stay byte-identical.
 	if (Effect.Conditions.Num() > 0)
 	{
-		bool bAllAndMet = true;
-		bool bAnyOr = false;
-		bool bAnyOrMet = false;
-		for (const FSkillCondition &C : Effect.Conditions)
-		{
-			// TODO(target-eval): target-side conditions are stored but NOT gated here yet
-			// — matches today's behaviour (this fn never evaluated target gating). Keeping
-			// them out of the source gate preserves parity; revisit when target-eval lands.
-			if (C.bTargetSide)
-			{
-				continue;
-			}
-			const bool bMet = IsSingleTriggerMet(Actor, C.Trigger, C.Threshold);
-			if (C.Combine == ECondCombine::And)
-			{
-				bAllAndMet = bAllAndMet && bMet;
-			}
-			else
-			{
-				bAnyOr = true;
-				bAnyOrMet = bAnyOrMet || bMet;
-			}
-		}
-		return bAllAndMet && (!bAnyOr || bAnyOrMet);
+		// TODO(target-eval): target-side conditions are skipped (Participates = !bTargetSide)
+		// — matches today's behaviour (this fn never evaluated target gating). C2 swaps Actor
+		// for the bTargetSide-resolved actor and loosens this filter when target-eval lands.
+		return EvaluateConditionGroup(
+			Effect.Conditions,
+			[](const FSkillCondition &C) { return !C.bTargetSide; },
+			[&](const FSkillCondition &C) { return IsSingleTriggerMet(Actor, C.Trigger, C.Threshold); });
 	}
 
 	const bool bPrimaryMet = IsSingleTriggerMet(Actor, Effect.TriggerCondition, Effect.TriggerThreshold);
