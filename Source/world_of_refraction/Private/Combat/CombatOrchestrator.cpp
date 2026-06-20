@@ -998,7 +998,12 @@ void ACombatOrchestrator::PrepareAllLoadoutsForBattle()
 				// deliberately contribute no effects.
 				if (SkillEffectManagerRef)
 				{
-					TArray<FGatheredEffect> StartingEffects = Loadout->GetActiveEffectsGathered(Actor);
+					// Arm gear conditional effects — read by the OnDefenseResolved handler (C3b)
+						// to fire on matching impact outcomes; inert until then. Armed first so
+						// an actor with only conditional gear (no starting effects) still arms.
+						SkillEffectManagerRef->ArmConditionalEffects(Actor, Loadout->GetActiveConditionalEffectsGathered(Actor));
+
+						TArray<FGatheredEffect> StartingEffects = Loadout->GetActiveEffectsGathered(Actor);
 					if (StartingEffects.Num() > 0)
 					{
 						// Def-identity packing: each gathered effect carries its def id + bundle index,

@@ -206,9 +206,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ClearAllEffects();
 
-	/** Reset per-match state at the start of a new combat (clears the fires-once set). */
+	/** Reset per-match state at the start of a new combat (clears the fires-once set +
+	 *  armed conditionals). */
 	UFUNCTION()
 	void ResetForNewCombat();
+
+	/** Store the gear conditional effects for an actor (replaces any prior entry).
+	 *  Called at combat start; the OnDefenseResolved handler reads these (C3b). */
+	void ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals);
 
 	/** Remove effects applied by a specific source (when source dies, etc.) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
@@ -380,6 +385,12 @@ private:
 	/** EffectIDs that have fired this combat (for bFiresOncePerMatch). Keyed on the stable
 	 *  EffectID; cleared per combat by ResetForNewCombat(). */
 	TSet<int32> FiredOnceThisMatch;
+
+	/** Gear conditional effects armed per actor at combat start (C3a). The
+	 *  OnDefenseResolved handler (C3b) reads these to fire on matching impact outcomes;
+	 *  nothing reads it yet. Cleared per combat by ResetForNewCombat(). TWeakObjectPtr key
+	 *  mirrors ActiveEffects (non-reflected; no cross-combat actor retention). */
+	TMap<TWeakObjectPtr<AActor>, TArray<FGatheredEffect>> ArmedConditionals;
 
 	/** Next unique effect instance ID (for distinguishing same-type effects) */
 	int32 NextInstanceID = 1;

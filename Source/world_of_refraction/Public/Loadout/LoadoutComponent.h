@@ -543,6 +543,11 @@ public:
      *  ID packing. Additive — nothing reads this yet. */
     TArray<FGatheredEffect> GetActiveEffectsGathered(AActor *Actor) const;
 
+    /** Same per-class gear aggregation, but the CONDITIONAL subset (each item's
+     *  GetConditionalEffectsGathered). Armed at combat start; fired on impact by the
+     *  defense handler (C3). Carries def id + bundle index per effect. */
+    TArray<FGatheredEffect> GetActiveConditionalEffectsGathered(AActor *Actor) const;
+
     /** Evolution crystal slotted in the PRIMARY WEAPON slot only.
      *  Returns nullptr for: secondary weapon crystal, ring crystal, non-evolution
      *  crystal in primary weapon, no weapon equipped, or non-Weapon primary slot. */

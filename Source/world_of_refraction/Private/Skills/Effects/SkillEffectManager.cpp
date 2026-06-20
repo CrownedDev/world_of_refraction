@@ -694,7 +694,19 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 void USkillEffectManager::ResetForNewCombat()
 {
 	FiredOnceThisMatch.Empty();
-	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch reset for new combat"));
+	ArmedConditionals.Empty();
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch + ArmedConditionals reset for new combat"));
+}
+
+void USkillEffectManager::ArmConditionalEffects(AActor *Actor, const TArray<FGatheredEffect> &Conditionals)
+{
+	if (!Actor)
+	{
+		return;
+	}
+	ArmedConditionals.Add(Actor, Conditionals);
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Armed %d conditional effect(s) on %s"),
+		   Conditionals.Num(), *Actor->GetName());
 }
 
 void USkillEffectManager::ClearAllEffects()
