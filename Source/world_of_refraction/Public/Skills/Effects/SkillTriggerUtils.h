@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Skills/Effects/ESkillTrigger.h"
+#include "Combat/Defense/EDefenseType.h"
 
 namespace SkillTriggerUtils
 {
@@ -16,13 +17,25 @@ namespace SkillTriggerUtils
             || Trigger == ESkillTrigger::OnEnergyAboveThreshold;
     }
 
-    /** Triggers evaluated against the TARGET's state rather than the source's.
-     *  Expand as new target-side triggers are added. */
-    inline bool IsTargetSideTrigger(ESkillTrigger Trigger)
+    /** Maps a resolved defense outcome to the trigger(s) it fires.
+     *  NOTE: superset — a perfect outcome fires BOTH its perfect trigger and the base
+     *    (OnPerfectParry implies OnParry), so an effect authored OnParry fires on any parry.
+     *  NOTE: miss/accuracy-avoid is deliberately NOT mapped (dodge covers defender
+     *    avoidance; accuracy-miss is a separate axis — future work).
+     *  NOTE: attacker-side ("react to how MY target defended") is handled by the
+     *    condition's bTargetSide flag, NOT a separate trigger. */
+    inline void DefenseOutcomeToTriggers(EDefenseType Type, bool bPerfect,
+                                         TArray<ESkillTrigger> &OutTriggers)
     {
-        return Trigger == ESkillTrigger::OnHPBelowThreshold
-            || Trigger == ESkillTrigger::OnHPAboveThreshold
-            || Trigger == ESkillTrigger::OnEnergyBelowThreshold
-            || Trigger == ESkillTrigger::OnEnergyAboveThreshold;
+        switch (Type)
+        {
+        case EDefenseType::None:  OutTriggers.Add(ESkillTrigger::OnTakeDamage); break;
+        case EDefenseType::Block: OutTriggers.Add(ESkillTrigger::OnBlock);
+                                  if (bPerfect) OutTriggers.Add(ESkillTrigger::OnPerfectBlock); break;
+        case EDefenseType::Parry: OutTriggers.Add(ESkillTrigger::OnParry);
+                                  if (bPerfect) OutTriggers.Add(ESkillTrigger::OnPerfectParry); break;
+        case EDefenseType::Dodge: OutTriggers.Add(ESkillTrigger::OnDodge);
+                                  if (bPerfect) OutTriggers.Add(ESkillTrigger::OnPerfectDodge); break;
+        }
     }
 }
