@@ -1672,7 +1672,7 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 // INTERNAL HELPERS
 // ========================================
 
-bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue) const
+bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue, AActor *Target) const
 {
 	(void)TriggerValue;
 
@@ -1681,13 +1681,19 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 	// damage) that only write the old fields stay byte-identical.
 	if (Effect.Conditions.Num() > 0)
 	{
-		// TODO(target-eval): target-side conditions are skipped (Participates = IsOwnerSide)
-		// — matches today's behaviour (this fn never evaluated target gating). C2a-ii threads
-		// a Target and resolves the subject's actor(s) when target-eval lands.
+		// Subject-aware: owner-side subjects (Self/SelfTeam) always participate; target-side
+		// (Target/TargetTeam) participate only when a Target was passed (null → skipped, the
+		// pre-C2a behaviour). IsMet resolves the subject's actor(s) and ANY-folds the single-
+		// actor state check over them (a one-element set reduces to the prior single check).
 		return EvaluateConditionGroup(
 			Effect.Conditions,
-			[](const FSkillCondition &C) { return IsOwnerSide(C.Subject); },
-			[&](const FSkillCondition &C) { return IsSingleTriggerMet(Actor, C.Trigger, C.Threshold); });
+			[&](const FSkillCondition &C) { return IsOwnerSide(C.Subject) || Target != nullptr; },
+			[&](const FSkillCondition &C) {
+				const TArray<AActor *> Subjects = ResolveSubjectActors(C.Subject, Actor, Target);
+				return Subjects.ContainsByPredicate([&](AActor *A) {
+					return IsSingleTriggerMet(A, C.Trigger, C.Threshold);
+				});
+			});
 	}
 
 	const bool bPrimaryMet = IsSingleTriggerMet(Actor, Effect.TriggerCondition, Effect.TriggerThreshold);
@@ -1768,6 +1774,30 @@ bool USkillEffectManager::IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigge
 	default:
 		return false;
 	}
+}
+
+TArray<AActor *> USkillEffectManager::ResolveSubjectActors(ECondSubject Subject, AActor *Owner, AActor *Target) const
+{
+	TArray<AActor *> Out;
+	UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+
+	switch (Subject)
+	{
+	case ECondSubject::Self:
+		if (Owner) { Out.Add(Owner); }
+		break;
+	case ECondSubject::Target:
+		if (Target) { Out.Add(Target); }
+		break;
+	case ECondSubject::SelfTeam:
+		if (Owner && TM) { Out = TM->GetTeamMembers(TM->GetActorTeam(Owner)); }
+		break;
+	case ECondSubject::TargetTeam:
+		if (Target && TM) { Out = TM->GetTeamMembers(TM->GetActorTeam(Target)); }
+		break;
+	}
+
+	return Out;
 }
 
 FActiveSkillEffect *USkillEffectManager::FindEffectByID(AActor *Actor, int32 EffectID)

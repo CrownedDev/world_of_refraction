@@ -400,11 +400,18 @@ private:
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
 	void ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect);
 
-	/** Check if a trigger condition is met (handles compound primary + secondary). */
-	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f) const;
+	/** Check if a trigger condition is met (handles compound primary + secondary).
+	 *  Target is the owner's target for target-side condition subjects (null → target-side
+	 *  subjects are skipped, the pre-C2a behaviour). */
+	bool IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue = 0.0f, AActor *Target = nullptr) const;
 
 	/** Evaluate a single (Trigger, Threshold) pair against Actor's state. */
 	bool IsSingleTriggerMet(AActor *Actor, ESkillTrigger Trigger, float Threshold) const;
+
+	/** Resolve a condition Subject to the actor(s) it evaluates against: Self → {Owner},
+	 *  Target → {Target}, SelfTeam/TargetTeam → that side's team members (empty when there is
+	 *  no TurnManager or the side's anchor actor is null). */
+	TArray<AActor *> ResolveSubjectActors(ECondSubject Subject, AActor *Owner, AActor *Target) const;
 
 	/** Find existing effect by ID on actor */
 	FActiveSkillEffect *FindEffectByID(AActor *Actor, int32 EffectID);
