@@ -162,7 +162,7 @@ TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
 
 TArray<FSkillEffect> USkillDataBase::GetAllEffects() const
 {
-    TArray<FSkillEffect> Result = Effects;
+    TArray<FSkillEffect> Result;
     for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
     {
         if (Def)
@@ -342,27 +342,35 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
     }
 
     // Stable cast-ID packing puts EffectIndex in the ones digit (SourceID*100 +
-    // EffectIndex + PayloadIndex*10), so the total addressable effect count (inline +
-    // referenced) must stay <= EFFECT_ID_SUBBAND_MAX + 1 (=10) or IDs collide into the
-    // payload band. ReferencedEffects.Num() is the conservative bound (runtime skips
-    // nulls, so the real index range is never larger).
-    const int32 TotalEffects = Effects.Num() + ReferencedEffects.Num();
+    // EffectIndex + PayloadIndex*10), so the flattened effect count across the referenced
+    // bundles must stay <= EFFECT_ID_SUBBAND_MAX + 1 (=10) or IDs collide into the payload
+    // band.
+    int32 TotalEffects = 0;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (Def)
+        {
+            TotalEffects += Def->Effects.Num();
+        }
+    }
     if (TotalEffects > EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)
     {
         Context.AddError(FText::FromString(FString::Printf(
-            TEXT("Too many effects (inline + referenced = %d). Max %d per skill for stable-ID packing."),
+            TEXT("Too many effects (referenced bundles total %d). Max %d per skill for stable-ID packing."),
             TotalEffects, EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)));
         Result = EDataValidationResult::Invalid;
     }
 
-    // Cluster D1: payload count per effect is bounded by the cast EffectID packing.
-    for (int32 EffIdx = 0; EffIdx < Effects.Num(); ++EffIdx)
+    // Cluster D1: payload count per effect is bounded by the cast EffectID packing —
+    // validate the flattened applied set (referenced bundle effects included).
+    const TArray<FSkillEffect> AllEffects = GetAllEffects();
+    for (int32 EffIdx = 0; EffIdx < AllEffects.Num(); ++EffIdx)
     {
-        if (Effects[EffIdx].Payloads.Num() > LoadoutConstants::MAX_PAYLOADS)
+        if (AllEffects[EffIdx].Payloads.Num() > LoadoutConstants::MAX_PAYLOADS)
         {
             Context.AddError(FText::FromString(FString::Printf(
                 TEXT("Effect %d has too many payloads (%d). Maximum is %d"),
-                EffIdx, Effects[EffIdx].Payloads.Num(), LoadoutConstants::MAX_PAYLOADS)));
+                EffIdx, AllEffects[EffIdx].Payloads.Num(), LoadoutConstants::MAX_PAYLOADS)));
             Result = EDataValidationResult::Invalid;
         }
     }
@@ -381,18 +389,5 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
     }
 
     return Result;
-}
-
-void USkillDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent)
-{
-    Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-    // Refresh threshold-visibility flags on every effect so EditCondition gating
-    // for ConditionThreshold / SecondaryThreshold / TargetThreshold reacts live
-    // to in-editor edits of the matching ESkillTrigger field.
-    for (FSkillEffect &Effect : Effects)
-    {
-        Effect.SyncThresholdFlags();
-    }
 }
 #endif

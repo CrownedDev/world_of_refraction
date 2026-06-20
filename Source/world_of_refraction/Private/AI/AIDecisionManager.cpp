@@ -1766,7 +1766,7 @@ USpellData *UAIDecisionManager::FindHealingSpell(ULoadoutComponent *Loadout)
             continue;
         }
 
-        for (const FSkillEffect &Effect : Spell->Effects)
+        for (const FSkillEffect &Effect : Spell->GetAllEffects())
         {
             for (const FSkillEffectPayload &P : Effect.Payloads)
             {
@@ -1797,7 +1797,7 @@ USpellData *UAIDecisionManager::FindCleanseSpell(ULoadoutComponent *Loadout)
             continue;
         }
 
-        for (const FSkillEffect &Effect : Spell->Effects)
+        for (const FSkillEffect &Effect : Spell->GetAllEffects())
         {
             for (const FSkillEffectPayload &P : Effect.Payloads)
             {

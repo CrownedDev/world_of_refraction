@@ -116,10 +116,12 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
         Result = EDataValidationResult::Invalid;
     }
 
-    // Validate each effect's semantics (count cap handled by USkillDataBase)
-    for (int32 i = 0; i < Effects.Num(); ++i)
+    // Validate each effect's semantics (count cap handled by USkillDataBase). Reads the
+    // flattened referenced-bundle set — UAbilityData carries no inline Effects after P2a.
+    const TArray<FSkillEffect> All = GetAllEffects();
+    for (int32 i = 0; i < All.Num(); ++i)
     {
-        const FSkillEffect &Effect = Effects[i];
+        const FSkillEffect &Effect = All[i];
 
         // No payload typed (folds new payloads || legacy EffectType).
         if (!Effect.IsValid())
@@ -199,7 +201,7 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
     }
 
     // Support abilities should have effects
-    if (BaseDamage == 0 && Effects.Num() == 0)
+    if (BaseDamage == 0 && All.Num() == 0)
     {
         Context.AddWarning(FText::FromString(TEXT("Ability has no damage and no effects - is this intentional?")));
     }

@@ -176,24 +176,17 @@ public:
 
     // ==================== EFFECTS ====================
 
-    /**
-     * Inline effects applied by this skill. Each effect carries its own target,
-     * condition, and timing. Total inline + referenced is bounded for stable cast-ID
-     * packing (see IsDataValid / EffectIdentity::EFFECT_ID_SUBBAND_MAX).
-     */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects",
-              meta = (TitleProperty = "EffectType"))
-    TArray<FSkillEffect> Effects;
-
-    /** Referenced shared effects (author once as a UEffectDefinition, point several
-     *  skills at the same asset). Resolved into GetAllEffects() each gather (live link);
-     *  null/unloaded entries are skipped. */
+    /** Referenced effect bundles (author once as a UEffectDefinition, point several
+     *  skills at the same asset). The skill's effects come entirely from these bundles;
+     *  resolved into GetAllEffects() each gather (live link). Null/unloaded entries are
+     *  skipped. Total flattened effect count is bounded for stable cast-ID packing
+     *  (see IsDataValid / EffectIdentity::EFFECT_ID_SUBBAND_MAX). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Effects")
     TArray<TObjectPtr<UEffectDefinition>> ReferencedEffects;
 
-    /** Inline Effects + resolved ReferencedEffects, by value (the full applied set).
-     *  The cast gather and the effect-classification gates read this, not Effects
-     *  directly. Compacting: null/unloaded references are skipped. */
+    /** The full applied set, by value: every effect flattened from ReferencedEffects.
+     *  The cast gather and the effect-classification gates read this. Compacting:
+     *  null/unloaded references are skipped. */
     UFUNCTION(BlueprintCallable, Category = "Effects")
     TArray<FSkillEffect> GetAllEffects() const;
 
@@ -401,6 +394,5 @@ public:
 
 #if WITH_EDITOR
     virtual EDataValidationResult IsDataValid(FDataValidationContext &Context) const override;
-    virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent &PropertyChangedEvent) override;
 #endif
 };
