@@ -17,6 +17,17 @@ namespace SkillTriggerUtils
             || Trigger == ESkillTrigger::OnEnergyAboveThreshold;
     }
 
+    /** True for the 7 defense-outcome triggers — impact-driven, fired off OnDefenseResolved.
+     *  Distinct from IsThresholdTrigger; used to gate the impact-path eval so pure-threshold
+     *  conditionals never leak into it. */
+    inline bool IsDefenseOutcomeTrigger(ESkillTrigger T)
+    {
+        return T == ESkillTrigger::OnParry || T == ESkillTrigger::OnPerfectParry
+            || T == ESkillTrigger::OnBlock || T == ESkillTrigger::OnPerfectBlock
+            || T == ESkillTrigger::OnDodge || T == ESkillTrigger::OnPerfectDodge
+            || T == ESkillTrigger::OnTakeDamage;
+    }
+
     /** Maps a resolved defense outcome to the trigger(s) it fires.
      *  NOTE: superset — a perfect outcome fires BOTH its perfect trigger and the base
      *    (OnPerfectParry implies OnParry), so an effect authored OnParry fires on any parry.

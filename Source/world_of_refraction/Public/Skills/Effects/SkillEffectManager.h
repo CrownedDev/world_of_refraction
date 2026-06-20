@@ -82,6 +82,13 @@ public:
 	UFUNCTION()
 	void OnDamageDealtHandler(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
+	/** Listener bound to UDefenseSystem::OnDefenseResolved. Drives defense-outcome conditional
+	 *  effects (OnParry/Block/Dodge + perfect tiers, OnTakeDamage). C3b: evaluates the armed
+	 *  conditionals and LOGS matches only — ApplyEffect wiring lands in C3c. */
+	UFUNCTION()
+	void OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
+								  EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex);
+
 	// ========================================
 	// EFFECT APPLICATION
 	// ========================================

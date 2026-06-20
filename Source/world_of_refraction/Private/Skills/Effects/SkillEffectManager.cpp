@@ -4,6 +4,8 @@
 #include "Character/CharacterDataComponent.h"
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Skills/Effects/SkillTriggerUtils.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
@@ -22,9 +24,10 @@
 
 void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 {
-	// Force ActionExecutor to initialize before this subsystem so the OnDamageDealt
-	// binding below sees a fully-constructed delegate.
+	// Force ActionExecutor + DefenseSystem to initialize before this subsystem so the
+	// OnDamageDealt / OnDefenseResolved bindings below see fully-constructed delegates.
 	Collection.InitializeDependency(UActionExecutor::StaticClass());
+	Collection.InitializeDependency(UDefenseSystem::StaticClass());
 
 	Super::Initialize(Collection);
 
@@ -42,6 +45,17 @@ void USkillEffectManager::Initialize(FSubsystemCollectionBase &Collection)
 		else
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ActionExecutor not available at Initialize — OnDamageDealt binding skipped"));
+		}
+
+		// Bind OnDefenseResolved listener — drives defense-outcome conditional effects (C3b).
+		if (UDefenseSystem *DS = GI->GetSubsystem<UDefenseSystem>())
+		{
+			DS->OnDefenseResolved.AddDynamic(this, &USkillEffectManager::OnDefenseResolvedHandler);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Bound to DefenseSystem::OnDefenseResolved"));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] DefenseSystem not available at Initialize — OnDefenseResolved binding skipped"));
 		}
 	}
 
@@ -1403,6 +1417,73 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 		ApplyEffect(Target, Stun, Attacker, TEXT("Stun"), -1);
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] ApplyStunToTarget fired on crit: %s stunned %s"),
 			   *Attacker->GetName(), *Target->GetName());
+	}
+}
+
+void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
+												   EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex)
+{
+	if (!Defender || !Attacker)
+	{
+		return;
+	}
+
+	// The outcome maps to its trigger set (perfect outcomes fire both perfect + base).
+	TArray<ESkillTrigger> OutcomeTriggers;
+	SkillTriggerUtils::DefenseOutcomeToTriggers(DefenseType, bPerfect, OutcomeTriggers);
+
+	// Evaluate from BOTH perspectives: the defender ("I parried") and the attacker ("my target
+	// dodged me"). For each pass, Owner is that actor's armed set, Target is the OTHER actor.
+	struct FPerspective { AActor *Owner; AActor *Target; };
+	const FPerspective Perspectives[] = { { Defender, Attacker }, { Attacker, Defender } };
+
+	for (const FPerspective &P : Perspectives)
+	{
+		AActor *Owner = P.Owner;
+		AActor *Target = P.Target;
+
+		const TArray<FGatheredEffect> *Armed = ArmedConditionals.Find(Owner);
+		if (!Armed)
+		{
+			continue;
+		}
+
+		for (const FGatheredEffect &G : *Armed)
+		{
+			const FSkillEffect &E = G.Effect;
+
+			// DEFENSE-TRIGGER GUARD (Decision A): only impact-driven effects fire here. A
+			// pure-threshold conditional (no defense-outcome trigger in its group) is skipped
+			// entirely, so it never leaks into the impact path.
+			if (!E.Conditions.ContainsByPredicate(
+					[](const FSkillCondition &C) { return SkillTriggerUtils::IsDefenseOutcomeTrigger(C.Trigger); }))
+			{
+				continue;
+			}
+
+			const bool bFires = EvaluateConditionGroup(
+				E.Conditions,
+				[&](const FSkillCondition &C) { return IsOwnerSide(C.Subject) || Target != nullptr; }, // Participates
+				[&](const FSkillCondition &C) {													  // IsMet — dispatch
+					if (SkillTriggerUtils::IsDefenseOutcomeTrigger(C.Trigger))
+					{
+						// Outcome perspective: the subject's actor(s) must include the actor who
+						// actually defended (the Defender), so the outcome resolves per owner.
+						return OutcomeTriggers.Contains(C.Trigger)
+							   && ResolveSubjectActors(C.Subject, Owner, Target).Contains(Defender);
+					}
+					return ResolveSubjectActors(C.Subject, Owner, Target)
+						.ContainsByPredicate([&](AActor *A) { return IsSingleTriggerMet(A, C.Trigger, C.Threshold); });
+				});
+
+			if (bFires)
+			{
+				// C3b: LOG-ONLY. C3c adds the ApplyEffect fire.
+				UE_LOG(LogTemp, Display, TEXT("[DefenseTrigger] MATCH: %s (DefID=%d) owner=%s outcome=%s perfect=%d"),
+					   *E.EffectName, G.DefID, *GetNameSafe(Owner),
+					   *UEnum::GetValueAsString(DefenseType), bPerfect);
+			}
+		}
 	}
 }
 
