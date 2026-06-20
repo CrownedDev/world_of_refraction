@@ -67,7 +67,9 @@ Fields:
 - `WeaponEntry` — `FWeaponInventoryEntry`; the owned weapon, including
   crystal/evolution state.
 - `AssignedAbilities` — `TArray<UAbilityData*>`; a **pure sequential override
-  list** (max 6 via `LoadoutConstants::MAX_WEAPON_ABILITIES`). Empty by default.
+  list**. The customizable slot count now keys on the **weapon's tier**
+  (`SlotsForContainerTier`, see *slot caps scale on container tier* below);
+  `LoadoutConstants::MAX_WEAPON_ABILITIES` remains the absolute ceiling. Empty by default.
 - `AssignedAugmentStoneAbilities` — `TArray<UAbilityData*>`; a **separate**
   sequential override list for the slots an attached `AbilityStone` grants
   (parallel to `AssignedAbilities`, not merged with it). Its cap is **per-tier**,
@@ -89,10 +91,11 @@ Notable behavior:
   at `MAX_WEAPON_ABILITIES`.
 - `GetAllSpells()` — same sequential override merge using
   `WeaponEntry.GetSpells()` as the base list and `AssignedSpells` as overrides,
-  capped via `CrystalEffectTable::ResolveSpellSlotCap(Attachment, MAX_SPELL_SLOTS)`:
+  capped via `CrystalEffectTable::ResolveSpellSlotCap(Attachment, <fall-through>)`:
   a gem-crystal attachment (or a fusion's gem-half) keys the per-tier
-  `GetAttachmentSlotsForTier` curve, otherwise the flat
-  `LoadoutConstants::MAX_SPELL_SLOTS` ceiling applies.
+  `GetAttachmentSlotsForTier` curve; otherwise the **weapon's own tier** caps it —
+  `SlotsForContainerTier(WeaponEntry.Weapon->Tier)` is passed as the fall-through
+  `FlatCeiling` (with `LoadoutConstants::MAX_SPELL_SLOTS` as the no-weapon fallback).
 - `ValidateAbilities()` — validates each assigned (non-null) ability and
   **hard-fails** (`return false`, no soft-warning path) on any of:
   - the ability is not owned (`OwnedAbilities.HasAbility` is false);
@@ -117,14 +120,16 @@ Notable behavior:
     stone-granted slots, same shape as `GetAllAbilities()`.
   - `ValidateAugmentStoneAbilities(OwnedAbilities)` — validates ownership and caps
     the count at `CrystalEffectTable::GetAttachmentSlotsForTier(Attachment.Crystal.Id)`
-    (AbilityStone F=2, E=3, D=3, C=4, B=4, A=5, S=6; **0** when no augment stone is
+    (AbilityStone F=1, E=2, D=3, C=4, B=5, A=6, S=6; **0** when no augment stone is
     attached, so any assigned stone-abilities are then rejected).
   - Authored storage is `FSavedLoadout::PrimaryAugmentStoneAbilities` /
     `SecondaryAugmentStoneAbilities`, copied by `FCombatLoadout::CreateFromSavedLoadout`
     into the loadout entries' `AssignedAugmentStoneAbilities`.
 
-  See `AugmentStoneSystem.md` for the slot table and the generic
-  `GetAttachmentSlotsForTier` helper (reusable for crystal spell-slots later).
+  See `AugmentStoneSystem.md` for the slot table and the
+  `GetAttachmentSlotsForTier(FCrystalId)` helper; its sibling
+  `SlotsForContainerTier(EItemTier)` applies the same curve to a container's own
+  tier (now driving weapon/ring/evolution native slots).
 - `InitializeFromWeapon()` — empties `AssignedAbilities` (and
   `AssignedAugmentStoneAbilities`); presets are merged in at query time.
 
@@ -138,16 +143,40 @@ Notable behavior:
 - `GetLockedSpellCount()` — returns `PresetSpells.Num()` when the ring's
   `bSpellsLocked` is true, else 0. Mirrors `FWeaponLoadoutEntry`'s ability
   locking.
-- `GetCustomizableSpellCount()` — `LoadoutConstants::MAX_RING_SPELLS` minus
-  locked count.
+- `GetCustomizableSpellCount()` — the ring's **tier** cap
+  (`SlotsForContainerTier(RingEntry.Ring->Tier)`, gem tier when a gem is attached)
+  minus locked count; `MAX_RING_SPELLS` is the no-ring fallback.
 - `GetAllSpells()` — for locked rings returns presets only; otherwise
   sequential override merge of `RingEntry.GetSpells()` over `PresetSpells`,
-  capped at `MAX_RING_SPELLS`.
+  capped on the ring's tier via `ResolveSpellSlotCap(Attachment, SlotsForContainerTier(ring tier))`
+  (gem tier overrides; `MAX_RING_SPELLS` the no-ring fallback).
 - `GetLockedSpells()` / `GetCustomizableSpells()` — partition accessors.
 - `ValidateSpells()` — ownership + element match against `RingEntry.GetElement()`.
 - `IsEvolved()` — delegates to `RingEntry.IsEvolved()`; evolved rings cost 2
   loadout slots instead of 1.
 - `InitializeFromRing()` — empties `RingEntry.AssignedSpells`.
+
+### Slot caps scale on container tier
+
+Slot counts are driven by one shared curve (`AugmentStoneConstants::ATTACHMENT_SLOTS`
+= `{1,2,3,4,5,6,6}`, F→S) via `CrystalEffectTable::SlotsForContainerTier(EItemTier)`.
+Each container keys the curve on **its own tier**:
+
+- **Weapon abilities** — `FWeaponLoadoutEntry::GetCustomizableAbilityCount()` keys on
+  the weapon tier (defined in the `.cpp`); `ValidateAbilities` inherits it.
+- **Weapon native spells** / **ring spells** — `SlotsForContainerTier(container tier)`
+  is passed as the **fall-through `FlatCeiling`** to the unchanged `ResolveSpellSlotCap`,
+  so a gem/fusion-gem attachment still keys the **gem's** tier and the container tier
+  applies only when there is no gem.
+- **Evolution spells** — capped in three `LoadoutComponent.cpp` sites
+  (`GetValidationErrors`, `GetValidationFindings`, the `EvolutionOverflow` trim), each
+  keyed on `Loadout.PrimaryEvolution.Item->Tier`. `ResolveSpellSlotCap` is **not** on the
+  evolution path (evolution has no attachment crystal).
+
+The flat `MAX_WEAPON_ABILITIES` / `MAX_SPELL_SLOTS` / `MAX_RING_SPELLS` /
+`MAX_EVOLUTION_SPELLS` constants remain defined as absolute ceilings / no-container
+fallbacks — no longer the live cap. `UInventoryDebug::LogActiveLoadout` prints a
+per-container `Slots [tier]: used/cap` readout.
 
 ### `FCombatLoadout` (referenced, defined elsewhere)
 
@@ -356,3 +385,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-06-16 | Doc-sync: `FEquippedCrystalSlot.Kind` gains `Fusion` (+`FFusionId`); `FWeaponLoadoutEntry::GetAllSpells` cap re-pointed to `CrystalEffectTable::ResolveSpellSlotCap` (tier gem-crystal/fusion-gem-half spell slots, `0e920df7`), not a flat `MAX_SPELL_SLOTS`; flagged the stale `WeaponStone*` names in the 2026-06-07 changelog row. | feature/realtime-defense |
 | 2026-06-11 | Accumulate cleanup — `LoadoutComponent.cpp`'s anon-namespace `AccumulateBonus`/`AccumulateResistance` replaced at all 10 call sites by the `FEquipmentStatBonus::Accumulate` / `FResistanceBonus::Accumulate` struct members (behaviour-identical field-wise add); the duplicate helpers deleted. | chore/legacy-cleanup |
 | 2026-06-17 | Attack/ability merge — `FWeaponLoadoutEntry::OverrideAttack` (and `UWeaponData::WeaponAttack`) widened to `USkillDataBase*` (hold a `UAbilityData` with `bIsAttack=true`). **Slotting gate added:** `FAbilityCollection::LearnAbility` rejects `IsAttack()` assets (basic attacks never enter the learned pool), with belts in `GetAbilitiesForWeaponType` and `ValidateAbilities`/`ValidateAugmentStoneAbilities` — a basic attack can't be slotted as an ability (the functional payoff of `bIsAttack`). `UWeaponAttackData` deleted. | feature/realtime-defense |
+| 2026-06-20 | Equipment slot tier scaling — slot caps now key on each container's own tier via the shared curve `{1,2,3,4,5,6,6}` (`CrystalEffectTable::SlotsForContainerTier`): weapon abilities (`GetCustomizableAbilityCount`, moved to `.cpp`) on weapon tier; weapon native + ring spells pass `SlotsForContainerTier(tier)` as the `ResolveSpellSlotCap` fall-through `FlatCeiling` (gem-keying preserved); evolution spells keyed at the three `LoadoutComponent.cpp` cap sites. Flat `MAX_*` constants retained as absolute ceilings/fallbacks. New *Slot caps scale on container tier* section; cap-line corrections throughout; per-container slot readout added to `InventoryDebug`. | feature/equipment-slot-tier-scaling |

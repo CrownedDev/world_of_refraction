@@ -85,11 +85,11 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
     /** Get number of locked ability slots (from weapon's preset) */
     int32 GetLockedAbilityCount() const;
 
-    /** Get number of customizable ability slots */
-    int32 GetCustomizableAbilityCount() const
-    {
-        return LoadoutConstants::MAX_WEAPON_ABILITIES - GetLockedAbilityCount();
-    }
+    /** Get number of customizable ability slots. The cap keys on the weapon's own
+     *  tier (CrystalEffectTable::SlotsForContainerTier); MAX_WEAPON_ABILITIES is the
+     *  no-weapon fallback ceiling. Defined in the .cpp — keeps WeaponData +
+     *  CrystalEffectTable includes out of this header. */
+    int32 GetCustomizableAbilityCount() const;
 
     // ==================== ABILITY ACCESS ====================
 

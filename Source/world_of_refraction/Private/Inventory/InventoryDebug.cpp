@@ -10,6 +10,8 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/CrystalEffectTable.h"
+#include "Inventory/ItemTier.h"
 
 void UInventoryDebug::LogSeparator(const FString &Title)
 {
@@ -233,6 +235,19 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                    Active.PrimaryWeapon.GetAllAbilities().Num());
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
                    Active.PrimaryWeapon.GetAllSpells().Num());
+            // Slot capacity by container tier (ability cap = weapon tier; spell cap =
+            // effective ResolveSpellSlotCap, i.e. gem tier when a gem is attached, else weapon tier).
+            if (const UWeaponData *W = Active.PrimaryWeapon.WeaponEntry.Weapon)
+            {
+                const int32 AbilityCap = CrystalEffectTable::SlotsForContainerTier(W->Tier);
+                const int32 SpellCap = CrystalEffectTable::ResolveSpellSlotCap(
+                    Active.PrimaryWeapon.WeaponEntry.GetAttachedItem(),
+                    CrystalEffectTable::SlotsForContainerTier(W->Tier));
+                UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: abilities %d/%d, spells %d/%d"),
+                       *TierHelpers::GetTierDisplayString(W->Tier),
+                       Active.PrimaryWeapon.GetAllAbilities().Num(), AbilityCap,
+                       Active.PrimaryWeapon.GetAllSpells().Num(), SpellCap);
+            }
         }
         else
         {
@@ -247,6 +262,16 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                    *Active.PrimaryRing.RingEntry.Ring->Name);
             UE_LOG(LogTemp, Display, TEXT("  Spells: %d"),
                    Active.PrimaryRing.GetAllSpells().Num());
+            // Spell slot capacity by ring tier (effective cap = customisable + locked;
+            // gem tier overrides as the no-gem fall-through inside GetCustomizableSpellCount).
+            if (const URingData *Rg = Active.PrimaryRing.RingEntry.Ring)
+            {
+                const int32 SpellCap = Active.PrimaryRing.GetCustomizableSpellCount()
+                                       + Active.PrimaryRing.GetLockedSpellCount();
+                UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: spells %d/%d"),
+                       *TierHelpers::GetTierDisplayString(Rg->Tier),
+                       Active.PrimaryRing.GetAllSpells().Num(), SpellCap);
+            }
         }
         else
         {
@@ -261,6 +286,12 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                    *Active.PrimaryEvolution.Item->ItemName);
             UE_LOG(LogTemp, Display, TEXT("  Evolution Spells: %d"),
                    Active.EvolutionSpells.Num());
+            // Spell slot capacity by evolution tier (no attachment crystal — straight tier cap).
+            const int32 SpellCap = CrystalEffectTable::SlotsForContainerTier(
+                Active.PrimaryEvolution.Item->Tier);
+            UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: spells %d/%d"),
+                   *TierHelpers::GetTierDisplayString(Active.PrimaryEvolution.Item->Tier),
+                   Active.EvolutionSpells.Num(), SpellCap);
         }
         else
         {
@@ -291,6 +322,13 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             {
                 UE_LOG(LogTemp, Display, TEXT("  [%d] %s (%d spells)"),
                        i, *R.RingEntry.Ring->Name, R.GetSpellCount());
+                if (const URingData *Rg = R.RingEntry.Ring)
+                {
+                    const int32 SpellCap = R.GetCustomizableSpellCount() + R.GetLockedSpellCount();
+                    UE_LOG(LogTemp, Display, TEXT("      Slots [%s]: spells %d/%d"),
+                           *TierHelpers::GetTierDisplayString(Rg->Tier),
+                           R.GetAllSpells().Num(), SpellCap);
+                }
             }
         }
     }

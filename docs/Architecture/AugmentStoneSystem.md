@@ -130,16 +130,19 @@ and the consumable path (a temporary buff) — see *How It Works*.
 #### `AbilityStone` — ability slots
 
 `CrystalEffectTable::GetAttachmentSlotsForTier(FCrystalId)` returns the slot
-count an attachment grants. The helper is **generic** (named for "attachment",
-not "ability") so refined crystals can adopt it for spell-slots later; today only
-`AbilityStone` returns non-zero:
+count a **crystal** attachment grants, gating on crystal type (`AbilityStone` for
+abilities, gems for spells). Its sibling `CrystalEffectTable::SlotsForContainerTier(EItemTier)`
+reads the **same** curve keyed on a **container's own tier** with no type gate —
+now the source of weapon ability slots and weapon/ring/evolution native (no-gem)
+spell slots. The one shared curve:
 
 | Tier | F | E | D | C | B | A | S |
 |---|---|---|---|---|---|---|---|
-| Ability slots | 2 | 3 | 3 | 4 | 4 | 5 | 6 |
+| Slots | 1 | 2 | 3 | 4 | 5 | 6 | 6 |
 
-`DamageStone`, gems, evolution, and `None` all return `0`. The progression is
-deliberately non-sequential (E and D both 3; C and B both 4).
+`DamageStone`, gems, evolution, and `None` all return `0` from the `FCrystalId`
+overload. The progression is linear F→A, then S holds at 6 (A and S share 6 — S
+leads on power/quality, not slot count).
 
 `AbilityStone` has **no consumable effect**: `ItemIdentity::GetItemEffectType`
 maps it to `EItemEffectType::None`, so `UItemExecutor::UseItem` finds no handler
@@ -808,6 +811,7 @@ hard guarantee survives; only the editor affordance degrades.
 
 | Date | Change | Branch |
 |------|--------|--------|
+| 2026-06-20 | Shared slot curve unified to `{1,2,3,4,5,6,6}` (was `{2,3,3,4,4,5,6}`) — linear F→A, S holds at 6. Added sibling helper `CrystalEffectTable::SlotsForContainerTier(EItemTier)` (same curve, keyed on a container's own tier, no crystal-type gate) now driving weapon ability + weapon/ring/evolution native spell slots; `GetAttachmentSlotsForTier(FCrystalId)` still keys augment-stone abilities + gem spells. Updated the slot table + helper description; historical 2026-06-07 rows left as-shipped. | feature/equipment-slot-tier-scaling |
 | 2026-06-16 | Doc-sync (status reconcile): corrected the "implemented" architecture facts — `ECrystalType` now ~26 values (full stat-stone family, not "12 / 2 stones"); `EAttachedItemKind` gains `Fusion` (=4, `FFusionId`). Rewrote the top banner + the *Design / Phase 2* fence to a status list: the **full stat-stone family** and **FusionStone** (identity + slot + production wear) have **shipped** — only the speed-stone→window link and the Resistance spell-shave remain unbuilt. Added a **Reflex** row to the wired-substat audit (`ESubStat::Reflex`/`BonusReflex`/`ReflexStone`). Fixed retired-symbol refs in the cap decisions (`CRIT_MULTIPLIER`→`GetCritDamageMultiplier`; `LUCK_CRIT_BONUS_MAX` retired, Luck *is* crit chance; noted the cluster-A2 `UNIVERSAL_STAT_CAP` on resistance). | feature/realtime-defense |
 | 2026-06-16 | **Speed-stone section corrected** — the "fixed 0.3s, play-rate-independent defense window" premise is **obsolete**: `feature/realtime-defense` made the window variable (`GetEffectiveDefenseInputWindow` = base 0.5s + Reflex − attacker speed, floored 0.1s), and stat-composition 5g made ActionSpeed/SpellSpeed play-rate Pattern-P (`GetEffectiveActionSpeed`/`GetEffectiveSpellSpeed`, ×1.5 stat / ×2.0 gear). Speed stones reclassified **BLOCKED → small follow-up**: only the stone→`CalculateSpeedWindowPenalty` wiring remains (the window penalty currently reads RAW asset points, not gear/stone). Visual-read-site + classification tables updated. | feature/realtime-defense |
 | 2026-06-07 | Initial documentation — shipped weapon-stone system (unified `ECrystalType`/`FCrystalId` identity; `EAttachedItemKind::WeaponStone`; `DamageStone` whole-percent channel + 3-turn consumable; `AbilityStone` per-tier slots 2/3/3/4/4/5/6; `GetRestrictedEnumValues` grey-out + `IsDataValid` backstop; `CrystalTypeHelpers` gem/stone predicates). Recorded the `BonusRawDamage` trap, the unified-enum and attach-only rationale, and the cap decisions. Captured the Design/Phase-2 plan (Mastery stone, 7×7 fusion/cost matrix, selectable-substat fusion bonus, fusion restrictions, rings+AugmentStone rule, planned `WeaponStone→AugmentStone` rename, stat-stone family + read-site hooks, single-field grey-out risk) and parked cleanup. | feature/weapon-stones |
