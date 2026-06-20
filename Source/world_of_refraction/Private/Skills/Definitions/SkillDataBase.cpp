@@ -158,19 +158,6 @@ TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
     return Table;
 }
 
-TArray<FSkillEffect> USkillDataBase::GetEffectsForCondition(ESkillTrigger Condition) const
-{
-    TArray<FSkillEffect> Result;
-    for (const FSkillEffect &Effect : Effects)
-    {
-        if (Effect.Condition == Condition && Effect.IsValid())
-        {
-            Result.Add(Effect);
-        }
-    }
-    return Result;
-}
-
 bool USkillDataBase::HasDrainEffect() const
 {
     for (const FSkillEffect &Effect : Effects)

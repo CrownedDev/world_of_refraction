@@ -225,7 +225,7 @@ void USkillEffectManager::ApplyEquipmentEffects(
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
 		const FSkillEffect &Source = Effects[i];
-		if (Source.EffectType == ESkillEffectType::None)
+		if (!Source.IsValid())
 		{
 			continue;
 		}
@@ -271,11 +271,10 @@ void USkillEffectManager::WOR_StartingEffects()
 	{
 		for (const FSkillEffect &E : Specs)
 		{
-			UE_LOG(LogTemp, Display, TEXT("  PRE [%s] %s — %s (Mag=%.2f Val=%d Dur=%d)"),
+			UE_LOG(LogTemp, Display, TEXT("  PRE [%s] %s — %d payload(s), %d condition(s)"),
 				   SourceLabel,
 				   E.EffectName.IsEmpty() ? TEXT("(unnamed)") : *E.EffectName,
-				   *UEnum::GetValueAsString(E.EffectType),
-				   E.Magnitude, E.Value, E.Duration);
+				   E.Payloads.Num(), E.Conditions.Num());
 		}
 		return Specs.Num();
 	};

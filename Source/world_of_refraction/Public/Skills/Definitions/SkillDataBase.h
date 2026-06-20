@@ -320,9 +320,6 @@ public:
     // ==================== EFFECT HELPERS ====================
 
     UFUNCTION(BlueprintPure, Category = "Skill|Effects")
-    TArray<FSkillEffect> GetEffectsForCondition(ESkillTrigger Condition) const;
-
-    UFUNCTION(BlueprintPure, Category = "Skill|Effects")
     bool HasDrainEffect() const;
 
     UFUNCTION(BlueprintPure, Category = "Skill|Effects")

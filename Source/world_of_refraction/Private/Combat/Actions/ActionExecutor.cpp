@@ -6000,28 +6000,10 @@ void UActionExecutor::ApplySkillEffects(
 			}
 		}
 
-		// D1: one effect yields N payload applications. Un-migrated effects (empty
-		// Payloads) synthesize one payload from the flat fields, so behaviour is
-		// byte-identical to the pre-payload path.
-		// TODO(F3): dead once migration is guaranteed (every loaded asset has Payloads[]);
-		// delete this fallback together with the legacy flat fields.
-		TArray<FSkillEffectPayload> Payloads;
-		if (Effect.Payloads.Num() > 0)
-		{
-			Payloads = Effect.Payloads;
-		}
-		else
-		{
-			FSkillEffectPayload Synth;
-			Synth.EffectType = Effect.EffectType;
-			Synth.Magnitude = Effect.Magnitude;
-			Synth.Value = Effect.Value;
-			Synth.Duration = Effect.Duration;
-			Synth.Target = Effect.Target;
-			Synth.TargetCount = Effect.TargetCount;
-			Synth.DrainPercent = Effect.DrainPercent;
-			Payloads.Add(Synth);
-		}
+		// One effect yields N payload applications. Migration guarantees every loaded
+		// effect has Payloads[] populated; nothing constructs a runtime FSkillEffect that
+		// reaches here, so no synthetic fallback is needed.
+		const TArray<FSkillEffectPayload> &Payloads = Effect.Payloads;
 
 		for (int32 PayloadIndex = 0; PayloadIndex < Payloads.Num(); ++PayloadIndex)
 		{

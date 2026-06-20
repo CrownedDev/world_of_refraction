@@ -307,16 +307,11 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.bPermanent = (InDuration == 0);
 			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 
-			// Legacy 2-field condition mirror (kept; some paths still read these).
-			Effect.TriggerCondition = Source.Condition;
-			Effect.TriggerThreshold = Source.ConditionThreshold;
-			Effect.SecondaryTriggerCondition = Source.SecondaryCondition;
-			Effect.SecondaryTriggerThreshold = Source.SecondaryThreshold;
-			Effect.bRequireBothTriggers = Source.bRequireBothConditions;
-			Effect.TargetTriggerCondition = Source.TargetCondition;
-			Effect.TargetTriggerThreshold = Source.TargetThreshold;
-
 			// Shared N-condition group: every payload gates on the same conditions.
+			// (F3a) The runtime legacy mirror fields TriggerCondition/SecondaryTriggerCondition/
+			// bRequireBothTriggers/TargetTriggerCondition are left default — they only back the
+			// empty-Conditions[] 2-field eval for Space-B/synthetic effects, which carry no
+			// Conditions[]. Effects from here carry Conditions[], which the manager prefers.
 			Effect.Conditions = Source.Conditions;
 
 			// Authored stacking / fires-once (D2). Per-effect, shared across payloads.
@@ -324,13 +319,16 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.MaxStacks = Source.MaxStacks;
 			Effect.bFiresOncePerMatch = Source.bFiresOncePerMatch;
 
-			// Promote to OnTrigger when the source condition is non-trivial so the
-			// manager's trigger evaluator fires. Uses the legacy field, exactly as today.
-			// TODO(Cluster D): new-authored-only effects (legacy Condition==Always but a
-			// non-Always Conditions[] entry) won't promote here — revisit when legacy is dropped.
-			if (Source.Condition != ESkillTrigger::Always && Source.Condition != ESkillTrigger::None)
+			// Promote to OnTrigger when any source-side condition is non-trivial so the
+			// manager's trigger evaluator fires. (F3a) Reads the new Conditions[] — matches
+			// the old Source.Condition check for migrated effects (primary in Conditions[0]).
+			for (const FSkillCondition &C : Source.Conditions)
 			{
-				Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+				if (!C.bTargetSide && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
+				{
+					Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+					break;
+				}
 			}
 			return Effect;
 		};
@@ -346,13 +344,6 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				}
 				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, p));
 			}
-		}
-
-		// Fallback: un-migrated in-memory effect (no Payloads[] but legacy EffectType set)
-		// reproduces today's single-payload runtime effect exactly (SubIndex 0).
-		if (Out.Num() == 0 && Source.EffectType != ESkillEffectType::None)
-		{
-			Out.Add(Build(Source.EffectType, Source.Magnitude, Source.Value, Source.Duration, 0));
 		}
 
 		return Out;
