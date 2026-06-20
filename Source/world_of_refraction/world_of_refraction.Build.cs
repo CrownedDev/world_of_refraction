@@ -14,6 +14,14 @@ public class world_of_refraction : ModuleRules
 
 		// Uncomment if you are using Slate UI
 		PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
+
+		// F2 migration tooling (SkillEffectMigrationDebug): asset enumeration (runtime+editor)
+		// + editor-only re-save via UEditorAssetLibrary. The tool itself is WITH_EDITOR-guarded.
+		PrivateDependencyModuleNames.Add("AssetRegistry");
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("EditorScriptingUtilities");
+		}
 		
 		// Uncomment if you are using online features
 		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
