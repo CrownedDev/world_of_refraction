@@ -324,7 +324,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			// the old Source.Condition check for migrated effects (primary in Conditions[0]).
 			for (const FSkillCondition &C : Source.Conditions)
 			{
-				if (!C.bTargetSide && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
+				if (IsOwnerSide(C.Subject) && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
 				{
 					Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
 					break;

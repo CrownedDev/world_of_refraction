@@ -129,7 +129,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         bool bOnHitSource = false;
         for (const FSkillCondition &C : Conditions)
         {
-            if (!C.bTargetSide && C.Trigger == ESkillTrigger::OnHit) { bOnHitSource = true; break; }
+            if (IsOwnerSide(C.Subject) && C.Trigger == ESkillTrigger::OnHit) { bOnHitSource = true; break; }
         }
         return bDrainPayload && bOnHitSource;
     }
@@ -150,12 +150,12 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         return Conditions.Num() > 0;
     }
 
-    /** Carries a target-side condition: any bTargetSide entry. */
+    /** Carries a target-side condition: any target-side (Target / TargetTeam) entry. */
     bool HasTargetCondition() const
     {
         for (const FSkillCondition &C : Conditions)
         {
-            if (C.bTargetSide) return true;
+            if (IsTargetSide(C.Subject)) return true;
         }
         return false;
     }
@@ -166,7 +166,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         int32 SourceConds = 0;
         for (const FSkillCondition &C : Conditions)
         {
-            if (!C.bTargetSide) ++SourceConds;
+            if (IsOwnerSide(C.Subject)) ++SourceConds;
         }
         return SourceConds >= 2;
     }
@@ -179,7 +179,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
     {
         for (const FSkillCondition &C : Conditions)
         {
-            if (C.bTargetSide) return true;
+            if (IsTargetSide(C.Subject)) return true;
             if (C.Trigger != ESkillTrigger::Always) return true;
         }
         return false;
@@ -224,7 +224,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         FString SourceStr;
         for (const FSkillCondition &C : Conditions)
         {
-            if (C.bTargetSide || C.Trigger == ESkillTrigger::Always) continue;
+            if (IsTargetSide(C.Subject) || C.Trigger == ESkillTrigger::Always) continue;
             if (!SourceStr.IsEmpty())
             {
                 SourceStr += (C.Combine == ECondCombine::And) ? TEXT(" AND ") : TEXT(" OR ");
@@ -238,7 +238,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
         for (const FSkillCondition &C : Conditions)
         {
-            if (!C.bTargetSide) continue;
+            if (IsOwnerSide(C.Subject)) continue;
             Desc += FString::Printf(TEXT(" [target: %s]"), *RenderCond(C));
         }
 

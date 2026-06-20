@@ -145,7 +145,7 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
         bool bHasOnHitSource = false;
         for (const FSkillCondition &C : Effect.Conditions)
         {
-            if (!C.bTargetSide && C.Trigger == ESkillTrigger::OnHit)
+            if (IsOwnerSide(C.Subject) && C.Trigger == ESkillTrigger::OnHit)
             {
                 bHasOnHitSource = true;
                 break;

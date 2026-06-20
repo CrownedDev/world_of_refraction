@@ -1681,12 +1681,12 @@ bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkil
 	// damage) that only write the old fields stay byte-identical.
 	if (Effect.Conditions.Num() > 0)
 	{
-		// TODO(target-eval): target-side conditions are skipped (Participates = !bTargetSide)
-		// — matches today's behaviour (this fn never evaluated target gating). C2 swaps Actor
-		// for the bTargetSide-resolved actor and loosens this filter when target-eval lands.
+		// TODO(target-eval): target-side conditions are skipped (Participates = IsOwnerSide)
+		// — matches today's behaviour (this fn never evaluated target gating). C2a-ii threads
+		// a Target and resolves the subject's actor(s) when target-eval lands.
 		return EvaluateConditionGroup(
 			Effect.Conditions,
-			[](const FSkillCondition &C) { return !C.bTargetSide; },
+			[](const FSkillCondition &C) { return IsOwnerSide(C.Subject); },
 			[&](const FSkillCondition &C) { return IsSingleTriggerMet(Actor, C.Trigger, C.Threshold); });
 	}
 

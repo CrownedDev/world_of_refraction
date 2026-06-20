@@ -30,9 +30,9 @@ FString SkillEffectDebug::DescribeEffect(const FSkillEffect &Effect)
     {
         const FSkillCondition &C = Effect.Conditions[i];
         Out += FString::Printf(
-            TEXT("    [%d] Trigger=%s Threshold=%.0f Combine=%s TargetSide=%s\n"),
+            TEXT("    [%d] Trigger=%s Threshold=%.0f Combine=%s Subject=%s\n"),
             i, *EnumName(C.Trigger), C.Threshold, *EnumName(C.Combine),
-            C.bTargetSide ? TEXT("true") : TEXT("false"));
+            *EnumName(C.Subject));
     }
 
     // ---- Payloads[] ----

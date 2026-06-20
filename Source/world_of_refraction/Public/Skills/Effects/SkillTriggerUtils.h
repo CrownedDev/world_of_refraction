@@ -23,7 +23,7 @@ namespace SkillTriggerUtils
      *  NOTE: miss/accuracy-avoid is deliberately NOT mapped (dodge covers defender
      *    avoidance; accuracy-miss is a separate axis — future work).
      *  NOTE: attacker-side ("react to how MY target defended") is handled by the
-     *    condition's bTargetSide flag, NOT a separate trigger. */
+     *    condition's Subject (Target / TargetTeam), NOT a separate trigger. */
     inline void DefenseOutcomeToTriggers(EDefenseType Type, bool bPerfect,
                                          TArray<ESkillTrigger> &OutTriggers)
     {

@@ -5956,10 +5956,10 @@ void UActionExecutor::ApplySkillEffects(
 		// -> the fold yields true (bAllAndMet stays true, no OR group), matching the old
 		// EventMet(Always). Target-side conditions ride the runtime effect, not gated here.
 		// Source-side AND/OR partition (shared fold). Target-side conditions are skipped
-		// (Participates = !bTargetSide) — they ride the runtime effect, not gated here.
+		// (Participates = IsOwnerSide) — they ride the runtime effect, not gated here.
 		const bool bConditionMet = EvaluateConditionGroup(
 			Effect.Conditions,
-			[](const FSkillCondition &C) { return !C.bTargetSide; },
+			[](const FSkillCondition &C) { return IsOwnerSide(C.Subject); },
 			[&](const FSkillCondition &C) { return EventMet(C.Trigger); });
 
 		if (!bConditionMet)
@@ -5973,7 +5973,7 @@ void UActionExecutor::ApplySkillEffects(
 		bool bOnHitSource = false;
 		for (const FSkillCondition &C : Effect.Conditions)
 		{
-			if (!C.bTargetSide && C.Trigger == ESkillTrigger::OnHit)
+			if (IsOwnerSide(C.Subject) && C.Trigger == ESkillTrigger::OnHit)
 			{
 				bOnHitSource = true;
 				break;
@@ -6115,7 +6115,7 @@ void UActionExecutor::ApplySkillEffects(
 				// effects carry the primary in Conditions[0], so this matches the old check.
 				for (const FSkillCondition &C : StatusEffect.Conditions)
 				{
-					if (!C.bTargetSide && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
+					if (IsOwnerSide(C.Subject) && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
 					{
 						StatusEffect.ProcessTiming = ESkillEffectTiming::OnTrigger;
 						break;

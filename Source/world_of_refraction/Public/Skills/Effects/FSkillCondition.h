@@ -1,9 +1,7 @@
 // FSkillCondition.h
 // One entry in a skill effect's condition group: a trigger + optional threshold,
-// combined with the previous entry via Combine (AND / OR). May be evaluated against
-// the source's state or the target's state (bTargetSide).
-//
-// Cluster A: additive new type for the FSkillEffect reshape. Nothing reads it yet.
+// combined with the previous entry via Combine (AND / OR). Evaluated against the
+// owner's or the target's side (Subject: Self / SelfTeam / Target / TargetTeam).
 
 #pragma once
 
@@ -11,6 +9,7 @@
 #include "Templates/Function.h"
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/ECondCombine.h"
+#include "Skills/Effects/ECondSubject.h"
 #include "FSkillCondition.generated.h"
 
 USTRUCT(BlueprintType)
@@ -32,15 +31,22 @@ struct WORLD_OF_REFRACTION_API FSkillCondition
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
     ECondCombine Combine = ECondCombine::And;
 
-    /** True = evaluated against the TARGET's state rather than the source's. */
+    /** Which actor(s) this condition evaluates against (owner / owner-team / target /
+     *  target-team). Team scopes fire if ANY member meets the condition. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
-    bool bTargetSide = false;
+    ECondSubject Subject = ECondSubject::Self;
 
     /** Auto-synced (later cluster) — true when Trigger uses a threshold value.
      *  Drives EditCondition gating for Threshold. Do not edit manually. */
     UPROPERTY()
     bool bUsesThreshold = false;
 };
+
+/** Owner-side subjects (Self / SelfTeam) — evaluated against the effect owner's side. */
+inline bool IsOwnerSide(ECondSubject S) { return S == ECondSubject::Self || S == ECondSubject::SelfTeam; }
+
+/** Target-side subjects (Target / TargetTeam) — evaluated against the owner's target's side. */
+inline bool IsTargetSide(ECondSubject S) { return S == ECondSubject::Target || S == ECondSubject::TargetTeam; }
 
 /** Shared AND/OR partition fold over a condition group. Participates(C) false skips a
  *  condition entirely (reproduces a `continue` — distinct from IsMet returning false, which
