@@ -2,6 +2,7 @@
 // Active combat loadout and runtime battle state implementation
 
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/SpellPoolConstants.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -692,6 +693,50 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
                         *Spell->Name));
                 }
             }
+
+            // Per-school count cap (tier-blind, character-independent — runs regardless of
+            // CharData). Mirrors FSavedLoadout's authoring guard so both surfaces report
+            // identically. Each school's spell count must fit one pool.
+            TMap<ESpellSchool, int32> PerSchoolCount;
+            for (const USpellData *Spell : Loadout.InnateSpells)
+            {
+                if (Spell)
+                {
+                    PerSchoolCount.FindOrAdd(Spell->School)++;
+                }
+            }
+            for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)
+            {
+                if (Pair.Value > SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL)
+                {
+                    Errors.Add(FString::Printf(TEXT("Too many %s innate spells (%d/%d)"),
+                                               *UEnum::GetValueAsString(Pair.Key), Pair.Value,
+                                               SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL));
+                }
+            }
+
+            // Weight budget: sum of effective per-spell costs (tier - mastery discount)
+            // must fit INNATE_SPELL_BUDGET. Discount is from raw world-pillar levels;
+            // null CharData -> no discount (base costs), budget still enforced.
+            const UCharacterData *CharData = CharComp ? CharComp->CharacterData : nullptr;
+            const int32 Discount = CharData
+                ? SpellPoolConstants::SpellSlotDiscount(
+                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                : 0;
+            int32 Used = 0;
+            for (const USpellData *Spell : Loadout.InnateSpells)
+            {
+                if (Spell)
+                {
+                    Used += SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Discount);
+                }
+            }
+            if (Used > SpellPoolConstants::INNATE_SPELL_BUDGET)
+            {
+                Errors.Add(FString::Printf(
+                    TEXT("Innate spell budget exceeded: %d/%d points used (discount -%d)"),
+                    Used, SpellPoolConstants::INNATE_SPELL_BUDGET, Discount));
+            }
         }
     }
 
@@ -1036,6 +1081,50 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                     AddFinding(ELoadoutSlotType::InnateSpell, i, true,
                                FString::Printf(TEXT("Innate spell '%s' element not castable by this character"), *Spell->Name));
                 }
+            }
+
+            // Per-school count cap (tier-blind, character-independent — runs regardless of
+            // CharData). Mirrors FSavedLoadout's authoring guard. Pool-wide finding,
+            // non-clearable (same pattern as the weight finding below).
+            TMap<ESpellSchool, int32> PerSchoolCount;
+            for (const USpellData *Spell : Loadout.InnateSpells)
+            {
+                if (Spell)
+                {
+                    PerSchoolCount.FindOrAdd(Spell->School)++;
+                }
+            }
+            for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)
+            {
+                if (Pair.Value > SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL)
+                {
+                    AddFinding(ELoadoutSlotType::InnateSpell, -1, false,
+                               FString::Printf(TEXT("Too many %s innate spells (%d/%d)"),
+                                               *UEnum::GetValueAsString(Pair.Key), Pair.Value,
+                                               SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL));
+                }
+            }
+
+            // Weight budget finding (pool-wide; non-clearable — no single slot to null).
+            // Discount from raw world-pillar levels; null CharData -> no discount.
+            const UCharacterData *CharData = CharComp ? CharComp->CharacterData : nullptr;
+            const int32 Discount = CharData
+                ? SpellPoolConstants::SpellSlotDiscount(
+                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                : 0;
+            int32 Used = 0;
+            for (const USpellData *Spell : Loadout.InnateSpells)
+            {
+                if (Spell)
+                {
+                    Used += SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Discount);
+                }
+            }
+            if (Used > SpellPoolConstants::INNATE_SPELL_BUDGET)
+            {
+                AddFinding(ELoadoutSlotType::InnateSpell, -1, false,
+                           FString::Printf(TEXT("Innate spell budget exceeded: %d/%d points used (discount -%d)"),
+                                           Used, SpellPoolConstants::INNATE_SPELL_BUDGET, Discount));
             }
         }
     }

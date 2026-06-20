@@ -10,6 +10,7 @@
 #include "Inventory/InventoryConstants.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/SpellPoolConstants.h"
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -92,10 +93,28 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
         {
             Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(InnateSpells, BDSpellPools));
         }
-        else if (InnateSpells.Num() > InventoryConstants::MAX_INNATE_SPELLS_TOTAL)
+        else
         {
-            Errors.Add(FString::Printf(TEXT("Too many innate spells (%d/%d)"),
-                                       InnateSpells.Num(), InventoryConstants::MAX_INNATE_SPELLS_TOTAL));
+            // Per-school count cap (tier-blind, character-independent authoring guard):
+            // each school's innate spell count must fit one pool. (Replaces the flat
+            // MAX_INNATE_SPELLS_TOTAL=24 check; per-school 6 x 4 schools implies the same total.)
+            TMap<ESpellSchool, int32> PerSchoolCount;
+            for (const USpellData *Spell : InnateSpells)
+            {
+                if (Spell)
+                {
+                    PerSchoolCount.FindOrAdd(Spell->School)++;
+                }
+            }
+            for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)
+            {
+                if (Pair.Value > SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL)
+                {
+                    Errors.Add(FString::Printf(TEXT("Too many %s innate spells (%d/%d)"),
+                                               *UEnum::GetValueAsString(Pair.Key), Pair.Value,
+                                               SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL));
+                }
+            }
         }
     }
 
