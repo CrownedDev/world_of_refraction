@@ -4,6 +4,8 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/EffectDefinition.h"
+#include "Skills/Effects/EffectIdentity.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
 
@@ -158,9 +160,22 @@ TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
     return Table;
 }
 
+TArray<FSkillEffect> USkillDataBase::GetAllEffects() const
+{
+    TArray<FSkillEffect> Result = Effects;
+    for (const TObjectPtr<UEffectDefinition> &Def : ReferencedEffects)
+    {
+        if (Def)
+        {
+            Result.Add(Def->Effect);
+        }
+    }
+    return Result;
+}
+
 bool USkillDataBase::HasDrainEffect() const
 {
-    for (const FSkillEffect &Effect : Effects)
+    for (const FSkillEffect &Effect : GetAllEffects())
     {
         if (Effect.IsDrain())
         {
@@ -172,7 +187,7 @@ bool USkillDataBase::HasDrainEffect() const
 
 bool USkillDataBase::HasBuffEffects() const
 {
-    for (const FSkillEffect &Effect : Effects)
+    for (const FSkillEffect &Effect : GetAllEffects())
     {
         if (Effect.IsBuff())
         {
@@ -184,7 +199,7 @@ bool USkillDataBase::HasBuffEffects() const
 
 bool USkillDataBase::HasDebuffEffects() const
 {
-    for (const FSkillEffect &Effect : Effects)
+    for (const FSkillEffect &Effect : GetAllEffects())
     {
         if (Effect.IsDebuff())
         {
@@ -326,11 +341,17 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Context.AddWarning(FText::FromString(TEXT("Skill has empty Name")));
     }
 
-    if (Effects.Num() > LoadoutConstants::MAX_SKILL_EFFECTS)
+    // Stable cast-ID packing puts EffectIndex in the ones digit (SourceID*100 +
+    // EffectIndex + PayloadIndex*10), so the total addressable effect count (inline +
+    // referenced) must stay <= EFFECT_ID_SUBBAND_MAX + 1 (=10) or IDs collide into the
+    // payload band. ReferencedEffects.Num() is the conservative bound (runtime skips
+    // nulls, so the real index range is never larger).
+    const int32 TotalEffects = Effects.Num() + ReferencedEffects.Num();
+    if (TotalEffects > EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)
     {
         Context.AddError(FText::FromString(FString::Printf(
-            TEXT("Too many effects (%d). Maximum is %d"),
-            Effects.Num(), LoadoutConstants::MAX_SKILL_EFFECTS)));
+            TEXT("Too many effects (inline + referenced = %d). Max %d per skill for stable-ID packing."),
+            TotalEffects, EffectIdentity::EFFECT_ID_SUBBAND_MAX + 1)));
         Result = EDataValidationResult::Invalid;
     }
 
