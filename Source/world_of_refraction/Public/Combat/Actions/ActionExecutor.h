@@ -575,7 +575,11 @@ private:
 		EActionType ActionKind = EActionType::Ability,
 		EPhysicalDamageType PhysicalType = EPhysicalDamageType::None);
 
-	/** Get targets for an effect based on ETargetType + ETargetCount */
+public:
+	/** Get targets for an effect based on ETargetType + ETargetCount.
+	 *  Public (Decision B): USkillEffectManager's defense-trigger fire (C3c) reuses this
+	 *  resolver per-payload instead of duplicating the ETargetType/ETargetCount logic. The
+	 *  GetAll* helpers below stay private — the resolver calls them in-class. */
 	void GetEffectTargets(
 		AActor *User,
 		const TArray<AActor *> &ActionTargets,
@@ -584,6 +588,7 @@ private:
 		int32 UserTeam,
 		TArray<AActor *> &OutTargets);
 
+private:
 	/** Get all enemies for targeting */
 	TArray<AActor *> GetAllEnemies(AActor *User, int32 UserTeam);
 

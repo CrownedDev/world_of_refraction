@@ -6,6 +6,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/EffectIdentity.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
@@ -1432,6 +1433,11 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 	TArray<ESkillTrigger> OutcomeTriggers;
 	SkillTriggerUtils::DefenseOutcomeToTriggers(DefenseType, bPerfect, OutcomeTriggers);
 
+	// Reuse ActionExecutor's per-payload target resolver (Decision B); TurnManager supplies
+	// the owner's team for Enemy/Ally resolution. Fetched once for both perspectives.
+	UActionExecutor *AE = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr;
+	UTurnManager *TM = GetGameInstance() ? GetGameInstance()->GetSubsystem<UTurnManager>() : nullptr;
+
 	// Evaluate from BOTH perspectives: the defender ("I parried") and the attacker ("my target
 	// dodged me"). For each pass, Owner is that actor's armed set, Target is the OTHER actor.
 	struct FPerspective { AActor *Owner; AActor *Target; };
@@ -1476,12 +1482,70 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 						.ContainsByPredicate([&](AActor *A) { return IsSingleTriggerMet(A, C.Trigger, C.Threshold); });
 				});
 
-			if (bFires)
+			if (bFires && AE)
 			{
-				// C3b: LOG-ONLY. C3c adds the ApplyEffect fire.
-				UE_LOG(LogTemp, Display, TEXT("[DefenseTrigger] MATCH: %s (DefID=%d) owner=%s outcome=%s perfect=%d"),
-					   *E.EffectName, G.DefID, *GetNameSafe(Owner),
-					   *UEnum::GetValueAsString(DefenseType), bPerfect);
+				const int32 OwnerTeam = TM ? TM->GetActorTeam(Owner) : -1;
+
+				// Per-PAYLOAD resolve-and-apply. Each payload carries its own Target/TargetCount,
+				// so targets resolve per payload (a parry effect may buff Self AND debuff the
+				// attacker). Build ONE runtime per payload via CreateFromSpellEffect — NOT
+				// CreateAllFromSkillEffect, which expands ALL payloads and would N^2-apply inside
+				// this loop. Mirrors ActionExecutor::ApplySkillEffects's per-payload path.
+				for (int32 PayloadIndex = 0; PayloadIndex < E.Payloads.Num(); ++PayloadIndex)
+				{
+					const FSkillEffectPayload &P = E.Payloads[PayloadIndex];
+					if (P.EffectType == ESkillEffectType::None)
+					{
+						continue;
+					}
+
+					// Defender-perspective ActionTargets = { the OTHER actor }, so a Single-Enemy
+					// payload routes to whoever this Owner was fighting in the exchange.
+					TArray<AActor *> AppTargets;
+					AE->GetEffectTargets(Owner, { Target }, P.Target, P.TargetCount, OwnerTeam, AppTargets);
+					if (AppTargets.Num() == 0)
+					{
+						continue;
+					}
+
+					// Def-identity: same packing as cast / equipment
+					// (PackEffectID(DefID, BundleIndex, PayloadIndex)) — a defender-fired effect
+					// MERGES with the same def applied elsewhere and shares the fires-once gate.
+					const int32 PayloadEffectID =
+						EffectIdentity::PackEffectID(G.DefID, G.BundleIndex, PayloadIndex);
+
+					// Gauge manipulators + DOT pass authored Value through; stat modifiers keep
+					// the Magnitude*100 percentage shape (mirrors ApplySkillEffects).
+					const int32 RuntimeValue =
+						(P.EffectType == ESkillEffectType::StatusIncrease ||
+						 P.EffectType == ESkillEffectType::StatusDecrease ||
+						 P.EffectType == ESkillEffectType::DOT)
+							? P.Value
+							: FMath::RoundToInt(P.Magnitude * 100.0f);
+
+					for (AActor *AppTarget : AppTargets)
+					{
+						// No cast context here, so Element stays Generic (parity with equipment
+						// effects, which CreateAllFromSkillEffect also leaves Generic).
+						FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSpellEffect(
+							E.EffectName, PayloadEffectID, P.EffectType, P.Magnitude, RuntimeValue,
+							P.Duration, ESpellElement::Generic);
+
+						// Authored stacking / fires-once carry over. The defense-outcome conditions
+						// were the GATE (already evaluated) — deliberately NOT copied onto the
+						// runtime, so the consequence ticks on its natural timing (DOT end-of-turn,
+						// etc.) instead of being promoted to an inert OnTrigger effect.
+						Runtime.bCanStack = E.bStackable;
+						Runtime.MaxStacks = E.MaxStacks;
+						Runtime.bFiresOncePerMatch = E.bFiresOncePerMatch;
+
+						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
+
+						UE_LOG(LogTemp, Log, TEXT("[DefenseTrigger] FIRE: %s (ID=%d) %s -> %s outcome=%s perfect=%d"),
+							   *E.EffectName, PayloadEffectID, *GetNameSafe(Owner),
+							   *GetNameSafe(AppTarget), *UEnum::GetValueAsString(DefenseType), bPerfect);
+					}
+				}
 			}
 		}
 	}
