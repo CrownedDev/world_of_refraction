@@ -9,6 +9,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Combat/Damage/EPhysicalDamageType.h"
 #include "Skills/Effects/FSkillEffect.h"
+#include "Skills/Effects/EffectIdentity.h"
 #include "ActiveSkillEffect.generated.h"
 
 /**
@@ -91,6 +92,15 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(BlueprintReadOnly, Category = "Timing")
 	bool bTriggerActive = false;
 
+	/** N-condition trigger group (Cluster C), carried from FSkillEffect::Conditions at
+	 *  conversion and shared across every payload of the source effect. When non-empty
+	 *  this is the source of truth for trigger gating (IsTriggerConditionMet); when empty
+	 *  the legacy TriggerCondition/SecondaryTriggerCondition/bRequireBothTriggers fields
+	 *  are used, so the synthetic factories (CreateFromInfusion / CreateFromWeaponInfusion /
+	 *  CreateFromPhysicalDamageType) — which never populate this — stay byte-identical. */
+	UPROPERTY(BlueprintReadWrite, Category = "Timing")
+	TArray<FSkillCondition> Conditions;
+
 	// ========================================
 	// DURATION
 	// ========================================
@@ -156,6 +166,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	/** If true, reapplying refreshes duration instead of adding stacks */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
 	bool bRefreshDurationOnReapply = true;
+
+	/** Applies at most once per combat (keyed on EffectID). Carried from
+	 *  FSkillEffect::bFiresOncePerMatch; checked by ApplyEffect against the manager's
+	 *  per-match fired-set. Default false = unrestricted. */
+	UPROPERTY(BlueprintReadWrite, Category = "Stacking")
+	bool bFiresOncePerMatch = false;
 
 	// ========================================
 	// SOURCE TRACKING
@@ -282,37 +298,94 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	 * @param Source        Authored skill-effect data to instantiate from
 	 * @param EffectIndex   Index within the source's Effects array (for ID packing)
 	 */
+	static TArray<FActiveSkillEffect> CreateAllFromSkillEffect(
+		const FString &SourceName,
+		int32 SourceID,
+		const FSkillEffect &Source,
+		int32 EffectIndex)
+	{
+		TArray<FActiveSkillEffect> Out;
+
+		// Builds ONE runtime effect for a payload. The condition group + timing are
+		// shared across all payloads of the source (the trigger gates the whole bundle).
+		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, int32 SubIndex) -> FActiveSkillEffect
+		{
+			FActiveSkillEffect Effect;
+			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
+			// SubIndex keeps multi-payload IDs distinct; SubIndex 0 reproduces the legacy ID exactly.
+			Effect.EffectID = EffectIdentity::PackEffectID(SourceID, EffectIndex, SubIndex);
+			Effect.EffectType = InType;
+			Effect.EffectValue = (InValue != 0) ? static_cast<float>(InValue) : (InMagnitude * 100.0f);
+			Effect.RemainingTurns = (InDuration > 0) ? InDuration : 1;
+			Effect.InitialDuration = Effect.RemainingTurns;
+			Effect.bPermanent = (InDuration == 0);
+			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+
+			// Legacy 2-field condition mirror (kept; some paths still read these).
+			Effect.TriggerCondition = Source.Condition;
+			Effect.TriggerThreshold = Source.ConditionThreshold;
+			Effect.SecondaryTriggerCondition = Source.SecondaryCondition;
+			Effect.SecondaryTriggerThreshold = Source.SecondaryThreshold;
+			Effect.bRequireBothTriggers = Source.bRequireBothConditions;
+			Effect.TargetTriggerCondition = Source.TargetCondition;
+			Effect.TargetTriggerThreshold = Source.TargetThreshold;
+
+			// Shared N-condition group: every payload gates on the same conditions.
+			Effect.Conditions = Source.Conditions;
+
+			// Authored stacking / fires-once (D2). Per-effect, shared across payloads.
+			Effect.bCanStack = Source.bStackable;
+			Effect.MaxStacks = Source.MaxStacks;
+			Effect.bFiresOncePerMatch = Source.bFiresOncePerMatch;
+
+			// Promote to OnTrigger when the source condition is non-trivial so the
+			// manager's trigger evaluator fires. Uses the legacy field, exactly as today.
+			// TODO(Cluster D): new-authored-only effects (legacy Condition==Always but a
+			// non-Always Conditions[] entry) won't promote here — revisit when legacy is dropped.
+			if (Source.Condition != ESkillTrigger::Always && Source.Condition != ESkillTrigger::None)
+			{
+				Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+			}
+			return Effect;
+		};
+
+		if (Source.Payloads.Num() > 0)
+		{
+			for (int32 p = 0; p < Source.Payloads.Num(); ++p)
+			{
+				const FSkillEffectPayload &P = Source.Payloads[p];
+				if (P.EffectType == ESkillEffectType::None)
+				{
+					continue;
+				}
+				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, p));
+			}
+		}
+
+		// Fallback: un-migrated in-memory effect (no Payloads[] but legacy EffectType set)
+		// reproduces today's single-payload runtime effect exactly (SubIndex 0).
+		if (Out.Num() == 0 && Source.EffectType != ESkillEffectType::None)
+		{
+			Out.Add(Build(Source.EffectType, Source.Magnitude, Source.Value, Source.Duration, 0));
+		}
+
+		return Out;
+	}
+
+	/**
+	 * TODO(Cluster D): deprecate — single-payload convenience wrapper kept so callers
+	 * not yet repointed to CreateAllFromSkillEffect still compile. Returns the FIRST
+	 * produced runtime effect (or a default when the source yields none). Callers that
+	 * may carry multi-payload effects MUST use CreateAllFromSkillEffect instead.
+	 */
 	static FActiveSkillEffect CreateFromSkillEffect(
 		const FString &SourceName,
 		int32 SourceID,
 		const FSkillEffect &Source,
 		int32 EffectIndex)
 	{
-		FActiveSkillEffect Effect;
-		Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
-		Effect.EffectID = SourceID * 100 + EffectIndex;
-		Effect.EffectType = Source.EffectType;
-		Effect.EffectValue = (Source.Value != 0) ? static_cast<float>(Source.Value) : (Source.Magnitude * 100.0f);
-		Effect.RemainingTurns = (Source.Duration > 0) ? Source.Duration : 1;
-		Effect.InitialDuration = Effect.RemainingTurns;
-		Effect.bPermanent = (Source.Duration == 0);
-		Effect.ProcessTiming = ESkillEffectTiming::Persistent;
-
-		// Carry trigger fields through; promote to OnTrigger when the source
-		// condition is non-trivial so the manager's trigger evaluator fires.
-		Effect.TriggerCondition = Source.Condition;
-		Effect.TriggerThreshold = Source.ConditionThreshold;
-		Effect.SecondaryTriggerCondition = Source.SecondaryCondition;
-		Effect.SecondaryTriggerThreshold = Source.SecondaryThreshold;
-		Effect.bRequireBothTriggers = Source.bRequireBothConditions;
-		Effect.TargetTriggerCondition = Source.TargetCondition;
-		Effect.TargetTriggerThreshold = Source.TargetThreshold;
-		if (Source.Condition != ESkillTrigger::Always && Source.Condition != ESkillTrigger::None)
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
-		}
-
-		return Effect;
+		TArray<FActiveSkillEffect> All = CreateAllFromSkillEffect(SourceName, SourceID, Source, EffectIndex);
+		return All.Num() > 0 ? All[0] : FActiveSkillEffect();
 	}
 
 	/**

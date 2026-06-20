@@ -347,6 +347,18 @@ EDataValidationResult USkillDataBase::IsDataValid(FDataValidationContext &Contex
         Result = EDataValidationResult::Invalid;
     }
 
+    // Cluster D1: payload count per effect is bounded by the cast EffectID packing.
+    for (int32 EffIdx = 0; EffIdx < Effects.Num(); ++EffIdx)
+    {
+        if (Effects[EffIdx].Payloads.Num() > LoadoutConstants::MAX_PAYLOADS)
+        {
+            Context.AddError(FText::FromString(FString::Printf(
+                TEXT("Effect %d has too many payloads (%d). Maximum is %d"),
+                EffIdx, Effects[EffIdx].Payloads.Num(), LoadoutConstants::MAX_PAYLOADS)));
+            Result = EDataValidationResult::Invalid;
+        }
+    }
+
     // Folded from UCastableSkillDataBase::IsDataValid at the base merge.
     if (BaseDamage < 0)
     {
@@ -372,9 +384,7 @@ void USkillDataBase::PostEditChangeChainProperty(FPropertyChangedChainEvent &Pro
     // to in-editor edits of the matching ESkillTrigger field.
     for (FSkillEffect &Effect : Effects)
     {
-        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
-        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
-        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
+        Effect.SyncThresholdFlags();
     }
 }
 #endif

@@ -568,6 +568,7 @@ private:
 		const TArray<AActor *> &Targets,
 		const TArray<FSkillEffect> &Effects,
 		const FString &SourceName,
+		int32 SourceID,
 		FActionResult &Result,
 		bool bCausedDeath,
 		ESpellElement ResolvedCastElement = ESpellElement::Generic,

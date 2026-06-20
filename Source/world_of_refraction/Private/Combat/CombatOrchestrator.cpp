@@ -173,6 +173,12 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 
 	SetCombatState(ECombatState::Initializing);
 
+	// D2: clear per-match state (fires-once set) before any combat-start effect applies.
+	if (SkillEffectManagerRef)
+	{
+		SkillEffectManagerRef->ResetForNewCombat();
+	}
+
 	// Prepare loadouts for battle
 	PrepareAllLoadoutsForBattle();
 

@@ -5,6 +5,7 @@
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Skills/Effects/EffectIdentity.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Character/CharacterDataComponent.h"
@@ -75,6 +76,15 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	{
 		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s is immune to %s"),
 			   *Target->GetName(), *Effect.EffectName);
+		return EEffectApplicationResult::Rejected;
+	}
+
+	// D2: fires-once gate — reject re-application this match BEFORE any stacking/refresh,
+	// so a fires-once effect can never stack or refresh either.
+	if (Effect.bFiresOncePerMatch && FiredOnceThisMatch.Contains(Effect.EffectID))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s rejected — already fired once this match (ID=%d)"),
+			   *Effect.EffectName, Effect.EffectID);
 		return EEffectApplicationResult::Rejected;
 	}
 
@@ -158,6 +168,14 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	}
 
 	OnEffectApplied.Broadcast(Target, Effect);
+
+	// D2: record fires-once on the NEW-apply path ONLY. A fires-once effect is rejected at
+	// the gate above before it can reach the stack/refresh branches, so this lands exactly once.
+	if (Effect.bFiresOncePerMatch)
+	{
+		FiredOnceThisMatch.Add(Effect.EffectID);
+	}
+
 	return EEffectApplicationResult::Applied;
 }
 
@@ -212,10 +230,15 @@ void USkillEffectManager::ApplyEquipmentEffects(
 			continue;
 		}
 
-		FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSkillEffect(
+		// Cluster C: one authored effect now yields N runtime effects (one per payload).
+		// Single-payload / un-migrated effects yield exactly one — identical to before.
+		TArray<FActiveSkillEffect> Runtimes = FActiveSkillEffect::CreateAllFromSkillEffect(
 			Source.EffectName, SourceID, Source, i);
 
-		ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
+		for (FActiveSkillEffect &Runtime : Runtimes)
+		{
+			ApplyEffect(Target, Runtime, nullptr, Source.EffectName, -1);
+		}
 	}
 }
 
@@ -331,8 +354,8 @@ void USkillEffectManager::WOR_StartingEffects()
 	// window keys on Actor->GetUniqueID() — the TODO WATCH collision hazard
 	// applies; an unrelated source sharing the window would show here too.
 	const int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
-	const int32 WindowLo = SourceID * 100;
-	const int32 WindowHi = WindowLo + 99;
+	const int32 WindowLo = EffectIdentity::WindowLoForSource(SourceID);
+	const int32 WindowHi = EffectIdentity::WindowHiForSource(SourceID);
 	int32 PostCount = 0;
 	for (const FActiveSkillEffect &E : GetActiveEffects(Actor))
 	{
@@ -676,6 +699,12 @@ void USkillEffectManager::RemoveAllEffects(AActor *Target)
 	{
 		NotifySpeedChanged(Target);
 	}
+}
+
+void USkillEffectManager::ResetForNewCombat()
+{
+	FiredOnceThisMatch.Empty();
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] FiredOnceThisMatch reset for new combat"));
 }
 
 void USkillEffectManager::ClearAllEffects()
@@ -1656,6 +1685,37 @@ FString USkillEffectManager::GetEffectsSummary(AActor *Actor) const
 bool USkillEffectManager::IsTriggerConditionMet(AActor *Actor, const FActiveSkillEffect &Effect, float TriggerValue) const
 {
 	(void)TriggerValue;
+
+	// Cluster C: the N-condition group takes precedence when present. Empty group falls
+	// through to the legacy 2-field logic, so the synthetic factories (infusion / physical
+	// damage) that only write the old fields stay byte-identical.
+	if (Effect.Conditions.Num() > 0)
+	{
+		bool bAllAndMet = true;
+		bool bAnyOr = false;
+		bool bAnyOrMet = false;
+		for (const FSkillCondition &C : Effect.Conditions)
+		{
+			// TODO(target-eval): target-side conditions are stored but NOT gated here yet
+			// — matches today's behaviour (this fn never evaluated target gating). Keeping
+			// them out of the source gate preserves parity; revisit when target-eval lands.
+			if (C.bTargetSide)
+			{
+				continue;
+			}
+			const bool bMet = IsSingleTriggerMet(Actor, C.Trigger, C.Threshold);
+			if (C.Combine == ECondCombine::And)
+			{
+				bAllAndMet = bAllAndMet && bMet;
+			}
+			else
+			{
+				bAnyOr = true;
+				bAnyOrMet = bAnyOrMet || bMet;
+			}
+		}
+		return bAllAndMet && (!bAnyOr || bAnyOrMet);
+	}
 
 	const bool bPrimaryMet = IsSingleTriggerMet(Actor, Effect.TriggerCondition, Effect.TriggerThreshold);
 

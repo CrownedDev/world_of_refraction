@@ -21,6 +21,10 @@ namespace LoadoutConstants
     // Skills (abilities/spells/attacks all share this cap on Effects array)
     constexpr int32 MAX_SKILL_EFFECTS = 5;
 
+    // Max payloads per skill effect (Cluster D1). Bounds the cast EffectID payload-index
+    // packing (SourceID*100 + EffectIndex + PayloadIndex*10) — must stay <= 9.
+    constexpr int32 MAX_PAYLOADS = 9;
+
     // Weapons
     constexpr int32 MAX_WEAPONS_GENERIC = 2;
     constexpr int32 MAX_WEAPONS_ELEMENTAL = 1;

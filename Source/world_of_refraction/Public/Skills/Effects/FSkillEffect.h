@@ -9,6 +9,8 @@
 #include "Combat/TargetType.h"
 #include "Skills/Effects/ESkillTrigger.h"
 #include "Skills/Effects/SkillTriggerUtils.h"
+#include "Skills/Effects/FSkillCondition.h"
+#include "Skills/Effects/FSkillEffectPayload.h"
 #include "FSkillEffect.generated.h"
 
 /**
@@ -139,6 +141,35 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
                       EditCondition = "Condition == ESkillTrigger::OnHit"))
     float DrainPercent = 0.0f;
 
+    // ==================== DYNAMIC (Cluster A — additive, not yet read) ====================
+
+    /** New condition group: per-entry AND/OR + source/target side (FSkillCondition).
+     *  Cluster A only — no runtime path reads this yet; migration populates it later. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trigger")
+    TArray<FSkillCondition> Conditions;
+
+    /** New payload list: one effect may carry several payloads (FSkillEffectPayload).
+     *  Cluster A only — no runtime path reads this yet; migration populates it later. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    TArray<FSkillEffectPayload> Payloads;
+
+    // ==================== STACKING ====================
+
+    /** Multiple applications stack (up to MaxStacks) instead of refreshing duration.
+     *  Per-effect (shared across payloads). Default false = today's behaviour. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+    bool bStackable = false;
+
+    /** Max stacks when bStackable. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking",
+              meta = (EditCondition = "bStackable", ClampMin = "1", ClampMax = "99"))
+    int32 MaxStacks = 3;
+
+    /** Applies at most once per combat (keyed on the stable EffectID). Re-application
+     *  is rejected before stacking/refresh. Default false = today's behaviour. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stacking")
+    bool bFiresOncePerMatch = false;
+
     // ==================== CONSTRUCTORS ====================
 
     FSkillEffect()
@@ -153,60 +184,116 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     // ==================== HELPERS ====================
 
-    /** Is this effect valid (has a type set)? */
+    // Cluster B: every classifier folds over the new Payloads[]/Conditions[] arrays
+    // first, then ORs the legacy flat-field result. While the arrays are empty
+    // (not-yet-migrated in-memory effects) the legacy fields stay authoritative;
+    // once migrated they mirror the legacy fields, so the OR is consistent. Legacy
+    // remains the runtime source of truth until Cluster C/D repoints the readers.
+
+    /** Is this effect valid? Any payload typed (new) or the legacy EffectType typed. */
     bool IsValid() const
     {
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (P.EffectType != ESkillEffectType::None) return true;
+        }
         return EffectType != ESkillEffectType::None;
     }
 
-    /** Is this a buff effect? Delegates to the shared single-source classifier. */
+    /** Buff if ANY payload classifies as a buff (new) or the legacy fields do. */
     bool IsBuff() const
     {
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude)) return true;
+        }
         return SkillEffectClassification::IsBuff(EffectType, Magnitude);
     }
 
-    /** Is this a debuff effect? Delegates to the shared single-source classifier. */
+    /** Debuff if ANY payload classifies as a debuff (new) or the legacy fields do. */
     bool IsDebuff() const
     {
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude)) return true;
+        }
         return SkillEffectClassification::IsDebuff(EffectType, Magnitude);
     }
 
-    /** Is this a restore effect? */
+    /** Restore if ANY payload is Health/EnergyRestore (new) or the legacy field is. */
     bool IsRestore() const
     {
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            if (P.EffectType == ESkillEffectType::HealthRestore ||
+                P.EffectType == ESkillEffectType::EnergyRestore) return true;
+        }
         return EffectType == ESkillEffectType::HealthRestore ||
                EffectType == ESkillEffectType::EnergyRestore;
     }
 
-    /** Is this a drain effect (restore that scales with damage dealt)? */
+    /** Drain: a restore payload with DrainPercent>0 AND some source-side OnHit
+     *  condition (new), OR the legacy (restore && DrainPercent>0 && Condition==OnHit). */
     bool IsDrain() const
     {
-        return IsRestore() && DrainPercent > 0.0f && Condition == ESkillTrigger::OnHit;
+        bool bDrainPayload = false;
+        for (const FSkillEffectPayload &P : Payloads)
+        {
+            const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+                                   P.EffectType == ESkillEffectType::EnergyRestore);
+            if (bRestore && P.DrainPercent > 0.0f) { bDrainPayload = true; break; }
+        }
+        bool bOnHitSource = false;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (!C.bTargetSide && C.Trigger == ESkillTrigger::OnHit) { bOnHitSource = true; break; }
+        }
+        const bool bNew = bDrainPayload && bOnHitSource;
+
+        const bool bLegacyRestore = (EffectType == ESkillEffectType::HealthRestore ||
+                                     EffectType == ESkillEffectType::EnergyRestore);
+        const bool bLegacy = bLegacyRestore && DrainPercent > 0.0f && Condition == ESkillTrigger::OnHit;
+
+        return bNew || bLegacy;
     }
 
     /** Is this effect instant (Duration == 0)? */
     bool IsInstant() const
     {
+        // TODO(Cluster C): Duration is per-payload once Payloads[] is authoritative —
+        // fold over Payloads then. Legacy single-Duration meaning retained for now.
         return Duration == 0;
     }
 
-    /** Is this effect conditional (not Always, or has a secondary/target-side check)? */
+    /** Conditional if the new Conditions[] is non-empty, else the legacy check.
+     *  (Empty Conditions[] is the C-side contract for "Always / unconditional".) */
     bool IsConditional() const
     {
+        if (Conditions.Num() > 0) return true;
         return Condition != ESkillTrigger::Always
             || SecondaryCondition != ESkillTrigger::None
             || TargetCondition != ESkillTrigger::None;
     }
 
-    /** Does this effect carry a target-side condition? */
+    /** Carries a target-side condition: any bTargetSide entry (new) or legacy TargetCondition. */
     bool HasTargetCondition() const
     {
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (C.bTargetSide) return true;
+        }
         return TargetCondition != ESkillTrigger::None;
     }
 
-    /** Does this effect carry a secondary source-side condition? */
+    /** Carries a secondary source-side condition: 2+ source-side entries (new) or legacy SecondaryCondition. */
     bool HasSecondaryCondition() const
     {
+        int32 SourceConds = 0;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (!C.bTargetSide) ++SourceConds;
+        }
+        if (SourceConds >= 2) return true;
         return SecondaryCondition != ESkillTrigger::None;
     }
 
@@ -215,9 +302,16 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
      *  (GetStartingEffects), then live as normal clearable effects. NOTE: distinct from
      *  IsConditional() above, which additionally counts SecondaryCondition — a
      *  secondary-condition-only effect is conditional there but still a starting
-     *  effect here. */
+     *  effect here.
+     *  New equiv: any source-side Trigger!=Always, or any target-side entry; empty
+     *  Conditions[] falls back to the legacy (Condition!=Always || TargetCondition!=None). */
     bool IsConditionalEffect() const
     {
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (C.bTargetSide) return true;
+            if (C.Trigger != ESkillTrigger::Always) return true;
+        }
         return Condition != ESkillTrigger::Always
             || TargetCondition != ESkillTrigger::None;
     }
@@ -242,8 +336,122 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     // ==================== DEBUG ====================
 
-    /** Get a description string for debug/UI */
+    /** Get a description string for debug/UI. Renders the new Conditions[]/Payloads[]
+     *  shape when either is populated; otherwise falls back to the legacy renderer so
+     *  not-yet-migrated effects still read out exactly as before. */
     FString GetDescription() const
+    {
+        if (Conditions.Num() == 0 && Payloads.Num() == 0)
+        {
+            return GetLegacyDescription();
+        }
+
+        FString Desc;
+        if (!EffectName.IsEmpty())
+        {
+            Desc = EffectName + TEXT(": ");
+        }
+
+        // Payloads — comma-joined.
+        if (Payloads.Num() == 0)
+        {
+            Desc += TEXT("(no payload)");
+        }
+        else
+        {
+            for (int32 i = 0; i < Payloads.Num(); ++i)
+            {
+                if (i > 0) Desc += TEXT(", ");
+                Desc += DescribePayload(Payloads[i]);
+            }
+        }
+
+        // Conditions — source-side joined by each entry's AND/OR (a leading Always
+        // contributes nothing, matching the legacy renderer); target-side as [target: …].
+        const UEnum *TriggerEnum = StaticEnum<ESkillTrigger>();
+        auto RenderCond = [TriggerEnum](const FSkillCondition &C) -> FString
+        {
+            FString Name = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(C.Trigger)).ToString() : TEXT("Unknown");
+            return SkillTriggerUtils::IsThresholdTrigger(C.Trigger)
+                       ? FString::Printf(TEXT("%s %.0f%%"), *Name, C.Threshold)
+                       : Name;
+        };
+
+        FString SourceStr;
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (C.bTargetSide || C.Trigger == ESkillTrigger::Always) continue;
+            if (!SourceStr.IsEmpty())
+            {
+                SourceStr += (C.Combine == ECondCombine::And) ? TEXT(" AND ") : TEXT(" OR ");
+            }
+            SourceStr += RenderCond(C);
+        }
+        if (!SourceStr.IsEmpty())
+        {
+            Desc += FString::Printf(TEXT(" (%s)"), *SourceStr);
+        }
+
+        for (const FSkillCondition &C : Conditions)
+        {
+            if (!C.bTargetSide) continue;
+            Desc += FString::Printf(TEXT(" [target: %s]"), *RenderCond(C));
+        }
+
+        return Desc;
+    }
+
+    /** Render a single payload (type + value/magnitude/drain, duration, target + count). */
+    FString DescribePayload(const FSkillEffectPayload &P) const
+    {
+        const UEnum *StatusEnum = StaticEnum<ESkillEffectType>();
+        FString TypeName = StatusEnum ? StatusEnum->GetDisplayNameTextByValue(static_cast<int64>(P.EffectType)).ToString() : TEXT("Unknown");
+
+        FString S;
+        const bool bRestore = (P.EffectType == ESkillEffectType::HealthRestore ||
+                               P.EffectType == ESkillEffectType::EnergyRestore);
+        if (bRestore && P.DrainPercent > 0.0f)
+        {
+            S = FString::Printf(TEXT("%.0f%% of damage as %s"), P.DrainPercent * 100.0f, *TypeName);
+        }
+        else if (P.Value != 0)
+        {
+            S = FString::Printf(TEXT("%s %d"), *TypeName, P.Value);
+        }
+        else if (P.Magnitude != 0.0f)
+        {
+            if (SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude) ||
+                SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude))
+            {
+                S = FString::Printf(TEXT("%s %.0f%%"), *TypeName, P.Magnitude * 100.0f);
+            }
+            else
+            {
+                S = FString::Printf(TEXT("%s %.0f"), *TypeName, P.Magnitude);
+            }
+        }
+        else
+        {
+            S = TypeName;
+        }
+
+        if (P.Duration > 0)
+        {
+            S += FString::Printf(TEXT(" for %d turn%s"), P.Duration, P.Duration > 1 ? TEXT("s") : TEXT(""));
+        }
+
+        const UEnum *TargetEnum = StaticEnum<ETargetType>();
+        FString TargetName = TargetEnum ? TargetEnum->GetDisplayNameTextByValue(static_cast<int64>(P.Target)).ToString() : TEXT("Unknown");
+        const UEnum *CountEnum = StaticEnum<ETargetCount>();
+        FString CountName = CountEnum ? CountEnum->GetDisplayNameTextByValue(static_cast<int64>(P.TargetCount)).ToString() : TEXT("?");
+        S += FString::Printf(TEXT(" → %s (%s)"), *TargetName, *CountName);
+
+        return S;
+    }
+
+    /** The pre-Cluster-B renderer over the legacy flat fields. Used as the fallback
+     *  by GetDescription when the new arrays are empty. Unchanged behaviour. */
+    FString GetLegacyDescription() const
     {
         if (!IsValid())
         {
@@ -317,7 +525,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         }
 
         // Secondary source-side condition, joined by AND / OR
-        if (HasSecondaryCondition())
+        if (SecondaryCondition != ESkillTrigger::None)
         {
             FString SecondaryName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(SecondaryCondition)).ToString() : TEXT("Unknown");
             const TCHAR *Joiner = bRequireBothConditions ? TEXT("AND") : TEXT("OR");
@@ -332,7 +540,7 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
         }
 
         // Target-side condition
-        if (HasTargetCondition())
+        if (TargetCondition != ESkillTrigger::None)
         {
             FString TargetCondName = TriggerEnum ? TriggerEnum->GetDisplayNameTextByValue(static_cast<int64>(TargetCondition)).ToString() : TEXT("Unknown");
             if (SkillTriggerUtils::IsThresholdTrigger(TargetCondition))
@@ -350,17 +558,105 @@ struct WORLD_OF_REFRACTION_API FSkillEffect
 
     // ==================== SERIALIZATION ====================
 
-    /** Syncs the b*UsesThreshold flags with the current Condition /
-     *  SecondaryCondition / TargetCondition on every save AND load. The owning
-     *  UObject's PostEditChangeChainProperty runs the same sync on each
-     *  in-editor property change, so threshold-field gating stays live without
-     *  needing a save/reload. See USkillDataBase / UEquipmentDataBase / UEvolutionItemData
-     *  implementations. */
-    void PostSerialize(const FArchive &Ar)
+    /** Single source of truth for threshold-visibility gating. Sets the legacy 3
+     *  b*UsesThreshold flags AND each FSkillCondition::bUsesThreshold in Conditions[],
+     *  so the editor's Threshold EditCondition stays live on both shapes. Called by
+     *  PostSerialize (load/save), MigrateLegacyToNew (after populating), and the three
+     *  owners' PostEditChangeChainProperty (in-editor edits). */
+    void SyncThresholdFlags()
     {
+        // (a) legacy 3-flag sync.
+        // TODO(cluster-f): drop the legacy flag sync when the legacy condition fields are removed.
         bConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Condition);
         bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(SecondaryCondition);
         bTargetConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(TargetCondition);
+
+        // (b) per-Conditions[] sync — the new shape (closes the in-editor stale-gating gap).
+        for (FSkillCondition &C : Conditions)
+        {
+            C.bUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(C.Trigger);
+        }
+    }
+
+    /** Syncs threshold-visibility flags (legacy + Conditions[]) then mirrors the legacy
+     *  flat fields into the new Conditions[]/Payloads[] arrays on load. The migration is
+     *  a no-op once the asset is authored/re-saved in the new shape (guarded on both
+     *  arrays being empty), so authored new data is never clobbered. */
+    void PostSerialize(const FArchive &Ar)
+    {
+        SyncThresholdFlags();
+        MigrateLegacyToNew();
+    }
+
+    /** Populates Conditions[]/Payloads[] from the legacy flat fields. Runs ONLY when
+     *  both arrays are empty, so it never overwrites data authored in the new shape.
+     *  Mapping (must stay identical to SkillEffectDebug::CompareEffect's expectations):
+     *   - Primary source condition { Condition, ConditionThreshold, And, source } — UNLESS
+     *     the effect is fully unconditional (Condition==Always && no secondary && no target),
+     *     in which case Conditions stays empty (the C-side contract: empty == Always).
+     *   - Secondary source condition (only if SecondaryCondition!=None), Combine from
+     *     bRequireBothConditions (And/Or).
+     *   - Target condition (only if TargetCondition!=None), And, target-side.
+     *   - One payload { EffectType, Magnitude, Value, Duration, Target, TargetCount,
+     *     DrainPercent } — only if EffectType!=None. */
+    void MigrateLegacyToNew()
+    {
+        if (Conditions.Num() != 0 || Payloads.Num() != 0)
+        {
+            return;
+        }
+
+        const bool bSkipPrimary = (Condition == ESkillTrigger::Always
+                                   && SecondaryCondition == ESkillTrigger::None
+                                   && TargetCondition == ESkillTrigger::None);
+        if (!bSkipPrimary)
+        {
+            FSkillCondition Primary;
+            Primary.Trigger = Condition;
+            Primary.Threshold = ConditionThreshold;
+            // Primary inherits the group's AND/OR (same as the secondary) so the
+            // partition-rule evaluator reproduces legacy: OR -> both Or (And-set empty,
+            // result = P||S); AND -> both And (result = P&&S). For a lone primary the
+            // choice is inert (single And or single Or both yield 'met').
+            Primary.Combine = bRequireBothConditions ? ECondCombine::And : ECondCombine::Or;
+            Primary.bTargetSide = false;
+            Conditions.Add(Primary);
+        }
+        if (SecondaryCondition != ESkillTrigger::None)
+        {
+            FSkillCondition Secondary;
+            Secondary.Trigger = SecondaryCondition;
+            Secondary.Threshold = SecondaryThreshold;
+            Secondary.Combine = bRequireBothConditions ? ECondCombine::And : ECondCombine::Or;
+            Secondary.bTargetSide = false;
+            Conditions.Add(Secondary);
+        }
+        if (TargetCondition != ESkillTrigger::None)
+        {
+            FSkillCondition TargetCond;
+            TargetCond.Trigger = TargetCondition;
+            TargetCond.Threshold = TargetThreshold;
+            TargetCond.Combine = ECondCombine::And;
+            TargetCond.bTargetSide = true;
+            Conditions.Add(TargetCond);
+        }
+
+        if (EffectType != ESkillEffectType::None)
+        {
+            FSkillEffectPayload Payload;
+            Payload.EffectType = EffectType;
+            Payload.Magnitude = Magnitude;
+            Payload.Value = Value;
+            Payload.Duration = Duration;
+            Payload.Target = Target;
+            Payload.TargetCount = TargetCount;
+            Payload.DrainPercent = DrainPercent;
+            Payloads.Add(Payload);
+        }
+
+        // Single source of truth: set bUsesThreshold on the just-populated Conditions[]
+        // (and re-affirm the legacy flags) instead of per-entry inline.
+        SyncThresholdFlags();
     }
 };
 

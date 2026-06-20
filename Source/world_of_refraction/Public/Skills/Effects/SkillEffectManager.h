@@ -206,6 +206,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ClearAllEffects();
 
+	/** Reset per-match state at the start of a new combat (clears the fires-once set). */
+	UFUNCTION()
+	void ResetForNewCombat();
+
 	/** Remove effects applied by a specific source (when source dies, etc.) */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	int32 RemoveEffectsBySource(AActor *Source);
@@ -372,6 +376,10 @@ private:
 
 	/** Map of all active effects per actor (not exposed to reflection - TArray in TMap not supported) */
 	TMap<TWeakObjectPtr<AActor>, TArray<FActiveSkillEffect>> ActiveEffects;
+
+	/** EffectIDs that have fired this combat (for bFiresOncePerMatch). Keyed on the stable
+	 *  EffectID; cleared per combat by ResetForNewCombat(). */
+	TSet<int32> FiredOnceThisMatch;
 
 	/** Next unique effect instance ID (for distinguishing same-type effects) */
 	int32 NextInstanceID = 1;

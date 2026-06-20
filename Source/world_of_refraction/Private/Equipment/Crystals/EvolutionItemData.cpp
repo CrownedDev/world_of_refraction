@@ -465,9 +465,7 @@ void UEvolutionItemData::PostEditChangeChainProperty(FPropertyChangedChainEvent 
     // to in-editor edits of the matching ESkillTrigger field.
     for (FSkillEffect &Effect : Effects)
     {
-        Effect.bConditionUsesThreshold          = SkillTriggerUtils::IsThresholdTrigger(Effect.Condition);
-        Effect.bSecondaryConditionUsesThreshold = SkillTriggerUtils::IsThresholdTrigger(Effect.SecondaryCondition);
-        Effect.bTargetConditionUsesThreshold    = SkillTriggerUtils::IsThresholdTrigger(Effect.TargetCondition);
+        Effect.SyncThresholdFlags();
     }
 }
 
