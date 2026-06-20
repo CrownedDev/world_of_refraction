@@ -23,12 +23,9 @@ namespace InventoryConstants
     constexpr int32 MAX_LEARNED_ABILITIES = 50;
 
     // ==================== CASTER INNATE SPELLS ====================
-
-    /** Maximum innate spells per school for Casters */
-    constexpr int32 MAX_INNATE_SPELLS_PER_SCHOOL = 6;
-
-    /** Total innate spell slots for Casters (6 x 4 schools) */
-    constexpr int32 MAX_INNATE_SPELLS_TOTAL = 24;
+    // Innate spell caps moved to SpellPoolConstants.h — MAX_EQUIPPED_SLOT_POOL (per-school
+    // count) + INNATE_SPELL_BUDGET (weight). The former flat MAX_INNATE_SPELLS_PER_SCHOOL /
+    // MAX_INNATE_SPELLS_TOTAL are retired (feature/innate-bd-spell-budget).
 
     // ==================== EQUIPMENT INVENTORIES ====================
 
