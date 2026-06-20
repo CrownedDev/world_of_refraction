@@ -1493,8 +1493,8 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 				// this loop. Mirrors ActionExecutor::ApplySkillEffects's per-payload path.
 				for (int32 PayloadIndex = 0; PayloadIndex < E.Payloads.Num(); ++PayloadIndex)
 				{
-					const FSkillEffectPayload &P = E.Payloads[PayloadIndex];
-					if (P.EffectType == ESkillEffectType::None)
+					const FSkillEffectPayload &Payload = E.Payloads[PayloadIndex];
+					if (Payload.EffectType == ESkillEffectType::None)
 					{
 						continue;
 					}
@@ -1502,7 +1502,7 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 					// Defender-perspective ActionTargets = { the OTHER actor }, so a Single-Enemy
 					// payload routes to whoever this Owner was fighting in the exchange.
 					TArray<AActor *> AppTargets;
-					AE->GetEffectTargets(Owner, { Target }, P.Target, P.TargetCount, OwnerTeam, AppTargets);
+					AE->GetEffectTargets(Owner, { Target }, Payload.Target, Payload.TargetCount, OwnerTeam, AppTargets);
 					if (AppTargets.Num() == 0)
 					{
 						continue;
@@ -1517,19 +1517,19 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 					// Gauge manipulators + DOT pass authored Value through; stat modifiers keep
 					// the Magnitude*100 percentage shape (mirrors ApplySkillEffects).
 					const int32 RuntimeValue =
-						(P.EffectType == ESkillEffectType::StatusIncrease ||
-						 P.EffectType == ESkillEffectType::StatusDecrease ||
-						 P.EffectType == ESkillEffectType::DOT)
-							? P.Value
-							: FMath::RoundToInt(P.Magnitude * 100.0f);
+						(Payload.EffectType == ESkillEffectType::StatusIncrease ||
+						 Payload.EffectType == ESkillEffectType::StatusDecrease ||
+						 Payload.EffectType == ESkillEffectType::DOT)
+							? Payload.Value
+							: FMath::RoundToInt(Payload.Magnitude * 100.0f);
 
 					for (AActor *AppTarget : AppTargets)
 					{
 						// No cast context here, so Element stays Generic (parity with equipment
 						// effects, which CreateAllFromSkillEffect also leaves Generic).
 						FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSpellEffect(
-							E.EffectName, PayloadEffectID, P.EffectType, P.Magnitude, RuntimeValue,
-							P.Duration, ESpellElement::Generic);
+							E.EffectName, PayloadEffectID, Payload.EffectType, Payload.Magnitude, RuntimeValue,
+							Payload.Duration, ESpellElement::Generic);
 
 						// Authored stacking / fires-once carry over. The defense-outcome conditions
 						// were the GATE (already evaluated) — deliberately NOT copied onto the
