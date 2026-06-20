@@ -28,6 +28,15 @@ int32 FWeaponLoadoutEntry::GetLockedAbilityCount() const
     return 0;
 }
 
+int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
+{
+    // Cap keys on the weapon's own tier; no weapon -> the flat ceiling.
+    const int32 Cap = WeaponEntry.Weapon
+                          ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Weapon->Tier)
+                          : LoadoutConstants::MAX_WEAPON_ABILITIES;
+    return Cap - GetLockedAbilityCount();
+}
+
 TArray<UAbilityData *> FWeaponLoadoutEntry::GetAllAbilities() const
 {
     // Preset abilities from the weapon asset.
@@ -108,9 +117,13 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
         ++OverrideIndex;
     }
 
-    // Gem crystals gate spell slots by tier; evolution keeps the flat ceiling.
+    // Gem crystals gate spell slots by their own tier; with no gem the cap falls
+    // through to the weapon's own tier (SlotsForContainerTier), MAX_SPELL_SLOTS only
+    // as the no-weapon ceiling.
     const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
-        WeaponEntry.GetAttachedItem(), LoadoutConstants::MAX_SPELL_SLOTS);
+        WeaponEntry.GetAttachedItem(),
+        WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Weapon->Tier)
+                           : LoadoutConstants::MAX_SPELL_SLOTS);
     if (Result.Num() > SlotCap)
     {
         Result.SetNum(SlotCap);
@@ -348,7 +361,10 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
             return false;
     }
 
-    if (WeaponEntry.AssignedSpells.Num() > CrystalEffectTable::ResolveSpellSlotCap(Attachment, LoadoutConstants::MAX_SPELL_SLOTS))
+    if (WeaponEntry.AssignedSpells.Num() > CrystalEffectTable::ResolveSpellSlotCap(
+            Attachment,
+            WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Weapon->Tier)
+                               : LoadoutConstants::MAX_SPELL_SLOTS))
         return false;
     return true;
 }
