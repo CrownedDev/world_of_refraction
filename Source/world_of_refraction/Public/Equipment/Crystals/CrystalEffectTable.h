@@ -693,6 +693,20 @@ namespace CrystalEffectTable
         return 0;
     }
 
+    /** Container-tier slot count (weapon/ring/evolution native slots). Unlike the
+     *  FCrystalId overload, this keys purely on a container's own tier — no crystal
+     *  type gate — so it serves weapon abilities + ring/evolution spells. Shares the
+     *  one ATTACHMENT_SLOTS curve. */
+    inline int32 SlotsForContainerTier(EItemTier Tier)
+    {
+        const int32 i = TierHelpers::GetTierValue(Tier);
+        if (i < 0 || i >= 7)
+        {
+            return 0;
+        }
+        return AugmentStoneConstants::ATTACHMENT_SLOTS[i];
+    }
+
     /** Spell-slot cap for a spell-capable attachment. Gem crystals gate by tier
      *  (the shared GetAttachmentSlotsForTier curve); evolution — and any other
      *  spell-capable attachment — keep the caller's flat ceiling. The caller

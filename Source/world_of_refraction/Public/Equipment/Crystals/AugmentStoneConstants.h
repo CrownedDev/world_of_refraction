@@ -29,8 +29,10 @@ namespace AugmentStoneConstants
     constexpr float STAT_CRYSTAL_BUFF_PERCENT[7] = {6, 10, 14, 18, 22, 26, 30};
 
     /** Skill-slot curve: AbilityStone -> ability slots, gem crystal -> spell slots.
-     *  Non-sequential (F=2, E=3, D=3, C=4, B=4, A=5, S=6). */
-    constexpr int32 ATTACHMENT_SLOTS[7] = {2, 3, 3, 4, 4, 5, 6};
+     *  Also keys container-native slots (weapon abilities / ring + evolution spells)
+     *  via SlotsForContainerTier. Linear F->A, then S holds at 6 (A and S share 6 —
+     *  S leads on power, not slot quantity): F=1, E=2, D=3, C=4, B=5, A=6, S=6. */
+    constexpr int32 ATTACHMENT_SLOTS[7] = {1, 2, 3, 4, 5, 6, 6};
 
     /** Flat durability points a DurabilityStone adds to an ELEMENTAL fusion's
      *  whole-unit max when it is the stone half — additive ON TOP of the gem base
@@ -63,8 +65,8 @@ namespace AugmentStoneConstants
                   "STONE_BASE_PERCENT endpoints drifted from 3..15");
     static_assert(STAT_CRYSTAL_BUFF_PERCENT[0] == 6.0f && STAT_CRYSTAL_BUFF_PERCENT[6] == 30.0f,
                   "STAT_CRYSTAL_BUFF_PERCENT endpoints drifted from 6..30");
-    static_assert(ATTACHMENT_SLOTS[0] == 2 && ATTACHMENT_SLOTS[6] == 6,
-                  "ATTACHMENT_SLOTS endpoints drifted from 2..6");
+    static_assert(ATTACHMENT_SLOTS[0] == 1 && ATTACHMENT_SLOTS[6] == 6,
+                  "ATTACHMENT_SLOTS endpoints drifted from 1..6");
     static_assert(DURABILITY_STONE_BONUS[0] == 8 && DURABILITY_STONE_BONUS[6] == 50,
                   "DURABILITY_STONE_BONUS endpoints drifted from 8..50");
 }
