@@ -2101,7 +2101,7 @@ void UActionExecutor::FinalizeAsyncAction()
 		// expose Effects[] in the same shape after Job 2. Runs post-defense,
 		// post-damage so Result.TotalDamageDealt / bWasCritical / bCausedDeath
 		// are populated for OnHit / OnCrit / OnKill condition checks.
-		const TArray<FSkillEffect> *EffectsToApply = nullptr;
+		TArray<FSkillEffect> EffectsToApply; // by value — GetAllEffects() returns a temporary (inline + resolved referenced)
 		FString SourceName;
 
 		switch (Action.ActionType)
@@ -2110,7 +2110,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			// Cluster 3: covers attacks (folded into Ability) — reads the merged pointer.
 			if (USkillDataBase *Skill = ResolveActionSkill(Action))
 			{
-				EffectsToApply = &Skill->Effects;
+				EffectsToApply = Skill->GetAllEffects();
 				SourceName = Skill->Name;
 			}
 			break;
@@ -2118,7 +2118,7 @@ void UActionExecutor::FinalizeAsyncAction()
 		case EActionType::Spell:
 			if (Action.SpellData)
 			{
-				EffectsToApply = &Action.SpellData->Effects;
+				EffectsToApply = Action.SpellData->GetAllEffects();
 				SourceName = Action.SpellData->Name;
 			}
 			break;
@@ -2127,7 +2127,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			break;
 		}
 
-		if (EffectsToApply && EffectsToApply->Num() > 0)
+		if (EffectsToApply.Num() > 0)
 		{
 			// Resolve the cast's effective element for sweep-4's status-bar
 			// manipulation effects (StatusIncrease / StatusDecrease). Spells
@@ -2173,7 +2173,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			ApplySkillEffects(
 				Executor,
 				FinalResult.AffectedTargets,
-				*EffectsToApply,
+				EffectsToApply,
 				SourceName,
 				SourceID,
 				FinalResult,
