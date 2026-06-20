@@ -5,7 +5,6 @@
 #include "Combat/TurnManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Effects/ESkillEffectType.h"
-#include "Skills/Effects/EffectIdentity.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Character/CharacterDataComponent.h"
@@ -350,25 +349,15 @@ void USkillEffectManager::WOR_StartingEffects()
 		   Labeled, Total,
 		   Labeled == Total ? TEXT(" — MATCH") : TEXT(" — MISMATCH (coverage drift; fix this tool)"));
 
-	// POST — effects currently present in the equipment SourceID window
-	// (CreateFromSkillEffect packs EffectID = SourceID*100 + index). NOTE: the
-	// window keys on Actor->GetUniqueID() — the TODO WATCH collision hazard
-	// applies; an unrelated source sharing the window would show here too.
-	const int32 SourceID = static_cast<int32>(Actor->GetUniqueID());
-	const int32 WindowLo = EffectIdentity::WindowLoForSource(SourceID);
-	const int32 WindowHi = EffectIdentity::WindowHiForSource(SourceID);
-	int32 PostCount = 0;
-	for (const FActiveSkillEffect &E : GetActiveEffects(Actor))
+	// POST — what actually got applied (any window, post def-identity packing; effects now
+	// window per-DEFINITION, so there is no single actor window to scan).
+	const TArray<FActiveSkillEffect> Active = GetActiveEffects(Actor);
+	for (const FActiveSkillEffect &E : Active)
 	{
-		if (E.EffectID >= WindowLo && E.EffectID <= WindowHi)
-		{
-			UE_LOG(LogTemp, Display, TEXT("  POST %s — %s (ID=%d)"),
-				   *E.EffectName, *UEnum::GetValueAsString(E.EffectType), E.EffectID);
-			PostCount++;
-		}
+		UE_LOG(LogTemp, Display, TEXT("  POST %s — %s (ID=%d)"), *E.EffectName,
+			   *UEnum::GetValueAsString(E.EffectType), E.EffectID);
 	}
-	UE_LOG(LogTemp, Display, TEXT("  POST applied in equipment window [%d..%d]: %d"),
-		   WindowLo, WindowHi, PostCount);
+	UE_LOG(LogTemp, Display, TEXT("  POST applied: %d"), Active.Num());
 	UE_LOG(LogTemp, Display, TEXT("======================"));
 }
 

@@ -17,21 +17,13 @@ namespace EffectIdentity
     constexpr int32 EFFECT_ID_WINDOW = 100;
     constexpr int32 EFFECT_ID_SUBBAND_MAX = 9; // EffectIndex and SubIndex each <= 9
 
-    // TODO(id-overflow): SourceID*100 can overflow int32 — single owner of this note.
-    //   Shared hazard across all Space-A packers; widen scheme later if it bites.
+    // NOTE(id-overflow): SourceID*100 overflows int32 only when SourceID > ~21.47M.
+    //   SourceID is GetUniqueID() = the live UObject-slot index (GC-reused, bounded by
+    //   peak live objects), which stays far below that for this game — NOT reachable, not
+    //   live debt. Widen EffectID to int64 only if object counts ever approach that.
     constexpr int32 PackEffectID(int32 SourceID, int32 EffectIndex, int32 SubIndex)
     {
         return SourceID * EFFECT_ID_WINDOW + EffectIndex + SubIndex * 10;
-    }
-
-    constexpr int32 WindowLoForSource(int32 SourceID)
-    {
-        return SourceID * EFFECT_ID_WINDOW;
-    }
-
-    constexpr int32 WindowHiForSource(int32 SourceID)
-    {
-        return WindowLoForSource(SourceID) + (EFFECT_ID_WINDOW - 1);
     }
 }
 
@@ -39,5 +31,3 @@ namespace EffectIdentity
 static_assert(EffectIdentity::PackEffectID(12, 3, 4) == 1243, "pack parity"); // 12*100 + 3 + 4*10
 static_assert(EffectIdentity::PackEffectID(0, 0, 0) == 0, "pack parity zero");
 static_assert(EffectIdentity::PackEffectID(1234, 4, 9) == 123494, "pack parity max-band");
-static_assert(EffectIdentity::WindowLoForSource(7) == 700, "window lo");
-static_assert(EffectIdentity::WindowHiForSource(7) == 799, "window hi");
