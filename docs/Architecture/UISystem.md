@@ -151,10 +151,13 @@ controlled actor.
    `RefreshEnergyBar`, which picks the correct energy source: if the character
    `IsBrokenDarkness()` it shows BD absorption energy (`Abs:` label) from the
    `UBrokenDarknessManager`, otherwise it shows regular EP (`EP:` label).
-7. `ApplyEnergyBarTint` colours the EP bar — BD characters get the
-   absorbed-element hybrid colour (or pure `BrokenDarkness` black if no
-   absorption), other characters get `ElementColors::GetColorForElement` of
-   their `InnateElement`.
+7. `ApplyEnergyBarTint` colours the EP bar — BD characters get the **active-pool**
+   hybrid colour, `UHybridSpellColors::GetHybridSpellColors(GetActivePool()).BlendedColor`:
+   the base Darkness pool → pure BD near-black, an absorbed Fire → dark red, Wind → dark
+   green, etc. (the Darkness case routes through the same path — no special-case). Other
+   characters get `ElementColors::GetColorForElement` of their `InnateElement`. The bar
+   **re-tints on active-pool rotation** — `HandleBDAlignmentChanged` calls `ApplyEnergyBarTint`
+   so absorbing a new element updates the bar colour live (Dark Fire → absorb Wind → Dark Wind).
    `RefreshEnergyBar` *(sweep-5)* additionally signals BD overload through
    `EPText` colour: when `CurrentEP > MaxEP`, the text escalates white →
    yellow (≥ 100%) → orange (≥ 110%) → red (≥ 120%) via
@@ -298,3 +301,4 @@ controlled actor.
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
 | 2026-05-28 | Sweep-5 — `CharacterPanelWidget` now binds the three BD-state broadcasts (`OnStacksChanged`/`OnAlignmentChanged`/`OnTransformed`), surfaces absorption stacks via a synthetic `StatusMultiplierBuff` row injected into `RefreshEffectsList` (no separate widget), and colours `EPText` for BD overload (yellow/orange/red at 100/110/120% within the `[1.00, 1.30]` cap). Also documented `ApplyStatusBarTint` (previously flagged as pending) — status bar now tints per pending-cap element, with BD attackers darkened. | feature/integration-gaps-sweep-5 |
+| 2026-06-21 | EP/Absorb bar tints to the BD **active-pool** hybrid colour (`GetHybridSpellColors(GetActivePool()).BlendedColor`) — dropped the redundant Darkness special-case (it routes to the same near-black) so the EP bar matches `ApplyStatusBarTint`. `HandleBDAlignmentChanged` now calls `ApplyEnergyBarTint`, so the bar re-tints live on active-pool rotation (was only re-tinting incidentally via the co-firing `OnEnergyAbsorbed`). Updated §7. | feature/bd-value-deletion |

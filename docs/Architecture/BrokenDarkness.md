@@ -56,8 +56,8 @@ than reading either field directly.
 | `bIsFlipped` | `bool`, `UBrokenDarknessManager` (`.h:352`) | Manager's mirror of "is currently BD"; gates every absorption/overload method. **Renamed from `bIsTransformed`**; the accessor `IsTransformed()` is kept for BP/API stability (`.h:55`) | `BeginPlay` (`.cpp:120`), `TriggerTransformation` (`.cpp:230`) | `IsTransformed()`, internal guards |
 | `bBrokenDarknessInnate` | `bool`, `UCharacterData` asset (`.h:136`) | **Born-BD marker** — design-time "this character is BD from creation". The init seed for `bIsBrokenDarkness` | Asset author (or PostLoad migration) | `CharacterDataComponent` init auto-flip, `ClassInnateResistanceTable::ResolveRow` design-time resistance, debug |
 | `InnateElement` | `ESpellElement`, `UCharacterData` asset | Immutable innate element — now always `Darkness` for a BD. `BrokenDarkness` is **no longer a valid innate value** (enum value Hidden, Phase-2-deletion-pending); the born-BD marker is `bBrokenDarknessInnate`, not this field | Asset author | break-roll Darkness gate, `GetDisplayElement()`, visuals |
-| `AbsorbedElements` | `TArray<ESpellElement>`, `UBrokenDarknessManager` (`.h:309`) | Distinct elements absorbed this session | `RecordAbsorbedElement` (`.cpp:383-385`) | `HasAbsorbedElement` (`.cpp:583`) |
-| `LastAbsorbedElement` | `ESpellElement`, `UBrokenDarknessManager` (`.h:313`) | Most recent absorbed element; drives visuals | `ProcessElementAbsorption` (`.cpp:572`) | `GetHybridElement()` |
+| `AbsorbedElements` | `TArray<ESpellElement>`, `UBrokenDarknessManager` | Recency-ordered absorbed history; `Last()` is the **active pool**. Seeded to `{Darkness}` on transform | `RecordAbsorbedElement`, `SeedBaseElement` (transform seed) | **`GetActivePool()`** (= `Last()`, `Darkness` when empty) — the single source of truth | `HasAbsorbedElement` |
+| ~~`LastAbsorbedElement` / `GetHybridElement()`~~ | — | **RETIRED this arc** — all readers route through `GetActivePool()` instead. A fresh BD reports `Darkness` (seeded), not the old Generic-as-empty | — | — |
 
 `bIsBrokenDarkness` is `SaveGame`-tagged for future persistence but session-only today —
 no save system exists (`CharacterDataComponent.h:72-73`).
@@ -362,6 +362,13 @@ separate, identical predicate used by the colour system for VFX intensity.
 
 ## Visual Treatment
 
+> **Colour model (collapsed this arc).** *BD IS Darkness* — there is **one** BD/Darkness
+> near-black (`ElementColors::Darkness` ≈ `0.02`), and `ElementColors::BrokenDarkness` is an
+> **alias** of it. The separate purple "pure BD" colours (`PURE_BD_PRIMARY` / `PURE_BD_SECONDARY`)
+> were **deleted** — no purple. The rule is uniform: **Darkness is the black; an absorbed
+> element = black-over-element = the darkened element** (`GetHybridSpellColors(Darkness)` →
+> pure near-black; `GetHybridSpellColors(Fire)` → dark red; etc.).
+
 BD spells render the normal element colour darkened — the element is "infused through
 darkness". `UHybridSpellColors` (`HybridSpellColors.h/.cpp`) is a `UBlueprintFunctionLibrary`
 that produces `FHybridSpellColorData` (primary / secondary / blended colours, darkness
@@ -380,8 +387,8 @@ spawn paths (`SpawnSpellEffects`, `SpawnSupportSpellEffect`, `SpawnAOEEffect`,
 
 `UElementColorDebugComponent` (`ElementColorDebugComponent.cpp`) is a debug component that
 tints a character's mesh: for a BD (`IsBrokenDarkness()` true) it uses the blended colour
-of `GetHybridElement()`'s absorbed element, or pure BD black if nothing is absorbed
-(`.cpp:61-84`). Marked a temporary testing tool (`.h:3`).
+of the **active pool** (`GetActivePool()`) — the base Darkness pool resolves to the single
+BD near-black. Marked a temporary testing tool (`.h:3`).
 
 ## Post-Collapse Status Dispatch (Silence vs Drain)
 
@@ -438,13 +445,15 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
   `docs/Gaps/IntegrationGaps.md` §4.2.
 - **`bIsBrokenDarkness` save persistence (gap 4.4) / un-transform path
   (gap 4.5).** Both designed, neither built. See `docs/Gaps/IntegrationGaps.md`.
-- **Phase 2 — delete `ESpellElement::BrokenDarkness` (deferred).** The enum value is **Hidden,
-  not deleted** (`ESpellElement.h:28-32`): it still serves as the display identity
-  (`GetDisplayElement()`) and as the upper bound of the `InitializeBDPools` loop
-  (`LoadoutComponent.cpp:1808-1810`). Deleting it is a future Phase 2, gated on **(a)** all BD
-  assets re-saved so no asset still serialises the value — **done this arc** — and **(b)** the
-  `InitializeBDPools` loop bound moving from `ESpellElement::BrokenDarkness` to an explicit
-  `Max`/`Count` sentinel — **pending** (`TODO(Phase 2)` at `LoadoutComponent.cpp:1808`).
+- **Phase 2 — delete `ESpellElement::BrokenDarkness` (SHIPPED, PIE-verified).** The enum value
+  is **deleted** (`feature/bd-value-deletion`). BD is now represented **only** by
+  `bBrokenDarknessInnate` + `InnateElement == Darkness` — there is no BD element value. Both
+  gates that blocked the deletion are resolved: **(a)** the single BD asset was re-saved
+  (`InnateElement=Darkness` + toggle), so nothing serialises the value, and **(b)** the
+  `InitializeBDPools` loop bound moved to the explicit `None` sentinel (`i < (uint8)None`, now
+  iterating the real elements 0..9). The dead PostLoad migration was removed; all dead BD-value
+  branches (immunity / resistance alias / `IsAnySpellSource` / `CanAbsorbElement` / display
+  colour) were stripped first (behaviour preserved by live paths). `None` is now value 10.
 - **Arc 2 — BD → Darkness revert (shipped, PIE-verified).** The direct runtime model
   (`IsBrokenDarkness()` reading the flag only) plus the two queryable fields (born =
   `bBrokenDarknessInnate`, current = `bIsBrokenDarkness`) made the BD→Darkness direction of the
@@ -498,3 +507,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-06-18 | **Absorption rework** — replaced the flat parry/block rates (0.30/0.15) with an Efficiency-scaled, perfect-doubling model: `EnergyAbsorbed = AttackBaseEnergyCost × BaseRate(0.10/0.05) × (1 + GetScalingFraction(Efficiency) × K(8.0)) × PerfectMultiplier(2.0)`. Perfect (parry **or** block) doubles, threaded via `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy`. Zero-Efficiency floor is now lower (10%/5%, was 30%/15%), rising past the old rate with investment; max-stat 50%/25%, max-gear ~82%/41%. Removed the dead `OnSuccessfulParry`/`OnSuccessfulBlock` pair + `ParryAbsorptionRate`/`BlockAbsorptionRate` fields. Debug: `WoR.AbsorptionSnapshot`. Coefficients TUNABLE. Per-impact absorption (`BrokenDarkness_ReactiveDefense.md` §8c) remains deferred. | feature/bd-absorption-rework |
 | 2026-06-21 | **Generic Spell Inheritance arc — BD Model-B single active pool** (`feature/generic-spell-inherit`, PIE-verified). BD absorption is now a single-active-pool **rotation**: `GetActivePool()` = `AbsorbedElements.Last()`, with `Darkness` **seeded** on transform via `SeedBaseElement()` (from `TriggerTransformation` + born-BD `BeginPlay`; element axis only, no energy). Absorbing rotates the active pool, prior pool dormant; absorbing Darkness returns to the base pool. `IsElementCastable`, `ULoadoutComponent::GetAvailableSpells`, and `FCombatCapabilities::BuildFrom` all route through `GetActivePool()` — **dropped** the always-on `Element == Darkness` clause and the Model-A "all absorbed pools at once" append (both now show only the active pool, gated on `IsBrokenDarkness()`). `CanAbsorbElement` is now an **allowlist** (rejects `Generic`/`None`/`Reality`/`BrokenDarkness`-value; accepts the 7 elements + `Darkness`-as-rotation-target). `IsElementCastable` gains a `Generic`-always-castable short-circuit (Generic resolves at cast). Updated *Absorption System*, *Element Access*, *BD Spell Pools*. Full arc (enum `None` append, ~40-site `Generic→None` sentinel migration, the `ResolveSpellCastElement` resolver, cast-boundary wiring, `SpellElementMatchesHost` gates, naming) in `docs/Design/Completed/GenericSpellInherit.md`. | feature/generic-spell-inherit |
 | 2026-06-18 | **Forced BD→Darkness revert (arc 2)** — built the BD→Darkness direction of the runtime switch. New `UBrokenDarknessManager::RevertTransformation()` (`BlueprintCallable`): guard `!bIsFlipped` → no-op; else `bIsFlipped=false` → `ExitOverload()` + `ResetStacks()` + clear alignment / `AbsorbedElements` / `LastAbsorbedElement` → `ServerSetBrokenDarkness(false)` → `OnReverted.Broadcast()`. Mirrors `TriggerTransformation`'s structure. New `OnReverted` delegate (reuses `FOnBrokenDarknessTransformed`; separate edge so listeners bind specifically). `ServerSetBrokenDarkness(false)` gained a real body — `CurrentEP=MaxEP` + `OnEPChanged` broadcast (relabels bar Absorb→EP); asymmetric vs the activate branch (which carries EP over), direct field set bypasses the BD EP guard (flag already cleared). `WoR.TestBDRevert` console command added as permanent debug tooling (reverts the first transformed BD in combat, logs result). UI auto-corrects via existing `IsBrokenDarkness()` + `OnEPChanged` bindings. The Darkness→BD direction (break-roll) is unchanged. The **trigger** that calls `RevertTransformation` (healer / item / interaction) is **not** built — mechanism only; the BD↔Darkness switch is now mechanically complete pending a trigger. Updated the arc-2 Known-Limitations bullet → shipped. | feature/bd-switch |
+| 2026-06-21 | **Phase-2 `ESpellElement::BrokenDarkness` value DELETED** (`feature/bd-value-deletion`, PIE-verified). The enum value is gone; BD is represented **only** by `bBrokenDarknessInnate` + `InnateElement=Darkness`. `InitializeBDPools` loop bound moved to the `None` sentinel (`i < (uint8)None`, iterating real elements 0..9); dead PostLoad migration removed; single BD asset re-saved; `None` is now value 10. All dead BD-value branches stripped first (immunity maps, the `GetElementColumn` BD→Darkness alias, `IsAnySpellSource`, `CanAbsorbElement`'s self-reject) — behaviour preserved by live paths. **Reconciliation:** `LastAbsorbedElement` / `GetHybridElement()` **retired** — readers route through `GetActivePool()` (Model-B single source of truth; a fresh BD reports seeded `Darkness`). **Colour collapse:** one BD/Darkness near-black (`0.02`); purple `PURE_BD_PRIMARY`/`PURE_BD_SECONDARY` deleted; `ElementColors::BrokenDarkness` aliased to `Darkness` — *BD IS Darkness; absorb = black-over-element*. **EP/Absorb bar** now tints to the active-pool hybrid colour (`GetHybridSpellColors(GetActivePool()).BlendedColor`) and re-tints on rotation (`HandleBDAlignmentChanged` → `ApplyEnergyBarTint`). Updated *State Model*, *Element Access*, *BD Spell Pools*, *Visual Treatment*, Known Gaps. | feature/bd-value-deletion |

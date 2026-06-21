@@ -224,13 +224,12 @@ See `AISystem.md`.
 1. **AI scores flat at L0.** The AI ranks skills uninfused, then picks a source + charge level
    for the winner — it does not model (source × level) as distinct candidates. Full per-mode AI
    fidelity (comparing "raw L2" vs "ring L1") is a deferred, deeper change.
-2. **PLANNED — BD representation refactor (not built).** Broken Darkness is currently an
-   `ESpellElement` enum value (`ESpellElement::BrokenDarkness`) on `UCharacterData::InnateElement`.
-   A planned future rework makes BD a separate `bool` toggle (`bBrokenDarknessInnate`) with
-   `InnateElement = Darkness`, the enum value deprecated/`Hidden`, a `PostLoad` migration, and a
-   Phase-2 enum deletion. ⚠️ Before that, the `ULoadoutComponent` BD-pool loop that uses
-   `BrokenDarkness` as an upper bound must move to an explicit `Max` sentinel. Documented as
-   planned work only.
+2. **SHIPPED — BD representation refactor + enum-value deletion.** Broken Darkness is now a
+   `bool` toggle (`bBrokenDarknessInnate`) with `InnateElement = Darkness` — the former
+   `ESpellElement::BrokenDarkness` enum value has been **deleted** (`feature/bd-value-deletion`,
+   PIE-verified). The `ULoadoutComponent` BD-pool loop now bounds on the `None` sentinel
+   (`i < (uint8)None`); the dead `PostLoad` migration was removed and the single BD asset
+   re-saved. See `docs/Architecture/BrokenDarkness.md`.
 
 ## Cross-links
 
