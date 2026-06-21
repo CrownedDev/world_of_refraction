@@ -455,19 +455,17 @@ public:
     void ServerSetBrokenDarkness(bool bNewState);
 
     /**
-     * Display-time element for UI. Single source of truth for "what element
-     * does this character read as right now". When the character is BD (per
-     * IsBrokenDarkness — covers both runtime-transformed and character-created
-     * paths), this returns ESpellElement::BrokenDarkness so panels / labels
-     * surface the BD identity rather than the pre-transform element. Otherwise
-     * delegates to UCharacterData::GetElement (Caster → InnateElement; others
-     * → Generic). Generic when no CharacterData is set.
+     * Display-time element for UI. Delegates to UCharacterData::GetElement
+     * (Caster → InnateElement; others → Generic); Generic when no CharacterData
+     * is set. A BD reads as Darkness here (its innate element) — BD identity is
+     * NOT a distinct element value. UI that needs the BD tint/label queries
+     * IsBrokenDarkness() and uses the ElementColors::BrokenDarkness constant
+     * (e.g. CombatCommandMenuSubsystem refraction tint).
      *
-     * UI callers (CharacterPanelWidget energy bar, ClassElementText in
-     * WBP_CharacterPanel, etc.) should prefer this over reading InnateElement
-     * directly. Gameplay-internal reads (ActionExecutor element resolution,
-     * BD validation) keep their existing paths — those reason about the
-     * underlying CharacterData, not the display identity.
+     * UI callers should prefer this over reading InnateElement directly.
+     * Gameplay-internal reads (ActionExecutor element resolution, BD validation)
+     * keep their existing paths — those already reason about the underlying
+     * CharacterData.
      */
     UFUNCTION(BlueprintPure, Category = "Character|Element")
     ESpellElement GetDisplayElement() const;

@@ -441,12 +441,17 @@ void UCombatCommandMenuSubsystem::RebuildCapabilities()
         return;
     }
 
+    // Refraction tint: a BD paints with the pure-BD colour constant (its display
+    // element is now Darkness, so derive the BD identity from IsBrokenDarkness());
+    // everyone else uses their element's colour.
+    const FLinearColor RefractionColor = CDC->IsBrokenDarkness()
+        ? ElementColors::BrokenDarkness
+        : GetElementColor(static_cast<int32>(CDC->GetDisplayElement()));
+
     CurrentCapabilities = FCombatCapabilities::BuildFrom(
         LC,
         CDC->CharacterData->CharacterClass,
-        // Display identity: a born/transformed BD surfaces BrokenDarkness here
-        // (toggle-true) instead of its underlying Darkness element.
-        CDC->GetDisplayElement(),
+        RefractionColor,
         [this](int32 ElementIndex)
         { return GetElementColor(ElementIndex); });
 }

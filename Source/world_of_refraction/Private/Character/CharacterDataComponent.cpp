@@ -351,10 +351,9 @@ bool UCharacterDataComponent::IsBrokenDarkness() const
 
 ESpellElement UCharacterDataComponent::GetDisplayElement() const
 {
-    if (IsBrokenDarkness())
-    {
-        return ESpellElement::BrokenDarkness;
-    }
+    // Underlying display element. A BD reads as Darkness here (its innate element);
+    // BD identity for tint/labels is surfaced separately via IsBrokenDarkness(), not
+    // by emitting a distinct enum value (the BrokenDarkness value is being deleted).
     return CharacterData ? CharacterData->GetElement() : ESpellElement::Generic;
 }
 
