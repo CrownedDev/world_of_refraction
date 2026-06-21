@@ -9,8 +9,9 @@ namespace ElementHelpers
 {
     /**
      * True if the element acts as an "any-element" spell source.
-     * Reality and BrokenDarkness slots/innates accept spells of any element;
-     * all other elements are element-locked.
+     * Reality slots/innates accept spells of any element; all other elements are
+     * element-locked. (A Broken Darkness character is Darkness + the BD toggle — no
+     * host ever carries the BrokenDarkness enum value, so it is not checked here.)
      *
      * Used by loadout validation (FWeaponLoadoutEntry, FRingLoadoutEntry,
      * LoadoutComponent innate spell check) and by ActionExecutor::ValidateAction
@@ -18,8 +19,7 @@ namespace ElementHelpers
      */
     constexpr bool IsAnySpellSource(ESpellElement Element)
     {
-        return Element == ESpellElement::Reality
-            || Element == ESpellElement::BrokenDarkness;
+        return Element == ESpellElement::Reality;
     }
 
     /**

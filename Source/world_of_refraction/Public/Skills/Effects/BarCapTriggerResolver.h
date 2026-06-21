@@ -53,11 +53,6 @@ namespace BarCapTriggerResolver
             return ESkillEffectType::RandomSkill;
         case ESpellElement::Reality:
             return ESkillEffectType::BurstDamage;
-        case ESpellElement::BrokenDarkness:
-            // Retained for any lingering BrokenDarkness-element path (display
-            // identity / un-migrated edge). Distinct enum case from Darkness, so
-            // no double-handling — always maps to DrainEnergy.
-            return ESkillEffectType::DrainEnergy;
         case ESpellElement::Generic:
         default:
             break; // Fall through to physical

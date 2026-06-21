@@ -306,17 +306,15 @@ bool UBrokenDarknessManager::CanAbsorbElement(ESpellElement Element)
 {
 	// Allowlist gate — reject the non-absorbable sentinels/values; everything that
 	// passes (the 7 elements + Darkness) rotates the active pool on absorption.
-	//   Generic                — polymorphic placeholder, nothing concrete to absorb
-	//   None                   — non-elemental / physical attack, no element to absorb
-	//   Reality                — too powerful
-	//   BrokenDarkness (value) — self, cannot absorb own identity
+	//   Generic — polymorphic placeholder, nothing concrete to absorb
+	//   None    — non-elemental / physical attack, no element to absorb
+	//   Reality — too powerful
 	// Darkness is intentionally absorbable: it is the rotation target that points the
 	// active pool back to the innate Darkness pool (a normal rotation, NOT the
 	// out-of-combat RevertTransformation BD-exit).
 	if (Element == ESpellElement::Generic ||
 		Element == ESpellElement::None ||
-		Element == ESpellElement::Reality ||
-		Element == ESpellElement::BrokenDarkness)
+		Element == ESpellElement::Reality)
 	{
 		return false;
 	}
