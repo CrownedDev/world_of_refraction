@@ -19,7 +19,7 @@ namespace
     // Build the isolated snapshot input: feed the skill's raw BaseDamage and neutralize the
     // defender-side terms (defense / resistance / crit) so FinalDamage reflects ONLY the
     // attacker-side scaling chain — the exact Step-1 term stage b2 edits. Element is forced
-    // Generic so no weakness/resistance multiplier perturbs the number. ActionType is resolved
+    // None so no weakness/resistance multiplier perturbs the number. ActionType is resolved
     // from the leaf type (spell -> SpellDamage stat, else ability -> RawDamage stat), matching
     // DamageCalculator's stat selection.
     FDamageCalculationInput BuildSnapshotInput(const USkillDataBase *Skill)
@@ -27,7 +27,7 @@ namespace
         FDamageCalculationInput Input;
         Input.BaseDamage = Skill->BaseDamage;
         Input.ActionType = Cast<USpellData>(Skill) ? EActionType::Spell : EActionType::Ability;
-        Input.Element = ESpellElement::Generic;
+        Input.Element = ESpellElement::None;
         Input.bCanCrit = false;
         Input.bIgnoreDefense = true;
         Input.bIgnoreResistance = true;

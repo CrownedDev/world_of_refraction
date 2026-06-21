@@ -745,7 +745,7 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     FDamageCalculationInput Input;
     Input.BaseDamage = Ability->CalculateDamage(AttackerComp->CharacterData, false);
     Input.ActionType = EActionType::Ability;
-    Input.Element = ESpellElement::Generic;
+    Input.Element = ESpellElement::None;
     Input.ActionMods = ActionMods;
     Input.bCanCrit = false;
     // Parity with the live path (ApplyHit): feed the skill's authored scaling tiers so the AI's predicted
