@@ -272,19 +272,32 @@ void UCharacterDataComponent::CheckDeath()
 {
     if (CurrentHP <= 0 && bIsAlive)
     {
-        // Revive intercept — when the actor holds a Revive skill-effect, restore
-        // HP to 30% of MaxHP, consume the effect, and skip the death broadcast.
+        // Revive intercept — when the actor holds a Revive skill-effect, PRE-EMPT death: restore
+        // HP and skip the death broadcast. The pre-empt is unchanged from before — bIsAlive stays
+        // true, no OnDied, no ServerResurrect (that primitive is for already-DEAD targets; the
+        // phoenix never dies, so HP is written directly here). HealBlock stays bypassed by
+        // construction: this writes CurrentHP directly, never routing through ApplyEffect /
+        // HealthRestore, so the HealBlock gate can't touch it.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
             if (AActor *Owner = GetOwner())
             {
-                if (SEM->HasEffectOfType(Owner, ESkillEffectType::Revive))
+                // Charge-aware: consume ONE charge on the matched Revive effect (multi-life). The
+                // returned value is the revive HP as a PERCENT of MaxHP; a negative sentinel means
+                // no Revive effect is present.
+                const float RevivePercent = SEM->ConsumeReviveCharge(Owner);
+                if (RevivePercent >= 0.0f)
                 {
-                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * ItemConstants::REVIVE_HP_PERCENT));
-                    SEM->RemoveEffectsByType(Owner, ESkillEffectType::Revive);
+                    // Value-driven HP: EffectValue is a percent (60 → 60% MaxHP). FALLBACK: a 0
+                    // (unset/legacy) value reverts to the 30% constant so value-0 never means
+                    // "revive at 0 HP" and old behaviour is preserved.
+                    const float HPFraction = (RevivePercent > 0.0f)
+                                                 ? (RevivePercent / 100.0f)
+                                                 : ItemConstants::REVIVE_HP_PERCENT;
+                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * HPFraction));
                     OnHPChanged.Broadcast(CurrentHP, MaxHP);
-                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (30%% of MaxHP)"),
-                           *Owner->GetName(), CurrentHP);
+                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (%.0f%% of MaxHP)"),
+                           *Owner->GetName(), CurrentHP, HPFraction * 100.0f);
                     return;
                 }
             }

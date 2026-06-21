@@ -1118,6 +1118,47 @@ bool USkillEffectManager::ConsumeCharge(AActor *Actor, FActiveSkillEffect &Effec
 	return true;
 }
 
+float USkillEffectManager::ConsumeReviveCharge(AActor *Owner)
+{
+	if (!Owner || !ActiveEffects.Contains(Owner))
+	{
+		return -1.0f; // no effects at all → no revive → caller proceeds to death
+	}
+
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Owner];
+
+	// Multi-revive policy: if several Revive effects are present, the HIGHEST-EffectValue one fires
+	// (best phoenix wins) and consumes ONE of ITS charges; the others are left intact. We need the
+	// live array entry (not a GetEffectsByType copy) so ConsumeCharge can read its value AND remove
+	// it from THIS array when its charges hit 0.
+	int32 BestIndex = INDEX_NONE;
+	float BestValue = -1.0f;
+	for (int32 i = 0; i < Effects.Num(); ++i)
+	{
+		if (Effects[i].EffectType == ESkillEffectType::Revive &&
+			(BestIndex == INDEX_NONE || Effects[i].EffectValue > BestValue))
+		{
+			BestValue = Effects[i].EffectValue;
+			BestIndex = i;
+		}
+	}
+
+	if (BestIndex == INDEX_NONE)
+	{
+		return -1.0f; // bearer holds no Revive effect
+	}
+
+	// Read the HP% BEFORE consuming — ConsumeCharge may RemoveAt this entry (last charge), which
+	// would invalidate the reference. The local snapshot is what we return.
+	const float ReviveHPPercent = Effects[BestIndex].EffectValue;
+
+	// Consume ONE charge on the matched effect (C1 path). Charges=1 → removed now (old single-use);
+	// Charges=N → survives to revive again; at 0 it's removed (next death permanent).
+	ConsumeCharge(Owner, Effects[BestIndex]);
+
+	return ReviveHPPercent;
+}
+
 void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect)
 {
 	UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
