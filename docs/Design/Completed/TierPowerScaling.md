@@ -2,7 +2,7 @@
 
 > **Related:** TierGapConsolidation.md (a separate channel-mismatch multiplier, arriving later). They stack: Final = Base × TierPower(own tier) × TierGap(vs channel) × StatScaling × envelope. Power scales everything EXCEPT effects; Gap scales effects too.
 
-**Status:** **BUILT — pending final PIE sign-off.** Skill power (Clusters 1–2), gear (3a/3b/3c), and debug tooling (Cluster 4) are implemented on `feature/tier-power-scaling`. Both §7 gates cleared (ARC BUILT). See §9–10 + Changelog.
+**Status:** **COMPLETED — built + PIE-verified, merged to main (2026-06-21).** Skill power (Clusters 1–2), gear (3a/3b/3c), and debug tooling (Cluster 4). Both §7 gates cleared. See §9–10 + Changelog.
 **Scope:** Unify how tier (F→S) drives power across gear, spells, and abilities.
 **Goal:** One dial — tier — controls power. Author once, stamp a tier, the system scales. Less hand-tuning, one consistent rule.
 
