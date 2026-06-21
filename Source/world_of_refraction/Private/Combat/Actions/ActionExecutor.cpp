@@ -3285,7 +3285,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// Spawn projectile actor for each target
 		for (AActor *Target : Targets)
 		{
-			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness, PendingResolvedElement);
 		}
 		break;
 
@@ -3356,6 +3356,7 @@ void UActionExecutor::SpawnProjectileActor(
 	float FinalVisualScale,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
+	ESpellElement InResolvedElement,
 	const FSkillCastEntry *Entry,
 	int32 CastEntryIndex)
 {
@@ -3408,14 +3409,14 @@ void UActionExecutor::SpawnProjectileActor(
 		{
 			Projectile->InitializeProjectile(
 				*Entry, Skill, Caster, Target,
-				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex);
+				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex, InResolvedElement);
 		}
 		else
 		{
 			// Loose (no-entry) path is spell-only — AsSpell is non-null here.
 			Projectile->InitializeProjectile(
 				AsSpell, Caster, Target,
-				FinalImpactRadius, FinalVisualScale, FinalDamage);
+				FinalImpactRadius, FinalVisualScale, FinalDamage, InResolvedElement);
 		}
 
 		// 3. Bind to events
@@ -3745,7 +3746,7 @@ void UActionExecutor::DispatchSpellCast(
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
 			// burst chain (BurstInterval stagger, spike-validated).
-			SpawnProjectileActor(Caster, Target, Skill, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
+			SpawnProjectileActor(Caster, Target, Skill, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, InElement, &Entry, CastEntryIndex);
 			for (int32 i = 1; i < Entry.Count; ++i)
 			{
 				BurstSpawnQueue.Add(Target);
@@ -3761,6 +3762,7 @@ void UActionExecutor::DispatchSpellCast(
 			ActiveBurstVisualScale = FinalVisualScale;
 			ActiveBurstDamage = FinalDamage;
 			bActiveBurstIsBD = bIsBD;
+			ActiveBurstElement = InElement;
 			if (UWorld *World = GetWorld())
 			{
 				World->GetTimerManager().SetTimer(
@@ -3806,7 +3808,7 @@ void UActionExecutor::SpawnNextBurstProjectile()
 	{
 		SpawnProjectileActor(ActiveBurstCaster.Get(), NextTarget.Get(), ActiveBurstSpell,
 							 ActiveBurstImpactRadius, ActiveBurstVisualScale,
-							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry, ActiveBurstCastEntryIndex);
+							 ActiveBurstDamage, bActiveBurstIsBD, ActiveBurstElement, &ActiveBurstEntry, ActiveBurstCastEntryIndex);
 	}
 
 	if (BurstSpawnQueue.IsEmpty())

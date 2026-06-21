@@ -1073,6 +1073,7 @@ protected:
 		float FinalVisualScale,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
+		ESpellElement InResolvedElement,
 		const FSkillCastEntry *Entry = nullptr,
 		int32 CastEntryIndex = INDEX_NONE);
 
@@ -1142,6 +1143,8 @@ protected:
 	float ActiveBurstVisualScale = 1.0f;
 	int32 ActiveBurstDamage = 0;
 	bool bActiveBurstIsBD = false;
+	/** Resolved element for the active burst's continuation projectiles (Cluster 3c). */
+	ESpellElement ActiveBurstElement = ESpellElement::None;
 	FTimerHandle BurstTimerHandle;
 
 	/** Pending telegraph timers (the "incoming!" cues scheduled backward from each notify's time at
