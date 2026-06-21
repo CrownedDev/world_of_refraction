@@ -35,6 +35,13 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
               meta = (ClampMin = "0"))
     int32 Duration = 0;
 
+    /** Explicit "never expires" toggle — author permanent gear/aura effects by ticking
+     *  THIS, not by setting Duration to 0. Permanent is now decoupled from duration-0
+     *  (which means INSTANT). When true, Duration is irrelevant (the effect is Persistent
+     *  and never ticks down). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    bool bPermanent = false;
+
     /** Who receives this effect. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")
     ETargetType Target = ETargetType::Enemy;

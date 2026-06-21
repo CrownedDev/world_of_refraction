@@ -294,7 +294,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		// Builds ONE runtime effect for a payload. The condition group + timing are
 		// shared across all payloads of the source (the trigger gates the whole bundle).
-		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, int32 SubIndex) -> FActiveSkillEffect
+		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, int32 SubIndex) -> FActiveSkillEffect
 		{
 			FActiveSkillEffect Effect;
 			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
@@ -302,9 +302,13 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.EffectID = EffectIdentity::PackEffectID(SourceID, EffectIndex, SubIndex);
 			Effect.EffectType = InType;
 			Effect.EffectValue = (InValue != 0) ? static_cast<float>(InValue) : (InMagnitude * 100.0f);
-			Effect.RemainingTurns = (InDuration > 0) ? InDuration : 1;
+			// Permanent is an EXPLICIT authored toggle now — NOT derived from duration-0.
+			//   InPermanent   -> never expires (Persistent timing; RemainingTurns irrelevant)
+			//   InDuration==0 -> INSTANT (RemainingTurns 0, NOT clamped; IsInstant() catches it)
+			//   InDuration>0  -> lingering (RemainingTurns = InDuration)
+			Effect.bPermanent = InPermanent;
+			Effect.RemainingTurns = InDuration;
 			Effect.InitialDuration = Effect.RemainingTurns;
-			Effect.bPermanent = (InDuration == 0);
 			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
 
 			// Shared N-condition group: every payload gates on the same conditions.
@@ -342,7 +346,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				{
 					continue;
 				}
-				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, p));
+				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, p));
 			}
 		}
 
@@ -589,16 +593,14 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	}
 
 	/** True instant: applies via its Server* primitive through ApplyEffect's gates, then
-	 *  returns WITHOUT being stored. Two signals, OR'd: an explicit ESkillEffectTiming::Instant
-	 *  author override, OR a zero-duration effect that is NOT permanent/persistent.
-	 *  ⚠️ The !bPermanent && !Persistent guard is load-bearing: in the AUTHORED gear/spell path
-	 *  (CreateAllFromSkillEffect) a payload Duration==0 means PERMANENT (equipment auras), with
-	 *  bPermanent=true + Persistent timing. Those must NOT read as instant. So duration-0 only
-	 *  derives instant for directly-built, non-permanent effects (e.g. item consumables). */
+	 *  returns WITHOUT being stored. Duration-0 is the authoritative, SOLE signal — a
+	 *  zero-duration, non-permanent effect is instant. Permanent is now an explicit toggle
+	 *  (bPermanent), fully decoupled from duration-0, so the old Persistent guard is gone.
+	 *  (ESkillEffectTiming::Instant is now vestigial — duration-0 supersedes it; flagged for
+	 *  later removal, not deleted mid-arc.) */
 	bool IsInstant() const
 	{
-		return ProcessTiming == ESkillEffectTiming::Instant ||
-			   (RemainingTurns == 0 && !bPermanent && ProcessTiming != ESkillEffectTiming::Persistent);
+		return RemainingTurns == 0 && !bPermanent;
 	}
 
 	/** Check if can add another stack */
