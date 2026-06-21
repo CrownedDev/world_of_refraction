@@ -68,6 +68,13 @@ AttackerMult = GetAttackerDamageMultiplier(Attacker, ActionType)   // baseline a
 `None`-stat entries are skipped. **Empty `StatScaling` → the sum is 0 → `AttackerMult`
 unchanged → prior behavior** (the no-op guard the debug harness verifies).
 
+> **Note (tier-power arc, 2026-06-21):** the `equipment stat bonus` term reads
+> `GetActiveStatBonus`, which now applies a **per-item tier multiplier** to each equipped
+> item's substat points at aggregation (both signs; pools + pillar-percents excluded —
+> see `LoadoutSystem.md`). That is the orthogonal **own-tier power** axis
+> (`TierPowerScaling.md`), distinct from the `EScalingTier` grades documented here — the two
+> multiply, never merge.
+
 **The baseline stat axis comes directly from `Input.ActionType`** — `Spell` → `SpellDamage`,
 else (`Ability`/`Attack`/`None`) → `RawDamage`. There is **no stat-swap toggle**: the old
 `bOverrideStatScaling` / `ScalingType` Raw↔Spell swap was retired, since cross-stat scaling
@@ -138,3 +145,4 @@ residue of the old `ScalingType` swap, which had zero source readers.
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-06-18 | Initial documentation of the unified scaling-tiers arc (stages a..d2c): `EScalingTier` grades + `GetScalingTierCoefficient` (placeholder ladder); `FStatScaling`; the additive tier sum in `DamageCalculator` Step 1 (empty-array no-op); `GetScalingFraction` per-bucket normalization (Model Y, no allowlist); the `USkillDataBase::StatScaling` field; the retired `bOverrideStatScaling` swap + removed per-cast `FSkillCastEntry::Damage` (spells unified onto scaled-base + `DamageSplit`); the `WoR.ScalingSnapshot` / `UScalingDebug` harness. | feature/unified-scaling-tiers |
+| 2026-06-21 | Tier-power arc note — clarified the `equipment stat bonus` term is now **tier-weighted at `GetActiveStatBonus` aggregation** (orthogonal own-tier power axis, separate from `EScalingTier`). No change to the scaling-tier formula itself. | feature/tier-power-scaling |

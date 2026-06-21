@@ -320,6 +320,16 @@ While in combat, callers query the component:
   active ring plus the primary weapon). Field-wise summing goes through the
   `FEquipmentStatBonus::Accumulate` struct member (the former file-private
   `AccumulateBonus`/`AccumulateResistance` duplicates were deleted).
+  - **Per-point tier scaling (tier-power arc, 2026-06-21).** Each contributing item's
+    **12 substat** fields are multiplied by `TierPowerScaling::GetTierPowerMultiplier(itemTier)`
+    (weapon/ring/evolution `->Tier`) **before** the field-wise sum — so a higher-tier item's
+    points are worth more, and this is the **only** place per-item tier survives (the downstream
+    conversion sites read the already-summed, tierless `Combined`). **Both signs** scale by
+    magnitude (a cursed S −8 roll → ~−38). Substats accumulate as **float, rounded once** into
+    the int fields, so the 12 consumers are unchanged. **Excluded:** `BonusMaxHP`/`BonusMaxEnergy`
+    (pools — own 3.0/3.5 gear rate in `RecomputeMaxPools`; scaling here too would double-dip) and
+    the 3 pillar-percent fields. Pairs with the **flat ~20** substat budget (`FIXED_SUBSTAT_BUDGET`)
+    now rolled at every tier. See `TierPowerScaling.md`.
 - `GetActiveEffects(AActor*)` returns equipment-level `FSkillEffect`s per class
   (Generic active weapon; Caster primary slot; Resonator active ring). Evolution
   crystal effects are explicitly *not* included here.
@@ -408,3 +418,4 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-06-17 | Attack/ability merge — `FWeaponLoadoutEntry::OverrideAttack` (and `UWeaponData::WeaponAttack`) widened to `USkillDataBase*` (hold a `UAbilityData` with `bIsAttack=true`). **Slotting gate added:** `FAbilityCollection::LearnAbility` rejects `IsAttack()` assets (basic attacks never enter the learned pool), with belts in `GetAbilitiesForWeaponType` and `ValidateAbilities`/`ValidateAugmentStoneAbilities` — a basic attack can't be slotted as an ability (the functional payoff of `bIsAttack`). `UWeaponAttackData` deleted. | feature/realtime-defense |
 | 2026-06-20 | Equipment slot tier scaling — slot caps now key on each container's own tier via the shared curve `{1,2,3,4,5,6,6}` (`CrystalEffectTable::SlotsForContainerTier`): weapon abilities (`GetCustomizableAbilityCount`, moved to `.cpp`) on weapon tier; weapon native + ring spells pass `SlotsForContainerTier(tier)` as the `ResolveSpellSlotCap` fall-through `FlatCeiling` (gem-keying preserved); evolution spells keyed at the three `LoadoutComponent.cpp` cap sites. Flat `MAX_*` constants retained as absolute ceilings/fallbacks. New *Slot caps scale on container tier* section; cap-line corrections throughout; per-container slot readout added to `InventoryDebug`. | feature/equipment-slot-tier-scaling |
 | 2026-06-20 | Caster innate / BD spell budget — weighted-budget model in new `Loadout/SpellPoolConstants.h` (cost curve F1…S7, `INNATE_SPELL_BUDGET=24` / `BD_SPELL_BUDGET=48`, per-pillar discount Mind4/Body7/Spirit5, `MAX_EQUIPPED_SLOT_POOL=6`, helpers). Per-school count ≤6 enforced at both asset + runtime gates; weight budget runtime-only (needs the character's discount; null `CharData`→0, still enforced). `ValidateBDSpellLoadout` gained `(Discount, bCheckWeight)`. Retired `MAX_INNATE_SPELLS_PER_SCHOOL`/`_TOTAL` + `MAX_BD_POOL_SPELLS`. New *Caster innate spell budget* section. | feature/innate-bd-spell-budget |
+| 2026-06-21 | Tier-power gear — `GetActiveStatBonus` now applies a **per-item tier multiplier** to each contributing item's 12 substat fields at aggregation (both signs; float-accumulate, round once; pools + pillar-percents excluded) — the only place per-item tier survives before the tierless sum. Pairs with the **flat ~20** substat budget (`FIXED_SUBSTAT_BUDGET`) now rolled at every tier (was F6→S45). See `TierPowerScaling.md`. | feature/tier-power-scaling |
