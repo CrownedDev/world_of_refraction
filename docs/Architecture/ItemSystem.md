@@ -118,7 +118,11 @@ Runs item use in combat. Entry point `UseItem(User, Item, Target)`:
 
 1. Validates user/item; defaults `Target` to `User` if null.
 2. Switches on the item's `ItemIdentity::GetItemEffectType(FCrystalId)` to a per-effect handler (`ExecuteDamageEffect`, `ExecuteHealingEffect`, …, `ExecuteStatusClearEffect`). *(Formerly `GetPrimaryEffectType()`; renamed in commit `5c22e6e`.)*
-3. If the **target** is a Broken Darkness character, applies the BD energy absorption — `ApplyBrokenDarknessBonus` grants energy scaled as **% of target MaxEP** *(sweep-1)*, tier-keyed F=10% .. S=70% via `CrystalEffectTable::GetBrokenDarknessEnergyPercent(Id) × TargetComp->MaxEP`. Routes through `BDManager->GrantAbsorptionEnergy` so the overload-aware ceiling (`MaxEP + 30%`) applies. Replaces the prior flat tier values (`BD_ENERGY_*` int constants).
+3. If the **target** is a Broken Darkness character, `ApplyBrokenDarknessBonus` applies a now **element-aware three-way** interaction (`fix/bd-item-absorption-element`). The tier-scaled amount is the same — **% of target MaxEP**, F=10% .. S=70% (`CrystalEffectTable::GetBrokenDarknessEnergyPercent(Id) × TargetComp->MaxEP`) — but what happens depends on `ItemIdentity::GetElement(Id)`:
+   - **Real element** (Fire/Water/Earth/Wind/Light/Darkness/Lightning/Void) → `BDManager->GrantAbsorptionEnergy(Amount, Element)`: **grants** the energy (overload-aware ceiling `MaxEP + 30%`) **and rotates** the BD's active pool to that element.
+   - **Reality** (Iolite) → `BDManager->DrainAndRevertToBase(Amount)`: **drains** that energy + **reverts** the active pool to base Darkness (the cleanse) — see `BrokenDarkness.md`.
+   - **None** (Quartz) → **no absorption interaction** (no energy, no rotation). *(Previously every crystal fell into the grant path; Quartz now no-ops.)*
+   `OutResult.BrokenDarknessEnergyGained` is the honest `CurrentEP` delta (positive grant / negative drain / 0 no-op). Replaces the prior flat tier values (`BD_ENERGY_*` int constants).
 4. Sets `bSuccess` on the `FItemUseResult` and broadcasts `OnItemUsed`.
 
 `UseItemMultiTarget` loops `UseItem` and accumulates results. The executor applies effects
@@ -149,7 +153,7 @@ ten gems.
 | Onyx | Darkness | Silence (energy-lock / binary) |
 | Amethyst | Void | Gamble (random buff/debuff) |
 | Iolite | Reality | Cleanse / strip |
-| Quartz | Generic | Status-bar clear + elemental protection |
+| Quartz | None (non-elemental) | Status-bar clear + elemental protection |
 
 `ECrystalType::Quartz` is the last enum value — `ItemDataDebug` loops iterate up to it.
 
@@ -353,3 +357,4 @@ removed with the transform system.
 | 2026-06-07 | Weapon-stone alignment — corrected the attachment-slot block (`Kind ∈ {None, Crystal, Evolution, WeaponStone}`, `CrystalType`/`CrystalTier` shared by `Crystal`+`WeaponStone`); reframed `ECrystalType` as 10 gems + 2 stones in one unified enum; `GetPrimaryEffectType` → `ItemIdentity::GetItemEffectType`; `EItemEffectType` gains `None` (`AbilityStone`). Weapon-stone family documented in new `AugmentStoneSystem.md`. | feature/weapon-stones |
 | 2026-06-11 | `WITH_EDITOR` guard fix — `UEvolutionItemData::PostLoad`/`PostInitProperties` were declared inside `#if WITH_EDITOR` but defined outside it: packaged builds failed to compile, and guarding the definitions instead would have skipped the legacy pillar→`BaseStatBonus` migration in shipping (dropping un-re-saved assets' pillar data). Declarations moved out of the guard — the pillar + durability migrations now run in all build configs. Legacy pillar fields remain deprecated, deletion-pending on confirmed content re-save. | chore/legacy-cleanup |
 | 2026-06-16 | Doc-sync: namespace `CrystalIdentity` → `ItemIdentity` in the body (`291ce39d`); `FAttachedItem::Kind` gains `Fusion` (+`FFusionId`); the `ECrystalType` "12 values / 10 gems + 2 stones" framing corrected to the full augment-stone family (~26 values); Overview de-"10-type"-ified. (Historical changelog rows keep their period names.) | feature/realtime-defense |
+| 2026-06-21 | `ApplyBrokenDarknessBonus` is now **element-aware** (`fix/bd-item-absorption-element`): the three-way on `ItemIdentity::GetElement(Id)` — real element → `GrantAbsorptionEnergy(Amount, Element)` (grant + rotate the BD's active pool); Reality (Iolite) → `DrainAndRevertToBase(Amount)` (drain + revert to base Darkness, the cleanse); None (Quartz) → no-op (was a flat grant — removed). Updated step 3 of the use flow. **Stale-fact fix:** the crystal table listed `Quartz | Generic` — corrected to `None (non-elemental)` (post the `Generic→None` element-sentinel migration). | fix/bd-item-absorption-element |

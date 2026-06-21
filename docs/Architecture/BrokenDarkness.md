@@ -208,6 +208,48 @@ name. The existing `SkillEffectBlueprintLibrary` helpers (`GetEffectDisplayName`
 stacks drop to 0 or alignment switches, the next refresh simply doesn't append the
 entry. See `UISystem.md` for the panel data-flow side.
 
+### Non-defense absorption (crystals) + the Reality cleanse (`fix/bd-item-absorption-element`)
+
+A crystal used on a BD reaches absorption through the **element-aware** public entry point
+`GrantAbsorptionEnergy(float Amount, ESpellElement Element)`
+(`BrokenDarknessManager.cpp`). It runs `AddAbsorptionEnergy(Amount)` then
+`RecordAbsorbedElement(Element)` — and because `RecordAbsorbedElement` **self-guards**
+`CanAbsorbElement`, an **absorbable** crystal both grants energy **and rotates** the active
+pool (firing `OnAlignmentChanged`), while a non-absorbable element no-ops the rotation.
+
+**`DrainAndRevertToBase(float Amount)`** is the **Reality cleanse** primitive — the opposite of
+absorption:
+
+1. `GetCharComp()->ServerSpendEnergy(RoundToInt(Amount))` — drains EP, **clamped at 0**, fires
+   `OnEPChanged`.
+2. `SeedBaseElement()` — resets `AbsorbedElements` to `{Darkness}` + `CurrentAlignmentElement = Darkness`. The character **stays BD** (no `bIsFlipped` change — *not* `RevertTransformation`).
+3. An **explicit `OnAlignmentChanged.Broadcast(GetOwner(), OldActive, Darkness)`**, guarded
+   `OldActive != Darkness`.
+
+⚠️ **Gotcha — `SeedBaseElement` is SILENT.** It sets `CurrentAlignmentElement` directly (it is
+the transform-seed path), so it does **not** fire `OnAlignmentChanged`. The explicit broadcast in
+step 3 is therefore **required** — without it the EP/Absorb bar would not re-tint to near-black
+after a cleanse. (The defense path gets its broadcast from `RecordAbsorbedElement → ProcessElementAbsorption`; the cleanse path must broadcast manually.)
+
+**Two call sites of the cleanse:**
+
+- **Item path — `UItemExecutor::ApplyBrokenDarknessBonus`** is now a **three-way** branch on
+  `ItemIdentity::GetElement(Id)`:
+  - `Reality` (Iolite) → `DrainAndRevertToBase(BonusEnergy)` — drain + revert.
+  - `None` (Quartz) → **no-op** (no `GrantAbsorptionEnergy` call). ⚠️ **Behaviour change:** Quartz
+    previously fell into `GrantAbsorptionEnergy` and **granted energy** (rotation no-op'd) — that
+    energy grant is **removed**; Quartz now does nothing to absorption.
+  - real element → `GrantAbsorptionEnergy(BonusEnergy, Elem)` — grant + rotate.
+  - `OutResult.BrokenDarknessEnergyGained` is the honest `CurrentEP` delta (negative on a Reality
+    drain, 0 on a Quartz no-op, positive on a grant).
+- **Defense path — `OnDefenseResolved`** gains a Reality branch placed **BEFORE** the generic
+  `!CanAbsorbElement` return: `if (AttackElement == Reality)` → drains
+  `CalculateAbsorptionEnergy(...)` (the would-be-gain — same function/args as the absorb path, so
+  perfect parry/block doubles the drain) via `DrainAndRevertToBase` and returns. ⚠️ **Order
+  matters** — `CanAbsorbElement(Reality)` is false, so without the early Reality branch the
+  generic check would swallow it with no drain. A **Generic spell resolved to Reality** arrives as
+  `AttackElement == Reality`, so it is covered identically.
+
 ## Energy Model
 
 A single energy pool backs spellcasting for every character. Whether anything is charged
@@ -508,3 +550,4 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-06-21 | **Generic Spell Inheritance arc — BD Model-B single active pool** (`feature/generic-spell-inherit`, PIE-verified). BD absorption is now a single-active-pool **rotation**: `GetActivePool()` = `AbsorbedElements.Last()`, with `Darkness` **seeded** on transform via `SeedBaseElement()` (from `TriggerTransformation` + born-BD `BeginPlay`; element axis only, no energy). Absorbing rotates the active pool, prior pool dormant; absorbing Darkness returns to the base pool. `IsElementCastable`, `ULoadoutComponent::GetAvailableSpells`, and `FCombatCapabilities::BuildFrom` all route through `GetActivePool()` — **dropped** the always-on `Element == Darkness` clause and the Model-A "all absorbed pools at once" append (both now show only the active pool, gated on `IsBrokenDarkness()`). `CanAbsorbElement` is now an **allowlist** (rejects `Generic`/`None`/`Reality`/`BrokenDarkness`-value; accepts the 7 elements + `Darkness`-as-rotation-target). `IsElementCastable` gains a `Generic`-always-castable short-circuit (Generic resolves at cast). Updated *Absorption System*, *Element Access*, *BD Spell Pools*. Full arc (enum `None` append, ~40-site `Generic→None` sentinel migration, the `ResolveSpellCastElement` resolver, cast-boundary wiring, `SpellElementMatchesHost` gates, naming) in `docs/Design/Completed/GenericSpellInherit.md`. | feature/generic-spell-inherit |
 | 2026-06-18 | **Forced BD→Darkness revert (arc 2)** — built the BD→Darkness direction of the runtime switch. New `UBrokenDarknessManager::RevertTransformation()` (`BlueprintCallable`): guard `!bIsFlipped` → no-op; else `bIsFlipped=false` → `ExitOverload()` + `ResetStacks()` + clear alignment / `AbsorbedElements` / `LastAbsorbedElement` → `ServerSetBrokenDarkness(false)` → `OnReverted.Broadcast()`. Mirrors `TriggerTransformation`'s structure. New `OnReverted` delegate (reuses `FOnBrokenDarknessTransformed`; separate edge so listeners bind specifically). `ServerSetBrokenDarkness(false)` gained a real body — `CurrentEP=MaxEP` + `OnEPChanged` broadcast (relabels bar Absorb→EP); asymmetric vs the activate branch (which carries EP over), direct field set bypasses the BD EP guard (flag already cleared). `WoR.TestBDRevert` console command added as permanent debug tooling (reverts the first transformed BD in combat, logs result). UI auto-corrects via existing `IsBrokenDarkness()` + `OnEPChanged` bindings. The Darkness→BD direction (break-roll) is unchanged. The **trigger** that calls `RevertTransformation` (healer / item / interaction) is **not** built — mechanism only; the BD↔Darkness switch is now mechanically complete pending a trigger. Updated the arc-2 Known-Limitations bullet → shipped. | feature/bd-switch |
 | 2026-06-21 | **Phase-2 `ESpellElement::BrokenDarkness` value DELETED** (`feature/bd-value-deletion`, PIE-verified). The enum value is gone; BD is represented **only** by `bBrokenDarknessInnate` + `InnateElement=Darkness`. `InitializeBDPools` loop bound moved to the `None` sentinel (`i < (uint8)None`, iterating real elements 0..9); dead PostLoad migration removed; single BD asset re-saved; `None` is now value 10. All dead BD-value branches stripped first (immunity maps, the `GetElementColumn` BD→Darkness alias, `IsAnySpellSource`, `CanAbsorbElement`'s self-reject) — behaviour preserved by live paths. **Reconciliation:** `LastAbsorbedElement` / `GetHybridElement()` **retired** — readers route through `GetActivePool()` (Model-B single source of truth; a fresh BD reports seeded `Darkness`). **Colour collapse:** one BD/Darkness near-black (`0.02`); purple `PURE_BD_PRIMARY`/`PURE_BD_SECONDARY` deleted; `ElementColors::BrokenDarkness` aliased to `Darkness` — *BD IS Darkness; absorb = black-over-element*. **EP/Absorb bar** now tints to the active-pool hybrid colour (`GetHybridSpellColors(GetActivePool()).BlendedColor`) and re-tints on rotation (`HandleBDAlignmentChanged` → `ApplyEnergyBarTint`). Updated *State Model*, *Element Access*, *BD Spell Pools*, *Visual Treatment*, Known Gaps. | feature/bd-value-deletion |
+| 2026-06-21 | **Crystal-on-BD rotation + the Reality cleanse** (`fix/bd-item-absorption-element`, PIE-verified). `GrantAbsorptionEnergy` is now element-aware — `(float Amount, ESpellElement Element)` — running `AddAbsorptionEnergy` + `RecordAbsorbedElement` (self-guards `CanAbsorbElement`), so an absorbable crystal **grants energy AND rotates** the active pool. New **`DrainAndRevertToBase(float Amount)`** — the Reality cleanse: `ServerSpendEnergy` (clamped 0) + `SeedBaseElement` (clear `AbsorbedElements`→`{Darkness}`, stays BD) + an **explicit `OnAlignmentChanged` broadcast** (⚠️ `SeedBaseElement` is silent — the manual broadcast is required for the bar to re-tint). Two call sites: `UItemExecutor::ApplyBrokenDarknessBonus` is now a **three-way** (Reality→`DrainAndRevertToBase` / `None`/Quartz→**no-op**, previously granted energy — removed / real→grant+rotate), and `OnDefenseResolved` gains a Reality branch **before** the generic `!CanAbsorbElement` return that drains the would-be-gain (`CalculateAbsorptionEnergy`, perfect-doubles). Generic-resolved-to-Reality arrives as `AttackElement == Reality` → covered. Updated *Absorption System*. Player-facing docs: `docs/Mechanics/Archetypes/{Reality,BrokenDarkness}.md`, `docs/Mechanics/Items.md`. | fix/bd-item-absorption-element |
