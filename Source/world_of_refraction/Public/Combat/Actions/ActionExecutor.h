@@ -266,13 +266,13 @@ public:
 		ESpellElement Element,
 		bool bCanCrit);
 
-	/** Apply damage with defaults (Generic element, can crit) */
+	/** Apply damage with defaults (no element, can crit) */
 	FCombatHitResult ApplyDamage(
 		AActor *Attacker,
 		AActor *Target,
 		int32 BaseDamage)
 	{
-		return ApplyDamage(Attacker, Target, BaseDamage, ESpellElement::Generic, true);
+		return ApplyDamage(Attacker, Target, BaseDamage, ESpellElement::None, true);
 	}
 
 	/**

@@ -28,7 +28,7 @@ namespace ItemIdentity
     {
         if (Id.Type == ECrystalType::None)
         {
-            return ESpellElement::Generic;
+            return ESpellElement::None;
         }
         return CrystalTypeHelpers::GetElement(Id.Type);
     }

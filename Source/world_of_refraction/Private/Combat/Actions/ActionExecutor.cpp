@@ -2142,7 +2142,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			// attacks only have an element when infused. Other (non-gauge-
 			// manipulating) effect types stay element=Generic inside the loop
 			// to preserve historical behaviour.
-			ESpellElement ResolvedElement = ESpellElement::Generic;
+			ESpellElement ResolvedElement = ESpellElement::None;
 			if (Action.ActionType == EActionType::Spell && Action.SpellData)
 			{
 				ResolvedElement = (Action.SelectedSource != EInfusionSourceOption::None)

@@ -847,7 +847,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 		else
 		{
 			GambleEffect.PhysicalType = kGamblePhysicals[cat - 9]; // physical-keyed
-			GambleEffect.Element = ESpellElement::Generic;         // Element unused for physical effects
+			GambleEffect.Element = ESpellElement::None;            // Element unused for physical effects
 		}
 	}
 
@@ -934,9 +934,9 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 	const ESpellElement ResistElement = SBM->GetPendingElement(Target);
 	SBM->ReduceStatusBuildup(Target, ClearFraction);
 
-	// Grant protection for the cleared element (skip Generic — no element to resist).
+	// Grant protection for the cleared element (skip None — no element to resist).
 	bool bAppliedImmunity = false;
-	if (ResistElement != ESpellElement::Generic)
+	if (ResistElement != ESpellElement::None)
 	{
 		if (USkillEffectManager *SEM = GetSkillEffectManager())
 		{
