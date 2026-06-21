@@ -1933,9 +1933,11 @@ void ULoadoutComponent::InitializeBDPools(FCombatLoadout &Loadout)
     // One pool per absorbable element other than Darkness. Darkness is the
     // always-available default pool and lives in InnateSpells, not here.
     // Idempotent — existing pools are kept, only missing ones are added.
-    // TODO(Phase 2): loop bound uses ESpellElement::BrokenDarkness as the enum upper bound — must move to an
-    // explicit Max/Count sentinel before the deprecated BrokenDarkness value is deleted.
-    for (uint8 i = 0; i <= static_cast<uint8>(ESpellElement::BrokenDarkness); ++i)
+    // None is the upper sentinel: it sits just past the real absorbable elements,
+    // so iterating [0, None) covers Generic..Reality. The loop body skips Darkness
+    // and anything CanAbsorbElement rejects (Generic / None / Reality), leaving the
+    // 7 element pools (Fire/Water/Earth/Wind/Light/Lightning/Void).
+    for (uint8 i = 0; i < static_cast<uint8>(ESpellElement::None); ++i)
     {
         const ESpellElement Elem = static_cast<ESpellElement>(i);
         if (Elem == ESpellElement::Darkness || !UBrokenDarknessManager::CanAbsorbElement(Elem))
