@@ -4152,17 +4152,17 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	UCharacterData *Data = GetCharacterData(Actor);
 	if (!Data)
 	{
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	switch (Option)
 	{
 	case EInfusionSourceOption::None:
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 
 	case EInfusionSourceOption::Raw:
 		// Raw is elementless infusion — pays HP, no channeled element
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 
 	case EInfusionSourceOption::Innate:
 		return Data->InnateElement;
@@ -4170,7 +4170,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	case EInfusionSourceOption::ActiveRing:
 	{
 		URingManager *RM = GetRingManager();
-		return RM ? RM->GetActiveElement(Actor) : ESpellElement::Generic;
+		return RM ? RM->GetActiveElement(Actor) : ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::PrimaryRing:
@@ -4183,7 +4183,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 				return Entry->RingEntry.AttachedItem.GetElement();
 			}
 		}
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::WeaponCrystal:
@@ -4196,7 +4196,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 				return Entry->WeaponEntry.AttachedItem.GetElement();
 			}
 		}
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::Evolution:
@@ -4210,11 +4210,11 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 				return ActiveLoadout.PrimaryEvolution.Item->GetAssociatedElement();
 			}
 		}
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	default:
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 }
 
