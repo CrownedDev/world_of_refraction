@@ -12,9 +12,11 @@ namespace ItemConstants
     constexpr int32 MAX_STACKS_PER_SLOT = 3;
     constexpr int32 MAX_TOTAL_ITEMS = MAX_ITEM_SLOTS * MAX_STACKS_PER_SLOT; // 18
 
-    // ==================== REVIVE ====================
-    /** HP fraction restored on revive — the Revive skill-effect intercept
-     *  (CharacterDataComponent::CheckDeath) and Sapphire-S share it. */
+    // ==================== REVIVE / LAST STAND DEFAULT HP ====================
+    /** Default HP fraction restored when no per-effect value is authored. Shared by the
+     *  genuine Sapphire-S item revive (ServerResurrect on a dead ally) AND the Last Stand
+     *  skill-effect intercept's fallback (CharacterDataComponent::CheckDeath). Name kept as
+     *  REVIVE_* because the genuine revive item is a primary consumer. */
     constexpr float REVIVE_HP_PERCENT = 0.3f;
 
     // ==================== QUARTZ ====================

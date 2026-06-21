@@ -192,7 +192,10 @@ enum class ESkillEffectType : uint8
     GuaranteedCrit UMETA(DisplayName = "Guaranteed Crit"),
     IgnoreDefense UMETA(DisplayName = "Ignore Defense"),
     DoubleHit UMETA(DisplayName = "Double Hit"),
-    Revive UMETA(DisplayName = "Revive"),
+    // LastStand: a death-DENIAL effect (intercepts a lethal HP<=0 blow and restores HP),
+    // NOT a resurrection. Renamed from "Revive" — position unchanged (enum-by-value stamping);
+    // an EnumRedirects ValueChanges (Revive→LastStand) covers any saved asset (DefaultEngine.ini).
+    LastStand UMETA(DisplayName = "Last Stand"),
 
     // ==================== ITEM SYSTEM REDESIGN (Phase 1) ====================
     // Appended (not mid-inserted) to preserve .uasset enum-by-value stamping.
@@ -317,7 +320,7 @@ namespace SkillEffectClassification
         case ESkillEffectType::GuaranteedCrit:
         case ESkillEffectType::IgnoreDefense:
         case ESkillEffectType::DoubleHit:
-        case ESkillEffectType::Revive:
+        case ESkillEffectType::LastStand:
         // sweep-4: status-bar manipulation buff (reduces target's gauge)
         case ESkillEffectType::StatusDecrease:
             return true;

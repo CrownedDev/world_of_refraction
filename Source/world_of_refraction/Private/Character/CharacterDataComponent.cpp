@@ -272,31 +272,31 @@ void UCharacterDataComponent::CheckDeath()
 {
     if (CurrentHP <= 0 && bIsAlive)
     {
-        // Revive intercept — when the actor holds a Revive skill-effect, PRE-EMPT death: restore
-        // HP and skip the death broadcast. The pre-empt is unchanged from before — bIsAlive stays
-        // true, no OnDied, no ServerResurrect (that primitive is for already-DEAD targets; the
-        // phoenix never dies, so HP is written directly here). HealBlock stays bypassed by
-        // construction: this writes CurrentHP directly, never routing through ApplyEffect /
-        // HealthRestore, so the HealBlock gate can't touch it.
+        // Last Stand intercept — when the actor holds a LastStand skill-effect, PRE-EMPT death:
+        // restore HP and skip the death broadcast (death DENIAL, not resurrection). The pre-empt is
+        // unchanged — bIsAlive stays true, no OnDied, no ServerResurrect (that primitive is for
+        // already-DEAD targets; a Last Stand bearer never dies, so HP is written directly here).
+        // HealBlock stays bypassed by construction: this writes CurrentHP directly, never routing
+        // through ApplyEffect / HealthRestore, so the HealBlock gate can't touch it.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
             if (AActor *Owner = GetOwner())
             {
-                // Charge-aware: consume ONE charge on the matched Revive effect (multi-life). The
-                // returned value is the revive HP as a PERCENT of MaxHP; a negative sentinel means
-                // no Revive effect is present.
-                const float RevivePercent = SEM->ConsumeReviveCharge(Owner);
-                if (RevivePercent >= 0.0f)
+                // Charge-aware: consume ONE charge on the matched LastStand effect (multi-life). The
+                // returned value is the restore HP as a PERCENT of MaxHP; a negative sentinel means
+                // no LastStand effect is present.
+                const float LastStandPercent = SEM->ConsumeLastStandCharge(Owner);
+                if (LastStandPercent >= 0.0f)
                 {
                     // Value-driven HP: EffectValue is a percent (60 → 60% MaxHP). FALLBACK: a 0
                     // (unset/legacy) value reverts to the 30% constant so value-0 never means
-                    // "revive at 0 HP" and old behaviour is preserved.
-                    const float HPFraction = (RevivePercent > 0.0f)
-                                                 ? (RevivePercent / 100.0f)
+                    // "survive at 0 HP" and old behaviour is preserved.
+                    const float HPFraction = (LastStandPercent > 0.0f)
+                                                 ? (LastStandPercent / 100.0f)
                                                  : ItemConstants::REVIVE_HP_PERCENT;
                     CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * HPFraction));
                     OnHPChanged.Broadcast(CurrentHP, MaxHP);
-                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s revived at %d HP (%.0f%% of MaxHP)"),
+                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s last stand at %d HP (%.0f%% of MaxHP)"),
                            *Owner->GetName(), CurrentHP, HPFraction * 100.0f);
                     return;
                 }

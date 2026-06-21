@@ -292,15 +292,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	bool HasEffectOfType(AActor *Actor, ESkillEffectType EffectType) const;
 
-	/** On-death revive support. Finds the bearer's Revive effect (the HIGHEST-EffectValue one if
-	 *  several exist), consumes ONE of its charges via the C1 ConsumeCharge path (so it's removed
-	 *  only when charges hit 0), and returns that effect's EffectValue — the revive HP as a PERCENT
-	 *  of MaxHP (e.g. 60 = revive at 60% MaxHP). Returns a negative sentinel (-1) when the bearer
-	 *  holds NO Revive effect (caller proceeds to death). A returned 0 means "found but unset" —
-	 *  the caller applies its own fallback percent. Operates on the live array entry so the charge
-	 *  consumption / removal lands on the stored effect. */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Revive")
-	float ConsumeReviveCharge(AActor *Owner);
+	/** Last Stand support (death-DENIAL, not resurrection). Finds the bearer's LastStand effect
+	 *  (the HIGHEST-EffectValue one if several exist), consumes ONE of its charges via the C1
+	 *  ConsumeCharge path (so it's removed only when charges hit 0), and returns that effect's
+	 *  EffectValue — the restore HP as a PERCENT of MaxHP (e.g. 60 = survive at 60% MaxHP). Returns
+	 *  a negative sentinel (-1) when the bearer holds NO LastStand effect (caller proceeds to
+	 *  death). A returned 0 means "found but unset" — the caller applies its own fallback percent.
+	 *  Operates on the live array entry so the charge consumption / removal lands on the stored
+	 *  effect. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|LastStand")
+	float ConsumeLastStandCharge(AActor *Owner);
 
 	/** Get total stat modifier from all effects of a category */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
