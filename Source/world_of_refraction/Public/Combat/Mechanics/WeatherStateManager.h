@@ -18,7 +18,7 @@ struct FLeadershipEntry
     int32 TotalWorldStats = 0;
 
     UPROPERTY()
-    ESpellElement Element = ESpellElement::Generic;
+    ESpellElement Element = ESpellElement::None;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnWeatherChanged,

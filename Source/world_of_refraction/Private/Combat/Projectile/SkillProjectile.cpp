@@ -153,7 +153,7 @@ void ASkillProjectile::InitializeProjectile(
     {
         // Fallback defaults
         DeliveryType = ESpellDeliveryType::Projectile;
-        Element = ESpellElement::Generic;
+        Element = ESpellElement::None;
         Speed = SkillProjectileConstants::DEFAULT_SPEED;
     }
 
@@ -184,10 +184,11 @@ void ASkillProjectile::InitializeProjectile(
     // Delivery values come from the Cast ENTRY (D6). Element lives on USpellData,
     // not the shared base, so it's read through a cast: spells tint by their fixed
     // Element (behaviour-identical to the old Spell->Element read), non-spell skills
-    // default to Generic until Step B passes the resolved action element.
+    // default to None (non-elemental) until Cluster 3 (Step B) threads the resolved
+    // action element through here.
     DeliveryType = Entry.DeliveryType;
     const USpellData *AsSpell = Cast<USpellData>(Skill);
-    Element = AsSpell ? AsSpell->Element : ESpellElement::Generic;
+    Element = AsSpell ? AsSpell->Element : ESpellElement::None;
     Speed = Entry.ProjectileSpeed;
 
     InitializeCommon();

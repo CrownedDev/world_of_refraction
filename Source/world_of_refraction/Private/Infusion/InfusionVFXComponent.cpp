@@ -215,7 +215,7 @@ void UInfusionVFXComponent::DeactivateInfusion()
     ClearVFX();
 
     CurrentSource = EInfusionSourceOption::None;
-    CurrentElement = ESpellElement::Generic;
+    CurrentElement = ESpellElement::None;
     bIsInfusionActive = false;
 
     UE_LOG(LogTemp, Display, TEXT("[InfusionVFX] Deactivated"));
@@ -387,7 +387,7 @@ ESpellElement UInfusionVFXComponent::GetElementForSource(EInfusionSourceOption S
 {
     if (Source == EInfusionSourceOption::None)
     {
-        return ESpellElement::Generic;
+        return ESpellElement::None;
     }
 
     // Use ActionExecutor to resolve element
@@ -401,7 +401,7 @@ ESpellElement UInfusionVFXComponent::GetElementForSource(EInfusionSourceOption S
         }
     }
 
-    return ESpellElement::Generic;
+    return ESpellElement::None;
 }
 
 FLinearColor UInfusionVFXComponent::GetElementColor(ESpellElement Element) const

@@ -100,7 +100,7 @@ TArray<FLeadershipEntry> UWeatherStateManager::BuildHierarchy(const TArray<AActo
         FLeadershipEntry Entry;
         Entry.Actor = Actor;
         Entry.TotalWorldStats = GetTotalWorldStats(Actor);
-        Entry.Element = ESpellElement::Generic;
+        Entry.Element = ESpellElement::None;
 
         if (UCharacterDataComponent *Comp = Actor->FindComponentByClass<UCharacterDataComponent>())
         {
