@@ -38,8 +38,9 @@ namespace
 
 FHybridSpellColorData UHybridSpellColors::GetHybridSpellColors(ESpellElement AbsorbedElement)
 {
-	// Pure BD (no absorption) — Generic is the no-absorption sentinel from GetHybridElement
-	if (AbsorbedElement == ESpellElement::Generic)
+	// Pure BD (base state) — Darkness is the seeded base pool (Model B); when the active
+	// pool is the base, render pure BD black rather than a blend.
+	if (AbsorbedElement == ESpellElement::Darkness)
 	{
 		return GetPureBrokenDarknessColors();
 	}

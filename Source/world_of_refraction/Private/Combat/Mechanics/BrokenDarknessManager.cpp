@@ -279,7 +279,6 @@ void UBrokenDarknessManager::RevertTransformation()
 	ResetStacks();
 	CurrentAlignmentElement = ESpellElement::Generic;
 	AbsorbedElements.Empty();
-	LastAbsorbedElement = ESpellElement::Generic;
 
 	// 3. Clear the runtime BD flag on the component + reset EP→MaxEP. The EP guard is on
 	//    bIsBrokenDarkness (CDC), which ServerSetBrokenDarkness(false) clears before resetting
@@ -739,9 +738,6 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 			   *UEnum::GetValueAsString(OldAlignment),
 			   *UEnum::GetValueAsString(Element));
 	}
-
-	// Update last absorbed for hybrid spells
-	LastAbsorbedElement = Element;
 }
 
 void UBrokenDarknessManager::ResetStacks()

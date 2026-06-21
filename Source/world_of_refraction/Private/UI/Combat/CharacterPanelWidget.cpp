@@ -510,8 +510,8 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 		UBrokenDarknessManager *BDManager = BoundBDManager.Get();
 		if (BDManager)
 		{
-			const ESpellElement AbsorbedElement = BDManager->GetHybridElement();
-			if (AbsorbedElement == ESpellElement::Generic)
+			const ESpellElement AbsorbedElement = BDManager->GetActivePool();
+			if (AbsorbedElement == ESpellElement::Darkness)
 			{
 				BarColour = ElementColors::BrokenDarkness;
 			}
