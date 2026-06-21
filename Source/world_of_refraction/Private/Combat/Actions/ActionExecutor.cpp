@@ -4218,6 +4218,74 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	}
 }
 
+ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const
+{
+	if (!Spell)
+	{
+		return ESpellElement::None;
+	}
+
+	// 1. Fixed-element spells pass through unchanged. Only Generic is polymorphic;
+	//    None and every concrete element keep their authored value.
+	if (Spell->Element != ESpellElement::Generic)
+	{
+		return Spell->Element;
+	}
+
+	USpellData *const MutableSpell = const_cast<USpellData *>(Spell);
+
+	// 2. Broken Darkness: a Generic spell's element is the POOL it occupies, NOT the
+	//    caster's innate (Darkness). ResolveSpellSource collapses every BD pool to
+	//    Innate, losing the pool, so walk the loadout directly here — mirrors
+	//    ULoadoutComponent::GetAvailableSpells (:1524) / FCombatCapabilities::BuildFrom (:92).
+	//    InnateSpells is the always-available Darkness pool; BDSpellPools are the
+	//    absorbed-element pools. GetActiveLoadout reads the same SavedLoadout that
+	//    ResolveSpellSource walks, so the BD and non-BD paths stay consistent.
+	if (UCharacterDataComponent *CharComp = GetCharacterDataComponent(Caster))
+	{
+		if (CharComp->IsBrokenDarkness())
+		{
+			if (ULoadoutComponent *LC = GetLoadoutComponent(Caster))
+			{
+				const FCombatLoadout Loadout = LC->GetActiveLoadout();
+				if (Loadout.InnateSpells.Contains(MutableSpell))
+				{
+					return ESpellElement::Darkness;
+				}
+				for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+				{
+					if (Pool.Spells.Contains(MutableSpell))
+					{
+						return Pool.Element;
+					}
+				}
+			}
+			// Not found in any BD pool — fall through to the origin chain / unresolvable.
+		}
+	}
+
+	// 3. Resolve via the spell's ORIGIN — where it is slotted (innate / ring / weapon /
+	//    evolution), derived from ResolveSpellSource, NOT a player infusion pick.
+	//    GetAllowedInfusionSourcesForSpell yields the origin source(s); the first maps
+	//    to its element via GetElementForSourceOption. A Reality origin yields Reality
+	//    (valid). A None result means the origin carries no element -> unresolvable below.
+	const TArray<EInfusionSourceOption> Sources = GetAllowedInfusionSourcesForSpell(Caster, Spell);
+	if (Sources.Num() > 0)
+	{
+		const ESpellElement Resolved = GetElementForSourceOption(Caster, Sources[0]);
+		if (Resolved != ESpellElement::None)
+		{
+			return Resolved;
+		}
+	}
+
+	// 4. Unresolvable — no slottable origin found, or the origin carries no element.
+	UE_LOG(LogTemp, Warning,
+		   TEXT("[ActionExecutor] Generic spell %s could not resolve a source element — defaulting to None"),
+		   *Spell->Name);
+	return ESpellElement::None;
+}
+
 bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
 {
 	return Option == EInfusionSourceOption::None || Option == EInfusionSourceOption::Raw;
