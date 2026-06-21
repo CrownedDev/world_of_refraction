@@ -995,7 +995,7 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, FCrystalId Id, FIte
 		return;
 
 	const int32 EPBefore = TargetComp->CurrentEP;
-	BDManager->GrantAbsorptionEnergy(BonusEnergy);
+	BDManager->GrantAbsorptionEnergy(BonusEnergy, ItemIdentity::GetElement(Id));
 	OutResult.BrokenDarknessEnergyGained = TargetComp->CurrentEP - EPBefore;
 
 	UE_LOG(LogTemp, Log,

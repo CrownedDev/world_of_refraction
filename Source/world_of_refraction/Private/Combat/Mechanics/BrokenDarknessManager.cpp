@@ -392,17 +392,21 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 
 // ==================== ABSORPTION ====================
 
-void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount)
+void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount, ESpellElement Element)
 {
 	// Public entry point for non-defense absorption sources (e.g. ItemExecutor
-	// when a crystal is used on a BD). Defense absorption reaches the same path
-	// via OnDefenseResolved -> AddAbsorptionEnergy.
+	// when a crystal is used on a BD). Mirrors the defense path (OnDefenseResolved):
+	// energy + element rotation. Defense absorption reaches AddAbsorptionEnergy +
+	// RecordAbsorbedElement the same way.
 	if (!bIsFlipped)
 	{
 		return;
 	}
 
 	AddAbsorptionEnergy(Amount);
+	RecordAbsorbedElement(Element); // self-guards via CanAbsorbElement — rotates the active
+									// pool + fires OnAlignmentChanged for absorbable elements,
+									// no-ops for Reality/Generic/None (energy still granted)
 }
 
 void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)

@@ -148,13 +148,16 @@ public:
 	// ==================== ABSORPTION ====================
 
 	/**
-	 * Grant absorption energy from a non-defense source (e.g. a crystal used
-	 * on a BD via ItemExecutor). Routes through the same overload-aware path
-	 * as parry/block absorption — writes UCharacterDataComponent::CurrentEP.
+	 * Grant absorption energy + element rotation from a non-defense source (e.g. a
+	 * crystal used on a BD via ItemExecutor). Routes through the same overload-aware
+	 * path as parry/block absorption — writes UCharacterDataComponent::CurrentEP and
+	 * rotates the active pool to Element (via RecordAbsorbedElement, which fires
+	 * OnAlignmentChanged). Non-absorbable elements (Reality / Generic / None) grant
+	 * energy only — no rotation (RecordAbsorbedElement self-guards CanAbsorbElement).
 	 * No-op if not transformed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
-	void GrantAbsorptionEnergy(float Amount);
+	void GrantAbsorptionEnergy(float Amount, ESpellElement Element);
 
 	// ==================== DEBUG ====================
 
