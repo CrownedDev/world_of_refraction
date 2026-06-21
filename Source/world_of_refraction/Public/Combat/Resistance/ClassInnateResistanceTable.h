@@ -152,8 +152,6 @@ namespace ClassInnateResistanceTable
 			return Row.Void;
 		case ESpellElement::Reality:
 			return Row.Reality;
-		case ESpellElement::BrokenDarkness:
-			return Row.Darkness; // incoming-attack BD alias -> Darkness column
 		case ESpellElement::Generic:
 		default:
 			return 0.0f;

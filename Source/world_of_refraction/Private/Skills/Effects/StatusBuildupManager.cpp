@@ -70,7 +70,6 @@ ESkillEffectType UStatusBuildupManager::GetElementImmunityType(ESpellElement Ele
 	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
 	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
 	case ESpellElement::Generic:
-	case ESpellElement::BrokenDarkness:
 	default:
 		return ESkillEffectType::None;
 	}

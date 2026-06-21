@@ -52,22 +52,4 @@ namespace ElementColors
         }
     }
 
-    // For BrokenDarkness: blend black with absorbed element
-    inline FLinearColor GetBrokenDarknessColor(ESpellElement AbsorbedElement)
-    {
-        // No absorption = pure black (GetHybridElement defaults to Generic when nothing absorbed)
-        if (AbsorbedElement == ESpellElement::Generic)
-        {
-            return BrokenDarkness;
-        }
-
-        FLinearColor Absorbed = GetColorForElement(AbsorbedElement);
-
-        // 50/50 blend with black
-        return FLinearColor(
-            BrokenDarkness.R + (Absorbed.R * 0.5f),
-            BrokenDarkness.G + (Absorbed.G * 0.5f),
-            BrokenDarkness.B + (Absorbed.B * 0.5f),
-            1.0f);
-    }
 }
