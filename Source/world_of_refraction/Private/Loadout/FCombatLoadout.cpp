@@ -3,6 +3,7 @@
 
 #include "Loadout/FCombatLoadout.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/CrystalType.h"
@@ -43,7 +44,7 @@ TArray<FString> FCombatLoadout::ValidateBDSpellLoadout(
     }
     for (const USpellData *Spell : InnateSpells)
     {
-        if (Spell && Spell->Element != ESpellElement::Darkness)
+        if (Spell && !ElementHelpers::SpellElementMatchesHost(Spell->Element, ESpellElement::Darkness))
         {
             Errors.Add(FString::Printf(
                 TEXT("Broken Darkness: Darkness-pool spell '%s' is not a Darkness element spell"),
@@ -67,7 +68,7 @@ TArray<FString> FCombatLoadout::ValidateBDSpellLoadout(
         }
         for (const USpellData *Spell : Pool.Spells)
         {
-            if (Spell && Spell->Element != Pool.Element)
+            if (Spell && !ElementHelpers::SpellElementMatchesHost(Spell->Element, Pool.Element))
             {
                 Errors.Add(FString::Printf(
                     TEXT("Broken Darkness: spell '%s' in %s pool does not match the pool element"),

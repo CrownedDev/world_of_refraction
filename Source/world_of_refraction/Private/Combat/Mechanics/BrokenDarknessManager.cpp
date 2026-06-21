@@ -764,6 +764,14 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 											   UBrokenDarknessManager *BDManager,
 											   ESpellElement Element)
 {
+	// Generic is the polymorphic wildcard — always castable here. A Generic spell
+	// resolves to a real element at cast (ResolveSpellCastElement reads the actual
+	// source/pool), so resolution is the real gate; the element itself never blocks.
+	if (Element == ESpellElement::Generic)
+	{
+		return true;
+	}
+
 	// Cannot resolve the character — do not block.
 	if (!CharComp)
 	{
