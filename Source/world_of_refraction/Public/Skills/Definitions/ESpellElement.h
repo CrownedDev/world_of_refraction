@@ -25,15 +25,11 @@ enum class ESpellElement : uint8
     Lightning UMETA(DisplayName = "Lightning"),
     Void UMETA(DisplayName = "Void"),
     Reality UMETA(DisplayName = "Reality"),
-    // DEPRECATED as an innate-element data value — BD is now InnateElement=Darkness +
-    // UCharacterData::bBrokenDarknessInnate. Kept (Hidden) until Phase 2 (asset re-save +
-    // LoadoutComponent loop Max-sentinel). Still used as the DISPLAY identity by
-    // GetDisplayElement() and as the LoadoutComponent loop upper bound — do NOT delete in Phase 1.
-    BrokenDarkness UMETA(DisplayName = "Broken Darkness (Deprecated)", Hidden),
-    // Dedicated non-elemental sentinel (value 11, appended after BrokenDarkness=10).
-    // Takes over the "no element / default" job that Generic used to do — Generic is being
-    // repurposed to "inherit the source element at cast time". Append-only: existing values
-    // keep their numbers. Sits OUTSIDE the LoadoutComponent BD loop bound (<= BrokenDarkness),
-    // so it is not iterated as an absorbable element.
+    // Dedicated non-elemental sentinel (value 10, the last entry). Means "no element" —
+    // the default for physical / sourceless / unresolvable cases. Distinct from Generic,
+    // which means "inherit the source element at cast time". Also the upper sentinel for
+    // the LoadoutComponent BD-pool loop: `i < None` iterates the real elements (0..9).
+    // (Broken Darkness is now InnateElement=Darkness + UCharacterData::bBrokenDarknessInnate;
+    // the former BrokenDarkness enum value was deleted — BD never carried a distinct element.)
     None UMETA(DisplayName = "None")
 };

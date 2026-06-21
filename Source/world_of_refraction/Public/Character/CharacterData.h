@@ -55,8 +55,9 @@ struct WORLD_OF_REFRACTION_API FEvolutionCostResult
  * buildup path reads ResolveRow directly, never this struct. Held transient on
  * UCharacterData so it is never serialized into the .uasset.
  *
- * DESIGN-TIME view: the BD signal is the asset's InnateElement == BrokenDarkness.
- * A live Broken Darkness transform resolves the BD row at runtime instead.
+ * DESIGN-TIME view: the BD signal is the asset's bBrokenDarknessInnate toggle
+ * (InnateElement is Darkness). A live Broken Darkness transform resolves the BD
+ * row at runtime instead.
  */
 USTRUCT(BlueprintType)
 struct WORLD_OF_REFRACTION_API FResistanceProfileDisplay
@@ -272,8 +273,8 @@ public:
 	// Display-layer query over the code-side ClassInnateResistanceTable. Resolves
 	// this character's profile row (BD > Generic > Resonator > Caster-by-element)
 	// and returns the resistance fraction for a given incoming axis. Asset-side BD
-	// is the character-created case (InnateElement == BrokenDarkness); the runtime
-	// transform flag lives on UCharacterDataComponent and is honoured by the
+	// is the character-created case (bBrokenDarknessInnate toggle; InnateElement is
+	// Darkness); the runtime transform flag lives on UCharacterDataComponent and is honoured by the
 	// actor-level ClassInnateResistanceTable::GetClassInnateResistance instead.
 
 	/** Read-only Details-panel mirror of the resolved profile row. Transient —
@@ -663,7 +664,7 @@ public:
 private:
 	/** Repopulate the transient ResistanceProfile mirror from
 	 *  ClassInnateResistanceTable::ResolveRow (the single source of truth).
-	 *  Design-time BD signal = InnateElement == BrokenDarkness. Display only —
-	 *  never feeds GetClassInnateResistance or the buildup path. */
+	 *  Design-time BD signal = bBrokenDarknessInnate (InnateElement is Darkness).
+	 *  Display only — never feeds GetClassInnateResistance or the buildup path. */
 	void RefreshResistanceProfileDisplay();
 };

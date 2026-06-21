@@ -8,7 +8,7 @@
 // design-time row:
 //   - DESIGN-TIME  (UCharacterData)  — InnateElement-based; what the asset
 //                                       getters return. BD = character-created
-//                                       (InnateElement == BrokenDarkness).
+//                                       (bBrokenDarknessInnate; InnateElement = Darkness).
 //   - RUNTIME      (AActor)          — IsBrokenDarkness()-based via the actor's
 //                                       CharacterDataComponent; reflects a live
 //                                       BD transform.
