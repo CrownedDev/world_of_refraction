@@ -259,9 +259,15 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 	// Apply the fire DOT tail via SkillEffectManager — first tick lands at the
 	// end of the target's next turn. BuildupPerTick carries the per-event buildup
 	// so each tick contributes the same amount the immediate hit did.
-	const int32 EffectID = static_cast<int32>(GetTypeHash(User)) ^ static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(ESkillEffectType::DOT);
+	//
+	// Element-keyed, tier-agnostic: one Burn per target; the strength policy
+	// (SkillEffectManager re-apply) decides which tier's values win. Mirrors the
+	// on-hit Burn/Chill element-token convention. DOTElement feeds BOTH the ID and
+	// CreateDOT from the crystal (Fire for Garnet) so they can never drift.
+	const ESpellElement DOTElement = ItemIdentity::GetElement(Id);
+	const int32 EffectID = static_cast<int32>(GetTypeHash(DOTElement)) ^ static_cast<int32>(ESkillEffectType::DOT);
 	FActiveSkillEffect DOT = FActiveSkillEffect::CreateDOT(
-		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, ESpellElement::Fire);
+		TEXT("Burn"), EffectID, DamagePerTurnInt, Duration, DOTElement);
 	DOT.BuildupPerTick = BuildupPerEvent;
 
 	SEM->ApplyEffect(Target, DOT, User, TEXT("Garnet"), -1);
@@ -945,7 +951,13 @@ void UItemExecutor::ExecuteStatusClearEffect(AActor *User, AActor *Target, FCrys
 
 			const ESkillEffectType EffectType = bUseImmunity ? ImmunityType : ESkillEffectType::ResistanceBuff;
 			const float Magnitude = bUseImmunity ? 1.0f : ItemConstants::QUARTZ_RESIST_PERCENT;
-			const int32 EffectID = static_cast<int32>(GetTypeHash(Target)) ^ static_cast<int32>(EffectType);
+			// ResistElement (the per-target, runtime protected element) is folded into the ID
+			// so protections for DIFFERENT elements coexist on one target instead of colliding.
+			// For F–A tiers EffectType is the generic ResistanceBuff for every element, so without
+			// ResistElement a Fire-resist and a Water-resist would share an ID and overwrite.
+			const int32 EffectID = static_cast<int32>(GetTypeHash(Target))
+								 ^ static_cast<int32>(GetTypeHash(ResistElement))
+								 ^ static_cast<int32>(EffectType);
 
 			FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 				bUseImmunity ? TEXT("Elemental Immunity") : TEXT("Elemental Resistance"),
