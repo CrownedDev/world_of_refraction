@@ -191,7 +191,7 @@ private:
 	struct FStatusBarState
 	{
 		float CurrentBuildup = 0.0f;
-		ESpellElement PendingElement = ESpellElement::Generic;
+		ESpellElement PendingElement = ESpellElement::None;
 		EPhysicalDamageType PendingPhysicalType = EPhysicalDamageType::None;
 		TWeakObjectPtr<AActor> LastSource;
 		int32 TurnsSinceLastHit = 0;

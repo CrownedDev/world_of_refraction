@@ -280,9 +280,9 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 	if (!StatusBar)
 		return;
 
-	// Generic = physical-only damage (Slash/Pierce/Impact) — no element to
+	// None / Generic = physical-only damage (Slash/Pierce/Impact) — no element to
 	// surface, and nothing for a BD attacker to darken, so always neutral.
-	if (PendingElement == ESpellElement::Generic)
+	if (PendingElement == ESpellElement::None || PendingElement == ESpellElement::Generic)
 	{
 		StatusBar->SetFillColorAndOpacity(FLinearColor::White);
 		return;

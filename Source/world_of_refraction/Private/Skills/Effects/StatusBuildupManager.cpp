@@ -150,11 +150,11 @@ ESpellElement UStatusBuildupManager::GetPendingElement(AActor *Target) const
 {
 	if (!Target)
 	{
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	const FStatusBarState *State = StatusBarStates.Find(Target);
-	return State ? State->PendingElement : ESpellElement::Generic;
+	return State ? State->PendingElement : ESpellElement::None;
 }
 
 // ========================================
@@ -476,15 +476,15 @@ void UStatusBuildupManager::ResetStatusBar(AActor *Target)
 		UE_LOG(LogTemp, Verbose, TEXT("[StatusBuildupManager] %s status bar reset"), *Target->GetName());
 
 		State->CurrentBuildup = 0.0f;
-		State->PendingElement = ESpellElement::Generic;
+		State->PendingElement = ESpellElement::None;
 		State->PendingPhysicalType = EPhysicalDamageType::None;
 		State->LastSource = nullptr;
 		State->TurnsSinceLastHit = 0;
 
 		// LastSource was just cleared above — broadcast null; the reset bar is
-		// neutral anyway (PendingElement == Generic).
+		// neutral anyway (PendingElement == None).
 		OnStatusBuildupChanged.Broadcast(Target, 0.0f,
-			CombatConstants::STATUS_EFFECT_THRESHOLD, ESpellElement::Generic, nullptr);
+			CombatConstants::STATUS_EFFECT_THRESHOLD, ESpellElement::None, nullptr);
 	}
 }
 
