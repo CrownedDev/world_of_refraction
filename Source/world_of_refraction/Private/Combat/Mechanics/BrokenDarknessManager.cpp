@@ -118,6 +118,9 @@ void UBrokenDarknessManager::BeginPlay()
 			if (CharComp->IsBrokenDarkness())
 			{
 				bIsFlipped = true;
+				// Born-BD starts on the base Darkness pool (Model B), same as a runtime
+				// transform. Element axis only — energy is set separately by CDC init.
+				SeedBaseElement();
 				UE_LOG(LogTemp, Log, TEXT("[BrokenDarkness] %s: auto-flipped bIsFlipped for character-created BD"),
 					   *Owner->GetName());
 			}
@@ -232,8 +235,9 @@ void UBrokenDarknessManager::TriggerTransformation()
 	// Energy carries over: whatever CurrentEP the character held at the moment
 	// of transformation becomes their starting absorption buffer.
 
-	// Reset alignment
-	CurrentAlignmentElement = ESpellElement::Generic;
+	// Seed the base Darkness pool as active (Model B) and reset stacks. The seed
+	// sets CurrentAlignmentElement to Darkness, superseding the old =Generic reset.
+	SeedBaseElement();
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
 
@@ -301,8 +305,17 @@ bool UBrokenDarknessManager::IsForbiddenElement(ESpellElement Element)
 
 bool UBrokenDarknessManager::CanAbsorbElement(ESpellElement Element)
 {
-	// Cannot absorb: Generic (nothing to absorb), Reality (too powerful), BrokenDarkness (self)
+	// Allowlist gate — reject the non-absorbable sentinels/values; everything that
+	// passes (the 7 elements + Darkness) rotates the active pool on absorption.
+	//   Generic                — polymorphic placeholder, nothing concrete to absorb
+	//   None                   — non-elemental / physical attack, no element to absorb
+	//   Reality                — too powerful
+	//   BrokenDarkness (value) — self, cannot absorb own identity
+	// Darkness is intentionally absorbable: it is the rotation target that points the
+	// active pool back to the innate Darkness pool (a normal rotation, NOT the
+	// out-of-combat RevertTransformation BD-exit).
 	if (Element == ESpellElement::Generic ||
+		Element == ESpellElement::None ||
 		Element == ESpellElement::Reality ||
 		Element == ESpellElement::BrokenDarkness)
 	{
@@ -435,6 +448,18 @@ void UBrokenDarknessManager::RecordAbsorbedElement(ESpellElement Element)
 
 	// Process stacks and alignment
 	ProcessElementAbsorption(Element);
+}
+
+void UBrokenDarknessManager::SeedBaseElement()
+{
+	// Model B: Darkness is the base pool, active immediately on transform so the BD
+	// can use the base element without first parrying. RESET (not append) so a
+	// re-transform after a revert starts clean on Darkness. Element axis ONLY — no
+	// energy granted (CurrentEP untouched, AddAbsorptionEnergy not called) and no
+	// delegates fired; this is transform-time seeding, not an absorption event.
+	AbsorbedElements.Empty();
+	AbsorbedElements.Add(ESpellElement::Darkness);
+	CurrentAlignmentElement = ESpellElement::Darkness;
 }
 
 // ==================== OVERLOAD STATE ====================
@@ -739,20 +764,28 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 											   UBrokenDarknessManager *BDManager,
 											   ESpellElement Element)
 {
+	// Generic is the polymorphic wildcard — always castable here. A Generic spell
+	// resolves to a real element at cast (ResolveSpellCastElement reads the actual
+	// source/pool), so resolution is the real gate; the element itself never blocks.
+	if (Element == ESpellElement::Generic)
+	{
+		return true;
+	}
+
 	// Cannot resolve the character — do not block.
 	if (!CharComp)
 	{
 		return true;
 	}
 
-	// Broken Darkness: Darkness (the BD default) is always castable; every other
-	// element requires a session absorption. AbsorbedElements never contains
-	// Darkness, so the Darkness case is checked explicitly here. An equipped
-	// crystal channelling the element also unlocks the cast.
+	// Broken Darkness (Model B): the castable element is the SINGLE active pool
+	// (GetActivePool() — the most recent absorption, Darkness when seeded). Darkness
+	// is castable only when it IS the active pool: it is seeded as the base pool on
+	// transform and rotates like any other element, so there is no always-on Darkness.
+	// The equipped-crystal channel still unlocks an element regardless of the active pool.
 	if (CharComp->IsBrokenDarkness() && BDManager)
 	{
-		return Element == ESpellElement::Darkness
-			|| BDManager->HasAbsorbedElement(Element)
+		return Element == BDManager->GetActivePool()
 			|| ULoadoutComponent::HasEquippedSourceForElement(Actor, Element);
 	}
 

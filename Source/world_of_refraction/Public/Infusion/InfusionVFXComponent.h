@@ -190,7 +190,7 @@ protected:
     EInfusionSourceOption CurrentSource = EInfusionSourceOption::None;
 
     UPROPERTY()
-    ESpellElement CurrentElement = ESpellElement::Generic;
+    ESpellElement CurrentElement = ESpellElement::None;
 
     UPROPERTY()
     bool bIsInfusionActive = false;

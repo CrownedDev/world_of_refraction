@@ -160,15 +160,17 @@ public:
         AActor *InTarget,
         float FinalImpactRadius,
         float FinalVisualScale,
-        int32 FinalDamage);
+        int32 FinalDamage,
+        ESpellElement InResolvedElement);
 
     /** Entry-based initialization (D6 Stage 12): delivery values (type, speed)
      *  come from the Cast ENTRY; the skill supplies element/color context only.
      *  Base-typed (USkillDataBase) so abilities/attacks deliver Cast entries too
      *  (Cast-VFX generalization Step A). Element lives on USpellData, not the
      *  shared base, so it's read through a USpellData cast inside — spells tint
-     *  by their fixed Element; non-spell skills default to Generic until Step B
-     *  supplies the resolved action element. C++-only — the runner's dispatch path. */
+     *  by their resolved Element. The caller supplies InResolvedElement (Cluster 3c —
+     *  Step B): the cast's resolved element for spells, the action element for non-spell
+     *  skills. C++-only — the runner's dispatch path. */
     void InitializeProjectile(
         const FSkillCastEntry &Entry,
         USkillDataBase *Skill,
@@ -177,7 +179,8 @@ public:
         float FinalImpactRadius,
         float FinalVisualScale,
         int32 FinalDamage,
-        int32 InCastEntryIndex);
+        int32 InCastEntryIndex,
+        ESpellElement InResolvedElement);
 
     /** Thin forwarding overload — keeps existing spell callers (which pass a
      *  USpellData*) compiling unchanged by upcasting to the base overload above.
@@ -191,7 +194,8 @@ public:
         float FinalImpactRadius,
         float FinalVisualScale,
         int32 FinalDamage,
-        int32 InCastEntryIndex);
+        int32 InCastEntryIndex,
+        ESpellElement InResolvedElement);
 
     /**
      * Set VFX assets (call after Initialize or set via defaults)

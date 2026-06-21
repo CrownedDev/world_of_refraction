@@ -129,9 +129,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	float EffectValue = 0.0f;
 
-	/** Element for elemental DOTs and resistance calculations */
+	/** Element for elemental DOTs and resistance calculations; None = non-elemental */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-	ESpellElement Element = ESpellElement::Generic;
+	ESpellElement Element = ESpellElement::None;
 
 	/** Physical-damage type this effect keys on (for physical-type status
 	 *  resistance). None = effect keys on Element instead. A resistance effect
@@ -430,7 +430,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		case 0: // Slash → Bleed DOT
 			Effect.EffectName = WeaponName + TEXT(" Bleed");
 			Effect.EffectType = ESkillEffectType::DOT;
-			Effect.Element = ESpellElement::Generic;  // Physical damage
+			Effect.Element = ESpellElement::None;  // Physical damage — non-elemental
 			Effect.EffectValue = TotalBuildup * 0.5f; // DOT damage = half of buildup
 			Effect.RemainingTurns = BLEED_DEFAULT_DURATION;
 			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;

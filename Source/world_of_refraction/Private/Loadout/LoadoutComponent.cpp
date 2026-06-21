@@ -807,7 +807,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                 continue;
             }
             const ESpellElement RingElement = Ring.GetElement();
-            if (RingElement != ESpellElement::Reality && Spell->Element != RingElement)
+            if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
             {
                 AddRingSpellFinding(RingLoadoutIndex, j,
                                     FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
@@ -912,7 +912,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                 continue;
             }
             const ESpellElement CrystalElement = Loadout.PrimaryWeapon.WeaponEntry.GetElement();
-            if (CrystalElement != ESpellElement::Reality && Spell->Element != CrystalElement)
+            if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, CrystalElement))
             {
                 AddFinding(ELoadoutSlotType::WeaponSpell, i, true,
                            FString::Printf(TEXT("Weapon spell '%s' element %s does not match weapon crystal element %s"),
@@ -1510,27 +1510,41 @@ TArray<USpellData *> ULoadoutComponent::GetAvailableSpells() const
     }
 
     const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    TArray<USpellData *> Result = Loadout.GetAllSpells();
 
-    // Broken Darkness: GetAllSpells yields only the Darkness pool (InnateSpells).
-    // Append each BD element pool whose element is currently absorbed — the same
-    // castable set FCombatCapabilities surfaces for the player UI.
+    // Broken Darkness (Model B): the castable set is the SINGLE active pool only —
+    // the base Darkness pool (InnateSpells) when Darkness is active, otherwise the
+    // matching absorbed-element pool. No always-on Darkness, no multi-pool append.
     if (AActor *OwnerActor = GetOwner())
     {
         UCharacterDataComponent *CharComp = OwnerActor->FindComponentByClass<UCharacterDataComponent>();
         UBrokenDarknessManager *BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
         if (CharComp && CharComp->IsBrokenDarkness() && BDManager)
         {
-            for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+            const ESpellElement Active = BDManager->GetActivePool();
+            TArray<USpellData *> BDResult;
+            if (Active == ESpellElement::Darkness)
             {
-                if (BDManager->HasAbsorbedElement(Pool.Element))
+                BDResult = Loadout.InnateSpells;
+            }
+            else
+            {
+                for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
                 {
-                    Result.Append(Pool.Spells);
+                    if (Pool.Element == Active)
+                    {
+                        BDResult = Pool.Spells;
+                        break;
+                    }
                 }
             }
+            UE_LOG(LogTemp, Verbose, TEXT("[GetAvailableSpells] BD active pool %s — returning %d spells"),
+                   *UEnum::GetValueAsString(Active), BDResult.Num());
+            return BDResult;
         }
     }
 
+    // Non-BD: the full equipped spell set (unchanged).
+    TArray<USpellData *> Result = Loadout.GetAllSpells();
     UE_LOG(LogTemp, Verbose, TEXT("[GetAvailableSpells] Returning %d spells"), Result.Num());
     return Result;
 }

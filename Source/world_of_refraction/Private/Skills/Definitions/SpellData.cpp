@@ -169,7 +169,52 @@ bool USpellData::CanCharacterCast(UCharacterData *Character) const
 
 FString USpellData::GetDisplayName(UCharacterData *Caster) const
 {
+    // Thin fallback for callers without resolve context (e.g. SpellDataDebug) — raw Name.
     return Name;
+}
+
+FString USpellData::GetDisplayName(ESpellElement ResolvedElement, bool bIsBrokenDarkness) const
+{
+    // Only Generic spells take a resolved-element prefix; fixed-element spells keep
+    // their authored Name ("Fireball" stays "Fireball").
+    if (Element != ESpellElement::Generic)
+    {
+        return Name;
+    }
+
+    // Unresolvable (None) or still-Generic (the cast-boundary safety net) — no prefix.
+    if (ResolvedElement == ESpellElement::None || ResolvedElement == ESpellElement::Generic)
+    {
+        return Name;
+    }
+
+    const UEnum *ElementEnum = StaticEnum<ESpellElement>();
+    const FString ElementName = ElementEnum
+                                    ? ElementEnum->GetDisplayNameTextByValue(static_cast<int64>(ResolvedElement)).ToString()
+                                    : FString();
+    if (ElementName.IsEmpty())
+    {
+        return Name;
+    }
+
+    // Reality is its own identity — "Reality Ball", never "Dark Reality".
+    if (ResolvedElement == ESpellElement::Reality)
+    {
+        return FString::Printf(TEXT("Reality %s"), *Name);
+    }
+
+    if (bIsBrokenDarkness)
+    {
+        // BD: "Dark [Element] [Name]" — but Darkness never doubles ("Darkness Ball").
+        if (ResolvedElement == ESpellElement::Darkness)
+        {
+            return FString::Printf(TEXT("Darkness %s"), *Name);
+        }
+        return FString::Printf(TEXT("Dark %s %s"), *ElementName, *Name);
+    }
+
+    // Non-BD: "[Element] [Name]" ("Fire Ball").
+    return FString::Printf(TEXT("%s %s"), *ElementName, *Name);
 }
 
 // ==================== DEFENSE HELPERS ====================

@@ -20,7 +20,7 @@ ESpellElement FRingInventoryEntry::GetElement() const
     {
         return AttachedItem.GetElement();
     }
-    return ESpellElement::Generic;
+    return ESpellElement::None; // No (or broken) crystal — no element
 }
 
 FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool bCopyDefaultCrystal)

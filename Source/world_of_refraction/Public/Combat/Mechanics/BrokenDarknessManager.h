@@ -240,6 +240,15 @@ public:
 	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
 	bool HasAbsorbedElement(ESpellElement Element) const;
 
+	/** The single active absorbed pool (Model B) — the most recent absorption
+	 *  (AbsorbedElements.Last()). Darkness is the fail-safe default (the base
+	 *  element) when nothing is seeded, so a BD always has a valid active pool. */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
+	ESpellElement GetActivePool() const
+	{
+		return AbsorbedElements.Num() > 0 ? AbsorbedElements.Last() : ESpellElement::Darkness;
+	}
+
 	/**
 	 * Element-capability predicate shared by combat (ActionExecutor::ValidateAction)
 	 * and loadout (LoadoutComponent::GetValidationErrors) validation.
@@ -328,6 +337,14 @@ private:
 
 	/** Record absorbed element */
 	void RecordAbsorbedElement(ESpellElement Element);
+
+	/** Seed the base Darkness pool as the active pool on transform (Model B).
+	 *  RESETS AbsorbedElements to {Darkness} and sets alignment to Darkness so a
+	 *  fresh / re-transformed BD starts on the base element without first parrying.
+	 *  Element axis ONLY — grants no absorption energy (does not touch CurrentEP /
+	 *  AddAbsorptionEnergy) and broadcasts nothing. Called from TriggerTransformation
+	 *  and the born-BD BeginPlay branch. */
+	void SeedBaseElement();
 
 	/** Check and update overload state */
 	void UpdateOverloadState();

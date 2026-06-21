@@ -38,9 +38,9 @@ struct WORLD_OF_REFRACTION_API FHybridSpellColorData
 	UPROPERTY(BlueprintReadOnly, Category = "Colors")
 	bool bIsForbidden = false;
 
-	/** The source element */
+	/** The source element; None = non-elemental */
 	UPROPERTY(BlueprintReadOnly, Category = "Colors")
-	ESpellElement Element = ESpellElement::Generic;
+	ESpellElement Element = ESpellElement::None;
 
 	FHybridSpellColorData() = default;
 

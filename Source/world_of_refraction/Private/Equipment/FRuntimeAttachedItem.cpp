@@ -56,11 +56,11 @@ bool FRuntimeAttachedItem::CanProvideSpells() const
 
 ESpellElement FRuntimeAttachedItem::GetElement() const
 {
-    // No element — matches the old Refined→ItemIdentity::GetElement path,
-    // which resolved a augment-stone FCrystalId to Generic via its default arm.
+    // No element — matches the Refined→ItemIdentity::GetElement path, which
+    // resolves an augment-stone FCrystalId to None via its default arm.
     if (IsAugmentStone())
     {
-        return ESpellElement::Generic;
+        return ESpellElement::None;
     }
     if (IsCrystal())
     {
@@ -73,7 +73,7 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
     if (IsFusion())
     {
         // The gem half drives an elemental fusion's element. Don't assume HalfA is
-        // the stone — check both; an augmented fusion (two stones, no gem) is Generic.
+        // the stone — check both; an augmented fusion (two stones, no gem) is non-elemental (None).
         if (CrystalTypeHelpers::IsGemType(Fusion.Id.HalfA.Type))
         {
             return ItemIdentity::GetElement(Fusion.Id.HalfA);
@@ -82,9 +82,9 @@ ESpellElement FRuntimeAttachedItem::GetElement() const
         {
             return ItemIdentity::GetElement(Fusion.Id.HalfB);
         }
-        return ESpellElement::Generic;
+        return ESpellElement::None;
     }
-    return ESpellElement::Generic;
+    return ESpellElement::None;
 }
 
 int32 FRuntimeAttachedItem::GetCurrentDurability() const

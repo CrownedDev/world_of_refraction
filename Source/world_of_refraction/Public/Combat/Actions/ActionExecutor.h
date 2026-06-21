@@ -180,6 +180,25 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	ESpellElement GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const;
 
+	/**
+	 *  Resolve a spell's effective CAST element (Cluster 3 — the Generic-inherit step).
+	 *  - Non-Generic spells (incl. None) pass through unchanged — only Generic is polymorphic.
+	 *  - A Generic spell adopts the element of the SOURCE/POOL it is slotted into:
+	 *      * Broken Darkness: the spell's pool element — Darkness if in InnateSpells,
+	 *        else the matching BDSpellPools entry's Element (a dedicated walk, because
+	 *        ResolveSpellSource collapses every BD pool to Innate and loses the pool).
+	 *      * Otherwise: the spell's ORIGIN (innate / ring / weapon / evolution) via
+	 *        ResolveSpellSource -> GetElementForSourceOption. A Reality source yields
+	 *        Reality here (valid — Reality is NOT rejected by the resolver).
+	 *  - Unresolvable (no source found, or the origin carries no element) -> None + warning.
+	 *  The source is the spell's ORIGIN (where it is slotted), derived via
+	 *  ResolveSpellSource — NOT a player infusion pick (Action.SelectedSource), so no
+	 *  explicit infusion selection is needed to resolve a slotted Generic spell.
+	 *  Pure read-only rule helper. NOT yet wired into the cast path — Cluster 3c
+	 *  substitutes this at the cast boundary (and feeds the display-name prefix).
+	 */
+	ESpellElement ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const;
+
 	/** Check if weapon stats apply for this source */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	bool DoWeaponStatsApply(EInfusionSourceOption Option) const;
@@ -266,13 +285,13 @@ public:
 		ESpellElement Element,
 		bool bCanCrit);
 
-	/** Apply damage with defaults (Generic element, can crit) */
+	/** Apply damage with defaults (no element, can crit) */
 	FCombatHitResult ApplyDamage(
 		AActor *Attacker,
 		AActor *Target,
 		int32 BaseDamage)
 	{
-		return ApplyDamage(Attacker, Target, BaseDamage, ESpellElement::Generic, true);
+		return ApplyDamage(Attacker, Target, BaseDamage, ESpellElement::None, true);
 	}
 
 	/**
@@ -444,6 +463,11 @@ private:
 	float PendingSpellSize = 1.0f;
 	int32 PendingSpellDamage = 0;
 	bool bPendingSpellIsBrokenDarkness = false;
+
+	/** Cluster 3c: the cast's resolved element (Generic -> source/pool), cached for the
+	 *  deferred notify-triggered VFX (muzzle + delivery colours). Mirrors
+	 *  bPendingSpellIsBrokenDarkness — set in ExecuteSpellAsync, reset in ClearPendingSpellData. */
+	ESpellElement PendingResolvedElement = ESpellElement::None;
 
 	/** Handle animation notify for spell VFX timing */
 	UFUNCTION()
@@ -1049,6 +1073,7 @@ protected:
 		float FinalVisualScale,
 		int32 FinalDamage,
 		bool bIsBrokenDarkness,
+		ESpellElement InResolvedElement,
 		const FSkillCastEntry *Entry = nullptr,
 		int32 CastEntryIndex = INDEX_NONE);
 
@@ -1118,6 +1143,8 @@ protected:
 	float ActiveBurstVisualScale = 1.0f;
 	int32 ActiveBurstDamage = 0;
 	bool bActiveBurstIsBD = false;
+	/** Resolved element for the active burst's continuation projectiles (Cluster 3c). */
+	ESpellElement ActiveBurstElement = ESpellElement::None;
 	FTimerHandle BurstTimerHandle;
 
 	/** Pending telegraph timers (the "incoming!" cues scheduled backward from each notify's time at

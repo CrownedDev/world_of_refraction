@@ -51,6 +51,57 @@ validator would reject:
   Breakthrough cycle list to the binding. A plain Caster's evolution spell → `{Evolution}`
   (size 1 → cycle button auto-hides); a BD/Reality caster → `{Evolution, Innate}`.
 
+## Generic Spell Resolution (the Generic-inherit feature)
+
+A **Generic** spell (`USpellData::Element == ESpellElement::Generic`) is a *polymorphic
+template* — a basic spell that adopts the element of the source it is slotted into. After
+the `ESpellElement` rework, `Generic` means **"inherit the source element at cast"**;
+`None` is the dedicated non-elemental sentinel (physical-ness lives on the separate
+`EPhysicalDamageType` axis). A fixed-element spell keeps its authored element unchanged.
+
+**`UActionExecutor::ResolveSpellCastElement(Caster, Spell)`** is the resolver:
+
+1. **Non-Generic → passthrough.** `Element != Generic` (incl. `None`) returns the authored
+   element verbatim.
+2. **Broken Darkness → pool walk.** If the caster `IsBrokenDarkness()`, the element comes
+   from the **pool the spell occupies**, NOT the caster's innate (Darkness): `InnateSpells`
+   membership → `Darkness`; a `BDSpellPools[i]` membership → `Pool.Element`. (A dedicated
+   walk, because `ResolveSpellSource` collapses every BD pool to `Innate` and loses the pool.)
+3. **Otherwise → origin chain.** `GetAllowedInfusionSourcesForSpell` (above) → the first
+   origin source → `GetElementForSourceOption` → that element. Innate→`InnateElement`,
+   ring/weapon→crystal element, evolution→evolution element. A **Reality** source yields
+   `Reality` (valid — Reality casts Generic spells; the resolver does not reject it).
+4. **Unresolvable → `None` + warning.** No slottable origin, or the origin carries no element.
+
+The source used is the spell's **origin** (where it is slotted, via `ResolveSpellSource`),
+**not** a player infusion pick — so a slotted Generic spell resolves with no explicit
+infusion selection.
+
+**Wired at the cast boundary** (`UActionExecutor::ExecuteSpellAsync`): resolved **once**,
+then fed to `AttackElement` (damage/resistance), the forbidden-cast self-damage, the defense
+window, the deferred VFX colours (muzzle + Support/AOE/Instant, via a `PendingResolvedElement`
+cache mirroring `bPendingSpellIsBrokenDarkness`), and the projectile tint (incl. burst
+continuations, via a threaded param + `ActiveBurstElement`). A still-`Generic` result (the
+`Generic`-innate misconfiguration edge) is converted to `None` + logged, so `Generic` never
+reaches the damage/colour/resistance pipeline. There are **zero raw `Spell->Element` reads**
+left in that pipeline.
+
+**Slot validation — Generic is a wildcard.** `ElementHelpers::SpellElementMatchesHost(Spell,
+Host)` is the one-place element-match rule: `true` for `Generic` (wildcard), any-source hosts
+(`Reality`/`BrokenDarkness`), or an exact match. It backs the four host-element gates (ring /
+weapon findings in `LoadoutComponent`, `FWeaponLoadoutEntry`/`FRingLoadoutEntry::IsValid`) and
+the BD-pool authoring gates (`FCombatLoadout::ValidateBDSpellLoadout`). Separately,
+`IsElementCastable` short-circuits `Generic` to always-castable (resolution is the real gate).
+Concrete-element spells in a wrong host are still rejected.
+
+**Naming.** `USpellData::GetDisplayName(ResolvedElement, bIsBrokenDarkness)` prefixes a Generic
+spell with its resolved element: `"[Element] [Name]"` ("Fire Ball"); BD → `"Dark [Element]
+[Name]"` except Darkness (`"Darkness [Name]"`, no doubling); Reality → `"Reality [Name]"`;
+unresolvable/fixed-element → raw `Name`. Wired into the combat spell-menu button label + tint.
+
+See `docs/Design/Completed/GenericSpellInherit.md` (full arc) and `docs/Mechanics/GenericSpells.md`
+(player-facing). Debug: `UGenericSpellResolveDebug`.
+
 ## Cost model
 
 ### EP (energy)
@@ -193,3 +244,4 @@ See `AISystem.md`.
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-06-18 | Initial documentation of the infusion-charge rework (6-1..6-5): source binding (`GetAllowedInfusionSourcesForSpell`, 1:1 spell origin + BD/Reality evolution exception, enforced in ValidateAction + UI); cost model (EP ×1.5/×2.0 + upside-only stat surcharge, crystal-zero-EP, EP-derived lethal HP with Resistance mitigation, innate-ability-free); effect model (`EInfusionMode` per-mode stat-scaled damage+status bands, progressive L1); AI infusion (source selection, HP-affordability guard, prediction parity). | feature/realtime-defense |
+| 2026-06-21 | New *Generic Spell Resolution* section — `ResolveSpellCastElement` (Generic → source/pool element: passthrough / BD-pool walk / origin chain / unresolvable→None), cast-boundary wiring (resolve-once + `PendingResolvedElement` cache + projectile thread-through + still-Generic→None safety net), `SpellElementMatchesHost` wildcard gates + `IsElementCastable` Generic short-circuit, and `GetDisplayName` naming. `Generic` now means "inherit at cast"; `None` is the non-elemental sentinel (two-axis with `EPhysicalDamageType`). Reality casts Generic spells ("Reality Ball" — not rejected). | feature/generic-spell-inherit |

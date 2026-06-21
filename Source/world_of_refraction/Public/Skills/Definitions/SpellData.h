@@ -142,6 +142,16 @@ public:
     UFUNCTION(BlueprintPure, Category = "Spell|Display")
     FString GetDisplayName(UCharacterData *Caster) const;
 
+    /**
+     * Display name with the Generic-inherit prefix (Cluster 3e). A Generic spell
+     * shows "[ResolvedElement] [Name]" (Fire Ball); BD shows "Dark [Element] [Name]"
+     * EXCEPT Darkness ("Darkness Ball", no "Dark Darkness" doubling); Reality shows
+     * "Reality [Name]". Fixed-element spells, and unresolvable (None/Generic) resolves,
+     * return the raw Name. ResolvedElement comes from
+     * UActionExecutor::ResolveSpellCastElement. Plain C++ (UHT forbids overloaded
+     * UFUNCTIONs) — the runner / UI compute the resolved element and call this. */
+    FString GetDisplayName(ESpellElement ResolvedElement, bool bIsBrokenDarkness) const;
+
     UFUNCTION(BlueprintPure, Category = "Spell")
     FString GetElementName() const
     {

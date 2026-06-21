@@ -1525,11 +1525,11 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 
 					for (AActor *AppTarget : AppTargets)
 					{
-						// No cast context here, so Element stays Generic (parity with equipment
-						// effects, which CreateAllFromSkillEffect also leaves Generic).
+						// No cast context here, so Element stays None / non-elemental (same intent as
+						// the equipment-effect path, CreateAllFromSkillEffect — pending its own migration).
 						FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSpellEffect(
 							E.EffectName, PayloadEffectID, Payload.EffectType, Payload.Magnitude, RuntimeValue,
-							Payload.Duration, ESpellElement::Generic);
+							Payload.Duration, ESpellElement::None);
 
 						// Authored stacking / fires-once carry over. The defense-outcome conditions
 						// were the GATE (already evaluated) — deliberately NOT copied onto the

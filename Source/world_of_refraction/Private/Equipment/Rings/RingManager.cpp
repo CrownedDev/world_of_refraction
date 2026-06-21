@@ -52,15 +52,15 @@ ESpellElement URingManager::GetActiveElement(AActor *Actor) const
 {
 	if (!Actor)
 	{
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 	ULoadoutComponent *LC = Actor->FindComponentByClass<ULoadoutComponent>();
 	if (!LC)
 	{
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 	const FRingLoadoutEntry *Entry = LC->GetActiveRingLoadout();
-	return Entry ? Entry->RingEntry.AttachedItem.GetElement() : ESpellElement::Generic;
+	return Entry ? Entry->RingEntry.AttachedItem.GetElement() : ESpellElement::None;
 }
 
 URingData *URingManager::GetPrimaryRing(AActor *Actor) const

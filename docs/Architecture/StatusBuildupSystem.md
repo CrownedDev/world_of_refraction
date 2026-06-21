@@ -111,7 +111,7 @@ No-op if `Target` null or `StatusType` is `None`. Resolves `USkillEffectManager`
 
 - No `// TODO`, `// FIXME`, `// HACK`, or deprecated markers are present in either file.
 - *(resolved — T3 consolidation)* The attacker amplification no longer inlines the `CalculateStatusMultiplier` shape; it calls the single `UCharacterDataComponent::GetEffectiveStatusMultiplier` getter (shared with the BD overload bake and crystal-wear), so the prior hand-synced-formula maintenance hazard is gone.
-- **Held-cap state.** When the bar reaches cap but the resolved trigger is `None` (e.g. a `Generic`-element, `None`-physical-type hit), the bar stays at/above cap indefinitely until a hit with a real trigger consumes it. This is intentional ("phantom cap" prevention) but means `CurrentBuildup` can exceed `STATUS_EFFECT_THRESHOLD`; `GetStatusBarPercent` clamps the displayed value.
+- **Held-cap state.** When the bar reaches cap but the resolved trigger is `None` (e.g. a `None`-element, `None`-physical-type hit — `None` is the non-elemental sentinel post the `Generic→None` migration), the bar stays at/above cap indefinitely until a hit with a real trigger consumes it. This is intentional ("phantom cap" prevention) but means `CurrentBuildup` can exceed `STATUS_EFFECT_THRESHOLD`; `GetStatusBarPercent` clamps the displayed value.
 - The buildup amount itself is computed by the caller and passed in; this manager only amplifies/resists/accumulates it. (`UDamageCalculator::CalculateStatusBuildup` was removed in sweep-3 — see `DamageCalculator.md`.)
 
 ## Changelog

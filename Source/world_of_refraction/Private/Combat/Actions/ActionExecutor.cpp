@@ -1118,12 +1118,28 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		   DamageMultiplier,
 		   StatusMultiplier);
 
+	// Cluster 3c: resolve a Generic spell to its source/pool element ONCE, here, before
+	// any consumer reads it. Non-Generic spells pass through unchanged. This single
+	// resolved value feeds AttackElement, the forbidden-cast self-damage, the defense
+	// window, and (via PendingResolvedElement below) the deferred VFX readers.
+	ESpellElement ResolvedElement = ResolveSpellCastElement(Caster, Spell);
+	// 3a safety net: a still-Generic result means the resolver could not bind a source
+	// (e.g. a Generic-innate Caster routing through Innate — a data misconfiguration).
+	// Never let Generic ("inherit") reach the damage/colour/resistance pipeline.
+	if (ResolvedElement == ESpellElement::Generic)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor] Spell %s resolved to Generic (unbound source) — using None"),
+			   *Spell->Name);
+		ResolvedElement = ESpellElement::None;
+	}
+
 	// Store in result for reference. BaseDamageBeforeDefense receives the
 	// infused damage because that is what defense will reduce — "before defense"
 	// refers to the defense pipeline, not "before infusion".
 	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
-	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
+	CurrentExecutionContext->PartialResult.AttackElement = ResolvedElement;
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
@@ -1145,6 +1161,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
 	bPendingSpellIsBrokenDarkness = BDManager && BDManager->IsTransformed();
+	// Mirror bPendingSpellIsBrokenDarkness: cache the resolved element for the deferred
+	// notify-triggered VFX (muzzle + delivery colours). Set here, reset in ClearPendingSpellData.
+	PendingResolvedElement = ResolvedElement;
 
 	// Bind to notify for VFX timing
 	BindSpellNotify(Caster);
@@ -1169,7 +1188,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	}
 	else
 	{
-		ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
+		ProcessForbiddenElementCast(Caster, ResolvedElement, static_cast<float>(BaseDamage));
 	}
 
 	// Phase C1: Spell buildup flows through the defense pipeline. Session Y
@@ -1209,7 +1228,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		FinalDamage,
 		DamagePerHit,
 		Spell->HitCount,
-		Spell->Element,
+		ResolvedElement,
 		true,					   // Can crit
 		EActionType::Spell,		   // ActionType — drives post-defense stat selection
 		Action.SpellInfusionLevel, // InfusionLevel
@@ -1356,8 +1375,8 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
 
 	// Element handling. Infusion routes the user's innate element through;
-	// non-infused abilities stay Generic.
-	ESpellElement Element = ESpellElement::Generic;
+	// non-infused abilities stay non-elemental (None).
+	ESpellElement Element = ESpellElement::None;
 	if (bIsInfused && UserData->HasInnateElement())
 	{
 		Element = UserData->InnateElement;
@@ -1434,9 +1453,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	//     wielded, not the per-attack data which no longer owns the field)
 	//   - Element: from Action.SelectedSource — per-action infusion choice.
 	//     Only resolves to the user's InnateElement when an elemental source
-	//     is selected (Generic/Resonator default to Generic; Caster picks
+	//     is selected (Generic/Resonator default to None; Caster picks
 	//     elemental source to push their innate element)
-	ESpellElement AbilityElement = ESpellElement::Generic;
+	ESpellElement AbilityElement = ESpellElement::None;
 	EPhysicalDamageType AbilityPhysicalType = EPhysicalDamageType::None;
 
 	if (UWeaponManager *WeaponMgr = GetWeaponManager())
@@ -2142,7 +2161,7 @@ void UActionExecutor::FinalizeAsyncAction()
 			// attacks only have an element when infused. Other (non-gauge-
 			// manipulating) effect types stay element=Generic inside the loop
 			// to preserve historical behaviour.
-			ESpellElement ResolvedElement = ESpellElement::Generic;
+			ESpellElement ResolvedElement = ESpellElement::None;
 			if (Action.ActionType == EActionType::Spell && Action.SpellData)
 			{
 				ResolvedElement = (Action.SelectedSource != EInfusionSourceOption::None)
@@ -3256,7 +3275,7 @@ void UActionExecutor::SpawnSpellDelivery(
 	if (!bIsOffensive)
 	{
 		// Self/Ally spells - spawn VFX, apply healing/buff directly (no defense)
-		SpawnSupportSpellEffect(Caster, Targets, Spell, Spell->Element, FinalVisualScale, bIsBrokenDarkness);
+		SpawnSupportSpellEffect(Caster, Targets, Spell, PendingResolvedElement, FinalVisualScale, bIsBrokenDarkness);
 		return;
 	}
 
@@ -3266,7 +3285,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// Spawn projectile actor for each target
 		for (AActor *Target : Targets)
 		{
-			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+			SpawnProjectileActor(Caster, Target, Spell, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness, PendingResolvedElement);
 		}
 		break;
 
@@ -3274,7 +3293,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// Spawn VFX at each target, open defense window immediately
 		for (AActor *Target : Targets)
 		{
-			SpawnAOEEffect(Caster, Target, Spell, Spell->Element, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+			SpawnAOEEffect(Caster, Target, Spell, PendingResolvedElement, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
 		}
 		break;
 
@@ -3282,7 +3301,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// No travel time, immediate resolution
 		for (AActor *Target : Targets)
 		{
-			ResolveInstantSpell(Caster, Target, Spell, Spell->Element, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
+			ResolveInstantSpell(Caster, Target, Spell, PendingResolvedElement, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
 		}
 		break;
 	}
@@ -3337,6 +3356,7 @@ void UActionExecutor::SpawnProjectileActor(
 	float FinalVisualScale,
 	int32 FinalDamage,
 	bool bIsBrokenDarkness,
+	ESpellElement InResolvedElement,
 	const FSkillCastEntry *Entry,
 	int32 CastEntryIndex)
 {
@@ -3389,14 +3409,14 @@ void UActionExecutor::SpawnProjectileActor(
 		{
 			Projectile->InitializeProjectile(
 				*Entry, Skill, Caster, Target,
-				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex);
+				FinalImpactRadius, FinalVisualScale, FinalDamage, CastEntryIndex, InResolvedElement);
 		}
 		else
 		{
 			// Loose (no-entry) path is spell-only — AsSpell is non-null here.
 			Projectile->InitializeProjectile(
 				AsSpell, Caster, Target,
-				FinalImpactRadius, FinalVisualScale, FinalDamage);
+				FinalImpactRadius, FinalVisualScale, FinalDamage, InResolvedElement);
 		}
 
 		// 3. Bind to events
@@ -3726,7 +3746,7 @@ void UActionExecutor::DispatchSpellCast(
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
 			// burst chain (BurstInterval stagger, spike-validated).
-			SpawnProjectileActor(Caster, Target, Skill, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, &Entry, CastEntryIndex);
+			SpawnProjectileActor(Caster, Target, Skill, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBD, InElement, &Entry, CastEntryIndex);
 			for (int32 i = 1; i < Entry.Count; ++i)
 			{
 				BurstSpawnQueue.Add(Target);
@@ -3742,6 +3762,7 @@ void UActionExecutor::DispatchSpellCast(
 			ActiveBurstVisualScale = FinalVisualScale;
 			ActiveBurstDamage = FinalDamage;
 			bActiveBurstIsBD = bIsBD;
+			ActiveBurstElement = InElement;
 			if (UWorld *World = GetWorld())
 			{
 				World->GetTimerManager().SetTimer(
@@ -3787,7 +3808,7 @@ void UActionExecutor::SpawnNextBurstProjectile()
 	{
 		SpawnProjectileActor(ActiveBurstCaster.Get(), NextTarget.Get(), ActiveBurstSpell,
 							 ActiveBurstImpactRadius, ActiveBurstVisualScale,
-							 ActiveBurstDamage, bActiveBurstIsBD, &ActiveBurstEntry, ActiveBurstCastEntryIndex);
+							 ActiveBurstDamage, bActiveBurstIsBD, ActiveBurstElement, &ActiveBurstEntry, ActiveBurstCastEntryIndex);
 	}
 
 	if (BurstSpawnQueue.IsEmpty())
@@ -3892,7 +3913,7 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	{
 		// Fallback: Apply damage directly
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying projectile damage directly"));
-		ApplyDamage(nullptr, Target, Damage, ESpellElement::Generic, true);
+		ApplyDamage(nullptr, Target, Damage, ESpellElement::None, true);
 	}
 }
 
@@ -4152,17 +4173,17 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	UCharacterData *Data = GetCharacterData(Actor);
 	if (!Data)
 	{
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	switch (Option)
 	{
 	case EInfusionSourceOption::None:
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 
 	case EInfusionSourceOption::Raw:
 		// Raw is elementless infusion — pays HP, no channeled element
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 
 	case EInfusionSourceOption::Innate:
 		return Data->InnateElement;
@@ -4170,7 +4191,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 	case EInfusionSourceOption::ActiveRing:
 	{
 		URingManager *RM = GetRingManager();
-		return RM ? RM->GetActiveElement(Actor) : ESpellElement::Generic;
+		return RM ? RM->GetActiveElement(Actor) : ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::PrimaryRing:
@@ -4183,7 +4204,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 				return Entry->RingEntry.AttachedItem.GetElement();
 			}
 		}
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::WeaponCrystal:
@@ -4196,7 +4217,7 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 				return Entry->WeaponEntry.AttachedItem.GetElement();
 			}
 		}
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	case EInfusionSourceOption::Evolution:
@@ -4210,12 +4231,80 @@ ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusio
 				return ActiveLoadout.PrimaryEvolution.Item->GetAssociatedElement();
 			}
 		}
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
 
 	default:
-		return ESpellElement::Generic;
+		return ESpellElement::None;
 	}
+}
+
+ESpellElement UActionExecutor::ResolveSpellCastElement(AActor *Caster, const USpellData *Spell) const
+{
+	if (!Spell)
+	{
+		return ESpellElement::None;
+	}
+
+	// 1. Fixed-element spells pass through unchanged. Only Generic is polymorphic;
+	//    None and every concrete element keep their authored value.
+	if (Spell->Element != ESpellElement::Generic)
+	{
+		return Spell->Element;
+	}
+
+	USpellData *const MutableSpell = const_cast<USpellData *>(Spell);
+
+	// 2. Broken Darkness: a Generic spell's element is the POOL it occupies, NOT the
+	//    caster's innate (Darkness). ResolveSpellSource collapses every BD pool to
+	//    Innate, losing the pool, so walk the loadout directly here — mirrors
+	//    ULoadoutComponent::GetAvailableSpells (:1524) / FCombatCapabilities::BuildFrom (:92).
+	//    InnateSpells is the always-available Darkness pool; BDSpellPools are the
+	//    absorbed-element pools. GetActiveLoadout reads the same SavedLoadout that
+	//    ResolveSpellSource walks, so the BD and non-BD paths stay consistent.
+	if (UCharacterDataComponent *CharComp = GetCharacterDataComponent(Caster))
+	{
+		if (CharComp->IsBrokenDarkness())
+		{
+			if (ULoadoutComponent *LC = GetLoadoutComponent(Caster))
+			{
+				const FCombatLoadout Loadout = LC->GetActiveLoadout();
+				if (Loadout.InnateSpells.Contains(MutableSpell))
+				{
+					return ESpellElement::Darkness;
+				}
+				for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+				{
+					if (Pool.Spells.Contains(MutableSpell))
+					{
+						return Pool.Element;
+					}
+				}
+			}
+			// Not found in any BD pool — fall through to the origin chain / unresolvable.
+		}
+	}
+
+	// 3. Resolve via the spell's ORIGIN — where it is slotted (innate / ring / weapon /
+	//    evolution), derived from ResolveSpellSource, NOT a player infusion pick.
+	//    GetAllowedInfusionSourcesForSpell yields the origin source(s); the first maps
+	//    to its element via GetElementForSourceOption. A Reality origin yields Reality
+	//    (valid). A None result means the origin carries no element -> unresolvable below.
+	const TArray<EInfusionSourceOption> Sources = GetAllowedInfusionSourcesForSpell(Caster, Spell);
+	if (Sources.Num() > 0)
+	{
+		const ESpellElement Resolved = GetElementForSourceOption(Caster, Sources[0]);
+		if (Resolved != ESpellElement::None)
+		{
+			return Resolved;
+		}
+	}
+
+	// 4. Unresolvable — no slottable origin found, or the origin carries no element.
+	UE_LOG(LogTemp, Warning,
+		   TEXT("[ActionExecutor] Generic spell %s could not resolve a source element — defaulting to None"),
+		   *Spell->Name);
+	return ESpellElement::None;
 }
 
 bool UActionExecutor::DoWeaponStatsApply(EInfusionSourceOption Option) const
@@ -5125,6 +5214,7 @@ void UActionExecutor::ClearPendingSpellData()
 	PendingSpellSize = 1.0f;
 	PendingSpellDamage = 0;
 	bPendingSpellIsBrokenDarkness = false;
+	PendingResolvedElement = ESpellElement::None;
 }
 
 void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
@@ -5154,7 +5244,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 			const bool bTint = !MuzzleEntry || MuzzleEntry->bElementTinted;
 
 			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(
-				PendingSpellData->Element, bPendingSpellIsBrokenDarkness);
+				PendingResolvedElement, bPendingSpellIsBrokenDarkness);
 
 			UNiagaraComponent *MuzzleComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 				GetWorld(),
@@ -5181,7 +5271,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 		// montages) delivers via the entry path. Empty CastArray → loose path.
 		if (PendingSpellData->CastArray.Num() > 0)
 		{
-			DispatchSpellCast(PendingSpellCaster, PendingSpellData, PendingSpellData->Element,
+			DispatchSpellCast(PendingSpellCaster, PendingSpellData, PendingResolvedElement,
 							  PendingSpellData->CastArray[0], PendingSpellSize,
 							  PendingSpellTargets, PendingSpellDamage, 0);
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
@@ -5593,7 +5683,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		AActor *CurrentCaster = PendingExecutionActor;
 		ESpellElement ActionElement = CurrentExecutionContext.IsSet()
 										  ? CurrentExecutionContext->PartialResult.AttackElement
-										  : ESpellElement::Generic;
+										  : ESpellElement::None;
 
 		if (!CurrentSkill || !CurrentCaster)
 		{
@@ -6045,13 +6135,13 @@ void UActionExecutor::ApplySkillEffects(
 			}
 
 			// Per-payload element: StatusIncrease/Decrease + spell DOT use the resolved cast
-			// element (a Fire spell's authored burn is Fire); every other type stays Generic.
+			// element (a Fire spell's authored burn is Fire); every other type stays non-elemental (None).
 			const ESpellElement EffectElement =
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
 				 (ActionKind == EActionType::Spell && P.EffectType == ESkillEffectType::DOT))
 					? ResolvedCastElement
-					: ESpellElement::Generic;
+					: ESpellElement::None;
 
 			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
 			// stat-modifier effects keep the Magnitude*100 percentage shape.

@@ -67,7 +67,8 @@ void ASkillProjectileTestActor::SpawnTestProjectile()
 			TargetActor,        // Target
 			TestImpactRadius,   // Impact radius
 			TestVisualScale,    // Visual scale
-			TestDamage          // Damage
+			TestDamage,         // Damage
+			ESpellElement::None // No spell -> non-elemental
 		);
 
 		// Bind to events
@@ -131,7 +132,8 @@ void ASkillProjectileTestActor::SpawnWithSpellData()
 			TargetActor,
 			FinalImpactRadius,
 			FinalVisualScale,
-			TestDamage
+			TestDamage,
+			TestSpell->Element  // test harness: authored element (no resolver context)
 		);
 
 		// Assign VFX from spell

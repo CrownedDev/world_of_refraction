@@ -45,7 +45,8 @@ namespace ElementColors
         case ESpellElement::Darkness:
             return Darkness;
         case ESpellElement::Generic:
-            return Generic;
+        case ESpellElement::None:
+            return Generic; // None / Generic both paint the neutral (non-elemental) colour
         case ESpellElement::BrokenDarkness:
             return BrokenDarkness;
         default:

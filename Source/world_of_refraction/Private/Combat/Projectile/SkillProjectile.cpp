@@ -134,7 +134,8 @@ void ASkillProjectile::InitializeProjectile(
     AActor *InTarget,
     float FinalImpactRadius,
     float FinalVisualScale,
-    int32 FinalDamage)
+    int32 FinalDamage,
+    ESpellElement InResolvedElement)
 {
     SourceSpell = Spell;
     Caster = InCaster;
@@ -143,17 +144,19 @@ void ASkillProjectile::InitializeProjectile(
     VisualScale = FinalVisualScale;
     Damage = FinalDamage;
 
+    // Element comes from the caller's resolved element (Cluster 3c), so a Generic
+    // spell tints by its resolved element rather than the raw authored Generic.
+    Element = InResolvedElement;
+
     if (Spell)
     {
         DeliveryType = Spell->DeliveryType;
-        Element = Spell->Element;
         Speed = Spell->ProjectileSpeed;
     }
     else
     {
-        // Fallback defaults
+        // Fallback delivery defaults
         DeliveryType = ESpellDeliveryType::Projectile;
-        Element = ESpellElement::Generic;
         Speed = SkillProjectileConstants::DEFAULT_SPEED;
     }
 
@@ -168,7 +171,8 @@ void ASkillProjectile::InitializeProjectile(
     float FinalImpactRadius,
     float FinalVisualScale,
     int32 FinalDamage,
-    int32 InCastEntryIndex)
+    int32 InCastEntryIndex,
+    ESpellElement InResolvedElement)
 {
     SourceSpell = Skill;
     Caster = InCaster;
@@ -181,13 +185,11 @@ void ASkillProjectile::InitializeProjectile(
     // (cluster 4). Only the entry path stamps it; the legacy overload leaves it at INDEX_NONE.
     CastEntryIndex = InCastEntryIndex;
 
-    // Delivery values come from the Cast ENTRY (D6). Element lives on USpellData,
-    // not the shared base, so it's read through a cast: spells tint by their fixed
-    // Element (behaviour-identical to the old Spell->Element read), non-spell skills
-    // default to Generic until Step B passes the resolved action element.
+    // Delivery values come from the Cast ENTRY (D6). Element comes from the caller's
+    // resolved element (Cluster 3c — Step B): the cast's resolved element for spells
+    // (Generic resolved to its source), the action element for non-spell skills.
     DeliveryType = Entry.DeliveryType;
-    const USpellData *AsSpell = Cast<USpellData>(Skill);
-    Element = AsSpell ? AsSpell->Element : ESpellElement::Generic;
+    Element = InResolvedElement;
     Speed = Entry.ProjectileSpeed;
 
     InitializeCommon();
@@ -203,11 +205,12 @@ void ASkillProjectile::InitializeProjectile(
     float FinalImpactRadius,
     float FinalVisualScale,
     int32 FinalDamage,
-    int32 InCastEntryIndex)
+    int32 InCastEntryIndex,
+    ESpellElement InResolvedElement)
 {
     InitializeProjectile(Entry, static_cast<USkillDataBase *>(Spell),
                          InCaster, InTarget, FinalImpactRadius, FinalVisualScale,
-                         FinalDamage, InCastEntryIndex);
+                         FinalDamage, InCastEntryIndex, InResolvedElement);
 }
 
 void ASkillProjectile::InitializeCommon()
