@@ -636,10 +636,10 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	}
 
 	// Self-status — released energy becomes status buildup in the alignment element.
-	// Gated on a non-Generic alignment (defensive — overload entry normally implies
-	// at least one absorbed element, but a transformed BD with no absorption history
-	// would otherwise feed Generic into the buildup pipeline).
-	if (Released > 0.0f && CurrentAlignmentElement != ESpellElement::Generic)
+	// A flipped BD's alignment is always a real element (Darkness is seeded on transform,
+	// then rotates on absorption — never Generic in the flipped path), so no Generic guard
+	// is needed here.
+	if (Released > 0.0f)
 	{
 		if (UWorld *World = GetWorld())
 		{
@@ -730,8 +730,9 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 	AActor *Owner = GetOwner();
 	ESpellElement OldAlignment = CurrentAlignmentElement;
 
-	// Check if same element as current alignment
-	if (Element == CurrentAlignmentElement && CurrentAlignmentElement != ESpellElement::Generic)
+	// Check if same element as current alignment. (Element here has already passed
+	// CanAbsorbElement, so it is never Generic — matching the alignment implies a real element.)
+	if (Element == CurrentAlignmentElement)
 	{
 		// Same element - increment toward next stack
 		ConsecutiveAbsorptions++;

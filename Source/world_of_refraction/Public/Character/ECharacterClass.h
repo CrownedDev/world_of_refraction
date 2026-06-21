@@ -17,7 +17,7 @@
  *
  * Caster:
  * - 1 weapon, innate element (locked at creation)
- * - 6 innate spells tied to element
+ * - innate spells tied to element (per-school count + a shared point budget; see SpellPoolBudget)
  * - Element Infusion or Evolution Infusion (if evolved)
  * - Energy-based, balanced flexibility
  *
