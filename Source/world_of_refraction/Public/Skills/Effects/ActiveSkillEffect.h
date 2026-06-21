@@ -201,6 +201,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
 	bool bPendingRemoval = false;
 
+	/** Opt out of fire-on-application. Default false = the effect executes its logic on apply
+	 *  (turn 0) and then ticks on its ProcessTiming windows. True = skip the apply execution and
+	 *  only tick on windows (the pre-fire-on-apply behaviour, now opt-in). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
+	bool bDelayFirstExecution = false;
+
 	// ========================================
 	// CONSTRUCTORS
 	// ========================================
@@ -294,7 +300,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		// Builds ONE runtime effect for a payload. The condition group + timing are
 		// shared across all payloads of the source (the trigger gates the whole bundle).
-		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, int32 SubIndex) -> FActiveSkillEffect
+		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, bool InDelayFirst, int32 SubIndex) -> FActiveSkillEffect
 		{
 			FActiveSkillEffect Effect;
 			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
@@ -307,6 +313,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			//   InDuration==0 -> INSTANT (RemainingTurns 0, NOT clamped; IsInstant() catches it)
 			//   InDuration>0  -> lingering (RemainingTurns = InDuration)
 			Effect.bPermanent = InPermanent;
+			Effect.bDelayFirstExecution = InDelayFirst;
 			Effect.RemainingTurns = InDuration;
 			Effect.InitialDuration = Effect.RemainingTurns;
 			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
@@ -346,7 +353,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				{
 					continue;
 				}
-				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, p));
+				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, P.bDelayFirstExecution, p));
 			}
 		}
 

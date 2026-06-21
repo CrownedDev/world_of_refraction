@@ -221,6 +221,19 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied %s to %s (ID: %d, Duration: %d, Value: %.1f)"),
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
 
+	// Fire-on-application (Option A: new effects only). Re-applications return before this point
+	// (stronger/equal/weaker/stack all exit in the ExistingEffect branch above), so a rejected
+	// weaker re-app can never reach here — Option A safety by construction. Runs ApplyEffectLogic
+	// once on the STORED copy (Effects.Last()) so bProcessedThisTurn persists, then leaves the
+	// effect stored to keep ticking on its windows. Excludes Immediate (fires + tears down just
+	// below) and bDelayFirstExecution opt-outs; Instant already returned at the IsInstant() lane.
+	if (!Effects.Last().bDelayFirstExecution &&
+		Effects.Last().ProcessTiming != ESkillEffectTiming::Immediate)
+	{
+		ApplyEffectLogic(Target, Effects.Last());
+		Effects.Last().bProcessedThisTurn = true; // same-turn guard: skip a same-turn window re-fire
+	}
+
 	// Process immediate effects right away
 	if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
 	{

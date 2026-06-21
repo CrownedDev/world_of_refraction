@@ -42,6 +42,12 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     bool bPermanent = false;
 
+    /** Opt out of fire-on-application. Default false = the effect fires on apply (turn 0) then
+     *  ticks on its windows. True = no apply tick, windows only (e.g. a DOT that should not deal
+     *  its first tick on the cast turn). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    bool bDelayFirstExecution = false;
+
     /** Who receives this effect. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")
     ETargetType Target = ETargetType::Enemy;
