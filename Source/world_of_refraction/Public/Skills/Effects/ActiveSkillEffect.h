@@ -579,6 +579,15 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		return EffectValue * static_cast<float>(CurrentStacks);
 	}
 
+	/** Single-application strength for the re-apply policy: magnitude, sign-agnostic.
+	 *  Abs() so the one signed type (ModifyStatusResist, where sign = direction) compares
+	 *  by how strong, not which way. NOT stack-scaled — the policy gates on per-application
+	 *  strength, not the stacked total. */
+	float Strength() const
+	{
+		return FMath::Abs(EffectValue);
+	}
+
 	/** Check if can add another stack */
 	bool CanAddStack() const
 	{

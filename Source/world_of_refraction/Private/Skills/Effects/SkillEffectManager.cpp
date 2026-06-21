@@ -116,12 +116,32 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 
 	if (ExistingEffect)
 	{
-		// Handle stacking
+		// Re-apply strength policy (matched per-Target by EffectID). Strength is the
+		// single-application magnitude (Abs, so the one signed type — ModifyStatusResist —
+		// compares by how-strong not which-way). STRONGER overwrites the value; duration
+		// refreshes on equal-or-stronger, gated by the per-effect bRefreshDurationOnReapply
+		// opt-out. WEAKER is ignored entirely. EQUAL refreshes duration only — this is what
+		// preserves the maintenance mechanics (Defend's constant 50%, on-hit Burn/Chill at a
+		// constant per-attacker magnitude, Stun's 0.0) that sustain via equal re-application.
+		const float IncomingStrength = Effect.Strength();
+		const float ActiveStrength = ExistingEffect->Strength();
+		const bool bStronger = IncomingStrength > ActiveStrength;
+		const bool bWeaker = IncomingStrength < ActiveStrength;
+
+		// Stacking: a stackable re-apply still adds a stack (count climbs), and per-stack
+		// strength tracks the strongest seen (never falls). A weaker re-apply still stacks
+		// but neither lowers the value nor refreshes. At MAX stacks this branch is skipped
+		// and the strength gate below runs, so a stronger hit at cap still upgrades the value.
 		if (Effect.bCanStack && ExistingEffect->CanAddStack())
 		{
 			ExistingEffect->CurrentStacks++;
 
-			if (Effect.bRefreshDurationOnReapply)
+			if (bStronger)
+			{
+				ExistingEffect->EffectValue = Effect.EffectValue; // track strongest (by Abs)
+			}
+
+			if (!bWeaker && Effect.bRefreshDurationOnReapply)
 			{
 				ExistingEffect->RemainingTurns = Effect.InitialDuration;
 			}
@@ -131,7 +151,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 
 			OnEffectStacksChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->CurrentStacks);
 
-			// Notify TurnManager if speed effect stacked (value increased)
+			// Stacking raises the effective (stacked) value -> notify speed consumers.
 			if (IsSpeedEffect(Effect.EffectType))
 			{
 				NotifySpeedChanged(Target);
@@ -139,22 +159,41 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 
 			return EEffectApplicationResult::StackAdded;
 		}
-		else if (Effect.bRefreshDurationOnReapply)
-		{
-			ExistingEffect->RemainingTurns = Effect.InitialDuration;
 
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s duration refreshed to %d turns"),
-				   *Target->GetName(), *Effect.EffectName, ExistingEffect->RemainingTurns);
-
-			OnEffectDurationChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->RemainingTurns);
-			return EEffectApplicationResult::DurationRefreshed;
-		}
-		else
+		// Non-stacking (or at max stacks): the strength gate.
+		// WEAKER -> ignored entirely: no value change, no duration refresh.
+		if (bWeaker)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s rejected (already at max stacks)"),
-				   *Target->GetName(), *Effect.EffectName);
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s ignored — weaker than active (%.1f < %.1f)"),
+				   *Target->GetName(), *Effect.EffectName, IncomingStrength, ActiveStrength);
 			return EEffectApplicationResult::Rejected;
 		}
+
+		// STRONGER -> overwrite the value (always). EQUAL -> keep the value.
+		if (bStronger)
+		{
+			ExistingEffect->EffectValue = Effect.EffectValue;
+
+			// A changed magnitude on a speed effect must re-notify the turn order.
+			if (IsSpeedEffect(Effect.EffectType))
+			{
+				NotifySpeedChanged(Target);
+			}
+		}
+
+		// Duration refreshes on equal-or-stronger, gated by the per-effect opt-out.
+		if (Effect.bRefreshDurationOnReapply)
+		{
+			ExistingEffect->RemainingTurns = Effect.InitialDuration;
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: %s %s (strength %.1f vs %.1f)"),
+			   *Target->GetName(), *Effect.EffectName,
+			   bStronger ? TEXT("upgraded + duration refreshed") : TEXT("duration refreshed"),
+			   IncomingStrength, ActiveStrength);
+
+		OnEffectDurationChanged.Broadcast(Target, *ExistingEffect, ExistingEffect->RemainingTurns);
+		return EEffectApplicationResult::DurationRefreshed;
 	}
 
 	// New effect - apply it
