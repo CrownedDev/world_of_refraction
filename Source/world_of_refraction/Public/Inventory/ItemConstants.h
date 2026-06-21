@@ -19,6 +19,12 @@ namespace ItemConstants
      *  REVIVE_* because the genuine revive item is a primary consumer. */
     constexpr float REVIVE_HP_PERCENT = 0.3f;
 
+    /** Last Stand revive amount carried as a LastStand effect's EffectValue. PERCENT units
+     *  (50 = 50% of MaxHP) — NOT a fraction like REVIVE_HP_PERCENT above; the C2a CheckDeath
+     *  intercept divides EffectValue by 100. Flat across all Sapphire tiers (tier scales the
+     *  protection WINDOW, not the revive amount). */
+    constexpr float LAST_STAND_HP_PERCENT = 50.0f;
+
     // ==================== QUARTZ ====================
     /** Quartz F-A elemental ResistanceBuff magnitude (S-tier grants immunity
      *  instead). NOT the stat-crystal curve's 30 endpoint — unrelated value. */
