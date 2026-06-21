@@ -121,7 +121,6 @@ bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) cons
     }
 
     const ESpellElement RingElement = RingEntry.GetElement();
-    const bool bAnyElement = ElementHelpers::IsAnySpellSource(RingElement);
 
     for (USpellData *Spell : RingEntry.AssignedSpells)
     {
@@ -129,7 +128,7 @@ bool FRingLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) cons
             continue;
         if (!OwnedSpells.HasSpell(Spell))
             return false;
-        if (!bAnyElement && Spell->Element != RingElement)
+        if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
             return false;
     }
 

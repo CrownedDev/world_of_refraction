@@ -349,7 +349,6 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
     }
 
     const ESpellElement WeaponElement = WeaponEntry.GetElement();
-    const bool bAnyElement = ElementHelpers::IsAnySpellSource(WeaponElement);
 
     for (USpellData *Spell : WeaponEntry.AssignedSpells)
     {
@@ -357,7 +356,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
             continue;
         if (!OwnedSpells.HasSpell(Spell))
             return false;
-        if (!bAnyElement && Spell->Element != WeaponElement)
+        if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, WeaponElement))
             return false;
     }
 

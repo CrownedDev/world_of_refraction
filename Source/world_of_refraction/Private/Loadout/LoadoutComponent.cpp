@@ -807,7 +807,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                 continue;
             }
             const ESpellElement RingElement = Ring.GetElement();
-            if (RingElement != ESpellElement::Reality && Spell->Element != RingElement)
+            if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, RingElement))
             {
                 AddRingSpellFinding(RingLoadoutIndex, j,
                                     FString::Printf(TEXT("Ring spell '%s' element %s does not match ring crystal element %s"),
@@ -912,7 +912,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
                 continue;
             }
             const ESpellElement CrystalElement = Loadout.PrimaryWeapon.WeaponEntry.GetElement();
-            if (CrystalElement != ESpellElement::Reality && Spell->Element != CrystalElement)
+            if (!ElementHelpers::SpellElementMatchesHost(Spell->Element, CrystalElement))
             {
                 AddFinding(ELoadoutSlotType::WeaponSpell, i, true,
                            FString::Printf(TEXT("Weapon spell '%s' element %s does not match weapon crystal element %s"),

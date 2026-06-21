@@ -21,4 +21,23 @@ namespace ElementHelpers
         return Element == ESpellElement::Reality
             || Element == ESpellElement::BrokenDarkness;
     }
+
+    /**
+     * True if a spell of SpellElement may be slotted into / cast from a host of
+     * HostElement. The element-match rule, in ONE place:
+     *   - Generic spells are wildcards — they resolve to the host's element at cast,
+     *     so they fit any host.
+     *   - A Reality / BrokenDarkness host (IsAnySpellSource) accepts any element.
+     *   - Otherwise the spell's element must match the host's exactly.
+     * Concrete-element spells in a wrong-element host are still rejected.
+     * NOTE: the design's "Reality cannot cast Generic" prohibition is enforced at
+     * cast-resolve time, NOT here — this slot-validation predicate treats Generic
+     * as fitting any host (including Reality).
+     */
+    constexpr bool SpellElementMatchesHost(ESpellElement SpellElement, ESpellElement HostElement)
+    {
+        return SpellElement == ESpellElement::Generic
+            || IsAnySpellSource(HostElement)
+            || SpellElement == HostElement;
+    }
 }
