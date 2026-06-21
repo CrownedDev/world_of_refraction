@@ -162,6 +162,36 @@ broadcasts `OnActionExecuted`, calls `OnActionCompleted()`.
 > `SpawnSupportSpellEffect`'s loose `SpellVFX` is `USpellData`-only, so non-spell
 > support skills reach the path but spawn nothing (wire off `VFXArray` next).
 
+### EP cost — single source of truth + deferred lifecycle
+
+> Note (lives in `ActionExecutor`, surfaced here since it owns no doc): the action's
+> **EP cost has one authority — `CalculateActionEnergyCost`.** Both the spell spend
+> (`ExecuteSpellAsync`) and, as of `fix/ability-cost-consolidation`, the **ability/attack
+> spend** (`ExecuteSkillAsync`) call it. The ability path previously **re-inlined the same
+> formula** (`BaseCost × charge × efficiency × tier-power`; crystal sources → 0; same
+> rounding) — a value-equivalent duplicate, now removed. Preview, AI affordability,
+> validation, and spend all read the one function, so they cannot drift.
+>
+> **Deferred (arm/ritual) cost lifecycle.** An action whose skill has `ActivationDelay > 0`
+> **arms** instead of executing: `TryArmDeferredActivation` pays the **full** EP cost up front
+> (via `CalculateActionEnergyCost`) and queues the action; at fire time it is resubmitted with
+> `bIsDeferredFire = true`, for which `CalculateActionEnergyCost` returns **0** (top-of-function
+> early-out) — so the fire is **free** (already paid at arm). `ApplyCommitCosts` (wear/HP)
+> skips deferred fires the same way.
+>
+> **Fix — latent deferred-ability double-charge closed.** Because the ability spend was inlined
+> and lacked the `bIsDeferredFire → 0` early-out, a deferred *ability* fire was charged **twice**
+> (full at arm, full again at the inline fire-time spend); the spell path was always correct (it
+> went through `CalculateActionEnergyCost`). Consolidating the ability spend onto the same call
+> **inherits the early-out** — a deferred ability now charges **once at arm**, not again at fire.
+> Normal (non-deferred) abilities are unchanged (the call returns the exact value the inline math
+> did).
+>
+> **⚠️ Un-exercised by content.** The deferred path is implemented and now cost-correct, but
+> **no shipping asset sets `ActivationDelay > 0`** — the deferred-ability flow (arm-once charge,
+> free fire) is currently dormant. The first authored `ActivationDelay > 0` ability is its real
+> debut; PIE-verify the arm/fire cost split when one is created.
+
 ### Turn completion (`OnActionCompleted`)
 
 1. Bails if still waiting on an async action or combat not in progress.
@@ -285,3 +315,4 @@ Observations from the code (not explicitly flagged as issues):
 | 2026-06-16 | Doc-sync §Action submission step 3 to the current `bRequiresAsync` logic (`CombatOrchestrator.cpp:373-412`): spell async is `Projectile`-only, evaluated per `CastArray` entry with the loose `DeliveryType` as fallback (`Homing`/`Beam` delivery types removed); attack/ability async is now montage-presence (`SkillMontage`/`RitualCastMontage`/`ReturnMontage`), replacing the deleted `ApproachData`/`RequiresApproach()` movement gate. | feature/realtime-defense |
 | 2026-06-16 | Spell `bRequiresAsync` now also true for `AOE` and `Instant` (both per-impact-defended at the Cast-notify resolve), not `Projectile`-only — added in both the `CastArray`-entry loop and the loose-`DeliveryType` fallback (`9eb65756`). A pure-Instant spell no longer falls to the rejected sync path. | feature/realtime-defense |
 | 2026-06-19 | Cast VFX generalization (Steps A+B+follow-up): the `UCombatNotify` Cast family now drives abilities/attacks via `CastArray` on `USkillDataBase`, not just spells. `SkillProjectile::InitializeProjectile` + the five `ActionExecutor` spawners (`DispatchSpellCast`/`SpawnProjectileActor`/`SpawnAOEEffect`/`ResolveInstantSpell`/`SpawnSupportSpellEffect`) retyped `USpellData*` → `USkillDataBase*` (+ `ESpellElement InElement`); the Cast handler drops the `PendingSpellData` guard and resolves from `GetCurrentSkillData()` + `PendingExecutionActor` + `PartialResult.AttackElement`. Empty-`CastArray` fallback stays spell-gated. Spell path byte-identical. New §Cast delivery note. Gaps: non-spell projectile tint (`Generic`), support-ability VFX off `VFXArray`. | feature/cast-vfx-generalization |
+| 2026-06-21 | New §EP cost — single source of truth + deferred lifecycle: the ability/attack EP spend (`ExecuteSkillAsync`) was a duplicated inline copy of `CalculateActionEnergyCost`'s formula; consolidated onto the single call (DRY). This **inherits the `bIsDeferredFire → 0` early-out**, closing a latent **double-charge on deferred abilities** (was charged full at arm AND again at the inline fire-time spend; now charged once at arm, free at fire — matching the spell path). Normal abilities unchanged. Flagged: deferred path implemented + cost-correct but un-exercised (no shipping asset sets `ActivationDelay > 0`). | fix/ability-cost-consolidation |
