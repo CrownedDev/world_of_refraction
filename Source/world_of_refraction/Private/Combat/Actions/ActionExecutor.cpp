@@ -1356,8 +1356,8 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	int32 BaseDamage = Ability->CalculateDamage(UserData, bIsInfused);
 
 	// Element handling. Infusion routes the user's innate element through;
-	// non-infused abilities stay Generic.
-	ESpellElement Element = ESpellElement::Generic;
+	// non-infused abilities stay non-elemental (None).
+	ESpellElement Element = ESpellElement::None;
 	if (bIsInfused && UserData->HasInnateElement())
 	{
 		Element = UserData->InnateElement;
@@ -1434,9 +1434,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	//     wielded, not the per-attack data which no longer owns the field)
 	//   - Element: from Action.SelectedSource — per-action infusion choice.
 	//     Only resolves to the user's InnateElement when an elemental source
-	//     is selected (Generic/Resonator default to Generic; Caster picks
+	//     is selected (Generic/Resonator default to None; Caster picks
 	//     elemental source to push their innate element)
-	ESpellElement AbilityElement = ESpellElement::Generic;
+	ESpellElement AbilityElement = ESpellElement::None;
 	EPhysicalDamageType AbilityPhysicalType = EPhysicalDamageType::None;
 
 	if (UWeaponManager *WeaponMgr = GetWeaponManager())
@@ -3892,7 +3892,7 @@ void UActionExecutor::OnProjectileImpact(AActor *Target, FVector ImpactLocation,
 	{
 		// Fallback: Apply damage directly
 		UE_LOG(LogTemp, Warning, TEXT("[ActionExecutor] No DefenseSystem - applying projectile damage directly"));
-		ApplyDamage(nullptr, Target, Damage, ESpellElement::Generic, true);
+		ApplyDamage(nullptr, Target, Damage, ESpellElement::None, true);
 	}
 }
 
@@ -5593,7 +5593,7 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 		AActor *CurrentCaster = PendingExecutionActor;
 		ESpellElement ActionElement = CurrentExecutionContext.IsSet()
 										  ? CurrentExecutionContext->PartialResult.AttackElement
-										  : ESpellElement::Generic;
+										  : ESpellElement::None;
 
 		if (!CurrentSkill || !CurrentCaster)
 		{
@@ -6045,13 +6045,13 @@ void UActionExecutor::ApplySkillEffects(
 			}
 
 			// Per-payload element: StatusIncrease/Decrease + spell DOT use the resolved cast
-			// element (a Fire spell's authored burn is Fire); every other type stays Generic.
+			// element (a Fire spell's authored burn is Fire); every other type stays non-elemental (None).
 			const ESpellElement EffectElement =
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
 				 (ActionKind == EActionType::Spell && P.EffectType == ESkillEffectType::DOT))
 					? ResolvedCastElement
-					: ESpellElement::Generic;
+					: ESpellElement::None;
 
 			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
 			// stat-modifier effects keep the Magnitude*100 percentage shape.
