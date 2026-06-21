@@ -567,21 +567,6 @@ int32 UDamageCalculator::CalculateHealing(
 	return FMath::Max(0, FMath::RoundToInt(Healing));
 }
 
-// ==================== UTILITY ====================
-
-float UDamageCalculator::GetInfusionDamageMultiplier(int32 InfusionLevel)
-{
-	switch (InfusionLevel)
-	{
-	case 1:
-		return DamageConstants::POWER_INFUSION_L1_MULT;
-	case 2:
-		return DamageConstants::POWER_INFUSION_L2_MULT;
-	default:
-		return 1.0f;
-	}
-}
-
 // ==================== DEBUG ====================
 
 void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult &Result) const

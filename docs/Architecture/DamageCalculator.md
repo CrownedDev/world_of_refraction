@@ -33,7 +33,7 @@ Output struct. Fields: `FinalDamage`, `DamageBeforeDefense`, `bWasCritical`, `Da
 
 ### `DamageConstants` namespace
 
-`BASE_CRIT_CHANCE = 0.05`, `MAX_RESISTANCE = 0.50`, `MIN_DAMAGE = 1`, `POWER_INFUSION_L1_MULT = 1.3`, `POWER_INFUSION_L2_MULT = 1.6`. **Retired:** `CRIT_MULTIPLIER` (the fixed ×1.5 — crit damage is now the variable `GetCritDamageMultiplier`: `CRIT_DMG_BASE` 1.0 + CritDamage stat + gear; cluster 5e-D) and `ELEMENT_INFUSION_PENALTY` (locked cost matrix). The former `MAX_CRIT_CHANCE 0.60` ceiling is gone — crit chance is now Luck-sourced and clamped to `[0, 1.0]`. (`WEAKNESS_/RESISTANCE_/NEUTRAL_MULTIPLIER` are no longer in this namespace — the element-interaction system is still unbuilt, always `1.0`.)
+`BASE_CRIT_CHANCE = 0.05`, `MAX_RESISTANCE = 0.50`, `MIN_DAMAGE = 1`. **Retired:** `POWER_INFUSION_L1/L2_MULT` (1.3/1.6 — fed only the orphaned `GetInfusionDamageMultiplier`; both deleted in the tier-power arc, live infusion damage uses `ActionExecutor::GetChargeDamageMultiplier` 1.15/1.30), `CRIT_MULTIPLIER` (the fixed ×1.5 — crit damage is now the variable `GetCritDamageMultiplier`: `CRIT_DMG_BASE` 1.0 + CritDamage stat + gear; cluster 5e-D) and `ELEMENT_INFUSION_PENALTY` (locked cost matrix). The former `MAX_CRIT_CHANCE 0.60` ceiling is gone — crit chance is now Luck-sourced and clamped to `[0, 1.0]`. (`WEAKNESS_/RESISTANCE_/NEUTRAL_MULTIPLIER` are no longer in this namespace — the element-interaction system is still unbuilt, always `1.0`.)
 
 ## How It Works
 
@@ -52,6 +52,8 @@ Output struct. Fields: `FinalDamage`, `DamageBeforeDefense`, `bWasCritical`, `Da
 10. **Step 7 — Minimum damage.** `FinalDamage = max(MIN_DAMAGE, RoundToInt(RunningDamage))`.
 
 Status buildup is **not** computed inside `CalculateDamage` — the comment notes the caller should handle it separately.
+
+**Assembly-layer multipliers (applied by the caller, not here).** Charge/infusion (`GetChargeDamageMultiplier`), tier-gap (`GetTierGapDamageMultiplier`), and **tier-power** (`TierPowerScaling::GetTierPowerMultiplier` — the action's **own** authored tier, F..S curve ×1.00…×4.80, effects excluded) are applied by `ActionExecutor` when assembling the action's damage / status / cost — *outside* `CalculateDamage`. They stack multiplicatively on the base this subsystem returns. Gear bonuses read via `GetActiveStatBonus` are **tier-weighted at aggregation** (see `LoadoutSystem.md`). Full model: `TierPowerScaling.md` / `Mechanics/TierPower.md`.
 
 ### `CalculateAttackDamage(Attacker, Target, Attack, bIsInfused)` — weapon convenience wrapper
 
@@ -75,7 +77,7 @@ Requires a non-null `Attack` (`USkillDataBase*` post the attack/ability merge �
 
 - `GetStatusEffectDamageModifier` — attacker side: `(DamageBuff − DamageDebuff)/100` and `ModifyDamageDealt`. Defender side: `ModifyDamageTaken`, clamped at `-90` so reduction never exceeds 90% (positive increase uncapped). Result floored at `0`.
 - `GetCritDamageMultiplier` (`DamageCalculator.cpp:578`) — returns the **full** crit-damage multiplier, not just the skill-effect term. `CRIT_DMG_BASE` ×1.0 + the CritDamage-stat ramp (`GetEvolutionModifiedMind × CritDamage points × CRIT_DAMAGE_PER_POINT`, capped ALONE at `CRIT_DAMAGE_STAT_CAP` ×1.5), then gear (`BonusCritDamage`) + attached `CritStone` (`GetAttachedStonePercent(.., CritDamage)`) + transient `(ModifyCritDamage − CritDamageDebuff)` all **multiply** past, final `Clamp(.., CRIT_DMG_BASE 1.0, CRIT_DAMAGE_GEAR_CEILING 2.0)`. An un-invested crit with no gear is exactly ×1.0. See `StatComposition.md` §6/§8.
-- `GetInfusionDamageMultiplier(InfusionLevel)` — static; returns L1/L2 power-infusion multipliers or `1.0`.
+- *`GetInfusionDamageMultiplier` — **removed** (tier-power arc): orphaned dead code (zero callers); live infusion damage rides `ActionExecutor::GetChargeDamageMultiplier` (1.15/1.30).*
 
 ## Integration Points
 
@@ -107,7 +109,7 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
   `AugmentStoneSystem.md`.
 - **Duplicated Step 7.** `CalculateDamage` computes `Result.FinalDamage` twice in identical back-to-back statements (`DamageCalculator.cpp` lines 166–170). Harmless but redundant.
 - **No element advantage system.** `IsWeakTo` and `ResistsElement` always return `false`; `GetElementInteractionMultiplier` always returns `1.0`. The `WEAKNESS_MULTIPLIER` / `RESISTANCE_MULTIPLIER` constants and `MAX_RESISTANCE` are presently unused for elemental interaction.
-- **Unused input fields.** `FDamageCalculationInput::HitCount`, `InfusionLevel`, `bWasInfused`, `bIsRawMode`, and `bIgnoreResistance` are not consumed by `CalculateDamage`. Multi-hit (`HitCount`) and infusion-level multipliers (`GetInfusionDamageMultiplier`) are not wired into the main path.
+- **Unused input fields.** `FDamageCalculationInput::HitCount`, `InfusionLevel`, `bWasInfused`, `bIsRawMode`, and `bIgnoreResistance` are not consumed by `CalculateDamage`. Multi-hit (`HitCount`) is not wired into the main path. *(Infusion damage is applied upstream at the `ActionExecutor` assembly layer via `GetChargeDamageMultiplier`, not here; the old `GetInfusionDamageMultiplier` was deleted in the tier-power arc.)*
 - **`FDamageCalculationResult::StatusBuildup`** is never populated by the calculator — it is left at its default and expected to be filled by the caller.
 - Comments reference a prior `RawDamageBuff` / `CritChanceBuff` status-effect path for per-instance weapon bonuses; the current code reads equipment bonuses directly via `ULoadoutComponent`. The comment in `CalculateAttackDamage` still describes the older equip-time status-effect approach, which is a potential source of confusion.
 
@@ -123,3 +125,4 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` / `Calcul
 | 2026-06-17 | Attack/ability merge — `CalculateAttackDamage` takes `USkillDataBase*` (a `UAbilityData` with `bIsAttack=true`); builds the input with `ActionType = Ability` (`EActionType::Attack` collapsed into `Ability` — both scaled `RawDamage`, so numerically unchanged). `UWeaponAttackData` deleted. | feature/realtime-defense |
 | 2026-06-17 | Documented the **hybrid stat toggle** (`bOverrideStatScaling`) — the consume point lives here in **Step 1** (the derived `ScalingType` Raw↔Spell swap, `DamageCalculator.cpp:50`), previously undocumented. Added it to the `FDamageCalculationInput` field list as a **consumed** field (stat-only). The upstream sourcing was split into two honest flags (physical = skill-root, attack-wide; spell = per-cast off `FSkillCastEntry`, threaded via the B1 resolved-table stash); the calculator's consume point is **unchanged** — both still feed `Input.bOverrideStatScaling`. | feature/realtime-defense |
 | 2026-06-18 | **Unified scaling-tiers arc** — the hybrid stat toggle (`bOverrideStatScaling`) and the `ScalingType` Raw↔Spell swap were **retired**. Step 1 now takes the stat axis directly from `Input.ActionType` and adds an authored tier sum over `Input.StatScaling` (`Σ GetScalingTierCoefficient × GetScalingFraction`; empty array = prior behavior). `FDamageCalculationInput.bOverrideStatScaling` removed, `StatScaling` added. Full system documented in the new `ScalingSystem.md`. | feature/unified-scaling-tiers | feature/realtime-defense |
+| 2026-06-21 | **Tier-power arc sync** — `GetInfusionDamageMultiplier` + `POWER_INFUSION_L1/L2_MULT` were **dead code, deleted** (live infusion uses `ActionExecutor::GetChargeDamageMultiplier`); corrected the `DamageConstants`, Private-helpers, and Known-Limitations references. Added the **assembly-layer multipliers** note (charge × tier-gap × tier-power applied in `ActionExecutor`, outside `CalculateDamage`; gear bonuses tier-weighted at `GetActiveStatBonus`). See `TierPowerScaling.md`. | feature/tier-power-scaling |

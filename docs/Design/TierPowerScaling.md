@@ -2,7 +2,7 @@
 
 > **Related:** TierGapConsolidation.md (a separate channel-mismatch multiplier, arriving later). They stack: Final = Base × TierPower(own tier) × TierGap(vs channel) × StatScaling × envelope. Power scales everything EXCEPT effects; Gap scales effects too.
 
-**Status:** Design locked, not yet built. Two bugs gate the documentation/build (see §7).
+**Status:** **BUILT — pending final PIE sign-off.** Skill power (Clusters 1–2), gear (3a/3b/3c), and debug tooling (Cluster 4) are implemented on `feature/tier-power-scaling`. Both §7 gates cleared (ARC BUILT). See §9–10 + Changelog.
 **Scope:** Unify how tier (F→S) drives power across gear, spells, and abilities.
 **Goal:** One dial — tier — controls power. Author once, stamp a tier, the system scales. Less hand-tuning, one consistent rule.
 
@@ -36,20 +36,31 @@ Author a skill once — e.g. Fireball at 20 damage / 10 status / 5 EP cost. Tier
 
 **No EP-cost ceiling problem.** Earlier concern retracted — the EP pool is large relative to costs (base 50, mid ~250, late ~460; F-cost ~5, S-cost ~38). Cost can ride the same curve as damage. EP does not bound the multiplier in any realistic range.
 
+### Locked power curve
+
+| Tier | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|
+| ×Power | 1.00 | 1.30 | 1.70 | 2.20 | 2.85 | 3.70 | 4.80 |
+
+- **F = ×1.0 is the anchor** — F is the floor; everything scales up from it (compounding ~30%/tier). The `E_Tier` asset default is an authoring convenience, **not** the baseline: a skill left at the default tier jumps to **×1.30 on day one**. → Needs an in-editor tier audit so default-E skills aren't silently over-budget.
+- **Stacks with tier-gap.** This is the own-tier power factor only. Final base = `TierPower(own) × TierGap(vs channel) × StatScaling × envelope`.
+- **Cost is same-direction here.** Higher tier = higher power *and* higher cost (cost rides the same curve). This is the opposite of the tier-gap arc, where cost is reciprocal.
+- **As built (Cluster 2):** applied at the `ActionExecutor` assembly layer to **damage, status, and cost** — never to effects. Keyed on the action's **OWN authored tier** (`SpellData->Tier` for spells, `AbilityData->Tier` for abilities/attacks) — *not* the weapon/channel tier the tier-gap arc reads. AI damage estimates mirror the same factor. Helper: `TierPowerScaling::GetTierPowerMultiplier` (`TierPowerConstants.h`).
+
 ---
 
 ## 3. Gear
 
 **Tier scales the *value of each point*, not the count.**
 
-Today: higher tier = more stat points (F=6 → S=45 substat budget).
-New: budget fixed (~20) at every tier; an S-tier point *converts to more* than an F-tier point.
+**Was:** higher tier = more stat points (F=6 → S=45 substat budget).
+**Built (3a):** budget **flat ~20** (`FIXED_SUBSTAT_BUDGET`) at every tier; an S-tier point *converts to more* than an F-tier point.
 
 Why this version (vs. scaling the budget, or scaling the final block):
 - **No clamp problem.** Stored field values stay in range (a +18 roll is still +18, under the ±21 cap). The cap never has to move, because the stored number doesn't grow — only its conversion rate does.
-- **No budget inflation.** ~20 points at every tier. Zero-sum broken-stick distribution untouched. Cursed-gear (signed/negative rolls) intact — and *intended* to scale harder at higher tier (bigger upside AND bigger downside).
+- **No budget inflation.** ~20 points at every tier. Zero-sum broken-stick distribution untouched. Cursed-gear (signed/negative rolls) intact — and scales harder at higher tier (bigger upside AND bigger downside). **Built (3c): the tier factor scales BOTH signs by magnitude** — an S −8 roll → ~−38 (symmetric ×4.8) — so cursed-scales-with-tier now lives in the per-point VALUE, having moved off the old tier-scaled budget.
 
-Mechanism: one tier factor multiplies the per-point conversion rate. Distribution and caps unchanged.
+**Mechanism (as built, 3c):** the tier factor is applied at **`GetActiveStatBonus` aggregation**, multiplying each equipped item's 12 substat contributions by `GetTierPowerMultiplier(itemTier)` *before* the (tierless) field-wise sum — **not** at the downstream conversion sites, where per-item tier has already been erased by summation. Accumulated as float, rounded **once** into the int fields, so the 12 consumers read the same combined values unchanged. **Excluded:** pools (MaxHP/MaxEnergy — they have their own §5 rate; scaling here too would double-dip) and the pillar-percent fields (designer-tuned, not tier substat capacity). Distribution and caps unchanged.
 
 ---
 
@@ -95,11 +106,13 @@ The earlier "outlier" flag was **wrong**: TurnSpeed is an initiative value on a 
 
 These are the genuine inconsistency. Gear adds them **flat** (+1 point = +1 HP), while the *stat* path uses 6.487 HP / 6.849 EP per point — so gear pool-points are ~7× weaker than stat pool-points for no defended reason.
 
-→ Action: give gear a real rate at ~45–50% of the stat path (gear should help, not replace stat investment):
-- **BonusMaxHP: 3.0 / point** → +21 gear = +63 HP
-- **BonusMaxEnergy: 3.5 / point** → +21 gear = +73.5 EP
+→ **Built (3b):** gear gets a real per-point rate at ~46–51% of the stat path (gear assists, doesn't replace stat investment):
+- **BonusMaxHP: 3.0 / point** (was flat +1) → +21 gear = +63 HP
+- **BonusMaxEnergy: 3.5 / point** (was flat +1) → +21 gear = +73.5 EP
 
 (3.0/3.5 keeps HP and EP proportionally even since the EP pool runs slightly larger. Round numbers, retune in PIE.)
+
+**Correction (as built):** gear MaxHP/MaxEnergy stacks **above** the 1000 stat-pool cap — the cap clamps only the intrinsic stat portion; the gear addition is deliberate headroom with **no post-addition clamp**. (Earlier "1000 cap clamps gear" framing was wrong.) Pools are **excluded** from the §3 per-point tier factor — they ride this 3.0/3.5 rate instead.
 
 ---
 
@@ -117,16 +130,14 @@ The only genuine scatter worth consolidating later is the **cast-time assembly l
 
 ## 7. Bugs gating documentation & build
 
-Both surfaced by the scaling census, **both unconfirmed.** Confirm/fix before finalising docs, or the docs enshrine the bugs.
+Both surfaced by the scaling census, **both now resolved** by direct read of the source.
 
-**Bug 1 — two infusion damage systems, different numbers.**
-- Live path: `ActionExecutor::GetChargeDamageMultiplier` → 1.15 / 1.30 (L1/L2).
-- Second path: `DamageCalculator::GetInfusionDamageMultiplier` → 1.3 / 1.6. NOT wired into main `CalculateDamage`; called only by Broken Darkness and AI estimation.
-- Consequence: AI estimates infused damage at 1.3/1.6 but execution applies 1.15/1.30 → AI mispredicts every infused action. Silent decision bug, not a crash.
+**Bug 1 — RESOLVED — no live double-application.**
+- `GetInfusionDamageMultiplier` (1.3 / 1.6) was orphaned dead code — zero callers. Execution *and* AI both use `ActionExecutor::GetChargeDamageMultiplier` (1.15 / 1.30). There was never a live mismatch.
+- Deleted in the tier-power arc along with its `POWER_INFUSION_L1/L2_MULT` constants.
 
-**Bug 2 — grid scaling may be dead.**
-- One survey says grid position multiplies damage in `DamageCalculator` (front/mid/back rows); another says position is cosmetic, zero scaling.
-- Likely defaults to ×1.0 (present-but-inert). Confirm with a direct read of `FCombatGridPosition::GetDamageModifier` before trusting either count.
+**Bug 2 — RESOLVED — grid scaling is live.**
+- Grid position multiplies damage ±5% (Front 1.05 / Mid 1.00 / Back 0.95), applied in `DamageCalculator` Steps 1.5 / 6.5. Not inert. The "cosmetic / zero scaling" doc premise was wrong.
 
 ---
 
@@ -143,17 +154,39 @@ Both surfaced by the scaling census, **both unconfirmed.** Confirm/fix before fi
 | Gear cursed/negative rolls scale harder at higher tier | LOCKED |
 | 11 multiplicative fields scale uniformly | LOCKED |
 | TurnSpeed rate stays (load-bearing), budgeted as 10× | LOCKED |
-| MaxHP per-point rate = 3.0 | LOCKED |
-| MaxEnergy per-point rate = 3.5 | LOCKED |
-| Bug 1 (double infusion) confirm/fix | OPEN |
-| Bug 2 (grid dead?) confirm | OPEN |
+| MaxHP per-point rate = 3.0 | BUILT (3b) |
+| MaxEnergy per-point rate = 3.5 | BUILT (3b) |
+| Gear per-point tier scaling lives at `GetActiveStatBonus` aggregation (not conversion sites) | BUILT (3c) |
+| Gear tier factor scales both signs (cursed harder at higher tier) | BUILT (3c) |
+| Gear MaxHP/MaxEnergy stack above the 1000 cap (no post-add clamp); excluded from tier factor | BUILT (3b) |
+| `TierPowerDebug` inspection tooling | BUILT (4) |
+| Bug 1 (double infusion) | RESOLVED — dead code, deleted |
+| Bug 2 (grid dead?) | RESOLVED — grid scaling is live ±5% |
 | Resolver-facade refactor of cast-time assembly layer | DEFERRED |
 | TurnSpeed gear repricing/rarity (worth-10×) | DEFERRED |
 
 ---
 
-## 9. Next steps
+## 9. As-built summary
 
-1. Confirm/fix Bug 1 and Bug 2 (§7).
-2. Finalise this doc into `docs/mechanics/scaling/` once bugs are resolved.
-3. Scope the build: `GetTierPowerMultiplier` helper + skill base application; gear per-point-value tier scaling + HP/EP rate fix.
+All clusters implemented on `feature/tier-power-scaling` (pending final PIE sign-off):
+1. **Clusters 1–2 (skill power):** §7 gates cleared (dead `GetInfusionDamageMultiplier` deleted; grid scaling confirmed live ±5%); `TierPowerConstants.h` (`GetTierPowerMultiplier`, F..S curve); applied at damage/status/cost assembly in `ActionExecutor` + AI estimates — keyed on the action's own tier, effects excluded.
+2. **Cluster 3a:** substat budget flipped to flat ~20 (`FIXED_SUBSTAT_BUDGET`); per-tier `SUBSTAT_BUDGET_*` retained for reference but no longer drive rolls.
+3. **Cluster 3b:** gear MaxHP/MaxEnergy rate 3.0/3.5 per point (was flat +1), stacking above the 1000 cap.
+4. **Cluster 3c:** per-point tier scaling at `GetActiveStatBonus` aggregation (both signs; pools + pillar-percents excluded; float-accumulate, round once).
+5. **Cluster 4:** `TierPowerDebug` inspection tooling.
+
+Mechanics reference: `docs/Mechanics/TierPower.md` (player-facing). Architecture touch-points: `DamageCalculator.md`, `ScalingSystem.md`, `LoadoutSystem.md`.
+
+## 10. Debug tooling
+
+`UTierPowerDebug` (`Combat/Damage/TierPowerDebug.h/.cpp`, `UBlueprintFunctionLibrary`, mirrors `UTierGapDamageDebug`):
+- `PrintCurve()` — dumps the F..S multiplier table.
+- `GetSkillPowerString(EItemTier)` — one tier's skill-multiplier line.
+- `PrintGearContribution(ULoadoutComponent*)` — per equipped item: name, tier, multiplier, each non-zero substat raw→tier-scaled (cursed negatives visibly scale harder), then the authoritative aggregated tier-weighted totals.
+
+## Changelog
+
+| Date | Change | Branch |
+|------|--------|--------|
+| 2026-06-21 | **Arc built.** Skill power (C1–2): `TierPowerConstants.h` + `GetTierPowerMultiplier` applied at damage/status/cost assembly (own tier, effects excluded) + AI parity; §7 gates cleared (dead `GetInfusionDamageMultiplier` deleted, grid scaling confirmed live ±5%). Gear: flat ~20 budget (3a), MaxHP/MaxEnergy 3.0/3.5 per point above the cap (3b), per-point tier scaling at `GetActiveStatBonus` aggregation — both signs, pools+pillars excluded (3c). Debug: `TierPowerDebug` (4). | feature/tier-power-scaling |
