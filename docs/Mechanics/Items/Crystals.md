@@ -38,7 +38,7 @@ the bar that triggers a status effect.
 
 ## Using crystals on a Broken Darkness character
 
-This is the crystal's most important wrinkle. A [Broken Darkness](Archetypes/BrokenDarkness.md)
+This is the crystal's most important wrinkle. A [Broken Darkness](../Archetypes/BrokenDarkness.md)
 fighter survives by **absorbing** elements — so a crystal used **on a BD** does one of **three**
 things, by the crystal's element:
 
@@ -47,7 +47,7 @@ things, by the crystal's element:
   them that element to wield ("Dark Fire", etc.). Powering up an enemy BD is usually a mistake.
 - **Iolite (Reality)** → the **opposite**: it **drains** their absorption energy **and resets
   their active pool back to base Darkness** — the anti-Broken-Darkness **cleanse**. This is how
-  you undo a BD that has built up a dangerous stolen element. See [Reality](Archetypes/Reality.md).
+  you undo a BD that has built up a dangerous stolen element. See [Reality](../Archetypes/Reality.md).
 - **Quartz (non-elemental)** → **does nothing to absorption.** No energy, no rotation, no drain —
   a Quartz crystal is inert against a BD's pool (it still does its normal status-bar clear).
 
@@ -56,9 +56,10 @@ So against a Broken Darkness enemy: **never feed them an elemental crystal**, an
 
 ## See also
 
-- [Reality](Archetypes/Reality.md) — the any-element Refractor; Iolite is its crystal.
-- [Broken Darkness](Archetypes/BrokenDarkness.md) — the form the three-way interaction targets.
-- [Generic spells](GenericSpells.md) — a crystal slotted into a weapon/ring turns a Generic spell into that element.
+- [Reality](../Archetypes/Reality.md) — the any-element Refractor; Iolite is its crystal.
+- [Broken Darkness](../Archetypes/BrokenDarkness.md) — the form the three-way interaction targets.
+- [Generic spells](../GenericSpells.md) — a crystal slotted into a weapon/ring turns a Generic spell into that element.
 
-> **Note:** attach-only **augment stones** (damage/ability/defense/etc. stones that slot into
-> gear) are a *separate* thing — not consumables. See the equipment docs.
+> **Note:** **augment stones** and **fusion stones** are a separate item family — they grant
+> mechanical bonuses, not elements. See [Augment Stones](AugmentStones.md) and
+> [Fusion Stones](FusionStones.md).

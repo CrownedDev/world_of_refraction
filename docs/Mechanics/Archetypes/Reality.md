@@ -45,4 +45,4 @@ stolen element, you **erase it**.
 
 - [Broken Darkness](BrokenDarkness.md) — the form Reality counters.
 - [Generic spells](../GenericSpells.md) — a Generic spell from a Reality source becomes "Reality [Name]".
-- [Items](../Items.md) — Iolite, the Reality "cleanse" crystal.
+- [Items](../Items/Crystals.md) — Iolite, the Reality "cleanse" crystal.

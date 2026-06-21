@@ -41,4 +41,4 @@ steel, easier to burn down with spells.
 ## See also
 
 - [Generic spells](../GenericSpells.md) — the "borrow the crystal's element" spells a Generic leans on.
-- [Items](../Items.md) — crystals (which lend elements to a Generic's gear).
+- [Items](../Items/Crystals.md) — crystals (which lend elements to a Generic's gear).

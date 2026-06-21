@@ -102,4 +102,4 @@ you rotate pools, the same Generic spell re-flavours with you.
 
 - [Reality](Reality.md) — the any-element Refractor and Broken Darkness's hard counter.
 - [Generic spells](../GenericSpells.md) — which become "Dark X" in a BD pool.
-- [Items](../Items.md) — Iolite (the Reality "cleanse" crystal) and the other crystals.
+- [Items](../Items/Crystals.md) — Iolite (the Reality "cleanse" crystal) and the other crystals.

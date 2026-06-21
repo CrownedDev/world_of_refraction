@@ -35,4 +35,4 @@ Defensively, a Resonator is the **weakest against physical attacks** — the mir
 ## See also
 
 - [Durability & wear](../DurabilityWear.md) — how rings wear and break.
-- [Items](../Items.md) — crystals, which carry the elements a Resonator's rings channel.
+- [Items](../Items/Crystals.md) — crystals, which carry the elements a Resonator's rings channel.
