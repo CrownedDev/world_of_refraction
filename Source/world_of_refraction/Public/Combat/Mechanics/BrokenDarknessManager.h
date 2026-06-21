@@ -276,10 +276,6 @@ public:
 								  UBrokenDarknessManager *BDManager,
 								  ESpellElement Element);
 
-	/** Get hybrid element (Darkness + last absorbed) */
-	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Hybrid")
-	ESpellElement GetHybridElement() const { return LastAbsorbedElement; }
-
 	// ==================== DEFENSE SYSTEM INTEGRATION ====================
 
 	/**
@@ -396,9 +392,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Elements")
 	TArray<ESpellElement> AbsorbedElements;
 
-	/** Last element absorbed (used for hybrid spell element) */
-	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness|Elements")
-	ESpellElement LastAbsorbedElement = ESpellElement::Generic;
 
 	// ==================== OVERLOAD STATE ====================
 

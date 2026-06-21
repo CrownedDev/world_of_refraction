@@ -835,7 +835,7 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 		static const ESpellElement kGambleElements[9] = {
 			ESpellElement::Fire, ESpellElement::Water, ESpellElement::Earth,
 			ESpellElement::Wind, ESpellElement::Light, ESpellElement::Darkness,
-			ESpellElement::Lightning, ESpellElement::Void, ESpellElement::Reality}; // 9 — excl. Generic/BrokenDarkness
+			ESpellElement::Lightning, ESpellElement::Void, ESpellElement::Reality}; // 9 — excl. the non-element sentinels Generic/None
 		static const EPhysicalDamageType kGamblePhysicals[3] = {
 			EPhysicalDamageType::Slash, EPhysicalDamageType::Pierce, EPhysicalDamageType::Impact};
 
@@ -1076,7 +1076,6 @@ ESkillEffectType UItemExecutor::GetElementImmunityType(ESpellElement Element)
 	case ESpellElement::Void:      return ESkillEffectType::GrantVoidImmunity;
 	case ESpellElement::Reality:   return ESkillEffectType::GrantRealityImmunity;
 	case ESpellElement::Generic:
-	case ESpellElement::BrokenDarkness:
 	default:
 		return ESkillEffectType::None;
 	}

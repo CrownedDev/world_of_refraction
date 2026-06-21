@@ -65,8 +65,8 @@ namespace ClassInnateResistanceTable
 
 	/** The 9 Caster rows, keyed by the Caster's INNATE element. Field order per
 	 *  FResistanceRow. Only ever reached after the BD / Generic / Resonator
-	 *  selection arms fall through (see ResolveRow), so a BrokenDarkness innate
-	 *  element never lands here. */
+	 *  selection arms fall through (see ResolveRow), so a Broken Darkness character
+	 *  (resolved by the IsBrokenDarkness arm) never lands here. */
 	inline FResistanceRow GetElementRow(ESpellElement InnateElement)
 	{
 		switch (InnateElement)
@@ -126,10 +126,11 @@ namespace ClassInnateResistanceTable
 
 	// ==================== COLUMN READS ====================
 
-	/** Read the row's column for the INCOMING attack element. BD alias: an
-	 *  incoming BrokenDarkness attack resolves via the Darkness column. A Generic
-	 *  (non-elemental) incoming element contributes 0 — the row has no Generic
-	 *  column. This is distinct from the BD-TARGET-row rule in ResolveRow. */
+	/** Read the row's column for the INCOMING attack element. A Broken Darkness
+	 *  attacker emits the Darkness element directly, so it reads the Darkness column
+	 *  via the normal Darkness case (no special alias). A Generic / None
+	 *  (non-elemental) incoming element contributes 0 — the row has no such column.
+	 *  This is distinct from the BD-TARGET-row rule in ResolveRow. */
 	inline float GetElementColumn(const FResistanceRow &Row, ESpellElement IncomingElement)
 	{
 		switch (IncomingElement)
@@ -152,8 +153,6 @@ namespace ClassInnateResistanceTable
 			return Row.Void;
 		case ESpellElement::Reality:
 			return Row.Reality;
-		case ESpellElement::BrokenDarkness:
-			return Row.Darkness; // incoming-attack BD alias -> Darkness column
 		case ESpellElement::Generic:
 		default:
 			return 0.0f;

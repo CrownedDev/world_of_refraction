@@ -61,9 +61,9 @@ void UElementColorDebugComponent::ApplyElementColor()
     if (CharDataComp->IsBrokenDarkness())
     {
         UBrokenDarknessManager* BDManager = Owner->FindComponentByClass<UBrokenDarknessManager>();
-        ESpellElement AbsorbedElement = BDManager ? BDManager->GetHybridElement() : ESpellElement::Generic;
+        ESpellElement AbsorbedElement = BDManager ? BDManager->GetActivePool() : ESpellElement::Darkness;
 
-        if (AbsorbedElement != ESpellElement::Generic && AbsorbedElement != ESpellElement::BrokenDarkness)
+        if (AbsorbedElement != ESpellElement::Darkness)
         {
             FHybridSpellColorData Colors = UHybridSpellColors::GetHybridSpellColors(AbsorbedElement);
             CharacterColor = Colors.BlendedColor;
@@ -88,9 +88,9 @@ void UElementColorDebugComponent::ApplyElementColor()
 
 void UElementColorDebugComponent::UpdateAbsorptionColor(ESpellElement AbsorbedElement)
 {
-    if (AbsorbedElement == ESpellElement::Generic || AbsorbedElement == ESpellElement::BrokenDarkness)
+    if (AbsorbedElement == ESpellElement::Darkness)
     {
-        // No absorption or pure BD
+        // Base pool (Darkness) = pure BD black
         ApplyColorToMaterial(ElementColors::BrokenDarkness);
     }
     else

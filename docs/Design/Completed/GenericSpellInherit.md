@@ -136,7 +136,7 @@ The build held to the locked plan except for these points, which evolved (this d
 
 ## Deferred follow-ups (recorded, not built this arc)
 
-- **BD-value deletion (Phase 2).** Delete `ESpellElement::BrokenDarkness` — gated on the `InitializeBDPools` loop bound moving to an explicit `Max`/`Count` sentinel + the BD-asset PostLoad re-save (re-save done this arc). The next arc. (Tracked in `docs/Architecture/BrokenDarkness.md` Known Gaps.)
+- ~~**BD-value deletion (Phase 2).**~~ ✅ **DONE** (`feature/bd-value-deletion`, PIE-verified): `ESpellElement::BrokenDarkness` deleted, `InitializeBDPools` loop bound moved to the `None` sentinel, dead PostLoad migration removed, BD asset re-saved (`None` is now value 10). See `docs/Architecture/BrokenDarkness.md` Known Gaps.
 - **Debug-sweep.** `ItemDataDebug.cpp:79` `== ESpellElement::Generic` is now dead (the getter returns `None`) → should become `== None`.
 - **Blueprint-naming check.** Confirm no `.uasset` spell-name widget shows raw `Spell->Name` (the C++ menu is wired to the resolved name; a Blueprint surface would need the resolved-name path — a `BlueprintPure` convenience if found).
 - **`ActionExecutor.cpp:4435` `!= InnateElement`** transitive-Generic edge — confirmed benign in 3c (a Generic-innate Caster + sourceless infusion now early-returns; arguably a correctness improvement), recorded for awareness.

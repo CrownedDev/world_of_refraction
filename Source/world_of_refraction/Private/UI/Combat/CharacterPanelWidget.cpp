@@ -244,6 +244,10 @@ void UCharacterPanelWidget::HandleBDAlignmentChanged(AActor *Actor, ESpellElemen
 {
 	if (Actor != BoundActor.Get())
 		return;
+	// The EP/Absorb bar colour is a function of the active pool (alignment), so re-tint
+	// here when the pool rotates — the bar must not depend on OnEnergyAbsorbed co-firing
+	// to re-tint (today it always does, but a non-absorption rotation must still update).
+	ApplyEnergyBarTint();
 	RefreshEffectsList();
 }
 
@@ -303,12 +307,9 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 		}
 	}
 
-	// Non-BD attacker (or null Source) — raw element colour.
-	const FLinearColor BarColour = (PendingElement == ESpellElement::BrokenDarkness)
-		? ElementColors::BrokenDarkness
-		: ElementColors::GetColorForElement(PendingElement);
-
-	StatusBar->SetFillColorAndOpacity(BarColour);
+	// Non-BD attacker (or null Source) — raw element colour. (BD-source tinting handled above
+	// via IsBrokenDarkness(); PendingElement is always a real spell element here.)
+	StatusBar->SetFillColorAndOpacity(ElementColors::GetColorForElement(PendingElement));
 }
 
 void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FActiveSkillEffect &Effect)
@@ -507,27 +508,22 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 
 	FLinearColor BarColour = FLinearColor::White;
 
-	// --- BD: darkened absorbed-element colour (or pure BD black if no absorption) ---
+	// --- BD: the EP/Absorb bar tints to the hybrid (darkness-blended) colour of the
+	// ACTIVE pool — Dark Fire (darkened red) on Fire, Dark Wind on Wind, etc. The base
+	// Darkness pool routes through the SAME path to pure-BD near-black
+	// (GetHybridSpellColors(Darkness) -> GetPureBrokenDarknessColors), so no special-case
+	// is needed. This mirrors ApplyStatusBarTint so the EP bar and status bar agree on
+	// the hybrid colour for a given active element. ---
 	if (CharComp->IsBrokenDarkness())
 	{
 		UBrokenDarknessManager *BDManager = BoundBDManager.Get();
 		if (BDManager)
 		{
-			const ESpellElement AbsorbedElement = BDManager->GetHybridElement();
-			if (AbsorbedElement == ESpellElement::Generic ||
-				AbsorbedElement == ESpellElement::BrokenDarkness)
-			{
-				BarColour = ElementColors::BrokenDarkness;
-			}
-			else
-			{
-				FHybridSpellColorData ColourData = UHybridSpellColors::GetHybridSpellColors(AbsorbedElement);
-				BarColour = ColourData.BlendedColor;
-			}
+			BarColour = UHybridSpellColors::GetHybridSpellColors(BDManager->GetActivePool()).BlendedColor;
 		}
 		else
 		{
-			BarColour = ElementColors::BrokenDarkness;
+			BarColour = ElementColors::BrokenDarkness; // null-guard: fall back to BD black
 		}
 		EPBar->SetFillColorAndOpacity(BarColour);
 		return;

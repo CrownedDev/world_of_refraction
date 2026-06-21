@@ -141,12 +141,14 @@ struct WORLD_OF_REFRACTION_API FCombatCapabilities
     /**
      * Build capabilities from a LoadoutComponent.
      * This is the ONLY place LoadoutComponent is queried for menu purposes.
-     * GetElementColorFn maps ESpellElement (as int32) to a display color.
+     * RefractionColor is pre-resolved by the caller (BD uses the pure-BD colour
+     * constant; others use their element colour). GetElementColorFn maps
+     * ESpellElement (as int32) to a display color for the remaining slots.
      */
     static FCombatCapabilities BuildFrom(
         ULoadoutComponent *LC,
         ECharacterClass CharClass,
-        ESpellElement InnateElement,
+        FLinearColor InRefractionColor,
         TFunction<FLinearColor(int32)> GetElementColorFn);
 
     // ==================== HELPERS ====================
