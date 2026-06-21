@@ -10,6 +10,7 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
+#include "Combat/Damage/TierPowerConstants.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CosmeticsData.h"
@@ -3183,6 +3184,47 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
 
     FEquipmentStatBonus Combined;
 
+    // TierPowerScaling §3 (cluster 3c): tier now scales the per-point VALUE, paired with 3a's flat
+    // ~20 budget. Each equipped item's 12 substat contributions are multiplied by
+    // GetTierPowerMultiplier(itemTier) BEFORE this (tierless) sum erases per-item tier. BOTH signs
+    // scale by magnitude — a −8 roll on an S item becomes ~−38 (×4.8) — so cursed gear scales harder
+    // at higher tier (that behaviour moved HERE from the old tier-scaled budget). EXCLUDED from tier
+    // scaling: BonusMaxHP/BonusMaxEnergy (pools — already got the 3.0/3.5 gear rate in 3b; scaling
+    // here would double-dip) and the pillar-percent fields (designer-tuned, not tier substat
+    // capacity). Substats accumulate as FLOAT and round ONCE at the end so multi-item rounding never
+    // compounds; consumers read the same int fields, now tier-weighted. F-tier (×1.0) stays
+    // byte-identical.
+    float AccRawDamage = 0.0f, AccSpellDamage = 0.0f, AccEfficiency = 0.0f, AccStatusMultiplier = 0.0f,
+          AccCritDamage = 0.0f, AccSpellSpeed = 0.0f, AccDefense = 0.0f, AccActionSpeed = 0.0f,
+          AccReflex = 0.0f, AccResistance = 0.0f, AccTurnSpeed = 0.0f, AccLuck = 0.0f;
+
+    auto AddScaled = [&](const FEquipmentStatBonus &Src, EItemTier Tier)
+    {
+        const float F = TierPowerScaling::GetTierPowerMultiplier(Tier);
+        AccRawDamage        += Src.BonusRawDamage        * F;
+        AccSpellDamage      += Src.BonusSpellDamage      * F;
+        AccEfficiency       += Src.BonusEfficiency       * F;
+        AccStatusMultiplier += Src.BonusStatusMultiplier * F;
+        AccCritDamage       += Src.BonusCritDamage       * F;
+        AccSpellSpeed       += Src.BonusSpellSpeed       * F;
+        AccDefense          += Src.BonusDefense          * F;
+        AccActionSpeed      += Src.BonusActionSpeed      * F;
+        AccReflex           += Src.BonusReflex           * F;
+        AccResistance       += Src.BonusResistance       * F;
+        AccTurnSpeed        += Src.BonusTurnSpeed        * F;
+        AccLuck             += Src.BonusLuck             * F;
+        // Excluded from tier scaling — accumulate raw (pools get the 3b rate downstream; pillar
+        // percents are designer-tuned).
+        Combined.BonusMaxHP                 += Src.BonusMaxHP;
+        Combined.BonusMaxEnergy             += Src.BonusMaxEnergy;
+        Combined.BonusMindModifierPercent   += Src.BonusMindModifierPercent;
+        Combined.BonusBodyModifierPercent   += Src.BonusBodyModifierPercent;
+        Combined.BonusSpiritModifierPercent += Src.BonusSpiritModifierPercent;
+    };
+
+    auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Weapon->Tier : EItemTier::F_Tier; };
+    auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Ring->Tier   : EItemTier::F_Tier; };
+
     const FCombatLoadout Loadout = GetActiveLoadout();
 
     switch (CharacterClass)
@@ -3200,12 +3242,12 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
                 // Dual weapon — bShowPrimary picks which one is active.
                 if (const FWeaponLoadoutEntry *Active = GetActiveWeaponLoadout())
                 {
-                    Combined = Active->WeaponEntry.StatBonus;
+                    AddScaled(Active->WeaponEntry.StatBonus, WeaponTier(Active->WeaponEntry));
                 }
             }
             else if (Loadout.PrimaryWeapon.IsValid())
             {
-                Combined = Loadout.PrimaryWeapon.WeaponEntry.StatBonus;
+                AddScaled(Loadout.PrimaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.PrimaryWeapon.WeaponEntry));
             }
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
@@ -3213,11 +3255,11 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
             // Ring primary; weapon-secondary (if any) sums in.
             if (Loadout.PrimaryRing.IsValid())
             {
-                Combined.Accumulate(Loadout.PrimaryRing.RingEntry.StatBonus);
+                AddScaled(Loadout.PrimaryRing.RingEntry.StatBonus, RingTier(Loadout.PrimaryRing.RingEntry));
             }
             if (bHasSecondaryWeapon)
             {
-                Combined.Accumulate(Loadout.SecondaryWeapon.WeaponEntry.StatBonus);
+                AddScaled(Loadout.SecondaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.SecondaryWeapon.WeaponEntry));
             }
         }
         // Evolution primary slots contribute via the innate-evolution sum after
@@ -3230,12 +3272,12 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         // Active ring (from RingLoadout) + primary weapon (if equipped).
         if (const FRingLoadoutEntry *ActiveRing = GetActiveRingLoadout())
         {
-            Combined.Accumulate(ActiveRing->RingEntry.StatBonus);
+            AddScaled(ActiveRing->RingEntry.StatBonus, RingTier(ActiveRing->RingEntry));
         }
         if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
             Loadout.PrimaryWeapon.IsValid())
         {
-            Combined.Accumulate(Loadout.PrimaryWeapon.WeaponEntry.StatBonus);
+            AddScaled(Loadout.PrimaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.PrimaryWeapon.WeaponEntry));
         }
         break;
     }
@@ -3246,12 +3288,12 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon &&
             Loadout.PrimaryWeapon.IsValid())
         {
-            Combined = Loadout.PrimaryWeapon.WeaponEntry.StatBonus;
+            AddScaled(Loadout.PrimaryWeapon.WeaponEntry.StatBonus, WeaponTier(Loadout.PrimaryWeapon.WeaponEntry));
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring &&
                  Loadout.PrimaryRing.IsValid())
         {
-            Combined = Loadout.PrimaryRing.RingEntry.StatBonus;
+            AddScaled(Loadout.PrimaryRing.RingEntry.StatBonus, RingTier(Loadout.PrimaryRing.RingEntry));
         }
         break;
     }
@@ -3261,7 +3303,8 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
     // summed like a weapon/ring entry's (asset Base + per-instance Generated roll).
     // ATTACHED-to-gear evolutions stay infusion-only — deliberately not summed here.
     // Mutually exclusive with the weapon/ring primary branches on PrimarySlotType
-    // (same two-branch precedent as ApplyEvolutionPillarModifier).
+    // (same two-branch precedent as ApplyEvolutionPillarModifier). Base + Generated
+    // are the SAME item, so both ride the evolution item's tier.
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item)
     {
         FEquipmentStatBonus EvoBonus = Loadout.PrimaryEvolution.Item->BaseStatBonus;
@@ -3269,12 +3312,27 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         // Pillar percents deliberately NOT summed: the evolution's pillar % already
         // applies as ApplyEvolutionPillarModifier's CRYSTAL layer; leaving them in
         // would double-apply through that function's EQUIPMENT layer, which reads
-        // this return value.
+        // this return value. (Zeroed before AddScaled, which would otherwise pass them through.)
         EvoBonus.BonusMindModifierPercent = 0.0f;
         EvoBonus.BonusBodyModifierPercent = 0.0f;
         EvoBonus.BonusSpiritModifierPercent = 0.0f;
-        Combined.Accumulate(EvoBonus);
+        AddScaled(EvoBonus, Loadout.PrimaryEvolution.Item->Tier);
     }
+
+    // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
+    // field — store directly). Pools + pillar percents were accumulated raw inside AddScaled.
+    Combined.BonusRawDamage        = FMath::RoundToInt(AccRawDamage);
+    Combined.BonusSpellDamage      = FMath::RoundToInt(AccSpellDamage);
+    Combined.BonusEfficiency       = FMath::RoundToInt(AccEfficiency);
+    Combined.BonusStatusMultiplier = FMath::RoundToInt(AccStatusMultiplier);
+    Combined.BonusCritDamage       = AccCritDamage;
+    Combined.BonusSpellSpeed       = FMath::RoundToInt(AccSpellSpeed);
+    Combined.BonusDefense          = FMath::RoundToInt(AccDefense);
+    Combined.BonusActionSpeed      = FMath::RoundToInt(AccActionSpeed);
+    Combined.BonusReflex           = FMath::RoundToInt(AccReflex);
+    Combined.BonusResistance       = FMath::RoundToInt(AccResistance);
+    Combined.BonusTurnSpeed        = FMath::RoundToInt(AccTurnSpeed);
+    Combined.BonusLuck             = FMath::RoundToInt(AccLuck);
 
     return Combined;
 }
