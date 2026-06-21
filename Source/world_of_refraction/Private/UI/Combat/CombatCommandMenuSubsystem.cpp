@@ -833,15 +833,32 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSpellButtons(
         if (Index >= 6)
             break; // Max 6 per school
 
+        // Generic spells display (and tint) by their RESOLVED source element ("Fire Ball").
+        // Resolve once via the executor (Generic -> source/pool element); fixed-element spells
+        // pass through unchanged (ResolveSpellCastElement returns their authored element).
+        ESpellElement ResolvedElement = Spell->Element;
+        bool bIsBD = false;
+        if (CurrentActor.IsValid())
+        {
+            if (UActionExecutor *Exec = GetGameInstance() ? GetGameInstance()->GetSubsystem<UActionExecutor>() : nullptr)
+            {
+                ResolvedElement = Exec->ResolveSpellCastElement(CurrentActor.Get(), Spell);
+            }
+            if (UCharacterDataComponent *CDC = CurrentActor->FindComponentByClass<UCharacterDataComponent>())
+            {
+                bIsBD = CDC->IsBrokenDarkness();
+            }
+        }
+
         FPieMenuButtonData Button = FPieMenuButtonData::MakeDataButton(
             FString::Printf(TEXT("Spell_%d"), Index),
-            FText::FromString(Spell->Name),
+            FText::FromString(Spell->GetDisplayName(ResolvedElement, bIsBD)),
             EPieMenuCategory::Spell,
             Spell,
             Index);
 
         Button.Description = FText::FromString(Spell->Description);
-        Button.ButtonTint = GetElementColor(static_cast<int32>(Spell->Element));
+        Button.ButtonTint = GetElementColor(static_cast<int32>(ResolvedElement));
         Button.bEnabled = true;
         Buttons.Add(Button);
         Index++;
