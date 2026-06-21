@@ -80,9 +80,10 @@ ring assets. Key fields and members:
   set for `AttachedItem.CrystalType`; see *Attachment type filter* below).
   - **Note — `GetCrystalElement()` and augment stones.** The switch handles
     `Crystal` / `Evolution` / `None`; a `AugmentStone` attachment falls through to
-    the `Generic` default. This is intended (stones grant mechanics, not an
-    element), but is expressed as a `default:` fall-through rather than an
-    explicit `AugmentStone` case.
+    the `ESpellElement::None` default (the non-elemental sentinel — post the
+    `Generic→None` migration; `Generic` now means "inherit at cast"). This is
+    intended (stones grant mechanics, not an element), but is expressed as a
+    `default:` fall-through rather than an explicit `AugmentStone` case.
 - **`GetMaxSpells()`** — virtual cap on `DefaultSpells`, used by validation;
   the base returns `TNumericLimits<int32>::Max()` (no cap), subclasses
   override.

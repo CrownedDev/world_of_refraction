@@ -280,7 +280,9 @@ controlled actor.
   consumes `PendingElement` via `ApplyStatusBarTint`
   (`CharacterPanelWidget.cpp:280-312`): tints the bar per pending-cap element;
   BD attackers darken via `UHybridSpellColors::GetHybridSpellColors().BlendedColor`;
-  `Generic` (physical-only damage) falls back to neutral white.
+  `None` / `Generic` (physical-only, non-elemental damage) tints the **neutral brown**
+  `ElementColors::GetColorForElement(None)` — matching every other surface (the old
+  white early-return was changed to brown in the `Generic→None` colour-parity pass).
 - **BD-without-manager fallback** — `RefreshEnergyBar` and `ApplyEnergyBarTint`
   both handle a Broken-Darkness character that has no `UBrokenDarknessManager`
   by showing an empty bar / pure black tint; this is a defensive fallback for

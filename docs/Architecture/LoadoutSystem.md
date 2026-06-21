@@ -151,7 +151,10 @@ Notable behavior:
   capped on the ring's tier via `ResolveSpellSlotCap(Attachment, SlotsForContainerTier(ring tier))`
   (gem tier overrides; `MAX_RING_SPELLS` the no-ring fallback).
 - `GetLockedSpells()` / `GetCustomizableSpells()` — partition accessors.
-- `ValidateSpells()` — ownership + element match against `RingEntry.GetElement()`.
+- `ValidateSpells()` — ownership + element match against `RingEntry.GetElement()`, via
+  `ElementHelpers::SpellElementMatchesHost` (a **Generic** spell is a wildcard — it resolves
+  to the host element at cast; Reality/BD hosts accept any element; concrete-element spells
+  still must match).
 - `IsEvolved()` — delegates to `RingEntry.IsEvolved()`; evolved rings cost 2
   loadout slots instead of 1.
 - `InitializeFromRing()` — empties `RingEntry.AssignedSpells`.
@@ -275,6 +278,11 @@ While in combat, callers query the component:
   / `GetSecondarySlotSpells`, `GetActiveSlotSpells` (respects the Generic
   dual-weapon toggle), `GetCombatSpells`, `GetWeaponResonateSpells`,
   `GetRingResonateSpells`.
+  - **BD (single active pool).** For a `IsBrokenDarkness()` caster, `GetAvailableSpells`
+    returns **only the single active pool** — `InnateSpells` when `GetActivePool() ==
+    Darkness`, else the matching `BDSpellPools` entry. The non-BD path (full
+    `GetAllSpells`) is unchanged. (Was: Darkness pool always + every absorbed pool.) See
+    `BrokenDarkness.md`.
 - **Spell source resolution** *(sweep-2)* — `ResolveSpellSource(USpellData*) const`
   walks the active loadout's spell lists in precedence order and returns which
   `ESpellSource` a spell originates from: **Innate** (including BD per-element
@@ -412,6 +420,7 @@ same list. `ResetBattleState()` clears `bIsReadyForBattle` and resets item slots
 | 2026-05-21 | Inventory redesign merged — `ULoadoutData` and `UCharacterData::DefaultLoadout` deleted; `UInventoryData` is the sole authoring surface and owns the inline `FSavedLoadout` array. `SavedLoadouts` / `ActiveLoadoutIndex` / `MaxSavedLoadouts` moved from `ULoadoutComponent` to `UInventoryComponent`; the loadout component now reads them via `GetInventoryComponent()`. `InitializeFromAsset` and the `bInitializedFromAsset` validation-bypass field removed; `FCombatLoadout::CreateFromSavedLoadout` is the sole runtime factory. Initialization, Validation, Field-table and Integration-Points sections updated. | feature/inventory-refactor |
 | 2026-05-27 | Two new BlueprintCallable wear/clear helpers — `ApplyWearToActivePrimaryEvolution(Amount, bForceWear)` and `ClearBrokenPrimaryEvolution()` — for the case-B standalone primary-slot evolution (BD wear path). Both write the live `SavedLoadouts[ActiveLoadoutIndex]` storage. Also corrected the `FCombatLoadout::PrimaryEvolution` field-shape note (it's `FEvolutionAttachment`, not a raw `UEvolutionItemData*` — pre-existing drift surfaced by this branch). | feature/crystal-wear-substat-modifier |
 | 2026-05-28 | Sweep-2 — added `ResolveSpellSource(USpellData*) const` for AI spell-source determination (precedence: Innate → RingCrystal → WeaponCrystal → Evolution). Removed dead struct-side `FCombatLoadout::Validate`/`ValidateGeneric`/`ValidateCaster`/`ValidateResonator` (`ULoadoutComponent::GetValidationErrors` is the live path; `ValidateBDSpellLoadout` retained — still shared with `FSavedLoadout::GetValidationErrors`). | feature/integration-gaps-sweep-2 |
+| 2026-06-21 | Generic Spell Inheritance arc. `GetAvailableSpells` BD path now returns the **single active pool** (`GetActivePool()` — Darkness/`InnateSpells` or the matching `BDSpellPools` entry), gated on `IsBrokenDarkness()`; non-BD path unchanged (was: Darkness pool always + every absorbed pool). Element-match validation (`FWeaponLoadoutEntry`/`FRingLoadoutEntry::ValidateSpells`, the `LoadoutComponent` findings, `FCombatLoadout::ValidateBDSpellLoadout`) routes through `ElementHelpers::SpellElementMatchesHost` — **Generic** spells are wildcards (resolve to the host element at cast). See `BrokenDarkness.md`, `InfusionSystem.md`. | feature/generic-spell-inherit |
 | 2026-06-07 | Weapon-stone alignment — `FEquippedCrystalSlot.Kind` corrected to `{None, Crystal, Evolution, WeaponStone}` (`RefinedId` carries `WeaponStone` identity too); documented the per-tier stone-ability slots (`AssignedWeaponStoneAbilities`, `GetWeaponStoneAbilities`, `ValidateWeaponStoneAbilities` capped by `GetAttachmentSlotsForTier`) and the `FSavedLoadout`/`FCombatLoadout` plumbing. See new `AugmentStoneSystem.md`. *(The `WeaponStone*` names in this row were renamed to `AugmentStone*` on 2026-06-08, commit `e9d22103` etc.; the doc body uses the current names.)* | feature/weapon-stones |
 | 2026-06-16 | Doc-sync: `FEquippedCrystalSlot.Kind` gains `Fusion` (+`FFusionId`); `FWeaponLoadoutEntry::GetAllSpells` cap re-pointed to `CrystalEffectTable::ResolveSpellSlotCap` (tier gem-crystal/fusion-gem-half spell slots, `0e920df7`), not a flat `MAX_SPELL_SLOTS`; flagged the stale `WeaponStone*` names in the 2026-06-07 changelog row. | feature/realtime-defense |
 | 2026-06-11 | Accumulate cleanup — `LoadoutComponent.cpp`'s anon-namespace `AccumulateBonus`/`AccumulateResistance` replaced at all 10 call sites by the `FEquipmentStatBonus::Accumulate` / `FResistanceBonus::Accumulate` struct members (behaviour-identical field-wise add); the duplicate helpers deleted. | chore/legacy-cleanup |

@@ -241,10 +241,12 @@ and police those slots from `AssignedAugmentStoneAbilities`.
 ### Stones are non-elemental
 
 `UEquipmentDataBase::GetCrystalElement()` switches `Crystal` / `Evolution` /
-`None` only; a `AugmentStone` attachment falls through to the `Generic` default.
-The runtime `FRuntimeAttachedItem::GetElement()` resolves a stone's identity
-through `ItemIdentity::GetElement`, which has no case for `DamageStone` /
-`AbilityStone` and likewise returns `Generic`. **Intended:** stones grant
+`None` only; a `AugmentStone` attachment falls through to the `ESpellElement::None`
+default (the non-elemental sentinel — post the `Generic→None` migration; `Generic`
+now means "inherit the source element at cast"). The runtime
+`FRuntimeAttachedItem::GetElement()` resolves a stone's identity through
+`ItemIdentity::GetElement`, which has no case for `DamageStone` / `AbilityStone`
+and likewise returns `None`. **Intended:** stones grant
 mechanics, not an element. (Flagged because the code expresses it as a `default:`
 fall-through rather than an explicit `AugmentStone` case — correct, but easy to
 misread as an omission.)

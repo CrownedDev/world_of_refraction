@@ -112,8 +112,11 @@ When transformed, a BD gains absorption energy from successful defends. The live
 `ActionExecutor::OnDefenseWindowClosed` when a defense window closes:
 
 - Only `Block` and `Parry` absorb — `Dodge` and failed defenses do not.
-- The attack element must be absorbable — `CanAbsorbElement` excludes `Generic`, `Reality`,
-  and `BrokenDarkness`.
+- The attack element must be absorbable — `CanAbsorbElement` is an **allowlist**: it rejects
+  `Generic`, `None`, `Reality`, and the `BrokenDarkness` enum value, and accepts the 7
+  elemental types **plus `Darkness`**. Darkness is absorbable because it is the BD's
+  **rotation target back to the base pool** (single-active-pool model, see *BD Spell Pools*) —
+  not a no-op.
 - Energy gained (`CalculateAbsorptionEnergy`):
 
       EnergyAbsorbed = AttackBaseEnergyCost × BaseRate × (1 + EfficiencyFactor × K) × PerfectMultiplier
@@ -253,13 +256,19 @@ element gate). The check is the shared static predicate
 (`ActionExecutor.cpp:204`) and `LoadoutComponent::GetValidationErrors`
 (`LoadoutComponent.cpp:527`) so combat and loadout validation never disagree.
 
-An element is castable when **any** of these hold:
+`Generic` short-circuits to **always castable** at the top of `IsElementCastable` — a Generic
+(polymorphic) spell resolves to a real element at cast (see *Generic Spell Resolution* in
+[`InfusionSystem.md`](InfusionSystem.md)), so the element itself never gates. Otherwise an
+element is castable when **any** of these hold:
 
 - **Non-BD** — the element matches `InnateElement`; or `InnateElement` is itself an
   any-element source (`Reality` / `BrokenDarkness`, via `ElementHelpers::IsAnySpellSource`);
   or an equipped crystal channels the element.
-- **BD** — the element is `Darkness` (the BD default); or it was absorbed this session
-  (`HasAbsorbedElement`); or an equipped crystal channels the element.
+- **BD (single active pool)** — the element is the **active pool**, `GetActivePool()`
+  (`AbsorbedElements.Last()`, `Darkness` when seeded); or an equipped crystal channels the
+  element. The former always-on `Element == Darkness` clause was **dropped**: Darkness is
+  castable only while it IS the active pool (it is seeded as the base pool on transform and
+  rotates like any other element).
 
 The equipment channel is `ULoadoutComponent::HasEquippedSourceForElement(Actor, Element)`
 (`LoadoutComponent.cpp:1202`): it walks every slot from `GetEquippedCrystals()` — weapon
@@ -278,8 +287,11 @@ A Broken Darkness character's spell loadout is split into a Darkness pool plus s
 per-element pools.
 
 - **Darkness pool** — `FCombatLoadout::InnateSpells` (the existing Caster field). Up to
-  `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6) spells, every entry must be `Darkness`
-  element. Always castable.
+  `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6) spells, every entry `Darkness` element
+  (a `Generic` spell is also accepted — it resolves to Darkness here). It is the **base
+  pool**: seeded as the active pool on transform, and the rotation target when Darkness is
+  re-absorbed. Castable only while it is the active pool — **not** always-on (see *single
+  active pool* below).
 - **Element pools** — `FCombatLoadout::BDSpellPools`, a `TArray<FBDElementSpellPool>`
   (`FCombatLoadout.h`). Up to `MAX_BD_ELEMENT_POOLS` (7) pools — `Fire`, `Water`, `Earth`,
   `Wind`, `Light`, `Lightning`, `Void` — each holding up to `MAX_EQUIPPED_SLOT_POOL` (6)
@@ -314,18 +326,28 @@ saved loadouts (each `UInventoryData::SavedLoadouts[i]` with authored `BDSpellPo
 the defaults — **count + element only, no weight** (the asset path has no character for the
 discount).
 
-**Single-slot absorption** — absorption has one active slot. `HasAbsorbedElement(Element)`
-returns true only when `Element` is the most recent absorption — `AbsorbedElements.Last()`.
-`RecordAbsorbedElement` moves a re-absorbed element to the end, so the array is a distinct,
-recency-ordered history and `Last()` is always the active element. Earlier entries are
-historical (retained for possible future "re-tap" abilities) but are not active.
+**Single active pool (the rotation model)** — a BD casts from exactly **one** pool at a time:
+the *active pool*, `UBrokenDarknessManager::GetActivePool()` = `AbsorbedElements.Last()`, or
+`Darkness` when nothing is seeded. Darkness is **seeded** as the active pool on transform
+(`SeedBaseElement()`, called from `TriggerTransformation` and the born-BD `BeginPlay` branch)
+so a fresh BD starts able to cast its base pool without first parrying — element axis only,
+**no absorption energy granted**. Absorbing an element **rotates** the active pool to it; the
+prior pool goes dormant. Absorbing `Darkness` rotates back to the base (innate Darkness) pool.
+`HasAbsorbedElement(Element)` returns true only for the active pool (`Last()`);
+`RecordAbsorbedElement` moves a re-absorbed element to the end (recency-ordered history;
+earlier entries are dormant, retained for possible future "re-tap" abilities).
 
-**Castable filter (BD)** — the spells a BD can cast are every Darkness-pool spell
-(`InnateSpells`), plus the spells of the single `BDSpellPools` entry whose element is
-currently absorbed. `FCombatCapabilities::BuildFrom` assembles this into `RefractionSpells`
-(Caster branch): it starts with `InnateSpells`, then for each pool appends `Pool.Spells`
-when `HasAbsorbedElement(Pool.Element)`. Because absorption is single-slot, at most one
-element pool contributes at a time.
+> **Model change (this arc).** This replaced the earlier model where the Darkness pool was
+> *always* castable **and** every absorbed element pool was castable simultaneously. Now it is
+> strictly one active pool, Darkness seeded on transform and rotated like any element.
+
+**Castable filter (BD)** — the spells a BD can cast are the spells of the **single active
+pool only**: the Darkness/base pool (`InnateSpells`) when `GetActivePool() == Darkness`,
+otherwise the matching `BDSpellPools` entry's spells. Both `ULoadoutComponent::GetAvailableSpells`
+and `FCombatCapabilities::BuildFrom` (Caster branch) route through `GetActivePool()` and return
+only that pool — gated on `IsBrokenDarkness()`, so the non-BD Caster path (full `GetAllSpells`)
+is unchanged. The equipped-crystal channel in `IsElementCastable` is a separate per-element
+unlock and is **not** added to this spell list.
 
 ## Forbidden Elements
 
@@ -474,4 +496,5 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-06-20 | BD spell pools gain the weighted-budget model — per-pool count cap re-pointed to `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6); `ValidateBDSpellLoadout` gained `(int32 Discount, bool bCheckWeight)` and now also enforces ONE shared `BD_SPELL_BUDGET` (48) across the Darkness pool + all element pools (Σ `SpellSlotEffectiveCost`, mastery-discounted), at the runtime gates only (asset path = count + element). Element-match + `MAX_BD_ELEMENT_POOLS` (≤7) unchanged; `MAX_BD_POOL_SPELLS` retired. See `InnateSpellPoolBudget.md`. | feature/innate-bd-spell-budget |
 | 2026-06-18 | **BD representation collapse (arc 1)** — character-created BD is now `InnateElement = Darkness` + `bBrokenDarknessInnate` toggle (was `InnateElement == BrokenDarkness`); both BD paths now share one asset shape (Darkness), differing only in the born marker. `IsBrokenDarkness()` returns the runtime flag **directly** — dropped the `InnateElement == BrokenDarkness` fallback (a reverted born-BD must read false). `bIsTransformed` renamed `bIsFlipped` (accessor `IsTransformed()` kept for BP/API stability). **Silence/Drain fix:** `BarCapTriggerResolver::ResolveTrigger` gains `bSourceIsBrokenDarkness`, computed at the dispatch source in `StatusBuildupManager` before the immunity gate, so a Darkness hit from a BD source → `DrainEnergy`, from a non-BD source → `Silenced`. Legacy `InnateElement == BrokenDarkness` assets PostLoad-migrated → Darkness + toggle (transient until re-saved; BD assets re-saved this arc). `ESpellElement::BrokenDarkness` is **Hidden, not deleted** — Phase 2 deletion deferred (gated on re-save [done] + `InitializeBDPools` loop Max-sentinel [pending]). Arc 2 (BD↔Darkness revert) recorded as next. Updated *Two Paths*, *State Model*, break-roll gates, new *Post-Collapse Status Dispatch* section, Integration table, Known Gaps. | feature/bd-representation-refactor |
 | 2026-06-18 | **Absorption rework** — replaced the flat parry/block rates (0.30/0.15) with an Efficiency-scaled, perfect-doubling model: `EnergyAbsorbed = AttackBaseEnergyCost × BaseRate(0.10/0.05) × (1 + GetScalingFraction(Efficiency) × K(8.0)) × PerfectMultiplier(2.0)`. Perfect (parry **or** block) doubles, threaded via `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy`. Zero-Efficiency floor is now lower (10%/5%, was 30%/15%), rising past the old rate with investment; max-stat 50%/25%, max-gear ~82%/41%. Removed the dead `OnSuccessfulParry`/`OnSuccessfulBlock` pair + `ParryAbsorptionRate`/`BlockAbsorptionRate` fields. Debug: `WoR.AbsorptionSnapshot`. Coefficients TUNABLE. Per-impact absorption (`BrokenDarkness_ReactiveDefense.md` §8c) remains deferred. | feature/bd-absorption-rework |
+| 2026-06-21 | **Generic Spell Inheritance arc — BD Model-B single active pool** (`feature/generic-spell-inherit`, PIE-verified). BD absorption is now a single-active-pool **rotation**: `GetActivePool()` = `AbsorbedElements.Last()`, with `Darkness` **seeded** on transform via `SeedBaseElement()` (from `TriggerTransformation` + born-BD `BeginPlay`; element axis only, no energy). Absorbing rotates the active pool, prior pool dormant; absorbing Darkness returns to the base pool. `IsElementCastable`, `ULoadoutComponent::GetAvailableSpells`, and `FCombatCapabilities::BuildFrom` all route through `GetActivePool()` — **dropped** the always-on `Element == Darkness` clause and the Model-A "all absorbed pools at once" append (both now show only the active pool, gated on `IsBrokenDarkness()`). `CanAbsorbElement` is now an **allowlist** (rejects `Generic`/`None`/`Reality`/`BrokenDarkness`-value; accepts the 7 elements + `Darkness`-as-rotation-target). `IsElementCastable` gains a `Generic`-always-castable short-circuit (Generic resolves at cast). Updated *Absorption System*, *Element Access*, *BD Spell Pools*. Full arc (enum `None` append, ~40-site `Generic→None` sentinel migration, the `ResolveSpellCastElement` resolver, cast-boundary wiring, `SpellElementMatchesHost` gates, naming) in `docs/Design/Completed/GenericSpellInherit.md`. | feature/generic-spell-inherit |
 | 2026-06-18 | **Forced BD→Darkness revert (arc 2)** — built the BD→Darkness direction of the runtime switch. New `UBrokenDarknessManager::RevertTransformation()` (`BlueprintCallable`): guard `!bIsFlipped` → no-op; else `bIsFlipped=false` → `ExitOverload()` + `ResetStacks()` + clear alignment / `AbsorbedElements` / `LastAbsorbedElement` → `ServerSetBrokenDarkness(false)` → `OnReverted.Broadcast()`. Mirrors `TriggerTransformation`'s structure. New `OnReverted` delegate (reuses `FOnBrokenDarknessTransformed`; separate edge so listeners bind specifically). `ServerSetBrokenDarkness(false)` gained a real body — `CurrentEP=MaxEP` + `OnEPChanged` broadcast (relabels bar Absorb→EP); asymmetric vs the activate branch (which carries EP over), direct field set bypasses the BD EP guard (flag already cleared). `WoR.TestBDRevert` console command added as permanent debug tooling (reverts the first transformed BD in combat, logs result). UI auto-corrects via existing `IsBrokenDarkness()` + `OnEPChanged` bindings. The Darkness→BD direction (break-roll) is unchanged. The **trigger** that calls `RevertTransformation` (healer / item / interaction) is **not** built — mechanism only; the BD↔Darkness switch is now mechanically complete pending a trigger. Updated the arc-2 Known-Limitations bullet → shipped. | feature/bd-switch |
