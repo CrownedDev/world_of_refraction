@@ -4,10 +4,12 @@
 
 ## What it is
 
-**Broken Darkness** is a special form a Darkness caster can fall into — a fighter who has
-"broken" under the strain of casting beyond their limits. A Broken Darkness character no longer
-runs on normal energy. Instead they **absorb the elements of attacks they defend against** and
-turn that stolen power into their own — wielding any element they've taken, wrapped in darkness.
+**Broken Darkness is not a class — it's a STATE** a **Darkness Refractor** falls into (a special
+form of the Darkness element, not a fourth class alongside Generic / Resonator / Refractor). A
+fighter who has "broken" under the strain of casting beyond their limits. A Broken Darkness
+character no longer runs on normal energy. Instead they **absorb the elements of attacks they
+defend against** and turn that stolen power into their own — wielding any element they've taken,
+wrapped in darkness.
 
 Think of it as a **utility form that rotates**: your true element is Darkness, but you can take
 on Fire, Wind, Water — whatever you absorb — one at a time, casting it as a darkened version.
@@ -46,6 +48,10 @@ it **rotates** your active element *and* **builds** your energy.
 
 Two things to keep separate:
 
+- **Energy comes from absorbing, not from being hit.** You build energy by **parrying or
+  blocking** attacks — taking damage on the chin gives you nothing. An **elemental crystal used
+  on you** also feeds energy (and rotates your pool to that crystal's element), the same as a
+  defended attack.
 - **Starting on Darkness grants no energy** — being seeded on your base pool just sets which
   element you're on; it doesn't hand you a free tank. You still have to absorb to build energy.
 - A perfect defend absorbs **more** energy than a normal one.
@@ -64,13 +70,36 @@ and everything re-tints. Spells read as **"Dark [Element]"** (Dark Fire, Dark Wi
 exceptions: your base reads plainly as **"Darkness"** (never "Dark Darkness"), and Reality reads
 as **"Reality"**.
 
+## Forbidden elements — Light and Void
+
+Two elements fight the darkness: **Light** and **Void**. A Broken Darkness character *can* still
+cast them (as "Dark Light" / "Dark Void"), but **casting a forbidden element hurts you** — it
+costs you health on the cast, scaled to the spell's power. They're usable in a pinch, but never
+free.
+
+## Reality — the hard counter
+
+**Reality cannot be absorbed — it *unmakes* you.** Where every other element feeds your rotation,
+Reality reverses it. Two ways it hits you:
+
+- A **Reality crystal (Iolite)** used on you, or
+- **parrying or blocking a Reality attack**
+
+…will **drain your absorption energy** *and* **reset your active pool back to base Darkness** —
+you lose the element you'd stolen and snap back to black. You stay Broken Darkness (you don't turn
+back into a normal Refractor), but you're cleansed and drained: your built-up energy is gone and
+your stolen element is unmade. Reality is the answer to a Broken Darkness that has built up a
+dangerous pool — see [Reality](Reality.md).
+
 ## Generic spells in a Broken Darkness pool
 
-A [Generic spell](GenericSpells.md) (a basic "Ball"/"Bolt" template that takes its source's
+A [Generic spell](../GenericSpells.md) (a basic "Ball"/"Bolt" template that takes its source's
 element) slotted into a Broken Darkness pool becomes that pool's element, darkened — a Generic
 "Ball" in your Fire pool is a **"Dark Fire Ball"**, in your base pool a **"Darkness Ball"**. As
 you rotate pools, the same Generic spell re-flavours with you.
 
 ## See also
 
-- `docs/Mechanics/GenericSpells.md` — Generic spells (which become "Dark X" in a BD pool).
+- [Reality](Reality.md) — the any-element Refractor and Broken Darkness's hard counter.
+- [Generic spells](../GenericSpells.md) — which become "Dark X" in a BD pool.
+- [Items](../Items/Crystals.md) — Iolite (the Reality "cleanse" crystal) and the other crystals.

@@ -25,7 +25,7 @@ enum class ECrystalType : uint8
     Onyx UMETA(DisplayName = "Onyx (Darkness - Silence)"),
     Amethyst UMETA(DisplayName = "Amethyst (Void - Gambling)"),
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
-    Quartz UMETA(DisplayName = "Quartz (None - Transform)"),
+    Quartz UMETA(DisplayName = "Quartz (None - Status Clear)"),
     DamageStone UMETA(DisplayName = "Damage Stone"),
     // Appended after DamageStone (=12); augment-stone sub-type that grants ability
     // slots. Attach-only (never a consumable). Do NOT reorder/insert above —

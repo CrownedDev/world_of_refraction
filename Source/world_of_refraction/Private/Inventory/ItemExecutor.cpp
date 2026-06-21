@@ -994,13 +994,34 @@ void UItemExecutor::ApplyBrokenDarknessBonus(AActor *Target, FCrystalId Id, FIte
 	if (!BDManager)
 		return;
 
+	// Three behaviours by the crystal's element:
+	//   - Reality (Iolite) → DRAIN the tier-scaled energy + revert the active pool to base
+	//     Darkness (cleanse — unmake the stolen element); character stays BD.
+	//   - None (Quartz / non-elemental) → NO absorption interaction at all (no energy, no
+	//     rotation, no drain) — skip entirely.
+	//   - Real element → grant energy + rotate the active pool to it.
+	const ESpellElement Elem = ItemIdentity::GetElement(Id);
 	const int32 EPBefore = TargetComp->CurrentEP;
-	BDManager->GrantAbsorptionEnergy(BonusEnergy);
+
+	if (Elem == ESpellElement::Reality)
+	{
+		BDManager->DrainAndRevertToBase(BonusEnergy);
+	}
+	else if (Elem == ESpellElement::None)
+	{
+		// Non-elemental crystal: intentionally no-op (EP unchanged → gained stays 0).
+	}
+	else
+	{
+		BDManager->GrantAbsorptionEnergy(BonusEnergy, Elem);
+	}
+
+	// Honest delta: positive = granted, negative = drained (Reality), 0 = no interaction (None).
 	OutResult.BrokenDarknessEnergyGained = TargetComp->CurrentEP - EPBefore;
 
 	UE_LOG(LogTemp, Log,
-		   TEXT("[ItemExecutor] Broken Darkness absorption: %s gained %d energy (%.0f%% of MaxEP %d)"),
-		   *Target->GetName(), OutResult.BrokenDarknessEnergyGained,
+		   TEXT("[ItemExecutor] Broken Darkness crystal (%s): %s energy delta %d (%.0f%% of MaxEP %d)"),
+		   *UEnum::GetValueAsString(Elem), *Target->GetName(), OutResult.BrokenDarknessEnergyGained,
 		   Percent * 100.0f, TargetComp->MaxEP);
 }
 

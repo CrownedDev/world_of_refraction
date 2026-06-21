@@ -74,11 +74,13 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         bValid = false;
     }
 
-    // Check element is valid
+    // Check element is valid. Only Quartz is non-elemental (None) — any OTHER crystal that
+    // resolves to None is a data bug. (Was == Generic before the Generic->None sentinel
+    // migration; Generic now means "inherit at cast", None is the non-elemental sentinel.)
     ESpellElement Element = Item->GetAssociatedElement();
-    if (Element == ESpellElement::Generic && Item->CrystalType != ECrystalType::Quartz)
+    if (Element == ESpellElement::None && Item->CrystalType != ECrystalType::Quartz)
     {
-        Errors.Add(TEXT("Unexpected Generic element"));
+        Errors.Add(TEXT("Unexpected non-elemental (None) element"));
         bValid = false;
     }
 

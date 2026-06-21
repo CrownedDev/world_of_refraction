@@ -392,17 +392,47 @@ bool UBrokenDarknessManager::ProcessForbiddenCast(ESpellElement SpellElement, fl
 
 // ==================== ABSORPTION ====================
 
-void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount)
+void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount, ESpellElement Element)
 {
 	// Public entry point for non-defense absorption sources (e.g. ItemExecutor
-	// when a crystal is used on a BD). Defense absorption reaches the same path
-	// via OnDefenseResolved -> AddAbsorptionEnergy.
+	// when a crystal is used on a BD). Mirrors the defense path (OnDefenseResolved):
+	// energy + element rotation. Defense absorption reaches AddAbsorptionEnergy +
+	// RecordAbsorbedElement the same way.
 	if (!bIsFlipped)
 	{
 		return;
 	}
 
 	AddAbsorptionEnergy(Amount);
+	RecordAbsorbedElement(Element); // self-guards via CanAbsorbElement — rotates the active
+									// pool + fires OnAlignmentChanged for absorbable elements,
+									// no-ops for Reality/Generic/None (energy still granted)
+}
+
+void UBrokenDarknessManager::DrainAndRevertToBase(float Amount)
+{
+	// Reality cleanse: drain the (tier-scaled) energy and revert the active pool to the
+	// base Darkness pool — unmaking the stolen element. The character STAYS BD.
+	if (!bIsFlipped)
+	{
+		return;
+	}
+
+	const ESpellElement OldActive = GetActivePool();
+
+	if (UCharacterDataComponent *CharComp = GetCharComp())
+	{
+		CharComp->ServerSpendEnergy(FMath::RoundToInt(Amount)); // drain, clamps at 0, fires OnEPChanged
+	}
+
+	SeedBaseElement(); // clear AbsorbedElements -> {Darkness}, set alignment Darkness (stays BD)
+
+	// SeedBaseElement is silent (sets CurrentAlignmentElement directly, no delegate), so the
+	// bar won't re-tint on its own — broadcast the alignment change explicitly here.
+	if (OldActive != ESpellElement::Darkness)
+	{
+		OnAlignmentChanged.Broadcast(GetOwner(), OldActive, ESpellElement::Darkness);
+	}
 }
 
 void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)
@@ -606,10 +636,10 @@ void UBrokenDarknessManager::ProcessOverloadTick(const TArray<AActor *> &NearbyE
 	}
 
 	// Self-status — released energy becomes status buildup in the alignment element.
-	// Gated on a non-Generic alignment (defensive — overload entry normally implies
-	// at least one absorbed element, but a transformed BD with no absorption history
-	// would otherwise feed Generic into the buildup pipeline).
-	if (Released > 0.0f && CurrentAlignmentElement != ESpellElement::Generic)
+	// A flipped BD's alignment is always a real element (Darkness is seeded on transform,
+	// then rotates on absorption — never Generic in the flipped path), so no Generic guard
+	// is needed here.
+	if (Released > 0.0f)
 	{
 		if (UWorld *World = GetWorld())
 		{
@@ -700,8 +730,9 @@ void UBrokenDarknessManager::ProcessElementAbsorption(ESpellElement Element)
 	AActor *Owner = GetOwner();
 	ESpellElement OldAlignment = CurrentAlignmentElement;
 
-	// Check if same element as current alignment
-	if (Element == CurrentAlignmentElement && CurrentAlignmentElement != ESpellElement::Generic)
+	// Check if same element as current alignment. (Element here has already passed
+	// CanAbsorbElement, so it is never Generic — matching the alignment implies a real element.)
+	if (Element == CurrentAlignmentElement)
 	{
 		// Same element - increment toward next stack
 		ConsecutiveAbsorptions++;
@@ -825,7 +856,23 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 		return;
 	}
 
-	// Check if element can be absorbed
+	// Reality cannot be absorbed — it UNMAKES the BD instead. Parrying/blocking a Reality
+	// attack DRAINS the would-be-gain energy and reverts the active pool to base Darkness
+	// (the cleanse), mirroring the Reality item path. Must run BEFORE the generic
+	// !CanAbsorbElement return below (CanAbsorbElement(Reality) is false, so the generic
+	// check would otherwise swallow Reality with no drain). A Generic spell resolved to
+	// Reality arrives here as AttackElement == Reality, so it is covered identically.
+	if (AttackElement == ESpellElement::Reality)
+	{
+		const float WouldBeGain = CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost, bPerfect);
+		DrainAndRevertToBase(WouldBeGain); // drain that amount (clamped) + revert pool to Darkness
+		UE_LOG(LogTemp, Log,
+			   TEXT("BrokenDarkness: Reality parry/block — drained %.1f energy + reverted to base Darkness"),
+			   WouldBeGain);
+		return; // do NOT fall through to the normal absorb
+	}
+
+	// Check if element can be absorbed (other non-absorbable elements → nothing happens)
 	if (!CanAbsorbElement(AttackElement))
 	{
 		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb %s element"),
