@@ -409,6 +409,32 @@ void UBrokenDarknessManager::GrantAbsorptionEnergy(float Amount, ESpellElement E
 									// no-ops for Reality/Generic/None (energy still granted)
 }
 
+void UBrokenDarknessManager::DrainAndRevertToBase(float Amount)
+{
+	// Reality cleanse: drain the (tier-scaled) energy and revert the active pool to the
+	// base Darkness pool — unmaking the stolen element. The character STAYS BD.
+	if (!bIsFlipped)
+	{
+		return;
+	}
+
+	const ESpellElement OldActive = GetActivePool();
+
+	if (UCharacterDataComponent *CharComp = GetCharComp())
+	{
+		CharComp->ServerSpendEnergy(FMath::RoundToInt(Amount)); // drain, clamps at 0, fires OnEPChanged
+	}
+
+	SeedBaseElement(); // clear AbsorbedElements -> {Darkness}, set alignment Darkness (stays BD)
+
+	// SeedBaseElement is silent (sets CurrentAlignmentElement directly, no delegate), so the
+	// bar won't re-tint on its own — broadcast the alignment change explicitly here.
+	if (OldActive != ESpellElement::Darkness)
+	{
+		OnAlignmentChanged.Broadcast(GetOwner(), OldActive, ESpellElement::Darkness);
+	}
+}
+
 void UBrokenDarknessManager::AddAbsorptionEnergy(float Amount)
 {
 	if (Amount <= 0.0f)

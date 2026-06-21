@@ -159,6 +159,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
 	void GrantAbsorptionEnergy(float Amount, ESpellElement Element);
 
+	/** Reality cleanse: drain absorption energy + revert the active pool to base Darkness
+	 *  (unmake the stolen element). Character STAYS BD. Used by the Reality item path (and
+	 *  a future Reality parry/block path). */
+	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Absorption")
+	void DrainAndRevertToBase(float Amount);
+
 	// ==================== DEBUG ====================
 
 	/** Log the absorption breakdown (BaseRate, raw Efficiency multiplier, EfficiencyFactor,
