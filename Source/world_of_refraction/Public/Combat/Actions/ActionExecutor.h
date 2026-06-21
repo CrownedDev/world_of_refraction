@@ -464,6 +464,11 @@ private:
 	int32 PendingSpellDamage = 0;
 	bool bPendingSpellIsBrokenDarkness = false;
 
+	/** Cluster 3c: the cast's resolved element (Generic -> source/pool), cached for the
+	 *  deferred notify-triggered VFX (muzzle + delivery colours). Mirrors
+	 *  bPendingSpellIsBrokenDarkness — set in ExecuteSpellAsync, reset in ClearPendingSpellData. */
+	ESpellElement PendingResolvedElement = ESpellElement::None;
+
 	/** Handle animation notify for spell VFX timing */
 	UFUNCTION()
 	void OnSpellAnimNotify(FName NotifyName);

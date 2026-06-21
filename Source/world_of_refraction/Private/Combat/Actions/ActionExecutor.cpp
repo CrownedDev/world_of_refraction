@@ -1118,12 +1118,28 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		   DamageMultiplier,
 		   StatusMultiplier);
 
+	// Cluster 3c: resolve a Generic spell to its source/pool element ONCE, here, before
+	// any consumer reads it. Non-Generic spells pass through unchanged. This single
+	// resolved value feeds AttackElement, the forbidden-cast self-damage, the defense
+	// window, and (via PendingResolvedElement below) the deferred VFX readers.
+	ESpellElement ResolvedElement = ResolveSpellCastElement(Caster, Spell);
+	// 3a safety net: a still-Generic result means the resolver could not bind a source
+	// (e.g. a Generic-innate Caster routing through Innate — a data misconfiguration).
+	// Never let Generic ("inherit") reach the damage/colour/resistance pipeline.
+	if (ResolvedElement == ESpellElement::Generic)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("[ActionExecutor] Spell %s resolved to Generic (unbound source) — using None"),
+			   *Spell->Name);
+		ResolvedElement = ESpellElement::None;
+	}
+
 	// Store in result for reference. BaseDamageBeforeDefense receives the
 	// infused damage because that is what defense will reduce — "before defense"
 	// refers to the defense pipeline, not "before infusion".
 	CurrentExecutionContext->PartialResult.AttackSize = FinalSpellSize;
 	CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = FinalDamage;
-	CurrentExecutionContext->PartialResult.AttackElement = Spell->Element;
+	CurrentExecutionContext->PartialResult.AttackElement = ResolvedElement;
 
 	// Get valid targets
 	TArray<AActor *> ValidTargets = FilterValidTargets(Action.Targets);
@@ -1145,6 +1161,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 
 	UBrokenDarknessManager *BDManager = GetBrokenDarknessManager(Caster);
 	bPendingSpellIsBrokenDarkness = BDManager && BDManager->IsTransformed();
+	// Mirror bPendingSpellIsBrokenDarkness: cache the resolved element for the deferred
+	// notify-triggered VFX (muzzle + delivery colours). Set here, reset in ClearPendingSpellData.
+	PendingResolvedElement = ResolvedElement;
 
 	// Bind to notify for VFX timing
 	BindSpellNotify(Caster);
@@ -1169,7 +1188,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	}
 	else
 	{
-		ProcessForbiddenElementCast(Caster, Spell->Element, static_cast<float>(BaseDamage));
+		ProcessForbiddenElementCast(Caster, ResolvedElement, static_cast<float>(BaseDamage));
 	}
 
 	// Phase C1: Spell buildup flows through the defense pipeline. Session Y
@@ -1209,7 +1228,7 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		FinalDamage,
 		DamagePerHit,
 		Spell->HitCount,
-		Spell->Element,
+		ResolvedElement,
 		true,					   // Can crit
 		EActionType::Spell,		   // ActionType — drives post-defense stat selection
 		Action.SpellInfusionLevel, // InfusionLevel
@@ -3256,7 +3275,7 @@ void UActionExecutor::SpawnSpellDelivery(
 	if (!bIsOffensive)
 	{
 		// Self/Ally spells - spawn VFX, apply healing/buff directly (no defense)
-		SpawnSupportSpellEffect(Caster, Targets, Spell, Spell->Element, FinalVisualScale, bIsBrokenDarkness);
+		SpawnSupportSpellEffect(Caster, Targets, Spell, PendingResolvedElement, FinalVisualScale, bIsBrokenDarkness);
 		return;
 	}
 
@@ -3274,7 +3293,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// Spawn VFX at each target, open defense window immediately
 		for (AActor *Target : Targets)
 		{
-			SpawnAOEEffect(Caster, Target, Spell, Spell->Element, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
+			SpawnAOEEffect(Caster, Target, Spell, PendingResolvedElement, FinalImpactRadius, FinalVisualScale, FinalDamage, bIsBrokenDarkness);
 		}
 		break;
 
@@ -3282,7 +3301,7 @@ void UActionExecutor::SpawnSpellDelivery(
 		// No travel time, immediate resolution
 		for (AActor *Target : Targets)
 		{
-			ResolveInstantSpell(Caster, Target, Spell, Spell->Element, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
+			ResolveInstantSpell(Caster, Target, Spell, PendingResolvedElement, FinalImpactRadius, FinalDamage, bIsBrokenDarkness);
 		}
 		break;
 	}
@@ -5193,6 +5212,7 @@ void UActionExecutor::ClearPendingSpellData()
 	PendingSpellSize = 1.0f;
 	PendingSpellDamage = 0;
 	bPendingSpellIsBrokenDarkness = false;
+	PendingResolvedElement = ESpellElement::None;
 }
 
 void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
@@ -5222,7 +5242,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 			const bool bTint = !MuzzleEntry || MuzzleEntry->bElementTinted;
 
 			FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(
-				PendingSpellData->Element, bPendingSpellIsBrokenDarkness);
+				PendingResolvedElement, bPendingSpellIsBrokenDarkness);
 
 			UNiagaraComponent *MuzzleComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 				GetWorld(),
@@ -5249,7 +5269,7 @@ void UActionExecutor::OnSpellAnimNotify(FName NotifyName)
 		// montages) delivers via the entry path. Empty CastArray → loose path.
 		if (PendingSpellData->CastArray.Num() > 0)
 		{
-			DispatchSpellCast(PendingSpellCaster, PendingSpellData, PendingSpellData->Element,
+			DispatchSpellCast(PendingSpellCaster, PendingSpellData, PendingResolvedElement,
 							  PendingSpellData->CastArray[0], PendingSpellSize,
 							  PendingSpellTargets, PendingSpellDamage, 0);
 			UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] SpellRelease - dispatched CastArray[0]"));
