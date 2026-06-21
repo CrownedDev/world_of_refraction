@@ -415,6 +415,16 @@ private:
 	/** Tick durations for actor's effects (called at end of turn) */
 	void TickDurations(AActor *Actor);
 
+	/** Consume one charge after a fire. The SINGLE charge-expiry path every fire site calls.
+	 *  Charges == 0 (no charge system) → no-op (existing effects untouched). Charges > 0 →
+	 *  decrement; at <= 0 remove the effect from the actor's list + broadcast OnEffectRemoved.
+	 *  This is INDEPENDENT of TickDurations (which only does turn-expiry and skips bPermanent),
+	 *  so it is the ONLY reaper for a permanent charged effect (e.g. a phoenix revive buff).
+	 *  Effect must be a reference into the actor's ActiveEffects array.
+	 *  Returns true if the effect was REMOVED (charges hit 0) — callers iterating the array by
+	 *  index must compensate (the removed slot shifts subsequent elements down). */
+	bool ConsumeCharge(AActor *Actor, FActiveSkillEffect &Effect);
+
 	/** Apply the actual effect logic (damage, heal, stat mod, etc.) */
 	void ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect);
 
