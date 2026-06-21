@@ -40,9 +40,9 @@ namespace CrystalTypeHelpers
         case ECrystalType::Iolite:
             return ESpellElement::Reality;
         case ECrystalType::Quartz:
-            return ESpellElement::Generic;
+            return ESpellElement::None; // Quartz is the non-elemental gem — no element
         default:
-            return ESpellElement::Generic;
+            return ESpellElement::None; // Unknown crystal type — no element
         }
     }
 
