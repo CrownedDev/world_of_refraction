@@ -17,9 +17,9 @@ namespace ElementColors
     inline const FLinearColor Reality = FLinearColor(0.3f, 0.0f, 0.5f);        // Indigo
     inline const FLinearColor Void = FLinearColor(0.6f, 0.0f, 1.0f);           // Violet
     inline const FLinearColor Light = FLinearColor(1.0f, 1.0f, 1.0f);          // White
-    inline const FLinearColor Darkness = FLinearColor(0.1f, 0.1f, 0.1f);       // Black
+    inline const FLinearColor Darkness = FLinearColor(0.02f, 0.02f, 0.02f);    // Near-black — THE Darkness/BD black
     inline const FLinearColor Generic = FLinearColor(0.6f, 0.4f, 0.2f);        // Brown
-    inline const FLinearColor BrokenDarkness = FLinearColor(0.1f, 0.1f, 0.1f); // Black (base)
+    inline const FLinearColor BrokenDarkness = Darkness;                       // BD IS Darkness — one black, one source
 
     // Get color for element
     inline FLinearColor GetColorForElement(ESpellElement Element)

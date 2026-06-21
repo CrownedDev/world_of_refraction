@@ -16,9 +16,9 @@ namespace
 	constexpr float EMISSIVE_INTENSITY_FORBIDDEN = 2.5f;
 	constexpr float EMISSIVE_INTENSITY_NORMAL    = 1.5f;
 
-	// ---- Pure Broken Darkness colours ----
-	constexpr FLinearColor PURE_BD_PRIMARY   = FLinearColor(0.08f, 0.02f, 0.12f, 1.0f);
-	constexpr FLinearColor PURE_BD_SECONDARY = FLinearColor(0.02f, 0.02f, 0.02f, 1.0f);
+	// ---- Pure Broken Darkness ----
+	// BD IS Darkness — no separate "pure BD" colour. The base black is the single
+	// ElementColors::Darkness near-black, reused everywhere.
 	constexpr float        PURE_BD_DARKNESS_BLEND = 0.9f;
 
 	// ---- Overload ----
@@ -168,15 +168,16 @@ void UHybridSpellColors::GetMaterialParams(ESpellElement AbsorbedElement,
 
 FHybridSpellColorData UHybridSpellColors::GetPureBrokenDarknessColors()
 {
-	// Pure BD = deep black with subtle purple tint
-	FLinearColor PureDark = PURE_BD_PRIMARY;  // Very dark purple
-	FLinearColor PureBlack = PURE_BD_SECONDARY;
+	// Base BD = the single Darkness near-black, no purple. BD looks the same black as
+	// Darkness (no darker-than-Darkness distinction). Primary/Secondary/Blended all
+	// share the one black; absorbed elements darken via the blend path instead.
+	const FLinearColor BDBlack = ElementColors::Darkness;
 
 	return FHybridSpellColorData(
 		ESpellElement::Darkness, // .Element is cosmetic/unread; underlying BD element is Darkness
-		PureDark,      // Primary: dark purple
-		PureBlack,     // Secondary: near black
-		PureDark,      // Blended: same as primary
+		BDBlack,       // Primary
+		BDBlack,       // Secondary
+		BDBlack,       // Blended
 		PURE_BD_DARKNESS_BLEND, // Heavy darkness
 		false          // Not forbidden
 	);
