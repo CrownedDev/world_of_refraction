@@ -75,5 +75,9 @@ enum class EItemEffectType : uint8
     // read by UDefenseSystem::GetEffectiveDefenseInputWindow (B-5) as (ReflexBuff - ReflexDebuff): ally
     // widens their defense window, enemy's narrows. Runtime-derived only (never serialized), so the
     // append needs no CoreRedirect.
-    BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)")
+    BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)"),
+    // Appended (C2c). Consume-only HealingStone — plain instant heal on any target. Separate from
+    // EItemEffectType::Healing, which now routes to the Sapphire defy-death handler. Runtime-derived
+    // only (never serialized), so the append needs no CoreRedirect.
+    RestoreHealth UMETA(DisplayName = "Restore Health (Healing Stone instant heal)")
 };

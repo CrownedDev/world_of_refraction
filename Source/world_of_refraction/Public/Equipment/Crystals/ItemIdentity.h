@@ -139,6 +139,10 @@ namespace ItemIdentity
             // ReflexBuff/ReflexDebuff, stone magnitude). Buff an ally / debuff an enemy; the defense-window
             // read (B-5) consumes (ReflexBuff - ReflexDebuff), so an ally's window widens, an enemy's narrows.
             return EItemEffectType::BuffReflex;
+        case ECrystalType::HealingStone:
+            // Consume-only instant heal (any target) — routes to ExecuteHealingStoneEffect.
+            // Distinct from Sapphire (EItemEffectType::Healing → defy-death handler).
+            return EItemEffectType::RestoreHealth;
         default:
             return EItemEffectType::Damage;
         }
@@ -233,6 +237,8 @@ namespace ItemIdentity
             return TEXT("ActionSpeedStone");
         case ECrystalType::DurabilityStone:
             return TEXT("DurabilityStone");
+        case ECrystalType::HealingStone:
+            return TEXT("HealingStone");
         default:
             return TEXT("Unknown");
         }

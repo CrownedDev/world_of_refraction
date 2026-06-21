@@ -63,6 +63,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteHealingEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::RestoreHealth:
+		ExecuteHealingStoneEffect(User, Target, Id, Result);
+		break;
+
 	case EItemEffectType::EnergyRestore:
 		ExecuteEnergyRestoreEffect(User, Target, Id, Result);
 		break;
@@ -336,6 +340,49 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 	OutResult.bSuccess = true;
 	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire: Last Stand on %s (%.0f%% revive, %d-turn window)"),
 		   *Target->GetName(), ItemConstants::LAST_STAND_HP_PERCENT, WindowTurns);
+}
+
+void UItemExecutor::ExecuteHealingStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Healing Stone (C2c) — CONSUME-ONLY plain instant heal, ANY target (GetItemTargetType returns
+	// Anyone for all crystals). This is the heal Sapphire vacated in C2b (Sapphire is now defy-death).
+	// Routes through the instant lane (duration-0 HealthRestore → ServerHeal once); HealBlock gates it
+	// at ApplyEffect, so a HealBlocked target is not healed (consistent). A dead target is a no-op —
+	// ServerHeal early-outs on !bIsAlive; Healing Stone does NOT revive (that's Sapphire's branch).
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!TargetComp)
+	{
+		OutResult.ErrorMessage = TEXT("Target has no character data");
+		return;
+	}
+
+	const float HealPercent = CrystalEffectTable::GetHealPercent(Id);
+	if (HealPercent <= 0.0f)
+	{
+		OutResult.ErrorMessage = TEXT("Invalid Healing Stone heal value");
+		return;
+	}
+
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / CombatConstants::STAT_PERCENT_DIVISOR));
+	const int32 HPBefore = TargetComp->CurrentHP;
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Heal = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Heal"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::HealthRestore,
+		static_cast<float>(HealAmount), /*Duration*/ 0);
+	SEM->ApplyEffect(Target, Heal, User, DisplayName, -1);
+	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
+	OutResult.bSuccess = true;
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Healing Stone: Healed %s for %d HP (%.0f%%)"),
+		   *Target->GetName(), OutResult.HealingDone, HealPercent);
 }
 
 void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
