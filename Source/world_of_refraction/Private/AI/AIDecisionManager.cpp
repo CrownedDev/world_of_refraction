@@ -10,6 +10,7 @@
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Combat/Damage/TierPowerConstants.h"
 #include "TimerManager.h"
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Defense/EDefenseType.h"
@@ -702,6 +703,10 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     // Output Log spam.
     Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
 
+    // Tier-power parity: mirror execution's own-tier damage multiplier (Spell->Tier, own —
+    // not channel) so the AI doesn't under-rate high-tier spells.
+    Estimate *= TierPowerScaling::GetTierPowerMultiplier(Spell->Tier);
+
     return FMath::RoundToInt(Estimate);
 }
 
@@ -770,6 +775,10 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     // the estimate self-heals if abilities ever get their own tier.
     Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
 
+    // Tier-power parity: mirror execution's own-tier damage multiplier (Ability->Tier, the
+    // ability's OWN authored tier — unlike tier-gap above, this is NOT the weapon channel).
+    Estimate *= TierPowerScaling::GetTierPowerMultiplier(Ability->Tier);
+
     return FMath::RoundToInt(Estimate);
 }
 
@@ -786,6 +795,10 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
         return 0.0f;
     }
 
+    // TODO (tier-power): this score reads raw CalculateStatusBuildup — it already omits the
+    // charge StatusMultiplier (pre-existing drift), so it also omits the own-tier power factor
+    // execution now applies to buildup. Scale Buildup by both here once the StatusMult drift is
+    // addressed; adding only TierPower now would be a partial fix. Out of scope for Cluster 2.
     const int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
     if (Buildup <= 0)
     {
@@ -822,6 +835,8 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
         return 0.0f;
     }
 
+    // TODO (tier-power): see EstimateStatusScore(Spell) — same omission. Raw buildup ignores both
+    // the charge StatusMultiplier and the own-tier power factor execution applies. Out of scope (Cluster 2).
     const int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
     if (Buildup <= 0)
     {

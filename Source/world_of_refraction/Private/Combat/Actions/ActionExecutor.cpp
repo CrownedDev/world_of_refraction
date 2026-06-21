@@ -46,6 +46,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Combat/Damage/TierGapConstants.h"
+#include "Combat/Damage/TierPowerConstants.h"
 #include "Combat/Damage/TierGapDamageDebug.h"
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
@@ -339,7 +340,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.SpellInfusionLevel, /*bIsSpell*/ true, Comp);
 			// Efficiency reduction — character substat + equipment BonusEfficiency.
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
+			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
+			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Action.SpellData->Tier);
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult);
 		}
 		break;
 
@@ -365,7 +368,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const UCharacterDataComponent *Comp = GetCharacterDataComponent(Actor);
 			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, Comp);
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult);
+			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
+			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult);
 		}
 		break;
 
@@ -1098,6 +1103,10 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	const float TierGapMult = ResolveTierGapMultiplier(Caster, Action, Spell->Name);
 	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
 
+	// Tier-power (own-tier): the spell's OWN authored tier scales damage up from the
+	// F=×1.0 floor (TierPowerConstants). Stacks with charge × tier-gap; all commutative.
+	FinalDamage = FMath::RoundToInt(FinalDamage * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier));
+
 	// 6-4: the live spell status multiplier — per-mode, stat-scaled (L0 → ×1.0). Logged here and
 	// applied to SpellBaseBuildup below (replaces the retired inline L1 +50%).
 	float StatusMultiplier = GetChargeStatusMultiplier(Action.SpellInfusionLevel, SpellMode, CasterComp);
@@ -1172,7 +1181,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	{
 		// 6-4: apply the unified per-mode stat-scaled status multiplier (computed above for the
 		// log) — replaces the retired inline L1 +50%. L0 → ×1.0; L1/L2 → progressive per-mode bonus.
-		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier);
+		// Own-tier power scales status buildup too (everything but effects).
+		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier));
 	}
 
 	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
@@ -1338,7 +1348,10 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// efficiency. Mirrors CalculateActionEnergyCost so validation and spend agree.
 		const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, UserComp);
 		const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
-		FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult);
+		// Own-tier power must mirror CalculateActionEnergyCost (this inline spend does NOT
+		// route through it) so the ability's spend stays equal to its preview/validation.
+		const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Ability->Tier);
+		FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult * PowerMult);
 	}
 
 	if (!SpendEnergy(User, FinalEnergyCost))
@@ -1373,6 +1386,11 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// multiplier above (RequirementPenalty already sits inside CalculateDamage).
 	const float TierGapMult = ResolveTierGapMultiplier(User, Action, Ability->Name);
 	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
+
+	// Tier-power (own-tier): the ability's OWN authored tier scales damage up from the
+	// F=×1.0 floor. NOTE Ability->Tier (own), NOT the weapon channel tier-gap reads.
+	// Stacks with charge × tier-gap; all commutative.
+	FinalDamage = FMath::RoundToInt(FinalDamage * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier));
 
 	// Spell Size (fixed, no character scaling)
 	float AttackSize = 1.0f;
@@ -1415,7 +1433,8 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// 6-4: scale ability status by the per-mode stat-scaled charge multiplier (L0 → ×1.0,
 		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
 		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp);
-		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult);
+		// Own-tier power scales status buildup too (everything but effects).
+		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier));
 	}
 
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
@@ -6184,19 +6203,24 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	int32 PreEffInfusedEP = 0;
 	{
 		int32 BaseCost = 0;
+		float PowerMult = 1.0f;
 		if (bIsSpellAction)
 		{
 			if (Action.SpellData)
 			{
 				BaseCost = Action.SpellData->CalculateEnergyCost(CommitCharData);
+				PowerMult = TierPowerScaling::GetTierPowerMultiplier(Action.SpellData->Tier);
 			}
 		}
 		else if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
 			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 			BaseCost = Skill->CalculateEnergyCost(CommitCharData, bIsInfused);
+			PowerMult = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
 		}
-		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp));
+		// Own-tier power mirrors the cost multiplier so the HP-infusion penalty basis tracks the
+		// now-tier-scaled EP cost (this block recomputes cost; it does NOT read CalculateActionEnergyCost).
+		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult);
 	}
 
 	// Route by source
