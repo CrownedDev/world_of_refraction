@@ -115,7 +115,10 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// RETURN WITHOUT storing. Placed BEFORE FindEffectByID + Effects.Add: an Instant never enters
 	// ActiveEffects, so it never matches the re-apply strength gate — policy-safe by construction.
 	// (Contrast ESkillEffectTiming::Immediate, which stores-then-tears-down via bPendingRemoval.)
-	if (Effect.ProcessTiming == ESkillEffectTiming::Instant)
+	// IsInstant() is the single derive point: the explicit Instant marker OR a zero-duration,
+	// non-permanent effect (the !bPermanent/!Persistent guard keeps authored gear auras, which
+	// use payload-duration-0 to mean PERMANENT, out of this lane).
+	if (Effect.IsInstant())
 	{
 		ApplyEffectLogic(Target, Effect);
 		OnEffectApplied.Broadcast(Target, Effect);

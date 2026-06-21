@@ -588,6 +588,19 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 		return FMath::Abs(EffectValue);
 	}
 
+	/** True instant: applies via its Server* primitive through ApplyEffect's gates, then
+	 *  returns WITHOUT being stored. Two signals, OR'd: an explicit ESkillEffectTiming::Instant
+	 *  author override, OR a zero-duration effect that is NOT permanent/persistent.
+	 *  ⚠️ The !bPermanent && !Persistent guard is load-bearing: in the AUTHORED gear/spell path
+	 *  (CreateAllFromSkillEffect) a payload Duration==0 means PERMANENT (equipment auras), with
+	 *  bPermanent=true + Persistent timing. Those must NOT read as instant. So duration-0 only
+	 *  derives instant for directly-built, non-permanent effects (e.g. item consumables). */
+	bool IsInstant() const
+	{
+		return ProcessTiming == ESkillEffectTiming::Instant ||
+			   (RemainingTurns == 0 && !bPermanent && ProcessTiming != ESkillEffectTiming::Persistent);
+	}
+
 	/** Check if can add another stack */
 	bool CanAddStack() const
 	{
