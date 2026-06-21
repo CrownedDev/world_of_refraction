@@ -321,7 +321,7 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 
 	// Attacks are physical unless infused. Per locked design, infused attacks
 	// still scale by RawDamage — the element only affects status routing.
-	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::Generic;
+	Input.Element = bIsInfused ? AttackerData->InnateElement : ESpellElement::None;
 
 	Input.bCanCrit = true;
 	Input.bWasInfused = bIsInfused;

@@ -56,9 +56,9 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	EActionType ActionType = EActionType::None;
 
-	/** Element type (if elemental) */
+	/** Element type (if elemental); None = non-elemental damage instance */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
-	ESpellElement Element = ESpellElement::Generic;
+	ESpellElement Element = ESpellElement::None;
 
 	/** Can this attack critically hit? */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
@@ -139,9 +139,9 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationResult
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
 	int32 StatusBuildup = 0;
 
-	/** Effective element of the attack */
+	/** Effective element of the attack; None = non-elemental */
 	UPROPERTY(BlueprintReadOnly, Category = "Result")
-	ESpellElement EffectiveElement = ESpellElement::Generic;
+	ESpellElement EffectiveElement = ESpellElement::None;
 
 	// Breakdown for debugging
 	UPROPERTY(BlueprintReadOnly, Category = "Result|Debug")
