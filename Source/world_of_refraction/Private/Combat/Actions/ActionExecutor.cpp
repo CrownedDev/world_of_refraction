@@ -1332,27 +1332,14 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 
 	// Calculate and spend energy
 	const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-	int32 BaseEnergyCost = Ability->CalculateEnergyCost(UserData, bIsInfused);
 
-	// Crystal-sourced abilities are powered by the crystal's stored charge, not the
-	// caster's EP — zero EP (they pay in durability via ApplyCommitCosts). Mirrors the
-	// ring/weapon-crystal spell waiver in CalculateActionEnergyCost.
-	int32 FinalEnergyCost = 0;
-	const bool bCrystalSource =
-		Action.SelectedSource == EInfusionSourceOption::ActiveRing ||
-		Action.SelectedSource == EInfusionSourceOption::PrimaryRing ||
-		Action.SelectedSource == EInfusionSourceOption::WeaponCrystal;
-	if (!bCrystalSource)
-	{
-		// Charge multiplier (x1.5/x2.0) x upside-only RawDamage surcharge (L>0), then
-		// efficiency. Mirrors CalculateActionEnergyCost so validation and spend agree.
-		const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, UserComp);
-		const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(User);
-		// Own-tier power must mirror CalculateActionEnergyCost (this inline spend does NOT
-		// route through it) so the ability's spend stays equal to its preview/validation.
-		const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Ability->Tier);
-		FinalEnergyCost = FMath::RoundToInt(BaseEnergyCost * CostMultiplier * EfficiencyMult * PowerMult);
-	}
+	// Cost is DRY-sourced from CalculateActionEnergyCost (ability branch) — the exact
+	// formula this used to inline (BaseCost × charge × efficiency × tier-power; crystal
+	// sources → 0; same rounding), so the spend stays equal to preview/validation.
+	// Consolidation also inherits the bIsDeferredFire → 0 early-out: a deferred ability
+	// fire now correctly SKIPS the spend here (it already paid full cost at arm via
+	// TryArmDeferredActivation), closing the latent double-charge the inline path had.
+	const int32 FinalEnergyCost = CalculateActionEnergyCost(User, Action);
 
 	if (!SpendEnergy(User, FinalEnergyCost))
 	{
