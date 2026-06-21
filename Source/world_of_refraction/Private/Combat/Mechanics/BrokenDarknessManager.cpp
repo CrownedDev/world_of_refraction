@@ -855,7 +855,23 @@ void UBrokenDarknessManager::OnDefenseResolved(EDefenseType DefenseType,
 		return;
 	}
 
-	// Check if element can be absorbed
+	// Reality cannot be absorbed — it UNMAKES the BD instead. Parrying/blocking a Reality
+	// attack DRAINS the would-be-gain energy and reverts the active pool to base Darkness
+	// (the cleanse), mirroring the Reality item path. Must run BEFORE the generic
+	// !CanAbsorbElement return below (CanAbsorbElement(Reality) is false, so the generic
+	// check would otherwise swallow Reality with no drain). A Generic spell resolved to
+	// Reality arrives here as AttackElement == Reality, so it is covered identically.
+	if (AttackElement == ESpellElement::Reality)
+	{
+		const float WouldBeGain = CalculateAbsorptionEnergy(DefenseType, AttackEnergyCost, bPerfect);
+		DrainAndRevertToBase(WouldBeGain); // drain that amount (clamped) + revert pool to Darkness
+		UE_LOG(LogTemp, Log,
+			   TEXT("BrokenDarkness: Reality parry/block — drained %.1f energy + reverted to base Darkness"),
+			   WouldBeGain);
+		return; // do NOT fall through to the normal absorb
+	}
+
+	// Check if element can be absorbed (other non-absorbable elements → nothing happens)
 	if (!CanAbsorbElement(AttackElement))
 	{
 		UE_LOG(LogTemp, Display, TEXT("BrokenDarkness: Cannot absorb %s element"),
