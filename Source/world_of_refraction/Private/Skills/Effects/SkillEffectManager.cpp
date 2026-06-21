@@ -108,6 +108,22 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	Effect.SourceTeamIndex = SourceTeam;
 	Effect.InitialDuration = Effect.RemainingTurns;
 
+	// INSTANT lane — a true one-shot. It has already passed the immunity + fires-once gates
+	// above (so it stays interceptable; HealBlock enforcement lands here in a later cluster).
+	// Run its Server* logic on this LOCAL effect via the type->primitive switch (ApplyEffectLogic
+	// only reads fields + calls Server*/subsystems — safe on a non-stored temp), broadcast, and
+	// RETURN WITHOUT storing. Placed BEFORE FindEffectByID + Effects.Add: an Instant never enters
+	// ActiveEffects, so it never matches the re-apply strength gate — policy-safe by construction.
+	// (Contrast ESkillEffectTiming::Immediate, which stores-then-tears-down via bPendingRemoval.)
+	if (Effect.ProcessTiming == ESkillEffectTiming::Instant)
+	{
+		ApplyEffectLogic(Target, Effect);
+		OnEffectApplied.Broadcast(Target, Effect);
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Instant %s applied to %s (Value: %.1f, not stored)"),
+			   *Effect.EffectName, *Target->GetName(), Effect.EffectValue);
+		return EEffectApplicationResult::Applied;
+	}
+
 	// Get or create effect array for this actor
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects.FindOrAdd(Target);
 
