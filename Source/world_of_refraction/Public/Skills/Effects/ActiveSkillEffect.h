@@ -300,7 +300,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		// Builds ONE runtime effect for a payload. The condition group + timing are
 		// shared across all payloads of the source (the trigger gates the whole bundle).
-		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, bool InDelayFirst, int32 SubIndex) -> FActiveSkillEffect
+		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, bool InDelayFirst, ESkillEffectTiming InTiming, int32 SubIndex) -> FActiveSkillEffect
 		{
 			FActiveSkillEffect Effect;
 			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
@@ -316,7 +316,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.bDelayFirstExecution = InDelayFirst;
 			Effect.RemainingTurns = InDuration;
 			Effect.InitialDuration = Effect.RemainingTurns;
-			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+			// Authored timing is the base; the OnTrigger promotion below overrides it when the
+			// effect carries owner-side conditions.
+			Effect.ProcessTiming = InTiming;
 
 			// Shared N-condition group: every payload gates on the same conditions.
 			// (F3a) The runtime legacy mirror fields TriggerCondition/SecondaryTriggerCondition/
@@ -353,7 +355,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				{
 					continue;
 				}
-				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, P.bDelayFirstExecution, p));
+				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, P.bDelayFirstExecution, P.ProcessTiming, p));
 			}
 		}
 
