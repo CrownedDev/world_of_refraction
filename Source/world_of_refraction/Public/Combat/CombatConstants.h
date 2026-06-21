@@ -51,8 +51,14 @@ namespace CombatConstants
     constexpr float PILLAR_MODIFIER_MIN = -15.0f; // Pillar percent floor (Mind/Body/Spirit)
     constexpr float PILLAR_MODIFIER_MAX = 15.0f;
 
-    // Substat generation budgets per tier (capacity points distributed across
-    // the 13 int substat fields by UEquipmentBonusGenerator).
+    // Substat generation budget — FIXED at every tier (TierPowerScaling §3). Gear rolls the
+    // same ~20 capacity points whether F or S; a higher-tier point is worth MORE via the
+    // per-point tier conversion (cluster 3c), not via a bigger budget. 20 ≈ the old mid-tier
+    // (C=21) value — a deliberate high-tier NERF on point COUNT, repaid by 3c on point VALUE.
+    constexpr int32 FIXED_SUBSTAT_BUDGET = 20;
+
+    // Superseded per-tier curve (TierPowerScaling §3 flipped budget to fixed; GetSubstatBudget
+    // no longer reads these). Retained for reference / possible per-tier reintroduction.
     constexpr int32 SUBSTAT_BUDGET_F = 6;
     constexpr int32 SUBSTAT_BUDGET_E = 10;
     constexpr int32 SUBSTAT_BUDGET_D = 15;
@@ -202,6 +208,10 @@ namespace CombatConstants
     constexpr float MAX_HEALTH_BASE = 100.0f;    // Base HP
     constexpr float MAX_HEALTH_CAP  = 1000.0f;   // HP ceiling at max investment (clamp bound, cluster 2)
     constexpr float MAX_HEALTH_PER_POINT = (MAX_HEALTH_CAP - MAX_HEALTH_BASE) / STAT_DERIVE_DENOM; // 100 -> 1000
+    // Gear MaxHP per-point rate (TierPowerScaling §5). Replaces the old flat +1 HP/point — gear
+    // pool-points were ~7× weaker than stat pool-points. ~46% of MAX_HEALTH_PER_POINT (6.487):
+    // gear ASSISTS pool investment without replacing the stat path. Retune in PIE.
+    constexpr float GEAR_MAX_HEALTH_PER_POINT = 3.0f;
 
     // Reflex - Widens the defense input window (additive seconds layered ON TOP of
     // UDefenseSystem::DefenseInputWindow; base stays tunable on the subsystem)
@@ -248,6 +258,10 @@ namespace CombatConstants
     constexpr float MAX_ENERGY_BASE = 50.0f;     // Base EP
     constexpr float MAX_ENERGY_CAP  = 1000.0f;   // EP ceiling at max investment (clamp bound, cluster 2)
     constexpr float MAX_ENERGY_PER_POINT = (MAX_ENERGY_CAP - MAX_ENERGY_BASE) / STAT_DERIVE_DENOM; // 50 -> 1000
+    // Gear MaxEnergy per-point rate (TierPowerScaling §5). Replaces the old flat +1 EP/point.
+    // ~51% of MAX_ENERGY_PER_POINT (6.849); 3.0/3.5 keeps gear HP and EP proportionally even
+    // since the EP pool runs slightly larger. Gear ASSISTS, doesn't replace stats. Retune in PIE.
+    constexpr float GEAR_MAX_ENERGY_PER_POINT = 3.5f;
 
     // Resistance - Reduces status effect damage & buildup (NOT elemental damage)
     constexpr float RESISTANCE_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 status resistance at max (UNIVERSAL_STAT_CAP; RESISTANCE_MAX stays the 1.0 hard ceiling)

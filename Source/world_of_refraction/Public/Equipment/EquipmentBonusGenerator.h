@@ -25,22 +25,15 @@
 
 namespace EquipmentBonusGen
 {
-    /** Tier → substat capacity budget. Reads constexpr values from CombatConstants.
-     *  Kept here (not in CombatConstants.h) so CombatConstants stays free of
-     *  EItemTier and can remain a leaf-level constants header. */
+    /** Substat capacity budget. FIXED at every tier (TierPowerScaling §3) — gear rolls the
+     *  same ~20 points regardless of tier. This is a deliberate high-tier NERF on point COUNT
+     *  (S used to roll 45); the per-point tier conversion (cluster 3c) repays it on point VALUE,
+     *  so a higher-tier point converts to MORE. NOT a regression. Signature kept (Tier ignored)
+     *  so callers are unchanged and a future per-tier reintroduction is a one-line revert. */
     inline int32 GetSubstatBudget(EItemTier Tier)
     {
-        switch (Tier)
-        {
-        case EItemTier::F_Tier: return CombatConstants::SUBSTAT_BUDGET_F;
-        case EItemTier::E_Tier: return CombatConstants::SUBSTAT_BUDGET_E;
-        case EItemTier::D_Tier: return CombatConstants::SUBSTAT_BUDGET_D;
-        case EItemTier::C_Tier: return CombatConstants::SUBSTAT_BUDGET_C;
-        case EItemTier::B_Tier: return CombatConstants::SUBSTAT_BUDGET_B;
-        case EItemTier::A_Tier: return CombatConstants::SUBSTAT_BUDGET_A;
-        case EItemTier::S_Tier: return CombatConstants::SUBSTAT_BUDGET_S;
-        default:                return 0;
-        }
+        (void)Tier;
+        return CombatConstants::FIXED_SUBSTAT_BUDGET;
     }
 
     /** Tier → pillar magnitude budget. */
