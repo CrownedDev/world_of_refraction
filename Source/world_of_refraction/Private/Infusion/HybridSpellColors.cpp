@@ -38,9 +38,8 @@ namespace
 
 FHybridSpellColorData UHybridSpellColors::GetHybridSpellColors(ESpellElement AbsorbedElement)
 {
-	// Pure BD (no absorption)
-	if (AbsorbedElement == ESpellElement::Generic || 
-		AbsorbedElement == ESpellElement::BrokenDarkness)
+	// Pure BD (no absorption) — Generic is the no-absorption sentinel from GetHybridElement
+	if (AbsorbedElement == ESpellElement::Generic)
 	{
 		return GetPureBrokenDarknessColors();
 	}
@@ -173,7 +172,7 @@ FHybridSpellColorData UHybridSpellColors::GetPureBrokenDarknessColors()
 	FLinearColor PureBlack = PURE_BD_SECONDARY;
 
 	return FHybridSpellColorData(
-		ESpellElement::BrokenDarkness,
+		ESpellElement::Darkness, // .Element is cosmetic/unread; underlying BD element is Darkness
 		PureDark,      // Primary: dark purple
 		PureBlack,     // Secondary: near black
 		PureDark,      // Blended: same as primary

@@ -47,8 +47,6 @@ namespace ElementColors
         case ESpellElement::Generic:
         case ESpellElement::None:
             return Generic; // None / Generic both paint the neutral (non-elemental) colour
-        case ESpellElement::BrokenDarkness:
-            return BrokenDarkness;
         default:
             return Generic;
         }
@@ -57,8 +55,8 @@ namespace ElementColors
     // For BrokenDarkness: blend black with absorbed element
     inline FLinearColor GetBrokenDarknessColor(ESpellElement AbsorbedElement)
     {
-        // No absorption = pure black
-        if (AbsorbedElement == ESpellElement::BrokenDarkness)
+        // No absorption = pure black (GetHybridElement defaults to Generic when nothing absorbed)
+        if (AbsorbedElement == ESpellElement::Generic)
         {
             return BrokenDarkness;
         }

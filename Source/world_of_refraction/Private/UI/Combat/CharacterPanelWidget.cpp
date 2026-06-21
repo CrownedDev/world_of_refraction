@@ -303,12 +303,9 @@ void UCharacterPanelWidget::ApplyStatusBarTint(ESpellElement PendingElement, AAc
 		}
 	}
 
-	// Non-BD attacker (or null Source) — raw element colour.
-	const FLinearColor BarColour = (PendingElement == ESpellElement::BrokenDarkness)
-		? ElementColors::BrokenDarkness
-		: ElementColors::GetColorForElement(PendingElement);
-
-	StatusBar->SetFillColorAndOpacity(BarColour);
+	// Non-BD attacker (or null Source) — raw element colour. (BD-source tinting handled above
+	// via IsBrokenDarkness(); PendingElement is always a real spell element here.)
+	StatusBar->SetFillColorAndOpacity(ElementColors::GetColorForElement(PendingElement));
 }
 
 void UCharacterPanelWidget::HandleEffectApplied(AActor *Target, const FActiveSkillEffect &Effect)
@@ -514,8 +511,7 @@ void UCharacterPanelWidget::ApplyEnergyBarTint()
 		if (BDManager)
 		{
 			const ESpellElement AbsorbedElement = BDManager->GetHybridElement();
-			if (AbsorbedElement == ESpellElement::Generic ||
-				AbsorbedElement == ESpellElement::BrokenDarkness)
+			if (AbsorbedElement == ESpellElement::Generic)
 			{
 				BarColour = ElementColors::BrokenDarkness;
 			}
