@@ -79,8 +79,9 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
 
     if (CharClass == ECharacterClass::Caster)
     {
-        // Darkness pool (InnateSpells) is always available. For Broken Darkness,
-        // also surface each element pool whose element has been absorbed.
+        // Non-BD Caster: the innate refraction pool. For Broken Darkness (Model B),
+        // surface ONLY the single active pool — the base Darkness pool (InnateSpells)
+        // when Darkness is active, otherwise the matching absorbed-element pool.
         Out.RefractionSpells = Loadout.InnateSpells;
 
         if (AActor *OwnerActor = LC->GetOwner())
@@ -89,13 +90,20 @@ FCombatCapabilities FCombatCapabilities::BuildFrom(
             UBrokenDarknessManager *BDManager = OwnerActor->FindComponentByClass<UBrokenDarknessManager>();
             if (CharComp && CharComp->IsBrokenDarkness() && BDManager)
             {
-                for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
+                const ESpellElement Active = BDManager->GetActivePool();
+                if (Active != ESpellElement::Darkness)
                 {
-                    if (BDManager->HasAbsorbedElement(Pool.Element))
+                    Out.RefractionSpells.Empty();
+                    for (const FBDElementSpellPool &Pool : Loadout.BDSpellPools)
                     {
-                        Out.RefractionSpells.Append(Pool.Spells);
+                        if (Pool.Element == Active)
+                        {
+                            Out.RefractionSpells = Pool.Spells;
+                            break;
+                        }
                     }
                 }
+                // Active == Darkness: keep the base InnateSpells pool (already set).
             }
         }
 

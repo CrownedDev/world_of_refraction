@@ -770,14 +770,14 @@ bool UBrokenDarknessManager::IsElementCastable(AActor *Actor,
 		return true;
 	}
 
-	// Broken Darkness: Darkness (the BD default) is always castable; every other
-	// element requires a session absorption. AbsorbedElements never contains
-	// Darkness, so the Darkness case is checked explicitly here. An equipped
-	// crystal channelling the element also unlocks the cast.
+	// Broken Darkness (Model B): the castable element is the SINGLE active pool
+	// (GetActivePool() — the most recent absorption, Darkness when seeded). Darkness
+	// is castable only when it IS the active pool: it is seeded as the base pool on
+	// transform and rotates like any other element, so there is no always-on Darkness.
+	// The equipped-crystal channel still unlocks an element regardless of the active pool.
 	if (CharComp->IsBrokenDarkness() && BDManager)
 	{
-		return Element == ESpellElement::Darkness
-			|| BDManager->HasAbsorbedElement(Element)
+		return Element == BDManager->GetActivePool()
 			|| ULoadoutComponent::HasEquippedSourceForElement(Actor, Element);
 	}
 
