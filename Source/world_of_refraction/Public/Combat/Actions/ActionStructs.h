@@ -258,9 +258,9 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
 	int32 BaseDamageBeforeDefense = 0;
 
-	/** Element of the attack (for resistance calculations) */
+	/** Element of the attack (for resistance calculations); None until resolved */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
-	ESpellElement AttackElement = ESpellElement::Generic;
+	ESpellElement AttackElement = ESpellElement::None;
 
 	// Per-target damage breakdown (for UI/logging)
 	TMap<AActor *, int32> DamagePerTarget;
@@ -304,9 +304,9 @@ struct WORLD_OF_REFRACTION_API FPendingDefenseContext
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
 	float AttackSize = 1.0f;
 
-	/** Element of the attack */
+	/** Element of the attack; None = non-elemental */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
-	ESpellElement Element = ESpellElement::Generic;
+	ESpellElement Element = ESpellElement::None;
 
 	/** Number of hits to apply */
 	UPROPERTY(BlueprintReadOnly, Category = "Defense")
@@ -603,10 +603,10 @@ struct WORLD_OF_REFRACTION_API FActionHitInput
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Damage")
 	bool bCanCrit = true;
 
-	/** Generic when the hit carries no element. Drives element-interaction and
+	/** None when the hit carries no element. Drives element-interaction and
 	 *  per-element resistance routing on the buildup side. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit")
-	ESpellElement Element = ESpellElement::Generic;
+	ESpellElement Element = ESpellElement::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action Hit|Infusion")
 	int32 InfusionLevel = 0;
