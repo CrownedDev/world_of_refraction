@@ -320,9 +320,24 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 		return;
 	}
 
-	// Living target — heal a percent of MaxHP
+	// Living target — route the heal through the instant lane (duration-0 HealthRestore) so it
+	// passes the HealBlock gate BEFORE applying. IsInstant() (duration 0, not permanent) sends it
+	// down the no-store lane: ApplyEffect runs the immunity gate, then ApplyEffectLogic heals via
+	// ServerHeal once. HealAmount is already the flat amount → HealthRestore (not RestoreHPPercent).
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
 	const int32 HPBefore = TargetComp->CurrentHP;
-	TargetComp->ServerHeal(HealAmount);
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Heal = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Heal"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::HealthRestore,
+		static_cast<float>(HealAmount), /*Duration*/ 0);
+	SEM->ApplyEffect(Target, Heal, User, DisplayName, -1);
 	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
 	OutResult.bSuccess = true;
 
@@ -350,7 +365,21 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 
 	const int32 EnergyAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxEP * EPPercent / CombatConstants::STAT_PERCENT_DIVISOR));
 	const int32 EPBefore = TargetComp->CurrentEP;
-	TargetComp->ServerGainEnergy(EnergyAmount);
+
+	// Route through the instant lane (duration-0 EnergyRestore): ApplyEffectLogic restores via
+	// ServerGainEnergy once, no store. No gate blocks EP today; future +energy mods can hook here.
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	FActiveSkillEffect Restore = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Energy"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::EnergyRestore,
+		static_cast<float>(EnergyAmount), /*Duration*/ 0);
+	SEM->ApplyEffect(Target, Restore, User, DisplayName, -1);
 	OutResult.EnergyRestored = TargetComp->CurrentEP - EPBefore;
 
 	// Lightning buildup is applied to the TARGET; the user remains the source.
@@ -766,7 +795,22 @@ void UItemExecutor::ExecuteSilenceEffect(AActor *User, AActor *Target, FCrystalI
 		const float SilencePercent = CrystalEffectTable::GetSilencePercentage(Id);
 		const int32 DrainAmount = FMath::RoundToInt(TargetComp->MaxEP * SilencePercent / CombatConstants::STAT_PERCENT_DIVISOR);
 		const int32 EPBefore = TargetComp->CurrentEP;
-		TargetComp->ServerSpendEnergy(DrainAmount);
+
+		// Route the one-shot energy-lock through the instant lane (duration-0 EnergyDrain):
+		// ApplyEffectLogic spends via ServerSpendEnergy once, no store. (S-rank lingering Silence
+		// above is unchanged — it stays a stored, duration-1 effect.)
+		USkillEffectManager *SEM = GetSkillEffectManager();
+		if (!SEM)
+		{
+			OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+			return;
+		}
+		const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+		FActiveSkillEffect Drain = FActiveSkillEffect::CreateBuff(
+			FString::Printf(TEXT("%s Energy Lock"), *DisplayName),
+			ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::EnergyDrain,
+			static_cast<float>(DrainAmount), /*Duration*/ 0);
+		SEM->ApplyEffect(Target, Drain, User, DisplayName, -1);
 
 		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Onyx: %s took %d EP drain (%.0f%% of MaxEP)"),
 			   *Target->GetName(), EPBefore - TargetComp->CurrentEP, SilencePercent);
