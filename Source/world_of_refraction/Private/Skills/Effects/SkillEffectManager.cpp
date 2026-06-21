@@ -1177,9 +1177,11 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 	// ==================== BAR-CAP GATE EFFECTS ====================
 	// Presence on the actor is what gates actions; ApplyEffectLogic is a no-op.
-	// Gate enforcement (Session Z):
+	// Gate enforcement:
 	//   Stun      -> ActionExecutor::ValidateAction blocks non-Attack/Defend
-	//   HealBlock -> CharacterDataComponent::ServerHeal early-returns 0
+	//   HealBlock -> IsImmuneToEffectType rejects HealthRestore/RestoreHPPercent at the
+	//                ApplyEffect gate (heals route through ApplyEffect) — presence here is
+	//                what that query checks for
 	//   Silenced  -> EP-cost gates check for active Silenced effect
 	case ESkillEffectType::Stun:
 	case ESkillEffectType::HealBlock:
@@ -1795,6 +1797,15 @@ bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType E
 		return HasEffectOfType(Actor, ESkillEffectType::GrantSilenceImmunity);
 	case ESkillEffectType::DOT:
 		return HasEffectOfType(Actor, ESkillEffectType::GrantDOTImmunity);
+	// HealBlock gates ALL healing on the TARGET ("this character can't be healed").
+	// A heal applied to a HealBlocked target is rejected here — the FIRST thing
+	// ApplyEffect does — so it catches both instant item heals and any heal routed
+	// through ApplyEffect, at one point. Keys on the heal TARGET (Actor == Target at
+	// the call site), not the healer. Revive (ServerResurrect) bypasses ApplyEffect
+	// entirely and is not a HealthRestore effect-type, so it stays ungated by design.
+	case ESkillEffectType::HealthRestore:
+	case ESkillEffectType::RestoreHPPercent:
+		return HasEffectOfType(Actor, ESkillEffectType::HealBlock);
 	default:
 		return false;
 	}
