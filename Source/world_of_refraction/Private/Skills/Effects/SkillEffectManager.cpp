@@ -108,6 +108,25 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	Effect.SourceTeamIndex = SourceTeam;
 	Effect.InitialDuration = Effect.RemainingTurns;
 
+	// INSTANT lane — a true one-shot. It has already passed the immunity + fires-once gates
+	// above (so it stays interceptable; HealBlock enforcement lands here in a later cluster).
+	// Run its Server* logic on this LOCAL effect via the type->primitive switch (ApplyEffectLogic
+	// only reads fields + calls Server*/subsystems — safe on a non-stored temp), broadcast, and
+	// RETURN WITHOUT storing. Placed BEFORE FindEffectByID + Effects.Add: an Instant never enters
+	// ActiveEffects, so it never matches the re-apply strength gate — policy-safe by construction.
+	// (Contrast ESkillEffectTiming::Immediate, which stores-then-tears-down via bPendingRemoval.)
+	// IsInstant() is the single derive point: a zero-duration, non-permanent effect. Permanent
+	// gear/auras are excluded via their explicit bPermanent toggle (no longer derived from
+	// duration-0, which now means INSTANT cleanly).
+	if (Effect.IsInstant())
+	{
+		ApplyEffectLogic(Target, Effect);
+		OnEffectApplied.Broadcast(Target, Effect);
+		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Instant %s applied to %s (Value: %.1f, not stored)"),
+			   *Effect.EffectName, *Target->GetName(), Effect.EffectValue);
+		return EEffectApplicationResult::Applied;
+	}
+
 	// Get or create effect array for this actor
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects.FindOrAdd(Target);
 
@@ -201,6 +220,19 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 
 	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Applied %s to %s (ID: %d, Duration: %d, Value: %.1f)"),
 		   *Effect.EffectName, *Target->GetName(), Effect.EffectID, Effect.RemainingTurns, Effect.EffectValue);
+
+	// Fire-on-application (Option A: new effects only). Re-applications return before this point
+	// (stronger/equal/weaker/stack all exit in the ExistingEffect branch above), so a rejected
+	// weaker re-app can never reach here — Option A safety by construction. Runs ApplyEffectLogic
+	// once on the STORED copy (Effects.Last()) so bProcessedThisTurn persists, then leaves the
+	// effect stored to keep ticking on its windows. Excludes Immediate (fires + tears down just
+	// below) and bDelayFirstExecution opt-outs; Instant already returned at the IsInstant() lane.
+	if (!Effects.Last().bDelayFirstExecution &&
+		Effects.Last().ProcessTiming != ESkillEffectTiming::Immediate)
+	{
+		ApplyEffectLogic(Target, Effects.Last());
+		Effects.Last().bProcessedThisTurn = true; // same-turn guard: skip a same-turn window re-fire
+	}
 
 	// Process immediate effects right away
 	if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
@@ -1161,9 +1193,11 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 	// ==================== BAR-CAP GATE EFFECTS ====================
 	// Presence on the actor is what gates actions; ApplyEffectLogic is a no-op.
-	// Gate enforcement (Session Z):
+	// Gate enforcement:
 	//   Stun      -> ActionExecutor::ValidateAction blocks non-Attack/Defend
-	//   HealBlock -> CharacterDataComponent::ServerHeal early-returns 0
+	//   HealBlock -> IsImmuneToEffectType rejects HealthRestore/RestoreHPPercent at the
+	//                ApplyEffect gate (heals route through ApplyEffect) — presence here is
+	//                what that query checks for
 	//   Silenced  -> EP-cost gates check for active Silenced effect
 	case ESkillEffectType::Stun:
 	case ESkillEffectType::HealBlock:
@@ -1779,6 +1813,15 @@ bool USkillEffectManager::IsImmuneToEffectType(AActor *Actor, ESkillEffectType E
 		return HasEffectOfType(Actor, ESkillEffectType::GrantSilenceImmunity);
 	case ESkillEffectType::DOT:
 		return HasEffectOfType(Actor, ESkillEffectType::GrantDOTImmunity);
+	// HealBlock gates ALL healing on the TARGET ("this character can't be healed").
+	// A heal applied to a HealBlocked target is rejected here — the FIRST thing
+	// ApplyEffect does — so it catches both instant item heals and any heal routed
+	// through ApplyEffect, at one point. Keys on the heal TARGET (Actor == Target at
+	// the call site), not the healer. Revive (ServerResurrect) bypasses ApplyEffect
+	// entirely and is not a HealthRestore effect-type, so it stays ungated by design.
+	case ESkillEffectType::HealthRestore:
+	case ESkillEffectType::RestoreHPPercent:
+		return HasEffectOfType(Actor, ESkillEffectType::HealBlock);
 	default:
 		return false;
 	}

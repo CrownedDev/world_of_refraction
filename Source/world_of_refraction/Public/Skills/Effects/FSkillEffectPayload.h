@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Skills/Effects/ESkillEffectType.h"
+#include "Skills/Effects/ESkillEffectTiming.h"
 #include "Combat/TargetType.h"
 #include "FSkillEffectPayload.generated.h"
 
@@ -34,6 +35,26 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",
               meta = (ClampMin = "0"))
     int32 Duration = 0;
+
+    /** When this effect ticks during its life (authored). Default Persistent matches the
+     *  prior hardcoded Build timing, so unauthored payloads behave as before. An OnTrigger
+     *  promotion still overrides this when the effect carries owner-side conditions. A
+     *  timing that doesn't fit a passively-read stat-buff is harmless (its logic is a no-op). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    ESkillEffectTiming ProcessTiming = ESkillEffectTiming::Persistent;
+
+    /** Explicit "never expires" toggle — author permanent gear/aura effects by ticking
+     *  THIS, not by setting Duration to 0. Permanent is now decoupled from duration-0
+     *  (which means INSTANT). When true, Duration is irrelevant (the effect is Persistent
+     *  and never ticks down). Default false. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    bool bPermanent = false;
+
+    /** Opt out of fire-on-application. Default false = the effect fires on apply (turn 0) then
+     *  ticks on its windows. True = no apply tick, windows only (e.g. a DOT that should not deal
+     *  its first tick on the cast turn). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    bool bDelayFirstExecution = false;
 
     /** Who receives this effect. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Targeting")

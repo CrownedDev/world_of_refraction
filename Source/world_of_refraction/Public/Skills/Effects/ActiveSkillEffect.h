@@ -201,6 +201,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(BlueprintReadOnly, Category = "Runtime")
 	bool bPendingRemoval = false;
 
+	/** Opt out of fire-on-application. Default false = the effect executes its logic on apply
+	 *  (turn 0) and then ticks on its ProcessTiming windows. True = skip the apply execution and
+	 *  only tick on windows (the pre-fire-on-apply behaviour, now opt-in). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Timing")
+	bool bDelayFirstExecution = false;
+
 	// ========================================
 	// CONSTRUCTORS
 	// ========================================
@@ -294,7 +300,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		// Builds ONE runtime effect for a payload. The condition group + timing are
 		// shared across all payloads of the source (the trigger gates the whole bundle).
-		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, int32 SubIndex) -> FActiveSkillEffect
+		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, bool InDelayFirst, ESkillEffectTiming InTiming, int32 SubIndex) -> FActiveSkillEffect
 		{
 			FActiveSkillEffect Effect;
 			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
@@ -302,10 +308,17 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.EffectID = EffectIdentity::PackEffectID(SourceID, EffectIndex, SubIndex);
 			Effect.EffectType = InType;
 			Effect.EffectValue = (InValue != 0) ? static_cast<float>(InValue) : (InMagnitude * 100.0f);
-			Effect.RemainingTurns = (InDuration > 0) ? InDuration : 1;
+			// Permanent is an EXPLICIT authored toggle now — NOT derived from duration-0.
+			//   InPermanent   -> never expires (Persistent timing; RemainingTurns irrelevant)
+			//   InDuration==0 -> INSTANT (RemainingTurns 0, NOT clamped; IsInstant() catches it)
+			//   InDuration>0  -> lingering (RemainingTurns = InDuration)
+			Effect.bPermanent = InPermanent;
+			Effect.bDelayFirstExecution = InDelayFirst;
+			Effect.RemainingTurns = InDuration;
 			Effect.InitialDuration = Effect.RemainingTurns;
-			Effect.bPermanent = (InDuration == 0);
-			Effect.ProcessTiming = ESkillEffectTiming::Persistent;
+			// Authored timing is the base; the OnTrigger promotion below overrides it when the
+			// effect carries owner-side conditions.
+			Effect.ProcessTiming = InTiming;
 
 			// Shared N-condition group: every payload gates on the same conditions.
 			// (F3a) The runtime legacy mirror fields TriggerCondition/SecondaryTriggerCondition/
@@ -342,7 +355,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				{
 					continue;
 				}
-				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, p));
+				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, P.bDelayFirstExecution, P.ProcessTiming, p));
 			}
 		}
 
@@ -586,6 +599,17 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	float Strength() const
 	{
 		return FMath::Abs(EffectValue);
+	}
+
+	/** True instant: applies via its Server* primitive through ApplyEffect's gates, then
+	 *  returns WITHOUT being stored. Duration-0 is the authoritative, SOLE signal — a
+	 *  zero-duration, non-permanent effect is instant. Permanent is now an explicit toggle
+	 *  (bPermanent), fully decoupled from duration-0, so the old Persistent guard is gone.
+	 *  (ESkillEffectTiming::Instant is now vestigial — duration-0 supersedes it; flagged for
+	 *  later removal, not deleted mid-arc.) */
+	bool IsInstant() const
+	{
+		return RemainingTurns == 0 && !bPermanent;
 	}
 
 	/** Check if can add another stack */

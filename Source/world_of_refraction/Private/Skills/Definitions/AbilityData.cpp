@@ -157,15 +157,18 @@ EDataValidationResult UAbilityData::IsDataValid(FDataValidationContext &Context)
                 FString::Printf(TEXT("Effect %d has DrainPercent but condition is not OnHit"), i + 1)));
         }
 
-        // Any buff/debuff payload with no duration.
+        // A buff/debuff must persist to do anything: either a positive Duration (lingering) or
+        // the explicit bPermanent toggle. Duration-0 is now INSTANT (valid for heal/damage), but
+        // an instant buff/debuff applies once and is never stored to be read back — a no-op. Warn
+        // only on that genuinely-malformed case: a buff/debuff that is neither lingering nor permanent.
         for (const FSkillEffectPayload &P : Effect.Payloads)
         {
             const bool bBuffDebuff = SkillEffectClassification::IsBuff(P.EffectType, P.Magnitude) ||
                                      SkillEffectClassification::IsDebuff(P.EffectType, P.Magnitude);
-            if (bBuffDebuff && P.Duration <= 0)
+            if (bBuffDebuff && P.Duration <= 0 && !P.bPermanent)
             {
                 Context.AddWarning(FText::FromString(
-                    FString::Printf(TEXT("Effect %d is a buff/debuff but has no duration"), i + 1)));
+                    FString::Printf(TEXT("Effect %d is a buff/debuff but is neither lingering (Duration>0) nor permanent (bPermanent) — it would apply once as instant and not persist"), i + 1)));
                 break;
             }
         }
