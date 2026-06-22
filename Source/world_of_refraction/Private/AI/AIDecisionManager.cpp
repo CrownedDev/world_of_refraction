@@ -795,15 +795,29 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
         return 0.0f;
     }
 
-    // TODO (tier-power): this score reads raw CalculateStatusBuildup — it already omits the
-    // charge StatusMultiplier (pre-existing drift), so it also omits the own-tier power factor
-    // execution now applies to buildup. Scale Buildup by both here once the StatusMult drift is
-    // addressed; adding only TierPower now would be a partial fix. Out of scope for Cluster 2.
-    const int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
+    // TODO(ai-parity): charge StatusMultiplier omitted — infusion level undecided at
+    //   score time; estimate uses un-infused (L0) baseline. tier-power + tier-gap applied.
+    int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
     if (Buildup <= 0)
     {
         return 0.0f;
     }
+
+    // Mirror the execution status site: own-tier power + tier-gap (the shared accessor the
+    // damage path uses). Build a local FAction so tier-gap resolves through the real spell
+    // catalyst channel — same provenance the damage estimator builds.
+    float TierFactor = TierPowerScaling::GetTierPowerMultiplier(Spell->Tier);
+    if (UActionExecutor *ActionExec = GetActionExecutor())
+    {
+        ULoadoutComponent *AttackerLoadout = Attacker->FindComponentByClass<ULoadoutComponent>();
+        FAction Action;
+        Action.ActionType = EActionType::Spell;
+        Action.SpellData = Spell;
+        Action.SpellSource = AttackerLoadout ? AttackerLoadout->ResolveSpellSource(Spell) : ESpellSource::Innate;
+        Action.Targets.Add(Target);
+        TierFactor *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
+    }
+    Buildup = FMath::RoundToInt(Buildup * TierFactor);
 
     // Target already carrying a dangerous status — extra buildup is low value.
     if (HasDangerousDebuff(Target))
@@ -835,13 +849,27 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
         return 0.0f;
     }
 
-    // TODO (tier-power): see EstimateStatusScore(Spell) — same omission. Raw buildup ignores both
-    // the charge StatusMultiplier and the own-tier power factor execution applies. Out of scope (Cluster 2).
-    const int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
+    // TODO(ai-parity): charge StatusMultiplier omitted — infusion level undecided at
+    //   score time; estimate uses un-infused (L0) baseline. tier-power + tier-gap applied.
+    int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
     if (Buildup <= 0)
     {
         return 0.0f;
     }
+
+    // Mirror the execution status site: own-tier power + tier-gap. Abilities channel
+    // through the active weapon (no SpellSource), so the local FAction needs only the
+    // type + skill — same shape the ability damage estimator builds.
+    float TierFactor = TierPowerScaling::GetTierPowerMultiplier(Ability->Tier);
+    if (UActionExecutor *ActionExec = GetActionExecutor())
+    {
+        FAction Action;
+        Action.ActionType = EActionType::Ability;
+        Action.SkillData = Ability;
+        Action.Targets.Add(Target);
+        TierFactor *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
+    }
+    Buildup = FMath::RoundToInt(Buildup * TierFactor);
 
     if (HasDangerousDebuff(Target))
     {

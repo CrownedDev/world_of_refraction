@@ -1209,7 +1209,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		// 6-4: apply the unified per-mode stat-scaled status multiplier (computed above for the
 		// log) — replaces the retired inline L1 +50%. L0 → ×1.0; L1/L2 → progressive per-mode bonus.
 		// Own-tier power scales status buildup too (everything but effects).
-		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier));
+		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
+		// same ladder/direction as damage — reuse the shared damage accessor.
+		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier) * GetTierGapDamageMultiplier(Caster, Action));
 	}
 
 	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
@@ -1448,7 +1450,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
 		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp);
 		// Own-tier power scales status buildup too (everything but effects).
-		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier));
+		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
+		// same ladder/direction as damage — reuse the shared damage accessor.
+		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier) * GetTierGapDamageMultiplier(User, Action));
 	}
 
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
