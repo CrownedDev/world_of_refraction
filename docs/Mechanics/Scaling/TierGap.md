@@ -4,7 +4,7 @@
 
 > **Renamed** from `TierGapDamage.md` on 2026-06-22 (the system outgrew damage-only — it now covers damage + status + effect magnitude + cost). Old links/grep: search `TierGap`.
 
-> **Related:** [`TierPowerScaling.md`](../Design/Completed/TierPowerScaling.md) — the separate own-tier *power* knob. Build/design history: [`TierGapConsolidation.md`](../Design/Completed/TierGapConsolidation.md) (the consolidation arc, completed).
+> **Related:** [`TierPowerScaling.md`](../../Design/Completed/TierPowerScaling.md) — the separate own-tier *power* knob. Build/design history: [`TierGapConsolidation.md`](../../Design/Completed/TierGapConsolidation.md) (the consolidation arc, completed).
 
 ## Concept
 
@@ -18,7 +18,7 @@ All three action types now carry a real gap, and the gap drives **four** output 
 
 | Knob | Keyed on | Direction | Scales effects? |
 |---|---|---|---|
-| **Tier-Power** ([`TierPowerScaling`](../Design/Completed/TierPowerScaling.md)) | the action's **own** tier (absolute strength) | higher own tier = bigger numbers (F=×1.00 … S=×4.80) | **No** |
+| **Tier-Power** ([`TierPowerScaling`](../../Design/Completed/TierPowerScaling.md)) | the action's **own** tier (absolute strength) | higher own tier = bigger numbers (F=×1.00 … S=×4.80) | **No** |
 | **Tier-Gap** (this doc) | the action's tier **vs the channel** (fit) | over-channelled = boost, mismatch = penalty | **Yes** |
 
 They **stack multiplicatively and independently**:
