@@ -1,9 +1,11 @@
 # Requirement Gap Scaling — Per-Pillar Substat Tier-Gap
 
-> **Status: DESIGN-LOCKED, NOT YET BUILT.**
-> Sibling of [`TierScalingConsolidation.md`](./TierScalingConsolidation.md) — shares the same tier-gap
-> ladder and the `WorldLevelToTier` helper. May merge into that arc at build time. When shipped, replaces
-> the √deficit penalty in `WorldStatRequirements` and this moves to `docs/Design/Completed/`.
+> **Status: COMPLETED — built + PIE-verified, merged to main (merge date TBD).**
+> Replaced the √deficit requirement penalty in `WorldStatRequirements` with per-pillar substat scaling on
+> the shared tier-gap ladder. Shipped reference: [`docs/Mechanics/RequirementGap.md`](../../Mechanics/RequirementGap.md).
+> **Build note:** the `WorldLevelToTier` helper proposed below was NOT needed — the shipped code gaps the raw
+> world levels directly (`Required − CharLevel`, clamped ±5) with no tier conversion. The once-mooted merge
+> with a `TierScalingConsolidation` arc did not happen; the shared ladder lives in `TierGapConstants.h`.
 
 ## What changes
 
@@ -113,11 +115,11 @@ Cross-system → survey-first. Touches the requirement/penalty path + action-mod
 
 ## Open / carry-over
 
-- **Cost** — substats-only, or substats **+** the explicit reciprocal cost term from
-  `TierScalingConsolidation`? Efficiency (Mind) already rides the pillar scaling, so cost nudges indirectly;
-  the question is whether to *also* apply the explicit reciprocal cost swing on top. **Undecided.**
-- **Pillar substat membership** — the build reads the live pillar definition, not the table above; if the
-  Reflex/RawDamage/etc. assignments have shifted, the live definition wins.
+- **Cost** — **RESOLVED: substats-only.** No separate reciprocal cost term was added; cost moves only via
+  Efficiency (a Mind substat) riding the pillar scaling. (The reciprocal *channel* cost ladder belongs to
+  the TierGap axis, not this one.)
+- **Pillar substat membership** — **RESOLVED:** the build reads the live `AddPillarPercent` definition
+  (Mind 5 / Body 4 / Spirit 2); the table earlier in this doc was stale. See `Mechanics/RequirementGap.md`.
 - **BD strain interaction** — strain still triggers on binary over-requirement. Whether strain should scale
   with *deficit depth* (a deeper underspec strains harder) is a separate future idea, not in this arc.
 
@@ -125,4 +127,5 @@ Cross-system → survey-first. Touches the requirement/penalty path + action-mod
 
 | Date | Change | Branch |
 | ---- | ------ | ------ |
-| (pending) | Design locked: √deficit requirement penalty replaced with per-pillar tier-gap substat scaling (RequirementGap = Required − CharLevel, shared ladder, AddPillarPercent feed). Symmetric, no low-req carve-out. Not yet built. | (tbd) |
+| (design) | Design locked: √deficit requirement penalty replaced with per-pillar tier-gap substat scaling (RequirementGap = Required − CharLevel, shared ladder, AddPillarPercent feed). Symmetric, no low-req carve-out. | (design) |
+| 2026-06-22 | **Built + PIE-verified.** Shipped in five clusters: **(1)** ±5 requirement ladder (new rungs gap −5→1.40, +5→0.32) + `GetRequirementGapMultiplier` + `USkillDataBase::GetRequirementGapPillarPercents` (pure add); **(2)** wired per-pillar percents into `ComputeActionStatModifiers` via `AddPillarPercent`; **(3)** retired the old √deficit penalty application at all 7 skill-asset sites (SpellData ×2, SkillDataBase ×2, AbilityData ×3 shadow copies); **(4)** `URequirementGapDebug` readout (drift-proof — reuses the live helper); **(5)** AI attack-estimate parity — rerouted the 3 attack-scoring sites from the duplicate `DamageCalculator::CalculateAttackDamage` to the execution-accurate `EstimateAbilityDamage` (attacks are `UAbilityData`), retiring that duplicate estimator from the scoring path, stripping the 8th penalty site inside it, and closing pre-existing tier-gap/tier-power AI attack drift latent since the TierGap arc. Penalty-calc functions (`CalculatePenalty`/`GetTotalDeficit`/`DoesSpellExceedRequirements`) retained for the BD strain deficit gate. | `feature/requirement-gap-scaling` |

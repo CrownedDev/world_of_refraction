@@ -153,10 +153,11 @@ effects.
   on `ExecutionType == Melee`.
 - **Visuals** — `ExecutionMontage`, `NormalVFX`, `InfusedVFX`,
   `ProjectileVFX` (Ranged-only).
-- **Damage** — `CalculateDamage(Character, bIsInfused)` returns
-  `BaseDamage * (1 - requirement penalty)`; the `RawDamage` multiplier is
-  applied once downstream by the DamageCalculator. `bIsInfused` no longer
-  affects the damage value.
+- **Damage** — `CalculateDamage(Character, bIsInfused)` returns `BaseDamage`
+  (attacker-side base); the `RawDamage` multiplier is applied once downstream by
+  the DamageCalculator. The old `× (1 - requirement penalty)` was removed —
+  requirement scaling is per-pillar via `ComputeActionStatModifiers` (see
+  `Mechanics/RequirementGap.md`). `bIsInfused` no longer affects the damage value.
 - **Energy** — `CalculateEnergyCost(Character, bIsInfused)`,
   `CalculateNormalEnergyCost()`, `CalculateInfusedEnergyCost()`.
 - **Status** — `CalculateStatusBuildup(Character)`.

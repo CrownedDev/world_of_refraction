@@ -46,10 +46,12 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 - **BLOCKED** — BD-states-as-effects: Elemental Charge (absorption stacks) + Overload as real effects. **HIGH risk** (demo-critical BD; ~8–10 readers, overload is derived state) — deferred from this arc's survey. Own arc + PIE pass.
 - **POSSIBLE** — OnDeath actual-death effects: real revive / death-rattle on **actual** death (`UCharacterDataComponent::OnDied` broadcast is the hook). Distinct from Last Stand, which pre-empts death.
 - **DONE** — TierGapConsolidation: four-dimension tier-gap (damage + status + effect magnitude + reciprocal cost) built + PIE-verified + matched-tier regression-clean; **merged to main 2026-06-22**. See `Design/Completed/TierGapConsolidation.md`. | 2026-06-22
-- **NEXT (active target)** — Original design queue advances to **RequirementGapScaling** → then DurabilityWearPercentRework, BrokenDarknessStrainTrigger, ItemProjectiles.
+- **BUILT — pending merge** — RequirementGapScaling: per-pillar requirement-gap substat scaling (±5 ladder) replaces the √deficit penalty; built + PIE-verified on `feature/requirement-gap-scaling`, **not yet merged to main**. See `Design/Completed/RequirementGapScaling.md`.
+- **NEXT (active target)** — Original design queue advances to **DurabilityWearPercentRework** → then BrokenDarknessStrainTrigger, ItemProjectiles.
 
 ## Small / unblocked
 
+- **CLEANUP** — Remove `UDamageCalculator::CalculateAttackDamage` — dead code, no live callers after RequirementGapScaling Cluster 5 (AI attack scoring routes through `EstimateAbilityDamage`); retirement note in source. Delete once confirmed unreferenced.
 - **CLEANUP** — Delete the legacy pillar fields (`Mind/Body/SpiritModifierPercent` on `UEvolutionItemData`) + their `PostLoad` copy block. Safe post-re-save — but first confirm the re-saved `.uasset`s are actually committed (none visible in git as of 2026-06-11; `DA_Test_EvoCrystal_Water` last committed pre-migration). Quick future commit.
 - **WATCH** — Double-reference effect-ID hazard: the future equip UI must forbid referencing the same owned instance in TWO slots of one loadout (shared `int32 InstanceID` effect-ID window, `ID*100+i` → apply/remove collisions). Cross-loadout sharing is safe (one active at a time). Enforce in the equip UI when built.
 - **POSSIBLE** — Preview-side `GetCombined*` helpers on `UEquipmentDataBase`: kept deliberately (no gameplay caller); revisit/delete only if no preview-display tooling materializes.
