@@ -47,7 +47,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
-#include "Combat/Damage/TierGapDamageDebug.h"
+#include "Debug/Combat/TierGapDamageDebug.h"
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Combat/CombatAnimInstance.h"
@@ -1415,8 +1415,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	float DamageMultiplier = GetChargeDamageMultiplier(Action.AbilityInfusionLevel, AbilityMode, /*bIsSpell*/ false, UserComp);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
-	// Tier-gap (B2): final multiplicative factor, stacking with the charge
-	// multiplier above (RequirementPenalty already sits inside CalculateDamage).
+	// Tier-gap (B2): final multiplicative factor, stacking with the charge multiplier
+	// above. (Requirement scaling now rides ActionMods per-pillar via
+	// ComputeActionStatModifiers, not a penalty inside CalculateDamage.)
 	const float TierGapMult = ResolveTierGapMultiplier(User, Action, Ability->Name);
 	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
 
@@ -6739,6 +6740,22 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 			Result.Accumulate(InfusionAttachment.Evolution.Item->GetInfusionStatModifiers(InfusionMultiplier));
 			Result.Accumulate(UEvolutionItemData::MapToInfusionModifiers(InfusionAttachment.Evolution.GeneratedStatBonus, InfusionMultiplier));
 		}
+	}
+
+	// 4. Requirement-gap pillar proficiency (RequirementGapScaling Cluster 2): a skill cast
+	// above your world-pillar level lands weaker (under-statted → penalty); below it lands
+	// stronger (over-statted → boost). Per-pillar percents stack additively alongside the
+	// Reality/evolution adds above. NOTE: the old √deficit penalty (SpellData/SkillDataBase/
+	// AbilityData) is still LIVE this cluster, so off-matched levels DOUBLE-count until it is
+	// retired in Cluster 3 — gap-0 is a no-op (all percents 0), the only PIE case this cluster.
+	const USkillDataBase *ReqSkill = (Action.ActionType == EActionType::Spell)
+										 ? Action.SpellData
+										 : ResolveActionSkill(Action);
+	if (ReqSkill && CharComp->CharacterData)
+	{
+		float MindPct = 0.0f, BodyPct = 0.0f, SpiritPct = 0.0f;
+		ReqSkill->GetRequirementGapPillarPercents(CharComp->CharacterData, MindPct, BodyPct, SpiritPct);
+		Result.AddPillarPercent(MindPct, BodyPct, SpiritPct);
 	}
 
 	return Result;

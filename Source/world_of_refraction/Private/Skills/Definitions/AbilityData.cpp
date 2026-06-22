@@ -32,8 +32,6 @@ int32 UAbilityData::CalculateDamage(UCharacterData *Character, bool bIsInfused) 
     // Infused branch removed — the element-infusion damage penalty was deleted
     // per the locked cost matrix, so bIsInfused no longer affects damage.
     float Damage = BaseDamage;
-    const float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Damage *= (1.0f - RequirementPenalty);
 
     return FMath::RoundToInt(Damage);
 }
@@ -64,9 +62,6 @@ int32 UAbilityData::CalculateNormalEnergyCost(UCharacterData *Character) const
 
     float Cost = BaseEnergyCost;
 
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Cost *= (1.0f + RequirementPenalty);
-
     return FMath::RoundToInt(Cost);
 }
 
@@ -76,9 +71,6 @@ int32 UAbilityData::CalculateInfusedEnergyCost(UCharacterData *Character) const
         return BaseEnergyCost;
 
     float Cost = BaseEnergyCost;
-
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Cost *= (1.0f + RequirementPenalty);
 
     Cost *= CombatConstants::INFUSION_ENERGY_MULTIPLIER;
 

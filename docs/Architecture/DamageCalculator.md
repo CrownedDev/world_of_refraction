@@ -55,9 +55,9 @@ Status buildup is **not** computed inside `CalculateDamage` — the comment note
 
 **Assembly-layer multipliers (applied by the caller, not here).** Charge/infusion (`GetChargeDamageMultiplier`), tier-gap (`GetTierGapDamageMultiplier`), and **tier-power** (`TierPowerScaling::GetTierPowerMultiplier` — the action's **own** authored tier, F..S curve ×1.00…×4.80, effects excluded) are applied by `ActionExecutor` when assembling the action's damage / status / cost — *outside* `CalculateDamage`. They stack multiplicatively on the base this subsystem returns. Gear bonuses read via `GetActiveStatBonus` are **tier-weighted at aggregation** (see `LoadoutSystem.md`). Full model: `TierPowerScaling.md` / `Mechanics/TierPower.md`.
 
-### `CalculateAttackDamage(Attacker, Target, Attack, bIsInfused)` — weapon convenience wrapper
+### `CalculateAttackDamage(Attacker, Target, Attack, bIsInfused)` — RETIRED (no live callers)
 
-Requires a non-null `Attack` (`USkillDataBase*` post the attack/ability merge — a `UAbilityData` with `bIsAttack=true`) and resolvable `UCharacterData`. Builds an `FDamageCalculationInput` with `BaseDamage = Attack->BaseDamage` (strict — no fallback; a `0` base deals `0`), `ActionType = Ability` (`EActionType::Attack` collapsed into `Ability` — both scale `RawDamage`, so this is unchanged numerically). Applies the attack's `CalculateRequirementPenalty` as a multiplicative reduction. Sets `Element` to the attacker `InnateElement` when infused, else `Generic` (infused attacks still scale by `RawDamage`; element only affects status routing). Sets `bCanCrit = true`, `HitCount = Attack->HitCount`, then delegates to `CalculateDamage`.
+> **Dead code as of RequirementGapScaling Cluster 5 (2026-06-22).** It builds a bare `FDamageCalculationInput` and delegates to `CalculateDamage`, but applies **none** of the assembly-layer multipliers the real attack path applies (req-gap / tier-gap / tier-power / expected-crit), so it diverged from execution. AI attack scoring now routes through `UAIDecisionManager::EstimateAbilityDamage` (attacks are `UAbilityData`), the execution-accurate path. Its old `× (1 − requirement penalty)` reduction was also removed — requirement scaling is per-pillar now (see `Mechanics/RequirementGap.md`). Kept with a retirement note in source pending confirmation it's unreferenced, then deleted.
 
 ### Component calculations
 
@@ -90,7 +90,7 @@ Requires a non-null `Attack` (`USkillDataBase*` post the attack/ability merge �
 - `UCharacterDataComponent` / `UCharacterData` — crystal-aware stat curves (`GetEvolutionModifiedRawDamage`, `GetEvolutionModifiedSpellDamage`, `GetEvolutionModifiedCritChance`, `GetEvolutionModifiedFlatDefense`, `GetEquipmentModifiedLuck`).
 - `ULoadoutComponent` — `GetActiveStatBonus` returning `FEquipmentStatBonus`.
 - `UBrokenDarknessManager` (actor component) — BD transform state for status-buildup amplification.
-- `UWeaponAttackData` — base damage / hit count / requirement penalty for `CalculateAttackDamage`.
+- Attack assets (`UAbilityData` with `bIsAttack=true` — `UWeaponAttackData` was merged away) — base damage / hit count. (The former `CalculateAttackDamage` requirement-penalty path is retired; requirement scaling is per-pillar via `ComputeActionStatModifiers` — see `Mechanics/RequirementGap.md`.)
 - `CombatConstants` — `RAW_DAMAGE_PER_POINT`, `SPELL_DAMAGE_PER_POINT`, `LUCK_RAW_MAX`, `CRIT_DMG_BASE`, `CRIT_DAMAGE_STAT_CAP`, `CRIT_DAMAGE_GEAR_CEILING`, `CRIT_DAMAGE_PER_POINT`. (`LUCK_CRIT_BONUS_MAX` was retired in 5e-C3 — see Step 4.)
 
 ### Systems that depend on it

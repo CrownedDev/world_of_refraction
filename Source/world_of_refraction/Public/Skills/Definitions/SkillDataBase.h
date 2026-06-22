@@ -352,6 +352,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "Skill|Requirements")
     float CalculateRequirementPenalty(const UCharacterData *Character) const;
 
+    /** Per-pillar requirement-gap percents for AddPillarPercent (whole-number percent:
+     *  5.0 = +5%). Each pillar independently maps (RequiredWorld{Pillar} - World{Pillar}Level)
+     *  through the ±5 requirement ladder. Null Character → all 0. Not wired into action
+     *  assembly yet (RequirementGapScaling Cluster 1 — pure add). */
+    UFUNCTION(BlueprintPure, Category = "Skill|Requirements")
+    void GetRequirementGapPillarPercents(const UCharacterData *Character,
+        float &OutMindPct, float &OutBodyPct, float &OutSpiritPct) const;
+
     // ==================== DAMAGE / ENERGY (shared) ====================
     // Hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the merged
     // FAction.SkillData (USkillDataBase*) path can compute damage/energy for BOTH attacks and

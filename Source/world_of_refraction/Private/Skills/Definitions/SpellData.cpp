@@ -86,8 +86,9 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     if (!Character)
         return 0;
 
-    // Attacker-side base: the skill-level BaseDamage. The bIsRawMode mult + requirement penalty below
-    // apply on it; the SpellDamage/Mind/element scaling runs downstream at ApplyHit (ActionType=Spell).
+    // Attacker-side base: the skill-level BaseDamage. The bIsRawMode mult below applies on it; the
+    // SpellDamage/Mind/element scaling runs downstream at ApplyHit (ActionType=Spell). Requirement
+    // proficiency now flows through ComputeActionStatModifiers (per-pillar), not a flat penalty here.
     const int32 EffectiveBase = BaseDamage;
 
     // Attacker-side base only. SpellDamage multiplier is applied once downstream
@@ -101,9 +102,6 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     {
         FinalDamage *= CombatConstants::RAW_MODE_DAMAGE_MULTIPLIER;
     }
-
-    const float RequirementPenalty = CalculateRequirementPenalty(Character);
-    FinalDamage *= (1.0f - RequirementPenalty);
 
     return FMath::RoundToInt(FinalDamage);
 }
@@ -144,10 +142,6 @@ int32 USpellData::CalculateEnergyCost(UCharacterData *Character) const
         return BaseEnergyCost;
 
     float Cost = BaseEnergyCost;
-
-    // Requirement penalty increases cost
-    float RequirementPenalty = CalculateRequirementPenalty(Character);
-    Cost *= (1.0f + RequirementPenalty);
 
     return FMath::RoundToInt(Cost);
 }

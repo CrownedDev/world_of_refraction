@@ -1,7 +1,7 @@
 // EffectDefinition.cpp
 
 #include "Skills/Effects/EffectDefinition.h"
-#include "Skills/Effects/SkillEffectDebug.h"
+#include "Debug/Skills/SkillEffectDebug.h"
 #include "Skills/Effects/EffectIdentity.h"
 #include "Loadout/LoadoutConstants.h"
 

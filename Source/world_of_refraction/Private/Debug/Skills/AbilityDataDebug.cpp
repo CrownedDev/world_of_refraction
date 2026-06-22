@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Skills/Definitions/AbilityDataDebug.h"
+#include "Debug/Skills/AbilityDataDebug.h"
 #include "Skills/Effects/FSkillEffect.h"
 #include "Engine/Engine.h"
 

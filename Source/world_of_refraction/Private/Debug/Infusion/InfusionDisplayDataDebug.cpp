@@ -1,7 +1,7 @@
 // InfusionDisplayDataDebug.cpp
 // Debug utilities implementation
 
-#include "Infusion/InfusionDisplayDataDebug.h"
+#include "Debug/Infusion/InfusionDisplayDataDebug.h"
 #include "Infusion/InfusionDisplayData.h"
 
 void UInfusionDisplayDataDebug::LogInfusionDisplayStats(UInfusionDisplayData *InfusionDisplay)

@@ -608,21 +608,15 @@ int32 UAIDecisionManager::EstimateBestDamage(AActor *Attacker, AActor *Target)
         }
     }
 
-    // Check weapon attack
-    USkillDataBase *Attack = Loadout->GetCurrentAttack();
-    if (Attack)
+    // Check weapon attack — route through the execution-accurate EstimateAbilityDamage
+    // (attacks are UAbilityData), so the estimate matches real attack execution on
+    // req-gap / tier-gap / tier-power / crit. CalculateAttackDamage (duplicate) retired.
+    if (USkillDataBase *Attack = Loadout->GetCurrentAttack())
     {
-        UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
-        if (DamageCalc)
+        if (UAbilityData *AttackAbility = Cast<UAbilityData>(Attack))
         {
-            FDamageCalculationResult DamageResult = DamageCalc->CalculateAttackDamage(Attacker, Target, Attack, false);
-            int32 AttackDamage = DamageResult.FinalDamage;
+            const int32 AttackDamage = EstimateAbilityDamage(Attacker, Target, AttackAbility, /*Level*/ 0, /*Source*/ EInfusionSourceOption::None);
             BestDamage = FMath::Max(BestDamage, AttackDamage);
-        }
-        else
-        {
-            // Fallback if DamageCalculator unavailable
-            BestDamage = FMath::Max(BestDamage, 50);
         }
     }
 
@@ -770,9 +764,9 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
         Estimate *= ActionExec->GetChargeDamageMultiplier(InfusionLevel, Mode, /*bIsSpell*/ false, AttackerComp);
     }
 
-    // Tier-gap parity (Cluster D): no-op today — abilities borrow the active
-    // weapon's tier for BOTH action and channel, so the gap is always 0. Kept so
-    // the estimate self-heals if abilities ever get their own tier.
+    // Tier-gap parity: abilities/attacks read their OWN authored tier (SkillData->Tier)
+    // gapped against the weapon channel (post-TierGap consolidation), so this is a real
+    // multiplier, not a no-op. Shared accessor — matches execution exactly.
     Estimate *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
 
     // Tier-power parity: mirror execution's own-tier damage multiplier (Ability->Tier, the
@@ -1390,17 +1384,13 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
         {
         case EAIActionChoice::Attack:
         {
-            // Score best attack from all weapons
-            UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
-            if (DamageCalc)
+            // Score best attack — route through EstimateAbilityDamage (attacks are
+            // UAbilityData) for execution parity; CalculateAttackDamage retired.
+            for (USkillDataBase *Attack : AllAttacks)
             {
-                for (USkillDataBase *Attack : AllAttacks)
+                if (UAbilityData *AttackAbility = Cast<UAbilityData>(Attack))
                 {
-                    if (Attack)
-                    {
-                        FDamageCalculationResult Result = DamageCalc->CalculateAttackDamage(AIActor, BestTarget, Attack, false);
-                        Score = FMath::Max(Score, Result.FinalDamage);
-                    }
+                    Score = FMath::Max(Score, EstimateAbilityDamage(AIActor, BestTarget, AttackAbility, /*Level*/ 0, /*Source*/ EInfusionSourceOption::None));
                 }
             }
             break;
@@ -1562,25 +1552,26 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
     {
     case EAIActionChoice::Attack:
     {
-        // Pick best attack from all weapons
+        // Pick best attack from all weapons — score via the execution-accurate
+        // EstimateAbilityDamage (attacks are UAbilityData), so selection matches what
+        // execution will actually deal. CalculateAttackDamage (duplicate) retired.
+        // Seed at -1 so the first castable attack always wins the comparison (BestAttack
+        // is set even when every estimate is 0 — preserves the old "always pick one").
         USkillDataBase *BestAttack = nullptr;
-        int32 BestAttackDamage = 0;
-        UDamageCalculator *DamageCalc = GetGameInstance()->GetSubsystem<UDamageCalculator>();
+        int32 BestAttackDamage = -1;
 
         for (USkillDataBase *Attack : Loadout->GetAllWeaponAttacks())
         {
-            if (Attack && DamageCalc)
+            UAbilityData *AttackAbility = Cast<UAbilityData>(Attack);
+            if (!AttackAbility)
             {
-                FDamageCalculationResult Result = DamageCalc->CalculateAttackDamage(AIActor, Action.Targets[0], Attack, false);
-                if (Result.FinalDamage > BestAttackDamage)
-                {
-                    BestAttackDamage = Result.FinalDamage;
-                    BestAttack = Attack;
-                }
+                continue;
             }
-            else if (Attack && !BestAttack)
+            const int32 AttackDamage = EstimateAbilityDamage(AIActor, Action.Targets[0], AttackAbility, /*Level*/ 0, /*Source*/ EInfusionSourceOption::None);
+            if (AttackDamage > BestAttackDamage)
             {
-                BestAttack = Attack; // Fallback if no DamageCalc
+                BestAttackDamage = AttackDamage;
+                BestAttack = Attack;
             }
         }
 

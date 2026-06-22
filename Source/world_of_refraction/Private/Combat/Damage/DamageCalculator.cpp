@@ -290,6 +290,10 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	USkillDataBase *Attack,
 	bool bIsInfused)
 {
+	// RETIREMENT NOTE: no live callers — AI attack scoring now routes through
+	// EstimateAbilityDamage (attacks are UAbilityData), the execution-accurate path that
+	// applies req-gap / tier-gap / tier-power / expected-crit. Kept (not deleted) pending
+	// confirmation; candidate for removal.
 	FDamageCalculationResult Result;
 
 	if (!Attack)
@@ -312,12 +316,10 @@ FDamageCalculationResult UDamageCalculator::CalculateAttackDamage(
 	Input.BaseDamage = Attack->BaseDamage;
 	Input.ActionType = EActionType::Ability; // attack/ability merge: Attack folded into Ability (both scale RawDamage)
 
-	// Apply requirement penalty (matches Ability/Spell pattern — multiplicative reduction).
-	const float RequirementPenalty = Attack->CalculateRequirementPenalty(AttackerData);
-	if (RequirementPenalty > 0.0f)
-	{
-		Input.BaseDamage = FMath::RoundToInt(static_cast<float>(Input.BaseDamage) * (1.0f - RequirementPenalty));
-	}
+	// Requirement scaling now flows per-pillar through ComputeActionStatModifiers, NOT a flat
+	// penalty here — the old (1 - sqrt-deficit) requirement-penalty multiply was removed
+	// (RequirementGapScaling). CalculateRequirementPenalty is retained only for the BD strain
+	// deficit gate; it is no longer applied to damage.
 
 	// Attacks are physical unless infused. Per locked design, infused attacks
 	// still scale by RawDamage — the element only affects status routing.

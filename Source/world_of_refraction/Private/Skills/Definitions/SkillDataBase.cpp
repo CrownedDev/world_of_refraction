@@ -7,6 +7,7 @@
 #include "Skills/Effects/EffectDefinition.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/TierGapConstants.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
 {
@@ -256,6 +257,29 @@ float USkillDataBase::CalculateRequirementPenalty(const UCharacterData *Characte
     return Requirements.CalculatePenalty(Character);
 }
 
+void USkillDataBase::GetRequirementGapPillarPercents(const UCharacterData *Character,
+    float &OutMindPct, float &OutBodyPct, float &OutSpiritPct) const
+{
+    OutMindPct = 0.0f;
+    OutBodyPct = 0.0f;
+    OutSpiritPct = 0.0f;
+    if (!Character)
+    {
+        return;
+    }
+
+    // Per-pillar gap = RequiredLevel - CharLevel (positive = under-statted). RAW world-pillar
+    // levels (0-7), NOT the GetEffective* multipliers. AddPillarPercent wants whole-number
+    // percent (5.0 = +5%), so percent = (mult - 1) * 100.
+    const int32 MindGap = Requirements.RequiredWorldMind - Character->WorldMindLevel;
+    const int32 BodyGap = Requirements.RequiredWorldBody - Character->WorldBodyLevel;
+    const int32 SpiritGap = Requirements.RequiredWorldSpirit - Character->WorldSpiritLevel;
+
+    OutMindPct = (TierGapDamage::GetRequirementGapMultiplier(MindGap) - 1.0f) * 100.0f;
+    OutBodyPct = (TierGapDamage::GetRequirementGapMultiplier(BodyGap) - 1.0f) * 100.0f;
+    OutSpiritPct = (TierGapDamage::GetRequirementGapMultiplier(SpiritGap) - 1.0f) * 100.0f;
+}
+
 // Damage / energy — hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the
 // merged FAction.SkillData path can compute these for both attacks and abilities. Bodies are
 // byte-identical to UAbilityData::CalculateDamage / CalculateNormalEnergyCost+CalculateInfusedEnergyCost
@@ -271,7 +295,6 @@ int32 USkillDataBase::CalculateDamage(const UCharacterData *Character, bool bIsI
     // Attacker-side base only — the RawDamage multiplier is applied once downstream by
     // DamageCalculator. bIsInfused no longer affects damage (element-infusion penalty removed).
     float Damage = BaseDamage;
-    Damage *= (1.0f - CalculateRequirementPenalty(Character));
     return FMath::RoundToInt(Damage);
 }
 
@@ -283,7 +306,6 @@ int32 USkillDataBase::CalculateEnergyCost(const UCharacterData *Character, bool 
     }
 
     float Cost = BaseEnergyCost;
-    Cost *= (1.0f + CalculateRequirementPenalty(Character));
     if (bIsInfused)
     {
         Cost *= CombatConstants::INFUSION_ENERGY_MULTIPLIER;

@@ -1,6 +1,6 @@
 // ScalingDebug.cpp
 
-#include "Combat/Damage/ScalingDebug.h"
+#include "Debug/Combat/ScalingDebug.h"
 #include "Combat/Damage/DamageCalculator.h"
 #include "Combat/Actions/EActionType.h"
 #include "Skills/Definitions/SkillDataBase.h"

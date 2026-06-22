@@ -1,7 +1,7 @@
 // StanceDataDebug.cpp
 // Debug utilities implementation
 
-#include "Character/StanceDataDebug.h"
+#include "Debug/Character/StanceDataDebug.h"
 #include "Character/StanceData.h"
 
 void UStanceDataDebug::LogStanceStats(UStanceData *Stance)

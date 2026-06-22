@@ -1,6 +1,6 @@
 // TierGapDamageDebug.cpp
 
-#include "Combat/Damage/TierGapDamageDebug.h"
+#include "Debug/Combat/TierGapDamageDebug.h"
 #include "Combat/Damage/TierGapConstants.h"
 
 void UTierGapDamageDebug::PrintTable()

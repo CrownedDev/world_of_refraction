@@ -1,6 +1,6 @@
 // EquipmentRollDebug.cpp
 
-#include "Equipment/EquipmentRollDebug.h"
+#include "Debug/Equipment/EquipmentRollDebug.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"

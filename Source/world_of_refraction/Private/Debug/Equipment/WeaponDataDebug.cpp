@@ -1,7 +1,7 @@
 // WeaponDataDebug.cpp
 // Debug utilities implementation
 
-#include "Equipment/Weapons/WeaponDataDebug.h"
+#include "Debug/Equipment/WeaponDataDebug.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Character/StanceData.h"
