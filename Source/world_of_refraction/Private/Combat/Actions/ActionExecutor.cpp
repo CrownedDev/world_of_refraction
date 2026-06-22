@@ -342,7 +342,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Action.SpellData->Tier);
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult);
+			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
+			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
 
@@ -370,7 +372,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult);
+			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
+			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
 
@@ -499,6 +503,19 @@ float UActionExecutor::GetTierGapDamageMultiplier(AActor *Actor, const FAction &
 		return TierGapDamage::MATCHED_TIER;
 	}
 	return TierGapDamage::GetTierGapDamageMultiplier(
+		ResolveActionTier(Actor, Action), ChannelTier.GetValue());
+}
+
+float UActionExecutor::GetTierGapCostMultiplier(AActor *Actor, const FAction &Action) const
+{
+	// Cost-side reciprocal of the damage gap — its OWN ladder (TierGapConstants
+	// COST_*), not the damage multipliers. Non-logging, same as the damage accessor.
+	const TOptional<EItemTier> ChannelTier = ResolveChannelTier(Actor, Action);
+	if (!ChannelTier.IsSet())
+	{
+		return TierGapDamage::MATCHED_COST;
+	}
+	return TierGapDamage::GetTierGapCostMultiplier(
 		ResolveActionTier(Actor, Action), ChannelTier.GetValue());
 }
 
@@ -6309,7 +6326,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 		// Own-tier power mirrors the cost multiplier so the HP-infusion penalty basis tracks the
 		// now-tier-scaled EP cost (this block recomputes cost; it does NOT read CalculateActionEnergyCost).
-		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult);
+		// Tier-gap cost (Cluster 3a): the HP-infusion basis tracks the now-gap-scaled
+		// EP cost, so the reciprocal gap flows through to the HP penalty too.
+		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 	}
 
 	// Route by source

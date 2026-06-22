@@ -344,6 +344,12 @@ public:
 	 *  both real damage (B2 assembly points) and AI damage previews. */
 	float GetTierGapDamageMultiplier(AActor *Actor, const FAction &Action) const;
 
+	/** Tier-gap COST multiplier for an action (Cluster 3a): reciprocal of the
+	 *  damage gap — its own ladder (TierGapConstants COST_*). 1.0 when no channel
+	 *  resolves. Applied at the cost sites (CalculateActionEnergyCost) and the
+	 *  HP-infusion basis (ApplyCommitCosts). Does NOT reuse the damage multiplier. */
+	float GetTierGapCostMultiplier(AActor *Actor, const FAction &Action) const;
+
 	/** Check if target is alive */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	bool IsTargetAlive(AActor *Target) const;

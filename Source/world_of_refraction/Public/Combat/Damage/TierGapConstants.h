@@ -65,4 +65,58 @@ namespace TierGapDamage
             return MATCHED_TIER; // unreachable — gap fully covered above
         }
     }
+
+    // ===================== COST (reciprocal) =====================
+    // Cost-side tier gap. RECIPROCAL of the damage ladder above: a channel that
+    // out-tiers the action (negative gap) makes the action CHEAPER (< 1.0); an
+    // action that out-tiers its channel (positive gap) costs MORE (> 1.0). This
+    // is its OWN ladder — it does not reuse the damage multipliers. Starting
+    // values, tune after PIE.
+    constexpr float COST_GAP_NEG4_PLUS = 0.77f;   // gap <= -4
+    constexpr float COST_GAP_NEG3 = 0.83f;
+    constexpr float COST_GAP_NEG2 = 0.88f;
+    constexpr float COST_GAP_NEG1 = 0.94f;
+    constexpr float MATCHED_COST = 1.00f;         // gap 0
+    constexpr float COST_GAP_1 = 1.11f;
+    constexpr float COST_GAP_2 = 1.28f;
+    constexpr float COST_GAP_3 = 1.56f;
+    constexpr float COST_GAP_4_PLUS = 2.00f;      // gap >= +4
+
+    /** Cost multiplier for an action of ActionTier used through a channel of
+     *  ChannelTier. 1.0 at matched tier; callers with no resolvable channel
+     *  should skip the call (no scaling) rather than invent a channel tier. */
+    inline float GetTierGapCostMultiplier(EItemTier ActionTier, EItemTier ChannelTier)
+    {
+        const int32 Gap = FMath::Clamp(
+            TierHelpers::GetTierGap(ChannelTier, ActionTier), -GAP_CLAMP, GAP_CLAMP);
+
+        if (Gap <= -4)
+        {
+            return COST_GAP_NEG4_PLUS;
+        }
+        if (Gap >= 4)
+        {
+            return COST_GAP_4_PLUS;
+        }
+
+        switch (Gap)
+        {
+        case -3:
+            return COST_GAP_NEG3;
+        case -2:
+            return COST_GAP_NEG2;
+        case -1:
+            return COST_GAP_NEG1;
+        case 0:
+            return MATCHED_COST;
+        case 1:
+            return COST_GAP_1;
+        case 2:
+            return COST_GAP_2;
+        case 3:
+            return COST_GAP_3;
+        default:
+            return MATCHED_COST; // unreachable — gap fully covered above
+        }
+    }
 }
