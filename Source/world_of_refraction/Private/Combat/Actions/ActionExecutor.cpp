@@ -402,6 +402,14 @@ EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Actio
 		return Action.SpellData->Tier;
 	}
 
+	// Ability/attack: read the action's OWN authored tier (merged ability/attack
+	// SkillData), so it can gap against the weapon channel. Falls back to the
+	// weapon tier only if the skill can't resolve (safety).
+	if (const USkillDataBase *Skill = ResolveActionSkill(Action))
+	{
+		return Skill->Tier;
+	}
+
 	if (UWeaponManager *WeaponMgr = GetWeaponManager())
 	{
 		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
