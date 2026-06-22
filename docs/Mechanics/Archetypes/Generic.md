@@ -22,7 +22,7 @@ school. **But they can still cast** — by borrowing magic from **equipped cryst
 weapon crystal, or an evolution slot lends them its element and its spells.
 
 - A Generic with a **Fire ring** casts **Fire** spells.
-- A [Generic spell](../GenericSpells.md) (a basic "Ball"/"Bolt" template) slotted into that ring
+- A [Generic spell](../Magic/GenericSpells.md) (a basic "Ball"/"Bolt" template) slotted into that ring
   becomes that element — a Generic "Ball" on a Fire crystal is a **"Fire Ball"**.
 
 So think of a Generic as a **weapon-first fighter who borrows magic from their gear**, not an
@@ -40,5 +40,5 @@ steel, easier to burn down with spells.
 
 ## See also
 
-- [Generic spells](../GenericSpells.md) — the "borrow the crystal's element" spells a Generic leans on.
+- [Generic spells](../Magic/GenericSpells.md) — the "borrow the crystal's element" spells a Generic leans on.
 - [Items](../Items/Crystals.md) — crystals (which lend elements to a Generic's gear).

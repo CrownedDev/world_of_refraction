@@ -49,5 +49,5 @@ same item (the order you fused the two halves doesn't matter).
 
 ## See also
 
-- [Augment Stones](AugmentStones.md) — the stones you fuse together.
-- [Crystals](Crystals.md) — the elemental gems that can be a fusion half.
+- [Augment Stones](./AugmentStones.md) — the stones you fuse together.
+- [Crystals](./Crystals.md) — the elemental gems that can be a fusion half.

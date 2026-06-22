@@ -95,7 +95,7 @@ The carrier produced by the gather accessors: `{ int32 DefID, int32 BundleIndex,
 
 ### `ESkillEffectType` (`UENUM(BlueprintType)`)
 
-The unified, **element-agnostic** status type enum (unchanged this branch). Effects are generic mechanics; the element (`ESpellElement`) supplies the display name (`DOT` + `Fire` = "Burn"). Categories: core status-bar triggers, pillar/sub-stat buff-debuff pairs, utility (`HealthRestore`, `EnergyRestore`, …), special combat (`SelfDamage`), debuff removal (`CleanseSelf`/`CleanseAllies`, `RemoveSpeedDebuff`, …), bar-cap gate effects (`Stun`, `HealBlock`, `Silenced`, `RandomSkill`), the Phase 2 passive layer (`Modify*`, `Restore*Percent`, `Drain*`, reflect types, `Grant*Immunity`, `Apply*ToTarget`, `ExtraAction`, `GuaranteedCrit`, `IgnoreDefense`, `DoubleHit`, `Revive`), and the sweep-4 gauge manipulators (`StatusIncrease`/`StatusDecrease`). New values are **appended only** to preserve `.uasset` enum-by-value stamping.
+The unified, **element-agnostic** status type enum (unchanged this branch). Effects are generic mechanics; the element (`ESpellElement`) supplies the display name (`DOT` + `Fire` = "Burn"). Categories: core status-bar triggers, pillar/sub-stat buff-debuff pairs, utility (`HealthRestore`, `EnergyRestore`, …), special combat (`SelfDamage`), debuff removal (`CleanseSelf`/`CleanseAllies`, `RemoveSpeedDebuff`, …), bar-cap gate effects (`Stun`, `HealBlock`, `Silenced`, `RandomSkill`), the Phase 2 passive layer (`Modify*`, `Restore*Percent`, `Drain*`, reflect types, `Grant*Immunity`, `Apply*ToTarget`, `ExtraAction`, `GuaranteedCrit`, `IgnoreDefense`, `DoubleHit`, `LastStand` (formerly `Revive`, now live — see below)), and the sweep-4 gauge manipulators (`StatusIncrease`/`StatusDecrease`). New values are **appended only** to preserve `.uasset` enum-by-value stamping.
 
 ### `ESkillTrigger` (`UENUM(BlueprintType)`)
 
@@ -193,7 +193,7 @@ A large `switch` on `EffectType` using `GetStackedValue()` (unchanged this branc
 - `RestoreHPPercent` / `RestoreEnergyPercent` — percent of `MaxHP`/`MaxEP`.
 - `CleanseSelf` / `CleanseAllies` — `RemoveAllDebuffs` on self / each ally.
 - `ExtraAction` — `UTurnManager::RequestExtraTurn`.
-- `RandomSkill`, `GuaranteedCrit`, `IgnoreDefense`, `DoubleHit`, `Revive` — log-only stubs (see Known Limitations).
+- `RandomSkill`, `GuaranteedCrit`, `IgnoreDefense`, `DoubleHit` — log-only stubs (see Known Limitations). `LastStand` (formerly `Revive`) is **live** — death-denial via `USkillEffectManager::ConsumeLastStandCharge` (best-of-N, restores HP%, consumes a charge).
 - `StatusIncrease` / `StatusDecrease` — instant gauge build/drain via `UStatusBuildupManager` (`AddStatusBuildup` / `ReduceStatusBuildupByAmount`). Element/value handling per the tables below.
 
 #### `StatusIncrease` / `StatusDecrease` element & value
@@ -248,7 +248,7 @@ Bound to `UActionExecutor::OnDamageDealt`. When the attacker carries the effect:
 
 - **`RandomSkill` unimplemented** — `ApplyEffectLogic` logs a warning; full implementation pending.
 - **`Apply*ToTarget` Phase B hook** — the working path today is the manager's own `OnDamageDealtHandler`; the broader `ActionExecutor` OnHit/OnCrit broadcast is still pending.
-- **`GuaranteedCrit` / `IgnoreDefense` / `DoubleHit` / `Revive`** — `ApplyEffectLogic` cases are log-only.
+- **`GuaranteedCrit` / `IgnoreDefense` / `DoubleHit`** — `ApplyEffectLogic` cases are log-only. (`LastStand`, formerly `Revive`, is **live** — see `USkillEffectManager::ConsumeLastStandCharge`.)
 - **Per-element immunities** — `Grant<Element>Immunity` is enforced only in `UStatusBuildupManager::AddStatusBuildup` (which has `Element` in scope); `ApplyEffect`'s immunity check covers only `Stun`/`Silenced`/`DOT`.
 - **Defender-trigger element is `Generic`** — defense-fired effects have no cast context, so DOT/status payloads fired this way don't inherit an element (acceptable for the current gear authoring).
 - **Attacker-perspective is `Target`-subject only** — "react to how my target defended" works via `ECondSubject::Target`/`TargetTeam`; there is no separate attacker-side trigger and no accuracy-miss trigger (flagged future axes).

@@ -32,7 +32,7 @@ just bigger numbers.
 > **Sapphire is now "defy death," not a heal.** On a **living** target it grants **Last Stand** — a
 > tier-scaled **ward**: if they would die within the window, they instead **survive at 50% max HP**
 > (one death absorbed). On a **dead** target it **revives** them at **30% max HP**. Higher tiers
-> give a **longer ward window**. The old plain **heal moved to the [Healing Stone](AugmentStones.md)**.
+> give a **longer ward window**. The old plain **heal moved to the [Healing Stone](./AugmentStones.md)**.
 
 ## Status buildup
 
@@ -63,8 +63,8 @@ So against a Broken Darkness enemy: **never feed them an elemental crystal**, an
 
 - [Reality](../Archetypes/Reality.md) — the any-element Refractor; Iolite is its crystal.
 - [Broken Darkness](../Archetypes/BrokenDarkness.md) — the form the three-way interaction targets.
-- [Generic spells](../GenericSpells.md) — a crystal slotted into a weapon/ring turns a Generic spell into that element.
+- [Generic spells](../Magic/GenericSpells.md) — a crystal slotted into a weapon/ring turns a Generic spell into that element.
 
 > **Note:** **augment stones** and **fusion stones** are a separate item family — they grant
-> mechanical bonuses, not elements. See [Augment Stones](AugmentStones.md) and
-> [Fusion Stones](FusionStones.md).
+> mechanical bonuses, not elements. See [Augment Stones](./AugmentStones.md) and
+> [Fusion Stones](./FusionStones.md).

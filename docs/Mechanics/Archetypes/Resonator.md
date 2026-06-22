@@ -11,10 +11,13 @@ fragile**.
 
 ## How it casts
 
-- **Spells come from rings.** A Resonator has **multiple ring slots** and can even **stack rings
-  of the same element** to lean hard into one school.
-- **No innate element** — your element is whatever your equipped ring provides. Change rings,
-  change what you can cast.
+- **Spells come from rings.** Rings are **element-bearing spell-carriers** — a ring's element
+  comes from its **attached crystal**, so equipping a ring is what gives you that element.
+- **No innate element** — your element is whatever your equipped rings provide. Change rings,
+  change what you can cast; you can stack rings of the same element to lean into one school.
+- **Slot-cost budget, not a fixed count.** Equipped rings fit a **unified slot-cost budget** (a
+  normal ring costs 1, an evolved ring 2, shared with the primary slot) — there is **no fixed
+  ring-slot count and no per-element cap**. See [Equipment slots](../Gear/EquipmentSlots.md).
 
 ## Resource quirk — armed to spend
 
@@ -27,12 +30,13 @@ alive.
 
 **Rings break.** They take wear as you use them, and a broken ring stops working until repaired
 or replaced. That fragility is the cost of the Resonator's freedom — you can be any element, but
-your tools are disposable. (See [Durability & wear](../DurabilityWear.md).)
+your tools are disposable. (See [Durability & wear](../Gear/DurabilityWear.md).)
 
 Defensively, a Resonator is the **weakest against physical attacks** — the mirror of the
-[Generic](Generic.md)'s physical tankiness.
+[Generic](./Generic.md)'s physical tankiness.
 
 ## See also
 
-- [Durability & wear](../DurabilityWear.md) — how rings wear and break.
+- [Equipment slots](../Gear/EquipmentSlots.md) — the ring slot-cost budget.
+- [Durability & wear](../Gear/DurabilityWear.md) — how rings wear and break.
 - [Items](../Items/Crystals.md) — crystals, which carry the elements a Resonator's rings channel.

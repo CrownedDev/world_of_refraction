@@ -34,9 +34,9 @@ Refractor**, just in a different colour. Picking an element only changes three t
 
 3. **Colour** — the look of your spells.
 
-Two elements are special enough to get their own pages: **[Reality](Reality.md)** (the
+Two elements are special enough to get their own pages: **[Reality](./Reality.md)** (the
 any-element Refractor) and a **Darkness Refractor who breaks** under strain becomes
-**[Broken Darkness](BrokenDarkness.md)**.
+**[Broken Darkness](./BrokenDarkness.md)**.
 
 ## Spell pool
 
@@ -44,7 +44,7 @@ A Refractor's spells are bound by **two limits at once**: a **per-school spell c
 **point budget** — stronger (higher-tier) spells cost more of that budget, so you trade breadth
 for power. **Mastery** (investing in your world stats) makes spells cheaper as you specialise,
 widening your arsenal. The exact counts, budget, and discounts are in
-[Spell Pools — Count & Budget](../SpellPoolBudget.md).
+[Spell Pools — Count & Budget](../Magic/SpellPoolBudget.md).
 
 ## Weather
 
@@ -59,6 +59,6 @@ Regular **EP**.
 
 ## See also
 
-- [Reality](Reality.md) — a Refractor whose element is Reality (the any-element caster + the Broken Darkness counter).
-- [Broken Darkness](BrokenDarkness.md) — a Darkness Refractor that has broken.
-- [Spell Pools — Count & Budget](../SpellPoolBudget.md) — the spell-count + budget numbers.
+- [Reality](./Reality.md) — a Refractor whose element is Reality (the any-element caster + the Broken Darkness counter).
+- [Broken Darkness](./BrokenDarkness.md) — a Darkness Refractor that has broken.
+- [Spell Pools — Count & Budget](../Magic/SpellPoolBudget.md) — the spell-count + budget numbers.

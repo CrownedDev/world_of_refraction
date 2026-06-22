@@ -89,17 +89,17 @@ Reality reverses it. Two ways it hits you:
 you lose the element you'd stolen and snap back to black. You stay Broken Darkness (you don't turn
 back into a normal Refractor), but you're cleansed and drained: your built-up energy is gone and
 your stolen element is unmade. Reality is the answer to a Broken Darkness that has built up a
-dangerous pool — see [Reality](Reality.md).
+dangerous pool — see [Reality](./Reality.md).
 
 ## Generic spells in a Broken Darkness pool
 
-A [Generic spell](../GenericSpells.md) (a basic "Ball"/"Bolt" template that takes its source's
+A [Generic spell](../Magic/GenericSpells.md) (a basic "Ball"/"Bolt" template that takes its source's
 element) slotted into a Broken Darkness pool becomes that pool's element, darkened — a Generic
 "Ball" in your Fire pool is a **"Dark Fire Ball"**, in your base pool a **"Darkness Ball"**. As
 you rotate pools, the same Generic spell re-flavours with you.
 
 ## See also
 
-- [Reality](Reality.md) — the any-element Refractor and Broken Darkness's hard counter.
-- [Generic spells](../GenericSpells.md) — which become "Dark X" in a BD pool.
+- [Reality](./Reality.md) — the any-element Refractor and Broken Darkness's hard counter.
+- [Generic spells](../Magic/GenericSpells.md) — which become "Dark X" in a BD pool.
 - [Items](../Items/Crystals.md) — Iolite (the Reality "cleanse" crystal) and the other crystals.

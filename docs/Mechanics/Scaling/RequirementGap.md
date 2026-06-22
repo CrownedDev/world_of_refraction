@@ -2,7 +2,7 @@
 
 **Status:** Live — shipped & PIE-verified (2026-06-22, branch `feature/requirement-gap-scaling`). Reference doc — describes shipped behaviour; do not change the implementation from this doc.
 
-> **Related:** [`TierGap.md`](./TierGap.md) (the channel-mismatch axis — same ladder shape), [`TierPower.md`](./TierPower.md) (own-tier power). Build/design history: [`RequirementGapScaling.md`](../Design/Completed/RequirementGapScaling.md).
+> **Related:** [`TierGap.md`](./TierGap.md) (the channel-mismatch axis — same ladder shape), [`TierPower.md`](./TierPower.md) (own-tier power). Build/design history: [`RequirementGapScaling.md`](../../Design/Completed/RequirementGapScaling.md).
 
 ## Concept
 

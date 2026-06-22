@@ -18,12 +18,12 @@ Where a Fire Refractor is locked to Fire and a Wind Refractor to Wind, **a Reali
 cast spells of *any* element** — the usual "this spell's element must match your source" rule is
 bypassed entirely. Reality is the universal key.
 
-Reality spells (and [Generic spells](../GenericSpells.md) cast from a Reality source) are named
+Reality spells (and [Generic spells](../Magic/GenericSpells.md) cast from a Reality source) are named
 **"Reality [Name]"** — a Generic "Ball" from Reality is a **"Reality Ball"**.
 
 ## The anti-Broken-Darkness role
 
-This is Reality's headline: **Reality is the hard counter to [Broken Darkness](BrokenDarkness.md).**
+This is Reality's headline: **Reality is the hard counter to [Broken Darkness](./BrokenDarkness.md).**
 
 A Broken Darkness fighter grows by **absorbing** the elements of attacks they defend — every
 element feeds them. **Reality is the one element they cannot absorb. It unmakes them instead.**
@@ -43,6 +43,6 @@ stolen element, you **erase it**.
 
 ## See also
 
-- [Broken Darkness](BrokenDarkness.md) — the form Reality counters.
-- [Generic spells](../GenericSpells.md) — a Generic spell from a Reality source becomes "Reality [Name]".
+- [Broken Darkness](./BrokenDarkness.md) — the form Reality counters.
+- [Generic spells](../Magic/GenericSpells.md) — a Generic spell from a Reality source becomes "Reality [Name]".
 - [Items](../Items/Crystals.md) — Iolite, the Reality "cleanse" crystal.

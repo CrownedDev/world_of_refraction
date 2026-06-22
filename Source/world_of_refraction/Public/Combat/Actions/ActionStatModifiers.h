@@ -122,7 +122,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 	}
 
 	/** Add a flat percentage to all sub-stats in a specific pillar.
-	 *  Used by Evolution Pillar-mode crystals. Mind=4, Body=3, Spirit=3
+	 *  Used by Evolution Pillar-mode crystals. Mind=4, Body=4, Spirit=3
 	 *  represented here. Pool stats (MaxHealth in Body, MaxEnergy in Spirit)
 	 *  are not action-time modifiers and are intentionally not represented. */
 	void AddPillarPercent(float MindPct, float BodyPct, float SpiritPct)
@@ -130,7 +130,6 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		// Mind sub-stats
 		Efficiency += MindPct;
 		SpellDamage += MindPct;
-		StatusMultiplier += MindPct;
 		CritDamage += MindPct;
 		SpellSpeed += MindPct;
 		// Body sub-stats — MaxHealth is a pool stat, not represented here.
@@ -140,6 +139,7 @@ struct WORLD_OF_REFRACTION_API FActionStatModifiers
 		Reflex += BodyPct;
 		// Spirit sub-stats — MaxEnergy is a pool stat, not represented here.
 		Resistance += SpiritPct;
+		StatusMultiplier += SpiritPct;
 		// TurnSpeed excluded — evolution pillar-mode infusion must not alter turn order.
 		Luck += SpiritPct;
 	}

@@ -58,13 +58,13 @@ stat.
 | Stone | What it does |
 |---|---|
 | **Ability Stone** | attached to a weapon, it **grants extra ability slots** so the weapon can hold more abilities. There's no "use" form — it only works slotted in. |
-| **Durability Stone** | adds **flat durability** to a **fusion** it is part of (see [Fusion Stones](FusionStones.md)). On its own it does **nothing** — no stat, no consumable use. |
+| **Durability Stone** | adds **flat durability** to a **fusion** it is part of (see [Fusion Stones](./FusionStones.md)). On its own it does **nothing** — no stat, no consumable use. |
 
 ### Consume-only effect stone (no attach use)
 
 | Stone | What it does |
 |---|---|
-| **Healing Stone** | **Use** to instantly **heal any target** — ally *or* enemy — for a tier-scaled % of their max HP. This is the plain heal **moved off Sapphire** (which is now *defy death* — see [Crystals](Crystals.md)). Consume-only: it carries no stat, so **attaching it to a weapon does nothing**. |
+| **Healing Stone** | **Use** to instantly **heal any target** — ally *or* enemy — for a tier-scaled % of their max HP. This is the plain heal **moved off Sapphire** (which is now *defy death* — see [Crystals](./Crystals.md)). Consume-only: it carries no stat, so **attaching it to a weapon does nothing**. |
 
 ## Permanent vs temporary
 
@@ -78,13 +78,13 @@ while-equipped versus a short, movable buff (or debuff) you can throw at any com
 
 Because a stone is **non-elemental**, a stone consumable used on a [Broken Darkness](../Archetypes/BrokenDarkness.md)
 fighter behaves like a non-elemental crystal: per the
-[three-way crystal rule](Crystals.md#using-crystals-on-a-broken-darkness-character), a
+[three-way crystal rule](./Crystals.md#using-crystals-on-a-broken-darkness-character), a
 non-elemental item **does nothing to a BD's absorption** — no energy fed, no pool rotated, no
 drain. Only **elemental** crystals feed-and-rotate, and only **Reality (Iolite)** drains-and-resets.
 A stone is neither, so it leaves the BD's pool untouched.
 
 ## See also
 
-- [Crystals](Crystals.md) — the consumable elemental gems.
-- [Fusion Stones](FusionStones.md) — combine two attachables into one stone.
+- [Crystals](./Crystals.md) — the consumable elemental gems.
+- [Fusion Stones](./FusionStones.md) — combine two attachables into one stone.
 - [Archetypes](../Archetypes/) — the character forms these bonuses support.

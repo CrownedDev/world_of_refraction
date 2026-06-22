@@ -4,7 +4,7 @@ How crystals, refined gems, elemental-fusion halves, and evolution items lose du
 an action, and how they break. **This documents the CURRENT, live mechanic — it is staying as-is** (confirmed
 working). The infusion-charge rework (now shipped, 6-1..6-5) left this wear formula **unchanged**: the rework's
 "durability cost" *is* this existing wear (only the infusion-charge **effect/cost amounts elsewhere** changed,
-not this). See [`InfusionSystem.md`](../Architecture/InfusionSystem.md) for the full infusion model.
+not this). See [`InfusionSystem.md`](../../Architecture/InfusionSystem.md) for the full infusion model.
 
 > Path note: this doc lives under `docs/Mechanics/` (capital M), alongside `TierGap.md`.
 
@@ -164,7 +164,7 @@ The infusion-charge rework (6-1..6-5) **shipped** on `feature/realtime-defense` 
 formula — Crown confirmed it works correctly. The rework's "durability cost" axis **is** this existing wear;
 only the infusion-charge *effect* multipliers and the *HP/EP* cost amounts (elsewhere) changed. The original
 planning note is retired to `docs/Design/Completed/InfusionChargeRework.md`; the authoritative current design is
-[`docs/Architecture/InfusionSystem.md`](../Architecture/InfusionSystem.md) (durability is one of its three cost
+[`docs/Architecture/InfusionSystem.md`](../../Architecture/InfusionSystem.md) (durability is one of its three cost
 axes). Any future change to the wear amounts would be documented here as a changelog entry.
 
 ## Changelog
