@@ -258,6 +258,26 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     const int32 MaxDur = Loadout.PrimaryEvolution.Item->MaxDurability;
     const FString EvoName = Loadout.PrimaryEvolution.Item->GetFullItemName();
 
+    // Luck-driven break skip — mirrors ProcessPostCastWear (the refined-crystal
+    // path). Roll the wielder's Luck before applying wear; on success skip the
+    // wear entirely (durability untouched, no break). Same ceiling as the
+    // refined path so the luck-skip is one consistent rule across all wear types.
+    // (CasterCharComp resolved above; null component never skips — FRand() in
+    // [0,1) is never < a negative/zero chance, matching the refined path.)
+    if (CasterCharComp)
+    {
+        const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
+        if (FMath::FRand() < SkipChance)
+        {
+            UE_LOG(LogTemp, Log,
+                   TEXT("[CrystalManager] %s LUCKY break skip on evolution '%s' (would have applied %d wear, skip chance %.2f)"),
+                   *Actor->GetName(),
+                   *EvoName,
+                   Wear, SkipChance);
+            return;
+        }
+    }
+
     // Force wear only when intrinsic wear is the caster's mechanic — Broken
     // Darkness (canonical IsBrokenDarkness read) or Reality innate. Everyone
     // else, including a null component, respects the asset's bCanBreak gate.
