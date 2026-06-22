@@ -1,6 +1,6 @@
 // TierPowerDebug.cpp
 
-#include "Combat/Damage/TierPowerDebug.h"
+#include "Debug/Combat/TierPowerDebug.h"
 #include "Combat/Damage/TierPowerConstants.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/FCombatLoadout.h"

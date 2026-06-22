@@ -6,7 +6,7 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Durability/BreakCalculator.h"
-#include "Equipment/Durability/BreakCalculatorDebug.h"
+#include "Debug/Equipment/BreakCalculatorDebug.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"

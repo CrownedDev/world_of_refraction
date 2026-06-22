@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Skills/Definitions/SpellDataDebug.h"
+#include "Debug/Skills/SpellDataDebug.h"
 #include "Engine/Engine.h"
 
 void USpellDataDebug::PrintSpellStats(USpellData *Spell, UCharacterData *Character, float Duration)

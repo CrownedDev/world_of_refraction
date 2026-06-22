@@ -1,6 +1,6 @@
 // SkillEffectDebug.cpp
 
-#include "Skills/Effects/SkillEffectDebug.h"
+#include "Debug/Skills/SkillEffectDebug.h"
 #include "Skills/Effects/FSkillEffect.h"
 
 namespace

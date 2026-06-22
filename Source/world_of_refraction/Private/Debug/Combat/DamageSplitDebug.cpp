@@ -1,6 +1,6 @@
 // DamageSplitDebug.cpp
 
-#include "Combat/Damage/DamageSplitDebug.h"
+#include "Debug/Combat/DamageSplitDebug.h"
 #include "Skills/Definitions/SkillDataBase.h"
 
 namespace

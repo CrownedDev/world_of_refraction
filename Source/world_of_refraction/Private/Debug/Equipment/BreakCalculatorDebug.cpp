@@ -1,6 +1,6 @@
 // BreakCalculatorDebug.cpp
 
-#include "Equipment/Durability/BreakCalculatorDebug.h"
+#include "Debug/Equipment/BreakCalculatorDebug.h"
 
 // ============================================================
 // DURABILITY WEAR LOGGING

@@ -1,6 +1,6 @@
 // RequirementGapDebug.cpp
 
-#include "Combat/Damage/RequirementGapDebug.h"
+#include "Debug/Combat/RequirementGapDebug.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Character/CharacterData.h"
 #include "Combat/Damage/TierGapConstants.h"

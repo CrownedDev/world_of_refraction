@@ -1,7 +1,7 @@
 // ItemDataDebug.cpp
 // Implementation of item system debug utilities
 
-#include "Inventory/ItemDataDebug.h"
+#include "Debug/Inventory/ItemDataDebug.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/ItemIdentity.h"

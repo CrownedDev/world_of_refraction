@@ -47,7 +47,7 @@
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
-#include "Combat/Damage/TierGapDamageDebug.h"
+#include "Debug/Combat/TierGapDamageDebug.h"
 
 #include "Loadout/Entries/FRingLoadoutEntry.h"
 #include "Combat/CombatAnimInstance.h"

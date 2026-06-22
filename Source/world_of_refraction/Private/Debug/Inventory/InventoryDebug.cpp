@@ -1,7 +1,7 @@
 // InventoryDebug.cpp
 // Debug utilities implementation
 
-#include "Inventory/InventoryDebug.h"
+#include "Debug/Inventory/InventoryDebug.h"
 #include "Inventory/InventoryComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"

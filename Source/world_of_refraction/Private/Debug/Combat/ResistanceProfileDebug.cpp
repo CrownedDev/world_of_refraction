@@ -1,6 +1,6 @@
 // ResistanceProfileDebug.cpp
 
-#include "Combat/Resistance/ResistanceProfileDebug.h"
+#include "Debug/Combat/ResistanceProfileDebug.h"
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"

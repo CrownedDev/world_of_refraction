@@ -1,7 +1,7 @@
 // SkillCastDebug.cpp
 // Debug utilities for the skill Cast array (D6)
 
-#include "Skills/Definitions/SkillCastDebug.h"
+#include "Debug/Skills/SkillCastDebug.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Engine/Engine.h"
 

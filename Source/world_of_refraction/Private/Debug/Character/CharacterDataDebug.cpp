@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "Character/CharacterDataDebug.h"
+#include "Debug/Character/CharacterDataDebug.h"
 #include "Engine/Engine.h"
 #include "Character/StatConstants.h"
 #include "Inventory/InventoryData.h"
