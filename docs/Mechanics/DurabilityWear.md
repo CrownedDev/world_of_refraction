@@ -6,7 +6,7 @@ working). The infusion-charge rework (now shipped, 6-1..6-5) left this wear form
 "durability cost" *is* this existing wear (only the infusion-charge **effect/cost amounts elsewhere** changed,
 not this). See [`InfusionSystem.md`](../Architecture/InfusionSystem.md) for the full infusion model.
 
-> Path note: this doc lives under `docs/Mechanics/` (capital M), alongside `TierGapDamage.md`.
+> Path note: this doc lives under `docs/Mechanics/` (capital M), alongside `TierGap.md`.
 
 ## Overview
 

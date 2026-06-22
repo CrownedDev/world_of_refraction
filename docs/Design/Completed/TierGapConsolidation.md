@@ -2,10 +2,11 @@
 
 > **Related:** `TierPowerScaling.md` — the separate own-tier *power* knob (volume dial, F→S scales the authored base up). They STACK: `Final = Base × TierPower(own tier) × TierGap(vs channel) × StatScaling × envelope`. Power scales everything **except** effects; this Gap doc scales effects too.
 
-> **Status: DESIGN-LOCKED, NOT YET BUILT.**
-> Consolidates the tier-gap axis across all action types and all output dimensions. Supersedes the
-> "abilities matched by design → ×1.0" decision in [`docs/Mechanics/TierGapDamage.md`](../Mechanics/TierGapDamage.md)
-> — that doc is rewritten when this ships, and this moves to `docs/Design/Completed/`.
+> **Status: COMPLETED — built + PIE-verified, merged to main (merge date TBD).**
+> Consolidates the tier-gap axis across all action types and all output dimensions. Superseded the
+> "abilities matched by design → ×1.0" decision in [`docs/Mechanics/TierGap.md`](../../Mechanics/TierGap.md)
+> — that doc has been rewritten to the shipped four-dimension system, and this design doc now lives in
+> `docs/Design/Completed/`.
 
 ## What it consolidates
 
@@ -152,4 +153,5 @@ Cross-system → already surveyed. Cluster the steps; compile between; PIE-verif
 
 | Date | Change | Branch |
 | ---- | ------ | ------ |
-| (pending) | Design locked: tier-gap unified across all action types (ability/attack flip to own-tier) and all four dimensions (damage + status + effect magnitude, same direction; cost = reciprocal, option C). Effect duration/proc-chance untouched. Supersedes the abilities-no-op decision. Not yet built. | (tbd) |
+| (design) | Design locked: tier-gap unified across all action types (ability/attack flip to own-tier) and all four dimensions (damage + status + effect magnitude, same direction; cost = reciprocal, option C). Effect duration/proc-chance untouched. Supersedes the abilities-no-op decision. | (design) |
+| 2026-06-22 | **Built + PIE-verified + matched-tier regression-clean.** Shipped in four clusters: **(1)** `ResolveActionTier` non-spell branch reads the action's own `SkillData->Tier` (ability/attack flip), `USkillDataBase::Tier` default `E→F` (neutral ×1.0 anchor); **(2)** status buildup scales on the gap at both real-path sites + AI `EstimateStatusScore` parity (builds local FAction, applies TierPower + tier-gap; charge StatusMultiplier omitted = L0 baseline by design); **(3a)** reciprocal **cost** dimension — new `MATCHED_COST` ladder + `GetTierGapCostMultiplier` accessor, applied at `CalculateActionEnergyCost` (spell+ability) and `ApplyCommitCosts` PreEffInfusedEP HP basis; **(3b)** AI infusion HP-guard `ClampInfusionLevelForHP` matches the real basis (infusion-cost × own-tier power × tier-gap cost — folds in the previously-omitted PowerMult too); **(4)** effect **magnitude** scales on the gap in `ApplySkillEffects` (both `.Value` and `.Magnitude` branches, RuntimeValue pick + physical-DoT branch; duration/DrainPercent untouched). No new accessor for damage/status/effect — all reuse `GetTierGapDamageMultiplier`. | `feature/tier-gap-consolidation` |
