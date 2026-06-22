@@ -1415,8 +1415,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	float DamageMultiplier = GetChargeDamageMultiplier(Action.AbilityInfusionLevel, AbilityMode, /*bIsSpell*/ false, UserComp);
 	int32 FinalDamage = FMath::RoundToInt(BaseDamage * DamageMultiplier);
 
-	// Tier-gap (B2): final multiplicative factor, stacking with the charge
-	// multiplier above (RequirementPenalty already sits inside CalculateDamage).
+	// Tier-gap (B2): final multiplicative factor, stacking with the charge multiplier
+	// above. (Requirement scaling now rides ActionMods per-pillar via
+	// ComputeActionStatModifiers, not a penalty inside CalculateDamage.)
 	const float TierGapMult = ResolveTierGapMultiplier(User, Action, Ability->Name);
 	FinalDamage = FMath::RoundToInt(FinalDamage * TierGapMult);
 
