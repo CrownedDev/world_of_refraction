@@ -105,6 +105,7 @@ void UBrokenDarknessManager::BeginPlay()
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
+	AccruedStrainPct = 0.0f; // per-combat reset (interim until persistence)
 
 	if (AActor *Owner = GetOwner())
 	{
@@ -323,6 +324,7 @@ void UBrokenDarknessManager::TriggerTransformation()
 	SeedBaseElement();
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
+	AccruedStrainPct = 0.0f; // strain spent on the break
 
 	AActor *Owner = GetOwner();
 
@@ -362,6 +364,7 @@ void UBrokenDarknessManager::RevertTransformation()
 	ResetStacks();
 	CurrentAlignmentElement = ESpellElement::Generic;
 	AbsorbedElements.Empty();
+	AccruedStrainPct = 0.0f; // clean slate for the next BD run — prevents instant re-break
 
 	// 3. Clear the runtime BD flag on the component + reset EP→MaxEP. The EP guard is on
 	//    bIsBrokenDarkness (CDC), which ServerSetBrokenDarkness(false) clears before resetting
