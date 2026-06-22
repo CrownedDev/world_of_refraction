@@ -16,26 +16,30 @@ int32 UBreakCalculator::CalculateDurabilityWear(
 {
 	using namespace DurabilityConstants;
 
-	int32 TotalWear = 0;
+	// Wear is now a PERCENT of the crystal's max durability (DurabilityWearPercentRework
+	// Cluster 2). Accumulate the percent across all terms, then multiply by max-durability
+	// ONCE so rounding happens a single time, not per-term.
+	float TotalPct = 0.0f;
 
 	// Tier mismatch wear (only when action tier exceeds crystal tier)
 	const int32 TierGap = TierHelpers::GetTierGap(CrystalTier, ActionTier);
 	if (TierGap > 0)
 	{
-		TotalWear += TierGap * WEAR_PER_TIER_MISMATCH;
+		TotalPct += TierGap * (bIsSpell ? SPELL_WEAR_PCT_PER_GAP : ABILITY_WEAR_PCT_PER_GAP);
 	}
 
 	// Infusion wear (different scale for spells vs ability/attack)
 	if (InfusionLevel == 1)
 	{
-		TotalWear += bIsSpell ? SPELL_L1_WEAR : ABILITY_L1_WEAR;
+		TotalPct += bIsSpell ? SPELL_L1_INFUSION_PCT : ABILITY_L1_INFUSION_PCT;
 	}
 	else if (InfusionLevel >= 2)
 	{
-		TotalWear += bIsSpell ? SPELL_L2_WEAR : ABILITY_L2_WEAR;
+		TotalPct += bIsSpell ? SPELL_L2_INFUSION_PCT : ABILITY_L2_INFUSION_PCT;
 	}
 
-	return TotalWear;
+	const int32 MaxDur = GetMaxDurabilityForTier(CrystalTier);
+	return FMath::RoundToInt(TotalPct * static_cast<float>(MaxDur));
 }
 
 FDurabilityWearResult UBreakCalculator::CalculateDurabilityWearDetailed(
@@ -49,23 +53,32 @@ FDurabilityWearResult UBreakCalculator::CalculateDurabilityWearDetailed(
 	FDurabilityWearResult Result;
 	Result.TierGap = TierHelpers::GetTierGap(CrystalTier, ActionTier);
 
-	// Tier mismatch wear
+	const int32 MaxDur = GetMaxDurabilityForTier(CrystalTier);
+	const float MaxDurF = static_cast<float>(MaxDur);
+
+	// Percent-of-max per component (DurabilityWearPercentRework Cluster 2).
+	float MismatchPct = 0.0f;
 	if (Result.TierGap > 0)
 	{
-		Result.TierMismatchWear = Result.TierGap * WEAR_PER_TIER_MISMATCH;
+		MismatchPct = Result.TierGap * (bIsSpell ? SPELL_WEAR_PCT_PER_GAP : ABILITY_WEAR_PCT_PER_GAP);
 	}
 
-	// Infusion wear
+	float InfusionPct = 0.0f;
 	if (InfusionLevel == 1)
 	{
-		Result.InfusionWear = bIsSpell ? SPELL_L1_WEAR : ABILITY_L1_WEAR;
+		InfusionPct = bIsSpell ? SPELL_L1_INFUSION_PCT : ABILITY_L1_INFUSION_PCT;
 	}
 	else if (InfusionLevel >= 2)
 	{
-		Result.InfusionWear = bIsSpell ? SPELL_L2_WEAR : ABILITY_L2_WEAR;
+		InfusionPct = bIsSpell ? SPELL_L2_INFUSION_PCT : ABILITY_L2_INFUSION_PCT;
 	}
 
-	Result.TotalWear = Result.TierMismatchWear + Result.InfusionWear;
+	// TotalWear single-rounds the combined percent (identical to CalculateDurabilityWear).
+	// TierMismatchWear rounds its own component; InfusionWear takes the residual so the
+	// broken-out fields ALWAYS sum to TotalWear (no silent divergence in debug/UI readouts).
+	Result.TotalWear = FMath::RoundToInt((MismatchPct + InfusionPct) * MaxDurF);
+	Result.TierMismatchWear = FMath::RoundToInt(MismatchPct * MaxDurF);
+	Result.InfusionWear = Result.TotalWear - Result.TierMismatchWear;
 
 	return Result;
 }
@@ -120,9 +133,10 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 		return Result;
 	}
 
-	Result.PowerFactor = FMath::Max(
+	Result.PowerFactor = FMath::Clamp(
+		1.0f + (SpellDamageFrac + StatusMultiplierFrac) * SUBSTAT_AMP,
 		SUBSTAT_POWER_FACTOR_MIN,
-		1.0f + (SpellDamageFrac + StatusMultiplierFrac) * SUBSTAT_AMP);
+		SUBSTAT_POWER_FACTOR_MAX);
 
 	Result.ControlFactor = FMath::Clamp(
 		1.0f + (EfficiencyFrac + ResistanceFrac) * SUBSTAT_AMP,
