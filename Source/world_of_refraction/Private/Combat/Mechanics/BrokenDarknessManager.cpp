@@ -10,6 +10,7 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Character/StatConstants.h"
+#include "Combat/CombatConstants.h" // LUCK_BREAK_SKIP_MAX (strain luck-skip)
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Definitions/EScalingTier.h" // GetScalingFraction (Efficiency scaling)
@@ -33,6 +34,10 @@ namespace BrokenDarknessConstants
 	constexpr float BREAK_CHANCE_F_TIER = 0.0f;
 	constexpr float BREAK_CHANCE_L1_MULTIPLIER = 1.5f;
 	constexpr float BREAK_CHANCE_L2_MULTIPLIER = 2.0f;
+
+	// Strain constants (deficit model) are header-homed in BrokenDarknessManager.h — BOTH
+	// AddStrain and the caller (ActionExecutor) read them, so they can't be TU-local here.
+	// See namespace BrokenDarknessConstants in the header.
 
 	// Absorption — base rate (pre-Efficiency); Efficiency scales it UP via ABSORPTION_EFFICIENCY_K.
 	constexpr float PARRY_BASE_RATE = 0.10f;        // base absorption rate (parry), pre-Efficiency
@@ -140,6 +145,7 @@ void UBrokenDarknessManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 // ==================== BREAK SYSTEM ====================
 
+// Superseded by AddStrain (deterministic strain); retained for rollback, no production callers.
 bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason)
 {
 	if (bIsFlipped)
@@ -189,6 +195,83 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 			   Roll, Chance);
 
 		return false;
+	}
+}
+
+void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReason)
+{
+	if (bIsFlipped)
+	{
+		return; // Already transformed — mirror RollForBreak's guard.
+	}
+
+	if (Deficit <= 0)
+	{
+		return; // Qualified cast — no requirement deficit, no strain (the deficit self-zeroes).
+	}
+
+	AActor *Owner = GetOwner();
+
+	// Composed combat stats (NOT asset-intrinsic — the values combat actually uses).
+	UCharacterDataComponent *CharComp = GetCharComp();
+	if (!CharComp)
+	{
+		return;
+	}
+
+	const int32 MaxEP = CharComp->MaxEP;
+	if (MaxEP <= 0)
+	{
+		return; // Guard div0 — a zero/invalid pool can't take a percentage slice.
+	}
+
+	const float SpellDamageFrac = CharComp->GetEffectiveSpellDamage() - 1.0f; // >= 0
+	const float DefenceFrac = CharComp->GetEvolutionModifiedFlatDefense();    // [0, 0.5]
+
+	// Power amplifies, control dampens — both clamped (mirrors the durability-wear wrap).
+	const float PowerFactor = FMath::Min(1.0f + SpellDamageFrac, BrokenDarknessConstants::STRAIN_POWER_FACTOR_MAX);
+	const float ControlFactor = FMath::Max(1.0f - DefenceFrac, BrokenDarknessConstants::STRAIN_CONTROL_FACTOR_MIN);
+
+	const float StrainPerCast = Deficit * BrokenDarknessConstants::STRAIN_PCT_PER_DEFICIT * PowerFactor * ControlFactor;
+	float StrainAdded = (StrainPerCast / static_cast<float>(MaxEP)) * 100.0f;
+
+	// Luck wear-skip parity: the wielder can skip the whole strain event (no accrual), exactly
+	// as ProcessPostCastWear skips a durability event. Negative ("cursed") luck never skips.
+	const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
+	if (FMath::FRand() < SkipChance)
+	{
+		UE_LOG(LogTemp, Log,
+			   TEXT("BrokenDarkness: %s LUCKY strain skip (would have added %.2f, skip chance %.2f, Reason: %s)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   StrainAdded, SkipChance, *TriggerReason);
+		return;
+	}
+
+	// Min-floor: a real deficit that isn't luck-skipped always accrues at least the unmodulated
+	// single-deficit-point amount, so control-stacking can't grind a real deficit down to ~0.
+	const float MinFloor = (BrokenDarknessConstants::STRAIN_PCT_PER_DEFICIT / static_cast<float>(MaxEP)) * 100.0f;
+	if (StrainAdded < MinFloor)
+	{
+		StrainAdded = MinFloor;
+	}
+
+	AccruedStrainPct += StrainAdded;
+
+	UE_LOG(LogTemp, Display,
+		   TEXT("BrokenDarkness: %s +%.2f strain (now %.2f / %.0f) (Reason: %s, Deficit: %d)"),
+		   Owner ? *Owner->GetName() : TEXT("Unknown"),
+		   StrainAdded, AccruedStrainPct, BrokenDarknessConstants::STRAIN_BREAK_THRESHOLD,
+		   *TriggerReason, Deficit);
+
+	if (AccruedStrainPct >= BrokenDarknessConstants::STRAIN_BREAK_THRESHOLD)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("BrokenDarkness: %s BROKE via strain! (%.2f >= %.0f, Reason: %s)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   AccruedStrainPct, BrokenDarknessConstants::STRAIN_BREAK_THRESHOLD,
+			   *TriggerReason);
+
+		TriggerTransformation();
 	}
 }
 

@@ -4498,26 +4498,22 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		return;
 	}
 
-	// Determine tier and infused state from the action's source data.
-	// Spells: use SpellData->Tier. Abilities: use AbilityData->Tier.
-	// Other action types (Attack, Defend, Item, etc.) don't trigger break.
-	EItemTier Tier = EItemTier::F_Tier;
-	int32 InfusionLevel = 0;
+	// Compute this cast's requirement deficit and accrue strain. Spells strain off the SPELL's
+	// requirements (+ an additive infusion deficit bonus); abilities strain off the active
+	// WEAPON's requirements (no infusion bonus). Other action types don't strain.
 	FString TriggerReason;
 
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
-		Tier = Action.SpellData->Tier;
-		InfusionLevel = Action.SpellInfusionLevel;
+		const int32 InfusionLevel = Action.SpellInfusionLevel;
 		const bool bInfused = (InfusionLevel >= 1);
 		const bool bOverReq =
 			UBrokenDarknessManager::DoesSpellExceedRequirements(Action.SpellData, CharData);
 
-		// Spell rolls when over-requirement OR infused at L1/L2. The infusion
-		// multiplier is applied inside RollForBreak via InfusionLevel.
+		// Spell strains when over-requirement OR infused at L1/L2.
 		if (!bOverReq && !bInfused)
 		{
-			return; // Spell within stats and not infused — no roll
+			return; // Spell within stats and not infused — no strain
 		}
 
 		if (bOverReq && bInfused)
@@ -4532,18 +4528,28 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 		{
 			TriggerReason = FString::Printf(TEXT("L%d Infusion"), InfusionLevel);
 		}
+
+		// Spell deficit = the spell's own requirement shortfall + an additive infusion bonus.
+		int32 Deficit = Action.SpellData->Requirements.GetTotalDeficit(CharData);
+		if (InfusionLevel == 1)
+		{
+			Deficit += BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L1;
+		}
+		else if (InfusionLevel >= 2)
+		{
+			Deficit += BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L2;
+		}
+
+		BDManager->AddStrain(Deficit, TriggerReason);
 	}
-	// Attacks fold into Ability (attack/ability merge) but must NOT trigger the break roll — the rule
-	// above is "other action types don't trigger break". Gate them out with !IsAttack() so a basic
-	// attack falls to the else (no roll), exactly as it did when it was EActionType::Attack.
+	// Attacks fold into Ability (attack/ability merge) but must NOT strain — gate them out with
+	// !IsAttack() so a basic attack falls through (no strain), as when it was EActionType::Attack.
 	else if (Action.ActionType == EActionType::Ability && Action.SkillData && !Action.SkillData->IsAttack())
 	{
-		Tier = Action.SkillData->Tier;
-		InfusionLevel = Action.AbilityInfusionLevel;
+		const int32 InfusionLevel = Action.AbilityInfusionLevel;
 
-		// Ability rolls ONLY when all three hold: the ability is infused, the
-		// infusion source resolves to the character's innate (Darkness) element,
-		// and the ability exceeds the character's stat requirements.
+		// Eligibility UNCHANGED: a source must be selected and resolve to the character's
+		// innate (Darkness) element. Only the deficit SOURCE changes (ability-asset -> weapon).
 		if (Action.SelectedSource == EInfusionSourceOption::None)
 		{
 			return;
@@ -4556,22 +4562,26 @@ void UActionExecutor::CheckBrokenDarknessBreak(AActor *Actor, const FAction &Act
 			return;
 		}
 
-		if (!UBrokenDarknessManager::DoesAbilityExceedRequirements(Cast<UAbilityData>(Action.SkillData), CharData))
+		// Abilities strain off the ACTIVE WEAPON's requirement deficit (design). Unarmed ->
+		// no weapon requirements -> clean no-op. No infusion deficit bonus for abilities.
+		UWeaponData *Weapon = GetWeaponManager() ? GetWeaponManager()->GetActiveWeapon(Actor) : nullptr;
+		if (!Weapon)
 		{
 			return;
 		}
 
-		TriggerReason = FString::Printf(
-			TEXT("Innate Darkness infused ability over requirements (L%d)"), InfusionLevel);
-	}
-	else
-	{
-		// Other action types don't trigger break
-		return;
-	}
+		const int32 Deficit = Weapon->Requirements.GetTotalDeficit(CharData);
+		if (Deficit <= 0)
+		{
+			return; // Caster qualifies for the weapon — no strain.
+		}
 
-	// One roll per cast with the correct tier and infusion level.
-	BDManager->RollForBreak(Tier, InfusionLevel, TriggerReason);
+		TriggerReason = FString::Printf(
+			TEXT("Innate Darkness infused ability over weapon requirements (L%d)"), InfusionLevel);
+
+		BDManager->AddStrain(Deficit, TriggerReason);
+	}
+	// Other action types don't strain — fall through (no-op).
 }
 
 // ============================================================

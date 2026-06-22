@@ -11,6 +11,20 @@
 #include "Inventory/ItemTier.h"
 #include "BrokenDarknessManager.generated.h"
 
+/** Broken Darkness strain tuning (deficit model). Header-homed because BOTH the manager
+ *  (AddStrain) and the caller (ActionExecutor::CheckBrokenDarknessBreak, which computes the
+ *  per-cast deficit incl. the spell-infusion bonus) read these. The break-chance /
+ *  absorption constants stay TU-local in BrokenDarknessManager.cpp. */
+namespace BrokenDarknessConstants
+{
+	constexpr float STRAIN_PCT_PER_DEFICIT     = 0.03f;   // 3% strain per point of requirement deficit
+	constexpr float STRAIN_BREAK_THRESHOLD     = 100.0f;  // accrued strain that triggers the transformation
+	constexpr int32 STRAIN_INFUSION_DEFICIT_L1 = 2;       // infused spell adds +2 deficit-equivalent (additive)
+	constexpr int32 STRAIN_INFUSION_DEFICIT_L2 = 4;       // L2 adds +4
+	constexpr float STRAIN_POWER_FACTOR_MAX    = 3.0f;    // cap on (1 + SpellDamageFrac)
+	constexpr float STRAIN_CONTROL_FACTOR_MIN  = 0.333f;  // floor on (1 - DefenceFrac): strain reduced at most ÷3
+}
+
 class USpellData;
 class UAbilityData;
 class UCharacterData;
@@ -72,6 +86,24 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
 	bool RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason);
+
+	/**
+	 * Deterministic strain accrual (deficit model) — supersedes the RNG RollForBreak. The
+	 * CALLER computes the per-cast requirement Deficit (spell: spell-req deficit + infusion
+	 * bonus; ability: active-weapon-req deficit). AddStrain accrues
+	 * Deficit × STRAIN_PCT_PER_DEFICIT × PowerFactor × ControlFactor as a percent of MaxEP
+	 * into AccruedStrainPct; transforms when it reaches STRAIN_BREAK_THRESHOLD. A luck-skip
+	 * can negate the whole event. Same trigger site as RollForBreak
+	 * (ActionExecutor::CheckBrokenDarknessBreak).
+	 * @param Deficit       Total requirement-shortfall points for this cast (incl. any infusion bonus)
+	 * @param TriggerReason Debug string for logging what triggered the accrual
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
+	void AddStrain(int32 Deficit, const FString &TriggerReason);
+
+	/** Current accrued strain (0-100), for the debug readout / UI (Cluster 4). */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Break")
+	float GetAccruedStrainPct() const { return AccruedStrainPct; }
 
 	/**
 	 * Check if spell exceeds character's stat requirements
@@ -385,6 +417,12 @@ protected:
 	 *  and TriggerTransformation. Read via IsTransformed(). */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness")
 	bool bIsFlipped = false;
+
+	/** Accrued Broken Darkness strain (0-100). Deterministic progress toward the
+	 *  transformation — AddStrain adds a per-cast slice; at STRAIN_BREAK_THRESHOLD the
+	 *  character flips. Runtime only; resets per combat (cross-run persistence deferred). */
+	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness")
+	float AccruedStrainPct = 0.0f;
 
 	// ==================== ABSORPTION ENERGY ====================
 	// Broken Darkness energy is unified onto UCharacterDataComponent::CurrentEP
