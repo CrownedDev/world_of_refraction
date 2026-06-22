@@ -6049,6 +6049,14 @@ void UActionExecutor::ApplySkillEffects(
 	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
+	// Effect magnitude tier-gap (Cluster 4): scale authored effect magnitude/value on the
+	// same ladder/direction as damage — reuse the shared damage accessor. Same Action for
+	// every payload, so resolve once here. Duration and DrainPercent are NOT scaled.
+	// Falls back to matched (x1.0) if no execution context is set (defensive).
+	const float EffMagMult = CurrentExecutionContext.IsSet()
+								 ? GetTierGapDamageMultiplier(User, CurrentExecutionContext->Action)
+								 : TierGapDamage::MATCHED_TIER;
+
 	// Offensive-only event gate, shared by an effect's whole payload bundle. Only
 	// action-RESULT triggers gate apply-now here. Defensive (OnParry/OnDodge/OnBlock/
 	// OnDefend), threshold (OnHP*/OnEnergy*), and turn (OnTurnStart/End/OnBattleStart)
@@ -6173,13 +6181,14 @@ void UActionExecutor::ApplySkillEffects(
 					: ESpellElement::None;
 
 			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
-			// stat-modifier effects keep the Magnitude*100 percentage shape.
+			// stat-modifier effects keep the Magnitude*100 percentage shape. Cluster 4: both
+			// halves scaled by the tier-gap effect-magnitude multiplier (EffMagMult).
 			const int32 RuntimeValue =
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
 				 P.EffectType == ESkillEffectType::DOT)
-					? P.Value
-					: FMath::RoundToInt(P.Magnitude * 100.0f);
+					? FMath::RoundToInt(P.Value * EffMagMult)
+					: FMath::RoundToInt(P.Magnitude * 100.0f * EffMagMult);
 
 			// [I] ABILITY/ATTACK authored DoT -> physical-type status (Slash->Bleed,
 			// Pierce->ArmorBreak, Impact->Stun) via the weapon mapping. Event-gated only —
@@ -6189,8 +6198,8 @@ void UActionExecutor::ApplySkillEffects(
 				PhysicalType != EPhysicalDamageType::None)
 			{
 				const int32 PhysValue = (P.Value != 0)
-											? P.Value
-											: FMath::RoundToInt(P.Magnitude * 100.0f);
+											? FMath::RoundToInt(P.Value * EffMagMult)
+											: FMath::RoundToInt(P.Magnitude * 100.0f * EffMagMult);
 				for (AActor *EffectTarget : EffectTargets)
 				{
 					// Authored path: ALWAYS pass a >0 override so the factory's canonical
