@@ -19,8 +19,8 @@ the skill's special effects (burns, stuns, buffs, and the like stay as authored)
 Because everything scales together, raising a skill's tier is a clean upgrade: the same skill,
 turned up — same feel, bigger numbers, proportional cost.
 
-| Tier | F | E | D | C | B | A | S |
-|---|---|---|---|---|---|---|---|
+| Tier  | F     | E     | D     | C     | B     | A     | S     |
+| ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
 | Power | ×1.00 | ×1.30 | ×1.70 | ×2.20 | ×2.85 | ×3.70 | ×4.80 |
 
 ## Stacks with the channel-match rule

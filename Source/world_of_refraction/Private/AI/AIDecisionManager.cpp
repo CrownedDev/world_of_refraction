@@ -795,15 +795,29 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
         return 0.0f;
     }
 
-    // TODO (tier-power): this score reads raw CalculateStatusBuildup — it already omits the
-    // charge StatusMultiplier (pre-existing drift), so it also omits the own-tier power factor
-    // execution now applies to buildup. Scale Buildup by both here once the StatusMult drift is
-    // addressed; adding only TierPower now would be a partial fix. Out of scope for Cluster 2.
-    const int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
+    // TODO(ai-parity): charge StatusMultiplier omitted — infusion level undecided at
+    //   score time; estimate uses un-infused (L0) baseline. tier-power + tier-gap applied.
+    int32 Buildup = Spell->CalculateStatusBuildup(AttackerComp->CharacterData);
     if (Buildup <= 0)
     {
         return 0.0f;
     }
+
+    // Mirror the execution status site: own-tier power + tier-gap (the shared accessor the
+    // damage path uses). Build a local FAction so tier-gap resolves through the real spell
+    // catalyst channel — same provenance the damage estimator builds.
+    float TierFactor = TierPowerScaling::GetTierPowerMultiplier(Spell->Tier);
+    if (UActionExecutor *ActionExec = GetActionExecutor())
+    {
+        ULoadoutComponent *AttackerLoadout = Attacker->FindComponentByClass<ULoadoutComponent>();
+        FAction Action;
+        Action.ActionType = EActionType::Spell;
+        Action.SpellData = Spell;
+        Action.SpellSource = AttackerLoadout ? AttackerLoadout->ResolveSpellSource(Spell) : ESpellSource::Innate;
+        Action.Targets.Add(Target);
+        TierFactor *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
+    }
+    Buildup = FMath::RoundToInt(Buildup * TierFactor);
 
     // Target already carrying a dangerous status — extra buildup is low value.
     if (HasDangerousDebuff(Target))
@@ -835,13 +849,27 @@ float UAIDecisionManager::EstimateStatusScore(AActor *Attacker, AActor *Target, 
         return 0.0f;
     }
 
-    // TODO (tier-power): see EstimateStatusScore(Spell) — same omission. Raw buildup ignores both
-    // the charge StatusMultiplier and the own-tier power factor execution applies. Out of scope (Cluster 2).
-    const int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
+    // TODO(ai-parity): charge StatusMultiplier omitted — infusion level undecided at
+    //   score time; estimate uses un-infused (L0) baseline. tier-power + tier-gap applied.
+    int32 Buildup = Ability->CalculateStatusBuildup(AttackerComp->CharacterData);
     if (Buildup <= 0)
     {
         return 0.0f;
     }
+
+    // Mirror the execution status site: own-tier power + tier-gap. Abilities channel
+    // through the active weapon (no SpellSource), so the local FAction needs only the
+    // type + skill — same shape the ability damage estimator builds.
+    float TierFactor = TierPowerScaling::GetTierPowerMultiplier(Ability->Tier);
+    if (UActionExecutor *ActionExec = GetActionExecutor())
+    {
+        FAction Action;
+        Action.ActionType = EActionType::Ability;
+        Action.SkillData = Ability;
+        Action.Targets.Add(Target);
+        TierFactor *= ActionExec->GetTierGapDamageMultiplier(Attacker, Action);
+    }
+    Buildup = FMath::RoundToInt(Buildup * TierFactor);
 
     if (HasDangerousDebuff(Target))
     {
@@ -1615,7 +1643,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             {
                 const int32 BaseEP = BestSpell->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr);
                 SpellInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ true,
-                                                        SpellSrc, SpellInfusion);
+                                                        SpellSrc, SpellInfusion, Action);
                 if (SpellInfusion > 0)
                 {
                     Action.SelectedSource = SpellSrc;
@@ -1673,7 +1701,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             const EInfusionSourceOption AbilitySrc = DecideAbilityInfusionSource(AIActor);
             const int32 BaseEP = BestAbility->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr, /*bIsInfused*/ true);
             AbilityInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ false,
-                                                      AbilitySrc, AbilityInfusion);
+                                                      AbilitySrc, AbilityInfusion, Action);
             if (AbilityInfusion > 0)
             {
                 Action.SelectedSource = AbilitySrc;
@@ -2219,7 +2247,8 @@ EInfusionSourceOption UAIDecisionManager::DecideAbilityInfusionSource(AActor *At
 }
 
 int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
-                                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const
+                                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level,
+                                                  const FAction &Action) const
 {
     if (Level <= 0)
     {
@@ -2244,11 +2273,20 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     }
 
     // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
-    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) -> WouldKill.
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) x power x tier-gap cost -> WouldKill.
+    // Cluster 3b: mirror ApplyCommitCosts' PreEffInfusedEP, which folds BOTH the own-tier power
+    // factor and the reciprocal tier-gap cost. Both are level-independent, so resolve once before
+    // the loop. Own-tier source matches the real basis: SpellData->Tier for spells, SkillData->Tier
+    // for abilities (F_Tier fallback -> x1.0 if the asset is somehow missing).
+    const EItemTier OwnTier = bIsSpell
+                                  ? (Action.SpellData ? Action.SpellData->Tier : EItemTier::F_Tier)
+                                  : (Action.SkillData ? Action.SkillData->Tier : EItemTier::F_Tier);
+    const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
+    const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
     while (Level > 0)
     {
         const int32 PreEffEP = FMath::RoundToInt(
-            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp));
+            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);
         if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP))
         {
             Level--;

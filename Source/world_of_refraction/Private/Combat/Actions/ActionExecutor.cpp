@@ -342,7 +342,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Action.SpellData->Tier);
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult);
+			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
+			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
 
@@ -370,7 +372,9 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult);
+			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
+			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
+			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
 
@@ -400,6 +404,14 @@ EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Actio
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
 		return Action.SpellData->Tier;
+	}
+
+	// Ability/attack: read the action's OWN authored tier (merged ability/attack
+	// SkillData), so it can gap against the weapon channel. Falls back to the
+	// weapon tier only if the skill can't resolve (safety).
+	if (const USkillDataBase *Skill = ResolveActionSkill(Action))
+	{
+		return Skill->Tier;
 	}
 
 	if (UWeaponManager *WeaponMgr = GetWeaponManager())
@@ -491,6 +503,19 @@ float UActionExecutor::GetTierGapDamageMultiplier(AActor *Actor, const FAction &
 		return TierGapDamage::MATCHED_TIER;
 	}
 	return TierGapDamage::GetTierGapDamageMultiplier(
+		ResolveActionTier(Actor, Action), ChannelTier.GetValue());
+}
+
+float UActionExecutor::GetTierGapCostMultiplier(AActor *Actor, const FAction &Action) const
+{
+	// Cost-side reciprocal of the damage gap — its OWN ladder (TierGapConstants
+	// COST_*), not the damage multipliers. Non-logging, same as the damage accessor.
+	const TOptional<EItemTier> ChannelTier = ResolveChannelTier(Actor, Action);
+	if (!ChannelTier.IsSet())
+	{
+		return TierGapDamage::MATCHED_COST;
+	}
+	return TierGapDamage::GetTierGapCostMultiplier(
 		ResolveActionTier(Actor, Action), ChannelTier.GetValue());
 }
 
@@ -1201,7 +1226,9 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		// 6-4: apply the unified per-mode stat-scaled status multiplier (computed above for the
 		// log) — replaces the retired inline L1 +50%. L0 → ×1.0; L1/L2 → progressive per-mode bonus.
 		// Own-tier power scales status buildup too (everything but effects).
-		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier));
+		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
+		// same ladder/direction as damage — reuse the shared damage accessor.
+		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier) * GetTierGapDamageMultiplier(Caster, Action));
 	}
 
 	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
@@ -1440,7 +1467,9 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// uninfused unchanged; L>0 → the mode's status bonus). Same getter as the damage path.
 		const float StatusMult = GetChargeStatusMultiplier(Action.AbilityInfusionLevel, AbilityMode, UserComp);
 		// Own-tier power scales status buildup too (everything but effects).
-		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier));
+		// Tier-gap (Cluster 2): status buildup now gaps against the channel on the
+		// same ladder/direction as damage — reuse the shared damage accessor.
+		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier) * GetTierGapDamageMultiplier(User, Action));
 	}
 
 	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
@@ -6020,6 +6049,14 @@ void UActionExecutor::ApplySkillEffects(
 	UTurnManager *TurnMgr = GI ? GI->GetSubsystem<UTurnManager>() : nullptr;
 	int32 UserTeam = TurnMgr ? TurnMgr->GetActorTeam(User) : 0;
 
+	// Effect magnitude tier-gap (Cluster 4): scale authored effect magnitude/value on the
+	// same ladder/direction as damage — reuse the shared damage accessor. Same Action for
+	// every payload, so resolve once here. Duration and DrainPercent are NOT scaled.
+	// Falls back to matched (x1.0) if no execution context is set (defensive).
+	const float EffMagMult = CurrentExecutionContext.IsSet()
+								 ? GetTierGapDamageMultiplier(User, CurrentExecutionContext->Action)
+								 : TierGapDamage::MATCHED_TIER;
+
 	// Offensive-only event gate, shared by an effect's whole payload bundle. Only
 	// action-RESULT triggers gate apply-now here. Defensive (OnParry/OnDodge/OnBlock/
 	// OnDefend), threshold (OnHP*/OnEnergy*), and turn (OnTurnStart/End/OnBattleStart)
@@ -6144,13 +6181,14 @@ void UActionExecutor::ApplySkillEffects(
 					: ESpellElement::None;
 
 			// Per-payload runtime value: gauge manipulators + DOT pass authored Value through;
-			// stat-modifier effects keep the Magnitude*100 percentage shape.
+			// stat-modifier effects keep the Magnitude*100 percentage shape. Cluster 4: both
+			// halves scaled by the tier-gap effect-magnitude multiplier (EffMagMult).
 			const int32 RuntimeValue =
 				(P.EffectType == ESkillEffectType::StatusIncrease ||
 				 P.EffectType == ESkillEffectType::StatusDecrease ||
 				 P.EffectType == ESkillEffectType::DOT)
-					? P.Value
-					: FMath::RoundToInt(P.Magnitude * 100.0f);
+					? FMath::RoundToInt(P.Value * EffMagMult)
+					: FMath::RoundToInt(P.Magnitude * 100.0f * EffMagMult);
 
 			// [I] ABILITY/ATTACK authored DoT -> physical-type status (Slash->Bleed,
 			// Pierce->ArmorBreak, Impact->Stun) via the weapon mapping. Event-gated only —
@@ -6160,8 +6198,8 @@ void UActionExecutor::ApplySkillEffects(
 				PhysicalType != EPhysicalDamageType::None)
 			{
 				const int32 PhysValue = (P.Value != 0)
-											? P.Value
-											: FMath::RoundToInt(P.Magnitude * 100.0f);
+											? FMath::RoundToInt(P.Value * EffMagMult)
+											: FMath::RoundToInt(P.Magnitude * 100.0f * EffMagMult);
 				for (AActor *EffectTarget : EffectTargets)
 				{
 					// Authored path: ALWAYS pass a >0 override so the factory's canonical
@@ -6297,7 +6335,9 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 		// Own-tier power mirrors the cost multiplier so the HP-infusion penalty basis tracks the
 		// now-tier-scaled EP cost (this block recomputes cost; it does NOT read CalculateActionEnergyCost).
-		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult);
+		// Tier-gap cost (Cluster 3a): the HP-infusion basis tracks the now-gap-scaled
+		// EP cost, so the reciprocal gap flows through to the HP penalty too.
+		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 	}
 
 	// Route by source

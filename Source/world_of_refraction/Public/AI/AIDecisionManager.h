@@ -287,7 +287,10 @@ private:
     /** Clamp an infusion level so an HP-paying source can't kill the caster: drops L2->L1->L0 until
      *  WouldKill is false (prefers a weaker infusion over self-death). HP-paying = Raw / Innate-on-spell
      *  / Evolution; crystal sources (no HP) and L0 pass through unchanged. BaseEnergyCost is the
-     *  un-charge-multiplied infused EP (Spell/Ability CalculateEnergyCost). */
+     *  un-charge-multiplied infused EP (Spell/Ability CalculateEnergyCost). Action is the
+     *  guarded action (SpellData/SkillData + source populated) — used to mirror the real
+     *  ApplyCommitCosts basis, which now folds the reciprocal tier-gap cost multiplier. */
     int32 ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
-                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const;
+                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level,
+                                  const FAction &Action) const;
 };

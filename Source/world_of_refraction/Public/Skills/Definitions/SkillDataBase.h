@@ -206,7 +206,7 @@ public:
 
     /** Tier for break calculations and difficulty scaling. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
-    EItemTier Tier = EItemTier::E_Tier;
+    EItemTier Tier = EItemTier::F_Tier;
 
     // ==================== TARGETING ====================
 
