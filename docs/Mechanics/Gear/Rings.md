@@ -17,7 +17,7 @@ There is **no fixed ring-slot count and no per-element cap.** Equipped rings fit
 
 ## Fragility
 
-Rings **wear with use and break** at 0 durability (a broken ring stops working until repaired). That's the Resonator's trade — total element flexibility, disposable tools. See [Durability & wear](./DurabilityWear.md).
+Rings **wear with use and break** at 0 durability (a broken ring stops working until repaired). That's the Resonator's trade — total element flexibility, disposable tools. Wear is a **percent of the ring crystal's max durability**, so casts-to-break is consistent across crystal tiers (a higher-tier ring crystal lasts the same number of casts, just with more absolute durability) — and a sufficiently over-tiered cast can shatter it outright. Luck can skip a wear event. See [Durability & wear](./DurabilityWear.md).
 
 ## Entry points
 

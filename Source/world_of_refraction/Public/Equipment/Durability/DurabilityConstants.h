@@ -25,26 +25,34 @@ namespace DurabilityConstants
     constexpr int32 MAX_DURABILITY_A_TIER = 80;
     constexpr int32 MAX_DURABILITY_S_TIER = 100;
 
-    // ==================== WEAR VALUES ====================
-    // Wear stacks. Example: 2-tier-mismatched L2 spell on a custom spell =
-    //   6 (mismatch: 3 per tier x 2) + 12 (L2 spell) + 2 (custom) = 20 wear
+    // ==================== WEAR VALUES (percent-of-max) ====================
+    // Wear is a FRACTION of the crystal's max durability for its tier
+    // (0.07f = 7%). DurabilityWearPercentRework Cluster 1 swapped the old
+    // flat-integer wear for these percents; Cluster 2 updates the calc to
+    // multiply them against GetMaxDurabilityForTier. They SHIP AS A PAIR —
+    // until Cluster 2 lands the math is wrong (the calc still treats these
+    // fractions as if they were flat amounts).
 
-    /** Wear per tier the action is above the crystal tier */
-    constexpr int32 WEAR_PER_TIER_MISMATCH = 3;
+    /** Spell wear per tier the action is above the crystal tier */
+    constexpr float SPELL_WEAR_PCT_PER_GAP = 0.07f;
 
-    /** L1 infusion on Ability/Attack */
-    constexpr int32 ABILITY_L1_WEAR = 4;
-
-    /** L2 infusion on Ability/Attack */
-    constexpr int32 ABILITY_L2_WEAR = 8;
+    /** Ability/Attack wear per tier the action is above the crystal tier */
+    constexpr float ABILITY_WEAR_PCT_PER_GAP = 0.03f;
 
     /** L1 infusion on Spell. Higher than ability because spells "create from nothing" */
-    constexpr int32 SPELL_L1_WEAR = 6;
+    constexpr float SPELL_L1_INFUSION_PCT = 0.05f;
 
     /** L2 infusion on Spell */
-    constexpr int32 SPELL_L2_WEAR = 12;
+    constexpr float SPELL_L2_INFUSION_PCT = 0.10f;
 
-    /** Custom (non-default) spell cast on a ring's crystal */
+    /** L1 infusion on Ability/Attack — no add-on (named for symmetry/clarity) */
+    constexpr float ABILITY_L1_INFUSION_PCT = 0.0f;
+
+    /** L2 infusion on Ability/Attack — no add-on (named for symmetry/clarity) */
+    constexpr float ABILITY_L2_INFUSION_PCT = 0.0f;
+
+    /** Custom (non-default) spell cast on a ring's crystal. Still FLAT — not yet
+     *  converted to percent; no live caller references it (Cluster 2 to decide). */
     constexpr int32 CUSTOM_SPELL_WEAR = 2;
 
     // ==================== SUBSTAT WEAR MODIFIER ====================
@@ -59,6 +67,10 @@ namespace DurabilityConstants
 
     /** Lower bound on power_factor — a weak caster still pays meaningful wear */
     constexpr float SUBSTAT_POWER_FACTOR_MIN = 0.4f;
+
+    /** Upper bound on power_factor — a powerful caster can't push wear past the
+     *  authored percent unbounded (symmetric with SUBSTAT_CONTROL_FACTOR_MAX) */
+    constexpr float SUBSTAT_POWER_FACTOR_MAX = 3.0f;
 
     /** Lower bound on control_factor — undisciplined caster can't reduce control below this */
     constexpr float SUBSTAT_CONTROL_FACTOR_MIN = 0.5f;

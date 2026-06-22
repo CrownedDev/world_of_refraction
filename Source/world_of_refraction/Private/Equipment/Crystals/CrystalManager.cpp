@@ -258,6 +258,26 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     const int32 MaxDur = Loadout.PrimaryEvolution.Item->MaxDurability;
     const FString EvoName = Loadout.PrimaryEvolution.Item->GetFullItemName();
 
+    // Luck-driven break skip — mirrors ProcessPostCastWear (the refined-crystal
+    // path). Roll the wielder's Luck before applying wear; on success skip the
+    // wear entirely (durability untouched, no break). Same ceiling as the
+    // refined path so the luck-skip is one consistent rule across all wear types.
+    // (CasterCharComp resolved above; null component never skips — FRand() in
+    // [0,1) is never < a negative/zero chance, matching the refined path.)
+    if (CasterCharComp)
+    {
+        const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
+        if (FMath::FRand() < SkipChance)
+        {
+            UE_LOG(LogTemp, Log,
+                   TEXT("[CrystalManager] %s LUCKY break skip on evolution '%s' (would have applied %d wear, skip chance %.2f)"),
+                   *Actor->GetName(),
+                   *EvoName,
+                   Wear, SkipChance);
+            return;
+        }
+    }
+
     // Force wear only when intrinsic wear is the caster's mechanic — Broken
     // Darkness (canonical IsBrokenDarkness read) or Reality innate. Everyone
     // else, including a null component, respects the asset's bCanBreak gate.
@@ -647,9 +667,11 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
            InfClamped, BeforeDur, MaxDur);
 
     UE_LOG(LogTemp, Display,
-           TEXT("[WOR_SimCast] PREDICT — Base=%d, PowerF=%.2f, CtrlF=%.2f, TierGap=%d, Final=%d (substats: SpellDmg=%+.2f StatusMult=%+.2f Efficiency=%+.2f Resistance=%+.2f)"),
+           TEXT("[WOR_SimCast] PREDICT — %.1f%% of max, Base=%d, PowerF=%.2f, CtrlF=%.2f, TierGap=%d, Final=%d%s (substats: SpellDmg=%+.2f StatusMult=%+.2f Efficiency=%+.2f Resistance=%+.2f)"),
+           Predict.WearPercentOfMax * 100.0f,
            Predict.BaseWear, Predict.PowerFactor, Predict.ControlFactor,
            Predict.TierGap, Predict.FinalWear,
+           Predict.bMinFloored ? TEXT(" [FLOORED]") : TEXT(""),
            SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac);
 
     ProcessPostCastWear(Actor, Weapon, *Attachment, ActionTierE, InfClamped, bIsSpell);
@@ -658,14 +680,17 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
     const int32 WearApplied = BeforeDur - AfterDur;
 
     UE_LOG(LogTemp, Display,
-           TEXT("[WOR_SimCast] AFTER  — Dur=%d/%d, WearApplied=%d, IsBroken=%d"),
-           AfterDur, MaxDur, WearApplied, Attachment->IsBroken() ? 1 : 0);
+           TEXT("[WOR_SimCast] AFTER  — Dur=%d/%d, WearApplied=%d (%.1f%% of max), IsBroken=%d"),
+           AfterDur, MaxDur, WearApplied,
+           MaxDur > 0 ? (WearApplied * 100.0f / static_cast<float>(MaxDur)) : 0.0f,
+           Attachment->IsBroken() ? 1 : 0);
 
     if (WearApplied == 0 && Predict.FinalWear > 0)
     {
         UE_LOG(LogTemp, Display,
-               TEXT("[WOR_SimCast] Note — predicted %d wear but live path applied 0 (luck-skip inside ProcessPostCastWear)."),
-               Predict.FinalWear);
+               TEXT("[WOR_SimCast] Note — predicted %.1f%% (= %d wear) but live path applied 0 "
+                    "(luck-skip inside ProcessPostCastWear; the predictor has no luck roll, by design)."),
+               Predict.WearPercentOfMax * 100.0f, Predict.FinalWear);
     }
 }
 
