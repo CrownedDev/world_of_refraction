@@ -147,19 +147,24 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 	const float Raw = BaseAsFloat * Result.PowerFactor / Result.ControlFactor;
 	const float Floor = SUBSTAT_FLOOR_FRAC * BaseAsFloat;
 
-	float Bounded;
-	if (Result.TierGap >= SUBSTAT_ONE_SHOT_GAP)
-	{
-		// Extreme tier mismatch — ceiling lifted, shatter is allowed.
-		Bounded = FMath::Max(Floor, Raw);
-	}
-	else
-	{
-		const float Ceiling = SUBSTAT_CEIL_FRAC *
-			static_cast<float>(GetMaxDurabilityForTier(CrystalTier));
-		Bounded = FMath::Max(Floor, FMath::Min(Raw, Ceiling));
-	}
+	// Ceiling removed (DurabilityWearPercentRework Cluster 3): with percent-of-max
+	// base wear the 45%-of-max single-cast cap is redundant and capped high-tier
+	// shatter incorrectly. Shatter is always allowed now, so the one-shot-gap branch
+	// (its only job was lifting that ceiling) collapses into this single path.
+	const float Bounded = FMath::Max(Floor, Raw);
 
 	Result.FinalWear = FMath::RoundToInt(Bounded);
+
+	// Min-1 mismatch floor: a real tier mismatch always costs >= 1 durability, so a
+	// control-stacked caster can't grind mismatch wear down to 0. Gated STRICTLY on
+	// TierGap > 0 — matched/over-spec crystals (gap <= 0) keep whatever they computed
+	// (a plain matched cast already returned 0 via the BaseWear==0 guard above;
+	// infusion-only wear on a matched crystal is NOT floored here, since this is the
+	// MISMATCH guarantee, not an infusion guarantee).
+	if (Result.TierGap > 0 && Result.FinalWear < 1)
+	{
+		Result.FinalWear = 1;
+	}
+
 	return Result;
 }
