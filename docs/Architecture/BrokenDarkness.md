@@ -28,8 +28,9 @@ shape — `InnateElement == Darkness` — and differ only in whether the born-BD
   transform event (`CharacterDataComponent.cpp:62-73`). `UBrokenDarknessManager::BeginPlay`
   mirrors the runtime flag onto `bIsFlipped` so the manager's methods don't short-circuit
   (`BrokenDarknessManager.cpp:118-123`).
-- **Runtime-transformed** — a non-BD Darkness caster passes a break roll mid-combat;
-  `RollForBreak` → `TriggerTransformation` sets `bIsFlipped` and calls
+- **Runtime-transformed** — a non-BD Darkness caster accrues 100% strain mid-combat (the
+  deterministic trigger that replaced the break roll — see *Strain System*); `AddStrain` →
+  `TriggerTransformation` sets `bIsFlipped` and calls
   `ServerSetBrokenDarkness(true)` (`BrokenDarknessManager.cpp:216-230`). The `UCharacterData`
   asset is **not** mutated — `InnateElement` stays `Darkness`. After the collapse this path is
   **identical in asset shape** to a re-saved born-BD; the only difference is `bBrokenDarknessInnate`
@@ -62,48 +63,103 @@ than reading either field directly.
 `bIsBrokenDarkness` is `SaveGame`-tagged for future persistence but session-only today —
 no save system exists (`CharacterDataComponent.h:72-73`).
 
-## Break-Roll System (current behaviour after Session 0)
+## Strain System (deterministic — supersedes the break roll)
 
-`UActionExecutor::CheckBrokenDarknessBreak` (`ActionExecutor.cpp:3196`) is the single
-break-roll entry point. It is called from `ExecuteAction` (`:319`) and `ExecuteActionAsync`
-(`:451`). `UBrokenDarknessManager::RollForBreak` (`BrokenDarknessManager.cpp:111`) is the
-only function that can roll, and `CheckBrokenDarknessBreak` is its only caller.
+Transformation into BD is now **deterministic strain accrual**, not a random roll. Each
+overreaching cast adds flat **strain points** to a hidden `AccruedStrain` (raw float on
+`UBrokenDarknessManager`); when it reaches the character's **`GetBreakThreshold()`**
+(= `MaxEP × STRAIN_THRESHOLD_PER_EP`, a bigger pool = a longer fuse) the character breaks via
+`TriggerTransformation` (the same outcome the old roll produced). Modelled on durability
+wear — accrue-until-break, applied to the caster instead of a crystal.
 
-**Gates** (all must pass, in order — `ActionExecutor.cpp:3198-3214`):
-1. Actor has a `UBrokenDarknessManager` component.
-2. `!BDManager->IsTransformed()` — already-BD characters never re-roll. ⚠️ **Post-collapse this
-   is what excludes a born-BD**: a born-BD now has `InnateElement == Darkness` (so it would pass
-   gate 3), but the init auto-flip leaves it `IsTransformed()`/`bIsFlipped` true, so gate 2 stops
-   it re-rolling.
-3. `CharData` valid and `InnateElement == ESpellElement::Darkness` — only innate-Darkness
-   characters can break. (Added Session 0.) A born-BD also satisfies this now (its innate element
-   *is* Darkness post-collapse) — the exclusion is gate 2, not this gate.
+`UActionExecutor::CheckBrokenDarknessBreak` is still the single entry point (called from
+`ExecuteAction` + `ExecuteActionAsync`). It now computes the cast's requirement **deficit**
+and calls `UBrokenDarknessManager::AddStrain(int32 Deficit, const FString& Reason)` instead
+of `RollForBreak`.
 
-**Triggers:**
-- **Spell** (`ActionExecutor.cpp:3217-3243`) — rolls if the spell exceeds stat requirements
-  (`DoesSpellExceedRequirements`, `BrokenDarknessManager.cpp:163`) **OR** is infused at L1/L2.
-- **Ability** (`ActionExecutor.cpp:3244-3270`) — rolls only if **all** hold: the ability is
-  infused (`SelectedSource != None`), the infusion source resolves to the character's innate
-  element via `GetElementForSourceOption` (i.e. Darkness), **and** the ability exceeds stat
-  requirements (`DoesAbilityExceedRequirements`, `BrokenDarknessManager.cpp:174`).
-- All other action types do not roll.
+**Eligibility gates** (unchanged): actor has a `UBrokenDarknessManager`; `!IsTransformed()`
+(already-BD never re-accrues — also what excludes a born-BD, whose `BeginPlay` auto-flip
+leaves it flipped); `CharData` valid with `InnateElement == Darkness`.
 
-**Chance** — `RollForBreak` computes `BaseChance × InfusionMultiplier`
-(`BrokenDarknessManager.cpp:118-120`); roll succeeds if `FRand() < Chance`.
+**Formula** — `AddStrain` → the shared `ComputeStrainForDeficit` (the single live/projection
+source, so the `WoR.StrainSnapshot` readout can't drift from accrual). Strain is **flat
+points**; **MaxEP scales the break threshold, not the per-cast amount**:
 
-Tier base chances (`BrokenDarknessConstants`, `BrokenDarknessManager.cpp:18-24`):
+```
+StrainPerCast  = TotalDeficit × STRAIN_PER_DEFICIT_POINT(3.2)          // FLAT points — no ÷MaxEP
+               × clamp(1 + SpellDamageFrac, _,            STRAIN_POWER_FACTOR_MAX 3.0)   // power raises
+               × clamp(1 − DefenceFrac,     STRAIN_CONTROL_FACTOR_MIN 0.333, _)          // control lowers
+BreakThreshold = MaxEP × STRAIN_THRESHOLD_PER_EP(2.0)                  // bigger pool = longer fuse
+AccruedStrain += StrainPerCast        // break when AccruedStrain ≥ BreakThreshold
+```
 
-| Tier | S | A | B | C | D | E | F |
-|---|---|---|---|---|---|---|---|
-| Base break chance | 1.5% | 1.0% | 0.6% | 0.3% | 0.1% | 0% | 0% |
+- **Min-floor** — a real deficit always accrues at least the **unmodulated** single-deficit-point
+  strain (`STRAIN_PER_DEFICIT_POINT` = 3.2), so control-stacking can't grind it below the raw
+  1-point value.
+- **Qualified, uninfused cast** (deficit 0) accrues **nothing** — `AddStrain` early-returns.
+- **Invalid pool** (`MaxEP ≤ 0` → threshold 0) is guarded so strain can't "break" instantly.
 
-Infusion multipliers (`BrokenDarknessManager.cpp:25-26`, `GetInfusionMultiplier` `:62-70`):
-**L0 = 1.0×, L1 = 1.5×, L2 = 2.0×**. E/F tier (chance 0) short-circuits before the roll
-(`BrokenDarknessManager.cpp:125-131`).
+**Per-source deficit** (`CheckBrokenDarknessBreak`):
 
-On success `RollForBreak` calls `TriggerTransformation` (`.cpp:146`).
-`ForceTransformation` (`.cpp:185`) is a guaranteed, gate-free transform — it exists but has
-zero callers.
+- **Spell** — `Action.SpellData->Requirements.GetTotalDeficit(CharData)` (the spell's own
+  requirement shortfall), **plus an additive infusion bonus**: **L1 +2, L2 +4**
+  deficit-equivalent (`STRAIN_INFUSION_DEFICIT_L1/L2`). So infusing strains **even a fully
+  qualified caster** (deficit 0 → 2/4). Eligibility unchanged (over-requirement OR infused).
+- **Ability** — deficit from the **ACTIVE WEAPON's** requirements
+  (`GetActiveWeapon(Actor)->Requirements.GetTotalDeficit(CharData)`) — the *channel* the
+  ability flows through, **not** the ability asset's own requirements. **No infusion bonus.
+  Unarmed = no-op.** Eligibility unchanged (infused + the source resolves to innate Darkness).
+  ⚠️ **Gate behaviour change vs the old roll:** an ability you *qualify for*, swung on a
+  **too-heavy weapon** (weapon deficit > 0), now strains; an ability you're *under-req* for,
+  on a weapon you qualify for, no longer does. The weapon (channel), not the ability asset,
+  decides.
+- All other action types accrue nothing.
+
+**Modulation fiction** — offensive output strains the soul; defensive durability steadies it:
+
+- **Spell Damage** (Mind) **raises** strain — read **fully composed** (`GetEffectiveSpellDamage`,
+  incl. equipment / stone / **transient**): pushing magic harder strains more.
+- **Defence** (Body) **lowers** strain — read **durable-only** (`GetEvolutionModifiedFlatDefense`,
+  **no** transient buffs): a transient shield protects the *body*, not the *soul* (the
+  deliberate asymmetry — see Known Gaps).
+- **MaxEP** (Spirit) is the **pool / fuse length** — it sets the **break threshold**
+  (`MaxEP × STRAIN_THRESHOLD_PER_EP`), so a bigger vessel takes more accrued strain to break.
+  MaxEP scales the threshold, **not** the per-cast amount; spending EP never touches strain.
+- **Luck** can **skip** a whole cast's strain (no accrual), via the shared `LUCK_BREAK_SKIP_MAX`
+  (same roll as the durability wear-skip); negative ("cursed") luck never skips.
+
+**Reset** — `AccruedStrain → 0` on **break** (`TriggerTransformation`, strain spent), on
+**revert** (`RevertTransformation`, clean slate — closes the instant-re-break risk), and on
+**combat start** (`BeginPlay`, the per-combat interim — see Known Gaps re persistence).
+**Born-BD never accrues** (the `bIsFlipped` guard in `AddStrain`; a born-BD is flipped at
+`BeginPlay`, so strain is the Darkness→BD path only).
+
+**Worked numbers** (PIE-verified). Floor build = MaxEP 50 (threshold 100), SpellDmg 1.0,
+Defence 0 (power/control = 1.0):
+
+| Cast | Deficit | Strain/cast | Threshold | ≈ Casts to break |
+|---|---|---|---|---|
+| 000-stat caster casting a 777-requirement spell (floor) | 21 | 67.2 | 100 | **~1.5** |
+| 1-point overreach (floor) | 1 | 3.2 | 100 | **~32** |
+| Fully qualified, **L2-infused** spell (floor; additive bonus) | 0 + 4 | 12.8 | 100 | **~8** |
+| Deficit-21 on an **EP/Defence tank** (MaxEP 800, Defence 0.5 → control 0.5) | 21 | 33.6 | 1600 | **~48** |
+
+Per-cast strain scales **linearly with deficit**; the break threshold scales with **MaxEP**. A
+glass-cannon (high SpellDmg, low MaxEP) breaks fast; an EP/Defence tank endures a long run of
+overreach. (The earlier ÷MaxEP form mis-scaled this — deficit-21 at floor came out ~80 casts,
+not the intended ~1.5; the flat-points + MaxEP-threshold model fixes it.)
+
+> **Superseded roll path (retained, rollback-only).** `RollForBreak`, `GetBaseBreakChance`,
+> the `BREAK_CHANCE_*` tier table (S=1.5% … E/F=0%) and the `GetInfusionMultiplier`
+> ramp (×1.5/×2.0) are **no longer called in production** — kept wrapped for rollback. The
+> infusion ramp is reused by nothing on the strain path (strain uses the additive deficit
+> bonus, not a multiplier). `ForceTransformation` remains a guaranteed, gate-free debug
+> transform (zero production callers).
+
+**Debug** — `WoR.StrainSnapshot` prints the active combat's first BD's current
+`AccruedStrain / GetBreakThreshold()` (with MaxEP) + projected casts-to-break per
+representative deficit (uses `ComputeStrainForDeficit`, the same live math). The strain bar is
+hidden by design, so this is the only inspection surface.
 
 ## Absorption System
 
@@ -477,6 +533,16 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 ## Known Gaps / Not-Yet-Implemented
 
+- **Strain persistence DEFERRED.** The shipped strain accrual resets per combat
+  (`BeginPlay`), so the design's *"strain accumulates across the whole run until it gives"*
+  does **not** yet hold — overreach in one combat does not carry into the next. The mechanism
+  (deterministic accrual → break, plus the break / revert / combat-start resets) is shipped;
+  only cross-run persistence (a save-state home for `AccruedStrain`) is the follow-up.
+- **Defence-composition asymmetry (intended).** Strain reads **Spell Damage fully composed**
+  (`GetEffectiveSpellDamage`, incl. transient buffs) but **Defence durable-only**
+  (`GetEvolutionModifiedFlatDefense`, no transient). This is deliberate per the soul-strain
+  fiction — a transient shield steadies the *body*, not the *soul* — documented as design,
+  not a bug. (Contrast durability wear, which reads both sides composed.)
 - **`ForceTransformation` dead** — `BrokenDarknessManager.cpp`, zero production
   callers; intentionally retained as a documented debug/test hook.
 - **Forbidden-cast self-buildup unbuilt (gap 4.2).** When a BD casts a forbidden
@@ -515,9 +581,9 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 
 | File | Purpose |
 |---|---|
-| `Public/BrokenDarknessManager.h` / `Private/BrokenDarknessManager.cpp` | Core BD component — transformation, break rolls, absorption, stacks, overload, forbidden-cast self-damage. |
+| `Public/BrokenDarknessManager.h` / `Private/BrokenDarknessManager.cpp` | Core BD component — transformation, **strain accrual** (`AddStrain` / `ComputeStrainForDeficit` / `GetBreakThreshold`; `RollForBreak` retained unused), absorption, stacks, overload, forbidden-cast self-damage. |
 | `Public/CharacterDataComponent.h` / `Private/CharacterDataComponent.cpp` | Owns `bIsBrokenDarkness` and `IsBrokenDarkness()`; suppresses regular EP for BD. |
-| `Private/ActionExecutor.cpp` | Break-roll entry point, absorption trigger, forbidden-cast routing, BD visual flag threading. |
+| `Private/ActionExecutor.cpp` | Strain entry point (`CheckBrokenDarknessBreak` — computes per-source deficit, calls `AddStrain`), absorption trigger, forbidden-cast routing, BD visual flag threading. |
 | `Public/HybridSpellColors.h` / `Private/HybridSpellColors.cpp` | Darkness-tinted colour data for BD spell/weapon/ability VFX. |
 | `Public/ElementColorDebugComponent.h` / `Private/ElementColorDebugComponent.cpp` | Debug mesh-tint component; BD-aware colouring. |
 | `Private/CombatOrchestrator.cpp` | Drives `ProcessOverloadTick` each turn for overloaded BDs. |
@@ -547,6 +613,7 @@ Files outside `UBrokenDarknessManager` that branch on BD state:
 | 2026-06-20 | BD spell pools gain the weighted-budget model — per-pool count cap re-pointed to `SpellPoolConstants::MAX_EQUIPPED_SLOT_POOL` (6); `ValidateBDSpellLoadout` gained `(int32 Discount, bool bCheckWeight)` and now also enforces ONE shared `BD_SPELL_BUDGET` (48) across the Darkness pool + all element pools (Σ `SpellSlotEffectiveCost`, mastery-discounted), at the runtime gates only (asset path = count + element). Element-match + `MAX_BD_ELEMENT_POOLS` (≤7) unchanged; `MAX_BD_POOL_SPELLS` retired. See `InnateSpellPoolBudget.md`. | feature/innate-bd-spell-budget |
 | 2026-06-18 | **BD representation collapse (arc 1)** — character-created BD is now `InnateElement = Darkness` + `bBrokenDarknessInnate` toggle (was `InnateElement == BrokenDarkness`); both BD paths now share one asset shape (Darkness), differing only in the born marker. `IsBrokenDarkness()` returns the runtime flag **directly** — dropped the `InnateElement == BrokenDarkness` fallback (a reverted born-BD must read false). `bIsTransformed` renamed `bIsFlipped` (accessor `IsTransformed()` kept for BP/API stability). **Silence/Drain fix:** `BarCapTriggerResolver::ResolveTrigger` gains `bSourceIsBrokenDarkness`, computed at the dispatch source in `StatusBuildupManager` before the immunity gate, so a Darkness hit from a BD source → `DrainEnergy`, from a non-BD source → `Silenced`. Legacy `InnateElement == BrokenDarkness` assets PostLoad-migrated → Darkness + toggle (transient until re-saved; BD assets re-saved this arc). `ESpellElement::BrokenDarkness` is **Hidden, not deleted** — Phase 2 deletion deferred (gated on re-save [done] + `InitializeBDPools` loop Max-sentinel [pending]). Arc 2 (BD↔Darkness revert) recorded as next. Updated *Two Paths*, *State Model*, break-roll gates, new *Post-Collapse Status Dispatch* section, Integration table, Known Gaps. | feature/bd-representation-refactor |
 | 2026-06-18 | **Absorption rework** — replaced the flat parry/block rates (0.30/0.15) with an Efficiency-scaled, perfect-doubling model: `EnergyAbsorbed = AttackBaseEnergyCost × BaseRate(0.10/0.05) × (1 + GetScalingFraction(Efficiency) × K(8.0)) × PerfectMultiplier(2.0)`. Perfect (parry **or** block) doubles, threaded via `FPendingDefenseContext::bResolvedPerfect` → `OnDefenseResolved` → `CalculateAbsorptionEnergy`. Zero-Efficiency floor is now lower (10%/5%, was 30%/15%), rising past the old rate with investment; max-stat 50%/25%, max-gear ~82%/41%. Removed the dead `OnSuccessfulParry`/`OnSuccessfulBlock` pair + `ParryAbsorptionRate`/`BlockAbsorptionRate` fields. Debug: `WoR.AbsorptionSnapshot`. Coefficients TUNABLE. Per-impact absorption (`BrokenDarkness_ReactiveDefense.md` §8c) remains deferred. | feature/bd-absorption-rework |
+| 2026-06-22 | **Deterministic strain trigger (BrokenDarknessStrainTrigger, `feature/bd-strain-trigger`, PIE-verified)** — the random `RollForBreak` is superseded by deterministic **strain accrual**: each overreaching cast adds FLAT points `Deficit × STRAIN_PER_DEFICIT_POINT(3.2) × clamp(1+SpellDmg,_,3.0) × clamp(1−Def,0.333,_)` to `AccruedStrain`; break when `AccruedStrain ≥ MaxEP × STRAIN_THRESHOLD_PER_EP(2.0)` → `TriggerTransformation` (same outcome). **MaxEP scales the break threshold, not the per-cast amount** (a tuning fix replaced an initial ÷MaxEP-per-cast form that mis-scaled casts-to-break). **Spells** strain off the spell's requirement deficit + an **additive** infusion bonus (L1 +2 / L2 +4 deficit, so infusing strains even a qualified caster); **abilities** strain off the **active WEAPON's** requirement deficit (the channel — not the ability asset; unarmed no-ops; ability-gate behaviour change documented in *Strain System*). Offensive stats (composed SpellDmg incl. transient) raise strain, durable Defence lowers it, MaxEP is the pool, Luck can skip a cast (shared `LUCK_BREAK_SKIP_MAX`); min-floor = 1-deficit-point baseline. Strain resets on break / revert / combat-start; born-BD never accrues. Debug: `WoR.StrainSnapshot` + shared `ComputeStrainForDeficit` / `GetBreakThreshold`. `RollForBreak`/`GetBaseBreakChance`/`BREAK_CHANCE_*` retained wrapped (rollback). **Clusters:** 1 constants → 2 `AddStrain` + repoint → 3 reset hooks → 4 debug readout. **Mid-arc design change:** the locked design's **tier-strain** curve (S=33.3…) was replaced by the **deficit** model, **multiplicative** infusion by **additive**, and ability **self-requirement** by **weapon-requirement** — see `docs/Design/Completed/BrokenDarknessStrainTrigger.md`. **Persistence deferred** (per-combat reset interim). | feature/bd-strain-trigger |
 | 2026-06-21 | **Generic Spell Inheritance arc — BD Model-B single active pool** (`feature/generic-spell-inherit`, PIE-verified). BD absorption is now a single-active-pool **rotation**: `GetActivePool()` = `AbsorbedElements.Last()`, with `Darkness` **seeded** on transform via `SeedBaseElement()` (from `TriggerTransformation` + born-BD `BeginPlay`; element axis only, no energy). Absorbing rotates the active pool, prior pool dormant; absorbing Darkness returns to the base pool. `IsElementCastable`, `ULoadoutComponent::GetAvailableSpells`, and `FCombatCapabilities::BuildFrom` all route through `GetActivePool()` — **dropped** the always-on `Element == Darkness` clause and the Model-A "all absorbed pools at once" append (both now show only the active pool, gated on `IsBrokenDarkness()`). `CanAbsorbElement` is now an **allowlist** (rejects `Generic`/`None`/`Reality`/`BrokenDarkness`-value; accepts the 7 elements + `Darkness`-as-rotation-target). `IsElementCastable` gains a `Generic`-always-castable short-circuit (Generic resolves at cast). Updated *Absorption System*, *Element Access*, *BD Spell Pools*. Full arc (enum `None` append, ~40-site `Generic→None` sentinel migration, the `ResolveSpellCastElement` resolver, cast-boundary wiring, `SpellElementMatchesHost` gates, naming) in `docs/Design/Completed/GenericSpellInherit.md`. | feature/generic-spell-inherit |
 | 2026-06-18 | **Forced BD→Darkness revert (arc 2)** — built the BD→Darkness direction of the runtime switch. New `UBrokenDarknessManager::RevertTransformation()` (`BlueprintCallable`): guard `!bIsFlipped` → no-op; else `bIsFlipped=false` → `ExitOverload()` + `ResetStacks()` + clear alignment / `AbsorbedElements` / `LastAbsorbedElement` → `ServerSetBrokenDarkness(false)` → `OnReverted.Broadcast()`. Mirrors `TriggerTransformation`'s structure. New `OnReverted` delegate (reuses `FOnBrokenDarknessTransformed`; separate edge so listeners bind specifically). `ServerSetBrokenDarkness(false)` gained a real body — `CurrentEP=MaxEP` + `OnEPChanged` broadcast (relabels bar Absorb→EP); asymmetric vs the activate branch (which carries EP over), direct field set bypasses the BD EP guard (flag already cleared). `WoR.TestBDRevert` console command added as permanent debug tooling (reverts the first transformed BD in combat, logs result). UI auto-corrects via existing `IsBrokenDarkness()` + `OnEPChanged` bindings. The Darkness→BD direction (break-roll) is unchanged. The **trigger** that calls `RevertTransformation` (healer / item / interaction) is **not** built — mechanism only; the BD↔Darkness switch is now mechanically complete pending a trigger. Updated the arc-2 Known-Limitations bullet → shipped. | feature/bd-switch |
 | 2026-06-21 | **Phase-2 `ESpellElement::BrokenDarkness` value DELETED** (`feature/bd-value-deletion`, PIE-verified). The enum value is gone; BD is represented **only** by `bBrokenDarknessInnate` + `InnateElement=Darkness`. `InitializeBDPools` loop bound moved to the `None` sentinel (`i < (uint8)None`, iterating real elements 0..9); dead PostLoad migration removed; single BD asset re-saved; `None` is now value 10. All dead BD-value branches stripped first (immunity maps, the `GetElementColumn` BD→Darkness alias, `IsAnySpellSource`, `CanAbsorbElement`'s self-reject) — behaviour preserved by live paths. **Reconciliation:** `LastAbsorbedElement` / `GetHybridElement()` **retired** — readers route through `GetActivePool()` (Model-B single source of truth; a fresh BD reports seeded `Darkness`). **Colour collapse:** one BD/Darkness near-black (`0.02`); purple `PURE_BD_PRIMARY`/`PURE_BD_SECONDARY` deleted; `ElementColors::BrokenDarkness` aliased to `Darkness` — *BD IS Darkness; absorb = black-over-element*. **EP/Absorb bar** now tints to the active-pool hybrid colour (`GetHybridSpellColors(GetActivePool()).BlendedColor`) and re-tints on rotation (`HandleBDAlignmentChanged` → `ApplyEnergyBarTint`). Updated *State Model*, *Element Access*, *BD Spell Pools*, *Visual Treatment*, Known Gaps. | feature/bd-value-deletion |

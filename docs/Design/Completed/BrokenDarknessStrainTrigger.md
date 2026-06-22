@@ -1,9 +1,12 @@
 # Broken Darkness — Deterministic Strain Trigger
 
-> **Status: DESIGN-LOCKED, NOT YET BUILT.**
-> Replaces the random `RollForBreak` transformation chance with a deterministic, persistent strain
-> accrual. When shipped, updates [`docs/Architecture/BrokenDarkness.md`](../Architecture/BrokenDarkness.md)
-> and this moves to `docs/Design/Completed/`.
+> **Status: COMPLETED — built + PIE-verified (`feature/bd-strain-trigger`, 2026-06-22; merge date TBD).**
+> The shipped truth lives in [`docs/Architecture/BrokenDarkness.md`](../../Architecture/BrokenDarkness.md)
+> §Strain System. **The implementation diverged from this locked design** (kept below as the original
+> plan): the **tier-strain curve → per-requirement-deficit model**, **multiplicative infusion →
+> additive deficit bonus** (L1 +2 / L2 +4), and **ability self-requirement → active-weapon
+> requirement**. Persistence is **deferred** (strain currently resets per combat). Sections the
+> shipped system changed are marked **⚠ SUPERSEDED** inline — read the architecture doc for live behaviour.
 
 ## What changes
 
@@ -33,6 +36,15 @@ crystal durability wear — applied to the caster instead of a crystal.
 
 ## The formula
 
+> **⚠ SUPERSEDED.** Shipped as FLAT strain points
+> `StrainPerCast = TotalDeficit × STRAIN_PER_DEFICIT_POINT(3.2) × clamp(1+SpellDamageFrac,_,3.0)
+> × clamp(1−DefenceFrac,0.333,_)`, with the break threshold scaling by the pool
+> (`MaxEP × STRAIN_THRESHOLD_PER_EP(2.0)`) — **MaxEP scales the threshold, NOT the per-cast amount.**
+> The `TierStrain` term below was replaced by `TotalDeficit × STRAIN_PER_DEFICIT_POINT`, the modulators
+> gained explicit caps, and a min-floor + Luck-skip were added. (An initial implementation divided the
+> per-cast strain by MaxEP — a tuning fix moved MaxEP to the threshold to fix casts-to-break scaling.)
+> See `BrokenDarkness.md` §Strain System.
+
 ```
 StrainPerCast = TierStrain × (1 + SpellDamageFrac) × (1 − DefenceFrac) × InfusionMult
 StrainAdded%  = StrainPerCast ÷ CurrentMaxEP
@@ -59,6 +71,11 @@ the fuse.
 
 ## Tier-strain curve
 
+> **⚠ SUPERSEDED — this curve does NOT exist in the shipped system.** The deficit model has no
+> per-tier strain table; strain = `TotalDeficit × STRAIN_PER_DEFICIT_POINT(3.2 flat points)`, breaking
+> at `MaxEP × STRAIN_THRESHOLD_PER_EP(2.0)`, and ability casts read the **active weapon's** requirement
+> deficit (not "the ability's own tier" below). Kept only as the original design rationale.
+
 Anchored at the **floor** (base stats: MaxEP 50, SpellDmg 1.0, Defence 0): an S-rank cast = 1.5 casts to
 break → S-strain = 50 ÷ 1.5 = **33.3**. Lower tiers inherit the existing BD transform-chance ratios
 (S=1.5%, A=1.0%, B=0.6%, C=0.3%, D=0.1%, E/F=0), so current balance feel is preserved.
@@ -75,6 +92,13 @@ break → S-strain = 50 ÷ 1.5 = **33.3**. Lower tiers inherit the existing BD t
 Abilities use their own tier (consistent with the tier-scaling consolidation flip).
 
 ## How it feels across builds (S-rank, no infusion)
+
+> **⚠ SUPERSEDED numbers** (tier-strain model). The shipped deficit model's PIE-verified figures —
+> floor (MaxEP 50, threshold 100): deficit 21 → ~1.5 casts (67.2/cast), 1-point overreach → ~32 casts
+> (3.2/cast), qualified + L2-infused (deficit 4) → ~8 casts (12.8/cast); EP/Defence tank (MaxEP 800,
+> threshold 1600, control 0.5) deficit 21 → ~48 casts (33.6/cast). Per-cast strain scales linearly
+> with deficit; the threshold scales with MaxEP. The build-direction intuition below (glass-cannon
+> fast, EP/Defence tank slow) holds.
 
 | Build | MaxEP | SpellDmg | Defence | Strain/cast | Casts to BD |
 | ----- | ----- | -------- | ------- | ----------- | ----------- |
@@ -106,14 +130,21 @@ Cross-system → survey-first.
 
 ## Open / carry-over
 
-- **Persistence home** — confirm where per-character run state is saved.
-- **Decay** — locked as monotonic (only rises until break); no per-battle recovery. Flagged here in case
-  PIE shows it needs a slow bleed-off.
-- **Revert trigger** — the BD→Darkness trigger (healer/item) is still unbuilt; the strain reset hangs off
-  `RevertTransformation` whenever that trigger lands.
+- **Persistence** — **DOCUMENTED as deferred.** Strain ships resetting per combat (`BeginPlay`); the
+  "accumulates across the whole run" intent does not yet hold. Cross-run persistence (a save-state home
+  for `AccruedStrain`) is the remaining follow-up. See `BrokenDarkness.md` §Known Gaps.
+- **Ability-gate change** — **DOCUMENTED.** Abilities strain off the **active weapon's** requirement
+  deficit, not the ability asset's; this changed *which* casts strain (qualify-for-ability-but-heavy-weapon
+  now strains; under-req-ability-on-light-weapon no longer does). Recorded in `BrokenDarkness.md`
+  §Strain System.
+- **Decay** — shipped monotonic (only rises until break, then resets); no per-battle bleed-off. Flagged
+  here in case PIE tuning later wants a slow decay.
+- **Revert trigger** — STILL UNBUILT. The BD→Darkness trigger (healer/item) has no production caller; the
+  strain reset already hangs off `RevertTransformation` for whenever that trigger lands.
 
 ## Changelog
 
 | Date | Change | Branch |
 | ---- | ------ | ------ |
-| (pending) | Design locked: deterministic persistent strain replaces the random BD transform roll. Pool = MaxEP, stored as %, strain = TierStrain × (1+SpellDmg%) × (1−Defence%) × InfusionMult, floor = 1.5 S-casts, hidden, resets on break + revert. Not yet built. | (tbd) |
+| (pending) | Design locked: deterministic persistent strain replaces the random BD transform roll. Pool = MaxEP, stored as %, strain = TierStrain × (1+SpellDmg%) × (1−Defence%) × InfusionMult, floor = 1.5 S-casts, hidden, resets on break + revert. Not yet built. **(design, superseded by the deficit model — see 2026-06-22 below.)** | (tbd) |
+| 2026-06-22 | **SHIPPED — built + PIE-verified.** Four clusters on `feature/bd-strain-trigger`: (1) strain constants; (2) `AddStrain` + repoint `CheckBrokenDarknessBreak` off `RollForBreak`; (3) reset hooks (break / revert / combat-start); (4) `WoR.StrainSnapshot` debug readout + shared `ComputeStrainForDeficit` / `GetBreakThreshold`. **Mid-arc design change vs the locked plan above:** the **tier-strain curve** became a **per-requirement-deficit model** — FLAT strain points `TotalDeficit × STRAIN_PER_DEFICIT_POINT(3.2) × capped power × capped control`, breaking at `MaxEP × STRAIN_THRESHOLD_PER_EP(2.0)` (**MaxEP scales the threshold, not the per-cast amount** — a tuning fix corrected an initial ÷MaxEP-per-cast form that mis-scaled casts-to-break); **multiplicative infusion** became an **additive deficit bonus** (L1 +2 / L2 +4, so infusing strains even a qualified caster); **abilities** strain off the **active weapon's** requirement deficit (the channel) instead of the ability asset's own requirements. Added a min-floor (unmodulated 1-deficit-point) + Luck-skip (shared `LUCK_BREAK_SKIP_MAX`). **Persistence deferred** — strain resets per combat (interim). Live behaviour: `docs/Architecture/BrokenDarkness.md` §Strain System. | feature/bd-strain-trigger |

@@ -57,7 +57,7 @@ away from `Evolution` (`LoadoutSystem.md:333`) or weapon-switching stays locked 
 | 3.2 Combat result / victory screen | Gap | OnCombatResultReady bound only by test actor; OnActorTurnStarted AddDynamic→0 | M | Verify BP binding, then C++ overlay |
 | 3.1 Action/impact camera | Partial | Bindings commented CombatCameraManager.cpp:78-79; handlers empty :464-470 | M | Design (camera feel) |
 | Heal/kill/gamble feedback | Gap | OnHealingDone, OnTargetKilled, OnGambleResult all broadcast, 0 subs | S each | Combat-log UI + VFX |
-| A. BD player toggle | Partial | Mechanism built both ways (TriggerTransformation / RevertTransformation → ServerSetBrokenDarkness). OFF has no production caller (only WoR.TestBDRevert console cmd). ON only procedural (RollForBreak). | M | Design (deliberate-toggle entry + cost/gate) |
+| A. BD player toggle | Partial | Mechanism built both ways (TriggerTransformation / RevertTransformation → ServerSetBrokenDarkness). OFF has no production caller (only WoR.TestBDRevert console cmd). ON only procedural (deterministic strain accrual via AddStrain; RollForBreak retired/unused). | M | Design (deliberate-toggle entry + cost/gate) |
 | 9.2 BD InnateSpells pool empty | Gap (asset) | DA_Inventory_BD.uasset (LFS); BD cast menu shows only Breakthrough | S | Content (≥1 Darkness spell) |
 
 ### Progression / equipment / acquisition
