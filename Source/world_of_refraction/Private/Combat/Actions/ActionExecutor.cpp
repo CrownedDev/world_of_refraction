@@ -6741,6 +6741,22 @@ FActionStatModifiers UActionExecutor::ComputeActionStatModifiers(const FAction &
 		}
 	}
 
+	// 4. Requirement-gap pillar proficiency (RequirementGapScaling Cluster 2): a skill cast
+	// above your world-pillar level lands weaker (under-statted → penalty); below it lands
+	// stronger (over-statted → boost). Per-pillar percents stack additively alongside the
+	// Reality/evolution adds above. NOTE: the old √deficit penalty (SpellData/SkillDataBase/
+	// AbilityData) is still LIVE this cluster, so off-matched levels DOUBLE-count until it is
+	// retired in Cluster 3 — gap-0 is a no-op (all percents 0), the only PIE case this cluster.
+	const USkillDataBase *ReqSkill = (Action.ActionType == EActionType::Spell)
+										 ? Action.SpellData
+										 : ResolveActionSkill(Action);
+	if (ReqSkill && CharComp->CharacterData)
+	{
+		float MindPct = 0.0f, BodyPct = 0.0f, SpiritPct = 0.0f;
+		ReqSkill->GetRequirementGapPillarPercents(CharComp->CharacterData, MindPct, BodyPct, SpiritPct);
+		Result.AddPillarPercent(MindPct, BodyPct, SpiritPct);
+	}
+
 	return Result;
 }
 
