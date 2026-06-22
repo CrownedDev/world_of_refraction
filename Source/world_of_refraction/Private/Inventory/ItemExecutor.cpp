@@ -59,7 +59,9 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteDamageEffect(User, Target, Id, Result);
 		break;
 
-	case EItemEffectType::Healing:
+	case EItemEffectType::DefyDeath:
+		// Sapphire — Last Stand (living target) / revive (dead target). Repointed off
+		// EItemEffectType::Healing (AI-1); the handler name stays ExecuteHealingEffect (misnomer).
 		ExecuteHealingEffect(User, Target, Id, Result);
 		break;
 

@@ -1903,7 +1903,8 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+		// AI-1: the heal is the Healing Stone (RestoreHealth); Sapphire moved to DefyDeath.
+		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
 		{
 			HealId = Slot.CrystalId;
 			bFoundHeal = true;
@@ -1911,11 +1912,12 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 		}
 	}
 
-	// Fallback: a literal Sapphire F when the loadout has no healing item.
+	// Fallback: a literal Healing Stone F when the loadout has no healing item (AI-1: the heal is
+	// the Healing Stone now; Sapphire is defy-death).
 	if (!bFoundHeal)
 	{
-		HealId = FCrystalId{ECrystalType::Sapphire, EItemTier::F_Tier};
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Sapphire F"));
+		HealId = FCrystalId{ECrystalType::HealingStone, EItemTier::F_Tier};
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Healing Stone F"));
 	}
 
 	// Build item action - target is self
@@ -1979,7 +1981,8 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+		// AI-1: the heal is the Healing Stone (RestoreHealth); Sapphire moved to DefyDeath.
+		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
 		{
 			HealId = Slot.CrystalId;
 			bFoundHeal = true;
@@ -1987,11 +1990,12 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 		}
 	}
 
-	// Fallback: a literal Sapphire F when the loadout has no healing item.
+	// Fallback: a literal Healing Stone F when the loadout has no healing item (AI-1: the heal is
+	// the Healing Stone now; Sapphire is defy-death).
 	if (!bFoundHeal)
 	{
-		HealId = FCrystalId{ECrystalType::Sapphire, EItemTier::F_Tier};
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Sapphire F"));
+		HealId = FCrystalId{ECrystalType::HealingStone, EItemTier::F_Tier};
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Healing Stone F"));
 	}
 
 	// Build item action - target is ally

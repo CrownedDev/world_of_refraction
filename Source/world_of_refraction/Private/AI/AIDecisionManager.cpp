@@ -1169,7 +1169,10 @@ FCrystalId UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout, bool 
         {
             continue;
         }
-        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+        // AI-1: the real heal is now the Healing Stone (RestoreHealth). Sapphire moved to DefyDeath
+        // (Last Stand / revive), so it is deliberately NOT matched here — the AI self-heal must find
+        // the actual heal, not the defy-death ward.
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
         {
             bOutFound = true;
             return Slot.CrystalId;
