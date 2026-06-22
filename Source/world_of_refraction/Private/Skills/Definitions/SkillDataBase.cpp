@@ -7,6 +7,7 @@
 #include "Skills/Effects/EffectDefinition.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Damage/TierGapConstants.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
 {
@@ -254,6 +255,29 @@ float USkillDataBase::CalculateRequirementPenalty(const UCharacterData *Characte
         return 0.0f;
     }
     return Requirements.CalculatePenalty(Character);
+}
+
+void USkillDataBase::GetRequirementGapPillarPercents(const UCharacterData *Character,
+    float &OutMindPct, float &OutBodyPct, float &OutSpiritPct) const
+{
+    OutMindPct = 0.0f;
+    OutBodyPct = 0.0f;
+    OutSpiritPct = 0.0f;
+    if (!Character)
+    {
+        return;
+    }
+
+    // Per-pillar gap = RequiredLevel - CharLevel (positive = under-statted). RAW world-pillar
+    // levels (0-7), NOT the GetEffective* multipliers. AddPillarPercent wants whole-number
+    // percent (5.0 = +5%), so percent = (mult - 1) * 100.
+    const int32 MindGap = Requirements.RequiredWorldMind - Character->WorldMindLevel;
+    const int32 BodyGap = Requirements.RequiredWorldBody - Character->WorldBodyLevel;
+    const int32 SpiritGap = Requirements.RequiredWorldSpirit - Character->WorldSpiritLevel;
+
+    OutMindPct = (TierGapDamage::GetRequirementGapMultiplier(MindGap) - 1.0f) * 100.0f;
+    OutBodyPct = (TierGapDamage::GetRequirementGapMultiplier(BodyGap) - 1.0f) * 100.0f;
+    OutSpiritPct = (TierGapDamage::GetRequirementGapMultiplier(SpiritGap) - 1.0f) * 100.0f;
 }
 
 // Damage / energy — hoisted from UAbilityData at the attack/ability merge (Cluster 1) so the

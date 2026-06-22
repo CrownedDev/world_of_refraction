@@ -119,4 +119,55 @@ namespace TierGapDamage
             return MATCHED_COST; // unreachable — gap fully covered above
         }
     }
+
+    // ===================== REQUIREMENT GAP (±5, raw int gap) =====================
+    // Per-pillar requirement scaling: how far a character's world-pillar level sits
+    // above/below a skill's required level for that pillar. Over-stat (negative gap)
+    // amplifies; under-stat (positive gap) penalizes — same trend as the damage ladder
+    // above, EXTENDED by one rung at each end (±5). Takes a RAW gap int (Required -
+    // CharLevel), NOT tiers: world levels are 0-7 so the gap can reach ±7; clamped to
+    // ±5 here. Reuses the -4..+4 damage constants by name; only the ±5 ends are new.
+    constexpr float REQ_GAP_NEG5 = 1.40f;   // gap <= -5 (extreme over-stat)
+    constexpr float REQ_GAP_5 = 0.32f;      // gap >= +5 (extreme under-stat)
+
+    /** Requirement-gap multiplier for a SINGLE pillar. Gap = RequiredLevel - CharLevel
+     *  (positive = under-statted). Clamped to -5..+5; negative boosts, positive penalizes.
+     *  Raw int gap, NOT tiers — distinct from the tier-gap helpers above. */
+    inline float GetRequirementGapMultiplier(int32 Gap)
+    {
+        Gap = FMath::Clamp(Gap, -5, 5);
+
+        if (Gap <= -5)
+        {
+            return REQ_GAP_NEG5;
+        }
+        if (Gap >= 5)
+        {
+            return REQ_GAP_5;
+        }
+
+        switch (Gap)
+        {
+        case -4:
+            return BOOST_GAP_NEG4_PLUS;
+        case -3:
+            return BOOST_GAP_NEG3;
+        case -2:
+            return BOOST_GAP_NEG2;
+        case -1:
+            return BOOST_GAP_NEG1;
+        case 0:
+            return MATCHED_TIER;
+        case 1:
+            return PENALTY_GAP_1;
+        case 2:
+            return PENALTY_GAP_2;
+        case 3:
+            return PENALTY_GAP_3;
+        case 4:
+            return PENALTY_GAP_4_PLUS;
+        default:
+            return MATCHED_TIER; // unreachable — gap fully covered above
+        }
+    }
 }
