@@ -205,6 +205,12 @@ public:
 	 *  WoR.AbsorptionSnapshot console command. */
 	void DebugLogAbsorption(float AttackEnergyCost) const;
 
+	/** Log current AccruedStrainPct + a projected casts-to-break table (per representative
+	 *  deficit, using this character's live stats via ComputeStrainPctForDeficit). The strain
+	 *  bar is hidden by design, so this is the only inspection path. Driven by the
+	 *  WoR.StrainSnapshot console command. */
+	void DebugLogStrain() const;
+
 	// ==================== OVERLOAD STATE ====================
 
 	/** Check if currently in overload state (Energy > MaxEnergy) */
@@ -362,6 +368,12 @@ private:
 
 	/** Resolve the owner's CharacterDataComponent — BD energy lives on its CurrentEP. */
 	UCharacterDataComponent *GetCharComp() const;
+
+	/** Single source of the per-cast strain math (deficit × 3% × capped power × capped
+	 *  control, as a % of MaxEP, with the min-floor) at the character's CURRENT stats —
+	 *  shared by AddStrain (live accrual) and DebugLogStrain (projection) so they can't
+	 *  drift. Excludes the probabilistic luck-skip. Returns 0 if no pool / no deficit. */
+	float ComputeStrainPctForDeficit(int32 Deficit) const;
 
 	/** Bound to CharacterDataComponent::OnEPChanged. Re-evaluates overload on
 	 *  every owner energy change — absorption gain, cast spend, and overload
