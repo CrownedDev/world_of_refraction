@@ -1643,7 +1643,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             {
                 const int32 BaseEP = BestSpell->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr);
                 SpellInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ true,
-                                                        SpellSrc, SpellInfusion);
+                                                        SpellSrc, SpellInfusion, Action);
                 if (SpellInfusion > 0)
                 {
                     Action.SelectedSource = SpellSrc;
@@ -1701,7 +1701,7 @@ FAction UAIDecisionManager::BuildOffensiveAction(AActor *AIActor, ULoadoutCompon
             const EInfusionSourceOption AbilitySrc = DecideAbilityInfusionSource(AIActor);
             const int32 BaseEP = BestAbility->CalculateEnergyCost(CharComp ? CharComp->CharacterData : nullptr, /*bIsInfused*/ true);
             AbilityInfusion = ClampInfusionLevelForHP(AIActor, CharComp, BaseEP, /*bIsSpell*/ false,
-                                                      AbilitySrc, AbilityInfusion);
+                                                      AbilitySrc, AbilityInfusion, Action);
             if (AbilityInfusion > 0)
             {
                 Action.SelectedSource = AbilitySrc;
@@ -2247,7 +2247,8 @@ EInfusionSourceOption UAIDecisionManager::DecideAbilityInfusionSource(AActor *At
 }
 
 int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDataComponent *Comp, int32 BaseEnergyCost,
-                                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level) const
+                                                  bool bIsSpell, EInfusionSourceOption Source, int32 Level,
+                                                  const FAction &Action) const
 {
     if (Level <= 0)
     {
@@ -2272,11 +2273,20 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     }
 
     // Drop the charge until the HP cost is survivable. PreEffEP matches the executor's basis exactly:
-    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) -> WouldKill.
+    // BaseEnergyCost x ComputeInfusionCostMultiplier (pre-Efficiency, stat-scaled) x power x tier-gap cost -> WouldKill.
+    // Cluster 3b: mirror ApplyCommitCosts' PreEffInfusedEP, which folds BOTH the own-tier power
+    // factor and the reciprocal tier-gap cost. Both are level-independent, so resolve once before
+    // the loop. Own-tier source matches the real basis: SpellData->Tier for spells, SkillData->Tier
+    // for abilities (F_Tier fallback -> x1.0 if the asset is somehow missing).
+    const EItemTier OwnTier = bIsSpell
+                                  ? (Action.SpellData ? Action.SpellData->Tier : EItemTier::F_Tier)
+                                  : (Action.SkillData ? Action.SkillData->Tier : EItemTier::F_Tier);
+    const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
+    const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
     while (Level > 0)
     {
         const int32 PreEffEP = FMath::RoundToInt(
-            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp));
+            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);
         if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP))
         {
             Level--;
