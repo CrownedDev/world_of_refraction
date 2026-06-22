@@ -14,7 +14,10 @@ UENUM(BlueprintType)
 enum class EItemEffectType : uint8
 {
     Damage UMETA(DisplayName = "Damage (Direct HP damage)"),
-    Healing UMETA(DisplayName = "Healing (HP restore)"),
+    // DEAD as of AI-1: no crystal maps here anymore (Sapphire → DefyDeath, Healing Stone →
+    // RestoreHealth) and nothing reads it. Kept (append-only serialized-ordinal stability); do
+    // NOT reuse for a new meaning — add a new appended value instead.
+    Healing UMETA(DisplayName = "Healing (HP restore) [DEAD — see RestoreHealth/DefyDeath]"),
     EnergyRestore UMETA(DisplayName = "Energy Restore (Energy gain)"),
     BuffRawDamage UMETA(DisplayName = "Buff Raw Damage (increase outgoing attack/physical damage)"),
     BuffDefense UMETA(DisplayName = "Buff Defense (Reduce incoming damage)"),
@@ -75,5 +78,14 @@ enum class EItemEffectType : uint8
     // read by UDefenseSystem::GetEffectiveDefenseInputWindow (B-5) as (ReflexBuff - ReflexDebuff): ally
     // widens their defense window, enemy's narrows. Runtime-derived only (never serialized), so the
     // append needs no CoreRedirect.
-    BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)")
+    BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)"),
+    // Appended (C2c). Consume-only HealingStone — plain instant heal on any target. The real heal
+    // (Sapphire is now defy-death, see DefyDeath below). Runtime-derived only (never serialized),
+    // so the append needs no CoreRedirect.
+    RestoreHealth UMETA(DisplayName = "Restore Health (Healing Stone instant heal)"),
+    // Appended (AI-1). Sapphire's defy-death form — Last Stand on a living target / revive on a dead
+    // one (routes to ExecuteHealingEffect). Repointed off EItemEffectType::Healing so the AI can
+    // tell defy-death apart from a real heal (RestoreHealth). Runtime-derived only (never
+    // serialized), so the append needs no CoreRedirect.
+    DefyDeath UMETA(DisplayName = "Defy Death (Sapphire Last Stand / revive)")
 };

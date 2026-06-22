@@ -59,8 +59,14 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteDamageEffect(User, Target, Id, Result);
 		break;
 
-	case EItemEffectType::Healing:
+	case EItemEffectType::DefyDeath:
+		// Sapphire — Last Stand (living target) / revive (dead target). Repointed off
+		// EItemEffectType::Healing (AI-1); the handler name stays ExecuteHealingEffect (misnomer).
 		ExecuteHealingEffect(User, Target, Id, Result);
+		break;
+
+	case EItemEffectType::RestoreHealth:
+		ExecuteHealingStoneEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::EnergyRestore:
@@ -283,8 +289,68 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 
 void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Sapphire - percentage-based water healing (Phase 2). S-tier additionally
-	// revives a dead target at 30% MaxHP; lower tiers heal living targets only.
+	// Sapphire (reworked) — the "defy death" crystal. Branches by TARGET STATE:
+	//   DEAD  → revive (ServerResurrect, the genuine resurrection; any tier now, no longer S-gated).
+	//   ALIVE → grant a LastStand ward (the C2a CheckDeath intercept revives if HP hits 0 inside a
+	//           tier-scaled window). Sapphire no longer heals — the heal moves to the Healing stone
+	//           (C2c). NOTE: the function name ExecuteHealingEffect is now a misnomer; kept this
+	//           cluster to avoid touching the dispatch site — rename in a later cleanup pass.
+	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!TargetComp)
+	{
+		OutResult.ErrorMessage = TEXT("Target has no character data");
+		return;
+	}
+
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+
+	// DEAD target → revive. ServerResurrect itself guards on !bIsAlive, so the bIsAlive check here
+	// is what routes a dead target down this branch (and a living one to Last Stand below). Flat
+	// REVIVE_HP_PERCENT (30%), not tier-scaled — tier scales the Last Stand window, not the revive.
+	if (!TargetComp->bIsAlive)
+	{
+		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * ItemConstants::REVIVE_HP_PERCENT);
+		TargetComp->ServerResurrect(ReviveHP);
+		OutResult.HealingDone = ReviveHP;
+		OutResult.bSuccess = true;
+		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire: Revived dead %s at %d HP"),
+			   *Target->GetName(), ReviveHP);
+		return;
+	}
+
+	// LIVING target → grant Last Stand: a dormant ward (LastStand effect-type) that sits idle until
+	// either the bearer's HP hits 0 within the window — the C2a CheckDeath intercept consumes the
+	// charge and restores HP to LAST_STAND_HP_PERCENT — or the window expires (TickDurations removes
+	// it at duration 0, after which CheckDeath finds nothing and death is permanent). Window > 0 so
+	// the effect is stored (a duration-0 effect would take the no-store instant lane and never arm).
+	const int32 WindowTurns = CrystalEffectTable::GetLastStandWindow(Id);
+	FActiveSkillEffect LastStand = FActiveSkillEffect::CreateBuff(
+		FString::Printf(TEXT("%s Last Stand"), *DisplayName),
+		ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::LastStand,
+		/*EffectValue = revive HP%*/ ItemConstants::LAST_STAND_HP_PERCENT,
+		/*Duration = protection window*/ WindowTurns);
+	LastStand.Charges = 1; // one death absorbed; bCanStack stays false (equal re-apply refreshes window)
+	SEM->ApplyEffect(Target, LastStand, User, DisplayName, -1);
+
+	OutResult.bSuccess = true;
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire: Last Stand on %s (%.0f%% revive, %d-turn window)"),
+		   *Target->GetName(), ItemConstants::LAST_STAND_HP_PERCENT, WindowTurns);
+}
+
+void UItemExecutor::ExecuteHealingStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Healing Stone (C2c) — CONSUME-ONLY plain instant heal, ANY target (GetItemTargetType returns
+	// Anyone for all crystals). This is the heal Sapphire vacated in C2b (Sapphire is now defy-death).
+	// Routes through the instant lane (duration-0 HealthRestore → ServerHeal once); HealBlock gates it
+	// at ApplyEffect, so a HealBlocked target is not healed (consistent). A dead target is a no-op —
+	// ServerHeal early-outs on !bIsAlive; Healing Stone does NOT revive (that's Sapphire's branch).
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
@@ -295,35 +361,10 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 	const float HealPercent = CrystalEffectTable::GetHealPercent(Id);
 	if (HealPercent <= 0.0f)
 	{
-		OutResult.ErrorMessage = TEXT("Invalid Sapphire heal value");
+		OutResult.ErrorMessage = TEXT("Invalid Healing Stone heal value");
 		return;
 	}
 
-	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / CombatConstants::STAT_PERCENT_DIVISOR));
-
-	// S-rank: revive a dead target at 30% MaxHP
-	if (!TargetComp->bIsAlive && Id.Tier == EItemTier::S_Tier)
-	{
-		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * ItemConstants::REVIVE_HP_PERCENT);
-		TargetComp->ServerResurrect(ReviveHP);
-		OutResult.HealingDone = ReviveHP;
-		OutResult.bSuccess = true;
-		UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire S: Revived %s at %d HP"),
-			   *Target->GetName(), ReviveHP);
-		return;
-	}
-
-	// Non-S Sapphire cannot affect a dead target
-	if (!TargetComp->bIsAlive)
-	{
-		OutResult.ErrorMessage = TEXT("Cannot heal dead target with non-S Sapphire");
-		return;
-	}
-
-	// Living target — route the heal through the instant lane (duration-0 HealthRestore) so it
-	// passes the HealBlock gate BEFORE applying. IsInstant() (duration 0, not permanent) sends it
-	// down the no-store lane: ApplyEffect runs the immunity gate, then ApplyEffectLogic heals via
-	// ServerHeal once. HealAmount is already the flat amount → HealthRestore (not RestoreHPPercent).
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -331,6 +372,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 		return;
 	}
 
+	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * HealPercent / CombatConstants::STAT_PERCENT_DIVISOR));
 	const int32 HPBefore = TargetComp->CurrentHP;
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
 	FActiveSkillEffect Heal = FActiveSkillEffect::CreateBuff(
@@ -341,7 +383,7 @@ void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalI
 	OutResult.HealingDone = TargetComp->CurrentHP - HPBefore;
 	OutResult.bSuccess = true;
 
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Sapphire: Healed %s for %d HP (%.0f%%)"),
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Healing Stone: Healed %s for %d HP (%.0f%%)"),
 		   *Target->GetName(), OutResult.HealingDone, HealPercent);
 }
 

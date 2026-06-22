@@ -224,6 +224,10 @@ private:
      *  before assigning to OutAction.ItemData. */
     FCrystalId FindHealingItem(ULoadoutComponent *Loadout, bool &bOutFound);
 
+    /** DefyDeath (Sapphire) item slot if the loadout holds one — the self-ward Last Stand item.
+     *  Mirrors FindHealingItem; matches EItemEffectType::DefyDeath. */
+    FCrystalId FindDefyDeathItem(ULoadoutComponent *Loadout, bool &bOutFound);
+
     // Cleanse detection
     USpellData *FindCleanseSpell(ULoadoutComponent *Loadout);
     FCrystalId FindCleanseItem(ULoadoutComponent *Loadout, bool &bOutFound);

@@ -118,6 +118,21 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	bool bPermanent = false;
 
 	// ========================================
+	// CHARGES
+	// ========================================
+
+	/** Charge count — a SEPARATE governor from RemainingTurns (Option b: not overloading duration).
+	 *  0 = unlimited (no charge system; existing effects are byte-identical — every consume site
+	 *  no-ops at 0). >0 = the effect fires/triggers up to Charges times, decrementing per fire, and
+	 *  is removed at 0 via ConsumeCharge — its OWN removal path, independent of TickDurations'
+	 *  turn-expiry. ⚠️ Footgun: a charged effect MUST be bPermanent OR RemainingTurns > 0. A
+	 *  duration-0 non-permanent effect is IsInstant() → takes the instant lane → never stored → its
+	 *  charges never fire. (A permanent charged effect — e.g. phoenix — is NEVER reaped by
+	 *  TickDurations, which skips bPermanent; ConsumeCharge is its only removal path.) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Charges")
+	int32 Charges = 0;
+
+	// ========================================
 	// EFFECT DATA
 	// ========================================
 
@@ -300,7 +315,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		// Builds ONE runtime effect for a payload. The condition group + timing are
 		// shared across all payloads of the source (the trigger gates the whole bundle).
-		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, bool InPermanent, bool InDelayFirst, ESkillEffectTiming InTiming, int32 SubIndex) -> FActiveSkillEffect
+		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, int32 InCharges, bool InPermanent, bool InDelayFirst, ESkillEffectTiming InTiming, int32 SubIndex) -> FActiveSkillEffect
 		{
 			FActiveSkillEffect Effect;
 			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
@@ -316,6 +331,20 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 			Effect.bDelayFirstExecution = InDelayFirst;
 			Effect.RemainingTurns = InDuration;
 			Effect.InitialDuration = Effect.RemainingTurns;
+			// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
+			Effect.Charges = InCharges;
+
+			// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
+			// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can
+			// never fire. Warn at conversion (the single choke point for authored Charges) so the
+			// silent no-op is caught at authoring. Fix: set bPermanent OR Duration > 0.
+			if (InCharges > 0 && InDuration == 0 && !InPermanent)
+			{
+				UE_LOG(LogTemp, Warning,
+					   TEXT("[FActiveSkillEffect] '%s' has Charges=%d but Duration=0 and not permanent — "
+							"charges will NEVER fire (instant lane, never stored). Set bPermanent or Duration > 0."),
+					   *Effect.EffectName, InCharges);
+			}
 			// Authored timing is the base; the OnTrigger promotion below overrides it when the
 			// effect carries owner-side conditions.
 			Effect.ProcessTiming = InTiming;
@@ -355,7 +384,7 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				{
 					continue;
 				}
-				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.bPermanent, P.bDelayFirstExecution, P.ProcessTiming, p));
+				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.Charges, P.bPermanent, P.bDelayFirstExecution, P.ProcessTiming, p));
 			}
 		}
 

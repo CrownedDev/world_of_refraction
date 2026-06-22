@@ -48,7 +48,10 @@ namespace ItemIdentity
         case ECrystalType::Garnet:
             return EItemEffectType::Damage;
         case ECrystalType::Sapphire:
-            return EItemEffectType::Healing;
+            // Defy-death (Last Stand on a living target / revive on a dead one) — routes to
+            // ExecuteHealingEffect. Repointed off Healing (AI-1) so detection can tell it apart
+            // from the Healing Stone's real heal (RestoreHealth).
+            return EItemEffectType::DefyDeath;
         case ECrystalType::Citrine:
             return EItemEffectType::EnergyRestore;
         case ECrystalType::Emerald:
@@ -139,6 +142,10 @@ namespace ItemIdentity
             // ReflexBuff/ReflexDebuff, stone magnitude). Buff an ally / debuff an enemy; the defense-window
             // read (B-5) consumes (ReflexBuff - ReflexDebuff), so an ally's window widens, an enemy's narrows.
             return EItemEffectType::BuffReflex;
+        case ECrystalType::HealingStone:
+            // Consume-only instant heal (any target) — routes to ExecuteHealingStoneEffect.
+            // Distinct from Sapphire (EItemEffectType::DefyDeath → defy-death handler).
+            return EItemEffectType::RestoreHealth;
         default:
             return EItemEffectType::Damage;
         }
@@ -233,6 +240,8 @@ namespace ItemIdentity
             return TEXT("ActionSpeedStone");
         case ECrystalType::DurabilityStone:
             return TEXT("DurabilityStone");
+        case ECrystalType::HealingStone:
+            return TEXT("HealingStone");
         default:
             return TEXT("Unknown");
         }

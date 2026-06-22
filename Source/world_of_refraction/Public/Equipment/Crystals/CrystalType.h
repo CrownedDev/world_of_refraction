@@ -77,5 +77,11 @@ enum class ECrystalType : uint8
     // widens the defender's input window in the real-time defense duel, so an attached ReflexStone
     // makes a character harder to land hits on. Same append-only serialized-identity rule — do NOT
     // reorder/insert above.
-    ReflexStone UMETA(DisplayName = "Reflex Stone")
+    ReflexStone UMETA(DisplayName = "Reflex Stone"),
+    // Appended after ReflexStone; a CONSUME-ONLY effect stone — instant heal on any target (the
+    // heal Sapphire vacated, relocated here; Sapphire is now the defy-death crystal). No attach
+    // form: StoneTargetStat/GetStoneBasePercent deliberately omit it, so an attached HealingStone
+    // is inert (contributes 0 to every stat). Same append-only serialized-identity rule — do NOT
+    // reorder/insert above.
+    HealingStone UMETA(DisplayName = "Healing Stone")
 };

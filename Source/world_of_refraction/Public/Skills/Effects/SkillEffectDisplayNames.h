@@ -271,8 +271,8 @@ namespace SkillEffectDisplayNames
             return TEXT("Ignore Defense");
         case ESkillEffectType::DoubleHit:
             return TEXT("Double Hit");
-        case ESkillEffectType::Revive:
-            return TEXT("Revive");
+        case ESkillEffectType::LastStand:
+            return TEXT("Last Stand");
 
         // All other status types use their enum display name
         default:

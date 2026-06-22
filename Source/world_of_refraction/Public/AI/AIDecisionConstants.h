@@ -89,6 +89,14 @@ namespace AIConstants
     constexpr float HARDEXPERT_HEAL_HP_THRESHOLD = 0.4f;
     constexpr float EASYMED_HEAL_HP_THRESHOLD = 0.25f;
 
+    // ==================== LAST STAND (DEFY-DEATH SELF-WARD) ====================
+    // HP fraction at/below which the AI considers warding ITSELF with a Last Stand item
+    // (Sapphire / DefyDeath). Set just ABOVE the max heal threshold (0.40) so the ward is
+    // considered slightly before the AI becomes heal-critical — but a real heal stays preferred
+    // whenever healing is actually triggered and available (design (a)). Not higher (e.g. 0.50) to
+    // avoid warding at half health.
+    constexpr float LAST_STAND_HP_THRESHOLD = 0.45f;
+
     // ==================== EMERALD (BONUS-TURN ITEM) VALUATION ====================
     // All Emerald scores are in HP-DAMAGE UNITS so they compare directly against
     // BuildOffensiveAction's ActionScores (~50-300). Do NOT reuse KILL_POTENTIAL_SCORE

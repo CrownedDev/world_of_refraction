@@ -81,10 +81,13 @@ namespace CrystalEffectTable
 
     // ==================== SAPPHIRE HEAL ====================
 
-    /** Sapphire: percent of target MaxHP healed. 0 for non-Sapphire. */
+    /** Healing Stone: percent of target MaxHP healed (the curve Sapphire vacated in C2b). 0 for
+     *  every other type — Sapphire is now defy-death (Last Stand / revive) and reads
+     *  GetLastStandWindow, not this. (C2e dropped Sapphire from the gate now that its description +
+     *  debug no longer call GetHealPercent.) */
     inline float GetHealPercent(const FCrystalId &Id)
     {
-        if (Id.Type != ECrystalType::Sapphire)
+        if (Id.Type != ECrystalType::HealingStone)
         {
             return 0.0f;
         }
@@ -106,6 +109,41 @@ namespace CrystalEffectTable
             return 60.0f;
         default:
             return 0.0f;
+        }
+    }
+
+    // ==================== SAPPHIRE LAST STAND WINDOW ====================
+
+    /** Sapphire (reworked): Last Stand protection window in TURNS for a LIVING target. 0 for
+     *  non-Sapphire. S = LONGEST window (best tier protects longest). Explicit per-tier curve —
+     *  deliberately NOT reused from EMERALD_BONUS_TURN_DELAY (that curve is INVERTED: S=0, F=6, a
+     *  bonus-turn DELAY) nor the shared buff-duration (S=2,F=4, also inverted). Every value is > 0
+     *  so the granted LastStand effect is always stored — a duration-0 effect would be IsInstant()
+     *  and take the no-store instant lane, so its single charge could never arm. */
+    inline int32 GetLastStandWindow(const FCrystalId &Id)
+    {
+        if (Id.Type != ECrystalType::Sapphire)
+        {
+            return 0;
+        }
+        switch (Id.Tier)
+        {
+        case EItemTier::F_Tier:
+            return 2;
+        case EItemTier::E_Tier:
+            return 2;
+        case EItemTier::D_Tier:
+            return 3;
+        case EItemTier::C_Tier:
+            return 3;
+        case EItemTier::B_Tier:
+            return 4;
+        case EItemTier::A_Tier:
+            return 4;
+        case EItemTier::S_Tier:
+            return 5;
+        default:
+            return 0;
         }
     }
 

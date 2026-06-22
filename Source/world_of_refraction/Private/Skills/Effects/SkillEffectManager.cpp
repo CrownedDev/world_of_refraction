@@ -947,8 +947,13 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Tri
 
 	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
 
-	for (FActiveSkillEffect &Effect : Effects)
+	// Forward index loop (NOT range-based): ConsumeCharge below can RemoveAt the fired effect,
+	// which would invalidate a range-based for. Same forward order + identical body, so uncharged
+	// effects (ConsumeCharge no-ops, returns false) behave byte-identically to the prior loop.
+	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
+		FActiveSkillEffect &Effect = Effects[i];
+
 		if (Effect.ProcessTiming == ESkillEffectTiming::OnTrigger &&
 			Effect.TriggerCondition == Trigger)
 		{
@@ -961,6 +966,16 @@ void USkillEffectManager::ProcessTriggerEffects(AActor *Actor, ESkillTrigger Tri
 
 					UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Trigger activated: %s on %s"),
 						   *Effect.EffectName, *Actor->GetName());
+
+					// A trigger FIRE consumes a charge (the primary charge consumer). Charges == 0
+					// → no-op (unlimited). If charges hit 0 the effect is removed here; compensate
+					// the index so the next slot isn't skipped. NOTE: periodic ticks
+					// (ProcessEffectsWithTiming) deliberately do NOT consume — a DOT tick is not a
+					// charge fire. Per-tick consumption is a future opt-in, not built here.
+					if (ConsumeCharge(Actor, Effect))
+					{
+						--i;
+					}
 				}
 			}
 			else
@@ -1046,6 +1061,102 @@ void USkillEffectManager::TickDurations(AActor *Actor)
 	{
 		NotifySpeedChanged(Actor);
 	}
+}
+
+bool USkillEffectManager::ConsumeCharge(AActor *Actor, FActiveSkillEffect &Effect)
+{
+	// No charge system on this effect (Charges == 0, the default) — unlimited, nothing to
+	// consume. Existing/uncharged effects hit this no-op and stay byte-identical.
+	if (Effect.Charges <= 0)
+	{
+		return false;
+	}
+
+	--Effect.Charges;
+
+	// Charges remain → the effect persists (keeps ticking / waiting for its next fire).
+	if (Effect.Charges > 0)
+	{
+		return false;
+	}
+
+	// Charges exhausted → remove via THIS path. Independent of TickDurations, which only does
+	// turn-expiry and skips bPermanent (~:1010) — so for a permanent charged effect (e.g. a
+	// phoenix revive buff) ConsumeCharge is the ONLY reaper. Mirrors the inline removal in
+	// TickDurations (~:1037-1040): snapshot → RemoveAt → broadcast OnEffectRemoved.
+	if (!Actor || !ActiveEffects.Contains(Actor))
+	{
+		return false;
+	}
+
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Actor];
+
+	// Effect is a reference INTO this array (the helper's contract); recover its index by address.
+	const int32 Index = static_cast<int32>(&Effect - Effects.GetData());
+	if (!Effects.IsValidIndex(Index))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SkillEffectManager] ConsumeCharge: effect ref not in %s's list — skipping removal"),
+			   *Actor->GetName());
+		return false;
+	}
+
+	const bool bWasSpeed = IsSpeedEffect(Effect.EffectType);
+	FActiveSkillEffect RemovedEffect = Effect;
+	Effects.RemoveAt(Index);
+
+	UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s charges exhausted on %s — removed"),
+		   *RemovedEffect.EffectName, *Actor->GetName());
+
+	OnEffectRemoved.Broadcast(Actor, RemovedEffect);
+
+	// A charge-removed speed effect must re-notify the turn order, same as turn-expiry.
+	if (bWasSpeed)
+	{
+		NotifySpeedChanged(Actor);
+	}
+
+	return true;
+}
+
+float USkillEffectManager::ConsumeLastStandCharge(AActor *Owner)
+{
+	if (!Owner || !ActiveEffects.Contains(Owner))
+	{
+		return -1.0f; // no effects at all → no last stand → caller proceeds to death
+	}
+
+	TArray<FActiveSkillEffect> &Effects = ActiveEffects[Owner];
+
+	// Multi-LastStand policy: if several LastStand effects are present, the HIGHEST-EffectValue one
+	// fires (best one wins) and consumes ONE of ITS charges; the others are left intact. We need the
+	// live array entry (not a GetEffectsByType copy) so ConsumeCharge can read its value AND remove
+	// it from THIS array when its charges hit 0.
+	int32 BestIndex = INDEX_NONE;
+	float BestValue = -1.0f;
+	for (int32 i = 0; i < Effects.Num(); ++i)
+	{
+		if (Effects[i].EffectType == ESkillEffectType::LastStand &&
+			(BestIndex == INDEX_NONE || Effects[i].EffectValue > BestValue))
+		{
+			BestValue = Effects[i].EffectValue;
+			BestIndex = i;
+		}
+	}
+
+	if (BestIndex == INDEX_NONE)
+	{
+		return -1.0f; // bearer holds no LastStand effect
+	}
+
+	// Read the HP% BEFORE consuming — ConsumeCharge may RemoveAt this entry (last charge), which
+	// would invalidate the reference. The local snapshot is what we return.
+	const float LastStandHPPercent = Effects[BestIndex].EffectValue;
+
+	// Consume ONE charge on the matched effect (C1 path). Charges=1 → removed now (single-use last
+	// stand); Charges=N → survives to intercept again; at 0 it's removed (next lethal blow is fatal).
+	ConsumeCharge(Owner, Effects[BestIndex]);
+
+	return LastStandHPPercent;
 }
 
 void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Effect)
@@ -1377,8 +1488,8 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::DoubleHit:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] DoubleHit active on %s"), *Actor->GetName());
 		break;
-	case ESkillEffectType::Revive:
-		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Revive armed on %s"), *Actor->GetName());
+	case ESkillEffectType::LastStand:
+		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] LastStand armed on %s"), *Actor->GetName());
 		break;
 
 	// ==================== STATUS BAR MANIPULATION (sweep-4) ====================

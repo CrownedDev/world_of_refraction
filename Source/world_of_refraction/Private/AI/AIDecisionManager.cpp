@@ -1017,54 +1017,85 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
     EAIDifficulty Difficulty = GetCurrentDifficulty();
     float HealThreshold = (Difficulty == EAIDifficulty::Hard || Difficulty == EAIDifficulty::Expert) ? AIConstants::HARDEXPERT_HEAL_HP_THRESHOLD : AIConstants::EASYMED_HEAL_HP_THRESHOLD;
 
-    // Priority 1: Low HP - need healing
-    if (HPPercent <= HealThreshold)
+    // Priority 1: Low HP. Prefer a real heal; fall back to a self Last Stand ward; else defend.
+    // The OUTER gate is the (higher) Last Stand threshold so the ward is also considered in the
+    // low-but-not-yet-heal-critical band. Healing only triggers at the (lower/equal) HealThreshold,
+    // so a real heal is always preferred whenever it is actually heal-critical (design (a)).
+    if (HPPercent <= AIConstants::LAST_STAND_HP_THRESHOLD)
     {
-        // Try healing spell first (if we have energy)
-        USpellData *HealSpell = FindHealingSpell(Loadout);
-        if (HealSpell)
+        // 1a. Heal (real HP back) — only when actually heal-critical. Prefer spell, then item.
+        if (HPPercent <= HealThreshold)
         {
-            // Energy cost via ActionExecutor so efficiency + infusion multipliers apply.
-            // Source resolved once so the probe and the OutAction agree.
-            const ESpellSource HealSource = Loadout->ResolveSpellSource(HealSpell);
-            FAction HealProbe;
-            HealProbe.ActionType = EActionType::Spell;
-            HealProbe.SpellData = HealSpell;
-            HealProbe.SpellSource = HealSource;
-            HealProbe.Targets.Add(AIActor);
-
-            UActionExecutor *ActionExec = GetActionExecutor();
-            const int32 HealCost = ActionExec
-                                       ? ActionExec->CalculateActionEnergyCost(AIActor, HealProbe)
-                                       : HealSpell->CalculateEnergyCost(CharComp->CharacterData);
-
-            if (CurrentEnergy >= HealCost)
+            // Try healing spell first (if we have energy)
+            USpellData *HealSpell = FindHealingSpell(Loadout);
+            if (HealSpell)
             {
-                OutAction.ActionType = EActionType::Spell;
-                OutAction.SpellData = HealSpell;
+                // Energy cost via ActionExecutor so efficiency + infusion multipliers apply.
+                // Source resolved once so the probe and the OutAction agree.
+                const ESpellSource HealSource = Loadout->ResolveSpellSource(HealSpell);
+                FAction HealProbe;
+                HealProbe.ActionType = EActionType::Spell;
+                HealProbe.SpellData = HealSpell;
+                HealProbe.SpellSource = HealSource;
+                HealProbe.Targets.Add(AIActor);
+
+                UActionExecutor *ActionExec = GetActionExecutor();
+                const int32 HealCost = ActionExec
+                                           ? ActionExec->CalculateActionEnergyCost(AIActor, HealProbe)
+                                           : HealSpell->CalculateEnergyCost(CharComp->CharacterData);
+
+                if (CurrentEnergy >= HealCost)
+                {
+                    OutAction.ActionType = EActionType::Spell;
+                    OutAction.SpellData = HealSpell;
+                    OutAction.Targets.Add(AIActor); // Self-target
+                    OutAction.SpellSource = HealSource;
+                    UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
+                    return true;
+                }
+            }
+
+            // Use healing item (the Healing Stone — RestoreHealth, AI-1)
+            bool bFoundHeal = false;
+            const FCrystalId HealId = FindHealingItem(Loadout, bFoundHeal);
+            if (bFoundHeal)
+            {
+                OutAction.ActionType = EActionType::Item;
+                OutAction.ItemData = HealId;
                 OutAction.Targets.Add(AIActor); // Self-target
-                OutAction.SpellSource = HealSource;
-                UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing spell"));
+                UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing item (Healing Stone)"));
                 return true;
             }
         }
 
-        // Fallback: Use healing item (Sapphire)
-        bool bFoundHeal = false;
-        const FCrystalId HealId = FindHealingItem(Loadout, bFoundHeal);
-        if (bFoundHeal)
+        // 1b. Last Stand ward (Sapphire / DefyDeath), SELF-target. Reached only when we did NOT heal
+        // — either not yet heal-critical (the pre-emptive band), or heal-critical with no heal
+        // available ("ward if you can't heal", design (a)). Skip if already warded: bCanStack is
+        // false, so a re-apply only refreshes the window — burning a Sapphire for little gain.
+        USkillEffectManager *SEM = GetSkillEffectManager();
+        const bool bAlreadyWarded = SEM && SEM->HasEffectOfType(AIActor, ESkillEffectType::LastStand);
+        if (!bAlreadyWarded)
         {
-            OutAction.ActionType = EActionType::Item;
-            OutAction.ItemData = HealId;
-            OutAction.Targets.Add(AIActor); // Self-target
-            UE_LOG(LogTemp, Log, TEXT("[AI Survival] Using healing item (Sapphire)"));
-            return true;
+            bool bFoundDefy = false;
+            const FCrystalId DefyId = FindDefyDeathItem(Loadout, bFoundDefy);
+            if (bFoundDefy)
+            {
+                OutAction.ActionType = EActionType::Item;
+                OutAction.ItemData = DefyId;
+                OutAction.Targets.Add(AIActor); // Self-target
+                UE_LOG(LogTemp, Log, TEXT("[AI Survival] Warding self with Last Stand (Sapphire)"));
+                return true;
+            }
         }
 
-        // Last resort: Defend
-        OutAction.ActionType = EActionType::Defend;
-        UE_LOG(LogTemp, Log, TEXT("[AI Survival] No healing available - defending"));
-        return true;
+        // 1c. Heal-critical with neither a heal nor a ward available → defend (unchanged last resort).
+        // The pre-emptive band (HP above HealThreshold) falls through to Priority 2 instead.
+        if (HPPercent <= HealThreshold)
+        {
+            OutAction.ActionType = EActionType::Defend;
+            UE_LOG(LogTemp, Log, TEXT("[AI Survival] No healing or ward available - defending"));
+            return true;
+        }
     }
 
     // Priority 2: Low energy - need energy restoration
@@ -1169,7 +1200,36 @@ FCrystalId UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout, bool 
         {
             continue;
         }
-        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::Healing)
+        // AI-1: the real heal is now the Healing Stone (RestoreHealth). Sapphire moved to DefyDeath
+        // (Last Stand / revive), so it is deliberately NOT matched here — the AI self-heal must find
+        // the actual heal, not the defy-death ward.
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
+        {
+            bOutFound = true;
+            return Slot.CrystalId;
+        }
+    }
+
+    return FCrystalId{};
+}
+
+FCrystalId UAIDecisionManager::FindDefyDeathItem(ULoadoutComponent *Loadout, bool &bOutFound)
+{
+    bOutFound = false;
+    if (!Loadout)
+    {
+        return FCrystalId{};
+    }
+
+    // The Last Stand self-ward item (Sapphire / DefyDeath). Mirrors FindHealingItem exactly,
+    // matching EItemEffectType::DefyDeath instead of RestoreHealth.
+    for (const FItemLoadoutSlot &Slot : Loadout->GetUsableItems())
+    {
+        if (Slot.IsEmpty())
+        {
+            continue;
+        }
+        if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::DefyDeath)
         {
             bOutFound = true;
             return Slot.CrystalId;

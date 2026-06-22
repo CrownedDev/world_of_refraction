@@ -36,6 +36,14 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
               meta = (ClampMin = "0"))
     int32 Duration = 0;
 
+    /** Charge count — SEPARATE governor from Duration. 0 = unlimited (no charge system,
+     *  existing effects untouched). >0 = the effect fires N times then is removed via its own
+     *  charge-expiry path (ConsumeCharge), independent of turn-expiry. ⚠️ A charged effect MUST
+     *  be bPermanent OR Duration > 0 — a duration-0 non-permanent effect takes the instant lane
+     *  (never stored) so its charges would never fire. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect", meta = (ClampMin = "0"))
+    int32 Charges = 0;
+
     /** When this effect ticks during its life (authored). Default Persistent matches the
      *  prior hardcoded Build timing, so unauthored payloads behave as before. An OnTrigger
      *  promotion still overrides this when the effect carries owner-side conditions. A
