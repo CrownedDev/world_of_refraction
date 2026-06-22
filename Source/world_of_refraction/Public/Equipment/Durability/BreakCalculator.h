@@ -64,9 +64,20 @@ struct WORLD_OF_REFRACTION_API FDurabilityWearWithSubstatsResult
 	UPROPERTY(BlueprintReadOnly, Category = "Wear")
 	int32 TierGap = 0;
 
-	/** Final wear after floor/ceiling — what callers should apply to the crystal */
+	/** Final wear after floor — what callers should apply to the crystal */
 	UPROPERTY(BlueprintReadOnly, Category = "Wear")
 	int32 FinalWear = 0;
+
+	/** Authored wear as a FRACTION of max durability (0-1; 0.07 = 7%), BEFORE substat
+	 *  power/control modulation and the min-1 floor. Tier-independent (same on any crystal
+	 *  tier). For UI / WouldBreakCrystal preview. Applied amount after substats is FinalWear. */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	float WearPercentOfMax = 0.0f;
+
+	/** True when the min-1 mismatch floor raised FinalWear to 1 (a real TierGap>0 cast whose
+	 *  modulated wear would otherwise have rounded to 0). For debug / preview visibility. */
+	UPROPERTY(BlueprintReadOnly, Category = "Wear")
+	bool bMinFloored = false;
 };
 
 /**
@@ -95,6 +106,19 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Durability")
 	static int32 CalculateDurabilityWear(
+		EItemTier CrystalTier,
+		EItemTier ActionTier,
+		int32 InfusionLevel,
+		bool bIsSpell);
+
+	/**
+	 * Authored wear as a fraction of the crystal's max durability (0-1), BEFORE substat
+	 * power/control modulation and the min-1 floor. Single source of the wear percent —
+	 * CalculateDurabilityWear and the detailed/substat results all derive from this, so the
+	 * amount and the percent can never drift. For UI/preview. Tier-independent.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Durability")
+	static float CalculateWearPercentOfMax(
 		EItemTier CrystalTier,
 		EItemTier ActionTier,
 		int32 InfusionLevel,

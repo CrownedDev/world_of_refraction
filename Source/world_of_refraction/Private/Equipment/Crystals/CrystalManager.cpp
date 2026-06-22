@@ -667,9 +667,11 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
            InfClamped, BeforeDur, MaxDur);
 
     UE_LOG(LogTemp, Display,
-           TEXT("[WOR_SimCast] PREDICT — Base=%d, PowerF=%.2f, CtrlF=%.2f, TierGap=%d, Final=%d (substats: SpellDmg=%+.2f StatusMult=%+.2f Efficiency=%+.2f Resistance=%+.2f)"),
+           TEXT("[WOR_SimCast] PREDICT — %.1f%% of max, Base=%d, PowerF=%.2f, CtrlF=%.2f, TierGap=%d, Final=%d%s (substats: SpellDmg=%+.2f StatusMult=%+.2f Efficiency=%+.2f Resistance=%+.2f)"),
+           Predict.WearPercentOfMax * 100.0f,
            Predict.BaseWear, Predict.PowerFactor, Predict.ControlFactor,
            Predict.TierGap, Predict.FinalWear,
+           Predict.bMinFloored ? TEXT(" [FLOORED]") : TEXT(""),
            SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac);
 
     ProcessPostCastWear(Actor, Weapon, *Attachment, ActionTierE, InfClamped, bIsSpell);
@@ -678,14 +680,17 @@ void UCrystalManager::WOR_SimCast(int32 ActionTier, int32 InfusionLevel)
     const int32 WearApplied = BeforeDur - AfterDur;
 
     UE_LOG(LogTemp, Display,
-           TEXT("[WOR_SimCast] AFTER  — Dur=%d/%d, WearApplied=%d, IsBroken=%d"),
-           AfterDur, MaxDur, WearApplied, Attachment->IsBroken() ? 1 : 0);
+           TEXT("[WOR_SimCast] AFTER  — Dur=%d/%d, WearApplied=%d (%.1f%% of max), IsBroken=%d"),
+           AfterDur, MaxDur, WearApplied,
+           MaxDur > 0 ? (WearApplied * 100.0f / static_cast<float>(MaxDur)) : 0.0f,
+           Attachment->IsBroken() ? 1 : 0);
 
     if (WearApplied == 0 && Predict.FinalWear > 0)
     {
         UE_LOG(LogTemp, Display,
-               TEXT("[WOR_SimCast] Note — predicted %d wear but live path applied 0 (luck-skip inside ProcessPostCastWear)."),
-               Predict.FinalWear);
+               TEXT("[WOR_SimCast] Note — predicted %.1f%% (= %d wear) but live path applied 0 "
+                    "(luck-skip inside ProcessPostCastWear; the predictor has no luck roll, by design)."),
+               Predict.WearPercentOfMax * 100.0f, Predict.FinalWear);
     }
 }
 

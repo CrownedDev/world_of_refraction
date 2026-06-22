@@ -8,7 +8,7 @@
 // DURABILITY WEAR
 // ============================================================
 
-int32 UBreakCalculator::CalculateDurabilityWear(
+float UBreakCalculator::CalculateWearPercentOfMax(
 	EItemTier CrystalTier,
 	EItemTier ActionTier,
 	int32 InfusionLevel,
@@ -16,9 +16,9 @@ int32 UBreakCalculator::CalculateDurabilityWear(
 {
 	using namespace DurabilityConstants;
 
-	// Wear is now a PERCENT of the crystal's max durability (DurabilityWearPercentRework
-	// Cluster 2). Accumulate the percent across all terms, then multiply by max-durability
-	// ONCE so rounding happens a single time, not per-term.
+	// Single source of the wear percent (DurabilityWearPercentRework). All callers —
+	// base amount, detailed twins, UI/debug — derive from this, so the percent and the
+	// resulting durability amount can never drift.
 	float TotalPct = 0.0f;
 
 	// Tier mismatch wear (only when action tier exceeds crystal tier)
@@ -38,7 +38,19 @@ int32 UBreakCalculator::CalculateDurabilityWear(
 		TotalPct += bIsSpell ? SPELL_L2_INFUSION_PCT : ABILITY_L2_INFUSION_PCT;
 	}
 
-	const int32 MaxDur = GetMaxDurabilityForTier(CrystalTier);
+	return TotalPct;
+}
+
+int32 UBreakCalculator::CalculateDurabilityWear(
+	EItemTier CrystalTier,
+	EItemTier ActionTier,
+	int32 InfusionLevel,
+	bool bIsSpell)
+{
+	// Wear is a PERCENT of the crystal's max durability — take the percent from the shared
+	// helper, then multiply by max-durability ONCE so rounding happens a single time.
+	const float TotalPct = CalculateWearPercentOfMax(CrystalTier, ActionTier, InfusionLevel, bIsSpell);
+	const int32 MaxDur = DurabilityConstants::GetMaxDurabilityForTier(CrystalTier);
 	return FMath::RoundToInt(TotalPct * static_cast<float>(MaxDur));
 }
 
@@ -122,6 +134,7 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 
 	FDurabilityWearWithSubstatsResult Result;
 	Result.BaseWear = CalculateDurabilityWear(CrystalTier, ActionTier, InfusionLevel, bIsSpell);
+	Result.WearPercentOfMax = CalculateWearPercentOfMax(CrystalTier, ActionTier, InfusionLevel, bIsSpell);
 	Result.TierGap = TierHelpers::GetTierGap(CrystalTier, ActionTier);
 
 	// No overdrive and no infusion — substats cannot manufacture wear out of nothing.
@@ -129,7 +142,18 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 	{
 		Result.PowerFactor = 1.0f;
 		Result.ControlFactor = 1.0f;
-		Result.FinalWear = 0;
+		// Min-1 mismatch floor still applies here: a real TierGap>0 cast whose base wear
+		// rounds to 0 must still cost 1 (the floor below the bounded path can't see this
+		// case because we return early). Matched/over-spec (gap <= 0) stays exactly 0.
+		if (Result.TierGap > 0)
+		{
+			Result.FinalWear = 1;
+			Result.bMinFloored = true;
+		}
+		else
+		{
+			Result.FinalWear = 0;
+		}
 		return Result;
 	}
 
@@ -164,6 +188,7 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 	if (Result.TierGap > 0 && Result.FinalWear < 1)
 	{
 		Result.FinalWear = 1;
+		Result.bMinFloored = true;
 	}
 
 	return Result;
