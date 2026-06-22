@@ -295,7 +295,6 @@ int32 USkillDataBase::CalculateDamage(const UCharacterData *Character, bool bIsI
     // Attacker-side base only — the RawDamage multiplier is applied once downstream by
     // DamageCalculator. bIsInfused no longer affects damage (element-infusion penalty removed).
     float Damage = BaseDamage;
-    Damage *= (1.0f - CalculateRequirementPenalty(Character));
     return FMath::RoundToInt(Damage);
 }
 
@@ -307,7 +306,6 @@ int32 USkillDataBase::CalculateEnergyCost(const UCharacterData *Character, bool 
     }
 
     float Cost = BaseEnergyCost;
-    Cost *= (1.0f + CalculateRequirementPenalty(Character));
     if (bIsInfused)
     {
         Cost *= CombatConstants::INFUSION_ENERGY_MULTIPLIER;
