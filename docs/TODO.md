@@ -20,6 +20,33 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 
 - **DONE** — Combat economy + stat redesign (LOCKED): Path A decouple, universal +50% stat cap / gear-beyond, world +7%/level, HP/EP→1000, no EP regen, skill-tier base power. Built to designed targets, clustered. Own balance session. See `docs/Design/CombatEconomy_StatRedesign.md` (supersedes `StatDecouplingRework.md`). **Shipped** — clusters 1–5g: `UNIVERSAL_STAT_CAP` + `WORLD_{MIND,BODY}_SCALING_BONUS=0.07` (`CombatConstants.h:40-41,134`), Pattern-P getters in `CharacterDataComponent`. See `Architecture/StatComposition.md`. | 2026-06-16
 
+## Effect-expansion arc (2026-06)
+
+- **DONE** — Charges + Last Stand + Sapphire reshape + Healing Stone + AI. Shipped clusters: C1 (`Charges` field + `ConsumeCharge`, independent charge-expiry removal), C2a (charge-aware + value-driven death intercept), Revive→LastStand rename (+ `EnumRedirects` Revive→LastStand), C2b (Sapphire = defy-death: Last Stand on a living target / revive on a dead one, tier-scaled window), C2c (Healing Stone consume-only instant heal, any target), AI-1 (heal-detection → `RestoreHealth`, Sapphire → `DefyDeath` effect-type), AI-2 (AI self-wards with Last Stand). | 2026-06-22
+
+### Cooperative AI — own arc (the AI's first ally-targeting)
+
+- **BLOCKED** — Ally-targeting: AI heals/wards an **ally** (not just self). The AI is self-survival-only today — no ally enumeration in `AIDecisionManager`. First ally logic; build on `CombatOrchestrator::GetLivingAllies`.
+- **BLOCKED** — Revive-AI: AI uses Sapphire on a **dead** ally. Needs a new `GetDeadAllies()` in `CombatOrchestrator` (dead allies are filtered out of every existing getter via `IsActorAlive`) + confirm `ActionExecutor` accepts a dead item-target. The demo-risk piece — own PIE pass.
+
+### Parked — this arc
+
+- **CLEANUP** — Rename `UItemExecutor::ExecuteHealingEffect` → a defy-death-accurate name (misnomer: it's Last Stand / revive now, not a heal). Deferred to avoid touching the dispatch site mid-arc.
+- **CLEANUP** — `CrystalType.h` inline enum comments drifted (`=12`/`=26` off by 1–2 from the real sequential values). Trust position, not the comment numbers; fix when next editing the enum.
+- **POSSIBLE** — `+healing-received` as a real effect (cut from the Healing Stone, which went consume-only). Direction: "stones can grant **effects**, not just substats" — a recipient-side `HealingReceivedBuff` (the **mirror of HealBlock**: HealBlock blocks, this amplifies), read in `ServerHeal`. Needs the attach→effect-production path attached stat-stones lack today.
+
+### Parked — prior arcs (surfaced during this one)
+
+- **WATCH** — DOT retune: Burn/Chill now hit **on apply** (~33% more total) since the fire-on-apply default — wants a balance pass.
+- **CLEANUP** — `FActiveSkillEffect::CreateFromSpellEffect` (~:245) duration-0→1 clamp is out of sync with the new duration model (0 = instant). Reconcile.
+- **BLOCKED** — C4 spell-heal routing: direct `ApplyHealing` spell heals still **bypass HealBlock** (only item/effect heals route through the gate). Route spell heals through the gate.
+
+### Queued arcs (post effect-expansion)
+
+- **BLOCKED** — BD-states-as-effects: Elemental Charge (absorption stacks) + Overload as real effects. **HIGH risk** (demo-critical BD; ~8–10 readers, overload is derived state) — deferred from this arc's survey. Own arc + PIE pass.
+- **POSSIBLE** — OnDeath actual-death effects: real revive / death-rattle on **actual** death (`UCharacterDataComponent::OnDied` broadcast is the hook). Distinct from Last Stand, which pre-empts death.
+- **BLOCKED** — Original design queue: TierGapConsolidation → RequirementGapScaling → DurabilityWearPercentRework, BrokenDarknessStrainTrigger, ItemProjectiles.
+
 ## Small / unblocked
 
 - **CLEANUP** — Delete the legacy pillar fields (`Mind/Body/SpiritModifierPercent` on `UEvolutionItemData`) + their `PostLoad` copy block. Safe post-re-save — but first confirm the re-saved `.uasset`s are actually committed (none visible in git as of 2026-06-11; `DA_Test_EvoCrystal_Water` last committed pre-migration). Quick future commit.

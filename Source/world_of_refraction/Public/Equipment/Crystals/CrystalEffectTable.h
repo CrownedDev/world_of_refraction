@@ -81,13 +81,13 @@ namespace CrystalEffectTable
 
     // ==================== SAPPHIRE HEAL ====================
 
-    /** Healing Stone: percent of target MaxHP healed (the curve Sapphire vacated in C2b). 0
-     *  otherwise. Sapphire is kept in the gate TRANSITIONALLY — Sapphire is now the defy-death
-     *  crystal and its handler no longer calls this, but its (stale) description/debug still read
-     *  it; C2e rewrites those and should drop Sapphire from this gate. */
+    /** Healing Stone: percent of target MaxHP healed (the curve Sapphire vacated in C2b). 0 for
+     *  every other type — Sapphire is now defy-death (Last Stand / revive) and reads
+     *  GetLastStandWindow, not this. (C2e dropped Sapphire from the gate now that its description +
+     *  debug no longer call GetHealPercent.) */
     inline float GetHealPercent(const FCrystalId &Id)
     {
-        if (Id.Type != ECrystalType::HealingStone && Id.Type != ECrystalType::Sapphire)
+        if (Id.Type != ECrystalType::HealingStone)
         {
             return 0.0f;
         }

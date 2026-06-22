@@ -15,7 +15,7 @@ just bigger numbers.
 | Crystal | Element | What it does | S-tier special |
 |---|---|---|---|
 | **Garnet** | Fire | Fire **damage over time** (a % of the target's max HP each turn) | One big **single-turn burst** |
-| **Sapphire** | Water | **Heal** a % of max HP | Also **revives** a downed ally |
+| **Sapphire** | Water | **Defy death** — *Last Stand* ward on a living target / **revive** a dead one | **Longest** ward window |
 | **Citrine** | Lightning | **Restore EP** | **Full** EP |
 | **Emerald** | Wind | Grants a **bonus turn** — but **forfeits your current turn**; higher tiers shorten the delay before it fires | Bonus turn fires **immediately** |
 | **Amber** | Earth | **Defense** buff (on an ally) / debuff (on an enemy) | Strongest buff/debuff |
@@ -28,6 +28,11 @@ just bigger numbers.
 > Emerald on an **enemy** is a gamble: you hand them a turn (their damage-over-time ticks *and*
 > they act). On **yourself** it's tempo — you act again sooner. Either way you give up the turn
 > you spent using it.
+
+> **Sapphire is now "defy death," not a heal.** On a **living** target it grants **Last Stand** — a
+> tier-scaled **ward**: if they would die within the window, they instead **survive at 50% max HP**
+> (one death absorbed). On a **dead** target it **revives** them at **30% max HP**. Higher tiers
+> give a **longer ward window**. The old plain **heal moved to the [Healing Stone](AugmentStones.md)**.
 
 ## Status buildup
 

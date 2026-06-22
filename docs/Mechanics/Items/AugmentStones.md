@@ -19,8 +19,9 @@ and higher tiers are stronger.
 ## ⚠️ The correction: most stones are dual-form
 
 A common misconception is that augment stones are attach-only "gear parts" you can't use as items.
-**That's wrong.** **Most augment stones are dual-form** — attach OR consume. **Only two stones are
-attach-only** (no consumable use): the **Ability Stone** and the **Durability Stone**.
+**That's wrong.** **Most augment stones are dual-form** — attach OR consume. **Two stones are
+attach-only** (no consumable use): the **Ability Stone** and the **Durability Stone**. And **one
+stone is consume-only** — the **Healing Stone** (an instant heal with no attach effect).
 
 ## The roster
 
@@ -58,6 +59,12 @@ stat.
 |---|---|
 | **Ability Stone** | attached to a weapon, it **grants extra ability slots** so the weapon can hold more abilities. There's no "use" form — it only works slotted in. |
 | **Durability Stone** | adds **flat durability** to a **fusion** it is part of (see [Fusion Stones](FusionStones.md)). On its own it does **nothing** — no stat, no consumable use. |
+
+### Consume-only effect stone (no attach use)
+
+| Stone | What it does |
+|---|---|
+| **Healing Stone** | **Use** to instantly **heal any target** — ally *or* enemy — for a tier-scaled % of their max HP. This is the plain heal **moved off Sapphire** (which is now *defy death* — see [Crystals](Crystals.md)). Consume-only: it carries no stat, so **attaching it to a weapon does nothing**. |
 
 ## Permanent vs temporary
 

@@ -83,13 +83,12 @@ namespace CrystalDescription
                 *FormatTurns(CrystalEffectTable::GetDOTDuration(Id)));
 
         case ECrystalType::Sapphire:
-            if (Id.Tier == EItemTier::S_Tier)
-            {
-                return TEXT("Revives fallen ally at 30% HP, or heals for 60% max HP.");
-            }
             return FString::Printf(
-                TEXT("Restores %.0f%% of target's max HP."),
-                CrystalEffectTable::GetHealPercent(Id));
+                TEXT("Defy death. On a LIVING target: Last Stand — wards them for %d turns; if they "
+                     "would die within that window they instead survive at 50%% max HP (one death). "
+                     "On a DEAD target: revives them at 30%% max HP. (Plain healing moved to the "
+                     "Healing Stone.)"),
+                CrystalEffectTable::GetLastStandWindow(Id));
 
         case ECrystalType::Citrine:
             return FString::Printf(
@@ -220,6 +219,12 @@ namespace CrystalDescription
             return FString::Printf(
                 TEXT("Reinforces an elemental fusion — adds %d flat durability when fused with a crystal. Inert on its own or in a stone-only fusion."),
                 ItemIdentity::GetDurabilityStoneBonus(Id.Tier));
+
+        case ECrystalType::HealingStone:
+            return FString::Printf(
+                TEXT("Consume to instantly heal any target (ally or enemy) for %.0f%% of their max "
+                     "HP. Consume-only — attaching it to a weapon does nothing."),
+                CrystalEffectTable::GetHealPercent(Id));
 
         default:
             return TEXT("Unknown effect.");

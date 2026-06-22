@@ -103,9 +103,11 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Sapphire:
-        if (CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
+        // Sapphire is now defy-death (Last Stand / revive). Validate its tier-scaled ward window
+        // (must be > 0 or the ward never arms), not a heal percent.
+        if (CrystalEffectTable::GetLastStandWindow(FCrystalId{Item->CrystalType, Item->Tier}) <= 0)
         {
-            Errors.Add(TEXT("Zero heal percent"));
+            Errors.Add(TEXT("Zero Last Stand window"));
             bValid = false;
         }
         break;
@@ -266,7 +268,7 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
                 break;
 
             case ECrystalType::Sapphire:
-                ValueStr = FString::Printf(TEXT("%.0f%% HP healed"), CrystalEffectTable::GetHealPercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
+                ValueStr = FString::Printf(TEXT("Last Stand: %d-turn ward (survive at 50%%)"), CrystalEffectTable::GetLastStandWindow(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Citrine:
@@ -572,7 +574,8 @@ float UItemDataDebug::GetPrimaryValue(const UEvolutionItemData *Item)
         return CrystalEffectTable::GetDOTDamagePercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Sapphire:
-        return CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier});
+        // Defy-death: primary value is the Last Stand ward window (turns), like Emerald's delay.
+        return static_cast<float>(CrystalEffectTable::GetLastStandWindow(FCrystalId{Item->CrystalType, Item->Tier}));
 
     case ECrystalType::Citrine:
         return CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier});
