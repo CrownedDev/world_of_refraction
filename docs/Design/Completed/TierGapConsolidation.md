@@ -2,7 +2,7 @@
 
 > **Related:** `TierPowerScaling.md` — the separate own-tier *power* knob (volume dial, F→S scales the authored base up). They STACK: `Final = Base × TierPower(own tier) × TierGap(vs channel) × StatScaling × envelope`. Power scales everything **except** effects; this Gap doc scales effects too.
 
-> **Status: COMPLETED — built + PIE-verified, merged to main (merge date TBD).**
+> **Status: COMPLETED — built + PIE-verified, merged to main 2026-06-22.**
 > Consolidates the tier-gap axis across all action types and all output dimensions. Superseded the
 > "abilities matched by design → ×1.0" decision in [`docs/Mechanics/TierGap.md`](../../Mechanics/TierGap.md)
 > — that doc has been rewritten to the shipped four-dimension system, and this design doc now lives in

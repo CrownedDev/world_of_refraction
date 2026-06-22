@@ -45,7 +45,7 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 
 - **BLOCKED** — BD-states-as-effects: Elemental Charge (absorption stacks) + Overload as real effects. **HIGH risk** (demo-critical BD; ~8–10 readers, overload is derived state) — deferred from this arc's survey. Own arc + PIE pass.
 - **POSSIBLE** — OnDeath actual-death effects: real revive / death-rattle on **actual** death (`UCharacterDataComponent::OnDied` broadcast is the hook). Distinct from Last Stand, which pre-empts death.
-- **BUILT — pending merge** — TierGapConsolidation: four-dimension tier-gap (damage + status + effect magnitude + reciprocal cost) shipped + PIE-verified + matched-tier regression-clean on `feature/tier-gap-consolidation`; **not yet merged to main**. See `Design/Completed/TierGapConsolidation.md`.
+- **DONE** — TierGapConsolidation: four-dimension tier-gap (damage + status + effect magnitude + reciprocal cost) built + PIE-verified + matched-tier regression-clean; **merged to main 2026-06-22**. See `Design/Completed/TierGapConsolidation.md`. | 2026-06-22
 - **NEXT (active target)** — Original design queue advances to **RequirementGapScaling** → then DurabilityWearPercentRework, BrokenDarknessStrainTrigger, ItemProjectiles.
 
 ## Small / unblocked
