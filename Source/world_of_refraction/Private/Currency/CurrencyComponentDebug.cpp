@@ -39,11 +39,12 @@ FString UCurrencyComponentDebug::GetWalletString(const UCurrencyComponent *Walle
     }
 
     // Scalar currencies — ALWAYS shown, including zero balances.
-    FString Out = FString::Printf(TEXT("Gold: %d | Prisms: %d | Diamond: %d | GearEssence: %d"),
+    FString Out = FString::Printf(TEXT("Gold: %d | Prisms: %d | Diamond: %d | GearEssence: %d | SkillEssence: %d"),
                                   Wallet->GetBalance(ECurrencyType::Gold),
                                   Wallet->GetBalance(ECurrencyType::Prisms),
                                   Wallet->GetBalance(ECurrencyType::Diamond),
-                                  Wallet->GetBalance(ECurrencyType::GearEssence));
+                                  Wallet->GetBalance(ECurrencyType::GearEssence),
+                                  Wallet->GetBalance(ECurrencyType::SkillEssence));
 
     // Typed Essence (14 keys) — only NON-zero entries.
     const FString EssenceStr = JoinNonZeroEntries<EEssenceType>(

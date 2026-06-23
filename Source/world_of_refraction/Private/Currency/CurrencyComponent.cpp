@@ -54,6 +54,7 @@ void UCurrencyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &O
     DOREPLIFETIME(UCurrencyComponent, Prisms);
     DOREPLIFETIME(UCurrencyComponent, Diamond);
     DOREPLIFETIME(UCurrencyComponent, GearEssence);
+    DOREPLIFETIME(UCurrencyComponent, SkillEssence);
     DOREPLIFETIME(UCurrencyComponent, EssenceWallet);
 }
 
@@ -92,6 +93,10 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
     case ECurrencyType::GearEssence:
         GearEssence += Amount;
         NewBalance = GearEssence;
+        break;
+    case ECurrencyType::SkillEssence:
+        SkillEssence += Amount;
+        NewBalance = SkillEssence;
         break;
     }
 
@@ -140,6 +145,10 @@ bool UCurrencyComponent::Spend(ECurrencyType Currency, int32 Amount, uint8 SubKe
         GearEssence -= Amount; // CanAfford guaranteed >= Amount
         NewBalance = GearEssence;
         break;
+    case ECurrencyType::SkillEssence:
+        SkillEssence -= Amount; // CanAfford guaranteed >= Amount
+        NewBalance = SkillEssence;
+        break;
     }
 
     NotifyChanged(Currency, SubKey, NewBalance);
@@ -165,6 +174,8 @@ int32 UCurrencyComponent::GetBalance(ECurrencyType Currency, uint8 SubKey) const
         return GetWalletAmount(EssenceWallet, SubKey);
     case ECurrencyType::GearEssence:
         return GearEssence;
+    case ECurrencyType::SkillEssence:
+        return SkillEssence;
     }
     return 0;
 }
@@ -208,6 +219,11 @@ void UCurrencyComponent::OnRep_Diamond()
 void UCurrencyComponent::OnRep_GearEssence()
 {
     NotifyChanged(ECurrencyType::GearEssence, 0, GearEssence);
+}
+
+void UCurrencyComponent::OnRep_SkillEssence()
+{
+    NotifyChanged(ECurrencyType::SkillEssence, 0, SkillEssence);
 }
 
 // ==================== INTERNAL ====================

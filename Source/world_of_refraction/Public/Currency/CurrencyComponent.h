@@ -88,6 +88,17 @@ public:
     UFUNCTION(BlueprintPure, Category = "Economy|Currency")
     int32 GetGearEssence() const { return GetBalance(ECurrencyType::GearEssence); }
 
+    /** Single skill-leveling essence (scalar, no sub-key) — mirrors GearEssence; levels
+     *  abilities + spells. A later deconstruct faucet will call AddSkillEssence(...). */
+    UFUNCTION(BlueprintCallable, Category = "Economy|Currency")
+    bool AddSkillEssence(int32 Amount) { return Add(ECurrencyType::SkillEssence, Amount); }
+
+    UFUNCTION(BlueprintCallable, Category = "Economy|Currency")
+    bool SpendSkillEssence(int32 Amount) { return Spend(ECurrencyType::SkillEssence, Amount); }
+
+    UFUNCTION(BlueprintPure, Category = "Economy|Currency")
+    int32 GetSkillEssence() const { return GetBalance(ECurrencyType::SkillEssence); }
+
     // ==================== EVENTS ====================
 
     UPROPERTY(BlueprintAssignable, Category = "Economy|Currency")
@@ -124,9 +135,13 @@ protected:
     UPROPERTY(SaveGame, ReplicatedUsing = OnRep_Diamond, BlueprintReadOnly, Category = "Economy|Currency")
     int32 Diamond = 0;
 
-    /** Single gear-leveling essence (per-character) — scalar, like Prisms/Diamond. */
+    /** Single gear-leveling essence (per-character) — scalar, like Prisms/Diamond. Levels weapons + rings. */
     UPROPERTY(SaveGame, ReplicatedUsing = OnRep_GearEssence, BlueprintReadOnly, Category = "Economy|Currency")
     int32 GearEssence = 0;
+
+    /** Single skill-leveling essence (per-character) — scalar, mirrors GearEssence. Levels abilities + spells. */
+    UPROPERTY(SaveGame, ReplicatedUsing = OnRep_SkillEssence, BlueprintReadOnly, Category = "Economy|Currency")
+    int32 SkillEssence = 0;
 
     /** 14 typed-essence wallets (per-character). Not BlueprintReadOnly — FCurrencyArray
      *  is not a BlueprintType; BP access is via GetEssenceType/AddEssenceType/SpendEssenceType. */
@@ -146,6 +161,9 @@ protected:
 
     UFUNCTION()
     void OnRep_GearEssence();
+
+    UFUNCTION()
+    void OnRep_SkillEssence();
 
 private:
     /** PIE-safe authority check: true in NM_Standalone, else owner authority.

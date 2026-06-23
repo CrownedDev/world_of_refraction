@@ -26,7 +26,8 @@ enum class ECurrencyType : uint8
     Prisms,       // persistent; account-shareable (routing wired later)
     Diamond,      // persistent; account-wide premium (routing wired later)
     EssenceTyped, // persistent; per-character; sub-keyed by EEssenceType (14 keys) — FastArray
-    GearEssence   // persistent; per-character; single scalar (gear / kit leveling)
+    GearEssence,  // persistent; per-character; single scalar (levels weapons + rings)
+    SkillEssence  // persistent; per-character; single scalar (levels abilities + spells) — appended
 };
 
 /** 14 typed-essence keys: 10 element (Generic = Quartz's element), 3 pillar, 1 ability. */
