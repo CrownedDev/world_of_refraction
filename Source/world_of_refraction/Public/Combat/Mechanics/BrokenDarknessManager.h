@@ -11,6 +11,20 @@
 #include "Inventory/ItemTier.h"
 #include "BrokenDarknessManager.generated.h"
 
+/** Broken Darkness strain tuning (deficit model). Header-homed because BOTH the manager
+ *  (AddStrain) and the caller (ActionExecutor::CheckBrokenDarknessBreak, which computes the
+ *  per-cast deficit incl. the spell-infusion bonus) read these. The break-chance /
+ *  absorption constants stay TU-local in BrokenDarknessManager.cpp. */
+namespace BrokenDarknessConstants
+{
+	constexpr float STRAIN_PER_DEFICIT_POINT   = 3.2f;    // FLAT strain points per point of requirement deficit
+	constexpr float STRAIN_THRESHOLD_PER_EP    = 2.0f;    // break threshold = MaxEP × this (bigger pool = longer fuse)
+	constexpr int32 STRAIN_INFUSION_DEFICIT_L1 = 2;       // infused spell adds +2 deficit-equivalent (additive)
+	constexpr int32 STRAIN_INFUSION_DEFICIT_L2 = 4;       // L2 adds +4
+	constexpr float STRAIN_POWER_FACTOR_MAX    = 3.0f;    // cap on (1 + SpellDamageFrac)
+	constexpr float STRAIN_CONTROL_FACTOR_MIN  = 0.333f;  // floor on (1 - DefenceFrac): strain reduced at most ÷3
+}
+
 class USpellData;
 class UAbilityData;
 class UCharacterData;
@@ -72,6 +86,25 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
 	bool RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason);
+
+	/**
+	 * Deterministic strain accrual (deficit model) — supersedes the RNG RollForBreak. The
+	 * CALLER computes the per-cast requirement Deficit (spell: spell-req deficit + infusion
+	 * bonus; ability: active-weapon-req deficit). AddStrain accrues FLAT strain points
+	 * (Deficit × STRAIN_PER_DEFICIT_POINT × PowerFactor × ControlFactor) into AccruedStrain;
+	 * transforms when it reaches GetBreakThreshold() (= MaxEP × STRAIN_THRESHOLD_PER_EP, so a
+	 * bigger pool is a longer fuse). A luck-skip can negate the whole event. Same trigger site
+	 * as RollForBreak (ActionExecutor::CheckBrokenDarknessBreak).
+	 * @param Deficit       Total requirement-shortfall points for this cast (incl. any infusion bonus)
+	 * @param TriggerReason Debug string for logging what triggered the accrual
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BrokenDarkness|Break")
+	void AddStrain(int32 Deficit, const FString &TriggerReason);
+
+	/** Current accrued strain in raw points (accrues toward GetBreakThreshold(), not a fixed
+	 *  100), for the debug readout / UI. */
+	UFUNCTION(BlueprintPure, Category = "BrokenDarkness|Break")
+	float GetAccruedStrain() const { return AccruedStrain; }
 
 	/**
 	 * Check if spell exceeds character's stat requirements
@@ -172,6 +205,12 @@ public:
 	 *  Efficiency-scaled curve is inspectable without triggering an exact parry/block. Driven by the
 	 *  WoR.AbsorptionSnapshot console command. */
 	void DebugLogAbsorption(float AttackEnergyCost) const;
+
+	/** Log current AccruedStrain / GetBreakThreshold() + a projected casts-to-break table (per
+	 *  representative deficit, using this character's live stats via ComputeStrainForDeficit).
+	 *  The strain bar is hidden by design, so this is the only inspection path. Driven by the
+	 *  WoR.StrainSnapshot console command. */
+	void DebugLogStrain() const;
 
 	// ==================== OVERLOAD STATE ====================
 
@@ -331,6 +370,17 @@ private:
 	/** Resolve the owner's CharacterDataComponent — BD energy lives on its CurrentEP. */
 	UCharacterDataComponent *GetCharComp() const;
 
+	/** Single source of the per-cast strain math — FLAT points: deficit × STRAIN_PER_DEFICIT_POINT
+	 *  × capped power × capped control, with the min-floor — at the character's CURRENT stats.
+	 *  Shared by AddStrain (live accrual) and DebugLogStrain (projection) so they can't drift.
+	 *  No ÷MaxEP (MaxEP scales the break threshold, not the per-cast amount). Excludes the
+	 *  probabilistic luck-skip. Returns 0 if no character data / no deficit. */
+	float ComputeStrainForDeficit(int32 Deficit) const;
+
+	/** Break threshold in strain points = MaxEP × STRAIN_THRESHOLD_PER_EP (a bigger energy
+	 *  pool is a longer fuse). Returns 0 if MaxEP <= 0 / no character data. */
+	float GetBreakThreshold() const;
+
 	/** Bound to CharacterDataComponent::OnEPChanged. Re-evaluates overload on
 	 *  every owner energy change — absorption gain, cast spend, and overload
 	 *  drain all broadcast OnEPChanged, so this is the single overload trigger. */
@@ -385,6 +435,13 @@ protected:
 	 *  and TriggerTransformation. Read via IsTransformed(). */
 	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness")
 	bool bIsFlipped = false;
+
+	/** Accrued Broken Darkness strain in RAW POINTS (not 0-100). Deterministic progress toward
+	 *  the transformation — AddStrain adds flat per-cast points; at GetBreakThreshold()
+	 *  (= MaxEP × STRAIN_THRESHOLD_PER_EP) the character flips. Runtime only; resets per combat
+	 *  (cross-run persistence deferred). */
+	UPROPERTY(BlueprintReadOnly, Category = "BrokenDarkness")
+	float AccruedStrain = 0.0f;
 
 	// ==================== ABSORPTION ENERGY ====================
 	// Broken Darkness energy is unified onto UCharacterDataComponent::CurrentEP

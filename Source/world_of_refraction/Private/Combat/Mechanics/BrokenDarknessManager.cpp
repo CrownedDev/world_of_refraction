@@ -10,6 +10,7 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Skills/Definitions/WorldStatRequirements.h"
 #include "Character/StatConstants.h"
+#include "Combat/CombatConstants.h" // LUCK_BREAK_SKIP_MAX (strain luck-skip)
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Skills/Definitions/EScalingTier.h" // GetScalingFraction (Efficiency scaling)
@@ -33,6 +34,10 @@ namespace BrokenDarknessConstants
 	constexpr float BREAK_CHANCE_F_TIER = 0.0f;
 	constexpr float BREAK_CHANCE_L1_MULTIPLIER = 1.5f;
 	constexpr float BREAK_CHANCE_L2_MULTIPLIER = 2.0f;
+
+	// Strain constants (deficit model) are header-homed in BrokenDarknessManager.h — BOTH
+	// AddStrain and the caller (ActionExecutor) read them, so they can't be TU-local here.
+	// See namespace BrokenDarknessConstants in the header.
 
 	// Absorption — base rate (pre-Efficiency); Efficiency scales it UP via ABSORPTION_EFFICIENCY_K.
 	constexpr float PARRY_BASE_RATE = 0.10f;        // base absorption rate (parry), pre-Efficiency
@@ -100,6 +105,7 @@ void UBrokenDarknessManager::BeginPlay()
 	CurrentAlignmentElement = ESpellElement::Generic;
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
+	AccruedStrain = 0.0f; // per-combat reset (interim until persistence)
 
 	if (AActor *Owner = GetOwner())
 	{
@@ -140,6 +146,7 @@ void UBrokenDarknessManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 // ==================== BREAK SYSTEM ====================
 
+// Superseded by AddStrain (deterministic strain); retained for rollback, no production callers.
 bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, const FString &TriggerReason)
 {
 	if (bIsFlipped)
@@ -192,6 +199,117 @@ bool UBrokenDarknessManager::RollForBreak(EItemTier Tier, int32 InfusionLevel, c
 	}
 }
 
+float UBrokenDarknessManager::ComputeStrainForDeficit(int32 Deficit) const
+{
+	// SINGLE source of the per-cast strain math — both AddStrain (live accrual) and
+	// DebugLogStrain (WoR.StrainSnapshot projection) call this, so they can never drift.
+	// Returns FLAT strain points for a cast of this Deficit at the character's CURRENT stats:
+	// deficit × STRAIN_PER_DEFICIT_POINT × capped power × capped control. NO ÷MaxEP — MaxEP
+	// scales the break threshold (GetBreakThreshold), not the per-cast amount. Excludes the
+	// probabilistic luck-skip (that's the caller's concern).
+	if (Deficit <= 0)
+	{
+		return 0.0f;
+	}
+
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	if (!CharComp)
+	{
+		return 0.0f;
+	}
+
+	const float SpellDamageFrac = CharComp->GetEffectiveSpellDamage() - 1.0f; // >= 0
+	const float DefenceFrac = CharComp->GetEvolutionModifiedFlatDefense();    // [0, 0.5]
+
+	// Power amplifies, control dampens — both clamped (mirrors the durability-wear wrap).
+	const float PowerFactor = FMath::Min(1.0f + SpellDamageFrac, BrokenDarknessConstants::STRAIN_POWER_FACTOR_MAX);
+	const float ControlFactor = FMath::Max(1.0f - DefenceFrac, BrokenDarknessConstants::STRAIN_CONTROL_FACTOR_MIN);
+
+	const float StrainPerCast = Deficit * BrokenDarknessConstants::STRAIN_PER_DEFICIT_POINT * PowerFactor * ControlFactor;
+
+	// Min-floor: a real deficit always accrues at least the UNMODULATED single-deficit-point
+	// strain (the flat translation of the old per-cent floor), so control-stacking can't grind
+	// a real deficit's strain below the raw 1-point value.
+	const float MinFloor = BrokenDarknessConstants::STRAIN_PER_DEFICIT_POINT;
+	return FMath::Max(StrainPerCast, MinFloor);
+}
+
+float UBrokenDarknessManager::GetBreakThreshold() const
+{
+	// Break threshold scales with the energy pool — a bigger vessel is a longer fuse.
+	const UCharacterDataComponent *CharComp = GetCharComp();
+	if (!CharComp || CharComp->MaxEP <= 0)
+	{
+		return 0.0f;
+	}
+	return static_cast<float>(CharComp->MaxEP) * BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP;
+}
+
+void UBrokenDarknessManager::AddStrain(int32 Deficit, const FString &TriggerReason)
+{
+	if (bIsFlipped)
+	{
+		return; // Already transformed — mirror RollForBreak's guard.
+	}
+
+	if (Deficit <= 0)
+	{
+		return; // Qualified cast — no requirement deficit, no strain (the deficit self-zeroes).
+	}
+
+	AActor *Owner = GetOwner();
+
+	// CharComp is needed for the luck-skip roll below; the per-cast strain math is factored
+	// into ComputeStrainForDeficit so live accrual and the WoR.StrainSnapshot projection
+	// share one formula and can't drift.
+	UCharacterDataComponent *CharComp = GetCharComp();
+	if (!CharComp)
+	{
+		return;
+	}
+
+	// Break threshold scales with MaxEP. A zero/invalid pool yields a 0 threshold — guard it
+	// so we don't "break" the instant any strain lands.
+	const float BreakThreshold = GetBreakThreshold();
+	if (BreakThreshold <= 0.0f)
+	{
+		return;
+	}
+
+	const float StrainAdded = ComputeStrainForDeficit(Deficit); // flat points, caps + min-floor inside
+
+	// Luck wear-skip parity: the wielder can skip the whole strain event (no accrual), exactly
+	// as ProcessPostCastWear skips a durability event. Negative ("cursed") luck never skips.
+	const float SkipChance = CharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
+	if (FMath::FRand() < SkipChance)
+	{
+		UE_LOG(LogTemp, Log,
+			   TEXT("BrokenDarkness: %s LUCKY strain skip (would have added %.2f, skip chance %.2f, Reason: %s)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   StrainAdded, SkipChance, *TriggerReason);
+		return;
+	}
+
+	AccruedStrain += StrainAdded;
+
+	UE_LOG(LogTemp, Display,
+		   TEXT("BrokenDarkness: %s +%.2f strain (now %.2f / %.2f) (Reason: %s, Deficit: %d)"),
+		   Owner ? *Owner->GetName() : TEXT("Unknown"),
+		   StrainAdded, AccruedStrain, BreakThreshold,
+		   *TriggerReason, Deficit);
+
+	if (AccruedStrain >= BreakThreshold)
+	{
+		UE_LOG(LogTemp, Warning,
+			   TEXT("BrokenDarkness: %s BROKE via strain! (%.2f >= %.2f, Reason: %s)"),
+			   Owner ? *Owner->GetName() : TEXT("Unknown"),
+			   AccruedStrain, BreakThreshold,
+			   *TriggerReason);
+
+		TriggerTransformation();
+	}
+}
+
 bool UBrokenDarknessManager::DoesSpellExceedRequirements(USpellData *Spell, UCharacterData *Character)
 {
 	if (!Spell || !Character)
@@ -240,6 +358,7 @@ void UBrokenDarknessManager::TriggerTransformation()
 	SeedBaseElement();
 	CurrentAbsorptionStacks = 0;
 	ConsecutiveAbsorptions = 0;
+	AccruedStrain = 0.0f; // strain spent on the break
 
 	AActor *Owner = GetOwner();
 
@@ -279,6 +398,7 @@ void UBrokenDarknessManager::RevertTransformation()
 	ResetStacks();
 	CurrentAlignmentElement = ESpellElement::Generic;
 	AbsorbedElements.Empty();
+	AccruedStrain = 0.0f; // clean slate for the next BD run — prevents instant re-break
 
 	// 3. Clear the runtime BD flag on the component + reset EP→MaxEP. The EP guard is on
 	//    bIsBrokenDarkness (CDC), which ServerSetBrokenDarkness(false) clears before resetting
@@ -967,6 +1087,60 @@ void UBrokenDarknessManager::DebugLogAbsorption(float AttackEnergyCost) const
 	}
 }
 
+void UBrokenDarknessManager::DebugLogStrain() const
+{
+	const AActor *Owner = GetOwner();
+	const FString Name = Owner ? Owner->GetName() : TEXT("?");
+
+	const float Threshold = GetBreakThreshold();
+	const int32 MaxEP = (Threshold > 0.0f && BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP > 0.0f)
+							? FMath::RoundToInt(Threshold / BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP)
+							: 0;
+
+	UE_LOG(LogTemp, Display, TEXT("=== StrainSnapshot: %s — strain %.1f / %.1f (MaxEP %d x%.1f)%s ==="),
+		   *Name, AccruedStrain, Threshold, MaxEP, BrokenDarknessConstants::STRAIN_THRESHOLD_PER_EP,
+		   bIsFlipped ? TEXT(" [ALREADY BROKEN — strain inert]") : TEXT(""));
+
+	if (bIsFlipped)
+	{
+		// Strain only matters pre-break; a transformed BD doesn't accrue (AddStrain's guard).
+		return;
+	}
+
+	if (Threshold <= 0.0f)
+	{
+		UE_LOG(LogTemp, Display, TEXT("  (no valid energy pool — cannot project casts-to-break)"));
+		return;
+	}
+
+	const float Remaining = Threshold - AccruedStrain;
+
+	UE_LOG(LogTemp, Display,
+		   TEXT("  Projected casts-to-break at current stats (infusion adds +%d / +%d deficit → reads as a higher row):"),
+		   BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L1, BrokenDarknessConstants::STRAIN_INFUSION_DEFICIT_L2);
+	UE_LOG(LogTemp, Display, TEXT("  Deficit | strain/cast | casts-to-break"));
+	UE_LOG(LogTemp, Display, TEXT("  --------+-------------+---------------"));
+
+	// Representative deficits — same FLAT per-cast math the live AddStrain uses (shared helper),
+	// against THIS character's MaxEP-derived threshold. No drift.
+	const int32 SampleDeficits[] = {1, 3, 6, 12, 21};
+	for (const int32 Deficit : SampleDeficits)
+	{
+		const float PerCast = ComputeStrainForDeficit(Deficit);
+		FString CastsStr;
+		if (PerCast <= 0.0f)
+		{
+			CastsStr = TEXT("inf"); // no accrual
+		}
+		else
+		{
+			CastsStr = FString::Printf(TEXT("%d"), FMath::CeilToInt(Remaining / PerCast));
+		}
+		UE_LOG(LogTemp, Display, TEXT("    %2d    |   %7.1f   |   %s"),
+			   Deficit, PerCast, *CastsStr);
+	}
+}
+
 // ========================================
 // CONSOLE COMMAND — absorption-curve inspection
 // ========================================
@@ -1068,6 +1242,49 @@ namespace
 			   BDManager->GetOwner() ? *BDManager->GetOwner()->GetName() : TEXT("?"));
 		BDManager->RevertTransformation();
 	}
+
+	// Mirrors RunAbsorptionSnapshotCommand: resolve the active combat's FIRST Broken Darkness
+	// actor and print its strain % + projected casts-to-break. The strain bar is hidden by
+	// design, so this is the only way to inspect strain. Run mid-PIE-combat.
+	void RunStrainSnapshotCommand(UWorld *World)
+	{
+		if (!World)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.StrainSnapshot: no world"));
+			return;
+		}
+
+		ACombatOrchestrator *Orchestrator =
+			Cast<ACombatOrchestrator>(UGameplayStatics::GetActorOfClass(World, ACombatOrchestrator::StaticClass()));
+		if (!Orchestrator)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.StrainSnapshot: no CombatOrchestrator (run during a PIE combat)"));
+			return;
+		}
+
+		UBrokenDarknessManager *BDManager = nullptr;
+		TArray<AActor *> Combatants = Orchestrator->GetTeam0();
+		Combatants.Append(Orchestrator->GetTeam1());
+		for (AActor *Actor : Combatants)
+		{
+			if (Actor)
+			{
+				if (UBrokenDarknessManager *Mgr = Actor->FindComponentByClass<UBrokenDarknessManager>())
+				{
+					BDManager = Mgr;
+					break;
+				}
+			}
+		}
+
+		if (!BDManager)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[BrokenDarkness] WoR.StrainSnapshot: no BrokenDarknessManager among combatants"));
+			return;
+		}
+
+		BDManager->DebugLogStrain();
+	}
 }
 
 static FAutoConsoleCommandWithWorld GAbsorptionSnapshotCommand(
@@ -1082,6 +1299,11 @@ static FAutoConsoleCommandWithWorld GTestBDRevertCommand(
 	TEXT("Forcibly revert the active combat's first transformed Broken Darkness actor back to Darkness ")
 	TEXT("(RevertTransformation). Arc-2 debug hook — confirms EP reset to MaxEP, bar relabel, OnReverted fire."),
 	FConsoleCommandWithWorldDelegate::CreateStatic(&RunBDRevertCommand));
+
+static FAutoConsoleCommandWithWorld GStrainSnapshotCommand(
+	TEXT("WoR.StrainSnapshot"),
+	TEXT("Print current BD strain % + projected casts-to-break"),
+	FConsoleCommandWithWorldDelegate::CreateStatic(&RunStrainSnapshotCommand));
 
 float UBrokenDarknessManager::CalculateAuraRange() const
 {
