@@ -1752,8 +1752,10 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 
 					for (AActor *AppTarget : AppTargets)
 					{
-						// Built via the shared core. No cast context → Element None. Conditions are
-						// passed EMPTY on purpose: the defense-outcome conditions were the GATE
+						// Built via the shared core. Element = the AUTHORED payload element (None =
+						// generic / element-agnostic; a real element = element-keyed, e.g. an OnParry
+						// payload granting a Lightning-keyed StatusMultiplierBuff "stack"). Conditions
+						// are passed EMPTY on purpose: the defense-outcome conditions were the GATE
 						// (already evaluated), so the consequence must tick on its natural timing
 						// (DOT end-of-turn, etc.) — empty Conditions means NO OnTrigger promotion in
 						// the core. bAutoDetectTimingByType=true preserves the type-based timing the
@@ -1766,7 +1768,7 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 							E.bStackable,
 							E.MaxStacks,
 							E.bFiresOncePerMatch,
-							ESpellElement::None,
+							Payload.Element,
 							/*bAutoDetectTimingByType*/ true);
 
 						// No cast context here (no EffMagMult), but the defender pre-rounds its value
