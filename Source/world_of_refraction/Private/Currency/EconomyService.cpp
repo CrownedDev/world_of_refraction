@@ -100,9 +100,9 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
         return false;
     }
 
-    // Find the owned instance and capture its (asset) tier BEFORE removal — the entry pointer
-    // dangles once the array is mutated, so nothing past the remove dereferences it. Leveled-tier
-    // is deferred: there is no per-instance tier yet, so dismantle yields off the base asset tier.
+    // Find the owned instance and capture its tier BEFORE removal — the entry pointer dangles once
+    // the array is mutated, so nothing past the remove dereferences it. Reads the INSTANCE Tier
+    // (cluster 2b read-flip): a leveled weapon now dismantles for its CURRENT tier, not its base.
     const FWeaponInventoryEntry *Entry = Inv->Weapons.FindByPredicate(
         [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
     if (!Entry || !Entry->Weapon)
@@ -111,7 +111,7 @@ bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
                *Owner->GetName(), *PersistentID.ToString());
         return false;
     }
-    const EItemTier Tier = Entry->Weapon->Tier;
+    const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Weapon->Tier (asset/base)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
     // REMOVE FIRST — a failed removal must never grant phantom essence.
@@ -160,7 +160,7 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
                *Owner->GetName(), *PersistentID.ToString());
         return false;
     }
-    const EItemTier Tier = Entry->Ring->Tier;
+    const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Ring->Tier (asset/base)
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
     if (!Inv->RemoveRingByPersistentID(PersistentID))
