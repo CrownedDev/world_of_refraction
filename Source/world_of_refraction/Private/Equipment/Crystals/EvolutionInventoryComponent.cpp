@@ -17,6 +17,11 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
     }
 
     FEvolutionInventoryEntry Entry(Item);
+    // Cluster 1c (tier-on-instance foundation): seed per-instance Tier from the asset + placeholder
+    // Quality (weighted roll lands later). Written-but-unread — reads still use Item->Tier until the
+    // cluster-2 repoint, so this is a behavioural no-op.
+    Entry.Tier = Item->Tier;
+    Entry.Quality = EItemQuality::C_Quality;
 
     // U3a pickup roll — mirrors UInventoryComponent::ApplyPickupRoll for evolution:
     // when the asset opts in, the fresh OWNED instance rolls its Generated layers

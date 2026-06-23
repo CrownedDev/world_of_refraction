@@ -261,6 +261,11 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
     FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, bCopyDefaultCrystal);
     // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
     Entry.PersistentID = FGuid::NewGuid();
+    // Cluster 1b (tier-on-instance foundation): seed per-instance Tier from the asset + placeholder
+    // Quality (weighted roll lands later). Written-but-unread — every Tier calc still reads
+    // Ring->Tier until the cluster-2 repoint, so this is a behavioural no-op.
+    Entry.Tier = Ring->Tier;
+    Entry.Quality = EItemQuality::C_Quality;
     if (Ring->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
