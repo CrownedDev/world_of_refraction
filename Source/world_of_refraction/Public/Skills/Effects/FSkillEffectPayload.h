@@ -88,4 +88,13 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Drain",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float DrainPercent = 0.0f;
+
+    /** Attack-scaled value source for reactive defense effects. >0 = this payload's granted value is
+     *  a FRACTION of the triggering attack's BASE energy cost (pre-efficiency inherent worth, threaded
+     *  through OnDefenseResolved) — e.g. 0.05 = "gain 5% of the parried attack's cost". 0 = OFF: use
+     *  the authored Value/Magnitude (default, byte-identical). Consumed by
+     *  USkillEffectManager::OnDefenseResolvedHandler; the payload's EffectType still picks the
+     *  primitive (EnergyRestore → EP via ServerGainEnergy, HealthRestore → HP via ServerHeal). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect", meta = (ClampMin = "0"))
+    float AttackCostScale = 0.0f;
 };
