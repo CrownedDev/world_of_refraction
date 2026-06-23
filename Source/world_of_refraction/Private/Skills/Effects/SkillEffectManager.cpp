@@ -1649,8 +1649,12 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 }
 
 void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
-												   EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex)
+												   EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex,
+												   float AttackEnergyCost)
 {
+	// AttackEnergyCost = the triggering attack's BASE energy cost (pre-efficiency inherent worth).
+	// Consumed below by payloads opting into attack-scaled absorb via FSkillEffectPayload::AttackCostScale.
+
 	if (!Defender || !Attacker)
 	{
 		return;
@@ -1775,7 +1779,14 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 						// (:1703-1708) — overwrite the core's payload-derived value. Reproduces the
 						// deleted CreateFromSpellEffect's EXACT expression ((Value!=0)?Value:Magnitude*100,
 						// Value=RuntimeValue) so the zero-RuntimeValue fallback stays byte-identical too.
-						Runtime.EffectValue = (RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (Payload.Magnitude * 100.0f);
+						// ATTACK-SCALED absorb (Cluster B): when the payload opts in (AttackCostScale > 0), its granted
+						// value is AttackCostScale × the triggering attack's BASE energy cost (threaded in Cluster A) —
+						// e.g. "gain EP = 5% of the parried attack's cost". AttackEnergyCost is 0 when the broadcast
+						// couldn't resolve it (IsSet() guard) → scaled payload grants 0, gracefully no absorb. Scale 0
+						// = the authored Value/Magnitude path (byte-identical).
+						Runtime.EffectValue = (Payload.AttackCostScale > 0.0f)
+							? static_cast<float>(FMath::RoundToInt(Payload.AttackCostScale * AttackEnergyCost))
+							: ((RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (Payload.Magnitude * 100.0f));
 
 						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
 

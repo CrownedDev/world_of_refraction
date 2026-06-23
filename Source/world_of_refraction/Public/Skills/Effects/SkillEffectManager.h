@@ -84,10 +84,13 @@ public:
 
 	/** Listener bound to UDefenseSystem::OnDefenseResolved. Drives defense-outcome conditional
 	 *  effects (OnParry/Block/Dodge + perfect tiers, OnTakeDamage). C3b: evaluates the armed
-	 *  conditionals and LOGS matches only — ApplyEffect wiring lands in C3c. */
+	 *  conditionals and LOGS matches only — ApplyEffect wiring lands in C3c.
+	 *  AttackEnergyCost = the attack's BASE (pre-efficiency) energy cost; RECEIVED here for
+	 *  attack-scaled reactive absorb but not yet consumed (Cluster B wires the scaling). */
 	UFUNCTION()
 	void OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
-								  EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex);
+								  EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex,
+								  float AttackEnergyCost);
 
 	// ========================================
 	// EFFECT APPLICATION

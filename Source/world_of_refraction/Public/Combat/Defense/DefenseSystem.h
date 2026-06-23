@@ -200,8 +200,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDefenseCueTriggered, AActor *, D
 /** Broadcast when parry reflects damage */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnParryReflect, AActor *, Defender, AActor *, Attacker, int32, ReflectedDamage);
 
-/** Broadcast per impact once its defense is resolved (Stage 3). Payoffs are content (later). */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefenseResolved, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
+/** Broadcast per impact once its defense is resolved (Stage 3). Payoffs are content (later).
+ *  AttackEnergyCost is the attack's BASE (pre-efficiency, raw authored) energy cost — the inherent
+ *  worth, NOT the post-efficiency paid cost — so a reactive effect can scale off it (e.g. "on parry,
+ *  gain EP = X% of the attack's cost"). 0 when the cost can't be resolved. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_SixParams(FOnDefenseResolved, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex, float, AttackEnergyCost);
 
 /** Broadcast when an impact's defense lands inside the perfect-timing window (Stage 3). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FiveParams(FOnDefensePerfect, AActor *, Defender, AActor *, Attacker, EDefenseType, DefenseType, bool, bPerfect, int32, ImpactIndex);
