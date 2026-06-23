@@ -295,15 +295,6 @@ public:
 	}
 
 	/**
-	 * Apply healing to target
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Damage")
-	FCombatHitResult ApplyHealing(
-		AActor *Healer,
-		AActor *Target,
-		int32 BaseHealing);
-
-	/**
 	 * ApplyHit — unified single-hit applicator. Phase A of the ApplyHit
 	 * consolidation; see docs/analysis/Codebase_Analysis_Pass2_ApplyConsolidation.md
 	 * Section 8 for the migration plan.

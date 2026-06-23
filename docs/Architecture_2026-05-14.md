@@ -411,7 +411,7 @@ Key entry points:
 - `UActionExecutor::ExecuteActionAsync` (`ActionExecutor.cpp:376`) — full async path.
 - `UActionExecutor::ApplyHit(FActionHitInput)` (`:1876`) — unified per-hit applicator (Phase A landed). Called from `ApplyDamageAfterDefense` (`:1316`) and recursive DoubleHit self-call (`:2049`).
 - `UActionExecutor::ApplyDamage(...)` (`:2076`) — legacy helper still used by support spells (`ResolveInstantSpell` `:2623`, support `:2667`), DOT ticks (`:2719, :2752`), and `ProcessMultiHit` (`:2272`). Both `ApplyHit` and `ApplyDamage` broadcast `OnDamageDealt`.
-- `UActionExecutor::ApplyHealing` (`:2159`) broadcasts `OnHealingDone`.
+- `UActionExecutor::ApplyHealing` — **DELETED** (`chore/modifyhealing-cleanup`, 2026-06; dead — zero callers). Was a heal applicator broadcasting `OnHealingDone`. Live heals route through `UCharacterDataComponent::ServerHeal` directly at their effect sites.
 - `UActionExecutor::ExecuteDefend` (`:1799`) applies a 50% DefenseBuff via `SkillEffectManager`.
 - `UActionExecutor::ExecuteItem` (`:1698`) delegates to `UItemExecutor`, consumes loadout slot.
 - `UActionExecutor::ApplyCommitCosts` (`:4103`) — cost-at-commit hub for infusion (§9).

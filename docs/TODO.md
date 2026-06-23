@@ -39,7 +39,7 @@ Living backlog — keep entries short; promote to a real doc/issue when worked.
 
 - **WATCH** — DOT retune: Burn/Chill now hit **on apply** (~33% more total) since the fire-on-apply default — wants a balance pass.
 - **CLEANUP** — `FActiveSkillEffect::CreateFromSpellEffect` (~:245) duration-0→1 clamp is out of sync with the new duration model (0 = instant). Reconcile.
-- **BLOCKED** — C4 spell-heal routing: direct `ApplyHealing` spell heals still **bypass HealBlock** (only item/effect heals route through the gate). Route spell heals through the gate.
+- **RESOLVED** (2026-06) — C4 spell-heal routing / HealBlock: the original `ApplyHealing` direct-heal path was never live (zero callers) and has since been **deleted** (`chore/modifyhealing-cleanup`). HealBlock coverage was instead completed at the real heal sites — HoT ticks, drain-on-hit, lifesteal-on-hit (`fix/healblock-direct-heals`) — and the recipient-side amplifier mirror landed as `HealingReceivedBuff` (`feature/healing-received`).
 
 ### Queued arcs (post effect-expansion)
 

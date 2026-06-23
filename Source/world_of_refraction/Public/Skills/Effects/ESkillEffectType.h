@@ -141,7 +141,11 @@ enum class ESkillEffectType : uint8
     // enum slot so the ModifyDamageTaken redirect resolves by name; both use a
     // POSITIVE magnitude (percent). IncreaseDamageTaken is appended at the end.
     ReduceDamageTaken UMETA(DisplayName = "Reduce Damage Taken"),
-    ModifyHealing UMETA(DisplayName = "Healing Up"),
+    // DEAD — healer-side healing modifier; no live path (ApplyHealing + CalculateHealing deleted
+    // 2026-06). Value KEPT (not deleted): append-only enum stamping + the EnumRedirects entry in
+    // DefaultEngine.ini maps legacy EPassiveEffectType::ModifyHealing -> this value. Hidden from
+    // authoring. Recipient-side amplification now lives in HealingReceivedBuff ("Healing Boost").
+    ModifyHealing UMETA(Hidden, DisplayName = "Healing Up"),
     ModifyCritChance UMETA(DisplayName = "Crit Chance Up"),
     ModifyCritDamage UMETA(DisplayName = "Crit Damage Up"),
     ModifyEnergyCost UMETA(DisplayName = "Energy Cost Up"),
