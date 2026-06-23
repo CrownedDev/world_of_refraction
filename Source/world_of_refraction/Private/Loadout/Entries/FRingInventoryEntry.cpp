@@ -43,6 +43,12 @@ FRingInventoryEntry FRingInventoryEntry::CreateFromRing(URingData *InRing, bool 
         // never copied; toggle-ON acquisitions roll fresh via ApplyPickupRoll.
         Entry.StatBonus = InRing->BaseStatBonus;
         Entry.ResistanceBonus = InRing->BaseResistance;
+
+        // Cluster 2a: seed per-instance Tier from the asset + placeholder Quality (weighted roll
+        // later). Seeded in the factory — not just AddRing — so loadout-inflated entries get the
+        // asset tier too. No-op: nothing reads Entry.Tier until cluster 2b.
+        Entry.Tier = InRing->Tier;
+        Entry.Quality = EItemQuality::C_Quality;
     }
 
     return Entry;

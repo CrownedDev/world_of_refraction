@@ -132,12 +132,8 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
     // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
     // that factory and must not mint).
     Entry.PersistentID = FGuid::NewGuid();
-    // Cluster 1 (tier-on-instance foundation): seed the per-instance Tier from the asset (the
-    // future leveling action mutates it) + a placeholder Quality (the weighted drop-roll lands in a
-    // later cluster). WRITTEN-BUT-UNREAD: every Tier calc still reads Weapon->Tier until the
-    // cluster-2 repoint, so this is a behavioural no-op.
-    Entry.Tier = Weapon->Tier;
-    Entry.Quality = EItemQuality::C_Quality;
+    // Tier/Quality are seeded in CreateFromWeapon (the factory, called above) so loadout-inflated
+    // entries get them too — see cluster 2a. Acquisition only mints the persistent guid here.
     if (Weapon->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
@@ -261,11 +257,7 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
     FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, bCopyDefaultCrystal);
     // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
     Entry.PersistentID = FGuid::NewGuid();
-    // Cluster 1b (tier-on-instance foundation): seed per-instance Tier from the asset + placeholder
-    // Quality (weighted roll lands later). Written-but-unread — every Tier calc still reads
-    // Ring->Tier until the cluster-2 repoint, so this is a behavioural no-op.
-    Entry.Tier = Ring->Tier;
-    Entry.Quality = EItemQuality::C_Quality;
+    // Tier/Quality are seeded in CreateFromRing (the factory, called above); see cluster 2a.
     if (Ring->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);

@@ -35,6 +35,13 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
         // these with Base + a fresh per-instance roll (ApplyPickupRoll, U2).
         Entry.StatBonus = InWeapon->BaseStatBonus;
         Entry.ResistanceBonus = InWeapon->BaseResistance;
+
+        // Cluster 2a: seed per-instance Tier from the asset (leveling mutates it later) + a
+        // placeholder Quality (the weighted drop-roll lands in a later cluster). Seeded HERE in the
+        // factory — not just AddWeapon — so loadout-inflated entries (the primary equip path) also
+        // carry the asset tier. Still a behavioural no-op: nothing reads Entry.Tier until cluster 2b.
+        Entry.Tier = InWeapon->Tier;
+        Entry.Quality = EItemQuality::C_Quality;
     }
 
     return Entry;
