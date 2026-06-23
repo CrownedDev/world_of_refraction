@@ -61,8 +61,8 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 
 	case EItemEffectType::DefyDeath:
 		// Sapphire — Last Stand (living target) / revive (dead target). Repointed off
-		// EItemEffectType::Healing (AI-1); the handler name stays ExecuteHealingEffect (misnomer).
-		ExecuteHealingEffect(User, Target, Id, Result);
+		// EItemEffectType::Healing (AI-1).
+		ExecuteDefyDeathEffect(User, Target, Id, Result);
 		break;
 
 	case EItemEffectType::RestoreHealth:
@@ -287,14 +287,12 @@ void UItemExecutor::ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId
 		   *Target->GetName(), DamagePerTurnInt, Duration);
 }
 
-void UItemExecutor::ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+void UItemExecutor::ExecuteDefyDeathEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Sapphire (reworked) — the "defy death" crystal. Branches by TARGET STATE:
 	//   DEAD  → revive (ServerResurrect, the genuine resurrection; any tier now, no longer S-gated).
 	//   ALIVE → grant a LastStand ward (the C2a CheckDeath intercept revives if HP hits 0 inside a
-	//           tier-scaled window). Sapphire no longer heals — the heal moves to the Healing stone
-	//           (C2c). NOTE: the function name ExecuteHealingEffect is now a misnomer; kept this
-	//           cluster to avoid touching the dispatch site — rename in a later cleanup pass.
+	//           tier-scaled window). Sapphire no longer heals — the heal moved to the Healing stone (C2c).
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{

@@ -84,7 +84,7 @@ enum class EItemEffectType : uint8
     // so the append needs no CoreRedirect.
     RestoreHealth UMETA(DisplayName = "Restore Health (Healing Stone instant heal)"),
     // Appended (AI-1). Sapphire's defy-death form — Last Stand on a living target / revive on a dead
-    // one (routes to ExecuteHealingEffect). Repointed off EItemEffectType::Healing so the AI can
+    // one (routes to ExecuteDefyDeathEffect). Repointed off EItemEffectType::Healing so the AI can
     // tell defy-death apart from a real heal (RestoreHealth). Runtime-derived only (never
     // serialized), so the append needs no CoreRedirect.
     DefyDeath UMETA(DisplayName = "Defy Death (Sapphire Last Stand / revive)")

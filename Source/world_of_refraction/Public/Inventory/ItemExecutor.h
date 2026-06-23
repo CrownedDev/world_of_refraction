@@ -136,7 +136,7 @@ private:
 	void ExecuteDamageEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Sapphire - defy-death (Last Stand on a living target / revive on a dead one) */
-	void ExecuteHealingEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+	void ExecuteDefyDeathEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Healing Stone - consume-only plain instant heal, any target */
 	void ExecuteHealingStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);

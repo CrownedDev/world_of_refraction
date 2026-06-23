@@ -27,21 +27,20 @@ enum class ECrystalType : uint8
     Iolite UMETA(DisplayName = "Iolite (Reality - Cleanse)"),
     Quartz UMETA(DisplayName = "Quartz (None - Status Clear)"),
     DamageStone UMETA(DisplayName = "Damage Stone"),
-    // Appended after DamageStone (=12); augment-stone sub-type that grants ability
+    // Appended after DamageStone; augment-stone sub-type that grants ability
     // slots. Attach-only (never a consumable). Do NOT reorder/insert above —
     // value is the serialized .uasset/SaveGame identity.
     AbilityStone UMETA(DisplayName = "Ability Stone"),
-    // Appended after AbilityStone (=13); augment-stone sub-type that buffs Defense.
+    // Appended after AbilityStone; augment-stone sub-type that buffs Defense.
     // Same append-only serialized-identity rule — do NOT reorder/insert above.
     DefenseStone UMETA(DisplayName = "Defense Stone"),
-    // Appended after DefenseStone (=14); stat-stone sub-types (Crit=15, TurnSpeed=16,
-    // Status=17, Efficiency=18). Same append-only serialized-identity rule — do NOT
-    // reorder/insert above.
+    // Appended after DefenseStone; stat-stone sub-types (Crit, TurnSpeed, Status,
+    // Efficiency). Same append-only serialized-identity rule — do NOT reorder/insert above.
     CritStone UMETA(DisplayName = "Crit Stone"),
     TurnSpeedStone UMETA(DisplayName = "Turn Speed Stone"),
     StatusStone UMETA(DisplayName = "Status Stone"),
     EfficiencyStone UMETA(DisplayName = "Efficiency Stone"),
-    // Appended after EfficiencyStone (=18); pool stones (MaxHP=19, MaxEP=20) — raise the
+    // Appended after EfficiencyStone; pool stones (MaxHP, MaxEP) — raise the
     // MaxHP/MaxEP ceiling via RecomputeMaxPools (Option B; not ESubStat-backed). Same
     // append-only serialized-identity rule — do NOT reorder/insert above.
     MaxHPStone UMETA(DisplayName = "Max HP Stone"),
@@ -68,12 +67,12 @@ enum class ECrystalType : uint8
     // -> None, like the pool stones). Inert alone or in a stone-only fusion. Same
     // append-only serialized-identity rule — do NOT reorder/insert above.
     DurabilityStone UMETA(DisplayName = "Durability Stone"),
-    // Appended after DurabilityStone (=26); stat-stone sub-type -> ESubStat::Luck (cluster 5f-B).
+    // Appended after DurabilityStone; stat-stone sub-type -> ESubStat::Luck (cluster 5f-B).
     // Luck drives crit chance + crystal-wear break-skip (+ future dodge/drops), so a LuckStone lifts
     // ALL luck consumers uniformly via GetEquipmentModifiedLuck. Same append-only serialized-identity
     // rule — do NOT reorder/insert above.
     LuckStone UMETA(DisplayName = "Luck Stone"),
-    // Appended after LuckStone (=28); stat-stone sub-type -> ESubStat::Reflex (Cluster B-3). Reflex
+    // Appended after LuckStone; stat-stone sub-type -> ESubStat::Reflex (Cluster B-3). Reflex
     // widens the defender's input window in the real-time defense duel, so an attached ReflexStone
     // makes a character harder to land hits on. Same append-only serialized-identity rule — do NOT
     // reorder/insert above.
