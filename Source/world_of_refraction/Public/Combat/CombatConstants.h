@@ -168,6 +168,10 @@ namespace CombatConstants
     // the [0,1] crit ceiling (100%).
     constexpr float CRIT_CHANCE_BASE = 0.05f;        // 5% base
     constexpr float CRIT_CHANCE_LUCK_BONUS = 0.45f;  // maxed-Luck-stat crit chance bonus (0.05 + 0.45 = 0.50)
+    // Amethyst gamble: max bonus to buff-chance from a fully-maxed Luck stat (added
+    // on top of the tier's base buff-chance, then gear pushes past toward a guaranteed
+    // buff). Mirrors CRIT_CHANCE_LUCK_BONUS.
+    constexpr float GAMBLE_BUFF_LUCK_BONUS = 0.45f;
     // (5e-C3 retired CRIT_CHANCE_PER_POINT — crit chance left the Mind stat for Luck; and the dead
     //  CRIT_DAMAGE_MULTIPLIER duplicate. Crit damage uses CRIT_DMG_BASE / CRIT_DAMAGE_PER_POINT below.)
     // Crit DAMAGE stat scaling (cluster 5e-B-fix, Crown-locked). Un-invested crit = CRIT_DMG_BASE

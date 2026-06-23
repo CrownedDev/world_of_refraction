@@ -902,7 +902,15 @@ void UItemExecutor::ExecuteGambleEffect(AActor *User, AActor *Target, FCrystalId
 		ESkillEffectType::ResistanceDebuff,
 		ESkillEffectType::LuckDebuff};
 
-	const bool bIsBuff = FMath::FRand() < (CrystalEffectTable::GetBuffChancePercent(Id) / CombatConstants::STAT_PERCENT_DIVISOR);
+	const float TierBuffChance = CrystalEffectTable::GetBuffChancePercent(Id) / CombatConstants::STAT_PERCENT_DIVISOR;
+	UCharacterDataComponent *UserComp = GetCharacterDataComponent(User);
+	const bool bIsBuff = UserComp
+		? UserComp->RollLuckChance(TierBuffChance, CombatConstants::GAMBLE_BUFF_LUCK_BONUS)
+		: (FMath::FRand() < TierBuffChance);
+
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Amethyst gamble: tier base %.0f%%, luck-modified roll -> %s"),
+		   TierBuffChance * 100.f, bIsBuff ? TEXT("BUFF") : TEXT("DEBUFF"));
+
 	OutResult.bGambleWon = bIsBuff;
 
 	const TArray<ESkillEffectType> &Pool = bIsBuff ? BuffPool : DebuffPool;
