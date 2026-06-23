@@ -20,6 +20,7 @@ class UCurrencyComponent;
 class UInventoryComponent;
 class USpellData;
 class UAbilityData;
+class UWeaponData;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
@@ -67,4 +68,23 @@ public:
     /** Dismantle a known ABILITY → SKILL essence. See DismantleSpell. */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool DismantleAbility(AActor *Owner, UAbilityData *Ability);
+
+    // ==================== PURCHASE (spend-side) ====================
+
+    /**
+     * Buy a SPELL into Owner's inventory. Cost (§4.4 + §5): Prisms base (spell tier) + Prisms
+     * scaling surcharge (50 × Σ grade-number) + typed essence (element @ spell tier + Σ pillar @
+     * each scaling grade). Canonical flow: CanAfford ALL → Spend ALL → LearnSpell → refund
+     * everything on grant-failure. Server-authoritative. False if Owner/Spell null; no authority;
+     * components missing; any component unaffordable (spends nothing); or the grant failed.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool PurchaseSpell(AActor *Owner, USpellData *Spell);
+
+    /**
+     * Buy a WEAPON into Owner's inventory. Cost: Prisms base (weapon tier) only — no essence, no
+     * surcharge (equipment pricing). Spend → AddWeapon → refund on grant-failure. See PurchaseSpell.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool PurchaseWeapon(AActor *Owner, UWeaponData *Weapon);
 };

@@ -258,3 +258,144 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
            *Ability->GetName(), static_cast<int32>(Tier), Yield);
     return true;
 }
+
+// ==================== PURCHASE (spend-side) ====================
+
+bool UEconomyService::PurchaseSpell(AActor *Owner, USpellData *Spell)
+{
+    if (!Owner || !Spell)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // ---- Compute cost (typed essence accumulated per type; Prisms = base + scaling surcharge) ----
+    TMap<EEssenceType, int32> EssenceCost;
+    // (a1) element essence at the spell's own tier.
+    EssenceCost.FindOrAdd(EconomyYield::ElementToEssenceType(Spell->Element)) +=
+        EconomyYield::GetTypedEssencePurchaseCostForTier(Spell->Tier);
+
+    // (b) Prisms base by spell tier.
+    int32 PrismsCost = EconomyYield::GetPrismsBaseForTier(Spell->Tier);
+
+    for (const FStatScaling &Entry : Spell->StatScaling)
+    {
+        if (Entry.Stat == ESubStat::None)
+        {
+            continue;
+        }
+        // (a2) pillar essence at each scaling grade (same numbers as the tier buy row, §4.3) —
+        //      entries sharing a pillar accumulate.
+        EssenceCost.FindOrAdd(EconomyYield::SubStatToPillarEssence(Entry.Stat)) +=
+            EconomyYield::GetTypedEssencePurchaseCostForTier(EconomyYield::ScalingGradeToItemTier(Entry.Tier));
+        // (c) Prisms scaling surcharge: 50 × grade-number.
+        PrismsCost += EconomyYield::Constants::PRISMS_SCALING_SURCHARGE_PER_GRADE *
+                      EconomyYield::GetScalingGradeNumber(Entry.Tier);
+    }
+
+    // ---- CanAfford ALL components — spend nothing if any is short ----
+    for (const TPair<EEssenceType, int32> &Pair : EssenceCost)
+    {
+        if (!Currency->CanAfford(ECurrencyType::EssenceTyped, Pair.Value, static_cast<uint8>(Pair.Key)))
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: %s cannot afford %d %s essence for %s"),
+                   *Owner->GetName(), Pair.Value,
+                   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(Pair.Key)),
+                   *Spell->GetName());
+            return false;
+        }
+    }
+    if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: %s cannot afford %d Prisms for %s"),
+               *Owner->GetName(), PrismsCost, *Spell->GetName());
+        return false;
+    }
+
+    // ---- Spend ALL (CanAfford already cleared every component) ----
+    for (const TPair<EEssenceType, int32> &Pair : EssenceCost)
+    {
+        Currency->SpendEssenceType(Pair.Key, Pair.Value);
+    }
+    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+
+    // ---- Grant; refund EVERYTHING on grant-failure (e.g. at spell capacity) ----
+    if (!Inv->LearnSpell(Spell))
+    {
+        for (const TPair<EEssenceType, int32> &Pair : EssenceCost)
+        {
+            Currency->AddEssenceType(Pair.Key, Pair.Value);
+        }
+        Currency->Add(ECurrencyType::Prisms, PrismsCost);
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseSpell: LearnSpell failed for %s — refunded %d Prisms + essence"),
+               *Spell->GetName(), PrismsCost);
+        return false;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchased spell %s (tier %d) for %d Prisms + typed essence"),
+           *Spell->GetName(), static_cast<int32>(Spell->Tier), PrismsCost);
+    return true;
+}
+
+bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
+{
+    if (!Owner || !Weapon)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // Equipment pricing: Prisms base by tier only (no essence, no surcharge).
+    const int32 PrismsCost = EconomyYield::GetPrismsBaseForTier(Weapon->Tier);
+    if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: %s cannot afford %d Prisms for %s"),
+               *Owner->GetName(), PrismsCost, *Weapon->GetName());
+        return false;
+    }
+
+    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    if (!Inv->AddWeapon(Weapon))
+    {
+        Currency->Add(ECurrencyType::Prisms, PrismsCost); // refund on grant-failure (e.g. at capacity)
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] PurchaseWeapon: AddWeapon failed for %s — refunded %d Prisms"),
+               *Weapon->GetName(), PrismsCost);
+        return false;
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Purchased weapon %s (tier %d) for %d Prisms"),
+           *Weapon->GetName(), static_cast<int32>(Weapon->Tier), PrismsCost);
+    return true;
+}

@@ -16,6 +16,7 @@
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Skills/Definitions/ESpellElement.h"
+#include "Skills/Definitions/EScalingTier.h"
 
 namespace EconomyYield
 {
@@ -40,6 +41,29 @@ namespace EconomyYield
         constexpr int32 LEVELING_ESSENCE_YIELD_B = 75;
         constexpr int32 LEVELING_ESSENCE_YIELD_A = 110;
         constexpr int32 LEVELING_ESSENCE_YIELD_S = 145;
+
+        // Prisms (hub buy-currency) base price by tier — doubling ladder (§5 pricing).
+        constexpr int32 PRISMS_BASE_F = 25;
+        constexpr int32 PRISMS_BASE_E = 50;
+        constexpr int32 PRISMS_BASE_D = 100;
+        constexpr int32 PRISMS_BASE_C = 200;
+        constexpr int32 PRISMS_BASE_B = 400;
+        constexpr int32 PRISMS_BASE_A = 800;
+        constexpr int32 PRISMS_BASE_S = 1600;
+
+        // Typed-essence PURCHASE cost by tier — the §4.2 "buy" row (2:1 spread vs the yield row).
+        // Used for BOTH a spell's element essence (at spell tier) and each scaling grade's pillar
+        // essence (§4.3 — same numbers, keyed by grade letter).
+        constexpr int32 TYPED_ESSENCE_BUY_F = 10;
+        constexpr int32 TYPED_ESSENCE_BUY_E = 13;
+        constexpr int32 TYPED_ESSENCE_BUY_D = 17;
+        constexpr int32 TYPED_ESSENCE_BUY_C = 22;
+        constexpr int32 TYPED_ESSENCE_BUY_B = 29;
+        constexpr int32 TYPED_ESSENCE_BUY_A = 37;
+        constexpr int32 TYPED_ESSENCE_BUY_S = 48;
+
+        // Prisms surcharge per spell scaling grade: 50 x grade-number (F=1 .. S=7).
+        constexpr int32 PRISMS_SCALING_SURCHARGE_PER_GRADE = 50;
     }
 
     /** Typed acquisition essence yielded by dismantling a crystal/stone of this tier (§4.2). */
@@ -72,6 +96,75 @@ namespace EconomyYield
         case EItemTier::A_Tier: return Constants::LEVELING_ESSENCE_YIELD_A;
         case EItemTier::S_Tier: return Constants::LEVELING_ESSENCE_YIELD_S;
         default:                return 0;
+        }
+    }
+
+    // ── Purchase pricing (§4.2 buy row / §5 Prisms) ────────────────────────────────────
+
+    /** Prisms base price for an item/spell of this tier (§5 doubling ladder). */
+    inline int32 GetPrismsBaseForTier(EItemTier Tier)
+    {
+        switch (Tier)
+        {
+        case EItemTier::F_Tier: return Constants::PRISMS_BASE_F;
+        case EItemTier::E_Tier: return Constants::PRISMS_BASE_E;
+        case EItemTier::D_Tier: return Constants::PRISMS_BASE_D;
+        case EItemTier::C_Tier: return Constants::PRISMS_BASE_C;
+        case EItemTier::B_Tier: return Constants::PRISMS_BASE_B;
+        case EItemTier::A_Tier: return Constants::PRISMS_BASE_A;
+        case EItemTier::S_Tier: return Constants::PRISMS_BASE_S;
+        default:                return 0;
+        }
+    }
+
+    /** Typed-essence PURCHASE cost for a tier — §4.2 buy row. Used for a spell's element essence
+     *  (at spell tier) and, via ScalingGradeToItemTier, each scaling grade's pillar essence. */
+    inline int32 GetTypedEssencePurchaseCostForTier(EItemTier Tier)
+    {
+        switch (Tier)
+        {
+        case EItemTier::F_Tier: return Constants::TYPED_ESSENCE_BUY_F;
+        case EItemTier::E_Tier: return Constants::TYPED_ESSENCE_BUY_E;
+        case EItemTier::D_Tier: return Constants::TYPED_ESSENCE_BUY_D;
+        case EItemTier::C_Tier: return Constants::TYPED_ESSENCE_BUY_C;
+        case EItemTier::B_Tier: return Constants::TYPED_ESSENCE_BUY_B;
+        case EItemTier::A_Tier: return Constants::TYPED_ESSENCE_BUY_A;
+        case EItemTier::S_Tier: return Constants::TYPED_ESSENCE_BUY_S;
+        default:                return 0;
+        }
+    }
+
+    /** A scaling grade as a 1..7 number (F=1 shallowest .. S=7 steepest), for the Prisms scaling
+     *  surcharge. EScalingTier is REVERSE-ordered (S=0 .. F=6), so this is a switch, not a cast. */
+    inline int32 GetScalingGradeNumber(EScalingTier Grade)
+    {
+        switch (Grade)
+        {
+        case EScalingTier::F: return 1;
+        case EScalingTier::E: return 2;
+        case EScalingTier::D: return 3;
+        case EScalingTier::C: return 4;
+        case EScalingTier::B: return 5;
+        case EScalingTier::A: return 6;
+        case EScalingTier::S: return 7;
+        default:              return 0;
+        }
+    }
+
+    /** Map a scaling-grade letter to the matching EItemTier letter (F->F_Tier .. S->S_Tier) so the
+     *  scaling-grade pillar essence reuses the tier-keyed purchase-cost row (§4.3 — same numbers). */
+    inline EItemTier ScalingGradeToItemTier(EScalingTier Grade)
+    {
+        switch (Grade)
+        {
+        case EScalingTier::F: return EItemTier::F_Tier;
+        case EScalingTier::E: return EItemTier::E_Tier;
+        case EScalingTier::D: return EItemTier::D_Tier;
+        case EScalingTier::C: return EItemTier::C_Tier;
+        case EScalingTier::B: return EItemTier::B_Tier;
+        case EScalingTier::A: return EItemTier::A_Tier;
+        case EScalingTier::S: return EItemTier::S_Tier;
+        default:              return EItemTier::F_Tier;
         }
     }
 
