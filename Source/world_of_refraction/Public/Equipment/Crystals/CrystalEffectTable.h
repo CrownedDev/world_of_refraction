@@ -472,15 +472,15 @@ namespace CrystalEffectTable
         case EItemTier::F_Tier:
             return 15.0f;
         case EItemTier::E_Tier:
-            return 30.0f;
+            return 25.0f;
         case EItemTier::D_Tier:
-            return 30.0f;
+            return 35.0f;
         case EItemTier::C_Tier:
             return 50.0f;
         case EItemTier::B_Tier:
-            return 70.0f;
+            return 65.0f;
         case EItemTier::A_Tier:
-            return 70.0f;
+            return 80.0f;
         case EItemTier::S_Tier:
             return 100.0f;
         default:
