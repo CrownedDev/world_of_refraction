@@ -53,6 +53,14 @@ stat.
 > **real-time defense rework**. Until then, treat them as animation-speed (and the buildup of the
 > other stats) rather than a defensive edge.
 
+**By tier** — every stat stone in the table above shares **one** curve. The number is the **bonus
+percent** to its stat, and it's the **same whether the stone is attached or consumed** (see
+[Permanent vs temporary](#permanent-vs-temporary)):
+
+| | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|
+| **Stat bonus %** | 3 | 5 | 7 | 9 | 11 | 13 | 15 |
+
 ### Attach-only stones (no consumable use)
 
 | Stone | What it does |
@@ -60,11 +68,27 @@ stat.
 | **Ability Stone** | attached to a weapon, it **grants extra ability slots** so the weapon can hold more abilities. There's no "use" form — it only works slotted in. |
 | **Durability Stone** | adds **flat durability** to a **fusion** it is part of (see [Fusion Stones](./FusionStones.md)). On its own it does **nothing** — no stat, no consumable use. |
 
+**By tier:**
+
+| Stone | Grants | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|---|
+| **Ability Stone** | ability slots | 1 | 2 | 3 | 4 | 5 | 6 | 6 |
+| **Durability Stone** | flat durability (to its fusion) | 8 | 15 | 22 | 29 | 36 | 43 | 50 |
+
+> **Ability Stone — A and S both give 6.** S doesn't add a slot over A; the S advantage shows up
+> elsewhere (S leads on power, not slot count).
+
 ### Consume-only effect stone (no attach use)
 
 | Stone | What it does |
 |---|---|
 | **Healing Stone** | **Use** to instantly **heal any target** — ally *or* enemy — for a tier-scaled % of their max HP. This is the plain heal **moved off Sapphire** (which is now *defy death* — see [Crystals](./Crystals.md)). Consume-only: it carries no stat, so **attaching it to a weapon does nothing**. |
+
+**By tier:**
+
+| | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|
+| **Healing Stone** — heal (% of target max HP) | 15 | 20 | 25 | 30 | 35 | 45 | 60 |
 
 ## Permanent vs temporary
 
