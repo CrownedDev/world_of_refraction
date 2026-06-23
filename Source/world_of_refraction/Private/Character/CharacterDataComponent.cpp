@@ -1252,10 +1252,14 @@ float UCharacterDataComponent::GetEffectiveStatusMultiplier() const
         // Transient StatusMultiplierBuff/Debuff — MULTIPLICATIVE: the temporary net scales the
         // permanent-gear factor proportionally, ×(1 + net/100). Max(0,…) floors a ≥100% debuff at ×0
         // (never inverts); buff/debuff in lockstep. The final clamp bounds to [0, 2.0].
+        // GENERIC (Element == None) ONLY here: this getter is element-agnostic and multi-consumer
+        // (status buildup, overload tick, crystal wear), so it must NOT element-key. Element-keyed
+        // StatusMultiplierBuffs are applied at the status-buildup site (where the buildup element is
+        // known). Byte-identical to the prior all-effects sum while every StatusMultiplierBuff is None.
         if (USkillEffectManager *SEM = GetSkillEffectManager())
         {
-            const float SmBuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::StatusMultiplierBuff);
-            const float SmDebuff = SEM->GetTotalStatModifier(Owner, ESkillEffectType::StatusMultiplierDebuff);
+            const float SmBuff = SEM->GetTotalStatModifierForElement(Owner, ESkillEffectType::StatusMultiplierBuff, ESpellElement::None);
+            const float SmDebuff = SEM->GetTotalStatModifierForElement(Owner, ESkillEffectType::StatusMultiplierDebuff, ESpellElement::None);
             Factor *= FMath::Max(0.0f, 1.0f + (SmBuff - SmDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
         }
     }
