@@ -39,13 +39,13 @@ namespace CrystalEffectTable
         case EItemTier::D_Tier:
             return 9.0f;
         case EItemTier::C_Tier:
-            return 12.0f;
+            return 11.0f;
         case EItemTier::B_Tier:
-            return 16.0f;
+            return 13.0f;
         case EItemTier::A_Tier:
-            return 20.0f;
+            return 15.0f;
         case EItemTier::S_Tier:
-            return 30.0f;
+            return 16.0f;
         default:
             return 0.0f;
         }
@@ -67,13 +67,13 @@ namespace CrystalEffectTable
         case EItemTier::D_Tier:
             return 3;
         case EItemTier::C_Tier:
-            return 2;
+            return 3;
         case EItemTier::B_Tier:
-            return 2;
+            return 3;
         case EItemTier::A_Tier:
-            return 2;
+            return 3;
         case EItemTier::S_Tier:
-            return 1;
+            return 3;
         default:
             return 0;
         }
