@@ -6167,10 +6167,22 @@ void UActionExecutor::ApplySkillEffects(
 				{
 					if (P.EffectType == ESkillEffectType::HealthRestore)
 					{
-						CharComp->ServerHeal(DrainAmount);
-						OnHealingDone.Broadcast(User, User, DrainAmount);
-						UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-							   *User->GetName(), DrainAmount, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
+						// HealBlock gates the RECIPIENT — drain self-heals the User, so the immunity
+						// check is on User (NOT the cast target). Mirrors the ApplyEffect HealthRestore
+						// immunity gate; a HealBlocked attacker drains no HP. (StatusMgr null → no
+						// HealBlock can exist, so heal as before.)
+						if (StatusMgr && StatusMgr->IsImmuneToEffectType(User, ESkillEffectType::HealthRestore))
+						{
+							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain heal on %s blocked by HealBlock"),
+								   *User->GetName());
+						}
+						else
+						{
+							CharComp->ServerHeal(DrainAmount);
+							OnHealingDone.Broadcast(User, User, DrainAmount);
+							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
+								   *User->GetName(), DrainAmount, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
+						}
 					}
 					else // EnergyRestore
 					{
