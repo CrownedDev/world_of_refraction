@@ -716,7 +716,11 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 
 void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
-	// Opal (Phase 2) - buff an ally's crit chance, or debuff an enemy's.
+	// Opal and the CritStone consumable both route here (EItemEffectType::BuffCrit). Opal reworked
+	// (crit pass): ally → a GUARANTEED-CRIT window (force-crit primitive) + a small crit-damage rider;
+	// enemy → STRIP an active guaranteed-crit window (pure dispel — the counter to a self-applied
+	// window, no debuff, no damage). The CritStone consumable keeps its original crit-CHANCE buff/debuff,
+	// branched out below on bIsStone.
 	USkillEffectManager *SEM = GetSkillEffectManager();
 	if (!SEM)
 	{
@@ -725,20 +729,55 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 	}
 
 	const bool bAlly = IsAlly(User, Target);
-	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
-
-	// CritStone sources the shared stone curve + flat stone duration; Opal keeps its own
-	// GetCritBuffPercent + GetCrystalDuration. Direction (IsAlly) is identical — mirrors
-	// the DefenseStone/Amber branch in ExecuteDefenseBuffEffect.
-	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
-	const float Magnitude = bIsStone
-		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
-		: CrystalEffectTable::GetCritBuffPercent(Id);
-	const int32 Duration = bIsStone
-		? CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION
-		: CrystalEffectTable::GetCrystalDuration(Id);
-
 	const FString DisplayName = ItemIdentity::GetDisplayName(Id);
+	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
+
+	if (!bIsStone)
+	{
+		// ---- Opal: guaranteed-crit window (no longer the old multiplicative CritChanceBuff/Debuff) ----
+		// TODO: S-rank stat reveal — implement in UI pass
+		const int32 Duration = CrystalEffectTable::GetOpalCritWindowDuration(Id);
+
+		if (bAlly)
+		{
+			// Force-crit window — a presence/duration flag (magnitude inert; 1.0 mirrors Silenced's
+			// flag-style construction). DamageCalculator reads it via HasEffectOfType(GuaranteedCrit).
+			FActiveSkillEffect CritWindow = FActiveSkillEffect::CreateBuff(
+				FString::Printf(TEXT("%s Guaranteed Crit"), *DisplayName),
+				ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::GuaranteedCrit, 1.0f, Duration);
+			CritWindow.Element = ItemIdentity::GetElement(Id);
+			SEM->ApplyEffect(Target, CritWindow, User, DisplayName, -1);
+			OutResult.BuffsApplied++;
+
+			// Small crit-DAMAGE rider — ModifyCritDamage, read by GetCritDamageMultiplier. Same duration.
+			const float RiderPct = CrystalEffectTable::GetOpalCritDamageRider(Id);
+			FActiveSkillEffect Rider = FActiveSkillEffect::CreateBuff(
+				FString::Printf(TEXT("%s Crit Damage"), *DisplayName),
+				ItemIdentity::GetEffectSourceID(Id), ESkillEffectType::ModifyCritDamage, RiderPct, Duration);
+			Rider.Element = ItemIdentity::GetElement(Id);
+			SEM->ApplyEffect(Target, Rider, User, DisplayName, -1);
+			OutResult.BuffsApplied++;
+
+			OutResult.bSuccess = true;
+			UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Guaranteed-crit window on %s for %d turns (+%.0f%% crit-dmg rider)"),
+				   *Target->GetName(), Duration, RiderPct);
+		}
+		else
+		{
+			// Enemy: STRIP any active guaranteed-crit window (the counter). No-op (still success) if none.
+			const int32 Removed = SEM->RemoveEffectsByType(Target, ESkillEffectType::GuaranteedCrit);
+			OutResult.bSuccess = true;
+			UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Stripped %d guaranteed-crit window(s) from %s"),
+				   Removed, *Target->GetName());
+		}
+		return;
+	}
+
+	// ---- CritStone consumable: original crit-CHANCE buff/debuff (UNCHANGED) ----
+	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::CritChanceBuff : ESkillEffectType::CritChanceDebuff;
+	const float Magnitude = CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier);
+	const int32 Duration = CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION;
+
 	FActiveSkillEffect Effect = FActiveSkillEffect::CreateBuff(
 		FString::Printf(TEXT("%s Crit"), *DisplayName),
 		ItemIdentity::GetEffectSourceID(Id), EffectType, Magnitude, Duration);
@@ -748,9 +787,7 @@ void UItemExecutor::ExecuteCritBuffEffect(AActor *User, AActor *Target, FCrystal
 	OutResult.BuffsApplied++;
 	OutResult.bSuccess = true;
 
-	// TODO: S-rank stat reveal — implement in UI pass
-
-	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] Opal: Applied %s %.0f%% for %d turns to %s"),
+	UE_LOG(LogTemp, Log, TEXT("[ItemExecutor] CritStone: Applied %s %.0f%% for %d turns to %s"),
 		   bAlly ? TEXT("CritChanceBuff") : TEXT("CritChanceDebuff"), Magnitude, Duration, *Target->GetName());
 }
 

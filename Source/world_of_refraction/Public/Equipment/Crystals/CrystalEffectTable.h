@@ -275,6 +275,66 @@ namespace CrystalEffectTable
         return AugmentStoneConstants::STAT_CRYSTAL_BUFF_PERCENT[i];
     }
 
+    // Opal guaranteed-crit WINDOW duration (turns), ASCENDING by tier — higher
+    // tier = longer window. Distinct from the shared descending consumable-buff
+    // duration. 0 for non-Opal.
+    inline int32 GetOpalCritWindowDuration(const FCrystalId &Id)
+    {
+        if (Id.Type != ECrystalType::Opal)
+        {
+            return 0;
+        }
+        switch (Id.Tier)
+        {
+        case EItemTier::F_Tier:
+            return 1;
+        case EItemTier::E_Tier:
+            return 1;
+        case EItemTier::D_Tier:
+            return 2;
+        case EItemTier::C_Tier:
+            return 2;
+        case EItemTier::B_Tier:
+            return 2;
+        case EItemTier::A_Tier:
+            return 3;
+        case EItemTier::S_Tier:
+            return 3;
+        default:
+            return 0;
+        }
+    }
+
+    // Opal crit-damage rider % — small bonus alongside the guaranteed-crit window.
+    // Deliberately well under CritStone's curve (Opal = WHEN you crit + a little
+    // harder; CritStone = the heavy crit-damage investment). 0 for non-Opal.
+    inline float GetOpalCritDamageRider(const FCrystalId &Id)
+    {
+        if (Id.Type != ECrystalType::Opal)
+        {
+            return 0.0f;
+        }
+        switch (Id.Tier)
+        {
+        case EItemTier::F_Tier:
+            return 5.0f;
+        case EItemTier::E_Tier:
+            return 8.0f;
+        case EItemTier::D_Tier:
+            return 10.0f;
+        case EItemTier::C_Tier:
+            return 12.0f;
+        case EItemTier::B_Tier:
+            return 15.0f;
+        case EItemTier::A_Tier:
+            return 18.0f;
+        case EItemTier::S_Tier:
+            return 20.0f;
+        default:
+            return 0.0f;
+        }
+    }
+
     // ==================== AMETHYST GAMBLE ====================
 
     /** Amethyst: chance to roll a buff (vs debuff). 0 for non-Amethyst. */

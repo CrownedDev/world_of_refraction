@@ -184,7 +184,7 @@ namespace CombatConstants
     constexpr float CRIT_DAMAGE_PER_POINT = STAT_MULT_PER_POINT; // (1.5-1.0)/STAT_DERIVE_DENOM
     // Pattern-P gear ceiling: stat caps at x1.5; gear/transient (ModifyCritDamage now, BonusCritDamage
     // post-5e-C3) MULTIPLY the capped stat past 1.5 toward this.
-    constexpr float CRIT_DAMAGE_GEAR_CEILING = 2.0f; // max crit damage WITH gear (>= CRIT_DAMAGE_STAT_CAP)
+    constexpr float CRIT_DAMAGE_GEAR_CEILING = 2.5f; // max crit damage WITH gear (>= CRIT_DAMAGE_STAT_CAP)
 
     // Spell Speed - Projectile travel speed (affects defender reaction time)
     constexpr float SPELL_SPEED_BASE = 1.0f;       // Base multiplier
