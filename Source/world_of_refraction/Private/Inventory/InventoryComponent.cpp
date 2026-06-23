@@ -151,6 +151,17 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
     return true;
 }
 
+bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
+{
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&PersistentID](const FWeaponInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+    return RemoveWeapon(Index);
+}
+
 FWeaponInventoryEntry UInventoryComponent::GetWeaponAt(int32 Index) const
 {
     if (Weapons.IsValidIndex(Index))
@@ -261,6 +272,17 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
 
     Rings.RemoveAt(RingIndex);
     return true;
+}
+
+bool UInventoryComponent::RemoveRingByPersistentID(FGuid PersistentID)
+{
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&PersistentID](const FRingInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+    return RemoveRing(Index);
 }
 
 FRingInventoryEntry UInventoryComponent::GetRingAt(int32 Index) const

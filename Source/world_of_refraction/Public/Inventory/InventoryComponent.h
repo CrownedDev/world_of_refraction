@@ -132,6 +132,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveWeapon(int32 WeaponIndex);
 
+    /** Remove the owned weapon instance whose PersistentID matches — resolves the GUID to its
+     *  array index, then removes by index. Returns false if no entry carries that GUID. The
+     *  by-instance counterpart to index-based RemoveWeapon (dismantle addresses a specific
+     *  instance, not a slot). */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool RemoveWeaponByPersistentID(FGuid PersistentID);
+
     /** Get weapon count */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
     int32 GetWeaponCount() const { return Weapons.Num(); }
@@ -169,6 +176,12 @@ public:
     /** Remove a ring from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveRing(int32 RingIndex);
+
+    /** Remove the owned ring instance whose PersistentID matches — resolves the GUID to its
+     *  array index, then removes by index. Returns false if no entry carries that GUID. The
+     *  by-instance counterpart to index-based RemoveRing. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool RemoveRingByPersistentID(FGuid PersistentID);
 
     /** Get ring count */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")

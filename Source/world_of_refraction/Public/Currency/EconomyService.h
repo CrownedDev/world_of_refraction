@@ -17,6 +17,7 @@
 class AActor;
 class UCrystalInventoryComponent;
 class UCurrencyComponent;
+class UInventoryComponent;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
@@ -36,4 +37,18 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count = 1, bool bRefined = false);
+
+    /**
+     * Dismantle the owned WEAPON instance identified by PersistentID, granting GEAR essence
+     * (weapons/rings → Gear, per category routing). Server-authoritative; remove-then-grant.
+     * Yield is from the item's ASSET tier (leveled-tier deferred until tier-on-instance exists).
+     * Returns false if Owner null / no authority; InventoryComponent or CurrencyComponent
+     * missing; or no owned weapon carries that GUID.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DismantleWeapon(AActor *Owner, FGuid PersistentID);
+
+    /** Dismantle the owned RING instance by PersistentID → GEAR essence. See DismantleWeapon. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DismantleRing(AActor *Owner, FGuid PersistentID);
 };
