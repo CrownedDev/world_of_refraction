@@ -244,17 +244,6 @@ public:
 	// UBrokenDarknessManager::GetElementStackStatusMultiplier(Element) — and is
 	// consumed by UStatusBuildupManager::AddStatusBuildup as step 5c.
 
-	// ==================== HEALING CALCULATIONS ====================
-
-	/**
-	 * Calculate healing amount
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Healing")
-	int32 CalculateHealing(
-		AActor *Healer,
-		AActor *Target,
-		int32 BaseHealing);
-
 	// ==================== DEBUG ====================
 
 	UFUNCTION(BlueprintCallable, Category = "Damage Calculator|Debug", CallInEditor)

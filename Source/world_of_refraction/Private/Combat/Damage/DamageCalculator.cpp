@@ -527,48 +527,6 @@ bool UDamageCalculator::RollCriticalHit(AActor *Attacker, float OverrideChance) 
 // stacks inert). Removed in feature/fix-bd-stack-multiplier; the element-gated
 // accessor moved onto the manager itself.
 
-// ==================== HEALING CALCULATIONS ====================
-
-int32 UDamageCalculator::CalculateHealing(
-	AActor *Healer,
-	AActor *Target,
-	int32 BaseHealing)
-{
-	if (BaseHealing <= 0)
-	{
-		return 0;
-	}
-
-	float Healing = static_cast<float>(BaseHealing);
-
-	// Apply healer's SpellDamage multiplier. Healing is a spell-class effect — it
-	// scales with the caster's FULL composed spell power, not status-buildup amplification.
-	// GetEffectiveSpellDamage = innate (crystal-aware Mind) + equipment BonusSpellDamage,
-	// ×SpellDamageStone ×SpellDamageBuff transient — so spell gear/buffs now boost heals
-	// (Crown's call). Byte-identical to the prior pillar-only …ForHealing read for a bare
-	// healer (no equipment/stone/buff). The ModifyHealing layer below is a DISTINCT
-	// heal-specific transient — applied on top, no double-count.
-	if (Healer)
-	{
-		if (UCharacterDataComponent *HealerComp = Healer->FindComponentByClass<UCharacterDataComponent>())
-		{
-			Healing *= HealerComp->GetEffectiveSpellDamage();
-		}
-	}
-
-	// Skill-effect-driven healing modifier (passive-layer ModifyHealing).
-	if (Healer)
-	{
-		if (USkillEffectManager *StatusManager = GetSkillEffectManager())
-		{
-			float ModifyHeal = StatusManager->GetTotalStatModifier(Healer, ESkillEffectType::ModifyHealing);
-			Healing *= (1.0f + ModifyHeal / CombatConstants::STAT_PERCENT_DIVISOR);
-		}
-	}
-
-	return FMath::Max(0, FMath::RoundToInt(Healing));
-}
-
 // ==================== DEBUG ====================
 
 void UDamageCalculator::DebugPrintCalculation(const FDamageCalculationResult &Result) const

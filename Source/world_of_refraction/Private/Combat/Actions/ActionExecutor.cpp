@@ -3046,49 +3046,6 @@ FCombatHitResult UActionExecutor::ApplyDamage(
 	return Result;
 }
 
-FCombatHitResult UActionExecutor::ApplyHealing(
-	AActor *Healer,
-	AActor *Target,
-	int32 BaseHealing)
-{
-	FCombatHitResult Result;
-	Result.Target = Target;
-
-	if (!Target)
-	{
-		return Result;
-	}
-
-	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
-	if (!TargetComp)
-	{
-		return Result;
-	}
-
-	// Use centralized DamageCalculator for healing
-	int32 FinalHealing = BaseHealing;
-	UDamageCalculator *DamageCalc = GetDamageCalculator();
-	if (DamageCalc)
-	{
-		FinalHealing = DamageCalc->CalculateHealing(Healer, Target, BaseHealing);
-	}
-
-	// Apply healing
-	int32 HPBefore = TargetComp->CurrentHP;
-	TargetComp->ServerHeal(FinalHealing);
-	Result.HealingDone = TargetComp->CurrentHP - HPBefore;
-
-	// Broadcast healing event
-	OnHealingDone.Broadcast(Healer, Target, Result.HealingDone);
-
-	UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] %s healed %s for %d"),
-		   Healer ? *Healer->GetName() : TEXT("Unknown"),
-		   *Target->GetName(),
-		   Result.HealingDone);
-
-	return Result;
-}
-
 // ========================================
 // UTILITY
 // ========================================
