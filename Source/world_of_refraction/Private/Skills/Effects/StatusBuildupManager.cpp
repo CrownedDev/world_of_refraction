@@ -392,6 +392,24 @@ bool UStatusBuildupManager::AddStatusBuildup(AActor *Source, AActor *Target, flo
 			{
 				Amount *= SrcComp->GetEffectiveStatusMultiplier();
 			}
+
+			// 5b-element: element-KEYED StatusMultiplierBuff/Debuff. The generic (Element == None)
+			// layer is already folded into GetEffectiveStatusMultiplier above; this adds ONLY the
+			// element-match (non-None) contribution, so the two layers are additive — a matching-element
+			// buildup gets generic × element-keyed, a non-matching element gets generic only. Skipped for
+			// a None-element (generic / physical) buildup, which has no element to key on (and would
+			// otherwise re-read the generic None buffs, double-counting). Cast-driven for free: a
+			// spell-granted StatusMultiplierBuff is stamped with the resolved cast element, so e.g. a Fire
+			// spell's buff keys to Fire automatically.
+			if (Element != ESpellElement::None)
+			{
+				if (USkillEffectManager *EffectMgr = GetEffectManager())
+				{
+					const float SmBuffElem = EffectMgr->GetTotalStatModifierForElement(Source, ESkillEffectType::StatusMultiplierBuff, Element);
+					const float SmDebuffElem = EffectMgr->GetTotalStatModifierForElement(Source, ESkillEffectType::StatusMultiplierDebuff, Element);
+					Amount *= FMath::Max(0.0f, 1.0f + (SmBuffElem - SmDebuffElem) / CombatConstants::STAT_PERCENT_DIVISOR);
+				}
+			}
 		}
 
 		// 5c. BD absorption-stack amplification (matching-element only).

@@ -307,6 +307,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	float GetTotalStatModifier(AActor *Actor, ESkillEffectType ModifierType) const;
 
+	/** Element-keyed variant: sums only effects of ModifierType whose Element EXACTLY matches
+	 *  BuildupElement. Pass None to read the generic (element-agnostic / unset) contribution only;
+	 *  pass a real element to read that element's keyed contribution only. The two are DISJOINT
+	 *  (None vs non-None), so a generic-None read plus an element read never double-count the same
+	 *  effect. Used by the element-keyed StatusMultiplierBuff path: the generic (None) layer is
+	 *  delivered by GetEffectiveStatusMultiplier, the element-keyed layer is added at the
+	 *  status-buildup site. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
+	float GetTotalStatModifierForElement(AActor *Actor, ESkillEffectType ModifierType, ESpellElement BuildupElement) const;
+
 	/** Count active effects on actor */
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Query")
 	int32 GetEffectCount(AActor *Actor) const;

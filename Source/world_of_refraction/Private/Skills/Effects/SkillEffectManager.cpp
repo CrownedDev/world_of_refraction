@@ -1877,6 +1877,28 @@ float USkillEffectManager::GetTotalStatModifier(AActor *Actor, ESkillEffectType 
 	return Total;
 }
 
+float USkillEffectManager::GetTotalStatModifierForElement(AActor *Actor, ESkillEffectType ModifierType, ESpellElement BuildupElement) const
+{
+	if (!Actor || !ActiveEffects.Contains(Actor))
+	{
+		return 0.0f;
+	}
+
+	float Total = 0.0f;
+
+	for (const FActiveSkillEffect &Effect : ActiveEffects[Actor])
+	{
+		// EXACT element match (no None-fallback). Callers split the generic (None) and the
+		// element-keyed (non-None) reads across two calls so the layers never double-count.
+		if (Effect.EffectType == ModifierType && Effect.Element == BuildupElement)
+		{
+			Total += Effect.GetStackedValue();
+		}
+	}
+
+	return Total;
+}
+
 int32 USkillEffectManager::GetEffectCount(AActor *Actor) const
 {
 	if (!Actor || !ActiveEffects.Contains(Actor))
