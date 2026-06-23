@@ -6178,10 +6178,17 @@ void UActionExecutor::ApplySkillEffects(
 						}
 						else
 						{
-							CharComp->ServerHeal(DrainAmount);
-							OnHealingDone.Broadcast(User, User, DrainAmount);
+							// +healing-received amplify (HealBlock mirror) on the RECIPIENT (User).
+							// Gate-then-amplify. StatusMgr may be null here (the gate short-circuits on
+							// null), in which case no HealingReceivedBuff can exist → no amplification.
+							const float HealRecvBonus = StatusMgr
+								? StatusMgr->GetTotalStatModifier(User, ESkillEffectType::HealingReceivedBuff)
+								: 0.0f;
+							const int32 AmplifiedDrain = FMath::RoundToInt(DrainAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
+							CharComp->ServerHeal(AmplifiedDrain);
+							OnHealingDone.Broadcast(User, User, AmplifiedDrain);
 							UE_LOG(LogTemp, Log, TEXT("[ActionExecutor] Drain healed %s for %d HP (%.0f%% of %d damage)"),
-								   *User->GetName(), DrainAmount, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
+								   *User->GetName(), AmplifiedDrain, P.DrainPercent * 100.0f, Result.TotalDamageDealt);
 						}
 					}
 					else // EnergyRestore

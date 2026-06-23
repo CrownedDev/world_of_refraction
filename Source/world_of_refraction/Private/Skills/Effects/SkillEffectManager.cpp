@@ -1224,9 +1224,13 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		}
 		else
 		{
-			CharComp->ServerHeal(FMath::RoundToInt(Value));
+			// +healing-received amplify (HealBlock mirror) on the BEARER (Actor). Gate-then-amplify:
+			// only reached when NOT HealBlocked, so a suppressed bearer is never amplified.
+			const float HealRecvBonus = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
+			const int32 HealAmount = FMath::RoundToInt(Value * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
+			CharComp->ServerHeal(HealAmount);
 			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
-				   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
+				   *Actor->GetName(), HealAmount, *Effect.EffectName);
 		}
 		break;
 
@@ -1351,6 +1355,9 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	case ESkillEffectType::ModifyEnergyCost:
 	case ESkillEffectType::ModifyTurnSpeed:
 	case ESkillEffectType::ModifyStatusResist:
+	// recipient-side healing amplifier (HealBlock mirror) — presence-read only; its value is pulled
+	// at the heal sites via GetTotalStatModifier, so there is no per-tick logic here.
+	case ESkillEffectType::HealingReceivedBuff:
 		UE_LOG(LogTemp, Verbose, TEXT("[SkillEffectManager] Passive stat modifier %s active on %s (%.1f%%)"),
 			   *Effect.EffectName, *Actor->GetName(), Value);
 		break;
@@ -1367,7 +1374,10 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 		}
 		else if (CharComp->MaxHP > 0)
 		{
-			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
+			int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
+			// +healing-received amplify (HealBlock mirror) on the BEARER (Actor). Gate-then-amplify.
+			const float HealRecvBonus = GetTotalStatModifier(Actor, ESkillEffectType::HealingReceivedBuff);
+			Amount = FMath::RoundToInt(Amount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
 			if (Amount > 0)
 			{
 				CharComp->ServerHeal(Amount);
@@ -1591,9 +1601,12 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 			}
 			else
 			{
-				Comp->ServerHeal(HealAmount);
+				// +healing-received amplify (HealBlock mirror) on the RECIPIENT (Attacker). Gate-then-amplify.
+				const float HealRecvBonus = GetTotalStatModifier(Attacker, ESkillEffectType::HealingReceivedBuff);
+				const int32 AmplifiedHeal = FMath::RoundToInt(HealAmount * (1.0f + HealRecvBonus / CombatConstants::STAT_PERCENT_DIVISOR));
+				Comp->ServerHeal(AmplifiedHeal);
 				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
-					   *Attacker->GetName(), HealAmount, *Target->GetName());
+					   *Attacker->GetName(), AmplifiedHeal, *Target->GetName());
 			}
 		}
 	}
