@@ -1562,9 +1562,20 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 		const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(Damage * LifestealPct));
 		if (UCharacterDataComponent *Comp = Attacker->FindComponentByClass<UCharacterDataComponent>())
 		{
-			Comp->ServerHeal(HealAmount);
-			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
-				   *Attacker->GetName(), HealAmount, *Target->GetName());
+			// HealBlock gates the RECIPIENT — lifesteal self-heals the Attacker, so the immunity
+			// check is on Attacker (NOT the Target). Mirrors the ApplyEffect HealthRestore immunity
+			// gate; a HealBlocked attacker gains no lifesteal HP.
+			if (IsImmuneToEffectType(Attacker, ESkillEffectType::HealthRestore))
+			{
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal on %s blocked by HealBlock"),
+					   *Attacker->GetName());
+			}
+			else
+			{
+				Comp->ServerHeal(HealAmount);
+				UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] Lifesteal: %s healed %d from hit on %s"),
+					   *Attacker->GetName(), HealAmount, *Target->GetName());
+			}
 		}
 	}
 
