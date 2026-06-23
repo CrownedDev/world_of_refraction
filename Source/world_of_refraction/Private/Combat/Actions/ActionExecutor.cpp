@@ -6239,38 +6239,27 @@ void UActionExecutor::ApplySkillEffects(
 				continue;
 			}
 
-			// [J] default status effect — carries the shared N-condition group.
+			// [J] default status effect — carries the shared N-condition group. Built via the
+			// shared core (structural fields + Conditions + stacking + OnTrigger promotion;
+			// bAutoDetectTimingByType=true preserves the cast path's DOT/restore/drain timing).
 			for (AActor *EffectTarget : EffectTargets)
 			{
-				FActiveSkillEffect StatusEffect = FActiveSkillEffect::CreateFromSpellEffect(
+				FActiveSkillEffect StatusEffect = FActiveSkillEffect::BuildRuntimeFromPayload(
 					SourceName + TEXT(" Effect"),
 					PayloadEffectID,
-					P.EffectType,
-					P.Magnitude,
-					RuntimeValue,
-					P.Duration,
-					EffectElement,
-					ESkillEffectTiming::StartOfOwnTurn);
+					P,
+					Effect.Conditions, // D1: shared condition group (drives OnTrigger promotion in-core)
+					Effect.bStackable,
+					Effect.MaxStacks,
+					Effect.bFiresOncePerMatch,
+					EffectElement,     // cast-resolved element
+					/*bAutoDetectTimingByType*/ true);
 
-				StatusEffect.Conditions = Effect.Conditions; // D1: carry the shared condition group
-
-				// Reproduce the legacy OnTrigger ProcessTiming promotion from the new shape:
-				// any non-Always source-side condition makes the manager re-evaluate the
-				// trigger (was driven by the now-removed SourceCondition arg). Migrated
-				// effects carry the primary in Conditions[0], so this matches the old check.
-				for (const FSkillCondition &C : StatusEffect.Conditions)
-				{
-					if (IsOwnerSide(C.Subject) && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
-					{
-						StatusEffect.ProcessTiming = ESkillEffectTiming::OnTrigger;
-						break;
-					}
-				}
-
-				// D2: authored stacking / fires-once (per-effect, shared across payloads).
-				StatusEffect.bCanStack = Effect.bStackable;
-				StatusEffect.MaxStacks = Effect.MaxStacks;
-				StatusEffect.bFiresOncePerMatch = Effect.bFiresOncePerMatch;
+				// EffMagMult (tier-gap effect-magnitude scaling, :6197-6202) is cast context the core
+				// can't see — overwrite the core's payload-derived value. Reproduces the deleted
+				// CreateFromSpellEffect's EXACT expression ((Value!=0)?Value:Magnitude*100, Value=RuntimeValue)
+				// so the zero-RuntimeValue fallback stays byte-identical, not just the common case.
+				StatusEffect.EffectValue = (RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (P.Magnitude * 100.0f);
 
 				StatusMgr->ApplyEffect(EffectTarget, StatusEffect, User, SourceName, UserTeam);
 				Result.StatusEffectsApplied++;

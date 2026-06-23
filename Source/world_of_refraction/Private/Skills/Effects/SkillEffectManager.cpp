@@ -1672,9 +1672,9 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 
 				// Per-PAYLOAD resolve-and-apply. Each payload carries its own Target/TargetCount,
 				// so targets resolve per payload (a parry effect may buff Self AND debuff the
-				// attacker). Build ONE runtime per payload via CreateFromSpellEffect — NOT
-				// CreateAllFromSkillEffect, which expands ALL payloads and would N^2-apply inside
-				// this loop. Mirrors ActionExecutor::ApplySkillEffects's per-payload path.
+				// attacker). Build ONE runtime per payload via the shared BuildRuntimeFromPayload
+				// core — NOT CreateAllFromSkillEffect, which expands ALL payloads and would N^2-apply
+				// inside this loop. Mirrors ActionExecutor::ApplySkillEffects's per-payload path.
 				for (int32 PayloadIndex = 0; PayloadIndex < E.Payloads.Num(); ++PayloadIndex)
 				{
 					const FSkillEffectPayload &Payload = E.Payloads[PayloadIndex];
@@ -1709,19 +1709,28 @@ void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Att
 
 					for (AActor *AppTarget : AppTargets)
 					{
-						// No cast context here, so Element stays None / non-elemental (same intent as
-						// the equipment-effect path, CreateAllFromSkillEffect — pending its own migration).
-						FActiveSkillEffect Runtime = FActiveSkillEffect::CreateFromSpellEffect(
-							E.EffectName, PayloadEffectID, Payload.EffectType, Payload.Magnitude, RuntimeValue,
-							Payload.Duration, ESpellElement::None);
+						// Built via the shared core. No cast context → Element None. Conditions are
+						// passed EMPTY on purpose: the defense-outcome conditions were the GATE
+						// (already evaluated), so the consequence must tick on its natural timing
+						// (DOT end-of-turn, etc.) — empty Conditions means NO OnTrigger promotion in
+						// the core. bAutoDetectTimingByType=true preserves the type-based timing the
+						// old CreateFromSpellEffect applied.
+						FActiveSkillEffect Runtime = FActiveSkillEffect::BuildRuntimeFromPayload(
+							E.EffectName,
+							PayloadEffectID,
+							Payload,
+							TArray<FSkillCondition>{}, // deliberate omission — gate already consumed
+							E.bStackable,
+							E.MaxStacks,
+							E.bFiresOncePerMatch,
+							ESpellElement::None,
+							/*bAutoDetectTimingByType*/ true);
 
-						// Authored stacking / fires-once carry over. The defense-outcome conditions
-						// were the GATE (already evaluated) — deliberately NOT copied onto the
-						// runtime, so the consequence ticks on its natural timing (DOT end-of-turn,
-						// etc.) instead of being promoted to an inert OnTrigger effect.
-						Runtime.bCanStack = E.bStackable;
-						Runtime.MaxStacks = E.MaxStacks;
-						Runtime.bFiresOncePerMatch = E.bFiresOncePerMatch;
+						// No cast context here (no EffMagMult), but the defender pre-rounds its value
+						// (:1703-1708) — overwrite the core's payload-derived value. Reproduces the
+						// deleted CreateFromSpellEffect's EXACT expression ((Value!=0)?Value:Magnitude*100,
+						// Value=RuntimeValue) so the zero-RuntimeValue fallback stays byte-identical too.
+						Runtime.EffectValue = (RuntimeValue != 0) ? static_cast<float>(RuntimeValue) : (Payload.Magnitude * 100.0f);
 
 						ApplyEffect(AppTarget, Runtime, Owner, E.EffectName, OwnerTeam);
 

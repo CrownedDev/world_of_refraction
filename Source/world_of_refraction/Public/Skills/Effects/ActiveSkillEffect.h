@@ -235,59 +235,113 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	// FACTORY METHODS - FROM SPELL/ABILITY DATA
 	// ========================================
 
+	// CreateFromSpellEffect was DELETED (effect-build-unification Cluster 2). Its dur-0 clamp
+	// and silently-dropped bPermanent/Charges/bDelayFirstExecution drift are gone — the spell
+	// cast path (ActionExecutor) and the defender-trigger path (SkillEffectManager) now build
+	// through the shared BuildRuntimeFromPayload core (structural fields) + a post-build
+	// EffectValue override (cast EffMagMult / defender pre-rounding). See that core below.
+
 	/**
-	 * Create effects from SpellData (handles Primary + Secondary)
-	 * Call this when a spell hits a target
+	 * Single-payload runtime-effect builder — the SHARED CORE the gear/skill/evolution factory
+	 * (CreateAllFromSkillEffect), the spell cast path (ActionExecutor::ApplySkillEffects), and the
+	 * defender-trigger path (SkillEffectManager) all route through. Lifted verbatim from
+	 * CreateAllFromSkillEffect's inner Build lambda so gear output stays byte-identical; it is the
+	 * single choke point where an authored payload becomes a runtime effect — which is what killed
+	 * the old spell-path drift (the now-deleted CreateFromSpellEffect silently dropped
+	 * bPermanent/Charges/bDelayFirstExecution and clamped dur-0 → 1).
 	 *
-	 * @param SpellName Display name for the effect
-	 * @param EffectIDBase Base ID (primary gets +0, secondary gets +1)
-	 * @param EffectType The ESkillEffectType from SpellData
-	 * @param Magnitude Percentage modifier (0.0-1.0 range from SpellData)
-	 * @param Value Flat value from SpellData
-	 * @param Duration Turns from SpellData
-	 * @param InElement Element for DOT effects
-	 * @param Timing When to process (usually StartOfOwnTurn for buffs, EndOfOwnTurn for DOTs)
+	 * @param Name          Resolved display name (caller applies any "Source-or-fallback" choice).
+	 * @param PackedEffectID Caller-packed EffectID (EffectIdentity::PackEffectID(...)).
+	 * @param P             Authored payload — source of type/value/duration/charges/permanent/delay/timing.
+	 * @param Conditions    Shared condition group (drives OnTrigger promotion); pass {} to omit.
+	 * @param bStackable / MaxStacks / bFiresOnce  Per-effect stacking, shared across payloads.
+	 * @param Element       Effect element (spell threads the resolved element; gear/defender = None).
+	 *                      Default None matches FActiveSkillEffect::Element's struct default, which the
+	 *                      reference Build lambda left untouched — so gear stays byte-identical.
+	 * @param bAutoDetectTimingByType  OPT-IN type-based ProcessTiming auto-detect (DOT→EndOfOwnTurn,
+	 *                      Health/EnergyRestore→StartOfOwnTurn, EnergyDrain→EndOfOwnTurn). DEFAULT OFF
+	 *                      so gear keeps authored P.ProcessTiming (byte-identical). The spell paths
+	 *                      pass true to preserve the type-based auto-detect the old CreateFromSpellEffect had.
 	 */
-	static FActiveSkillEffect CreateFromSpellEffect(
-		const FString &SpellName,
-		int32 EffectIDBase,
-		ESkillEffectType EffectType,
-		float Magnitude,
-		int32 Value,
-		int32 Duration,
-		ESpellElement InElement,
-		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
+	static FActiveSkillEffect BuildRuntimeFromPayload(
+		const FString &Name,
+		int32 PackedEffectID,
+		const FSkillEffectPayload &P,
+		const TArray<FSkillCondition> &Conditions,
+		bool bStackable,
+		int32 MaxStacks,
+		bool bFiresOnce,
+		ESpellElement Element = ESpellElement::None,
+		bool bAutoDetectTimingByType = false)
 	{
 		FActiveSkillEffect Effect;
-		Effect.EffectName = SpellName;
-		Effect.EffectID = EffectIDBase;
-		Effect.EffectType = EffectType;
-		Effect.EffectValue = (Value != 0) ? static_cast<float>(Value) : (Magnitude * 100.0f);
-		Effect.RemainingTurns = (Duration > 0) ? Duration : 1;
+		Effect.EffectName = Name;
+		Effect.EffectID = PackedEffectID;
+		Effect.EffectType = P.EffectType;
+		Effect.EffectValue = (P.Value != 0) ? static_cast<float>(P.Value) : (P.Magnitude * 100.0f);
+		// Permanent is an EXPLICIT authored toggle now — NOT derived from duration-0.
+		//   bPermanent    -> never expires (Persistent timing; RemainingTurns irrelevant)
+		//   Duration == 0 -> INSTANT (RemainingTurns 0, NOT clamped; IsInstant() catches it)
+		//   Duration  > 0 -> lingering (RemainingTurns = Duration)
+		Effect.bPermanent = P.bPermanent;
+		Effect.bDelayFirstExecution = P.bDelayFirstExecution;
+		Effect.RemainingTurns = P.Duration;
 		Effect.InitialDuration = Effect.RemainingTurns;
-		Effect.Element = InElement;
-		Effect.ProcessTiming = Timing;
+		// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
+		Effect.Charges = P.Charges;
+		Effect.Element = Element;
 
-		// Auto-detect timing based on effect type
-		if (Effect.IsDOT())
+		// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
+		// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can
+		// never fire. Warn at this single conversion choke point. Fix: set bPermanent OR Duration > 0.
+		if (P.Charges > 0 && P.Duration == 0 && !P.bPermanent)
 		{
-			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
-		}
-		else if (Effect.EffectType == ESkillEffectType::HealthRestore ||
-				 Effect.EffectType == ESkillEffectType::EnergyRestore)
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		}
-		else if (Effect.EffectType == ESkillEffectType::EnergyDrain)
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
+			UE_LOG(LogTemp, Warning,
+				   TEXT("[FActiveSkillEffect] '%s' has Charges=%d but Duration=0 and not permanent — "
+						"charges will NEVER fire (instant lane, never stored). Set bPermanent or Duration > 0."),
+				   *Effect.EffectName, P.Charges);
 		}
 
-		// Condition data is no longer threaded through this factory — the caller carries
-		// FActiveSkillEffect::Conditions directly (single source of truth). The legacy
-		// TriggerCondition/TargetTrigger* fields default-construct; the OnTrigger
-		// ProcessTiming promotion is reproduced caller-side from the carried Conditions[]
-		// (see ActionExecutor's [J] default-status path).
+		// Authored timing is the base. The OPT-IN type auto-detect (spell parity) runs BEFORE the
+		// OnTrigger promotion so a triggered effect still promotes correctly. OFF for gear → the
+		// block is skipped and ProcessTiming == authored P.ProcessTiming (byte-identical to Build).
+		Effect.ProcessTiming = P.ProcessTiming;
+		if (bAutoDetectTimingByType)
+		{
+			if (Effect.IsDOT())
+			{
+				Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
+			}
+			else if (Effect.EffectType == ESkillEffectType::HealthRestore ||
+					 Effect.EffectType == ESkillEffectType::EnergyRestore)
+			{
+				Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
+			}
+			else if (Effect.EffectType == ESkillEffectType::EnergyDrain)
+			{
+				Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
+			}
+		}
+
+		// Shared N-condition group: every payload gates on the same conditions.
+		Effect.Conditions = Conditions;
+
+		// Authored stacking / fires-once (D2). Per-effect, shared across payloads.
+		Effect.bCanStack = bStackable;
+		Effect.MaxStacks = MaxStacks;
+		Effect.bFiresOncePerMatch = bFiresOnce;
+
+		// Promote to OnTrigger when any owner-side condition is non-trivial so the manager's
+		// trigger evaluator fires. Reads the new Conditions[] (primary in Conditions[0]).
+		for (const FSkillCondition &C : Conditions)
+		{
+			if (IsOwnerSide(C.Subject) && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
+			{
+				Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
+				break;
+			}
+		}
+
 		return Effect;
 	}
 
@@ -313,67 +367,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	{
 		TArray<FActiveSkillEffect> Out;
 
-		// Builds ONE runtime effect for a payload. The condition group + timing are
-		// shared across all payloads of the source (the trigger gates the whole bundle).
-		auto Build = [&](ESkillEffectType InType, float InMagnitude, int32 InValue, int32 InDuration, int32 InCharges, bool InPermanent, bool InDelayFirst, ESkillEffectTiming InTiming, int32 SubIndex) -> FActiveSkillEffect
-		{
-			FActiveSkillEffect Effect;
-			Effect.EffectName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
-			// SubIndex keeps multi-payload IDs distinct; SubIndex 0 reproduces the legacy ID exactly.
-			Effect.EffectID = EffectIdentity::PackEffectID(SourceID, EffectIndex, SubIndex);
-			Effect.EffectType = InType;
-			Effect.EffectValue = (InValue != 0) ? static_cast<float>(InValue) : (InMagnitude * 100.0f);
-			// Permanent is an EXPLICIT authored toggle now — NOT derived from duration-0.
-			//   InPermanent   -> never expires (Persistent timing; RemainingTurns irrelevant)
-			//   InDuration==0 -> INSTANT (RemainingTurns 0, NOT clamped; IsInstant() catches it)
-			//   InDuration>0  -> lingering (RemainingTurns = InDuration)
-			Effect.bPermanent = InPermanent;
-			Effect.bDelayFirstExecution = InDelayFirst;
-			Effect.RemainingTurns = InDuration;
-			Effect.InitialDuration = Effect.RemainingTurns;
-			// Charges: SEPARATE governor from duration. 0 (default) = no charge system, untouched.
-			Effect.Charges = InCharges;
-
-			// ⚠️ Footgun guard: a charged effect that is duration-0 AND not permanent is IsInstant()
-			// → ApplyEffect runs it down the instant lane and NEVER stores it, so its charges can
-			// never fire. Warn at conversion (the single choke point for authored Charges) so the
-			// silent no-op is caught at authoring. Fix: set bPermanent OR Duration > 0.
-			if (InCharges > 0 && InDuration == 0 && !InPermanent)
-			{
-				UE_LOG(LogTemp, Warning,
-					   TEXT("[FActiveSkillEffect] '%s' has Charges=%d but Duration=0 and not permanent — "
-							"charges will NEVER fire (instant lane, never stored). Set bPermanent or Duration > 0."),
-					   *Effect.EffectName, InCharges);
-			}
-			// Authored timing is the base; the OnTrigger promotion below overrides it when the
-			// effect carries owner-side conditions.
-			Effect.ProcessTiming = InTiming;
-
-			// Shared N-condition group: every payload gates on the same conditions.
-			// (F3a) The runtime legacy mirror fields TriggerCondition/SecondaryTriggerCondition/
-			// bRequireBothTriggers/TargetTriggerCondition are left default — they only back the
-			// empty-Conditions[] 2-field eval for Space-B/synthetic effects, which carry no
-			// Conditions[]. Effects from here carry Conditions[], which the manager prefers.
-			Effect.Conditions = Source.Conditions;
-
-			// Authored stacking / fires-once (D2). Per-effect, shared across payloads.
-			Effect.bCanStack = Source.bStackable;
-			Effect.MaxStacks = Source.MaxStacks;
-			Effect.bFiresOncePerMatch = Source.bFiresOncePerMatch;
-
-			// Promote to OnTrigger when any source-side condition is non-trivial so the
-			// manager's trigger evaluator fires. (F3a) Reads the new Conditions[] — matches
-			// the old Source.Condition check for migrated effects (primary in Conditions[0]).
-			for (const FSkillCondition &C : Source.Conditions)
-			{
-				if (IsOwnerSide(C.Subject) && C.Trigger != ESkillTrigger::Always && C.Trigger != ESkillTrigger::None)
-				{
-					Effect.ProcessTiming = ESkillEffectTiming::OnTrigger;
-					break;
-				}
-			}
-			return Effect;
-		};
+		// Thin wrapper: resolve the shared display name + per-payload packed ID, then route every
+		// non-None payload through the shared BuildRuntimeFromPayload core. Gear/skill/evolution
+		// keep authored timing (Element None, bAutoDetectTimingByType=false) — byte-identical to the
+		// former inline Build lambda this replaced. The condition group + stacking are shared across
+		// payloads (the trigger gates the whole bundle).
+		const FString ResolvedName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
 
 		if (Source.Payloads.Num() > 0)
 		{
@@ -384,7 +383,15 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 				{
 					continue;
 				}
-				Out.Add(Build(P.EffectType, P.Magnitude, P.Value, P.Duration, P.Charges, P.bPermanent, P.bDelayFirstExecution, P.ProcessTiming, p));
+				// SubIndex p keeps multi-payload IDs distinct; SubIndex 0 reproduces the legacy ID exactly.
+				Out.Add(BuildRuntimeFromPayload(
+					ResolvedName,
+					EffectIdentity::PackEffectID(SourceID, EffectIndex, p),
+					P,
+					Source.Conditions,
+					Source.bStackable,
+					Source.MaxStacks,
+					Source.bFiresOncePerMatch));
 			}
 		}
 

@@ -49,7 +49,7 @@ namespace ItemIdentity
             return EItemEffectType::Damage;
         case ECrystalType::Sapphire:
             // Defy-death (Last Stand on a living target / revive on a dead one) — routes to
-            // ExecuteHealingEffect. Repointed off Healing (AI-1) so detection can tell it apart
+            // ExecuteDefyDeathEffect. Repointed off Healing (AI-1) so detection can tell it apart
             // from the Healing Stone's real heal (RestoreHealth).
             return EItemEffectType::DefyDeath;
         case ECrystalType::Citrine:
