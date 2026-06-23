@@ -32,7 +32,7 @@ int32 FWeaponLoadoutEntry::GetCustomizableAbilityCount() const
 {
     // Cap keys on the weapon's own tier; no weapon -> the flat ceiling.
     const int32 Cap = WeaponEntry.Weapon
-                          ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Weapon->Tier)
+                          ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
                           : LoadoutConstants::MAX_WEAPON_ABILITIES;
     return Cap - GetLockedAbilityCount();
 }
@@ -122,7 +122,7 @@ TArray<USpellData *> FWeaponLoadoutEntry::GetAllSpells() const
     // as the no-weapon ceiling.
     const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
         WeaponEntry.GetAttachedItem(),
-        WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Weapon->Tier)
+        WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
                            : LoadoutConstants::MAX_SPELL_SLOTS);
     if (Result.Num() > SlotCap)
     {
@@ -362,7 +362,7 @@ bool FWeaponLoadoutEntry::ValidateSpells(const FSpellCollection &OwnedSpells) co
 
     if (WeaponEntry.AssignedSpells.Num() > CrystalEffectTable::ResolveSpellSlotCap(
             Attachment,
-            WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Weapon->Tier)
+            WeaponEntry.Weapon ? CrystalEffectTable::SlotsForContainerTier(WeaponEntry.Tier)
                                : LoadoutConstants::MAX_SPELL_SLOTS))
         return false;
     return true;

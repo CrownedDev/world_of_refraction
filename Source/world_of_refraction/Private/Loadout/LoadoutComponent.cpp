@@ -3238,8 +3238,8 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         Combined.BonusSpiritModifierPercent += Src.BonusSpiritModifierPercent;
     };
 
-    auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Weapon->Tier : EItemTier::F_Tier; };
-    auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Ring->Tier   : EItemTier::F_Tier; };
+    auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)
+    auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Tier : EItemTier::F_Tier; };  // instance Tier (was E.Ring->Tier)
 
     const FCombatLoadout Loadout = GetActiveLoadout();
 
