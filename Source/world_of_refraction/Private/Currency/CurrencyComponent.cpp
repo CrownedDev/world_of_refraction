@@ -1,9 +1,11 @@
 // CurrencyComponent.cpp
 
 #include "Currency/CurrencyComponent.h"
+#include "Currency/CurrencyComponentDebug.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 
 // ============================================================
 // FCurrencyEntry / FCurrencyArray callbacks (need full UCurrencyComponent)
@@ -182,6 +184,18 @@ int32 UCurrencyComponent::GetBalance(ECurrencyType Currency, uint8 SubKey) const
 void UCurrencyComponent::NotifyChanged(ECurrencyType Currency, uint8 SubKey, int32 NewBalance)
 {
     OnCurrencyChanged.Broadcast(Currency, SubKey, NewBalance);
+}
+
+// ==================== DEBUG ====================
+
+void UCurrencyComponent::PrintWallet()
+{
+    const FString Dump = UCurrencyComponentDebug::GetWalletString(this);
+    UE_LOG(LogTemp, Log, TEXT("[CurrencyComponent] %s"), *Dump);
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 6.0f, FColor::Cyan, Dump);
+    }
 }
 
 // ==================== REP CALLBACKS ====================

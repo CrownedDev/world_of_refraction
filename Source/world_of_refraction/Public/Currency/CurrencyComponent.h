@@ -98,6 +98,14 @@ public:
      *  wallet struct can route client-side changes back here. */
     void NotifyChanged(ECurrencyType Currency, uint8 SubKey, int32 NewBalance);
 
+    // ==================== DEBUG ====================
+
+    /** Log + on-screen dump of the full wallet. Formatting lives in
+     *  FCurrencyComponentDebug::GetWalletString (Debug holds the formatting, the
+     *  component holds the button). CallInEditor button in the component's Details panel. */
+    UFUNCTION(BlueprintCallable, Category = "Debug", meta = (CallInEditor = "true"))
+    void PrintWallet();
+
 protected:
     // ==================== STORAGE ====================
     // Persistent balances: SaveGame + Replicated. Prismas: Replicated ONLY
