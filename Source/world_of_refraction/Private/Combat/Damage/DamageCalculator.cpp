@@ -255,7 +255,7 @@ FDamageCalculationResult UDamageCalculator::CalculateDamage(
 	if (!bSkipDefense && Defender)
 	{
 		// Defense is now a capped % reduction (cluster 4): dmg ×= (1 − reduction), reduction in
-		// [0, 0.5]. DamageBlockedByDefense records the HP actually removed by the reduction.
+		// [0, 0.85] (DEFENSE_REDUCTION_CEILING). DamageBlockedByDefense records the HP actually removed by the reduction.
 		Result.DefenderFlatDefense = GetDefenderFlatDefense(Defender);
 		const int32 PreDefenseDamage = FMath::RoundToInt(RunningDamage);
 		RunningDamage *= (1.0f - Result.DefenderFlatDefense);
@@ -419,7 +419,7 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 
 	// Pattern P (cluster 5a, revised) — stat-capped, gear-beyond. The crystal-aware STAT reduction
 	// is capped ALONE at UNIVERSAL_STAT_CAP (0.5 = the stat ceiling); THEN stone/buff MULTIPLY it
-	// OUTSIDE that clamp, scaling the capped stat upward toward the RESISTANCE_MAX (1.0) hard ceiling.
+	// OUTSIDE that clamp, scaling the capped stat upward toward the DEFENSE_REDUCTION_CEILING (0.85) hard ceiling.
 	// Multiplicative by design intent (Crown): a +X% stone/buff rewards a high-defense build more
 	// than a low one (0.5 × 1.3 = 0.65 vs 0.2 × 1.3 = 0.26). GetEvolutionModifiedBody feeds the
 	// slotted crystal's Body pillar into the curve.
@@ -430,7 +430,7 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		// Equipment BonusDefense gear (A3) — reinterpreted as a % MULTIPLIER on the capped stat
 		// reduction (option-ii: the per-point magnitude read as a FRACTION, same shape as every other
 		// 5e gear field). Composes multiplicatively with the stone + buff below, OUTSIDE the 0.5 stat
-		// cap, toward the RESISTANCE_MAX (1.0) ceiling (final clamp). ×1 (inert) when BonusDefense is 0.
+		// cap, toward the DEFENSE_REDUCTION_CEILING (0.85) ceiling (final clamp). ×1 (inert) when BonusDefense is 0.
 		Reduction *= (1.0f + Loadout->GetActiveStatBonus(Defender).BonusDefense * CombatConstants::DEFENSE_PER_POINT);
 
 		// Attached DefenseStone — a % MULTIPLIER (×(1 + StonePct/100)) on the capped stat reduction,
@@ -447,8 +447,8 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 
 	// Combat-buff/debuff modifiers (from skill casts, e.g. Stoneskin) — MULTIPLICATIVE transient: the
 	// DefenseBuff/Debuff net scales the (permanent-gear) reduction proportionally, ×(1 + net/100), past
-	// the 0.5 stat cap toward the 1.0 ceiling. Max(0,…) floors a ≥100% debuff at ×0 (never inverts);
-	// buff/debuff in lockstep. The final clamp bounds the result to [0, 1.0].
+	// the 0.5 stat cap toward the DEFENSE_REDUCTION_CEILING (0.85) ceiling. Max(0,…) floors a ≥100% debuff
+	// at ×0 (never inverts); buff/debuff in lockstep. The final clamp bounds the result to [0, 0.85].
 	USkillEffectManager *StatusManager = GetSkillEffectManager();
 	if (StatusManager)
 	{
@@ -457,7 +457,7 @@ float UDamageCalculator::GetDefenderFlatDefense(AActor *Defender) const
 		Reduction *= FMath::Max(0.0f, 1.0f + (DefenseBuff - DefenseDebuff) / CombatConstants::STAT_PERCENT_DIVISOR);
 	}
 
-	return FMath::Clamp(Reduction, 0.0f, CombatConstants::RESISTANCE_MAX);
+	return FMath::Clamp(Reduction, 0.0f, CombatConstants::DEFENSE_REDUCTION_CEILING);
 }
 
 float UDamageCalculator::GetCriticalChance(AActor *Attacker) const

@@ -196,6 +196,12 @@ namespace CombatConstants
     // Defense - Flat damage reduction per hit
     constexpr float DEFENSE_PER_POINT = PCT_STAT_PER_POINT; // -> 0.50 at max (becomes % reduction in cluster 4)
 
+    // Hard ceiling on composed DEFENSE damage-reduction (stat 0.5 cap, then
+    // stone/gear/buff multiply past it). Bounds defense-stacking below full
+    // immunity. Distinct from RESISTANCE_MAX (1.0) — that is a correctness bound
+    // for the separate status-resistance system and must stay 1.0.
+    constexpr float DEFENSE_REDUCTION_CEILING = 0.85f;
+
     // Action Speed - animation play-rate (the x400 MOVEMENT_SPEED_BASE/PER_POINT approach-speed
     // constants were retired with CalculateActionSpeed — approach is montage-driven now, not
     // movement-speed-gated).
