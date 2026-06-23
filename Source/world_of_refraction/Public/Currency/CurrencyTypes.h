@@ -1,15 +1,14 @@
 // CurrencyTypes.h
 // Enums + replicable storage shapes for the resource-economy wallet
-// (UCurrencyComponent). Dust and Essence are held in a FastArraySerializer —
-// NOT TMap<Enum,int32> — because TMap is not natively replicable (see
-// Resources_Design.md §16.2). Prismas/Prisms/Diamond are plain int32s on the
-// component.
+// (UCurrencyComponent). The typed Essence currency is held in a FastArraySerializer
+// — NOT TMap<Enum,int32> — because TMap is not natively replicable (see
+// Resources_Design.md §16.2). Gold/Prisms/Diamond/GearEssence are plain int32s
+// on the component.
 //
-// A SINGLE reusable FCurrencyEntry / FCurrencyArray pair backs BOTH the Dust
-// (14 keys) and Essence (2 keys) wallets; each wallet interprets Key via its
-// own enum (EDustType / EEssencePool, stored as uint8). The owning component
-// stamps each wallet's WalletType + OwnerComponent once at construction so the
-// client-side FastArray callbacks can report which wallet changed and to whom.
+// The reusable FCurrencyEntry / FCurrencyArray pair backs the single typed Essence
+// wallet (14 keys, interpreting Key via EEssenceType, stored as uint8). The owning
+// component stamps the wallet's WalletType + OwnerComponent once at construction so
+// the client-side FastArray callbacks can report which wallet changed and to whom.
 
 #pragma once
 
@@ -23,16 +22,16 @@ class UCurrencyComponent;
 UENUM(BlueprintType)
 enum class ECurrencyType : uint8
 {
-    Prismas, // run-volatile, never banked (Replicated, NOT SaveGame)
-    Prisms,  // persistent; account-shareable (routing wired later)
-    Diamond, // persistent; account-wide premium (routing wired later)
-    Dust,    // persistent; per-character; sub-keyed by EDustType
-    Essence  // persistent; per-character; sub-keyed by EEssencePool
+    Gold,      // run-volatile, never banked (Replicated, NOT SaveGame)
+    Prisms,       // persistent; account-shareable (routing wired later)
+    Diamond,      // persistent; account-wide premium (routing wired later)
+    EssenceTyped, // persistent; per-character; sub-keyed by EEssenceType (14 keys) — FastArray
+    GearEssence   // persistent; per-character; single scalar (gear / kit leveling)
 };
 
-/** 14 dust wallets: 10 element (Generic = Quartz's element), 3 pillar, 1 ability. */
+/** 14 typed-essence keys: 10 element (Generic = Quartz's element), 3 pillar, 1 ability. */
 UENUM(BlueprintType)
-enum class EDustType : uint8
+enum class EEssenceType : uint8
 {
     // Element (10)
     Fire, Water, Lightning, Wind, Earth, Light, Darkness, Void, Reality, Generic,
@@ -42,16 +41,8 @@ enum class EDustType : uint8
     Ability
 };
 
-/** 2 essence pools, split by what they level. */
-UENUM(BlueprintType)
-enum class EEssencePool : uint8
-{
-    Weapon,
-    Crystal
-};
-
-/** One keyed balance inside a FastArray wallet. Key is a uint8-cast EDustType
- *  or EEssencePool, disambiguated by the owning FCurrencyArray's WalletType. */
+/** One keyed balance inside a FastArray wallet. Key is a uint8-cast EEssenceType,
+ *  disambiguated by the owning FCurrencyArray's WalletType. */
 USTRUCT()
 struct FCurrencyEntry : public FFastArraySerializerItem
 {
@@ -71,8 +62,8 @@ struct FCurrencyEntry : public FFastArraySerializerItem
     void PostReplicatedChange(const struct FCurrencyArray &InArray);
 };
 
-/** Replicable wallet: a FastArraySerializer over FCurrencyEntry. Used as two
- *  distinct UPROPERTY members on the component (Dust, Essence). */
+/** Replicable wallet: a FastArraySerializer over FCurrencyEntry. Used as the single
+ *  typed Essence wallet UPROPERTY on the component. */
 USTRUCT()
 struct FCurrencyArray : public FFastArraySerializer
 {
@@ -86,7 +77,7 @@ struct FCurrencyArray : public FFastArraySerializer
     // currency to the correct component. Raw ptr is safe: OwnerComponent is the
     // outer that owns this struct-by-value member, so it outlives the wallet.
     UCurrencyComponent *OwnerComponent = nullptr;
-    ECurrencyType WalletType = ECurrencyType::Dust;
+    ECurrencyType WalletType = ECurrencyType::EssenceTyped;
 
     bool NetDeltaSerialize(FNetDeltaSerializeInfo &DeltaParms)
     {

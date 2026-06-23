@@ -8,7 +8,7 @@ namespace
 {
     // "<Name>:<Amount>" for every NON-zero value across an enum's real entries (skipping
     // the implicit _MAX), joined ", ". GetAuthoredNameStringByValue yields the short, build-
-    // config-independent enumerator name ("Fire", "Weapon"); ReadBalance maps each value to
+    // config-independent enumerator name ("Fire", "Mind"); ReadBalance maps each value to
     // the wallet's current amount via the component's typed getter.
     template <typename TEnum, typename TReadBalance>
     FString JoinNonZeroEntries(TReadBalance &&ReadBalance)
@@ -39,17 +39,16 @@ FString UCurrencyComponentDebug::GetWalletString(const UCurrencyComponent *Walle
     }
 
     // Scalar currencies — ALWAYS shown, including zero balances.
-    FString Out = FString::Printf(TEXT("Prismas: %d | Prisms: %d | Diamond: %d"),
-                                  Wallet->GetBalance(ECurrencyType::Prismas),
+    FString Out = FString::Printf(TEXT("Gold: %d | Prisms: %d | Diamond: %d | GearEssence: %d"),
+                                  Wallet->GetBalance(ECurrencyType::Gold),
                                   Wallet->GetBalance(ECurrencyType::Prisms),
-                                  Wallet->GetBalance(ECurrencyType::Diamond));
+                                  Wallet->GetBalance(ECurrencyType::Diamond),
+                                  Wallet->GetBalance(ECurrencyType::GearEssence));
 
-    // Dust (14 keys) + Essence (2 pools) — only NON-zero entries.
-    const FString DustStr = JoinNonZeroEntries<EDustType>(
-        [Wallet](EDustType Type) { return Wallet->GetDust(Type); });
-    const FString EssenceStr = JoinNonZeroEntries<EEssencePool>(
-        [Wallet](EEssencePool Pool) { return Wallet->GetEssence(Pool); });
+    // Typed Essence (14 keys) — only NON-zero entries.
+    const FString EssenceStr = JoinNonZeroEntries<EEssenceType>(
+        [Wallet](EEssenceType Type) { return Wallet->GetEssenceType(Type); });
 
-    Out += FString::Printf(TEXT(" | Dust[%s] | Essence[%s]"), *DustStr, *EssenceStr);
+    Out += FString::Printf(TEXT(" | Essence[%s]"), *EssenceStr);
     return Out;
 }

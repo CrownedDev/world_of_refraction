@@ -42,20 +42,18 @@ UCurrencyComponent::UCurrencyComponent()
 
     // Stamp wallet wiring once — runs on server AND clients, so client-side
     // FastArray callbacks can route changes back to this component.
-    DustWallet.OwnerComponent = this;
-    DustWallet.WalletType = ECurrencyType::Dust;
     EssenceWallet.OwnerComponent = this;
-    EssenceWallet.WalletType = ECurrencyType::Essence;
+    EssenceWallet.WalletType = ECurrencyType::EssenceTyped;
 }
 
 void UCurrencyComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty> &OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-    DOREPLIFETIME(UCurrencyComponent, Prismas);
+    DOREPLIFETIME(UCurrencyComponent, Gold);
     DOREPLIFETIME(UCurrencyComponent, Prisms);
     DOREPLIFETIME(UCurrencyComponent, Diamond);
-    DOREPLIFETIME(UCurrencyComponent, DustWallet);
+    DOREPLIFETIME(UCurrencyComponent, GearEssence);
     DOREPLIFETIME(UCurrencyComponent, EssenceWallet);
 }
 
@@ -71,9 +69,9 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
     int32 NewBalance = 0;
     switch (Currency)
     {
-    case ECurrencyType::Prismas:
-        Prismas += Amount;
-        NewBalance = Prismas;
+    case ECurrencyType::Gold:
+        Gold += Amount;
+        NewBalance = Gold;
         break;
     case ECurrencyType::Prisms:
         Prisms += Amount;
@@ -83,15 +81,7 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
         Diamond += Amount;
         NewBalance = Diamond;
         break;
-    case ECurrencyType::Dust:
-    {
-        FCurrencyEntry &Entry = FindOrAddEntry(DustWallet, SubKey);
-        Entry.Amount += Amount;
-        DustWallet.MarkItemDirty(Entry);
-        NewBalance = Entry.Amount;
-        break;
-    }
-    case ECurrencyType::Essence:
+    case ECurrencyType::EssenceTyped:
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
         Entry.Amount += Amount;
@@ -99,6 +89,10 @@ bool UCurrencyComponent::Add(ECurrencyType Currency, int32 Amount, uint8 SubKey)
         NewBalance = Entry.Amount;
         break;
     }
+    case ECurrencyType::GearEssence:
+        GearEssence += Amount;
+        NewBalance = GearEssence;
+        break;
     }
 
     // Server-side broadcast (OnRep_* / FastArray callbacks fire on clients only).
@@ -122,9 +116,9 @@ bool UCurrencyComponent::Spend(ECurrencyType Currency, int32 Amount, uint8 SubKe
     int32 NewBalance = 0;
     switch (Currency)
     {
-    case ECurrencyType::Prismas:
-        Prismas -= Amount;
-        NewBalance = Prismas;
+    case ECurrencyType::Gold:
+        Gold -= Amount;
+        NewBalance = Gold;
         break;
     case ECurrencyType::Prisms:
         Prisms -= Amount;
@@ -134,22 +128,18 @@ bool UCurrencyComponent::Spend(ECurrencyType Currency, int32 Amount, uint8 SubKe
         Diamond -= Amount;
         NewBalance = Diamond;
         break;
-    case ECurrencyType::Dust:
-    {
-        FCurrencyEntry &Entry = FindOrAddEntry(DustWallet, SubKey);
-        Entry.Amount -= Amount; // CanAfford guaranteed >= Amount
-        DustWallet.MarkItemDirty(Entry);
-        NewBalance = Entry.Amount;
-        break;
-    }
-    case ECurrencyType::Essence:
+    case ECurrencyType::EssenceTyped:
     {
         FCurrencyEntry &Entry = FindOrAddEntry(EssenceWallet, SubKey);
-        Entry.Amount -= Amount;
+        Entry.Amount -= Amount; // CanAfford guaranteed >= Amount
         EssenceWallet.MarkItemDirty(Entry);
         NewBalance = Entry.Amount;
         break;
     }
+    case ECurrencyType::GearEssence:
+        GearEssence -= Amount; // CanAfford guaranteed >= Amount
+        NewBalance = GearEssence;
+        break;
     }
 
     NotifyChanged(Currency, SubKey, NewBalance);
@@ -165,16 +155,16 @@ int32 UCurrencyComponent::GetBalance(ECurrencyType Currency, uint8 SubKey) const
 {
     switch (Currency)
     {
-    case ECurrencyType::Prismas:
-        return Prismas;
+    case ECurrencyType::Gold:
+        return Gold;
     case ECurrencyType::Prisms:
         return Prisms;
     case ECurrencyType::Diamond:
         return Diamond;
-    case ECurrencyType::Dust:
-        return GetWalletAmount(DustWallet, SubKey);
-    case ECurrencyType::Essence:
+    case ECurrencyType::EssenceTyped:
         return GetWalletAmount(EssenceWallet, SubKey);
+    case ECurrencyType::GearEssence:
+        return GearEssence;
     }
     return 0;
 }
@@ -200,9 +190,9 @@ void UCurrencyComponent::PrintWallet()
 
 // ==================== REP CALLBACKS ====================
 
-void UCurrencyComponent::OnRep_Prismas()
+void UCurrencyComponent::OnRep_Gold()
 {
-    NotifyChanged(ECurrencyType::Prismas, 0, Prismas);
+    NotifyChanged(ECurrencyType::Gold, 0, Gold);
 }
 
 void UCurrencyComponent::OnRep_Prisms()
@@ -213,6 +203,11 @@ void UCurrencyComponent::OnRep_Prisms()
 void UCurrencyComponent::OnRep_Diamond()
 {
     NotifyChanged(ECurrencyType::Diamond, 0, Diamond);
+}
+
+void UCurrencyComponent::OnRep_GearEssence()
+{
+    NotifyChanged(ECurrencyType::GearEssence, 0, GearEssence);
 }
 
 // ==================== INTERNAL ====================
