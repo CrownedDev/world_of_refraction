@@ -180,14 +180,14 @@ table: **F / E / D / C / B / A / S**.
 |---|---|---|---|---|---|---|---|---|
 | Garnet | DOT damage %/turn (of target MaxHP) | 5 | 7 | 9 | 12 | 16 | 20 | 30 |
 | Garnet | DOT duration (turns) | 3 | 3 | 3 | 2 | 2 | 2 | 1 |
-| Sapphire | Heal % of MaxHP | 15 | 20 | 25 | 30 | 35 | 45 | 60 |
+| Sapphire | Last Stand ward window (turns) — `GetLastStandWindow` | 2 | 2 | 3 | 3 | 4 | 4 | 5 |
+| Healing Stone | Heal % of MaxHP — `GetHealPercent` | 15 | 20 | 25 | 30 | 35 | 45 | 60 |
 | Citrine | EP restore % of MaxEP | 30 | 40 | 50 | 60 | 70 | 85 | 100 |
 | Emerald | Bonus-turn delay (global turns) — `GetEmeraldBonusTurnDelay` | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
-| Amber | Defense buff/debuff % | 15 | 20 | 25 | 30 | 35 | 40 | 50 |
-| Opal | Crit buff/debuff % | 5 | 8 | 10 | 12 | 15 | 18 | 25 |
+| Amber | Defense buff/debuff % — `GetBuffPercentage` | 6 | 10 | 14 | 18 | 22 | 26 | 30 |
+| Opal | Crit buff/debuff % — `GetCritBuffPercent` | 6 | 10 | 14 | 18 | 22 | 26 | 30 |
 | Amber/Opal | Duration — `GetCrystalDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
-| Onyx | Silence % (energy-lock) | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
-| Onyx | Energy-lock duration, F–A — `GetSilenceDurationNew` | 3 | 3 | 2 | 2 | 2 | 1 | — |
+| Onyx | EP drain % of MaxEP (F–A one-shot) — `GetSilencePercentage` | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
 | Amethyst | Buff/debuff magnitude % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
 | Amethyst | Buff chance % | 10 | 20 | 30 | 40 | 50 | 60 | 70 |
 | Amethyst | Duration — `GetGambleDuration` | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
@@ -200,8 +200,13 @@ Notes:
 - **Status buildup** — Garnet (Fire), Citrine (Lightning), Onyx (Darkness) and Amethyst
   (Void) each add status-bar buildup on use via the shared `GetElementalBuildupPercent`
   table. Buildup amount = `BarMax × percent / 100` (Garnet uses target MaxHP as the base).
-- **Onyx S-rank** does not use the energy-lock duration table — it applies a binary
-  `Silenced` effect for 1 turn (see S-Rank Specials).
+- **Onyx** — F–A spend the drain % above as a **one-shot EP drain** (instant, no lingering
+  lock, no per-tier duration). **S-rank** instead applies a binary `Silenced` effect for 1 turn
+  (see S-Rank Specials) — there is no `GetSilenceDurationNew` getter.
+- **Sapphire** is now defy-death: living target → Last Stand ward (survive at 50% MaxHP if it
+  would die in the window); dead target → revive at 30% MaxHP. The 50%/30% values are fixed;
+  only the ward window scales by tier. The plain heal moved to **Healing Stone** (`GetHealPercent`).
+- **Amber/Opal/Emerald-speed** share one curve, `STAT_CRYSTAL_BUFF_PERCENT` (6→30).
 - **Citrine** no longer has an HP cost. **Iolite** no longer grants immunity.
 
 ## Description Model
@@ -360,3 +365,4 @@ removed with the transform system.
 | 2026-06-21 | `ApplyBrokenDarknessBonus` is now **element-aware** (`fix/bd-item-absorption-element`): the three-way on `ItemIdentity::GetElement(Id)` — real element → `GrantAbsorptionEnergy(Amount, Element)` (grant + rotate the BD's active pool); Reality (Iolite) → `DrainAndRevertToBase(Amount)` (drain + revert to base Darkness, the cleanse); None (Quartz) → no-op (was a flat grant — removed). Updated step 3 of the use flow. **Stale-fact fix:** the crystal table listed `Quartz | Generic` — corrected to `None (non-elemental)` (post the `Generic→None` element-sentinel migration). | fix/bd-item-absorption-element |
 | 2026-06-22 | **Sapphire → defy-death** (back-fill; no longer a heal): living target → grants a `LastStand` ward (the `CheckDeath` intercept), dead target → revives (`ServerResurrect`, any tier); routes via `EItemEffectType::DefyDeath`. The instant **heal relocated to the consume-only `HealingStone`** (`EItemEffectType::RestoreHealth` → `ExecuteHealingStoneEffect`; inert if attached — no `StoneTargetStat`). `EItemEffectType::Healing` is now **dead** (superseded by `DefyDeath` + `RestoreHealth`). | item/effect arcs |
 | 2026-06-22 | Cleanup: handler `ExecuteHealingEffect` (Sapphire defy-death, a misnomer since the reshape) renamed `ExecuteDefyDeathEffect`; pure rename, no behaviour change. Stale `ECrystalType` inline `=N` enum-position comments removed (they had drifted 1–3 from real values; append-only positions are what matter). | feature/effect-build-unification |
+| 2026-06-23 | **Crystal Behaviour table stale-row fixes** (doc-only; values reconciled to live `CrystalEffectTable`): Sapphire row was still the old heal curve — replaced with the Last Stand ward window (`GetLastStandWindow`, 2/2/3/3/4/4/5) and a new Healing Stone row for the relocated heal (`GetHealPercent`, 15–60). Amber (`GetBuffPercentage`) and Opal (`GetCritBuffPercent`) corrected to the shared `STAT_CRYSTAL_BUFF_PERCENT` curve (6/10/14/18/22/26/30) — both were pre-`STAT_CRYSTAL_BUFF_PERCENT` literals. Removed the phantom "Onyx energy-lock duration / `GetSilenceDurationNew`" row (no such getter; F–A is a one-shot drain, S-rank a binary 1-turn `Silenced`). Mechanics docs (`Crystals.md`, `AugmentStones.md`) gained player-facing per-tier value tables. | docs/item-tier-value-tables |

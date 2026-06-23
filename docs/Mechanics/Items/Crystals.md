@@ -34,6 +34,44 @@ just bigger numbers.
 > (one death absorbed). On a **dead** target it **revives** them at **30% max HP**. Higher tiers
 > give a **longer ward window**. The old plain **heal moved to the [Healing Stone](./AugmentStones.md)**.
 
+## Numbers by tier
+
+Tier order is **F → S** (worst → best). These are the live values straight from the combat code.
+
+| Crystal | Metric | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|---|
+| **Garnet** | DOT per turn (% of target max HP) | 5 | 7 | 9 | 12 | 16 | 20 | 30 |
+| **Garnet** | DOT duration (turns) | 3 | 3 | 3 | 2 | 2 | 2 | 1 |
+| **Sapphire** | Last Stand ward window (turns) | 2 | 2 | 3 | 3 | 4 | 4 | 5 |
+| **Citrine** | EP restored (% of target max EP) | 30 | 40 | 50 | 60 | 70 | 85 | 100 |
+| **Emerald** | Bonus-turn delay (turns until it fires) | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+| **Amber** | Defense buff/debuff % | 6 | 10 | 14 | 18 | 22 | 26 | 30 |
+| **Opal** | Crit buff/debuff % | 6 | 10 | 14 | 18 | 22 | 26 | 30 |
+| **Amber / Opal** | Buff/debuff duration (turns) | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| **Onyx** | EP drained (% of target max EP) | 15 | 30 | 30 | 50 | 70 | 70 | 100 |
+| **Amethyst** | Chance the roll is a buff (vs debuff) % | 10 | 20 | 30 | 40 | 50 | 60 | 70 |
+| **Amethyst** | Buff/debuff magnitude % | 10 | 15 | 20 | 25 | 30 | 35 | 40 |
+| **Amethyst** | Duration (turns) | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+| **Iolite** | Effects removed | 1 | 1 | 2 | 2 | 3 | 3 | all |
+| **Quartz** | Status bar cleared % | 25 | 35 | 45 | 55 | 65 | 80 | 100 |
+| **Quartz** | Element-protection duration (turns) | 4 | 4 | 3 | 3 | 3 | 2 | 2 |
+
+Shared effects (only the elemental crystals carry these):
+
+| Effect | Applies to | F | E | D | C | B | A | S |
+|---|---|---|---|---|---|---|---|---|
+| Status-bar buildup % | Garnet · Citrine · Onyx · Amethyst | 10 | 15 | 20 | 30 | 40 | 50 | 60 |
+| BD absorb (% of target max EP) | any **gem** crystal used on a Broken Darkness fighter | 10 | 20 | 30 | 40 | 50 | 60 | 70 |
+
+A few values are **fixed, not tier-scaled** — only the *window* or *duration* above moves:
+
+- **Sapphire** ward: if the warded target would die inside the window, they instead survive at
+  **50% max HP**; used on a **dead** target it revives them at **30% max HP** (any tier).
+- **Onyx**: F–A spend that % of the target's max EP **immediately** (a one-shot drain, no lingering
+  lock). **S-tier** instead applies a **full Silence** — spellcasting blocked for **1 turn**.
+- **Emerald**: every tier grants one full bonus turn; only the *delay* before it fires shortens. At
+  **S** it fires immediately (and grants two back-to-back).
+
 ## Status buildup
 
 The **elemental** crystals don't just deal their effect — they also push the target's **status
