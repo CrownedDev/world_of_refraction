@@ -1213,9 +1213,21 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 
 		// ==================== HEALING ====================
 	case ESkillEffectType::HealthRestore:
-		CharComp->ServerHeal(FMath::RoundToInt(Value));
-		UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
-			   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
+		// HealBlock re-gate (per-tick): an ongoing HoT goes dormant while its BEARER (Actor) is
+		// HealBlocked — mirrors the apply-time ApplyEffect immunity gate, now also at each tick. The
+		// effect PERSISTS (not removed) and its duration still decrements via TickDurations; only
+		// this tick's heal is skipped, so it resumes once HealBlock expires (if duration remains).
+		if (IsImmuneToEffectType(Actor, ESkillEffectType::HealthRestore))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: HoT '%s' suppressed by HealBlock (no heal this tick)"),
+				   *Actor->GetName(), *Effect.EffectName);
+		}
+		else
+		{
+			CharComp->ServerHeal(FMath::RoundToInt(Value));
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s healed %d from %s"),
+				   *Actor->GetName(), FMath::RoundToInt(Value), *Effect.EffectName);
+		}
 		break;
 
 	// ==================== ENERGY ====================
@@ -1346,7 +1358,14 @@ void USkillEffectManager::ApplyEffectLogic(AActor *Actor, FActiveSkillEffect &Ef
 	// Resource changes — percent restore / drain. Value is the percent (0..100).
 	case ESkillEffectType::RestoreHPPercent:
 	{
-		if (CharComp->MaxHP > 0)
+		// HealBlock re-gate (per-tick) — same as HealthRestore above: suppress the heal while the
+		// bearer (Actor) is HealBlocked; the effect persists and its duration still decrements.
+		if (IsImmuneToEffectType(Actor, ESkillEffectType::RestoreHPPercent))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[SkillEffectManager] %s: HoT '%s' (%%-restore) suppressed by HealBlock (no heal this tick)"),
+				   *Actor->GetName(), *Effect.EffectName);
+		}
+		else if (CharComp->MaxHP > 0)
 		{
 			const int32 Amount = FMath::RoundToInt(CharComp->MaxHP * Value / CombatConstants::STAT_PERCENT_DIVISOR);
 			if (Amount > 0)
