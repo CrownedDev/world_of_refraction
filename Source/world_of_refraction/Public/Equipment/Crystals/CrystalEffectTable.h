@@ -516,7 +516,7 @@ namespace CrystalEffectTable
      *  Emerald speed each have a single live source (GetCritBuffPercent /
      *  GetSpeedBuffPercent); their duplicate arms were removed from this table.
      *  Out-of-line — tier switch body in CrystalEffectTable.cpp. */
-    WORLD_OF_REFRACTION_API float GetBuffPercentage(const FCrystalId &Id);
+    WORLD_OF_REFRACTION_API float GetAmberDefensePercent(const FCrystalId &Id);
 
     // ==================== ONYX SILENCE ====================
 

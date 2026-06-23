@@ -691,11 +691,11 @@ void UItemExecutor::ExecuteDefenseBuffEffect(AActor *User, AActor *Target, FCrys
 	const ESkillEffectType EffectType = bAlly ? ESkillEffectType::DefenseBuff : ESkillEffectType::DefenseDebuff;
 
 	// DefenseStone sources the shared stone curve + flat stone duration; Amber keeps
-	// its own GetBuffPercentage + GetCrystalDuration. Direction (IsAlly) is identical.
+	// its own GetAmberDefensePercent + GetCrystalDuration. Direction (IsAlly) is identical.
 	const bool bIsStone = CrystalTypeHelpers::IsAugmentStoneType(Id.Type);
 	const float Magnitude = bIsStone
 		? CrystalEffectTable::GetStoneBasePercent(Id.Type, Id.Tier)
-		: CrystalEffectTable::GetBuffPercentage(Id);
+		: CrystalEffectTable::GetAmberDefensePercent(Id);
 	const int32 Duration = bIsStone
 		? CombatConstants::AUGMENT_STONE_CONSUMABLE_DURATION
 		: CrystalEffectTable::GetCrystalDuration(Id);

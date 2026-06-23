@@ -110,7 +110,7 @@ namespace CrystalDescription
         case ECrystalType::Amber:
             return FString::Printf(
                 TEXT("Buffs an ally's defense (or debuffs an enemy's) by %.0f%% for %s."),
-                CrystalEffectTable::GetBuffPercentage(Id),
+                CrystalEffectTable::GetAmberDefensePercent(Id),
                 *FormatTurns(CrystalEffectTable::GetCrystalDuration(Id)));
 
         case ECrystalType::Opal:

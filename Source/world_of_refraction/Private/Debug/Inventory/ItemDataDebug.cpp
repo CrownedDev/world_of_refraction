@@ -126,7 +126,7 @@ bool UItemDataDebug::ValidateItem(const UEvolutionItemData *Item)
         break;
 
     case ECrystalType::Amber:
-        if (CrystalEffectTable::GetBuffPercentage(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
+        if (CrystalEffectTable::GetAmberDefensePercent(FCrystalId{Item->CrystalType, Item->Tier}) <= 0.0f)
         {
             Errors.Add(TEXT("Zero buff percentage"));
             bValid = false;
@@ -226,7 +226,7 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     UE_LOG(LogTemp, Display, TEXT("EP Restore %%: %.1f"), CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Speed Buff %%: %.1f"), CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Emerald Bonus-Turn Delay: %d turns (0=immediate; 0 also for non-Emerald)"), CrystalEffectTable::GetEmeraldBonusTurnDelay(FCrystalId{Item->CrystalType, Item->Tier}));
-    UE_LOG(LogTemp, Display, TEXT("Buff %%: %.1f"), CrystalEffectTable::GetBuffPercentage(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Buff %%: %.1f"), CrystalEffectTable::GetAmberDefensePercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Crit Buff %%: %.1f"), CrystalEffectTable::GetCritBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Crystal Buff Duration: %d turns"), CrystalEffectTable::GetCrystalDuration(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Silence %%: %.1f (one-shot drain on use)"), CrystalEffectTable::GetSilencePercentage(FCrystalId{Item->CrystalType, Item->Tier}));
@@ -285,8 +285,8 @@ void UItemDataDebug::LogCrystalTierProgression(ECrystalType CrystalType)
             }
 
             case ECrystalType::Amber:
-                ValueStr = FString::Printf(TEXT("-%.0f%% damage taken for %d turns"),
-                                           CrystalEffectTable::GetBuffPercentage(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetCrystalDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
+                ValueStr = FString::Printf(TEXT("%.0f%% defense (ally buff / enemy weaken) for %d turns"),
+                                           CrystalEffectTable::GetAmberDefensePercent(FCrystalId{TestItem->CrystalType, TestItem->Tier}), CrystalEffectTable::GetCrystalDuration(FCrystalId{TestItem->CrystalType, TestItem->Tier}));
                 break;
 
             case ECrystalType::Opal:
@@ -585,7 +585,7 @@ float UItemDataDebug::GetPrimaryValue(const UEvolutionItemData *Item)
         return static_cast<float>(CrystalEffectTable::GetEmeraldBonusTurnDelay(FCrystalId{Item->CrystalType, Item->Tier}));
 
     case ECrystalType::Amber:
-        return CrystalEffectTable::GetBuffPercentage(FCrystalId{Item->CrystalType, Item->Tier});
+        return CrystalEffectTable::GetAmberDefensePercent(FCrystalId{Item->CrystalType, Item->Tier});
 
     case ECrystalType::Opal:
         return CrystalEffectTable::GetCritBuffPercent(FCrystalId{Item->CrystalType, Item->Tier});
