@@ -185,6 +185,8 @@ namespace SkillEffectDisplayNames
             return TEXT("Increase Damage Taken");
         case ESkillEffectType::ModifyHealing:
             return TEXT("Healing Up");
+        case ESkillEffectType::HealingReceivedBuff:
+            return TEXT("Healing Boost");
         case ESkillEffectType::ModifyCritChance:
             return TEXT("Crit Chance Up");
         case ESkillEffectType::ModifyCritDamage:

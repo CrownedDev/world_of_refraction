@@ -246,7 +246,16 @@ enum class ESkillEffectType : uint8
     // Reflex buff/debuff — summed via GetTotalStatModifier and read by the defense-window calc
     // (B-5) as (ReflexBuff − ReflexDebuff), widening/narrowing the defender's input window.
     ReflexBuff UMETA(DisplayName = "Reflex Buff"),
-    ReflexDebuff UMETA(DisplayName = "Reflex Debuff")
+    ReflexDebuff UMETA(DisplayName = "Reflex Debuff"),
+
+    // ==================== HEALING RECEIVED (recipient-side — HealBlock mirror) ====================
+    // Appended (not mid-inserted) to preserve enum-by-value stamping. The symmetric MIRROR of
+    // HealBlock: a recipient-side modifier that AMPLIFIES the healing its bearer RECEIVES.
+    // Presence-read (summed via GetTotalStatModifier) and applied at the SAME four heal sites
+    // HealBlock gates (HealthRestore / RestoreHPPercent ticks, drain, lifesteal), in the else
+    // branch after the gate (gate-then-amplify). DISTINCT from the healer-side ModifyHealing
+    // ("Healing Up"). Magnitude is percent (25 = +25% healing received).
+    HealingReceivedBuff UMETA(DisplayName = "Healing Boost")
 };
 
 /**
@@ -323,6 +332,8 @@ namespace SkillEffectClassification
         case ESkillEffectType::LastStand:
         // sweep-4: status-bar manipulation buff (reduces target's gauge)
         case ESkillEffectType::StatusDecrease:
+        // recipient-side healing amplifier (HealBlock mirror)
+        case ESkillEffectType::HealingReceivedBuff:
             return true;
         // ModifyStatusResist is sign-aware: +magnitude raises status resistance (a buff),
         // -magnitude lowers it (a debuff), exactly 0 is neither.
