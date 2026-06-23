@@ -235,69 +235,20 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	// FACTORY METHODS - FROM SPELL/ABILITY DATA
 	// ========================================
 
-	/**
-	 * Create effects from SpellData (handles Primary + Secondary)
-	 * Call this when a spell hits a target
-	 *
-	 * @param SpellName Display name for the effect
-	 * @param EffectIDBase Base ID (primary gets +0, secondary gets +1)
-	 * @param EffectType The ESkillEffectType from SpellData
-	 * @param Magnitude Percentage modifier (0.0-1.0 range from SpellData)
-	 * @param Value Flat value from SpellData
-	 * @param Duration Turns from SpellData
-	 * @param InElement Element for DOT effects
-	 * @param Timing When to process (usually StartOfOwnTurn for buffs, EndOfOwnTurn for DOTs)
-	 */
-	static FActiveSkillEffect CreateFromSpellEffect(
-		const FString &SpellName,
-		int32 EffectIDBase,
-		ESkillEffectType EffectType,
-		float Magnitude,
-		int32 Value,
-		int32 Duration,
-		ESpellElement InElement,
-		ESkillEffectTiming Timing = ESkillEffectTiming::StartOfOwnTurn)
-	{
-		FActiveSkillEffect Effect;
-		Effect.EffectName = SpellName;
-		Effect.EffectID = EffectIDBase;
-		Effect.EffectType = EffectType;
-		Effect.EffectValue = (Value != 0) ? static_cast<float>(Value) : (Magnitude * 100.0f);
-		Effect.RemainingTurns = (Duration > 0) ? Duration : 1;
-		Effect.InitialDuration = Effect.RemainingTurns;
-		Effect.Element = InElement;
-		Effect.ProcessTiming = Timing;
-
-		// Auto-detect timing based on effect type
-		if (Effect.IsDOT())
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
-		}
-		else if (Effect.EffectType == ESkillEffectType::HealthRestore ||
-				 Effect.EffectType == ESkillEffectType::EnergyRestore)
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::StartOfOwnTurn;
-		}
-		else if (Effect.EffectType == ESkillEffectType::EnergyDrain)
-		{
-			Effect.ProcessTiming = ESkillEffectTiming::EndOfOwnTurn;
-		}
-
-		// Condition data is no longer threaded through this factory — the caller carries
-		// FActiveSkillEffect::Conditions directly (single source of truth). The legacy
-		// TriggerCondition/TargetTrigger* fields default-construct; the OnTrigger
-		// ProcessTiming promotion is reproduced caller-side from the carried Conditions[]
-		// (see ActionExecutor's [J] default-status path).
-		return Effect;
-	}
+	// CreateFromSpellEffect was DELETED (effect-build-unification Cluster 2). Its dur-0 clamp
+	// and silently-dropped bPermanent/Charges/bDelayFirstExecution drift are gone — the spell
+	// cast path (ActionExecutor) and the defender-trigger path (SkillEffectManager) now build
+	// through the shared BuildRuntimeFromPayload core (structural fields) + a post-build
+	// EffectValue override (cast EffMagMult / defender pre-rounding). See that core below.
 
 	/**
-	 * Single-payload runtime-effect builder — the SHARED CORE both the gear/skill/evolution
-	 * factory (CreateAllFromSkillEffect) and (next cluster) the spell/cast paths route through.
-	 * Lifted verbatim from CreateAllFromSkillEffect's inner Build lambda so gear output stays
-	 * byte-identical; it is the single choke point where an authored payload becomes a runtime
-	 * effect, which is what kills the spell-path drift (the dropped bPermanent/Charges/
-	 * bDelayFirstExecution + the dur-0 clamp live only in the legacy CreateFromSpellEffect).
+	 * Single-payload runtime-effect builder — the SHARED CORE the gear/skill/evolution factory
+	 * (CreateAllFromSkillEffect), the spell cast path (ActionExecutor::ApplySkillEffects), and the
+	 * defender-trigger path (SkillEffectManager) all route through. Lifted verbatim from
+	 * CreateAllFromSkillEffect's inner Build lambda so gear output stays byte-identical; it is the
+	 * single choke point where an authored payload becomes a runtime effect — which is what killed
+	 * the old spell-path drift (the now-deleted CreateFromSpellEffect silently dropped
+	 * bPermanent/Charges/bDelayFirstExecution and clamped dur-0 → 1).
 	 *
 	 * @param Name          Resolved display name (caller applies any "Source-or-fallback" choice).
 	 * @param PackedEffectID Caller-packed EffectID (EffectIdentity::PackEffectID(...)).
@@ -309,8 +260,8 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	 *                      reference Build lambda left untouched — so gear stays byte-identical.
 	 * @param bAutoDetectTimingByType  OPT-IN type-based ProcessTiming auto-detect (DOT→EndOfOwnTurn,
 	 *                      Health/EnergyRestore→StartOfOwnTurn, EnergyDrain→EndOfOwnTurn). DEFAULT OFF
-	 *                      so gear keeps authored P.ProcessTiming (byte-identical). The spell repoint
-	 *                      (next cluster) passes true to preserve CreateFromSpellEffect's auto-detect.
+	 *                      so gear keeps authored P.ProcessTiming (byte-identical). The spell paths
+	 *                      pass true to preserve the type-based auto-detect the old CreateFromSpellEffect had.
 	 */
 	static FActiveSkillEffect BuildRuntimeFromPayload(
 		const FString &Name,
