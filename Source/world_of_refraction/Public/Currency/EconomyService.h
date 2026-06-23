@@ -18,6 +18,8 @@ class AActor;
 class UCrystalInventoryComponent;
 class UCurrencyComponent;
 class UInventoryComponent;
+class USpellData;
+class UAbilityData;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
@@ -51,4 +53,18 @@ public:
     /** Dismantle the owned RING instance by PersistentID → GEAR essence. See DismantleWeapon. */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool DismantleRing(AActor *Owner, FGuid PersistentID);
+
+    /**
+     * Dismantle a known SPELL, granting SKILL essence (abilities/spells → Skill, per category
+     * routing — NOT Gear). Server-authoritative; remove-then-grant (UnlearnSpell's bool return
+     * is the success signal — a not-known spell grants nothing). Yield from the spell's ASSET
+     * tier (leveled-tier deferred). False if Owner/Spell null; no authority; components missing;
+     * or the spell was not known.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DismantleSpell(AActor *Owner, USpellData *Spell);
+
+    /** Dismantle a known ABILITY → SKILL essence. See DismantleSpell. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DismantleAbility(AActor *Owner, UAbilityData *Ability);
 };
