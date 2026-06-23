@@ -678,7 +678,12 @@ int32 UAIDecisionManager::EstimateSpellDamage(AActor *Attacker, AActor *Target, 
     // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
     // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
     // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
-    const float CritChance = DamageCalc->GetCriticalChance(Attacker);
+    // An active GuaranteedCrit window forces a crit at execution (DamageCalculator.cpp:228,
+    // HasEffectOfType), so the EV must treat crit chance as 1.0 — otherwise the AI under-values
+    // attacking inside its own Opal-granted window.
+    USkillEffectManager *CritMgr = GetSkillEffectManager();
+    const bool bGuaranteedCrit = CritMgr && CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
+    const float CritChance = bGuaranteedCrit ? 1.0f : DamageCalc->GetCriticalChance(Attacker);
     const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
     float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
@@ -752,7 +757,12 @@ int32 UAIDecisionManager::EstimateAbilityDamage(AActor *Attacker, AActor *Target
     // so the estimate matches average execution damage. AI parity (5e-D): value a crit by the
     // attacker's ACTUAL crit-damage multiplier (x1.0-x2.0 via GetCritDamageMultiplier), not a fixed
     // x1.5 — a low-CritDamage attacker weights crits near x1.0 (no uplift), a maxed one toward x2.0.
-    const float CritChance = DamageCalc->GetCriticalChance(Attacker);
+    // An active GuaranteedCrit window forces a crit at execution (DamageCalculator.cpp:228,
+    // HasEffectOfType), so the EV must treat crit chance as 1.0 — otherwise the AI under-values
+    // attacking inside its own Opal-granted window.
+    USkillEffectManager *CritMgr = GetSkillEffectManager();
+    const bool bGuaranteedCrit = CritMgr && CritMgr->HasEffectOfType(Attacker, ESkillEffectType::GuaranteedCrit);
+    const float CritChance = bGuaranteedCrit ? 1.0f : DamageCalc->GetCriticalChance(Attacker);
     const float CritMult = DamageCalc->GetCritDamageMultiplier(Attacker);
     float Estimate = Result.FinalDamage * (1.0f + CritChance * (CritMult - 1.0f));
 
