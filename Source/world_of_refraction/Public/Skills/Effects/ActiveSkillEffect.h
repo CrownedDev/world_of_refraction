@@ -369,8 +369,9 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 
 		// Thin wrapper: resolve the shared display name + per-payload packed ID, then route every
 		// non-None payload through the shared BuildRuntimeFromPayload core. Gear/skill/evolution
-		// keep authored timing (Element None, bAutoDetectTimingByType=false) — byte-identical to the
-		// former inline Build lambda this replaced. The condition group + stacking are shared across
+		// pass the AUTHORED payload element (P.Element; None = generic = the prior behaviour) and
+		// keep authored timing (bAutoDetectTimingByType=false) — byte-identical to the former inline
+		// Build lambda while every payload is None. The condition group + stacking are shared across
 		// payloads (the trigger gates the whole bundle).
 		const FString ResolvedName = Source.EffectName.IsEmpty() ? (SourceName + TEXT(" Effect")) : Source.EffectName;
 
@@ -391,7 +392,8 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 					Source.Conditions,
 					Source.bStackable,
 					Source.MaxStacks,
-					Source.bFiresOncePerMatch));
+					Source.bFiresOncePerMatch,
+					P.Element));
 			}
 		}
 

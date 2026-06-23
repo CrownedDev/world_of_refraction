@@ -10,6 +10,7 @@
 #include "CoreMinimal.h"
 #include "Skills/Effects/ESkillEffectType.h"
 #include "Skills/Effects/ESkillEffectTiming.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "Combat/TargetType.h"
 #include "FSkillEffectPayload.generated.h"
 
@@ -21,6 +22,15 @@ struct WORLD_OF_REFRACTION_API FSkillEffectPayload
     /** What effect to apply (buff, debuff, restore, etc.) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
     ESkillEffectType EffectType = ESkillEffectType::None;
+
+    /** Element this effect is keyed to. None = generic / element-agnostic (e.g. a StatusMultiplierBuff
+     *  that amplifies ALL elemental buildup); a real element = element-keyed (amplifies only that
+     *  element). Threaded into the runtime FActiveSkillEffect::Element by BuildRuntimeFromPayload, so a
+     *  conditional/gear payload can grant an element-keyed stack ("on parry → gain a Lightning stack").
+     *  The spell-cast path overrides this with the resolved cast element. Default None = backward-
+     *  compatible generic (USTRUCT serialized by name, so existing payloads load as None). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+    ESpellElement Element = ESpellElement::None;
 
     /** Effect strength. Buffs/debuffs: decimal percent (0.2 = 20%). Restore/drain: flat or DrainPercent. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect",
