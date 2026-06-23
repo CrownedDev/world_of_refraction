@@ -132,6 +132,12 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
     // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
     // that factory and must not mint).
     Entry.PersistentID = FGuid::NewGuid();
+    // Cluster 1 (tier-on-instance foundation): seed the per-instance Tier from the asset (the
+    // future leveling action mutates it) + a placeholder Quality (the weighted drop-roll lands in a
+    // later cluster). WRITTEN-BUT-UNREAD: every Tier calc still reads Weapon->Tier until the
+    // cluster-2 repoint, so this is a behavioural no-op.
+    Entry.Tier = Weapon->Tier;
+    Entry.Quality = EItemQuality::C_Quality;
     if (Weapon->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
