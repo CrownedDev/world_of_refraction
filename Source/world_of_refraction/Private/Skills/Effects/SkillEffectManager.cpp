@@ -1649,8 +1649,13 @@ void USkillEffectManager::OnDamageDealtHandler(AActor *Attacker, AActor *Target,
 }
 
 void USkillEffectManager::OnDefenseResolvedHandler(AActor *Defender, AActor *Attacker,
-												   EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex)
+												   EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex,
+												   float AttackEnergyCost)
 {
+	// AttackEnergyCost (the attack's BASE energy cost) is RECEIVED to match the delegate signature
+	// but NOT yet consumed — Cluster B wires attack-scaled absorb (payload value-basis × this).
+	(void)AttackEnergyCost;
+
 	if (!Defender || !Attacker)
 	{
 		return;

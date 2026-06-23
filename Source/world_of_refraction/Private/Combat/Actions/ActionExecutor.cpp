@@ -1904,8 +1904,24 @@ void UActionExecutor::ResolveImpactDefense(AActor *Defender, int32 ImpactIndex, 
 		DefenseSys->ApplyParryReflect(Attacker, Defender, Result.ReflectedDamage);
 	}
 
-	// Piece 6: broadcast the per-impact outcome (payoffs are content, later).
-	DefenseSys->OnDefenseResolved.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
+	// Piece 6: broadcast the per-impact outcome (payoffs are content, later). AttackEnergyCost =
+	// the attack's BASE (pre-efficiency) energy cost — the inherent worth, NOT the post-efficiency
+	// paid cost (efficiency only discounts what the ATTACKER pays, never the basis). Mirrors BD's
+	// absorb basis exactly (the raw SpellData/SkillData->BaseEnergyCost read at the BD branch above),
+	// guarded by CurrentExecutionContext.IsSet() the same way. 0 when unresolved.
+	float AttackEnergyCost = 0.0f;
+	if (CurrentExecutionContext.IsSet())
+	{
+		if (CurrentExecutionContext->Action.SpellData)
+		{
+			AttackEnergyCost = CurrentExecutionContext->Action.SpellData->BaseEnergyCost;
+		}
+		else if (CurrentExecutionContext->Action.SkillData)
+		{
+			AttackEnergyCost = CurrentExecutionContext->Action.SkillData->BaseEnergyCost;
+		}
+	}
+	DefenseSys->OnDefenseResolved.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex, AttackEnergyCost);
 	if (Match.bPerfect)
 	{
 		DefenseSys->OnDefensePerfect.Broadcast(Defender, Attacker, Result.DefenseType, Match.bPerfect, ImpactIndex);
