@@ -176,6 +176,16 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID);
 
+    /** Remove a PLAYER-ATTACHED evolution from the owned weapon (by PersistentID), Spiritualist-gated.
+     *  Copies the worn runtime durability back onto the owned entry, applies 10% removal wear, then
+     *  un-references (clears the gear slot — the entry PERSISTS, reference model). If the 10% wear
+     *  drops durability to 0 the evo BREAKS → forced dismantle (DismantleEvolution: essence + remove
+     *  entry + free cap); otherwise it returns to inventory at its worn durability. Rejects an
+     *  AUTHORED-LOCKED attachment (invalid InstanceID — built-in, can't be removed). False on: no
+     *  authority; weapon not found; slot not a player-attached evolution; or owned entry missing. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool RemoveEvolutionFromWeapon(FGuid WeaponPersistentID);
+
     // ==================== RING OPERATIONS ====================
 
     /** Add a ring to inventory */
@@ -196,6 +206,11 @@ public:
      *  counterpart of AttachEvolutionToWeapon — same reference model + one-evo-one-slot enforcement. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID);
+
+    /** Remove a PLAYER-ATTACHED evolution from the owned ring (by PersistentID). Ring counterpart of
+     *  RemoveEvolutionFromWeapon — same copy-back + 10% wear + break-on-zero + un-reference flow. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool RemoveEvolutionFromRing(FGuid RingPersistentID);
 
     /** Get ring count */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
