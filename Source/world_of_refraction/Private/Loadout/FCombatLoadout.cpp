@@ -494,7 +494,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             }
         }
 
-        Result.EvolutionSpells = SavedLoadout.EvolutionSpells;
+        Result.EvolutionSpells = FSpellRef::ExtractSpells(SavedLoadout.EvolutionSpells); // bare runtime — InstanceID rides the saved side (ii-a)
         break;
 
     case EPrimarySlotType::None:
@@ -535,7 +535,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 // ring's DefaultSpells, set in CreateFromRing above).
                 if (Slot.AssignedSpells.Num() > 0)
                 {
-                    RingEntry.RingEntry.AssignedSpells = Slot.AssignedSpells;
+                    RingEntry.RingEntry.AssignedSpells = FSpellRef::ExtractSpells(Slot.AssignedSpells); // bare runtime (ii-a)
                 }
                 Result.RingLoadout.Add(RingEntry);
             }
@@ -546,8 +546,8 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
     if (SavedLoadout.RequiredClass == ECharacterClass::Caster)
     {
-        Result.InnateSpells = SavedLoadout.InnateSpells;
-        Result.BDSpellPools = SavedLoadout.BDSpellPools;
+        Result.InnateSpells = FSpellRef::ExtractSpells(SavedLoadout.InnateSpells); // bare runtime — InstanceID rides the saved side (ii-a)
+        Result.BDSpellPools = SavedLoadout.BDSpellPools; // BD saved/runtime still share FBDElementSpellPool — split lands in ii-a2
     }
 
     // ==================== ITEMS ====================
