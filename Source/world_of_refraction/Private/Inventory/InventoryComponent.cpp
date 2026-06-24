@@ -88,7 +88,8 @@ namespace
         Att.Item = Entry.Item;
         Att.InstanceID = EvoInstanceID;                                       // link to the owned entry (gear-i)
         Att.Tier = Entry.Tier;                                                // leveled instance tier (Part C7)
-        Att.CurrentDurability = Entry.Item ? Entry.Item->MaxDurability : 0;
+        Att.CurrentDurability = Entry.CurrentDurability;                      // persisted durability (gear-durability) — worn evos stay worn
+
         Att.GeneratedStatBonus = Entry.GeneratedStatBonus;
         Att.GeneratedResistance = Entry.GeneratedResistance;
         Att.StatPool = Entry.StatPool;

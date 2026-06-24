@@ -47,6 +47,13 @@ struct WORLD_OF_REFRACTION_API FEvolutionInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
     EItemQuality Quality = EItemQuality::F_Quality;
 
+    /** Per-instance PERSISTED durability (matches FEvolutionAttachment::CurrentDurability's int32 so
+     *  they copy cleanly). This is the owned record's durability — seeded to MaxDurability at mint.
+     *  On attach, the runtime FEvolutionAttachment copies FROM this; on detach (next cluster) the
+     *  worn attachment value copies BACK here, so wear persists across attach/detach. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    int32 CurrentDurability = 0;
+
     // ==================== PER-INSTANCE ROLL STATE ====================
     // The rolled stat/resistance layers live HERE on the instance (not the asset —
     // the asset's Generated* is preview-only). Rolled at acquisition in U3; copied

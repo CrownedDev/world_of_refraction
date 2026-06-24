@@ -49,6 +49,7 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
     // cluster-2 repoint, so this is a behavioural no-op.
     Entry.Tier = Item->Tier;
     Entry.Quality = EItemQuality::C_Quality;
+    Entry.CurrentDurability = Item->MaxDurability; // fresh evo starts at full durability (gear-durability)
 
     // U3a pickup roll — mirrors UInventoryComponent::ApplyPickupRoll for evolution:
     // when the asset opts in, the fresh OWNED instance rolls its Generated layers
