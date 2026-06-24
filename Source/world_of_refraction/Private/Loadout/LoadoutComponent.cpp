@@ -2942,6 +2942,7 @@ bool ULoadoutComponent::ClearPrimaryEvolution()
 
     // Unconditional empty (player-initiated removal) — slot type unchanged, like the broken sweep.
     Loadout.PrimaryEvolution = FEvolutionAttachment();
+    Loadout.PrimaryEvolutionInstance = FGuid(); // clear the instance ref too — no stale GUID for an empty slot
     return true;
 }
 
@@ -3756,4 +3757,11 @@ FEvolutionAttachment ULoadoutComponent::GetActivePrimaryEvolutionAttachment(AAct
     }
     const FRuntimeAttachedItem &Attachment = Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
     return Attachment.IsEvolution() ? Attachment.Evolution : FEvolutionAttachment();
+}
+
+FGuid ULoadoutComponent::GetActivePrimaryEvolutionInstance() const
+{
+    // The owned-entry identity retained on the runtime loadout (iii-b). Invalid when the primary
+    // slot is not an instance-resolved evolution (inflation only sets it in the Evolution case).
+    return GetActiveLoadout().PrimaryEvolutionInstance;
 }

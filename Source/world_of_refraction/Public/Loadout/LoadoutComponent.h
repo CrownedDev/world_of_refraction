@@ -562,6 +562,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FEvolutionAttachment GetActivePrimaryEvolutionAttachment(AActor *Actor) const;
 
+    /** InstanceID of the owned FEvolutionInventoryEntry the active PRIMARY-SLOT evolution
+     *  (PrimarySlotType == Evolution) was inflated from (iii-b — retained on FCombatLoadout).
+     *  Invalid FGuid when the primary slot is not an instance-resolved evolution. Removal/break
+     *  paths read this to resolve the owned entry to dismantle. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
+    FGuid GetActivePrimaryEvolutionInstance() const;
+
     /** Returns the FRuntimeAttachedItem for the given holder by value.
      *  Searches primary/secondary weapon entries, primary ring entry, and
      *  the Resonator RingLoadout array. Returns a default-constructed

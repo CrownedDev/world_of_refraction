@@ -443,6 +443,10 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         Result.PrimaryEvolution.Tier =
             SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->Tier : EItemTier::F_Tier;
 
+        // (iii-b) Retain the owned-entry identity instead of dropping it after the resolve below —
+        // runtime removal/break paths read this to dismantle the right owned FEvolutionInventoryEntry.
+        Result.PrimaryEvolutionInstance = SavedLoadout.PrimaryEvolutionInstance;
+
         // Shape-B: a valid + found evolution instance ref carries the OWNED
         // entry's rolled state (Generated stats/resistance + pools) onto the
         // attachment. Item/durability/spells handling above and below is
