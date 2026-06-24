@@ -9,6 +9,22 @@
 #include "Inventory/ItemTier.h"             // TierHelpers::GetTierName
 #include "Engine/Engine.h"                  // GEngine on-screen debug
 
+// --- Populate (authored → pool): the asset + the factories/types the populate dereferences ---
+#include "Inventory/InventoryData.h"               // UInventoryData (the authored source)
+#include "Skills/Definitions/SpellData.h"          // USpellData::Tier
+#include "Skills/Definitions/AbilityData.h"        // UAbilityData::Tier / IsAttack
+#include "Equipment/Crystals/EvolutionItemData.h"  // UEvolutionItemData::Tier / MaxDurability
+
+// --- Debug console (wor.* commands): world → game instance → subsystem, + the played-character source ---
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "GameFramework/Actor.h"
+#include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "Character/CharacterData.h"            // UCharacterData::Inventory
+#include "Character/CharacterDataComponent.h"   // UCharacterDataComponent::CharacterData
+
 namespace
 {
     constexpr float POOL_DEBUG_SCREEN_DURATION = 12.0f;
@@ -225,6 +241,117 @@ FPoolQueryResult UPoolSubsystem::QueryAll(const FPoolFilter &Filter) const
     return Result;
 }
 
+// ==================== POPULATE (authored → pool) ====================
+
+void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *OwnerContext)
+{
+    // One-time per session (GI-scoped). A flag, not an is-empty check, so a legitimately-empty
+    // authored asset can't re-trigger and double-bank.
+    if (bPopulated)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[Pool] PopulateFromInventoryAsset: already populated this session — skipping."));
+        return;
+    }
+    if (!Asset)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Pool] PopulateFromInventoryAsset: null Asset — nothing to populate."));
+        return;
+    }
+
+    // ---------- Weapons ----------
+    // Reuse the SAME factory the run uses: CreateFromWeapon copies the default crystal into
+    // AttachedItem + seeds Tier/Quality; the acquisition mint adds a fresh PersistentID (the factory
+    // deliberately leaves it invalid). NO pickup roll — authored banking is deterministic (the
+    // toggle-off path keeps the factory's C_Quality placeholder).
+    for (UWeaponData *Weapon : Asset->Weapons)
+    {
+        if (!Weapon)
+        {
+            continue;
+        }
+        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon, /*bCopyDefaultCrystal=*/true);
+        Entry.PersistentID = FGuid::NewGuid();
+        AddWeaponToPool(Entry);
+    }
+
+    // ---------- Rings ----------
+    for (URingData *Ring : Asset->Rings)
+    {
+        if (!Ring)
+        {
+            continue;
+        }
+        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, /*bCopyDefaultCrystal=*/true);
+        Entry.PersistentID = FGuid::NewGuid();
+        AddRingToPool(Entry);
+    }
+
+    // ---------- Spells ----------
+    // Learn-time mint (mirrors FSpellCollection::LearnSpell): ctor mints InstanceID; seed Tier from
+    // the asset + the C_Quality placeholder.
+    for (USpellData *Spell : Asset->Spells)
+    {
+        if (!Spell)
+        {
+            continue;
+        }
+        FSpellInstance Instance(Spell);
+        Instance.Tier = Spell->Tier;
+        Instance.Quality = EItemQuality::C_Quality;
+        AddSpellToPool(Instance);
+    }
+
+    // ---------- Abilities ----------
+    // Mirror FAbilityCollection::LearnAbility: basic attacks live on the weapon, never the bar — skip.
+    for (UAbilityData *Ability : Asset->Abilities)
+    {
+        if (!Ability || Ability->IsAttack())
+        {
+            continue;
+        }
+        FAbilityInstance Instance(Ability);
+        Instance.Tier = Ability->Tier;
+        Instance.Quality = EItemQuality::C_Quality;
+        AddAbilityToPool(Instance);
+    }
+
+    // ---------- Crystals (item / refined) ----------
+    // Pool Add* route gem/stone by IsGemType (the 3-map split); AddRefined rejects stones internally.
+    for (const TPair<FCrystalId, int32> &Pair : Asset->ItemCrystals)
+    {
+        AddItemCrystalToPool(Pair.Key, Pair.Value);
+    }
+    for (const TPair<FCrystalId, int32> &Pair : Asset->RefinedCrystals)
+    {
+        AddRefinedCrystalToPool(Pair.Key, Pair.Value);
+    }
+
+    // ---------- Evolutions ----------
+    // Mint an owned entry per authored item (mirrors UEvolutionInventoryComponent::AddInstance's seed:
+    // InstanceID via ctor, Tier from asset, C_Quality placeholder, full starting durability). No pickup
+    // roll (deterministic banking) and no run-cap gate — the pool is raw bank storage.
+    for (UEvolutionItemData *Item : Asset->EvolutionEquipment)
+    {
+        if (!Item)
+        {
+            continue;
+        }
+        FEvolutionInventoryEntry Entry(Item);
+        Entry.Tier = Item->Tier;
+        Entry.Quality = EItemQuality::C_Quality;
+        Entry.CurrentDurability = Item->MaxDurability;
+        AddEvolutionToPool(Entry);
+    }
+
+    bPopulated = true;
+
+    UE_LOG(LogTemp, Display,
+           TEXT("[Pool] Populated from '%s' (owner=%s): Weapons=%d Rings=%d Spells=%d Abilities=%d Evolutions=%d"),
+           *Asset->GetName(),
+           OwnerContext ? *OwnerContext->GetName() : TEXT("none"),
+           OwnedWeapons.Num(), OwnedRings.Num(), OwnedSpells.Num(), OwnedAbilities.Num(), OwnedEvolutions.Num());
+}
+
 // ==================== DEBUG ====================
 
 FString UPoolSubsystem::GetPoolString() const
@@ -299,4 +426,71 @@ void UPoolSubsystem::PrintPoolState() const
     {
         GEngine->AddOnScreenDebugMessage(-1, POOL_DEBUG_SCREEN_DURATION, FColor::Cyan, Dump);
     }
+}
+
+// ==================== DEBUG CONSOLE COMMANDS ====================
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(Exec). Exec only dispatches on PlayerController / Pawn /
+// GameMode / GameInstance / CheatManager / HUD; a UGameInstanceSubsystem is NOT on that list, so an Exec
+// here would silently no-op (the documented cause of "console commands never working" on the wrong class).
+// Console commands work from any class. The "wor." prefix groups them and avoids engine-command clashes.
+// Both resolve PIE-only state, so the whole world → game-instance → subsystem chain is null-checked.
+
+namespace
+{
+    UPoolSubsystem *ResolvePoolFromWorld(UWorld *World)
+    {
+        if (!World)
+        {
+            return nullptr;
+        }
+        UGameInstance *GI = World->GetGameInstance();
+        return GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+    }
+
+    static FAutoConsoleCommandWithWorld GPopulatePoolCmd(
+        TEXT("wor.PopulatePool"),
+        TEXT("Populate the account pool from the played character's authored inventory, then print it (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
+                if (!Pool)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PopulatePool: no pool subsystem (no PIE world?)."));
+                    return;
+                }
+
+                // Source the InventoryData from the PLAYED character: first player controller's pawn →
+                // CharacterDataComponent → CharacterData->Inventory. Cleanest testing source — it banks
+                // whatever character is being played, with no hardcoded asset path to keep in sync.
+                APlayerController *PC = World->GetFirstPlayerController();
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                UCharacterDataComponent *CDC = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+                UCharacterData *CharData = CDC ? CDC->CharacterData : nullptr;
+                UInventoryData *Inventory = CharData ? CharData->Inventory : nullptr;
+                if (!Inventory)
+                {
+                    UE_LOG(LogTemp, Warning,
+                           TEXT("[Pool] wor.PopulatePool: could not resolve a played character's Inventory asset (pawn / CharacterData / Inventory missing)."));
+                    return;
+                }
+
+                Pool->PopulateFromInventoryAsset(Inventory, Pawn);
+                Pool->PrintPoolState();
+            }));
+
+    static FAutoConsoleCommandWithWorld GPrintPoolCmd(
+        TEXT("wor.PrintPool"),
+        TEXT("Dump the account pool (per-category counts, crystal stacks, wallet) to log + screen (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
+                if (!Pool)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PrintPool: no pool subsystem (no PIE world?)."));
+                    return;
+                }
+                Pool->PrintPoolState();
+            }));
 }

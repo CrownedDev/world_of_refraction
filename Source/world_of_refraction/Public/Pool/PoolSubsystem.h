@@ -41,6 +41,9 @@
 #include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
 #include "PoolSubsystem.generated.h"
 
+class UInventoryData;
+class AActor;
+
 /**
  * UPoolSubsystem
  * The persistent owned-item pool. Holds all owned types in one flat subsystem (flatter than
@@ -132,6 +135,23 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Pool|Query")
     FPoolQueryResult QueryAll(const FPoolFilter &Filter) const;
 
+    // ==================== POPULATE (authored → pool) ====================
+
+    /** Seed the pool from an authored UInventoryData asset, mirroring the POPULATE half of
+     *  UInventoryComponent::InitializeFromInventoryAsset but targeting the POOL (account-wide, flat
+     *  — no per-character keying). Weapons/Rings reuse the SAME factory primitive the run uses
+     *  (FWeaponInventoryEntry::CreateFromWeapon + a freshly-minted PersistentID, default crystal
+     *  copied in); Spells/Abilities mint FSpellInstance/FAbilityInstance at learn-time semantics;
+     *  Crystals route through AddItem/AddRefinedCrystalToPool (gem/stone dispatch); Evolutions mint
+     *  an FEvolutionInventoryEntry per authored item.
+     *
+     *  ONE-TIME per session: the pool is a GI subsystem, so this guards on bPopulated and is a no-op
+     *  on every call after the first (calling per-pawn-BeginPlay would otherwise duplicate). The run
+     *  seed path (InitializeFromCharacterData) is UNTOUCHED — this is purely additive content for the
+     *  pool; nothing draws FROM the pool yet (Step 2). OwnerContext is the sourcing character actor
+     *  (reserved for a future Luck-biased acquisition roll; authored banking is deterministic today). */
+    void PopulateFromInventoryAsset(UInventoryData *Asset, AActor *OwnerContext);
+
     // ==================== DEBUG ====================
 
     /** Dump the whole pool to log + screen: per-category counts, crystal stacks, and the
@@ -144,6 +164,14 @@ public:
     FString GetPoolString() const;
 
 private:
+    // ==================== SESSION STATE ====================
+    // One-time populate guard. The pool is GI-scoped (one instance per session), so
+    // PopulateFromInventoryAsset must run ONCE — a bPopulated flag (not an is-empty check) so a
+    // legitimately-empty authored asset can't re-trigger. NOT SaveGame: session-derived, re-seeded
+    // per session (disk-save is a later dormant phase).
+    UPROPERTY(Transient)
+    bool bPopulated = false;
+
     // ==================== STORAGE ====================
     // SaveGame-tagged (DORMANT — honoured at the disk-save phase). UPROPERTY so the nested
     // data-asset UObject refs stay GC-reachable at subsystem scope. Each mirrors the run
