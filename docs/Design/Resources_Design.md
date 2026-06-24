@@ -8,6 +8,36 @@
 
 Any time a calculation produces a decimal (essence yields, prices, fractions, wear, fusion-break halves, etc.) → **round DOWN (floor)**. Never round up or to nearest. Rationale: flooring never over-rewards — it always favors the sink, never gives the player free value from rounding. Applies project-wide (`FMath::FloorToInt`). Examples already using it: fusion-break ½-yield, F-quality price half (13 = floor of 12.5).
 
+### Two-hub economy — Main hub (Prisms) vs Run hub (Gold) [DEFERRED — shapes the Pool arc]
+
+Two distinct hubs with different roles, currencies, and what they operate on:
+
+|             | **Main hub** (persistent)                                       | **Run hub** (in-run)             |
+| ----------- | --------------------------------------------------------------- | -------------------------------- |
+| Currency    | **Prisms**                                                      | **Gold**                         |
+| Shops       | hub shops — permanent gear/skill types                          | run shops — run gear/skill types |
+| NPCs        | Blacksmith/Jeweler/Spiritualist (upgrade + maintain owned gear) | —                                |
+| Operates on | owned pool                                                      | run inventory ↔ pool             |
+| When        | between runs                                                    | during a run                     |
+
+**Run hub flow (the in-run loop):**
+1. **Draft** — offered ~3 inventories drawn from your own pool → **pick 1** → build your loadout from it. The draft is a curated SLICE, not your whole pool (you may own 100 of everything; a run takes ~10 — "take 10, get to the end"). Gives enough for a full loadout, but loadout SLOTS constrain what you keep:
+   - **Base loadout caps:** 1 weapon, 2 rings, 5 spells. Raised by **persistent buffs** (account progression — early runs tight, capacity grows over time).
+   - Surplus beyond your slots → **returned for Gold** (that's the "why return" — you're given more than fits).
+   - **Themed inventories (designed, requirement-gated):** the 3 options are normally RANDOM, BUT if you meet all the requirements for a specific themed inventory (hand-designed builds), you have a CHANCE to be offered it as one of the options. Discovery/reward mechanic — assemble the requirements → chance to draft a curated themed build. *(Themed inventory definitions + their requirements = a design+content task, deferred with the pool arc.)*
+2. **Build** — keep what you'll use this run.
+3. **Return** — surplus → back to pool (you still OWN it — "I'll use it a different run") → **Gold**. NOT a loss; you keep the unlock, get Gold now.
+4. **Shop** — buy gear/skills for the run with Gold (run shop).
+
+**Two shops, same mechanism, different params:** hub shop (Prisms, permanent gear types) and run shop (Gold, run gear types) are the SAME rolled-stock shop system (§11 shop-roll), parameterized by currency + what they stock.
+
+**Return-for-Gold ≠ break-for-essence (separate flows):**
+- **Break (combat)** → pool + **essence** (forced, salvage value).
+- **Voluntary return (run hub)** → pool + **Gold** (chosen, "bank for a later run"). NO essence.
+Same destination (pool), different trigger + reward. Kept separate so the reward reason is legible.
+
+**This is the Gold/Prisms split made physical:** Gold economy lives in the run hub (earned by returning surplus, spent in run shops), Prisms economy lives in the main hub (permanent purchases + upgrades). Matches the built currency model (Gold run-volatile, Prisms persistent). **Shapes the Pool arc** — the pool layer must support the draft (pool→run), the return valve (run→pool + Gold), and both shop types.
+
 ### Inventory architecture — Pool (persistent) vs Run (transient) [POOL DEFERRED]
 
 **Two layers:**
@@ -20,11 +50,50 @@ Any time a calculation produces a decimal (essence yields, prices, fractions, we
 - **Pool = unlimited owned**; **Run = draw from pool**, max **5 evolutions per run** (the cap is per-RUN, not total-owned).
 - **Leveled tiers persist in the POOL** (you keep upgrades across runs). *(⚠️ Today leveling writes to the RUN inventory — until the pool exists, upgrades are effectively run-scoped. The pool arc makes them persist.)*
 - **Evolutions are gear** (3rd gear type alongside weapons/rings) — pool-persistent, drawn per-run, same rules.
-- **Break = return to pool (damaged, repairable) + still yields essence.** NOT destroyed. *(⚠️ INTERIM: clusters iv + B currently DESTROY + essence, because the pool doesn't exist to return to. The essence yield is correct + final; the "return to pool instead of destroy" half layers on with the pool arc. Repair is a new mechanic — broken gear returns to pool, fixed at an NPC for a cost.)*
+- **Break splits by item type:**
+  - **Gear + skills (weapons/rings/spells/abilities + EVOLUTIONS)** → **return to pool (damaged, repairable) + essence.** Durable layer — not destroyed; goes back to the pool to be fixed (repair = new mechanic, NPC, for a cost).
+  - **Items (crystals/stones)** → **CONSUMED.** The burn-fuel layer — broken (or run-end) = gone (→ essence). No pool-return, no repair. You just lose them.
+  *(⚠️ INTERIM: clusters iv + B currently DESTROY + essence for everything, because the pool doesn't exist to return to. The essence yield is correct + final; the "gear/skills return to pool instead of destroy" half layers on with the pool arc. Crystals are ALREADY correct (consumed + essence — no change needed for them).)*
 - **Locked-on-gear evolutions:** some weapons/rings come with a built-in evolution crystal that CAN'T be removed — it **counts toward the 5/run** (bringing that weapon uses an evo slot).
 - **Run draw** (#3): weapons/spells/evolutions are SELECTED by the player from their unlocked pool each run (loadout choice from what you've unlocked/upgraded), not random.
 
 **Gear-attached evolution combat-wear/break — DEFERRED (inert until gear-wear exists):** gear-attached evolutions take NO combat wear today — the evolution wear path (`ProcessPostCastEvolutionWear`) is primary-slot ONLY (the crystal-wear path early-returns for evolution). So a gear-attached evo never wears to 0 in combat → never combat-breaks. **Removal-driven break works** (gear-detach's 10% wear → 0 → DismantleEvolution); only **combat-driven** gear-evo break is missing. Two ordered clusters when ready: **(gear-wear)** a weapon/ring-socket wear path (mirror ProcessPostCastEvolutionWear for the active gear's attached evo), then **(gear-break)** the combat-end sweep handler (keystone + sweep detection already in place — small once gear-wear lands).
+
+**Pool features (design):**
+- **The pool = reference of what you own** — view all unlocked gear/spells/items/currencies. The "look at what I own + plan" space.
+- **Item loadouts (saved crystal/stone presets):** a quick way to prepare your item RESOURCES — save a set of crystals/stat-stones you want available, so you don't re-gather each run. Pure convenience preset over the stable item pool. *(Gear/spell loadout presets were considered + CUT — you draft + set those up per-run anyway, so pre-planning them is duplicated effort. Items earn a preset because they're a stable owned pool, not a random draft.)*
+- **Saved weapon/ring crystal pairings (pre-attach):** you can pre-attach a crystal to a weapon/ring IN THE POOL ("I like this crystal with this weapon") → the weapon **spawns with it equipped** at run start, **deducting the crystal from inventory on spawn**. Convenience (saves manual socketing), but still COSTS the crystal. **Weapons/rings only — NOT evolution crystals** (evolutions must be acquired IN the run, can't be pre-committed from the pool).
+
+**⚠️ Crystals are CONSUMED per run (the burn resource).** When a run ends, two things happen:
+1. **Weapons/rings revert to their original bare (un-socketed) state** — back to the pool, ready to re-equip.
+2. **Whatever was slotted is LOST** — socketed crystals are consumed/gone (whether pre-attached or socketed mid-run). NOT returned.
+
+So crystals are a **per-run expenditure**: gear is the durable frame (reverts to bare, persists), crystals are the fuel (slot → use → consumed). This ties the crystal economy together — merging (produce higher crystals) + dismantle→essence (recycle) feed the per-run burn. Pre-attach saves clicks, not crystals (still deducted on spawn).
+
+**Design principle — meta-progression health (validated against roguelite discourse):** Player sentiment strongly favors meta-progression that **expands OPTIONS/variety** (the praised pattern: bigger pool, more builds) over **permanent STAT/power inflation** (the criticized pattern: early runs feel weak, progression = grind-gate). WoR sits mostly on the GOOD side (the pool = option-expansion; per-run draft + crystal-burn = fresh build each run, the "temporary layer" that keeps runs distinct — cf. Rogue Core, Slay the Spire). **The watch-point: the LEVELING system is persistent power growth — the criticized axis.** Counterbalances that keep it healthy (all already designed): draft constraints (1 weapon / 2 rings / 5 spells), 5-evo-per-run cap, crystal consumption (re-build item layer each run), themed inventories, and difficulty scaling. **Build rule: leveling should make MORE options viable, not crown ONE** (the tier×quality split + draft-as-slice help — a leveled "unique F" competes with a base S; you don't always draw your favorite). If leveling ever makes one loadout strictly best → the draft degrades to "always pick that" → the criticized grind. Keep leveling broadening, not dominating.
+
+**⚠️ POOL — DISCOVERY SURVEY FINDINGS (2026-06, scope correction):** The pool is MORE than a repointing pass — three things the design assumed exist DON'T:
+1. **No persistent layer** — every owned thing (weapons/rings/spells/crystals/CURRENCY) lives on the run-scoped Blueprint character. Nothing survives PIE/app restart. No home above the character.
+2. **No save system** — zero USaveGame, zero save/load. The SaveGame tags we've added are DORMANT (nothing serializes them).
+3. **No run concept** — no run/campaign object. Only per-battle combat-end hooks. **Combat-end ≠ run-end** (a run spans many combats); nothing represents that boundary.
+
+**So the pool needs SCAFFOLDING built first, THEN the repointing pass.** Recommended home: `UPoolSubsystem : UGameInstanceSubsystem` (idiomatic — ~17 GI subsystems already exist; survives level transitions hub↔combat) + `UPoolSaveGame : USaveGame` (cross-session/disk, activates the dormant tags).
+
+**Three design gaps the code revealed (resolve during build):**
+- **Currency needs the pool home too** — UCurrencyComponent (account-persistent per design) also lives on the run character. The pool holds currency, not just items.
+- **Dual-write/sync (the subtle one):** leveling is "immediate AND permanent" — a mid-run level-up must update BOTH the run copy (wield now) AND the pool (bank). Current "leveling writes the run entry" can't persist. Decide the sync rule (dual-write, or write-pool-then-resync-run).
+- **Combatant lifetime is BP-defined** — can't confirm from C++ whether owned components survive combat-to-combat or respawn per battle. Verify in-editor (or discover at the draw build).
+
+**Build skeleton (dependency order, smallest-safe-first):**
+1. **Persistent home (in-memory)** — UPoolSubsystem holding the owned pool (mirrors entry structs + currency). INERT (nothing draws yet). The safe foundation.
+2. **Save system** — UPoolSaveGame + load-on-start/save-on-change (activates SaveGame tags). Cross-session.
+3. **Run-state object** — run boundary (GameMode or RunSubsystem) exposing run-start/run-end events. The hook layer for draw/return.
+4. **The draw** — at run-start, populate run inventory from the pool draft (wrap InitializeFromCharacterData's source: asset → pool). Slot-capped, instance-state copied.
+5. **The repointing pass** — redirect persistent writes (LevelUp*/Downgrade*, acquisition, dismantle, currency) run→pool; keep combat-transient (durability/break) run-only. Resolve dual-write.
+6. **The return** — run-end: gear reverts-to-bare + persists, surplus → Gold, crystals consumed.
+7. **(Parallel)** draft UI + two-hub level structure (BP).
+
+**The draw/return hooks (found):** draw wraps `InventoryComponent::InitializeFromCharacterData` (currently seeds run inventory from authored UInventoryData asset → swap source to pool). Return needs a run-end hook that doesn't exist yet (depends on phase 3 run-state).
 
 **⚠️ The Pool is the next major foundational arc** — it's the persistent/account layer (tied to the save system + PlayerState, all deferred together). It's mostly a REPOINTING pass (redirect persistence + add the run-draw), not net-new — so it's done AFTER the run-layer economy actions are complete (build the full surface, then migrate persistence in one pass, like the tier-on-instance migration). Repair mechanic + break→pool-return land with it.
 
@@ -43,6 +112,18 @@ The hub round-table has service NPCs gating maintenance/upgrade/removal. **Playe
 **Backend note:** the `LevelUp*` / dismantle / attach / detach methods (UEconomyService / loadout) are the same regardless of caller — the NPC-vs-direct distinction is a UI/trigger layer on top. C++ ops built first; NPC interaction wiring is a later UI layer.
 
 *(More NPCs to be outlined as systems are designed — this is a living registry.)*
+
+### Deferred — auto-dedupe: keep stronger, weaker → essence
+
+**Idea:** gaining a duplicate of something you already own → automatically **keep the stronger copy, convert the weaker to essence** (its dismantle yield). Keeps the pool to one best-copy-of-each; surplus auto-converts. Fits the take-or-scrap philosophy, just automatic for things you own a better version of.
+
+**Open questions (settle when building):**
+- **Scope:** all items (weapons/rings/evolution/spells/crystals) or spells/abilities specifically? (Likely all — a general QoL auto-merge.)
+- **"Stronger" measure:** combined tier+quality value (§5.1b model)? strictly tier (power)? tier-first, quality tiebreaker? (Wrinkle: a dupe higher-tier-but-lower-quality vs lower-tier-but-higher-quality — combined value resolves it.)
+- **Yield:** the weaker converts to its normal deconstruct essence at its tier (auto-dismantle on dupe-pickup).
+- **Where:** matters most at the POOL (unlimited owned — don't want 50 Fireballs). Likely a pool-layer mechanic → build with the pool arc, or when dupe-pickup volume makes it needed.
+
+**Status: NOTED — build when the time comes** (good fit alongside the pool arc or the spell-instance leveling, since both involve instances + dismantle).
 
 ### ⚠️ DEFERRED ARC — Spell/Ability instance-tier (the big one)
 
@@ -665,6 +746,35 @@ One mechanic (curve-shift), two sources (temporary Luck, permanent perk) — sam
 **Enemy authoring is unchanged:** enemies are authored on the asset exactly as today (a "Fire Lord" asset with WorldLevels 5/5/6, sub-stat DNA, kit). The component seeds from the asset at spawn; since enemies don't allocate/roll, their runtime copy stays at the authored value. Only players diverge, only at runtime. This is also what makes player-built Lords-as-enemies work — the asset baseline IS the snapshot faced.
 
 ---
+
+## 13.5 Reality revert — un-leveling as Reality's signature [DEFERRED — design locked]
+
+**Concept:** Reality is the reshape/meta element (rolls, wildcard, ½-cost on every level-up). **Reverting / un-leveling gear is Reality's thematic inverse** — Reality un-shapes power. One mechanic, several faces, all owned by Reality.
+
+**Leveling is OPT-IN (the meta-progression escape valve):** players who dislike the power growth simply don't upgrade, or vary their spells. Revert extends this — it makes leveling *reversible*, not a permanent commitment (the Griftlands "optional + non-intrusive" pattern the discourse praises).
+
+**Three enemy types (context for Face A):**
+1. **Actual AI** — dev-authored enemies (not players).
+2. **Players** — live PvP (real player characters).
+3. **AI players** — AI MIMICS of real players' characters (Lord/Contender system — a copy/snapshot that behaves like the player's build).
+
+### Face A — offensive de-level (combat)
+A Reality ability that **reverts/de-levels a target's gear**. Behaviour by target type (the key asymmetry that makes permanence safe):
+- **vs AI players (mimics):** **PERMANENT** — it's a copy, not the real person. You permanently weaken the mimic you face; the real player's Lord is untouched. Safe permanence = real reward, no griefing.
+- **vs actual players (live PvP):** **PERMANENT IF IT CONNECTS** — same permanent de-level as a mimic, but gated behind counterplay so it's never a cheap grief: a **long telegraph (~5-turn windup before it executes)** + **cleanseable** (target can remove it during the windup). If they fail to cleanse in time → it lands → **permanent**. Real, permanent PvP stakes, but fully telegraphed + answerable ("you had 5 turns + a cleanse to stop this"). The telegraph/cleanse is the COUNTERPLAY WINDOW, not a permanence-downgrade — high stakes, fair warning, eat it if you don't respond.
+- **vs actual AI:** applies as the combat effect (no persistent-character grief concern).
+
+### Face B — inverse-tier weapons (a build archetype, not just an ability)
+A **weapon archetype that gets STRONGER the LOWER its tier.** Inverts the standard curve (normal: higher tier = stronger; these: lower tier = stronger). A player using one *wants* to revert it — Reality powers it *down* to power it *up*. Reality's revert becomes CONSTRUCTIVE for this build (a core power loop, not just respec/counter). Thematically perfect (Reality rewards un-shaping). *(Lives in the weapon/item design space — an inverse-tier weapon archetype enabled by the revert mechanic.)*
+
+### Face C — hub respec (out of combat) [BUILDABLE NOW]
+De-level your own gear in the hub → **partial essence refund.** Refund rule (LOCKED):
+- **½ the step cost back** (revert B→C refunds ½ the Gear/Skill essence that the C→B level-up cost — matches the ½-dismantle / ½-cumulative conventions, round down).
+- **Main essence only — the ½-Reality is NOT refunded** (spent/gone). Reality being non-refundable makes reverting a REAL cost: you eat the reshape currency every re-shape, so level/revert is never a free economy-gaming loop. Consistent with Reality as the connective sink.
+
+The meta-progression respec valve: over-invested, or one loadout dominant? Revert it, reclaim ½ the main essence, rebalance. **Build shape:** `UEconomyService::DowngradeWeapon/Ring/Spell/Ability` — the inverse of LevelUp*, reusing a shared revert core (lower instance .Tier one step, refund ½ step cost in the leveling essence type; no Reality refund). The matching pair to the level-up system.
+
+**Status: DESIGN LOCKED, DEFERRED.** A meaty mechanic (combat ability + weapon archetype + hub action + the per-target-type permanence rules + telegraph/cleanse). Build after the pool arc. Strengthens Reality's identity as the meta/reshape element across BOTH economy (level cost, rolls) AND combat (de-leveling).
 
 ## 14. Rolling stats — Reality essence as the roll currency
 
