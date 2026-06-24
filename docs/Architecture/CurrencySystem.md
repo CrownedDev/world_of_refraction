@@ -4,8 +4,10 @@
 
 The Currency System is the per-owner **wallet** for the resource economy (see
 `docs/Design/Resources_Design.md`). It is a single replicated `UActorComponent`,
-`UCurrencyComponent`, holding five currencies behind one unified Add / Spend /
-CanAfford / GetBalance API. It is **replication-aware from line one** (server-gated
+`UCurrencyComponent`, holding the economy's currencies (five scalars + the 14-key typed
+Essence) behind one unified Add / Spend / CanAfford / GetBalance API. The **orchestration**
+that spends/grants these (dismantle/merge/purchase/level/downgrade) lives in
+`UEconomyService` — see [`EconomySystem.md`](./EconomySystem.md). It is **replication-aware from line one** (server-gated
 mutations, dual-tagged `SaveGame`+`Replicated` storage) and **owner-agnostic** — it is
 attached in the owner Blueprint and is deliberately not hard-bound to the pawn, so it can
 later be re-homed on `APlayerState` (account scope) or the pawn (character scope) without
@@ -18,19 +20,21 @@ component (a separate build).
 
 ### `UCurrencyComponent` (`UActorComponent`, ClassGroup `Economy`, BlueprintSpawnableComponent)
 
-**The five currencies** (`ECurrencyType`):
+**The currencies** (`ECurrencyType` — 6 selectors: 5 scalar + the typed-Essence FastArray):
 
 | Currency | Storage | Tags | Scope (today) |
 |----------|---------|------|---------------|
 | `Gold` | `int32` | **Replicated only** (run-volatile, never banked) | per-character (run) |
 | `Prisms` | `int32` | `SaveGame` + `Replicated` (`OnRep_Prisms`) | per-character + account-shareable (routing TODO) |
 | `Diamond` | `int32` | `SaveGame` + `Replicated` (`OnRep_Diamond`) | account-wide premium (routing TODO) |
-| `GearEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_GearEssence`) | per-character (gear / kit leveling) |
+| `GearEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_GearEssence`) | per-character (levels **weapons + rings**, and the evolution gear type) |
+| `SkillEssence` | `int32` | `SaveGame` + `Replicated` (`OnRep_SkillEssence`) | per-character (levels **abilities + spells**) |
 | `EssenceTyped` (14 keys) | `FCurrencyArray` (FastArray) | `SaveGame` + `Replicated` | per-character |
 
 - **Typed Essence keys** (`EEssenceType`, 14): 10 element (`Fire`…`Generic`), 3 pillar (`Mind`/`Body`/`Spirit`), 1 `Ability`.
-- The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
+- The scalar currencies (`Gold`/`Prisms`/`Diamond`/`GearEssence`/`SkillEssence`) are plain `int32` with `ReplicatedUsing = OnRep_*`.
   The typed Essence uses a FastArray (`TMap<Enum,int32>` is not natively replicable — see `Resources_Design.md` §16.2).
+- **`GearEssence` vs `SkillEssence`** is the §3 category split: the gear faucet (weapon/ring/evolution dismantle) feeds Gear and the gear leveling sink spends it; the skill faucet (spell/ability dismantle) feeds Skill. The two never merge. (Note: `EEssenceType::Reality`, in the typed wallet, is the shared ½-cost co-currency for leveling — see `EconomySystem.md`.)
 
 **Unified API** (all `BlueprintCallable`/`BlueprintPure`):
 - `bool Add(ECurrencyType, int32 Amount, uint8 SubKey = 0)` — server-gated; no-op `false` on client or `Amount<=0`.
@@ -39,7 +43,9 @@ component (a separate build).
 - `SubKey` selects the typed Essence entry (cast `EEssenceType`); ignored for the scalars.
 
 **Typed convenience** (thin wrappers over the unified API): `AddEssenceType`/`SpendEssenceType`/`GetEssenceType(EEssenceType)`
-for the typed wallet, and `AddGearEssence`/`SpendGearEssence`/`GetGearEssence()` (scalar) for gear essence.
+for the typed wallet, plus the scalar pairs `AddGearEssence`/`SpendGearEssence`/`GetGearEssence()` and
+`AddSkillEssence`/`SpendSkillEssence`/`GetSkillEssence()`. (Leveling spends via the generic `Spend(ECurrencyType, …)`
+with the essence type chosen per category — see `EconomySystem.md` `TryLevelUpEntry`.)
 
 **Authority & persistence**: every mutation is gated by `HasServerAuthority()` (PIE-safe: true in
 `NM_Standalone`, else owner authority — mirrors `UCharacterDataComponent::HasServerAuthority`). The
@@ -101,3 +107,5 @@ FastArray item callbacks → `NotifyEntryChanged` → `NotifyChanged`) broadcast
 |------|--------|--------|
 | 2026-06-23 | Initial system — `UCurrencyComponent` replicated wallet (6 currencies; FastArray Dust+Essence; server-gated, dual-tagged storage; `OnCurrencyChanged`; `NetCore` dep). Debug pair `UCurrencyComponentDebug::GetWalletString` + `PrintWallet` CallInEditor button. Owner-agnostic (PlayerState home deferred). | feature/currency-component |
 | 2026-06-23 | **Vocabulary + structure pass** — `Prismas`→`Gold` (run-volatile, tags unchanged); `Dust`→typed `Essence` (`EDustType`→`EEssenceType`; `Add/Spend/GetDust`→`*EssenceType`; `ECurrencyType::Dust`→`EssenceTyped`); the 2-pool essence collapsed to a single `GearEssence` scalar (`EEssencePool` + `ECurrencyType::Essence` dropped, `OnRep_GearEssence` added). Debug labels updated. Pure rename + scalar collapse — enum values preserved, serialized keys map identically. | feature/currency-component |
+| 2026-06-23 | **Gear/Skill split** — added `SkillEssence` scalar (`ECurrencyType::SkillEssence`, `OnRep_SkillEssence`, `Add/Spend/GetSkillEssence`): Gear levels weapons/rings/evolution, Skill levels abilities/spells (§3 category split). | feature/currency-component |
+| 2026-06-24 | Doc sync — added the `SkillEssence` row + accessors (the doc had lagged the split), pointer to `EconomySystem.md` for orchestration. (Stale header-comment note: `CurrencyComponent.h` still says "five currencies" / references a "Dust" scope that was renamed to `EssenceTyped` — code is correct, comment is stale; TODO refresh.) | feature/currency-component |
