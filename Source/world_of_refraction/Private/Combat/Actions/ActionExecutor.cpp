@@ -414,6 +414,12 @@ EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Actio
 		return Skill->Tier;
 	}
 
+	// Instance tier from the active weapon's inventory entry (leveling-correct).
+	if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
+	{
+		return WeaponEntry->Tier;
+	}
+	// No entry resolved → keep the base asset-tier fallback so nothing regresses.
 	if (UWeaponManager *WeaponMgr = GetWeaponManager())
 	{
 		if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
@@ -429,6 +435,12 @@ TOptional<EItemTier> UActionExecutor::ResolveChannelTier(AActor *Actor, const FA
 	// Attack/Ability channel through the active weapon.
 	if (Action.ActionType != EActionType::Spell)
 	{
+		// Instance tier from the active weapon's inventory entry (leveling-correct).
+		if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
+		{
+			return WeaponEntry->Tier;
+		}
+		// No entry resolved → keep the base asset-tier fallback so nothing regresses.
 		if (UWeaponManager *WeaponMgr = GetWeaponManager())
 		{
 			if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
@@ -4778,6 +4790,23 @@ ULoadoutComponent *UActionExecutor::GetLoadoutComponent(AActor *Actor) const
 	return Actor->FindComponentByClass<ULoadoutComponent>();
 }
 
+const FWeaponInventoryEntry *UActionExecutor::ResolveActiveWeaponEntry(AActor *Actor) const
+{
+	// Mirrors WeaponManager::GetActiveWeapon(Actor) resolution: that delegates to
+	// LoadoutComponent::GetActiveWeapon(), which selects the SAME loadout entry as
+	// GetActiveWeaponLoadout() (identical Generic dual-weapon bShowPrimary toggle and
+	// ring/evolution-primary fallbacks). Returning the entry instead of the asset gives
+	// callers the instance .Tier. Null entry → caller keeps its asset-tier fallback.
+	if (ULoadoutComponent *LC = GetLoadoutComponent(Actor))
+	{
+		if (const FWeaponLoadoutEntry *WeaponLoadout = LC->GetActiveWeaponLoadout())
+		{
+			return &WeaponLoadout->WeaponEntry;
+		}
+	}
+	return nullptr;
+}
+
 bool UActionExecutor::CanUseAbility(AActor *Actor, UAbilityData *Ability) const
 {
 	if (!Actor || !Ability)
@@ -6391,8 +6420,13 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 		else
 		{
-			// Ability or attack: action tier inherits from active weapon.
-			if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			// Ability or attack: action tier inherits from the active weapon's
+			// instance entry (leveling-correct); fall back to base asset tier.
+			if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
+			{
+				ActionTier = WeaponEntry->Tier;
+			}
+			else if (UWeaponManager *WeaponMgr = GetWeaponManager())
 			{
 				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
 				{
@@ -6448,7 +6482,13 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 		else
 		{
-			if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			// Ability or attack: action tier inherits from the active weapon's
+			// instance entry (leveling-correct); fall back to base asset tier.
+			if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
+			{
+				ActionTier = WeaponEntry->Tier;
+			}
+			else if (UWeaponManager *WeaponMgr = GetWeaponManager())
 			{
 				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
 				{
@@ -6519,7 +6559,11 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		}
 
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
-		EItemTier ActionTier = Weapon->Tier;
+		// Instance tier from the weapon's inventory entry (leveling-correct); the
+		// asset `Weapon` above is still used to resolve the slotted-crystal holder,
+		// and remains the asset-tier fallback when no entry resolves.
+		const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor);
+		EItemTier ActionTier = WeaponEntry ? WeaponEntry->Tier : Weapon->Tier;
 		if (bIsSpell && Action.SpellData)
 		{
 			ActionTier = Action.SpellData->Tier;
@@ -6585,8 +6629,14 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		//    BD/Reality breakable gate lives inside ProcessPostCastEvolutionWear.
 		if (Action.ActionType != EActionType::Spell)
 		{
+			// Instance tier from the active weapon's inventory entry (leveling-correct);
+			// fall back to base asset tier when no entry resolves.
 			EItemTier ActionTier = EItemTier::F_Tier;
-			if (UWeaponManager *WeaponMgr = GetWeaponManager())
+			if (const FWeaponInventoryEntry *WeaponEntry = ResolveActiveWeaponEntry(Actor))
+			{
+				ActionTier = WeaponEntry->Tier;
+			}
+			else if (UWeaponManager *WeaponMgr = GetWeaponManager())
 			{
 				if (UWeaponData *Weapon = WeaponMgr->GetActiveWeapon(Actor))
 				{

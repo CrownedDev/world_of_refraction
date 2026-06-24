@@ -47,6 +47,7 @@ struct FHybridSpellColorData;
 struct FDefenseResult;
 struct FActionExecutionContext;
 struct FPendingDefenseContext;
+struct FWeaponInventoryEntry;
 class UCombatAnimInstance;
 class USkillDataBase;
 class UMotionWarpingComponent;
@@ -425,6 +426,15 @@ private:
 	 *  Broken crystals still report their tier: breaks land at turn end, so the
 	 *  channel is intact for the cast being assembled. */
 	TOptional<EItemTier> ResolveChannelTier(AActor *Actor, const FAction &Action) const;
+
+	/** The active weapon's INVENTORY ENTRY (carries instance .Tier), resolved via
+	 *  LoadoutComponent::GetActiveWeaponLoadout() — which mirrors GetActiveWeapon's
+	 *  active-weapon rules exactly (Generic dual-weapon bShowPrimary toggle, ring/
+	 *  evolution-primary fallbacks). Returns nullptr when there is no active weapon
+	 *  (evolution-primary, unarmed): callers fall back to asset tier or skip, matching
+	 *  the prior GetActiveWeapon(Actor) null-handling. Use this to read combat weapon
+	 *  tier so leveled weapons hit/wear at their instance tier, not the base asset. */
+	const FWeaponInventoryEntry *ResolveActiveWeaponEntry(AActor *Actor) const;
 
 	/** Execution-path wrapper around GetTierGapDamageMultiplier: same value
 	 *  (delegates for the math — real damage and AI previews share one source),
