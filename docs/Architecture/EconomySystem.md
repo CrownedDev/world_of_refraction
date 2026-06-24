@@ -67,7 +67,7 @@ Value-based (§4.5): sum same-`Type` crystals **lowest-first** until their F-uni
 
 #### Leveling (`LevelUp*`) + Downgrade (`Downgrade*`)
 The level up/down pair across all five instance types — see [`TierOnInstance.md`](./TierOnInstance.md)
-and the player-facing [`../Mechanics/Leveling.md`](../Mechanics/Leveling.md). Both route through
+and the player-facing [`../Mechanics/Economy/Upgrading.md`](../Mechanics/Economy/Upgrading.md). Both route through
 two shared, type-agnostic private cores:
 
 - **`TryLevelUpEntry(Currency, EItemTier& InOutTier, ECurrencyType LevelingEssence = GearEssence)`**

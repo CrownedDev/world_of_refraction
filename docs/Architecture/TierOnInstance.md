@@ -11,7 +11,7 @@ seeded from the asset at acquisition and thereafter mutated by leveling. The dat
 Why: leveling raises *this copy's* power (`Base × TIER_POWER(instanceTier)`), so a leveled
 weapon hits harder, costs/wears differently, dismantles for more, and gets bigger loadout
 budgets — without authoring 7 assets per item. Loot rolls a `Quality` per drop. Dismantle/
-respec read the leveled tier. See [`../Mechanics/Leveling.md`](../Mechanics/Leveling.md) and
+respec read the leveled tier. See [`../Mechanics/Economy/Upgrading.md`](../Mechanics/Economy/Upgrading.md) and
 [`EconomySystem.md`](./EconomySystem.md).
 
 Distinct from [`PerInstanceRollSystem.md`](./PerInstanceRollSystem.md): that covers the rolled

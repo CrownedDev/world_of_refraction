@@ -47,7 +47,7 @@ removed/leveled, breaks → just clears).
 owned `FEvolutionInventoryEntry.Tier` (Gear essence + ½ Reality up; half-Gear refund down, floored at
 base). Levelable in **inventory** or **primary slot** (the entry persists, so the change propagates to
 the slot on next inflation); **gear-attached is frozen** (not levelable while attached). See
-[`../Leveling.md`](../Leveling.md).
+[`../Economy/Upgrading.md`](../Economy/Upgrading.md).
 
 **Remove:**
 - **From primary → destroyed + dust.** `RemovePrimaryEvolution` self-resolves the slotted GUID, clears
@@ -87,7 +87,7 @@ The pillar modifier and carried spells **work in combat once a loadout is config
 - `UEconomyService::LevelUpEvolution`/`DowngradeEvolution`/`DismantleEvolution`/`RemovePrimaryEvolution`,
   `UInventoryComponent::AttachEvolutionToWeapon`/`AttachEvolutionToRing`/`RemoveEvolutionFromWeapon`/`RemoveEvolutionFromRing`,
   `UEvolutionInventoryComponent::AddInstance`/`RemoveInstance`/`CountRunEvolutions`.
-- See [`../Leveling.md`](../Leveling.md), [`../../Architecture/TierOnInstance.md`](../../Architecture/TierOnInstance.md),
+- See [`../Economy/Upgrading.md`](../Economy/Upgrading.md), [`../../Architecture/TierOnInstance.md`](../../Architecture/TierOnInstance.md),
   [`../../Architecture/EconomySystem.md`](../../Architecture/EconomySystem.md).
 
 ## Related

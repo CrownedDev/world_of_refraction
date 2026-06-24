@@ -60,6 +60,14 @@ A blank link means no dedicated doc exists yet (small mechanic, folded into a ne
 - **Loadout** — per-character active gear (cap 5), validated vs inventory at battle start — `ULoadoutComponent` — → [`../Architecture/LoadoutSystem.md`](../Architecture/LoadoutSystem.md)
 - **Inventory** — ownership warehouse, distinct from loadout — `UInventoryComponent` — → [`../Architecture/ItemSystem.md`](../Architecture/ItemSystem.md)
 - **Equipment generation / rolls** — fixed substat budget + tier-scaled pillar budget, zero-sum broken-stick — `UEquipmentBonusGenerator` / `ZeroSumBrokenStick` — → [`../Architecture/PerInstanceRollSystem.md`](../Architecture/PerInstanceRollSystem.md), [`../Architecture/StatComposition.md`](../Architecture/StatComposition.md)
+- **Economy loop** — faucet→sink map: dismantle/break earn essence, upgrade/purchase/merge/reroll spend it — `UEconomyService` (`Currency/EconomyService.cpp`) — → [`Economy.md`](./Economy/Economy.md)
+- **Currencies** — Gold/Prisms/Diamond + Gear/Skill + 14 typed essence behind one wallet API — `UCurrencyComponent` (`Currency/CurrencyComponent.h`) — → [`Currency.md`](./Economy/Currency.md), [`../Architecture/CurrencySystem.md`](../Architecture/CurrencySystem.md)
+- **Item upgrading** — raise an owned item's instance tier one step (Gear/Skill essence + ½ Reality); downgrade refunds half — `UEconomyService::LevelUp*`/`Downgrade*` — → [`Upgrading.md`](./Economy/Upgrading.md), [`../Architecture/TierOnInstance.md`](../Architecture/TierOnInstance.md)
+- **Dismantle / salvage** — scrap an owned item for essence at its upgraded tier (gear→Gear, skill→Skill, crystal→typed) — `UEconomyService::Dismantle*` — → [`Dismantle.md`](./Economy/Dismantle.md)
+- **Crystal merging** — value-based: sum same-type crystals lowest-first up a tier, pay Prisms — `UEconomyService::MergeCrystals` — → [`Merging.md`](./Economy/Merging.md)
+- **Drop quality** — rolled per-instance grade F..S (Luck-biased) stamped on every drop; no gameplay consumer wired yet — `EconomyYield::RollQuality` (`Currency/EconomyYield.h`) — → [`Quality.md`](./Gear/Quality.md)
+- **Character leveling** — per-pillar world stat levels (0–7, +7%/level) drive stats + skill gating; **growth loop (XP / level-up) is design-only** — `FCharacterData` `WorldMind/Body/SpiritLevel` — → [`Leveling.md`](./Character/Leveling.md) *(design-placeholder)*
+- **Hubs (shops & services)** — two-hub structure: run hub = active workshop (upgrade/repair/merge/roll/buy), local hub = lean restock/respec (Prisms); draft→build→return loop — *no code yet; depends on the Pool arc* — → [`Hubs.md`](./Economy/Hubs.md) *(design-placeholder)*
 
 ## F. World & AI
 
