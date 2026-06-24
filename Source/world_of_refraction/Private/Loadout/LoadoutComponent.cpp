@@ -2921,6 +2921,7 @@ bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.IsBroken())
     {
         Loadout.PrimaryEvolution = FEvolutionAttachment();
+        Loadout.PrimaryEvolutionInstance = FGuid(); // clear the instance ref too — no stale GUID (matches ClearPrimaryEvolution)
         return true;
     }
     return false;

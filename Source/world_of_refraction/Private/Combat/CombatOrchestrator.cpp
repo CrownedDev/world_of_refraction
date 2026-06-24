@@ -31,6 +31,7 @@
 #include "Combat/Mechanics/WeatherStateManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
+#include "Currency/EconomyService.h" // DismantleEvolution on primary-evo break (§5.3b forced dismantle)
 #include "TimerManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
@@ -1308,12 +1309,27 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 			// Case-B: standalone primary-slot evolution (e.g. Broken Darkness).
 			// GetEquippedCrystals above does not surface this slot — evolution
 			// self-holders aren't matched by FindAttachedItemByHolder — so the
-			// loop misses broken primary evolutions. Helper is a no-op unless
-			// the slot is Evolution AND its attachment IsBroken().
+			// loop misses broken primary evolutions. Break = FORCED DISMANTLE
+			// (§5.3b): capture the owned-entry GUID BEFORE the clear wipes it,
+			// empty the slot iff broken, then dismantle the owned entry (yields the
+			// hybrid essence at its tier + destroys it + frees the cap slot).
+			// Replaces the old silent-empty.
+			const FGuid BrokenEvoInstance = LoadoutComp->GetActivePrimaryEvolutionInstance();
 			if (LoadoutComp->ClearBrokenPrimaryEvolution())
 			{
+				// Invalid GUID = an asset-only primary evolution with no owned entry —
+				// nothing to yield/destroy, the slot-clear above is the whole action.
+				if (BrokenEvoInstance.IsValid())
+				{
+					if (UEconomyService *Economy = GetGameInstance()
+													   ? GetGameInstance()->GetSubsystem<UEconomyService>()
+													   : nullptr)
+					{
+						Economy->DismantleEvolution(Actor, BrokenEvoInstance);
+					}
+				}
 				UE_LOG(LogTemp, Log,
-					   TEXT("[CombatOrchestrator] Destroyed broken primary evolution on %s"),
+					   TEXT("[CombatOrchestrator] Broke + dismantled primary evolution on %s"),
 					   *Actor->GetName());
 				CrystalsDestroyed++;
 			}
