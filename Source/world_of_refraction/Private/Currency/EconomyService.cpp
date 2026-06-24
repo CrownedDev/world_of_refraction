@@ -390,7 +390,7 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
     return true;
 }
 
-bool UEconomyService::RemovePrimaryEvolution(AActor *Owner, FGuid InstanceID)
+bool UEconomyService::RemovePrimaryEvolution(AActor *Owner)
 {
     if (!Owner)
     {
@@ -403,20 +403,30 @@ bool UEconomyService::RemovePrimaryEvolution(AActor *Owner, FGuid InstanceID)
         return false;
     }
 
-    // 1. Clear the primary-slot reference FIRST so nothing points at the entry we're about to
-    //    destroy. Best-effort: a false return just means no evolution primary slot to empty (the
-    //    owned entry is still dismantled below — the UI should only call this for a slotted evo).
-    if (ULoadoutComponent *LC = Owner->FindComponentByClass<ULoadoutComponent>())
+    ULoadoutComponent *LC = Owner->FindComponentByClass<ULoadoutComponent>();
+    if (!LC)
     {
-        if (!LC->ClearPrimaryEvolution())
-        {
-            UE_LOG(LogTemp, Verbose,
-                   TEXT("[EconomyService] RemovePrimaryEvolution: %s had no evolution primary slot to clear (dismantling owned entry anyway)"),
-                   *Owner->GetName());
-        }
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] RemovePrimaryEvolution: %s missing LoadoutComponent"),
+               *Owner->GetName());
+        return false;
     }
 
-    // 2. Destroy the owned entry + yield the dust + free a cap slot. This is the authoritative result.
+    // 1. Self-resolve the slotted owned-entry identity from the runtime loadout (iii-b), BEFORE
+    //    clearing. Invalid GUID = the primary slot is not an instance-resolved evolution → nothing
+    //    to remove via this path.
+    const FGuid InstanceID = LC->GetActivePrimaryEvolutionInstance();
+    if (!InstanceID.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[EconomyService] RemovePrimaryEvolution: %s has no instance-resolved primary evolution to remove"),
+               *Owner->GetName());
+        return false;
+    }
+
+    // 2. Clear the primary-slot reference so nothing points at the entry we're about to destroy.
+    LC->ClearPrimaryEvolution();
+
+    // 3. Destroy the owned entry + yield the dust + free a cap slot. Authoritative result.
     return DismantleEvolution(Owner, InstanceID);
 }
 

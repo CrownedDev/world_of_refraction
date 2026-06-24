@@ -89,14 +89,16 @@ public:
 
     /**
      * Player-initiated "remove primary evolution → destroy + dust" (the Spiritualist action; NPC
-     * gating is the UI layer). Clears the active loadout's primary evolution slot FIRST (so nothing
-     * references the entry), then DismantleEvolution(InstanceID) destroys the owned entry, yields the
-     * hybrid essence (element type, gear amount, leveled tier), and frees an evolution cap slot.
-     * Caller passes the InstanceID it slotted. Server-authoritative. Returns DismantleEvolution's
-     * result (false if no owned evolution carries that InstanceID); the slot-clear is best-effort.
+     * gating is the UI layer). SELF-RESOLVES the slotted owned-entry identity from the runtime
+     * loadout (GetActivePrimaryEvolutionInstance, iii-b) — no InstanceID param needed. Reads that
+     * GUID, clears the primary slot (so nothing references the entry), then DismantleEvolution
+     * destroys the owned entry, yields the hybrid essence (element type, gear amount, leveled tier),
+     * and frees an evolution cap slot. Server-authoritative. False if Owner null / no authority;
+     * LoadoutComponent missing; the primary slot is not an instance-resolved evolution (invalid
+     * GUID); or DismantleEvolution fails.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool RemovePrimaryEvolution(AActor *Owner, FGuid InstanceID);
+    bool RemovePrimaryEvolution(AActor *Owner);
 
     /**
      * Dismantle a known SPELL, granting SKILL essence (abilities/spells → Skill, per category
