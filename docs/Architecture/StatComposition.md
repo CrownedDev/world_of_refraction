@@ -4,8 +4,8 @@
 confirmed shipped (editor-side, confirmed complete). This is the authoritative reference for how every
 stat composes and how crit/Luck work.
 
-Cross-reference: [`docs/Design/CombatEconomy_StatRedesign.md`](../Design/CombatEconomy_StatRedesign.md)
-(economy + targets) and [`docs/Mechanics/TierGap.md`](../Mechanics/TierGap.md) (the working
+Cross-reference: [`docs/Design/Completed/CombatEconomy_StatRedesign.md`](../Design/Completed/CombatEconomy_StatRedesign.md)
+(economy + targets) and [`docs/Mechanics/Scaling/TierGap.md`](../Mechanics/Scaling/TierGap.md) (the working
 tier-gap, untouched by this arc).
 
 ---
@@ -73,7 +73,7 @@ The **cap is the single source of truth** — it is reused directly as the clamp
 
 ## 4. The full stat table
 
-Reproduced from [`CombatEconomy_StatRedesign.md`](../Design/CombatEconomy_StatRedesign.md). Columns:
+Reproduced from [`CombatEconomy_StatRedesign.md`](../Design/Completed/CombatEconomy_StatRedesign.md). Columns:
 base value (no investment) → stat cap (maxed stat alone) → gear ceiling (gear/buff on top).
 
 | Stat | Base | Stat cap (+50%) | Gear ceiling (+100%) | Family |

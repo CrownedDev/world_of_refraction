@@ -2,7 +2,7 @@
 
 > **Status: DESIGN-LOCKED, NOT YET BUILT.**
 > This supersedes the flat-integer wear model once shipped. Until then, the live mechanic is
-> [`docs/Mechanics/DurabilityWear.md`](../Mechanics/DurabilityWear.md) — that doc stays authoritative
+> [`docs/Mechanics/Gear/DurabilityWear.md`](../../Mechanics/Gear/DurabilityWear.md) — that doc stays authoritative
 > until this builds, at which point it is rewritten and this moves to `docs/Design/Completed/`.
 
 ## What changes

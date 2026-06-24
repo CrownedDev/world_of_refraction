@@ -2,7 +2,7 @@
 
 > **Status: COMPLETED — built + PIE-verified, merged to main (merge date TBD).**
 > Replaced the √deficit requirement penalty in `WorldStatRequirements` with per-pillar substat scaling on
-> the shared tier-gap ladder. Shipped reference: [`docs/Mechanics/RequirementGap.md`](../../Mechanics/RequirementGap.md).
+> the shared tier-gap ladder. Shipped reference: [`docs/Mechanics/Scaling/RequirementGap.md`](../../Mechanics/Scaling/RequirementGap.md).
 > **Build note:** the `WorldLevelToTier` helper proposed below was NOT needed — the shipped code gaps the raw
 > world levels directly (`Required − CharLevel`, clamped ±5) with no tier conversion. The once-mooted merge
 > with a `TierScalingConsolidation` arc did not happen; the shared ladder lives in `TierGapConstants.h`.
