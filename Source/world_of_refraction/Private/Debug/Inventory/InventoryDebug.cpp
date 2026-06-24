@@ -52,9 +52,9 @@ void UInventoryDebug::LogSpells(UInventoryComponent *Inventory)
            Inventory->Spells.GetCount(),
            Inventory->Spells.GetMaxCapacity());
 
-    for (USpellData *Spell : Inventory->Spells.LearnedSpells)
+    for (const FSpellInstance &Instance : Inventory->Spells.LearnedSpells)
     {
-        if (Spell)
+        if (USpellData *Spell = Instance.Spell)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [%s] (School: %d, Tier: %d)"),
                    *Spell->Name,
@@ -595,9 +595,9 @@ bool UInventoryDebug::RunValidationSuite(UInventoryComponent *Inventory, ULoadou
     // Test 1: Inventory has valid data
     UE_LOG(LogTemp, Display, TEXT("Test 1: Inventory data integrity..."));
     bool bTest1 = true;
-    for (USpellData *Spell : Inventory->Spells.LearnedSpells)
+    for (const FSpellInstance &Instance : Inventory->Spells.LearnedSpells)
     {
-        if (!Spell)
+        if (!Instance.Spell)
         {
             bTest1 = false;
             break;
