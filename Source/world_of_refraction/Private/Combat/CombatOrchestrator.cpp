@@ -1320,6 +1320,24 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 								   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
 						}
 					}
+					else if (Slot.Kind == EAttachedItemKind::Evolution)
+					{
+						// Gear-attached evolution break = forced dismantle (§5.3b). PLAYER-ATTACHED
+						// (valid InstanceID from the pre-clear Attachment copy) -> resolve the owned
+						// entry and DismantleEvolution (hybrid essence + remove entry + free cap slot).
+						// AUTHORED-LOCKED (invalid InstanceID) -> no owned record; the slot-clear above
+						// is the whole action (no essence — like the primary asset-only break case in iv).
+						const FGuid EvoInstanceID = Attachment.Evolution.InstanceID;
+						if (EvoInstanceID.IsValid())
+						{
+							if (UEconomyService *Economy = GetGameInstance()
+															   ? GetGameInstance()->GetSubsystem<UEconomyService>()
+															   : nullptr)
+							{
+								Economy->DismantleEvolution(Actor, EvoInstanceID);
+							}
+						}
+					}
 
 					UE_LOG(LogTemp, Log,
 						   TEXT("[CombatOrchestrator] Destroyed broken crystal '%s' from %s on %s"),
