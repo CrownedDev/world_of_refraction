@@ -30,22 +30,6 @@ Two distinct hubs with different roles, currencies, and what they operate on:
 3. **Return** — surplus → back to pool (you still OWN it — "I'll use it a different run") → **Gold**. NOT a loss; you keep the unlock, get Gold now.
 4. **Shop** — buy gear/skills for the run with Gold (run shop).
 
-**Hub composition — services + shops (LOCKED):**
-
-| Service / Shop               | Local hub | Run hub | Cost                                                                  |
-| ---------------------------- | --------- | ------- | --------------------------------------------------------------------- |
-| **Purchase**                 | ✅ Prisms  | ✅ Gold  | currency differs BY HUB; stock by per-item flag (main / run / both)   |
-| **Upgrade** (item tier-up)   | —         | ✅       | upgrade essence + ½ Reality (NOT Gold) — build power *during* the run |
-| **Downgrade** (respec)       | ✅         | ✅       | partial essence refund (½ step, no Reality)                           |
-| **Repair** (fix broken gear) | ✅         | ✅       | (cost TBD)                                                            |
-| **Roll / Reroll** (stats)    | ✅         | ✅       | Reality + Prisms                                                      |
-| **Merge** (crystals)         | ✅         | ✅       | Prisms                                                                |
-| **Draft / Return**           | —         | ✅       | Gold (return surplus → pool + Gold)                                   |
-
-**The rule:** the HUB determines **purchase** currency (Prisms local / Gold run); **services carry their own designed cost regardless of hub** (upgrade=essence anywhere, roll=Reality+Prisms anywhere, merge=Prisms anywhere). So Prisms IS spendable in the run hub — just for services (roll/merge), not for buying gear (that's Gold). Item-to-shop assignment is a per-item FLAG (sold-in-main / sold-in-run / both), so the same item type can appear in both shops at different currencies.
-
-**Run-hub-only:** Upgrade (power-up is a run activity), Draft, Return. **Everything else is in BOTH** (convenience — downgrade/repair/roll/reroll/merge wherever you are).
-
 **Hub composition (LOCKED) — run hub = active workshop, local hub = lean restock/respec:**
 
 | Service              | Local hub              | Run hub                       |
