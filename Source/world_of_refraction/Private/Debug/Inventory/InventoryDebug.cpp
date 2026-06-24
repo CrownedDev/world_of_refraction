@@ -75,9 +75,9 @@ void UInventoryDebug::LogAbilities(UInventoryComponent *Inventory)
            Inventory->Abilities.GetCount(),
            Inventory->Abilities.GetMaxCapacity());
 
-    for (UAbilityData *Ability : Inventory->Abilities.LearnedAbilities)
+    for (const FAbilityInstance &Instance : Inventory->Abilities.LearnedAbilities)
     {
-        if (Ability)
+        if (UAbilityData *Ability = Instance.Ability)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [Weapon: %d]"),
                    *Ability->Name,
