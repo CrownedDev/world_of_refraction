@@ -2926,6 +2926,25 @@ bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
     return false;
 }
 
+bool ULoadoutComponent::ClearPrimaryEvolution()
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
+    {
+        return false;
+    }
+
+    // Unconditional empty (player-initiated removal) — slot type unchanged, like the broken sweep.
+    Loadout.PrimaryEvolution = FEvolutionAttachment();
+    return true;
+}
+
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
 {
     UInventoryComponent *Inv = GetInventoryComponent();

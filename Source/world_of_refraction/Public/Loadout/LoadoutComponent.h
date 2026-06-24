@@ -614,6 +614,13 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ClearBrokenPrimaryEvolution();
 
+    /** Unconditionally empties the active loadout's primary evolution slot (player-initiated
+     *  removal, not a break sweep). PrimarySlotType is left unchanged (stays Evolution — the slot
+     *  just empties), mirroring ClearBrokenPrimaryEvolution but without the broken gate. Returns
+     *  true if the active loadout has an evolution primary slot to clear. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
+    bool ClearPrimaryEvolution();
+
     // ==================== POST-BATTLE ====================
     // Crystal-refactor 9.5b: ConsumeUsedItems and GetItemsToConsume removed.
     // Item slot Quantity is now the persistent post-combat state; inventory

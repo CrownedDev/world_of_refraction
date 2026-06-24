@@ -11,6 +11,7 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/Crystals/EvolutionItemData.h" // GetAssociatedElement for the dismantle yield
+#include "Loadout/LoadoutComponent.h"              // ClearPrimaryEvolution for the primary-remove action
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -387,6 +388,36 @@ bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
            *InstanceID.ToString(), static_cast<int32>(Tier), Yield,
            *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
     return true;
+}
+
+bool UEconomyService::RemovePrimaryEvolution(AActor *Owner, FGuid InstanceID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] RemovePrimaryEvolution: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    // 1. Clear the primary-slot reference FIRST so nothing points at the entry we're about to
+    //    destroy. Best-effort: a false return just means no evolution primary slot to empty (the
+    //    owned entry is still dismantled below — the UI should only call this for a slotted evo).
+    if (ULoadoutComponent *LC = Owner->FindComponentByClass<ULoadoutComponent>())
+    {
+        if (!LC->ClearPrimaryEvolution())
+        {
+            UE_LOG(LogTemp, Verbose,
+                   TEXT("[EconomyService] RemovePrimaryEvolution: %s had no evolution primary slot to clear (dismantling owned entry anyway)"),
+                   *Owner->GetName());
+        }
+    }
+
+    // 2. Destroy the owned entry + yield the dust + free a cap slot. This is the authoritative result.
+    return DismantleEvolution(Owner, InstanceID);
 }
 
 bool UEconomyService::DismantleSpell(AActor *Owner, USpellData *Spell)
