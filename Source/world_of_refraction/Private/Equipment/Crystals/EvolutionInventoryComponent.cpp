@@ -5,6 +5,9 @@
 #include "Character/FPillarWeights.h"
 #include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
 #include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
+#include "Inventory/InventoryComponent.h"     // run weapons/rings for the gear-locked evo count
+#include "Loadout/Entries/FWeaponInventoryEntry.h" // AttachedItem.IsEvolution()
+#include "Loadout/Entries/FRingInventoryEntry.h"
 
 namespace
 {
@@ -33,7 +36,9 @@ UEvolutionInventoryComponent::UEvolutionInventoryComponent()
 
 bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
 {
-    if (!Item || Entries.Num() >= InventoryConstants::MAX_EVOLUTION_ITEMS)
+    // Cap is the RUN total (owned entries + authored gear-locked evolutions), not just Entries —
+    // can't acquire a 6th. Escape valves (DismantleEvolution/RemoveInstance, future sell) free a slot.
+    if (!Item || CountRunEvolutions() >= InventoryConstants::MAX_EVOLUTION_ITEMS)
     {
         return false;
     }
@@ -83,6 +88,41 @@ bool UEvolutionInventoryComponent::RemoveInstance(FGuid InstanceID)
     }
     Entries.RemoveAt(Index);
     return true;
+}
+
+int32 UEvolutionInventoryComponent::CountRunEvolutions() const
+{
+    // Owned total: bag + primary-slotted + player-gear-attached are ALL FEvolutionInventoryEntry
+    // (attach = reference, not move — §5.3b — so they persist in Entries), counted once here.
+    int32 Count = Entries.Num();
+
+    // PLUS authored/LOCKED evolutions baked into run gear (the weapon/ring asset's AttachedItem) —
+    // these are NOT owned entries (no instance link), so they are additional. Today EVERY gear-
+    // attached evolution is authored-locked (the player-attach-to-gear op doesn't exist yet), so
+    // counting all of them is correct with no double-count. ⚠️ WHEN that op lands, a player-attached
+    // gear evolution will reference an owned Entry (already counted above) — the loop must then skip
+    // those (by the gear instance link) to avoid double-counting.
+    if (const AActor *Owner = GetOwner())
+    {
+        if (const UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>())
+        {
+            for (const FWeaponInventoryEntry &W : Inv->Weapons)
+            {
+                if (W.AttachedItem.IsEvolution())
+                {
+                    ++Count;
+                }
+            }
+            for (const FRingInventoryEntry &R : Inv->Rings)
+            {
+                if (R.AttachedItem.IsEvolution())
+                {
+                    ++Count;
+                }
+            }
+        }
+    }
+    return Count;
 }
 
 bool UEvolutionInventoryComponent::HasInstance(UEvolutionItemData *Item) const

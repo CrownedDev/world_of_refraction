@@ -52,4 +52,12 @@ public:
     /** Current entry count. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
     int32 Num() const { return Entries.Num(); }
+
+    /** Total evolutions in the run for the 5/run cap (§ Pool/Run): owned entries (bag +
+     *  primary-slotted + player-gear-attached — all persist in Entries via attach-by-reference, so
+     *  counted once here) PLUS authored/LOCKED evolutions baked into run gear (the weapon/ring
+     *  AttachedItem — not owned entries). Reaches the owner's UInventoryComponent for the gear count.
+     *  This is the value the acquisition cap (AddInstance) gates on. */
+    UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
+    int32 CountRunEvolutions() const;
 };
