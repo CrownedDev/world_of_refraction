@@ -91,7 +91,16 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
     {
         if (BDSpellPools.Num() > 0)
         {
-            Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(InnateSpells, BDSpellPools));
+            // Saved-side spells are now instance-paired — extract bare shapes for the shared
+            // validator (InstanceID is irrelevant to structural validation): InnateSpells via
+            // ExtractSpells, and each FSavedBDElementSpellPool via ToRuntimePool (ii-a2).
+            TArray<FBDElementSpellPool> BareBDPools;
+            BareBDPools.Reserve(BDSpellPools.Num());
+            for (const FSavedBDElementSpellPool &SavedPool : BDSpellPools)
+            {
+                BareBDPools.Add(SavedPool.ToRuntimePool());
+            }
+            Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(FSpellRef::ExtractSpells(InnateSpells), BareBDPools));
         }
         else
         {
@@ -99,11 +108,11 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
             // each school's innate spell count must fit one pool. (Replaces the flat
             // MAX_INNATE_SPELLS_TOTAL=24 check; per-school 6 x 4 schools implies the same total.)
             TMap<ESpellSchool, int32> PerSchoolCount;
-            for (const USpellData *Spell : InnateSpells)
+            for (const FSpellRef &Ref : InnateSpells)
             {
-                if (Spell)
+                if (Ref.Spell)
                 {
-                    PerSchoolCount.FindOrAdd(Spell->School)++;
+                    PerSchoolCount.FindOrAdd(Ref.Spell->School)++;
                 }
             }
             for (const TPair<ESpellSchool, int32> &Pair : PerSchoolCount)
@@ -239,12 +248,12 @@ TArray<USpellData *> FSavedLoadout::GetAllSpells() const
 
     if (PrimarySlotType == EPrimarySlotType::Evolution)
     {
-        Result.Append(EvolutionSpells);
+        Result.Append(FSpellRef::ExtractSpells(EvolutionSpells));
     }
 
     if (RequiredClass == ECharacterClass::Caster)
     {
-        Result.Append(InnateSpells);
+        Result.Append(FSpellRef::ExtractSpells(InnateSpells));
     }
 
     if (RequiredClass == ECharacterClass::Resonator)
@@ -254,7 +263,7 @@ TArray<USpellData *> FSavedLoadout::GetAllSpells() const
             if (Slot.Ring)
             {
                 Result.Append(Slot.Ring->DefaultSpells);
-                Result.Append(Slot.AssignedSpells);
+                Result.Append(FSpellRef::ExtractSpells(Slot.AssignedSpells));
             }
         }
     }

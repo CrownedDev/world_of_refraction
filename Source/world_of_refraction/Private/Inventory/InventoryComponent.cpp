@@ -20,6 +20,9 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Character/FPillarWeights.h"
+#include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
+#include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
+#include "Currency/EconomyService.h"          // DismantleEvolution on break-during-gear-removal
 
 namespace
 {
@@ -55,6 +58,74 @@ namespace
         StatBonus.Accumulate(FreshStats);
         ResistanceBonus = Asset->BaseResistance;
         ResistanceBonus.Accumulate(FreshResistance);
+    }
+
+    /** Owner's normalized Luck for the pickup quality roll (0 when no character data resolves).
+     *  Mirrors the GetEquipmentModifiedLuck convention every other Luck consumer reads. */
+    float ResolveInventoryOwnerLuck(const UActorComponent *Comp)
+    {
+        if (Comp)
+        {
+            if (const AActor *Owner = Comp->GetOwner())
+            {
+                if (const UCharacterDataComponent *CDC = Owner->FindComponentByClass<UCharacterDataComponent>())
+                {
+                    return CDC->GetEquipmentModifiedLuck();
+                }
+            }
+        }
+        return 0.0f;
+    }
+
+    /** Build the runtime evolution attachment that REFERENCES an owned entry (player-attach, gear-i).
+     *  Mirrors the primary-slot inflation copy: asset + leveled Tier + rolled state, plus the
+     *  InstanceID link that marks it player-attached (vs authored-locked, which FromAttachedItem
+     *  leaves invalid). */
+    FRuntimeAttachedItem MakeEvolutionAttachment(const FEvolutionInventoryEntry &Entry, FGuid EvoInstanceID)
+    {
+        FRuntimeAttachedItem Runtime;
+        Runtime.Kind = EAttachedItemKind::Evolution;
+        FEvolutionAttachment &Att = Runtime.Evolution;
+        Att.Item = Entry.Item;
+        Att.InstanceID = EvoInstanceID;                                       // link to the owned entry (gear-i)
+        Att.Tier = Entry.Tier;                                                // leveled instance tier (Part C7)
+        Att.CurrentDurability = Entry.CurrentDurability;                      // persisted durability (gear-durability) — worn evos stay worn
+
+        Att.GeneratedStatBonus = Entry.GeneratedStatBonus;
+        Att.GeneratedResistance = Entry.GeneratedResistance;
+        Att.StatPool = Entry.StatPool;
+        Att.StatMaxPool = Entry.StatMaxPool;
+        Att.ResistancePool = Entry.ResistancePool;
+        Att.ResistanceMaxPool = Entry.ResistanceMaxPool;
+        return Runtime;
+    }
+
+    /** One-evo-one-slot guard: true if EvoInstanceID is already referenced by any primary slot
+     *  (across saved loadouts) or any gear attachment (owned weapons/rings). */
+    bool IsEvolutionSlottedAnywhere(const UInventoryComponent &Inv, FGuid EvoInstanceID)
+    {
+        for (const FCombatLoadout &L : Inv.SavedLoadouts)
+        {
+            if (L.PrimaryEvolutionInstance == EvoInstanceID)
+            {
+                return true;
+            }
+        }
+        for (const FWeaponInventoryEntry &W : Inv.Weapons)
+        {
+            if (W.AttachedItem.IsEvolution() && W.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+            {
+                return true;
+            }
+        }
+        for (const FRingInventoryEntry &R : Inv.Rings)
+        {
+            if (R.AttachedItem.IsEvolution() && R.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -112,6 +183,50 @@ TArray<UAbilityData *> UInventoryComponent::GetAbilitiesForWeaponType(EWeaponTyp
     return Abilities.GetAbilitiesForWeaponType(WeaponType);
 }
 
+// ==================== INSTANCE-TIER RESOLUTION (spell-instance arc, ii-b/c) ====================
+
+EItemTier UInventoryComponent::ResolveSpellTier(const AActor *Caster, const USpellData *Spell)
+{
+    if (!Spell)
+    {
+        return EItemTier::F_Tier;
+    }
+    if (Caster)
+    {
+        if (const UInventoryComponent *Inv = Caster->FindComponentByClass<UInventoryComponent>())
+        {
+            EItemTier InstanceTier;
+            if (Inv->Spells.TryGetSpellTier(Spell, InstanceTier))
+            {
+                return InstanceTier; // owned → the caster's leveled instance tier
+            }
+        }
+    }
+    return Spell->Tier; // not owned (enemy / authored loadout) → asset tier
+}
+
+EItemTier UInventoryComponent::ResolveAbilityTier(const AActor *Caster, const USkillDataBase *Skill)
+{
+    if (!Skill)
+    {
+        return EItemTier::F_Tier;
+    }
+    if (Caster)
+    {
+        if (const UInventoryComponent *Inv = Caster->FindComponentByClass<UInventoryComponent>())
+        {
+            EItemTier InstanceTier;
+            // Basic attacks aren't learned (LearnAbility rejects them), so Cast→TryGet returns false
+            // and we asset-fall-back below — exactly the intended behaviour.
+            if (Inv->Abilities.TryGetAbilityTier(Cast<UAbilityData>(Skill), InstanceTier))
+            {
+                return InstanceTier;
+            }
+        }
+    }
+    return Skill->Tier; // not owned / basic attack → asset tier
+}
+
 // ==================== WEAPON OPERATIONS ====================
 
 bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrystal)
@@ -132,9 +247,14 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
     // CreateFromWeapon deliberately leaves it invalid (loadout inflation reuses
     // that factory and must not mint).
     Entry.PersistentID = FGuid::NewGuid();
+    // Tier/Quality are seeded in CreateFromWeapon (the factory, called above) so loadout-inflated
+    // entries get them too — see cluster 2a. Acquisition only mints the persistent guid here.
     if (Weapon->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+        // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
+        // (purchases, authored gear) skip this and keep the CreateFromWeapon C_Quality placeholder.
+        Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Weapons.Add(Entry);
     return true;
@@ -149,6 +269,17 @@ bool UInventoryComponent::RemoveWeapon(int32 WeaponIndex)
 
     Weapons.RemoveAt(WeaponIndex);
     return true;
+}
+
+bool UInventoryComponent::RemoveWeaponByPersistentID(FGuid PersistentID)
+{
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&PersistentID](const FWeaponInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+    return RemoveWeapon(Index);
 }
 
 FWeaponInventoryEntry UInventoryComponent::GetWeaponAt(int32 Index) const
@@ -244,9 +375,13 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
     FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring, bCopyDefaultCrystal);
     // Acquisition mint — see AddWeapon; CreateFromRing leaves the guid invalid.
     Entry.PersistentID = FGuid::NewGuid();
+    // Tier/Quality are seeded in CreateFromRing (the factory, called above); see cluster 2a.
     if (Ring->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+        // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
+        // keep the CreateFromRing C_Quality placeholder.
+        Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Rings.Add(Entry);
     return true;
@@ -261,6 +396,17 @@ bool UInventoryComponent::RemoveRing(int32 RingIndex)
 
     Rings.RemoveAt(RingIndex);
     return true;
+}
+
+bool UInventoryComponent::RemoveRingByPersistentID(FGuid PersistentID)
+{
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&PersistentID](const FRingInventoryEntry &Entry) { return Entry.PersistentID == PersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+    return RemoveRing(Index);
 }
 
 FRingInventoryEntry UInventoryComponent::GetRingAt(int32 Index) const
@@ -285,6 +431,262 @@ int32 UInventoryComponent::GetRingSlotCostTotal() const
 int32 UInventoryComponent::GetRemainingRingCapacity() const
 {
     return InventoryConstants::MAX_RING_INVENTORY_SLOTS - GetRingSlotCostTotal();
+}
+
+bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no authority — ignored"));
+        return false;
+    }
+    if (!EvoInstanceID.IsValid())
+    {
+        return false;
+    }
+
+    // Resolve the owned evolution entry being attached (the reference target — it PERSISTS in EvoInv).
+    UEvolutionInventoryComponent *EvoInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    const FEvolutionInventoryEntry *Entry = EvoInv
+        ? EvoInv->Entries.FindByPredicate(
+              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+        : nullptr;
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no owned evolution for GUID %s"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    // One evo, one slot: reject if it is already referenced by any primary or gear slot.
+    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: evolution %s already slotted elsewhere"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    // Resolve the target weapon; its crystal slot must be empty (don't overwrite an existing attachment).
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no weapon for GUID %s"),
+               *WeaponPersistentID.ToString());
+        return false;
+    }
+    if (!Weapons[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: weapon slot already occupied"));
+        return false;
+    }
+
+    // Reference the owned entry (entry stays in EvoInv->Entries — reference model, not move).
+    Weapons[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to weapon %s"),
+           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *WeaponPersistentID.ToString());
+    return true;
+}
+
+bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no authority — ignored"));
+        return false;
+    }
+    if (!EvoInstanceID.IsValid())
+    {
+        return false;
+    }
+
+    UEvolutionInventoryComponent *EvoInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    const FEvolutionInventoryEntry *Entry = EvoInv
+        ? EvoInv->Entries.FindByPredicate(
+              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+        : nullptr;
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no owned evolution for GUID %s"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: evolution %s already slotted elsewhere"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no ring for GUID %s"),
+               *RingPersistentID.ToString());
+        return false;
+    }
+    if (!Rings[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: ring slot already occupied"));
+        return false;
+    }
+
+    Rings[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to ring %s"),
+           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *RingPersistentID.ToString());
+    return true;
+}
+
+bool UInventoryComponent::RemoveEvolutionFromWeapon(FGuid WeaponPersistentID)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: no authority — ignored"));
+        return false;
+    }
+
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: no weapon for GUID %s"),
+               *WeaponPersistentID.ToString());
+        return false;
+    }
+
+    FRuntimeAttachedItem &Attached = Weapons[Index].AttachedItem;
+    // Must be a PLAYER-ATTACHED evolution: valid InstanceID. Authored-locked (invalid InstanceID) is
+    // a built-in evolution and cannot be removed.
+    if (!Attached.IsEvolution() || !Attached.Evolution.InstanceID.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: weapon %s has no player-attached evolution (authored-locked or none)"),
+               *WeaponPersistentID.ToString());
+        return false;
+    }
+    const FGuid EvoInstanceID = Attached.Evolution.InstanceID;
+    const int32 AttachmentDurability = Attached.Evolution.CurrentDurability;
+
+    // Resolve the owned entry (persisted all along — reference model).
+    UEvolutionInventoryComponent *EvoInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    FEvolutionInventoryEntry *Entry = EvoInv
+        ? EvoInv->Entries.FindByPredicate(
+              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+        : nullptr;
+    if (!Entry)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromWeapon: attachment InstanceID %s resolves to no owned entry"),
+               *EvoInstanceID.ToString());
+        return false; // data inconsistency — do not clear the slot
+    }
+
+    // Copy the worn runtime durability back onto the persisted entry, then apply the 10% removal wear.
+    Entry->CurrentDurability = AttachmentDurability;
+    const int32 MaxDur = Entry->Item ? Entry->Item->MaxDurability : 0;
+    Entry->CurrentDurability = FMath::Max(0, Entry->CurrentDurability - FMath::CeilToInt(MaxDur * 0.10f));
+
+    // Un-reference: clear the gear slot regardless (the evo leaves the weapon).
+    Weapons[Index].RemoveCrystal();
+
+    // Break-on-removal: if the 10% wear pushed it to 0, it breaks → forced dismantle (§5.3b):
+    // essence + remove the owned entry + free a cap slot. Otherwise it returns to inventory intact
+    // (the entry persists at its worn durability).
+    if (Entry->CurrentDurability <= 0)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (UEconomyService *Economy = GI->GetSubsystem<UEconomyService>())
+                {
+                    Economy->DismantleEvolution(GetOwner(), EvoInstanceID);
+                }
+            }
+        }
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from weapon %s — wear broke it, dismantled"),
+               *EvoInstanceID.ToString(), *WeaponPersistentID.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from weapon %s -> inventory (durability %d, 10%% wear)"),
+               *EvoInstanceID.ToString(), *WeaponPersistentID.ToString(), Entry->CurrentDurability);
+    }
+    return true;
+}
+
+bool UInventoryComponent::RemoveEvolutionFromRing(FGuid RingPersistentID)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromRing: no authority — ignored"));
+        return false;
+    }
+
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromRing: no ring for GUID %s"),
+               *RingPersistentID.ToString());
+        return false;
+    }
+
+    FRuntimeAttachedItem &Attached = Rings[Index].AttachedItem;
+    if (!Attached.IsEvolution() || !Attached.Evolution.InstanceID.IsValid())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] RemoveEvolutionFromRing: ring %s has no player-attached evolution (authored-locked or none)"),
+               *RingPersistentID.ToString());
+        return false;
+    }
+    const FGuid EvoInstanceID = Attached.Evolution.InstanceID;
+    const int32 AttachmentDurability = Attached.Evolution.CurrentDurability;
+
+    UEvolutionInventoryComponent *EvoInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    FEvolutionInventoryEntry *Entry = EvoInv
+        ? EvoInv->Entries.FindByPredicate(
+              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+        : nullptr;
+    if (!Entry)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveEvolutionFromRing: attachment InstanceID %s resolves to no owned entry"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    Entry->CurrentDurability = AttachmentDurability;
+    const int32 MaxDur = Entry->Item ? Entry->Item->MaxDurability : 0;
+    Entry->CurrentDurability = FMath::Max(0, Entry->CurrentDurability - FMath::CeilToInt(MaxDur * 0.10f));
+
+    Rings[Index].RemoveCrystal();
+
+    if (Entry->CurrentDurability <= 0)
+    {
+        if (UWorld *World = GetWorld())
+        {
+            if (UGameInstance *GI = World->GetGameInstance())
+            {
+                if (UEconomyService *Economy = GI->GetSubsystem<UEconomyService>())
+                {
+                    Economy->DismantleEvolution(GetOwner(), EvoInstanceID);
+                }
+            }
+        }
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from ring %s — wear broke it, dismantled"),
+               *EvoInstanceID.ToString(), *RingPersistentID.ToString());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Removed evolution %s from ring %s -> inventory (durability %d, 10%% wear)"),
+               *EvoInstanceID.ToString(), *RingPersistentID.ToString(), Entry->CurrentDurability);
+    }
+    return true;
 }
 
 bool UInventoryComponent::CanAddRing(URingData *Ring) const

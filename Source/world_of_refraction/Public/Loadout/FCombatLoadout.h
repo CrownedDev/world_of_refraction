@@ -128,6 +128,13 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
     FEvolutionAttachment PrimaryEvolution;
 
+    /** InstanceID of the owned FEvolutionInventoryEntry this primary slot was inflated from
+     *  (retained from FSavedLoadout::PrimaryEvolutionInstance — previously read once and dropped).
+     *  Lets runtime removal/break paths resolve the owned entry to dismantle. Invalid when the
+     *  primary slot is not an instance-resolved evolution. Runtime-derived state, not serialized. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
+    FGuid PrimaryEvolutionInstance;
+
     /** Spells selected from evolution (max 6) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Equipment|Primary")
     TArray<USpellData *> EvolutionSpells;

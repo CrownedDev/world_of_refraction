@@ -52,9 +52,9 @@ void UInventoryDebug::LogSpells(UInventoryComponent *Inventory)
            Inventory->Spells.GetCount(),
            Inventory->Spells.GetMaxCapacity());
 
-    for (USpellData *Spell : Inventory->Spells.LearnedSpells)
+    for (const FSpellInstance &Instance : Inventory->Spells.LearnedSpells)
     {
-        if (Spell)
+        if (USpellData *Spell = Instance.Spell)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [%s] (School: %d, Tier: %d)"),
                    *Spell->Name,
@@ -75,9 +75,9 @@ void UInventoryDebug::LogAbilities(UInventoryComponent *Inventory)
            Inventory->Abilities.GetCount(),
            Inventory->Abilities.GetMaxCapacity());
 
-    for (UAbilityData *Ability : Inventory->Abilities.LearnedAbilities)
+    for (const FAbilityInstance &Instance : Inventory->Abilities.LearnedAbilities)
     {
-        if (Ability)
+        if (UAbilityData *Ability = Instance.Ability)
         {
             UE_LOG(LogTemp, Display, TEXT("  - %s [Weapon: %d]"),
                    *Ability->Name,
@@ -242,12 +242,14 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
             // effective ResolveSpellSlotCap, i.e. gem tier when a gem is attached, else weapon tier).
             if (const UWeaponData *W = Active.PrimaryWeapon.WeaponEntry.Weapon)
             {
-                const int32 AbilityCap = CrystalEffectTable::SlotsForContainerTier(W->Tier);
+                // Display the INSTANCE (leveled) tier from the entry, not the base asset (W->Tier).
+                const EItemTier WTier = Active.PrimaryWeapon.WeaponEntry.Tier;
+                const int32 AbilityCap = CrystalEffectTable::SlotsForContainerTier(WTier);
                 const int32 SpellCap = CrystalEffectTable::ResolveSpellSlotCap(
                     Active.PrimaryWeapon.WeaponEntry.GetAttachedItem(),
-                    CrystalEffectTable::SlotsForContainerTier(W->Tier));
+                    CrystalEffectTable::SlotsForContainerTier(WTier));
                 UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: abilities %d/%d, spells %d/%d"),
-                       *TierHelpers::GetTierDisplayString(W->Tier),
+                       *TierHelpers::GetTierDisplayString(WTier),
                        Active.PrimaryWeapon.GetAllAbilities().Num(), AbilityCap,
                        Active.PrimaryWeapon.GetAllSpells().Num(), SpellCap);
             }
@@ -272,7 +274,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                 const int32 SpellCap = Active.PrimaryRing.GetCustomizableSpellCount()
                                        + Active.PrimaryRing.GetLockedSpellCount();
                 UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: spells %d/%d"),
-                       *TierHelpers::GetTierDisplayString(Rg->Tier),
+                       *TierHelpers::GetTierDisplayString(Active.PrimaryRing.RingEntry.Tier), // INSTANCE tier, not Rg->Tier (asset)
                        Active.PrimaryRing.GetAllSpells().Num(), SpellCap);
             }
         }
@@ -291,9 +293,9 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                    Active.EvolutionSpells.Num());
             // Spell slot capacity by evolution tier (no attachment crystal — straight tier cap).
             const int32 SpellCap = CrystalEffectTable::SlotsForContainerTier(
-                Active.PrimaryEvolution.Item->Tier);
+                Active.PrimaryEvolution.Tier);
             UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: spells %d/%d"),
-                   *TierHelpers::GetTierDisplayString(Active.PrimaryEvolution.Item->Tier),
+                   *TierHelpers::GetTierDisplayString(Active.PrimaryEvolution.Tier),
                    Active.EvolutionSpells.Num(), SpellCap);
         }
         else
@@ -329,7 +331,7 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                 {
                     const int32 SpellCap = R.GetCustomizableSpellCount() + R.GetLockedSpellCount();
                     UE_LOG(LogTemp, Display, TEXT("      Slots [%s]: spells %d/%d"),
-                           *TierHelpers::GetTierDisplayString(Rg->Tier),
+                           *TierHelpers::GetTierDisplayString(R.RingEntry.Tier), // INSTANCE tier, not Rg->Tier (asset)
                            R.GetAllSpells().Num(), SpellCap);
                 }
             }
@@ -593,9 +595,9 @@ bool UInventoryDebug::RunValidationSuite(UInventoryComponent *Inventory, ULoadou
     // Test 1: Inventory has valid data
     UE_LOG(LogTemp, Display, TEXT("Test 1: Inventory data integrity..."));
     bool bTest1 = true;
-    for (USpellData *Spell : Inventory->Spells.LearnedSpells)
+    for (const FSpellInstance &Instance : Inventory->Spells.LearnedSpells)
     {
-        if (!Spell)
+        if (!Instance.Spell)
         {
             bTest1 = false;
             break;

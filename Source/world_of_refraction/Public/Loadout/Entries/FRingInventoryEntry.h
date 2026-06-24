@@ -20,6 +20,8 @@
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
+#include "Inventory/ItemTier.h"
+#include "Inventory/ItemQuality.h"
 
 #include "FRingInventoryEntry.generated.h"
 
@@ -60,6 +62,17 @@ struct WORLD_OF_REFRACTION_API FRingInventoryEntry
      *  int32 InstanceID above. */
     UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
     FGuid PersistentID;
+
+    /** Per-instance TIER — seeded from the ring asset at acquisition, then MUTATED by the future
+     *  leveling action (asset Tier is the starting value / fallback). Tier reads still use the asset
+     *  Ring->Tier until the cluster-2 repoint, so this is written-but-unread now. */
+    UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
+    EItemTier Tier = EItemTier::F_Tier;
+
+    /** Per-instance QUALITY — rolled at drop (weighted, Luck/perk-biased) and stamped here; never
+     *  mutated by leveling. Placeholder default until the weighted-roll cluster; nothing reads it yet. */
+    UPROPERTY(BlueprintReadOnly, SaveGame, Category = "Identity")
+    EItemQuality Quality = EItemQuality::F_Quality;
 
     /** Attached refined crystal or evolution item, discriminated by Kind. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Ring")

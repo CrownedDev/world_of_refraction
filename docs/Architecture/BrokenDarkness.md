@@ -397,7 +397,7 @@ per-element pools.
   (`CanAbsorbElement`), so it is never a pool.
 
 Two independent limits apply per the weighted-budget model
-([`InnateSpellPoolBudget.md`](../Design/InnateSpellPoolBudget.md)): the per-pool **count**
+([`InnateSpellPoolBudget.md`](../Design/Completed/InnateSpellPoolBudget.md)): the per-pool **count**
 cap above, and a single shared **weight budget** — Σ spell cost (tier, mastery-discounted)
 ≤ `BD_SPELL_BUDGET` (48) across the Darkness pool + every element pool (double the non-BD
 innate 24).

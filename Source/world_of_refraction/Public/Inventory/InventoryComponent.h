@@ -22,6 +22,7 @@
 
 class USpellData;
 class UAbilityData;
+class USkillDataBase;
 class UWeaponData;
 class URingData;
 class UEvolutionItemData;
@@ -122,6 +123,18 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Abilities")
     TArray<UAbilityData *> GetAbilitiesForWeaponType(EWeaponType WeaponType) const;
 
+    // ==================== INSTANCE-TIER RESOLUTION (spell-instance arc, ii-b/c) ====================
+
+    /** Resolve the effective tier of Spell as cast BY Caster: the caster's owned FSpellInstance tier
+     *  (leveled) when owned, else the asset tier (enemies / authored loadouts don't level). Asset-keyed
+     *  (owners hold <=1 instance per asset — duplicates are rejected at learn time). Static so both the
+     *  combat executor and the AI preview resolve through one path. Caster/Spell null → asset/F fallback. */
+    static EItemTier ResolveSpellTier(const AActor *Caster, const USpellData *Spell);
+
+    /** Ability/skill twin of ResolveSpellTier (resolves the caster's owned FAbilityInstance tier; basic
+     *  attacks aren't learned, so they asset-fall-back). Takes the merged USkillDataBase pointer. */
+    static EItemTier ResolveAbilityTier(const AActor *Caster, const USkillDataBase *Skill);
+
     // ==================== WEAPON OPERATIONS ====================
 
     /** Add a weapon to inventory */
@@ -131,6 +144,13 @@ public:
     /** Remove a weapon from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveWeapon(int32 WeaponIndex);
+
+    /** Remove the owned weapon instance whose PersistentID matches — resolves the GUID to its
+     *  array index, then removes by index. Returns false if no entry carries that GUID. The
+     *  by-instance counterpart to index-based RemoveWeapon (dismantle addresses a specific
+     *  instance, not a slot). */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool RemoveWeaponByPersistentID(FGuid PersistentID);
 
     /** Get weapon count */
     UFUNCTION(BlueprintPure, Category = "Inventory|Weapons")
@@ -160,6 +180,25 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveCrystalFromWeapon(int32 WeaponIndex);
 
+    /** Attach an OWNED evolution (by EvoInstanceID) onto the owned weapon (by PersistentID),
+     *  Spiritualist-gated. Reference model (§5.3b): the owned FEvolutionInventoryEntry PERSISTS; the
+     *  weapon's AttachedItem.Evolution REFERENCES it (InstanceID link + copied leveled Tier + rolled
+     *  state). Enforces one-evo-one-slot — rejects if the evo is already in any primary slot or gear
+     *  attachment. False on: no authority; evo/weapon GUID not found; weapon slot already occupied;
+     *  or evo already slotted. (Member of the owner's inventory — Owner is implicit via GetOwner.) */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID);
+
+    /** Remove a PLAYER-ATTACHED evolution from the owned weapon (by PersistentID), Spiritualist-gated.
+     *  Copies the worn runtime durability back onto the owned entry, applies 10% removal wear, then
+     *  un-references (clears the gear slot — the entry PERSISTS, reference model). If the 10% wear
+     *  drops durability to 0 the evo BREAKS → forced dismantle (DismantleEvolution: essence + remove
+     *  entry + free cap); otherwise it returns to inventory at its worn durability. Rejects an
+     *  AUTHORED-LOCKED attachment (invalid InstanceID — built-in, can't be removed). False on: no
+     *  authority; weapon not found; slot not a player-attached evolution; or owned entry missing. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool RemoveEvolutionFromWeapon(FGuid WeaponPersistentID);
+
     // ==================== RING OPERATIONS ====================
 
     /** Add a ring to inventory */
@@ -169,6 +208,22 @@ public:
     /** Remove a ring from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveRing(int32 RingIndex);
+
+    /** Remove the owned ring instance whose PersistentID matches — resolves the GUID to its
+     *  array index, then removes by index. Returns false if no entry carries that GUID. The
+     *  by-instance counterpart to index-based RemoveRing. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool RemoveRingByPersistentID(FGuid PersistentID);
+
+    /** Attach an OWNED evolution (by EvoInstanceID) onto the owned ring (by PersistentID). Ring
+     *  counterpart of AttachEvolutionToWeapon — same reference model + one-evo-one-slot enforcement. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID);
+
+    /** Remove a PLAYER-ATTACHED evolution from the owned ring (by PersistentID). Ring counterpart of
+     *  RemoveEvolutionFromWeapon — same copy-back + 10% wear + break-on-zero + un-reference flow. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool RemoveEvolutionFromRing(FGuid RingPersistentID);
 
     /** Get ring count */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")

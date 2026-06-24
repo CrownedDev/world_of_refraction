@@ -99,12 +99,12 @@ public:
                   meta = (EditCondition = "bIsRefined", EditConditionHides, ClampMin = "0"))
         int32 MaxDurability = 0;
 
-        /** Who can break this evolution crystal. BDBreakable (default) = only Broken
-         *  Darkness/Reality wielders wear it down — the prior bCanBreak=false behavior.
-         *  Breakable = any class. Unbreakable = no one, even BD. */
+        /** Who can break this evolution crystal. Breakable (default) = any class wears it down
+         *  (evolutions are gear and wear in combat like crystals, §5.3b). BDBreakable = only Broken
+         *  Darkness/Reality wielders. Unbreakable = no one, even BD. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Durability",
                   meta = (EditCondition = "bIsRefined", EditConditionHides))
-        EBreakability Breakability = EBreakability::BDBreakable;
+        EBreakability Breakability = EBreakability::Breakable;
 
         // ==================== STAT BONUS (Evolution only) ====================
         // Authoring surface for evolution crystal stat modifiers. Replaces the

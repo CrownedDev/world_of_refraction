@@ -19,6 +19,9 @@ enum class ESubStat : uint8
 	// Mind
 	Efficiency UMETA(DisplayName = "Efficiency"),
 	SpellDamage UMETA(DisplayName = "Spell Damage"),
+	// StatusMultiplier is a SPIRIT-pillar sub-stat (see EconomyYield::SubStatToPillarEssence).
+	// Left in THIS enum position deliberately — ESubStat is append-only / never reordered
+	// (serialization-safe), so the pillar grouping lives in the fold function, not source order.
 	StatusMultiplier UMETA(DisplayName = "Status Multiplier"),
 	CritDamage UMETA(DisplayName = "Crit Damage"),
 	SpellSpeed UMETA(DisplayName = "Spell Speed"),

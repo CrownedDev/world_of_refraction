@@ -245,6 +245,12 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // Byte-for-byte parity with FromAsset's evolution branch
         // (Crystal->MaxDurability) — Source.Evolution is that same asset.
         Result.Evolution.CurrentDurability = Source.Evolution ? Source.Evolution->MaxDurability : 0;
+        // Weapon/ring-attached form: seed .Tier from the asset (base). There is no owned-instance
+        // source here until the deferred gear-attach op exists, so this stays base tier for now.
+        Result.Evolution.Tier = Source.Evolution ? Source.Evolution->Tier : EItemTier::F_Tier;
+        // InstanceID stays default (invalid FGuid) — this is the AUTHORED-LOCKED path (baked into
+        // the weapon/ring asset, no owned-entry link). The gear-attach op sets a valid InstanceID
+        // for player-attached evolutions; invalid here is the correct "authored" marker (gear-i).
         break;
 
     case EAttachedItemKind::AugmentStone:

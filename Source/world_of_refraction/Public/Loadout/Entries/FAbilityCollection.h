@@ -8,10 +8,52 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/InventoryConstants.h"
+#include "Inventory/ItemTier.h"
+#include "Inventory/ItemQuality.h"
 #include "Equipment/Weapons/EWeaponType.h"
 #include "FAbilityCollection.generated.h"
 
 class UAbilityData;
+
+/**
+ * FAbilityInstance
+ * Per-instance owned-ability record (cluster i of the spell-instance arc — the ability twin of
+ * FSpellInstance). Wraps the ability asset with the per-instance Tier/Quality/InstanceID that
+ * leveling + leveled dismantle will read.
+ *
+ * INERT until the equip-chain threading (cluster ii): the equip arrays + cast path still copy
+ * .Ability OUT as a bare UAbilityData*, so combat reads the ASSET tier. Tier/Quality/InstanceID
+ * are written at learn time but UNREAD by combat for now. Invalid InstanceID = legacy/asset-fallback.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FAbilityInstance
+{
+    GENERATED_BODY()
+
+    /** The owned ability asset. The equip chain copies this out as a bare pointer (cluster i is inert). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Ability")
+    UAbilityData *Ability = nullptr;
+
+    /** Per-instance tier — seeded from the asset at learn time, mutated by leveling (deferred).
+     *  UNREAD by combat until cluster ii threads it through the equip chain. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Ability")
+    EItemTier Tier = EItemTier::F_Tier;
+
+    /** Per-instance quality — placeholder until the weighted-roll cluster; never mutated by leveling. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Ability")
+    EItemQuality Quality = EItemQuality::C_Quality;
+
+    /** Stable per-instance identity, minted at learn time. Invalid (default) = legacy/asset-fallback. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Ability")
+    FGuid InstanceID;
+
+    FAbilityInstance() = default;
+
+    /** Acquisition ctor — mints the InstanceID. Tier/Quality are seeded by the caller (LearnAbility),
+     *  which has the full UAbilityData type to read Ability->Tier. */
+    explicit FAbilityInstance(UAbilityData *InAbility)
+        : Ability(InAbility), InstanceID(FGuid::NewGuid()) {}
+};
 
 /**
  * FAbilityCollection
@@ -27,9 +69,9 @@ struct WORLD_OF_REFRACTION_API FAbilityCollection
 {
     GENERATED_BODY()
 
-    /** Array of learned abilities */
+    /** Array of learned abilities (per-instance — wraps the asset with Tier/Quality/InstanceID). */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Abilities")
-    TArray<UAbilityData*> LearnedAbilities;
+    TArray<FAbilityInstance> LearnedAbilities;
 
     // ==================== CAPACITY ====================
 
@@ -63,22 +105,54 @@ struct WORLD_OF_REFRACTION_API FAbilityCollection
      *  FAbilityCollection.cpp so it can call IsAttack() on UAbilityData (only forward-declared here). */
     bool LearnAbility(UAbilityData* Ability);
 
-    /** Unlearn an ability (returns false if not known) */
+    /** Unlearn an ability (returns false if not known). Matches on the wrapped asset (.Ability). */
     bool UnlearnAbility(UAbilityData* Ability)
     {
         if (!Ability)
         {
             return false;
         }
-        return LearnedAbilities.Remove(Ability) > 0;
+        return LearnedAbilities.RemoveAll([Ability](const FAbilityInstance &I) { return I.Ability == Ability; }) > 0;
     }
 
     // ==================== QUERIES ====================
 
-    /** Check if ability is in collection */
+    /** Check if ability is in collection (by asset). */
     bool HasAbility(UAbilityData* Ability) const
     {
-        return Ability && LearnedAbilities.Contains(Ability);
+        return Ability && LearnedAbilities.ContainsByPredicate([Ability](const FAbilityInstance &I) { return I.Ability == Ability; });
+    }
+
+    /** Resolve the per-instance tier of an owned ability — asset-keyed (owners hold at most one
+     *  instance per asset; duplicates are rejected by LearnAbility, so asset → instance is 1:1).
+     *  Returns true + the instance Tier when owned; false when not (caller asset-falls-back). The
+     *  ability twin of FSpellCollection::TryGetSpellTier (ii-b/c, option d). Pointer-match only,
+     *  header-inline. INERT until the (iii) read repoints call it. */
+    bool TryGetAbilityTier(const UAbilityData *Ability, EItemTier &OutTier) const
+    {
+        for (const FAbilityInstance &Instance : LearnedAbilities)
+        {
+            if (Instance.Ability == Ability)
+            {
+                OutTier = Instance.Tier;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Find the MUTABLE owned instance for an ability asset — leveling writes its .Tier (iv). Returns
+     *  nullptr when not owned. Asset-keyed (≤1 instance per asset). Pointer-match only, header-inline. */
+    FAbilityInstance *FindAbilityInstanceMutable(const UAbilityData *Ability)
+    {
+        for (FAbilityInstance &Instance : LearnedAbilities)
+        {
+            if (Instance.Ability == Ability)
+            {
+                return &Instance;
+            }
+        }
+        return nullptr;
     }
 
     /** Get abilities filtered by required weapon type */

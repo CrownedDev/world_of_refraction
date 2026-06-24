@@ -28,7 +28,7 @@ int32 FRingLoadoutEntry::GetCustomizableSpellCount() const
     return FMath::Max(0,
                       CrystalEffectTable::ResolveSpellSlotCap(
                           RingEntry.GetAttachedItem(),
-                          RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Ring->Tier)
+                          RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Tier)
                                          : LoadoutConstants::MAX_RING_SPELLS)
                           - GetLockedSpellCount());
 }
@@ -80,7 +80,7 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells() const
     // as the no-ring ceiling.
     const int32 SlotCap = CrystalEffectTable::ResolveSpellSlotCap(
         RingEntry.GetAttachedItem(),
-        RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Ring->Tier)
+        RingEntry.Ring ? CrystalEffectTable::SlotsForContainerTier(RingEntry.Tier)
                        : LoadoutConstants::MAX_RING_SPELLS);
     if (Result.Num() > SlotCap)
     {

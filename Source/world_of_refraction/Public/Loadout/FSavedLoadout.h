@@ -23,6 +23,75 @@ class UAbilityData;
 class UStanceData;
 
 /**
+ * FSpellRef
+ * Saved-side spell + per-instance identity pairing (cluster ii-a). The asset says WHICH spell;
+ * InstanceID (when valid) says WHICH owned FSpellInstance — matched at inflation (ii-b). Invalid
+ * (default) = asset-fallback, the shape-B convention (mirrors the weapon/ring/evolution instance
+ * refs + the owned-side FSpellInstance pairing). Combat stays bare USpellData*: inflation copies
+ * .Spell OUT into the runtime arrays, so the InstanceID is carried but UNRESOLVED until ii-b.
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FSpellRef
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Spell")
+    USpellData *Spell = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Spell")
+    FGuid InstanceID;
+
+    FSpellRef() = default;
+    explicit FSpellRef(USpellData *InSpell) : Spell(InSpell) {} // InstanceID invalid by default (asset-fallback)
+
+    /** Extract the bare assets (drops InstanceID) for the inert runtime/validation paths that still
+     *  operate on TArray<USpellData*>. Used at inflation (copies .Spell into the runtime arrays) and
+     *  by saved-side validation/accessors until ii-b resolves the InstanceID. */
+    static TArray<USpellData *> ExtractSpells(const TArray<FSpellRef> &Refs)
+    {
+        TArray<USpellData *> Out;
+        Out.Reserve(Refs.Num());
+        for (const FSpellRef &Ref : Refs)
+        {
+            Out.Add(Ref.Spell);
+        }
+        return Out;
+    }
+};
+
+/**
+ * FSavedBDElementSpellPool
+ * Saved-side Broken Darkness element pool (cluster ii-a2). Mirrors the runtime FBDElementSpellPool
+ * but pairs each spell with its owned-instance identity (TArray<FSpellRef>). Split from the runtime
+ * struct so the saved side can carry InstanceIDs WITHOUT touching the ~6 combat BD readers — the
+ * runtime FCombatLoadout::BDSpellPools stays bare FBDElementSpellPool. Inflation converts via
+ * ToRuntimePool() (copies .Spell out; InstanceID rides the saved side, unresolved until ii-b).
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FSavedBDElementSpellPool
+{
+    GENERATED_BODY()
+
+    /** Element this pool channels (matches the runtime pool's Element). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    ESpellElement Element = ESpellElement::Generic;
+
+    /** Spells in this pool (max 6, each matching Element) + their owned-instance identities. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    TArray<FSpellRef> Spells;
+
+    /** Convert to the bare runtime pool (extracts .Spell — InstanceID is carried on the saved side,
+     *  unresolved until ii-b). Used at inflation and by the saved-side validation path. */
+    FBDElementSpellPool ToRuntimePool() const
+    {
+        FBDElementSpellPool Pool;
+        Pool.Element = Element;
+        Pool.Spells = FSpellRef::ExtractSpells(Spells);
+        return Pool;
+    }
+};
+
+/**
  * FResonatorRingSlot
  * One Resonator ring slot — pairs a ring asset with the spell-override list
  * that applies to that ring in this loadout. Empty AssignedSpells means the
@@ -45,9 +114,10 @@ struct WORLD_OF_REFRACTION_API FResonatorRingSlot
     FGuid RingInstance;
 
     /** Spells assigned to this ring's slots in this loadout (overrides the ring's defaults).
-     *  Empty array means use the ring's DefaultSpells. */
+     *  Empty array means use the ring's DefaultSpells. FSpellRef pairs each with its owned-instance
+     *  identity (ii-a); inflation copies .Spell out into the bare runtime array. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ring")
-    TArray<USpellData*> AssignedSpells;
+    TArray<FSpellRef> AssignedSpells;
 };
 
 /**
@@ -88,14 +158,14 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
      *  For a Broken Darkness template this is the Darkness pool (max 6). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Caster Spells",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
-    TArray<USpellData *> InnateSpells;
+    TArray<FSpellRef> InnateSpells;
 
     /** Broken Darkness per-element spell pools (Fire/Water/Earth/Wind/Light/
      *  Lightning/Void). Authored for BD enemy templates; leave empty for a
      *  normal Caster. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Caster Spells",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
-    TArray<FBDElementSpellPool> BDSpellPools;
+    TArray<FSavedBDElementSpellPool> BDSpellPools;
 
     // ==================== RESONATOR RINGS ====================
 
@@ -161,10 +231,11 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> PrimaryAugmentStoneAbilities;
 
-    /** Evolution spells (player-found world drops with RequiredEvolutionCrystal validation) */
+    /** Evolution spells (player-found world drops with RequiredEvolutionCrystal validation). FSpellRef
+     *  pairs each with its owned-instance identity (ii-a); inflation copies .Spell out to the runtime. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
-    TArray<USpellData *> EvolutionSpells;
+    TArray<FSpellRef> EvolutionSpells;
 
     /** Override primary weapon stance (nullptr = use weapon default).
      *  Propagated to FWeaponLoadoutEntry::StanceOverride in

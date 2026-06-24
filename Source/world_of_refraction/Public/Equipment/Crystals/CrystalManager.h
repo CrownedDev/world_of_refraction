@@ -72,6 +72,19 @@ public:
         int32 InfusionLevel,
         bool bIsSpell);
 
+    /** Apply post-cast wear to a GEAR-attached evolution (weapon/ring socket) — the
+     *  WeaponCrystal-path sibling of ProcessPostCastEvolutionWear (which only wears the primary
+     *  slot). Wears the passed runtime Attachment directly (Attachment.Evolution), keyed on the
+     *  evolution's instance Tier, with the same wear math + Luck-skip + BD/Reality force gate.
+     *  No-op when the attachment isn't an evolution, is null, or is already broken. The break
+     *  itself is swept at combat-end (gear-break). */
+    void ProcessPostCastGearEvolutionWear(
+        AActor *Actor,
+        FRuntimeAttachedItem &Attachment,
+        EItemTier ActionTier,
+        int32 InfusionLevel,
+        bool bIsSpell);
+
     // ========================================
     // EVENTS
     // ========================================

@@ -562,6 +562,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
     FEvolutionAttachment GetActivePrimaryEvolutionAttachment(AActor *Actor) const;
 
+    /** InstanceID of the owned FEvolutionInventoryEntry the active PRIMARY-SLOT evolution
+     *  (PrimarySlotType == Evolution) was inflated from (iii-b — retained on FCombatLoadout).
+     *  Invalid FGuid when the primary slot is not an instance-resolved evolution. Removal/break
+     *  paths read this to resolve the owned entry to dismantle. */
+    UFUNCTION(BlueprintPure, Category = "Loadout|Stats")
+    FGuid GetActivePrimaryEvolutionInstance() const;
+
     /** Returns the FRuntimeAttachedItem for the given holder by value.
      *  Searches primary/secondary weapon entries, primary ring entry, and
      *  the Resonator RingLoadout array. Returns a default-constructed
@@ -613,6 +620,13 @@ public:
      *  a clear occurred. Intended for between-combat destruction sweeps. */
     UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
     bool ClearBrokenPrimaryEvolution();
+
+    /** Unconditionally empties the active loadout's primary evolution slot (player-initiated
+     *  removal, not a break sweep). PrimarySlotType is left unchanged (stays Evolution — the slot
+     *  just empties), mirroring ClearBrokenPrimaryEvolution but without the broken gate. Returns
+     *  true if the active loadout has an evolution primary slot to clear. */
+    UFUNCTION(BlueprintCallable, Category = "Loadout|Crystal")
+    bool ClearPrimaryEvolution();
 
     // ==================== POST-BATTLE ====================
     // Crystal-refactor 9.5b: ConsumeUsedItems and GetItemsToConsume removed.

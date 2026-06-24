@@ -31,6 +31,9 @@
 #include "Combat/Mechanics/WeatherStateManager.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Equipment/Crystals/CrystalManager.h"
+#include "Currency/EconomyService.h" // DismantleEvolution on primary-evo break (§5.3b forced dismantle)
+#include "Currency/EconomyYield.h"   // ResolveEssenceType + crystal yield for gem break
+#include "Currency/CurrencyComponent.h" // AddEssenceType for gem break
 #include "TimerManager.h"
 
 ACombatOrchestrator::ACombatOrchestrator()
@@ -1298,6 +1301,75 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 
 				if (bCleared)
 				{
+					// Item-crystal (gem) break = forced dismantle (§4.2 / §5.3b): yield the crystal's
+					// TYPED essence at the CRYSTAL curve (the opposite of evolution's hybrid). A socketed
+					// crystal lives ONLY in the socket — attach consumed it from the inventory pool — so
+					// grant directly (no pool removal); the ResetCrystalEntryByHolder above is the destroy.
+					// Gems only (Slot.Kind == Crystal): stones don't break; fusion + gear-attached
+					// evolution breaks are separate clusters.
+					if (Slot.Kind == EAttachedItemKind::Crystal)
+					{
+						if (UCurrencyComponent *Currency = Actor->FindComponentByClass<UCurrencyComponent>())
+						{
+							const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Slot.CrystalId);
+							const int32 Yield = EconomyYield::GetTypedEssenceYieldForTier(Slot.CrystalId.Tier);
+							Currency->AddEssenceType(EssenceType, Yield);
+							UE_LOG(LogTemp, Log,
+								   TEXT("[CombatOrchestrator] Broken crystal '%s' on %s dismantled -> %d %s essence"),
+								   *CrystalName, *Actor->GetName(), Yield,
+								   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
+						}
+					}
+					else if (Slot.Kind == EAttachedItemKind::Evolution)
+					{
+						// Gear-attached evolution break = forced dismantle (§5.3b). PLAYER-ATTACHED
+						// (valid InstanceID from the pre-clear Attachment copy) -> resolve the owned
+						// entry and DismantleEvolution (hybrid essence + remove entry + free cap slot).
+						// AUTHORED-LOCKED (invalid InstanceID) -> no owned record; the slot-clear above
+						// is the whole action (no essence — like the primary asset-only break case in iv).
+						const FGuid EvoInstanceID = Attachment.Evolution.InstanceID;
+						if (EvoInstanceID.IsValid())
+						{
+							if (UEconomyService *Economy = GetGameInstance()
+															   ? GetGameInstance()->GetSubsystem<UEconomyService>()
+															   : nullptr)
+							{
+								Economy->DismantleEvolution(Actor, EvoInstanceID);
+							}
+						}
+					}
+					else if (Slot.Kind == EAttachedItemKind::Fusion)
+					{
+						// Fusion break = forced dismantle (§4.2 / §5.3b), but lossy: each GEM component
+						// yields HALF its crystal-curve essence (floored). Only an ELEMENTAL fusion breaks
+						// (one gem + one stone; augmented stone+stone never wears, so it never reaches
+						// here). Authoring forbids two gems, so in practice one half (the gem) yields; the
+						// loop generalizes to any gem component. Half-per-gem discourages fuse-then-break
+						// for value vs breaking gems individually. Direct grant (socketed, no pool-removal).
+						if (UCurrencyComponent *Currency = Actor->FindComponentByClass<UCurrencyComponent>())
+						{
+							const FCrystalId Halves[2] = {Attachment.Fusion.Id.HalfA, Attachment.Fusion.Id.HalfB};
+							for (const FCrystalId &Half : Halves)
+							{
+								if (!CrystalTypeHelpers::IsGemType(Half.Type))
+								{
+									continue; // gem components only — stone halves don't yield on fusion break
+								}
+								const int32 FullYield = EconomyYield::GetTypedEssenceYieldForTier(Half.Tier);
+								const int32 HalfYield = FMath::FloorToInt(FullYield * EconomyYield::Constants::FUSION_BREAK_ESSENCE_FRACTION);
+								if (HalfYield > 0)
+								{
+									const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Half);
+									Currency->AddEssenceType(EssenceType, HalfYield);
+									UE_LOG(LogTemp, Log,
+										   TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s essence (half of %d)"),
+										   *ItemIdentity::GetDisplayName(Half), *Actor->GetName(), HalfYield,
+										   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)), FullYield);
+								}
+							}
+						}
+					}
+
 					UE_LOG(LogTemp, Log,
 						   TEXT("[CombatOrchestrator] Destroyed broken crystal '%s' from %s on %s"),
 						   *CrystalName, *HolderDesc, *Actor->GetName());
@@ -1308,12 +1380,27 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 			// Case-B: standalone primary-slot evolution (e.g. Broken Darkness).
 			// GetEquippedCrystals above does not surface this slot — evolution
 			// self-holders aren't matched by FindAttachedItemByHolder — so the
-			// loop misses broken primary evolutions. Helper is a no-op unless
-			// the slot is Evolution AND its attachment IsBroken().
+			// loop misses broken primary evolutions. Break = FORCED DISMANTLE
+			// (§5.3b): capture the owned-entry GUID BEFORE the clear wipes it,
+			// empty the slot iff broken, then dismantle the owned entry (yields the
+			// hybrid essence at its tier + destroys it + frees the cap slot).
+			// Replaces the old silent-empty.
+			const FGuid BrokenEvoInstance = LoadoutComp->GetActivePrimaryEvolutionInstance();
 			if (LoadoutComp->ClearBrokenPrimaryEvolution())
 			{
+				// Invalid GUID = an asset-only primary evolution with no owned entry —
+				// nothing to yield/destroy, the slot-clear above is the whole action.
+				if (BrokenEvoInstance.IsValid())
+				{
+					if (UEconomyService *Economy = GetGameInstance()
+													   ? GetGameInstance()->GetSubsystem<UEconomyService>()
+													   : nullptr)
+					{
+						Economy->DismantleEvolution(Actor, BrokenEvoInstance);
+					}
+				}
 				UE_LOG(LogTemp, Log,
-					   TEXT("[CombatOrchestrator] Destroyed broken primary evolution on %s"),
+					   TEXT("[CombatOrchestrator] Broke + dismantled primary evolution on %s"),
 					   *Actor->GetName());
 				CrystalsDestroyed++;
 			}

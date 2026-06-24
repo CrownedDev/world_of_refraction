@@ -16,6 +16,8 @@
 #include "CoreMinimal.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
+#include "Inventory/ItemTier.h"
+#include "Inventory/ItemQuality.h"
 #include "FEvolutionInventoryEntry.generated.h"
 
 class UEvolutionItemData;
@@ -33,6 +35,24 @@ struct WORLD_OF_REFRACTION_API FEvolutionInventoryEntry
     /** Evolution item asset. Null in default-constructed entries. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
     UEvolutionItemData *Item = nullptr;
+
+    /** Per-instance TIER — seeded from the evolution asset at acquisition, then MUTATED by the
+     *  future leveling action (asset Tier is the starting value / fallback). Reads still use the
+     *  asset Item->Tier until the cluster-2 repoint, so this is written-but-unread now. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    EItemTier Tier = EItemTier::F_Tier;
+
+    /** Per-instance QUALITY — rolled at drop (weighted, Luck/perk-biased) and stamped here; never
+     *  mutated by leveling. Placeholder default until the weighted-roll cluster; nothing reads it yet. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    EItemQuality Quality = EItemQuality::F_Quality;
+
+    /** Per-instance PERSISTED durability (matches FEvolutionAttachment::CurrentDurability's int32 so
+     *  they copy cleanly). This is the owned record's durability — seeded to MaxDurability at mint.
+     *  On attach, the runtime FEvolutionAttachment copies FROM this; on detach (next cluster) the
+     *  worn attachment value copies BACK here, so wear persists across attach/detach. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
+    int32 CurrentDurability = 0;
 
     // ==================== PER-INSTANCE ROLL STATE ====================
     // The rolled stat/resistance layers live HERE on the instance (not the asset —

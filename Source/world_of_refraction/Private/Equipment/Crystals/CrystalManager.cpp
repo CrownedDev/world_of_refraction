@@ -215,7 +215,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
         return;
     }
 
-    const EItemTier EvoTier = Loadout.PrimaryEvolution.Item->Tier;
+    const EItemTier EvoTier = Loadout.PrimaryEvolution.Tier;
 
     UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
     int32 Wear = 0;
@@ -302,6 +302,94 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     {
         UE_LOG(LogTemp, Log,
                TEXT("[CrystalManager] Evolution '%s' broke on %s (between-combat sweep will clear slot)"),
+               *EvoName, *Actor->GetName());
+    }
+}
+
+void UCrystalManager::ProcessPostCastGearEvolutionWear(
+    AActor *Actor,
+    FRuntimeAttachedItem &Attachment,
+    EItemTier ActionTier,
+    int32 InfusionLevel,
+    bool bIsSpell)
+{
+    // Gear-attached evolution wear (weapon/ring socket) — mirrors ProcessPostCastEvolutionWear but
+    // wears the passed runtime attachment directly (the primary path goes through LC; the gear
+    // attachment is the live FRuntimeAttachedItem the caller already resolved).
+    if (!Actor || !Attachment.IsEvolution() || !Attachment.Evolution.Item)
+    {
+        return;
+    }
+    if (Attachment.IsBroken())
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[CrystalManager] ProcessPostCastGearEvolutionWear called on already-broken attachment for %s"),
+               *Actor->GetName());
+        return;
+    }
+
+    const EItemTier EvoTier = Attachment.Evolution.Tier;
+
+    UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
+    int32 Wear = 0;
+    if (CasterCharComp && CasterCharComp->CharacterData)
+    {
+        const FEffectiveStats Stats = CasterCharComp->GetEffectiveStats();
+        const float SpellDmgFrac    = Stats.SpellDamage - 1.0f;
+        const float StatusMultFrac  = Stats.StatusMultiplier - 1.0f;
+        const float EfficiencyFrac  = 1.0f - Stats.EfficiencyMultiplier;
+        const float ResistanceFrac  = Stats.Resistance;
+        Wear = UBreakCalculator::CalculateDurabilityWearWithSubstats(
+            EvoTier, ActionTier, InfusionLevel, bIsSpell,
+            SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac);
+    }
+    else
+    {
+        Wear = UBreakCalculator::CalculateDurabilityWear(EvoTier, ActionTier, InfusionLevel, bIsSpell);
+    }
+
+    if (Wear <= 0)
+    {
+        return;
+    }
+
+    const int32 BeforeDur = Attachment.Evolution.CurrentDurability;
+    const int32 MaxDur = Attachment.Evolution.Item->MaxDurability;
+    const FString EvoName = Attachment.Evolution.Item->GetFullItemName();
+
+    // Luck-driven break skip — same ceiling/rule as the primary + refined paths.
+    if (CasterCharComp)
+    {
+        const float SkipChance = CasterCharComp->GetLuckModifiedChance(0.0f, CombatConstants::LUCK_BREAK_SKIP_MAX);
+        if (FMath::FRand() < SkipChance)
+        {
+            UE_LOG(LogTemp, Log,
+                   TEXT("[CrystalManager] %s LUCKY break skip on gear evolution '%s' (would have applied %d wear, skip chance %.2f)"),
+                   *Actor->GetName(), *EvoName, Wear, SkipChance);
+            return;
+        }
+    }
+
+    // Force wear only for the intrinsic-wear mechanics (Broken Darkness / Reality innate); everyone
+    // else respects the asset's Breakability gate (now Breakable by default, so anyone wears it).
+    const bool bForceWear =
+        CasterCharComp && (CasterCharComp->IsBrokenDarkness() ||
+                           (CasterCharComp->CharacterData &&
+                            CasterCharComp->CharacterData->InnateElement == ESpellElement::Reality));
+
+    const bool bBroke = Attachment.Evolution.ApplyWear(Wear, bForceWear);
+
+    UE_LOG(LogTemp, Verbose,
+           TEXT("[CrystalManager] %s applies %d gear-evolution wear to '%s' (%d -> %d / %d)%s [ActionTier=%d L%d bIsSpell=%d]"),
+           *Actor->GetName(), Wear, *EvoName,
+           BeforeDur, Attachment.Evolution.CurrentDurability, MaxDur,
+           bBroke ? TEXT(" BROKE") : TEXT(""),
+           static_cast<int32>(ActionTier), InfusionLevel, bIsSpell ? 1 : 0);
+
+    if (bBroke)
+    {
+        UE_LOG(LogTemp, Log,
+               TEXT("[CrystalManager] Gear evolution '%s' broke on %s (between-combat sweep will clear slot)"),
                *EvoName, *Actor->GetName());
     }
 }

@@ -438,6 +438,14 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         Result.PrimaryEvolution.Item = SavedLoadout.PrimaryEvolution;
         Result.PrimaryEvolution.CurrentDurability =
             SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->MaxDurability : 0;
+        // Asset-tier fallback: always initialize .Tier from the asset. The instance-resolved
+        // branch below overwrites it with the owned entry's leveled Tier when a valid ref resolves.
+        Result.PrimaryEvolution.Tier =
+            SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->Tier : EItemTier::F_Tier;
+
+        // (iii-b) Retain the owned-entry identity instead of dropping it after the resolve below —
+        // runtime removal/break paths read this to dismantle the right owned FEvolutionInventoryEntry.
+        Result.PrimaryEvolutionInstance = SavedLoadout.PrimaryEvolutionInstance;
 
         // Shape-B: a valid + found evolution instance ref carries the OWNED
         // entry's rolled state (Generated stats/resistance + pools) onto the
@@ -465,6 +473,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             }
             if (Found)
             {
+                Result.PrimaryEvolution.Tier = Found->Tier; // instance (leveled) Tier — overrides the asset fallback
                 Result.PrimaryEvolution.GeneratedStatBonus = Found->GeneratedStatBonus;
                 Result.PrimaryEvolution.GeneratedResistance = Found->GeneratedResistance;
                 Result.PrimaryEvolution.StatPool = Found->StatPool;
@@ -485,7 +494,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             }
         }
 
-        Result.EvolutionSpells = SavedLoadout.EvolutionSpells;
+        Result.EvolutionSpells = FSpellRef::ExtractSpells(SavedLoadout.EvolutionSpells); // bare runtime — InstanceID rides the saved side (ii-a)
         break;
 
     case EPrimarySlotType::None:
@@ -526,7 +535,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
                 // ring's DefaultSpells, set in CreateFromRing above).
                 if (Slot.AssignedSpells.Num() > 0)
                 {
-                    RingEntry.RingEntry.AssignedSpells = Slot.AssignedSpells;
+                    RingEntry.RingEntry.AssignedSpells = FSpellRef::ExtractSpells(Slot.AssignedSpells); // bare runtime (ii-a)
                 }
                 Result.RingLoadout.Add(RingEntry);
             }
@@ -537,8 +546,15 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
     if (SavedLoadout.RequiredClass == ECharacterClass::Caster)
     {
-        Result.InnateSpells = SavedLoadout.InnateSpells;
-        Result.BDSpellPools = SavedLoadout.BDSpellPools;
+        Result.InnateSpells = FSpellRef::ExtractSpells(SavedLoadout.InnateSpells); // bare runtime — InstanceID rides the saved side (ii-a)
+        // BD pools are now split (ii-a2): convert each saved FSavedBDElementSpellPool to the bare
+        // runtime FBDElementSpellPool (extracts .Spell; the runtime side + combat readers stay bare).
+        Result.BDSpellPools.Reset();
+        Result.BDSpellPools.Reserve(SavedLoadout.BDSpellPools.Num());
+        for (const FSavedBDElementSpellPool &SavedPool : SavedLoadout.BDSpellPools)
+        {
+            Result.BDSpellPools.Add(SavedPool.ToRuntimePool());
+        }
     }
 
     // ==================== ITEMS ====================

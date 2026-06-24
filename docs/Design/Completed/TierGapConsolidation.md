@@ -4,7 +4,7 @@
 
 > **Status: COMPLETED — built + PIE-verified, merged to main 2026-06-22.**
 > Consolidates the tier-gap axis across all action types and all output dimensions. Superseded the
-> "abilities matched by design → ×1.0" decision in [`docs/Mechanics/TierGap.md`](../../Mechanics/TierGap.md)
+> "abilities matched by design → ×1.0" decision in [`docs/Mechanics/Scaling/TierGap.md`](../../Mechanics/Scaling/TierGap.md)
 > — that doc has been rewritten to the shipped four-dimension system, and this design doc now lives in
 > `docs/Design/Completed/`.
 

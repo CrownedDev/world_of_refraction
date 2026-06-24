@@ -87,7 +87,7 @@ void UTierPowerDebug::PrintGearContribution(ULoadoutComponent *Loadout)
         if (W->WeaponEntry.Weapon)
         {
             PrintItem(TEXT("Weapon"), W->WeaponEntry.Weapon->GetName(),
-                      W->WeaponEntry.Weapon->Tier, W->WeaponEntry.StatBonus);
+                      W->WeaponEntry.Tier, W->WeaponEntry.StatBonus); // INSTANCE tier, not Weapon->Tier (asset)
         }
     }
 
@@ -97,7 +97,7 @@ void UTierPowerDebug::PrintGearContribution(ULoadoutComponent *Loadout)
         if (R->RingEntry.Ring)
         {
             PrintItem(TEXT("Ring"), R->RingEntry.Ring->GetName(),
-                      R->RingEntry.Ring->Tier, R->RingEntry.StatBonus);
+                      R->RingEntry.Tier, R->RingEntry.StatBonus); // INSTANCE tier, not Ring->Tier (asset)
         }
     }
 
@@ -109,7 +109,7 @@ void UTierPowerDebug::PrintGearContribution(ULoadoutComponent *Loadout)
         FEquipmentStatBonus EvoBonus = Active.PrimaryEvolution.Item->BaseStatBonus;
         EvoBonus.Accumulate(Active.PrimaryEvolution.GeneratedStatBonus);
         PrintItem(TEXT("Evolution"), Active.PrimaryEvolution.Item->GetName(),
-                  Active.PrimaryEvolution.Item->Tier, EvoBonus);
+                  Active.PrimaryEvolution.Tier, EvoBonus); // INSTANCE tier, not Item->Tier (asset)
     }
 
     // Authoritative aggregate the game actually reads (tier-weighted, rounded once).

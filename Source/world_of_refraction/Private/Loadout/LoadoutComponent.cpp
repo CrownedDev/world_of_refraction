@@ -570,7 +570,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 
         // Validate evolution spells count — cap keys on the evolution item's own tier.
         const int32 EvoCap = Loadout.PrimaryEvolution.Item
-            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Tier)
             : LoadoutConstants::MAX_EVOLUTION_SPELLS;
         if (Loadout.EvolutionSpells.Num() > EvoCap)
         {
@@ -957,7 +957,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         }
 
         const int32 EvoCap = Loadout.PrimaryEvolution.Item
-            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Tier)
             : LoadoutConstants::MAX_EVOLUTION_SPELLS;
         if (Loadout.EvolutionSpells.Num() > EvoCap)
         {
@@ -1240,7 +1240,7 @@ void ULoadoutComponent::ClearInvalidSlots()
         {
             // Keep the first EvoCap (evolution-tier slot count), drop the rest.
             const int32 EvoCap = Loadout.PrimaryEvolution.Item
-                ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+                ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Tier)
                 : LoadoutConstants::MAX_EVOLUTION_SPELLS;
             if (Loadout.EvolutionSpells.Num() > EvoCap)
             {
@@ -2921,9 +2921,30 @@ bool ULoadoutComponent::ClearBrokenPrimaryEvolution()
     if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.IsBroken())
     {
         Loadout.PrimaryEvolution = FEvolutionAttachment();
+        Loadout.PrimaryEvolutionInstance = FGuid(); // clear the instance ref too — no stale GUID (matches ClearPrimaryEvolution)
         return true;
     }
     return false;
+}
+
+bool ULoadoutComponent::ClearPrimaryEvolution()
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return false;
+    }
+
+    FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    if (Loadout.PrimarySlotType != EPrimarySlotType::Evolution)
+    {
+        return false;
+    }
+
+    // Unconditional empty (player-initiated removal) — slot type unchanged, like the broken sweep.
+    Loadout.PrimaryEvolution = FEvolutionAttachment();
+    Loadout.PrimaryEvolutionInstance = FGuid(); // clear the instance ref too — no stale GUID for an empty slot
+    return true;
 }
 
 void ULoadoutComponent::SetActiveRingIndex(int32 NewIndex)
@@ -3238,8 +3259,8 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         Combined.BonusSpiritModifierPercent += Src.BonusSpiritModifierPercent;
     };
 
-    auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Weapon->Tier : EItemTier::F_Tier; };
-    auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Ring->Tier   : EItemTier::F_Tier; };
+    auto WeaponTier = [](const FWeaponInventoryEntry &E) { return E.Weapon ? E.Tier : EItemTier::F_Tier; }; // instance Tier (was E.Weapon->Tier)
+    auto RingTier   = [](const FRingInventoryEntry &E)   { return E.Ring   ? E.Tier : EItemTier::F_Tier; };  // instance Tier (was E.Ring->Tier)
 
     const FCombatLoadout Loadout = GetActiveLoadout();
 
@@ -3332,7 +3353,7 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         EvoBonus.BonusMindModifierPercent = 0.0f;
         EvoBonus.BonusBodyModifierPercent = 0.0f;
         EvoBonus.BonusSpiritModifierPercent = 0.0f;
-        AddScaled(EvoBonus, Loadout.PrimaryEvolution.Item->Tier);
+        AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float
@@ -3737,4 +3758,11 @@ FEvolutionAttachment ULoadoutComponent::GetActivePrimaryEvolutionAttachment(AAct
     }
     const FRuntimeAttachedItem &Attachment = Loadout.PrimaryWeapon.WeaponEntry.AttachedItem;
     return Attachment.IsEvolution() ? Attachment.Evolution : FEvolutionAttachment();
+}
+
+FGuid ULoadoutComponent::GetActivePrimaryEvolutionInstance() const
+{
+    // The owned-entry identity retained on the runtime loadout (iii-b). Invalid when the primary
+    // slot is not an instance-resolved evolution (inflation only sets it in the Evolution case).
+    return GetActiveLoadout().PrimaryEvolutionInstance;
 }

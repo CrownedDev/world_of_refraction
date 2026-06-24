@@ -12,6 +12,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Inventory/ItemTier.h"
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Equipment/FResistanceBonus.h"
 #include "FEvolutionAttachment.generated.h"
@@ -26,6 +27,22 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     /** Evolution item asset. Retargets to UEvolutionItemData* in commit 3. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     UEvolutionItemData *Item = nullptr;
+
+    /** Per-instance TIER — copied from the owning FEvolutionInventoryEntry at slot time (primary
+     *  slot, in FCombatLoadout inflation), or seeded from the asset for the weapon/ring-attached
+     *  form (no owned-instance source until the gear-attach op exists). Written-but-unread until
+     *  the i-b read repoint — the deferred budget/combat/display reads still use Item->Tier. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    EItemTier Tier = EItemTier::F_Tier;
+
+    /** Link to the owned FEvolutionInventoryEntry this attachment references (the gear-side mirror of
+     *  FCombatLoadout::PrimaryEvolutionInstance, iii-b). INVALID = authored-locked (baked into the
+     *  weapon/ring asset, no owned entry); VALID = player-attached (references an owned entry, set by
+     *  the gear-attach op). Keystone for: the 5/run cap (skip valid — counted in Entries), gear-side
+     *  leveled tier, gear-remove return, and combat-break resolution. Written-but-unread until the
+     *  gear-side clusters consume it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    FGuid InstanceID;
 
     /** Per-instance durability. Only meaningful when the item's bCanBreak is true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
