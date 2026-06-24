@@ -88,6 +88,17 @@ namespace EconomyYield
         // Max RELATIVE weight tilt at normalized Luck 1.0 (maxed Luck stat). Modest by design:
         // at 1.0 it roughly doubles S's share (4% -> ~7%), never trivializing it.
         constexpr float QUALITY_LUCK_MAX_TILT = 0.5f;
+
+        // §4.5 crystal MERGE values (F-unit ladder). Same-Type crystals sum lowest-first to a
+        // target tier's value to produce 1 of it. Doubling F..A, then S = 3xA (the 3:1 final step
+        // echoed in value space).
+        constexpr int32 CRYSTAL_VALUE_F = 1;
+        constexpr int32 CRYSTAL_VALUE_E = 2;
+        constexpr int32 CRYSTAL_VALUE_D = 4;
+        constexpr int32 CRYSTAL_VALUE_C = 8;
+        constexpr int32 CRYSTAL_VALUE_B = 16;
+        constexpr int32 CRYSTAL_VALUE_A = 32;
+        constexpr int32 CRYSTAL_VALUE_S = 96;
     }
 
     /** Typed acquisition essence yielded by dismantling a crystal/stone of this tier (§4.2). */
@@ -195,6 +206,31 @@ namespace EconomyYield
         case EItemTier::B_Tier: return Constants::PRISMS_BASE_B;
         case EItemTier::A_Tier: return Constants::PRISMS_BASE_A;
         case EItemTier::S_Tier: return Constants::PRISMS_BASE_S;
+        default:                return 0;
+        }
+    }
+
+    /** Prisms cost to MERGE up to ProducedTier (§4.5 crystal/stone merge) — HALF the §5 buy price
+     *  of the produced tier (E25/D50/C100/B200/A400/S800). Derived from GetPrismsBaseForTier so it
+     *  tracks the one Prisms curve. F is never produced by a merge (it is the floor). */
+    inline int32 GetMergeCostForTier(EItemTier ProducedTier)
+    {
+        return GetPrismsBaseForTier(ProducedTier) / 2;
+    }
+
+    /** Crystal MERGE value in F-units (§4.5). Same-Type crystals sum (lowest-first) to a target
+     *  tier's value to produce 1 of it. Doubling F..A, then S = 3xA (the 3:1 final step). */
+    inline int32 GetCrystalValue(EItemTier Tier)
+    {
+        switch (Tier)
+        {
+        case EItemTier::F_Tier: return Constants::CRYSTAL_VALUE_F;
+        case EItemTier::E_Tier: return Constants::CRYSTAL_VALUE_E;
+        case EItemTier::D_Tier: return Constants::CRYSTAL_VALUE_D;
+        case EItemTier::C_Tier: return Constants::CRYSTAL_VALUE_C;
+        case EItemTier::B_Tier: return Constants::CRYSTAL_VALUE_B;
+        case EItemTier::A_Tier: return Constants::CRYSTAL_VALUE_A;
+        case EItemTier::S_Tier: return Constants::CRYSTAL_VALUE_S;
         default:                return 0;
         }
     }

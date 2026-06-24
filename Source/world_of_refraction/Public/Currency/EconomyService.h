@@ -42,6 +42,24 @@ public:
     bool DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count = 1, bool bRefined = false);
 
     /**
+     * Merge crystals/stones UP to a TARGET tier (§4.5, value-based): produce 1 of {Type, TargetTier}
+     * by consuming same-Type crystals from BELOW it, lowest-first, until their summed F-unit value
+     * (GetCrystalValue) meets-or-exceeds the target's value. Keyed by Type + TargetTier — the player
+     * asks for "a [TargetTier] [Type]" and the merge picks which lower crystals to spend. Same Type
+     * (element+variant preserved), same pool. Costs Prisms (GetMergeCostForTier(TargetTier) — half
+     * the §5 buy price), no essence/Gold. Item-crystals + stones only; evolution crystals are
+     * structurally unrepresentable as FCrystalId so they can never reach this pool (only invalid
+     * Type is None).
+     *
+     * Server-authoritative; spend+remove-first then add, with full refund if the add fails. Returns
+     * false if: Owner null / no authority; CrystalInventory or Currency missing; Type is None;
+     * TargetTier is F (the floor — not a merge target); total available value below the target is
+     * insufficient; Prisms unaffordable; or the target tier is at cap.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier, bool bRefined = false);
+
+    /**
      * Dismantle the owned WEAPON instance identified by PersistentID, granting GEAR essence
      * (weapons/rings → Gear, per category routing). Server-authoritative; remove-then-grant.
      * Yield is from the item's ASSET tier (leveled-tier deferred until tier-on-instance exists).

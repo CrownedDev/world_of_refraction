@@ -76,6 +76,161 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
     return true;
 }
 
+bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier, bool bRefined)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    // Scope guard: item-crystals + stones only. Evolution crystals are structurally unrepresentable
+    // as FCrystalId (no ECrystalType::Evolution — they live in the separate UEvolutionItemData
+    // system), so they can NEVER reach this pool. The only invalid Type here is None.
+    if (Type == ECrystalType::None)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s passed Type None — rejected"),
+               *Owner->GetName());
+        return false;
+    }
+    // F is the floor — nothing below it to merge from, so it can't be a merge TARGET.
+    if (TargetTier == EItemTier::F_Tier)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s F_Tier cannot be a merge target"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UCrystalInventoryComponent *CrystalInv = Owner->FindComponentByClass<UCrystalInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!CrystalInv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s missing %s%s"),
+               *Owner->GetName(),
+               CrystalInv ? TEXT("") : TEXT("CrystalInventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    const int32 TargetValue = EconomyYield::GetCrystalValue(TargetTier);
+    const int32 PrismsCost = EconomyYield::GetMergeCostForTier(TargetTier);
+    const int32 TargetTierIndex = TierHelpers::GetTierValue(TargetTier); // tiers [0, TargetTierIndex) are mergeable
+    const FCrystalId OutputId(Type, TargetTier);
+
+    // Per-tier owned counts below the target (synthesize each {Type, tier} key — the pool is keyed
+    // by exact FCrystalId, so we query per tier rather than enumerate). Indexed by tier value.
+    auto CountAt = [&](int32 TierIndex) -> int32
+    {
+        const FCrystalId Key(Type, TierHelpers::GetTierFromValue(TierIndex));
+        return bRefined ? CrystalInv->GetRefinedCount(Key) : CrystalInv->GetItemCount(Key);
+    };
+
+    // GATHER: total available value across tiers strictly BELOW the target (this Type, this pool).
+    int32 AvailableValue = 0;
+    for (int32 t = 0; t < TargetTierIndex; ++t)
+    {
+        AvailableValue += CountAt(t) * EconomyYield::GetCrystalValue(TierHelpers::GetTierFromValue(t));
+    }
+    if (AvailableValue < TargetValue)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[EconomyService] MergeCrystals: %s has %d/%d %s value below %s (%s pool) — insufficient"),
+               *Owner->GetName(), AvailableValue, TargetValue,
+               *StaticEnum<ECrystalType>()->GetAuthoredNameStringByValue(static_cast<int64>(Type)),
+               *TierHelpers::GetTierName(TargetTier), bRefined ? TEXT("refined") : TEXT("item"));
+        return false;
+    }
+    if (!Currency->CanAfford(ECurrencyType::Prisms, PrismsCost))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s cannot afford %d Prisms for %s %s"),
+               *Owner->GetName(), PrismsCost,
+               *TierHelpers::GetTierName(TargetTier), *ItemIdentity::GetDisplayName(OutputId));
+        return false;
+    }
+    // Output goes to a DIFFERENT per-tier bucket, so removing inputs won't free its cap — pre-check.
+    const bool bCanAddOutput = bRefined ? CrystalInv->CanAddRefinedCount(OutputId, 1)
+                                        : CrystalInv->CanAddItemCount(OutputId, 1);
+    if (!bCanAddOutput)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: %s target %s at cap — rejected"),
+               *Owner->GetName(), *ItemIdentity::GetDisplayName(OutputId));
+        return false;
+    }
+
+    // SELECT lowest-first: take whole crystals from the bottom up until running value >= target
+    // (minimal-meets-or-exceeds; overshoot from the smallest crystals is accepted per §4.5).
+    int32 ConsumeCounts[7] = {0, 0, 0, 0, 0, 0, 0}; // by tier value (F..S); only [0, TargetTierIndex) used
+    int32 Accumulated = 0;
+    for (int32 t = 0; t < TargetTierIndex && Accumulated < TargetValue; ++t)
+    {
+        const int32 Count = CountAt(t);
+        const int32 Value = EconomyYield::GetCrystalValue(TierHelpers::GetTierFromValue(t));
+        for (int32 i = 0; i < Count && Accumulated < TargetValue; ++i)
+        {
+            ++ConsumeCounts[t];
+            Accumulated += Value;
+        }
+    }
+    // AvailableValue >= TargetValue (checked) guarantees Accumulated reached the target here.
+
+    // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
+    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    for (int32 t = 0; t < TargetTierIndex; ++t)
+    {
+        if (ConsumeCounts[t] > 0)
+        {
+            const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
+            bRefined ? CrystalInv->RemoveRefinedCount(Key, ConsumeCounts[t])
+                     : CrystalInv->RemoveItemCount(Key, ConsumeCounts[t]);
+        }
+    }
+
+    // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
+    const bool bAdded = bRefined ? CrystalInv->AddRefinedCount(OutputId, 1)
+                                 : CrystalInv->AddItemCount(OutputId, 1);
+    if (!bAdded)
+    {
+        for (int32 t = 0; t < TargetTierIndex; ++t)
+        {
+            if (ConsumeCounts[t] > 0)
+            {
+                const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
+                bRefined ? CrystalInv->AddRefinedCount(Key, ConsumeCounts[t])
+                         : CrystalInv->AddItemCount(Key, ConsumeCounts[t]);
+            }
+        }
+        Currency->Add(ECurrencyType::Prisms, PrismsCost);
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: add of %s failed — refunded inputs + %d Prisms"),
+               *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
+        return false;
+    }
+
+    // Build the consumed-set string, e.g. "2xD + 1xE".
+    FString ConsumedStr;
+    for (int32 t = 0; t < TargetTierIndex; ++t)
+    {
+        if (ConsumeCounts[t] > 0)
+        {
+            if (!ConsumedStr.IsEmpty())
+            {
+                ConsumedStr += TEXT(" + ");
+            }
+            ConsumedStr += FString::Printf(TEXT("%dx%s"), ConsumeCounts[t],
+                                           *TierHelpers::GetTierName(TierHelpers::GetTierFromValue(t)));
+        }
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Merged %s -> 1x %s (%s pool) for %d Prisms"),
+           *ConsumedStr, *ItemIdentity::GetDisplayName(OutputId),
+           bRefined ? TEXT("refined") : TEXT("item"), PrismsCost);
+    return true;
+}
+
 bool UEconomyService::DismantleWeapon(AActor *Owner, FGuid PersistentID)
 {
     if (!Owner)
