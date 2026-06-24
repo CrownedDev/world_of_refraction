@@ -21,6 +21,19 @@
 #include "PoolQueryTypes.generated.h"
 
 /**
+ * EItemBucket — the locked 2-bucket BROWSE classification for the Items category. A
+ * presentation grouping over the one crystal pile (storage stays the two TMaps — this is
+ * NOT a storage split). Classified from ECrystalType via CrystalTypeHelpers: gems → Crystal;
+ * everything non-gem (stat stones + AbilityStone) → AugmentStone (Ability folds in here).
+ */
+UENUM(BlueprintType)
+enum class EItemBucket : uint8
+{
+    Crystal      UMETA(DisplayName = "Crystal"),
+    AugmentStone UMETA(DisplayName = "Augment Stone")
+};
+
+/**
  * FPoolFilter — the fixed designed filter axes. Each axis is gated by a bUseX flag:
  * bUseX = false → that axis is a WILDCARD (not applied). This is the BlueprintType-friendly
  * stand-in for TOptional (which isn't a BP type). An axis a given item TYPE doesn't have
@@ -62,6 +75,13 @@ struct WORLD_OF_REFRACTION_API FPoolFilter
     bool bUseRefined = false;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter|Items", meta = (EditCondition = "bUseRefined"))
     bool bRefined = false;
+
+    /** ITEMS-only browse bucket (Crystal vs Augment Stone). Unset = both buckets. A
+     *  classification over the crystal pile (PoolAccessors::GetBucket), not a storage axis. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter|Items")
+    bool bUseBucket = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Filter|Items", meta = (EditCondition = "bUseBucket"))
+    EItemBucket Bucket = EItemBucket::Crystal;
 };
 
 /** One crystal stack in a query result: the (Type,Tier) key, its count, and which pool it

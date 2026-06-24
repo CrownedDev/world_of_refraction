@@ -8,6 +8,7 @@
 #include "Equipment/Rings/RingData.h"            // URingData (FRingInventoryEntry::GetElement uses it)
 #include "Equipment/Crystals/EvolutionItemData.h" // UEvolutionItemData::GetAssociatedElement
 #include "Equipment/Crystals/ItemIdentity.h"     // ItemIdentity::GetElement(FCrystalId)
+#include "Equipment/Crystals/CrystalTypeHelpers.h" // IsGemType for the bucket split
 #include "Skills/Definitions/SpellData.h"        // USpellData::Element / School
 #include "Skills/Definitions/AbilityData.h"      // UAbilityData::RequiredWeaponType
 
@@ -74,6 +75,13 @@ namespace PoolAccessors
     ESpellSchool GetSchool(const FSpellInstance &Instance)
     {
         return Instance.Spell ? Instance.Spell->School : ESpellSchool::Destruction;
+    }
+
+    EItemBucket GetBucket(const FCrystalId &Id)
+    {
+        // Locked 2-bucket split: gems are Crystal; everything non-gem (stat stones +
+        // AbilityStone) folds into AugmentStone.
+        return CrystalTypeHelpers::IsGemType(Id.Type) ? EItemBucket::Crystal : EItemBucket::AugmentStone;
     }
 
     // ==================== MATCH PREDICATES ====================

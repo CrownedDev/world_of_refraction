@@ -189,6 +189,10 @@ TArray<FPoolItemStack> UPoolSubsystem::GetItems(const FPoolFilter &Filter) const
         }
         for (const TPair<FCrystalId, int32> &Pair : Pool)
         {
+            if (Filter.bUseBucket && PoolAccessors::GetBucket(Pair.Key) != Filter.Bucket)
+            {
+                continue; // browse-bucket narrowing (Crystal vs Augment Stone)
+            }
             if (PoolAccessors::MatchesFilter(Filter, Pair.Key))
             {
                 FPoolItemStack Stack;
@@ -240,19 +244,28 @@ FString UPoolSubsystem::GetPoolString() const
                            ItemCrystals.Num(), SumStacks(ItemCrystals),
                            RefinedCrystals.Num(), SumStacks(RefinedCrystals));
 
-    // Crystal stacks, both pools.
-    for (const TPair<FCrystalId, int32> &Pair : ItemCrystals)
+    // Crystal stacks grouped by BROWSE bucket (Crystal vs Augment Stone), each listing both pools.
+    auto DumpBucket = [&](EItemBucket Bucket, const TCHAR *Label)
     {
-        Out += FString::Printf(TEXT("\n      [item]    %s %s x%d"),
-                               *EnumName(CrystalEnum, static_cast<int64>(Pair.Key.Type)),
-                               *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
-    }
-    for (const TPair<FCrystalId, int32> &Pair : RefinedCrystals)
-    {
-        Out += FString::Printf(TEXT("\n      [refined] %s %s x%d"),
-                               *EnumName(CrystalEnum, static_cast<int64>(Pair.Key.Type)),
-                               *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
-    }
+        Out += FString::Printf(TEXT("\n    %s:"), Label);
+        auto EmitPool = [&](const TMap<FCrystalId, int32> &Pool, const TCHAR *Tag)
+        {
+            for (const TPair<FCrystalId, int32> &Pair : Pool)
+            {
+                if (PoolAccessors::GetBucket(Pair.Key) != Bucket)
+                {
+                    continue;
+                }
+                Out += FString::Printf(TEXT("\n      [%s] %s %s x%d"), Tag,
+                                       *EnumName(CrystalEnum, static_cast<int64>(Pair.Key.Type)),
+                                       *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
+            }
+        };
+        EmitPool(ItemCrystals, TEXT("item"));
+        EmitPool(RefinedCrystals, TEXT("refined"));
+    };
+    DumpBucket(EItemBucket::Crystal, TEXT("Crystals"));
+    DumpBucket(EItemBucket::AugmentStone, TEXT("Augment Stones"));
 
     // Wallet.
     Out += FString::Printf(TEXT("\n  Wallet   : Gold=%d Prisms=%d Diamond=%d Gear=%d Skill=%d"),

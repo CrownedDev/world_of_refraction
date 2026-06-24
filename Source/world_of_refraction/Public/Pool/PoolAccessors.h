@@ -52,6 +52,9 @@ namespace PoolAccessors
     // ── SCHOOL (spell asset only) ──
     ESpellSchool GetSchool(const FSpellInstance &Instance);
 
+    // ── ITEMS BUCKET (browse classification: gem → Crystal, else → AugmentStone) ──
+    EItemBucket GetBucket(const FCrystalId &Id);
+
     // ── MATCH PREDICATES (the consumable API — encode each type's axis applicability) ──
     bool MatchesFilter(const FPoolFilter &F, const FWeaponInventoryEntry &Entry);
     bool MatchesFilter(const FPoolFilter &F, const FRingInventoryEntry &Entry);
