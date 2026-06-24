@@ -10,6 +10,7 @@
 #include "Loadout/Entries/FRingInventoryEntry.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
+#include "Equipment/Crystals/EvolutionItemData.h" // GetAssociatedElement for the dismantle yield
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -330,6 +331,61 @@ bool UEconomyService::DismantleRing(AActor *Owner, FGuid PersistentID)
     Currency->AddGearEssence(Yield); // weapons/rings → Gear essence
     UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled ring (GUID %s, tier %d) -> %d Gear essence"),
            *PersistentID.ToString(), static_cast<int32>(Tier), Yield);
+    return true;
+}
+
+bool UEconomyService::DismantleEvolution(AActor *Owner, FGuid InstanceID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!EvoInv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: %s missing %s%s"),
+               *Owner->GetName(),
+               EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // Capture type + tier BEFORE removal — the entry pointer dangles once Entries mutates. Reads the
+    // INSTANCE Tier (leveled), so a leveled evolution dismantles for its CURRENT tier, not its base.
+    const FEvolutionInventoryEntry *Entry = EvoInv->Entries.FindByPredicate(
+        [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: %s has no evolution instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *InstanceID.ToString());
+        return false;
+    }
+    const EItemTier Tier = Entry->Tier; // INSTANCE tier (leveled), not Entry->Item->Tier (asset/base)
+    // HYBRID yield: the evolution's ELEMENT essence TYPE at the GEAR leveling AMOUNT (§3 gear curve,
+    // NOT the §4.2 crystal yield). An element-agnostic evolution (Quartz/None) maps to Generic.
+    const EEssenceType EssenceType = EconomyYield::ElementToEssenceType(Entry->Item->GetAssociatedElement());
+    const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
+
+    // REMOVE FIRST — a failed removal must never grant phantom essence.
+    if (!EvoInv->RemoveInstance(InstanceID))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleEvolution: removal failed for GUID %s — no grant"),
+               *InstanceID.ToString());
+        return false;
+    }
+
+    Currency->AddEssenceType(EssenceType, Yield); // hybrid: element type, gear amount
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Dismantled evolution (GUID %s, tier %d) -> %d %s essence"),
+           *InstanceID.ToString(), static_cast<int32>(Tier), Yield,
+           *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)));
     return true;
 }
 

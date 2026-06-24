@@ -73,6 +73,18 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
     return true;
 }
 
+bool UEvolutionInventoryComponent::RemoveInstance(FGuid InstanceID)
+{
+    const int32 Index = Entries.IndexOfByPredicate(
+        [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+    if (Index == INDEX_NONE)
+    {
+        return false;
+    }
+    Entries.RemoveAt(Index);
+    return true;
+}
+
 bool UEvolutionInventoryComponent::HasInstance(UEvolutionItemData *Item) const
 {
     if (!Item)

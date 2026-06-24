@@ -43,6 +43,12 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
     bool HasInstance(UEvolutionItemData *Item) const;
 
+    /** Remove the owned instance with this InstanceID. Returns true iff an entry was found and
+     *  removed. The first evolution-inventory remove path — used by DismantleEvolution
+     *  (remove-then-grant) and the primary-remove action. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
+    bool RemoveInstance(FGuid InstanceID);
+
     /** Current entry count. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Evolution")
     int32 Num() const { return Entries.Num(); }

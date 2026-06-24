@@ -75,6 +75,18 @@ public:
     bool DismantleRing(AActor *Owner, FGuid PersistentID);
 
     /**
+     * Dismantle the owned EVOLUTION instance by InstanceID (NOT PersistentID — evolution identity).
+     * HYBRID yield: the evolution's ELEMENT essence TYPE (GetAssociatedElement → ElementToEssenceType)
+     * at the GEAR leveling AMOUNT (GetLevelingEssenceYieldForTier on the INSTANCE tier — the §3 gear
+     * curve F5..S145, NOT the §4.2 crystal yield). Server-authoritative; remove-then-grant via
+     * UEvolutionInventoryComponent::RemoveInstance. Also the destroy path reused by primary-removal
+     * and (future) break-on-zero-durability. False if Owner null / no authority; Evolution-inventory
+     * or Currency component missing; or no owned evolution carries that InstanceID.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DismantleEvolution(AActor *Owner, FGuid InstanceID);
+
+    /**
      * Dismantle a known SPELL, granting SKILL essence (abilities/spells → Skill, per category
      * routing — NOT Gear). Server-authoritative; remove-then-grant (UnlearnSpell's bool return
      * is the success signal — a not-known spell grants nothing). Yield from the spell's ASSET
