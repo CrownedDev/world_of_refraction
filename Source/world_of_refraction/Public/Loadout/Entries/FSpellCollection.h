@@ -141,6 +141,24 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
         return Count;
     }
 
+    /** Resolve the per-instance tier of an owned spell — asset-keyed (owners hold at most one
+     *  instance per asset; duplicates are rejected by LearnSpell, so asset → instance is 1:1).
+     *  Returns true + the instance Tier when owned; false when not (caller asset-falls-back). The
+     *  read-site resolver for leveled-spell tier (ii-b/c, option d). Pointer-match only — no deref,
+     *  so it stays header-inline. INERT until the (iii) read repoints call it. */
+    bool TryGetSpellTier(const USpellData *Spell, EItemTier &OutTier) const
+    {
+        for (const FSpellInstance &Instance : LearnedSpells)
+        {
+            if (Instance.Spell == Spell)
+            {
+                OutTier = Instance.Tier;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Get spells filtered by element */
     TArray<USpellData *> GetSpellsByElement(ESpellElement Element) const;
 

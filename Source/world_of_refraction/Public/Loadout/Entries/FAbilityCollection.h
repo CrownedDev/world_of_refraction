@@ -123,6 +123,24 @@ struct WORLD_OF_REFRACTION_API FAbilityCollection
         return Ability && LearnedAbilities.ContainsByPredicate([Ability](const FAbilityInstance &I) { return I.Ability == Ability; });
     }
 
+    /** Resolve the per-instance tier of an owned ability — asset-keyed (owners hold at most one
+     *  instance per asset; duplicates are rejected by LearnAbility, so asset → instance is 1:1).
+     *  Returns true + the instance Tier when owned; false when not (caller asset-falls-back). The
+     *  ability twin of FSpellCollection::TryGetSpellTier (ii-b/c, option d). Pointer-match only,
+     *  header-inline. INERT until the (iii) read repoints call it. */
+    bool TryGetAbilityTier(const UAbilityData *Ability, EItemTier &OutTier) const
+    {
+        for (const FAbilityInstance &Instance : LearnedAbilities)
+        {
+            if (Instance.Ability == Ability)
+            {
+                OutTier = Instance.Tier;
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Get abilities filtered by required weapon type */
     TArray<UAbilityData*> GetAbilitiesForWeaponType(EWeaponType WeaponType) const;
 
