@@ -97,25 +97,24 @@ int32 UEvolutionInventoryComponent::CountRunEvolutions() const
     int32 Count = Entries.Num();
 
     // PLUS authored/LOCKED evolutions baked into run gear (the weapon/ring asset's AttachedItem) —
-    // these are NOT owned entries (no instance link), so they are additional. Today EVERY gear-
-    // attached evolution is authored-locked (the player-attach-to-gear op doesn't exist yet), so
-    // counting all of them is correct with no double-count. ⚠️ WHEN that op lands, a player-attached
-    // gear evolution will reference an owned Entry (already counted above) — the loop must then skip
-    // those (by the gear instance link) to avoid double-counting.
+    // these are NOT owned entries, so they are additional. A gear evolution counts here ONLY when its
+    // AttachedItem.Evolution.InstanceID is INVALID (authored-locked — no owned-entry link). A VALID
+    // InstanceID means the evo is PLAYER-attached (references an owned Entry, already counted above) —
+    // skip it, or it would double-count (gear-i / gear-cap; the reference model, §5.3b).
     if (const AActor *Owner = GetOwner())
     {
         if (const UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>())
         {
             for (const FWeaponInventoryEntry &W : Inv->Weapons)
             {
-                if (W.AttachedItem.IsEvolution())
+                if (W.AttachedItem.IsEvolution() && !W.AttachedItem.Evolution.InstanceID.IsValid())
                 {
                     ++Count;
                 }
             }
             for (const FRingInventoryEntry &R : Inv->Rings)
             {
-                if (R.AttachedItem.IsEvolution())
+                if (R.AttachedItem.IsEvolution() && !R.AttachedItem.Evolution.InstanceID.IsValid())
                 {
                     ++Count;
                 }
