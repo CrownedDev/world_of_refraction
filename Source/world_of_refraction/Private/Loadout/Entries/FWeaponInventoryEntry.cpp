@@ -41,6 +41,13 @@ FWeaponInventoryEntry FWeaponInventoryEntry::CreateFromWeapon(UWeaponData *InWea
         // factory — not just AddWeapon — so loadout-inflated entries (the primary equip path) also
         // carry the asset tier. Still a behavioural no-op: nothing reads Entry.Tier until cluster 2b.
         Entry.Tier = InWeapon->Tier;
+        // C_Quality placeholder: the real Quality is rolled at the fresh-pickup mint point
+        // (AddWeapon, bRandomGenerateOnPickup → EconomyYield::RollQuality). The factory must NOT
+        // roll — loadout re-hydration reuses it and would re-roll on every equip.
+        // TODO(shop-roll): purchased items currently get this C_Quality placeholder. The real
+        // design: the SHOP stocks pre-rolled items (tier+quality rolled at shelf-population), and
+        // purchase CARRIES that shelf-rolled quality through — no roll at point-of-sale, not a
+        // fixed C. Gated on the loot/shop generator (does not exist yet). Until then, purchase = C.
         Entry.Quality = EItemQuality::C_Quality;
     }
 

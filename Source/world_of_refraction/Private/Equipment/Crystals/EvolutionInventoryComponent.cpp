@@ -3,6 +3,28 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Combat/CombatConstants.h"
 #include "Character/FPillarWeights.h"
+#include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
+#include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
+
+namespace
+{
+    /** Owner's normalized Luck for the pickup quality roll (0 when no character data resolves).
+     *  Mirrors UInventoryComponent's helper of the same name — same GetEquipmentModifiedLuck read. */
+    float ResolveOwnerLuck(const UActorComponent *Comp)
+    {
+        if (Comp)
+        {
+            if (const AActor *Owner = Comp->GetOwner())
+            {
+                if (const UCharacterDataComponent *CDC = Owner->FindComponentByClass<UCharacterDataComponent>())
+                {
+                    return CDC->GetEquipmentModifiedLuck();
+                }
+            }
+        }
+        return 0.0f;
+    }
+}
 
 UEvolutionInventoryComponent::UEvolutionInventoryComponent()
 {
@@ -41,6 +63,10 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
         Entry.GeneratedStatBonus.RerollSubstats(Entry.StatMaxPool, FPillarWeights());
         Entry.GeneratedStatBonus.RerollPillars(Item->Tier);
         Entry.GeneratedResistance.RerollResistance(Entry.ResistanceMaxPool);
+
+        // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
+        // keep the C_Quality placeholder seeded above.
+        Entry.Quality = EconomyYield::RollQuality(ResolveOwnerLuck(this));
     }
 
     Entries.Add(Entry);

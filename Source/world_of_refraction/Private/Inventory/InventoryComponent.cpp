@@ -20,6 +20,8 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Character/FPillarWeights.h"
+#include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
+#include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
 
 namespace
 {
@@ -55,6 +57,23 @@ namespace
         StatBonus.Accumulate(FreshStats);
         ResistanceBonus = Asset->BaseResistance;
         ResistanceBonus.Accumulate(FreshResistance);
+    }
+
+    /** Owner's normalized Luck for the pickup quality roll (0 when no character data resolves).
+     *  Mirrors the GetEquipmentModifiedLuck convention every other Luck consumer reads. */
+    float ResolveOwnerLuck(const UActorComponent *Comp)
+    {
+        if (Comp)
+        {
+            if (const AActor *Owner = Comp->GetOwner())
+            {
+                if (const UCharacterDataComponent *CDC = Owner->FindComponentByClass<UCharacterDataComponent>())
+                {
+                    return CDC->GetEquipmentModifiedLuck();
+                }
+            }
+        }
+        return 0.0f;
     }
 }
 
@@ -137,6 +156,9 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
     if (Weapon->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+        // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
+        // (purchases, authored gear) skip this and keep the CreateFromWeapon C_Quality placeholder.
+        Entry.Quality = EconomyYield::RollQuality(ResolveOwnerLuck(this));
     }
     Weapons.Add(Entry);
     return true;
@@ -261,6 +283,9 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
     if (Ring->bRandomGenerateOnPickup)
     {
         ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
+        // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
+        // keep the CreateFromRing C_Quality placeholder.
+        Entry.Quality = EconomyYield::RollQuality(ResolveOwnerLuck(this));
     }
     Rings.Add(Entry);
     return true;

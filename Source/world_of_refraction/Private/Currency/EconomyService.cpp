@@ -386,6 +386,11 @@ bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
         return false;
     }
 
+    // TODO(shop-roll): purchased items currently get the C_Quality placeholder.
+    // The real design: the SHOP stocks pre-rolled items (tier+quality rolled at
+    // shelf-population), and purchase CARRIES that shelf-rolled quality through —
+    // no roll at point-of-sale, not a fixed C. Gated on the loot/shop generator
+    // (does not exist yet). Until then, purchase = C placeholder.
     Currency->Spend(ECurrencyType::Prisms, PrismsCost);
     if (!Inv->AddWeapon(Weapon))
     {

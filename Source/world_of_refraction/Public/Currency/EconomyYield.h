@@ -9,6 +9,7 @@
 
 #include "CoreMinimal.h"
 #include "Inventory/ItemTier.h"
+#include "Inventory/ItemQuality.h"
 #include "Currency/CurrencyTypes.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/ItemIdentity.h"
@@ -74,6 +75,19 @@ namespace EconomyYield
         constexpr int32 TIER_UP_COST_C_TO_B = 40;
         constexpr int32 TIER_UP_COST_B_TO_A = 50;
         constexpr int32 TIER_UP_COST_A_TO_S = 70;
+
+        // §11 Quality drop curve — base weights (sum 100), rolled per fresh pickup. PIE-tunable.
+        constexpr float QUALITY_WEIGHT_F = 26.0f;
+        constexpr float QUALITY_WEIGHT_E = 22.0f;
+        constexpr float QUALITY_WEIGHT_D = 18.0f;
+        constexpr float QUALITY_WEIGHT_C = 14.0f;
+        constexpr float QUALITY_WEIGHT_B = 10.0f;
+        constexpr float QUALITY_WEIGHT_A = 6.0f;
+        constexpr float QUALITY_WEIGHT_S = 4.0f;
+
+        // Max RELATIVE weight tilt at normalized Luck 1.0 (maxed Luck stat). Modest by design:
+        // at 1.0 it roughly doubles S's share (4% -> ~7%), never trivializing it.
+        constexpr float QUALITY_LUCK_MAX_TILT = 0.5f;
     }
 
     /** Typed acquisition essence yielded by dismantling a crystal/stone of this tier (§4.2). */
@@ -125,6 +139,46 @@ namespace EconomyYield
         case EItemTier::S_Tier:
         default:                return 0; // S is max — no tier-up
         }
+    }
+
+    /** Roll a per-instance drop Quality on the §11 weighted curve, Luck-biased (§11). Called ONLY
+     *  at the fresh-pickup mint point (bRandomGenerateOnPickup); non-rolled items keep C_Quality.
+     *  NormalizedLuck = GetEquipmentModifiedLuck() (0 none · 1 maxed stat · >1 via gear · <0 cursed).
+     *  Luck linearly tilts weight from low grades toward high grades around C (the curve's center);
+     *  unbiased when Luck = 0. PERK SEAM: the drop-grade-shift perk (not built yet) will add a flat
+     *  grade-index shift here. */
+    inline EItemQuality RollQuality(float NormalizedLuck = 0.0f)
+    {
+        constexpr int32 NumGrades = 7;
+        const float BaseWeights[NumGrades] = {
+            Constants::QUALITY_WEIGHT_F, Constants::QUALITY_WEIGHT_E, Constants::QUALITY_WEIGHT_D,
+            Constants::QUALITY_WEIGHT_C, Constants::QUALITY_WEIGHT_B, Constants::QUALITY_WEIGHT_A,
+            Constants::QUALITY_WEIGHT_S};
+
+        constexpr float CenterIndex = 3.0f; // C — the tilt pivot
+        float Weights[NumGrades];
+        float Total = 0.0f;
+        for (int32 i = 0; i < NumGrades; ++i)
+        {
+            const float Tilt = 1.0f + Constants::QUALITY_LUCK_MAX_TILT * NormalizedLuck * ((i - CenterIndex) / CenterIndex);
+            Weights[i] = FMath::Max(0.0f, BaseWeights[i] * Tilt); // floor at 0 — no negative weight
+            Total += Weights[i];
+        }
+        if (Total <= 0.0f)
+        {
+            return EItemQuality::C_Quality; // degenerate guard (shouldn't happen)
+        }
+
+        float Roll = FMath::FRandRange(0.0f, Total);
+        for (int32 i = 0; i < NumGrades; ++i)
+        {
+            Roll -= Weights[i];
+            if (Roll <= 0.0f)
+            {
+                return static_cast<EItemQuality>(i); // EItemQuality is forward-ordered F=0..S=6
+            }
+        }
+        return EItemQuality::S_Quality; // FP-safety fallthrough
     }
 
     // ── Purchase pricing (§4.2 buy row / §5 Prisms) ────────────────────────────────────
