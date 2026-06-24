@@ -77,7 +77,7 @@ FastArray item callbacks → `NotifyEntryChanged` → `NotifyChanged`) broadcast
 - **`UCurrencyComponentDebug`** (`UBlueprintFunctionLibrary`) — `static FString GetWalletString(const UCurrencyComponent*)`:
   a one-line dump. Scalar currencies are **always** shown (incl. zero); the typed Essence list shows only
   **non-zero** entries. e.g.
-  `Gold: 0 | Prisms: 120 | Diamond: 5 | GearEssence: 40 | Essence[Fire:50, Mind:12]`.
+  `Gold: 0 | Prisms: 120 | Diamond: 5 | GearEssence: 40 | SkillEssence: 15 | Essence[Fire:50, Mind:12]`.
   Enumerator names come from `UEnum::GetAuthoredNameStringByValue` (build-config independent).
 - **`UCurrencyComponent::PrintWallet()`** — a `CallInEditor` "Print Wallet" button in the component's
   Details panel; calls `GetWalletString` and surfaces it via `UE_LOG` + `GEngine->AddOnScreenDebugMessage`.

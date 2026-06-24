@@ -1,6 +1,8 @@
 // CurrencyComponent.h
 // Per-character wallet for the resource economy (Resources_Design.md §1, §15,
-// §16). Holds five currencies; World Stat Points are NOT here (they live on the
+// §16). Holds six currencies (ECurrencyType selectors: Gold, Prisms, Diamond,
+// GearEssence, SkillEssence scalars + the typed EssenceTyped FastArray); World
+// Stat Points are NOT here (they live on the
 // character component — separate build).
 //
 // Replication-aware from line one (§16.2): SetIsReplicatedByDefault(true) in the
@@ -15,7 +17,7 @@
 // attached in the owner Blueprint, so it can later be owned by APlayerState
 // (account scope) or the pawn (character scope) without changing this class.
 // Per-currency scope today:
-//   - Gold / Dust / Essence : per-character (run / persistent)
+//   - Gold / GearEssence / SkillEssence / EssenceTyped : per-character (run / persistent)
 //   - Prisms                   : per-character + account-shareable  (TODO: routing)
 //   - Diamond                  : account-wide premium               (TODO: routing)
 // TODO(scope-routing): when the PlayerState wiring lands, route Prisms/Diamond

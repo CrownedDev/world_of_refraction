@@ -65,7 +65,7 @@ public:
     /**
      * Dismantle the owned WEAPON instance identified by PersistentID, granting GEAR essence
      * (weapons/rings → Gear, per category routing). Server-authoritative; remove-then-grant.
-     * Yield is from the item's ASSET tier (leveled-tier deferred until tier-on-instance exists).
+     * Yield is from the item's INSTANCE (leveled) tier — Entry.Tier, mutated by LevelUp*/Downgrade*.
      * Returns false if Owner null / no authority; InventoryComponent or CurrencyComponent
      * missing; or no owned weapon carries that GUID.
      */
@@ -104,8 +104,8 @@ public:
     /**
      * Dismantle a known SPELL, granting SKILL essence (abilities/spells → Skill, per category
      * routing — NOT Gear). Server-authoritative; remove-then-grant (UnlearnSpell's bool return
-     * is the success signal — a not-known spell grants nothing). Yield from the spell's ASSET
-     * tier (leveled-tier deferred). False if Owner/Spell null; no authority; components missing;
+     * is the success signal — a not-known spell grants nothing). Yield from the spell's INSTANCE
+     * (leveled) tier via UInventoryComponent::ResolveSpellTier. False if Owner/Spell null; no authority; components missing;
      * or the spell was not known.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
