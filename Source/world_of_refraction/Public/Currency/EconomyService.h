@@ -184,6 +184,35 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool LevelUpAbility(AActor *Owner, const UAbilityData *Ability);
 
+    // ==================== DOWNGRADE (instance tier-down / respec, refund-side) ====================
+
+    /**
+     * Tier-DOWN the owned WEAPON instance by ONE step (the inverse of LevelUpWeapon — Face C respec).
+     * Refunds HALF the reverted step's leveling cost in Gear essence ONLY; the ½-Reality co-cost paid
+     * at level-up is NOT refunded (reverting always costs the reshape currency). Floored at the item's
+     * AUTHORED base tier (you can only revert tiers you leveled UP to, never below what it shipped at).
+     * Server-authoritative. False if: Owner null / no authority; components missing; no owned weapon
+     * for that GUID; or already at/below base.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DowngradeWeapon(AActor *Owner, FGuid PersistentID);
+
+    /** Tier-down the owned RING instance by one step (Gear refund). See DowngradeWeapon. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DowngradeRing(AActor *Owner, FGuid PersistentID);
+
+    /** Tier-down the owned EVOLUTION instance by one step (Gear refund; identity is InstanceID). */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DowngradeEvolution(AActor *Owner, FGuid InstanceID);
+
+    /** Tier-down an owned SPELL by one step (Skill refund; asset-keyed). See DowngradeWeapon. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DowngradeSpell(AActor *Owner, const USpellData *Spell);
+
+    /** Tier-down an owned ABILITY by one step (Skill refund; asset-keyed). */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool DowngradeAbility(AActor *Owner, const UAbilityData *Ability);
+
 private:
     /**
      * Shared tier-up core — type-agnostic. Knows only the wallet + a reference to the instance's
@@ -201,4 +230,14 @@ private:
      */
     bool TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
                          ECurrencyType LevelingEssence = ECurrencyType::GearEssence) const;
+
+    /**
+     * Shared tier-DOWN core — the inverse of TryLevelUpEntry. Lowers InOutTier one step (toward
+     * FloorTier, the item's authored base) and refunds HALF the reverted step's cost
+     * (GetTierUpCostForTier(downTier)) in LevelingEssence ONLY — the ½-Reality co-cost is NOT
+     * refunded. Returns false (no change) when already at/below FloorTier. The write + refund cannot
+     * fail, so no rollback path. Type-agnostic: any per-instance EItemTier reuses it.
+     */
+    bool TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier &InOutTier, EItemTier FloorTier,
+                           ECurrencyType LevelingEssence = ECurrencyType::GearEssence) const;
 };

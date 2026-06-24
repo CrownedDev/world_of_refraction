@@ -714,6 +714,41 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
     return true;
 }
 
+bool UEconomyService::TryDowngradeEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
+                                        EItemTier FloorTier, ECurrencyType LevelingEssence) const
+{
+    if (!Currency)
+    {
+        return false;
+    }
+
+    const EItemTier CurrentTier = InOutTier;
+
+    // Floor: can't revert below the item's AUTHORED base — you only refund tiers you leveled UP to,
+    // never the tier it shipped at. (At/below base → nothing to downgrade.)
+    if (TierHelpers::GetTierValue(CurrentTier) <= TierHelpers::GetTierValue(FloorTier))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryDowngradeEntry: %s is at/below its base %s — nothing to revert"),
+               *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(FloorTier));
+        return false;
+    }
+
+    // The step being reverted is DownTier -> CurrentTier; its level-up cost is
+    // GetTierUpCostForTier(DownTier) (exact mirror of TryLevelUpEntry). Refund HALF in the leveling
+    // essence ONLY — the ½-Reality co-cost paid at level-up is gone (reverting costs the reshape
+    // currency). Write the lowered tier in place; neither the write nor the Add can fail.
+    const EItemTier DownTier = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(CurrentTier) - 1);
+    const int32 StepCost = EconomyYield::GetTierUpCostForTier(DownTier);
+    const int32 Refund = StepCost / 2;
+
+    InOutTier = DownTier;
+    Currency->Add(LevelingEssence, Refund);
+
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-down: %s -> %s (refunded %d leveling essence; Reality co-cost not refunded)"),
+           *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(DownTier), Refund);
+    return true;
+}
+
 bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
 {
     if (!Owner)
@@ -899,4 +934,184 @@ bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
     }
 
     return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence);
+}
+
+bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FWeaponInventoryEntry *Entry = Inv->Weapons.FindByPredicate(
+        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    if (!Entry || !Entry->Weapon)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeWeapon: %s has no weapon instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *PersistentID.ToString());
+        return false;
+    }
+
+    // Floor = the weapon asset's authored Tier (leveling only mutates the instance .Tier).
+    return TryDowngradeEntry(Currency, Entry->Tier, Entry->Weapon->Tier, ECurrencyType::GearEssence);
+}
+
+bool UEconomyService::DowngradeRing(AActor *Owner, FGuid PersistentID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FRingInventoryEntry *Entry = Inv->Rings.FindByPredicate(
+        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    if (!Entry || !Entry->Ring)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeRing: %s has no ring instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *PersistentID.ToString());
+        return false;
+    }
+
+    return TryDowngradeEntry(Currency, Entry->Tier, Entry->Ring->Tier, ECurrencyType::GearEssence);
+}
+
+bool UEconomyService::DowngradeEvolution(AActor *Owner, FGuid InstanceID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeEvolution: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!EvoInv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeEvolution: %s missing %s%s"),
+               *Owner->GetName(),
+               EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FEvolutionInventoryEntry *Entry = EvoInv->Entries.FindByPredicate(
+        [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeEvolution: %s has no evolution instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *InstanceID.ToString());
+        return false;
+    }
+
+    return TryDowngradeEntry(Currency, Entry->Tier, Entry->Item->Tier, ECurrencyType::GearEssence);
+}
+
+bool UEconomyService::DowngradeSpell(AActor *Owner, const USpellData *Spell)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeSpell: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeSpell: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FSpellInstance *Instance = Inv->Spells.FindSpellInstanceMutable(Spell);
+    if (!Instance || !Instance->Spell)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeSpell: %s does not own %s"),
+               *Owner->GetName(), Spell ? *Spell->GetName() : TEXT("(null)"));
+        return false;
+    }
+
+    // Floor = the spell asset's authored Tier; Skill essence (spells level on Skill, §3).
+    return TryDowngradeEntry(Currency, Instance->Tier, Instance->Spell->Tier, ECurrencyType::SkillEssence);
+}
+
+bool UEconomyService::DowngradeAbility(AActor *Owner, const UAbilityData *Ability)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeAbility: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeAbility: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FAbilityInstance *Instance = Inv->Abilities.FindAbilityInstanceMutable(Ability);
+    if (!Instance || !Instance->Ability)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DowngradeAbility: %s does not own %s"),
+               *Owner->GetName(), Ability ? *Ability->GetName() : TEXT("(null)"));
+        return false;
+    }
+
+    return TryDowngradeEntry(Currency, Instance->Tier, Instance->Ability->Tier, ECurrencyType::SkillEssence);
 }
