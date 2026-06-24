@@ -183,6 +183,50 @@ TArray<UAbilityData *> UInventoryComponent::GetAbilitiesForWeaponType(EWeaponTyp
     return Abilities.GetAbilitiesForWeaponType(WeaponType);
 }
 
+// ==================== INSTANCE-TIER RESOLUTION (spell-instance arc, ii-b/c) ====================
+
+EItemTier UInventoryComponent::ResolveSpellTier(const AActor *Caster, const USpellData *Spell)
+{
+    if (!Spell)
+    {
+        return EItemTier::F_Tier;
+    }
+    if (Caster)
+    {
+        if (const UInventoryComponent *Inv = Caster->FindComponentByClass<UInventoryComponent>())
+        {
+            EItemTier InstanceTier;
+            if (Inv->Spells.TryGetSpellTier(Spell, InstanceTier))
+            {
+                return InstanceTier; // owned → the caster's leveled instance tier
+            }
+        }
+    }
+    return Spell->Tier; // not owned (enemy / authored loadout) → asset tier
+}
+
+EItemTier UInventoryComponent::ResolveAbilityTier(const AActor *Caster, const USkillDataBase *Skill)
+{
+    if (!Skill)
+    {
+        return EItemTier::F_Tier;
+    }
+    if (Caster)
+    {
+        if (const UInventoryComponent *Inv = Caster->FindComponentByClass<UInventoryComponent>())
+        {
+            EItemTier InstanceTier;
+            // Basic attacks aren't learned (LearnAbility rejects them), so Cast→TryGet returns false
+            // and we asset-fall-back below — exactly the intended behaviour.
+            if (Inv->Abilities.TryGetAbilityTier(Cast<UAbilityData>(Skill), InstanceTier))
+            {
+                return InstanceTier;
+            }
+        }
+    }
+    return Skill->Tier; // not owned / basic attack → asset tier
+}
+
 // ==================== WEAPON OPERATIONS ====================
 
 bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrystal)

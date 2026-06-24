@@ -22,6 +22,7 @@
 
 class USpellData;
 class UAbilityData;
+class USkillDataBase;
 class UWeaponData;
 class URingData;
 class UEvolutionItemData;
@@ -121,6 +122,18 @@ public:
     /** Get abilities for weapon type */
     UFUNCTION(BlueprintPure, Category = "Inventory|Abilities")
     TArray<UAbilityData *> GetAbilitiesForWeaponType(EWeaponType WeaponType) const;
+
+    // ==================== INSTANCE-TIER RESOLUTION (spell-instance arc, ii-b/c) ====================
+
+    /** Resolve the effective tier of Spell as cast BY Caster: the caster's owned FSpellInstance tier
+     *  (leveled) when owned, else the asset tier (enemies / authored loadouts don't level). Asset-keyed
+     *  (owners hold <=1 instance per asset — duplicates are rejected at learn time). Static so both the
+     *  combat executor and the AI preview resolve through one path. Caster/Spell null → asset/F fallback. */
+    static EItemTier ResolveSpellTier(const AActor *Caster, const USpellData *Spell);
+
+    /** Ability/skill twin of ResolveSpellTier (resolves the caster's owned FAbilityInstance tier; basic
+     *  attacks aren't learned, so they asset-fall-back). Takes the merged USkillDataBase pointer. */
+    static EItemTier ResolveAbilityTier(const AActor *Caster, const USkillDataBase *Skill);
 
     // ==================== WEAPON OPERATIONS ====================
 

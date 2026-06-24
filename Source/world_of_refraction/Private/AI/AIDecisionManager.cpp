@@ -6,6 +6,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Inventory/InventoryComponent.h" // ResolveSpellTier/ResolveAbilityTier (spell-instance ii-c)
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
@@ -2279,9 +2280,11 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
     // factor and the reciprocal tier-gap cost. Both are level-independent, so resolve once before
     // the loop. Own-tier source matches the real basis: SpellData->Tier for spells, SkillData->Tier
     // for abilities (F_Tier fallback -> x1.0 if the asset is somehow missing).
+    // Own-tier resolves through the caster's owned instance (leveled) when owned, else asset tier —
+    // matches the executor's basis (spell-instance ii-c). Attacker is the caster in this preview.
     const EItemTier OwnTier = bIsSpell
-                                  ? (Action.SpellData ? Action.SpellData->Tier : EItemTier::F_Tier)
-                                  : (Action.SkillData ? Action.SkillData->Tier : EItemTier::F_Tier);
+                                  ? UInventoryComponent::ResolveSpellTier(Attacker, Action.SpellData)
+                                  : UInventoryComponent::ResolveAbilityTier(Attacker, Action.SkillData);
     const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
     const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
     while (Level > 0)

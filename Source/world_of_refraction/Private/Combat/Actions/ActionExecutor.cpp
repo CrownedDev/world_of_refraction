@@ -44,6 +44,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Infusion/InfusionVFXComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Inventory/InventoryComponent.h" // ResolveSpellTier/ResolveAbilityTier (spell-instance ii-c)
 #include "Equipment/FEquipmentStatBonus.h"
 #include "Combat/Damage/TierGapConstants.h"
 #include "Combat/Damage/TierPowerConstants.h"
@@ -341,7 +342,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			// Efficiency reduction — character substat + equipment BonusEfficiency.
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
-			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Action.SpellData->Tier);
+			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData));
 			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
 			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
 			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
@@ -371,7 +372,7 @@ int32 UActionExecutor::CalculateActionEnergyCost(AActor *Actor, const FAction &A
 			const float CostMultiplier = ComputeInfusionCostMultiplier(Action.AbilityInfusionLevel, /*bIsSpell*/ false, Comp);
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
-			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
+			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(Actor, Skill));
 			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
 			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
 			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
@@ -403,7 +404,7 @@ EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Actio
 	// their inline copies until the swap is approved separately).
 	if (Action.ActionType == EActionType::Spell && Action.SpellData)
 	{
-		return Action.SpellData->Tier;
+		return UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
 	}
 
 	// Ability/attack: read the action's OWN authored tier (merged ability/attack
@@ -411,7 +412,7 @@ EItemTier UActionExecutor::ResolveActionTier(AActor *Actor, const FAction &Actio
 	// weapon tier only if the skill can't resolve (safety).
 	if (const USkillDataBase *Skill = ResolveActionSkill(Action))
 	{
-		return Skill->Tier;
+		return UInventoryComponent::ResolveAbilityTier(Actor, Skill);
 	}
 
 	// Instance tier from the active weapon's inventory entry (leveling-correct).
@@ -6345,14 +6346,14 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			if (Action.SpellData)
 			{
 				BaseCost = Action.SpellData->CalculateEnergyCost(CommitCharData);
-				PowerMult = TierPowerScaling::GetTierPowerMultiplier(Action.SpellData->Tier);
+				PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData));
 			}
 		}
 		else if (USkillDataBase *Skill = ResolveActionSkill(Action))
 		{
 			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
 			BaseCost = Skill->CalculateEnergyCost(CommitCharData, bIsInfused);
-			PowerMult = TierPowerScaling::GetTierPowerMultiplier(Skill->Tier);
+			PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(Actor, Skill));
 		}
 		// Own-tier power mirrors the cost multiplier so the HP-infusion penalty basis tracks the
 		// now-tier-scaled EP cost (this block recomputes cost; it does NOT read CalculateActionEnergyCost).
@@ -6416,7 +6417,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		if (bIsSpell && Action.SpellData)
 		{
-			ActionTier = Action.SpellData->Tier;
+			ActionTier = UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
 		}
 		else
 		{
@@ -6478,7 +6479,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 
 		if (bIsSpell && Action.SpellData)
 		{
-			ActionTier = Action.SpellData->Tier;
+			ActionTier = UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
 		}
 		else
 		{
@@ -6566,7 +6567,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		EItemTier ActionTier = WeaponEntry ? WeaponEntry->Tier : Weapon->Tier;
 		if (bIsSpell && Action.SpellData)
 		{
-			ActionTier = Action.SpellData->Tier;
+			ActionTier = UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData);
 		}
 
 		// A gear-attached evolution provides the weapon's spells (so WeaponCrystal infusion is
