@@ -89,6 +89,11 @@ namespace EconomyYield
         // at 1.0 it roughly doubles S's share (4% -> ~7%), never trivializing it.
         constexpr float QUALITY_LUCK_MAX_TILT = 0.5f;
 
+        // Fraction of a gem component's crystal-curve yield returned when a FUSION breaks (§4.5).
+        // Half + lossy (floored) per gem component — discourages fuse-then-break for value vs
+        // breaking gems individually.
+        constexpr float FUSION_BREAK_ESSENCE_FRACTION = 0.5f;
+
         // §4.5 crystal MERGE values (F-unit ladder). Same-Type crystals sum lowest-first to a
         // target tier's value to produce 1 of it. Doubling F..A, then S = 3xA (the 3:1 final step
         // echoed in value space).

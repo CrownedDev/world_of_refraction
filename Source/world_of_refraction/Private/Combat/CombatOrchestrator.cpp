@@ -1338,6 +1338,37 @@ void ACombatOrchestrator::ApplyBetweenCombatCrystalDestruction()
 							}
 						}
 					}
+					else if (Slot.Kind == EAttachedItemKind::Fusion)
+					{
+						// Fusion break = forced dismantle (§4.2 / §5.3b), but lossy: each GEM component
+						// yields HALF its crystal-curve essence (floored). Only an ELEMENTAL fusion breaks
+						// (one gem + one stone; augmented stone+stone never wears, so it never reaches
+						// here). Authoring forbids two gems, so in practice one half (the gem) yields; the
+						// loop generalizes to any gem component. Half-per-gem discourages fuse-then-break
+						// for value vs breaking gems individually. Direct grant (socketed, no pool-removal).
+						if (UCurrencyComponent *Currency = Actor->FindComponentByClass<UCurrencyComponent>())
+						{
+							const FCrystalId Halves[2] = {Attachment.Fusion.Id.HalfA, Attachment.Fusion.Id.HalfB};
+							for (const FCrystalId &Half : Halves)
+							{
+								if (!CrystalTypeHelpers::IsGemType(Half.Type))
+								{
+									continue; // gem components only — stone halves don't yield on fusion break
+								}
+								const int32 FullYield = EconomyYield::GetTypedEssenceYieldForTier(Half.Tier);
+								const int32 HalfYield = FMath::FloorToInt(FullYield * EconomyYield::Constants::FUSION_BREAK_ESSENCE_FRACTION);
+								if (HalfYield > 0)
+								{
+									const EEssenceType EssenceType = EconomyYield::ResolveEssenceType(Half);
+									Currency->AddEssenceType(EssenceType, HalfYield);
+									UE_LOG(LogTemp, Log,
+										   TEXT("[CombatOrchestrator] Broken fusion gem '%s' on %s dismantled -> %d %s essence (half of %d)"),
+										   *ItemIdentity::GetDisplayName(Half), *Actor->GetName(), HalfYield,
+										   *StaticEnum<EEssenceType>()->GetAuthoredNameStringByValue(static_cast<int64>(EssenceType)), FullYield);
+								}
+							}
+						}
+					}
 
 					UE_LOG(LogTemp, Log,
 						   TEXT("[CombatOrchestrator] Destroyed broken crystal '%s' from %s on %s"),
