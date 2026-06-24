@@ -14,6 +14,7 @@
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Pool/PoolSubsystem.h" // InitializeFromPool draw source (step 2)
 #include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h" // speed-notify on speed-relevant crystal detach
 #include "Equipment/Crystals/CrystalEffectTable.h"
@@ -998,6 +999,115 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     UE_LOG(LogTemp, Display,
            TEXT("[InventoryComponent] Initialized inventory from %s: %d weapons, %d rings, pool-entries=[crystal-stacks:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
            *InventoryAsset->GetName(),
+           Weapons.Num(),
+           Rings.Num(),
+           CrystalStacks,
+           EvolutionCount,
+           Spells.GetCount(),
+           Abilities.GetCount(),
+           SavedLoadouts.Num(),
+           ActiveLoadoutIndex);
+}
+
+void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
+{
+    if (!Pool)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] InitializeFromPool: null Pool subsystem"));
+        return;
+    }
+
+    // Clear run ownership lists — same as the authored path.
+    Spells.LearnedSpells.Empty();
+    Abilities.LearnedAbilities.Empty();
+    Weapons.Empty();
+    Rings.Empty();
+
+    // Resolve sibling inventory components once (crystal + evolution pools).
+    AActor *Owner = GetOwner();
+    UCrystalInventoryComponent *CrystalInv = Owner
+        ? Owner->FindComponentByClass<UCrystalInventoryComponent>()
+        : nullptr;
+    UEvolutionInventoryComponent *EvolutionInv = Owner
+        ? Owner->FindComponentByClass<UEvolutionInventoryComponent>()
+        : nullptr;
+    if (!CrystalInv || !EvolutionInv)
+    {
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] InitializeFromPool: inventory components missing on owner (CrystalInv=%s, EvolutionInv=%s) — pool data routed to missing components will be dropped"),
+               CrystalInv ? TEXT("present") : TEXT("MISSING"),
+               EvolutionInv ? TEXT("present") : TEXT("MISSING"));
+    }
+    if (CrystalInv)
+    {
+        CrystalInv->ClearAll();
+    }
+    if (EvolutionInv)
+    {
+        EvolutionInv->Entries.Empty();
+    }
+
+    // ---------- Whole-entry draw from the pool ----------
+    // CRITICAL: copy the pool's OWNED INSTANCES verbatim (NOT via the asset factories),
+    // so PersistentID / Tier / Quality / InstanceID survive the draw. Re-running
+    // AddWeapon/AddRing/LearnSpell would mint fresh GUIDs and reset tier to asset-base,
+    // destroying leveled/rolled state. Each owned store is structurally identical to its
+    // pool counterpart, so a plain Append (arrays) / assignment (maps) is the faithful
+    // whole-store transfer.
+    Weapons.Append(Pool->GetOwnedWeapons());
+    Rings.Append(Pool->GetOwnedRings());
+    Spells.LearnedSpells.Append(Pool->GetOwnedSpells());
+    Abilities.LearnedAbilities.Append(Pool->GetOwnedAbilities());
+
+    if (CrystalInv)
+    {
+        // Crystal pools are TMap<FCrystalId,int32> on both sides — structural parity, so a
+        // direct map copy (assignment) is the whole-store transfer. ClearAll() above means
+        // assignment (not merge) is correct.
+        CrystalInv->GemItem = Pool->GetGemItem();
+        CrystalInv->GemRefined = Pool->GetGemRefined();
+        CrystalInv->StoneItem = Pool->GetStoneItem();
+    }
+    if (EvolutionInv)
+    {
+        EvolutionInv->Entries.Append(Pool->GetOwnedEvolutions());
+    }
+
+    // ---------- SavedLoadouts stay AUTHORED ----------
+    // The pool holds owned INSTANCES, not loadout PRESETS. Inflate the authored
+    // SavedLoadouts (owner's CharacterData->Inventory) against the freshly pool-drawn
+    // owned inventory — identical to the authored tail, just resolved against drawn
+    // entries. Valid instance refs resolve to the drawn owned entries; unset/unfound
+    // refs fall back to the asset build (pre-shape-B path).
+    UCharacterDataComponent *CharComp = Owner
+        ? Owner->FindComponentByClass<UCharacterDataComponent>()
+        : nullptr;
+    UCharacterData *CharData = CharComp ? CharComp->CharacterData : nullptr;
+    UInventoryData *InventoryAsset = CharData ? CharData->Inventory : nullptr;
+
+    SavedLoadouts.Empty();
+    if (InventoryAsset)
+    {
+        for (const FSavedLoadout &SavedLoadout : InventoryAsset->SavedLoadouts)
+        {
+            SavedLoadouts.Add(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, EvolutionInv));
+        }
+        ActiveLoadoutIndex = SavedLoadouts.Num() > 0
+            ? FMath::Clamp(InventoryAsset->DefaultActiveLoadoutIndex, 0, SavedLoadouts.Num() - 1)
+            : 0;
+    }
+    else
+    {
+        ActiveLoadoutIndex = 0;
+        UE_LOG(LogTemp, Warning,
+               TEXT("[InventoryComponent] InitializeFromPool: no authored CharacterData->Inventory resolved on owner — SavedLoadouts left empty (owned inventory still drawn from pool)"));
+    }
+
+    const int32 CrystalStacks = CrystalInv ? CrystalInv->GetStackCount() : 0;
+    const int32 EvolutionCount = EvolutionInv ? EvolutionInv->Num() : 0;
+
+    UE_LOG(LogTemp, Display,
+           TEXT("[InventoryComponent] Drew inventory FROM POOL: %d weapons, %d rings, pool-entries=[crystal-stacks:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
            Weapons.Num(),
            Rings.Num(),
            CrystalStacks,

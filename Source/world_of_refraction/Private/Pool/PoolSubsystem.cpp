@@ -24,6 +24,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterData.h"            // UCharacterData::Inventory
 #include "Character/CharacterDataComponent.h"   // UCharacterDataComponent::CharacterData
+#include "Inventory/InventoryComponent.h"       // wor.DrawFromPool target (step 2)
 
 namespace
 {
@@ -491,6 +492,36 @@ namespace
                     UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.PrintPool: no pool subsystem (no PIE world?)."));
                     return;
                 }
+                Pool->PrintPoolState();
+            }));
+
+    // Step 2 — the first NON-INERT flip: DRAW the run inventory from the pool. Uncalled-first
+    // (not wired into InitializeFromCharacterData), so this debug command is the ONLY way to
+    // trigger a pool draw. PIE stays byte-identical until you type wor.DrawFromPool manually.
+    static FAutoConsoleCommandWithWorld GDrawFromPoolCmd(
+        TEXT("wor.DrawFromPool"),
+        TEXT("Draw the played character's RUN inventory FROM the account pool (whole-entry, preserves instance identity), then print the pool (PIE debug). Owned inventory only — SavedLoadouts stay authored."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
+                if (!Pool)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.DrawFromPool: no pool subsystem (no PIE world?)."));
+                    return;
+                }
+
+                APlayerController *PC = World->GetFirstPlayerController();
+                APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+                UInventoryComponent *Inv = Pawn ? Pawn->FindComponentByClass<UInventoryComponent>() : nullptr;
+                if (!Inv)
+                {
+                    UE_LOG(LogTemp, Warning,
+                           TEXT("[Pool] wor.DrawFromPool: could not resolve a played character's InventoryComponent (pawn / component missing)."));
+                    return;
+                }
+
+                Inv->InitializeFromPool(Pool);
                 Pool->PrintPoolState();
             }));
 }
