@@ -87,4 +87,41 @@ public:
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool PurchaseWeapon(AActor *Owner, UWeaponData *Weapon);
+
+    // ==================== LEVELING (instance tier-up, spend-side) ====================
+
+    /**
+     * Tier-up the owned WEAPON instance identified by PersistentID by ONE step, writing its
+     * INSTANCE tier (Entry.Tier) — the first thing that WRITES the per-instance tier, so the
+     * leveled weapon immediately dismantles for more, gets bigger loadout budgets, and hits
+     * harder / wears differently in combat (all downstream reads already use instance tier).
+     *
+     * Cost (§5.3): Gear essence = GetTierUpCostForTier(currentTier); Reality essence = half that.
+     * NO Gold. Canonical spend shape: CanAfford BOTH → Spend BOTH → write next tier → refund both
+     * if the write cannot land. Server-authoritative.
+     *
+     * Returns false if: Owner null / no authority; Inventory or Currency component missing; no
+     * owned weapon carries that GUID; the weapon is already S_Tier (max — can't level past S); or
+     * either essence component is unaffordable (spends nothing).
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool LevelUpWeapon(AActor *Owner, FGuid PersistentID);
+
+    /** Tier-up the owned RING instance by PersistentID by one step → writes Entry.Tier. See LevelUpWeapon. */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool LevelUpRing(AActor *Owner, FGuid PersistentID);
+
+private:
+    /**
+     * Shared tier-up core — type-agnostic. Knows only the wallet + a reference to the instance's
+     * tier field, so any per-instance struct that carries an EItemTier (weapon, ring, and later
+     * evolution) reuses ALL the cost/cap/spend/write logic. The wrappers resolve their entry and
+     * pass &Entry.Tier here.
+     *
+     * Reads InOutTier; if already S_Tier, returns false (S is max — can't level past S). Else
+     * computes Gear cost (GetTierUpCostForTier) + half-cost Reality, requires BOTH affordable
+     * (spends nothing if either short), spends both, then writes the next tier up into InOutTier.
+     * Returns true only when the spend+write happened.
+     */
+    bool TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier) const;
 };

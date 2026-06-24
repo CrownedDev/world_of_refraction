@@ -64,6 +64,16 @@ namespace EconomyYield
 
         // Prisms surcharge per spell scaling grade: 50 x grade-number (F=1 .. S=7).
         constexpr int32 PRISMS_SCALING_SURCHARGE_PER_GRADE = 50;
+
+        // Gear-essence cost to tier-up ONE step FROM the keyed tier to the NEXT (§5.3 ladder).
+        // Rides TIER_POWER so the step widens with tier (C→B > F→E). The Reality-essence
+        // co-cost is half this (caller computes cost/2). S has no next tier (max) → 0.
+        constexpr int32 TIER_UP_COST_F_TO_E = 10;
+        constexpr int32 TIER_UP_COST_E_TO_D = 20;
+        constexpr int32 TIER_UP_COST_D_TO_C = 30;
+        constexpr int32 TIER_UP_COST_C_TO_B = 40;
+        constexpr int32 TIER_UP_COST_B_TO_A = 50;
+        constexpr int32 TIER_UP_COST_A_TO_S = 70;
     }
 
     /** Typed acquisition essence yielded by dismantling a crystal/stone of this tier (§4.2). */
@@ -96,6 +106,24 @@ namespace EconomyYield
         case EItemTier::A_Tier: return Constants::LEVELING_ESSENCE_YIELD_A;
         case EItemTier::S_Tier: return Constants::LEVELING_ESSENCE_YIELD_S;
         default:                return 0;
+        }
+    }
+
+    /** Gear-essence cost to tier-up ONE step FROM CurrentTier to the next (§5.3 ladder). The
+     *  Reality-essence co-cost is half this (caller computes cost/2). S_Tier is max — there is
+     *  no next tier, so this returns 0; callers gate on "already S" before charging anything. */
+    inline int32 GetTierUpCostForTier(EItemTier CurrentTier)
+    {
+        switch (CurrentTier)
+        {
+        case EItemTier::F_Tier: return Constants::TIER_UP_COST_F_TO_E;
+        case EItemTier::E_Tier: return Constants::TIER_UP_COST_E_TO_D;
+        case EItemTier::D_Tier: return Constants::TIER_UP_COST_D_TO_C;
+        case EItemTier::C_Tier: return Constants::TIER_UP_COST_C_TO_B;
+        case EItemTier::B_Tier: return Constants::TIER_UP_COST_B_TO_A;
+        case EItemTier::A_Tier: return Constants::TIER_UP_COST_A_TO_S;
+        case EItemTier::S_Tier:
+        default:                return 0; // S is max — no tier-up
         }
     }
 

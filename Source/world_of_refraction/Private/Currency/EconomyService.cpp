@@ -399,3 +399,129 @@ bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
            *Weapon->GetName(), static_cast<int32>(Weapon->Tier), PrismsCost);
     return true;
 }
+
+// ==================== LEVELING (instance tier-up, spend-side) ====================
+
+bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier) const
+{
+    if (!Currency)
+    {
+        return false;
+    }
+
+    const EItemTier CurrentTier = InOutTier;
+
+    // S-cap: S is the max tier — there is nothing above it to buy.
+    if (CurrentTier == EItemTier::S_Tier)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: already S_Tier — cannot level past max"));
+        return false;
+    }
+
+    // Cost (§5.3): full Gear leveling essence to reach the next tier + HALF that in Reality. No Gold.
+    const int32 GearCost = EconomyYield::GetTierUpCostForTier(CurrentTier);
+    const int32 RealityCost = GearCost / 2;
+
+    // CanAfford BOTH before spending anything — if either is short, spend nothing and bail.
+    if (!Currency->CanAfford(ECurrencyType::GearEssence, GearCost))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: cannot afford %d Gear essence (from %s)"),
+               GearCost, *TierHelpers::GetTierName(CurrentTier));
+        return false;
+    }
+    if (!Currency->CanAfford(ECurrencyType::EssenceTyped, RealityCost, static_cast<uint8>(EEssenceType::Reality)))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: cannot afford %d Reality essence (from %s)"),
+               RealityCost, *TierHelpers::GetTierName(CurrentTier));
+        return false;
+    }
+
+    // Spend BOTH (the afford-checks above already cleared each component).
+    Currency->SpendGearEssence(GearCost);
+    Currency->SpendEssenceType(EEssenceType::Reality, RealityCost);
+
+    // WRITE the instance tier one step UP. EItemTier is forward-ordered (F_Tier=0 .. S_Tier=6),
+    // so the next-stronger tier is value+1; GetTierFromValue clamps 0..6 so this never overruns S
+    // (and the S-cap above already guarantees CurrentTier < S here). This in-place write through
+    // the caller's tier-ref cannot fail, so no post-spend refund path is needed.
+    const EItemTier NextTier = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(CurrentTier) + 1);
+    InOutTier = NextTier;
+
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-up: %s -> %s (spent %d Gear + %d Reality essence)"),
+           *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(NextTier), GearCost, RealityCost);
+    return true;
+}
+
+bool UEconomyService::LevelUpWeapon(AActor *Owner, FGuid PersistentID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // MUTABLE entry — the core writes Entry.Tier in place. Nothing mutates Inv->Weapons here, so
+    // the pointer stays valid across the currency spend inside TryLevelUpEntry.
+    FWeaponInventoryEntry *Entry = Inv->Weapons.FindByPredicate(
+        [&PersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    if (!Entry || !Entry->Weapon)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpWeapon: %s has no weapon instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *PersistentID.ToString());
+        return false;
+    }
+
+    return TryLevelUpEntry(Currency, Entry->Tier);
+}
+
+bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FRingInventoryEntry *Entry = Inv->Rings.FindByPredicate(
+        [&PersistentID](const FRingInventoryEntry &E) { return E.PersistentID == PersistentID; });
+    if (!Entry || !Entry->Ring)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: %s has no ring instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *PersistentID.ToString());
+        return false;
+    }
+
+    return TryLevelUpEntry(Currency, Entry->Tier);
+}
