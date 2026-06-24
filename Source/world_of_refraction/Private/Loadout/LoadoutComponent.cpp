@@ -570,7 +570,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
 
         // Validate evolution spells count — cap keys on the evolution item's own tier.
         const int32 EvoCap = Loadout.PrimaryEvolution.Item
-            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Tier)
             : LoadoutConstants::MAX_EVOLUTION_SPELLS;
         if (Loadout.EvolutionSpells.Num() > EvoCap)
         {
@@ -957,7 +957,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
         }
 
         const int32 EvoCap = Loadout.PrimaryEvolution.Item
-            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+            ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Tier)
             : LoadoutConstants::MAX_EVOLUTION_SPELLS;
         if (Loadout.EvolutionSpells.Num() > EvoCap)
         {
@@ -1240,7 +1240,7 @@ void ULoadoutComponent::ClearInvalidSlots()
         {
             // Keep the first EvoCap (evolution-tier slot count), drop the rest.
             const int32 EvoCap = Loadout.PrimaryEvolution.Item
-                ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Item->Tier)
+                ? CrystalEffectTable::SlotsForContainerTier(Loadout.PrimaryEvolution.Tier)
                 : LoadoutConstants::MAX_EVOLUTION_SPELLS;
             if (Loadout.EvolutionSpells.Num() > EvoCap)
             {
@@ -3332,7 +3332,7 @@ FEquipmentStatBonus ULoadoutComponent::GetActiveStatBonus(AActor *Actor) const
         EvoBonus.BonusMindModifierPercent = 0.0f;
         EvoBonus.BonusBodyModifierPercent = 0.0f;
         EvoBonus.BonusSpiritModifierPercent = 0.0f;
-        AddScaled(EvoBonus, Loadout.PrimaryEvolution.Item->Tier);
+        AddScaled(EvoBonus, Loadout.PrimaryEvolution.Tier);
     }
 
     // Round the tier-scaled substat accumulators ONCE into Combined (BonusCritDamage is a float

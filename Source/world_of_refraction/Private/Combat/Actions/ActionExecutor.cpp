@@ -469,7 +469,7 @@ TOptional<EItemTier> UActionExecutor::ResolveChannelTier(AActor *Actor, const FA
 			ActiveWeaponLoadout->WeaponEntry.AttachedItem.IsEvolution() &&
 			ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Item)
 		{
-			return ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Item->Tier;
+			return ActiveWeaponLoadout->WeaponEntry.AttachedItem.Evolution.Tier;
 		}
 		return TOptional<EItemTier>();
 	}

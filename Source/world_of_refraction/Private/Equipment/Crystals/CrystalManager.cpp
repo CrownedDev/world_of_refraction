@@ -215,7 +215,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
         return;
     }
 
-    const EItemTier EvoTier = Loadout.PrimaryEvolution.Item->Tier;
+    const EItemTier EvoTier = Loadout.PrimaryEvolution.Tier;
 
     UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
     int32 Wear = 0;
