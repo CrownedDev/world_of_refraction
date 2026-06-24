@@ -12,13 +12,14 @@ Any time a calculation produces a decimal (essence yields, prices, fractions, we
 
 Two distinct hubs with different roles, currencies, and what they operate on:
 
-|             | **Main hub** (persistent)                                       | **Run hub** (in-run)             |
-| ----------- | --------------------------------------------------------------- | -------------------------------- |
-| Currency    | **Prisms**                                                      | **Gold**                         |
-| Shops       | hub shops — permanent gear/skill types                          | run shops — run gear/skill types |
-| NPCs        | Blacksmith/Jeweler/Spiritualist (upgrade + maintain owned gear) | —                                |
-| Operates on | owned pool                                                      | run inventory ↔ pool             |
-| When        | between runs                                                    | during a run                     |
+|             | **Main hub** (persistent)                                       | **Run hub** (in-run)                                          |
+| ----------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
+| Currency    | **Prisms**                                                      | **Gold**                                                      |
+| Shops       | local shop (purchase, Prisms)                                   | run shop (purchase, Gold)                                     |
+| Services    | downgrade (respec)                                              | upgrade, repair, merge, roll/reroll, downgrade, draft, return |
+| NPCs        | Blacksmith/Jeweler/Spiritualist (upgrade + maintain owned gear) | —                                                             |
+| Operates on | owned pool                                                      | run inventory ↔ pool                                          |
+| When        | between runs                                                    | during a run                                                  |
 
 **Run hub flow (the in-run loop):**
 1. **Draft** — offered ~3 inventories drawn from your own pool → **pick 1** → build your loadout from it. The draft is a curated SLICE, not your whole pool (you may own 100 of everything; a run takes ~10 — "take 10, get to the end"). Gives enough for a full loadout, but loadout SLOTS constrain what you keep:
@@ -28,6 +29,40 @@ Two distinct hubs with different roles, currencies, and what they operate on:
 2. **Build** — keep what you'll use this run.
 3. **Return** — surplus → back to pool (you still OWN it — "I'll use it a different run") → **Gold**. NOT a loss; you keep the unlock, get Gold now.
 4. **Shop** — buy gear/skills for the run with Gold (run shop).
+
+**Hub composition — services + shops (LOCKED):**
+
+| Service / Shop               | Local hub | Run hub | Cost                                                                  |
+| ---------------------------- | --------- | ------- | --------------------------------------------------------------------- |
+| **Purchase**                 | ✅ Prisms  | ✅ Gold  | currency differs BY HUB; stock by per-item flag (main / run / both)   |
+| **Upgrade** (item tier-up)   | —         | ✅       | upgrade essence + ½ Reality (NOT Gold) — build power *during* the run |
+| **Downgrade** (respec)       | ✅         | ✅       | partial essence refund (½ step, no Reality)                           |
+| **Repair** (fix broken gear) | ✅         | ✅       | (cost TBD)                                                            |
+| **Roll / Reroll** (stats)    | ✅         | ✅       | Reality + Prisms                                                      |
+| **Merge** (crystals)         | ✅         | ✅       | Prisms                                                                |
+| **Draft / Return**           | —         | ✅       | Gold (return surplus → pool + Gold)                                   |
+
+**The rule:** the HUB determines **purchase** currency (Prisms local / Gold run); **services carry their own designed cost regardless of hub** (upgrade=essence anywhere, roll=Reality+Prisms anywhere, merge=Prisms anywhere). So Prisms IS spendable in the run hub — just for services (roll/merge), not for buying gear (that's Gold). Item-to-shop assignment is a per-item FLAG (sold-in-main / sold-in-run / both), so the same item type can appear in both shops at different currencies.
+
+**Run-hub-only:** Upgrade (power-up is a run activity), Draft, Return. **Everything else is in BOTH** (convenience — downgrade/repair/roll/reroll/merge wherever you are).
+
+**Hub composition (LOCKED) — run hub = active workshop, local hub = lean restock/respec:**
+
+| Service              | Local hub              | Run hub                       |
+| -------------------- | ---------------------- | ----------------------------- |
+| Purchase             | local-flagged (Prisms) | run-flagged (Gold)            |
+| Upgrade (level gear) | —                      | ✅ upgrade essence + ½ Reality |
+| Repair (fix broken)  | —                      | ✅ run hub only                |
+| Merge (crystals)     | —                      | ✅ (Prisms)                    |
+| Roll/reroll (stats)  | —                      | ✅ Reality + Prisms            |
+| Downgrade (respec)   | ✅ refund ½ essence     | ✅ refund ½ essence            |
+| Draft / Return       | —                      | ✅ pool→run / run→pool+Gold    |
+
+**Principle:** the **run hub is the active workshop** — you do almost everything *while assembling for the challenge* (upgrade/repair/merge/roll/buy). The **local hub is lean** — purchase (restock) + downgrade (respec). **Downgrade is in BOTH.** This resolves "upgrade is immediate AND permanent": all active power-shaping happens IN the run where you use it, and persists.
+
+**Item-to-shop is a TAG, not a hard rule:** each gear/skill/item is flagged **local-hub / run-hub / both** — the same item type can appear in both shops at different currencies (Prisms locally, Gold in-run) per its flag. Shop stock = item-flag-filtered rolled stock.
+
+**Currency follows the ACTION, not the location:** the run hub is **multi-currency** (Gold to purchase, essence+½Reality to upgrade, Prisms to merge, Reality+Prisms to roll) — Prisms is a carried wallet, not location-locked. Local hub is Prisms-only (purchase) + the essence refund (downgrade). *(Friction noted: merge/roll spend Prisms IN the run hub — coherent since currency follows the action, but flag if it should change.)*
 
 **Two shops, same mechanism, different params:** hub shop (Prisms, permanent gear types) and run shop (Gold, run gear types) are the SAME rolled-stock shop system (§11 shop-roll), parameterized by currency + what they stock.
 
@@ -422,14 +457,25 @@ So a tier-up that costs 100 Gear essence *also* costs 50 Reality essence. **No G
 
 > *Open:* the exact leveling-essence base per tier-step (scales — a C→B costs more than F→E, riding the §3 curve). The Reality half follows automatically (½ the Gear/Skill amount). PIE-tunable.
 
-### 5.x — DEFERRED: full item pricing pass (its own session)
+### 5.x — Item pricing (RESOLVED — formulas locked, coefficients tunable)
 
-**Not yet priced — needs a dedicated pass.** §5 prices spells, equipment (by the Prisms tier-double), upgrades, and rerolls — but the **per-item price list is not enumerated.** Every buyable item needs a tier-keyed price. Locked rules for that pass:
+Pricing is **fully specified by formula** — every buyable item's price is derivable from its tier (+ quality for gear). The structure is locked; only a few coefficients are PIE-tunable.
 
-- **Crystals > Stones** — a gem (crystal) costs MORE than a stat-stone of the same tier (crystals are the more valuable attach).
-- **Evolution at the top** — evolution (3rd gear type) is premium, base 500 @ F (§5.3b), far above normal items.
-- Everything rides tier scaling (`TIER_POWER` / the Prisms tier-double, §5.1).
-- Ordering, roughly cheapest→dearest: stones < crystals < weapons/rings < spells (3-component) < evolution.
+**Per-item-type pricing:**
+| Item type                  | Price formula                                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Weapons / rings (gear)** | Tier-half + Quality-half (§5.1b, 50/50 — the only type that prices on Quality)                                           |
+| **Crystals**               | Prisms base by tier (§5.1) + typed-Essence cost (§4.2). **Tier-only** (no quality).                                      |
+| **Stat-stones**            | **⅔ × the same-tier crystal price** (LOCKED — crystals are the premium attach; a C stone ≈ ⅔ of a C crystal). Tier-only. |
+| **Spells**                 | 3-component (§5.2): typed Essence + Prisms base + 50×scaling-grade surcharge. **Tier-only** (no quality).                |
+| **Evolution**              | premium, base 500 @ F (§5.3b), rides the tier-double from there. Top of the price ladder.                                |
+
+**LOCKED decisions (this pass):**
+- **Non-equipment is TIER-ONLY** — only gear (weapons/rings) factors Quality (the 50/50). Crystals/stones/spells price on tier alone (quality is a gear concept; simplest, avoids quality-pricing complexity on non-gear).
+- **Stones = ⅔ crystal price** (same tier) — crystals are the more valuable attach.
+- **Ordering (cheapest→dearest):** stones < crystals < weapons/rings < spells (3-component) < evolution.
+
+**Still PIE-tunable (coefficients, not structure):** the exact upgrade-essence base per tier-step (§5.3, rides the curve); evolution's exact curve beyond 500@F; the 50/50 gear weight (could shift tier-weighted if quality proves too dominant). All placeholder-then-tune — the pricing SYSTEM is complete.
 
 **Status: DEFERRED.** Too many items to price inline; do it as a focused session AFTER the rings + spells migration work. Flagged here so it isn't lost.
 
