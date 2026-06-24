@@ -3,6 +3,7 @@
 
 #include "Pool/PoolSubsystem.h"
 
+#include "Pool/PoolAccessors.h"             // the filter/translation layer
 #include "Equipment/Crystals/CrystalType.h" // StaticEnum<ECrystalType> for the debug dump
 #include "Inventory/ItemTier.h"             // TierHelpers::GetTierName
 #include "Engine/Engine.h"                  // GEngine on-screen debug
@@ -124,6 +125,93 @@ void UPoolSubsystem::AddRefinedCrystalToPool(const FCrystalId &Id, int32 Count)
         return;
     }
     RefinedCrystals.FindOrAdd(Id) += Count;
+}
+
+// ==================== CATEGORY GETTERS ====================
+
+FPoolKnowledgeView UPoolSubsystem::GetKnowledge(const FPoolFilter &Filter) const
+{
+    FPoolKnowledgeView View;
+    for (const FSpellInstance &Spell : OwnedSpells)
+    {
+        if (PoolAccessors::MatchesFilter(Filter, Spell))
+        {
+            View.Spells.Add(Spell);
+        }
+    }
+    for (const FAbilityInstance &Ability : OwnedAbilities)
+    {
+        if (PoolAccessors::MatchesFilter(Filter, Ability))
+        {
+            View.Abilities.Add(Ability);
+        }
+    }
+    return View;
+}
+
+FPoolArmouryView UPoolSubsystem::GetArmoury(const FPoolFilter &Filter) const
+{
+    FPoolArmouryView View;
+    for (const FWeaponInventoryEntry &Weapon : OwnedWeapons)
+    {
+        if (PoolAccessors::MatchesFilter(Filter, Weapon))
+        {
+            View.Weapons.Add(Weapon);
+        }
+    }
+    for (const FRingInventoryEntry &Ring : OwnedRings)
+    {
+        if (PoolAccessors::MatchesFilter(Filter, Ring))
+        {
+            View.Rings.Add(Ring);
+        }
+    }
+    for (const FEvolutionInventoryEntry &Evo : OwnedEvolutions)
+    {
+        if (PoolAccessors::MatchesFilter(Filter, Evo))
+        {
+            View.Evolutions.Add(Evo);
+        }
+    }
+    return View;
+}
+
+TArray<FPoolItemStack> UPoolSubsystem::GetItems(const FPoolFilter &Filter) const
+{
+    TArray<FPoolItemStack> Out;
+
+    // bUseRefined narrows to one pool; otherwise both are returned, each tagged bRefined.
+    auto Gather = [&](const TMap<FCrystalId, int32> &Pool, bool bRefined)
+    {
+        if (Filter.bUseRefined && Filter.bRefined != bRefined)
+        {
+            return;
+        }
+        for (const TPair<FCrystalId, int32> &Pair : Pool)
+        {
+            if (PoolAccessors::MatchesFilter(Filter, Pair.Key))
+            {
+                FPoolItemStack Stack;
+                Stack.Id = Pair.Key;
+                Stack.Count = Pair.Value;
+                Stack.bRefined = bRefined;
+                Out.Add(Stack);
+            }
+        }
+    };
+
+    Gather(ItemCrystals, false);
+    Gather(RefinedCrystals, true);
+    return Out;
+}
+
+FPoolQueryResult UPoolSubsystem::QueryAll(const FPoolFilter &Filter) const
+{
+    FPoolQueryResult Result;
+    Result.Knowledge = GetKnowledge(Filter);
+    Result.Armoury = GetArmoury(Filter);
+    Result.Items = GetItems(Filter);
+    return Result;
 }
 
 // ==================== DEBUG ====================

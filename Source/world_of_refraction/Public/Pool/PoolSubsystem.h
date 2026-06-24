@@ -38,6 +38,7 @@
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Currency/CurrencyTypes.h"             // ECurrencyType / EEssenceType / FCurrencyArray
+#include "Pool/PoolQueryTypes.h"                // FPoolFilter + the per-category result views
 #include "PoolSubsystem.generated.h"
 
 /**
@@ -105,6 +106,27 @@ public:
 
     const TMap<FCrystalId, int32> &GetItemCrystals() const { return ItemCrystals; }
     const TMap<FCrystalId, int32> &GetRefinedCrystals() const { return RefinedCrystals; }
+
+    // ==================== CATEGORY GETTERS (filtered browse views) ====================
+    // Apply only the axes valid for each category's member types (the rest exclude — see
+    // PoolAccessors). Return by value (filtered COPIES) — pools are hundreds-sized; this is
+    // the UI/draw read path. INERT: uncalled until the draw/UI phases.
+
+    /** KNOWLEDGE — spells (element/school/tier/quality) + abilities (weapon-type/tier/quality). */
+    UFUNCTION(BlueprintCallable, Category = "Pool|Query")
+    FPoolKnowledgeView GetKnowledge(const FPoolFilter &Filter) const;
+
+    /** ARMOURY — weapons (element-via-crystal/weapon-type/tier/quality) + rings + evolutions. */
+    UFUNCTION(BlueprintCallable, Category = "Pool|Query")
+    FPoolArmouryView GetArmoury(const FPoolFilter &Filter) const;
+
+    /** ITEMS — crystal stacks (element-via-key/tier; NO quality), both pools, tagged bRefined. */
+    UFUNCTION(BlueprintCallable, Category = "Pool|Query")
+    TArray<FPoolItemStack> GetItems(const FPoolFilter &Filter) const;
+
+    /** Cross-category — all three at once (element is the natural cross-axis). */
+    UFUNCTION(BlueprintCallable, Category = "Pool|Query")
+    FPoolQueryResult QueryAll(const FPoolFilter &Filter) const;
 
     // ==================== DEBUG ====================
 
