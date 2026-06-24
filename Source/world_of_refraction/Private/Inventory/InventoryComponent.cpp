@@ -75,6 +75,56 @@ namespace
         }
         return 0.0f;
     }
+
+    /** Build the runtime evolution attachment that REFERENCES an owned entry (player-attach, gear-i).
+     *  Mirrors the primary-slot inflation copy: asset + leveled Tier + rolled state, plus the
+     *  InstanceID link that marks it player-attached (vs authored-locked, which FromAttachedItem
+     *  leaves invalid). */
+    FRuntimeAttachedItem MakeEvolutionAttachment(const FEvolutionInventoryEntry &Entry, FGuid EvoInstanceID)
+    {
+        FRuntimeAttachedItem Runtime;
+        Runtime.Kind = EAttachedItemKind::Evolution;
+        FEvolutionAttachment &Att = Runtime.Evolution;
+        Att.Item = Entry.Item;
+        Att.InstanceID = EvoInstanceID;                                       // link to the owned entry (gear-i)
+        Att.Tier = Entry.Tier;                                                // leveled instance tier (Part C7)
+        Att.CurrentDurability = Entry.Item ? Entry.Item->MaxDurability : 0;
+        Att.GeneratedStatBonus = Entry.GeneratedStatBonus;
+        Att.GeneratedResistance = Entry.GeneratedResistance;
+        Att.StatPool = Entry.StatPool;
+        Att.StatMaxPool = Entry.StatMaxPool;
+        Att.ResistancePool = Entry.ResistancePool;
+        Att.ResistanceMaxPool = Entry.ResistanceMaxPool;
+        return Runtime;
+    }
+
+    /** One-evo-one-slot guard: true if EvoInstanceID is already referenced by any primary slot
+     *  (across saved loadouts) or any gear attachment (owned weapons/rings). */
+    bool IsEvolutionSlottedAnywhere(const UInventoryComponent &Inv, FGuid EvoInstanceID)
+    {
+        for (const FCombatLoadout &L : Inv.SavedLoadouts)
+        {
+            if (L.PrimaryEvolutionInstance == EvoInstanceID)
+            {
+                return true;
+            }
+        }
+        for (const FWeaponInventoryEntry &W : Inv.Weapons)
+        {
+            if (W.AttachedItem.IsEvolution() && W.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+            {
+                return true;
+            }
+        }
+        for (const FRingInventoryEntry &R : Inv.Rings)
+        {
+            if (R.AttachedItem.IsEvolution() && R.AttachedItem.Evolution.InstanceID == EvoInstanceID)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 UInventoryComponent::UInventoryComponent()
@@ -335,6 +385,114 @@ int32 UInventoryComponent::GetRingSlotCostTotal() const
 int32 UInventoryComponent::GetRemainingRingCapacity() const
 {
     return InventoryConstants::MAX_RING_INVENTORY_SLOTS - GetRingSlotCostTotal();
+}
+
+bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no authority — ignored"));
+        return false;
+    }
+    if (!EvoInstanceID.IsValid())
+    {
+        return false;
+    }
+
+    // Resolve the owned evolution entry being attached (the reference target — it PERSISTS in EvoInv).
+    UEvolutionInventoryComponent *EvoInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    const FEvolutionInventoryEntry *Entry = EvoInv
+        ? EvoInv->Entries.FindByPredicate(
+              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+        : nullptr;
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no owned evolution for GUID %s"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    // One evo, one slot: reject if it is already referenced by any primary or gear slot.
+    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: evolution %s already slotted elsewhere"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    // Resolve the target weapon; its crystal slot must be empty (don't overwrite an existing attachment).
+    const int32 Index = Weapons.IndexOfByPredicate(
+        [&WeaponPersistentID](const FWeaponInventoryEntry &E) { return E.PersistentID == WeaponPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: no weapon for GUID %s"),
+               *WeaponPersistentID.ToString());
+        return false;
+    }
+    if (!Weapons[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToWeapon: weapon slot already occupied"));
+        return false;
+    }
+
+    // Reference the owned entry (entry stays in EvoInv->Entries — reference model, not move).
+    Weapons[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to weapon %s"),
+           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *WeaponPersistentID.ToString());
+    return true;
+}
+
+bool UInventoryComponent::AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID)
+{
+    if (GetOwner() && !GetOwner()->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no authority — ignored"));
+        return false;
+    }
+    if (!EvoInstanceID.IsValid())
+    {
+        return false;
+    }
+
+    UEvolutionInventoryComponent *EvoInv =
+        GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    const FEvolutionInventoryEntry *Entry = EvoInv
+        ? EvoInv->Entries.FindByPredicate(
+              [&EvoInstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == EvoInstanceID; })
+        : nullptr;
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no owned evolution for GUID %s"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    if (IsEvolutionSlottedAnywhere(*this, EvoInstanceID))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: evolution %s already slotted elsewhere"),
+               *EvoInstanceID.ToString());
+        return false;
+    }
+
+    const int32 Index = Rings.IndexOfByPredicate(
+        [&RingPersistentID](const FRingInventoryEntry &E) { return E.PersistentID == RingPersistentID; });
+    if (Index == INDEX_NONE)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: no ring for GUID %s"),
+               *RingPersistentID.ToString());
+        return false;
+    }
+    if (!Rings[Index].AttachedItem.IsEmpty())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachEvolutionToRing: ring slot already occupied"));
+        return false;
+    }
+
+    Rings[Index].AttachedItem = MakeEvolutionAttachment(*Entry, EvoInstanceID);
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Attached evolution %s (tier %d) to ring %s"),
+           *EvoInstanceID.ToString(), static_cast<int32>(Entry->Tier), *RingPersistentID.ToString());
+    return true;
 }
 
 bool UInventoryComponent::CanAddRing(URingData *Ring) const

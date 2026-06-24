@@ -167,6 +167,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveCrystalFromWeapon(int32 WeaponIndex);
 
+    /** Attach an OWNED evolution (by EvoInstanceID) onto the owned weapon (by PersistentID),
+     *  Spiritualist-gated. Reference model (§5.3b): the owned FEvolutionInventoryEntry PERSISTS; the
+     *  weapon's AttachedItem.Evolution REFERENCES it (InstanceID link + copied leveled Tier + rolled
+     *  state). Enforces one-evo-one-slot — rejects if the evo is already in any primary slot or gear
+     *  attachment. False on: no authority; evo/weapon GUID not found; weapon slot already occupied;
+     *  or evo already slotted. (Member of the owner's inventory — Owner is implicit via GetOwner.) */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
+    bool AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID);
+
     // ==================== RING OPERATIONS ====================
 
     /** Add a ring to inventory */
@@ -182,6 +191,11 @@ public:
      *  by-instance counterpart to index-based RemoveRing. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveRingByPersistentID(FGuid PersistentID);
+
+    /** Attach an OWNED evolution (by EvoInstanceID) onto the owned ring (by PersistentID). Ring
+     *  counterpart of AttachEvolutionToWeapon — same reference model + one-evo-one-slot enforcement. */
+    UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
+    bool AttachEvolutionToRing(FGuid RingPersistentID, FGuid EvoInstanceID);
 
     /** Get ring count */
     UFUNCTION(BlueprintPure, Category = "Inventory|Rings")
