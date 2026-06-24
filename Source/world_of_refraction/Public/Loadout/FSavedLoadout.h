@@ -60,6 +60,38 @@ struct WORLD_OF_REFRACTION_API FSpellRef
 };
 
 /**
+ * FSavedBDElementSpellPool
+ * Saved-side Broken Darkness element pool (cluster ii-a2). Mirrors the runtime FBDElementSpellPool
+ * but pairs each spell with its owned-instance identity (TArray<FSpellRef>). Split from the runtime
+ * struct so the saved side can carry InstanceIDs WITHOUT touching the ~6 combat BD readers — the
+ * runtime FCombatLoadout::BDSpellPools stays bare FBDElementSpellPool. Inflation converts via
+ * ToRuntimePool() (copies .Spell out; InstanceID rides the saved side, unresolved until ii-b).
+ */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FSavedBDElementSpellPool
+{
+    GENERATED_BODY()
+
+    /** Element this pool channels (matches the runtime pool's Element). */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    ESpellElement Element = ESpellElement::Generic;
+
+    /** Spells in this pool (max 6, each matching Element) + their owned-instance identities. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spells")
+    TArray<FSpellRef> Spells;
+
+    /** Convert to the bare runtime pool (extracts .Spell — InstanceID is carried on the saved side,
+     *  unresolved until ii-b). Used at inflation and by the saved-side validation path. */
+    FBDElementSpellPool ToRuntimePool() const
+    {
+        FBDElementSpellPool Pool;
+        Pool.Element = Element;
+        Pool.Spells = FSpellRef::ExtractSpells(Spells);
+        return Pool;
+    }
+};
+
+/**
  * FResonatorRingSlot
  * One Resonator ring slot — pairs a ring asset with the spell-override list
  * that applies to that ring in this loadout. Empty AssignedSpells means the
@@ -133,7 +165,7 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
      *  normal Caster. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "2. Class|Caster Spells",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Caster", EditConditionHides))
-    TArray<FBDElementSpellPool> BDSpellPools;
+    TArray<FSavedBDElementSpellPool> BDSpellPools;
 
     // ==================== RESONATOR RINGS ====================
 

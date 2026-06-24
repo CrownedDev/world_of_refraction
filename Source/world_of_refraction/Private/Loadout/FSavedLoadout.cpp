@@ -91,10 +91,16 @@ TArray<FString> FSavedLoadout::GetValidationErrors() const
     {
         if (BDSpellPools.Num() > 0)
         {
-            // Saved-side InnateSpells is now FSpellRef — extract the bare assets for the shared
-            // validator (the InstanceID is irrelevant to structural validation). BDSpellPools is
-            // still bare this checkpoint (the saved-side BD split lands in ii-a2).
-            Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(FSpellRef::ExtractSpells(InnateSpells), BDSpellPools));
+            // Saved-side spells are now instance-paired — extract bare shapes for the shared
+            // validator (InstanceID is irrelevant to structural validation): InnateSpells via
+            // ExtractSpells, and each FSavedBDElementSpellPool via ToRuntimePool (ii-a2).
+            TArray<FBDElementSpellPool> BareBDPools;
+            BareBDPools.Reserve(BDSpellPools.Num());
+            for (const FSavedBDElementSpellPool &SavedPool : BDSpellPools)
+            {
+                BareBDPools.Add(SavedPool.ToRuntimePool());
+            }
+            Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(FSpellRef::ExtractSpells(InnateSpells), BareBDPools));
         }
         else
         {

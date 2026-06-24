@@ -547,7 +547,14 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
     if (SavedLoadout.RequiredClass == ECharacterClass::Caster)
     {
         Result.InnateSpells = FSpellRef::ExtractSpells(SavedLoadout.InnateSpells); // bare runtime — InstanceID rides the saved side (ii-a)
-        Result.BDSpellPools = SavedLoadout.BDSpellPools; // BD saved/runtime still share FBDElementSpellPool — split lands in ii-a2
+        // BD pools are now split (ii-a2): convert each saved FSavedBDElementSpellPool to the bare
+        // runtime FBDElementSpellPool (extracts .Spell; the runtime side + combat readers stay bare).
+        Result.BDSpellPools.Reset();
+        Result.BDSpellPools.Reserve(SavedLoadout.BDSpellPools.Num());
+        for (const FSavedBDElementSpellPool &SavedPool : SavedLoadout.BDSpellPools)
+        {
+            Result.BDSpellPools.Add(SavedPool.ToRuntimePool());
+        }
     }
 
     // ==================== ITEMS ====================
