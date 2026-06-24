@@ -6569,8 +6569,19 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 			ActionTier = Action.SpellData->Tier;
 		}
 
-		CrystalMgr->ProcessPostCastWear(
-			Actor, Weapon, *Attachment, ActionTier, Level, bIsSpell);
+		// A gear-attached evolution provides the weapon's spells (so WeaponCrystal infusion is
+		// offered), but ProcessPostCastWear skips evolution — route it to the gear-evolution wear
+		// path instead so the socketed evolution actually wears in combat (gear-wear).
+		if (Attachment->IsEvolution())
+		{
+			CrystalMgr->ProcessPostCastGearEvolutionWear(
+				Actor, *Attachment, ActionTier, Level, bIsSpell);
+		}
+		else
+		{
+			CrystalMgr->ProcessPostCastWear(
+				Actor, Weapon, *Attachment, ActionTier, Level, bIsSpell);
+		}
 
 		// Per-action stat modifiers live on the execution context (action-start), not here.
 		break;
