@@ -8,6 +8,8 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
+#include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Rings/RingData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -680,6 +682,46 @@ bool UEconomyService::LevelUpRing(AActor *Owner, FGuid PersistentID)
     {
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpRing: %s has no ring instance for GUID %s (or null asset)"),
                *Owner->GetName(), *PersistentID.ToString());
+        return false;
+    }
+
+    return TryLevelUpEntry(Currency, Entry->Tier);
+}
+
+bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpEvolution: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    // Evolution instances live on the dedicated UEvolutionInventoryComponent, NOT UInventoryComponent.
+    UEvolutionInventoryComponent *EvoInv = Owner->FindComponentByClass<UEvolutionInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!EvoInv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpEvolution: %s missing %s%s"),
+               *Owner->GetName(),
+               EvoInv ? TEXT("") : TEXT("EvolutionInventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // MUTABLE entry — identity is InstanceID (not PersistentID). The entry persists while
+    // primary-slotted, so leveling it here also lifts the slot on the next loadout inflation.
+    // Nothing mutates Entries here, so the pointer stays valid across the spend in TryLevelUpEntry.
+    FEvolutionInventoryEntry *Entry = EvoInv->Entries.FindByPredicate(
+        [&InstanceID](const FEvolutionInventoryEntry &E) { return E.InstanceID == InstanceID; });
+    if (!Entry || !Entry->Item)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpEvolution: %s has no evolution instance for GUID %s (or null asset)"),
+               *Owner->GetName(), *InstanceID.ToString());
         return false;
     }
 

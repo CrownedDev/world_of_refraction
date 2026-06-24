@@ -18,6 +18,7 @@ class AActor;
 class UCrystalInventoryComponent;
 class UCurrencyComponent;
 class UInventoryComponent;
+class UEvolutionInventoryComponent;
 class USpellData;
 class UAbilityData;
 class UWeaponData;
@@ -128,6 +129,18 @@ public:
     /** Tier-up the owned RING instance by PersistentID by one step → writes Entry.Tier. See LevelUpWeapon. */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool LevelUpRing(AActor *Owner, FGuid PersistentID);
+
+    /**
+     * Tier-up an owned EVOLUTION instance by one step → writes the FEvolutionInventoryEntry.Tier
+     * on UEvolutionInventoryComponent (identity is InstanceID, not PersistentID). Levelable while
+     * in INVENTORY or in the PRIMARY slot — the inventory entry persists when primary-slotted (the
+     * slot is re-inflated from it by PrimaryEvolutionInstance), so leveling the entry propagates to
+     * the slotted attachment on the next inflation. Gear-attached evolution is NOT covered (no owned
+     * instance source yet). Same Gear + ½ Reality cost as weapons/rings via the shared core; see
+     * LevelUpWeapon for the full contract. False if no owned evolution carries that InstanceID.
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool LevelUpEvolution(AActor *Owner, FGuid InstanceID);
 
 private:
     /**
