@@ -35,6 +35,15 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     EItemTier Tier = EItemTier::F_Tier;
 
+    /** Link to the owned FEvolutionInventoryEntry this attachment references (the gear-side mirror of
+     *  FCombatLoadout::PrimaryEvolutionInstance, iii-b). INVALID = authored-locked (baked into the
+     *  weapon/ring asset, no owned entry); VALID = player-attached (references an owned entry, set by
+     *  the gear-attach op). Keystone for: the 5/run cap (skip valid — counted in Entries), gear-side
+     *  leveled tier, gear-remove return, and combat-break resolution. Written-but-unread until the
+     *  gear-side clusters consume it. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
+    FGuid InstanceID;
+
     /** Per-instance durability. Only meaningful when the item's bCanBreak is true. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     int32 CurrentDurability = 0;
