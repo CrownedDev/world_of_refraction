@@ -271,8 +271,9 @@ public:
 	 *  (GetStartingEffects off each source asset), plus a GetActiveEffects total
 	 *  cross-check so coverage drift in this tool is self-reporting. POST: effects
 	 *  currently present in the actor's equipment SourceID window
-	 *  (Actor->GetUniqueID()*100 + i). Console: "WOR_StartingEffects" in PIE. */
-	UFUNCTION(Exec)
+	 *  (Actor->GetUniqueID()*100 + i). Console: "wor.StartingEffects" in PIE.
+	 *  Trigger is a wor.* console command in the .cpp — a UGameInstanceSubsystem
+	 *  is not on the engine's Exec dispatch chain. */
 	void WOR_StartingEffects();
 
 	// ========================================
@@ -380,12 +381,16 @@ public:
 	// DEBUG TOOLS
 	// ========================================
 
-	/** Print all active effects for an actor to log */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug", CallInEditor)
+	/** Print all active effects for an actor to log. Console trigger: wor.PrintEffects
+	 *  (in the .cpp; targets the active combatant). No CallInEditor — a
+	 *  UGameInstanceSubsystem has no Details panel to host a button. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	void DebugPrintEffects(AActor *Actor) const;
 
-	/** Print all effects for all tracked actors */
-	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug", CallInEditor)
+	/** Print all effects for all tracked actors. Console trigger: wor.PrintAllEffects
+	 *  (in the .cpp). No CallInEditor — a UGameInstanceSubsystem has no Details panel
+	 *  to host a button. */
+	UFUNCTION(BlueprintCallable, Category = "Skill Effects|Debug")
 	void DebugPrintAllEffects() const;
 
 	/** Get formatted string of all effects on actor (for UI) */

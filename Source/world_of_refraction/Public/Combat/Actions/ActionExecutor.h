@@ -401,13 +401,18 @@ public:
 	// DEBUG
 	// ========================================
 
-	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug", CallInEditor)
+	// No CallInEditor — a UGameInstanceSubsystem has no Details panel, AND this takes a Result
+	// argument (it formats a result the caller already holds; it is not a zero-arg snapshot), so
+	// there is no live state to expose as a wor.* console command. Kept BlueprintCallable for
+	// callers that already hold an FActionResult.
+	UFUNCTION(BlueprintCallable, Category = "Action Executor|Debug")
 	void DebugPrintActionResult(const FActionResult &Result) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Debug")
 	void DebugAsyncState();
 
-	UFUNCTION(Exec)
+	// Console trigger is wor.ForceReset (in the .cpp) — a UGameInstanceSubsystem
+	// is not on the engine's Exec dispatch chain.
 	void DebugForceResetAsync();
 
 private:

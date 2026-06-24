@@ -65,7 +65,7 @@ public:
     /**
      * Dismantle the owned WEAPON instance identified by PersistentID, granting GEAR essence
      * (weapons/rings → Gear, per category routing). Server-authoritative; remove-then-grant.
-     * Yield is from the item's INSTANCE (leveled) tier — Entry.Tier, mutated by LevelUp*/Downgrade*.
+     * Yield is from the item's INSTANCE (leveled) tier — Entry.Tier, mutated by LevelUp* / Downgrade*.
      * Returns false if Owner null / no authority; InventoryComponent or CurrencyComponent
      * missing; or no owned weapon carries that GUID.
      */
@@ -212,6 +212,22 @@ public:
     /** Tier-down an owned ABILITY by one step (Skill refund; asset-keyed). */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool DowngradeAbility(AActor *Owner, const UAbilityData *Ability);
+
+    // ==================== DEBUG ====================
+
+    /** Read-only economy snapshot for Owner: authority, the economy-relevant component
+     *  checklist (Currency / CrystalInventory / Inventory / EvolutionInventory / Loadout — a
+     *  missing one is the usual reason a Dismantle / Level / Downgrade returns false), and the
+     *  full wallet (via UCurrencyComponentDebug::GetWalletString). Pure inspection — resolves
+     *  components read-only and drives nothing. */
+    UFUNCTION(BlueprintPure, Category = "Economy|Debug")
+    FString GetEconomyString(AActor *Owner) const;
+
+    /** Log + on-screen GetEconomyString(Owner). Console trigger: wor.PrintEconomy (in the .cpp;
+     *  resolves the played character). No Exec / CallInEditor — a UGameInstanceSubsystem is not
+     *  on the engine's Exec chain and has no Details panel for a button. */
+    UFUNCTION(BlueprintCallable, Category = "Economy|Debug")
+    void PrintEconomy(AActor *Owner) const;
 
 private:
     /**

@@ -2,6 +2,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CharacterData.h"
 #include "Character/CosmeticsData.h"
+#include "Engine/World.h"
+#include "Engine/GameInstance.h"
+#include "HAL/IConsoleManager.h"
 
 namespace
 {
@@ -396,6 +399,30 @@ FString UWeatherStateManager::GetWeatherStateString() const
     Output += TEXT("=============================================");
 
     return Output;
+}
+
+// FAutoConsoleCommandWithWorld — NOT UFUNCTION(CallInEditor). A UGameInstanceSubsystem has no
+// Details panel, so a CallInEditor button never renders. Console commands resolve from any class.
+// "wor." prefix groups them. State is PIE-only, so the chain is null-checked.
+namespace
+{
+    static FAutoConsoleCommandWithWorld GPrintWeatherCmd(
+        TEXT("wor.PrintWeather"),
+        TEXT("Snapshot weather state: leaders, HP %, resolved DA, blend values, listener count (PIE debug)."),
+        FConsoleCommandWithWorldDelegate::CreateLambda(
+            [](UWorld *World)
+            {
+                UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+                UWeatherStateManager *Mgr = GI ? GI->GetSubsystem<UWeatherStateManager>() : nullptr;
+                if (Mgr)
+                {
+                    Mgr->PrintWeatherState();
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[Weather] wor.PrintWeather: no subsystem (no PIE world?)."));
+                }
+            }));
 }
 
 void UWeatherStateManager::PrintWeatherState() const
