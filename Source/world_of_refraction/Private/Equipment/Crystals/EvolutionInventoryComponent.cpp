@@ -10,7 +10,7 @@ namespace
 {
     /** Owner's normalized Luck for the pickup quality roll (0 when no character data resolves).
      *  Mirrors UInventoryComponent's helper of the same name — same GetEquipmentModifiedLuck read. */
-    float ResolveOwnerLuck(const UActorComponent *Comp)
+    float ResolveEvolutionOwnerLuck(const UActorComponent *Comp)
     {
         if (Comp)
         {
@@ -66,7 +66,7 @@ bool UEvolutionInventoryComponent::AddInstance(UEvolutionItemData *Item)
 
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
         // keep the C_Quality placeholder seeded above.
-        Entry.Quality = EconomyYield::RollQuality(ResolveOwnerLuck(this));
+        Entry.Quality = EconomyYield::RollQuality(ResolveEvolutionOwnerLuck(this));
     }
 
     Entries.Add(Entry);

@@ -61,7 +61,7 @@ namespace
 
     /** Owner's normalized Luck for the pickup quality roll (0 when no character data resolves).
      *  Mirrors the GetEquipmentModifiedLuck convention every other Luck consumer reads. */
-    float ResolveOwnerLuck(const UActorComponent *Comp)
+    float ResolveInventoryOwnerLuck(const UActorComponent *Comp)
     {
         if (Comp)
         {
@@ -158,7 +158,7 @@ bool UInventoryComponent::AddWeapon(UWeaponData *Weapon, bool bCopyDefaultCrysta
         ApplyPickupRoll(Weapon, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
         // (purchases, authored gear) skip this and keep the CreateFromWeapon C_Quality placeholder.
-        Entry.Quality = EconomyYield::RollQuality(ResolveOwnerLuck(this));
+        Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Weapons.Add(Entry);
     return true;
@@ -285,7 +285,7 @@ bool UInventoryComponent::AddRing(URingData *Ring, bool bCopyDefaultCrystal)
         ApplyPickupRoll(Ring, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
         // Fresh pickup → roll a per-instance Quality (§11), Luck-biased. Toggle-OFF acquisitions
         // keep the CreateFromRing C_Quality placeholder.
-        Entry.Quality = EconomyYield::RollQuality(ResolveOwnerLuck(this));
+        Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
     Rings.Add(Entry);
     return true;
