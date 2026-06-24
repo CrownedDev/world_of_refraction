@@ -245,6 +245,9 @@ FRuntimeAttachedItem FRuntimeAttachedItem::FromAttachedItem(const FAttachedItem 
         // Byte-for-byte parity with FromAsset's evolution branch
         // (Crystal->MaxDurability) — Source.Evolution is that same asset.
         Result.Evolution.CurrentDurability = Source.Evolution ? Source.Evolution->MaxDurability : 0;
+        // Weapon/ring-attached form: seed .Tier from the asset (base). There is no owned-instance
+        // source here until the deferred gear-attach op exists, so this stays base tier for now.
+        Result.Evolution.Tier = Source.Evolution ? Source.Evolution->Tier : EItemTier::F_Tier;
         break;
 
     case EAttachedItemKind::AugmentStone:

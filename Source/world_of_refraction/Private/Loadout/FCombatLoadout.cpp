@@ -438,6 +438,10 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
         Result.PrimaryEvolution.Item = SavedLoadout.PrimaryEvolution;
         Result.PrimaryEvolution.CurrentDurability =
             SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->MaxDurability : 0;
+        // Asset-tier fallback: always initialize .Tier from the asset. The instance-resolved
+        // branch below overwrites it with the owned entry's leveled Tier when a valid ref resolves.
+        Result.PrimaryEvolution.Tier =
+            SavedLoadout.PrimaryEvolution ? SavedLoadout.PrimaryEvolution->Tier : EItemTier::F_Tier;
 
         // Shape-B: a valid + found evolution instance ref carries the OWNED
         // entry's rolled state (Generated stats/resistance + pools) onto the
@@ -465,6 +469,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             }
             if (Found)
             {
+                Result.PrimaryEvolution.Tier = Found->Tier; // instance (leveled) Tier — overrides the asset fallback
                 Result.PrimaryEvolution.GeneratedStatBonus = Found->GeneratedStatBonus;
                 Result.PrimaryEvolution.GeneratedResistance = Found->GeneratedResistance;
                 Result.PrimaryEvolution.StatPool = Found->StatPool;
