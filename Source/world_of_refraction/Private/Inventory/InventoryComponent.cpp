@@ -856,8 +856,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     // Clear the new pools so re-init doesn't accumulate.
     if (CrystalInv)
     {
-        CrystalInv->ItemCrystals.Empty();
-        CrystalInv->RefinedCrystals.Empty();
+        CrystalInv->ClearAll();
     }
     if (EvolutionInv)
     {
@@ -993,17 +992,15 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         ActiveLoadoutIndex = 0;
     }
 
-    const int32 ItemCount = CrystalInv ? CrystalInv->ItemCrystals.Num() : 0;
-    const int32 RefinedCount = CrystalInv ? CrystalInv->RefinedCrystals.Num() : 0;
+    const int32 CrystalStacks = CrystalInv ? CrystalInv->GetStackCount() : 0;
     const int32 EvolutionCount = EvolutionInv ? EvolutionInv->Num() : 0;
 
     UE_LOG(LogTemp, Display,
-           TEXT("[InventoryComponent] Initialized inventory from %s: %d weapons, %d rings, pool-entries=[item:%d refined:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
+           TEXT("[InventoryComponent] Initialized inventory from %s: %d weapons, %d rings, pool-entries=[crystal-stacks:%d evolution:%d], %d spells, %d abilities, %d loadouts (active=%d)"),
            *InventoryAsset->GetName(),
            Weapons.Num(),
            Rings.Num(),
-           ItemCount,
-           RefinedCount,
+           CrystalStacks,
            EvolutionCount,
            Spells.GetCount(),
            Abilities.GetCount(),
