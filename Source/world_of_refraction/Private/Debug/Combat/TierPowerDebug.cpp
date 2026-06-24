@@ -109,7 +109,7 @@ void UTierPowerDebug::PrintGearContribution(ULoadoutComponent *Loadout)
         FEquipmentStatBonus EvoBonus = Active.PrimaryEvolution.Item->BaseStatBonus;
         EvoBonus.Accumulate(Active.PrimaryEvolution.GeneratedStatBonus);
         PrintItem(TEXT("Evolution"), Active.PrimaryEvolution.Item->GetName(),
-                  Active.PrimaryEvolution.Item->Tier, EvoBonus);
+                  Active.PrimaryEvolution.Tier, EvoBonus); // INSTANCE tier, not Item->Tier (asset)
     }
 
     // Authoritative aggregate the game actually reads (tier-weighted, rounded once).

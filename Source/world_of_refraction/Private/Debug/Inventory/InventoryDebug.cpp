@@ -293,9 +293,9 @@ void UInventoryDebug::LogActiveLoadout(ULoadoutComponent *Loadout)
                    Active.EvolutionSpells.Num());
             // Spell slot capacity by evolution tier (no attachment crystal — straight tier cap).
             const int32 SpellCap = CrystalEffectTable::SlotsForContainerTier(
-                Active.PrimaryEvolution.Item->Tier);
+                Active.PrimaryEvolution.Tier);
             UE_LOG(LogTemp, Display, TEXT("  Slots [%s]: spells %d/%d"),
-                   *TierHelpers::GetTierDisplayString(Active.PrimaryEvolution.Item->Tier),
+                   *TierHelpers::GetTierDisplayString(Active.PrimaryEvolution.Tier),
                    Active.EvolutionSpells.Num(), SpellCap);
         }
         else
