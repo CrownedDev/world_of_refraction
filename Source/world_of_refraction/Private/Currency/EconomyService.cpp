@@ -454,7 +454,7 @@ bool UEconomyService::DismantleSpell(AActor *Owner, USpellData *Spell)
         return false;
     }
 
-    const EItemTier Tier = Spell->Tier; // asset tier (leveled-tier deferred — no tier-on-instance)
+    const EItemTier Tier = UInventoryComponent::ResolveSpellTier(Owner, Spell); // INSTANCE tier (leveled) — scrap a leveled spell for its current value; asset-fallback if somehow unowned
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
     // REMOVE FIRST — UnlearnSpell's bool return IS the success signal: false = the spell was not
@@ -496,7 +496,7 @@ bool UEconomyService::DismantleAbility(AActor *Owner, UAbilityData *Ability)
         return false;
     }
 
-    const EItemTier Tier = Ability->Tier; // asset tier (leveled-tier deferred — no tier-on-instance)
+    const EItemTier Tier = UInventoryComponent::ResolveAbilityTier(Owner, Ability); // INSTANCE tier (leveled) — scrap a leveled ability for its current value; asset-fallback if somehow unowned
     const int32 Yield = EconomyYield::GetLevelingEssenceYieldForTier(Tier);
 
     // REMOVE FIRST — UnlearnAbility's bool return IS the success signal (false = not known).
@@ -661,7 +661,8 @@ bool UEconomyService::PurchaseWeapon(AActor *Owner, UWeaponData *Weapon)
 
 // ==================== LEVELING (instance tier-up, spend-side) ====================
 
-bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier) const
+bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
+                                      ECurrencyType LevelingEssence) const
 {
     if (!Currency)
     {
@@ -677,15 +678,17 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
         return false;
     }
 
-    // Cost (§5.3): full Gear leveling essence to reach the next tier + HALF that in Reality. No Gold.
-    const int32 GearCost = EconomyYield::GetTierUpCostForTier(CurrentTier);
-    const int32 RealityCost = GearCost / 2;
+    // Cost (§5.3): full leveling essence to reach the next tier + HALF that in Reality. No Gold.
+    // LevelingEssence is the §3 category currency — Gear (weapons/rings/evolution) or Skill
+    // (spells/abilities); the cost ladder + the ½-Reality co-cost are shared across both.
+    const int32 LevelingCost = EconomyYield::GetTierUpCostForTier(CurrentTier);
+    const int32 RealityCost = LevelingCost / 2;
 
     // CanAfford BOTH before spending anything — if either is short, spend nothing and bail.
-    if (!Currency->CanAfford(ECurrencyType::GearEssence, GearCost))
+    if (!Currency->CanAfford(LevelingEssence, LevelingCost))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: cannot afford %d Gear essence (from %s)"),
-               GearCost, *TierHelpers::GetTierName(CurrentTier));
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] TryLevelUpEntry: cannot afford %d leveling essence (from %s)"),
+               LevelingCost, *TierHelpers::GetTierName(CurrentTier));
         return false;
     }
     if (!Currency->CanAfford(ECurrencyType::EssenceTyped, RealityCost, static_cast<uint8>(EEssenceType::Reality)))
@@ -696,7 +699,7 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
     }
 
     // Spend BOTH (the afford-checks above already cleared each component).
-    Currency->SpendGearEssence(GearCost);
+    Currency->Spend(LevelingEssence, LevelingCost);
     Currency->SpendEssenceType(EEssenceType::Reality, RealityCost);
 
     // WRITE the instance tier one step UP. EItemTier is forward-ordered (F_Tier=0 .. S_Tier=6),
@@ -706,8 +709,8 @@ bool UEconomyService::TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &I
     const EItemTier NextTier = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(CurrentTier) + 1);
     InOutTier = NextTier;
 
-    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-up: %s -> %s (spent %d Gear + %d Reality essence)"),
-           *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(NextTier), GearCost, RealityCost);
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] Tier-up: %s -> %s (spent %d leveling + %d Reality essence)"),
+           *TierHelpers::GetTierName(CurrentTier), *TierHelpers::GetTierName(NextTier), LevelingCost, RealityCost);
     return true;
 }
 
@@ -823,4 +826,77 @@ bool UEconomyService::LevelUpEvolution(AActor *Owner, FGuid InstanceID)
     }
 
     return TryLevelUpEntry(Currency, Entry->Tier);
+}
+
+bool UEconomyService::LevelUpSpell(AActor *Owner, const USpellData *Spell)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpSpell: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpSpell: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    // Asset-keyed mutable lookup (owners hold <=1 instance per asset). Can't level a spell you
+    // don't own. Nothing mutates LearnedSpells here, so the pointer is valid across the spend.
+    FSpellInstance *Instance = Inv->Spells.FindSpellInstanceMutable(Spell);
+    if (!Instance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpSpell: %s does not own %s"),
+               *Owner->GetName(), Spell ? *Spell->GetName() : TEXT("(null)"));
+        return false;
+    }
+
+    // Spells level on SKILL essence (+ ½ Reality), §3 category split.
+    return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence);
+}
+
+bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
+{
+    if (!Owner)
+    {
+        return false;
+    }
+    if (!Owner->HasAuthority())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpAbility: no authority on %s — ignored"),
+               *Owner->GetName());
+        return false;
+    }
+
+    UInventoryComponent *Inv = Owner->FindComponentByClass<UInventoryComponent>();
+    UCurrencyComponent *Currency = Owner->FindComponentByClass<UCurrencyComponent>();
+    if (!Inv || !Currency)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpAbility: %s missing %s%s"),
+               *Owner->GetName(),
+               Inv ? TEXT("") : TEXT("InventoryComponent "),
+               Currency ? TEXT("") : TEXT("CurrencyComponent"));
+        return false;
+    }
+
+    FAbilityInstance *Instance = Inv->Abilities.FindAbilityInstanceMutable(Ability);
+    if (!Instance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpAbility: %s does not own %s"),
+               *Owner->GetName(), Ability ? *Ability->GetName() : TEXT("(null)"));
+        return false;
+    }
+
+    return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence);
 }

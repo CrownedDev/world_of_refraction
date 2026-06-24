@@ -12,6 +12,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Currency/CurrencyTypes.h" // ECurrencyType for the leveling-essence param on TryLevelUpEntry
 #include "EconomyService.generated.h"
 
 class AActor;
@@ -168,17 +169,36 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool LevelUpEvolution(AActor *Owner, FGuid InstanceID);
 
+    /**
+     * Tier-up an owned SPELL by one step → writes the caster's FSpellInstance.Tier. Identified by
+     * ASSET (owners hold ≤1 instance per asset — duplicates rejected at learn time), consistent with
+     * the cast-tier resolver. Pays SKILL essence + ½ Reality (§3 — spells/abilities level on Skill,
+     * not Gear) via the shared TryLevelUpEntry core. S-capped. False if Owner null / no authority;
+     * components missing; or the spell isn't owned (can't level what you don't have).
+     */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool LevelUpSpell(AActor *Owner, const USpellData *Spell);
+
+    /** Tier-up an owned ABILITY by one step → writes the owned FAbilityInstance.Tier. Skill-essence
+     *  twin of LevelUpSpell (asset-keyed; basic attacks aren't owned, so they reject). */
+    UFUNCTION(BlueprintCallable, Category = "Economy")
+    bool LevelUpAbility(AActor *Owner, const UAbilityData *Ability);
+
 private:
     /**
      * Shared tier-up core — type-agnostic. Knows only the wallet + a reference to the instance's
-     * tier field, so any per-instance struct that carries an EItemTier (weapon, ring, and later
-     * evolution) reuses ALL the cost/cap/spend/write logic. The wrappers resolve their entry and
-     * pass &Entry.Tier here.
+     * tier field, so any per-instance struct that carries an EItemTier (weapon, ring, evolution,
+     * spell, ability) reuses ALL the cost/cap/spend/write logic. The wrappers resolve their entry
+     * and pass &Entry.Tier here.
      *
      * Reads InOutTier; if already S_Tier, returns false (S is max — can't level past S). Else
-     * computes Gear cost (GetTierUpCostForTier) + half-cost Reality, requires BOTH affordable
-     * (spends nothing if either short), spends both, then writes the next tier up into InOutTier.
-     * Returns true only when the spend+write happened.
+     * computes the leveling-essence cost (GetTierUpCostForTier) + half-cost Reality, requires BOTH
+     * affordable (spends nothing if either short), spends both, then writes the next tier up into
+     * InOutTier. Returns true only when the spend+write happened.
+     *
+     * LevelingEssence selects the primary essence: GearEssence (default — weapons/rings/evolution)
+     * or SkillEssence (spells/abilities), per §3's category split. Reality (the ½ co-cost) is shared.
      */
-    bool TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier) const;
+    bool TryLevelUpEntry(UCurrencyComponent *Currency, EItemTier &InOutTier,
+                         ECurrencyType LevelingEssence = ECurrencyType::GearEssence) const;
 };

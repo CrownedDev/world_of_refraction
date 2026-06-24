@@ -159,6 +159,20 @@ struct WORLD_OF_REFRACTION_API FSpellCollection
         return false;
     }
 
+    /** Find the MUTABLE owned instance for a spell asset — leveling writes its .Tier (iv). Returns
+     *  nullptr when not owned. Asset-keyed (≤1 instance per asset). Pointer-match only, header-inline. */
+    FSpellInstance *FindSpellInstanceMutable(const USpellData *Spell)
+    {
+        for (FSpellInstance &Instance : LearnedSpells)
+        {
+            if (Instance.Spell == Spell)
+            {
+                return &Instance;
+            }
+        }
+        return nullptr;
+    }
+
     /** Get spells filtered by element */
     TArray<USpellData *> GetSpellsByElement(ESpellElement Element) const;
 

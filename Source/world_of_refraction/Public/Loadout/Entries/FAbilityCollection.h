@@ -141,6 +141,20 @@ struct WORLD_OF_REFRACTION_API FAbilityCollection
         return false;
     }
 
+    /** Find the MUTABLE owned instance for an ability asset — leveling writes its .Tier (iv). Returns
+     *  nullptr when not owned. Asset-keyed (≤1 instance per asset). Pointer-match only, header-inline. */
+    FAbilityInstance *FindAbilityInstanceMutable(const UAbilityData *Ability)
+    {
+        for (FAbilityInstance &Instance : LearnedAbilities)
+        {
+            if (Instance.Ability == Ability)
+            {
+                return &Instance;
+            }
+        }
+        return nullptr;
+    }
+
     /** Get abilities filtered by required weapon type */
     TArray<UAbilityData*> GetAbilitiesForWeaponType(EWeaponType WeaponType) const;
 
