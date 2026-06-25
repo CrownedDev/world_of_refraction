@@ -349,9 +349,6 @@ namespace CombatConstants
     constexpr float PARRY_BUILDUP_MULTIPLIER = 0.3f; // Parry: 30% buildup through
 
     // ==================== SPELL DATA ====================
-    /** Raw mode damage bonus (+10%) */
-    constexpr float RAW_MODE_DAMAGE_MULTIPLIER = 1.10f;
-
     // Status bar system
     // Status Effect Thresholds
     constexpr float STATUS_EFFECT_THRESHOLD = 100.0f; // Buildup needed to trigger status

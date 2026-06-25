@@ -78,10 +78,6 @@ struct WORLD_OF_REFRACTION_API FDamageCalculationInput
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	FActionStatModifiers ActionMods;
 
-	/** Is this Raw (physical) mode for spell? */
-	UPROPERTY(BlueprintReadWrite, Category = "Damage")
-	bool bIsRawMode = false;
-
 	/** Number of hits (for multi-hit) */
 	UPROPERTY(BlueprintReadWrite, Category = "Damage")
 	int32 HitCount = 1;
