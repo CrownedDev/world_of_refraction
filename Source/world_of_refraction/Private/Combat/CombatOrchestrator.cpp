@@ -7,6 +7,8 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatConstants.h"   // WORLDSTAT_KILL_DIVISOR (§7 C3 earn faucet)
+#include "EngineUtils.h"              // TActorIterator for the wor.* world-stat debug commands
 #include "Kismet/GameplayStatics.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
@@ -171,6 +173,22 @@ void ACombatOrchestrator::StartCombat(const TArray<AActor *> &Team0, const TArra
 	// Store team references
 	Team0Combatants = Team0;
 	Team1Combatants = Team1;
+
+	// §7 C3 — reset the world-stat earn pool and bind death listeners on BOTH teams (the handler
+	// filters to enemy/Team1 deaths). Mirrors TurnManager's OnDied bind/unbind lifecycle; AddUnique
+	// so a re-init can't double-bind. Unbound in HandleCombatEnded before the team arrays empty.
+	PendingWorldStatPool = 0;
+	for (const TArray<AActor *> *Team : {&Team0Combatants, &Team1Combatants})
+	{
+		for (AActor *Actor : *Team)
+		{
+			if (UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+			{
+				CharComp->OnDied.AddUniqueDynamic(this, &ACombatOrchestrator::OnCombatantDied);
+			}
+		}
+	}
+
 	CurrentTurnNumber = 0;
 	CurrentActor = nullptr;
 	bWaitingForAsyncAction = false;
@@ -753,6 +771,30 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 		FCombatResult Result = BuildCombatResult();
 		OnCombatResultReady.Broadcast(Result);
 
+		// §7 C3 — fire the draft-ready hook WIN-ONLY (the deferred 5-pick-3 UI binds it). No reward on
+		// a loss/draw. Nothing consumes it yet; the pool persists until the next StartCombat reset.
+		if (WinState == ECombatState::Victory && PendingWorldStatPool > 0)
+		{
+			OnWorldStatDraftReady.Broadcast(PendingWorldStatPool);
+		}
+
+		// Unbind the death listeners bound in StartCombat — BEFORE the team arrays empty (they hold
+		// the actor refs). Defensive IsValid: an actor may have been destroyed mid-combat.
+		for (const TArray<AActor *> *Team : {&Team0Combatants, &Team1Combatants})
+		{
+			for (AActor *Actor : *Team)
+			{
+				if (!IsValid(Actor))
+				{
+					continue;
+				}
+				if (UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>())
+				{
+					CharComp->OnDied.RemoveDynamic(this, &ACombatOrchestrator::OnCombatantDied);
+				}
+			}
+		}
+
 		Team0Combatants.Empty();
 		Team1Combatants.Empty();
 		CurrentActor = nullptr;
@@ -760,6 +802,132 @@ void ACombatOrchestrator::HandleCombatEnded(int32 FinalTurnCount)
 
 		SetCombatState(ECombatState::Idle);
 	}
+}
+
+// ========================================
+// WORLD STATS (§7 C3 — earn pool)
+// ========================================
+
+void ACombatOrchestrator::OnCombatantDied(AActor *Victim)
+{
+	if (!Victim)
+	{
+		return;
+	}
+	// Only ENEMY (Team1) deaths feed the pool — a player-side (Team0) death grants nothing.
+	if (!Team1Combatants.Contains(Victim))
+	{
+		return;
+	}
+	const UCharacterDataComponent *VictimComp = Victim->FindComponentByClass<UCharacterDataComponent>();
+	const UCharacterData *VictimData = VictimComp ? VictimComp->CharacterData : nullptr;
+	if (!VictimData)
+	{
+		return;
+	}
+	// Caliber = the dead enemy's total stat budget; map to WSP via the tuning divisor (>= 1 per kill).
+	const int32 Caliber = VictimData->GetTotalPool();
+	const int32 WSP = FMath::Max(1, Caliber / CombatConstants::WORLDSTAT_KILL_DIVISOR);
+	PendingWorldStatPool += WSP;
+
+	UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Enemy %s down (caliber %d) -> +%d WSP (pool now %d)"),
+		   *Victim->GetName(), Caliber, WSP, PendingWorldStatPool);
+}
+
+void ACombatOrchestrator::DebugApplyPendingWorldStats()
+{
+	// DEBUG-ONLY placeholder — dump the whole pending pool into Mind on the player team (Team0), to
+	// prove the pool->grant pipe in PIE. The REAL draft is the deferred 5-pick-3 UI on
+	// OnWorldStatDraftReady. Falls back to the first player pawn if Team0 has emptied (post-combat).
+	int32 Applied = 0;
+	auto ApplyTo = [this, &Applied](AActor *Actor)
+	{
+		if (UCharacterDataComponent *Comp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+		{
+			Comp->AddEarnedWorldStat(EWorldPillar::Mind, PendingWorldStatPool);
+			++Applied;
+		}
+	};
+	if (Team0Combatants.Num() > 0)
+	{
+		for (AActor *Actor : Team0Combatants)
+		{
+			ApplyTo(Actor);
+		}
+	}
+	else if (UWorld *World = GetWorld())
+	{
+		if (APlayerController *PC = World->GetFirstPlayerController())
+		{
+			ApplyTo(PC->GetPawn());
+		}
+	}
+
+	UE_LOG(LogTemp, Display, TEXT("[CombatOrchestrator] DEBUG: applied pending pool %d to Mind on %d actor(s)"),
+		   PendingWorldStatPool, Applied);
+	PendingWorldStatPool = 0; // consumed
+}
+
+void ACombatOrchestrator::DebugPrintWorldStats() const
+{
+	UE_LOG(LogTemp, Display, TEXT("[CombatOrchestrator] Pending WSP pool: %d"), PendingWorldStatPool);
+	for (AActor *Actor : Team0Combatants)
+	{
+		if (const UCharacterDataComponent *Comp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr)
+		{
+			UE_LOG(LogTemp, Display, TEXT("  %s: Mind=%d Body=%d Spirit=%d"),
+				   *Actor->GetName(), Comp->GetWorldMind(), Comp->GetWorldBody(), Comp->GetWorldSpirit());
+		}
+	}
+}
+
+// ---- DEBUG console commands (PIE) — resolve the first ACombatOrchestrator in the world ----
+namespace
+{
+	ACombatOrchestrator *FindCombatOrchestrator(UWorld *World)
+	{
+		if (!World)
+		{
+			return nullptr;
+		}
+		for (TActorIterator<ACombatOrchestrator> It(World); It; ++It)
+		{
+			return *It;
+		}
+		return nullptr;
+	}
+
+	FAutoConsoleCommandWithWorld GGrantPendingWorldStatsCmd(
+		TEXT("wor.GrantPendingWorldStats"),
+		TEXT("DEBUG: apply the combat's pending World Stat pool into the player team's Mind (placeholder for the deferred draft UI)."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (ACombatOrchestrator *Orch = FindCombatOrchestrator(World))
+				{
+					Orch->DebugApplyPendingWorldStats();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.GrantPendingWorldStats: no orchestrator in world."));
+				}
+			}));
+
+	FAutoConsoleCommandWithWorld GPrintWorldStatsCmd(
+		TEXT("wor.PrintWorldStats"),
+		TEXT("DEBUG: print the pending World Stat pool + each player-team member's live Mind/Body/Spirit."),
+		FConsoleCommandWithWorldDelegate::CreateLambda(
+			[](UWorld *World)
+			{
+				if (ACombatOrchestrator *Orch = FindCombatOrchestrator(World))
+				{
+					Orch->DebugPrintWorldStats();
+				}
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("[CombatOrchestrator] wor.PrintWorldStats: no orchestrator in world."));
+				}
+			}));
 }
 
 // ========================================

@@ -41,6 +41,11 @@ namespace CombatConstants
     constexpr float WORLD_BODY_SCALING_BONUS = 0.07f;   // 7% per WorldBodyLevel
     constexpr float WORLD_SPIRIT_SCALING_BONUS = 0.07f; // 7% per WorldSpiritLevel
 
+    // World-stat KILL faucet (§7 C3): WSP earned per enemy kill = max(1, victim caliber / divisor),
+    // where caliber = the victim's GetTotalPool() (~30 with no world levels … ~93 at world 7/7/7).
+    // ⚠️ TUNING KNOB — divisor 30 yields ~1-3 WSP/kill against the LIVE_MAX=20/pillar cap. Tune in PIE.
+    constexpr int32 WORLDSTAT_KILL_DIVISOR = 30;
+
     // ==================== EQUIPMENT STAT BONUS LIMITS ====================
     // Reference bounds for FEquipmentStatBonus authoring. UPROPERTY meta clamps
     // accept only string literals, so these constants are the source of truth

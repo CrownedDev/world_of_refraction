@@ -403,12 +403,33 @@ public:
 
 	// ==================== EFFECTIVE STATS (WITH SCALING) ====================
 
+	// World-stat scaling formula, parameterized by the world LEVEL — the SINGLE definition of the
+	// 1.0 + level×rate multiplier (§7). The runtime layer passes the LIVE level here (asset baseline +
+	// head-start + earned, via UCharacterDataComponent::GetWorldMind/Body/Spirit); the parameterless
+	// getters below delegate with the asset's AUTHORED level for the asset-only / preview path and the
+	// existing internal/Blueprint callers. NOT UFUNCTIONs — UHT can't overload by signature.
+	float GetEffectiveMindForLevel(int32 WorldMindLvl) const
+	{
+		return 1.0f + WorldMindLvl * CombatConstants::WORLD_MIND_SCALING_BONUS;
+	}
+
+	float GetEffectiveBodyForLevel(int32 WorldBodyLvl) const
+	{
+		return 1.0f + WorldBodyLvl * CombatConstants::WORLD_BODY_SCALING_BONUS;
+	}
+
+	float GetEffectiveSpiritForLevel(int32 WorldSpiritLvl) const
+	{
+		return 1.0f + WorldSpiritLvl * CombatConstants::WORLD_SPIRIT_SCALING_BONUS;
+	}
+
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
 	float GetEffectiveMind() const
 	{
 		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
 		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
-		return 1.0f + WorldMindLevel * CombatConstants::WORLD_MIND_SCALING_BONUS;
+		// Asset-level (authored) path; combat reads the live-aware component wrappers.
+		return GetEffectiveMindForLevel(WorldMindLevel);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
@@ -416,7 +437,7 @@ public:
 	{
 		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
 		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
-		return 1.0f + WorldBodyLevel * CombatConstants::WORLD_BODY_SCALING_BONUS;
+		return GetEffectiveBodyForLevel(WorldBodyLevel);
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Stats|Effective")
@@ -424,7 +445,7 @@ public:
 	{
 		// Decoupled — world multiplier only (1.0-1.49); substats scale off own points × this.
 		// No pillar sum = no cross-amplification. Snowball removed (see CombatEconomy_StatRedesign.md).
-		return 1.0f + WorldSpiritLevel * CombatConstants::WORLD_SPIRIT_SCALING_BONUS;
+		return GetEffectiveSpiritForLevel(WorldSpiritLevel);
 	}
 
 	// ==================== MIND CALCULATIONS ====================

@@ -43,6 +43,13 @@ namespace EconomyYield
         constexpr int32 LEVELING_ESSENCE_YIELD_A = 110;
         constexpr int32 LEVELING_ESSENCE_YIELD_S = 145;
 
+        // World-stat vendor buy (§7 C4) — Gold cost, ESCALATING per buy this run:
+        //   cost = WORLDSTAT_BUY_BASE_COST + (purchaseCount * WORLDSTAT_BUY_COST_STEP).
+        // The count resets each run (UCharacterDataComponent::ResetRunWorldStats), so the ramp is
+        // per-run. ⚠️ TUNING KNOBS — placeholders (mirror the 75+25 augment-shop shape).
+        constexpr int32 WORLDSTAT_BUY_BASE_COST = 50; // first buy this run
+        constexpr int32 WORLDSTAT_BUY_COST_STEP = 25; // added per prior buy this run
+
         // Prisms (hub buy-currency) base price by tier — doubling ladder (§5 pricing).
         constexpr int32 PRISMS_BASE_F = 25;
         constexpr int32 PRISMS_BASE_E = 50;

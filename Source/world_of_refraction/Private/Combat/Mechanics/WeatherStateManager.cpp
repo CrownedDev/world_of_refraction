@@ -201,9 +201,8 @@ int32 UWeatherStateManager::GetTotalWorldStats(AActor *Actor) const
     if (!Comp || !Comp->CharacterData)
         return 0;
 
-    return Comp->CharacterData->WorldMindLevel +
-           Comp->CharacterData->WorldBodyLevel +
-           Comp->CharacterData->WorldSpiritLevel;
+    // §7 C2: weather priority reads the LIVE world stats (asset + head-start + earned).
+    return Comp->GetWorldMind() + Comp->GetWorldBody() + Comp->GetWorldSpirit();
 }
 
 AActor *UWeatherStateManager::GetCurrentLeader(const TArray<FLeadershipEntry> &Hierarchy) const

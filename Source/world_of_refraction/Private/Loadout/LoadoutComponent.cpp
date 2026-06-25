@@ -676,7 +676,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             const UCharacterData *CharData = CharComp->CharacterData;
             const int32 Discount = CharData
                 ? SpellPoolConstants::SpellSlotDiscount(
-                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                      CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit())
                 : 0;
             Errors.Append(FCombatLoadout::ValidateBDSpellLoadout(
                 Loadout.InnateSpells, Loadout.BDSpellPools, Discount, /*bCheckWeight=*/true));
@@ -731,7 +731,7 @@ TArray<FString> ULoadoutComponent::GetValidationErrors(int32 Index, UInventoryCo
             const UCharacterData *CharData = CharComp ? CharComp->CharacterData : nullptr;
             const int32 Discount = CharData
                 ? SpellPoolConstants::SpellSlotDiscount(
-                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                      CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit())
                 : 0;
             int32 Used = 0;
             for (const USpellData *Spell : Loadout.InnateSpells)
@@ -1067,7 +1067,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
             const UCharacterData *CharData = CharComp->CharacterData;
             const int32 Discount = CharData
                 ? SpellPoolConstants::SpellSlotDiscount(
-                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                      CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit())
                 : 0;
             for (const FString &Err : FCombatLoadout::ValidateBDSpellLoadout(
                      Loadout.InnateSpells, Loadout.BDSpellPools, Discount, /*bCheckWeight=*/true))
@@ -1126,7 +1126,7 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::CollectInvalidSlotFindings() cons
             const UCharacterData *CharData = CharComp ? CharComp->CharacterData : nullptr;
             const int32 Discount = CharData
                 ? SpellPoolConstants::SpellSlotDiscount(
-                      CharData->WorldMindLevel, CharData->WorldBodyLevel, CharData->WorldSpiritLevel)
+                      CharComp->GetWorldMind(), CharComp->GetWorldBody(), CharComp->GetWorldSpirit())
                 : 0;
             int32 Used = 0;
             for (const USpellData *Spell : Loadout.InnateSpells)
