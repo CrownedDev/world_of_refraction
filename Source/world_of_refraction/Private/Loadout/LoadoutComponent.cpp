@@ -2548,12 +2548,6 @@ UStanceData *ULoadoutComponent::GetCurrentStance() const
 
     if (ShownWeapon && ShownWeapon->WeaponEntry.Weapon)
     {
-        // Strict override: per-loadout StanceOverride wins over the weapon
-        // asset's default WeaponStance. nullptr falls through to the asset.
-        if (ShownWeapon->StanceOverride)
-        {
-            return ShownWeapon->StanceOverride;
-        }
         if (ShownWeapon->WeaponEntry.Weapon->WeaponStance)
         {
             return ShownWeapon->WeaponEntry.Weapon->WeaponStance;

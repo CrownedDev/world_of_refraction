@@ -16,7 +16,6 @@
 
 class UAbilityData;
 class USpellData;
-class UStanceData;
 class USkillDataBase;
 
 /**
@@ -60,13 +59,6 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
      *  Per-equipped-weapon decision. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
     bool bUseWeaponParryAnimation = true;
-
-    /** Per-loadout stance override. When set, ULoadoutComponent::GetCurrentStance
-     *  returns this asset instead of the weapon's WeaponStance while this entry
-     *  is the actively-shown weapon. Strict override semantics: nullptr means
-     *  "use the weapon's default stance". */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Overrides")
-    UStanceData *StanceOverride = nullptr;
 
     // ==================== VALIDATION ====================
 
@@ -157,6 +149,5 @@ struct WORLD_OF_REFRACTION_API FWeaponLoadoutEntry
         AssignedSpells.Empty();
         OverrideAttack = nullptr;
         bUseWeaponParryAnimation = true;
-        StanceOverride = nullptr;
     }
 };

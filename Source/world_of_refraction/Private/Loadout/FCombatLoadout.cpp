@@ -403,7 +403,6 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             Result.PrimaryWeapon.InitializeFromWeapon();
             Result.PrimaryWeapon.AssignedAbilities = SavedLoadout.PrimaryWeaponAbilities;
             Result.PrimaryWeapon.AssignedAugmentStoneAbilities = SavedLoadout.PrimaryAugmentStoneAbilities;
-            Result.PrimaryWeapon.StanceOverride = SavedLoadout.PrimaryWeaponStanceOverride;
 
             FString CrystalDesc = TEXT("none");
             if (Result.PrimaryWeapon.WeaponEntry.HasCrystal())
@@ -515,7 +514,6 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
             Result.SecondaryWeapon.InitializeFromWeapon();
             Result.SecondaryWeapon.AssignedAbilities = SavedLoadout.SecondaryWeaponAbilities;
             Result.SecondaryWeapon.AssignedAugmentStoneAbilities = SavedLoadout.SecondaryAugmentStoneAbilities;
-            Result.SecondaryWeapon.StanceOverride = SavedLoadout.SecondaryWeaponStanceOverride;
         }
     }
 
