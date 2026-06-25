@@ -52,6 +52,10 @@ void UCharacterDataComponent::BeginPlay()
             }
         }
 
+        // Seed the runtime world-stat layer from the asset baseline + head-start (§7). Each PIE
+        // spawn is effectively a run-start, so this is the run seed until a run-state object exists.
+        SeedWorldStats();
+
         // HP/EP init — crystal-aware path with equipment bonus folded in.
         // Formula lives in RecomputeMaxPools so equipment-swap code can re-run
         // it without duplicating the math.
@@ -147,6 +151,87 @@ void UCharacterDataComponent::InitializeFromTemplate()
            *CharacterData->Name,
            MaxHP,
            MaxEP);
+}
+
+// ========================================
+// WORLD STATS (runtime layer — §7)
+// ========================================
+
+int32 *UCharacterDataComponent::LiveFieldFor(EWorldPillar Pillar)
+{
+    switch (Pillar)
+    {
+    case EWorldPillar::Mind:   return &LiveWorldMind;
+    case EWorldPillar::Body:   return &LiveWorldBody;
+    case EWorldPillar::Spirit: return &LiveWorldSpirit;
+    default:                   return nullptr;
+    }
+}
+
+int32 UCharacterDataComponent::GetWorldStat(EWorldPillar Pillar) const
+{
+    switch (Pillar)
+    {
+    case EWorldPillar::Mind:   return LiveWorldMind;
+    case EWorldPillar::Body:   return LiveWorldBody;
+    case EWorldPillar::Spirit: return LiveWorldSpirit;
+    default:                   return 0;
+    }
+}
+
+void UCharacterDataComponent::SeedWorldStats()
+{
+    // Live = asset baseline + head-start, per pillar (clamped). Asset null → baseline 0.
+    const int32 BaseMind   = CharacterData ? CharacterData->WorldMindLevel   : 0;
+    const int32 BaseBody   = CharacterData ? CharacterData->WorldBodyLevel   : 0;
+    const int32 BaseSpirit = CharacterData ? CharacterData->WorldSpiritLevel : 0;
+
+    LiveWorldMind   = FMath::Clamp(BaseMind   + HeadStartMind,   0, WorldStatConstants::LIVE_MAX);
+    LiveWorldBody   = FMath::Clamp(BaseBody   + HeadStartBody,   0, WorldStatConstants::LIVE_MAX);
+    LiveWorldSpirit = FMath::Clamp(BaseSpirit + HeadStartSpirit, 0, WorldStatConstants::LIVE_MAX);
+}
+
+void UCharacterDataComponent::ResetRunWorldStats()
+{
+    SeedWorldStats();           // Live = asset + head-start (wipes this run's earned/bought)
+    WorldStatPurchaseCount = 0; // reset the escalating vendor ramp
+}
+
+bool UCharacterDataComponent::AddEarnedWorldStat(EWorldPillar Pillar, int32 N)
+{
+    if (N <= 0)
+    {
+        return false;
+    }
+    int32 *Live = LiveFieldFor(Pillar);
+    if (!Live || *Live >= WorldStatConstants::LIVE_MAX)
+    {
+        return false; // already at cap (or bad pillar) — nothing granted
+    }
+    *Live = FMath::Min(*Live + N, WorldStatConstants::LIVE_MAX);
+    return true;
+}
+
+bool UCharacterDataComponent::SetHeadStartAllocation(int32 M, int32 B, int32 S)
+{
+    if (M < 0 || B < 0 || S < 0)
+    {
+        return false;
+    }
+    if (M + B + S > WorldStatConstants::HEAD_START_BUDGET)
+    {
+        return false; // over budget — reject the whole allocation
+    }
+    HeadStartMind = M;
+    HeadStartBody = B;
+    HeadStartSpirit = S;
+    SeedWorldStats(); // new floor → re-seed live (NOTE: wipes earned this run — see header flag)
+    return true;
+}
+
+void UCharacterDataComponent::IncrementPurchaseCount()
+{
+    ++WorldStatPurchaseCount;
 }
 
 void UCharacterDataComponent::ResetToMax()

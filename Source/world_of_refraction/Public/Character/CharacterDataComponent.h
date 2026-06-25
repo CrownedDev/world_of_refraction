@@ -9,6 +9,29 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "CharacterDataComponent.generated.h"
 
+/** The three world-stat pillars — the shared, BlueprintType pillar key for the world-stat
+ *  earn/buy/query ops (replaces the prior file-local non-UENUM EPillar/ECrystalPillar, which
+ *  weren't usable across the C-series). UEconomyService (C4) passes this to BuyWorldStat. */
+UENUM(BlueprintType)
+enum class EWorldPillar : uint8
+{
+    Mind,
+    Body,
+    Spirit
+};
+
+namespace WorldStatConstants
+{
+    /** Max a LIVE world-stat pillar can reach (live = asset baseline + head-start + earned/bought).
+     *  ⚠️ TUNING KNOB — placeholder. The asset ClampMax is 7, head-start adds up to 4, and earned/
+     *  bought stacks ON TOP, so the live cap MUST exceed 11 (else head-start clips). At the combat
+     *  7%/level scaling (CombatConstants::WORLD_*_SCALING_BONUS) this is a strong dial — tune in PIE. */
+    constexpr int32 LIVE_MAX = 20;
+
+    /** Total head-start points allocatable across Mind+Body+Spirit (the §8 account-perk budget). */
+    constexpr int32 HEAD_START_BUDGET = 4;
+}
+
 /**
  * Delegate signatures for HP/EP changes
  */
@@ -470,7 +493,92 @@ public:
     UFUNCTION(BlueprintPure, Category = "Character|Element")
     ESpellElement GetDisplayElement() const;
 
+    // ========================================
+    // WORLD STATS (runtime layer — §7 LOCKED MODEL)
+    // ========================================
+    // Layering (Option A — one live value per pillar):
+    //   live = asset baseline (UCharacterData::WorldXLevel) + head-start (persistent) + earned/bought (run).
+    // Live is the combat value (C2 repoints readers here, off the asset). Run reset re-seeds (asset +
+    // head-start), wiping earned. Head-start is the per-character persistent floor (SaveGame, dormant
+    // until a save system exists — mirrors bIsBrokenDarkness above).
+
+    /** Live combat world-stat value (per pillar). Run-scoped — NOT SaveGame; re-seeded each run.
+     *  Written-but-unread by combat until C2 repoints the asset readers here. */
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
+    int32 LiveWorldMind = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
+    int32 LiveWorldBody = 0;
+
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
+    int32 LiveWorldSpirit = 0;
+
+    /** Persistent head-start allocation (per pillar) — the starting floor raised by §8 perks.
+     *  SaveGame-tagged (persists per-character once a save system exists; dormant/session-only
+     *  until then, like bIsBrokenDarkness). Capped at HEAD_START_BUDGET total across pillars. */
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Stats|World")
+    int32 HeadStartMind = 0;
+
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Stats|World")
+    int32 HeadStartBody = 0;
+
+    UPROPERTY(SaveGame, BlueprintReadOnly, Category = "Stats|World")
+    int32 HeadStartSpirit = 0;
+
+    /** How many world-stat points were BOUGHT this run — drives the escalating vendor price (C4).
+     *  Run-scoped (NOT SaveGame; reset by ResetRunWorldStats). ⚠️ ONE shared counter across all
+     *  pillars for now (simplest ramp) — flagged as a tuning call (could go per-pillar later). */
+    UPROPERTY(BlueprintReadOnly, Category = "Stats|World")
+    int32 WorldStatPurchaseCount = 0;
+
+    // ---- Accessors (the C2 repoint target — read these instead of CharData->WorldXLevel) ----
+
+    UFUNCTION(BlueprintPure, Category = "Stats|World")
+    int32 GetWorldMind() const { return LiveWorldMind; }
+
+    UFUNCTION(BlueprintPure, Category = "Stats|World")
+    int32 GetWorldBody() const { return LiveWorldBody; }
+
+    UFUNCTION(BlueprintPure, Category = "Stats|World")
+    int32 GetWorldSpirit() const { return LiveWorldSpirit; }
+
+    /** Pillar-keyed live read — for the earn/buy ops (C3/C4) that take an EWorldPillar. */
+    UFUNCTION(BlueprintPure, Category = "Stats|World")
+    int32 GetWorldStat(EWorldPillar Pillar) const;
+
+    UFUNCTION(BlueprintPure, Category = "Stats|World")
+    int32 GetWorldStatPurchaseCount() const { return WorldStatPurchaseCount; }
+
+    // ---- Ops ----
+
+    /** Seed the live values: Live[X] = asset WorldXLevel + HeadStart[X], per pillar (clamped to
+     *  LIVE_MAX). Called at spawn (BeginPlay) and by ResetRunWorldStats. Idempotent. */
+    void SeedWorldStats();
+
+    /** Run reset: re-seed live (asset + head-start, wiping earned) AND zero the vendor ramp. */
+    UFUNCTION(BlueprintCallable, Category = "Stats|World")
+    void ResetRunWorldStats();
+
+    /** Grant earned world-stat points to a pillar (combat-win faucet, C3). Live[Pillar] += N, clamped
+     *  to LIVE_MAX. Returns false if N<=0 or the pillar is already at cap. */
+    UFUNCTION(BlueprintCallable, Category = "Stats|World")
+    bool AddEarnedWorldStat(EWorldPillar Pillar, int32 N = 1);
+
+    /** Set the head-start allocation (the respec + the "in-run allocation self-saves" write).
+     *  Rejects (returns false) if any is negative or M+B+S exceeds HEAD_START_BUDGET. On success,
+     *  re-seeds live so the new floor takes effect. ⚠️ Re-seed WIPES earned this run (Option A has no
+     *  separate earned store) — fine if respec is a hub/between-runs action; flag if mid-run respec
+     *  must preserve earned. */
+    UFUNCTION(BlueprintCallable, Category = "Stats|World")
+    bool SetHeadStartAllocation(int32 M, int32 B, int32 S);
+
+    /** Bump the run purchase counter after a successful vendor buy (called by C4's BuyWorldStat). */
+    void IncrementPurchaseCount();
+
 private:
+    /** Mutable pointer to a pillar's live field — the single dispatch for the pillar-keyed ops. */
+    int32 *LiveFieldFor(EWorldPillar Pillar);
+
     // ========================================
     // REPLICATION CALLBACKS
     // ========================================
