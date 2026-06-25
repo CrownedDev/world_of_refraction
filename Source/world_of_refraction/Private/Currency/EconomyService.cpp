@@ -5,6 +5,7 @@
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Crystals/ECrystalPool.h" // pool-explicit batch primitives (merge adopt)
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
 #include "Loadout/Entries/FRingInventoryEntry.h"
@@ -198,32 +199,33 @@ bool UEconomyService::MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier 
     }
     // AvailableValue >= TargetValue (checked) guarantees Accumulated reached the target here.
 
-    // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
-    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    // The merge's pool comes from its bRefined AXIS — NOT IsGemType. This is precisely the case the
+    // old routing got wrong: a GEM merge with bRefined=false targets the GemItem pool (unreachable
+    // before). Mapping: gem + bRefined=true → Refined ; gem + bRefined=false → Item ; stone → Item
+    // (stones are item-only; bRefined is false for them, matching the prior facade behaviour exactly).
+    const ECrystalPool MergePool = bRefined ? ECrystalPool::Refined : ECrystalPool::Item;
+
+    // Flatten the consumed inputs into a pool-explicit set (one entry per consumed crystal; the
+    // primitive tallies duplicates). Reused verbatim for the consume AND the refund.
+    TArray<FCrystalPoolEntry> Inputs;
     for (int32 t = 0; t < TargetTierIndex; ++t)
     {
-        if (ConsumeCounts[t] > 0)
+        const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
+        for (int32 i = 0; i < ConsumeCounts[t]; ++i)
         {
-            const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
-            bRefined ? Inv->RemoveCrystalRefined(Key, ConsumeCounts[t])
-                     : Inv->RemoveCrystalItem(Key, ConsumeCounts[t]);
+            Inputs.Emplace(Key, MergePool);
         }
     }
 
+    // ---- Spend + REMOVE FIRST (a failed produce refunds below; never leave a phantom output) ----
+    Currency->Spend(ECurrencyType::Prisms, PrismsCost);
+    Inv->RemoveCrystals(Inputs); // ONE Removed (inputs are guaranteed present — counted above)
+
     // ---- Produce 1 of the target tier (same Type, same pool); refund EVERYTHING on add-failure ----
-    const bool bAdded = bRefined ? Inv->AddCrystalRefined(OutputId, 1)
-                                 : Inv->AddCrystalItem(OutputId, 1);
+    const bool bAdded = Inv->AddCrystals({{OutputId, MergePool}}); // ONE Added
     if (!bAdded)
     {
-        for (int32 t = 0; t < TargetTierIndex; ++t)
-        {
-            if (ConsumeCounts[t] > 0)
-            {
-                const FCrystalId Key(Type, TierHelpers::GetTierFromValue(t));
-                bRefined ? Inv->AddCrystalRefined(Key, ConsumeCounts[t])
-                         : Inv->AddCrystalItem(Key, ConsumeCounts[t]);
-            }
-        }
+        Inv->AddCrystals(Inputs); // ONE Added — re-add the exact consumed set (atomic; space just freed)
         Currency->Add(ECurrencyType::Prisms, PrismsCost);
         UE_LOG(LogTemp, Warning, TEXT("[EconomyService] MergeCrystals: add of %s failed — refunded inputs + %d Prisms"),
                *ItemIdentity::GetDisplayName(OutputId), PrismsCost);
