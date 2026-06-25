@@ -303,7 +303,10 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
             break;
         }
 
-        const int32 Debited = CrystalInv ? CrystalInv->RemoveItemCount(Entry.CrystalId, Entry.Quantity) : 0;
+        // Route through the inventory facade so the equip-debit emits OnInventoryChanged.
+        // Behaviour-identical to the old CrystalInv-guarded debit: the facade returns 0
+        // when the owner has no crystal pool (same as the prior `CrystalInv ? ... : 0`).
+        const int32 Debited = Inventory->RemoveCrystalItem(Entry.CrystalId, Entry.Quantity);
         Loadout.ItemSlots[SlotIndex].CrystalId = Entry.CrystalId;
         Loadout.ItemSlots[SlotIndex].Quantity = Debited;
         if (Debited > 0)
