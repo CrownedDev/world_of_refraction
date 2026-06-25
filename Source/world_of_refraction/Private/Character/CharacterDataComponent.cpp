@@ -673,7 +673,8 @@ float UCharacterDataComponent::GetEvolutionModifiedMind() const
     {
         return 0.0f;
     }
-    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveMind(), ECrystalPillar::Mind);
+    // §7 C2: world base from the LIVE level (asset + head-start + earned), not the asset's authored level.
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveMindForLevel(GetWorldMind()), ECrystalPillar::Mind);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedBody() const
@@ -682,7 +683,7 @@ float UCharacterDataComponent::GetEvolutionModifiedBody() const
     {
         return 0.0f;
     }
-    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveBody(), ECrystalPillar::Body);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveBodyForLevel(GetWorldBody()), ECrystalPillar::Body);
 }
 
 float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
@@ -691,7 +692,7 @@ float UCharacterDataComponent::GetEvolutionModifiedSpirit() const
     {
         return 0.0f;
     }
-    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpirit(), ECrystalPillar::Spirit);
+    return ApplyEvolutionPillarModifier(GetOwner(), CharacterData->GetEffectiveSpiritForLevel(GetWorldSpirit()), ECrystalPillar::Spirit);
 }
 
 void UCharacterDataComponent::RecomputeMaxPools()
@@ -1107,7 +1108,10 @@ float UCharacterDataComponent::SpeedWindowGearFactor(EActionType AttackType) con
     // Evolution-pillar modifier as a ratio over the RAW pillar (CalculateSpeedWindowPenalty uses the
     // RAW GetEffectiveBody/Mind, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0
     // when no pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
-    const float RawPillar = bSpell ? CharacterData->GetEffectiveMind() : CharacterData->GetEffectiveBody();
+    // RawPillar uses the LIVE world base too (matching ModPillar's GetEvolutionModified* base, §7 C2),
+    // so the ratio cancels the world-stat term cleanly to the pure crystal/equipment/buff lift.
+    const float RawPillar = bSpell ? CharacterData->GetEffectiveMindForLevel(GetWorldMind())
+                                   : CharacterData->GetEffectiveBodyForLevel(GetWorldBody());
     const float ModPillar = bSpell ? GetEvolutionModifiedMind() : GetEvolutionModifiedBody();
     float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
 
@@ -1160,7 +1164,8 @@ float UCharacterDataComponent::ReflexWindowGearFactor() const
     // Evolution-pillar modifier as a ratio over the RAW Body pillar (CalculateReflexWindowBonus uses the
     // RAW GetEffectiveBody, so this ratio is the crystal/equipment-pillar/pillar-buff lift). 1.0 when no
     // pillar gear. ApplyEvolutionPillarModifier already clamps the pillar modifier to [0,2].
-    const float RawPillar = CharacterData->GetEffectiveBody();
+    // RawPillar uses the LIVE world base too (matching ModPillar, §7 C2) so the ratio is pure gear lift.
+    const float RawPillar = CharacterData->GetEffectiveBodyForLevel(GetWorldBody());
     const float ModPillar = GetEvolutionModifiedBody();
     float Factor = (RawPillar > KINDA_SMALL_NUMBER) ? (ModPillar / RawPillar) : 1.0f;
 

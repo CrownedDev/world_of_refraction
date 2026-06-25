@@ -414,9 +414,12 @@ void UTurnManager::CacheActorStats(FCombatantTurnDebt &Combatant)
 		Combatant.CachedSpeed = FMath::RoundToInt(StatTurn);
 
 		Combatant.CachedActionSpeed = CharData->GetTotalActionSpeed();
-		Combatant.CachedMind = CharData->WorldMindLevel;
-		Combatant.CachedBody = CharData->WorldBodyLevel;
-		Combatant.CachedSpirit = CharData->WorldSpiritLevel;
+		// §7 C2: turn-order tiebreak reads the LIVE world stats (asset + head-start + earned), not the
+		// asset's authored levels. ⚠️ Cached at combat init — mid-combat earn won't update the tiebreak
+		// until a recache (next encounter). Acceptable (earn applies next encounter); flagged for awareness.
+		Combatant.CachedMind = CharComp->GetWorldMind();
+		Combatant.CachedBody = CharComp->GetWorldBody();
+		Combatant.CachedSpirit = CharComp->GetWorldSpirit();
 	}
 	else
 	{
