@@ -28,7 +28,7 @@ TArray<FString> UInventoryData::GetValidationErrors() const
     }
 
     // ---------- Authored crystal per-tier caps ----------
-    // CrystalStock is MIXED gem+stone; at load it splits to the runtime Gems / Stones pools, each
+    // CrystalStock is MIXED gem+stone; at load it splits to the runtime Crystals / Stones pools, each
     // capped CRYSTAL_PER_TIER_CAP per tier INDEPENDENTLY. So validate the gem entries and the stone
     // entries separately per tier — matching the runtime CanAddCount semantics (a tier can hold up
     // to 20 gems AND 20 stones). Empty CrystalStock skips the loops entirely.

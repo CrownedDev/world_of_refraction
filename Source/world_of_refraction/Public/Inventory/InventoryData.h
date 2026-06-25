@@ -65,11 +65,12 @@ public:
     // EvolutionEquipment hard cap MAX_EVOLUTION_ITEMS.
 
     /** Authored crystal stock — the character's starting crystals (gems AND stones, MIXED; the
-     *  bulk-load splits them to the runtime Gems / Stones pools by IsGemType). One map since the
+     *  bulk-load splits them to the runtime Crystals / Stones pools by IsGemType). One map since the
      *  gem-merge (§13.5) collapsed the item/refined split. Per-tier cap of 20 PER runtime pool —
      *  gem entries and stone entries are capped separately per tier (see IsDataValid).
-     *  ⚠️ RENAME-PASS NOTE: named CrystalStock (NOT Gems) because it holds gems + stones mixed —
-     *  the runtime gem pool is still called Gems; this authored map is the mixed input. */
+     *  NAMING: deliberately NOT named "Crystals" — that is the runtime gem-family pool
+     *  (UCrystalInventoryComponent::Crystals). CrystalStock is the MIXED authored input that splits
+     *  to Crystals + Stones at load; the "Stock" suffix keeps the authored map and the pool distinct. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
               meta = (DisplayName = "Crystal Stock (counts)"))
     TMap<FCrystalId, int32> CrystalStock;

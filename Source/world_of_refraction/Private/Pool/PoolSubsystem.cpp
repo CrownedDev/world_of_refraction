@@ -134,7 +134,7 @@ void UPoolSubsystem::AddCrystalToPool(const FCrystalId &Id, int32 Count)
         return;
     }
     // gem/stone by IsGemType (mirrors the run component's PoolFor).
-    (CrystalTypeHelpers::IsGemType(Id.Type) ? Gems : Stones).FindOrAdd(Id) += Count;
+    (CrystalTypeHelpers::IsGemType(Id.Type) ? Crystals : Stones).FindOrAdd(Id) += Count;
 }
 
 // ==================== CATEGORY GETTERS ====================
@@ -212,7 +212,7 @@ TArray<FPoolItemStack> UPoolSubsystem::GetItems(const FPoolFilter &Filter) const
         }
     };
 
-    Gather(Gems);
+    Gather(Crystals);
     Gather(Stones);
     return Out;
 }
@@ -301,7 +301,7 @@ void UPoolSubsystem::PopulateFromInventoryAsset(UInventoryData *Asset, AActor *O
     }
 
     // ---------- Crystals ----------
-    // Seed from the authored CrystalStock (mixed gem+stone); AddCrystalToPool routes gem→Gems /
+    // Seed from the authored CrystalStock (mixed gem+stone); AddCrystalToPool routes gem→Crystals /
     // stone→Stones by IsGemType. The asset's PostLoad already folded the deprecated ItemCrystals +
     // RefinedCrystals into CrystalStock (and emptied them), so this reads the merged stock — the same
     // source the run bulk-load reads, keeping pool-seed and run-seed consistent.
@@ -358,8 +358,8 @@ FString UPoolSubsystem::GetPoolString() const
                            OwnedWeapons.Num(), OwnedRings.Num(), OwnedEvolutions.Num());
     Out += FString::Printf(TEXT("\n  Knowledge: Spells=%d Abilities=%d"),
                            OwnedSpells.Num(), OwnedAbilities.Num());
-    Out += FString::Printf(TEXT("\n  Items    : Gems=%d (%d), Stones=%d (%d)  [stacks (total)]"),
-                           Gems.Num(), SumStacks(Gems),
+    Out += FString::Printf(TEXT("\n  Items    : Crystals=%d (%d), Stones=%d (%d)  [stacks (total)]"),
+                           Crystals.Num(), SumStacks(Crystals),
                            Stones.Num(), SumStacks(Stones));
 
     // Crystal stacks grouped by BROWSE bucket (Crystal vs Augment Stone), each listing both pools.
@@ -379,7 +379,7 @@ FString UPoolSubsystem::GetPoolString() const
                                        *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
             }
         };
-        EmitPool(Gems, TEXT("gem"));
+        EmitPool(Crystals, TEXT("crystal"));
         EmitPool(Stones, TEXT("stone"));
     };
     DumpBucket(EItemBucket::Crystal, TEXT("Crystals"));

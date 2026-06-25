@@ -336,7 +336,7 @@ public:
 
     /** Atomic multi-remove primitive: remove the WHOLE set of crystals in one verify-then-commit,
      *  firing a SINGLE Removed (not one per item). Pool-AGNOSTIC — the component dispatches each Id to
-     *  Gems or Stones internally; the primitive just calls the unified count methods. VERIFY — every
+     *  Crystals or Stones internally; the primitive just calls the unified count methods. VERIFY — every
      *  Id (duplicates summed) must have enough; any shortfall removes NOTHING and returns false.
      *  COMMIT — debit each. The general consume primitive (merge inputs, etc.); the attach-ops share
      *  its silent core but fire Equipped instead. */

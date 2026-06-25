@@ -51,7 +51,7 @@ public:
      * (GetCrystalValue) meets-or-exceeds the target's value. Keyed by Type + TargetTier — the player
      * asks for "a [TargetTier] [Type]" and the merge picks which lower crystals to spend. Same Type
      * (element+variant preserved), one pool. Costs Prisms (GetMergeCostForTier(TargetTier) — half
-     * the §5 buy price), no essence/Gold. Gems + stones only; the pool (Gems vs Stones) is dispatched
+     * the §5 buy price), no essence/Gold. Crystals + stones only; the pool (Crystals vs Stones) is dispatched
      * by Type inside the component — no item/refined axis (the gem-merge collapsed it). Evolution
      * crystals are structurally unrepresentable as FCrystalId so they can never reach here (only
      * invalid Type is None).

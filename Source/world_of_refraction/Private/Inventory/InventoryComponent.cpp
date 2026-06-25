@@ -845,7 +845,7 @@ bool UInventoryComponent::AttachFusionToWeapon(FGuid WeaponPersistentID, FFusion
     }
 
     // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
-    // half to Gems or Stones internally. The core does the verify-then-commit and the identical-halves
+    // half to Crystals or Stones internally. The core does the verify-then-commit and the identical-halves
     // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
     // (Equipped) below.
     if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
@@ -1325,7 +1325,7 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     }
 
     // ---------- Crystals / evolution ----------
-    // CrystalStock → CrystalInv->AddCount per (Id, Count); the component splits gem→Gems /
+    // CrystalStock → CrystalInv->AddCount per (Id, Count); the component splits gem→Crystals /
     // stone→Stones by IsGemType. (The asset's PostLoad already folded the deprecated
     // ItemCrystals + RefinedCrystals into CrystalStock, so one loop reads the merged stock.)
     // EvolutionEquipment → EvolutionInv->AddInstance per entry. Sibling components are warned
@@ -1497,8 +1497,8 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
     {
         // Crystal pools are TMap<FCrystalId,int32> on both sides — structural parity, so a
         // direct map copy (assignment) is the whole-store transfer. ClearAll() above means
-        // assignment (not merge) is correct. Two pools now (gem-merge): Gems + Stones.
-        CrystalInv->Gems = Pool->GetGems();
+        // assignment (not merge) is correct. Two pools now (gem-merge): Crystals + Stones.
+        CrystalInv->Crystals = Pool->GetCrystals();
         CrystalInv->Stones = Pool->GetStones();
     }
     if (EvolutionInv)
@@ -1694,7 +1694,7 @@ FString UInventoryComponent::GetInventoryInstanceString() const
                                        *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
             }
         };
-        EmitPool(CrystalInv->Gems, TEXT("gem"));
+        EmitPool(CrystalInv->Crystals, TEXT("crystal"));
         EmitPool(CrystalInv->Stones, TEXT("stone"));
     }
     else

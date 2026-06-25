@@ -8,17 +8,17 @@ UCrystalInventoryComponent::UCrystalInventoryComponent()
 }
 
 // ==================== POOL DISPATCH ====================
-// IsGemType(Type) selects the gem vs stone pool (gem → Gems, stone → Stones). One
-// dispatch, in one place — the former item/refined axis is gone (gems are dual-purpose).
+// IsGemType(Type) selects the gem vs stone pool (gem → Crystals, stone → Stones). One
+// dispatch, in one place — the former item/refined axis is gone (crystals are dual-purpose).
 
 TMap<FCrystalId, int32> &UCrystalInventoryComponent::PoolFor(ECrystalType Type)
 {
-    return CrystalTypeHelpers::IsGemType(Type) ? Gems : Stones;
+    return CrystalTypeHelpers::IsGemType(Type) ? Crystals : Stones;
 }
 
 const TMap<FCrystalId, int32> &UCrystalInventoryComponent::PoolFor(ECrystalType Type) const
 {
-    return CrystalTypeHelpers::IsGemType(Type) ? Gems : Stones;
+    return CrystalTypeHelpers::IsGemType(Type) ? Crystals : Stones;
 }
 
 int32 UCrystalInventoryComponent::SumAtTier(const TMap<FCrystalId, int32> &Pool, EItemTier Tier)
@@ -91,13 +91,13 @@ int32 UCrystalInventoryComponent::GetCountForTier(EItemTier Tier) const
 {
     // Combined gem + stone count at Tier — the aggregate display total. Per-pool cap
     // checks use SumAtTier on a single pool, not this sum.
-    return SumAtTier(Gems, Tier) + SumAtTier(Stones, Tier);
+    return SumAtTier(Crystals, Tier) + SumAtTier(Stones, Tier);
 }
 
 int32 UCrystalInventoryComponent::GetTotalCount() const
 {
     int32 Total = 0;
-    for (const TMap<FCrystalId, int32> *Pool : {&Gems, &Stones})
+    for (const TMap<FCrystalId, int32> *Pool : {&Crystals, &Stones})
     {
         for (const TPair<FCrystalId, int32> &Pair : *Pool)
         {
@@ -109,17 +109,17 @@ int32 UCrystalInventoryComponent::GetTotalCount() const
 
 int32 UCrystalInventoryComponent::GetStackCount() const
 {
-    return Gems.Num() + Stones.Num();
+    return Crystals.Num() + Stones.Num();
 }
 
 void UCrystalInventoryComponent::ClearAll()
 {
-    Gems.Empty();
+    Crystals.Empty();
     Stones.Empty();
 }
 
 // ==================== CAPS ====================
-// Per-pool: the cap check sums ONLY the pool the Id routes to (Gems or Stones), so
+// Per-pool: the cap check sums ONLY the pool the Id routes to (Crystals or Stones), so
 // gems and stones each get a full CRYSTAL_PER_TIER_CAP per tier, independently.
 
 bool UCrystalInventoryComponent::CanAddCount(FCrystalId Id, int32 Count) const

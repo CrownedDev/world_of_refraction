@@ -8,7 +8,7 @@
 // into the three browse categories the structured-pool design defines:
 //   - ARMOURY:   OwnedWeapons, OwnedRings, OwnedEvolutions
 //   - KNOWLEDGE: OwnedSpells, OwnedAbilities
-//   - ITEMS:     Gems + Stones (counted stacks; mirrors the run 2-pool split)
+//   - ITEMS:     Crystals + Stones (counted stacks; mirrors the run 2-pool split)
 //   - WALLET:    the currency value-block (separate from the 3 browse categories)
 // Each gear/skill store reuses the SAME struct the run components use, so pool <-> run
 // is a structural copy, not a translation. The Crystal/Augment 2-bucket BROWSE split is
@@ -97,15 +97,15 @@ public:
     const FAbilityInstance *FindAbilityInPool(const FGuid &InstanceID) const;
 
     // ==================== ITEMS — crystals (counted stacks) ====================
-    // Two pools mirroring the run component (gem-merge): Gems (dual-purpose) + Stones (slot-only).
+    // Two pools mirroring the run component (gem-merge): Crystals (dual-purpose) + Stones (slot-only).
     // gem/stone is auto-dispatched by IsGemType; there is no item/refined axis anymore.
 
-    /** Add Count crystals at Id — routes to Gems or Stones by IsGemType. INERT — no cap enforcement
+    /** Add Count crystals at Id — routes to Crystals or Stones by IsGemType. INERT — no cap enforcement
      *  this phase (the run component owns caps; the pool is raw storage). */
     UFUNCTION(BlueprintCallable, Category = "Pool|Items")
     void AddCrystalToPool(const FCrystalId &Id, int32 Count = 1);
 
-    const TMap<FCrystalId, int32> &GetGems() const { return Gems; }
+    const TMap<FCrystalId, int32> &GetCrystals() const { return Crystals; }
     const TMap<FCrystalId, int32> &GetStones() const { return Stones; }
 
     // ==================== CATEGORY GETTERS (filtered browse views) ====================
@@ -190,10 +190,10 @@ private:
 
     // ITEMS — counted stacks keyed by (Type, Tier); fungible, no per-instance identity.
     // Mirrors the run UCrystalInventoryComponent's 2-pool gem/stone split EXACTLY (so draw/
-    // return is a direct structural copy, not a translation). Gems are dual-purpose (one bucket,
+    // return is a direct structural copy, not a translation). Crystals are dual-purpose (one bucket,
     // no item/refined split); Stones are slot-only.
     UPROPERTY(SaveGame)
-    TMap<FCrystalId, int32> Gems;
+    TMap<FCrystalId, int32> Crystals;
 
     UPROPERTY(SaveGame)
     TMap<FCrystalId, int32> Stones;

@@ -1,16 +1,19 @@
 // CrystalInventoryComponent.h
 // Count-based inventory for crystals. Two pools, keyed on FCrystalId (Type+Tier):
-//  - Gems   : DUAL-PURPOSE gem crystals — throwable AND slottable from ONE bucket.
-//             The gem-merge (§13.5) collapsed the former GemItem + GemRefined into
-//             this single pool: there is no item/refined split anymore. Both throwing
-//             (consume) and slotting (attach-debit) draw from Gems.
+//  - Crystals : DUAL-PURPOSE gem-family crystals — throwable AND slottable from ONE
+//             bucket. The gem-merge (§13.5) collapsed the former GemItem + GemRefined
+//             into this single pool: there is no item/refined split anymore. Both
+//             throwing (consume) and slotting (attach-debit) draw from Crystals.
 //  - Stones : augment stones — SLOT-ONLY (attach directly; no throw, no refined form).
 //             Behaviour unchanged by the merge; only the name changed (was StoneItem).
-// IsGemType(Id.Type) DISPATCHES an Id to its pool (gem → Gems, stone → Stones) — that
-// axis STAYS; only the within-gems item/refined axis was removed. Callers use one
+// NOTE: augment stones ARE crystals too (FCrystalId covers both); the pool named
+// "Crystals" is the dual-purpose GEM-FAMILY bucket, "Stones" the augment-stone bucket.
+// GetCrystals()/GetStones() are per-pool; GetTotalCount()/GetCountForTier() aggregate both.
+// IsGemType(Id.Type) DISPATCHES an Id to its pool (gem → Crystals, stone → Stones) — that
+// axis STAYS; only the within-gem-family item/refined axis was removed. Callers use one
 // type-agnostic API (AddCount/RemoveCount/GetCount/CanAddCount) and never name a pool.
-// Caps are PER POOL: gems and stones each enforce CRYSTAL_PER_TIER_CAP independently
-// per tier (a full gem shelf does not block stones, and vice-versa).
+// Caps are PER POOL: each enforces CRYSTAL_PER_TIER_CAP independently per tier (a full
+// crystal shelf does not block stones, and vice-versa).
 //
 // Evolution crystals live in UEvolutionInventoryComponent as instances with
 // FGuids — counts aren't enough because trade APIs need identity. This
@@ -37,15 +40,15 @@ public:
     UCrystalInventoryComponent();
 
     // ==================== STORAGE ====================
-    // Two pools: Gems (dual-purpose — one bucket, no item/refined split) and Stones
+    // Two pools: Crystals (dual-purpose — one bucket, no item/refined split) and Stones
     // (slot-only). The Id-keyed methods dispatch here by IsGemType(Id.Type); callers
     // never touch these directly.
 
-    /** DUAL-PURPOSE gem crystals (throwable AND slottable), counted per (Type, Tier).
+    /** DUAL-PURPOSE gem-family crystals (throwable AND slottable), counted per (Type, Tier).
      *  The gem-merge (§13.5) collapsed the former GemItem + GemRefined into this one
      *  bucket — slotting and throwing both debit it. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Inventory|Crystals")
-    TMap<FCrystalId, int32> Gems;
+    TMap<FCrystalId, int32> Crystals;
 
     /** AUGMENT STONES (slot-only; attach directly, no refined form), counted per
      *  (Type, Tier). Renamed from StoneItem in the gem-merge; behaviour unchanged. */
@@ -54,7 +57,7 @@ public:
 
     // ==================== WRITE ====================
 
-    /** Add Count crystals at Id — routed to Gems or Stones by IsGemType(Id.Type).
+    /** Add Count crystals at Id — routed to Crystals or Stones by IsGemType(Id.Type).
      *  Returns false on cap exhaustion or non-positive Count — no partial writes. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
     bool AddCount(FCrystalId Id, int32 Count = 1);
@@ -67,16 +70,16 @@ public:
 
     // ==================== READ ====================
 
-    /** Count at exact Id in its routed pool (Gems or Stones). 0 when absent. */
+    /** Count at exact Id in its routed pool (Crystals or Stones). 0 when absent. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetCount(FCrystalId Id) const;
 
-    /** Combined Gems + Stones count across all Types at the given Tier (display total).
+    /** Combined Crystals + Stones count across all Types at the given Tier (display total).
      *  Per-pool cap checks use SumAtTier on a single pool, not this sum. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetCountForTier(EItemTier Tier) const;
 
-    /** Sum of counts across both pools (Gems + Stones). Convenience for summary / debug. */
+    /** Sum of counts across both pools (Crystals + Stones). Convenience for summary / debug. */
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetTotalCount() const;
 
@@ -85,7 +88,7 @@ public:
     UFUNCTION(BlueprintPure, Category = "Inventory|Crystals")
     int32 GetStackCount() const;
 
-    /** Empty both pools (Gems / Stones). Used by re-init so a reload doesn't accumulate. */
+    /** Empty both pools (Crystals / Stones). Used by re-init so a reload doesn't accumulate. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
     void ClearAll();
 
@@ -97,7 +100,7 @@ public:
 
 private:
     // ==================== POOL DISPATCH ====================
-    // Select the pool for a Type by the gem/stone axis (IsGemType): gem → Gems,
+    // Select the pool for a Type by the gem/stone axis (IsGemType): gem → Crystals,
     // stone → Stones. One dispatch, in one place — the item/refined axis is gone.
 
     TMap<FCrystalId, int32> &PoolFor(ECrystalType Type);
