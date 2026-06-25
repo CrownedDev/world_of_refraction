@@ -94,6 +94,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActorTurnStarted, AActor *, Acto
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnActionRequested, AActor *, Actor);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionExecuted, AActor *, Actor, const FActionResult &, Result);
 
+/** Fired at combat end on a PLAYER WIN when the encounter earned World Stat Points (§7 C3).
+ *  Carries the pending pool; the deferred 5-pick-3 draft UI binds this to let the player allocate.
+ *  INERT until that UI exists (like OnInventoryChanged was) — C3 only FIRES it. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWorldStatDraftReady, int32, PoolAmount);
+
 /**
  * CombatOrchestrator - Coordinates all combat subsystems
  *
@@ -218,6 +223,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnCombatResultReady OnCombatResultReady;
 
+	/** §7 C3 — fired at combat end on a player WIN when PendingWorldStatPool > 0. The 5-pick-3
+	 *  draft UI binds this (deferred); nothing consumes it yet. */
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
+	FOnWorldStatDraftReady OnWorldStatDraftReady;
+
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Events")
 	FOnActorTurnStarted OnActorTurnStarted;
 
@@ -266,6 +276,23 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Debug")
 	void DebugPrintCombatState();
+
+	// ==================== WORLD STATS (§7 C3 — earn pool) ====================
+
+	/** Current encounter's accumulated World Stat Point pool (filled by enemy kills; reset at
+	 *  combat start). Read by the draft event / debug. */
+	UFUNCTION(BlueprintPure, Category = "Combat|WorldStats")
+	int32 GetPendingWorldStatPool() const { return PendingWorldStatPool; }
+
+	/** DEBUG-ONLY: dump the entire pending pool into the player team's Mind via AddEarnedWorldStat,
+	 *  then clear the pool. NOT the real draft (that's the deferred 5-pick-3 UI on
+	 *  OnWorldStatDraftReady) — this just proves the pool→grant pipe end-to-end in PIE. */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat|WorldStats")
+	void DebugApplyPendingWorldStats();
+
+	/** DEBUG: print the pending pool + each player-team member's live Mind/Body/Spirit. */
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Combat|WorldStats")
+	void DebugPrintWorldStats() const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat|Debug")
 	int32 DebugDamageAmount = 50;
@@ -417,6 +444,17 @@ private:
 
 	UPROPERTY()
 	TArray<AActor *> Team1Combatants;
+
+	/** §7 C3 — World Stat Points earned THIS encounter (enemy kills, caliber-scaled). Reset at
+	 *  combat start; fed by OnCombatantDied; surfaced via OnWorldStatDraftReady on a player win. */
+	UPROPERTY()
+	int32 PendingWorldStatPool = 0;
+
+	/** Death listener bound per-combatant in StartCombat (both teams), unbound at combat end —
+	 *  mirrors TurnManager's OnDied lifecycle. Enemy (Team1) deaths add caliber WSP to the pool;
+	 *  player (Team0) deaths are ignored. UFUNCTION so it can bind to the dynamic OnDied delegate. */
+	UFUNCTION()
+	void OnCombatantDied(AActor *Victim);
 
 	UPROPERTY()
 	AActor *CurrentActor;
