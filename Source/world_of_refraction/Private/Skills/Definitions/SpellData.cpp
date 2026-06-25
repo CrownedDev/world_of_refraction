@@ -86,9 +86,9 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     if (!Character)
         return 0;
 
-    // Attacker-side base: the skill-level BaseDamage. The bIsRawMode mult below applies on it; the
-    // SpellDamage/Mind/element scaling runs downstream at ApplyHit (ActionType=Spell). Requirement
-    // proficiency now flows through ComputeActionStatModifiers (per-pillar), not a flat penalty here.
+    // Attacker-side base: the skill-level BaseDamage. The SpellDamage/Mind/element scaling runs
+    // downstream at ApplyHit (ActionType=Spell). Requirement proficiency now flows through
+    // ComputeActionStatModifiers (per-pillar), not a flat penalty here.
     const int32 EffectiveBase = BaseDamage;
 
     // Attacker-side base only. SpellDamage multiplier is applied once downstream
@@ -98,21 +98,12 @@ int32 USpellData::CalculateDamage(UCharacterData *Character, const FActionStatMo
     // (StatusBuildupManager::AddStatusBuildup + CalculateStatusBuildup).
     float FinalDamage = EffectiveBase;
 
-    if (bIsRawMode)
-    {
-        FinalDamage *= CombatConstants::RAW_MODE_DAMAGE_MULTIPLIER;
-    }
-
     return FMath::RoundToInt(FinalDamage);
 }
 
 int32 USpellData::CalculateStatusBuildup(UCharacterData *Character, const FActionStatModifiers &ActionMods) const
 {
     if (!Character)
-        return 0;
-
-    // Raw mode: no status buildup
-    if (bIsRawMode)
         return 0;
 
     // Buffs/heals don't build status
@@ -265,8 +256,8 @@ EDataValidationResult USpellData::IsDataValid(FDataValidationContext &Context) c
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
-    // Validate status buildup (only relevant for elemental mode; sign handled by ClampMin on base)
-    if (!bIsRawMode && StatusBuildup < 0)
+    // Validate status buildup (sign handled by ClampMin on base)
+    if (StatusBuildup < 0)
     {
         Context.AddError(FText::FromString(TEXT("Status Buildup cannot be negative")));
         Result = EDataValidationResult::Invalid;

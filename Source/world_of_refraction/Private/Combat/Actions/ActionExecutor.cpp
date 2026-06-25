@@ -1246,10 +1246,6 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 		SpellBaseBuildup = FMath::RoundToInt(Spell->StatusBuildup * StatusMultiplier * TierPowerScaling::GetTierPowerMultiplier(Spell->Tier) * GetTierGapDamageMultiplier(Caster, Action));
 	}
 
-	// Commit 2: if bIsRawMode, fold StatusBuildup into FinalDamage at the
-	// orchestrator boundary so downstream defense + ApplyHit see normalised inputs.
-	ActionUtils::ApplyRawModeRedirect(Spell->bIsRawMode, FinalDamage, SpellBaseBuildup);
-
 	FinalizeDamageInputs(Spell, FinalDamage, Spell->HitCount, DamagePerHit);
 	PendingSpellDamage = FinalDamage; // Spell-specific: cached for VFX notify
 
@@ -1487,8 +1483,6 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 		// same ladder/direction as damage — reuse the shared damage accessor.
 		AbilityBaseBuildup = FMath::RoundToInt(Ability->StatusBuildup * StatusMult * TierPowerScaling::GetTierPowerMultiplier(Ability->Tier) * GetTierGapDamageMultiplier(User, Action));
 	}
-
-	ActionUtils::ApplyRawModeRedirect(Ability->bIsRawMode, FinalDamage, AbilityBaseBuildup);
 
 	int32 DamagePerHit = 0;
 	FinalizeDamageInputs(Ability, FinalDamage, Ability->HitCount, DamagePerHit);

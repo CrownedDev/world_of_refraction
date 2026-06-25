@@ -88,16 +88,6 @@ FString USpellDataDebug::GetSpellStatsString(USpellData *Spell, UCharacterData *
         Output += TEXT("  None\n");
     }
 
-    // Mode Display
-    if (Spell->bIsRawMode)
-    {
-        Output += TEXT("MODE: Raw (+10% damage, no status)\n\n");
-    }
-    else
-    {
-        Output += TEXT("MODE: Elemental (applies status)\n\n");
-    }
-
     Output += FString::Printf(TEXT("  Damage: %d\n"), Spell->CalculateDamage(Character));
     Output += FString::Printf(TEXT("  Energy: %d\n"), Spell->CalculateEnergyCost(Character));
 
@@ -155,7 +145,6 @@ void USpellDataDebug::CompareSpellEffectiveness(USpellData *Spell, UCharacterDat
     FString Output = TEXT("");
     Output += TEXT("===================================\n");
     Output += FString::Printf(TEXT("SPELL COMPARISON: %s\n"), *Spell->Name);
-    Output += FString::Printf(TEXT("MODE: %s\n"), Spell->bIsRawMode ? TEXT("Raw") : TEXT("Elemental"));
     Output += TEXT("===================================\n\n");
 
     // Character 1
