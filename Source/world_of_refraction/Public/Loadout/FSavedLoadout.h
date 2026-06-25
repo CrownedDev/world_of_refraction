@@ -20,7 +20,6 @@ class URingData;
 class UEvolutionItemData;
 class USpellData;
 class UAbilityData;
-class UStanceData;
 
 /**
  * FSpellRef
@@ -237,14 +236,6 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
               meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Evolution", EditConditionHides))
     TArray<FSpellRef> EvolutionSpells;
 
-    /** Override primary weapon stance (nullptr = use weapon default).
-     *  Propagated to FWeaponLoadoutEntry::StanceOverride in
-     *  FCombatLoadout::CreateFromSavedLoadout; consumed by
-     *  ULoadoutComponent::GetCurrentStance. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "3. Primary|Config",
-              meta = (EditCondition = "PrimarySlotType == EPrimarySlotType::Weapon", EditConditionHides))
-    UStanceData *PrimaryWeaponStanceOverride = nullptr;
-
     // ==================== SECONDARY EQUIPMENT (Generic only) ====================
 
     /** Secondary slot type (Generic only - None or Weapon) */
@@ -276,12 +267,6 @@ struct WORLD_OF_REFRACTION_API FSavedLoadout
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
               meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
     TArray<UAbilityData *> SecondaryAugmentStoneAbilities;
-
-    /** Override secondary weapon stance (Generic only, nullptr = use weapon default).
-     *  Same propagation path as PrimaryWeaponStanceOverride. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "4. Secondary|Config",
-              meta = (EditCondition = "RequiredClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon", EditConditionHides))
-    UStanceData *SecondaryWeaponStanceOverride = nullptr;
 
     // ==================== ITEMS ====================
 

@@ -215,7 +215,6 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
             Loadout.SecondarySlotType = ESecondarySlotType::None;
             Loadout.SecondaryWeapon = nullptr;
             Loadout.SecondaryWeaponAbilities.Empty();
-            Loadout.SecondaryWeaponStanceOverride = nullptr;
         }
 
         if (Loadout.RequiredClass != ECharacterClass::Caster)
@@ -242,7 +241,6 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
         {
             Loadout.PrimaryWeapon = nullptr;
             Loadout.PrimaryWeaponAbilities.Empty();
-            Loadout.PrimaryWeaponStanceOverride = nullptr;
         }
 
         if (Loadout.PrimarySlotType != EPrimarySlotType::Ring)
@@ -260,7 +258,6 @@ void UInventoryData::PostEditChangeProperty(FPropertyChangedEvent &PropertyChang
         {
             Loadout.SecondaryWeapon = nullptr;
             Loadout.SecondaryWeaponAbilities.Empty();
-            Loadout.SecondaryWeaponStanceOverride = nullptr;
         }
     }
 }
