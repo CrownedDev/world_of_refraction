@@ -39,5 +39,8 @@
       "Bash(Select-Object FullName)",
       "PowerShell(git checkout *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "unreal-mcp"
+  ]
 }
