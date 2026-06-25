@@ -23,9 +23,9 @@ Input struct for `CalculateDamage`. Important fields:
 - `Element` (`ESpellElement`) — elemental type; `Generic` skips element interaction.
 - `bCanCrit`, `bWasInfused`, `InfusionLevel`.
 - `ActionMods` (`FActionStatModifiers`) — per-action stat modifiers from all active sources (Reality innate/slotted/infused, Evolution slotted/infused, future buffs). The calculator consumes `StatusMultiplier` / `SpellDamage` / `RawDamage` / `CritChance` from it.
-- `bIsRawMode`, `HitCount`, `OverrideCritChance` (negative = use default), `bIgnoreDefense`, `bIgnoreResistance`.
+- `HitCount`, `OverrideCritChance` (negative = use default), `bIgnoreDefense`, `bIgnoreResistance`.
 
-Note: `bIsRawMode`, `HitCount`, `InfusionLevel`, `bWasInfused`, and `bIgnoreResistance` are present on the struct but are **not consumed** inside `CalculateDamage` in the current implementation (see Known Limitations).
+Note: `HitCount`, `InfusionLevel`, `bWasInfused`, and `bIgnoreResistance` are present on the struct but are **not consumed** inside `CalculateDamage` in the current implementation (see Known Limitations).
 
 ### `FDamageCalculationResult` (`USTRUCT`)
 
@@ -109,7 +109,7 @@ Any combat caller invoking `CalculateDamage` / `CalculateAttackDamage` (e.g. act
   `AugmentStoneSystem.md`.
 - **Duplicated Step 7.** `CalculateDamage` computes `Result.FinalDamage` twice in identical back-to-back statements (`DamageCalculator.cpp` lines 166–170). Harmless but redundant.
 - **No element advantage system.** `IsWeakTo` and `ResistsElement` always return `false`; `GetElementInteractionMultiplier` always returns `1.0`. The `WEAKNESS_MULTIPLIER` / `RESISTANCE_MULTIPLIER` constants and `MAX_RESISTANCE` are presently unused for elemental interaction.
-- **Unused input fields.** `FDamageCalculationInput::HitCount`, `InfusionLevel`, `bWasInfused`, `bIsRawMode`, and `bIgnoreResistance` are not consumed by `CalculateDamage`. Multi-hit (`HitCount`) is not wired into the main path. *(Infusion damage is applied upstream at the `ActionExecutor` assembly layer via `GetChargeDamageMultiplier`, not here; the old `GetInfusionDamageMultiplier` was deleted in the tier-power arc.)*
+- **Unused input fields.** `FDamageCalculationInput::HitCount`, `InfusionLevel`, `bWasInfused`, and `bIgnoreResistance` are not consumed by `CalculateDamage`. Multi-hit (`HitCount`) is not wired into the main path. *(Infusion damage is applied upstream at the `ActionExecutor` assembly layer via `GetChargeDamageMultiplier`, not here; the old `GetInfusionDamageMultiplier` was deleted in the tier-power arc.)*
 - **`FDamageCalculationResult::StatusBuildup`** is never populated by the calculator — it is left at its default and expected to be filled by the caller.
 - Comments reference a prior `RawDamageBuff` / `CritChanceBuff` status-effect path for per-instance weapon bonuses; the current code reads equipment bonuses directly via `ULoadoutComponent`. The comment in `CalculateAttackDamage` still describes the older equip-time status-effect approach, which is a potential source of confusion.
 

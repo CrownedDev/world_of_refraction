@@ -1,5 +1,7 @@
 # Raw Mode — Extension to Physical Attacks (Parked)
 
+> **DEAD (2026-06-25):** the base `bIsRawMode` flag this extension builds on was removed. This design is inert unless raw mode is reintroduced from scratch.
+
 **Status:** PARKED / future thread. Not scheduled. Captured so it's not lost. Belongs *after* the current
 reactive-defense / Stage-6 per-cast-entry spell-damage work.
 
