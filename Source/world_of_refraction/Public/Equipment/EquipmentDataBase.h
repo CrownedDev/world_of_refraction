@@ -17,6 +17,7 @@
 #include "Skills/Effects/FGatheredEffect.h"
 #include "Equipment/FAttachedItem.h"
 #include "Equipment/IEquipmentGenerator.h"
+#include "GameplayTagContainer.h" // SourceTags — loot/draft source-tag layer (§7.9 C1)
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -49,6 +50,14 @@ class WORLD_OF_REFRACTION_API UEquipmentDataBase : public UPrimaryDataAsset, pub
     GENERATED_BODY()
 
 public:
+    // ==================== SOURCE (loot/draft tags) ====================
+
+    /** GameplayTag sources this definition can drop from (e.g. Source.Floor.2, Source.Vendor.X).
+     *  Authored per-asset in the editor; inherited by UWeaponData / URingData. The loot draft
+     *  (C0 asset registry + C2 tag-query, deferred) filters candidates by these. INERT until then. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Source")
+    FGameplayTagContainer SourceTags;
+
     // ==================== IDENTITY ====================
 
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
