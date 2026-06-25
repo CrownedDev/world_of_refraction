@@ -6,6 +6,7 @@
 
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h" // IsGemType — split CrystalStock gem/stone for the cap check
 #include "Inventory/InventoryConstants.h"
 #include "Inventory/ItemTier.h"
 #include "Equipment/Rings/RingData.h"
@@ -26,41 +27,46 @@ TArray<FString> UInventoryData::GetValidationErrors() const
             DefaultActiveLoadoutIndex, SavedLoadouts.Num()));
     }
 
-    // ---------- New-fields per-tier caps ----------
-    // Each pool gets its own per-tier sum check. Legacy-only assets (where
-    // ItemCrystals / RefinedCrystals are empty) skip these loops entirely
-    // and pass through unchanged.
-    auto ValidateTierSums = [&Errors](const TMap<FCrystalId, int32> &Pool, const TCHAR *PoolName)
+    // ---------- Authored crystal per-tier caps ----------
+    // CrystalStock is MIXED gem+stone; at load it splits to the runtime Gems / Stones pools, each
+    // capped CRYSTAL_PER_TIER_CAP per tier INDEPENDENTLY. So validate the gem entries and the stone
+    // entries separately per tier — matching the runtime CanAddCount semantics (a tier can hold up
+    // to 20 gems AND 20 stones). Empty CrystalStock skips the loops entirely.
     {
-        TMap<EItemTier, int32> SumByTier;
-        for (const TPair<FCrystalId, int32> &Pair : Pool)
+        TMap<EItemTier, int32> GemByTier;
+        TMap<EItemTier, int32> StoneByTier;
+        for (const TPair<FCrystalId, int32> &Pair : CrystalStock)
         {
             if (Pair.Value < 0)
             {
                 Errors.Add(FString::Printf(
-                    TEXT("%s entry (Type=%d, Tier=%d) has negative count %d"),
-                    PoolName,
+                    TEXT("CrystalStock entry (Type=%d, Tier=%d) has negative count %d"),
                     static_cast<int32>(Pair.Key.Type),
                     static_cast<int32>(Pair.Key.Tier),
                     Pair.Value));
             }
-            SumByTier.FindOrAdd(Pair.Key.Tier) += FMath::Max(0, Pair.Value);
+            const int32 Clamped = FMath::Max(0, Pair.Value);
+            (CrystalTypeHelpers::IsGemType(Pair.Key.Type) ? GemByTier : StoneByTier)
+                .FindOrAdd(Pair.Key.Tier) += Clamped;
         }
-        for (const TPair<EItemTier, int32> &TierPair : SumByTier)
+        auto CheckCaps = [&Errors](const TMap<EItemTier, int32> &ByTier, const TCHAR *Label)
         {
-            if (TierPair.Value > InventoryConstants::CRYSTAL_PER_TIER_CAP)
+            for (const TPair<EItemTier, int32> &TierPair : ByTier)
             {
-                Errors.Add(FString::Printf(
-                    TEXT("%s sum for Tier=%d is %d, exceeds CRYSTAL_PER_TIER_CAP (%d)"),
-                    PoolName,
-                    static_cast<int32>(TierPair.Key),
-                    TierPair.Value,
-                    InventoryConstants::CRYSTAL_PER_TIER_CAP));
+                if (TierPair.Value > InventoryConstants::CRYSTAL_PER_TIER_CAP)
+                {
+                    Errors.Add(FString::Printf(
+                        TEXT("CrystalStock %s sum for Tier=%d is %d, exceeds CRYSTAL_PER_TIER_CAP (%d)"),
+                        Label,
+                        static_cast<int32>(TierPair.Key),
+                        TierPair.Value,
+                        InventoryConstants::CRYSTAL_PER_TIER_CAP));
+                }
             }
-        }
-    };
-    ValidateTierSums(ItemCrystals, TEXT("ItemCrystals"));
-    ValidateTierSums(RefinedCrystals, TEXT("RefinedCrystals"));
+        };
+        CheckCaps(GemByTier, TEXT("gem"));
+        CheckCaps(StoneByTier, TEXT("stone"));
+    }
 
     if (EvolutionEquipment.Num() > InventoryConstants::MAX_EVOLUTION_ITEMS)
     {
@@ -278,4 +284,29 @@ TArray<FString> UInventoryData::GetActiveLoadoutOptions() const
 FPrimaryAssetId UInventoryData::GetPrimaryAssetId() const
 {
     return FPrimaryAssetId(TEXT("InventoryData"), GetFName());
+}
+
+void UInventoryData::PostLoad()
+{
+    Super::PostLoad();
+
+    // Gem-merge migration (§13.5): fold the deprecated ItemCrystals + RefinedCrystals into the
+    // unified CrystalStock so legacy .uasset files load without re-authoring. Idempotent — guarded
+    // on CrystalStock being empty, so a migrated / freshly-authored asset no-ops. Both old maps fold
+    // by FCrystalId (the bulk-load splits gem/stone later); the same Id in both maps SUMS (the two
+    // forms merge into the one dual-purpose stack). The old maps are cleared after folding so a
+    // re-save drops the duplicate. TODO: remove the deprecated maps + this fold after one save cycle.
+    if (CrystalStock.Num() == 0 && (ItemCrystals.Num() > 0 || RefinedCrystals.Num() > 0))
+    {
+        for (const TPair<FCrystalId, int32> &Pair : ItemCrystals)
+        {
+            CrystalStock.FindOrAdd(Pair.Key) += Pair.Value;
+        }
+        for (const TPair<FCrystalId, int32> &Pair : RefinedCrystals)
+        {
+            CrystalStock.FindOrAdd(Pair.Key) += Pair.Value;
+        }
+        ItemCrystals.Empty();
+        RefinedCrystals.Empty();
+    }
 }

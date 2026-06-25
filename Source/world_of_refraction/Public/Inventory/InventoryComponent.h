@@ -16,7 +16,6 @@
 #include "Inventory/EInventoryChangeType.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/FFusionId.h"
-#include "Equipment/Crystals/ECrystalPool.h"
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/Entries/FAbilityCollection.h"
 #include "Loadout/Entries/FWeaponInventoryEntry.h"
@@ -325,41 +324,31 @@ public:
     // false / 0 (and broadcasts nothing) when the sibling is missing or the op
     // didn't change anything.
 
-    /** Add Count item crystals at Id via the sibling pool. Broadcasts Added on success. */
+    /** Add Count crystals at Id via the sibling pool (gem/stone dispatched inside the component).
+     *  Broadcasts Added on success. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddCrystalItem(FCrystalId Id, int32 Count = 1);
+    bool AddCrystal(FCrystalId Id, int32 Count = 1);
 
-    /** Add Count refined crystals at Id via the sibling pool. Broadcasts Added on success. */
+    /** Remove up to Count crystals at Id (gem/stone dispatched inside the component). Returns the
+     *  number actually removed; broadcasts Removed when that is > 0. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddCrystalRefined(FCrystalId Id, int32 Count = 1);
-
-    /** Remove up to Count item crystals at Id. Returns the number actually removed;
-     *  broadcasts Removed when that is > 0. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    int32 RemoveCrystalItem(FCrystalId Id, int32 Count = 1);
-
-    /** Remove up to Count refined crystals at Id. Returns the number actually removed;
-     *  broadcasts Removed when that is > 0. */
-    UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    int32 RemoveCrystalRefined(FCrystalId Id, int32 Count = 1);
+    int32 RemoveCrystal(FCrystalId Id, int32 Count = 1);
 
     /** Atomic multi-remove primitive: remove the WHOLE set of crystals in one verify-then-commit,
-     *  firing a SINGLE Removed (not one per item). POOL-EXPLICIT — each entry NAMES its pool
-     *  (Item / Refined), so the primitive never guesses; a batch can span pools (an elemental fusion's
-     *  gem-Refined + stone-Item halves) atomically. VERIFY — every (Id, Pool) tally (duplicates
-     *  summed) must have enough in its tagged pool; any shortfall removes NOTHING and returns false.
-     *  COMMIT — debit each from its tagged pool. The general consume primitive (merge inputs, etc.);
-     *  the attach-ops share its silent core but fire Equipped instead. */
+     *  firing a SINGLE Removed (not one per item). Pool-AGNOSTIC — the component dispatches each Id to
+     *  Gems or Stones internally; the primitive just calls the unified count methods. VERIFY — every
+     *  Id (duplicates summed) must have enough; any shortfall removes NOTHING and returns false.
+     *  COMMIT — debit each. The general consume primitive (merge inputs, etc.); the attach-ops share
+     *  its silent core but fire Equipped instead. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool RemoveCrystals(const TArray<FCrystalPoolEntry> &Entries);
+    bool RemoveCrystals(const TArray<FCrystalId> &Ids);
 
     /** Atomic multi-ADD primitive: add the WHOLE set in one verify-then-commit, firing a SINGLE
-     *  Added. POOL-EXPLICIT, mirroring RemoveCrystals. ATOMIC-GUARDED because adds CAN fail on the
-     *  per-(pool, tier) cap — VERIFY every (Id, Pool) tally fits its tagged pool's cap; any that
-     *  wouldn't fit adds NOTHING and returns false. COMMIT — add each into its tagged pool. (Merge
-     *  output / refund consume this.) */
+     *  Added. Pool-AGNOSTIC, mirroring RemoveCrystals. ATOMIC-GUARDED because adds CAN fail on the
+     *  per-tier cap — VERIFY every Id (duplicates summed) fits via CanAddCount; any that wouldn't fit
+     *  adds NOTHING and returns false. COMMIT — add each. (Merge output / refund consume this.) */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Crystals")
-    bool AddCrystals(const TArray<FCrystalPoolEntry> &Entries);
+    bool AddCrystals(const TArray<FCrystalId> &Ids);
 
     /** Add an evolution instance via the sibling component. Broadcasts Added on success. */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Evolution")
@@ -403,21 +392,19 @@ private:
     void BroadcastInventoryChanged(EInventoryChangeType ChangeType) const;
 
     /** SILENT atomic verify-then-commit core behind RemoveCrystals and the crystal/fusion attach
-     *  debits. POOL-EXPLICIT: verifies every (Id, Pool) tally (duplicates summed) has enough in its
-     *  TAGGED pool (Item → GetItemCount, Refined → GetRefinedCount), then removes via the RAW sibling
-     *  methods matching the tag. Does NOT broadcast — the caller fires the single signal (RemoveCrystals
-     *  → Removed; attach-ops → Equipped). Returns false (removing nothing) on any shortfall or a
-     *  missing crystal sibling. */
-    bool CommitRemoveCrystals(const TArray<FCrystalPoolEntry> &Entries);
+     *  debits. Pool-AGNOSTIC: verifies every Id (duplicates summed) has enough via GetCount, then
+     *  debits via RemoveCount — the component dispatches gem/stone internally. Does NOT broadcast —
+     *  the caller fires the single signal (RemoveCrystals → Removed; attach-ops → Equipped). Returns
+     *  false (removing nothing) on any shortfall or a missing crystal sibling. */
+    bool CommitRemoveCrystals(const TArray<FCrystalId> &Ids);
 
-    /** SILENT atomic add core behind AddCrystals. POOL-EXPLICIT + ATOMIC-GUARDED: verifies every
-     *  (Id, Pool) tally fits its tagged pool's per-tier cap (Item → CanAddItemCount, Refined →
-     *  CanAddRefinedCount) BEFORE adding any; on any rejection adds nothing and returns false. COMMIT
-     *  adds via the RAW sibling methods by tag. Does NOT broadcast (caller fires one Added).
-     *  NOTE: the per-entry cap check is exact for distinct (pool, tier) entries and same-(Id, Pool)
-     *  duplicates; a batch with DIFFERENT Ids sharing one (pool, tier) would need a grouped check —
-     *  not reachable by current callers (merge output is single; refund is one Id per distinct tier). */
-    bool CommitAddCrystals(const TArray<FCrystalPoolEntry> &Entries);
+    /** SILENT atomic add core behind AddCrystals. Pool-AGNOSTIC + ATOMIC-GUARDED: verifies every Id
+     *  (duplicates summed) fits its per-tier cap via CanAddCount BEFORE adding any; on any rejection
+     *  adds nothing and returns false. COMMIT adds via AddCount. Does NOT broadcast (caller fires one
+     *  Added). NOTE: the per-Id cap check is exact for distinct (pool, tier) Ids and same-Id duplicates;
+     *  a batch with DIFFERENT Ids sharing one (pool, tier) would need a grouped check — not reachable by
+     *  current callers (merge output is single; refund is one Id per distinct tier). */
+    bool CommitAddCrystals(const TArray<FCrystalId> &Ids);
 
     /** Populates ownership lists + SavedLoadouts + ActiveLoadoutIndex from
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init

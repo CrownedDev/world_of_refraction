@@ -619,12 +619,12 @@ void FCombatLoadout::ApplyAutoEquip(FCombatLoadout &Loadout, AActor *OwningActor
             continue;
         }
 
-        const int32 Available = CrystalInv->GetItemCount(Slot.CrystalId);
+        const int32 Available = CrystalInv->GetCount(Slot.CrystalId);
         const int32 Capacity = InventoryConstants::MAX_QUANTITY_PER_ITEM_SLOT - Slot.Quantity;
         const int32 ToEquip = FMath::Min(Available, Capacity);
         if (ToEquip > 0)
         {
-            Inv->RemoveCrystalItem(Slot.CrystalId, ToEquip);
+            Inv->RemoveCrystal(Slot.CrystalId, ToEquip);
             Slot.Quantity += ToEquip;
         }
     }

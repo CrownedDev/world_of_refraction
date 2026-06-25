@@ -10,8 +10,8 @@
 // - Commit 5: UCharacterData::DefaultLoadout removed.
 // - Commit 6: ULoadoutData and ULoadoutData-shaped factories deleted.
 //
-// The ownership lists (Weapons / Rings / ItemCrystals / RefinedCrystals /
-// EvolutionEquipment / Spells / Abilities) are the source of truth for what
+// The ownership lists (Weapons / Rings / CrystalStock / EvolutionEquipment /
+// Spells / Abilities) are the source of truth for what
 // a character can equip. Each FSavedLoadout in SavedLoadouts[] references
 // assets that MUST also appear in the matching ownership list —
 // GetValidationErrors() flags any mismatch.
@@ -64,17 +64,23 @@ public:
     // Per-tier cap CRYSTAL_PER_TIER_CAP enforced via IsDataValid;
     // EvolutionEquipment hard cap MAX_EVOLUTION_ITEMS.
 
-    /** Count-based item-crystal storage (unrefined consumables). Each
-     *  (Type, Tier) entry maps to a count. Per-tier cap of 20
-     *  (CRYSTAL_PER_TIER_CAP). */
+    /** Authored crystal stock — the character's starting crystals (gems AND stones, MIXED; the
+     *  bulk-load splits them to the runtime Gems / Stones pools by IsGemType). One map since the
+     *  gem-merge (§13.5) collapsed the item/refined split. Per-tier cap of 20 PER runtime pool —
+     *  gem entries and stone entries are capped separately per tier (see IsDataValid).
+     *  ⚠️ RENAME-PASS NOTE: named CrystalStock (NOT Gems) because it holds gems + stones mixed —
+     *  the runtime gem pool is still called Gems; this authored map is the mixed input. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
-              meta = (DisplayName = "Item Crystals (counts)"))
+              meta = (DisplayName = "Crystal Stock (counts)"))
+    TMap<FCrystalId, int32> CrystalStock;
+
+    // TODO: remove the two deprecated crystal maps below after one save cycle. The gem-merge
+    // PostLoad folds them into CrystalStock; they are kept (still serialized) ONLY so legacy
+    // .uasset files migrate losslessly. Do not author into them.
+    UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Folded into CrystalStock by the gem-merge — do not author."))
     TMap<FCrystalId, int32> ItemCrystals;
 
-    /** Count-based refined-crystal storage (slottable into weapons/rings).
-     *  Same per-tier cap of 20 as ItemCrystals; independent pool. */
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "1.5. Inventory|Crystals (New)",
-              meta = (DisplayName = "Refined Crystals (counts)"))
+    UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Folded into CrystalStock by the gem-merge — do not author."))
     TMap<FCrystalId, int32> RefinedCrystals;
 
     /** Evolution items the character owns (unslotted). Each entry becomes a
@@ -136,4 +142,9 @@ public:
     // ==================== DATA ASSET ====================
 
     virtual FPrimaryAssetId GetPrimaryAssetId() const override;
+
+    /** Gem-merge migration (§13.5): folds the deprecated ItemCrystals + RefinedCrystals into
+     *  CrystalStock so legacy assets load without re-authoring. Idempotent — guards on CrystalStock
+     *  being empty, so a migrated / freshly-authored asset no-ops. */
+    virtual void PostLoad() override;
 };

@@ -131,15 +131,6 @@ namespace
         return Runtime;
     }
 
-    /** The slotting pool rule for attach/fusion: a gem is slotted in its REFINED form; a stone
-     *  attaches from its ITEM pool. This is the same IsGemType→pool mapping the batch primitive
-     *  used to guess — now stated by the caller (which owns the slotting rule). Merge does NOT use
-     *  this: its pool comes from the bRefined axis, not the type. */
-    ECrystalPool PoolForSlotting(const FCrystalId &Id)
-    {
-        return CrystalTypeHelpers::IsGemType(Id.Type) ? ECrystalPool::Refined : ECrystalPool::Item;
-    }
-
     /** One-evo-one-slot guard: true if EvoInstanceID is already referenced by any primary slot
      *  (across saved loadouts) or any gear attachment (owned weapons/rings). */
     bool IsEvolutionSlottedAnywhere(const UInventoryComponent &Inv, FGuid EvoInstanceID)
@@ -643,11 +634,11 @@ bool UInventoryComponent::AttachCrystalToWeapon(FGuid WeaponPersistentID, FCryst
         return false;
     }
 
-    // DEBIT BEFORE WRITE via the SILENT atomic core, naming the pool (gem→Refined / stone→Item) so
-    // the primitive doesn't guess. Silent so the socket fires exactly ONE signal — the Equipped below
-    // — not Removed + Equipped. false means the crystal isn't owned: reject with no phantom socket.
+    // DEBIT BEFORE WRITE via the SILENT atomic core (the component dispatches gem/stone internally).
+    // Silent so the socket fires exactly ONE signal — the Equipped below — not Removed + Equipped.
+    // false means the crystal isn't owned: reject with no phantom socket.
     const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
-    if (!CommitRemoveCrystals({{Id, PoolForSlotting(Id)}}))
+    if (!CommitRemoveCrystals({Id}))
     {
         UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToWeapon: %s not owned — nothing debited, socket rejected"),
                *ItemIdentity::GetDisplayName(Id));
@@ -692,9 +683,9 @@ bool UInventoryComponent::AttachCrystalToRing(FGuid RingPersistentID, FCrystalId
         return false;
     }
 
-    // Gem-only on rings → always the Refined pool (named explicitly). Debit before write; false =
-    // not owned → reject. Silent so the socket fires one signal (Equipped) below.
-    if (!CommitRemoveCrystals({{Id, ECrystalPool::Refined}}))
+    // Gem-only on rings (stones rejected by the guard above). Debit before write; false = not owned
+    // → reject. Silent so the socket fires one signal (Equipped) below.
+    if (!CommitRemoveCrystals({Id}))
     {
         UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AttachCrystalToRing: %s not owned — nothing debited, socket rejected"),
                *ItemIdentity::GetDisplayName(Id));
@@ -708,9 +699,9 @@ bool UInventoryComponent::AttachCrystalToRing(FGuid RingPersistentID, FCrystalId
     return true;
 }
 
-bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalPoolEntry> &Entries)
+bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalId> &Ids)
 {
-    if (Entries.Num() == 0)
+    if (Ids.Num() == 0)
     {
         return true; // vacuous — nothing requested, nothing changed (no broadcast at the wrapper)
     }
@@ -723,64 +714,54 @@ bool UInventoryComponent::CommitRemoveCrystals(const TArray<FCrystalPoolEntry> &
         return false;
     }
 
-    // Tally required count per distinct (Id, Pool) — so duplicates in the set (incl. identical fusion
-    // halves, HalfA == HalfB at the same pool) demand that many from the one pool, not one each.
-    TMap<FCrystalPoolEntry, int32> Required;
-    for (const FCrystalPoolEntry &Entry : Entries)
+    // Tally required count per distinct Id — so duplicates in the set (incl. identical fusion halves,
+    // HalfA == HalfB) demand that many, not one each. The component dispatches gem/stone internally.
+    TMap<FCrystalId, int32> Required;
+    for (const FCrystalId &Id : Ids)
     {
-        Required.FindOrAdd(Entry)++;
+        Required.FindOrAdd(Id)++;
     }
 
-    // VERIFY: every entry's TAGGED pool (Item → item count, Refined → refined count) must hold at
-    // least the required count. Any shortfall aborts BEFORE any removal — atomic, no partial consume.
-    for (const TPair<FCrystalPoolEntry, int32> &Pair : Required)
+    // VERIFY: every Id's pool must hold at least the required count. Any shortfall aborts BEFORE any
+    // removal — atomic, no partial consume.
+    for (const TPair<FCrystalId, int32> &Pair : Required)
     {
-        const int32 Have = (Pair.Key.Pool == ECrystalPool::Item)
-                               ? CrystalInv->GetItemCount(Pair.Key.Id)
-                               : CrystalInv->GetRefinedCount(Pair.Key.Id);
+        const int32 Have = CrystalInv->GetCount(Pair.Key);
         if (Have < Pair.Value)
         {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveCrystals: %s needs %d, have %d (%s pool) — atomic remove rejected, nothing removed"),
-                   *ItemIdentity::GetDisplayName(Pair.Key.Id), Pair.Value, Have,
-                   Pair.Key.Pool == ECrystalPool::Item ? TEXT("item") : TEXT("refined"));
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] RemoveCrystals: %s needs %d, have %d — atomic remove rejected, nothing removed"),
+                   *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value, Have);
             return false;
         }
     }
 
-    // COMMIT: all verified — debit through the RAW SILENT sibling methods matching the tag (no
-    // per-item broadcast). The single change signal is the caller's responsibility (RemoveCrystals
-    // fires one Removed; the attach-ops fire one Equipped instead).
-    for (const TPair<FCrystalPoolEntry, int32> &Pair : Required)
+    // COMMIT: all verified — debit through the RAW SILENT unified method (no per-item broadcast). The
+    // single change signal is the caller's responsibility (RemoveCrystals fires one Removed; the
+    // attach-ops fire one Equipped instead).
+    for (const TPair<FCrystalId, int32> &Pair : Required)
     {
-        if (Pair.Key.Pool == ECrystalPool::Item)
-        {
-            CrystalInv->RemoveItemCount(Pair.Key.Id, Pair.Value);
-        }
-        else
-        {
-            CrystalInv->RemoveRefinedCount(Pair.Key.Id, Pair.Value);
-        }
+        CrystalInv->RemoveCount(Pair.Key, Pair.Value);
     }
     return true;
 }
 
-bool UInventoryComponent::RemoveCrystals(const TArray<FCrystalPoolEntry> &Entries)
+bool UInventoryComponent::RemoveCrystals(const TArray<FCrystalId> &Ids)
 {
-    if (!CommitRemoveCrystals(Entries))
+    if (!CommitRemoveCrystals(Ids))
     {
         return false;
     }
     // ONE signal for the whole atomic remove (not per-item). Skip on an empty set (no mutation).
-    if (Entries.Num() > 0)
+    if (Ids.Num() > 0)
     {
         BroadcastInventoryChanged(EInventoryChangeType::Removed);
     }
     return true;
 }
 
-bool UInventoryComponent::CommitAddCrystals(const TArray<FCrystalPoolEntry> &Entries)
+bool UInventoryComponent::CommitAddCrystals(const TArray<FCrystalId> &Ids)
 {
-    if (Entries.Num() == 0)
+    if (Ids.Num() == 0)
     {
         return true; // vacuous — nothing requested, nothing changed
     }
@@ -793,52 +774,41 @@ bool UInventoryComponent::CommitAddCrystals(const TArray<FCrystalPoolEntry> &Ent
         return false;
     }
 
-    // Tally per (Id, Pool) — same-(Id, Pool) duplicates sum so the cap check sees the real demand.
-    TMap<FCrystalPoolEntry, int32> Required;
-    for (const FCrystalPoolEntry &Entry : Entries)
+    // Tally per Id — same-Id duplicates sum so the cap check sees the real demand.
+    TMap<FCrystalId, int32> Required;
+    for (const FCrystalId &Id : Ids)
     {
-        Required.FindOrAdd(Entry)++;
+        Required.FindOrAdd(Id)++;
     }
 
-    // VERIFY: adds CAN fail on the per-(pool, tier) cap (CRYSTAL_PER_TIER_CAP) — confirm every tally
-    // fits its tagged pool BEFORE adding any, so the op is all-or-nothing (no partial add).
-    for (const TPair<FCrystalPoolEntry, int32> &Pair : Required)
+    // VERIFY: adds CAN fail on the per-tier cap (CRYSTAL_PER_TIER_CAP) — confirm every tally fits its
+    // pool BEFORE adding any, so the op is all-or-nothing (no partial add).
+    for (const TPair<FCrystalId, int32> &Pair : Required)
     {
-        const bool bFits = (Pair.Key.Pool == ECrystalPool::Item)
-                               ? CrystalInv->CanAddItemCount(Pair.Key.Id, Pair.Value)
-                               : CrystalInv->CanAddRefinedCount(Pair.Key.Id, Pair.Value);
-        if (!bFits)
+        if (!CrystalInv->CanAddCount(Pair.Key, Pair.Value))
         {
-            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AddCrystals: %s x%d (%s pool) exceeds the per-tier cap — atomic add rejected, nothing added"),
-                   *ItemIdentity::GetDisplayName(Pair.Key.Id), Pair.Value,
-                   Pair.Key.Pool == ECrystalPool::Item ? TEXT("item") : TEXT("refined"));
+            UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] AddCrystals: %s x%d exceeds the per-tier cap — atomic add rejected, nothing added"),
+                   *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
             return false;
         }
     }
 
-    // COMMIT: all verified to fit — add via the RAW SILENT sibling methods by tag (no per-item
-    // broadcast; the AddCrystals wrapper fires one Added).
-    for (const TPair<FCrystalPoolEntry, int32> &Pair : Required)
+    // COMMIT: all verified to fit — add via the RAW SILENT unified method (no per-item broadcast; the
+    // AddCrystals wrapper fires one Added).
+    for (const TPair<FCrystalId, int32> &Pair : Required)
     {
-        if (Pair.Key.Pool == ECrystalPool::Item)
-        {
-            CrystalInv->AddItemCount(Pair.Key.Id, Pair.Value);
-        }
-        else
-        {
-            CrystalInv->AddRefinedCount(Pair.Key.Id, Pair.Value);
-        }
+        CrystalInv->AddCount(Pair.Key, Pair.Value);
     }
     return true;
 }
 
-bool UInventoryComponent::AddCrystals(const TArray<FCrystalPoolEntry> &Entries)
+bool UInventoryComponent::AddCrystals(const TArray<FCrystalId> &Ids)
 {
-    if (!CommitAddCrystals(Entries))
+    if (!CommitAddCrystals(Ids))
     {
         return false;
     }
-    if (Entries.Num() > 0)
+    if (Ids.Num() > 0)
     {
         BroadcastInventoryChanged(EInventoryChangeType::Added);
     }
@@ -874,12 +844,11 @@ bool UInventoryComponent::AttachFusionToWeapon(FGuid WeaponPersistentID, FFusion
         return false;
     }
 
-    // Consume both halves atomically (the fuse) via the SILENT core — each half NAMES its pool
-    // (gem→Refined, stone→Item), so an elemental fusion's mixed-pool batch commits in one atomic op.
-    // The core does the verify-then-commit and the identical-halves count (HalfA == HalfB at the same
-    // pool → needs 2) for free, and stays silent so the fuse fires one signal (Equipped) below.
-    if (!CommitRemoveCrystals({{FusionId.HalfA, PoolForSlotting(FusionId.HalfA)},
-                               {FusionId.HalfB, PoolForSlotting(FusionId.HalfB)}}))
+    // Consume both halves atomically (the fuse) via the SILENT core — the component dispatches each
+    // half to Gems or Stones internally. The core does the verify-then-commit and the identical-halves
+    // count (HalfA == HalfB → needs 2) for free, and stays silent so the fuse fires one signal
+    // (Equipped) below.
+    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
     {
         return false;
     }
@@ -928,10 +897,9 @@ bool UInventoryComponent::AttachFusionToRing(FGuid RingPersistentID, FFusionId F
         return false;
     }
 
-    // Atomic both-halves consume via the SILENT core, each half naming its pool (see
-    // AttachFusionToWeapon). One signal below.
-    if (!CommitRemoveCrystals({{FusionId.HalfA, PoolForSlotting(FusionId.HalfA)},
-                               {FusionId.HalfB, PoolForSlotting(FusionId.HalfB)}}))
+    // Atomic both-halves consume via the SILENT core (component dispatches each half internally;
+    // see AttachFusionToWeapon). One signal below.
+    if (!CommitRemoveCrystals({FusionId.HalfA, FusionId.HalfB}))
     {
         return false;
     }
@@ -1172,7 +1140,7 @@ TArray<UEvolutionItemData *> UInventoryComponent::GetEvolutionCrystals() const
 
 // ==================== CRYSTAL / EVOLUTION FACADE ====================
 
-bool UInventoryComponent::AddCrystalItem(FCrystalId Id, int32 Count)
+bool UInventoryComponent::AddCrystal(FCrystalId Id, int32 Count)
 {
     UCrystalInventoryComponent *CrystalInv =
         GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
@@ -1180,7 +1148,7 @@ bool UInventoryComponent::AddCrystalItem(FCrystalId Id, int32 Count)
     {
         return false;
     }
-    const bool bAdded = CrystalInv->AddItemCount(Id, Count);
+    const bool bAdded = CrystalInv->AddCount(Id, Count);
     if (bAdded)
     {
         BroadcastInventoryChanged(EInventoryChangeType::Added);
@@ -1188,23 +1156,7 @@ bool UInventoryComponent::AddCrystalItem(FCrystalId Id, int32 Count)
     return bAdded;
 }
 
-bool UInventoryComponent::AddCrystalRefined(FCrystalId Id, int32 Count)
-{
-    UCrystalInventoryComponent *CrystalInv =
-        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
-    if (!CrystalInv)
-    {
-        return false;
-    }
-    const bool bAdded = CrystalInv->AddRefinedCount(Id, Count);
-    if (bAdded)
-    {
-        BroadcastInventoryChanged(EInventoryChangeType::Added);
-    }
-    return bAdded;
-}
-
-int32 UInventoryComponent::RemoveCrystalItem(FCrystalId Id, int32 Count)
+int32 UInventoryComponent::RemoveCrystal(FCrystalId Id, int32 Count)
 {
     UCrystalInventoryComponent *CrystalInv =
         GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
@@ -1212,23 +1164,7 @@ int32 UInventoryComponent::RemoveCrystalItem(FCrystalId Id, int32 Count)
     {
         return 0;
     }
-    const int32 Removed = CrystalInv->RemoveItemCount(Id, Count);
-    if (Removed > 0)
-    {
-        BroadcastInventoryChanged(EInventoryChangeType::Removed);
-    }
-    return Removed;
-}
-
-int32 UInventoryComponent::RemoveCrystalRefined(FCrystalId Id, int32 Count)
-{
-    UCrystalInventoryComponent *CrystalInv =
-        GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
-    if (!CrystalInv)
-    {
-        return 0;
-    }
-    const int32 Removed = CrystalInv->RemoveRefinedCount(Id, Count);
+    const int32 Removed = CrystalInv->RemoveCount(Id, Count);
     if (Removed > 0)
     {
         BroadcastInventoryChanged(EInventoryChangeType::Removed);
@@ -1388,32 +1324,20 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         }
     }
 
-    // ---------- Crystals (item / refined / evolution) ----------
-    // ItemCrystals → CrystalInv->AddItemCount per (Id, Count).
-    // RefinedCrystals → CrystalInv->AddRefinedCount per (Id, Count).
-    // EvolutionEquipment → EvolutionInv->AddInstance per entry.
-    // Sibling components are warned about above when missing; per-block
-    // guards surface the misconfig with the specific dropped data.
+    // ---------- Crystals / evolution ----------
+    // CrystalStock → CrystalInv->AddCount per (Id, Count); the component splits gem→Gems /
+    // stone→Stones by IsGemType. (The asset's PostLoad already folded the deprecated
+    // ItemCrystals + RefinedCrystals into CrystalStock, so one loop reads the merged stock.)
+    // EvolutionEquipment → EvolutionInv->AddInstance per entry. Sibling components are warned
+    // about above when missing; per-block guards surface the misconfig with the dropped data.
     if (CrystalInv)
     {
-        for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->ItemCrystals)
+        for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->CrystalStock)
         {
-            if (Pair.Value > 0 && !CrystalInv->AddItemCount(Pair.Key, Pair.Value))
+            if (Pair.Value > 0 && !CrystalInv->AddCount(Pair.Key, Pair.Value))
             {
                 UE_LOG(LogTemp, Warning,
-                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
-                       *CharacterData->Name,
-                       static_cast<int32>(Pair.Key.Type),
-                       static_cast<int32>(Pair.Key.Tier),
-                       Pair.Value);
-            }
-        }
-        for (const TPair<FCrystalId, int32> &Pair : InventoryAsset->RefinedCrystals)
-        {
-            if (Pair.Value > 0 && !CrystalInv->AddRefinedCount(Pair.Key, Pair.Value))
-            {
-                UE_LOG(LogTemp, Warning,
-                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): RefinedCrystals (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
+                       TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): CrystalStock (Type=%d, Tier=%d) count %d rejected (per-tier cap)"),
                        *CharacterData->Name,
                        static_cast<int32>(Pair.Key.Type),
                        static_cast<int32>(Pair.Key.Tier),
@@ -1421,10 +1345,10 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
             }
         }
     }
-    else if (InventoryAsset->ItemCrystals.Num() > 0 || InventoryAsset->RefinedCrystals.Num() > 0)
+    else if (InventoryAsset->CrystalStock.Num() > 0)
     {
         UE_LOG(LogTemp, Warning,
-               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): ItemCrystals/RefinedCrystals authored but UCrystalInventoryComponent missing — data dropped"),
+               TEXT("[InventoryComponent] InitializeFromInventoryAsset(%s): CrystalStock authored but UCrystalInventoryComponent missing — data dropped"),
                *CharacterData->Name);
     }
 
@@ -1573,10 +1497,9 @@ void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)
     {
         // Crystal pools are TMap<FCrystalId,int32> on both sides — structural parity, so a
         // direct map copy (assignment) is the whole-store transfer. ClearAll() above means
-        // assignment (not merge) is correct.
-        CrystalInv->GemItem = Pool->GetGemItem();
-        CrystalInv->GemRefined = Pool->GetGemRefined();
-        CrystalInv->StoneItem = Pool->GetStoneItem();
+        // assignment (not merge) is correct. Two pools now (gem-merge): Gems + Stones.
+        CrystalInv->Gems = Pool->GetGems();
+        CrystalInv->Stones = Pool->GetStones();
     }
     if (EvolutionInv)
     {
@@ -1771,9 +1694,8 @@ FString UInventoryComponent::GetInventoryInstanceString() const
                                        *TierHelpers::GetTierName(Pair.Key.Tier), Pair.Value);
             }
         };
-        EmitPool(CrystalInv->GemItem, TEXT("item"));
-        EmitPool(CrystalInv->GemRefined, TEXT("refined"));
-        EmitPool(CrystalInv->StoneItem, TEXT("item"));
+        EmitPool(CrystalInv->Gems, TEXT("gem"));
+        EmitPool(CrystalInv->Stones, TEXT("stone"));
     }
     else
     {

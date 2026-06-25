@@ -32,27 +32,29 @@ class WORLD_OF_REFRACTION_API UEconomyService : public UGameInstanceSubsystem
 
 public:
     /**
-     * Dismantle Count crystals/stones of Id from Owner's chosen pool (Item vs Refined per
-     * bRefined), granting typed essence per EconomyYield. Server-authoritative.
+     * Dismantle Count crystals/stones of Id from Owner's inventory, granting typed essence per
+     * EconomyYield. Server-authoritative. The pool (gem vs stone) is dispatched by Id.Type inside
+     * the component — there is no item/refined axis anymore (the gem-merge collapsed it).
      *
      * Order is REMOVE-then-GRANT: a failed/insufficient removal never grants phantom essence,
      * and the grant is sized to what was actually removed.
      *
      * Returns false if: Owner null / Count<=0; no authority; CrystalInventoryComponent or
-     * CurrencyComponent missing; insufficient count in the chosen pool; or removal returned 0.
+     * CurrencyComponent missing; insufficient count; or removal returned 0.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count = 1, bool bRefined = false);
+    bool DismantleCrystal(AActor *Owner, const FCrystalId &Id, int32 Count = 1);
 
     /**
      * Merge crystals/stones UP to a TARGET tier (§4.5, value-based): produce 1 of {Type, TargetTier}
      * by consuming same-Type crystals from BELOW it, lowest-first, until their summed F-unit value
      * (GetCrystalValue) meets-or-exceeds the target's value. Keyed by Type + TargetTier — the player
      * asks for "a [TargetTier] [Type]" and the merge picks which lower crystals to spend. Same Type
-     * (element+variant preserved), same pool. Costs Prisms (GetMergeCostForTier(TargetTier) — half
-     * the §5 buy price), no essence/Gold. Item-crystals + stones only; evolution crystals are
-     * structurally unrepresentable as FCrystalId so they can never reach this pool (only invalid
-     * Type is None).
+     * (element+variant preserved), one pool. Costs Prisms (GetMergeCostForTier(TargetTier) — half
+     * the §5 buy price), no essence/Gold. Gems + stones only; the pool (Gems vs Stones) is dispatched
+     * by Type inside the component — no item/refined axis (the gem-merge collapsed it). Evolution
+     * crystals are structurally unrepresentable as FCrystalId so they can never reach here (only
+     * invalid Type is None).
      *
      * Server-authoritative; spend+remove-first then add, with full refund if the add fails. Returns
      * false if: Owner null / no authority; CrystalInventory or Currency missing; Type is None;
@@ -60,7 +62,7 @@ public:
      * insufficient; Prisms unaffordable; or the target tier is at cap.
      */
     UFUNCTION(BlueprintCallable, Category = "Economy")
-    bool MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier, bool bRefined = false);
+    bool MergeCrystals(AActor *Owner, ECrystalType Type, EItemTier TargetTier);
 
     /**
      * Dismantle the owned WEAPON instance identified by PersistentID, granting GEAR essence
