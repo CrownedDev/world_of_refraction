@@ -28,10 +28,10 @@ struct WORLD_OF_REFRACTION_API FEvolutionAttachment
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     UEvolutionItemData *Item = nullptr;
 
-    /** Per-instance TIER — copied from the owning FEvolutionInventoryEntry at slot time (primary
-     *  slot, in FCombatLoadout inflation), or seeded from the asset for the weapon/ring-attached
-     *  form (no owned-instance source until the gear-attach op exists). Written-but-unread until
-     *  the i-b read repoint — the deferred budget/combat/display reads still use Item->Tier. */
+    /** Per-instance (leveled) TIER — copied from the owning FEvolutionInventoryEntry at slot time
+     *  (primary slot, in FCombatLoadout inflation), or seeded from the asset for the weapon/ring-
+     *  attached form (no owned-instance source until the gear-attach op exists). All slotted
+     *  budget/combat/display reads use THIS instance tier, NOT the asset Item->Tier. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Evolution")
     EItemTier Tier = EItemTier::F_Tier;
 

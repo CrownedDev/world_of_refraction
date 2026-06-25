@@ -226,16 +226,16 @@ The hub round-table has service NPCs gating maintenance/upgrade/removal. **Playe
 
 **Attachment-service organizing principle:** crystals split **by target gear** (Blacksmith=weapon-crystals, Jeweler=ring-crystals — each gear-smith owns their gear's crystals); stones → **one specialist** (Stone Smith, any target); **fusion → the Spiritualist** (folded in — evolution + fusion are both 'advanced augmentation'; no separate Fusion Smith). Crystals piggyback on the gear-smith who owns that gear; stones/fusion are distinct enough for dedicated smiths.
 
-**Crystal vs stone refining (domain model — VERIFIED against code):** "Refined" is a **GEM-only** concept (a gem's slottable form: raw gem → refined gem). **Stones never refine** — verified: nothing in code produces/reads a refined stone. So crystal storage splits **3 maps**: GemItem (raw), GemRefined (slottable), StoneItem (consumable stones). NO StoneRefined (dead — no producer/consumer).
-- **Consumable stones** (DamageStone/HealingStone/etc.) live in StoneItem (use-path).
-- **Attach-only stones** (AbilityStone, FusionStone) live in NEITHER map — they attach via **equipment authoring** (designed onto the asset, inflated by FromAttachedItem), not from an inventory pool.
+**Crystal storage (UPDATED — dual-purpose, post gem-merge 2026-06-25):** "Refining" is **CUT** (§13.5). Crystals are **dual-purpose** — one `Crystals` pool (gem-family, throw OR slot; slotting consumes) + one `Stones` pool (augment stones, slot-only). **2 pools, not 3** — the old GemItem/GemRefined raw-vs-refined split is gone (there was no refining mechanic; the split was pure bookkeeping). Stones never had a refined form (correct — unchanged).
+- **Throwable crystals** (gem-family) — one `Crystals` stack; throw-eligibility is `GetItemEffectType != None`.
+- **Augment stones** (AbilityStone etc.) — `Stones` stack; slot-only (no item effect → can't throw).
 
-**⚠️ KEY FINDING — refine→attach machinery is UNBUILT (gems AND stones):** there's currently NO runtime "refine a crystal" path and NO "attach from inventory pool onto gear" debit path. Gear attachments are AUTHORED on the equipment asset (seeded at creation), not pulled from inventory. RefinedCrystals is populated only by merge/authoring, consumed only by merge/dismantle — never by an equip-onto-gear path. **So the smith services below (refine crystals, attach to gear, stone-smith refining) are largely NEW systems to build, not existing wiring.**
+**⚠️ UPDATED — attach machinery is now BUILT (2026-06-25):** runtime crystal + fusion attach onto gear **shipped this session** — `AttachCrystalToWeapon/ToRing` + `AttachFusionToWeapon/ToRing` debit the pool and socket onto the gear instance (mirror the built evolution-attach). The atomic `RemoveCrystals`/`AddCrystals` batch primitive backs them (verify-then-commit, one signal). So the "attach-from-pool onto gear" gap is **CLOSED**. Refining is **CUT** (no raw→refined step — crystals are dual-purpose).
 
-**Smith services = new systems (scope honestly):**
-- **Crystal cut/refine** (raw gem → refined): a new RefineCrystal op (GemItem → GemRefined). Unbuilt.
-- **Attach-from-pool onto gear** (refined gem / stone → socketed on weapon/ring, debiting inventory): a new attach-debit path. Unbuilt (today attachments are authored-only).
-- **Stone-smith "refining"**: stones have NO refined form today — a stone refine-form would be a genuinely new mechanic if wanted (not "keep an existing map"). Optional future.
+**Smith services — UPDATED status:**
+- ~~Crystal cut/refine~~ — **CUT** (dual-purpose crystals; no refining step).
+- **Attach-from-pool onto gear** — ✅ **BUILT** (this session: crystal + fusion attach + atomic remove primitive). The smith's attach half is done at the backend; only the NPC/UI trigger remains.
+- ~~Stone-smith refining~~ — **CUT** (no refined form; dual-purpose makes it moot).
 
 **Spiritualist owns FUSION (folded in — decision):** the Spiritualist combines crystals/stones → a **fusion stone**, and attaches it (plus evolutions) to gear. Fusion stones are PLAYER-CREATED (you fuse 2 attachables you own), NOT looted. **The fusion MECHANIC is already built + Live** (FusionStones.md): valid pair = stat-stone + one contributor (crystal/stat-stone/ability-stone), never evolution; keeps both halves' effects + a tier-scaled bonus% to a chosen substat (formula (TierValue(A)+TierValue(B))/2); FFusionId identity, EAttachedItemKind::Fusion slot, half-essence break — all built. **Still open (the genuine gaps):** (1) the SPIRITUALIST as the fusion SERVICE/NPC interaction (the crafting action at a cost — "Phase 3 crafting"); (2) ring-mounted fusion stones (planned: a crystal-containing fusion stone allowed on rings; bare stat/ability stays weapon-only) — designed, not built.
 - ✅ RESOLVED: a fusion stone IS the player-created product of fusing 2 attachables (already built + Live — FusionStones.md). The Spiritualist performs the fusion.
@@ -243,12 +243,12 @@ The hub round-table has service NPCs gating maintenance/upgrade/removal. **Playe
 **⚠️ RUNTIME ATTACH-OP GAP (the connector NPC attach services need):** "If we had UI, is it plug-and-play?" — answer is MIXED, split by attachment type (verified):
 - ✅ **Evolution attach/detach is BUILT** — `UInventoryComponent::AttachEvolutionToWeapon`/`AttachEvolutionToRing` + remove variants exist. UI plug-and-play. (So the Spiritualist's EVOLUTION half works.)
 - ✅ **Crystal DETACH built** (`RemoveCrystalFromWeapon`/`Ring`); all loadout management built.
-- ❌ **Crystal ATTACH = GAP** — no runtime `AttachCrystal*`; `AttachedItem` is written only at build-time (`FromAttachedItem`). Socketing a crystal at runtime needs a new op.
-- ❌ **Fusion ATTACH = GAP** — no runtime `AttachFusion`. The Spiritualist attaching a FUSION STONE to gear has NO backend op to call yet. (The slot holds Fusion fine; nothing PUTS it there at runtime.)
-- ❌ **`OnInventoryChanged` delegate = GAP** — inventory broadcasts nothing on mutation; flagged "build FIRST" (the foundation signal UI/loot react to).
+- ✅ **Crystal ATTACH = BUILT** (2026-06-25) — `AttachCrystalToWeapon/ToRing` debit the `Crystals` pool and socket the gear instance. Stone ring-guard enforced inline.
+- ✅ **Fusion ATTACH = BUILT** (2026-06-25) — `AttachFusionToWeapon/ToRing` (fuse-and-socket: consume the two halves atomically, write the Fusion slot). Ring accepts elemental fusions, rejects augmented.
+- ✅ **`OnInventoryChanged` delegate = BUILT** (2026-06-25) — the foundation mutation signal; every grant/remove/equip/load broadcasts (Added/Removed/Equipped/Loaded). UI/loot bind it instead of polling.
 - **Authored pre-attach WORKS** (a weapon designed with a fusion/crystal baked in inflates via `FromAttachedItem`).
-- **Templated, not from-scratch:** the evolution attach methods are the TEMPLATE — crystal/fusion attach mirror them. Bounded build. Full runtime-gap catalogue lives in `InstanceBasedRuntimeLayer_Design.md` (wider codebase; this is the attach subset).
-- **So:** NPC attach services need crystal/fusion `Attach*` ops + `OnInventoryChanged` before UI can be plug-and-play. Evolution-attach is the one already done.
+- **Backed by the atomic batch primitive:** `RemoveCrystals`/`AddCrystals` (verify-then-commit, one signal) underpin the attach debits + merge consume.
+- **So:** the NPC attach SERVICES now have their full backend (evolution + crystal + fusion attach all built + `OnInventoryChanged`). Only the NPC/UI trigger layer remains.
 
 **Self-service (no NPC):** attaching an evolution to the **primary slot** (player clicks the evolution → confirmation → slotted). Everything else (level, remove, attach-to-gear) is NPC-gated.
 
@@ -354,24 +354,17 @@ Two growth currencies, **split by category** (both single scalars), each a per-c
 - **Build dependency:** the deconstruct *action* needs tier-on-instance (to read a dupe's current tier) + the skill collections — a **step-7 spend-layer feature**, not part of the currency-wallet build. The wallet only needs `AddEssence(pool, n)` (which it has); deconstruct calls it later.
 - **Guard:** the ½ spread keeps acquiring-and-keeping worthwhile vs scrap-everything — dismantling returns less than building, so you can't farm-scrap-rebuild for free value.
 
-### 3.1 Spiritualist Effect Crafting (designed — was "Effect Transfer")
+### 3.1 Gear effects — AUTHORED ONLY (player effect-crafting CUT)
 
-**Reframed:** NOT extraction-from-dismantle. It's a **Spiritualist crafting service** (their 3rd role: evolution + fusion + **effect crafting**) — the Spiritualist **rolls tiered effects onto your gear**.
+**Decision (reversed the earlier "Spiritualist Effect Crafting" design):** players do NOT add/craft/roll effects onto gear. **Effects are authored by the designer on the gear itself** — players work with what they're given. The gear IS the build; you don't assemble a buff bar.
 
-**The system:**
-- **Universal 4 effect slots per gear piece** — no gear ever exceeds 4. Slots are UNLOCKED (start 1 → up to 4) via **§8 account perks** (account-wide, like the gear-draft slots). Flat cap, not tier-driven.
-- **Effects are TIERED F-S** — a rolled effect arrives at a random tier; tier scales its strength (F=weak … S=strong). ⚠️ **NET-NEW:** effects have NO tier axis today (`FSkillEffect`/`UEffectDefinition` are untiered) — adding a tier to effects (so they roll/scale) is the one genuinely new piece this needs.
-- **Fixed catalog** — ANY authored effect can roll (no gear-type/element gating; the full effect pool is available to any gear).
-- **Pure-random gacha** — pay → roll → random effect at a random tier → slots into one of the gear's (up to 4) slots. **Rerollable** (don't like it → reroll).
-- **Currency: roll = GOLD, reroll = REALITY** (Reality is the reshape/reroll signature element — thematically the reroll currency across the game).
+**Why cut it:** authored gear effects ALREADY WORK (`UEquipmentDataBase::Effects` → `ApplyEquipmentEffects`, built) — zero new code needed. Cutting player-crafting removes a large system (AppliedBuffs per-instance storage + roll/reroll + effect-tier axis + the Spiritualist effect service) for a feature that added complexity + a balance risk (rolled effect-tiers on the 4.8× TIER_POWER curve could run hot). Designer-authored effects fit the curated/narrative identity (legendary kits with hand-crafted effects > gacha-rolled stat-soup), and let the designer control power directly. The long-tail sink it would've provided is covered by other sinks (leveling, perks, rerolls).
 
-**Sits on existing machinery:**
-- Lands in **`AppliedBuffs`** (the designed home — `InventorySystem_Design.md`'s `FItemInstance.AppliedBuffs`, "stamped effect snapshots"; now Spiritualist-stamped not shop-stamped).
-- Effect unit = **`UEffectDefinition`** (exists; has a `Price` hook already).
-- Stacking = the existing **def-identity merge** (same effect+state → merge; different → separate).
-- Roll = mirrors the existing **tier-roll / drop-curve** system.
+**What this CUTS (do not build):** `AppliedBuffs` (per-instance runtime effect storage, gap #8) · the Spiritualist effect-crafting service · effect-tier axis (effects gaining an F-S tier) · the roll/reroll (Gold/Reality) for effects.
 
-**Still open (smaller):** the effect-tier scaling rule (how F-S maps to an effect's magnitude — per-effect, or a universal multiplier?); reroll cost curve in Reality; whether a roll can target a slot or always fills the next open one. The SYSTEM is designed; these are tuning + the effect-tier-axis build.
+**What stays:** authored gear effects (`UEquipmentDataBase::Effects`, already firing via the built gather→apply machinery). The Spiritualist keeps its OTHER roles (evolution + fusion); only effect-crafting is cut.
+
+**Design rule — 4 effects max per gear piece:** a DESIGNER GUIDELINE (not a runtime cap) — don't author more than 4 effects on any one weapon/ring, to keep gear readable + bounded. No code enforcement needed (designer discipline).
 - **PIE-tunable:** the ½ spread (vs ⅓ for costlier scrapping); cumulative-to-tier (fairer) vs per-step (stingier) — locked at ½ × cumulative.
 
 **Tier-up cost (per step), partial-spend allowed:**
@@ -726,13 +719,12 @@ Permanent run-start advantages bought with Essence, surviving death. They **rais
 **Guard-rail:** keep floor-raisers small — especially the WSP head-start — or the run-axis (which resets on death) gets hollowed out by stacked perks.
 
 ### Slot-expansion tracks (the draft/gear capacity — this session)
-| Track               | Steps | Effect                                                                                   |
-| ------------------- | ----- | ---------------------------------------------------------------------------------------- |
-| **Weapon Slots**    | 1 → 5 | how many weapons each drafted loadout starts with                                        |
-| **Ring Slots**      | 2 → 5 | how many rings each drafted loadout starts with                                          |
-| **Evolution Slots** | 1 → 5 | how many evolutions each drafted loadout starts with                                     |
-| **Effect Slots**    | 1 → 4 | effect-craft slots PER GEAR PIECE (Spiritualist effect crafting, §3.1) — universal cap 4 |
-| **Vendor Return**   | 1 → 5 | items you can bank at the mid-trial vendor (partial-bank, §7)                            |
+| Track               | Steps | Effect                                                        |
+| ------------------- | ----- | ------------------------------------------------------------- |
+| **Weapon Slots**    | 1 → 5 | how many weapons each drafted loadout starts with             |
+| **Ring Slots**      | 2 → 5 | how many rings each drafted loadout starts with               |
+| **Evolution Slots** | 1 → 5 | how many evolutions each drafted loadout starts with          |
+| **Vendor Return**   | 1 → 5 | items you can bank at the mid-trial vendor (partial-bank, §7) |
 
 ### Run-start floor tracks
 | Track                   | Steps / Cap | Effect                                                                                                                               |
@@ -959,6 +951,32 @@ De-level your own gear in the hub → **partial essence refund.** Refund rule (L
 The meta-progression respec valve: over-invested, or one loadout dominant? Revert it, reclaim ½ the main essence, rebalance. **Build shape:** `UEconomyService::DowngradeWeapon/Ring/Spell/Ability` — the inverse of LevelUp*, reusing a shared revert core (lower instance .Tier one step, refund ½ step cost in the leveling essence type; no Reality refund). The matching pair to the level-up system.
 
 **Status: DESIGN LOCKED, DEFERRED.** A meaty mechanic (combat ability + weapon archetype + hub action + the per-target-type permanence rules + telegraph/cleanse). Build after the pool arc. Strengthens Reality's identity as the meta/reshape element across BOTH economy (level cost, rolls) AND combat (de-leveling).
+
+## 13.5 Crystals — GEMS DUAL-PURPOSE (gem item/refined split CUT)
+
+**Decision:** **GEMS become dual-purpose** — one gem, **thrown (consumed in combat) OR slotted (attached to gear)**, player's choice at point of use. The gem **item-vs-refined** split is **CUT**. **STONES are unchanged** — they stay slot-only (you can't throw a stone), in their own bucket.
+
+**Buckets: 3 → 2.**
+- Today (runtime): `GemItem` (throw) + `GemRefined` (slot) + `StoneItem` (slot-only) = **3 pools**.
+- After: **`Gems`** (one dual-purpose bucket — throw or slot) + **`Stones`** (slot-only, unchanged) = **2 pools**.
+- The two GEM buckets collapse into one; the Stone bucket is left alone (stones genuinely aren't dual-purpose).
+
+**Why:** there was **no refining mechanic** (PK-confirmed — no `RefineCrystal` op, no sink, no gate; the gem item/refined split was pure storage bookkeeping). So the split bought only the pre-sorting of gems into "ammo" vs "gear" at acquisition — needless friction. Collapsing it = one gem bucket, simpler merge (no `bRefined`), simpler model ("you have gems; throw or slot them").
+
+**Core rule — SLOTTING CONSUMES (locked):** slotting a gem **debits it from the Gems bucket** (one gem = one use; throw it OR wear it, not both). Preserves scarcity; matches built attach behavior (attach already debits; detach destroys — fungible, no GUID).
+
+**Cap:** each bucket keeps its own `CRYSTAL_PER_TIER_CAP` (20/tier). Because gems and stones stay SEPARATE buckets, a full gem shelf does NOT block stones (the 3→1 cap-collision worry doesn't apply — that was the everything-into-one model, not this). Net gem capacity goes 2×20→1×20 per tier (the two gem buckets merge); stones unchanged at 20/tier. The gem tightening (40→20 effective, since you no longer hold item+refined separately) is acceptable / intended — one bucket, one cap.
+
+**What this CUTS:**
+- The `GemRefined` pool — folded into the one `Gems` pool (was `GemItem` + `GemRefined`).
+- `MergeCrystals`'s `bRefined` selector for gems — one gem bucket, no item/refined axis.
+- The `ECrystalPool` pool-explicit machinery (just built, `a32d1bee`) — **mostly unwound**: with one gem bucket there's no gem item/refined ambiguity. **KEEP the atomic verify-then-commit BATCH** (fusion still consumes 2 halves atomically; merge still consumes a multi-crystal set) — revert to `FCrystalId`-only batch, drop the pool tag.
+
+**Eligibility stays property-based (clean):** throw-eligibility is already `GetItemEffectType(Id) != None` (stones → None → can't throw); slot-eligibility already property-based. So merging the gem buckets loses NO enforcement — dual-purpose falls out naturally.
+
+**Migration:** runtime is greenfield (run-scoped, no live saves) — just change the fields. The only persisted artifact is the authoring `UInventoryData` asset → `PostLoad` fold (LFS-safe, lossless, no re-authoring).
+
+**Blast radius (bigger than the inventory component):** the account pool (`UPoolSubsystem`) mirrors the same gem item/refined split + the draw copies map-by-map, so they collapse too. Clusters: core storage → facade/primitives → economy/loadout → account pool → authoring+migration.
 
 ## 14. Rolling stats — Reality essence as the roll currency
 

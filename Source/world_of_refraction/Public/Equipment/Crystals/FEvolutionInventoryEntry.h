@@ -36,9 +36,9 @@ struct WORLD_OF_REFRACTION_API FEvolutionInventoryEntry
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
     UEvolutionItemData *Item = nullptr;
 
-    /** Per-instance TIER — seeded from the evolution asset at acquisition, then MUTATED by the
-     *  future leveling action (asset Tier is the starting value / fallback). Reads still use the
-     *  asset Item->Tier until the cluster-2 repoint, so this is written-but-unread now. */
+    /** Per-instance TIER — seeded from the evolution asset at acquisition; the LevelUp/Downgrade
+     *  target (asset Tier is the starting value / fallback). Copied to the slotted FEvolutionAttachment
+     *  at FCombatLoadout inflation; slotted reads use that instance tier. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, SaveGame, Category = "Evolution")
     EItemTier Tier = EItemTier::F_Tier;
 
